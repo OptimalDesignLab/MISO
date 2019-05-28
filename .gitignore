@@ -1,0 +1,21 @@
+# ------------------------------------------------------------------------------
+# Ignore files that are generated from the repository sources by either building
+# the code or running it. These should be the same as the files erased by
+# `make distclean`.
+#
+# Also ignore OS-specific files like .DS_Store on Mac
+# ------------------------------------------------------------------------------
+
+# Object and library files
+*.o
+/libmach.*
+
+# Backup files
+*~
+
+# OS-specific: Mac
+*.dSYM
+.DS_Store
+
+# Editor files
+.vscode
