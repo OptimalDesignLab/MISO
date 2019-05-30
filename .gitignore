@@ -6,9 +6,10 @@
 # Also ignore OS-specific files like .DS_Store on Mac
 # ------------------------------------------------------------------------------
 
-# Object and library files
+# Object, binary, and library files
 *.o
 /libmach.*
+*.bin
 
 # Backup files
 *~
@@ -19,3 +20,6 @@
 
 # Editor files
 .vscode
+
+# Dependence folder
+.d
