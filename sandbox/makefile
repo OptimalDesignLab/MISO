@@ -19,7 +19,7 @@ all: $(BIN_SB)
 	@echo "Compiling \""$@"\" from \""$<"\""
 	@$(CXX) $(MACH_FLAGS) -o $(@) -c $(<) 
 
-%.bin : %.o
+%.bin : %.o ../libmach.a 
 	@echo "Compiling \""$@"\""
 	@$(CXX) $(MACH_FLAGS) $< -o $@ ../libmach.a $(MACH_LIBS)
 
