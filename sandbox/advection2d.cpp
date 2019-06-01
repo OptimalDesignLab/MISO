@@ -15,6 +15,13 @@ using namespace mach;
 */
 void velocity_function(const Vector &x, Vector &v);
 
+/*!
+* \brief Defines the initial condition
+* \param[in] x - coordinate of the point at which the velocity is needed
+* \param[out] u0 - scalar initial condition stored as a 1-vector
+*/
+void u0_function(const Vector &x, Vector& u0);
+
 int main(int argc, char *argv[])
 {
    // Parse command-line options
@@ -22,8 +29,9 @@ int main(int argc, char *argv[])
 
    try
    {
-      // Attempt to construct the solver
+      // construct the solver and set the initial condition
       AdvectionSolver solver(args, velocity_function);
+      solver.set_initial_condition(u0_function);
    }
    catch (MachException &exception)
    {
@@ -41,4 +49,21 @@ void velocity_function(const Vector &x, Vector &v)
    // be generalized.
    v(0) = 1.0;
    v(1) = 1.0;
+}
+
+// Initial condition
+void u0_function(const Vector &x, Vector& u0)
+{
+   u0.SetSize(1);
+   double r2 = pow(x(0) - 0.5, 2.0) + pow(x(1) - 0.5, 2.0);
+   r2 *= 4.0;
+   if (r2 > 1.0)
+   {
+      u0(0) = 1.0;
+   } 
+   else
+   {
+      // the following is an expansion of u = 1.0 - (r2 - 1.0).^5
+      u0(0) = 2 - 5*r2 + 10*pow(r2,2) - 10*pow(r2,3) + 5*pow(r2,4) - pow(r2,5);
+   }
 }

@@ -11,6 +11,28 @@ namespace mach
 {
 
 /*!
+ * \class AdvectionIntegrator
+ * \brief linear advection integrator specialized to SBP operators
+ */
+class AdvectionIntegrator : public BilinearFormIntegrator
+{
+private:
+#ifndef MFEM_THREAD_SAFE
+   DenseMatrix dshape, adjJ, Q_ir;
+   Vector shape, vec2, BdFidxT;
+#endif
+   VectorCoefficient &Q;
+   double alpha;
+
+public:
+   AdvectionIntegrator(VectorCoefficient &q, double a = 1.0)
+      : Q(q) { alpha = a; }
+   virtual void AssembleElementMatrix(const FiniteElement &,
+                                      ElementTransformation &,
+                                      DenseMatrix &);
+};
+
+/*!
  * \class AdvectionSolver
  * \brief Solver for linear advection problems
  */

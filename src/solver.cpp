@@ -59,8 +59,17 @@ AbstractSolver::AbstractSolver(OptionsParser &args)
 AbstractSolver::~AbstractSolver() 
 {
    cout << "Deleting Abstract Solver..." << endl;
-   delete mesh;
-   mesh = NULL;
+   delete u;
+   delete mesh; mesh = NULL;
 }
+
+void AbstractSolver::set_initial_condition(
+   void (*u_init)(const Vector &, Vector &))
+{
+   // TODO: Need to verify that this is ok for scalar fields
+   VectorFunctionCoefficient u0(num_state, u_init);
+   u->ProjectCoefficient(u0);
+}
+
 
 } // namespace mach

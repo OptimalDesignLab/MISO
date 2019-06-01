@@ -28,8 +28,18 @@ public:
    */
    ~AbstractSolver();
 
+   /*!
+   * \brief initialize the state variable to given function
+   * \param[in] u_init - function that defines the velocity field
+   * 
+   * \note The second argument in the function u0 is the initial condition
+   * value.  This may be a vector of length 1 for scalar.
+   */
+   void set_initial_condition(void (*u_init)(const Vector &, Vector &));
+
 protected:
-   int num_state; ///< number of state variables at each node
+   int num_state = 0; ///< number of state variables at each node
+   GridFunction *u; ///< state variable 
    Mesh *mesh = NULL; ///< object defining the computational mesh
    ODESolver *ode_solver = NULL; ///< time-marching method (NULL if steady)
    FiniteElementCollection *fec; ///< finite element or SBP operators
