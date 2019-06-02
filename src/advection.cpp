@@ -1,5 +1,8 @@
 #include "advection.hpp"
 
+using namespace mfem;
+using namespace std;
+
 namespace mach
 {
 

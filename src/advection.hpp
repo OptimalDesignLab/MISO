@@ -4,9 +4,6 @@
 #include "mfem.hpp"
 #include "solver.hpp"
 
-using namespace std;  // TODO: needed?
-using namespace mfem;
-
 namespace mach
 {
 
@@ -14,22 +11,22 @@ namespace mach
  * \class AdvectionIntegrator
  * \brief linear advection integrator specialized to SBP operators
  */
-class AdvectionIntegrator : public BilinearFormIntegrator
+class AdvectionIntegrator : public mfem::BilinearFormIntegrator
 {
 private:
 #ifndef MFEM_THREAD_SAFE
-   DenseMatrix dshape, adjJ, Q_ir;
-   Vector shape, vec2, BdFidxT;
+   mfem::DenseMatrix dshape, adjJ, Q_ir;
+   mfem::Vector shape, vec2, BdFidxT;
 #endif
-   VectorCoefficient &Q;
+   mfem::VectorCoefficient &Q;
    double alpha;
 
 public:
-   AdvectionIntegrator(VectorCoefficient &q, double a = 1.0)
+   AdvectionIntegrator(mfem::VectorCoefficient &q, double a = 1.0)
       : Q(q) { alpha = a; }
-   virtual void AssembleElementMatrix(const FiniteElement &,
-                                      ElementTransformation &,
-                                      DenseMatrix &);
+   virtual void AssembleElementMatrix(const mfem::FiniteElement &,
+                                      mfem::ElementTransformation &,
+                                      mfem::DenseMatrix &);
 };
 
 /*!
@@ -44,11 +41,11 @@ public:
    * \param[in] args - contains options read in from the command line
    * \param[in] vel_field - function that defines the velocity field
    */
-   AdvectionSolver(OptionsParser &args,
-                   void (*vel_field)(const Vector &, Vector &));
+   AdvectionSolver(mfem::OptionsParser &args,
+                   void (*vel_field)(const mfem::Vector &, mfem::Vector &));
 
 protected:
-   VectorFunctionCoefficient *velocity = NULL; ///< the velocity field
+   mfem::VectorFunctionCoefficient *velocity = NULL; ///< the velocity field
 
 };
     

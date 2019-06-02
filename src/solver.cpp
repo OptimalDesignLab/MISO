@@ -1,5 +1,8 @@
 #include "solver.hpp"
 
+using namespace std;
+using namespace mfem;
+
 namespace mach
 {
 
@@ -59,7 +62,7 @@ AbstractSolver::AbstractSolver(OptionsParser &args)
 AbstractSolver::~AbstractSolver() 
 {
    cout << "Deleting Abstract Solver..." << endl;
-   delete u;
+   delete u; u = NULL;
    delete mesh; mesh = NULL;
 }
 
