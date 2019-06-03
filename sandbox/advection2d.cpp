@@ -30,9 +30,11 @@ int main(int argc, char *argv[])
 
    try
    {
-      // construct the solver and set the initial condition
+      // construct the solver, set the initial condition, and solve
       AdvectionSolver solver(args, velocity_function);
       solver.set_initial_condition(u0_function);
+      solver.solve_for_state();
+
    }
    catch (MachException &exception)
    {

@@ -1,3 +1,5 @@
+#include <fstream>
+#include <iostream>
 #include "solver.hpp"
 
 using namespace std;
@@ -23,6 +25,12 @@ AbstractSolver::AbstractSolver(OptionsParser &args)
                   "            3 - RK3 SSP,\n\t"
                   "            4 - RK4 (default),\n\t"
                   "            6 - RK6.");
+   t_final = 10.0;
+   args.AddOption(&t_final, "-tf", "--t-final",
+                  "Final time; start time is 0.");
+   dt = 0.01;
+   args.AddOption(&dt, "-dt", "--time-step",
+                  "Time step.");               
    args.Parse();
    if (!args.Good())
    {
@@ -72,5 +80,49 @@ void AbstractSolver::set_initial_condition(
    u->ProjectCoefficient(u0);
 }
 
+void AbstractSolver::solve_for_state()
+{
+   // TODO: This is not general enough.
+
+   double t = 0.0;
+   evolver->SetTime(t);
+   ode_solver->Init(*evolver);
+
+   bool done = false;
+   for (int ti = 0; !done; )
+   {
+      double dt_real = min(dt, t_final - t);
+      ode_solver->Step(*u, t, dt_real);
+      ti++;
+
+      done = (t >= t_final - 1e-8*dt);
+
+/*       if (done || ti % vis_steps == 0)
+      {
+         cout << "time step: " << ti << ", time: " << t << endl;
+
+         if (visualization)
+         {
+            sout << "solution\n" << mesh << u << flush;
+         }
+
+         if (visit)
+         {
+            dc->SetCycle(ti);
+            dc->SetTime(t);
+            dc->Save();
+         }
+      } */
+   }
+
+   // Save the final solution. This output can be viewed later using GLVis:
+   // glvis -m unitGridTestMesh.msh -g adv-final.gf".
+   int precision = 8;
+   {
+      ofstream osol("adv-final.gf");
+      osol.precision(precision);
+      u->Save(osol);
+   }
+}
 
 } // namespace mach

@@ -14,7 +14,7 @@ all: $(BIN_SB)
 
 # NOTE: the object files are intermediate in the chain from .cpp to .bin, so
 # Make deletes them at the end
-
+%.o : %.cpp 
 %.o : %.cpp makefile
 	@echo "Compiling \""$@"\" from \""$<"\""
 	@$(CXX) $(MACH_FLAGS) -o $(@) -c $(<) 

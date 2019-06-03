@@ -1,4 +1,5 @@
 #include "advection.hpp"
+#include "linear_evolver.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -87,6 +88,9 @@ AdvectionSolver::AdvectionSolver(OptionsParser &args,
    static_cast<BilinearForm*>(res.get())->Assemble(skip_zeros);
    static_cast<BilinearForm*>(res.get())->Finalize(skip_zeros);
 
+   // define the time-dependent operator
+   evolver.reset(new Linear_Evolver(mass->SpMat(),
+                 static_cast<BilinearForm*>(res.get())->SpMat()));
 }
 
 }

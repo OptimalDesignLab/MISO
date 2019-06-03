@@ -45,7 +45,6 @@ public:
                    void (*vel_field)(const mfem::Vector &, mfem::Vector &));
 
 protected:
-
    /// the velocity field
    std::unique_ptr<mfem::VectorFunctionCoefficient> velocity;
 

@@ -35,10 +35,20 @@ public:
    void set_initial_condition(
       void (*u_init)(const mfem::Vector &, mfem::Vector &));
 
-protected:
+   /*!
+   * \brief Solve for the state variables based on current mesh, solver, etc.
+   */
+   void solve_for_state();
 
+protected:
    /// number of state variables at each node
    int num_state = 0;
+
+   /// time step size
+   double dt;
+
+   /// final time
+   double t_final;
 
    /// state variable
    std::unique_ptr<mfem::GridFunction> u; 
@@ -60,6 +70,10 @@ protected:
 
    /// operator for spatial residual (linear in some cases)
    std::unique_ptr<mfem::Operator> res;
+
+   /// TimeDependentOperator (TODO: is this the best way?)
+   std::unique_ptr<mfem::TimeDependentOperator> evolver;
+
 };
     
 } // namespace mach
