@@ -34,7 +34,7 @@ AbstractSolver::AbstractSolver(OptionsParser &args)
 
    // Read the mesh from the given mesh file. We can handle geometrically
    // periodic meshes in this code.
-   mesh = new Mesh(mesh_file, 1, 1);
+   mesh.reset(new Mesh(mesh_file, 1, 1));
    int dim = mesh->Dimension();
    cout << "problem space dimension = " << dim << endl;
 
@@ -42,11 +42,11 @@ AbstractSolver::AbstractSolver(OptionsParser &args)
    ode_solver = NULL;
    switch (ode_solver_type)
    {
-      case 1: ode_solver = new ForwardEulerSolver; break;
-      case 2: ode_solver = new RK2Solver(1.0); break;
-      case 3: ode_solver = new RK3SSPSolver; break;
-      case 4: ode_solver = new RK4Solver; break;
-      case 6: ode_solver = new RK6Solver; break;
+      case 1: ode_solver.reset(new ForwardEulerSolver); break;
+      case 2: ode_solver.reset(new RK2Solver(1.0)); break;
+      case 3: ode_solver.reset(new RK3SSPSolver); break;
+      case 4: ode_solver.reset(new RK4Solver); break;
+      case 6: ode_solver.reset(new RK6Solver); break;
       default:
          throw MachException("Unknown ODE solver type " + to_string(ode_solver_type));
          // TODO: parallel exit
@@ -56,14 +56,12 @@ AbstractSolver::AbstractSolver(OptionsParser &args)
 
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
-   fec = new C_SBPCollection(degree, dim);
+   fec.reset(new C_SBPCollection(degree, dim));
 }
 
 AbstractSolver::~AbstractSolver() 
 {
    cout << "Deleting Abstract Solver..." << endl;
-   delete u; u = NULL;
-   delete mesh; mesh = NULL;
 }
 
 void AbstractSolver::set_initial_condition(

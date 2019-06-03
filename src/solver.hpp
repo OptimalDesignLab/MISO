@@ -36,14 +36,30 @@ public:
       void (*u_init)(const mfem::Vector &, mfem::Vector &));
 
 protected:
-   int num_state = 0; ///< number of state variables at each node
-   mfem::GridFunction *u; ///< state variable 
-   mfem::Mesh *mesh = NULL; ///< object defining the computational mesh
-   mfem::ODESolver *ode_solver = NULL; ///< time-marching method
-   mfem::FiniteElementCollection *fec; ///< finite element or SBP operators
-   mfem::FiniteElementSpace *fes; ///< discrete function space
-   mfem::BilinearForm *mass = NULL; ///< the mass matrix bilinear form
-   mfem::Operator *res = NULL; ///< spatial residual form (linear in some cases)
+
+   /// number of state variables at each node
+   int num_state = 0;
+
+   /// state variable
+   std::unique_ptr<mfem::GridFunction> u; 
+
+   /// object defining the computational mesh
+   std::unique_ptr<mfem::Mesh> mesh;
+
+   /// time-marching method (might be NULL)
+   std::unique_ptr<mfem::ODESolver> ode_solver;
+
+   /// finite element or SBP operators
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+
+   /// discrete function space
+   std::unique_ptr<mfem::FiniteElementSpace> fes;
+
+   /// the mass matrix bilinear form
+   std::unique_ptr<mfem::BilinearForm> mass;
+
+   /// operator for spatial residual (linear in some cases)
+   std::unique_ptr<mfem::Operator> res;
 };
     
 } // namespace mach

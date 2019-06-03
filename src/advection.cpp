@@ -65,27 +65,27 @@ AdvectionSolver::AdvectionSolver(OptionsParser &args,
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction
    num_state = 1;
-   fes = new FiniteElementSpace(mesh, fec);  // TODO: handle parallel case
-   u = new GridFunction(fes);
+   fes.reset(new FiniteElementSpace(mesh.get(), fec.get()));  // TODO: handle parallel case
+   u.reset(new GridFunction(fes.get()));
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 
    // set up the mass matrix
-   mass = new BilinearForm(fes);
+   mass.reset(new BilinearForm(fes.get()));
    mass->AddDomainIntegrator(new MassIntegrator);
    mass->Assemble();
    mass->Finalize();
 
    // set up the stiffness matrix
-   velocity = new VectorFunctionCoefficient(mesh->Dimension(), vel_field);
-   res = new BilinearForm(fes);
-   static_cast<BilinearForm*>(res)->AddDomainIntegrator(
+   velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
+   res.reset(new BilinearForm(fes.get()));
+   static_cast<BilinearForm*>(res.get())->AddDomainIntegrator(
       new AdvectionIntegrator(*velocity, -1.0));
    // TODO: need to add an integrator for LPS 
 
    int skip_zeros = 0;
-   static_cast<BilinearForm*>(res)->Assemble(skip_zeros);
-   static_cast<BilinearForm*>(res)->Finalize(skip_zeros);
+   static_cast<BilinearForm*>(res.get())->Assemble(skip_zeros);
+   static_cast<BilinearForm*>(res.get())->Finalize(skip_zeros);
 
 }
 
