@@ -27,13 +27,21 @@ public:
 
    /*!
    * \brief initialize the state variable to given function
-   * \param[in] u_init - function that defines the velocity field
+   * \param[in] u_init - function that defines the initial condition
    * 
-   * \note The second argument in the function u0 is the initial condition
+   * \note The second argument in the function `u_init` is the initial condition
    * value.  This may be a vector of length 1 for scalar.
    */
    void set_initial_condition(
       void (*u_init)(const mfem::Vector &, mfem::Vector &));
+
+   /*!
+   * \brief returns the L2 error between the state `u` and given exact solution
+   * \param[in] u_exact - function that defines the exact solution
+   * \returns L2 error
+   */
+   double compute_L2_error(
+      void (*u_exact)(const mfem::Vector &, mfem::Vector &));
 
    /*!
    * \brief Solve for the state variables based on current mesh, solver, etc.

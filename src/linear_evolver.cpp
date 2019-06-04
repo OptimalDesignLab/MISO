@@ -11,12 +11,15 @@ Linear_Evolver::Linear_Evolver(SparseMatrix &mass, SparseMatrix &stiff) //, cons
 {
     // Here we extract the diagonal from the mass matrix and invert it
     M.GetDiag(z);
+    cout << "minimum of z = " << z.Min() << endl;
+    cout << "maximum of z = " << z.Max() << endl;
     ElementInv(z, Minv);
 }
 
 void Linear_Evolver::Mult(const Vector &x, Vector &y) const
 {
    // y = M^{-1} (K x)
+   //HadamardProd(Minv, x, y);
    K.Mult(x, z);
    HadamardProd(Minv, z, y);
 }

@@ -1,4 +1,5 @@
 #include "advection.hpp"
+#include "diag_mass_integ.hpp"
 #include "linear_evolver.hpp"
 
 using namespace mfem;
@@ -66,14 +67,15 @@ AdvectionSolver::AdvectionSolver(OptionsParser &args,
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction
    num_state = 1;
-   fes.reset(new FiniteElementSpace(mesh.get(), fec.get()));  // TODO: handle parallel case
+   //fes.reset(new FiniteElementSpace(mesh.get(), fec.get()));  // TODO: handle parallel case
+   fes.reset(new FiniteElementSpace(mesh.get(), fec.get(), num_state, Ordering::byVDIM)); 
    u.reset(new GridFunction(fes.get()));
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 
    // set up the mass matrix
    mass.reset(new BilinearForm(fes.get()));
-   mass->AddDomainIntegrator(new MassIntegrator);
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
    mass->Assemble();
    mass->Finalize();
 

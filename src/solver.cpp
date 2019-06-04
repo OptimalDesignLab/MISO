@@ -11,7 +11,8 @@ namespace mach
 AbstractSolver::AbstractSolver(OptionsParser &args)
 {
    // references to options here
-   const char *mesh_file = "unitGridTestMesh.msh";
+   //const char *mesh_file = "unitGridTestMesh.msh";
+   const char *mesh_file = "periodic-unit-square-tri.mesh"; 
    args.AddOption(&mesh_file, "-m", "--mesh",
                   "Mesh file to use.");
    int degree = 1;
@@ -80,6 +81,13 @@ void AbstractSolver::set_initial_condition(
    u->ProjectCoefficient(u0);
 }
 
+double AbstractSolver::compute_L2_error(
+   void (*u_exact)(const Vector &, Vector &))
+{
+   VectorFunctionCoefficient ue(num_state, u_exact);
+   return u->ComputeL2Error(ue);
+}
+
 void AbstractSolver::solve_for_state()
 {
    // TODO: This is not general enough.
@@ -87,6 +95,18 @@ void AbstractSolver::solve_for_state()
    double t = 0.0;
    evolver->SetTime(t);
    ode_solver->Init(*evolver);
+
+   // output the mesh and initial condition
+   // TODO: need to swtich to vtk for SBP
+   int precision = 8;
+   {
+      ofstream omesh("adv.mesh");
+      omesh.precision(precision);
+      mesh->Print(omesh);
+      ofstream osol("adv-init.gf");
+      osol.precision(precision);
+      u->Save(osol);
+   }
 
    bool done = false;
    for (int ti = 0; !done; )
@@ -117,7 +137,6 @@ void AbstractSolver::solve_for_state()
 
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
-   int precision = 8;
    {
       ofstream osol("adv-final.gf");
       osol.precision(precision);
