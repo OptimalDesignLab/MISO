@@ -40,7 +40,7 @@ public:
    * \param[in] u_exact - function that defines the exact solution
    * \returns L2 error
    */
-   double compute_L2_error(
+   double calc_L2_error(
       void (*u_exact)(const mfem::Vector &, mfem::Vector &));
 
    /*!
@@ -58,8 +58,14 @@ protected:
    /// final time
    double t_final;
 
+   /// mapping Jacobian at each node in the mesh
+   std::unique_ptr<mfem::GridFunction> dxidx;
+
+   /// Determinant of the mapping Jacobian
+   std::unique_ptr<mfem::GridFunction> jac;
+
    /// state variable
-   std::unique_ptr<mfem::GridFunction> u; 
+   std::unique_ptr<mfem::GridFunction> u;
 
    /// object defining the computational mesh
    std::unique_ptr<mfem::Mesh> mesh;
@@ -81,7 +87,7 @@ protected:
 
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
-
+   
 };
     
 } // namespace mach

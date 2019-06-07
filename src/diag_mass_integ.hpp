@@ -9,8 +9,6 @@ namespace mach
 /*!
  * \class DiagMassIntegrator
  * \brief Integrator for diagonal mass matrices that arise in SBP discretizations
- * 
- * These assume the use of vector unknowns, even for scalar PDEs.
  */
 class DiagMassIntegrator : public mfem::BilinearFormIntegrator
 {

@@ -16,17 +16,17 @@ void DiagMassIntegrator::AssembleElementMatrix(
    elmat = 0.0;
    double norm;
    // loop over the nodes of the SBP element
-   for (int n = 0; n < num_nodes; n++)
+   for (int i = 0; i < num_nodes; i++)
    {
       // get the Jacobian (Trans.Weight) and cubature weight (node.weight)
-      const IntegrationPoint &node = ir.IntPoint(n);
+      const IntegrationPoint &node = ir.IntPoint(i);
       Trans.SetIntPoint(&node);
       norm = node.weight * Trans.Weight();
       for (int k = 0; k < num_state; k++)
       {
          // Insert diagoan entries for each state
          // TODO: This assumes states are ordered fastest; 
-         elmat(n*num_state + k, n*num_state + k) = norm; 
+         elmat(i*num_state + k, i*num_state + k) = norm; 
       }
    }
 }

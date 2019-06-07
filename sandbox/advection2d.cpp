@@ -34,10 +34,10 @@ int main(int argc, char *argv[])
       AdvectionSolver solver(args, velocity_function);
       solver.set_initial_condition(u0_function);
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver.compute_L2_error(u0_function) << '\n' << endl;      
+                << solver.calc_L2_error(u0_function) << '\n' << endl;      
       solver.solve_for_state();
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver.compute_L2_error(u0_function) << '\n' << endl;
+                << solver.calc_L2_error(u0_function) << '\n' << endl;
 
    }
    catch (MachException &exception)

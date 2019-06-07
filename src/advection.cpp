@@ -8,25 +8,16 @@ using namespace std;
 namespace mach
 {
 
-// TODO: this is just a copy of ConvectionIntegrator; need to specialize still
-//
-// We may need our own ElementTransformation, or something, since it makes more
-// sense for us to precompute the transformation Jacobian, especially in 3D.
-// Alternatively, we can pass a reference to the Jacobian (at each node) into
-// the constructor for the Integrator?  But it won't know which element...
-// Look at using IsoparametricTransformation as a model.  Note, we can use the
-// same projection operators needed for LPS to project the inverse Jacobian onto
-// the desired space.
+#if 0
 void AdvectionIntegrator::AssembleElementMatrix(
    const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
 {
    int nd = el.GetDof();
    int dim = el.GetDim();
 
-#ifdef MFEM_THREAD_SAFE
-   DenseMatrix dshape, adjJ, Q_ir;
+   DenseMatrix dshape, Q_ir;
    Vector shape, vec2, BdFidxT;
-#endif
+
    elmat.SetSize(nd);
    dshape.SetSize(nd,dim);
    adjJ.SetSize(dim);
@@ -37,9 +28,7 @@ void AdvectionIntegrator::AssembleElementMatrix(
    Vector vec1;
 
    const IntegrationRule *ir = &el.GetNodes();
-
-   // Evaluate the velocity at the integration points; Q_ir is dim x num_nodes
-   Q.Eval(Q_ir, Trans, *ir);
+   vel_coeff.Eval(Q_ir, Trans, *ir);
 
    elmat = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -58,7 +47,50 @@ void AdvectionIntegrator::AssembleElementMatrix(
 
       AddMultVWt(shape, BdFidxT, elmat);
    }
+   cout << "Element matrix for element " << Trans.ElementNo << endl;
+   elmat.Print(cout);
+   cout << endl;
 }
+#else
+void AdvectionIntegrator::AssembleElementMatrix(
+   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
+{
+   int num_nodes = el.GetDof();
+   int dim = el.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix vel, velhat, adjJ, D;
+   Vector vel_i, velhat_i, Udi, H;
+#endif
+   elmat.SetSize(num_nodes);
+   velhat.SetSize(dim, num_nodes); // scaled velocity in reference space
+   adjJ.SetSize(dim); // adjJ = |J|*dxi/dx = adj(dx/dxi)
+   Vector vel_i; // reference to vel at a node
+   Vector velhat_i; // reference to velhat at a node
+   Udi.SetSize(num_nodes); // reference to one component of velhat at all nodes
+   static_cast<const SBP_TriangleElement&>(el).GetDiagNorm(H); // extract norm
+
+   // Evaluate the velocity at the nodes and get the velocity in reference space
+   // vel and velhat are dim x num_nodes
+   vel_coeff.Eval(vel, Trans, el.GetNodes());
+   for (int i = 0; i < num_nodes; i++)
+   {
+      vel.GetColumnReference(i, vel_i);
+      velhat.GetColumnReference(i, velhat_i);
+      CalcAdjugate(Trans.Jacobian(), adjJ);
+      adjJ.Mult(vel_i, velhat_i);
+   }
+   // loop over the reference space dimensions and sum (transposed) operators
+   elmat = 0.0;
+   for (int di = 0; di < el.GetDim(); di++)
+   {
+      static_cast<const SBP_TriangleElement&>(el).GetOperator(di, D, true);
+      velhat.GetRow(di, Udi);
+      D.RightScaling(H); // This makes D_{di}^T = Q_{di}^T
+      D.RightScaling(Udi); // This makes Q_{di}^T * diag(Udi)
+      elmat.Add(alpha, D);
+   }
+}
+#endif
 
 AdvectionSolver::AdvectionSolver(OptionsParser &args,
                                  void (*vel_field)(const Vector &, Vector &))

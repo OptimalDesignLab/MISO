@@ -8,25 +8,50 @@ namespace mach
 {
 
 /*!
- * \class AdvectionIntegrator
- * \brief linear advection integrator specialized to SBP operators
- */
+* \class AdvectionIntegrator
+* \brief Linear advection integrator specialized to SBP operators
+*/
 class AdvectionIntegrator : public mfem::BilinearFormIntegrator
 {
+public:
+
+   /*!
+   * \brief Constructs a linear advection integrator
+   * \param[in] velc - represents the (possibly) spatially varying velocity
+   * \param[in] alpha - scales the terms; can be used to move from lhs to rhs
+   */
+   AdvectionIntegrator(mfem::VectorCoefficient &velc, double a = 1.0)
+      : vel_coeff(velc) { alpha = a; }
+
+   /*!
+   * \brief Create the element stiffness matrix for linear advection
+   * \param[in] el - the finite element whose stiffness matrix we want
+   * \param[in] Trans - defines the reference to physical element mapping
+   * \param[out] elmat - the desired element stiffness matrix
+   */
+   virtual void AssembleElementMatrix(const mfem::FiniteElement &el,
+                                      mfem::ElementTransformation &Trans,
+                                      mfem::DenseMatrix &elmat);
+
 private:
 #ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix dshape, adjJ, Q_ir;
-   mfem::Vector shape, vec2, BdFidxT;
+   /// velocity in physical space
+   mfem::DenseMatrix vel;
+   /// scaled velocity in reference space
+   mfem::DenseMatrix velhat;
+   /// adjJ = |J|*dxi/dx = adj(dx/dxi)
+   mfem::DenseMatrix adjJ;
+   /// Storage for derivative operators
+   mfem::DenseMatrix D;
+   /// Storage for the diagonal norm matrix
+   mfem::Vector H;
+   /// reference to one component of velhat at all nodes
+   mfem::Vector Udi;
 #endif
-   mfem::VectorCoefficient &Q;
+   /// represents the (possibly) spatially varying velocity field
+   mfem::VectorCoefficient &vel_coeff;
+   /// scales the terms; can be used to move to rhs/lhs
    double alpha;
-
-public:
-   AdvectionIntegrator(mfem::VectorCoefficient &q, double a = 1.0)
-      : Q(q) { alpha = a; }
-   virtual void AssembleElementMatrix(const mfem::FiniteElement &,
-                                      mfem::ElementTransformation &,
-                                      mfem::DenseMatrix &);
 };
 
 /*!

@@ -81,7 +81,7 @@ void AbstractSolver::set_initial_condition(
    u->ProjectCoefficient(u0);
 }
 
-double AbstractSolver::compute_L2_error(
+double AbstractSolver::calc_L2_error(
    void (*u_exact)(const Vector &, Vector &))
 {
    VectorFunctionCoefficient ue(num_state, u_exact);
