@@ -15,7 +15,6 @@ namespace mach
 class DiagMassIntegrator : public mfem::BilinearFormIntegrator
 {
 public:
-
    /*!
    * \brief Construct a diagonal-mass matrix integrator
    * \param[in] nvar - number of state variables

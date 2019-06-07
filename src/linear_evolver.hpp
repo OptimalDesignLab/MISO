@@ -5,7 +5,6 @@
 
 namespace mach
 {
-
 class Linear_Evolver : public mfem::TimeDependentOperator
 {
 public:
@@ -15,7 +14,6 @@ public:
    * \param[in] K - stiffness matrix
    */
    Linear_Evolver(mfem::SparseMatrix &M, mfem::SparseMatrix &K); //, const Vector &_b);
-
    /*!
    * \brief Applies the action of the linear-evolution operator on `x`
    * \param[in] x - `Vector` that is being multiplied by operator
