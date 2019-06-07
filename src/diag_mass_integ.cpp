@@ -5,7 +5,6 @@ using namespace std;
 
 namespace mach
 {
-
 void DiagMassIntegrator::AssembleElementMatrix(
     const FiniteElement &el, ElementTransformation &Trans,
     DenseMatrix &elmat)
@@ -30,5 +29,4 @@ void DiagMassIntegrator::AssembleElementMatrix(
       }
    }
 }
-
 }

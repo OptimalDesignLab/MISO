@@ -72,7 +72,6 @@ public:
 protected:
    /// the velocity field
    std::unique_ptr<mfem::VectorFunctionCoefficient> velocity;
-
 };
     
 } // namespace mach
