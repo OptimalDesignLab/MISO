@@ -73,7 +73,7 @@ AbstractSolver::~AbstractSolver()
    cout << "Deleting Abstract Solver..." << endl;
 }
 
-void AbstractSolver::set_initial_condition(
+void AbstractSolver::setInitialCondition(
    void (*u_init)(const Vector &, Vector &))
 {
    // TODO: Need to verify that this is ok for scalar fields
@@ -81,14 +81,14 @@ void AbstractSolver::set_initial_condition(
    u->ProjectCoefficient(u0);
 }
 
-double AbstractSolver::calc_L2_error(
+double AbstractSolver::calcL2Error(
    void (*u_exact)(const Vector &, Vector &))
 {
    VectorFunctionCoefficient ue(num_state, u_exact);
    return u->ComputeL2Error(ue);
 }
 
-void AbstractSolver::solve_for_state()
+void AbstractSolver::solveForState()
 {
    // TODO: This is not general enough.
 

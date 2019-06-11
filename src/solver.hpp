@@ -3,6 +3,7 @@
 
 #include "mfem.hpp"
 #include "utils.hpp"
+#include "json.hpp"
 
 namespace mach
 {
@@ -34,6 +35,8 @@ public:
    void solveForState();
 
 protected:
+   /// solver options
+   nlohmann::json options; 
    /// number of state variables at each node
    int num_state = 0;
    /// time step size
