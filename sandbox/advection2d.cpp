@@ -27,11 +27,21 @@ int main(int argc, char *argv[])
 {
    // Parse command-line options
    OptionsParser args(argc, argv);
+   const char *options_file = "mach_options.json";
+   args.AddOption(&options_file, "-o", "--options",
+                  "Options file to use.");
+   args.Parse();
+   if (!args.Good())
+   {
+      args.PrintUsage(cout);
+      return 1;
+   }
 
    try
    {
       // construct the solver, set the initial condition, and solve
-      AdvectionSolver solver(args, velocity_function);
+      string opt_file_name(options_file);
+      AdvectionSolver solver(opt_file_name, velocity_function);
       solver.setInitialCondition(u0_function);
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver.calcL2Error(u0_function) << '\n' << endl;      

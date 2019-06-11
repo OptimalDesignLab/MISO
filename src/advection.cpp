@@ -47,9 +47,9 @@ void AdvectionIntegrator::AssembleElementMatrix(
    }
 }
 
-AdvectionSolver::AdvectionSolver(OptionsParser &args,
+AdvectionSolver::AdvectionSolver(const string &opt_file_name,
                                  void (*vel_field)(const Vector &, Vector &))
-   : AbstractSolver(args)
+   : AbstractSolver(opt_file_name)
 {
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction

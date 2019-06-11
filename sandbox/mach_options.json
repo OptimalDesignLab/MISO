@@ -1,0 +1,9 @@
+{
+    "mesh-file": "periodic-unit-square-tri.mesh",
+    "degree": 2,
+    "t-final": 1.0,
+    "dt": 0.01,
+    "mesh": {
+        "refine": 0
+    }
+}

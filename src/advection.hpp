@@ -51,9 +51,9 @@ class AdvectionSolver : public AbstractSolver
 {
 public:
    /// Class constructor.
-   /// \param[in] args - contains options read in from the command line
+   /// \param[in] opt_file_name - file where options are stored
    /// \param[in] vel_field - function that defines the velocity field
-   AdvectionSolver(mfem::OptionsParser &args,
+   AdvectionSolver(const std::string &opt_file_name,
                    void (*vel_field)(const mfem::Vector &, mfem::Vector &));
 
 protected:

@@ -13,8 +13,9 @@ class AbstractSolver
 {
 public:
    /// Class constructor.
-   /// \param[in] args - contains options read in from the command line
-   AbstractSolver(mfem::OptionsParser &args);
+   /// \param[in] opt_file_name - file where options are stored
+   AbstractSolver(const std::string &opt_file_name =
+                      std::string("mach_options.json"));
 
    /// class destructor
    ~AbstractSolver();
@@ -36,7 +37,7 @@ public:
 
 protected:
    /// solver options
-   nlohmann::json options; 
+   nlohmann::json options;
    /// number of state variables at each node
    int num_state = 0;
    /// time step size
