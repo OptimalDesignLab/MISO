@@ -8,7 +8,7 @@
  
 
 This directory contains Doxygen configuration files for building HTML and LaTeX
-documentation of the MACH sources .
+documentation of the MACH sources.
 
 If not already available, Doxygen can be downloaded from
 

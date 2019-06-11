@@ -7,30 +7,21 @@
 namespace mach
 {
 
-/*!
- * \class MachException
- * \brief Handles (high-level) exceptions in both serial and parallel
- */
+/// Handles (high-level) exceptions in both serial and parallel
 class MachException: public std::exception
 {
 public:
-   /*!
-   * \brief class constructor
-   * \param[in] err_msg - the error message to be printed
-   */
+   /// Class constructor.
+   /// \param[in] err_msg - the error message to be printed
    MachException(std::string err_msg) : error_msg(err_msg) {}
-
-   /*!
-   * \brief overwrites inherieted member that returns the a c-string
-   */
+   
+   /// Overwrites inherieted member that returns a c-string.
    virtual const char* what() const noexcept
    {
       return error_msg.c_str();
    }
 
-   /*!
-   * \brief Use this to print the message; prints only on root for parallel runs
-   */
+   /// Use this to print the message; prints only on root for parallel runs.
    void print_message()
    {
       // TODO: handle parallel runs!!!
@@ -38,7 +29,8 @@ public:
    }
 
 protected:
-   std::string error_msg; ///< message printed to std::cerr
+   /// message printed to std::cerr
+   std::string error_msg;
 };
 
 } // namespace mach

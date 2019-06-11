@@ -8,50 +8,6 @@ using namespace std;
 namespace mach
 {
 
-#if 0
-void AdvectionIntegrator::AssembleElementMatrix(
-   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
-{
-   int nd = el.GetDof();
-   int dim = el.GetDim();
-
-   DenseMatrix dshape, Q_ir;
-   Vector shape, vec2, BdFidxT;
-
-   elmat.SetSize(nd);
-   dshape.SetSize(nd,dim);
-   adjJ.SetSize(dim);
-   shape.SetSize(nd);
-   vec2.SetSize(dim);
-   BdFidxT.SetSize(nd);
-
-   Vector vec1;
-
-   const IntegrationRule *ir = &el.GetNodes();
-   vel_coeff.Eval(Q_ir, Trans, *ir);
-
-   elmat = 0.0;
-   for (int i = 0; i < ir->GetNPoints(); i++)
-   {
-      const IntegrationPoint &ip = ir->IntPoint(i);
-      el.CalcDShape(ip, dshape);
-      el.CalcShape(ip, shape);
-
-      Trans.SetIntPoint(&ip);
-      CalcAdjugate(Trans.Jacobian(), adjJ);
-      Q_ir.GetColumnReference(i, vec1);
-      vec1 *= alpha * ip.weight;
-
-      adjJ.Mult(vec1, vec2);
-      dshape.Mult(vec2, BdFidxT);
-
-      AddMultVWt(shape, BdFidxT, elmat);
-   }
-   cout << "Element matrix for element " << Trans.ElementNo << endl;
-   elmat.Print(cout);
-   cout << endl;
-}
-#else
 void AdvectionIntegrator::AssembleElementMatrix(
    const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
 {
@@ -90,7 +46,6 @@ void AdvectionIntegrator::AssembleElementMatrix(
       elmat.Add(alpha, D);
    }
 }
-#endif
 
 AdvectionSolver::AdvectionSolver(OptionsParser &args,
                                  void (*vel_field)(const Vector &, Vector &))
@@ -123,7 +78,7 @@ AdvectionSolver::AdvectionSolver(OptionsParser &args,
    static_cast<BilinearForm*>(res.get())->Finalize(skip_zeros);
 
    // define the time-dependent operator
-   evolver.reset(new Linear_Evolver(mass->SpMat(),
+   evolver.reset(new LinearEvolver(mass->SpMat(),
                  static_cast<BilinearForm*>(res.get())->SpMat()));
 }
 
