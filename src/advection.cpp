@@ -1,4 +1,5 @@
 #include "advection.hpp"
+#include "sbp_fe.hpp"
 #include "diag_mass_integ.hpp"
 #include "linear_evolver.hpp"
 
@@ -23,7 +24,7 @@ void AdvectionIntegrator::AssembleElementMatrix(
    Vector vel_i; // reference to vel at a node
    Vector velhat_i; // reference to velhat at a node
    Udi.SetSize(num_nodes); // reference to one component of velhat at all nodes
-   static_cast<const SBP_TriangleElement&>(el).GetDiagNorm(H); // extract norm
+   static_cast<const SBPTriangleElement&>(el).GetDiagNorm(H); // extract norm
 
    // Evaluate the velocity at the nodes and get the velocity in reference space
    // vel and velhat are dim x num_nodes
@@ -39,7 +40,7 @@ void AdvectionIntegrator::AssembleElementMatrix(
    elmat = 0.0;
    for (int di = 0; di < el.GetDim(); di++)
    {
-      static_cast<const SBP_TriangleElement&>(el).GetOperator(di, D, true);
+      static_cast<const SBPTriangleElement&>(el).GetOperator(di, D, true);
       velhat.GetRow(di, Udi);
       D.RightScaling(H); // This makes D_{di}^T = Q_{di}^T
       D.RightScaling(Udi); // This makes Q_{di}^T * diag(Udi)
