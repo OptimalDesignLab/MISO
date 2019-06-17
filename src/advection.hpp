@@ -33,10 +33,8 @@ private:
    mfem::DenseMatrix velhat;
    /// adjJ = |J|*dxi/dx = adj(dx/dxi)
    mfem::DenseMatrix adjJ;
-   /// Storage for derivative operators
-   mfem::DenseMatrix D;
-   /// Storage for the diagonal norm matrix
-   mfem::Vector H;
+   /// Storage for weak derivative operators
+   mfem::DenseMatrix Q;
    /// reference to one component of velhat at all nodes
    mfem::Vector Udi;
 #endif

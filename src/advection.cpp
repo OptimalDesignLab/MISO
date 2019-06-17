@@ -15,8 +15,8 @@ void AdvectionIntegrator::AssembleElementMatrix(
    int num_nodes = el.GetDof();
    int dim = el.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix vel, velhat, adjJ, D;
-   Vector vel_i, velhat_i, Udi, H;
+   DenseMatrix vel, velhat, adjJ, Q;
+   Vector vel_i, velhat_i, Udi;
 #endif
    elmat.SetSize(num_nodes);
    velhat.SetSize(dim, num_nodes); // scaled velocity in reference space
@@ -24,7 +24,6 @@ void AdvectionIntegrator::AssembleElementMatrix(
    Vector vel_i; // reference to vel at a node
    Vector velhat_i; // reference to velhat at a node
    Udi.SetSize(num_nodes); // reference to one component of velhat at all nodes
-   static_cast<const SBPTriangleElement&>(el).GetDiagNorm(H); // extract norm
 
    // Evaluate the velocity at the nodes and get the velocity in reference space
    // vel and velhat are dim x num_nodes
@@ -40,11 +39,10 @@ void AdvectionIntegrator::AssembleElementMatrix(
    elmat = 0.0;
    for (int di = 0; di < el.GetDim(); di++)
    {
-      static_cast<const SBPTriangleElement&>(el).GetOperator(di, D, true);
+      static_cast<const SBPTriangleElement&>(el).getWeakOperator(di, Q, true);
       velhat.GetRow(di, Udi);
-      D.RightScaling(H); // This makes D_{di}^T = Q_{di}^T
-      D.RightScaling(Udi); // This makes Q_{di}^T * diag(Udi)
-      elmat.Add(alpha, D);
+      Q.RightScaling(Udi); // This makes Q_{di}^T * diag(Udi)
+      elmat.Add(alpha, Q);
    }
 }
 

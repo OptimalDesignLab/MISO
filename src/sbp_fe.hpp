@@ -95,15 +95,12 @@ public:
 
    /// Get the derivative operator in the direction di; transposed if trans=true
    void GetOperator(int di, DenseMatrix &D, bool trans=false) const;
-   /// Get the SBP diagonal norm matrix
-   void GetDiagNorm(Vector &H) const;
 
-   // TODO: tempoarily just an empty function to compile
    virtual void getStrongOperator(int di, DenseMatrix &D,
-                                  bool trans = false) const {}
-   // TODO: tempoarily just an empty function to compile
+                                  bool trans = false) const;
+                                  
    virtual void getWeakOperator(int di, DenseMatrix &Q,
-                                bool trans = false) const {}
+                                bool trans = false) const;
 
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -111,7 +108,7 @@ private:
    mutable Vector ddshape_x, ddshape_y, ddshape_l;
    mutable DenseMatrix du, ddu;
 #endif
-   DenseMatrix Dx, Dy;
+   mutable DenseMatrix Qx, Qy;
    std::unordered_map<const IntegrationPoint*, int> ipIdxMap;
 };
 

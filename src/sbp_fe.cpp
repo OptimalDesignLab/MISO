@@ -152,29 +152,25 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 
 SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree),
-   Dx(num_nodes), Dy(num_nodes)
+   Qx(num_nodes), Qy(num_nodes)
 {
    /// Header file including SBP Dx and Dy matrix data
    #include "sbp_operators.hpp"
-
-   // Create Dx and Dy matrixes
-   //Dx = new DenseMatrix(Dof);
-   //Dy = new DenseMatrix(Dof);
    
    // Populate the Dx and Dy matrices and create the element's Nodes
    switch (degree)
    {
       case 0:
-         Dx=p0Dx;
-         Dy=p0Dy;
+         Qx=p0Qx;
+         Qy=p0Qy;
 
          Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.16666666666666666);
          Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.16666666666666666);
          Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.16666666666666666);
          break;
       case 1:
-         Dx=p1Dx;
-         Dy=p1Dy;
+         Qx=p1Qx;
+         Qy=p1Qy;
 
          Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.024999999999999998);
          Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.024999999999999998);
@@ -185,8 +181,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
          Nodes.IntPoint(6).Set2w(0.3333333333333333, 0.3333333333333333, 0.22500000000000006);
          break;
       case 2:
-         Dx=p2Dx;
-         Dy=p2Dy;
+         Qx=p2Qx;
+         Qy=p2Qy;
   
          // vertices
          Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.006261126504899741);
@@ -207,8 +203,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
          Nodes.IntPoint(11).Set2w(0.5742912857763836, 0.21285435711180825, 0.10675793966098839);
          break;
       case 3:
-         Dx=p3Dx;
-         Dy=p3Dy;
+         Qx=p3Qx;
+         Qy=p3Qy;
    
          // vertices
          Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.0022825661430496253);
@@ -239,8 +235,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
 
          break;
       case 4:
-         Dx=p4Dx;
-         Dy=p4Dy; 
+         Qx=p4Qx;
+         Qy=p4Qy; 
 
          // vertices
          Nodes.IntPoint(0).Set2w(0.000000000000000000,0.000000000000000000,0.001090393904993471);
@@ -288,6 +284,10 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    {
       ipIdxMap[&(Nodes.IntPoint(i))] = i;
    }
+
+   H.SetSize(Dof);
+   for (int i = 0; i < Dof; i++)
+      H[i] = Nodes.IntPoint(i).weight;
 }
 
 /// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
@@ -327,9 +327,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
 
 /// CalcDShape outputs ndof x ndim DenseMatrix dshape, where the first column
 /// is the ith row of Dx, and the second column is the ith row of Dy, where i
-/// is the integration point CalcDShape is evaluated at. Since DenseMatrices 
-/// are stored a column major we should store the transpose so accessing a row
-/// is faster, but this is not done here.
+/// is the integration point CalcDShape is evaluated at.
 void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
                                     DenseMatrix &dshape) const
 {
@@ -362,34 +360,39 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    dshape = 0.0;
 
    Vector tempVec(Dof);
-
-   // when we switch to storing Dx and Dy transpose so that access to the row we want
-   // is faster Dx->GetRow() will be replaced with Dx->GetColumnReference()
-   Dx.GetRow(ipIdx, tempVec);
+   Qx.GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(0, tempVec);
-   Dy.GetRow(ipIdx, tempVec);
+   Qy.GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(1, tempVec);
+   dshape.InvLeftScaling(H);
 }
 
-void SBPTriangleElement::GetOperator(int di, DenseMatrix &D, bool trans) const
+void SBPTriangleElement::getStrongOperator(int di, DenseMatrix &D, bool trans) const
 {
    MFEM_ASSERT(di >= 0 && di <= 1, "");
    if (trans)
    {
-      di == 0 ? D.Transpose(Dx) : D.Transpose(Dy); // this copies Dx^T, etc
+      di == 0 ? D.Transpose(Qx) : D.Transpose(Qy); // this copies Qx^T, etc
+      D.InvRightScaling(H);
    }
    else
    {
-      di == 0 ? D = Dx : D = Dy; // assignment (deep copy)
+      di == 0 ? D = Qx : D = Qy; // assignment (deep copy)
+      D.InvLeftScaling(H);
    }
 }
 
-void SBPTriangleElement::GetDiagNorm(Vector &H) const
+void SBPTriangleElement::getWeakOperator(int di, DenseMatrix &Q, bool trans) const
 {
-   /// TODO: if we decide to store H as a Vector, this needs to change
-   H.SetSize(Dof);
-   for (int i = 0; i < Dof; i++)
-      H[i] = Nodes.IntPoint(i).weight;
+   MFEM_ASSERT(di >= 0 && di <= 1, "");
+   if (trans)
+   {
+      di == 0 ? Q.Transpose(Qx) : Q.Transpose(Qy); // this copies Qx^T, etc
+   }
+   else
+   {
+      di == 0 ? Q = Qx : Q = Qy; // assignment (deep copy)
+   }
 }
 
 SBPCollection::SBPCollection(const int p, const int dim)

@@ -1,6 +1,6 @@
 {
     "mesh-file": "periodic-unit-square-tri.mesh",
-    "degree": 1,
+    "degree": 4,
     "t-final": 1.0,
     "dt": 0.01,
     "mesh": {
