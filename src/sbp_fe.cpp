@@ -1,5 +1,6 @@
 #include "mfem.hpp"
 #include "sbp_fe.hpp"
+#include "orthopoly.hpp"
 
 namespace mfem
 {
@@ -285,9 +286,14 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
       ipIdxMap[&(Nodes.IntPoint(i))] = i;
    }
 
-   H.SetSize(Dof);
    for (int i = 0; i < Dof; i++)
-      H[i] = Nodes.IntPoint(i).weight;
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      H(i) = ip.weight;
+      // x and y are on the reference element (-1,-1), (1,-1), (-1,1)
+      x(i,0) = 2.0*ip.x - 1.0;
+      x(i,1) = 2.0*ip.y - 1.0;
+   }
 }
 
 /// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
@@ -392,6 +398,38 @@ void SBPTriangleElement::getWeakOperator(int di, DenseMatrix &Q, bool trans) con
    else
    {
       di == 0 ? Q = Qx : Q = Qy; // assignment (deep copy)
+   }
+}
+
+void SBPTriangleElement::getLocalProjOperator(DenseMatrix &P) const
+{
+   MFEM_ASSERT( P.Size() == Dof, "");
+   int N = (Order + 1) * (Order + 2) / 2;
+   Vector xi, eta;
+   x.GetColumnReference(0, xi);  // use returnNodes instead?
+   x.GetColumnReference(1, eta);
+   // loop over ortho polys up to degree and form Vandermonde matrix
+   Vector poly(Dof);
+   DenseMatrix V(Dof, N);
+   int ptr = 0;
+   for (int r = 0; r <= Order; ++r)
+   {
+      for (int j = 0; j <= r; ++j)
+      {
+         V.GetColumnReference(ptr, poly);
+         mach::prorioPoly(xi, eta, r - j, j, poly);
+         ptr += 1;
+      }
+   }
+   // scale V to account for the different reference elements
+   V *= 2.0;
+   // Set lps = I - V*V'*H
+   MultAAt(V, P);
+   P.RightScaling(H);
+   P *= -1.0;
+   for (int i = 0; i < Dof; ++i)
+   {
+      P(i, i) += 1.0;
    }
 }
 

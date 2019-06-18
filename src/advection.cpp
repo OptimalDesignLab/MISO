@@ -42,8 +42,50 @@ void AdvectionIntegrator::AssembleElementMatrix(
       static_cast<const SBPTriangleElement&>(el).getWeakOperator(di, Q, true);
       velhat.GetRow(di, Udi);
       Q.RightScaling(Udi); // This makes Q_{di}^T * diag(Udi)
-      elmat.Add(alpha, Q);
+      elmat.Add(-alpha, Q); // minus sign accounts for integration by parts
    }
+}
+
+
+LPSIntegrator::LPSIntegrator(
+    VectorCoefficient &velc, double a, double diss_coeff)
+    : vel_coeff(velc)
+{
+   alpha = a;
+   lps_coeff = diss_coeff;
+}
+
+void LPSIntegrator::AssembleElementMatrix(
+   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
+{
+   using SBP = const SBPTriangleElement&;
+   int num_nodes = el.GetDof();
+   int dim = el.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix vel, adjJ, P;
+   Vector velhat_i, AH;
+#endif
+   elmat.SetSize(num_nodes);
+   adjJ.SetSize(dim); // adjJ = |J|*dxi/dx = adj(dx/dxi)
+   P.SetSize(num_nodes); // LPS projection operator
+   velhat_i.SetSize(dim); // scaled velocity in reference space at a node
+   AH.SetSize(num_nodes); // the scaling matrix for LPS
+
+   // Get the scaling matrix, A, times the quadrature weights, H
+   vel_coeff.Eval(vel, Trans, el.GetNodes());
+   Vector vel_i; // reference to vel at a node
+   const Vector &H = static_cast<SBP>(el).returnDiagNorm();
+   for (int i = 0; i < num_nodes; i++)
+   {
+      vel.GetColumnReference(i, vel_i);
+      CalcAdjugate(Trans.Jacobian(), adjJ);
+      adjJ.Mult(vel_i, velhat_i);
+      AH(i) = alpha*lps_coeff*H(i)*velhat_i.Norml2();
+   }
+   // Get the projection operator, construct LPS, and add to element matrix
+   static_cast<SBP>(el).getLocalProjOperator(P);
+   P.Transpose();
+   MultADAt(P, AH, elmat);
 }
 
 AdvectionSolver::AdvectionSolver(const string &opt_file_name,
@@ -70,7 +112,11 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    res.reset(new BilinearForm(fes.get()));
    static_cast<BilinearForm*>(res.get())->AddDomainIntegrator(
       new AdvectionIntegrator(*velocity, -1.0));
-   // TODO: need to add an integrator for LPS 
+
+   // set up the LPS stabilization
+   double lps_coeff = options["lps-coeff"].get<double>();
+   static_cast<BilinearForm*>(res.get())->AddDomainIntegrator(
+      new LPSIntegrator(*velocity, -1.0, lps_coeff));
 
    int skip_zeros = 0;
    static_cast<BilinearForm*>(res.get())->Assemble(skip_zeros);

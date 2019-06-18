@@ -25,7 +25,7 @@ public:
          H(num_nodes), x(num_nodes, dim) {}
 
    /// Returns the diagonal norm/mass matrix as a vector.
-   const Vector &returnNormMatrix() const { return H; }
+   const Vector &returnDiagNorm() const { return H; }
 
    /// Returns the nodes (in reference space) as a Vector.
    /// \param[in] di - reference coordinate desired
@@ -34,7 +34,7 @@ public:
    void returnNodes(int di, mfem::Vector &x_di) 
    {
       // TODO: would like returnNodes to be const member, but cannot ...
-      return x.GetColumnReference(di, x_di);
+      x.GetColumnReference(di, x_di);
    }
 
    /// Sets `D` to be the derivative operator in direction `di`.
@@ -51,11 +51,15 @@ public:
    virtual void getWeakOperator(int di, DenseMatrix &Q,
                                 bool trans = false) const = 0;
 
+   /// Sets `P` to be the operator that removes polynomials of degree `order`
+   /// \param[in,out] P - to store the operator
+   virtual void getLocalProjOperator(DenseMatrix &P) const = 0;
+
 protected:
    /// the diagonal norm matrix stored as a vector
    Vector H;
-   /// node coordinates of the reference element
-   DenseMatrix x;
+   /// node coordinates of the reference element (-1,-1), (1,-1), (-1,1)
+   mutable DenseMatrix x;
 };
 
 /// Class for summation-by-parts operator on interval
@@ -73,6 +77,9 @@ public:
    // TODO: tempoarily just an empty function to compile
    virtual void getWeakOperator(int di, DenseMatrix &Q,
                                 bool trans = false) const {}
+
+   // TODO: tempoarily just an empty function to compile
+   virtual void getLocalProjOperator(DenseMatrix &P) const {}
 
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -98,9 +105,11 @@ public:
 
    virtual void getStrongOperator(int di, DenseMatrix &D,
                                   bool trans = false) const;
-                                  
+
    virtual void getWeakOperator(int di, DenseMatrix &Q,
                                 bool trans = false) const;
+
+   virtual void getLocalProjOperator(DenseMatrix &P) const;
 
 private:
 #ifndef MFEM_THREAD_SAFE

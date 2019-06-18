@@ -44,6 +44,46 @@ private:
    double alpha;
 };
 
+/// Local-projection stabilization integrator
+class LPSIntegrator : public mfem::BilinearFormIntegrator
+{
+public:
+   /// Constructs a local-projection stabilization integrator.
+   /// \param[in] velc - represents the (possibly) spatially varying velocity
+   /// \param[in] a - used to move from lhs to rhs
+   /// \param[in] diss_coeff - used to scale the magnitude of the LPS
+   LPSIntegrator(mfem::VectorCoefficient &velc, double a = 1.0,
+                 double diss_coeff = 1.0);
+
+   /// Create the stabilization matrix for the LPS operator.
+   /// \param[in] el - the finite element whose stabilization matrix we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[out] elmat - the desired element stabilization matrix
+   virtual void AssembleElementMatrix(const mfem::FiniteElement &el,
+                                      mfem::ElementTransformation &Trans,
+                                      mfem::DenseMatrix &elmat);
+
+private:
+#ifndef MFEM_THREAD_SAFE
+   /// velocity in physical space
+   mfem::DenseMatrix vel;
+   /// adjJ = |J|*dxi/dx = adj(dx/dxi)
+   mfem::DenseMatrix adjJ;
+   /// stores the projection operator
+   mfem::DenseMatrix P;
+   /// scaled reference velocity at a point
+   mfem::Vector velhat_i;
+   /// scaling diagonal matrix, stored as a vector
+   mfem::Vector AH;
+#endif
+   /// represents the (possibly) spatially varying velocity field
+   mfem::VectorCoefficient &vel_coeff;
+   /// used to move to rhs/lhs
+   double alpha;
+   /// scales the magnitude of the LPS (merge with alpha?)
+   double lps_coeff;
+};
+
 /// Solver for linear advection problems
 class AdvectionSolver : public AbstractSolver
 {

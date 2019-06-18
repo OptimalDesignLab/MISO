@@ -14,6 +14,7 @@ namespace mach
 nlohmann::json default_options =
 {
    {"degree", 1}, // default operator degree
+   {"lps-coeff", 1.0}, // scaling coefficient for local-proj stabilization
    {"mesh-file", "mach.mesh"}, // mesh file name
    {"ode-solver", "RK4"}, // type of ODE solver choices are
                           // "Steady": for steady-state solves

@@ -22,19 +22,9 @@ void jacobiPoly(const mfem::Vector &x, const double alpha, const double beta,
 /// \param[out] poly  - basis function at (x , y)
 ///
 /// See Hesthaven and Warburton's Nodal DG book, for example, for a reference.
+/// **Important**: the reference triangle is (-1,-1), (1,-1), (-1,1) here.
 void prorioPoly(const mfem::Vector &x, const mfem::Vector &y, const int i,
                 const int j, mfem::Vector &poly);
-
-/// Construct the local-projection-stabilization operator.
-/// \param[in] ir - Integration rule based on SBP
-/// \param[in] degree  - degree of the polynomial
-/// \param[out] lps - lps operator as dense matrix
-///
-/// Builds the LPS operator, \f$ I - LL^TH_{k} \f$, that projects out modes
-/// lower than `degree`.
-/// \note This should probably be a method in SBPFiniteElement.
-void getFilterOperator(const mfem::IntegrationRule *ir, const int degree,
-                       mfem::DenseMatrix &lps);
 
 } // namespace mach
 
