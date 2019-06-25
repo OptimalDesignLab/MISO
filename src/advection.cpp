@@ -12,6 +12,7 @@ namespace mach
 void AdvectionIntegrator::AssembleElementMatrix(
    const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
 {
+   using SBP = const SBPTriangleElement&;
    int num_nodes = el.GetDof();
    int dim = el.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -39,7 +40,7 @@ void AdvectionIntegrator::AssembleElementMatrix(
    elmat = 0.0;
    for (int di = 0; di < el.GetDim(); di++)
    {
-      static_cast<const SBPTriangleElement&>(el).getWeakOperator(di, Q, true);
+      static_cast<SBP>(el).getWeakOperator(di, Q, true);
       velhat.GetRow(di, Udi);
       Q.RightScaling(Udi); // This makes Q_{di}^T * diag(Udi)
       elmat.Add(-alpha, Q); // minus sign accounts for integration by parts
@@ -71,7 +72,7 @@ void LPSIntegrator::AssembleElementMatrix(
    velhat_i.SetSize(dim); // scaled velocity in reference space at a node
    AH.SetSize(num_nodes); // the scaling matrix for LPS
 
-   // Get the scaling matrix, A, times the quadrature weights, H
+   // Get AH: the scaling matrix, A, times the quadrature weights, H
    vel_coeff.Eval(vel, Trans, el.GetNodes());
    Vector vel_i; // reference to vel at a node
    const Vector &H = static_cast<SBP>(el).returnDiagNorm();
@@ -100,6 +101,12 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    u.reset(new GridFunction(fes.get()));
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
+
+   cout << "\tNumber of vertices = " << fes->GetNV() << endl;
+   cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
+   cout << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
+   cout << "\tNumber of face Dofs = " << fes->GetNFDofs() << endl;
+   cout << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
 
    // set up the mass matrix
    mass.reset(new BilinearForm(fes.get()));
