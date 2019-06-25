@@ -44,17 +44,17 @@ protected:
    double dt;
    /// final time
    double t_final;
-   #ifdef MFEM_USE_MPI
-   /// state variable
-   std::unique_ptr<mfem::ParGridFunction> u;
-   /// object defining the computational mesh
-   std::unique_ptr<mfem::ParMesh> mesh;
-   /// time-marching method (might be NULL)
-   std::unique_ptr<mfem::ODESolver> ode_solver;
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
+   /// object defining the computational mesh
+   std::unique_ptr<mfem::Mesh> mesh;
    /// discrete function space
-   std::unique_ptr<mfem::ParFiniteElementSpace> fes;
+   std::unique_ptr<mfem::FiniteElementSpace> fes;
+   /// state variable
+   std::unique_ptr<mfem::GridFunction> u;
+   /// time-marching method (might be NULL)
+   std::unique_ptr<mfem::ODESolver> ode_solver;
+   #ifdef MFEM_USE_MPI
    /// the mass matrix bilinear form
    std::unique_ptr<mfem::ParBilinearForm> mass;
    /// operator for spatial residual (linear in some cases)
@@ -62,16 +62,6 @@ protected:
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver; 
    #else
-   /// state variable
-   std::unique_ptr<mfem::GridFunction> u;
-   /// object defining the computational mesh
-   std::unique_ptr<mfem::Mesh> mesh;
-   /// time-marching method (might be NULL)
-   std::unique_ptr<mfem::ODESolver> ode_solver;
-   /// finite element or SBP operators
-   std::unique_ptr<mfem::FiniteElementCollection> fec;
-   /// discrete function space
-   std::unique_ptr<mfem::FiniteElementSpace> fes;
    /// the mass matrix bilinear form
    std::unique_ptr<mfem::BilinearForm> mass;
    /// operator for spatial residual (linear in some cases)

@@ -6,12 +6,14 @@
 #include <SimUtil.h>
 #include <gmi_sim.h>
 #endif
-#include <apfMDS.h>
-#include <gmi_null.h>
-#include <PCU.h>
-#include <apfConvert.h>
-#include <gmi_mesh.h>
-#include <crv.h>
+// #include <apfMDS.h>
+// #include <gmi_null.h>
+// #include <PCU.h>
+// #include <apfConvert.h>
+// #include <gmi_mesh.h>
+// #include <crv.h>
+#include "sbp_fe.hpp"
+
 using namespace std;
 using namespace mfem;
 
@@ -61,12 +63,11 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
    // #endif
    //Read the mesh from the given mesh file
    Mesh *smesh = new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1);
-   int dim = smesh->Dimension();
    mesh.reset(new ParMesh(MPI_COMM_WORLD, *smesh));
    #else
    mesh.reset(new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1));
-   int dim = mesh->Dimension();
    #endif
+   int dim = mesh->Dimension();
 
    cout << "problem space dimension = " << dim << endl;
 
@@ -96,7 +97,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
 
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
-   fec.reset(new C_SBPCollection(options["degree"].get<int>(), dim));
+   fec.reset(new SBPCollection(options["degree"].get<int>(), dim));
 }
 
 AbstractSolver::~AbstractSolver() 
@@ -115,8 +116,38 @@ void AbstractSolver::setInitialCondition(
 double AbstractSolver::calcL2Error(
    void (*u_exact)(const Vector &, Vector &))
 {
-   VectorFunctionCoefficient ue(num_state, u_exact);
-   return u->ComputeL2Error(ue);
+   // TODO: need to generalize to parallel
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   //return u->ComputeL2Error(ue);
+
+   double error = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals;
+   Vector loc_errs;
+
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fe = fes->GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      T = fes->GetElementTransformation(i);
+      u->GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      vals -= exact_vals;
+      loc_errs.SetSize(vals.Width());
+      vals.Norm2(loc_errs);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         error += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+      }
+   }
+   if (error < 0.0) // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-error);
+   }
+   return sqrt(error);
 }
 
 void AbstractSolver::solveForState()

@@ -15,6 +15,7 @@ void DiagMassIntegrator::AssembleElementMatrix(
    elmat = 0.0;
    double norm;
    // loop over the nodes of the SBP element
+   // TODO: this does not take advantage of el.H diagonal norm
    for (int i = 0; i < num_nodes; i++)
    {
       // get the Jacobian (Trans.Weight) and cubature weight (node.weight)
@@ -23,7 +24,7 @@ void DiagMassIntegrator::AssembleElementMatrix(
       norm = node.weight * Trans.Weight();
       for (int k = 0; k < num_state; k++)
       {
-         // Insert diagoan entries for each state
+         // Insert diagonal entries for each state
          // TODO: This assumes states are ordered fastest; 
          elmat(i*num_state + k, i*num_state + k) = norm; 
       }

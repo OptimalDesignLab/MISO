@@ -75,39 +75,4 @@ void prorioPoly(const Vector &x, const Vector &y, const int i, const int j,
     }
 }
 
-void getFilterOperator(const IntegrationRule *ir, const int degree, DenseMatrix &lps)
-{
-   int num_nodes = ir->GetNPoints();
-   int N = (degree + 1) * (degree + 2) / 2;
-   Vector x(num_nodes), y(num_nodes), w(num_nodes);
-   for (int i = 0; i < num_nodes; i++)
-   {
-      const IntegrationPoint &ip = ir->IntPoint(i);
-      x(i) = ip.x;
-      y(i) = ip.y;
-      w(i) = ip.weight;
-   }
-   // loop over ortho polys up to degree and form Vandermonde matrix
-   Vector poly(num_nodes);
-   DenseMatrix V(num_nodes, N);
-   int ptr = 0;
-   for (int r = 0; r <= degree; ++r)
-   {
-      for (int j = 0; j <= r; ++j)
-      {
-         V.GetColumnReference(ptr, poly);
-         prorioPoly(x, y, r - j, j, poly);
-         ptr += 1;
-      }
-   }
-   // Set lps = I - V*V'*H
-   MultAAt(V, lps);
-   lps.RightScaling(w);
-   lps *= -1.0;
-   for (int i = 0; i < lps.Size(); ++i)
-   {
-      lps(i, i) += 1.0;
-   }
-}
-
 } //namespace mach
