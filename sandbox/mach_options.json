@@ -1,9 +1,10 @@
 {
     "mesh-file": "periodic-unit-square-tri.mesh",
+    "model-file":"Test.dmg",
     "degree": 2,
     "t-final": 1.0,
     "dt": 0.01,
     "mesh": {
-        "refine": 0
+        "refine": 2
     }
 }

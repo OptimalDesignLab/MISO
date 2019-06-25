@@ -2,7 +2,16 @@
 #include <iostream>
 #include "solver.hpp"
 #include "default_options.hpp"
-
+#ifdef MFEM_USE_SIMMETRIX
+#include <SimUtil.h>
+#include <gmi_sim.h>
+#endif
+#include <apfMDS.h>
+#include <gmi_null.h>
+#include <PCU.h>
+#include <apfConvert.h>
+#include <gmi_mesh.h>
+#include <crv.h>
 using namespace std;
 using namespace mfem;
 
@@ -19,10 +28,46 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
    options_file >> file_options;
    options.merge_patch(file_options);
    cout << setw(3) << options << endl;
+   #ifdef MFEM_USE_MPI
+   // #ifdef MFEM_USE_PUMI  // if using pumi mesh
+   // const char *model_file = options["model-file"].get<string>().c_str();
+   // const char *mesh_file= options["mesh-file"].get<string>().c_str();
+   // // 3. Read the SCOREC Mesh.
+   // PCU_Comm_Init();
+   // #ifdef MFEM_USE_SIMMETRIX
+   // Sim_readLicenseFile(0);
+   // gmi_sim_start();
+   // gmi_register_sim();
+   // #endif
+   // gmi_register_mesh();
 
-   // Read the mesh from the given mesh file
+   // apf::Mesh2* pumi_mesh;
+   // pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
+   // int dim = pumi_mesh->getDimension();
+   // int nEle = pumi_mesh->count(dim);
+   // int ref_levels = (int)floor(log(10000./nEle)/log(2.)/dim);
+   // // Perform Uniform refinement
+   // if (ref_levels > 1)
+   // {
+   //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
+   //    ma::adapt(uniInput);
+   // }
+   // pumi_mesh->verify();
+   // mesh.reset(new ParPumiMesh(MPI_COMM_WORLD, pumi_mesh));
+   // PCU_Comm_Free();
+   // #ifdef MFEM_USE_SIMMETRIX
+   // gmi_sim_stop();
+   // Sim_unregisterAllKeys();
+   // #endif
+   //Read the mesh from the given mesh file
+   Mesh *smesh = new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1);
+   int dim = smesh->Dimension();
+   mesh.reset(new ParMesh(MPI_COMM_WORLD, *smesh));
+   #else
    mesh.reset(new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1));
    int dim = mesh->Dimension();
+   #endif
+
    cout << "problem space dimension = " << dim << endl;
 
    // Define the ODE solver used for time integration (possibly not used)

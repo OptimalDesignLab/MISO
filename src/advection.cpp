@@ -55,6 +55,33 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    // state GridFunction
    num_state = 1;
    //fes.reset(new FiniteElementSpace(mesh.get(), fec.get()));  // TODO: handle parallel case
+   #ifdef MFEM_USE_MPI
+   fes.reset(new ParFiniteElementSpace(mesh.get(), fec.get(), num_state, Ordering::byVDIM)); 
+   u.reset(new ParGridFunction(fes.get()));
+   cout << "Number of finite element unknowns: "
+        << fes->GetTrueVSize() << endl;
+
+   // set up the mass matrix
+   mass.reset(new ParBilinearForm(fes.get()));
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass->Assemble();
+   mass->Finalize();
+
+   // set up the stiffness matrix
+   velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
+   res.reset(new ParBilinearForm(fes.get()));
+   static_cast<ParBilinearForm*>(res.get())->AddDomainIntegrator(
+      new AdvectionIntegrator(*velocity, -1.0));
+   // TODO: need to add an integrator for LPS 
+
+   int skip_zeros = 0;
+   static_cast<ParBilinearForm*>(res.get())->Assemble(skip_zeros);
+   static_cast<ParBilinearForm*>(res.get())->Finalize(skip_zeros);
+
+   // define the time-dependent operator
+   evolver.reset(new LinearEvolver(mass->SpMat(),
+                 static_cast<ParBilinearForm*>(res.get())->SpMat()));
+   #else
    fes.reset(new FiniteElementSpace(mesh.get(), fec.get(), num_state, Ordering::byVDIM)); 
    u.reset(new GridFunction(fes.get()));
    cout << "Number of finite element unknowns: "
@@ -80,6 +107,7 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    // define the time-dependent operator
    evolver.reset(new LinearEvolver(mass->SpMat(),
                  static_cast<BilinearForm*>(res.get())->SpMat()));
+   #endif
 }
 
 }

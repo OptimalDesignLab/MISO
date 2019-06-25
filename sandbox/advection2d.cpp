@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 
+
 using namespace std;
 using namespace mfem;
 using namespace mach;
@@ -25,6 +26,11 @@ void u0_function(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
 {
+   // 1. Initialize MPI (required by PUMI).
+   int num_procs, myid;
+   MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
    // Parse command-line options
    OptionsParser args(argc, argv);
    const char *options_file = "mach_options.json";
@@ -58,6 +64,7 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
+   MPI_Finalize();
 }
 
 void velocity_function(const Vector &x, Vector &v)
@@ -84,3 +91,4 @@ void u0_function(const Vector &x, Vector& u0)
       u0(0) = 2 - 5*r2 + 10*pow(r2,2) - 10*pow(r2,3) + 5*pow(r2,4) - pow(r2,5);
    }
 }
+

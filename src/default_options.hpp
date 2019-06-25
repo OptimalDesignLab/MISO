@@ -15,6 +15,7 @@ nlohmann::json default_options =
 {
    {"degree", 1}, // default operator degree
    {"mesh-file", "mach.mesh"}, // mesh file name
+   {"model-file","mach.dmg"}, // model file name
    {"ode-solver", "RK4"}, // type of ODE solver choices are
                           // "Steady": for steady-state solves
                           // "RK4": for classical 4th order Runge-Kutta
