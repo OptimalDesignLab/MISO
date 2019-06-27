@@ -11,9 +11,11 @@ namespace mach
 /// Serves as a base class for specific PDE solvers
 class AbstractSolver
 {
+   
 public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
+  
    AbstractSolver(const std::string &opt_file_name =
                       std::string("mach_options.json"));
 
@@ -36,6 +38,21 @@ public:
    void solveForState();
 
 protected:
+#ifdef MFEM_USE_MPI
+#ifdef MFEM_USE_PUMI
+   using MeshType = mfem::ParPumiMesh;
+#else
+   using MeshType = mfem::ParMesh;
+#endif
+   using SpaceType = mfem::ParFiniteElementSpace;
+   using BilinearFormType = mfem::ParBilinearForm;
+   using GridFunctionType = mfem::ParGridFunction;
+#else
+   using MeshType = mfem::Mesh;
+   using SpaceType = mfem::FiniteElementSpace;
+   using BilinearFormType = mfem::BilinearForm;
+   using GridFunctionType = mfem::GridFunction;
+#endif
    /// solver options
    nlohmann::json options;
    /// number of state variables at each node
@@ -54,22 +71,12 @@ protected:
    std::unique_ptr<mfem::GridFunction> u;
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
-   #ifdef MFEM_USE_MPI
-   /// the mass matrix bilinear form
-   std::unique_ptr<mfem::ParBilinearForm> mass;
-   /// operator for spatial residual (linear in some cases)
-   std::unique_ptr<mfem::Operator> res;
-   /// TimeDependentOperator (TODO: is this the best way?)
-   std::unique_ptr<mfem::TimeDependentOperator> evolver; 
-   #else
    /// the mass matrix bilinear form
    std::unique_ptr<mfem::BilinearForm> mass;
    /// operator for spatial residual (linear in some cases)
    std::unique_ptr<mfem::Operator> res;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
-   #endif
-
 };
     
 } // namespace mach

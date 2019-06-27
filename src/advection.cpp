@@ -96,39 +96,10 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction
    num_state = 1;
-   //fes.reset(new FiniteElementSpace(mesh.get(), fec.get()));  // TODO: handle parallel case
-   #ifdef MFEM_USE_MPI
-   fes.reset(new ParFiniteElementSpace(static_cast<ParMesh*>(mesh.get()), fec.get(), num_state, Ordering::byVDIM)); 
-   u.reset(new ParGridFunction(static_cast<ParFiniteElementSpace*>(fes.get())));
+   fes.reset(new SpaceType(static_cast<MeshType*>(mesh.get()), fec.get(), num_state, Ordering::byVDIM)); 
+   u.reset(new GridFunctionType(static_cast<SpaceType*>(fes.get())));
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
-
-   // set up the mass matrix
-   mass.reset(new ParBilinearForm(static_cast<ParFiniteElementSpace*>(fes.get())));
-   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   mass->Assemble();
-   mass->Finalize();
-
-   // set up the stiffness matrix
-   velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
-   res.reset(new ParBilinearForm(fes.get()));
-   static_cast<ParBilinearForm*>(res.get())->AddDomainIntegrator(
-      new AdvectionIntegrator(*velocity, -1.0));
-   // TODO: need to add an integrator for LPS 
-
-   int skip_zeros = 0;
-   static_cast<ParBilinearForm*>(res.get())->Assemble(skip_zeros);
-   static_cast<ParBilinearForm*>(res.get())->Finalize(skip_zeros);
-
-   // define the time-dependent operator
-   evolver.reset(new LinearEvolver(mass->SpMat(),
-                 static_cast<ParBilinearForm*>(res.get())->SpMat()));
-   #else
-   fes.reset(new FiniteElementSpace(mesh.get(), fec.get(), num_state, Ordering::byVDIM)); 
-   u.reset(new GridFunction(fes.get()));
-   cout << "Number of finite element unknowns: "
-        << fes->GetTrueVSize() << endl;
-
    cout << "\tNumber of vertices = " << fes->GetNV() << endl;
    cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
    cout << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
@@ -136,30 +107,26 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    cout << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
 
    // set up the mass matrix
-   mass.reset(new BilinearForm(fes.get()));
+   mass.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
    mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
    mass->Assemble();
    mass->Finalize();
 
    // set up the stiffness matrix
    velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
-   res.reset(new BilinearForm(fes.get()));
-   static_cast<BilinearForm*>(res.get())->AddDomainIntegrator(
+   cout << "dimension is " << mesh->Dimension() << endl;
+   res.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
+   static_cast<BilinearFormType*>(res.get())->AddDomainIntegrator(
       new AdvectionIntegrator(*velocity, -1.0));
-
-   // set up the LPS stabilization
-   double lps_coeff = options["lps-coeff"].get<double>();
-   static_cast<BilinearForm*>(res.get())->AddDomainIntegrator(
-      new LPSIntegrator(*velocity, -1.0, lps_coeff));
+   // TODO: need to add an integrator for LPS 
 
    int skip_zeros = 0;
-   static_cast<BilinearForm*>(res.get())->Assemble(skip_zeros);
-   static_cast<BilinearForm*>(res.get())->Finalize(skip_zeros);
+   static_cast<BilinearFormType*>(res.get())->Assemble(skip_zeros);
+   static_cast<BilinearFormType*>(res.get())->Finalize(skip_zeros);
 
    // define the time-dependent operator
    evolver.reset(new LinearEvolver(mass->SpMat(),
-                 static_cast<BilinearForm*>(res.get())->SpMat()));
-   #endif
+                 static_cast<BilinearFormType*>(res.get())->SpMat()));
 }
 
 }
