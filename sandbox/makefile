@@ -6,7 +6,7 @@ SOURCES_SB = $(wildcard ./*.cpp)
 OBJS_SB = $(SOURCES_SB:.cpp=.o)
 BIN_SB = $(SOURCES_SB:.cpp=.bin)
 
-default: all
+default: advection2d.bin
 
 all: $(BIN_SB)
 

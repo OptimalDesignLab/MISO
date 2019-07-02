@@ -39,6 +39,10 @@ public:
 
 protected:
 #ifdef MFEM_USE_MPI
+   /// communicator used by MPI group for communication
+   MPI_Comm comm;
+   /// process rank
+   int rank;
 #ifdef MFEM_USE_PUMI
    using MeshType = mfem::ParPumiMesh;
 #else

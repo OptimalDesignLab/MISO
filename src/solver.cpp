@@ -31,6 +31,8 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
    options.merge_patch(file_options);
    cout << setw(3) << options << endl;
 #ifdef MFEM_USE_MPI
+   comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #ifdef MFEM_USE_PUMI  // if using pumi mesh
    const char *model_file = options["model-file"].get<string>().c_str();
    const char *mesh_file= options["mesh-file"].get<string>().c_str();
@@ -55,7 +57,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
       ma::adapt(uniInput);
    }
    pumi_mesh->verify();
-   mesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
+   mesh.reset(new MeshType(comm, pumi_mesh));
    PCU_Comm_Free();
    #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
@@ -64,7 +66,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
 #else
    //Read the mesh from the given mesh file
    Mesh *smesh = new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1);
-   mesh.reset(new MeshType(MPI_COMM_WORLD, *smesh));
+   mesh.reset(new MeshType(comm, *smesh));
 #endif //MFEM_USE_PUMI
 #else
    mesh.reset(new MeshType(options["mesh-file"].get<string>().c_str(), 1, 1));
@@ -122,7 +124,7 @@ double AbstractSolver::calcL2Error(
    VectorFunctionCoefficient exsol(num_state, u_exact);
    //return u->ComputeL2Error(ue);
 
-   double error = 0.0;
+   double loc_norm = 0.0;
    const FiniteElement *fe;
    ElementTransformation *T;
    DenseMatrix vals, exact_vals;
@@ -142,14 +144,20 @@ double AbstractSolver::calcL2Error(
       {
          const IntegrationPoint &ip = ir->IntPoint(j);
          T->SetIntPoint(&ip);
-         error += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+         loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
       }
    }
-   if (error < 0.0) // This was copied from mfem...should not happen for us
+   double norm;
+   #ifdef MFEM_USE_MPI
+   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   #else
+   norm = loc_norm;
+   #endif
+   if (norm < 0.0) // This was copied from mfem...should not happen for us
    {
-      return -sqrt(-error);
+      return -sqrt(-norm);
    }
-   return sqrt(error);
+   return sqrt(norm);
 }
 
 void AbstractSolver::solveForState()

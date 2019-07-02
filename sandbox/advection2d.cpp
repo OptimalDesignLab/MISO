@@ -26,11 +26,10 @@ void u0_function(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
 {
-   // 1. Initialize MPI (required by PUMI).
-   int num_procs, myid;
+#ifdef MFEM_USE_MPI
+   // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
-   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+#endif
    // Parse command-line options
    OptionsParser args(argc, argv);
    const char *options_file = "mach_options.json";
@@ -64,7 +63,9 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
+#ifdef MFEM_USE_MPI
    MPI_Finalize();
+#endif
 }
 
 void velocity_function(const Vector &x, Vector &v)
