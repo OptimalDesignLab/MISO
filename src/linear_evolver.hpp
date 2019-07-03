@@ -2,6 +2,7 @@
 #define MACH_LINEAR_EVOLVER
 
 #include "mfem.hpp"
+#include "mach_types.hpp"
 
 namespace mach
 {
@@ -11,9 +12,9 @@ class LinearEvolver : public mfem::TimeDependentOperator
 {
 public:
    /// Class constructor.
-   /// \param[in] M - mass matrix
-   /// \param[in] K - stiffness matrix
-   LinearEvolver(mfem::SparseMatrix &M, mfem::SparseMatrix &K); //, const Vector &_b);
+   /// \param[in] m - mass matrix
+   /// \param[in] k - stiffness matrix
+   LinearEvolver(MatrixType &m, MatrixType &k); //, const Vector &_b);
 
    /// Applies the action of the linear-evolution operator on `x`.
    /// \param[in] x - `Vector` that is being multiplied by operator
@@ -24,13 +25,14 @@ public:
    virtual ~LinearEvolver() { }
 
 private:
-   /// mass matrix represented as a sparse matrix
-   mfem::SparseMatrix &M;
+   /// mass matrix represented as a matrix
+   MatrixType &mass;
    /// stiffness matrix represented as a sparse matrix
-   mfem::SparseMatrix &K;
-   // const Vector &b;
-   /// inverse diagonal of `M` stored as a `Vector`
-   mfem::Vector Minv;
+   MatrixType &stiff;
+   /// preconditioner for mass matrix
+   SmootherType mass_prec;
+   /// solver for the mass matrix
+   std::unique_ptr<mfem::CGSolver> mass_solver;
    /// a work vector
    mutable mfem::Vector z;
 

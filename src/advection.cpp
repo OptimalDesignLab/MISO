@@ -125,8 +125,20 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    static_cast<BilinearFormType*>(res.get())->Finalize(skip_zeros);
 
    // define the time-dependent operator
-   evolver.reset(new LinearEvolver(mass->SpMat(),
-                 static_cast<BilinearFormType*>(res.get())->SpMat()));
-}
+#ifdef MFEM_USE_MPI
+   // The parallel bilinear forms return a pointer that this solver owns
+   mass_matrix.reset(static_cast<BilinearFormType*>(mass.get())->
+                     ParallelAssemble());
+   stiff_matrix.reset(static_cast<BilinearFormType*>(res.get())->
+                      ParallelAssemble());
+#else
+   mass_matrix.reset(new MatrixType(mass->SpMat()));
+   stiff_matrix.reset(new MatrixType(static_cast<BilinearFormType*>(res.get())->
+                                     SpMat()));
+#endif
+   evolver.reset(new LinearEvolver(*mass_matrix,
+                                   *static_cast<MatrixType*>(res.get())));
 
 }
+
+} // namespace mach

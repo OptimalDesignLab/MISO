@@ -97,6 +97,10 @@ public:
 protected:
    /// the velocity field
    std::unique_ptr<mfem::VectorFunctionCoefficient> velocity;
+   /// mass matrix (move to AbstractSolver?)
+   std::unique_ptr<MatrixType> mass_matrix;
+   /// stiffness matrix 
+   std::unique_ptr<MatrixType> stiff_matrix;
 };
     
 } // namespace mach
