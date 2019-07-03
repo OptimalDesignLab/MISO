@@ -38,6 +38,9 @@ public:
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
 
+   /// Generate Mesh
+   void ConstructMesh();
+
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
