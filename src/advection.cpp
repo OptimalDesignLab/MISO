@@ -97,7 +97,7 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    // state GridFunction
    num_state = 1;
    fes.reset(new SpaceType(static_cast<MeshType*>(mesh.get()), fec.get(), num_state, Ordering::byVDIM)); 
-   u.reset(new GridFunctionType(static_cast<SpaceType*>(fes.get())));
+   u.reset(new GridFunType(static_cast<SpaceType*>(fes.get())));
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
    cout << "\tNumber of vertices = " << fes->GetNV() << endl;
@@ -115,29 +115,25 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    // set up the stiffness matrix
    velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
    cout << "dimension is " << mesh->Dimension() << endl;
-   res.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
-   static_cast<BilinearFormType*>(res.get())->AddDomainIntegrator(
-      new AdvectionIntegrator(*velocity, -1.0));
-   // TODO: need to add an integrator for LPS 
-
+   stiff.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
+   stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
+   // add the LPS stabilization
+   double lps_coeff = options["lps-coeff"].get<double>();
+   stiff->AddDomainIntegrator(new LPSIntegrator(*velocity, -1.0, lps_coeff));
    int skip_zeros = 0;
-   static_cast<BilinearFormType*>(res.get())->Assemble(skip_zeros);
-   static_cast<BilinearFormType*>(res.get())->Finalize(skip_zeros);
+   stiff->Assemble(skip_zeros);
+   stiff->Finalize(skip_zeros);
 
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
-   mass_matrix.reset(static_cast<BilinearFormType*>(mass.get())->
-                     ParallelAssemble());
-   stiff_matrix.reset(static_cast<BilinearFormType*>(res.get())->
-                      ParallelAssemble());
+   mass_matrix.reset(mass->ParallelAssemble());
+   stiff_matrix.reset(stiff->ParallelAssemble());
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
-   stiff_matrix.reset(new MatrixType(static_cast<BilinearFormType*>(res.get())->
-                                     SpMat()));
+   stiff_matrix.reset(new MatrixType(stiff->SpMat()));
 #endif
-   evolver.reset(new LinearEvolver(*mass_matrix,
-                                   *static_cast<MatrixType*>(res.get())));
+   evolver.reset(new LinearEvolver(*mass_matrix, *stiff_matrix));
 
 }
 

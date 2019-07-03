@@ -17,14 +17,14 @@ namespace mach
 #endif
    using SpaceType = mfem::ParFiniteElementSpace;
    using BilinearFormType = mfem::ParBilinearForm;
-   using GridFunctionType = mfem::ParGridFunction;
+   using GridFunType = mfem::ParGridFunction;
    using MatrixType = mfem::HypreParMatrix;
    using SmootherType = mfem::HypreSmoother;
 #else
    using MeshType = mfem::Mesh;
    using SpaceType = mfem::FiniteElementSpace;
    using BilinearFormType = mfem::BilinearForm;
-   using GridFunctionType = mfem::GridFunction;
+   using GridFunType = mfem::GridFunction;
    using MatrixType = mfem::SparseMatrix;
    using SmootherType = mfem::DSmoother;
 #endif
