@@ -6,12 +6,14 @@
 #include <SimUtil.h>
 #include <gmi_sim.h>
 #endif
-// #include <apfMDS.h>
-// #include <gmi_null.h>
-// #include <PCU.h>
-// #include <apfConvert.h>
-// #include <gmi_mesh.h>
-// #include <crv.h>
+#ifdef MFEM_USE_PUMI
+#include <apfMDS.h>
+#include <gmi_null.h>
+#include <PCU.h>
+#include <apfConvert.h>
+#include <gmi_mesh.h>
+#include <crv.h>
+#endif
 #include "sbp_fe.hpp"
 
 using namespace std;
@@ -30,47 +32,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
    options_file >> file_options;
    options.merge_patch(file_options);
    cout << setw(3) << options << endl;
-#ifdef MFEM_USE_MPI
-   comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
-   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#ifdef MFEM_USE_PUMI  // if using pumi mesh
-   const char *model_file = options["model-file"].get<string>().c_str();
-   const char *mesh_file= options["mesh-file"].get<string>().c_str();
-   // 3. Read the SCOREC Mesh.
-   PCU_Comm_Init();
-   #ifdef MFEM_USE_SIMMETRIX
-   Sim_readLicenseFile(0);
-   gmi_sim_start();
-   gmi_register_sim();
-   #endif
-   gmi_register_mesh();
-
-   apf::Mesh2* pumi_mesh;
-   pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
-   int dim = pumi_mesh->getDimension();
-   int nEle = pumi_mesh->count(dim);
-   int ref_levels = (int)floor(log(10000./nEle)/log(2.)/dim);
-   // Perform Uniform refinement
-   if (ref_levels > 1)
-   {
-      ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
-      ma::adapt(uniInput);
-   }
-   pumi_mesh->verify();
-   mesh.reset(new MeshType(comm, pumi_mesh));
-   PCU_Comm_Free();
-   #ifdef MFEM_USE_SIMMETRIX
-   gmi_sim_stop();
-   Sim_unregisterAllKeys();
-   #endif
-#else
-   //Read the mesh from the given mesh file
-   Mesh *smesh = new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1);
-   mesh.reset(new MeshType(comm, *smesh));
-#endif //MFEM_USE_PUMI
-#else
-   mesh.reset(new MeshType(options["mesh-file"].get<string>().c_str(), 1, 1));
-#endif //MFEM_USE_MPI
+   ConstructMesh();
    int dim = mesh->Dimension();
 
    cout << "problem space dimension = " << dim << endl;
@@ -216,6 +178,51 @@ void AbstractSolver::solveForState()
       osol.precision(precision);
       u->Save(osol);
    }
+}
+
+void AbstractSolver::ConstructMesh()
+{
+   #ifdef MFEM_USE_MPI
+   comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
+   MPI_Comm_rank(comm, &rank);
+#ifdef MFEM_USE_PUMI  // if using pumi mesh
+   // problem with using these in loadMdsMesh
+   const char *model_file = options["model-file"].get<string>().c_str();
+   const char *mesh_file= options["mesh-file"].get<string>().c_str();
+   PCU_Comm_Init();
+   #ifdef MFEM_USE_SIMMETRIX
+   Sim_readLicenseFile(0);
+   gmi_sim_start();
+   gmi_register_sim();
+   #endif
+   gmi_register_mesh();
+
+   apf::Mesh2* pumi_mesh;
+   pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(), options["mesh-file"].get<string>().c_str());
+   int dim = pumi_mesh->getDimension();
+   int nEle = pumi_mesh->count(dim);
+   int ref_levels = (int)floor(log(10000./nEle)/log(2.)/dim);
+   // Perform Uniform refinement
+   // if (ref_levels > 1)
+   // {
+   //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
+   //    ma::adapt(uniInput);
+   // }
+   pumi_mesh->verify();
+   mesh.reset(new MeshType(comm, pumi_mesh));
+   PCU_Comm_Free();
+   #ifdef MFEM_USE_SIMMETRIX
+   gmi_sim_stop();
+   Sim_unregisterAllKeys();
+   #endif
+#else
+   //Read the mesh from the given mesh file
+   Mesh *smesh = new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1);
+   mesh.reset(new MeshType(comm, *smesh));
+#endif //MFEM_USE_PUMI
+#else
+   mesh.reset(new MeshType(options["mesh-file"].get<string>().c_str(), 1, 1));
+#endif //MFEM_USE_MPI
 }
 
 } // namespace mach
