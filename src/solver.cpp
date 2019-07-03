@@ -155,11 +155,11 @@ double AbstractSolver::calcL2Error(
       }
    }
    double norm;
-   #ifdef MFEM_USE_MPI
+#ifdef MFEM_USE_MPI
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   #else
+#else
    norm = loc_norm;
-   #endif
+#endif
    if (norm < 0.0) // This was copied from mfem...should not happen for us
    {
       return -sqrt(-norm);
@@ -193,7 +193,13 @@ void AbstractSolver::solveForState()
    for (int ti = 0; !done; )
    {
       double dt_real = min(dt, t_final - t);
+#ifdef MFEM_USE_MPI
+      HypreParVector *U = u->GetTrueDofs();
+      ode_solver->Step(*U, t, dt_real);
+      *u = *U;
+#else
       ode_solver->Step(*u, t, dt_real);
+#endif
       ti++;
 
       done = (t >= t_final - 1e-8*dt);

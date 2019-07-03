@@ -33,6 +33,7 @@ void AdvectionIntegrator::AssembleElementMatrix(
    {
       vel.GetColumnReference(i, vel_i);
       velhat.GetColumnReference(i, velhat_i);
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
       CalcAdjugate(Trans.Jacobian(), adjJ);
       adjJ.Mult(vel_i, velhat_i);
    }
@@ -46,7 +47,6 @@ void AdvectionIntegrator::AssembleElementMatrix(
       elmat.Add(-alpha, Q); // minus sign accounts for integration by parts
    }
 }
-
 
 LPSIntegrator::LPSIntegrator(
     VectorCoefficient &velc, double a, double diss_coeff)
@@ -79,6 +79,7 @@ void LPSIntegrator::AssembleElementMatrix(
    for (int i = 0; i < num_nodes; i++)
    {
       vel.GetColumnReference(i, vel_i);
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
       CalcAdjugate(Trans.Jacobian(), adjJ);
       adjJ.Mult(vel_i, velhat_i);
       AH(i) = alpha*lps_coeff*H(i)*velhat_i.Norml2();
@@ -98,13 +99,18 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    num_state = 1;
    fes.reset(new SpaceType(static_cast<MeshType*>(mesh.get()), fec.get(), num_state, Ordering::byVDIM)); 
    u.reset(new GridFunType(static_cast<SpaceType*>(fes.get())));
+#ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
-   cout << "\tNumber of vertices = " << fes->GetNV() << endl;
-   cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
-   cout << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
-   cout << "\tNumber of face Dofs = " << fes->GetNFDofs() << endl;
-   cout << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
+#else 
+   cout << "Number of finite element unknowns: "
+        << fes->GlobalTrueVSize() << endl;
+#endif
+   //cout << "\tNumber of vertices = " << fes->GetNV() << endl;
+   //cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
+   //cout << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
+   //cout << "\tNumber of face Dofs = " << fes->GetNFDofs() << endl;
+   //cout << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
 
    // set up the mass matrix
    mass.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
