@@ -1,7 +1,7 @@
 #include "advection.hpp"
 #include "sbp_fe.hpp"
 #include "diag_mass_integ.hpp"
-#include "linear_evolver.hpp"
+#include "evolver.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -101,10 +101,10 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    u.reset(new GridFunType(static_cast<SpaceType*>(fes.get())));
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: "
-        << fes->GetTrueVSize() << endl;
-#else 
-   cout << "Number of finite element unknowns: "
         << fes->GlobalTrueVSize() << endl;
+#else
+   cout << "Number of finite element unknowns: "
+        << fes->GetTrueVSize() << endl;
 #endif
    //cout << "\tNumber of vertices = " << fes->GetNV() << endl;
    //cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;

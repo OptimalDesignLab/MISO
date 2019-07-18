@@ -27,6 +27,26 @@ inline xdouble pressure(const xdouble *q)
    return euler::gami*(q[dim+1] - 0.5*dot<xdouble,dim>(q+1,q+1)/q[0]);
 }
 
+/// Euler flux function in a given (scaled) direction
+/// \param[in] dir - direction in which the flux is desired
+/// \param[in] q - conservative variables
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcEulerFlux(const xdouble *dir, const xdouble *q, xdouble *flux)
+{
+   xdouble press = pressure<xdouble,dim>(q);
+   xdouble U = dot<xdouble,dim>(q+1,dir);
+   flux[0] = U;
+   U /= q[0];
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i+1] = q[i+1]*U + dir[i]*press;
+   }
+   flux[dim+1] = (q[dim+1] + press)*U;
+}
+
 /// Log-average function used in the Ismail-Roe flux function
 /// \param[in] aL - nominal left state variable to average
 /// \param[in] aR - nominal right state variable to average
@@ -35,20 +55,20 @@ inline xdouble pressure(const xdouble *q)
 template <typename xdouble>
 xdouble logavg(const xdouble &aL, const xdouble &aR)
 {
-  xdouble xi = aL/aR;
-  xdouble f = (xi - 1)/(xi + 1);
-  xdouble u = f*f;
-  double eps = 1.0e-3;
-  xdouble F;
-  if (u < eps)
-  {
-     F = 1.0 + u*(1./3. + u*(1./5. + u*(1./7. + u/9.)));
-  }
-  else
-  {
-     F = (log(xi)/2.0)/f;
-  }
-  return (aL + aR)/(2.0*F);
+   xdouble xi = aL / aR;
+   xdouble f = (xi - 1) / (xi + 1);
+   xdouble u = f * f;
+   double eps = 1.0e-3;
+   xdouble F;
+   if (u < eps)
+   {
+      F = 1.0 + u * (1. / 3. + u * (1. / 5. + u * (1. / 7. + u / 9.)));
+   }
+   else
+   {
+      F = (log(xi) / 2.0) / f;
+   }
+   return (aL + aR) / (2.0 * F);
 }
 
 /// Ismail-Roe two-point (dyadic) entropy conservative flux function

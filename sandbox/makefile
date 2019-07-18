@@ -4,11 +4,11 @@
 HEADERS_SB = $(wildcard ./*.hpp)
 SOURCES_SB = $(wildcard ./*.cpp)
 OBJS_SB = $(SOURCES_SB:.cpp=.o)
-BIN_SB = $(SOURCES_SB:.cpp=.bin)
-
-default: advection2d.bin
+BIN_SB = $(OBJS_SB:.o=.bin)
 
 all: $(BIN_SB)
+
+default: all 
 
 # implicit rules
 
@@ -21,7 +21,7 @@ all: $(BIN_SB)
 
 %.bin : %.o ../libmach.a 
 	@echo "Compiling \""$@"\""
-	@$(CXX) $(MACH_FLAGS) $< -o $@ ../libmach.a $(MACH_LIBS)
+	$(CXX) $(MACH_FLAGS) $< -o $@ ../libmach.a $(MACH_LIBS)
 
 clean:
 	@echo "deleting temporary, object, and binary files"

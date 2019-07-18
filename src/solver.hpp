@@ -2,6 +2,7 @@
 #define MACH_SOLVER
 
 #include "mfem.hpp"
+#include "adept.h"
 #include "mach_types.hpp"
 #include "utils.hpp"
 #include "json.hpp"
@@ -71,6 +72,8 @@ protected:
    //std::unique_ptr<ResFormType> res;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
+   /// storage for algorithmic differentiation (shared by all solvers)
+   static adept::Stack diff_stack;
 };
     
 } // namespace mach

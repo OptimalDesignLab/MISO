@@ -10,18 +10,14 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
-/*!
-* \brief Defines the velocity field
-* \param[in] x - coordinate of the point at which the velocity is needed
-* \param[out] v - velocity components at \a x
-*/
+/// Defines the velocity field
+/// \param[in] x - coordinate of the point at which the velocity is needed
+/// \param[out] v - velocity components at \a x
 void velocity_function(const Vector &x, Vector &v);
 
-/*!
-* \brief Defines the initial condition
-* \param[in] x - coordinate of the point at which the velocity is needed
-* \param[out] u0 - scalar initial condition stored as a 1-vector
-*/
+/// \brief Defines the initial condition
+/// \param[in] x - coordinate of the point at which the velocity is needed
+/// \param[out] u0 - scalar initial condition stored as a 1-vector
 void u0_function(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])

@@ -2,6 +2,7 @@
 #include <iostream>
 #include "solver.hpp"
 #include "default_options.hpp"
+
 #ifdef MFEM_USE_SIMMETRIX
 #include <SimUtil.h>
 #include <gmi_sim.h>
@@ -14,6 +15,7 @@
 #include <gmi_mesh.h>
 #include <crv.h>
 #endif
+
 #include "sbp_fe.hpp"
 
 using namespace std;
@@ -21,6 +23,9 @@ using namespace mfem;
 
 namespace mach
 {
+
+// Static member function diff_stack needs to be defined
+adept::Stack AbstractSolver::diff_stack;
 
 AbstractSolver::AbstractSolver(const string &opt_file_name)
 {
@@ -122,6 +127,21 @@ void AbstractSolver::setInitialCondition(
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
+
+   // DenseMatrix vals;
+   // Vector uj;
+   // for (int i = 0; i < fes->GetNE(); i++)
+   // {
+   //    const FiniteElement *fe = fes->GetFE(i);
+   //    const IntegrationRule *ir = &(fe->GetNodes());
+   //    ElementTransformation *T = fes->GetElementTransformation(i);
+   //    u->GetVectorValues(*T, *ir, vals);
+   //    for (int j = 0; j < ir->GetNPoints(); j++)
+   //    {
+   //       vals.GetColumnReference(j, uj);
+   //       cout << "uj = " << uj(0) << ", " << uj(1) << ", " << uj(2) << ", " << uj(3) << endl;
+   //    }
+   // }
 }
 
 double AbstractSolver::calcL2Error(
@@ -179,10 +199,10 @@ void AbstractSolver::solveForState()
    // TODO: need to swtich to vtk for SBP
    int precision = 8;
    {
-      ofstream omesh("adv.mesh");
+      ofstream omesh("unsteady-vortex.mesh");
       omesh.precision(precision);
       mesh->Print(omesh);
-      ofstream osol("adv-init.gf");
+      ofstream osol("unsteady-vortex-init.gf");
       osol.precision(precision);
       u->Save(osol);
    }
@@ -225,7 +245,7 @@ void AbstractSolver::solveForState()
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
    {
-      ofstream osol("adv-final.gf");
+      ofstream osol("unsteady-vortex-final.gf");
       osol.precision(precision);
       u->Save(osol);
    }
