@@ -91,10 +91,11 @@ libmach.a: $(OBJS) makefile
 	@echo "Compiling static Mach library"
 	@ar rcs $@ $(OBJS)
 
+.PHONY: sandbox # needed because sandbox is also the name of the directory
 sandbox: libmach.a 
 	@cd $(SANDBOX_DIR) && $(MAKE)
 
-tests: libmach.a 
+tests: libmach.a
 	@cd $(TEST_DIR) && $(MAKE)
 
 #@$(CXX) $(MACH_FLAGS) -static -Wl,-soname,libmach.so -o libmach.so $(OBJS) $(MACH_LIBS)
@@ -107,6 +108,10 @@ clean:
 	@rmdir $(DEP_DIR)
 	@cd $(SANDBOX_DIR) && $(MAKE) clean
 	@cd $(TEST_DIR) && $(MAKE) clean
+
+clean_sandbox:
+	@echo "deleting temporary, object, and binary files from sandbox directory"
+	@cd $(SANDBOX_DIR) && $(MAKE) clean
 
 # Include the dependency files that exist: translate each file listed in SOURCES
 # into its dependency file. Use wildcard to avoid failing on non-existent files.

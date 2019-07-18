@@ -19,6 +19,13 @@ const double dir[3] = {0.6541305612927484, -0.0016604759052086802, -0.2176322846
 const double press_check[3] = {0.8227706007961364, 0.8225798733170867, 0.8188974449720051};
 const double spect_check[3] = {0.7708202616595441, 0.7707922224516813, 0.8369733021138251};
 
+// Define the Euler flux values for checking; The first 3 entries are for the 1D flux,
+// the next 4 for the 2D flux, and the last 5 for the 3D flux
+double flux_check[12] = { 0.06276750716816328, 0.5443099358828419, 0.18367915116927888,
+                          0.06281841528652295, 0.5441901312159292, -0.003319834568556836,
+                          0.18381597015154405, 0.09213668302118563, 0.5446355336473805,
+                         -0.004225661763216877, -0.19081130999838336, 0.2692613318765901};
+
 // Define the Ismail-Roe flux values for checking; note that direction dim has dim
 // fluxes to check, each with dim+2 values (so these arrays have dim*(dim+2) entries)
 double fluxIR_1D_check[3] = { 0.05762997059393852, 0.8657490584200118, 0.18911342719531313};
@@ -74,6 +81,19 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
    {
       REQUIRE( mach::calcSpectralRadius<double,dim>(q.GetData(), nrm.GetData()) ==
                Approx(spect_check[dim-1]) );
+   }
+
+   SECTION( "Euler flux is correct" )
+   {
+      // Load the data to test the Euler flux; the pointer arithmetic in the 
+      // following constructor is to find the appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mach::calcEulerFlux<double,dim>(nrm.GetData(), q.GetData(), flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)) );
+      }
    }
 
    // load the data to test the IR flux function into an mfem DenseMatrix
