@@ -48,7 +48,7 @@ void AdvectionIntegrator::AssembleElementMatrix(
    }
 }
 
-LPSIntegrator::LPSIntegrator(
+AdvectLPSIntegrator::AdvectLPSIntegrator(
     VectorCoefficient &velc, double a, double diss_coeff)
     : vel_coeff(velc)
 {
@@ -56,7 +56,7 @@ LPSIntegrator::LPSIntegrator(
    lps_coeff = diss_coeff;
 }
 
-void LPSIntegrator::AssembleElementMatrix(
+void AdvectLPSIntegrator::AssembleElementMatrix(
    const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
 {
    using SBP = const SBPTriangleElement&;
@@ -85,7 +85,7 @@ void LPSIntegrator::AssembleElementMatrix(
       AH(i) = alpha*lps_coeff*H(i)*velhat_i.Norml2();
    }
    // Get the projection operator, construct LPS, and add to element matrix
-   static_cast<SBP>(el).getLocalProjOperator(P);
+   static_cast<SBP>(el).getProjOperator(P);
    P.Transpose();
    MultADAt(P, AH, elmat);
 }
@@ -124,8 +124,8 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    stiff.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
    stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
    // add the LPS stabilization
-   double lps_coeff = options["lps-coeff"].get<double>();
-   stiff->AddDomainIntegrator(new LPSIntegrator(*velocity, -1.0, lps_coeff));
+   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
+   stiff->AddDomainIntegrator(new AdvectLPSIntegrator(*velocity, -1.0, lps_coeff));
    int skip_zeros = 0;
    stiff->Assemble(skip_zeros);
    stiff->Finalize(skip_zeros);

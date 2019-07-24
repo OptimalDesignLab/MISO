@@ -83,7 +83,15 @@ public:
 
    /// Sets `P` to be the operator that removes polynomials of degree `order`
    /// \param[in,out] P - to store the operator
-   virtual void getLocalProjOperator(DenseMatrix &P) const = 0;
+   void getProjOperator(DenseMatrix &P) const;
+
+   /// Applies the local projection operator, `P` or `P^T`, to the given data
+   /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
+   /// \param[out] Pu - result of applying `P` or `P^T` to `u` is stored here
+   /// \param[in] trans - if `true` applies `P^T`, otherwise applies `P`
+   /// \warning Pu is overwritten and possibly resized.
+   void multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
+                         bool trans = false) const;
 
    /// `(i,j)`th entry of skew-symmetric matrix \f$ S_{di} \f$ in physical space
    /// \param[in] di - desired physical space coordinate direction
@@ -104,6 +112,8 @@ protected:
    mutable DenseMatrix x;
    /// difference operator(s); the transposed operators are stored in practice
    mutable Array<DenseMatrix> Q;
+   /// generalized Vandermonde matrix; used for the projection operator in LPS
+   mutable DenseMatrix V;
 };
 
 /// Class for summation-by-parts operator on interval
@@ -121,9 +131,6 @@ public:
    // TODO: tempoarily just an empty function to compile
    virtual void getWeakOperator(int di, DenseMatrix &Q,
                                 bool trans = false) const {}
-
-   // TODO: tempoarily just an empty function to compile
-   virtual void getLocalProjOperator(DenseMatrix &P) const {}
 
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -146,8 +153,6 @@ public:
 
    /// Get the derivative operator in the direction di; transposed if trans=true
    void GetOperator(int di, DenseMatrix &D, bool trans=false) const;
-
-   virtual void getLocalProjOperator(DenseMatrix &P) const;
 
 private:
 #ifndef MFEM_THREAD_SAFE

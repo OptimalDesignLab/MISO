@@ -60,19 +60,40 @@ void jacobiPoly(const Vector &x, const double alpha, const double beta,
 void prorioPoly(const Vector &x, const Vector &y, const int i, const int j,
                 Vector &poly)
 {
-    int size = x.Size();
-    Vector poly_L(size), poly_J(size), xi(size);
-    MFEM_ASSERT(i >= 0 && j >= 0, "");
-    for (int k = 0; k < size; ++k)
-    {
-        y(k) != 1.0 ? xi(k) = (2.0*(1 + x(k))/(1 - y(k))) - 1 : xi(k) = -1;
-    }
-    jacobiPoly(xi, 0.0, 0.0, i, poly_L);
-    jacobiPoly(y, 2*i + 1, 0.0, j, poly_J);
-    for (int k = 0; k < size; ++k)
-    {
-        poly(k) = sqrt(2)*poly_L(k)*poly_J(k)*pow(1 - y(k), i);
-    }
+   int size = x.Size();
+   Vector poly_L(size), poly_J(size), xi(size);
+   MFEM_ASSERT(i >= 0 && j >= 0, "");
+   for (int k = 0; k < size; ++k)
+   {
+      y(k) != 1.0 ? xi(k) = (2.0*(1 + x(k))/(1 - y(k))) - 1 : xi(k) = -1;
+   }
+   jacobiPoly(xi, 0.0, 0.0, i, poly_L);
+   jacobiPoly(y, 2*i + 1, 0.0, j, poly_J);
+   for (int k = 0; k < size; ++k)
+   {
+      poly(k) = sqrt(2)*poly_L(k)*poly_J(k)*pow(1 - y(k), i);
+   }
 }
+
+void getVandermondeForTri(const mfem::Vector &x, const mfem::Vector &y,
+                          const int degree, mfem::DenseMatrix &V)
+{
+   MFEM_ASSERT(x.Size() == y.Size(), "");
+   int num_nodes = x.Size();
+   int N = (degree + 1) * (degree + 2) / 2;
+   V.SetSize(num_nodes, N);
+   Vector poly;
+   int ptr = 0;
+   for (int r = 0; r <= degree; ++r)
+   {
+      for (int j = 0; j <= r; ++j)
+      {
+         V.GetColumnReference(ptr, poly);
+         mach::prorioPoly(x, y, r - j, j, poly);
+         ptr += 1;
+      }
+   }
+}
+
 
 } //namespace mach

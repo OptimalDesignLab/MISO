@@ -39,6 +39,13 @@ double fluxIR_3D_check[15] = { 0.0574981892393032, 0.8557913559735177, -0.009501
                               -0.49610841114443704, -0.06857074541246752, -0.004281782020677901,
                                0.011331669926974292, 0.8573073150960174, -0.22355888319220793};
 
+// Define the entropy variables for checking; The first 3 entries are for the 1D variables,
+// the next 4 for the 2D variables, and the last 5 for the 3D variables
+double entvar_check[12] = { 3.9314525991262625, 0.11662500508421983, -1.1979726312082222,
+                            3.931451215675034, 0.11665204634055908, -0.037271458518573726,
+                           -1.1982503991275848, 3.9313978743154965, 0.11717660873184964,
+                           -0.037439061282697646, -0.16450741163391253, -1.2036387066151037};
+
 // Define products between dq/dw, evaluated at q, with vector qR.  The first 3
 // entries are for the 1D product, the next 4 for the 2D product, and the last 5 for the 3D
 double dqdw_prod_check[12] = { 5.519470966793266, 0.7354003853089198, 15.455145738300104,
@@ -79,7 +86,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 
    SECTION( "Spectral radius of flux Jacobian is correct" )
    {
-      REQUIRE( mach::calcSpectralRadius<double,dim>(q.GetData(), nrm.GetData()) ==
+      REQUIRE( mach::calcSpectralRadius<double,dim>(nrm.GetData(), q.GetData()) ==
                Approx(spect_check[dim-1]) );
    }
 
@@ -121,6 +128,19 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
          {
             REQUIRE( flux(i) == Approx(fluxIR_check(i,di)) );
          }
+      }
+   }
+
+   SECTION( "Entropy variables are correct" )
+   {
+      // Load the data to test the entropy variables; the pointer arithmetic in the 
+      // following constructor is to find the appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector entvar_vec(entvar_check + offset, dim + 2);
+      mach::calcEntropyVars<double,dim>(q.GetData(), qR.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( qR(i) == Approx(entvar_vec(i)) );
       }
    }
 

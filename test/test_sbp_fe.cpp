@@ -126,7 +126,7 @@ TEST_CASE( "Triangle SBP projection operator is accurate...", "[sbp-proj]")
          const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(
             *(fec->FiniteElementForGeometry(Geometry::TRIANGLE)));
          DenseMatrix P(sbp.GetDof());
-         sbp.getLocalProjOperator(P);
+         sbp.getProjOperator(P);
          Vector x, y;
          sbp.getNodeCoords(0, x);
          sbp.getNodeCoords(1, y);
@@ -142,6 +142,53 @@ TEST_CASE( "Triangle SBP projection operator is accurate...", "[sbp-proj]")
                for (int k = 0; k < sbp.GetDof(); ++k)
                {
                   REQUIRE( Pu(k) == Approx(0.0).margin(abs_tol) );
+               }
+            }
+         }
+
+      } // DYNAMIC SECTION
+   } // loop over p
+}
+
+TEST_CASE( "Triangle SBP multProjOperator is accurate...", "[sbp-apply-Prj]")
+{
+   int dim = 2;
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(new SBPCollection(p, dim));
+         const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(
+            *(fec->FiniteElementForGeometry(Geometry::TRIANGLE)));
+         DenseMatrix P(sbp.GetDof());
+         sbp.getProjOperator(P);
+         Vector x, y;
+         sbp.getNodeCoords(0, x);
+         sbp.getNodeCoords(1, y);
+         Vector u(sbp.GetDof());
+         DenseMatrix u_mat(u.GetData(), 1, sbp.GetDof());
+         Vector Pu(sbp.GetDof());
+         DenseMatrix Pu_mat(Pu.GetData(), 1, sbp.GetDof());
+         Vector Pu_check(sbp.GetDof());
+         for (int r = 0; r <= p; ++r)
+         {
+            for (int j = 0; j <= r; ++j)
+            {
+               int i = r - j;
+               polynomial2D(x, i, y, j, u);
+               // first check the non-tranposed version
+               P.Mult(u, Pu_check);
+               sbp.multProjOperator(u_mat, Pu_mat, false);
+               for (int k = 0; k < sbp.GetDof(); ++k)
+               {
+                  REQUIRE( Pu(k) == Approx(Pu_check(k)).margin(abs_tol) );
+               }
+               // next, check the transposed version
+               P.MultTranspose(u, Pu_check);
+               sbp.multProjOperator(u_mat, Pu_mat, true);
+               for (int k = 0; k < sbp.GetDof(); ++k)
+               {
+                  REQUIRE( Pu(k) == Approx(Pu_check(k)).margin(abs_tol) );
                }
             }
          }

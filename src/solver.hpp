@@ -38,6 +38,16 @@ public:
    /// \returns L2 error
    double calcL2Error(void (*u_exact)(const mfem::Vector &, mfem::Vector &));
 
+   /// Find the gobal step size for the given CFL number
+   /// \param[in] cfl - target CFL number for the domain
+   /// \returns dt_min - the largest step size for the given CFL
+   virtual double calcStepSize(double cfl) const;
+
+   /// Write the mesh and solution to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \todo make this work for parallel!
+   void printSolution(const std::string &file_name);
+
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
 
@@ -50,6 +60,8 @@ protected:
 #endif
    /// solver options
    nlohmann::json options;
+   /// number of space dimensions
+   int num_dim;
    /// number of state variables at each node
    int num_state = 0;
    /// time step size

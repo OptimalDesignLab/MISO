@@ -117,13 +117,13 @@ void calcIsmailRoeFlux(int di, const xdouble *qL, const xdouble *qR,
 }
 
 /// The spectral radius of the flux Jacobian in the direction `dir`
-/// \param[in] q - conservative variables used to evaluate Jacobian
 /// \param[in] dir - desired direction of flux Jacobian
+/// \param[in] q - conservative variables used to evaluate Jacobian
 /// \returns absolute value of the largest eigenvalue of the Jacobian
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
-xdouble calcSpectralRadius(const xdouble *q, const xdouble *dir)
+xdouble calcSpectralRadius(const xdouble *dir, const xdouble *q)
 {
    xdouble press = pressure<xdouble,dim>(q);
    xdouble sndsp = sqrt(euler::gamma*press/q[0]);
@@ -131,6 +131,30 @@ xdouble calcSpectralRadius(const xdouble *q, const xdouble *dir)
    xdouble U = dot<xdouble,dim>(q+1,dir)/q[0];
    xdouble dir_norm = sqrt(dot<xdouble,dim>(dir,dir));
    return fabs(U) + sndsp*dir_norm;
+}
+
+/// Convert conservative variables `q` to entropy variables `w`
+/// \param[in] q - conservative variables that we want to convert from
+/// \param[out] w - entropy variables we want to convert to
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcEntropyVars(const xdouble *q, xdouble *w)
+{
+   xdouble u[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = q[i+1]/q[0];
+   }
+   xdouble p = pressure<xdouble,dim>(q);
+   xdouble s = log(p/pow(q[0],euler::gamma));
+   xdouble fac = 1.0/p;
+   w[0] = (euler::gamma-s)/euler::gami - 0.5*dot<xdouble,dim>(u,u)*fac*q[0];
+   for (int i = 0; i < dim; ++i)
+   {
+      w[i+1] = q[i+1]*fac;
+   }
+   w[dim+1] = -q[0]*fac;
 }
 
 // TODO: How should we return matrices, particularly when they will be differentiated?
@@ -190,6 +214,31 @@ void calcdQdWProduct(const xdouble *q, const xdouble *vec, xdouble *dqdw_vec)
 //   dqdw[3,4] = h*rhov
 //   dqdw[4,4] = rho*h*h - a2*p/gami
 
+}
+
+/// Applies the matrix `dQ/dW` to `vec`, and scales by the avg. spectral radius
+/// \param[in] adjJ - the adjugate of the mapping Jacobian
+/// \param[in] q - the state at which `dQ/dW` and radius are to be evaluated
+/// \param[in] vec - the vector being multiplied
+/// \param[out] mat_vec - the result of the operation
+/// \warning adjJ must be supplied transposed from its `mfem` storage format,
+/// so we can use pointer arithmetic to access its rows.
+template <typename xdouble, int dim>
+void applyLPSScaling(const xdouble *adjJ, const xdouble *q, const xdouble *vec,
+                     xdouble *mat_vec)
+{
+   // first, get the average spectral radii
+   xdouble spect = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      spect += calcSpectralRadius<xdouble,dim>(adjJ + i*dim, q);
+   }
+   spect /= dim;
+   calcdQdWProduct<xdouble,dim>(q, vec, mat_vec);
+   for (int i = 0; i < dim+2; ++i)
+   {
+      mat_vec[i] *= spect;
+   }
 }
 
 } // namespace mach

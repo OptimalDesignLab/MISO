@@ -45,14 +45,14 @@ private:
 };
 
 /// Local-projection stabilization integrator
-class LPSIntegrator : public mfem::BilinearFormIntegrator
+class AdvectLPSIntegrator : public mfem::BilinearFormIntegrator
 {
 public:
    /// Constructs a local-projection stabilization integrator.
    /// \param[in] velc - represents the (possibly) spatially varying velocity
    /// \param[in] a - used to move from lhs to rhs
    /// \param[in] diss_coeff - used to scale the magnitude of the LPS
-   LPSIntegrator(mfem::VectorCoefficient &velc, double a = 1.0,
+   AdvectLPSIntegrator(mfem::VectorCoefficient &velc, double a = 1.0,
                  double diss_coeff = 1.0);
 
    /// Create the stabilization matrix for the LPS operator.

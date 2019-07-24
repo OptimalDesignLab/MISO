@@ -25,4 +25,5 @@ $(TEST_BIN) : $(OBJS_TEST) ../libmach.a
 
 clean:
 	@echo "deleting temporary, object, and binary files"
+	@rm -f $(OBJS_TEST)
 	@rm -f $(TEST_BIN)

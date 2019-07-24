@@ -17,6 +17,14 @@ public:
    /// \todo Can we infer dim some other way?
    EulerSolver(const std::string &opt_file_name, int dim = 1);
 
+   /// Find the gobal step size for the given CFL number
+   /// \param[in] cfl - target CFL number for the domain
+   /// \returns dt_min - the largest step size for the given CFL
+   /// This uses the average spectral radius to estimate the largest wave speed,
+   /// and uses the minimum distance between nodes for the length in the CFL
+   /// number.
+   virtual double calcStepSize(double cfl) const;
+
 protected:
    /// the mass matrix bilinear form
    std::unique_ptr<BilinearFormType> mass;

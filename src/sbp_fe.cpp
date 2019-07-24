@@ -123,6 +123,82 @@ double SBPFiniteElement::getSkewEntry(int di, int i, int j,
    return Sij; 
 }
 
+void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
+{
+   MFEM_ASSERT( P.Size() == Dof, "");
+   // Set lps = I - V*V'*H
+   MultAAt(V, P);
+   P.RightScaling(H);
+   P *= -1.0;
+   for (int i = 0; i < Dof; ++i)
+   {
+      P(i, i) += 1.0;
+   }
+}
+
+void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
+                                        bool trans) const
+{
+   int num_nodes = GetDof();
+   MFEM_ASSERT( u.Width() == Pu.Width() && u.Width() == num_nodes , "");
+   MFEM_ASSERT( u.Height() == Pu.Height() , "");
+   int num_states = u.Height();
+   Vector prod(num_states); // work vector
+   Vector uj, Puj; // For references to existing data
+   // Note: DenseMatrix::operator= is not in-place
+   Pu = u;
+   if (trans == true)
+   {
+      // loop over the polynomial basis functions
+      for (int i = 0; i < V.Width(); ++i)
+      {
+         // perform the inner product V(:,i)^T * u
+         prod = 0.0;
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               prod(n) += V(j,i)*u(n,j); 
+            }
+         }
+         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            double fac = V(j,i)*H(j);
+            for (int n = 0; n < num_states; ++n)
+            {
+               Pu(n,j) -= fac*prod(n);
+            }
+         }
+      }
+   }
+   else // trans != true 
+   {
+      // loop over the polynomial basis functions
+      for (int i = 0; i < V.Width(); ++i)
+      {
+         // perform the inner product V(:,i)^T * H * u
+         prod = 0.0;
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            double fac = V(j,i)*H(j);
+            for (int n = 0; n < num_states; ++n)
+            {
+               prod(n) += fac*u(n,j);
+            }
+         }
+         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               Pu(n,j) -= V(j,i)*prod(n);
+            }
+         }
+      }
+   }
+}
+
 /// SBPSegmentElement is a segment element with nodes at Gauss Lobatto
 /// points with ordering consistent with SBPTriangleElement's edges.
 
@@ -410,6 +486,20 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
       x(i,0) = ip.x;
       x(i,1) = ip.y;
    }
+   // Construct the Vandermonde matrix in order to perform LPS projections;
+   V.SetSize(num_nodes, (degree + 1) * (degree + 2) / 2);
+   // First, get node coordinates and shift to triangle with vertices 
+   // (-1,-1), (1,-1), (-1,1)
+   Vector xi, eta;
+   getNodeCoords(0, xi);
+   getNodeCoords(1, eta);
+   xi *= 2.0;
+   xi -= 1.0;
+   eta *= 2.0;
+   eta -= 1.0;
+   mach::getVandermondeForTri(xi, eta, Order, V);
+   // scale V to account for the different reference elements
+   V *= 2.0;
 }
 
 /// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
@@ -487,44 +577,6 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    Q[1].GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(1, tempVec);
    dshape.InvLeftScaling(H);
-}
-
-void SBPTriangleElement::getLocalProjOperator(DenseMatrix &P) const
-{
-   MFEM_ASSERT( P.Size() == Dof, "");
-   int N = (Order + 1) * (Order + 2) / 2;
-   Vector xi, eta;
-   // get node coordinates and shift to triangle with vertices 
-   // (-1,-1), (1,-1), (-1,1)
-   getNodeCoords(0, xi);
-   getNodeCoords(1, eta);
-   xi *= 2.0;
-   xi -= 1.0;
-   eta *= 2.0;
-   eta -= 1.0;
-   // loop over ortho polys up to degree and form Vandermonde matrix
-   Vector poly(Dof);
-   DenseMatrix V(Dof, N);
-   int ptr = 0;
-   for (int r = 0; r <= Order; ++r)
-   {
-      for (int j = 0; j <= r; ++j)
-      {
-         V.GetColumnReference(ptr, poly);
-         mach::prorioPoly(xi, eta, r - j, j, poly);
-         ptr += 1;
-      }
-   }
-   // scale V to account for the different reference elements
-   V *= 2.0;
-   // Set lps = I - V*V'*H
-   MultAAt(V, P);
-   P.RightScaling(H);
-   P *= -1.0;
-   for (int i = 0; i < Dof; ++i)
-   {
-      P(i, i) += 1.0;
-   }
 }
 
 SBPCollection::SBPCollection(const int p, const int dim)
