@@ -2,7 +2,7 @@
 #define MACH_SOLVER
 
 #include "mfem.hpp"
-#include <iostream>
+#include "mach_types.hpp"
 #include "utils.hpp"
 #include "json.hpp"
 
@@ -16,11 +16,13 @@ class AbstractSolver
 public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
-  
    AbstractSolver(const std::string &opt_file_name =
                       std::string("mach_options.json"));
    /// class destructor
    ~AbstractSolver();
+
+   /// Constructs the mesh member based on c preprocesor defs
+   void constructMesh();
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
@@ -37,26 +39,10 @@ public:
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
 
-   /// Generate Mesh
-   void ConstructMesh();
-   
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
    MPI_Comm comm;
-#ifdef MFEM_USE_PUMI
-   using MeshType = mfem::ParPumiMesh;
-#else
-   using MeshType = mfem::ParMesh;
-#endif
-   using SpaceType = mfem::ParFiniteElementSpace;
-   using BilinearFormType = mfem::ParBilinearForm;
-   using GridFunctionType = mfem::ParGridFunction;
-#else
-   using MeshType = mfem::Mesh;
-   using SpaceType = mfem::FiniteElementSpace;
-   using BilinearFormType = mfem::BilinearForm;
-   using GridFunctionType = mfem::GridFunction;
 #endif
    /// process rank
    int rank;
@@ -73,17 +59,17 @@ protected:
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// object defining the computational mesh
-   std::unique_ptr<mfem::Mesh> mesh;
+   std::unique_ptr<MeshType> mesh;
    /// discrete function space
-   std::unique_ptr<mfem::FiniteElementSpace> fes;
+   std::unique_ptr<SpaceType> fes;
    /// state variable
-   std::unique_ptr<mfem::GridFunction> u;
+   std::unique_ptr<GridFunType> u;
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
-   std::unique_ptr<mfem::BilinearForm> mass;
+   //std::unique_ptr<MassFormType> mass;
    /// operator for spatial residual (linear in some cases)
-   std::unique_ptr<mfem::Operator> res;
+   //std::unique_ptr<ResFormType> res;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
 };

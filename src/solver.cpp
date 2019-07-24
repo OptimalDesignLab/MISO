@@ -39,7 +39,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
    options_file >> file_options;
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
-   ConstructMesh();
+   constructMesh();
    int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
 
@@ -77,116 +77,7 @@ AbstractSolver::~AbstractSolver()
    *out << "Deleting Abstract Solver..." << endl;
 }
 
-void AbstractSolver::setInitialCondition(
-   void (*u_init)(const Vector &, Vector &))
-{
-   // TODO: Need to verify that this is ok for scalar fields
-   VectorFunctionCoefficient u0(num_state, u_init);
-   u->ProjectCoefficient(u0);
-}
-
-double AbstractSolver::calcL2Error(
-   void (*u_exact)(const Vector &, Vector &))
-{
-   // TODO: need to generalize to parallel
-   VectorFunctionCoefficient exsol(num_state, u_exact);
-   //return u->ComputeL2Error(ue);
-
-   double loc_norm = 0.0;
-   const FiniteElement *fe;
-   ElementTransformation *T;
-   DenseMatrix vals, exact_vals;
-   Vector loc_errs;
-
-   for (int i = 0; i < fes->GetNE(); i++)
-   {
-      fe = fes->GetFE(i);
-      const IntegrationRule *ir = &(fe->GetNodes());
-      T = fes->GetElementTransformation(i);
-      u->GetVectorValues(*T, *ir, vals);
-      exsol.Eval(exact_vals, *T, *ir);
-      vals -= exact_vals;
-      loc_errs.SetSize(vals.Width());
-      vals.Norm2(loc_errs);
-      for (int j = 0; j < ir->GetNPoints(); j++)
-      {
-         const IntegrationPoint &ip = ir->IntPoint(j);
-         T->SetIntPoint(&ip);
-         loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
-      }
-   }
-   double norm;
-   #ifdef MFEM_USE_MPI
-   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   #else
-   norm = loc_norm;
-   #endif
-   if (norm < 0.0) // This was copied from mfem...should not happen for us
-   {
-      return -sqrt(-norm);
-   }
-   return sqrt(norm);
-}
-
-void AbstractSolver::solveForState()
-{
-   // TODO: This is not general enough.
-
-   double t = 0.0;
-   evolver->SetTime(t);
-   ode_solver->Init(*evolver);
-
-   // output the mesh and initial condition
-   // TODO: need to swtich to vtk for SBP
-   int precision = 8;
-   {
-      ofstream omesh("adv.mesh");
-      omesh.precision(precision);
-      mesh->Print(omesh);
-      ofstream osol("adv-init.gf");
-      osol.precision(precision);
-      u->Save(osol);
-   }
-
-   bool done = false;
-   double t_final = options["t-final"].get<double>();
-   double dt = options["dt"].get<double>();
-   for (int ti = 0; !done; )
-   {
-      double dt_real = min(dt, t_final - t);
-      ode_solver->Step(*u, t, dt_real);
-      ti++;
-
-      done = (t >= t_final - 1e-8*dt);
-
-/*       if (done || ti % vis_steps == 0)
-      {
-         cout << "time step: " << ti << ", time: " << t << endl;
-
-         if (visualization)
-         {
-            sout << "solution\n" << mesh << u << flush;
-         }
-
-         if (visit)
-         {
-            dc->SetCycle(ti);
-            dc->SetTime(t);
-            dc->Save();
-         }
-      } */
-   }
-
-   // Save the final solution. This output can be viewed later using GLVis:
-   // glvis -m unitGridTestMesh.msh -g adv-final.gf".
-   {
-      ofstream osol("adv-final.gf");
-      osol.precision(precision);
-      u->Save(osol);
-   }
-}
-
-void AbstractSolver::ConstructMesh()
+void AbstractSolver::constructMesh()
 {
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PUMI  // if using pumi mesh
@@ -229,6 +120,119 @@ void AbstractSolver::ConstructMesh()
 #endif //MFEM_USE_MPI
 }
 
+void AbstractSolver::setInitialCondition(
+   void (*u_init)(const Vector &, Vector &))
+{
+   // TODO: Need to verify that this is ok for scalar fields
+   VectorFunctionCoefficient u0(num_state, u_init);
+   u->ProjectCoefficient(u0);
+}
 
+double AbstractSolver::calcL2Error(
+   void (*u_exact)(const Vector &, Vector &))
+{
+   // TODO: need to generalize to parallel
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   //return u->ComputeL2Error(ue);
+
+   double loc_norm = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals;
+   Vector loc_errs;
+
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fe = fes->GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      T = fes->GetElementTransformation(i);
+      u->GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      vals -= exact_vals;
+      loc_errs.SetSize(vals.Width());
+      vals.Norm2(loc_errs);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+      }
+   }
+   double norm;
+#ifdef MFEM_USE_MPI
+   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   norm = loc_norm;
+#endif
+   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
+}
+
+void AbstractSolver::solveForState()
+{
+   // TODO: This is not general enough.
+
+   double t = 0.0;
+   evolver->SetTime(t);
+   ode_solver->Init(*evolver);
+
+   // output the mesh and initial condition
+   // TODO: need to swtich to vtk for SBP
+   int precision = 8;
+   {
+      ofstream omesh("adv.mesh");
+      omesh.precision(precision);
+      mesh->Print(omesh);
+      ofstream osol("adv-init.gf");
+      osol.precision(precision);
+      u->Save(osol);
+   }
+
+   bool done = false;
+   double t_final = options["t-final"].get<double>();
+   double dt = options["dt"].get<double>();
+   for (int ti = 0; !done; )
+   {
+      double dt_real = min(dt, t_final - t);
+#ifdef MFEM_USE_MPI
+      HypreParVector *U = u->GetTrueDofs();
+      ode_solver->Step(*U, t, dt_real);
+      *u = *U;
+#else
+      ode_solver->Step(*u, t, dt_real);
+#endif
+      ti++;
+
+      done = (t >= t_final - 1e-8*dt);
+
+/*       if (done || ti % vis_steps == 0)
+      {
+         cout << "time step: " << ti << ", time: " << t << endl;
+
+         if (visualization)
+         {
+            sout << "solution\n" << mesh << u << flush;
+         }
+
+         if (visit)
+         {
+            dc->SetCycle(ti);
+            dc->SetTime(t);
+            dc->Save();
+         }
+      } */
+   }
+
+   // Save the final solution. This output can be viewed later using GLVis:
+   // glvis -m unitGridTestMesh.msh -g adv-final.gf".
+   {
+      ofstream osol("adv-final.gf");
+      osol.precision(precision);
+      u->Save(osol);
+   }
+}
 
 } // namespace mach
