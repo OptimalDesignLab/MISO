@@ -13,7 +13,10 @@ public:
    /// Class constructor.
    /// \param[in] M - mass matrix
    /// \param[in] K - stiffness matrix
-   LinearEvolver(mfem::SparseMatrix &M, mfem::SparseMatrix &K); //, const Vector &_b);
+   /// \param[in] outstream - member to print only at root
+   LinearEvolver(mfem::SparseMatrix &M, mfem::SparseMatrix &K,
+                 std::ostream &outstream); //, const Vector &_b);
+
 
    /// Applies the action of the linear-evolution operator on `x`.
    /// \param[in] x - `Vector` that is being multiplied by operator
@@ -24,6 +27,8 @@ public:
    virtual ~LinearEvolver() { }
 
 private:
+   /// object to print only at root
+   std::ostream &out;
    /// mass matrix represented as a sparse matrix
    mfem::SparseMatrix &M;
    /// stiffness matrix represented as a sparse matrix

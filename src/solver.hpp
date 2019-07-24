@@ -2,6 +2,7 @@
 #define MACH_SOLVER
 
 #include "mfem.hpp"
+#include <iostream>
 #include "utils.hpp"
 #include "json.hpp"
 
@@ -18,7 +19,6 @@ public:
   
    AbstractSolver(const std::string &opt_file_name =
                       std::string("mach_options.json"));
-
    /// class destructor
    ~AbstractSolver();
 
@@ -39,13 +39,11 @@ public:
 
    /// Generate Mesh
    void ConstructMesh();
-
+   
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
    MPI_Comm comm;
-   /// process rank
-   int rank;
 #ifdef MFEM_USE_PUMI
    using MeshType = mfem::ParPumiMesh;
 #else
@@ -60,6 +58,10 @@ protected:
    using BilinearFormType = mfem::BilinearForm;
    using GridFunctionType = mfem::GridFunction;
 #endif
+   /// process rank
+   int rank;
+   /// print object
+   std::ostream *out;
    /// solver options
    nlohmann::json options;
    /// number of state variables at each node

@@ -98,13 +98,13 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    num_state = 1;
    fes.reset(new SpaceType(static_cast<MeshType*>(mesh.get()), fec.get(), num_state, Ordering::byVDIM)); 
    u.reset(new GridFunctionType(static_cast<SpaceType*>(fes.get())));
-   cout << "Number of finite element unknowns: "
+   *out << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
-   cout << "\tNumber of vertices = " << fes->GetNV() << endl;
-   cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
-   cout << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
-   cout << "\tNumber of face Dofs = " << fes->GetNFDofs() << endl;
-   cout << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
+   *out << "\tNumber of vertices = " << fes->GetNV() << endl;
+   *out << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
+   *out << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
+   *out << "\tNumber of face Dofs = " << fes->GetNFDofs() << endl;
+   *out << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
 
    // set up the mass matrix
    mass.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
@@ -114,7 +114,7 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
 
    // set up the stiffness matrix
    velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
-   cout << "dimension is " << mesh->Dimension() << endl;
+   *out << "dimension is " << mesh->Dimension() << endl;
    res.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
    static_cast<BilinearFormType*>(res.get())->AddDomainIntegrator(
       new AdvectionIntegrator(*velocity, -1.0));
@@ -126,7 +126,7 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
 
    // define the time-dependent operator
    evolver.reset(new LinearEvolver(mass->SpMat(),
-                 static_cast<BilinearFormType*>(res.get())->SpMat()));
+                 static_cast<BilinearFormType*>(res.get())->SpMat(), *out));
 }
 
 }

@@ -1,5 +1,4 @@
 #include "linear_evolver.hpp"
-
 using namespace mfem;
 using namespace std;
 
@@ -24,13 +23,17 @@ void HadamardProd(const Vector &v1, const Vector &v2, Vector &v)
    }
 }
 
-LinearEvolver::LinearEvolver(SparseMatrix &mass, SparseMatrix &stiff) //, const Vector &_b)
-   : TimeDependentOperator(mass.Size()), M(mass), K(stiff), Minv(mass.Size()), z(mass.Size()) //b(_b), z(_M.Size())
+LinearEvolver::LinearEvolver(SparseMatrix &mass, SparseMatrix &stiff, ostream &outstream) //, const Vector &_b)
+   : out(outstream), TimeDependentOperator(mass.Size()), M(mass), K(stiff), Minv(mass.Size()), z(mass.Size()) //b(_b), z(_M.Size())
 {
     // Here we extract the diagonal from the mass matrix and invert it
+   #ifdef MFEM_USE_MPI
+   int rank;
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   #endif
     M.GetDiag(z);
-    cout << "minimum of z = " << z.Min() << endl;
-    cout << "maximum of z = " << z.Max() << endl;
+    out << "minimum of z = " << z.Min() << endl;
+    out << "maximum of z = " << z.Max() << endl;
     ElementInv(z, Minv);
 }
 
