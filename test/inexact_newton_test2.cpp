@@ -1,4 +1,4 @@
-//#include "catch.hpp"
+#include "catch.hpp"
 #include "../src/inexact_newton.hpp"
 
 using namespace mfem;
