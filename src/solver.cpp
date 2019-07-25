@@ -32,21 +32,28 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 {
    // Set the options; the defaults are overwritten by the values in the file
    // using the merge_patch method
+   #ifdef MFEM_USE_MPI
+   comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
+   MPI_Comm_rank(comm, &rank);
+   #else
+   rank = 0; // serial case
+   #endif
+   out = getOutStream(rank); 
    options = default_options;
    nlohmann::json file_options;
    ifstream options_file(opt_file_name);
    options_file >> file_options;
    options.merge_patch(file_options);
-   cout << setw(3) << options << endl;
+   *out << setw(3) << options << endl;
    constructMesh(move(smesh));
    // does num_dim equal mesh->Dimension in all cases?
    num_dim = mesh->Dimension(); 
 
-   cout << "problem space dimension = " << num_dim << endl;
+   *out << "problem space dimension = " << num_dim << endl;
 
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
-   cout << "ode-solver type = "
+   *out << "ode-solver type = "
         << options["unsteady"]["ode-solver"].get<string>() << endl;
    if (options["unsteady"]["ode-solver"].get<string>() == "RK1")
    {
@@ -77,7 +84,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 
 AbstractSolver::~AbstractSolver() 
 {
-   cout << "Deleting Abstract Solver..." << endl;
+   *out << "Deleting Abstract Solver..." << endl;
 }
 
 void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)

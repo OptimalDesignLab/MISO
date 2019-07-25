@@ -24,8 +24,8 @@ void HadamardProd(const Vector &v1, const Vector &v2, Vector &v)
    }
 }
 
-LinearEvolver::LinearEvolver(MatrixType &m, MatrixType &k) //, const Vector &_b)
-   : TimeDependentOperator(m.Height()), mass(m), stiff(k), z(m.Height()) //b(_b), z(_M.Size())
+LinearEvolver::LinearEvolver(MatrixType &m, MatrixType &k, ostream &outstream) //, const Vector &_b)
+   : out(outstream), TimeDependentOperator(m.Height()), mass(m), stiff(k), z(m.Height()) //b(_b), z(_M.Size())
 {
     // Here we extract the diagonal from the mass matrix and invert it
     //M.GetDiag(z);

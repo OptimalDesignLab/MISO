@@ -100,10 +100,10 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    fes.reset(new SpaceType(static_cast<MeshType*>(mesh.get()), fec.get(), num_state, Ordering::byVDIM)); 
    u.reset(new GridFunType(static_cast<SpaceType*>(fes.get())));
 #ifdef MFEM_USE_MPI
-   cout << "Number of finite element unknowns: "
+   *out << "Number of finite element unknowns: "
         << fes->GlobalTrueVSize() << endl;
 #else
-   cout << "Number of finite element unknowns: "
+   *out << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
    //cout << "\tNumber of vertices = " << fes->GetNV() << endl;
@@ -120,7 +120,7 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
 
    // set up the stiffness matrix
    velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
-   cout << "dimension is " << mesh->Dimension() << endl;
+   *out << "dimension is " << mesh->Dimension() << endl;
    stiff.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
    stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
    // add the LPS stabilization
@@ -139,7 +139,7 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    mass_matrix.reset(new MatrixType(mass->SpMat()));
    stiff_matrix.reset(new MatrixType(stiff->SpMat()));
 #endif
-   evolver.reset(new LinearEvolver(*mass_matrix, *stiff_matrix));
+   evolver.reset(new LinearEvolver(*mass_matrix, *stiff_matrix, *out));
 
 }
 
