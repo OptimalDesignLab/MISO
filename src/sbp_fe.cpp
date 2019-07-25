@@ -7,6 +7,198 @@ namespace mfem
 
 using namespace std;
 
+void SBPFiniteElement::multNormMatrix(const DenseMatrix &u,
+                                      DenseMatrix &Hu) const
+{
+   int num_nodes = GetDof();
+   MFEM_ASSERT( u.Width() == Hu.Width() && u.Width() == num_nodes , "");
+   MFEM_ASSERT( u.Height() == Hu.Height() , "");
+   int num_states = u.Height();
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      for (int n = 0; n < num_states; ++n)
+      {
+         Hu(n,i) = H(i)*u(n,i);
+      }
+   }
+}
+
+void SBPFiniteElement::multNormMatrixInv(const DenseMatrix &u,
+                                         DenseMatrix &Hinvu) const
+{
+   int num_nodes = GetDof();
+   MFEM_ASSERT( u.Width() == Hinvu.Width() && u.Width() == num_nodes , "");
+   MFEM_ASSERT( u.Height() == Hinvu.Height() , "");
+   int num_states = u.Height();
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      double fac = 1.0/H(i);
+      for (int n = 0; n < num_states; ++n)
+      {
+         Hinvu(n,i) = fac*u(n,i);
+      }
+   }
+}
+
+void SBPFiniteElement::getStrongOperator(int di, DenseMatrix &D,
+                                         bool trans) const
+{
+   MFEM_ASSERT(di >= 0 && di < GetDim(), "");
+   if (trans)
+   {
+      // Q[di] stores the transposed operator already!!!
+      D = Q[di];
+      D.InvRightScaling(H);
+   }
+   else
+   {
+      D.Transpose(Q[di]); // this copies Qx^T, etc
+      D.InvLeftScaling(H);
+   }
+}
+
+void SBPFiniteElement::getWeakOperator(int di, DenseMatrix &Qdi,
+                                       bool trans) const
+{
+   MFEM_ASSERT(di >= 0 && di < GetDim(), "");
+   if (trans)
+   {
+      // Q[di] stores the transposed operator already!!!
+      Qdi = Q[di]; // assignment (deep copy)
+   }
+   else
+   {
+      Qdi.Transpose(Q[di]); // this copies Qx^T, etc
+   }
+}
+
+void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u, DenseMatrix &Qu,
+                                        bool trans) const
+{
+   MFEM_ASSERT(di >= 0 && di < GetDim(), "");
+   int num_nodes = GetDof();
+   MFEM_ASSERT( u.Width() == Qu.Width() && u.Width() == num_nodes , "");
+   MFEM_ASSERT( u.Height() == Qu.Height() , "");
+   int num_states = u.Height();
+   if (trans)
+   {
+      for (int i = 0; i < num_nodes; ++i)
+      {
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               // recall that Q[di] stores the transposed operator
+               Qu(n,i) -= Q[di](i,j)*u(n,j);
+            }
+         }
+      }
+   }
+   else // trans == false
+   {
+      for (int i = 0; i < num_nodes; ++i)
+      {
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               // recall that Q[di] stores the transposed operator
+               Qu(n,i) += Q[di](j,i)*u(n,j);
+            }
+         }
+      }
+   }
+
+}
+
+double SBPFiniteElement::getSkewEntry(int di, int i, int j,
+                                      const mfem::DenseMatrix &adjJ_i,
+                                      const mfem::DenseMatrix &adjJ_j) const 
+{
+   double Sij = 0.0;
+   for (int k = 0; k < GetDim(); ++k)
+   {
+      Sij += adjJ_i(k,di)*Q[k](j,i) - adjJ_j(k,di)*Q[k](i,j);
+   }
+   return Sij; 
+}
+
+void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
+{
+   MFEM_ASSERT( P.Size() == Dof, "");
+   // Set lps = I - V*V'*H
+   MultAAt(V, P);
+   P.RightScaling(H);
+   P *= -1.0;
+   for (int i = 0; i < Dof; ++i)
+   {
+      P(i, i) += 1.0;
+   }
+}
+
+void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
+                                        bool trans) const
+{
+   int num_nodes = GetDof();
+   MFEM_ASSERT( u.Width() == Pu.Width() && u.Width() == num_nodes , "");
+   MFEM_ASSERT( u.Height() == Pu.Height() , "");
+   int num_states = u.Height();
+   Vector prod(num_states); // work vector
+   Vector uj, Puj; // For references to existing data
+   // Note: DenseMatrix::operator= is not in-place
+   Pu = u;
+   if (trans == true)
+   {
+      // loop over the polynomial basis functions
+      for (int i = 0; i < V.Width(); ++i)
+      {
+         // perform the inner product V(:,i)^T * u
+         prod = 0.0;
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               prod(n) += V(j,i)*u(n,j); 
+            }
+         }
+         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            double fac = V(j,i)*H(j);
+            for (int n = 0; n < num_states; ++n)
+            {
+               Pu(n,j) -= fac*prod(n);
+            }
+         }
+      }
+   }
+   else // trans != true 
+   {
+      // loop over the polynomial basis functions
+      for (int i = 0; i < V.Width(); ++i)
+      {
+         // perform the inner product V(:,i)^T * H * u
+         prod = 0.0;
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            double fac = V(j,i)*H(j);
+            for (int n = 0; n < num_states; ++n)
+            {
+               prod(n) += fac*u(n,j);
+            }
+         }
+         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               Pu(n,j) -= V(j,i)*prod(n);
+            }
+         }
+      }
+   }
+}
+
 /// SBPSegmentElement is a segment element with nodes at Gauss Lobatto
 /// points with ordering consistent with SBPTriangleElement's edges.
 
@@ -152,26 +344,27 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 // }
 
 SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
-   : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree),
-   Qx(num_nodes), Qy(num_nodes)
+   : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree)
 {
    /// Header file including SBP Dx and Dy matrix data
    #include "sbp_operators.hpp"
+   Q[0].SetSize(num_nodes);
+   Q[1].SetSize(num_nodes);
    
    // Populate the Dx and Dy matrices and create the element's Nodes
    switch (degree)
    {
       case 0:
-         Qx=p0Qx;
-         Qy=p0Qy;
+         Q[0] = p0Qx;
+         Q[1] = p0Qy;
 
          Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.16666666666666666);
          Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.16666666666666666);
          Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.16666666666666666);
          break;
       case 1:
-         Qx=p1Qx;
-         Qy=p1Qy;
+         Q[0] = p1Qx;
+         Q[1] = p1Qy;
 
          Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.024999999999999998);
          Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.024999999999999998);
@@ -182,8 +375,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
          Nodes.IntPoint(6).Set2w(0.3333333333333333, 0.3333333333333333, 0.22500000000000006);
          break;
       case 2:
-         Qx=p2Qx;
-         Qy=p2Qy;
+         Q[0] = p2Qx;
+         Q[1] = p2Qy;
   
          // vertices
          Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.006261126504899741);
@@ -204,8 +397,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
          Nodes.IntPoint(11).Set2w(0.5742912857763836, 0.21285435711180825, 0.10675793966098839);
          break;
       case 3:
-         Qx=p3Qx;
-         Qy=p3Qy;
+         Q[0] = p3Qx;
+         Q[1] = p3Qy;
    
          // vertices
          Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.0022825661430496253);
@@ -236,8 +429,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
 
          break;
       case 4:
-         Qx=p4Qx;
-         Qy=p4Qy; 
+         Q[0] = p4Qx;
+         Q[1] = p4Qy; 
 
          // vertices
          Nodes.IntPoint(0).Set2w(0.000000000000000000,0.000000000000000000,0.001090393904993471);
@@ -290,10 +483,23 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(i);
       H(i) = ip.weight;
-      // x and y are on the reference element (-1,-1), (1,-1), (-1,1)
-      x(i,0) = 2.0*ip.x - 1.0;
-      x(i,1) = 2.0*ip.y - 1.0;
+      x(i,0) = ip.x;
+      x(i,1) = ip.y;
    }
+   // Construct the Vandermonde matrix in order to perform LPS projections;
+   V.SetSize(num_nodes, (degree + 1) * (degree + 2) / 2);
+   // First, get node coordinates and shift to triangle with vertices 
+   // (-1,-1), (1,-1), (-1,1)
+   Vector xi, eta;
+   getNodeCoords(0, xi);
+   getNodeCoords(1, eta);
+   xi *= 2.0;
+   xi -= 1.0;
+   eta *= 2.0;
+   eta -= 1.0;
+   mach::getVandermondeForTri(xi, eta, Order, V);
+   // scale V to account for the different reference elements
+   V *= 2.0;
 }
 
 /// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
@@ -366,71 +572,11 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    dshape = 0.0;
 
    Vector tempVec(Dof);
-   Qx.GetColumnReference(ipIdx, tempVec);
+   Q[0].GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(0, tempVec);
-   Qy.GetColumnReference(ipIdx, tempVec);
+   Q[1].GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(1, tempVec);
    dshape.InvLeftScaling(H);
-}
-
-void SBPTriangleElement::getStrongOperator(int di, DenseMatrix &D, bool trans) const
-{
-   MFEM_ASSERT(di >= 0 && di <= 1, "");
-   if (trans)
-   {
-      di == 0 ? D.Transpose(Qx) : D.Transpose(Qy); // this copies Qx^T, etc
-      D.InvRightScaling(H);
-   }
-   else
-   {
-      di == 0 ? D = Qx : D = Qy; // assignment (deep copy)
-      D.InvLeftScaling(H);
-   }
-}
-
-void SBPTriangleElement::getWeakOperator(int di, DenseMatrix &Q, bool trans) const
-{
-   MFEM_ASSERT(di >= 0 && di <= 1, "");
-   if (trans)
-   {
-      di == 0 ? Q.Transpose(Qx) : Q.Transpose(Qy); // this copies Qx^T, etc
-   }
-   else
-   {
-      di == 0 ? Q = Qx : Q = Qy; // assignment (deep copy)
-   }
-}
-
-void SBPTriangleElement::getLocalProjOperator(DenseMatrix &P) const
-{
-   MFEM_ASSERT( P.Size() == Dof, "");
-   int N = (Order + 1) * (Order + 2) / 2;
-   Vector xi, eta;
-   x.GetColumnReference(0, xi);  // use returnNodes instead?
-   x.GetColumnReference(1, eta);
-   // loop over ortho polys up to degree and form Vandermonde matrix
-   Vector poly(Dof);
-   DenseMatrix V(Dof, N);
-   int ptr = 0;
-   for (int r = 0; r <= Order; ++r)
-   {
-      for (int j = 0; j <= r; ++j)
-      {
-         V.GetColumnReference(ptr, poly);
-         mach::prorioPoly(xi, eta, r - j, j, poly);
-         ptr += 1;
-      }
-   }
-   // scale V to account for the different reference elements
-   V *= 2.0;
-   // Set lps = I - V*V'*H
-   MultAAt(V, P);
-   P.RightScaling(H);
-   P *= -1.0;
-   for (int i = 0; i < Dof; ++i)
-   {
-      P(i, i) += 1.0;
-   }
 }
 
 SBPCollection::SBPCollection(const int p, const int dim)

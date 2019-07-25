@@ -1,14 +1,14 @@
-# makefile for Mach sandbox binaries 
+# makefile for Mach tests 
 
 # source and object file names
-HEADERS_SB = $(wildcard ./*.hpp)
-SOURCES_SB = $(wildcard ./*.cpp)
-OBJS_SB = $(SOURCES_SB:.cpp=.o)
-BIN_SB = $(OBJS_SB:.o=.bin)
+HEADERS_TEST = $(wildcard ./*.hpp)
+SOURCES_TEST = $(wildcard ./*.cpp)
+OBJS_TEST = $(SOURCES_TEST:.cpp=.o)
+TEST_BIN = test.bin
 
-all: $(BIN_SB)
+all: $(TEST_BIN)
 
-default: all 
+default: all
 
 # implicit rules
 
@@ -19,10 +19,11 @@ default: all
 	@echo "Compiling \""$@"\" from \""$<"\""
 	@$(CXX) $(MACH_FLAGS) -o $(@) -c $(<) 
 
-%.bin : %.o ../libmach.a 
+$(TEST_BIN) : $(OBJS_TEST) ../libmach.a 
 	@echo "Compiling \""$@"\""
-	$(CXX) $(MACH_FLAGS) $< -o $@ ../libmach.a $(MACH_LIBS)
+	$(CXX) $(MACH_FLAGS) $(OBJS_TEST) -o $@ ../libmach.a $(MACH_LIBS)
 
 clean:
 	@echo "deleting temporary, object, and binary files"
-	@rm -f $(BIN_SB)
+	@rm -f $(OBJS_TEST)
+	@rm -f $(TEST_BIN)

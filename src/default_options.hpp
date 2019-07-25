@@ -13,17 +13,26 @@ namespace mach
 /// options, this would not have permitted comments.
 nlohmann::json default_options =
 {
-   {"degree", 1}, // default operator degree
-   {"lps-coeff", 1.0}, // scaling coefficient for local-proj stabilization
-   {"mesh-file", "mach.mesh"}, // mesh file name
    {"model-file","mach.dmg"}, // model file name
-   {"ode-solver", "RK4"}, // type of ODE solver choices are
-                          // "Steady": for steady-state solves
-                          // "RK4": for classical 4th order Runge-Kutta
-   {"t-final", 1.0}, // final time
-   {"dt", 0.01}, // time step size
-   {"mesh", 
+
+   {"space-dis", // options related to spatial discretization
    {
+      {"degree", 1}, // default operator degree
+      {"lps-coeff", 1.0} // scaling coefficient for local-proj stabilization
+   }},
+
+   {"unsteady", // options related to unsteady time-marching
+   {
+      {"ode-solver", "RK4"}, // type of ODE solver to use 
+      {"const-cfl", false}, // if true, adapt dt to keep cfl constant
+      {"t-final", 1.0}, // final time to simulate to
+      {"dt", 0.01}, // time-step size when `const-cfl` is false
+      {"cfl", 1.0} // target CFL number
+   }},
+
+   {"mesh", // options related to the mesh
+   {
+      {"file", "mach.mesh"}, // mesh file name
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
    }}
 };

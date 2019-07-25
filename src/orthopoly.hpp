@@ -22,9 +22,19 @@ void jacobiPoly(const mfem::Vector &x, const double alpha, const double beta,
 /// \param[out] poly  - basis function at (x , y)
 ///
 /// See Hesthaven and Warburton's Nodal DG book, for example, for a reference.
-/// **Important**: the reference triangle is (-1,-1), (1,-1), (-1,1) here.
+/// \warning the reference triangle is (-1,-1), (1,-1), (-1,1) here.
 void prorioPoly(const mfem::Vector &x, const mfem::Vector &y, const int i,
                 const int j, mfem::Vector &poly);
+
+/// Constructs the Vandermonde matrix for the triangle reference domain
+/// \param[in] x, y - locations at which to evaluate the orthogonal polynomials
+/// \param[in] degree - maximum polynomial degree to evaluate the polynomials
+/// \param[out] V - the Vandermonde matrix
+/// \warning the reference triangle is (-1,-1), (1,-1), (-1,1) here.  If you
+/// want to use this on `mfem`'s reference triangle, you need to adjust `x` and
+/// `y`, and scale `V` by 2.0 afterward.
+void getVandermondeForTri(const mfem::Vector &x, const mfem::Vector &y,
+                          const int degree, mfem::DenseMatrix &V);
 
 } // namespace mach
 

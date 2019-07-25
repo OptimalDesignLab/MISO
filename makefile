@@ -47,7 +47,7 @@ CXX = $(MFEM_CXX)
 MACH_FLAGS = $(MFEM_FLAGS) -I$(SRC_DIR) -fPIC
 
 # libraries needed for compiling/linking
-MACH_LIBS = $(MFEM_LIBS)
+MACH_LIBS = -ladept $(MFEM_LIBS)
 
 # export the variables so the Make done in ./test and ./sandbox can use them
 export
@@ -91,8 +91,12 @@ libmach.a: $(OBJS) makefile
 	@echo "Compiling static Mach library"
 	@ar rcs $@ $(OBJS)
 
+.PHONY: sandbox # needed because sandbox is also the name of the directory
 sandbox: libmach.a 
 	@cd $(SANDBOX_DIR) && $(MAKE)
+
+tests: libmach.a
+	@cd $(TEST_DIR) && $(MAKE)
 
 #@$(CXX) $(MACH_FLAGS) -static -Wl,-soname,libmach.so -o libmach.so $(OBJS) $(MACH_LIBS)
 
@@ -102,6 +106,11 @@ clean:
 	@rm -f *~ libmach.*
 	@rm -f $(DEP_DIR)/*.d
 	@rmdir $(DEP_DIR)
+	@cd $(SANDBOX_DIR) && $(MAKE) clean
+	@cd $(TEST_DIR) && $(MAKE) clean
+
+clean_sandbox:
+	@echo "deleting temporary, object, and binary files from sandbox directory"
 	@cd $(SANDBOX_DIR) && $(MAKE) clean
 
 # Include the dependency files that exist: translate each file listed in SOURCES

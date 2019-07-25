@@ -17,6 +17,7 @@ namespace mach
 #endif
    using SpaceType = mfem::ParFiniteElementSpace;
    using BilinearFormType = mfem::ParBilinearForm;
+   using NonlinearFormType = mfem::ParNonlinearForm;
    using GridFunType = mfem::ParGridFunction;
    using MatrixType = mfem::HypreParMatrix;
    using SmootherType = mfem::HypreSmoother;
@@ -24,6 +25,7 @@ namespace mach
    using MeshType = mfem::Mesh;
    using SpaceType = mfem::FiniteElementSpace;
    using BilinearFormType = mfem::BilinearForm;
+   using NonlinearFormType = mfem::NonlinearForm;
    using GridFunType = mfem::GridFunction;
    using MatrixType = mfem::SparseMatrix;
    using SmootherType = mfem::DSmoother;

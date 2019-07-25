@@ -24,9 +24,9 @@ void DiagMassIntegrator::AssembleElementMatrix(
       norm = node.weight * Trans.Weight();
       for (int k = 0; k < num_state; k++)
       {
-         // Insert diagonal entries for each state
-         // TODO: This assumes states are ordered fastest; 
-         elmat(i*num_state + k, i*num_state + k) = norm; 
+         // Insert diagonal entries for each state 
+         //elmat(i*num_state + k, i*num_state + k) = norm; // assumes states are ordered fastest;
+         elmat(i + k*num_nodes, i + k*num_nodes) = norm;
       }
    }
 }

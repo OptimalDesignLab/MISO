@@ -4,6 +4,7 @@
 #include <exception>
 #include <iostream>
 #include "mfem.hpp"
+
 namespace mach
 {
 /* This function perform the quadratic interpolation between (x0, y0)
@@ -105,7 +106,6 @@ static std::ostream *getOutStream(int rank)
    {
       return &obj;
    }
-   
 }
 
 } // namespace mach
