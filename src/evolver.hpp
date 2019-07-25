@@ -14,7 +14,8 @@ public:
    /// Class constructor.
    /// \param[in] m - mass matrix
    /// \param[in] k - stiffness matrix
-   LinearEvolver(MatrixType &m, MatrixType &k); //, const Vector &_b);
+   /// \param[in] outstream - for output
+   LinearEvolver(MatrixType &m, MatrixType &k, std::ostream &outstream);
 
    /// Applies the action of the linear-evolution operator on `x`.
    /// \param[in] x - `Vector` that is being multiplied by operator
@@ -25,6 +26,8 @@ public:
    virtual ~LinearEvolver() { }
 
 private:
+   /// used to print information
+   std::ostream &out;
    /// mass matrix represented as a matrix
    MatrixType &mass;
    /// stiffness matrix represented as a sparse matrix
@@ -35,7 +38,6 @@ private:
    std::unique_ptr<mfem::CGSolver> mass_solver;
    /// a work vector
    mutable mfem::Vector z;
-
 };
 
 /// For explicit time marching of nonlinear problems
