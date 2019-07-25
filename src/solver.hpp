@@ -2,6 +2,7 @@
 #define MACH_SOLVER
 
 #include "mfem.hpp"
+#include "mach_types.hpp"
 #include "utils.hpp"
 #include "json.hpp"
 
@@ -11,14 +12,17 @@ namespace mach
 /// Serves as a base class for specific PDE solvers
 class AbstractSolver
 {
+   
 public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    AbstractSolver(const std::string &opt_file_name =
                       std::string("mach_options.json"));
-
    /// class destructor
    ~AbstractSolver();
+
+   /// Constructs the mesh member based on c preprocesor defs
+   void constructMesh();
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
@@ -36,6 +40,14 @@ public:
    void solveForState();
 
 protected:
+#ifdef MFEM_USE_MPI
+   /// communicator used by MPI group for communication
+   MPI_Comm comm;
+#endif
+   /// process rank
+   int rank;
+   /// print object
+   std::ostream *out;
    /// solver options
    nlohmann::json options;
    /// number of state variables at each node
@@ -44,23 +56,22 @@ protected:
    double dt;
    /// final time
    double t_final;
-   /// state variable
-   std::unique_ptr<mfem::GridFunction> u;
-   /// object defining the computational mesh
-   std::unique_ptr<mfem::Mesh> mesh;
-   /// time-marching method (might be NULL)
-   std::unique_ptr<mfem::ODESolver> ode_solver;
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
+   /// object defining the computational mesh
+   std::unique_ptr<MeshType> mesh;
    /// discrete function space
-   std::unique_ptr<mfem::FiniteElementSpace> fes;
+   std::unique_ptr<SpaceType> fes;
+   /// state variable
+   std::unique_ptr<GridFunType> u;
+   /// time-marching method (might be NULL)
+   std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
-   std::unique_ptr<mfem::BilinearForm> mass;
+   //std::unique_ptr<MassFormType> mass;
    /// operator for spatial residual (linear in some cases)
-   std::unique_ptr<mfem::Operator> res;
+   //std::unique_ptr<ResFormType> res;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
-   
 };
     
 } // namespace mach

@@ -3,7 +3,7 @@
 
 #include <exception>
 #include <iostream>
-
+#include "mfem.hpp"
 namespace mach
 {
 /* This function perform the quadratic interpolation between (x0, y0)
@@ -21,7 +21,6 @@ double quadInterp(double x0, double y0, double dydx0,
    std::cout << c2 <<  "  "<< c1 << "  " << c0 <<std::endl;
    return -c1/(2*c2);
 }
-
 /// Handles (high-level) exceptions in both serial and parallel
 class MachException: public std::exception
 {
@@ -42,7 +41,6 @@ public:
       // TODO: handle parallel runs!!!
       std::cerr << error_msg << std::endl;
    }
-
 protected:
    /// message printed to std::cerr
    std::string error_msg;
@@ -80,6 +78,34 @@ template <typename xdouble, int dim>
 inline xdouble dot(const xdouble *a, const xdouble *b)
 {
     return DotProduct<xdouble,dim>::result(a,b);
+}
+
+/// Handles print in parallel case
+template<typename _CharT, typename _Traits>
+
+class basic_oblackholestream
+    : virtual public std::basic_ostream<_CharT, _Traits>
+{
+public:   
+  /// called when rank is not root, prints nothing 
+    explicit basic_oblackholestream() : std::basic_ostream<_CharT, _Traits>(NULL) {}
+}; // end class basic_oblackholestream
+
+using oblackholestream = basic_oblackholestream<char,std::char_traits<char> >;
+static oblackholestream obj;
+
+static std::ostream *getOutStream(int rank) 
+{
+   /// print only on root
+   if (0==rank)
+   {
+      return &std::cout;
+   }
+   else
+   {
+      return &obj;
+   }
+   
 }
 
 } // namespace mach

@@ -2,6 +2,18 @@
 #include <iostream>
 #include "solver.hpp"
 #include "default_options.hpp"
+#ifdef MFEM_USE_SIMMETRIX
+#include <SimUtil.h>
+#include <gmi_sim.h>
+#endif
+#ifdef MFEM_USE_PUMI
+#include <apfMDS.h>
+#include <gmi_null.h>
+#include <PCU.h>
+#include <apfConvert.h>
+#include <gmi_mesh.h>
+#include <crv.h>
+#endif
 #include "sbp_fe.hpp"
 
 using namespace std;
@@ -14,21 +26,26 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
 {
    // Set the options; the defaults are overwritten by the values in the file
    // using the merge_patch method
+   #ifdef MFEM_USE_MPI
+   comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
+   MPI_Comm_rank(comm, &rank);
+   #else
+   rank = 0; // serial case
+   #endif
+   out = getOutStream(rank); 
    options = default_options;
    nlohmann::json file_options;
    ifstream options_file(opt_file_name);
    options_file >> file_options;
    options.merge_patch(file_options);
-   cout << setw(3) << options << endl;
-
-   // Read the mesh from the given mesh file
-   mesh.reset(new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1));
+   *out << setw(3) << options << endl;
+   constructMesh();
    int dim = mesh->Dimension();
-   cout << "problem space dimension = " << dim << endl;
+   *out << "problem space dimension = " << dim << endl;
 
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
-   cout << "ode-solver type = " << options["ode-solver"].get<string>() << endl;
+   *out << "ode-solver type = " << options["ode-solver"].get<string>() << endl;
    if (options["ode-solver"].get<string>() == "RK1")
    {
       ode_solver.reset(new ForwardEulerSolver);
@@ -57,7 +74,50 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
 
 AbstractSolver::~AbstractSolver() 
 {
-   cout << "Deleting Abstract Solver..." << endl;
+   *out << "Deleting Abstract Solver..." << endl;
+}
+
+void AbstractSolver::constructMesh()
+{
+#ifdef MFEM_USE_MPI
+#ifdef MFEM_USE_PUMI  // if using pumi mesh
+   // problem with using these in loadMdsMesh
+   const char *model_file = options["model-file"].get<string>().c_str();
+   const char *mesh_file= options["mesh-file"].get<string>().c_str();
+   PCU_Comm_Init();
+   #ifdef MFEM_USE_SIMMETRIX
+   Sim_readLicenseFile(0);
+   gmi_sim_start();
+   gmi_register_sim();
+   #endif
+   gmi_register_mesh();
+
+   apf::Mesh2* pumi_mesh;
+   pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(), options["mesh-file"].get<string>().c_str());
+   int dim = pumi_mesh->getDimension();
+   int nEle = pumi_mesh->count(dim);
+   int ref_levels = (int)floor(log(10000./nEle)/log(2.)/dim);
+   // Perform Uniform refinement
+   // if (ref_levels > 1)
+   // {
+   //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
+   //    ma::adapt(uniInput);
+   // }
+   pumi_mesh->verify();
+   mesh.reset(new MeshType(comm, pumi_mesh));
+   PCU_Comm_Free();
+   #ifdef MFEM_USE_SIMMETRIX
+   gmi_sim_stop();
+   Sim_unregisterAllKeys();
+   #endif
+#else
+   //Read the mesh from the given mesh file
+   Mesh *smesh = new Mesh(options["mesh-file"].get<string>().c_str(), 1, 1);
+   mesh.reset(new MeshType(comm, *smesh));
+#endif //MFEM_USE_PUMI
+#else
+   mesh.reset(new MeshType(options["mesh-file"].get<string>().c_str(), 1, 1));
+#endif //MFEM_USE_MPI
 }
 
 void AbstractSolver::setInitialCondition(
@@ -75,7 +135,7 @@ double AbstractSolver::calcL2Error(
    VectorFunctionCoefficient exsol(num_state, u_exact);
    //return u->ComputeL2Error(ue);
 
-   double error = 0.0;
+   double loc_norm = 0.0;
    const FiniteElement *fe;
    ElementTransformation *T;
    DenseMatrix vals, exact_vals;
@@ -95,14 +155,20 @@ double AbstractSolver::calcL2Error(
       {
          const IntegrationPoint &ip = ir->IntPoint(j);
          T->SetIntPoint(&ip);
-         error += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+         loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
       }
    }
-   if (error < 0.0) // This was copied from mfem...should not happen for us
+   double norm;
+#ifdef MFEM_USE_MPI
+   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   norm = loc_norm;
+#endif
+   if (norm < 0.0) // This was copied from mfem...should not happen for us
    {
-      return -sqrt(-error);
+      return -sqrt(-norm);
    }
-   return sqrt(error);
+   return sqrt(norm);
 }
 
 void AbstractSolver::solveForState()
@@ -131,7 +197,13 @@ void AbstractSolver::solveForState()
    for (int ti = 0; !done; )
    {
       double dt_real = min(dt, t_final - t);
+#ifdef MFEM_USE_MPI
+      HypreParVector *U = u->GetTrueDofs();
+      ode_solver->Step(*U, t, dt_real);
+      *u = *U;
+#else
       ode_solver->Step(*u, t, dt_real);
+#endif
       ti++;
 
       done = (t >= t_final - 1e-8*dt);

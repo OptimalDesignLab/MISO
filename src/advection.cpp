@@ -33,6 +33,7 @@ void AdvectionIntegrator::AssembleElementMatrix(
    {
       vel.GetColumnReference(i, vel_i);
       velhat.GetColumnReference(i, velhat_i);
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
       CalcAdjugate(Trans.Jacobian(), adjJ);
       adjJ.Mult(vel_i, velhat_i);
    }
@@ -46,7 +47,6 @@ void AdvectionIntegrator::AssembleElementMatrix(
       elmat.Add(-alpha, Q); // minus sign accounts for integration by parts
    }
 }
-
 
 LPSIntegrator::LPSIntegrator(
     VectorCoefficient &velc, double a, double diss_coeff)
@@ -79,6 +79,7 @@ void LPSIntegrator::AssembleElementMatrix(
    for (int i = 0; i < num_nodes; i++)
    {
       vel.GetColumnReference(i, vel_i);
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
       CalcAdjugate(Trans.Jacobian(), adjJ);
       adjJ.Mult(vel_i, velhat_i);
       AH(i) = alpha*lps_coeff*H(i)*velhat_i.Norml2();
@@ -96,42 +97,50 @@ AdvectionSolver::AdvectionSolver(const string &opt_file_name,
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction
    num_state = 1;
-   //fes.reset(new FiniteElementSpace(mesh.get(), fec.get()));  // TODO: handle parallel case
-   fes.reset(new FiniteElementSpace(mesh.get(), fec.get(), num_state, Ordering::byVDIM)); 
-   u.reset(new GridFunction(fes.get()));
-   cout << "Number of finite element unknowns: "
+   fes.reset(new SpaceType(static_cast<MeshType*>(mesh.get()), fec.get(), num_state, Ordering::byVDIM)); 
+   u.reset(new GridFunType(static_cast<SpaceType*>(fes.get())));
+#ifdef MFEM_USE_MPI
+   *out << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
-
-   cout << "\tNumber of vertices = " << fes->GetNV() << endl;
-   cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
-   cout << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
-   cout << "\tNumber of face Dofs = " << fes->GetNFDofs() << endl;
-   cout << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
+#else 
+   *out << "Number of finite element unknowns: "
+        << fes->GlobalTrueVSize() << endl;
+#endif
+   //cout << "\tNumber of vertices = " << fes->GetNV() << endl;
+   //cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
+   //cout << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
+   //cout << "\tNumber of face Dofs = " << fes->GetNFDofs() << endl;
+   //cout << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
 
    // set up the mass matrix
-   mass.reset(new BilinearForm(fes.get()));
+   mass.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
    mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
    mass->Assemble();
    mass->Finalize();
 
    // set up the stiffness matrix
    velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
-   res.reset(new BilinearForm(fes.get()));
-   static_cast<BilinearForm*>(res.get())->AddDomainIntegrator(
-      new AdvectionIntegrator(*velocity, -1.0));
-
-   // set up the LPS stabilization
+   *out << "dimension is " << mesh->Dimension() << endl;
+   stiff.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
+   stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
+   // add the LPS stabilization
    double lps_coeff = options["lps-coeff"].get<double>();
-   static_cast<BilinearForm*>(res.get())->AddDomainIntegrator(
-      new LPSIntegrator(*velocity, -1.0, lps_coeff));
-
+   stiff->AddDomainIntegrator(new LPSIntegrator(*velocity, -1.0, lps_coeff));
    int skip_zeros = 0;
-   static_cast<BilinearForm*>(res.get())->Assemble(skip_zeros);
-   static_cast<BilinearForm*>(res.get())->Finalize(skip_zeros);
+   stiff->Assemble(skip_zeros);
+   stiff->Finalize(skip_zeros);
 
    // define the time-dependent operator
-   evolver.reset(new LinearEvolver(mass->SpMat(),
-                 static_cast<BilinearForm*>(res.get())->SpMat()));
-}
+#ifdef MFEM_USE_MPI
+   // The parallel bilinear forms return a pointer that this solver owns
+   mass_matrix.reset(mass->ParallelAssemble());
+   stiff_matrix.reset(stiff->ParallelAssemble());
+#else
+   mass_matrix.reset(new MatrixType(mass->SpMat()));
+   stiff_matrix.reset(new MatrixType(stiff->SpMat()));
+#endif
+   evolver.reset(new LinearEvolver(*mass_matrix, *stiff_matrix, *out));
 
 }
+
+} // namespace mach
