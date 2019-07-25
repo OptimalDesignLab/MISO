@@ -5,7 +5,7 @@
 #include "mfem.hpp"
 #include "solver.hpp"
 
-namespace mach
+namespace mfem
 {
 /// Newton's method for solving F(x)=b for a given operator F.
 /** The method GetGradient() must be implemented for the operator F.

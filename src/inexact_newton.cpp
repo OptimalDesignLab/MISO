@@ -3,7 +3,7 @@
 using namespace mfem;
 using namespace std;
 
-namespace mach
+namespace mfem
 {
 
 double InexactNewton::ComputeScalingFactor(const Vector &x, const Vector &b)
@@ -26,7 +26,7 @@ double InexactNewton::ComputeScalingFactor(const Vector &x, const Vector &b)
    while( err2 > (1 - t * (1 - theta) ) * norm )
    {
       // Quadratic interpolation.
-      theta = quadInterp(0.0, p0, p0p, 1.0, p1);
+      theta = mach::quadInterp(0.0, p0, p0p, 1.0, p1);
       if(theta < theta_min)
       {
          theta = theta_min;
