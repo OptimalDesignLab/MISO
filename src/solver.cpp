@@ -27,7 +27,8 @@ namespace mach
 // Static member function diff_stack needs to be defined
 adept::Stack AbstractSolver::diff_stack;
 
-AbstractSolver::AbstractSolver(const string &opt_file_name)
+AbstractSolver::AbstractSolver(const string &opt_file_name,
+                               unique_ptr<Mesh> smesh)
 {
    // Set the options; the defaults are overwritten by the values in the file
    // using the merge_patch method
@@ -37,7 +38,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
    options_file >> file_options;
    options.merge_patch(file_options);
    cout << setw(3) << options << endl;
-   constructMesh();
+   constructMesh(move(smesh));
    // does num_dim equal mesh->Dimension in all cases?
    num_dim = mesh->Dimension(); 
 
@@ -79,12 +80,24 @@ AbstractSolver::~AbstractSolver()
    cout << "Deleting Abstract Solver..." << endl;
 }
 
-void AbstractSolver::constructMesh()
+void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 {
+#ifndef MFEM_USE_PUMI
+   if (smesh == nullptr)
+   { // read in the serial mesh
+      smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1));
+   }
+#endif
+
 #ifdef MFEM_USE_MPI
    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
    MPI_Comm_rank(comm, &rank);
 #ifdef MFEM_USE_PUMI  // if using pumi mesh
+   if (smesh != nullptr)
+   {
+      throw MachException("AbstractSolver::constructMesh(smesh)\n"
+                          "\tdo not provide smesh when using PUMI!");
+   }
    // problem with using these in loadMdsMesh
    const char *model_file = options["model-file"].get<string>().c_str();
    const char *mesh_file= options["mesh-file"].get<string>().c_str();
@@ -116,12 +129,10 @@ void AbstractSolver::constructMesh()
    Sim_unregisterAllKeys();
    #endif
 #else
-   //Read the mesh from the given mesh file
-   Mesh *smesh = new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1);
    mesh.reset(new MeshType(comm, *smesh));
 #endif //MFEM_USE_PUMI
 #else
-   mesh.reset(new MeshType(options["mesh"]["file"].get<string>().c_str(), 1, 1));
+   mesh.reset(new MeshType(*smesh));
 #endif //MFEM_USE_MPI
 }
 
@@ -197,13 +208,17 @@ double AbstractSolver::calcStepSize(double cfl) const
                        "\tis not implemented for this class!");
 }
 
-void AbstractSolver::printSolution(const std::string &file_name)
+void AbstractSolver::printSolution(const std::string &file_name, int refine)
 {
    // TODO: These mfem functions do not appear to be parallelized
    ofstream sol_ofs(file_name + ".vtk");
    sol_ofs.precision(14);
-   mesh->PrintVTK(sol_ofs, 0);
-   u->SaveVTK(sol_ofs, "Solution", 0); 
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].get<int>() + 1;
+   }
+   mesh->PrintVTK(sol_ofs, refine);
+   u->SaveVTK(sol_ofs, "Solution", refine);
 }
 
 void AbstractSolver::solveForState()

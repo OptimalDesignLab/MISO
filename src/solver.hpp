@@ -17,14 +17,17 @@ class AbstractSolver
 public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
+   /// \param[in] smesh - if provided, defines the mesh for the problem
    AbstractSolver(const std::string &opt_file_name =
-                      std::string("mach_options.json"));
+                      std::string("mach_options.json"),
+                  std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// class destructor
    ~AbstractSolver();
 
    /// Constructs the mesh member based on c preprocesor defs
-   void constructMesh();
+   /// \param[in] smesh - if provided, defines the mesh for the problem
+   void constructMesh(std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
@@ -45,8 +48,11 @@ public:
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
    /// \todo make this work for parallel!
-   void printSolution(const std::string &file_name);
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printSolution(const std::string &file_name, int refine = -1);
 
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
@@ -87,7 +93,7 @@ protected:
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
 };
-    
+
 } // namespace mach
 
 #endif 

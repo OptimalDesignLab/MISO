@@ -11,8 +11,9 @@ using namespace std;
 namespace mach
 {
 
-EulerSolver::EulerSolver(const string &opt_file_name, int dim)
-   : AbstractSolver(opt_file_name)
+EulerSolver::EulerSolver(const string &opt_file_name,
+                         unique_ptr<mfem::Mesh> smesh, int dim)
+   : AbstractSolver(opt_file_name, move(smesh))
 {
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction
