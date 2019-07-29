@@ -514,24 +514,37 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
    }
    catch (const std::out_of_range& oor)
    // error handling code to handle cases where the pointer to ip is not
-   // in the map. Problems arise in GridFunction::SaveVTK() ->  GridFunction::GetValues()
-   // which calls CalcShape() with an `IntegrationPoint` defined by a refined
-   // geometry type. Since the IntegrationPoint is not in Nodes, its address is
-   // not in the ipIdxMap, and an out_of_range error is thrown. This code catches
-   // the error and uses float comparisons to determine the IntegrationPoint
-   // index.
+   // in the map. Problems arise in GridFunction::SaveVTK() (specifically 
+   // GridFunction::GetValues()), which calls CalcShape() with an
+   // `IntegrationPoint` defined by a refined geometry type. Since the
+   // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap,
+   // and an out_of_range error is thrown.
    {
-      double tol = 1e-12;
-      for (int i = 0; i < Dof; i++)
+      // This projects the SBP "basis" onto the degree = Order orthogonal polys;
+      // Such an approach is fine if LPS is used, but it will eliminate high
+      // frequencey modes that may be present in the true solution.  It has
+      // the advantage of being fast and not requiring a min-norm solution.
+      Vector xvec(1); // Vector with 1 entry (needed by prorioPoly)
+      Vector yvec(1);
+      Vector poly(1);
+      xvec(0) = 2 * ip.x - 1;
+      yvec(0) = 2 * ip.y - 1;
+      int ptr = 0;
+      shape = 0.0;
+      for (int r = 0; r <= Order; ++r)
       {
-         double delta_x = ip.x - Nodes.IntPoint(i).x;
-         double delta_y = ip.y - Nodes.IntPoint(i).y;
-         if (delta_x*delta_x + delta_y*delta_y < tol)
+         for (int j = 0; j <= r; ++j)
          {
-            ipIdx = i;
-            break;
+            mach::prorioPoly(xvec, yvec, r - j, j, poly);
+            poly *= 2.0; // scale to mfem reference element
+            for (int k = 0; k < GetDof(); ++k)
+            {
+               shape(k) += poly(0) * V(k, ptr) * H(k);
+            }
+            ++ptr;
          }
       }
+      return;
    }
    shape = 0.0;
    shape(ipIdx) = 1.0;

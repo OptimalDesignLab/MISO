@@ -226,6 +226,7 @@ void AbstractSolver::printSolution(const std::string &file_name, int refine)
    }
    mesh->PrintVTK(sol_ofs, refine);
    u->SaveVTK(sol_ofs, "Solution", refine);
+   sol_ofs.close();
 }
 
 void AbstractSolver::solveForState()
