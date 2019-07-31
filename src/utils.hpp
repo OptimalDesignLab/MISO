@@ -10,7 +10,8 @@ namespace mach
 /* This function perform the quadratic interpolation between (x0, y0)
    and (x1, y1) with y0' provided. */
 double quadInterp(double x0, double y0, double dydx0, 
-                     double x1, double y1)
+                     double x1, double y1);
+/*
 {
    /// Assume the fuction has the form y(x) = c0 + c1 * x + c2 * x^2;
    double c0, c1, c2;
@@ -22,6 +23,7 @@ double quadInterp(double x0, double y0, double dydx0,
    std::cout << c2 <<  "  "<< c1 << "  " << c0 <<std::endl;
    return -c1/(2*c2);
 }
+*/
 /// Handles (high-level) exceptions in both serial and parallel
 class MachException: public std::exception
 {

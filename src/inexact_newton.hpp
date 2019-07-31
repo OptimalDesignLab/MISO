@@ -4,7 +4,7 @@
 
 #include "mfem.hpp"
 #include "solver.hpp"
-
+using namespace mach;
 namespace mfem
 {
 /// Newton's method for solving F(x)=b for a given operator F.
@@ -14,6 +14,7 @@ namespace mfem
 class InexactNewton : public mfem::NewtonSolver
 {
 protected:
+   // This operator is unnessary.
    const Operator* jac;
    mfem::Vector r2, x2;
    /* Caustion: Here we make norm a member function so that we
@@ -26,7 +27,8 @@ protected:
    const double t = 1e-4;
 
 public:
-   InexactNewton(double eta0 = 0.01, double etam = 0.9) { eta = eta0; eta_max = etam; }
+   InexactNewton(double eta0 = 0.01, double etam = 0.9)
+    { eta = eta0; eta_max = etam; theta = 1e-4; }
    
 // Parallelization part currently is left unchange so far.
 // #ifdef MFEM_USE_MPI
@@ -50,6 +52,10 @@ public:
 
    /* This function set the jacbian operator. */
    virtual void SetJacobian(const mfem::Operator &op){jac = &op;}
+	 
+	 // Below here are functions that used for 
+	 virtual const mfem::Operator * GetOper(){return oper;}
+    virtual mfem::Solver * GetSolver(){return prec;}
 };
 
 }
