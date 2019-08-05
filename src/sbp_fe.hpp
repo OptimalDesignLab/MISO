@@ -105,7 +105,15 @@ public:
    double getSkewEntry(int di, int i, int j, const mfem::DenseMatrix &adjJ_i,
                        const mfem::DenseMatrix &adjJ_j) const;
 
+   /// Attempts to find the index corresponding to a given IntegrationPoint
+   /// \param[in] ip - try to match the coordinates of this point
+   /// \returns index - the index of the node corresponding to `ip`
+   /// \note If `ip` is not a node, this function throws an exception.
+   int getIntegrationPointIndex(const IntegrationPoint &ip) const;
+
 protected:
+   /// maps from integration points to integer index
+   std::unordered_map<const IntegrationPoint*, int> ipIdxMap;
    /// the diagonal norm matrix stored as a vector
    Vector H;
    /// node coordinates of the reference element (0,0), (1,0), (0,1)
@@ -116,26 +124,41 @@ protected:
    mutable DenseMatrix V;
 };
 
+// /// Class for summation-by-parts operator on interval
+// class SBPSegmentElement : public NodalTensorFiniteElement //, public SBPFiniteElement
+// {
+// public:
+//    SBPSegmentElement(const int p);
+//    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
+//    virtual void CalcDShape(const IntegrationPoint &ip,
+//                            DenseMatrix &dshape) const;
+
+//    // TODO: tempoarily just an empty function to compile
+//    virtual void getStrongOperator(int di, DenseMatrix &D,
+//                                   bool trans = false) const {}
+//    // TODO: tempoarily just an empty function to compile
+//    virtual void getWeakOperator(int di, DenseMatrix &Q,
+//                                 bool trans = false) const {}
+
+// private:
+// #ifndef MFEM_THREAD_SAFE
+//    mutable Vector shape_x, dshape_x;
+// #endif
+// };
+
 /// Class for summation-by-parts operator on interval
-class SBPSegmentElement : public NodalTensorFiniteElement //, public SBPFiniteElement
+class SBPSegmentElement : public SBPFiniteElement
 {
 public:
-   SBPSegmentElement(const int p);
+   /// Constructor for SBP operator on segments (so-called "diagonal E")
+   /// \param[in] degree - maximum poly degree for which operator is exact
+   /// \note a degree p "diagonal E" SBP segment is equivalent to a degree
+   /// p+1 LGL collocation element
+   SBPSegmentElement(const int degree);
+
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
-
-   // TODO: tempoarily just an empty function to compile
-   virtual void getStrongOperator(int di, DenseMatrix &D,
-                                  bool trans = false) const {}
-   // TODO: tempoarily just an empty function to compile
-   virtual void getWeakOperator(int di, DenseMatrix &Q,
-                                bool trans = false) const {}
-
-private:
-#ifndef MFEM_THREAD_SAFE
-   mutable Vector shape_x, dshape_x;
-#endif
 };
 
 /// Class for (diagonal-norm) summation-by-parts operator on triangles
@@ -153,15 +176,6 @@ public:
 
    /// Get the derivative operator in the direction di; transposed if trans=true
    void GetOperator(int di, DenseMatrix &D, bool trans=false) const;
-
-private:
-#ifndef MFEM_THREAD_SAFE
-   mutable Vector shape_x, shape_y, shape_l, dshape_x, dshape_y, dshape_l, u;
-   mutable Vector ddshape_x, ddshape_y, ddshape_l;
-   mutable DenseMatrix du, ddu;
-#endif
-   mutable DenseMatrix Qx, Qy;
-   std::unordered_map<const IntegrationPoint*, int> ipIdxMap;
 };
 
 /// High order H1-conforming (continuous) Summation By Parts

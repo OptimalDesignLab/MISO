@@ -32,6 +32,17 @@ protected:
    std::string error_msg;
 };
 
+/// performs the Hadamard (elementwise) product: `v(i) = v1(i)*v2(i)`
+void multiplyElementwise(const mfem::Vector &v1, const mfem::Vector &v2,
+                         mfem::Vector &v);
+
+/// performs an elementwise division: `v(i) = v1(i)/v2(i)`
+void divideElementwise(const mfem::Vector &v1, const mfem::Vector &v2,
+                       mfem::Vector &v);
+
+/// performs elementwise inversion: `y(i) = 1/x(i)`
+void invertElementwise(const mfem::Vector &x, mfem::Vector &y);
+
 /// for performing loop unrolling of dot-products using meta-programming
 /// \tparam xdouble - `double` or `adept::adouble`
 /// \tparam dim - number of dimensions for array
