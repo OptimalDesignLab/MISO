@@ -67,6 +67,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
    mfem::Vector qR(dim+2);
    mfem::Vector flux(dim+2);
    mfem::Vector nrm(dim);
+   mfem::Vector work(dim+2);
    q(0) = rho;
    q(dim+1) = rhoe;
    qR(0) = rho2;
@@ -157,4 +158,45 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
       }
    }
 
+   SECTION( "Boundary flux is consistent" )
+   {
+      // Load the data to test the boundary flux; this only tests that the
+      // boundary flux agrees with the Euler flux when given the same states.
+      // The pointer arithmetic in the following constructor is to find the
+      // appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mach::calcBoundaryFlux<double,dim>(nrm.GetData(), q.GetData(),
+                                         q.GetData(), work.GetData(),
+                                         flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)) );
+      }
+   }
+}
+
+TEST_CASE( "calcIsentropicVortexFlux is correct", "[vortex-flux]")
+{
+   // copy the data into mfem vectors for convenience 
+   mfem::Vector q(4);
+   mfem::Vector flux(4);
+   mfem::Vector flux2(4);
+   mfem::Vector x(2);
+   mfem::Vector nrm(2);
+   // set location where we want to evaluate the flux
+   x(0) = cos(M_PI*0.25);
+   x(1) = sin(M_PI*0.25);
+   for (int di = 0; di < 2; ++di)
+   {
+      nrm(di) = dir[di];
+   }
+   mach::calcIsentropicVortexState<double>(x.GetData(), q.GetData());
+   mach::calcIsentropicVortexFlux<double>(x.GetData(), nrm.GetData(),
+                                          q.GetData(), flux.GetData());
+   mach::calcEulerFlux<double,2>(nrm.GetData(), q.GetData(), flux2.GetData());
+   for (int i = 0; i < 4; ++i)
+   {
+      REQUIRE( flux(i) == Approx(flux2(i)) );
+   }
 }

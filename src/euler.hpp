@@ -29,6 +29,8 @@ public:
    virtual double calcStepSize(double cfl) const;
 
 protected:
+   /// `bndry_marker[i]` lists the boundaries associated with a particular BC
+   std::vector<mfem::Array<int>> bndry_marker;
    /// the mass matrix bilinear form
    std::unique_ptr<BilinearFormType> mass;
    /// the spatial residual (a semilinear form)

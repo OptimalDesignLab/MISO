@@ -138,7 +138,8 @@ public:
    /// \param[in] convertVarsFun - maps working variables to new variables
    /// \param[in] applyScalingFun - performs matrix-scaling operation
    /// \param[in] num_state_vars - the number of state variables
-   ///
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   /// \param[in] coeff - the LPS coefficient
    LPSIntegrator(adept::Stack &diff_stack,
                  void (*convertVarsFun)(const double *u, double *w),
                  void (*applyScalingFun)(const double *adjJ, const double *u,
@@ -190,6 +191,62 @@ private:
    mfem::DenseMatrix w;
    /// used to store the projected converted variables (for example)
    mfem::DenseMatrix Pw;
+#endif
+};
+
+/// Integrator for inviscid boundary fluxes (fluxes that do not need gradient)
+class InviscidBoundaryIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// Constructs a boundary integrator based on a given boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fluxFun - boundary flux function
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] num_state_vars - the number of state variables
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   InviscidBoundaryIntegrator(adept::Stack &diff_stack,
+                              void (*fluxFun)(const double *x,
+                                              const double *nrm,
+                                              const double *u,
+                                              double *flux_vec),
+                              const mfem::FiniteElementCollection *fe_coll,
+                              int num_state_vars = 1, double a = 1.0)
+       : stack(diff_stack), bnd_flux(fluxFun), fec(fe_coll),
+         num_states(num_state_vars), alpha(a) {}
+
+   /// Construct the contribution to the element local residual
+   /// \param[in] el_bnd - the finite element whose residual we want to update
+   /// \param[in] el_unused - dummy element that is not used for boundaries
+   /// \param[in] trans - hold geometry and mapping information about the face
+   /// \param[in] elfun - element local state function
+   /// \param[out] elvect - element local residual
+   virtual void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
+                                   const mfem::FiniteElement &el_unused,
+                                   mfem::FaceElementTransformations &trans,
+                                   const mfem::Vector &elfun,
+                                   mfem::Vector &elvect);
+
+private: 
+   /// number of states
+   int num_states;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+   /// stack used for algorithmic differentiation
+   adept::Stack &stack;
+   /// used to select the appropriate face element
+   const mfem::FiniteElementCollection *fec;
+   /// flux function used on the given boundary
+   void (*bnd_flux)(const double *x, const double *nrm, const double *u,
+                    double *flux_vec);
+#ifndef MFEM_THREAD_SAFE
+   /// used to reference the state at face node
+   mfem::Vector u_face; 
+   /// store the physical location of a node
+   mfem::Vector x;
+   /// the outward pointing (scaled) normal to the boundary at a node
+   mfem::Vector nrm;
+   /// stores the flux evaluated by `bnd_flux`
+   mfem::Vector flux_face;
 #endif
 };
 

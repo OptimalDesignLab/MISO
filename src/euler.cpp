@@ -54,6 +54,26 @@ EulerSolver::EulerSolver(const string &opt_file_name,
                                               applyLPSScaling<double,2>,
                                               num_state, alpha, lps_coeff));
 
+   // add boundary integrators
+   auto &bcs = options["bcs"];
+   bndry_marker.resize(bcs.size());
+   int idx = 0;
+   if (bcs.find("vortex") != bcs.end())
+   { // isentropic vortex BC
+      vector<int> tmp = bcs["vortex"].get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      
+      //bcs["vortex"].get<vector<int>>();
+      //
+      //Array<int> marker(tmp.data(), bcs["vortex"].size());
+      //Array<int> marker(bcs["vortex"].get<vector<int>>().data(), bcs["vortex"].size());
+      res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+         diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
+         alpha), bndry_marker[idx]);
+      idx++;
+   }
+
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns

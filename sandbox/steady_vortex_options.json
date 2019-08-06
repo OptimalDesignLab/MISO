@@ -1,0 +1,15 @@
+{
+   "space-dis": {
+      "degree": 2,
+      "lps-coeff": 1.0
+   },
+   "unsteady": {
+      "const-cfl": true,
+      "cfl": 1.0,
+      "dt": 0.1,
+      "t-final": 1000.0
+   },
+   "bcs": {
+      "vortex": [1, 2, 3, 4]
+   }
+}
