@@ -5,56 +5,63 @@
 #include "mfem.hpp"
 #include "solver.hpp"
 using namespace mach;
+
+
 namespace mfem
 {
-/// Newton's method for solving F(x)=b for a given operator F.
+/// Inexact Newton's method solving F(x) = b with globalization.
 /** The method GetGradient() must be implemented for the operator F.
     The preconditioner is used (in non-iterative mode) to evaluate
     the action of the inverse gradient of the operator. */
 class InexactNewton : public mfem::NewtonSolver
 {
 protected:
-   // This operator is unnessary.
-   const Operator* jac;
-   mfem::Vector r2, x2;
-   /* Caustion: Here we make norm a member function so that we
-      can avoid evaulate the current norm in each iteration.*/
-   double norm;
-   double theta, eta;
-   double eta_max;
+   /// member vector saves the new x position.
+   mfem::Vector x_new;
+   /// Parameters for inexact newton method.
+   double theta, eta, eta_max, t;
    const double theta_min = 0.1;
    const double theta_max = 0.5;
-   const double t = 1e-4;
-
-public:
-   InexactNewton(double eta0 = 0.01, double etam = 0.9)
-    { eta = eta0; eta_max = etam; theta = 1e-4; }
    
-// Parallelization part currently is left unchange so far.
-// #ifdef MFEM_USE_MPI
-//    NewtonSolver(MPI_Comm _comm) : IterativeSolver(_comm) { }
-// #endif
+public:
+   /// Constructor for Inexact Newton Solver.
+   /// \param[in] eta0 - initial value of eta. Default is 1e-4
+   /// \param[in] etam - maximum value of eta. Default is 0.9
+   /// \param[in] t0 - initial value of t. Default is 1e-4
+   /// \note the operator and inexact newton solver need to set in problem
+   InexactNewton(double eta0 = 1e-4, double etam = 1e-1, double t0=1e-4)
+   { eta = eta0; eta_max = etam; t = t0;}
 
+   //Parallelization part currently is left unchange so far.
+   // #ifdef MFEM_USE_MPI
+   //    NewtonSolver(MPI_Comm _comm) : IterativeSolver(_comm) { }
+   // #endif
+
+   /// Set the operator and initialize x, r, c, x2.
+   /// \param[in] op - reference to the problem operator
    virtual void SetOperator(const mfem::Operator &op);
+
    /// Set the linear solver for inverting the Jacobian.
-   /** This method is equivalent to calling SetPreconditioner(). */
+   /// \param[in] solver - the inexact newton step solver
+   /// \note This method is equivalent to calling SetPreconditioner().
    virtual void SetSolver(mfem::Solver &solver) { prec = &solver; }
 
-   /// Solve the nonlinear system with right-hand side @a b.
-   /** If `b.Size() != Height()`, then @a b is assumed to be zero. */
-   /// This comment was added on July 9th.
+   /// Solve the nonlinear system with right-hand side b.
+   /// \param[in] b - the right-hand side vector.
+   /// \param[in] x - starting point.
    virtual void Mult(const mfem::Vector &b, mfem::Vector &x);
 
-   /** @brief This method is overloaded in this derived classes to implement 
-       other line search algorithms. Currently the line searching method is backtraching
-       method with quadratic interpolation. */
-   virtual double ComputeScalingFactor(const mfem::Vector &x, const mfem::Vector &b);
+   /// Back tracking globalization method making the step safer.
+   /// \param[in] x - current x location.
+   /// \param[in] b - the right-hand side vector.
+   /// \param[in] norm - norm of the current residual.
+   /// \returns the globalized stepsize.
+   double ComputeStepSize(const mfem::Vector &x, const mfem::Vector &b, 
+                        const double norm);
 
-   /* This function set the jacbian operator. */
-   virtual void SetJacobian(const mfem::Operator &op){jac = &op;}
-	 
-	 // Below here are functions that used for 
-	 virtual const mfem::Operator * GetOper(){return oper;}
+	 /// Get the Inexact Newton Solver.
+    /// returns the nonlinear solver.
+    /// \note there might be a way to avoid this.
     virtual mfem::Solver * GetSolver(){return prec;}
 };
 
