@@ -81,14 +81,14 @@ void nonlinearSolver::Mult(const mfem::Vector &r, mfem::Vector &c) const
 const double abs_tol=1e-12;
 const double rel_tol=1e-10;
 TEST_CASE(" Use Inexact Newton Method solving another 1D problem...",
-         "[inexact-newton2]")
+         "[inexact-newton]")
 {
 
    // Solve the problem x^2 - b = 0;
    // Initial condition.
 	mfem::Vector b(1), x(1),c(1),r(1);
 	b(0)=-1.0;
-	x(0)=0.5;
+	x(0)=0.50;
 
 
    // declare the inexact newton solver.

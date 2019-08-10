@@ -5,22 +5,49 @@ using namespace std;
 
 namespace mfem
 {
+
+// InexactNewton::InexactNewton(double eta_init, double eta_maximum,
+//                              double ared_scale)
+// {
+//    eta = eta_init;
+//    eta_max = eta_maximum;
+//    t = ared_scale;
+// }
+
+// #ifdef MFEM_USE_MPI
+// InexactNewton::InexactNewton(MPI_Comm comm, double eta_init,
+//                              double eta_maximum, double ared_scale)
+//    :InexactNewton(eta_init, eta_maximum, ared_scale)
+// {
+// }
+// #endif
+
+void InexactNewton::init(double eta_init, double eta_maximum,
+                             double ared_scale)
+{
+   eta = eta_init;
+   eta_max = eta_maximum;
+   t = ared_scale;
+}
+   
 double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
                                        const double norm)
 {
    double s = 1.0;
-   /* p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
-      p0 is the value of p(0), p0p is the derivative p'(0), and 
-      p1 is the value of p(1). */
+   // p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
+   // p0 is the value of p(0), p0p is the derivative p'(0), and 
+   // p1 is the value of p(1). */
    double p0, p1, p0p;
    // A temporary vector for calculating p0p.
    Vector temp(r.Size());
 
    p0 = 0.5 * norm * norm;
-   GetSolver()->Mult(r,temp);
+   // temp=F'(x_i)*r(x_i)
+   jac->Mult(r,temp);
    // c is the negative inexact newton step size.
    p0p = -Dot(c,temp);
    //Calculate the new norm.
+
    add(x,-1.0,c,x_new);
    oper->Mult(x_new,r);
    const bool have_b = (b.Size()==Height());
@@ -61,6 +88,11 @@ double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
          break;
       }
    }
+   if(print_level>=0)
+   {
+      mfem::out << " Globalization factors: theta= "<< s 
+            << ", eta= " << eta <<'\n';
+   }
    return s;
 }
 
@@ -70,7 +102,6 @@ void InexactNewton::SetOperator(const Operator &op)
    height = op.Height();
    width = op.Width();
    MFEM_ASSERT(height == width, "square Operator is required.");
-
    r.SetSize(width);
    c.SetSize(width);
    x_new.SetSize(width);
@@ -99,7 +130,9 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
    norm_goal = std::max(rel_tol*norm, abs_tol);
    prec->iterative_mode = false;
    static_cast<IterativeSolver*> (prec)->SetRelTol(eta);
-
+   mfem::out << "eta= " << eta;
+   mfem::out << ", eta_max= " << eta_max;
+   mfem::out << ", t= " << t << ".\n";
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
    {
@@ -112,9 +145,9 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
          {
             mfem::out << ", ||r||/||r_0|| = " << norm/norm0;
          }
-         mfem::out << ". Tolerance for inexact newton solver is " << eta 
-            << ".\n";
+         mfem::out<<'\n';
       }
+
       
       if (norm <= norm_goal)
       {
@@ -127,15 +160,12 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
          converged = 0;
          break;
       }
-      prec->SetOperator(oper->GetGradient(x));
+
+      jac = &oper->GetGradient(x);
+      prec->SetOperator(*jac);
       prec->Mult(r, c);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
-      // mfem::out << ", newton step is " << -c(0) << " and new pos is " 
-      //       << x(0)-c(0)<<".\n";
       double c_scale = ComputeStepSize(x, b, norm);
-      if(print_level>=0)
-      {
-         mfem::out << " Globalization scale is " << c_scale << ".\n";
-      }      
+
       if (c_scale == 0.0)
       {
          converged = 0;
