@@ -6,22 +6,6 @@ using namespace std;
 namespace mfem
 {
 
-// InexactNewton::InexactNewton(double eta_init, double eta_maximum,
-//                              double ared_scale)
-// {
-//    eta = eta_init;
-//    eta_max = eta_maximum;
-//    t = ared_scale;
-// }
-
-// #ifdef MFEM_USE_MPI
-// InexactNewton::InexactNewton(MPI_Comm comm, double eta_init,
-//                              double eta_maximum, double ared_scale)
-//    :InexactNewton(eta_init, eta_maximum, ared_scale)
-// {
-// }
-// #endif
-
 void InexactNewton::init(double eta_init, double eta_maximum,
                              double ared_scale)
 {

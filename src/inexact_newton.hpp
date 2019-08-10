@@ -19,6 +19,7 @@ public:
    /// \param[in] ared_scale - defines target actual reduction in the residual 
    /// \note this only defines the inexact Newton parameters; the actual
    /// problem is defined by the operator `oper`
+   /// \note parameters is set up in function `init`
    InexactNewton(double eta_init = 1e-4,double eta_maximum = 1e-1,
                   double ared_scale=1e-4)
    {
@@ -33,6 +34,7 @@ public:
    /// \param[in] ared_scale - defines target actual reduction in the residual
    /// \note this only defines the inexact Newton parameters; the actual
    /// problem is defined by the operator `oper`
+   /// \note parameters is set up in function `init`
    InexactNewton(MPI_Comm comm, double eta_init = 1e-4, 
                double eta_maximum = 1e-1, double ared_scale=1e-4)
       :NewtonSolver(comm)
@@ -75,12 +77,10 @@ private:
    double ComputeStepSize(const mfem::Vector &x, const mfem::Vector &b, 
                         const double norm);
 
-   /// Constructor for Inexact Newton Solver
+   /// Inexact newton method parameters set up, called in other constructors
    /// \param[in] eta_init - initial value of eta, the forcing parameter
    /// \param[in] eta_maximum - maximum value of eta
    /// \param[in] ared_scale - defines target actual reduction in the residual 
-   /// \note this only defines the inexact Newton parameters; the actual
-   /// problem is defined by the operator `oper`
    void init(double eta_init, double eta_maximum, double ared_scale);
 };
 
