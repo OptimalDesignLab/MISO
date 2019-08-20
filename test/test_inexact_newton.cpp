@@ -94,7 +94,7 @@ TEST_CASE(" Use Inexact Newton Method solving another 1D problem...",
    // declare the inexact newton solver.
    mfem::InexactNewton inexact_test(1e-4, 1e-1, 1e-4);
    inexact_test.iterative_mode=true;
-   inexact_test.SetPrintLevel(1);
+   inexact_test.SetPrintLevel(-1);
    inexact_test.SetAbsTol(abs_tol);
    inexact_test.SetRelTol(rel_tol);
    inexact_test.SetMaxIter(100);
@@ -146,5 +146,5 @@ TEST_CASE(" Use Inexact Newton Method solving another 1D problem...",
       REQUIRE(inexact_test.GetConverged()==1);
    }
 	delete quadfunc;
-   delete J_solve;
+  delete J_solve;
 }
