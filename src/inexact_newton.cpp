@@ -114,9 +114,6 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
    norm_goal = std::max(rel_tol*norm, abs_tol);
    prec->iterative_mode = false;
    static_cast<IterativeSolver*> (prec)->SetRelTol(eta);
-   mfem::out << "eta= " << eta;
-   mfem::out << ", eta_max= " << eta_max;
-   mfem::out << ", t= " << t << ".\n";
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
    {
