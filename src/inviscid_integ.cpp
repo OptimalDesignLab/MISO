@@ -175,7 +175,8 @@ void LPSIntegrator::AssembleElementVector(const FiniteElement &el,
    for (int i = 0; i < num_nodes; ++i)
    {
       Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
+      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
+      CalcAdjugate(Trans.Jacobian(), adjJt);
       u.GetRow(i,ui);
       Pw.GetColumnReference(i, Pwi);
       w.GetColumnReference(i, wi);
@@ -197,6 +198,8 @@ void InviscidBoundaryIntegrator::AssembleFaceVector(
    const Vector &elfun,
    Vector &elvect)
 {
+   //cout << "bnd_marker = " << bnd_marker << endl;
+   cout.flush();
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_bnd);
    const int num_nodes = el_bnd.GetDof();
    const int dim = sbp.GetDim();

@@ -167,7 +167,7 @@ void AbstractSolver::setInitialCondition(
 }
 
 double AbstractSolver::calcL2Error(
-   void (*u_exact)(const Vector &, Vector &))
+   void (*u_exact)(const Vector &, Vector &), int entry)
 {
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
@@ -179,22 +179,48 @@ double AbstractSolver::calcL2Error(
    DenseMatrix vals, exact_vals;
    Vector loc_errs;
 
-   for (int i = 0; i < fes->GetNE(); i++)
+   if (entry < 0)
    {
-      fe = fes->GetFE(i);
-      const IntegrationRule *ir = &(fe->GetNodes());
-      T = fes->GetElementTransformation(i);
-      u->GetVectorValues(*T, *ir, vals);
-      exsol.Eval(exact_vals, *T, *ir);
-      vals -= exact_vals;
-      loc_errs.SetSize(vals.Width());
-      vals.Norm2(loc_errs);
-      for (int j = 0; j < ir->GetNPoints(); j++)
+      // sum up the L2 error over all states
+      for (int i = 0; i < fes->GetNE(); i++)
       {
-         const IntegrationPoint &ip = ir->IntPoint(j);
-         T->SetIntPoint(&ip);
-         loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+         fe = fes->GetFE(i);
+         const IntegrationRule *ir = &(fe->GetNodes());
+         T = fes->GetElementTransformation(i);
+         u->GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Width());
+         vals.Norm2(loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+         }
       }
+   }
+   else
+   {
+      // calculate the L2 error for component index `entry`
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         const IntegrationRule *ir = &(fe->GetNodes());
+         T = fes->GetElementTransformation(i);
+         u->GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Width());
+         vals.GetRow(entry, loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+         }
+      }
+
    }
    double norm;
 #ifdef MFEM_USE_MPI
@@ -262,7 +288,7 @@ void AbstractSolver::solveForState()
       }
       double dt_real = min(dt, t_final - t);
       if (ti % 100 == 0)
-      {
+      {         
          cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
       }

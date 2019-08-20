@@ -215,6 +215,7 @@ int SBPFiniteElement::getIntegrationPointIndex(const IntegrationPoint &ip) const
             delta += pow(ip.z - x(i,2),2);
          }
       }
+      delta = sqrt(delta);
       if (delta < tol)
       {
          index = i;

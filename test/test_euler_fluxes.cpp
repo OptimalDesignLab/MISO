@@ -3,6 +3,9 @@
 #include "mfem.hpp"
 #include "euler_fluxes.hpp"
 
+/// Used for floating point checks when the benchmark value is zero
+const double abs_tol = std::numeric_limits<double>::epsilon()*100;
+
 // Define a random (but physical) state for the following tests
 const double rho = 0.9856566615165173;
 const double rhoe = 2.061597236955558;
@@ -38,6 +41,10 @@ double fluxIR_3D_check[15] = { 0.0574981892393032, 0.8557913559735177, -0.009501
                               -0.009501872816742403, 0.8773475401633251, 0.011331669926974292,
                               -0.49610841114443704, -0.06857074541246752, -0.004281782020677901,
                                0.011331669926974292, 0.8573073150960174, -0.22355888319220793};
+
+// Define the flux returns by calcBoundaryFlux; note, only the 2d version is tested so far
+double flux_bnd_check[4] = {0.026438482001990546, 0.5871756903516657, 0.008033780082953402,
+                            0.05099700195316398};
 
 // Define the entropy variables for checking; The first 3 entries are for the 1D variables,
 // the next 4 for the 2D variables, and the last 5 for the 3D variables
@@ -174,6 +181,65 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
          REQUIRE( flux(i) == Approx(flux_vec(i)) );
       }
    }
+
+   SECTION( "projectStateOntoWall removes normal component" )
+   {
+      // In this test case, the wall normal is set proportional to the momentum,
+      // so the momentum should come back as zero
+      mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
+                                             flux.GetData());
+      REQUIRE( flux(0) == Approx(q(0)) );
+      for (int i = 0; i < dim; ++i)
+      {
+         REQUIRE( flux(i+1) == Approx(0.0).margin(abs_tol) );
+      }
+      REQUIRE( flux(dim+1) == Approx(q(dim+1)) );      
+   }
+
+   SECTION( "calcSlipWallFlux is correct" )
+   {
+      // As above with projectStateOntoWall, the wall normal is set proportional to the momentum,
+      // so the flux will be zero, except for the term flux[1:dim] = pressure*dir[0:dim-1]
+      mfem::Vector x(dim);
+      mach::calcSlipWallFlux<double,dim>(x.GetData(), q.GetData()+1,
+                                         q.GetData(), flux.GetData());
+      mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
+                                             work.GetData());
+      double press = mach::pressure<double,dim>(work.GetData());
+      REQUIRE( flux(0) == Approx(0.0).margin(abs_tol) );
+      for (int i = 0; i < dim; ++i)
+      {
+         REQUIRE( flux(i+1) == Approx(press*q(i+1)) );
+      }
+      REQUIRE( flux(dim+1) == Approx(0.0).margin(abs_tol) );
+   }
+
+}
+
+TEST_CASE( "calcBoundaryFlux is correct", "[bndry-flux]")
+{
+   // copy the data into mfem vectors
+   mfem::Vector q(4);
+   mfem::Vector flux(4);
+   mfem::Vector qbnd(4);
+   mfem::Vector work(4);
+   mfem::Vector nrm(2);
+   q(0) = rho;
+   q(3) = rhoe;
+   qbnd(0) = rho2;
+   qbnd(3) = rhoe2;
+   for (int di = 0; di < 2; ++di)
+   {
+      q(di+1) = rhou[di];
+      qbnd(di+1) = rhou2[di];
+      nrm(di) = dir[di];
+   }
+   mach::calcBoundaryFlux<double,2>(nrm.GetData(), qbnd.GetData(), q.GetData(),
+                                    work.GetData(), flux.GetData());
+   for (int i = 0; i < 4; ++i)
+   {
+      REQUIRE( flux(i) == Approx(flux_bnd_check[i]) );
+   }
 }
 
 TEST_CASE( "calcIsentropicVortexFlux is correct", "[vortex-flux]")
@@ -200,3 +266,4 @@ TEST_CASE( "calcIsentropicVortexFlux is correct", "[vortex-flux]")
       REQUIRE( flux(i) == Approx(flux2(i)) );
    }
 }
+

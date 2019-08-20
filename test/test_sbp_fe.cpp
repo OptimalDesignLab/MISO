@@ -5,7 +5,7 @@
 using namespace mfem;
 
 /// Used for floating point checks on various SBP operations
-const double abs_tol = std::numeric_limits<float>::epsilon()*100;
+const double abs_tol = std::numeric_limits<double>::epsilon()*1000;
 
 /// Used to build polynomials of the form u = x^p 
 void polynomial1D(const Vector &x, int p, Vector &u)

@@ -256,8 +256,7 @@ template <typename xdouble, int dim>
 void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
                       xdouble *work, xdouble *flux)
 {
-   // Define some constants 
-   const xdouble tau = 1.0;
+   // Define some constants
    const xdouble sat_Vn = 0.0; // 0.025
    const xdouble sat_Vl = 0.0; // 0.025
 
@@ -311,13 +310,16 @@ void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
    {
       flux[i+1] += Edq*(E2dq_fac*dir[i] + E34dq_fac*qbnd[i+1]*fac);
    }
-   flux[dim+1] += Edq*(E2dq_fac*Un + E34dq_fac*Edq*H);
+   flux[dim+1] += Edq*(E2dq_fac*Un + E34dq_fac*H);
 }
 
 /// Isentropic vortex exact state as a function of position
 /// \param[in] x - location at which the exact state is desired
 /// \param[out] qbnd - vortex conservative variable at `x`
 /// \tparam xdouble - typically `double` or `adept::adouble`
+/// \note  I reversed the flow direction to be clockwise, so the problem and
+/// mesh are consistent with the LPS paper (that is, because the triangles are
+/// subdivided from the quads using the opposite diagonal)
 template <typename xdouble>
 void calcIsentropicVortexState(const xdouble *x, xdouble *qbnd)
 {
@@ -344,8 +346,8 @@ void calcIsentropicVortexState(const xdouble *x, xdouble *qbnd)
    xdouble a = sqrt(euler::gamma*press/rho);
 
    qbnd[0] = rho;
-   qbnd[1] = -rho*a*Ma*sin(theta);
-   qbnd[2] = rho*a*Ma*cos(theta);
+   qbnd[1] = rho*a*Ma*sin(theta);
+   qbnd[2] = -rho*a*Ma*cos(theta);
    qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 }
 
@@ -365,6 +367,47 @@ void calcIsentropicVortexFlux(const xdouble *x, const xdouble *dir,
    calcBoundaryFlux<xdouble,2>(dir, qbnd, q, work, flux);
 }
 
+/// removes the component of momentum normal to the wall from `q`
+/// \param[in] dir - vector perpendicular to the wall (does not need to be unit)
+/// \param[in] q - the state whose momentum is being projected
+/// \param[in] qbnd - the state with the normal component removed
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void projectStateOntoWall(const xdouble *dir, const xdouble *q, xdouble *qbnd)
+{
+   xdouble nrm[dim];
+   xdouble fac = 1.0/sqrt(dot<xdouble,dim>(dir,dir));
+   xdouble Unrm = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      nrm[i] = dir[i]*fac;
+      Unrm += nrm[i]*q[i+1];
+   }
+   qbnd[0] = q[0];
+   qbnd[dim+1] = q[dim+1];
+   for (int i = 0; i < dim; ++i)
+   {
+      qbnd[i+1] = q[i+1] - nrm[i]*Unrm;
+   }
+}
+
+/// computes an adjoint consistent slip wall boundary condition 
+/// \param[in] x - not used
+/// \param[in] dir - desired (scaled) normal vector to the wall
+/// \param[in] q - conservative state variable on the boundary
+/// \param[out] flux - the boundary flux in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
+                      xdouble *flux)
+{
+   xdouble qbnd[dim+2];
+   projectStateOntoWall<xdouble,dim>(dir, q, qbnd);
+   calcEulerFlux<xdouble,dim>(dir, qbnd, flux);
+   //calcIsentropicVortexFlux<xdouble>(x, dir, q, flux);
+}
 
 } // namespace mach
 

@@ -23,8 +23,7 @@ public:
                       void (*fluxFun)(const double *nrm, const double *u,
                                       double *flux_vec),
                       int num_state_vars = 1, double a = 1.0)
-       : stack(diff_stack), flux(fluxFun), num_states(num_state_vars),
-         alpha(a) {}
+       : num_states(num_state_vars), alpha(a), stack(diff_stack), flux(fluxFun) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -86,8 +85,8 @@ public:
                                         const double *u_right,
                                         double *flux_vec),
                         int num_state_vars = 1, double a = 1.0)
-       : stack(diff_stack), flux(fluxFun), num_states(num_state_vars),
-         alpha(a) {}
+       : num_states(num_state_vars), alpha(a), stack(diff_stack),
+         flux(fluxFun) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -145,9 +144,9 @@ public:
                  void (*applyScalingFun)(const double *adjJ, const double *u,
                                          const double *v, double *Av),
                  int num_state_vars = 1, double a = 1.0, double coeff = 1.0)
-       : stack(diff_stack), convertVars(convertVarsFun),
-         applyScaling(applyScalingFun), num_states(num_state_vars), alpha(a),
-         lps_coeff(coeff) {}
+       : num_states(num_state_vars), alpha(a), lps_coeff(coeff),
+         stack(diff_stack), convertVars(convertVarsFun),
+         applyScaling(applyScalingFun) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -211,8 +210,8 @@ public:
                                               double *flux_vec),
                               const mfem::FiniteElementCollection *fe_coll,
                               int num_state_vars = 1, double a = 1.0)
-       : stack(diff_stack), bnd_flux(fluxFun), fec(fe_coll),
-         num_states(num_state_vars), alpha(a) {}
+       : num_states(num_state_vars), alpha(a), stack(diff_stack),
+         bnd_flux(fluxFun), fec(fe_coll) {}
 
    /// Construct the contribution to the element local residual
    /// \param[in] el_bnd - the finite element whose residual we want to update
@@ -233,11 +232,11 @@ private:
    double alpha;
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
-   /// used to select the appropriate face element
-   const mfem::FiniteElementCollection *fec;
    /// flux function used on the given boundary
    void (*bnd_flux)(const double *x, const double *nrm, const double *u,
                     double *flux_vec);
+   /// used to select the appropriate face element
+   const mfem::FiniteElementCollection *fec;
 #ifndef MFEM_THREAD_SAFE
    /// used to reference the state at face node
    mfem::Vector u_face; 

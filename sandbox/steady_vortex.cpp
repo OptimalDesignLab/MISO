@@ -55,11 +55,15 @@ int main(int argc, char *argv[])
       EulerSolver solver(opt_file_name, move(smesh), dim);
       solver.setInitialCondition(uexact);
       solver.printSolution("init", degree+1);
-      mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver.calcL2Error(uexact) << '\n' << endl;      
+      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+                << solver.calcL2Error(uexact, 0) << '\n' << endl;
+      mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
+                << endl;
       solver.solveForState();
-      mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver.calcL2Error(uexact) << '\n' << endl;
+      mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
+                << endl;
+      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+                << solver.calcL2Error(uexact, 0) << '\n' << endl;
 
    }
    catch (MachException &exception)
@@ -75,7 +79,9 @@ int main(int argc, char *argv[])
 #endif
 }
 
-// Exact solution
+// Exact solution; note that I reversed the flow direction to be clockwise, so
+// the problem and mesh are consistent with the LPS paper (that is, because the
+// triangles are subdivided from the quads using the opposite diagonal)
 void uexact(const Vector &x, Vector& u)
 {
    u.SetSize(4);
@@ -102,9 +108,9 @@ void uexact(const Vector &x, Vector& u)
    double a = sqrt(euler::gamma*press/rho);
 
    u(0) = rho;
-   u(1) = -rho*a*Ma*sin(theta);
-   u(2) = rho*a*Ma*cos(theta);
-   u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma; 
+   u(1) = rho*a*Ma*sin(theta);
+   u(2) = -rho*a*Ma*cos(theta);
+   u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
