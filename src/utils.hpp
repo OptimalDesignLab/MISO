@@ -7,6 +7,15 @@
 
 namespace mach
 {
+
+/// Perform quadratic interpolation based on (x0,y0,dydx0) and (x1,y1)
+/// \param[in] x0 - location of first dependent data point
+/// \param[in] y0 - value of function at `x0`
+/// \param[in] dydx0 - value of derivative of function at `x0`
+/// \param[in] x1 - location of second dependent data point
+/// \param[in] y1 - value of function at `y1`
+double quadInterp(double x0, double y0, double dydx0, double x1, double y1);
+
 /// Handles (high-level) exceptions in both serial and parallel
 class MachException: public std::exception
 {
@@ -103,6 +112,7 @@ static std::ostream *getOutStream(int rank)
       return &obj;
    }
 }
+
 } // namespace mach
 
 #endif 
