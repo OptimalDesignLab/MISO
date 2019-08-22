@@ -146,5 +146,5 @@ TEST_CASE(" Use Inexact Newton Method solving another 1D problem...",
       REQUIRE(inexact_test.GetConverged()==1);
    }
 	delete quadfunc;
-   delete J_solve;
+  delete J_solve;
 }

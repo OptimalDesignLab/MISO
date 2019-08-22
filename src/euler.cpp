@@ -54,6 +54,9 @@ EulerSolver::EulerSolver(const string &opt_file_name,
                                               applyLPSScaling<double,2>,
                                               num_state, alpha, lps_coeff));
 
+   // boundary face integrators are handled in their own function
+   addBoundaryIntegrators(alpha, dim);
+
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
@@ -64,6 +67,74 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
 
 }
+
+void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
+{
+   auto &bcs = options["bcs"];
+   bndry_marker.resize(bcs.size());
+   int idx = 0;
+   if (bcs.find("vortex") != bcs.end())
+   { // isentropic vortex BC
+      vector<int> tmp = bcs["vortex"].get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+         diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
+         alpha), bndry_marker[idx]);
+      idx++;
+   }
+   if (bcs.find("slip-wall") != bcs.end())
+   { // slip-wall boundary condition
+      vector<int> tmp = bcs["slip-wall"].get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      switch (dim)
+      {
+         case 1:
+            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+               diff_stack, calcSlipWallFlux<double,1>, fec.get(), num_state,
+               alpha), bndry_marker[idx]);
+            break;
+         case 2:
+            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+               diff_stack, calcSlipWallFlux<double,2>, fec.get(), num_state,
+               alpha), bndry_marker[idx]);
+            //res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+            //   diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
+            //   alpha, bndry_marker[idx][0]), bndry_marker[idx]);
+            break;
+         case 3:
+            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+               diff_stack, calcSlipWallFlux<double,3>, fec.get(), num_state,
+               alpha), bndry_marker[idx]);
+            break;
+      }
+      idx++;
+   }
+   for (int k = 0; k < bndry_marker.size(); ++k)
+   {
+      cout << "boundary_marker[" << k << "]: ";
+      for (int i = 0; i < bndry_marker[k].Size(); ++i)
+      {
+         cout << bndry_marker[k][i] << " ";
+      }
+      cout << endl;
+   }
+}
+
+double EulerSolver::calcResidualNorm()
+{
+   GridFunType r(fes.get());
+   res->Mult(*u, r);  // TODO: option to recompute only if necessary
+   double res_norm = r*r;
+#ifdef MFEM_USE_MPI
+   double loc_norm = res_norm;
+   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#endif
+   res_norm = sqrt(res_norm);
+   return res_norm;
+}
+
 
 double EulerSolver::calcStepSize(double cfl) const
 {

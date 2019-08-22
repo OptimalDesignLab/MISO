@@ -1,4 +1,5 @@
 #include <assert.h>
+#include "utils.hpp"
 #include "orthopoly.hpp"
 
 using namespace std;
@@ -6,6 +7,55 @@ using namespace mfem;
 
 namespace mach
 {
+
+void getLobattoQuadrature(const int num_nodes, Vector &x, Vector &w)
+{
+   int degree = num_nodes-1;
+   // Use the Chebyshev-Gauss-Lobatto nodes as an initial guess
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      x(i) = -cos(M_PI*i/degree);
+   }
+   // P holds the Legendre Vandermonde matrix
+   DenseMatrix P(num_nodes);
+   Vector p_k, p_km1, p_kp1;
+   // Compute P_{degree} using the recusion relation; compute its first and
+   // second derivatives and update x using the Newton-Raphson method
+   Vector x_old(num_nodes), res(num_nodes);
+   x_old = 2.0;
+   subtract(x, x_old, res);
+   while (res.Normlinf() > std::numeric_limits<double>::epsilon())
+   {
+      x_old = x;
+      P.GetColumnReference(0, p_k);
+      p_k = 1.0;
+      P.GetColumnReference(1, p_k);
+      p_k = x;
+      for (int k = 1; k < degree; ++k)
+      {
+         // P[:,k+1]= ((2k+1)*x.*P[:,k] - k*P[:,k-1])/(k+1)
+         P.GetColumnReference(k-1, p_km1);
+         P.GetColumnReference(k, p_k);
+         P.GetColumnReference(k+1, p_kp1);
+         multiplyElementwise(x, p_k, p_kp1);
+         add((2.0*k+1.0)/(k+1.0), p_kp1, -k/(k+1.0), p_km1, p_kp1);
+      }
+      // x = xold - ( x.*P[:,degree]-P[:,degree-1] )./( num_nodes*P[:,degree] ) 
+      P.GetColumnReference(degree, p_kp1);
+      P.GetColumnReference(degree-1, p_k);
+      multiplyElementwise(x, p_kp1, x);
+      x -= p_k;
+      divideElementwise(x, p_kp1, x);
+      x *= 1.0/(num_nodes);
+      subtract(x_old, x, x);
+      subtract(x, x_old, res);
+   }
+   // w = 2./(num_nodes*degree*P(:,end).^2))
+   P.GetColumnReference(num_nodes-1, p_kp1);
+   multiplyElementwise(p_kp1, p_kp1, w);
+   w *= 0.5*num_nodes*degree;
+   invertElementwise(w, w);
+}
 
 void jacobiPoly(const Vector &x, const double alpha, const double beta,
                 const int degree, Vector &poly)
@@ -75,8 +125,23 @@ void prorioPoly(const Vector &x, const Vector &y, const int i, const int j,
    }
 }
 
-void getVandermondeForTri(const mfem::Vector &x, const mfem::Vector &y,
-                          const int degree, mfem::DenseMatrix &V)
+void getVandermondeForSeg(const Vector &x, const int degree, DenseMatrix &V)
+{
+   int num_nodes = x.Size();
+   int N = degree + 1;
+   V.SetSize(num_nodes, N);
+   Vector poly;
+   int ptr = 0;
+   for (int r = 0; r <= degree; ++r)
+   {
+      V.GetColumnReference(ptr, poly);
+      mach::jacobiPoly(x, 0.0, 0.0, r, poly);
+      ptr += 1;
+   }
+}
+
+void getVandermondeForTri(const Vector &x, const Vector &y, const int degree,
+                          DenseMatrix &V)
 {
    MFEM_ASSERT(x.Size() == y.Size(), "");
    int num_nodes = x.Size();

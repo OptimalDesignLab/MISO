@@ -6,6 +6,16 @@
 namespace mach
 {
 
+/// computes the LGL quadrature nodes and weights on the interval [-1,1]
+/// \param[in] num_nodes - the number of nodes (degree+1)
+/// \param[out] x - the location of the nodes, listed in increasing order
+/// \param[out] w - the quadrature weights corresponding to x
+/// The LGL nodes are the zeros of (1-x^2)*P'_N(x), where P_N(x) denotes the
+/// (num_nodes-1)th Legendre polynomial.
+/// \see C. Canuto, M. Y. Hussaini, A. Quarteroni, T. A. Tang, "Spectral 
+/// Methods in Fluid Dynamics," Section 2.3. Springer-Verlag 1987.
+void getLobattoQuadrature(const int num_nodes, mfem::Vector &x, mfem::Vector &w);
+
 /// Evaluate a Jacobi polynomial at some points.
 /// \param[in] x - points at which to evaluate polynomial
 /// \param[in] alpha, beta - define Jacobi Polynomial (`alpha` + `beta` != 1)
@@ -25,6 +35,16 @@ void jacobiPoly(const mfem::Vector &x, const double alpha, const double beta,
 /// \warning the reference triangle is (-1,-1), (1,-1), (-1,1) here.
 void prorioPoly(const mfem::Vector &x, const mfem::Vector &y, const int i,
                 const int j, mfem::Vector &poly);
+
+/// Constructs the Vandermonde matrix for the segment reference domain
+/// \param[in] x - locations at which to evaluate the orthogonal polynomials
+/// \param[in] degree - maximum polynomial degree to evaluate the polynomials
+/// \param[out] V - the Vandermonde matrix
+/// \warning the reference segment is (-1), (1) here.  If you
+/// want to use this on `mfem`'s reference triangle, you need to adjust `x` and
+/// scale `V` by sqrt(2) afterward.
+void getVandermondeForSeg(const mfem::Vector &x, const int degree,
+                          mfem::DenseMatrix &V);
 
 /// Constructs the Vandermonde matrix for the triangle reference domain
 /// \param[in] x, y - locations at which to evaluate the orthogonal polynomials

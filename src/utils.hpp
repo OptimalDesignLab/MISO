@@ -7,23 +7,15 @@
 
 namespace mach
 {
-/* This function perform the quadratic interpolation between (x0, y0)
-   and (x1, y1) with y0' provided. */
-double quadInterp(double x0, double y0, double dydx0, 
-                     double x1, double y1);
-/*
-{
-   /// Assume the fuction has the form y(x) = c0 + c1 * x + c2 * x^2;
-   double c0, c1, c2;
-   c0 = (dydx0*x0*x0*x1 + y1*x0*x0 - dydx0*x0*x1*x1 
-         - 2*y0*x0*x1 + y0*x1*x1)/(x0*x0 - 2*x1*x0 + x1*x1);
-   c1 = (2*x0*y0 - 2*x0*y1 - x0*x0*dydx0 + x1*x1*dydx0)
-         /(x0*x0 - 2*x1*x0 + x1*x1);
-   c2 = -(y0 - y1 - x0*dydx0 + x1*dydx0)/(x0*x0 - 2*x1*x0 + x1*x1);
-   std::cout << c2 <<  "  "<< c1 << "  " << c0 <<std::endl;
-   return -c1/(2*c2);
-}
-*/
+
+/// Perform quadratic interpolation based on (x0,y0,dydx0) and (x1,y1)
+/// \param[in] x0 - location of first dependent data point
+/// \param[in] y0 - value of function at `x0`
+/// \param[in] dydx0 - value of derivative of function at `x0`
+/// \param[in] x1 - location of second dependent data point
+/// \param[in] y1 - value of function at `y1`
+double quadInterp(double x0, double y0, double dydx0, double x1, double y1);
+
 /// Handles (high-level) exceptions in both serial and parallel
 class MachException: public std::exception
 {
@@ -48,6 +40,17 @@ protected:
    /// message printed to std::cerr
    std::string error_msg;
 };
+
+/// performs the Hadamard (elementwise) product: `v(i) = v1(i)*v2(i)`
+void multiplyElementwise(const mfem::Vector &v1, const mfem::Vector &v2,
+                         mfem::Vector &v);
+
+/// performs an elementwise division: `v(i) = v1(i)/v2(i)`
+void divideElementwise(const mfem::Vector &v1, const mfem::Vector &v2,
+                       mfem::Vector &v);
+
+/// performs elementwise inversion: `y(i) = 1/x(i)`
+void invertElementwise(const mfem::Vector &x, mfem::Vector &y);
 
 /// for performing loop unrolling of dot-products using meta-programming
 /// \tparam xdouble - `double` or `adept::adouble`

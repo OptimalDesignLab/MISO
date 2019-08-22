@@ -3,6 +3,7 @@
 #ifndef MACH_EULER_FLUXES
 #define MACH_EULER_FLUXES
 
+#include <algorithm> // std::max
 #include "utils.hpp"
 
 namespace mach
@@ -239,6 +240,173 @@ void applyLPSScaling(const xdouble *adjJ, const xdouble *q, const xdouble *vec,
    {
       mat_vec[i] *= spect;
    }
+}
+
+/// Boundary flux that uses characteristics to determine which state to use
+/// \param[in] dir - direction in which the flux is desired
+/// \param[in] qbnd - boundary values of the conservative variables
+/// \param[in] q - interior domain values of the conservative variables
+/// \param[in] work - a work vector of size `dim+2`
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note the "flux Jacobian" is computed using `qbnd`, so the boundary values
+/// define what is inflow and what is outflow.
+template <typename xdouble, int dim>
+void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
+                      xdouble *work, xdouble *flux)
+{
+   // Define some constants
+   const xdouble sat_Vn = 0.0; // 0.025
+   const xdouble sat_Vl = 0.0; // 0.025
+
+   // Define some constants used to construct the "Jacobian"
+   const double dA = sqrt(dot<xdouble,dim>(dir,dir));
+   const double fac = 1.0/qbnd[0];
+   const double phi = 0.5*dot<xdouble,dim>(qbnd+1,qbnd+1)*fac*fac;
+   const double H = euler::gamma*qbnd[dim+1]*fac - euler::gami*phi;
+   const double a = sqrt(euler::gami*(H - phi));
+   const double Un = dot<xdouble,dim>(qbnd+1,dir)*fac;
+   double lambda1 = Un + dA*a;
+   double lambda2 = Un - dA*a;
+   double lambda3 = Un;
+   const double rhoA = fabs(Un) + dA*a;
+   lambda1 = 0.5*(std::max(fabs(lambda1), sat_Vn*rhoA) - lambda1);
+   lambda2 = 0.5*(std::max(fabs(lambda2), sat_Vn*rhoA) - lambda2);
+   lambda3 = 0.5*(std::max(fabs(lambda3), sat_Vl*rhoA) - lambda3);
+
+   xdouble *dq = work;
+   for (int i = 0; i < dim+2; ++i)
+   {
+      dq[i] = q[i] - qbnd[i];
+   }
+   calcEulerFlux<xdouble,dim>(dir, q, flux);
+
+   // diagonal matrix multiply; note that flux was initialized by calcEulerFlux
+   for (int i = 0; i < dim+2; ++i)
+   {
+      flux[i] += lambda3*dq[i];
+   }
+
+   // some scalars needed for E1*dq, E2*dq, E3*dq, and E4*dq
+   xdouble tmp1 = 0.5*(lambda1 + lambda2) - lambda3;
+   xdouble E1dq_fac = tmp1*euler::gami/(a*a);
+   xdouble E2dq_fac = tmp1/(dA*dA);
+   xdouble E34dq_fac = 0.5*(lambda1 - lambda2)/(dA*a);
+
+   // get E1*dq + E4*dq and add to flux
+   xdouble Edq = phi*dq[0] + dq[dim+1] - dot<xdouble,dim>(qbnd+1,dq+1)*fac;
+   flux[0] += E1dq_fac*Edq;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i+1] += Edq*(E1dq_fac*qbnd[i+1]*fac + euler::gami*E34dq_fac*dir[i]);
+   }
+   flux[dim+1] += Edq*(E1dq_fac*H + euler::gami*E34dq_fac*Un);
+
+   // get E2*dq + E3*dq and add to flux
+   Edq = -Un*dq[0] + dot<xdouble,dim>(dir, dq+1);
+   flux[0] += E34dq_fac*Edq;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i+1] += Edq*(E2dq_fac*dir[i] + E34dq_fac*qbnd[i+1]*fac);
+   }
+   flux[dim+1] += Edq*(E2dq_fac*Un + E34dq_fac*H);
+}
+
+/// Isentropic vortex exact state as a function of position
+/// \param[in] x - location at which the exact state is desired
+/// \param[out] qbnd - vortex conservative variable at `x`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \note  I reversed the flow direction to be clockwise, so the problem and
+/// mesh are consistent with the LPS paper (that is, because the triangles are
+/// subdivided from the quads using the opposite diagonal)
+template <typename xdouble>
+void calcIsentropicVortexState(const xdouble *x, xdouble *qbnd)
+{
+   double ri = 1.0;
+   double Mai = 0.5; //0.95 
+   double rhoi = 2.0;
+   double prsi = 1.0/euler::gamma;
+   xdouble rinv = ri/sqrt(x[0]*x[0] + x[1]*x[1]);
+   xdouble rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
+                          1.0/euler::gami);
+   xdouble Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
+                     (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
+   xdouble theta;
+   if (x[0] > 1e-15)
+   {
+      theta = atan(x[1]/x[0]);
+   }
+   else
+   {
+      theta = M_PI/2.0;
+   }
+   xdouble press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
+                 (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
+   xdouble a = sqrt(euler::gamma*press/rho);
+
+   qbnd[0] = rho;
+   qbnd[1] = rho*a*Ma*sin(theta);
+   qbnd[2] = -rho*a*Ma*cos(theta);
+   qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+}
+
+/// A wrapper for `calcBoundaryFlux` in the case of the isentropic vortex
+/// \param[in] x - location at which the boundary flux is desired
+/// \param[in] dir - desired (scaled) direction of the flux
+/// \param[in] q - conservative state variable on the interior of the boundary
+/// \param[out] flux - the boundary flux in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcIsentropicVortexFlux(const xdouble *x, const xdouble *dir,
+                              const xdouble *q, xdouble *flux)
+{
+   xdouble qbnd[4];
+   xdouble work[4];
+   calcIsentropicVortexState<xdouble>(x, qbnd);
+   calcBoundaryFlux<xdouble,2>(dir, qbnd, q, work, flux);
+}
+
+/// removes the component of momentum normal to the wall from `q`
+/// \param[in] dir - vector perpendicular to the wall (does not need to be unit)
+/// \param[in] q - the state whose momentum is being projected
+/// \param[in] qbnd - the state with the normal component removed
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void projectStateOntoWall(const xdouble *dir, const xdouble *q, xdouble *qbnd)
+{
+   xdouble nrm[dim];
+   xdouble fac = 1.0/sqrt(dot<xdouble,dim>(dir,dir));
+   xdouble Unrm = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      nrm[i] = dir[i]*fac;
+      Unrm += nrm[i]*q[i+1];
+   }
+   qbnd[0] = q[0];
+   qbnd[dim+1] = q[dim+1];
+   for (int i = 0; i < dim; ++i)
+   {
+      qbnd[i+1] = q[i+1] - nrm[i]*Unrm;
+   }
+}
+
+/// computes an adjoint consistent slip wall boundary condition 
+/// \param[in] x - not used
+/// \param[in] dir - desired (scaled) normal vector to the wall
+/// \param[in] q - conservative state variable on the boundary
+/// \param[out] flux - the boundary flux in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
+                      xdouble *flux)
+{
+   xdouble qbnd[dim+2];
+   projectStateOntoWall<xdouble,dim>(dir, q, qbnd);
+   calcEulerFlux<xdouble,dim>(dir, qbnd, flux);
+   //calcIsentropicVortexFlux<xdouble>(x, dir, q, flux);
 }
 
 } // namespace mach
