@@ -1,0 +1,91 @@
+/// Solve the unsteady isentropic vortex problem
+
+#include "mfem.hpp"
+#include "euler.hpp"
+#include "euler_fluxes.hpp"
+#include <fstream>
+#include <iostream>
+
+using namespace std;
+using namespace mfem;
+using namespace mach;
+
+/// \brief Defines the initial condition for the unsteady isentropic vortex
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u0 - conservative variables stored as a 4-vector
+void u0_function(const Vector &x, Vector& u0);
+
+int main(int argc, char *argv[])
+{
+#ifdef MFEM_USE_MPI
+   // Initialize MPI if parallel
+   MPI_Init(&argc, &argv);
+#endif
+   // Parse command-line options
+   OptionsParser args(argc, argv);
+   const char *options_file = "unsteady_vortex_options.json";
+   args.AddOption(&options_file, "-o", "--options",
+                  "Options file to use.");
+   args.Parse();
+   if (!args.Good())
+   {
+      args.PrintUsage(cout);
+      return 1;
+   }
+
+   try
+   {
+      // construct the solver, set the initial condition, and solve
+      string opt_file_name(options_file);
+      const int dim = 2;
+      EulerSolver solver(opt_file_name, nullptr, dim);
+      solver.setInitialCondition(u0_function);
+      mfem::out << "\n|| u_h - u ||_{L^2} = " 
+                << solver.calcL2Error(u0_function) << '\n' << endl;      
+      solver.solveForState();
+      mfem::out << "\n|| u_h - u ||_{L^2} = " 
+                << solver.calcL2Error(u0_function) << '\n' << endl;
+
+   }
+   catch (MachException &exception)
+   {
+      exception.print_message();
+   }
+   catch (std::exception &exception)
+   {
+      cerr << exception.what() << endl;
+   }
+#ifdef MFEM_USE_MPI
+   MPI_Finalize();
+#endif
+}
+
+// Initial condition; see Crean et al. 2018 for the notation
+void u0_function(const Vector &x, Vector& u0)
+{
+   u0.SetSize(4);
+   double t = 0.0; // this could be an input...
+   double x0 = 0.5;
+   double y0 = 0.5;
+   // scale is used to reduce the size of the vortex; need to scale the
+   // velocity and pressure carefully to account for this
+   double scale = 15.0;
+   double xi = (x(0) - x0)*scale - t;
+   double eta = (x(1) - y0)*scale;
+   double M = 0.5;
+   double epsilon = 1.0;
+   double f = 1.0 - (xi*xi + eta*eta);
+   // density
+   u0(0) = pow(1.0 - epsilon*epsilon*euler::gami*M*M*exp(f)/(8*M_PI*M_PI),
+               1.0/euler::gami);
+   // x velocity
+   u0(1) = 1.0 - epsilon*eta*exp(f*0.5)/(2*M_PI);
+   u0(1) *= scale*u0(0);
+   // y velocity
+   u0(2) = epsilon*xi*exp(f*0.5)/(2*M_PI);
+   u0(2) *= scale*u0(0);
+   // pressure, used to get the energy
+   double press = pow(u0(0), euler::gamma)/(euler::gamma*M*M);
+   press *= scale*scale;
+   u0(3) = press/euler::gami + 0.5*(u0(1)*u0(1) + u0(2)*u0(2))/u0(0);
+}
