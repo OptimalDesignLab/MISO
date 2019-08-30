@@ -36,6 +36,7 @@ void invertElementwise(const Vector &x, Vector &y)
    }
 }
 
+/// performs quadratic interpolation given x0, y0, dy0/dx0, x1, and y1.
 double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 {
    // Assume the fuction has the form y(x) = c0 + c1 * x + c2 * x^2
