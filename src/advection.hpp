@@ -75,6 +75,8 @@ private:
    mfem::DenseMatrix adjJ;
    /// stores the projection operator
    mfem::DenseMatrix P;
+   /// reference to vel at a node
+   mfem::Vector vel_i;
    /// scaled reference velocity at a point
    mfem::Vector velhat_i;
    /// scaling diagonal matrix, stored as a vector
