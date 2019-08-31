@@ -62,7 +62,7 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
    int dim = el.GetDim();
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix vel, adjJ, P;
-   Vector velhat_i, AH;
+   Vector vel_i, velhat_i, AH;
 #endif
    elmat.SetSize(num_nodes);
    adjJ.SetSize(dim); // adjJ = |J|*dxi/dx = adj(dx/dxi)
@@ -72,7 +72,6 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
 
    // Get AH: the scaling matrix, A, times the quadrature weights, H
    vel_coeff.Eval(vel, Trans, el.GetNodes());
-   Vector vel_i; // reference to vel at a node
    const Vector &H = static_cast<SBP>(el).returnDiagNorm();
    for (int i = 0; i < num_nodes; i++)
    {
