@@ -35,6 +35,10 @@ private:
    mfem::DenseMatrix adjJ;
    /// Storage for weak derivative operators
    mfem::DenseMatrix Q;
+   /// reference to vel at a node
+   mfem::Vector vel_i;
+   /// reference to velhat at a node
+   mfem::Vector velhat_i;
    /// reference to one component of velhat at all nodes
    mfem::Vector Udi;
 #endif
