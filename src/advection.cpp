@@ -22,8 +22,6 @@ void AdvectionIntegrator::AssembleElementMatrix(
    elmat.SetSize(num_nodes);
    velhat.SetSize(dim, num_nodes); // scaled velocity in reference space
    adjJ.SetSize(dim); // adjJ = |J|*dxi/dx = adj(dx/dxi)
-   Vector vel_i; // reference to vel at a node
-   Vector velhat_i; // reference to velhat at a node
    Udi.SetSize(num_nodes); // reference to one component of velhat at all nodes
 
    // Evaluate the velocity at the nodes and get the velocity in reference space
