@@ -3,6 +3,8 @@
 
 #include "mfem.hpp"
 #include "solver.hpp"
+#include "euler_fluxes.hpp"
+#include "adept.h"
 
 namespace mach
 {
@@ -31,6 +33,69 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
+
+   /// Compute the Jacobian of the slip wall flux with respect to Q
+   /// \param[in] x - not used
+   /// \param[in] dir - desired (scaled) normal vector to the wall
+   /// \param[in] q - conservative state variable on the boundary
+   /// \param[out] Jac - the Jacobian of the boundary flux in the direction 
+   ///                   `dir` with respect to Q
+   /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+   template <int dim>
+   static void calcSlipWallFluxJacQ(const mfem::Vector &x, const mfem::Vector &dir,
+                                    const mfem::Vector &q, mfem::DenseMatrix Jac)
+   {
+      double *jac_data = Jac.GetData();  
+      // create containers for active double objects for each input
+      std::vector<adept::adouble> a_x(x.Size());
+      std::vector<adept::adouble> a_dir(dir.Size());
+      std::vector<adept::adouble> a_q(q.Size());
+      // initialize active double containers with data from inputs
+      adept::set_values(&a_x[0], x.Size(), x.GetData());
+      adept::set_values(&a_dir[0], dir.Size(), dir.GetData());
+      adept::set_values(&a_q[0], q.Size(), q.GetData());
+      // start new stack recording
+      diff_stack.new_recording();
+      // create container for active double flux output
+      std::vector<adept::adouble> a_flux(q.Size());
+      calcSlipWallFlux<adept::adouble, dim>(&a_x[0], &a_dir[0], &a_q[0],
+                                            &a_flux[0]);
+      diff_stack.independent(&a_q[0], q.Size());
+      diff_stack.dependent(&a_flux[0], q.Size());
+      diff_stack.jacobian(jac_data);
+   }
+
+   /// Compute the Jacobian of the slip wall flux with respect to Dir
+   /// \param[in] x - not used
+   /// \param[in] dir - desired (scaled) normal vector to the wall
+   /// \param[in] q - conservative state variable on the boundary
+   /// \param[out] Jac - the Jacobian of the boundary flux in the direction 
+   ///                   `dir` with respect to dir
+   /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+   template <int dim>
+   static void calcSlipWallFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
+                                      const mfem::Vector &q, mfem::DenseMatrix Jac)
+   {
+      double *jac_data = Jac.GetData();  
+      // create containers for active double objects for each input
+      std::vector<adept::adouble> a_x(x.Size());
+      std::vector<adept::adouble> a_dir(dir.Size());
+      std::vector<adept::adouble> a_q(q.Size());
+      // initialize active double containers with data from inputs
+      adept::set_values(&a_x[0], x.Size(), x.GetData());
+      adept::set_values(&a_dir[0], dir.Size(), dir.GetData());
+      adept::set_values(&a_q[0], q.Size(), q.GetData());
+      // start new stack recording
+      diff_stack.new_recording();
+      // create container for active double flux output
+      std::vector<adept::adouble> a_flux(q.Size());
+      calcSlipWallFlux<adept::adouble, dim>(&a_x[0], &a_dir[0], &a_q[0],
+                                            &a_flux[0]);
+      diff_stack.independent(&a_dir[0], dir.Size());
+      diff_stack.dependent(&a_flux[0], q.Size());
+      diff_stack.jacobian(jac_data);
+   }
+
 
 protected:
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
