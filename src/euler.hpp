@@ -96,6 +96,23 @@ public:
       diff_stack.jacobian(jac_data);
    }
 
+/// Compute the Jacobian of the Euler flux with respect to state variables
+/// \param[in] dir - direction in which euler flux is calculated
+/// \param[in] q - conservative state variables
+/// \param[out] Jac - the Jacobian of the euler flux with respect to q
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template<int dim>
+static void calcEulerFluxJacQ(const mfem::Vector& dir, const mfem::Vector& q,
+                              mfem::DenseMatrix* jac);
+
+/// Compute the Jacobian of the Euler flux with respect to dir
+/// \param[in] dir - direction in which euler flux is calculated
+/// \param[in] q - conservative state variables
+/// \param[out] Jac - the Jacobian of the euler flux with respect to dir
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template<int dim>
+static void calcEulerFluxJacDir(const mfem::Vector& dir, const mfem::Vector& q,
+                                 mfem::DenseMatrix* jac);
 
 protected:
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC

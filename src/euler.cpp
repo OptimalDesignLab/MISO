@@ -190,7 +190,6 @@ double EulerSolver::calcStepSize(double cfl) const
    return dt_min;
 }
 
-
 template<int dim>
 void EulerSolver::calcEulerFluxJacQ(const mfem::Vector& dir_val,
                                     const mfem::Vector& q_val,
@@ -207,6 +206,7 @@ void EulerSolver::calcEulerFluxJacQ(const mfem::Vector& dir_val,
    diff_stack.dependent(&flux[0], dim+2);
    diff_stack.jacobian(jac);
 }
+
 
 template<int dim>
 void EulerSolver::calcEulerFluxJacDir(const mfem::Vector& dir_val,
