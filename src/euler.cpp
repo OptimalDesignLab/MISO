@@ -190,4 +190,39 @@ double EulerSolver::calcStepSize(double cfl) const
    return dt_min;
 }
 
+
+template<int dim>
+void EulerSolver::calcEulerFluxJacQ(const mfem::Vector& dir_val,
+                                    const mfem::Vector& q_val,
+                                    mfem::DenseMatrix* jac_val)
+{
+   using adept::adouble;
+   double *jac = jac_val->GetData();
+   std::vector<adouble> dir(dim), q(dim+2), flux(dim+2);
+   adept::set_values(&dir[0], dim, &dir_val[0]);
+   adept::set_values(&q[0], dim+2, &q_val[0]);
+   diff_stack.new_recording();
+   calcEulerFlux<adouble, dim>(dir, q, flux);
+   diff_stack.independent(&q[0], dim+2);
+   diff_stack.dependent(&flux[0], dim+2);
+   diff_stack.jacobian(jac);
+}
+
+template<int dim>
+void EulerSolver::calcEulerFluxJacDir(const mfem::Vector& dir_val,
+                                    const mfem::Vector& q_val,
+                                    mfem::DenseMatrix* jac_val)
+{
+   using adept::adouble;
+   double *jac = jac_val->GetData();
+   std::vector<adouble> dir(dim), q(dim+2), flux(dim+2);
+   adept::set_values(&dir[0], dim, &dir_val[0]);
+   adept::set_values(&q[0], dim+2, &q_val[0]);
+   diff_stack.new_recording();
+   calcEulerFlux<adouble, dim>(dir, q, flux);
+   diff_stack.independent(&dir[0], dim+2);
+   diff_stack.dependent(&flux[0], dim+2);
+   diff_stack.jacobian(jac);
+}
+
 } // namespace mach

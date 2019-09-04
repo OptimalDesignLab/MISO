@@ -19,7 +19,7 @@ public:
    EulerSolver(const std::string &opt_file_name, 
                std::unique_ptr<mfem::Mesh> smesh = nullptr,
                int dim = 1);
-
+   
    /// Find the gobal step size for the given CFL number
    /// \param[in] cfl - target CFL number for the domain
    /// \returns dt_min - the largest step size for the given CFL
@@ -31,6 +31,22 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
+
+   /// Calculate the Euler flux jacobian respect to state variables.
+   /// \param[in] dir - direction in which flux is calculated.
+   /// \param[in] q - the conservative variables
+   /// \param[in] jac - a pointer to the jacobian.
+   template<int dim>
+   static void calcEulerFluxJacQ(const mfem::Vector& dir, const mfem::Vector& q,
+                                 mfem::DenseMatrix* jac);
+   
+   /// Calculate the Euler flux jacobian respect to direction.
+   /// \param[in] dir - direction in which flux is calculated.
+   /// \param[in] q - the conservative variables
+   /// \param[in] jac - a pointer to the jacobian.
+   template<int dim>
+   static void calcEulerFluxJacDir(const mfem::Vector& dir, const mfem::Vector& q,
+                                 mfem::DenseMatrix* jac);
 
 protected:
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
