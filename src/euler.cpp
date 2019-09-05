@@ -7,6 +7,7 @@
 
 using namespace mfem;
 using namespace std;
+using adept::adouble;
 
 namespace mach
 {
@@ -191,38 +192,38 @@ double EulerSolver::calcStepSize(double cfl) const
 }
 
 template<int dim>
-void EulerSolver::calcEulerFluxJacQ(const mfem::Vector& dir_val,
-                                    const mfem::Vector& q_val,
-                                    mfem::DenseMatrix* jac_val)
+void EulerSolver::calcEulerFluxJacQ(const mfem::Vector &dir,
+                                    const mfem::Vector &q,
+                                    mfem::DenseMatrix &jac)
 {
-   using adept::adouble;
-   double *jac = jac_val->GetData();
-   std::vector<adouble> dir(dim), q(dim+2), flux(dim+2);
-   adept::set_values(&dir[0], dim, &dir_val[0]);
-   adept::set_values(&q[0], dim+2, &q_val[0]);
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(dir.Size()+2);
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), dir.Size()+2, q.GetData());
    diff_stack.new_recording();
-   calcEulerFlux<adouble, dim>(dir, q, flux);
-   diff_stack.independent(&q[0], dim+2);
-   diff_stack.dependent(&flux[0], dim+2);
-   diff_stack.jacobian(jac);
+   std::vector<adouble> flux_a(dir.Size()+2);
+   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
+   diff_stack.independent(q_a.data(), dir.Size()+2);
+   diff_stack.dependent(flux_a.data(), dir.Size()+2);
+   diff_stack.jacobian(jac.GetData());
 }
 
 /// push test
 template<int dim>
-void EulerSolver::calcEulerFluxJacDir(const mfem::Vector& dir_val,
-                                    const mfem::Vector& q_val,
-                                    mfem::DenseMatrix* jac_val)
+void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
+                                    const mfem::Vector &q,
+                                    mfem::DenseMatrix &jac)
 {
-   using adept::adouble;
-   double *jac = jac_val->GetData();
-   std::vector<adouble> dir(dim), q(dim+2), flux(dim+2);
-   adept::set_values(&dir[0], dim, &dir_val[0]);
-   adept::set_values(&q[0], dim+2, &q_val[0]);
+   std::vector<adouble> dir_a(dir.Size()); 
+   std::vector<adouble> q_a(dir.Size()+2);
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), dir.Size()+2, q.GetData());
    diff_stack.new_recording();
-   calcEulerFlux<adouble, dim>(dir, q, flux);
-   diff_stack.independent(&dir[0], dim+2);
-   diff_stack.dependent(&flux[0], dim+2);
-   diff_stack.jacobian(jac);
+   std::vector<adouble> flux_a(dir.Size()+2);
+   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
+   diff_stack.independent(dir_a.data(), dir.Size());
+   diff_stack.dependent(flux_a.data(), dir.Size()+2);
+   diff_stack.jacobian(jac.GetData());
 }
 
 } // namespace mach
