@@ -226,4 +226,50 @@ void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
    diff_stack.jacobian(jac.GetData());
 }
 
+template <int dim>
+void EulerSolver::calcSlipWallFluxJacQ(const mfem::Vector &x, const mfem::Vector &dir,
+                                 const mfem::Vector &q, mfem::DenseMatrix Jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   diff_stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+                                          flux_a.data());
+   diff_stack.independent(q_a.data(), q.Size());
+   diff_stack.dependent(flux_a.data(), q.Size());
+   diff_stack.jacobian(Jac.GetData());
+}
+
+template <int dim>
+void EulerSolver::calcSlipWallFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
+                                    const mfem::Vector &q, mfem::DenseMatrix Jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   diff_stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+                                          flux_a.data());
+   diff_stack.independent(dir_a.data(), dir.Size());
+   diff_stack.dependent(flux_a.data(), q.Size());
+   diff_stack.jacobian(Jac.GetData());
+}
+
 } // namespace mach
