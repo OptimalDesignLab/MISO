@@ -20,10 +20,11 @@ public:
    /// For example, there may be 5 states for the 2D RANS equations, but 
    /// `flux_function` may use only the first 4.
    InviscidIntegrator(adept::Stack &diff_stack,
-                      void (*fluxFun)(const double *nrm, const double *u,
-                                      double *flux_vec),
+                      void (*fluxFun)(const mfem::Vector &nrm,
+                           const mfem::Vector &u, mfem::Vector &flux_vec),
                       int num_state_vars = 1, double a = 1.0)
-       : num_states(num_state_vars), alpha(a), stack(diff_stack), flux(fluxFun) {}
+      : num_states(num_state_vars), alpha(a), stack(diff_stack), flux(fluxFun)
+   { }
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -48,7 +49,8 @@ private:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
    /// flux function
-   void (*flux)(const double *nrm, const double *u, double *flux_vec);
+   void (*flux)(const mfem::Vector &nrm, const mfem::Vector &u,
+         mfem::Vector &flux_vec);
 #ifndef MFEM_THREAD_SAFE
    /// used to reference the states at node i 
    mfem::Vector ui;
@@ -81,9 +83,9 @@ public:
    /// For example, there may be 5 states for the 2D RANS equations, but 
    /// `flux_function` may use only the first 4.
    DyadicFluxIntegrator(adept::Stack &diff_stack,
-                        void (*fluxFun)(int di, const double *u_left,
-                                        const double *u_right,
-                                        double *flux_vec),
+                        void (*fluxFun)(int di, const mfem::Vector &u_left,
+                                        const mfem::Vector &u_right,
+                                       mfem::Vector &flux_vec),
                         int num_state_vars = 1, double a = 1.0)
        : num_states(num_state_vars), alpha(a), stack(diff_stack),
          flux(fluxFun) {}
@@ -111,8 +113,8 @@ private:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
    /// two point flux function
-   void (*flux)(int di, const double *u_left, const double *u_right,
-                    double *flux_vec);
+   void (*flux)(int di, const mfem::Vector &u_left, const mfem::Vector &u_right,
+                    mfem::Vector &flux_vec);
 #ifndef MFEM_THREAD_SAFE
    /// used to reference the states at node i 
    mfem::Vector ui;

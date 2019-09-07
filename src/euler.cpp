@@ -41,8 +41,8 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    res.reset(new NonlinearFormType(fes.get()));
    
    res->AddDomainIntegrator(new DyadicFluxIntegrator(diff_stack,
-                                                     calcIsmailRoeFlux<double,2>,
-                                                     num_state, alpha));
+                                                   calcIsmailRoeFlux<2>,
+                                                   num_state, alpha));
 
    //res->AddDomainIntegrator(new InviscidIntegrator(diff_stack,
    //                                                calcEulerFlux<double,2>,
@@ -197,14 +197,14 @@ void EulerSolver::calcEulerFluxJacQ(const mfem::Vector &dir,
                                     mfem::DenseMatrix &jac)
 {
    std::vector<adouble> dir_a(dir.Size());
-   std::vector<adouble> q_a(dir.Size()+2);
+   std::vector<adouble> q_a(q.Size());
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-   adept::set_values(q_a.data(), dir.Size()+2, q.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
    diff_stack.new_recording();
-   std::vector<adouble> flux_a(dir.Size()+2);
+   std::vector<adouble> flux_a(q.Size());
    calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
-   diff_stack.independent(q_a.data(), dir.Size()+2);
-   diff_stack.dependent(flux_a.data(), dir.Size()+2);
+   diff_stack.independent(q_a.data(), q.Size());
+   diff_stack.dependent(flux_a.data(), q.Size());
    diff_stack.jacobian(jac.GetData());
 }
 
@@ -215,14 +215,14 @@ void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
                                     mfem::DenseMatrix &jac)
 {
    std::vector<adouble> dir_a(dir.Size()); 
-   std::vector<adouble> q_a(dir.Size()+2);
+   std::vector<adouble> q_a(q.Size());
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-   adept::set_values(q_a.data(), dir.Size()+2, q.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
    diff_stack.new_recording();
-   std::vector<adouble> flux_a(dir.Size()+2);
+   std::vector<adouble> flux_a(q.Size());
    calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
    diff_stack.independent(dir_a.data(), dir.Size());
-   diff_stack.dependent(flux_a.data(), dir.Size()+2);
+   diff_stack.dependent(flux_a.data(), q.Size());
    diff_stack.jacobian(jac.GetData());
 }
 

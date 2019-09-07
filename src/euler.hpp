@@ -74,6 +74,39 @@ public:
    static void calcSlipWallFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
                                       const mfem::Vector &q, mfem::DenseMatrix Jac);
 
+
+   /// Below are flux functions in `euler_fluxes.hpp` wrapped using 
+   /// mfem::Vector as inputs
+
+   /// Euler flux function in a given (scaled) direction
+   /// \param[in] dir - direction in which the flux is desired
+   /// \param[in] q - conservative variables
+   /// \param[out] flux - fluxes in the direction `dir`
+   /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+   template <int dim>
+   static void calcEulerFlux(const mfem::Vector &dir, const mfem::Vector &q,
+                             mfem::Vector &flux)
+   {
+      calcEulerFlux<double, dim>(dir.GetData(), q.GetData(), flux.GetData());
+   }
+
+   /// Ismail-Roe two-point (dyadic) entropy conservative flux function
+   /// \param[in] di - physical coordinate direction in which flux is wanted
+   /// \param[in] qL - conservative variables at "left" state
+   /// \param[in] qR - conservative variables at "right" state
+   /// \param[out] flux - fluxes in the direction `di`
+   /// \tparam xdouble - typically `double` or `adept::adouble`
+   /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+
+   template<int dim>
+   static void calcIsmailRoeFlux(int di, const mfem::Vector &qL,
+                                 const mfem::Vector &qR, mfem::Vector &flux)
+   {
+      calcIsmailRoeFlux<double, dim>(di, qL.GetData(), qR.GetData(),
+                                     flux.GetData());
+   }
+   
+
 protected:
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
