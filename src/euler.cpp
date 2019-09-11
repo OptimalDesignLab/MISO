@@ -12,6 +12,40 @@ using adept::adouble;
 namespace mach
 {
 
+template <int dim>
+void EulerIntegrator<dim>::calcFlux(const mfem::Vector &dir,
+                                    const mfem::Vector &q,
+                                    mfem::Vector &flux)
+{
+   calcEulerFlux<double,dim>(dir.GetData(), q.GetData(), flux.GetData());
+}
+
+template <int dim>
+void IsmailRoeIntegrator<dim>::calcFlux(int di, const mfem::Vector &qL,
+                                        const mfem::Vector &qR,
+                                        mfem::Vector &flux)
+{
+   calcIsmailRoeFlux<double,dim>(di, qL.GetData(), qR.GetData(),
+                                 flux.GetData());
+}
+
+template <int dim>
+void EntStableLPSIntegrator<dim>::convertVars(const mfem::Vector &q,
+                                              mfem::Vector &w)
+{
+   calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+}
+
+template <int dim>
+void EntStableLPSIntegrator<dim>::applyScaling(const mfem::DenseMatrix &adjJ,
+                                               const mfem::Vector &q,
+                                               const mfem::Vector &vec,
+                                               mfem::Vector &mat_vec)
+{
+   applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
+                               mat_vec.GetData());
+}                                           
+
 EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
    : AbstractSolver(opt_file_name, move(smesh))
@@ -40,20 +74,14 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
    
-   res->AddDomainIntegrator(new DyadicFluxIntegrator(diff_stack,
-                                                   calcIsmailRoeFlux<2>,
-                                                   num_state, alpha));
+   res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
 
-   //res->AddDomainIntegrator(new InviscidIntegrator(diff_stack,
-   //                                                calcEulerFlux<double,2>,
-   //                                                num_state, alpha));
+   //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
 
    // add the LPS stabilization
    double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
-   res->AddDomainIntegrator(new LPSIntegrator(diff_stack,
-                                              calcEntropyVars<double,2>,
-                                              applyLPSScaling<double,2>,
-                                              num_state, alpha, lps_coeff));
+   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+                                                          lps_coeff));
 
    // boundary face integrators are handled in their own function
    addBoundaryIntegrators(alpha, dim);
@@ -136,7 +164,6 @@ double EulerSolver::calcResidualNorm()
    return res_norm;
 }
 
-
 double EulerSolver::calcStepSize(double cfl) const
 {
    double (*calcSpect)(const double *dir, const double *q);
@@ -191,6 +218,9 @@ double EulerSolver::calcStepSize(double cfl) const
    return dt_min;
 }
 
+
+
+#if 0
 template<int dim>
 void EulerSolver::calcEulerFluxJacQ(const mfem::Vector &dir,
                                     const mfem::Vector &q,
@@ -208,7 +238,6 @@ void EulerSolver::calcEulerFluxJacQ(const mfem::Vector &dir,
    diff_stack.jacobian(jac.GetData());
 }
 
-/// push test
 template<int dim>
 void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
                                     const mfem::Vector &q,
@@ -227,8 +256,19 @@ void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
 }
 
 template <int dim>
-void EulerSolver::calcSlipWallFluxJacQ(const mfem::Vector &x, const mfem::Vector &dir,
-                                 const mfem::Vector &q, mfem::DenseMatrix Jac)
+inline void EulerSolver::IsmailRoeFlux(int di, const mfem::Vector &qL,
+                                           const mfem::Vector &qR,
+                                           mfem::Vector &flux)
+{
+   calcIsmailRoeFlux<double,dim>(di, qL.GetData(), qR.GetData(),
+                                 flux.GetData());
+}
+
+template <int dim>
+void EulerSolver::calcSlipWallFluxJacQ(const mfem::Vector &x,
+                                       const mfem::Vector &dir,
+                                       const mfem::Vector &q,
+                                       mfem::DenseMatrix &Jac)
 {
    // create containers for active double objects for each input
    std::vector<adouble> x_a(x.Size());
@@ -250,8 +290,10 @@ void EulerSolver::calcSlipWallFluxJacQ(const mfem::Vector &x, const mfem::Vector
 }
 
 template <int dim>
-void EulerSolver::calcSlipWallFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
-                                    const mfem::Vector &q, mfem::DenseMatrix Jac)
+void EulerSolver::calcSlipWallFluxJacDir(const mfem::Vector &x,
+                                         const mfem::Vector &dir,
+                                         const mfem::Vector &q,
+                                         mfem::DenseMatrix &Jac)
 {
    // create containers for active double objects for each input
    std::vector<adouble> x_a(x.Size());
@@ -271,5 +313,6 @@ void EulerSolver::calcSlipWallFluxJacDir(const mfem::Vector &x, const mfem::Vect
    diff_stack.dependent(flux_a.data(), q.Size());
    diff_stack.jacobian(Jac.GetData());
 }
+#endif
 
 } // namespace mach

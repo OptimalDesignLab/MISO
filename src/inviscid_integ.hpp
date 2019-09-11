@@ -3,28 +3,28 @@
 
 #include "mfem.hpp"
 #include "solver.hpp"
+#include "sbp_fe.hpp" // needed in inviscid_integ_def.hpp 
 
 namespace mach
 {
 
 /// Integrator for one-point inviscid flux functions
+/// \tparam Derived - a class Derived from this one (needed for CRTP)
+template <typename Derived>
 class InviscidIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Construct an integrator for "inviscid" type fluxes
    /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] fluxFun - the flux function
    /// \param[in] num_state_vars - the number of state variables
+   /// \param[in] a - factor, usually used to move terms to rhs
    /// \note `num_state_vars` is not necessarily the same as the number of
-   /// states used by, nor the number of fluxes returned by, `flux_function`.
+   /// states used by, nor the number of fluxes returned by, `flux`.
    /// For example, there may be 5 states for the 2D RANS equations, but 
-   /// `flux_function` may use only the first 4.
+   /// `flux` may use only the first 4.
    InviscidIntegrator(adept::Stack &diff_stack,
-                      void (*fluxFun)(const mfem::Vector &nrm,
-                           const mfem::Vector &u, mfem::Vector &flux_vec),
                       int num_state_vars = 1, double a = 1.0)
-      : num_states(num_state_vars), alpha(a), stack(diff_stack), flux(fluxFun)
-   { }
+      : num_states(num_state_vars), alpha(a), stack(diff_stack) { }
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -48,9 +48,6 @@ private:
    double alpha;
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
-   /// flux function
-   void (*flux)(const mfem::Vector &nrm, const mfem::Vector &u,
-         mfem::Vector &flux_vec);
 #ifndef MFEM_THREAD_SAFE
    /// used to reference the states at node i 
    mfem::Vector ui;
@@ -67,28 +64,36 @@ private:
    /// used to store the residual in (num_states, Dof) format
    mfem::DenseMatrix elres;
 #endif
+
+   /// An inviscid flux function
+   /// \param[in] nrm - desired direction for the flux
+   /// \param[in] u - state at which to evaluate the flux
+   /// \param[out] flux_vec - flux evaluated at `u` in direction `nrm`
+   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
+   void flux(const mfem::Vector &nrm, const mfem::Vector &u,
+             mfem::Vector &flux_vec)
+   {
+      static_cast<Derived*>(this)->calcFlux(nrm, u, flux_vec);
+   }
 };
 
-
 /// Integrator for two-point (dyadic) fluxes (e.g. Entropy Stable)
+/// \tparam Derived - a class Derived from this one (needed for CRTP)
+template <typename Derived>
 class DyadicFluxIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Construct a two-point flux integrator
    /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] fluxFun - the two-point (dyadic) flux function
    /// \param[in] num_state_vars - the number of state variables
+   /// \param[in] a - factor, usually used to move terms to rhs
    /// \note `num_state_vars` is not necessarily the same as the number of
-   /// states used by, nor the number of fluxes returned by, `flux_function`.
+   /// states used by, nor the number of fluxes returned by, `flux`.
    /// For example, there may be 5 states for the 2D RANS equations, but 
-   /// `flux_function` may use only the first 4.
+   /// `flux` may use only the first 4.
    DyadicFluxIntegrator(adept::Stack &diff_stack,
-                        void (*fluxFun)(int di, const mfem::Vector &u_left,
-                                        const mfem::Vector &u_right,
-                                       mfem::Vector &flux_vec),
                         int num_state_vars = 1, double a = 1.0)
-       : num_states(num_state_vars), alpha(a), stack(diff_stack),
-         flux(fluxFun) {}
+       : num_states(num_state_vars), alpha(a), stack(diff_stack) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -113,8 +118,8 @@ private:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
    /// two point flux function
-   void (*flux)(int di, const mfem::Vector &u_left, const mfem::Vector &u_right,
-                    mfem::Vector &flux_vec);
+   //void (*flux)(int di, const mfem::Vector &u_left, const mfem::Vector &u_right,
+   //                 mfem::Vector &flux_vec);
 #ifndef MFEM_THREAD_SAFE
    /// used to reference the states at node i 
    mfem::Vector ui;
@@ -127,28 +132,35 @@ private:
    /// used to store the adjugate of the mapping Jacobian at node j
    mfem::DenseMatrix adjJ_j;
 #endif
+
+   /// A two point (i.e. dyadic) flux function
+   /// \param[in] di - desired coordinate direction for flux 
+   /// \param[in] u_left - the "left" state
+   /// \param[in] u_right - the "right" state
+   /// \param[out] flux_vec - flux evaluated at `u_left` and `u_right`
+   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
+   void flux(int di, const mfem::Vector &u_left, const mfem::Vector &u_right,
+             mfem::Vector &flux_vec)
+   {
+      static_cast<Derived*>(this)->calcFlux(di, u_left, u_right, flux_vec);
+   }
 };
 
-
 /// Integrator for local projection stabilization
+/// \tparam Derived - a class Derived from this one (needed for CRTP)
+template <typename Derived>
 class LPSIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Construct an LPS integrator
    /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] convertVarsFun - maps working variables to new variables
-   /// \param[in] applyScalingFun - performs matrix-scaling operation
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    /// \param[in] coeff - the LPS coefficient
-   LPSIntegrator(adept::Stack &diff_stack,
-                 void (*convertVarsFun)(const double *u, double *w),
-                 void (*applyScalingFun)(const double *adjJ, const double *u,
-                                         const double *v, double *Av),
-                 int num_state_vars = 1, double a = 1.0, double coeff = 1.0)
+   LPSIntegrator(adept::Stack &diff_stack, int num_state_vars = 1,
+                 double a = 1.0, double coeff = 1.0)
        : num_states(num_state_vars), alpha(a), lps_coeff(coeff),
-         stack(diff_stack), convertVars(convertVarsFun),
-         applyScaling(applyScalingFun) {}
+         stack(diff_stack) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -174,15 +186,6 @@ private:
    double lps_coeff;
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
-   /// converts working variables to another set (e.g. conservative to entropy)
-   void (*convertVars)(const double *u, double *w);
-   /// applies symmetric matrix `A(adjJ,u)` to input `v` to scale dissipation
-   /// \note The input array `v` is multiplied by a symmetric matrix `A`, which
-   /// may depend on the state `u` and adjugate `adjJ`.  The result is returned
-   /// in `Av`.
-   /// \note should note include LPS coefficient, which is stored separately
-   void (*applyScaling)(const double *adjJ, const double *u, const double *v,
-                        double *Av);
 #ifndef MFEM_THREAD_SAFE
    /// used to reference the states at node i 
    mfem::Vector ui;
@@ -193,6 +196,28 @@ private:
    /// used to store the projected converted variables (for example)
    mfem::DenseMatrix Pw;
 #endif
+
+   /// converts working variables to another set (e.g. conservative to entropy)
+   /// \param[in] u - working states that are to be converted
+   /// \param[out] w - transformed variables
+   /// \note This uses the CRTP, so it wraps a call to `convertVars` in Derived.
+   void convert(const mfem::Vector &u, mfem::Vector &w)
+   {
+      static_cast<Derived*>(this)->convertVars(u, w);
+   }
+
+   /// applies symmetric matrix `A(adjJ,u)` to input `v` to scale dissipation
+   /// \param[in] adjJ - adjugate of the mapping Jacobian
+   /// \param[in] u - state at which the symmetric matrix `A` is evaluated
+   /// \param[in] v - vector that is being multiplied
+   /// \param[out] Av - product of the multiplication
+   /// \note should not include LPS coefficient, which is applied separately
+   /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
+   void scale(const mfem::DenseMatrix &adjJ, const mfem::Vector &u,
+              const mfem::Vector &v, mfem::Vector &Av)
+   {
+      static_cast<Derived*>(this)->applyScaling(adjJ, u, v, Av);
+   }
 };
 
 /// Integrator for inviscid boundary fluxes (fluxes that do not need gradient)
@@ -250,6 +275,8 @@ private:
    mfem::Vector flux_face;
 #endif
 };
+
+#include "inviscid_integ_def.hpp"
 
 } // namespace mach
 
