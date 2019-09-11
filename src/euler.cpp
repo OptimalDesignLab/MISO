@@ -313,6 +313,54 @@ void EulerSolver::calcSlipWallFluxJacDir(const mfem::Vector &x,
    diff_stack.dependent(flux_a.data(), q.Size());
    diff_stack.jacobian(Jac.GetData());
 }
+
+template <int dim>
+inline void EulerSolver::calcSpectralRadius(const mfem::Vector &dir,
+					    const mfem::Vector &q)
+{
+   calcSpectralRadius(dir.GetData(), q.GetData());
+}
+
+template <int dim>
+void EulerSolver::calcSpectralRadiusJacDir(const mfem::Vector &dir,
+					   const mfem::Vector &q,
+					   mfem::DenseMatrix &Jac)
+{
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+
+   diff_stack.new_recording();
+
+   adouble sr = calcSpectralRadius<adouble, dim>(dir_a.data(), q_a.data());
+
+   diff_stack.independent(dir_a.data(), dir.Size());
+   diff_stack.dependent(sr.data());
+   diff_stack.jacobian(Jac.GetData());
+}
+
+template <int dim>
+void EulerSolver::calcSpectralRadiusJacQ(const mfem::Vector &dir,
+                                           const mfem::Vector &q,
+                                           mfem::DenseMatrix &Jac)
+{
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+
+   diff_stack.new_recording();
+
+   adouble sr = calcSpectralRadius<adouble, dim>(dir_a.data(), q_a.data());
+
+   diff_stack.independent(q_a.data(), q.Size());
+   diff_stack.dependent(sr.data());
+   diff_stack.jacobian(Jac.GetData());
+}
+
 #endif
 
 } // namespace mach
