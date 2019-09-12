@@ -29,6 +29,7 @@ public:
    /// \note wrapper for the relevant function in `euler_fluxes.hpp`
    void calcFlux(const mfem::Vector &dir, const mfem::Vector &q,
                  mfem::Vector &flux);
+   
 };
 
 /// Integrator for the two-point entropy conservative Ismail-Roe flux
@@ -53,6 +54,11 @@ public:
    /// \note This is simply a wrapper for the function in `euler_fluxes.hpp`
    void calcFlux(int di, const mfem::Vector &qL,
                  const mfem::Vector &qR, mfem::Vector &flux);
+   
+   void calcJacQ(int di, const mfem::Vector &qL, 
+               const mfem::Vector &qR,
+               mfem::DenseMatrix &jac);
+   
 };
 
 /// Integrator for entropy stable local-projection stabilization
@@ -174,6 +180,11 @@ protected:
                                       const mfem::Vector &dir,
                                       const mfem::Vector &q,
                                       mfem::DenseMatrix &Jac);
+                                      
+   // template<int dim>
+   // static void calcIsmailRoeJacQ(int di, const mfem::Vector &qL, 
+   //                               const mfem::Vector &qR,
+   //                               mfem::DenseMatrix &jac);
 
 };
 
