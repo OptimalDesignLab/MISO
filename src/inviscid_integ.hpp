@@ -66,14 +66,36 @@ private:
 #endif
 
    /// An inviscid flux function
-   /// \param[in] nrm - desired direction for the flux
+   /// \param[in] dir - desired direction for the flux
    /// \param[in] u - state at which to evaluate the flux
-   /// \param[out] flux_vec - flux evaluated at `u` in direction `nrm`
+   /// \param[out] flux_vec - flux evaluated at `u` in direction `dir`
    /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
-   void flux(const mfem::Vector &nrm, const mfem::Vector &u,
+   void flux(const mfem::Vector &dir, const mfem::Vector &u,
              mfem::Vector &flux_vec)
    {
-      static_cast<Derived*>(this)->calcFlux(nrm, u, flux_vec);
+      static_cast<Derived*>(this)->calcFlux(dir, u, flux_vec);
+   }
+
+   /// Compute the Jacobian of the flux function `flux` w.r.t. `u`
+   /// \parma[in] dir - desired direction for the flux 
+   /// \param[in] u - state at which to evaluate the flux Jacobian
+   /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `u`
+   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
+   void fluxJacState(const mfem::Vector &dir, const mfem::Vector &u,
+                     mfem::DenseMatrix &flux_jac)
+   {
+      static_cast<Derived*>(this)->calcFluxJacState(dir, u, flux_jac);
+   }
+
+   /// Compute the Jacobian of the flux function `flux` w.r.t. `dir`
+   /// \parma[in] dir - desired direction for the flux 
+   /// \param[in] u - state at which to evaluate the flux Jacobian
+   /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `dir`
+   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
+   void fluxJacDir(const mfem::Vector &dir, const mfem::Vector &u,
+                   mfem::DenseMatrix &flux_jac)
+   {
+      static_cast<Derived*>(this)->calcFluxJacDir(dir, u, flux_jac);
    }
 };
 
@@ -144,6 +166,22 @@ private:
    {
       static_cast<Derived*>(this)->calcFlux(di, u_left, u_right, flux_vec);
    }
+
+   /// Compute the Jacobians of `flux` with respect to `u_left` and `u_right`
+   /// \param[in] di - desired coordinate direction for flux 
+   /// \param[in] u_left - the "left" state
+   /// \param[in] u_right - the "right" state
+   /// \param[out] jac_left - Jacobian of `flux` w.r.t. `u_left`
+   /// \param[out] jac_right - Jacobian of `flux` w.r.t. `u_right`
+   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.   
+   void fluxJacStates(int di, const mfem::Vector &u_left,
+                      const mfem::Vector &u_right,
+                      mfem::DenseMatrix &jac_left,
+                      mfem::DenseMatrix &jac_right)
+   {
+      static_cast<Derived*>(this)->calcFluxJacStates(di, u_left, u_right,
+                                                     jac_left, jac_right);
+   }
 };
 
 /// Integrator for local projection stabilization
@@ -206,6 +244,15 @@ private:
       static_cast<Derived*>(this)->convertVars(u, w);
    }
 
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] u - working states that are to be converted
+   /// \param[out] dwdu - Jacobian of transformed variables w.r.t. `u`
+   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
+   void convertJacState(const mfem::Vector &u, mfem::DenseMatrix &dwdu)
+   {
+      static_cast<Derived*>(this)->convertVarsJacState(u, dwdu);
+   }
+
    /// applies symmetric matrix `A(adjJ,u)` to input `v` to scale dissipation
    /// \param[in] adjJ - adjugate of the mapping Jacobian
    /// \param[in] u - state at which the symmetric matrix `A` is evaluated
@@ -217,6 +264,31 @@ private:
               const mfem::Vector &v, mfem::Vector &Av)
    {
       static_cast<Derived*>(this)->applyScaling(adjJ, u, v, Av);
+   }
+
+   /// Computes the Jacobian of the product `A(adjJ,u)*v` w.r.t. `u`
+   /// \param[in] adjJ - adjugate of the mapping Jacobian
+   /// \param[in] u - state at which the symmetric matrix `A` is evaluated
+   /// \param[in] v - vector that is being multiplied
+   /// \param[out] Av_jac - Jacobian of product w.r.t. `u`
+   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
+   void scaleJacState(const mfem::DenseMatrix &adjJ, const mfem::Vector &u,
+                      const mfem::Vector &v, mfem::DenseMatrix &Av_jac)
+   {
+      static_cast<Derived*>(this)->applyScalingJacState(adjJ, u, v, Av_jac);
+   }
+
+   /// Computes the Jacobian of the product `A(adjJ,u)*v` w.r.t. `adjJ`
+   /// \param[in] adjJ - adjugate of the mapping Jacobian
+   /// \param[in] u - state at which the symmetric matrix `A` is evaluated
+   /// \param[in] v - vector that is being multiplied
+   /// \param[out] Av_jac - Jacobian of product w.r.t. `adjJ`
+   /// \note `Av_jac` stores derivatives treating `adjJ` is a 1d array.
+   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
+   void scaleJacAdjJ(const mfem::DenseMatrix &adjJ, const mfem::Vector &u,
+                     const mfem::Vector &v, mfem::DenseMatrix &Av_jac)
+   {
+      static_cast<Derived*>(this)->applyScalingJacAdjJ(adjJ, u, v, Av_jac);
    }
 };
 
