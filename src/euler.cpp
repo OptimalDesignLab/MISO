@@ -21,6 +21,40 @@ void EulerIntegrator<dim>::calcFlux(const mfem::Vector &dir,
 }
 
 template <int dim>
+void EulerIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
+                                            const mfem::Vector &q,
+                                            mfem::DenseMatrix &flux_jac)
+{
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   this->stack.new_recording();
+   std::vector<adouble> flux_a(q.Size());
+   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim>
+void EulerIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
+                                          const mfem::Vector &q,
+                                          mfem::DenseMatrix &flux_jac)
+{
+   std::vector<adouble> dir_a(dir.Size()); 
+   std::vector<adouble> q_a(q.Size());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   this->stack.new_recording();
+   std::vector<adouble> flux_a(q.Size());
+   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim>
 void IsmailRoeIntegrator<dim>::calcFlux(int di, const mfem::Vector &qL,
                                         const mfem::Vector &qR,
                                         mfem::Vector &flux)
@@ -221,39 +255,6 @@ double EulerSolver::calcStepSize(double cfl) const
 
 
 #if 0
-template<int dim>
-void EulerSolver::calcEulerFluxJacQ(const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::DenseMatrix &jac)
-{
-   std::vector<adouble> dir_a(dir.Size());
-   std::vector<adouble> q_a(q.Size());
-   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   diff_stack.new_recording();
-   std::vector<adouble> flux_a(q.Size());
-   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
-   diff_stack.independent(q_a.data(), q.Size());
-   diff_stack.dependent(flux_a.data(), q.Size());
-   diff_stack.jacobian(jac.GetData());
-}
-
-template<int dim>
-void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::DenseMatrix &jac)
-{
-   std::vector<adouble> dir_a(dir.Size()); 
-   std::vector<adouble> q_a(q.Size());
-   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   diff_stack.new_recording();
-   std::vector<adouble> flux_a(q.Size());
-   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
-   diff_stack.independent(dir_a.data(), dir.Size());
-   diff_stack.dependent(flux_a.data(), q.Size());
-   diff_stack.jacobian(jac.GetData());
-}
 
 template <int dim>
 inline void EulerSolver::IsmailRoeFlux(int di, const mfem::Vector &qL,

@@ -41,7 +41,7 @@ public:
    //                                  const mfem::Vector &elfun,
    //                                  mfem::DenseMatrix &elmat);
 
-private:
+protected:
    /// number of states
    int num_states;
    /// scales the terms; can be used to move to rhs/lhs
