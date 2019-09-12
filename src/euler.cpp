@@ -44,7 +44,7 @@ void EntStableLPSIntegrator<dim>::applyScaling(const mfem::DenseMatrix &adjJ,
 {
    applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
                                mat_vec.GetData());
-}                                           
+}
 
 EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
@@ -58,7 +58,7 @@ EulerSolver::EulerSolver(const string &opt_file_name,
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: "
         << fes->GlobalTrueVSize() << endl;
-#else 
+#else
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
@@ -73,7 +73,7 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    // TODO: should decide between one-point and two-point fluxes using options
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
-   
+
    res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
 
    //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
@@ -214,7 +214,7 @@ double EulerSolver::calcStepSize(double cfl) const
    MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
 #else
    dt_min = dt_local;
-#endif   
+#endif
    return dt_min;
 }
 
@@ -243,7 +243,7 @@ void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
                                     const mfem::Vector &q,
                                     mfem::DenseMatrix &jac)
 {
-   std::vector<adouble> dir_a(dir.Size()); 
+   std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> q_a(q.Size());
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(q_a.data(), q.Size(), q.GetData());
@@ -322,7 +322,7 @@ inline void EulerSolver::calcSpectralRadius(const mfem::Vector &dir,
 }
 
 template <int dim>
-void EulerSolver::calcSpectralRadiusJacDir(const mfem::Vector &dir,
+static void EulerSolver::calcSpectralRadiusJacDir(const mfem::Vector &dir,
 					   const mfem::Vector &q,
 					   mfem::DenseMatrix &Jac)
 {
@@ -342,7 +342,7 @@ void EulerSolver::calcSpectralRadiusJacDir(const mfem::Vector &dir,
 }
 
 template <int dim>
-void EulerSolver::calcSpectralRadiusJacQ(const mfem::Vector &dir,
+static void EulerSolver::calcSpectralRadiusJacQ(const mfem::Vector &dir,
                                            const mfem::Vector &q,
                                            mfem::DenseMatrix &Jac)
 {
