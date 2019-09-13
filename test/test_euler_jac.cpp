@@ -64,16 +64,18 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 	  // create vectors to store matrix-vector products
 	  mfem::Vector Jac_v_ad(1);
 	  mfem::Vector Jac_v_fd(1);
+     mfem::Vector d_v_prod(dim);
 
 	  // get derivative information from AD functions
 	  mach::calcSpectralRadiusJacDir(&dir, &q, &Jac_ad);
 
 	  // need to Mult here
 	  Jac_ad.Mult(v, Jac_v_ad);
+     d_v_prod.Set(delta, v);
 
 	  // FD approximation
-	  Jac_v_fd = (mach::calcSpectralRadius(dir + mfem::Set(delta, v), q) -
-				        mach::calcSpectralRadius(dir - mfem::Set(delta, v), q))/
+	  Jac_v_fd = (mach::calcSpectralRadius(nrm + d_v_prod, q) -
+				        mach::calcSpectralRadius(nrm - d_v_prod, q))/
 				        (2*delta);
 
 	  REQUIRE( Jac_v_ad(0) == Approx(Jac_v_fd(0)) );
