@@ -142,6 +142,100 @@ public:
                             mfem::DenseMatrix &mat_vec_jac);
 };
 
+/// Integrator for the steady isentropic-vortex boundary condition
+/// \note This derived class uses the CRTP
+class IsentropicVortexBC : public InviscidBoundaryIntegrator<IsentropicVortexBC>
+{
+public:
+   /// Constructs an integrator for isentropic vortex boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   IsentropicVortexBC(adept::Stack &diff_stack,
+                      const mfem::FiniteElementCollection *fe_coll,
+                      double a = 1.0)
+       : InviscidBoundaryIntegrator<IsentropicVortexBC>(
+             diff_stack, fe_coll, 4, a) {}
+
+   /// Compute a characteristic boundary flux for the isentropic vortex
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
+                 const mfem::Vector &q, mfem::Vector &flux_vec);
+
+   /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `q`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+   {
+      throw MachException("Not implemented!")
+   }
+
+   /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+   void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
+                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+   {
+      throw MachException("Not implemented!")
+   }
+};
+
+/// Integrator for inviscid slip-wall boundary condition
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim>
+class SlipWallBC : public InviscidBoundaryIntegrator<SlipWallBC<dim>>
+{
+public:
+   /// Constructs an integrator for a slip-wall boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   SlipWallBC(adept::Stack &diff_stack,
+                      const mfem::FiniteElementCollection *fe_coll,
+                      double a = 1.0)
+       : InviscidBoundaryIntegrator<SlipWallBC<dim>>(
+             diff_stack, fe_coll, dim+2, a) {}
+
+   /// Compute an adjoint-consistent slip-wall boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
+                 const mfem::Vector &q, mfem::Vector &flux_vec);
+
+   /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `q`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+   {
+      throw MachException("Not implemented!")
+   }
+
+   /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+   void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
+                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+   {
+      throw MachException("Not implemented!")
+   }
+};
+
 /// Solver for linear advection problems
 class EulerSolver : public AbstractSolver
 {

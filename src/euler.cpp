@@ -44,7 +44,26 @@ void EntStableLPSIntegrator<dim>::applyScaling(const mfem::DenseMatrix &adjJ,
 {
    applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
                                mat_vec.GetData());
-}                                           
+}
+
+void IsentropicVortexBC::calcFlux(const mfem::Vector &x,
+                                  const mfem::Vector &dir,
+                                  const mfem::Vector &q,
+                                  mfem::Vector &flux_vec)
+{
+   calcIsentropicVortexFlux<double>(x.GetData(), dir.GetData(), q.GetData(),
+                                    flux_vec.GetData());
+}
+
+template <int dim>
+void SlipWallBC<dim>::calcFlux(const mfem::Vector &x,
+                               const mfem::Vector &dir,
+                               const mfem::Vector &q,
+                               mfem::Vector &flux_vec)
+{
+   calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
+                                flux_vec.GetData());
+}
 
 EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
@@ -107,9 +126,9 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       vector<int> tmp = bcs["vortex"].get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
-      res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-         diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-         alpha), bndry_marker[idx]);
+      res->AddBdrFaceIntegrator(
+          new IsentropicVortexBC(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
       idx++;
    }
    if (bcs.find("slip-wall") != bcs.end())
@@ -120,22 +139,19 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       switch (dim)
       {
          case 1:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,1>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+                new SlipWallBC<1>(diff_stack, fec.get(), alpha),
+                bndry_marker[idx]);
             break;
          case 2:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,2>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
-            //res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-            //   diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-            //   alpha, bndry_marker[idx][0]), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+               new SlipWallBC<2>(diff_stack, fec.get(), alpha),
+               bndry_marker[idx]);
             break;
          case 3:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,3>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+               new SlipWallBC<3>(diff_stack, fec.get(), alpha),
+               bndry_marker[idx]);
             break;
       }
       idx++;
