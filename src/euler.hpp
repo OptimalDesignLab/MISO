@@ -31,14 +31,14 @@ public:
                  mfem::Vector &flux);
 
    /// Compute the Jacobian of the Euler flux w.r.t. `q`
-   /// \parma[in] dir - desired direction for the flux 
+   /// \parma[in] dir - desired direction for the flux
    /// \param[in] q - state at which to evaluate the flux Jacobian
    /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `q`
    void calcFluxJacState(const mfem::Vector &dir, const mfem::Vector &q,
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute the Jacobian of the flux function `flux` w.r.t. `dir`
-   /// \parma[in] dir - desired direction for the flux 
+   /// \parma[in] dir - desired direction for the flux
    /// \param[in] q - state at which to evaluate the flux Jacobian
    /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `dir`
    void calcFluxJacDir(const mfem::Vector &dir, const mfem::Vector &q,
@@ -69,11 +69,11 @@ public:
                  const mfem::Vector &qR, mfem::Vector &flux);
 
    /// Compute the Jacobians of `flux` with respect to `u_left` and `u_right`
-   /// \param[in] di - desired coordinate direction for flux 
+   /// \param[in] di - desired coordinate direction for flux
    /// \param[in] qL - the "left" state
    /// \param[in] qR - the "right" state
    /// \param[out] jacL - Jacobian of `flux` w.r.t. `qL`
-   /// \param[out] jacR - Jacobian of `flux` w.r.t. `qR`   
+   /// \param[out] jacR - Jacobian of `flux` w.r.t. `qR`
    void calcFluxJacStates(int di, const mfem::Vector &qL,
                           const mfem::Vector &qR,
                           mfem::DenseMatrix &jacL,
@@ -151,7 +151,7 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] dim - number of dimensions
    /// \todo Can we infer dim some other way without using a template param?
-   EulerSolver(const std::string &opt_file_name, 
+   EulerSolver(const std::string &opt_file_name,
                std::unique_ptr<mfem::Mesh> smesh = nullptr,
                int dim = 1);
 
@@ -206,7 +206,7 @@ protected:
    /// \param[in] x - not used
    /// \param[in] dir - desired (scaled) normal vector to the wall
    /// \param[in] q - conservative state variable on the boundary
-   /// \param[out] Jac - the Jacobian of the boundary flux in the direction 
+   /// \param[out] Jac - the Jacobian of the boundary flux in the direction
    ///                   `dir` with respect to Q
    /// \tparam dim - number of spatial dimensions (1, 2, or 3)
    template <int dim>
@@ -219,7 +219,7 @@ protected:
    /// \param[in] x - not used
    /// \param[in] dir - desired (scaled) normal vector to the wall
    /// \param[in] q - conservative state variable on the boundary
-   /// \param[out] Jac - the Jacobian of the boundary flux in the direction 
+   /// \param[out] Jac - the Jacobian of the boundary flux in the direction
    ///                   `dir` with respect to dir
    /// \tparam dim - number of spatial dimensions (1, 2, or 3)
    template <int dim>
@@ -227,6 +227,18 @@ protected:
                                       const mfem::Vector &dir,
                                       const mfem::Vector &q,
                                       mfem::DenseMatrix &Jac);
+
+   template <int dim>
+   static void calcSpectralRadiusJacDir(const mfem::Vector &dir,
+                            					  const mfem::Vector &q,
+                         					      mfem::DenseMatrix &Jac);
+
+   template <int dim>
+   static void calcSpectralRadiusJacQ(const mfem::Vector &dir,
+                             				  const mfem::Vector &q,
+                        					    mfem::DenseMatrix &Jac);
+
+
 
 };
 

@@ -66,7 +66,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 	  mfem::Vector Jac_v_fd(1);
 
 	  // get derivative information from AD functions
-	  calcSpectralRadiusJacDir(&dir, &q, &Jac_ad);
+	  mach::calcSpectralRadiusJacDir(&dir, &q, &Jac_ad);
 
 	  // need to Mult here
 	  Jac_ad.Mult(v, Jac_v_ad);
