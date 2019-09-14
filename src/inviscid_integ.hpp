@@ -349,7 +349,7 @@ private:
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
    void flux(const mfem::Vector &x, const mfem::Vector &dir,
-             const mfem::Vector &u, mfem::Vector &flux_vec);
+             const mfem::Vector &u, mfem::Vector &flux_vec)
    {
       static_cast<Derived*>(this)->calcFlux(x, dir, u, flux_vec);
    }
@@ -362,7 +362,7 @@ private:
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call a func. in Derived.
    void fluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                     const mfem::Vector &u, mfem::DenseMatrix &flux_jac);
+                     const mfem::Vector &u, mfem::DenseMatrix &flux_jac)
    {
       static_cast<Derived*>(this)->calcFluxJacState(x, dir, u, flux_jac);
    }
@@ -375,9 +375,9 @@ private:
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
    void fluxJacDir(const mfem::Vector &x, const mfem::Vector &nrm,
-                   const mfem::Vector &u, mfem::DenseMatrix &flux_dir);
+                   const mfem::Vector &u, mfem::DenseMatrix &flux_dir)
    {
-      static_cast<Derived*>(this)->calcFluxJacDir(x, nrm, u, flux_jac);
+      static_cast<Derived*>(this)->calcFluxJacDir(x, nrm, u, flux_dir);
    }
 
 };

@@ -2,7 +2,7 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 #include "euler_fluxes.hpp"
-
+#include "euler.hpp"
 /// Used for floating point checks when the benchmark value is zero
 const double abs_tol = std::numeric_limits<double>::epsilon()*100;
 
@@ -110,6 +110,86 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
          REQUIRE( flux(i) == Approx(flux_vec(i)) );
       }
    }
+
+   SECTION(" Euler flux jacobian respect to state is correct")
+   {
+      adept::Stack stack;
+      //mach::EulerIntegrator<dim> eulerinteg(stack);
+      mfem::NonlinearFormIntegrator *eulerinteg = new mach::EulerIntegrator<dim>(stack);
+      // First check the flux value again, which can be deleted later
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mach::EulerIntegrator<dim>::calcFlux(nrm,q,flux);
+      for(int i= 0; i <dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)));
+      }
+
+      // Create the perturbation vector
+      mfem::Vector v_q(dim+2);
+      for(int i=0; i<dim+2;i++)
+      {
+         v_q[i] = i*1e-6;
+      }
+
+      // Create the intermediate variables
+      mfem::Vector qplus(dim+2), qminus(dim+2);
+      mfem::Vector flux1(dim+2), flux2(dim+2), flux_temp(dim+2);
+      mfem::Vector jac_v(dim+2), jac_v_fd(dim+2);
+      mfem::DenseMatrix flux_jac1(5);
+
+      mach::EulerIntegrator<dim>::calcFluxJacState(nrm,q,flux_jac1);
+      flux_jac1.Mult(v_q, jac_v);
+
+      add(q,v_q,qplus);
+      add(q,v_q.Neg(),qminus);
+      eulerinteg.calcFlux(nrm,qplus,flux1);
+      eulerinteg.calcFlux(nrm,qminus,flux2);
+      add(flux1,flux2.Neg(), jac_v_fd);
+      jac_v_fd /= 2.0;
+
+      REQUIRE( norm(jac_v_fd) == Approx(norm(jac_v))); 
+   }
+
+   SECTION(" Euler flux jacobian respect to direction is correct")
+   {
+      adept::Stack stack;
+      mach::EulerIntegrator<dim> eulerinteg(stack);
+      //mfem::NonlinearFormIntegrator *eulerinteg = new mach::EulerIntegrator<dim>(stack);
+      // First check the flux value again, which can be deleted later
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mach::EulerIntegrator<dim>::calcFlux(nrm,q,flux);
+      for(int i= 0; i <dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)));
+      }
+
+      // Create the perturbation vector
+      mfem::Vector v_q(dim);
+      for(int i=0; i<dim;i++)
+      {
+         v_q[i] = i*1e-6;
+      }
+
+      // Create the intermediate variables
+      mfem::Vector qplus(dim), qminus(dim);
+      mfem::Vector flux1(dim+2), flux2(dim+2), flux_temp(dim+2);
+      mfem::Vector jac_v(dim+2), jac_v_fd(dim+2);
+      mfem::DenseMatrix flux_jac1(5,3);
+
+      mach::EulerIntegrator<dim>::calcFluxJacState(nrm,q,flux_jac1);
+      flux_jac1.Mult(v_q, jac_v);
+
+      add(q,v_q,qplus);
+      add(q,v_q.Neg(),qminus);
+      eulerinteg.calcFlux(nrm,qplus,flux1);
+      eulerinteg.calcFlux(nrm,qminus,flux2);
+      add(flux1,flux2.Neg(), jac_v_fd);
+      jac_v_fd /= 2.0;
+
+      REQUIRE( norm(jac_v_fd) == Approx(norm(jac_v))); 
+   }  
 
    // load the data to test the IR flux function into an mfem DenseMatrix
    // TODO: I could not find an elegant way to do this

@@ -173,7 +173,7 @@ public:
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
                          const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
    {
-      throw MachException("Not implemented!")
+      throw MachException("Not implemented!");
    }
 
    /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `dir`
@@ -184,7 +184,7 @@ public:
    void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
                        const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
    {
-      throw MachException("Not implemented!")
+      throw MachException("Not implemented!");
    }
 };
 
@@ -221,7 +221,7 @@ public:
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
                          const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
    {
-      throw MachException("Not implemented!")
+      throw MachException("Not implemented!");
    }
 
    /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `dir`
@@ -232,7 +232,7 @@ public:
    void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
                        const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
    {
-      throw MachException("Not implemented!")
+      throw MachException("Not implemented!");
    }
 };
 
