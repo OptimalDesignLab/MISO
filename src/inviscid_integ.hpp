@@ -40,7 +40,6 @@ public:
    //                                  mfem::ElementTransformation &Ttr,
    //                                  const mfem::Vector &elfun,
    //                                  mfem::DenseMatrix &elmat);
-
 protected:
    /// number of states
    int num_states;
@@ -71,7 +70,7 @@ protected:
    /// \param[out] flux_vec - flux evaluated at `u` in direction `dir`
    /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
    void flux(const mfem::Vector &dir, const mfem::Vector &u,
-             mfem::Vector &flux_vec)
+            mfem::Vector &flux_vec)
    {
       static_cast<Derived*>(this)->calcFlux(dir, u, flux_vec);
    }

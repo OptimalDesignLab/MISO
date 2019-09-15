@@ -5,6 +5,8 @@
 #include "solver.hpp"
 #include "adept.h"
 #include "inviscid_integ.hpp"
+#include "euler_fluxes.hpp"
+using adept::adouble;
 
 namespace mach
 {
@@ -28,21 +30,50 @@ public:
    /// \param[out] flux - fluxes in the direction `dir`
    /// \note wrapper for the relevant function in `euler_fluxes.hpp`
    void calcFlux(const mfem::Vector &dir, const mfem::Vector &q,
-                 mfem::Vector &flux);
+                 mfem::Vector &flux)
+   {
+      calcEulerFlux<double,dim>(dir.GetData(), q.GetData(), flux.GetData());
+   }
 
    /// Compute the Jacobian of the Euler flux w.r.t. `q`
    /// \parma[in] dir - desired direction for the flux 
    /// \param[in] q - state at which to evaluate the flux Jacobian
    /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `q`
    void calcFluxJacState(const mfem::Vector &dir, const mfem::Vector &q,
-                         mfem::DenseMatrix &flux_jac);
+                         mfem::DenseMatrix &flux_jac)
+   {
+      std::vector<adouble> dir_a(dir.Size());
+      std::vector<adouble> q_a(q.Size());
+      adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+      adept::set_values(q_a.data(), q.Size(), q.GetData());
+      this->stack.new_recording();
+      std::vector<adouble> flux_a(q.Size());
+      mach::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(),
+                                        flux_a.data());
+      this->stack.independent(q_a.data(), q.Size());
+      this->stack.dependent(flux_a.data(), q.Size());
+      this->stack.jacobian(flux_jac.GetData());
+   }
 
    /// Compute the Jacobian of the flux function `flux` w.r.t. `dir`
    /// \parma[in] dir - desired direction for the flux 
    /// \param[in] q - state at which to evaluate the flux Jacobian
    /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `dir`
    void calcFluxJacDir(const mfem::Vector &dir, const mfem::Vector &q,
-                       mfem::DenseMatrix &flux_jac);
+                       mfem::DenseMatrix &flux_jac)
+   {
+      std::vector<adouble> dir_a(dir.Size()); 
+      std::vector<adouble> q_a(q.Size());
+      adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+      adept::set_values(q_a.data(), q.Size(), q.GetData());
+      this->stack.new_recording();
+      std::vector<adouble> flux_a(q.Size());
+      mach::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(),
+                                        flux_a.data());
+      this->stack.independent(dir_a.data(), dir.Size());
+      this->stack.dependent(flux_a.data(), q.Size());
+      this->stack.jacobian(flux_jac.GetData());
+   }
 };
 
 /// Integrator for the two-point entropy conservative Ismail-Roe flux
