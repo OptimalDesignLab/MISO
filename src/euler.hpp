@@ -231,8 +231,8 @@ public:
    /// \param[in] fe_coll - used to determine the face elements
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    SlipWallBC(adept::Stack &diff_stack,
-                      const mfem::FiniteElementCollection *fe_coll,
-                      double a = 1.0)
+              const mfem::FiniteElementCollection *fe_coll,
+              double a = 1.0)
        : InviscidBoundaryIntegrator<SlipWallBC<dim>>(
              diff_stack, fe_coll, dim+2, a) {}
 
@@ -252,7 +252,23 @@ public:
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
                          const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
    {
-      throw MachException("Not implemented!");
+      // create containers for active double objects for each input
+      std::vector<adouble> x_a(x.Size());
+      std::vector<adouble> dir_a(dir.Size());
+      std::vector<adouble> q_a(q.Size());
+      // initialize active double containers with data from inputs
+      adept::set_values(x_a.data(), x.Size(), x.GetData());
+      adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+      adept::set_values(q_a.data(), q.Size(), q.GetData());
+      // start new stack recording
+      this->stack.new_recording();
+      // create container for active double flux output
+      std::vector<adouble> flux_a(q.Size());
+      mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+                                           flux_a.data());
+      this->stack.independent(q_a.data(), q.Size());
+      this->stack.dependent(flux_a.data(), q.Size());
+      this->stack.jacobian(flux_jac.GetData());
    }
 
    /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `dir`
@@ -263,7 +279,23 @@ public:
    void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
                        const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
    {
-      throw MachException("Not implemented!");
+      // create containers for active double objects for each input
+      std::vector<adouble> x_a(x.Size());
+      std::vector<adouble> dir_a(dir.Size());
+      std::vector<adouble> q_a(q.Size());
+      // initialize active double containers with data from inputs
+      adept::set_values(x_a.data(), x.Size(), x.GetData());
+      adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+      adept::set_values(q_a.data(), q.Size(), q.GetData());
+      // start new stack recording
+      this->stack.new_recording();
+      // create container for active double flux output
+      std::vector<adouble> flux_a(q.Size());
+      mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+                                           flux_a.data());
+      this->stack.independent(dir_a.data(), dir.Size());
+      this->stack.dependent(flux_a.data(), q.Size());
+      this->stack.jacobian(flux_jac.GetData());
    }
 };
 
