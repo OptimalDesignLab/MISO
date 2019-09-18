@@ -1,8 +1,6 @@
-
 #include "catch.hpp"
 #include "mfem.hpp"
-#include "euler_fluxes.hpp"
-
+#include "euler.hpp"
 /// Used for floating point checks when the benchmark value is zero
 const double abs_tol = std::numeric_limits<double>::epsilon()*100;
 
@@ -110,6 +108,72 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
          REQUIRE( flux(i) == Approx(flux_vec(i)) );
       }
    }
+
+   SECTION(" Euler flux jacobian respect to state is correct")
+   {
+      //Create the perturbation vector
+      mfem::Vector v_q(dim+2);
+      for(int i=0; i<dim+2;i++)
+      {
+         v_q[i] = i*1e-6;
+      }
+      // Two ways to create the euler integrator
+      adept::Stack stack;
+      //mach::InviscidIntegrator<mach::EulerIntegrator<dim>> * eulerinteg = 
+      // new mach::InviscidIntegrator<mach::EulerIntegrator<dim>> (stack);
+      mach::EulerIntegrator<dim> eulerinteg(stack);
+
+      // Create some intermediate variables
+      mfem::Vector q_plus(q), q_minus(q);
+      mfem::Vector flux1(dim+2), flux2(dim+2);
+      mfem::Vector jac_v(dim+2);
+      mfem::DenseMatrix flux_jac1(dim+2);
+
+      eulerinteg.calcFluxJacState(nrm,q,flux_jac1);
+      flux_jac1.Mult(v_q, jac_v);
+
+      q_plus.Add(1.0,v_q);
+      q_minus.Add(-1.0,v_q);
+      eulerinteg.calcFlux(nrm,q_plus,flux1);
+      eulerinteg.calcFlux(nrm,q_minus,flux2);
+
+      mfem::Vector jac_v_fd(flux1);
+      jac_v_fd -= flux2;
+      jac_v_fd /= 2.0;
+      REQUIRE( jac_v_fd.Norml2() == Approx(jac_v.Norml2())); 
+   }
+
+   SECTION(" Euler flux jacobian respect to direction is correct")
+   {
+      adept::Stack stack;
+      mach::EulerIntegrator<dim> eulerinteg(stack);
+
+      // Create the perturbation vector
+      mfem::Vector v_q(dim);
+      for(int i=0; i<dim;i++)
+      {
+         v_q[i] = i*1e-6;
+      }
+
+      // Create the intermediate variables
+      mfem::Vector nrm_plus(nrm), nrm_minus(nrm);
+      mfem::Vector flux1(dim+2), flux2(dim+2);
+      mfem::Vector jac_v(dim+2);
+      mfem::DenseMatrix flux_jac1(dim+2,dim);
+
+      eulerinteg.calcFluxJacDir(nrm,q,flux_jac1);
+      flux_jac1.Mult(v_q, jac_v);
+
+      nrm_plus.Add(1.0,v_q);
+      nrm_minus.Add(-1.0,v_q);
+      eulerinteg.calcFlux(nrm_plus,q,flux1);
+      eulerinteg.calcFlux(nrm_minus,q,flux2);
+      mfem::Vector jac_v_fd(flux1);
+      jac_v_fd -= flux2;
+      jac_v_fd /= 2.0;
+
+      REQUIRE( jac_v_fd.Norml2() == Approx(jac_v.Norml2())); 
+   }  
 
    // load the data to test the IR flux function into an mfem DenseMatrix
    // TODO: I could not find an elegant way to do this

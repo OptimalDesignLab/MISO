@@ -7,19 +7,9 @@
 
 using namespace mfem;
 using namespace std;
-using adept::adouble;
 
 namespace mach
 {
- 
-template <int dim>
-void EulerIntegrator<dim>::calcFlux(const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::Vector &flux)
-{
-   calcEulerFlux<double,dim>(dir.GetData(), q.GetData(), flux.GetData());
-}
-
 template <int dim>
 void EntStableLPSIntegrator<dim>::convertVars(const mfem::Vector &q,
                                               mfem::Vector &w)
@@ -35,7 +25,26 @@ void EntStableLPSIntegrator<dim>::applyScaling(const mfem::DenseMatrix &adjJ,
 {
    applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
                                mat_vec.GetData());
-}                                           
+}
+
+void IsentropicVortexBC::calcFlux(const mfem::Vector &x,
+                                  const mfem::Vector &dir,
+                                  const mfem::Vector &q,
+                                  mfem::Vector &flux_vec)
+{
+   calcIsentropicVortexFlux<double>(x.GetData(), dir.GetData(), q.GetData(),
+                                    flux_vec.GetData());
+}
+
+template <int dim>
+void SlipWallBC<dim>::calcFlux(const mfem::Vector &x,
+                               const mfem::Vector &dir,
+                               const mfem::Vector &q,
+                               mfem::Vector &flux_vec)
+{
+   calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
+                                flux_vec.GetData());
+}
 
 EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
@@ -98,9 +107,9 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       vector<int> tmp = bcs["vortex"].get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
-      res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-         diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-         alpha), bndry_marker[idx]);
+      res->AddBdrFaceIntegrator(
+          new IsentropicVortexBC(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
       idx++;
    }
    if (bcs.find("slip-wall") != bcs.end())
@@ -111,22 +120,19 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       switch (dim)
       {
          case 1:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,1>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+                new SlipWallBC<1>(diff_stack, fec.get(), alpha),
+                bndry_marker[idx]);
             break;
          case 2:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,2>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
-            //res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-            //   diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-            //   alpha, bndry_marker[idx][0]), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+               new SlipWallBC<2>(diff_stack, fec.get(), alpha),
+               bndry_marker[idx]);
             break;
          case 3:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,3>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+               new SlipWallBC<3>(diff_stack, fec.get(), alpha),
+               bndry_marker[idx]);
             break;
       }
       idx++;
@@ -212,39 +218,6 @@ double EulerSolver::calcStepSize(double cfl) const
 
 
 #if 0
-template<int dim>
-void EulerSolver::calcEulerFluxJacQ(const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::DenseMatrix &jac)
-{
-   std::vector<adouble> dir_a(dir.Size());
-   std::vector<adouble> q_a(q.Size());
-   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   diff_stack.new_recording();
-   std::vector<adouble> flux_a(q.Size());
-   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
-   diff_stack.independent(q_a.data(), q.Size());
-   diff_stack.dependent(flux_a.data(), q.Size());
-   diff_stack.jacobian(jac.GetData());
-}
-
-template<int dim>
-void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::DenseMatrix &jac)
-{
-   std::vector<adouble> dir_a(dir.Size()); 
-   std::vector<adouble> q_a(q.Size());
-   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   diff_stack.new_recording();
-   std::vector<adouble> flux_a(q.Size());
-   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
-   diff_stack.independent(dir_a.data(), dir.Size());
-   diff_stack.dependent(flux_a.data(), q.Size());
-   diff_stack.jacobian(jac.GetData());
-}
 
 template <int dim>
 inline void EulerSolver::IsmailRoeFlux(int di, const mfem::Vector &qL,
