@@ -11,7 +11,7 @@ using adept::adouble;
 
 namespace mach
 {
-
+ 
 template <int dim>
 void EulerIntegrator<dim>::calcFlux(const mfem::Vector &dir,
                                     const mfem::Vector &q,
@@ -19,46 +19,6 @@ void EulerIntegrator<dim>::calcFlux(const mfem::Vector &dir,
 {
    calcEulerFlux<double,dim>(dir.GetData(), q.GetData(), flux.GetData());
 }
-
-
-template <int dim>
-void IsmailRoeIntegrator<dim>::calcFlux(int di, const mfem::Vector &qL,
-                                        const mfem::Vector &qR,
-                                        mfem::Vector &flux)
-{
-   calcIsmailRoeFlux<double,dim>(di, qL.GetData(), qR.GetData(),
-                                 flux.GetData());
-}
-
-template <int dim>
-void IsmailRoeIntegrator<dim>::calcJacQ(int di, const mfem::Vector &qL, 
-                                    const mfem::Vector &qR,
-                                    mfem::DenseMatrix &jac)
-{
-
-  // import stack and adouble from adept
-   using adept::adouble;
-   // vector of active input variables
-   std::vector<adouble> qL_a(qL.Size());
-   std::vector<adouble> qR_a(qR.Size());
-   // initialize adouble inputs
-   adept::set_values(qL_a.data(),qL.Size(),qL.GetData());
-   adept::set_values(qR_a.data(),qR.Size(),qR.GetData());
-   // start recording
-   stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> a_flux(flux.Size());
-   // run algorithm
-   calcIsmailRoeFlux<adouble,dim>(di,&qL_a[0],&qR_a[0],&flux_a);
-   // identify independent and dependent variables
-   stack.independent(qL_a.data(),qL.Size());
-   stack.independent(qR_a.data(),qR.Size());
-   stack.dependent(flux_a.data(),flux.Size());
-   // compute and store jacobian in jac ?
-   stack.jacobian_reverse(jac.GetData());
-
-}
-
 
 template <int dim>
 void EntStableLPSIntegrator<dim>::convertVars(const mfem::Vector &q,
