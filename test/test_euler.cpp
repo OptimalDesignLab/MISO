@@ -5,6 +5,101 @@
 
 //#include "euler_test_data.hpp"
 
+TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
+                        ((int dim),dim), 1, 2, 3 )
+{
+   #include "euler_test_data.hpp"
+   mfem::Vector q(dim+2);
+   mfem::Vector flux(dim+2);
+   mfem::Vector nrm(dim);
+   q(0) = rho;
+   q(dim+1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di+1) = rhou[di];
+      nrm(di) = dir[di];
+   }
+
+   SECTION(" Euler flux jacobian w.r.t state is correct.")
+   {
+      //Create the perturbation vector
+      mfem::Vector v(dim+2);
+      for(int i=0; i<dim+2;i++)
+      {
+         v[i] = 1e-5 * vec_pert[i];
+      }
+
+      adept::Stack stack;
+      mach::EulerIntegrator<dim> eulerinteg(stack);
+
+      // Create some intermediate variables
+      mfem::Vector q_plus(q), q_minus(q);
+      mfem::Vector flux_plus(dim+2), flux_minus(dim+2);
+      mfem::Vector jac_v(dim+2);
+      mfem::DenseMatrix flux_jac(dim+2);
+
+      // calculate the flux jacobian
+      eulerinteg.calcFluxJacState(nrm, q, flux_jac);
+      flux_jac.Mult(v, jac_v);
+
+      // calculate the plus and minus fluxes
+      q_plus.Add(1.0, v);
+      q_minus.Add(-1.0, v);
+      eulerinteg.calcFlux(nrm, q_plus, flux_plus);
+      eulerinteg.calcFlux(nrm, q_minus, flux_minus);
+
+      // compare the difference
+      mfem::Vector jac_v_fd(flux_plus);
+      jac_v_fd -= flux_minus;
+      jac_v_fd /= 2.0;
+      mfem::Vector diff(jac_v);
+      diff -= jac_v_fd;
+      // REQUIRE( jac_v[1] == Approx(jac_v_fd[1]) );
+      // REQUIRE( jac_v[2] == Approx(jac_v_fd[2]) );
+      // REQUIRE( jac_v[3] == Approx(jac_v_fd[3]) );
+      REQUIRE( diff.Norml2() == Approx(0.0).margin(abs_tol) ); 
+   }
+
+   SECTION(" Euler flux jacobian w.r.t direction is correct")
+   {
+      // Create the perturbation vector
+      mfem::Vector v(dim);
+      for(int i=0; i<dim;i++)
+      {
+         v[i] = 1e-5*vec_pert[i];
+      }
+
+      adept::Stack stack;
+      mach::EulerIntegrator<dim> eulerinteg(stack);
+
+      // Create the intermediate variables
+      mfem::Vector nrm_plus(nrm), nrm_minus(nrm);
+      mfem::Vector flux_plus(dim+2), flux_minus(dim+2);
+      mfem::Vector jac_v(dim+2);
+      mfem::DenseMatrix flux_jac(dim+2,dim);
+
+      eulerinteg.calcFluxJacDir(nrm, q, flux_jac);
+      flux_jac.Mult(v, jac_v);
+
+      nrm_plus.Add(1.0,v);
+      nrm_minus.Add(-1.0,v);
+      eulerinteg.calcFlux(nrm_plus, q, flux_plus);
+      eulerinteg.calcFlux(nrm_minus, q, flux_minus);
+
+      // compare the difference
+      mfem::Vector jac_v_fd(flux_plus);
+      jac_v_fd -= flux_minus;
+      jac_v_fd /= 2.0;
+      mfem::Vector diff(jac_v);
+      diff -= jac_v_fd;
+      // REQUIRE( jac_v[1] == Approx(jac_v_fd[1]) );
+      // REQUIRE( jac_v[2] == Approx(jac_v_fd[2]) );
+      // REQUIRE( jac_v[3] == Approx(jac_v_fd[3]) );
+      REQUIRE( diff.Norml2() == Approx(0.0).margin(abs_tol) ); 
+   }
+
+}
+
 TEMPLATE_TEST_CASE_SIG( "Ismail Jacobian", "[Ismail]",
                         ((int dim), dim), 1, 2, 3 )
 {
