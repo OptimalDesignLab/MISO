@@ -3,41 +3,18 @@
 #include "euler_fluxes.hpp"
 #include "euler.hpp"
 
-//#include "euler_test_data.hpp"
-
 TEMPLATE_TEST_CASE_SIG( "Ismail Jacobian", "[Ismail]",
                         ((int dim), dim), 1, 2, 3 )
 {
-#if 0
-    using namespace std;
-   /// Used for floating point checks when the benchmark value is zero
-    const double abs_tol = std::numeric_limits<double>::epsilon()*100;
-    // Define a random (but physical) state for the following tests
-    const double rho = 0.9856566615165173;
-    const double rhoe = 2.061597236955558;
-    const double rhou[3] = {0.09595562550099601, -0.030658751626551423, -0.13471469906596886};
-
-    // Define a second ("right") state for the tests    
-    const double rho2 = 0.8575252486261279;
-    const double rhoe2 = 2.266357718749846;
-    const double rhou2[3] = {0.020099729730903737, -0.2702434209304979, -0.004256150573245826};
-    
-#endif
    #include "euler_test_data.hpp"
-
    // copy the data into mfem vectors for convenience 
    mfem::Vector qL(dim+2);
    mfem::Vector qR(dim+2);
-   mfem::Vector qL_r(dim+2);
-   mfem::Vector qR_r(dim+2);
-   mfem::Vector qL_l(dim+2);
-   mfem::Vector qR_l(dim+2);
    mfem::Vector flux(dim+2);
-   mfem::Vector flux_r(dim+2);
-   mfem::Vector flux_l(dim+2);
+   mfem::Vector flux_plus(dim+2);
+   mfem::Vector flux_minus(dim+2);
    mfem::Vector v(dim+2);     
-   mfem::Vector Jac_v(dim+2);  
-   mfem::Vector Jac_v_fd(dim+2);  
+   mfem::Vector jac_v(dim+2);  
    mfem::DenseMatrix jacL(dim+2,2*(dim+2));
    mfem::DenseMatrix jacR(dim+2,2*(dim+2));
    qL(0) = rho;
@@ -49,44 +26,60 @@ TEMPLATE_TEST_CASE_SIG( "Ismail Jacobian", "[Ismail]",
       qL(di+1) = rhou[di];
       qR(di+1) = rhou2[di];
    }
+   // create perturbation vector
    for(int di=0; di < dim+2; ++di)
    {
-      v(di) =    di*1e-7;
-      // +ve perturbation 
-      qR_r(di) = qR(di) + v(di); 
-      qL_r(di) = qL(di) + v(di);
-      // -ve perturbation
-      qR_l(di) = qR(di) - v(di);
-      qL_l(di) = qL(di) - v(di);
+      v(di) = 1e-07* vec_pert[di];
    }
-
+   // perturbed vectors
+   mfem::Vector qL_plus(qL), qL_minus(qL) ;
+   mfem::Vector qR_plus(qR), qR_minus(qR);
    adept::Stack diff_stack;
-   mach::IsmailRoeIntegrator<dim> ob(diff_stack);
+   mach::IsmailRoeIntegrator<dim> ismailinteg(diff_stack);
+   // +ve perturbation 
+   qL_plus.Add(1.0, v);
+   qR_plus.Add(1.0, v);
+   // -ve perturbation
+   qL_minus.Add(-1.0, v);
+   qR_minus.Add(-1.0, v);
    for (int di = 0; di < dim; ++di)
    {
-       DYNAMIC_SECTION( "Ismail-Roe flux jacobian is correct w.r.t left state ")
-       {    
-         ob.calcFlux(di, qL_r, qR,flux_r);
-         ob.calcFlux(di, qL_l, qR,flux_l);
-         ob.calcFluxJacStates(di,qL_l,qR,jacL,jacR);
-         jacL.Mult(v,Jac_v);
-         for (int i = 0; i < dim+2; ++i)
-         {
-            Jac_v_fd(i) = (flux_r(i)-flux_l(i))/(2.0);
-         }
-         REQUIRE(Jac_v_fd.Norml2() == Approx(Jac_v.Norml2()));
+       DYNAMIC_SECTION( "Ismail-Roe flux jacismailintegian is correct w.r.t left state ")
+       {  
+         // get perturbed states flux vector
+         ismailinteg.calcFlux(di, qL_plus, qR,flux_plus);
+         ismailinteg.calcFlux(di, qL_minus, qR,flux_minus);
+         // compute the jacobian
+         ismailinteg.calcFluxJacStates(di,qL_minus,qR,jacL,jacR);
+         jacL.Mult(v,jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0;
+         // difference vector
+         mfem::Vector diff(jac_v);
+         diff -= jac_v_fd;
+         // this gets passed at little higher perturbation too
+         //REQUIRE(jac_v.Norml2() == Approx(jac_v_fd.Norml2()));
+         REQUIRE(diff.Norml2() == Approx(0.0).margin(abs_tol) );
        }
-       DYNAMIC_SECTION( "Ismail-Roe flux jacobian is correct w.r.t right state ")
-       {    
-         ob.calcFlux(di, qL, qR_r,flux_r);
-         ob.calcFlux(di, qL, qR_l,flux_l);
-         ob.calcFluxJacStates(di,qL,qR_l,jacL,jacR);
-         jacR.Mult(v,Jac_v);
-         for (int i = 0; i < dim+2; ++i)
-         {
-            Jac_v_fd(i) = (flux_r(i)-flux_l(i))/(2.0);
-         }
-         REQUIRE(Jac_v_fd.Norml2() == Approx(Jac_v.Norml2()));
+       DYNAMIC_SECTION( "Ismail-Roe flux jacismailintegian is correct w.r.t right state ")
+       {   
+         // get perturbed states flux vector 
+         ismailinteg.calcFlux(di, qL, qR_plus,flux_plus);
+         ismailinteg.calcFlux(di, qL, qR_minus,flux_minus);
+         // compute the jacobian
+         ismailinteg.calcFluxJacStates(di,qL,qR_minus,jacL,jacR);
+         jacR.Mult(v,jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0;
+         // difference vector
+         mfem::Vector diff(jac_v);
+         diff -= jac_v_fd;
+         //REQUIRE(jac_v.Norml2() == Approx(jac_v_fd.Norml2()));
+         REQUIRE(diff.Norml2() == Approx(0.0).margin(abs_tol) );
         }
    }
 }

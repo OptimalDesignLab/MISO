@@ -41,8 +41,9 @@ void IsmailRoeIntegrator<dim>::calcFluxJacStates(int di, const mfem::Vector &qL,
                                                  mfem::DenseMatrix &jacL,
                                                  mfem::DenseMatrix &jacR)
 {
+   // store the full jacobian in jac
+   mfem::DenseMatrix jac(dim + 2, 2 * (dim + 2));
    // vector of active input variables
-   mfem::DenseMatrix Jac(dim + 2, 2 * (dim + 2));
    std::vector<adouble> qL_a(qL.Size());
    std::vector<adouble> qR_a(qR.Size());
    // initialize adouble inputs
@@ -59,12 +60,12 @@ void IsmailRoeIntegrator<dim>::calcFluxJacStates(int di, const mfem::Vector &qL,
    this->stack.independent(qL_a.data(), qL.Size());
    this->stack.independent(qR_a.data(), qR.Size());
    this->stack.dependent(flux_a.data(), qL.Size());
-   // compute and store jacobian in jac ?
-   this->stack.jacobian_reverse(Jac.GetData());
+   // compute and store jacobian in jac 
+   this->stack.jacobian_reverse(jac.GetData());
    // retrieve the jacobian w.r.t left state
-   jacL.CopyCols(Jac, 0, dim + 1);
+   jacL.CopyCols(jac, 0, dim + 1);
    // retrieve the jacobian w.r.t right state
-   jacR.CopyCols(Jac, dim + 2, 2 * (dim + 2) - 1);
+   jacR.CopyCols(jac, dim + 2, 2 * (dim + 2) - 1);
 }
 
 template <int dim>
