@@ -114,3 +114,43 @@ void SlipWallBC<dim>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
 }
+
+template <int dim>
+void EntStableLPSIntegrator<dim>::calcSpectralRadiusJacState(const mfem::Vector &dir,
+                                                  const mfem::Vector &q,
+                                                  mfem::DenseMatrix &Jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double spectral radius input
+   adouble sr = calcSpectralRadius<adouble, dim>(dir_a.data(), q_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(sr);
+   this->stack.jacobian(Jac.GetData());
+}
+
+template <int dim>
+void EntStableLPSIntegrator<dim>::calcSpectralRadiusJacDir(const mfem::Vector &dir,
+					                                 const mfem::Vector &q,
+					                                 mfem::DenseMatrix &Jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double spectral radius input
+   adouble sr = calcSpectralRadius<adouble, dim>(dir_a.data(), q_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(sr);
+   this->stack.jacobian(Jac.GetData());
+}

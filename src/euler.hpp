@@ -148,6 +148,22 @@ public:
                             const mfem::Vector &q,
                             const mfem::Vector &vec,
                             mfem::DenseMatrix &mat_vec_jac);
+
+   /// Computes the Jacobian of the spectral radius w.r.t. 'q'
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variables at which to evaluate the spectral radius
+   /// Jacobian of `spectral radius` w.r.t. `q`
+   void calcSpectralRadiusJacState(const mfem::Vector &dir,
+                             	 const mfem::Vector &q,
+                        		 mfem::DenseMatrix &Jac);
+
+   /// Computes the Jacobian of the spectral radius w.r.t. 'dir'
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variables at which to evaluate the spectral radius
+   /// Jacobian of `spectral radius` w.r.t. `dir`
+   void calcSpectralRadiusJacDir(const mfem::Vector &dir,
+                            		const mfem::Vector &q,
+                         			mfem::DenseMatrix &Jac);
 };
 
 /// Integrator for the steady isentropic-vortex boundary condition
@@ -328,19 +344,6 @@ protected:
    // static void calcIsmailRoeJacQ(int di, const mfem::Vector &qL, 
    //                               const mfem::Vector &qR,
    //                               mfem::DenseMatrix &jac);
-
-   template <int dim>
-   static void calcSpectralRadiusJacDir(const mfem::Vector &dir,
-                            					  const mfem::Vector &q,
-                         					      mfem::DenseMatrix &Jac);
-
-   template <int dim>
-   static void calcSpectralRadiusJacQ(const mfem::Vector &dir,
-                             				  const mfem::Vector &q,
-                        					    mfem::DenseMatrix &Jac);
-
-
-
 };
 
 #include "euler_def.hpp"

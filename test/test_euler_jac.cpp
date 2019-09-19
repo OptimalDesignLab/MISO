@@ -33,7 +33,8 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
    mfem::Vector qR(dim+2);
    mfem::Vector flux(dim+2);
    mfem::Vector nrm(dim);
-   mfem::Vector work(dim+2);
+   mfem::Vector nrm_r(dim);
+   mfem::Vector nrm_l(dim);
    q(0) = rho;
    q(dim+1) = rhoe;
    qR(0) = rho2;
@@ -46,13 +47,12 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
    }
 
    adept::Stack diff_stack;
-   mach::EulerSolver<dim> ob(diff_stack);
+   mach::EntStableLPSIntegrator<dim> ob(diff_stack);
    //just trying out dir for now
    SECTION( "Jacobian of Spectral radius of flux Jacobian is correct" )
    {
 	  double delta = 1e-06;
-	  // create Jacobian matrices for both AD approach and FD approximation
-	  //mfem::DenseMatrix Jac_fd(1, dim);
+	  // create Jacobian matrix for AD approach
 	  mfem::DenseMatrix Jac_ad(1, dim);
 
 	  // create vector to multiply Jacobian by
@@ -61,7 +61,11 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 	  for (int di = 0; di < dim; di++)
      {
         v_dat[di] = 1;
-	     v(di) = v_dat[di];
+	     v(di) = delta*v_dat[di];
+        // +v perturbation
+        nrm_r(di) = nrm(di) + v(di);
+        // -v perturbation
+        nrm_l(di) = nrm(di) - v(di);
      }
 
 	  // create vectors to store matrix-vector products
@@ -70,16 +74,14 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
      mfem::Vector d_v_prod(dim);
 
 	  // get derivative information from AD functions
-	  mach::calcSpectralRadiusJacDir(&dir, &q, &Jac_ad);
+	  ob.calcSpectralRadiusJacDir(&dir, &q, &Jac_ad);
 
-	  // need to Mult here
 	  Jac_ad.Mult(v, Jac_v_ad);
-     d_v_prod.Set(delta, v);
-
+   
 	  // FD approximation
-	  Jac_v_fd = (mach::calcSpectralRadius(nrm + d_v_prod, q) -
-				        mach::calcSpectralRadius(nrm - d_v_prod, q))/
-				        (2*delta);
+	  Jac_v_fd = (calcSpectralRadius(nrm_r, q) -
+				     calcSpectralRadius(nrm_l, q))/
+				     (2*delta);
 
 	  REQUIRE( Jac_v_ad(0) == Approx(Jac_v_fd(0)) );
    }
