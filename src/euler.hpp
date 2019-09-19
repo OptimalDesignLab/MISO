@@ -39,40 +39,14 @@ public:
    /// \param[in] q - state at which to evaluate the flux Jacobian
    /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `q`
    void calcFluxJacState(const mfem::Vector &dir, const mfem::Vector &q,
-                         mfem::DenseMatrix &flux_jac)
-   {
-      std::vector<adouble> dir_a(dir.Size());
-      std::vector<adouble> q_a(q.Size());
-      adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-      adept::set_values(q_a.data(), q.Size(), q.GetData());
-      this->stack.new_recording();
-      std::vector<adouble> flux_a(q.Size());
-      mach::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(),
-                                        flux_a.data());
-      this->stack.independent(q_a.data(), q.Size());
-      this->stack.dependent(flux_a.data(), q.Size());
-      this->stack.jacobian(flux_jac.GetData());
-   }
+                         mfem::DenseMatrix &flux_jac);
 
    /// Compute the Jacobian of the flux function `flux` w.r.t. `dir`
    /// \parma[in] dir - desired direction for the flux 
    /// \param[in] q - state at which to evaluate the flux Jacobian
    /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `dir`
    void calcFluxJacDir(const mfem::Vector &dir, const mfem::Vector &q,
-                       mfem::DenseMatrix &flux_jac)
-   {
-      std::vector<adouble> dir_a(dir.Size()); 
-      std::vector<adouble> q_a(q.Size());
-      adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-      adept::set_values(q_a.data(), q.Size(), q.GetData());
-      this->stack.new_recording();
-      std::vector<adouble> flux_a(q.Size());
-      mach::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(),
-                                        flux_a.data());
-      this->stack.independent(dir_a.data(), dir.Size());
-      this->stack.dependent(flux_a.data(), q.Size());
-      this->stack.jacobian(flux_jac.GetData());
-   }
+                       mfem::DenseMatrix &flux_jac);
 };
 
 /// Integrator for the two-point entropy conservative Ismail-Roe flux
@@ -97,12 +71,11 @@ public:
    /// \note This is simply a wrapper for the function in `euler_fluxes.hpp`
    void calcFlux(int di, const mfem::Vector &qL,
                  const mfem::Vector &qR, mfem::Vector &flux)
- 
    {
-   
       calcIsmailRoeFlux<double,dim>(di, qL.GetData(), qR.GetData(),
                                  flux.GetData());
    }
+
    /// Compute the Jacobians of `flux` with respect to `u_left` and `u_right`
    /// \param[in] di - desired coordinate direction for flux 
    /// \param[in] qL - the "left" state
@@ -112,38 +85,7 @@ public:
    void calcFluxJacStates(int di, const mfem::Vector &qL,
                           const mfem::Vector &qR,
                           mfem::DenseMatrix &jacL,
-                          mfem::DenseMatrix &jacR)
-
-   {
-
-   //  // import stack and adouble from adept
-   //   using adept::adouble;
-     // vector of active input variables
-     mfem::DenseMatrix Jac(dim+2,2*(dim+2));
-     std::vector<adouble> qL_a(qL.Size());
-     std::vector<adouble> qR_a(qR.Size());
-     // initialize adouble inputs
-     adept::set_values(qL_a.data(),qL.Size(),qL.GetData());
-     adept::set_values(qR_a.data(),qR.Size(),qR.GetData());
-     // start recording
-     this->stack.new_recording();
-     // create vector of active output variables
-     std::vector<adouble> flux_a(qL.Size());
-     // run algorithm 
-     mach::calcIsmailRoeFlux<adouble,dim>(di,qL_a.data(),
-                                           qR_a.data(),flux_a.data());
-     // identify independent and dependent variables
-     this->stack.independent(qL_a.data(),qL.Size());
-     this->stack.independent(qR_a.data(),qR.Size());
-     this->stack.dependent(flux_a.data(),qL.Size());
-     // compute and store jacobian in jac ?
-     this->stack.jacobian_reverse(Jac.GetData());
-     // retrieve the jacobian w.r.t left state
-     jacL.CopyCols(Jac,0,dim+1);
-     // retrieve the jacobian w.r.t right state
-     jacR.CopyCols(Jac,dim+2,2*(dim+2)-1);
-
-  }
+                          mfem::DenseMatrix &jacR);
 };
 
 /// Integrator for entropy stable local-projection stabilization
@@ -285,26 +227,7 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
-   {
-      // create containers for active double objects for each input
-      std::vector<adouble> x_a(x.Size());
-      std::vector<adouble> dir_a(dir.Size());
-      std::vector<adouble> q_a(q.Size());
-      // initialize active double containers with data from inputs
-      adept::set_values(x_a.data(), x.Size(), x.GetData());
-      adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-      adept::set_values(q_a.data(), q.Size(), q.GetData());
-      // start new stack recording
-      this->stack.new_recording();
-      // create container for active double flux output
-      std::vector<adouble> flux_a(q.Size());
-      mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
-                                           flux_a.data());
-      this->stack.independent(q_a.data(), q.Size());
-      this->stack.dependent(flux_a.data(), q.Size());
-      this->stack.jacobian(flux_jac.GetData());
-   }
+                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac);
 
    /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `dir`
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
@@ -312,26 +235,7 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
    void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
-                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
-   {
-      // create containers for active double objects for each input
-      std::vector<adouble> x_a(x.Size());
-      std::vector<adouble> dir_a(dir.Size());
-      std::vector<adouble> q_a(q.Size());
-      // initialize active double containers with data from inputs
-      adept::set_values(x_a.data(), x.Size(), x.GetData());
-      adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-      adept::set_values(q_a.data(), q.Size(), q.GetData());
-      // start new stack recording
-      this->stack.new_recording();
-      // create container for active double flux output
-      std::vector<adouble> flux_a(q.Size());
-      mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
-                                           flux_a.data());
-      this->stack.independent(dir_a.data(), dir.Size());
-      this->stack.dependent(flux_a.data(), q.Size());
-      this->stack.jacobian(flux_jac.GetData());
-   }
+                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac);
 };
 
 /// Solver for linear advection problems
@@ -426,6 +330,8 @@ protected:
    //                               mfem::DenseMatrix &jac);
 
 };
+
+#include "euler_def.hpp"
 
 } // namespace mach
 
