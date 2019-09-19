@@ -4,16 +4,22 @@ void EulerIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
                                             const mfem::Vector &q,
                                             mfem::DenseMatrix &flux_jac)
 {
+   // declare vectors of active input variables
    std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> q_a(q.Size());
+   // copy data from mfem::Vector
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
    this->stack.new_recording();
+   // the depedent variable must be declared after the recording
    std::vector<adouble> flux_a(q.Size());
    mach::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(),
                                      flux_a.data());
+   // set the independent and dependent variable
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
+   // calculate the jacobian w.r.t state vaiables
    this->stack.jacobian(flux_jac.GetData());
 }
 
@@ -22,16 +28,21 @@ void EulerIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
                                           const mfem::Vector &q,
                                           mfem::DenseMatrix &flux_jac)
 {
+   // declare vectors of active input variables
    std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> q_a(q.Size());
+   // copy data from mfem::Vector
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
    this->stack.new_recording();
+   // the depedent variable must be declared after the recording
    std::vector<adouble> flux_a(q.Size());
    mach::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(),
                                      flux_a.data());
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());
+   // calculate the jacobian w.r.t state vaiables
    this->stack.jacobian(flux_jac.GetData());
 }
 
