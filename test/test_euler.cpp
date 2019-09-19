@@ -3,9 +3,12 @@
 #include "euler_fluxes.hpp"
 #include "euler.hpp"
 
+//#include "euler_test_data.hpp"
+
 TEMPLATE_TEST_CASE_SIG( "Ismail Jacobian", "[Ismail]",
                         ((int dim), dim), 1, 2, 3 )
 {
+#if 0
     using namespace std;
    /// Used for floating point checks when the benchmark value is zero
     const double abs_tol = std::numeric_limits<double>::epsilon()*100;
@@ -19,6 +22,9 @@ TEMPLATE_TEST_CASE_SIG( "Ismail Jacobian", "[Ismail]",
     const double rhoe2 = 2.266357718749846;
     const double rhou2[3] = {0.020099729730903737, -0.2702434209304979, -0.004256150573245826};
     
+#endif
+   #include "euler_test_data.hpp"
+
    // copy the data into mfem vectors for convenience 
    mfem::Vector qL(dim+2);
    mfem::Vector qR(dim+2);
