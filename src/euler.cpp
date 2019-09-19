@@ -26,8 +26,6 @@ void EntStableLPSIntegrator<dim>::applyScaling(const mfem::DenseMatrix &adjJ,
    applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
                                mat_vec.GetData());
 }
-<<<<<<< HEAD
-=======
 
 void IsentropicVortexBC::calcFlux(const mfem::Vector &x,
                                   const mfem::Vector &dir,
@@ -47,7 +45,6 @@ void SlipWallBC<dim>::calcFlux(const mfem::Vector &x,
    calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
                                 flux_vec.GetData());
 }
->>>>>>> 0533f0400e75c14d84989afefec364393b99405c
 
 EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
@@ -221,42 +218,6 @@ double EulerSolver::calcStepSize(double cfl) const
 
 
 #if 0
-<<<<<<< HEAD
-template<int dim>
-void EulerSolver::calcEulerFluxJacQ(const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::DenseMatrix &jac)
-{
-   std::vector<adouble> dir_a(dir.Size());
-   std::vector<adouble> q_a(q.Size());
-   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   diff_stack.new_recording();
-   std::vector<adouble> flux_a(q.Size());
-   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
-   diff_stack.independent(q_a.data(), q.Size());
-   diff_stack.dependent(flux_a.data(), q.Size());
-   diff_stack.jacobian(jac.GetData());
-}
-
-template<int dim>
-void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::DenseMatrix &jac)
-{
-   std::vector<adouble> dir_a(dir.Size());
-   std::vector<adouble> q_a(q.Size());
-   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   diff_stack.new_recording();
-   std::vector<adouble> flux_a(q.Size());
-   calcEulerFlux<adouble, dim>(dir_a, q_a, flux_a);
-   diff_stack.independent(dir_a.data(), dir.Size());
-   diff_stack.dependent(flux_a.data(), q.Size());
-   diff_stack.jacobian(jac.GetData());
-}
-=======
->>>>>>> 0533f0400e75c14d84989afefec364393b99405c
 
 template <int dim>
 inline void EulerSolver::IsmailRoeFlux(int di, const mfem::Vector &qL,
@@ -317,7 +278,6 @@ void EulerSolver::calcSlipWallFluxJacDir(const mfem::Vector &x,
    diff_stack.jacobian(Jac.GetData());
 }
 
-<<<<<<< HEAD
 template <int dim>
 inline void EulerSolver::calcSpectralRadius(const mfem::Vector &dir,
 					    const mfem::Vector &q)
@@ -365,7 +325,6 @@ static void EulerSolver::calcSpectralRadiusJacQ(const mfem::Vector &dir,
    diff_stack.jacobian(Jac.GetData());
 }
 
-=======
 template<int dim>
 void EulerSolver::calcIsmailRoeJacQ(int di, const mfem::Vector &qL, 
                                     const mfem::Vector &qR,
@@ -392,7 +351,6 @@ void EulerSolver::calcIsmailRoeJacQ(int di, const mfem::Vector &qL,
    // compute and store jacobian in jac ?
    diff_stack.jacobian_reverse(jac.GetData());
 }
->>>>>>> 0533f0400e75c14d84989afefec364393b99405c
 #endif
 
 } // namespace mach
