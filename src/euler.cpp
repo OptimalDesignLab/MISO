@@ -7,28 +7,9 @@
 
 using namespace mfem;
 using namespace std;
-using adept::adouble;
 
 namespace mach
 {
-
-template <int dim>
-void EulerIntegrator<dim>::calcFlux(const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::Vector &flux)
-{
-   calcEulerFlux<double,dim>(dir.GetData(), q.GetData(), flux.GetData());
-}
-
-template <int dim>
-void IsmailRoeIntegrator<dim>::calcFlux(int di, const mfem::Vector &qL,
-                                        const mfem::Vector &qR,
-                                        mfem::Vector &flux)
-{
-   calcIsmailRoeFlux<double,dim>(di, qL.GetData(), qR.GetData(),
-                                 flux.GetData());
-}
-
 template <int dim>
 void EntStableLPSIntegrator<dim>::convertVars(const mfem::Vector &q,
                                               mfem::Vector &w)
@@ -45,6 +26,28 @@ void EntStableLPSIntegrator<dim>::applyScaling(const mfem::DenseMatrix &adjJ,
    applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
                                mat_vec.GetData());
 }
+<<<<<<< HEAD
+=======
+
+void IsentropicVortexBC::calcFlux(const mfem::Vector &x,
+                                  const mfem::Vector &dir,
+                                  const mfem::Vector &q,
+                                  mfem::Vector &flux_vec)
+{
+   calcIsentropicVortexFlux<double>(x.GetData(), dir.GetData(), q.GetData(),
+                                    flux_vec.GetData());
+}
+
+template <int dim>
+void SlipWallBC<dim>::calcFlux(const mfem::Vector &x,
+                               const mfem::Vector &dir,
+                               const mfem::Vector &q,
+                               mfem::Vector &flux_vec)
+{
+   calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
+                                flux_vec.GetData());
+}
+>>>>>>> 0533f0400e75c14d84989afefec364393b99405c
 
 EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
@@ -107,9 +110,9 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       vector<int> tmp = bcs["vortex"].get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
-      res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-         diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-         alpha), bndry_marker[idx]);
+      res->AddBdrFaceIntegrator(
+          new IsentropicVortexBC(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
       idx++;
    }
    if (bcs.find("slip-wall") != bcs.end())
@@ -120,22 +123,19 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       switch (dim)
       {
          case 1:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,1>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+                new SlipWallBC<1>(diff_stack, fec.get(), alpha),
+                bndry_marker[idx]);
             break;
          case 2:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,2>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
-            //res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-            //   diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-            //   alpha, bndry_marker[idx][0]), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+               new SlipWallBC<2>(diff_stack, fec.get(), alpha),
+               bndry_marker[idx]);
             break;
          case 3:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,3>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+               new SlipWallBC<3>(diff_stack, fec.get(), alpha),
+               bndry_marker[idx]);
             break;
       }
       idx++;
@@ -221,6 +221,7 @@ double EulerSolver::calcStepSize(double cfl) const
 
 
 #if 0
+<<<<<<< HEAD
 template<int dim>
 void EulerSolver::calcEulerFluxJacQ(const mfem::Vector &dir,
                                     const mfem::Vector &q,
@@ -254,6 +255,8 @@ void EulerSolver::calcEulerFluxJacDir(const mfem::Vector &dir,
    diff_stack.dependent(flux_a.data(), q.Size());
    diff_stack.jacobian(jac.GetData());
 }
+=======
+>>>>>>> 0533f0400e75c14d84989afefec364393b99405c
 
 template <int dim>
 inline void EulerSolver::IsmailRoeFlux(int di, const mfem::Vector &qL,
@@ -314,6 +317,7 @@ void EulerSolver::calcSlipWallFluxJacDir(const mfem::Vector &x,
    diff_stack.jacobian(Jac.GetData());
 }
 
+<<<<<<< HEAD
 template <int dim>
 inline void EulerSolver::calcSpectralRadius(const mfem::Vector &dir,
 					    const mfem::Vector &q)
@@ -361,6 +365,34 @@ static void EulerSolver::calcSpectralRadiusJacQ(const mfem::Vector &dir,
    diff_stack.jacobian(Jac.GetData());
 }
 
+=======
+template<int dim>
+void EulerSolver::calcIsmailRoeJacQ(int di, const mfem::Vector &qL, 
+                                    const mfem::Vector &qR,
+                                    mfem::DenseMatrix &jac)
+{
+   // import stack and adouble from adept
+   using adept::adouble;
+   // vector of active input variables
+   std::vector<adouble> qL_a(qL.Size())
+   std::vector<adouble> qR_a(qR.Size());
+   // initialize adouble inputs
+   adept::set_values(qL_a.Data(),qL.Size(),qL.GetData());
+   adept::set_values(qR_a.Data(),qR.Size(),qR.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> a_flux(flux.Size());
+   // run algorithm
+   calcIsmailRoeFlux<adouble,dim>(di,&qL_a[0],&qR_a[0],&flux_a);
+   // identify independent and dependent variables
+   diff_stack.independent(qL_a.Data(),qL.Size());
+   diff_stack.independent(qR_a.Data(),qR.Size());
+   diff_stack.dependent(flux_a.Data(),flux.Size());
+   // compute and store jacobian in jac ?
+   diff_stack.jacobian_reverse(jac.GetData());
+}
+>>>>>>> 0533f0400e75c14d84989afefec364393b99405c
 #endif
 
 } // namespace mach
