@@ -279,13 +279,6 @@ void EulerSolver::calcSlipWallFluxJacDir(const mfem::Vector &x,
 }
 
 template <int dim>
-inline void EulerSolver::calcSpectralRadius(const mfem::Vector &dir,
-					    const mfem::Vector &q)
-{
-   calcSpectralRadius(dir.GetData(), q.GetData());
-}
-
-template <int dim>
 static void EulerSolver::calcSpectralRadiusJacDir(const mfem::Vector &dir,
 					   const mfem::Vector &q,
 					   mfem::DenseMatrix &Jac)

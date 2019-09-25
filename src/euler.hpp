@@ -164,6 +164,17 @@ public:
    void calcSpectralRadiusJacDir(const mfem::Vector &dir,
                             		const mfem::Vector &q,
                          			mfem::DenseMatrix &Jac);
+   
+   /// The spectral radius of the flux Jacobian in the direction `dir`
+   /// \param[in] dir - desired direction of flux Jacobian
+   /// \param[in] q - conservative variables used to evaluate Jacobian
+   /// \returns absolute value of the largest eigenvalue of the Jacobian
+   /// \note wrapper for the relevant function in `euler_fluxes.hpp`
+   double calcSpectralRadius(const mfem::Vector &dir,
+					              const mfem::Vector &q)
+   {
+      return mach::calcSpectralRadius<double,dim>(dir.GetData(), q.GetData());
+   }
 };
 
 /// Integrator for the steady isentropic-vortex boundary condition

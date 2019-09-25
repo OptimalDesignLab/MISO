@@ -1,4 +1,3 @@
-
 #include "catch.hpp"
 #include "mfem.hpp"
 #include "euler_fluxes.hpp"
@@ -46,44 +45,47 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
       nrm(di) = dir[di];
    }
 
-   adept::Stack diff_stack;
-   mach::EntStableLPSIntegrator<dim> ob(diff_stack);
    //just trying out dir for now
    SECTION( "Jacobian of Spectral radius of flux Jacobian is correct" )
    {
-	  double delta = 1e-06;
-	  // create Jacobian matrix for AD approach
-	  mfem::DenseMatrix Jac_ad(1, dim);
+      adept::Stack diff_stack;
+      mach::EntStableLPSIntegrator<dim> ob(diff_stack);
 
-	  // create vector to multiply Jacobian by
-	  double v_dat[dim];
-	  mfem::Vector v(dim);
-	  for (int di = 0; di < dim; di++)
-     {
-        v_dat[di] = 1;
-	     v(di) = delta*v_dat[di];
-        // +v perturbation
-        nrm_r(di) = nrm(di) + v(di);
-        // -v perturbation
-        nrm_l(di) = nrm(di) - v(di);
-     }
+	   double delta = 1e-06;
+      mfem::Vector diff;
+	   // create Jacobian matrix for AD approach
+	   mfem::DenseMatrix Jac_ad(1, dim);
 
-	  // create vectors to store matrix-vector products
-	  mfem::Vector Jac_v_ad(1);
-	  mfem::Vector Jac_v_fd(1);
-     mfem::Vector d_v_prod(dim);
+	   // create vector to multiply Jacobian by
+	   double v_dat[dim];
+	   mfem::Vector v(dim);
+	   for (int di = 0; di < dim; di++)
+      {
+         v_dat[di] = 1;
+	      v(di) = delta*v_dat[di];
+         // +v perturbation
+         nrm_r(di) = nrm(di) + v(di);
+         // -v perturbation
+         nrm_l(di) = nrm(di) - v(di);
+      }
 
-	  // get derivative information from AD functions
-	  ob.calcSpectralRadiusJacDir(&dir, &q, &Jac_ad);
+	   // create vectors to store matrix-vector products
+	   mfem::Vector Jac_v_ad(1);
+	   mfem::Vector Jac_v_fd(1);
+      mfem::Vector d_v_prod(dim);
 
-	  Jac_ad.Mult(v, Jac_v_ad);
+	   // get derivative information from AD functions
+	   ob.calcSpectralRadiusJacDir(nrm, q, Jac_ad);
+
+	   Jac_ad.Mult(v, Jac_v_ad);
    
-	  // FD approximation
-	  Jac_v_fd = (calcSpectralRadius(nrm_r, q) -
-				     calcSpectralRadius(nrm_l, q))/
-				     (2*delta);
+	   // FD approximation
+	   Jac_v_fd = (ob.calcSpectralRadius(nrm_r, q) -
+		 		      ob.calcSpectralRadius(nrm_l, q))/
+				      (2*delta);
 
-	  REQUIRE( Jac_v_ad(0) == Approx(Jac_v_fd(0)) );
+      diff = Jac_v_ad(0) - Jac_v_fd(0);
+	   REQUIRE( diff.Norml2() == Approx(0.0).margin(abs_tol) );
    }
 
 }
