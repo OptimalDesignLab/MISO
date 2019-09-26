@@ -250,3 +250,113 @@ TEMPLATE_TEST_CASE_SIG( "Spectral Radius", "[Spectral]",
       REQUIRE(Jac_v_ad(0) == Approx(Jac_v_fd(0)));
    }
 }
+
+// TODO: add dim = 1, 3 once 3d sbp operators implemented
+TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
+                        ((int dim), dim), 2 )
+{
+   #include "euler_test_data.hpp"
+
+   // copy the data into mfem vectors for convenience
+   double delta = 1e-5;
+
+   mfem::Vector nrm(dim);
+   for (int di = 0; di < dim; ++di)
+   {
+      nrm(di) = dir[di];
+   }
+   mfem::Vector nrm_plus(nrm);
+   mfem::Vector nrm_minus(nrm);
+
+   mfem::Vector q(dim+2);
+   q(0) = rho;
+   q(dim+1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di+1) = rhou[di];
+   }
+   mfem::Vector q_plus(q);
+   mfem::Vector q_minus(q);
+   // dummy const vector x for calcFlux - unused
+   const mfem::Vector x(nrm);
+
+   /// finite element or SBP operators
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   adept::Stack diff_stack;
+   // mach::SlipWallBC<dim> slip_wall;
+
+   const int max_degree = 4;
+   for (int p = 1; p <= max_degree; ++p)
+   {
+      // Define the SBP elements and finite-element space
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::SlipWallBC<dim> slip_wall(diff_stack, fec.get());
+
+      DYNAMIC_SECTION( "Jacobian of slip wall flux w.r.t state is correct" )
+      {
+         // create the perturbation vector
+         mfem::Vector v(dim+2);
+         for (int i = 0; i < dim+2; i++)
+         {
+            v(i) = vec_pert[i];
+         }
+         q_plus.Add(delta, v);
+         q_minus.Add(-delta, v);
+
+         // get derivative information from AD functions and form product
+         mfem::DenseMatrix jac_ad(dim+2, dim+2);
+         mfem::Vector jac_v_ad(dim+2);
+         slip_wall.calcFluxJacState(x, nrm, q, jac_ad);
+         jac_ad.Mult(v, jac_v_ad);
+      
+         // FD approximation
+         mfem::Vector jac_v_fd(dim+2);
+         mfem::Vector flux_plus(dim+2);
+         mfem::Vector flux_minus(dim+2);
+         slip_wall.calcFlux(x, nrm, q_plus, flux_plus);
+         slip_wall.calcFlux(x, nrm, q_minus, flux_minus);
+         jac_v_fd = (flux_plus - flux_minus) / (2*delta);
+
+         // compare
+         for (int i = 0; i < dim+2; ++i)
+         {
+            std::cout << "jac_v_ad = " << jac_v_ad(i) << std::endl;
+            std::cout << "jac_v_fd = " << jac_v_fd(i) << std::endl;
+            REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)) );
+         }
+      }
+
+      DYNAMIC_SECTION( "Jacobian of slip wall flux w.r.t dir is correct" )
+      {
+         // create the perturbation vector
+         mfem::Vector v(dim);
+         for (int i = 0; i < dim; i++)
+         {
+            v(i) = vec_pert[i];
+         }
+         nrm_plus.Add(delta, v);
+         nrm_minus.Add(-delta, v);
+
+         // get derivative information from AD functions and form product
+         mfem::DenseMatrix jac_ad(dim+2, dim);
+         mfem::Vector jac_v_ad(dim+2);
+         slip_wall.calcFluxJacDir(x, nrm, q, jac_ad);
+         jac_ad.Mult(v, jac_v_ad);
+      
+         // FD approximation
+         mfem::Vector jac_v_fd(dim+2);
+         mfem::Vector flux_plus(dim+2);
+         mfem::Vector flux_minus(dim+2);
+         slip_wall.calcFlux(x, nrm_plus, q, flux_plus);
+         slip_wall.calcFlux(x, nrm_plus, q, flux_minus);
+         jac_v_fd = (flux_plus - flux_minus) / (2*delta);
+
+         // compare
+         for (int i = 0; i < dim; ++i)
+         {
+            REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)) );
+         }
+      }
+   }
+}
+

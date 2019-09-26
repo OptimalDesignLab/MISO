@@ -80,8 +80,10 @@ void IsmailRoeIntegrator<dim>::calcFluxJacStates(int di, const mfem::Vector &qL,
 }
 
 template <int dim>
-void SlipWallBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+void SlipWallBC<dim>::calcFluxJacState(const mfem::Vector &x,
+                                       const mfem::Vector &dir,
+                                       const mfem::Vector &q,
+                                       mfem::DenseMatrix &flux_jac)
 {
    // create containers for active double objects for each input
    std::vector<adouble> x_a(x.Size());
