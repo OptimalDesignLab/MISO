@@ -19,12 +19,12 @@ public:
    /// \brief Evaluate the material model 
    /// \param[in] trans - element transformation holds point in space
    ///                    as well as mesh attributes
-   /// \param[in] stateVec - element state vector
-   /// \param[out] outVec - evaluated material model at every degree of freedom
+   /// \param[in] state - appropriate input to evalaute model (B for permeability)
+   /// \param[out] model_value - evaluated material model value at point of interest
    /// \note It is assumed that trans.SetIntPoint() has already called for the
 	/// point of interest.
-   void Eval(mfem::ElementTransformation &trans, mfem::Vector stateVec,  
-             mfem::Vector outVec);
+   void Eval(mfem::ElementTransformation &trans, const double state,  
+             double model_value);
 
 
    // /// A reference-element to target-element transformation that can be used to
@@ -99,7 +99,7 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
    mfem::DenseMatrix vshape, projcurl;
-   mfem::Vector tempVec;
+   mfem::Vector b_vec;
 #endif
 
 };

@@ -22,11 +22,11 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
-   Vector tempVec(ndof);
+   Vector b_vec(dimc);
 #else
    curlshape.SetSize(ndof,dimc);
    curlshape_dFt.SetSize(ndof,dimc);
-   tempVec.SetSize(ndof);
+   b_vec.SetSize(dimc);
 #endif
 
 	elvect.SetSize(ndof);
@@ -51,10 +51,10 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
 
 	for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      tempVec = 0.0;
+      b_vec = 0.0;
       const IntegrationPoint &ip = ir->IntPoint(i);
 
-      Trans.SetIntPoint (&ip);
+      Trans.SetIntPoint(&ip);
 
       w = ip.weight / Trans.Weight();
 
@@ -68,13 +68,13 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
          el.CalcCurlShape(ip, curlshape_dFt);
       }
 
-      curlshape_dFt.AddMultTranspose(elfun, tempVec);
-      curlshape_dFt.AddMult(tempVec, elvect);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      curlshape_dFt.AddMult(b_vec, elvect);
 
-      tempVec = 0.0;
-      model->Eval(Trans, elfun, tempVec);
-      tempVec *= w;
-      multiplyElementwise(tempVec, elvect);      
+      double model_val = 0.0;
+      model->Eval(Trans, b_vec.Norml2(), model_val);
+      model_val *= w;
+      elvect *= model_val;   
    }
 }
 
