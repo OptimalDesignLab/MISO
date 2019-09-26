@@ -108,7 +108,10 @@ public:
    /// \param[in] q - conservative variables that are to be converted
    /// \param[out] w - entropy variables corresponding to `q`
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
-   void convertVars(const mfem::Vector &q, mfem::Vector &w);
+   void convertVars(const mfem::Vector &q, mfem::Vector &w)
+   {
+      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+   }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted
@@ -124,7 +127,11 @@ public:
    /// so we can use pointer arithmetic to access its rows.
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void applyScaling(const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
-                     const mfem::Vector &vec, mfem::Vector &mat_vec);
+                     const mfem::Vector &vec, mfem::Vector &mat_vec)
+   {
+      applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
+                                  mat_vec.GetData());
+   }
 
    /// Computes the Jacobian of the product `A(adjJ,q)*v` w.r.t. `q`
    /// \param[in] adjJ - adjugate of the mapping Jacobian
@@ -149,11 +156,22 @@ public:
                             const mfem::Vector &vec,
                             mfem::DenseMatrix &mat_vec_jac);
 
+   /// The spectral radius of the flux Jacobian in the direction `dir`
+   /// \param[in] dir - desired direction of flux Jacobian
+   /// \param[in] q - conservative variables used to evaluate Jacobian
+   /// \returns absolute value of the largest eigenvalue of the Jacobian
+   /// \note wrapper for the relevant function in `euler_fluxes.hpp`
+   double spectralRadius(const mfem::Vector &dir,
+					              const mfem::Vector &q)
+   {
+      return calcSpectralRadius<double,dim>(dir.GetData(), q.GetData());
+   }
+
    /// Computes the Jacobian of the spectral radius w.r.t. 'q'
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] q - state variables at which to evaluate the spectral radius
    /// Jacobian of `spectral radius` w.r.t. `q`
-   void calcSpectralRadiusJacState(const mfem::Vector &dir,
+   void spectralRadiusJacState(const mfem::Vector &dir,
                              	 const mfem::Vector &q,
                         		 mfem::DenseMatrix &Jac);
 
@@ -161,20 +179,9 @@ public:
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] q - state variables at which to evaluate the spectral radius
    /// Jacobian of `spectral radius` w.r.t. `dir`
-   void calcSpectralRadiusJacDir(const mfem::Vector &dir,
-                            		const mfem::Vector &q,
-                         			mfem::DenseMatrix &Jac);
-   
-   /// The spectral radius of the flux Jacobian in the direction `dir`
-   /// \param[in] dir - desired direction of flux Jacobian
-   /// \param[in] q - conservative variables used to evaluate Jacobian
-   /// \returns absolute value of the largest eigenvalue of the Jacobian
-   /// \note wrapper for the relevant function in `euler_fluxes.hpp`
-   double calcSpectralRadius(const mfem::Vector &dir,
-					              const mfem::Vector &q)
-   {
-      return mach::calcSpectralRadius<double,dim>(dir.GetData(), q.GetData());
-   }
+   void spectralRadiusJacDir(const mfem::Vector &dir,
+                          	  const mfem::Vector &q,
+                         	  mfem::DenseMatrix &Jac);
 };
 
 /// Integrator for the steady isentropic-vortex boundary condition
@@ -198,7 +205,11 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_vec - value of the flux
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
-                 const mfem::Vector &q, mfem::Vector &flux_vec);
+                 const mfem::Vector &q, mfem::Vector &flux_vec)
+   {
+      calcIsentropicVortexFlux<double>(x.GetData(), dir.GetData(), q.GetData(),
+                                       flux_vec.GetData());
+   }
 
    /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `q`
    /// \param[in] x - coordinate location at which flux is evaluated
@@ -246,7 +257,11 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_vec - value of the flux
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
-                 const mfem::Vector &q, mfem::Vector &flux_vec);
+                 const mfem::Vector &q, mfem::Vector &flux_vec)
+   {
+      calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
+                                   flux_vec.GetData());
+   }
 
    /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `q`
    /// \param[in] x - coordinate location at which flux is evaluated (not used)

@@ -128,9 +128,10 @@ void SlipWallBC<dim>::calcFluxJacDir(const mfem::Vector &x,
 }
 
 template <int dim>
-void EntStableLPSIntegrator<dim>::calcSpectralRadiusJacState(const mfem::Vector &dir,
-                                                  const mfem::Vector &q,
-                                                  mfem::DenseMatrix &Jac)
+void EntStableLPSIntegrator<dim>::spectralRadiusJacState(
+    const mfem::Vector &dir,
+    const mfem::Vector &q,
+    mfem::DenseMatrix &Jac)
 {
    // create containers for active double objects for each input
    std::vector<adouble> dir_a(dir.Size());
@@ -141,16 +142,16 @@ void EntStableLPSIntegrator<dim>::calcSpectralRadiusJacState(const mfem::Vector 
    // start new stack recording
    this->stack.new_recording();
    // create container for active double spectral radius input
-   adouble sr = mach::calcSpectralRadius<adouble, dim>(dir_a.data(), q_a.data());
+   adouble sr = calcSpectralRadius<adouble, dim>(dir_a.data(), q_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(sr);
    this->stack.jacobian(Jac.GetData());
 }
 
 template <int dim>
-void EntStableLPSIntegrator<dim>::calcSpectralRadiusJacDir(const mfem::Vector &dir,
-					                                 const mfem::Vector &q,
-					                                 mfem::DenseMatrix &Jac)
+void EntStableLPSIntegrator<dim>::spectralRadiusJacDir(const mfem::Vector &dir,
+					                                        const mfem::Vector &q,
+					                                        mfem::DenseMatrix &Jac)
 {
    // create containers for active double objects for each input
    std::vector<adouble> dir_a(dir.Size());
@@ -161,7 +162,7 @@ void EntStableLPSIntegrator<dim>::calcSpectralRadiusJacDir(const mfem::Vector &d
    // start new stack recording
    this->stack.new_recording();
    // create container for active double spectral radius input
-   adouble sr = mach::calcSpectralRadius<adouble, dim>(dir_a.data(), q_a.data());
+   adouble sr = calcSpectralRadius<adouble, dim>(dir_a.data(), q_a.data());
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(sr);
    this->stack.jacobian(Jac.GetData());
