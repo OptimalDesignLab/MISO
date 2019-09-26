@@ -26,6 +26,9 @@ public:
    void Eval(mfem::ElementTransformation &trans, const double state,  
              double model_value);
 
+   void EvalDerivState(mfem::ElementTransformation &trans, const double state,  
+             double model_deriv);
+
 
    // /// A reference-element to target-element transformation that can be used to
    // /// evaluate Coefficient
@@ -77,18 +80,23 @@ public:
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
-   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state vector
    /// \param[out] elvect - element local residual
    virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
+                                      mfem::ElementTransformation &trans,
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
-   // virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-   //                                  mfem::ElementTransformation &Ttr,
-   //                                  const mfem::Vector &elfun,
-   //                                  mfem::DenseMatrix &elmat);
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state vector
+   /// \param[out] elmat - element local Jacobian
+   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+                                    mfem::ElementTransformation &trans,
+                                    const mfem::Vector &elfun,
+                                    mfem::DenseMatrix &elmat);
 
 private:
 	/// material model describing electromagnetic behavior (ex. permeability)
@@ -98,8 +106,7 @@ private:
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
-   mfem::DenseMatrix vshape, projcurl;
-   mfem::Vector b_vec;
+   mfem::Vector b_vec, temp_vec;
 #endif
 
 };
