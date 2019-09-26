@@ -45,6 +45,9 @@ protected:
 void multiplyElementwise(const mfem::Vector &v1, const mfem::Vector &v2,
                          mfem::Vector &v);
 
+/// performs the Hadamard (elementwise) product: `a(i) *= b(i)`
+void multiplyElementwise(const Vector &b, Vector &a);
+
 /// performs an elementwise division: `v(i) = v1(i)/v2(i)`
 void divideElementwise(const mfem::Vector &v1, const mfem::Vector &v2,
                        mfem::Vector &v);

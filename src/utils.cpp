@@ -16,6 +16,16 @@ void multiplyElementwise(const Vector &v1, const Vector &v2, Vector &v)
    }
 }
 
+/// performs the Hadamard (elementwise) product: `a(i) *= b(i)`
+void multiplyElementwise(const Vector &b, Vector &a)
+{
+   MFEM_ASSERT( a.Size() == b.Size(), "");
+   for (int i = 0; i < a.Size(); ++i)
+   {
+      a(i) *= b(i);
+   }
+}
+
 /// performs an elementwise division: `v(i) = v1(i)/v2(i)`
 void divideElementwise(const Vector &v1, const Vector &v2, Vector &v)
 {
@@ -49,3 +59,13 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 }
 
 } // namespace mach
+
+// Vector &Vector::operator*=(Vector c)
+// {
+//    const bool use_dev = UseDevice();
+//    const int N = size;
+//    auto y = ReadWrite(use_dev);
+//    MFEM_FORALL_SWITCH(use_dev, i, N, y[i] *= c(i););
+//    return *this;
+// }
+
