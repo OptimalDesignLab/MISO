@@ -106,6 +106,7 @@ TEMPLATE_TEST_CASE_SIG( "Ismail-Roe Jacobian", "[Ismail]",
    mfem::Vector jac_v(dim+2);  
    mfem::DenseMatrix jacL(dim+2,2*(dim+2));
    mfem::DenseMatrix jacR(dim+2,2*(dim+2));
+   double delta = 1e-5;
    qL(0) = rho;
    qL(dim+1) = rhoe;
    qR(0) = rho2;
@@ -118,7 +119,7 @@ TEMPLATE_TEST_CASE_SIG( "Ismail-Roe Jacobian", "[Ismail]",
    // create perturbation vector
    for(int di=0; di < dim+2; ++di)
    {
-      v(di) = 1e-07* vec_pert[di];
+      v(di) = vec_pert[di];
    }
    // perturbed vectors
    mfem::Vector qL_plus(qL), qL_minus(qL) ;
@@ -126,11 +127,11 @@ TEMPLATE_TEST_CASE_SIG( "Ismail-Roe Jacobian", "[Ismail]",
    adept::Stack diff_stack;
    mach::IsmailRoeIntegrator<dim> ismailinteg(diff_stack);
    // +ve perturbation 
-   qL_plus.Add(1.0, v);
-   qR_plus.Add(1.0, v);
+   qL_plus.Add(delta, v);
+   qR_plus.Add(delta, v);
    // -ve perturbation
-   qL_minus.Add(-1.0, v);
-   qR_minus.Add(-1.0, v);
+   qL_minus.Add(-delta, v);
+   qR_minus.Add(-delta, v);
    for (int di = 0; di < dim; ++di)
    {
        DYNAMIC_SECTION( "Ismail-Roe flux jacismailintegian is correct w.r.t left state ")
@@ -144,7 +145,7 @@ TEMPLATE_TEST_CASE_SIG( "Ismail-Roe Jacobian", "[Ismail]",
          // finite difference jacobian
          mfem::Vector jac_v_fd(flux_plus);
          jac_v_fd -= flux_minus;
-         jac_v_fd /= 2.0;
+         jac_v_fd /= 2.0*delta;
          // difference vector
          mfem::Vector diff(jac_v);
          diff -= jac_v_fd;
@@ -158,12 +159,12 @@ TEMPLATE_TEST_CASE_SIG( "Ismail-Roe Jacobian", "[Ismail]",
          ismailinteg.calcFlux(di, qL, qR_plus,flux_plus);
          ismailinteg.calcFlux(di, qL, qR_minus,flux_minus);
          // compute the jacobian
-         ismailinteg.calcFluxJacStates(di,qL,qR_minus,jacL,jacR);
+         ismailinteg.calcFluxJacStates(di,qL,qR,jacL,jacR);
          jacR.Mult(v,jac_v);
          // finite difference jacobian
          mfem::Vector jac_v_fd(flux_plus);
          jac_v_fd -= flux_minus;
-         jac_v_fd /= 2.0;
+         jac_v_fd /= 2.0*delta;
          // difference vector
          mfem::Vector diff(jac_v);
          diff -= jac_v_fd;
