@@ -258,7 +258,7 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
    #include "euler_test_data.hpp"
 
    // copy the data into mfem vectors for convenience
-   double delta = 1e-5;
+   double delta = 1e-6;
 
    mfem::Vector nrm(dim);
    for (int di = 0; di < dim; ++di)
@@ -283,7 +283,6 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    adept::Stack diff_stack;
-   // mach::SlipWallBC<dim> slip_wall;
 
    const int max_degree = 4;
    for (int p = 1; p <= max_degree; ++p)
@@ -315,7 +314,10 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
          mfem::Vector flux_minus(dim+2);
          slip_wall.calcFlux(x, nrm, q_plus, flux_plus);
          slip_wall.calcFlux(x, nrm, q_minus, flux_minus);
-         jac_v_fd = (flux_plus - flux_minus) / (2*delta);
+
+         // finite difference jacobian
+         subtract(flux_plus, flux_minus, jac_v_fd);
+         jac_v_fd /= 2*delta;
 
          // compare
          for (int i = 0; i < dim+2; ++i)
@@ -349,11 +351,16 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
          mfem::Vector flux_minus(dim+2);
          slip_wall.calcFlux(x, nrm_plus, q, flux_plus);
          slip_wall.calcFlux(x, nrm_plus, q, flux_minus);
-         jac_v_fd = (flux_plus - flux_minus) / (2*delta);
+
+         // finite difference jacobian
+         subtract(flux_plus, flux_minus, jac_v_fd);
+         jac_v_fd /= 2*delta;
 
          // compare
          for (int i = 0; i < dim; ++i)
          {
+            std::cout << "jac_v_ad = " << jac_v_ad(i) << std::endl;
+            std::cout << "jac_v_fd = " << jac_v_fd(i) << std::endl;
             REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)) );
          }
       }
