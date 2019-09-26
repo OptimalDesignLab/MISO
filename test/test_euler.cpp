@@ -264,8 +264,6 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
    // copy the data into mfem vectors for convenience
    double delta = 1e-5;
    mfem::Vector q(dim+2);
-   mfem::Vector q_plus(q);
-   mfem::Vector q_minus(q);
    mfem::Vector nrm(dim);
    for (int di = 0; di < dim; ++di)
    {
@@ -279,7 +277,8 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
    {
       q(di+1) = rhou[di];
    }
-   
+   mfem::Vector q_plus(q);
+   mfem::Vector q_minus(q);
    // dummy const vector x for calcFlux - unused
    const mfem::Vector x = nrm;
 
