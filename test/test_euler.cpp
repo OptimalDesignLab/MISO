@@ -7,6 +7,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
                         ((int dim),dim), 1, 2, 3 )
 {
    #include "euler_test_data.hpp"
+   double delta = 1e-5;
    mfem::Vector q(dim+2);
    mfem::Vector flux(dim+2);
    mfem::Vector nrm(dim);
@@ -26,7 +27,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
       mfem::Vector v(dim+2);
       for(int i=0; i<dim+2;i++)
       {
-         v[i] = 1e-5 * vec_pert[i];
+         v[i] = vec_pert[i];
       }
       // Create some intermediate variables
       mfem::Vector q_plus(q), q_minus(q);
@@ -39,21 +40,23 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
       flux_jac.Mult(v, jac_v);
 
       // calculate the plus and minus fluxes
-      q_plus.Add(1.0, v);
-      q_minus.Add(-1.0, v);
+      q_plus.Add(delta, v);
+      q_minus.Add(-delta, v);
       eulerinteg.calcFlux(nrm, q_plus, flux_plus);
       eulerinteg.calcFlux(nrm, q_minus, flux_minus);
 
       // compare the difference
       mfem::Vector jac_v_fd(flux_plus);
       jac_v_fd -= flux_minus;
-      jac_v_fd /= 2.0;
+      jac_v_fd /= (2.0*delta);
       mfem::Vector diff(jac_v);
       diff -= jac_v_fd;
-      // REQUIRE( jac_v[1] == Approx(jac_v_fd[1]) );
-      // REQUIRE( jac_v[2] == Approx(jac_v_fd[2]) );
-      // REQUIRE( jac_v[3] == Approx(jac_v_fd[3]) );
-      REQUIRE( diff.Norml2() == Approx(0.0).margin(abs_tol) ); 
+      REQUIRE( jac_v[1] == Approx(jac_v_fd[1]) );
+      REQUIRE( jac_v[2] == Approx(jac_v_fd[2]) );
+      REQUIRE( jac_v[3] == Approx(jac_v_fd[3]) );
+      REQUIRE( jac_v[4] == Approx(jac_v_fd[4]) );
+      REQUIRE( jac_v[5] == Approx(jac_v_fd[5]) );
+      //REQUIRE( diff.Norml2() == Approx(0.0).margin(abs_tol) ); 
    }
 
    SECTION(" Euler flux jacobian w.r.t direction is correct")
@@ -62,7 +65,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
       mfem::Vector v(dim);
       for(int i=0; i<dim;i++)
       {
-         v[i] = 1e-5*vec_pert[i];
+         v[i] = vec_pert[i];
       }
       // Create the intermediate variables
       mfem::Vector nrm_plus(nrm), nrm_minus(nrm);
@@ -73,21 +76,21 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
       eulerinteg.calcFluxJacDir(nrm, q, flux_jac);
       flux_jac.Mult(v, jac_v);
 
-      nrm_plus.Add(1.0,v);
-      nrm_minus.Add(-1.0,v);
+      nrm_plus.Add(delta,v);
+      nrm_minus.Add(-delta,v);
       eulerinteg.calcFlux(nrm_plus, q, flux_plus);
       eulerinteg.calcFlux(nrm_minus, q, flux_minus);
 
       // compare the difference
       mfem::Vector jac_v_fd(flux_plus);
       jac_v_fd -= flux_minus;
-      jac_v_fd /= 2.0;
+      jac_v_fd /= (2.0*delta);
       mfem::Vector diff(jac_v);
       diff -= jac_v_fd;
-      // REQUIRE( jac_v[1] == Approx(jac_v_fd[1]) );
-      // REQUIRE( jac_v[2] == Approx(jac_v_fd[2]) );
-      // REQUIRE( jac_v[3] == Approx(jac_v_fd[3]) );
-      REQUIRE( diff.Norml2() == Approx(0.0).margin(abs_tol) ); 
+      REQUIRE( jac_v[1] == Approx(jac_v_fd[1]) );
+      REQUIRE( jac_v[2] == Approx(jac_v_fd[2]) );
+      REQUIRE( jac_v[3] == Approx(jac_v_fd[3]) );
+      //REQUIRE( diff.Norml2() == Approx(0.0).margin(abs_tol) ); 
    }
 
 }
