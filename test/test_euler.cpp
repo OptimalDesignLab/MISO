@@ -227,34 +227,27 @@ TEMPLATE_TEST_CASE_SIG( "Spectral Radius", "[Spectral]",
    {
       // create the perturbation vector
       mfem::Vector v(dim);
-	   for (int i = 0; i < dim; i++)
+	   for (int i = 0; i < dim+2; i++)
       {
-	      v(i) = 1e-5*vec_pert[i];
-         // +v perturbation
-         nrm_r(i) = nrm(i) + v(i);
-         // -v perturbation
-         nrm_l(i) = nrm(i) - v(i);
+	      v(i) = vec_pert[i];
       }
+      q_plus.Add(delta, v);
+      q_minus.Add(-delta, v);
 
-	   // create intermediate variables
-      mfem::Vector diff;
+	   // get derivative information from AD functions and form product
 	   mfem::DenseMatrix Jac_ad(1, dim);
 	   mfem::Vector Jac_v_ad(1);
-	   mfem::Vector Jac_v_fd(1);
-      mfem::Vector d_v_prod(dim);
-
-	   // get derivative information from AD functions
-	   ob.calcSpectralRadiusJacDir(dir, nrm, Jac_ad);
-
+	   lps_integ.calcSpectralRadiusJacDir(nrm, q, Jac_ad);
 	   Jac_ad.Mult(v, Jac_v_ad);
    
 	   // FD approximation
-	   Jac_v_fd = (ob.calcSpectralRadius(nrm_r, q) -
-		 		      ob.calcSpectralRadius(nrm_l, q))/
-				      (2*1e-05);
+	   mfem::Vector Jac_v_fd(1);
+	   Jac_v_fd = (ob.calcSpectralRadius(nrm, q_plus) -
+		 		      ob.calcSpectralRadius(nrm, q_minus))/
+				      (2*delta);
 
-      diff = Jac_v_ad(0) - Jac_v_fd(0);
-	   REQUIRE( diff.Norml2() == Approx(0.0).margin(abs_tol) );
+      double diff = Jac_v_ad(0) - Jac_v_fd(0);
+	   REQUIRE( abs(diff) == Approx(0.0).margin(abs_tol) );
    }
 
 }
