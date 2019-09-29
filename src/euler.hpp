@@ -151,7 +151,7 @@ public:
 
    /// Computes the Jacobian of the spectral radius w.r.t. 'q'
    /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - state variables at which to evaluate the spectral radius
+   /// \param[in] q - state variables at which to evaluate the spectral radius 
    /// Jacobian of `spectral radius` w.r.t. `q`
    void calcSpectralRadiusJacState(const mfem::Vector &dir,
                              	 const mfem::Vector &q,
