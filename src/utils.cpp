@@ -60,12 +60,3 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 
 } // namespace mach
 
-// Vector &Vector::operator*=(Vector c)
-// {
-//    const bool use_dev = UseDevice();
-//    const int N = size;
-//    auto y = ReadWrite(use_dev);
-//    MFEM_FORALL_SWITCH(use_dev, i, N, y[i] *= c(i););
-//    return *this;
-// }
-
