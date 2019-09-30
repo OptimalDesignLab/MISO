@@ -93,6 +93,13 @@ public:
    void multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
                          bool trans = false) const;
 
+   /// Returns the `(i,j)`th entry of the weak derivative in direction `di`
+   /// \param[in] di - desired reference space direction of operator entry
+   /// \param[in] i - row index
+   /// \param[in] j - column index
+   /// \returns \f$ (Q_{di})_{i,j} \f$ in reference space
+   double getQ(int di, int i, int j) const;
+
    /// `(i,j)`th entry of skew-symmetric matrix \f$ S_{di} \f$ in physical space
    /// \param[in] di - desired physical space coordinate direction
    /// \param[in] i - row index for \f$ S_{di} \f$

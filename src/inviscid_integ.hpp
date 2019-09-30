@@ -36,10 +36,16 @@ public:
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
-   // virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-   //                                  mfem::ElementTransformation &Ttr,
-   //                                  const mfem::Vector &elfun,
-   //                                  mfem::DenseMatrix &elmat);
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
+   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+                                    mfem::ElementTransformation &Trans,
+                                    const mfem::Vector &elfun,
+                                    mfem::DenseMatrix &elmat);
+
 protected:
    /// number of states
    int num_states;
@@ -58,6 +64,8 @@ protected:
    mfem::Vector fluxi;
    /// used to store the adjugate of the mapping Jacobian at node i
    mfem::DenseMatrix adjJ_i;
+   /// used to store the flux Jacobian at node i
+   mfem::DenseMatrix flux_jaci;
    /// used to store the flux at each node
    mfem::DenseMatrix elflux;
    /// used to store the residual in (num_states, Dof) format
