@@ -258,15 +258,13 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
    #include "euler_test_data.hpp"
 
    // copy the data into mfem vectors for convenience
-   double delta = 1e-6;
+   double delta = 1e-5;
 
    mfem::Vector nrm(dim);
    for (int di = 0; di < dim; ++di)
    {
       nrm(di) = dir[di];
    }
-   mfem::Vector nrm_plus(nrm);
-   mfem::Vector nrm_minus(nrm);
 
    mfem::Vector q(dim+2);
    q(0) = rho;
@@ -275,8 +273,7 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
    {
       q(di+1) = rhou[di];
    }
-   mfem::Vector q_plus(q);
-   mfem::Vector q_minus(q);
+   
    // dummy const vector x for calcFlux - unused
    const mfem::Vector x(nrm);
 
@@ -299,8 +296,6 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
          {
             v(i) = vec_pert[i];
          }
-         q_plus.Add(delta, v);
-         q_minus.Add(-delta, v);
 
          // get derivative information from AD functions and form product
          mfem::DenseMatrix jac_ad(dim+2, dim+2);
@@ -309,22 +304,25 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
          jac_ad.Mult(v, jac_v_ad);
       
          // FD approximation
-         mfem::Vector jac_v_fd(dim+2);
+         mfem::Vector q_plus(q);
+         mfem::Vector q_minus(q);
+         q_plus.Add(delta, v);
+         q_minus.Add(-delta, v);
+
          mfem::Vector flux_plus(dim+2);
          mfem::Vector flux_minus(dim+2);
          slip_wall.calcFlux(x, nrm, q_plus, flux_plus);
          slip_wall.calcFlux(x, nrm, q_minus, flux_minus);
 
          // finite difference jacobian
+         mfem::Vector jac_v_fd(dim+2);
          subtract(flux_plus, flux_minus, jac_v_fd);
          jac_v_fd /= 2*delta;
 
          // compare
          for (int i = 0; i < dim+2; ++i)
          {
-            std::cout << "jac_v_ad = " << jac_v_ad(i) << std::endl;
-            std::cout << "jac_v_fd = " << jac_v_fd(i) << std::endl;
-            REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)) );
+            REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12) );
          }
       }
 
@@ -336,8 +334,6 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
          {
             v(i) = vec_pert[i];
          }
-         nrm_plus.Add(delta, v);
-         nrm_minus.Add(-delta, v);
 
          // get derivative information from AD functions and form product
          mfem::DenseMatrix jac_ad(dim+2, dim);
@@ -346,22 +342,25 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
          jac_ad.Mult(v, jac_v_ad);
       
          // FD approximation
-         mfem::Vector jac_v_fd(dim+2);
+         mfem::Vector nrm_plus(nrm);
+         mfem::Vector nrm_minus(nrm);
+         nrm_plus.Add(delta, v);
+         nrm_minus.Add(-delta, v);
+         
          mfem::Vector flux_plus(dim+2);
          mfem::Vector flux_minus(dim+2);
          slip_wall.calcFlux(x, nrm_plus, q, flux_plus);
-         slip_wall.calcFlux(x, nrm_plus, q, flux_minus);
+         slip_wall.calcFlux(x, nrm_minus, q, flux_minus);
 
          // finite difference jacobian
+         mfem::Vector jac_v_fd(dim+2);
          subtract(flux_plus, flux_minus, jac_v_fd);
          jac_v_fd /= 2*delta;
 
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            std::cout << "jac_v_ad = " << jac_v_ad(i) << std::endl;
-            std::cout << "jac_v_fd = " << jac_v_fd(i) << std::endl;
-            REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)) );
+            REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12) );
          }
       }
    }
