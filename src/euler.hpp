@@ -151,6 +151,7 @@ public:
    /// \param[in] vec - vector that is being multiplied
    /// \param[out] mat_vec_jac - Jacobian of product w.r.t. `adjJ`
    /// \note `mat_vec_jac` stores derivatives treating `adjJ` is a 1d array.
+   /// \note The size of `mat_vec_jac` must be set before calling this function
    void applyScalingJacAdjJ(const mfem::DenseMatrix &adjJ,
                             const mfem::Vector &q,
                             const mfem::Vector &vec,
