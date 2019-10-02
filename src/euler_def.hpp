@@ -198,18 +198,18 @@ void EntStableLPSIntegrator<dim>::spectralRadiusJacDir(const mfem::Vector &dir,
 
 template <int dim>
 void EntStableLPSIntegrator<dim>::applyScalingJacState(
-                                                const mfem::DenseMatrix &adjJ,
-                                                const mfem::Vector &q,
-                                                const mfem::Vector &vec,
-                                                mfem::DenseMatrix &mat_vec_jac)
+                                         const mfem::DenseMatrix &adjJ,
+                                         const mfem::Vector &q,
+                                         const mfem::Vector &vec,
+                                         mfem::DenseMatrix &mat_vec_jac)
 {
    // declare vectors of active input variables
-   std::vector<adouble> adjJ_a;
-   std::vector<adouble> q_a;
-   std::vector<adouble> vec_a;
-   int adjJ_size = adjJ.Size();
+	int adjJ_a_size = adjJ.Height() * adjJ.Width();
+   std::vector<adouble> adjJ_a(adjJ_a_size);
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> vec_a(vec.Size());
    // copy data from mfem::Vector
-   adept::set_values(adjJ_a.data(), adjJ_size * adjJ_size, adjJ.GetData());
+   adept::set_values(adjJ_a.data(), adjJ_a_size, adjJ.GetData());
    adept::set_values(q_a.data(), q.Size(), q.GetData());
    adept::set_values(vec_a.data(), vec.Size(), vec.GetData());
    // start recording
