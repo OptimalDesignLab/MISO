@@ -52,7 +52,6 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
    return value;
 }
 
-
 double ReluctivityCoefficient::Eval(ElementTransformation &trans,
 												const IntegrationPoint &ip)
 {
@@ -71,5 +70,11 @@ double ReluctivityCoefficient::Eval(ElementTransformation &trans,
    }
 }
 
+double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
+												          const IntegrationPoint &ip)
+{
+   mfem_error("Not yet implemented!");
+   return 0.0;
+}
 
 } // namespace mach

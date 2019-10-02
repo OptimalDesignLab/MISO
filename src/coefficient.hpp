@@ -31,7 +31,7 @@ public:
 	MeshDependentCoefficient()
 	{
 		// initialize empty material_map
-		material_map = {};
+		// material_map = {};
 
 		// // create `hasEvalStateDeriv` anonymous function
 		// const mfem::ElementTransformation &trans = mfem::IsoparametricTransformation();
@@ -55,7 +55,7 @@ public:
 	///					 one to evaluate on elements identified by the attribute
 	virtual void addCoefficient(std::pair<const int, mfem::Coefficient*> coeff)
 	{
-		std::pair <std::map<const int, mfem::Coefficient*>::iterator, bool> status; 
+		std::pair <std::map<const int, mfem::Coefficient*>::iterator, bool> status;
 		status = material_map.insert(coeff);
 		// if the pair failed to insert
 		if (!status.second)
@@ -127,8 +127,12 @@ protected:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-	template <class T, typename std::enable_if<std::is_base_of<ExplictStateDependentCoefficient, T>::value, int>::type= 0>
-	inline double EvalStateDeriv(T *coeff, mfem::ElementTransformation &trans, const mfem::IntegrationPoint &ip)
+	template <class T, typename 
+				 std::enable_if<std::is_base_of<ExplictStateDependentCoefficient,
+				 T>::value, int>::type= 0>
+	inline double EvalStateDeriv(T *coeff, 
+										  mfem::ElementTransformation &trans,
+										  const mfem::IntegrationPoint &ip)
 	{  
 		return coeff->EvalStateDeriv(trans, ip);
 	}
@@ -149,8 +153,12 @@ protected:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-	template <class T, typename std::enable_if<!std::is_base_of<ExplictStateDependentCoefficient, T>::value, int>::type = 0>
-	inline double EvalStateDeriv(T *coeff, mfem::ElementTransformation &trans, const mfem::IntegrationPoint &ip)	
+	template <class T, typename 
+				 std::enable_if<!std::is_base_of<ExplictStateDependentCoefficient,
+				 T>::value, int>::type = 0>
+	inline double EvalStateDeriv(T *coeff,
+										  mfem::ElementTransformation &trans,
+										  const mfem::IntegrationPoint &ip)	
 	{
 		return 0.0;
 	}
