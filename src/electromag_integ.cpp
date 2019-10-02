@@ -74,7 +74,8 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       curlshape_dFt.AddMult(b_vec, elvect);
 
       double model_val = 0.0;
-      model->Eval(trans, b_vec.Norml2(), model_val);
+      // model->Eval(trans, b_vec.Norml2(), model_val);
+      model_val = model->Eval(trans, ip);
       model_val *= w;
       elvect *= model_val;   
    }
@@ -155,7 +156,8 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
 
       /// evaluate material model with norm of b_vec
       double model_val = 0.0;
-      model->Eval(trans, b_vec.Norml2(), model_val);
+      // model->Eval(trans, b_vec.Norml2(), model_val);
+      model_val = model->Eval(trans, ip);
 
       /// multiply material value by integration weight
       model_val *= w;
@@ -175,10 +177,16 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
 
       // evaluate derivative of material model with norm of b_vec
       double model_deriv = 0.0;
-      model->EvalDerivState(trans, b_vec.Norml2(), model_deriv);
+      // model->EvalDerivState(trans, b_vec.Norml2(), model_deriv);
+      model_deriv = model->EvalStateDeriv(trans, ip);
 
       // scale derivative by weight and devide by norm of b_vec
       model_deriv *= w;
+
+      // TODO - make sure this is how I want to implement this. I could alternatively
+      //        have `EvalStateDeriv()` return the derivative with respect to the
+      //        actual state (A) instead of the norm of B, which would make this 
+      //        unnessecary
       model_deriv /= b_vec.Norml2();
 
       // add second term to elmat
