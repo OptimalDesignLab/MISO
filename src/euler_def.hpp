@@ -197,7 +197,8 @@ void EntStableLPSIntegrator<dim>::spectralRadiusJacDir(const mfem::Vector &dir,
 }
 
 template <int dim>
-void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
+                                                      mfem::DenseMatrix &dwdu)
 {
    // vector of active input variables
    std::vector<adouble> q_a(q.Size());
@@ -206,12 +207,12 @@ void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q, mfe
    // start recording
    this->stack.new_recording();
    // create vector of active output variables
-   std::vector<adouble> dwdu_a(q.Size());
+   std::vector<adouble> w_a(q.Size());
    // run algorithm
-   calcEntropyVars<double,dim>(q_a.data(), dwdu_a.data());
+   calcEntropyVars<adouble,dim>(q_a.data(), w_a.data());
    // identify independent and dependent variables
    this->stack.independent(q_a.data(), q.Size());
-   this->stack.dependent(dwdu_a.data(), q.Size());
+   this->stack.dependent(w_a.data(), q.Size());
    // compute and store jacobian in dwdu
    this->stack.jacobian(dwdu.GetData());
 }
