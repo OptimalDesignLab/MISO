@@ -416,5 +416,9 @@ TEMPLATE_TEST_CASE_SIG( "Entropy variables Jacobian", "[lps integrator]",
         REQUIRE(dwdu_v[i] == Approx(dwdu_v_fd[i]));
       }
    }
+
+   SECTION( "Apply scaling jacobian w.r.t state is correct" )
+   {
+   }
 }
 
