@@ -372,6 +372,7 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
 
 TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 {
+   using namespace mfem;
    using namespace euler_data;
 
    const int dim = 2;  // templating is hard here because mesh constructors
@@ -381,39 +382,37 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
    // generate a 2 element mesh
    int num_edge = 1;
-   std::unique_ptr<mfem::Mesh> mesh(new mfem::Mesh(num_edge, num_edge,
-                                    mfem::Element::TRIANGLE,
-                                    true /* gen. edges */,
-                                    1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
+                              true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
-         std::unique_ptr<mfem::FiniteElementCollection> fec(
-            new mfem::SBPCollection(p, dim));
-         std::unique_ptr<mfem::FiniteElementSpace> fes(
-            new mfem::FiniteElementSpace(mesh.get(), fec.get(), num_state,
-                                         mfem::Ordering::byVDIM));                            
-         mfem::NonlinearForm res(fes.get());
+         std::unique_ptr<FiniteElementCollection> fec(
+            new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+                         
+         NonlinearForm res(fes.get());
          res.AddDomainIntegrator(new mach::EulerIntegrator<2>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
-         mfem::GridFunction q(fes.get());
-         mfem::VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
-         mfem::GridFunction v(fes.get());
-         mfem::VectorFunctionCoefficient v_rand(num_state, randState);
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
-         mfem::Operator& Jac = res.GetGradient(q);
-         mfem::GridFunction jac_v(fes.get());
+         Operator& Jac = res.GetGradient(q);
+         GridFunction jac_v(fes.get());
          Jac.Mult(v, jac_v);
 
          // now compute the finite-difference approximation...
-         mfem::GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
          q_pert.Add(-delta, v);
          res.Mult(q_pert, r);
          q_pert.Add(2*delta, v);
@@ -423,7 +422,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-7) );
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)) );
          }
       }
    }
