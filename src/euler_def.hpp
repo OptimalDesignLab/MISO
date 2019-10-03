@@ -197,7 +197,6 @@ void EntStableLPSIntegrator<dim>::spectralRadiusJacDir(const mfem::Vector &dir,
 }
 
 template <int dim>
-<<<<<<< HEAD
 void EntStableLPSIntegrator<dim>::applyScalingJacState(
                                          const mfem::DenseMatrix &adjJ,
                                          const mfem::Vector &q,
@@ -225,7 +224,6 @@ void EntStableLPSIntegrator<dim>::applyScalingJacState(
    // Calculate the jabobian
    this->stack.jacobian(mat_vec_jac.GetData());
 }
-=======
 void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
                                                       mfem::DenseMatrix &dwdu)
 {
@@ -245,4 +243,3 @@ void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
    // compute and store jacobian in dwdu
    this->stack.jacobian(dwdu.GetData());
 }
->>>>>>> 0a30af209eeb2a74c89ecc6dea7580183bc35195
