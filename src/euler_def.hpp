@@ -224,6 +224,8 @@ void EntStableLPSIntegrator<dim>::applyScalingJacState(
    // Calculate the jabobian
    this->stack.jacobian(mat_vec_jac.GetData());
 }
+
+template <int dim>
 void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
                                                       mfem::DenseMatrix &dwdu)
 {
