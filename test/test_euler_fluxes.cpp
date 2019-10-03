@@ -1,12 +1,11 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 #include "euler.hpp"
-
-//#include "euler_test_data.hpp"
+#include "euler_test_data.hpp"
 
 TEST_CASE( "Log-average is correct", "[log-avg]")
 {
-   #include "euler_test_data.hpp"
+   using namespace euler_data;
    REQUIRE( mach::logavg(rho, rho) == Approx(rho) );
    REQUIRE( mach::logavg(rho, 2.0*rho) == Approx(1.422001977589051) );
 }
@@ -14,7 +13,7 @@ TEST_CASE( "Log-average is correct", "[log-avg]")
 TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[euler]",
                         ((int dim), dim), 1, 2, 3 )
 {
-   #include "euler_test_data.hpp"
+   using namespace euler_data;
    // copy the data into mfem vectors for convenience 
    mfem::Vector q(dim+2);
    mfem::Vector qR(dim+2);
@@ -164,7 +163,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 
 TEST_CASE( "calcBoundaryFlux is correct", "[bndry-flux]")
 {
-   #include "euler_test_data.hpp"
+   using namespace euler_data;
    // copy the data into mfem vectors
    mfem::Vector q(4);
    mfem::Vector flux(4);
@@ -191,7 +190,7 @@ TEST_CASE( "calcBoundaryFlux is correct", "[bndry-flux]")
 
 TEST_CASE( "calcIsentropicVortexFlux is correct", "[vortex-flux]")
 {
-   #include "euler_test_data.hpp"
+   using namespace euler_data;
    // copy the data into mfem vectors for convenience 
    mfem::Vector q(4);
    mfem::Vector flux(4);

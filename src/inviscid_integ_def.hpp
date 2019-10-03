@@ -57,11 +57,12 @@ void InviscidIntegrator<Derived>::AssembleElementGrad(
    DenseMatrix adjJ_i, flux_jaci;
 #endif
    elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
    ui.SetSize(num_states);
    adjJ_i.SetSize(dim);
    dxidx.SetSize(dim);
+   flux_jaci.SetSize(num_states);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-   
    for (int di = 0; di < dim; ++di)
    {  
       for (int i = 0; i < num_nodes; ++i)
@@ -76,8 +77,8 @@ void InviscidIntegrator<Derived>::AssembleElementGrad(
          // loop over rows j for contribution (Q^T)_{i,j} * Jac_i
          for (int j = 0; j < num_nodes; ++j)
          {
-            // get the entry of (Q^T)_{i,j} = Q_{j,i}
-            double Q = alpha*sbp.getQ(di, j, i);
+            // get the entry of (Q^T)_{j,i} = Q_{i,j}
+            double Q = alpha*sbp.getQ(di, i, j);
             for (int n = 0; n < dim+2; ++n)
             {
                for (int m = 0; m < dim+2; ++m)
