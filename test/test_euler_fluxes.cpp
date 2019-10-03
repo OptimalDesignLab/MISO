@@ -10,8 +10,8 @@ TEST_CASE( "Log-average is correct", "[log-avg]")
    REQUIRE( mach::logavg(rho, 2.0*rho) == Approx(1.422001977589051) );
 }
 
-TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[euler]",
-                        ((int dim), dim), 1, 2, 3 )
+TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
+                       "[euler]", ((int dim), dim), 1, 2, 3)
 {
    using namespace euler_data;
    // copy the data into mfem vectors for convenience 
@@ -39,8 +39,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 
    SECTION( "Spectral radius of flux Jacobian is correct" )
    {
-      REQUIRE( mach::calcSpectralRadius<double,dim>(nrm.GetData(), q.GetData()) ==
-               Approx(spect_check[dim-1]) );
+      REQUIRE(mach::calcSpectralRadius<double, dim>(nrm.GetData(), q.GetData()) == Approx(spect_check[dim - 1]));
    }
 
    SECTION( "Euler flux is correct" )
@@ -86,8 +85,8 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 
    SECTION( "Entropy variables are correct" )
    {
-      // Load the data to test the entropy variables; the pointer arithmetic in the 
-      // following constructor is to find the appropriate offset
+      // Load the data to test the entropy variables; the pointer arithmetic in
+      // the following constructor is to find the appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector entvar_vec(entvar_check + offset, dim + 2);
       mach::calcEntropyVars<double,dim>(q.GetData(), qR.GetData());
@@ -99,11 +98,12 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 
    SECTION( "dQ/dW * vec product is correct" )
    {
-      // Load the data to test the dQ/dW * vec product; the pointer arithmetic in the 
-      // following constructor is to find the appropriate offset
+      // Load the data to test the dQ/dW * vec product; the pointer arithmetic
+      // in the following constructor is to find the appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector dqdw_prod(dqdw_prod_check + offset, dim+2);
-      mach::calcdQdWProduct<double,dim>(q.GetData(), qR.GetData(), flux.GetData());
+      mach::calcdQdWProduct<double, dim>(q.GetData(), qR.GetData(),
+                                         flux.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
          REQUIRE( flux(i) == Approx(dqdw_prod(i)) );
@@ -143,8 +143,9 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux functions, etc, produce correct values", "[e
 
    SECTION( "calcSlipWallFlux is correct" )
    {
-      // As above with projectStateOntoWall, the wall normal is set proportional to the momentum,
-      // so the flux will be zero, except for the term flux[1:dim] = pressure*dir[0:dim-1]
+      // As above with projectStateOntoWall, the wall normal is set
+      // proportional to the momentum, so the flux will be zero, except for the
+      // term flux[1:dim] = pressure*dir[0:dim-1]
       mfem::Vector x(dim);
       mach::calcSlipWallFlux<double,dim>(x.GetData(), q.GetData()+1,
                                          q.GetData(), flux.GetData());

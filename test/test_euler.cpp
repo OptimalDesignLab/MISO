@@ -9,7 +9,6 @@
 TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
                         ((int dim),dim), 1, 2, 3 )
 {
-   //#include "euler_test_data.hpp"
    using namespace euler_data;
    double delta = 1e-5;
    mfem::Vector q(dim+2);
@@ -181,7 +180,6 @@ TEMPLATE_TEST_CASE_SIG( "Spectral Radius", "[Spectral]",
                         ((int dim), dim), 1, 2, 3 )
 {
    using namespace euler_data;
-
    // copy the data into mfem vectors for convenience
    double delta = 1e-5;
    mfem::Vector q(dim+2);
@@ -260,16 +258,13 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
                         ((int dim), dim), 2 )
 {
    using namespace euler_data;
-
    // copy the data into mfem vectors for convenience
    double delta = 1e-5;
-
    mfem::Vector nrm(dim);
    for (int di = 0; di < dim; ++di)
    {
       nrm(di) = dir[di];
    }
-
    mfem::Vector q(dim+2);
    q(0) = rho;
    q(dim+1) = rhoe;
@@ -367,6 +362,62 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
             REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12) );
          }
       }
+   }
+}
+
+TEMPLATE_TEST_CASE_SIG( "Entropy variables Jacobian", "[lps integrator]",
+                        ((int dim), dim), 1, 2, 3 )
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   mfem::Vector q(dim + 2);
+   mfem::Vector w(dim + 2);
+   mfem::Vector w_plus(dim + 2);
+   mfem::Vector w_minus(dim + 2);
+   mfem::Vector v(dim + 2);
+   mfem::Vector dwdu_v(dim + 2);
+   mfem::DenseMatrix dwdu(dim + 2);
+   double delta = 1e-5;
+   q(0) = rho;
+   q(dim + 1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di + 1) = rhou[di];
+   }
+   // create perturbation vector
+   for (int di = 0; di < dim + 2; ++di)
+   {
+      v(di) = vec_pert[di];
+   }
+   // perturbed vectors
+   mfem::Vector q_plus(q), q_minus(q);
+   adept::Stack diff_stack;
+   mach::EntStableLPSIntegrator<dim> lpsinteg(diff_stack);
+   // +ve perturbation
+   q_plus.Add(delta, v);
+    // -ve perturbation
+   q_minus.Add(-delta, v);  
+   SECTION( "Entropy variables Jacobian is correct" )
+   {
+      // get perturbed states entropy variables vector
+      lpsinteg.convertVars(q_plus, w_plus);
+      lpsinteg.convertVars(q_minus, w_minus);
+      // compute the jacobian
+      lpsinteg.convertVarsJacState(q, dwdu);
+      dwdu.Mult(v, dwdu_v);
+      // finite difference jacobian
+      mfem::Vector dwdu_v_fd(w_plus);
+      dwdu_v_fd -= w_minus;
+      dwdu_v_fd /= 2.0 * delta;
+      // compare each component of the matrix-vector products
+      for (int i = 0; i < dim + 2; ++i)
+      {
+        REQUIRE(dwdu_v[i] == Approx(dwdu_v_fd[i]));
+      }
+   }
+
+   SECTION( "Apply scaling jacobian w.r.t state is correct" )
+   {
    }
 }
 

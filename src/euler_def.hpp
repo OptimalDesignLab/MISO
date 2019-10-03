@@ -130,6 +130,31 @@ void SlipWallBC<dim>::calcFluxJacDir(const mfem::Vector &x,
 }
 
 template <int dim>
+void EntStableLPSIntegrator<dim>::applyScalingJacAdjJ(
+    const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
+    const mfem::Vector &vec, mfem::DenseMatrix &mat_vec_jac)
+{
+   // create containers for active double objects
+   std::vector<adouble> adjJ_a(adjJ.Height()*adjJ.Width());
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> vec_a(vec.Size());
+   // initialize active double containers with input data
+   adept::set_values(adjJ_a.data(), adjJ.Height()*adjJ.Width(),
+                     adjJ.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(vec_a.data(), vec.Size(), vec.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double mat_vec output
+   std::vector<adouble> mat_vec_a(q.Size());
+   applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
+                                       mat_vec_a.data());
+   this->stack.independent(adjJ_a.data(), adjJ.Height()*adjJ.Width());
+   this->stack.dependent(mat_vec_a.data(), q.Size());
+   this->stack.jacobian(mat_vec_jac.GetData()); 
+}
+
+template <int dim>
 void EntStableLPSIntegrator<dim>::spectralRadiusJacState(
     const mfem::Vector &dir,
     const mfem::Vector &q,
@@ -168,4 +193,52 @@ void EntStableLPSIntegrator<dim>::spectralRadiusJacDir(const mfem::Vector &dir,
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(sr);
    this->stack.jacobian(Jac.GetData());
+}
+
+template <int dim>
+void EntStableLPSIntegrator<dim>::applyScalingJacState(
+    const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
+    const mfem::Vector &vec, mfem::DenseMatrix &mat_vec_jac)
+{
+   // declare vectors of active input variables
+	int adjJ_a_size = adjJ.Height() * adjJ.Width();
+   std::vector<adouble> adjJ_a(adjJ_a_size);
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> vec_a(vec.Size());
+   // copy data from mfem::Vector
+   adept::set_values(adjJ_a.data(), adjJ_a_size, adjJ.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(vec_a.data(), vec.Size(), vec.GetData());
+   // start recording
+   this->stack.new_recording();
+   // the dependent variable must be declared after the recording
+   std::vector<adouble> mat_vec_a;
+   mach::applyLPSScaling<adouble,dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
+                                      mat_vec_a.data());
+   // set the independent and dependent variable
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(mat_vec_a.data(), q.Size());
+   // Calculate the jabobian
+   this->stack.jacobian(mat_vec_jac.GetData());
+}
+
+template <int dim>
+void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
+                                                      mfem::DenseMatrix &dwdu)
+{
+   // vector of active input variables
+   std::vector<adouble> q_a(q.Size());
+   // initialize adouble inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> w_a(q.Size());
+   // run algorithm
+   calcEntropyVars<adouble,dim>(q_a.data(), w_a.data());
+   // identify independent and dependent variables
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(w_a.data(), q.Size());
+   // compute and store jacobian in dwdu
+   this->stack.jacobian(dwdu.GetData());
 }

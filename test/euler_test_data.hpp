@@ -28,25 +28,29 @@ const double dir[3] = {0.6541305612927484, -0.0016604759052086802, -0.2176322846
 const double press_check[3] = {0.8227706007961364, 0.8225798733170867, 0.8188974449720051};
 const double spect_check[3] = {0.7708202616595441, 0.7707922224516813, 0.8369733021138251};
 
-// Define the Euler flux values for checking; The first 3 entries are for the 1D flux,
-// the next 4 for the 2D flux, and the last 5 for the 3D flux
+// Define the Euler flux values for checking; The first 3 entries are for the
+// 1D flux, the next 4 for the 2D flux, and the last 5 for the 3D flux
 extern double flux_check[12];
 
-// Define the Ismail-Roe flux values for checking; note that direction dim has dim
-// fluxes to check, each with dim+2 values (so these arrays have dim*(dim+2) entries)
+// Define the Ismail-Roe flux values for checking; note that direction dim has 
+// dim fluxes to check, each with dim+2 values (so these arrays have dim*(dim+2)
+// entries)
 extern double fluxIR_1D_check[3];
 extern double fluxIR_2D_check[8];
 extern double fluxIR_3D_check[15];
 
-// Define the flux returned by calcBoundaryFlux; note, only the 2d version is tested so far
+// Define the flux returned by calcBoundaryFlux; note, only the 2d version is
+// tested so far
 extern const double flux_bnd_check[4];
 
-// Define the entropy variables for checking; The first 3 entries are for the 1D variables,
-// the next 4 for the 2D variables, and the last 5 for the 3D variables
+// Define the entropy variables for checking; The first 3 entries are for the 
+// 1D variables, the next 4 for the 2D variables, and the last 5 for the 3D 
+// variables
 extern double entvar_check[12];
 
 // Define products between dq/dw, evaluated at q, with vector qR.  The first 3
-// entries are for the 1D product, the next 4 for the 2D product, and the last 5 for the 3D
+// entries are for the 1D product, the next 4 for the 2D product, and the last
+// 5 for the 3D
 extern double dqdw_prod_check[12];
 
 // Use this for finite-difference direction-derivative checks
