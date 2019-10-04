@@ -1,8 +1,7 @@
 
 template <typename Derived>
 void InviscidIntegrator<Derived>::AssembleElementVector(
-    const mfem::FiniteElement &el,
-    mfem::ElementTransformation &Trans,
+    const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
     const mfem::Vector &elfun, mfem::Vector &elvect)
 {
    using namespace mfem;
@@ -41,6 +40,55 @@ void InviscidIntegrator<Derived>::AssembleElementVector(
    // This is necessary because data in elvect is expected to be ordered `byNODES`
    res.Transpose(elres);
    res *= alpha;
+}
+
+template <typename Derived>
+void InviscidIntegrator<Derived>::AssembleElementGrad(
+   const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+   const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
+{
+   using namespace mfem;
+   // This should be in a try/catch, but that creates other issues
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector ui, dxidx;
+   DenseMatrix adjJ_i, flux_jaci;
+#endif
+   elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
+   ui.SetSize(num_states);
+   adjJ_i.SetSize(dim);
+   dxidx.SetSize(dim);
+   flux_jaci.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   for (int di = 0; di < dim; ++di)
+   {  
+      for (int i = 0; i < num_nodes; ++i)
+      {
+         // get the flux Jacobian at node i
+         Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+         CalcAdjugate(Trans.Jacobian(), adjJ_i);
+         adjJ_i.GetRow(di, dxidx);
+         u.GetRow(i, ui);
+         fluxJacState(dxidx, ui, flux_jaci);
+
+         // loop over rows j for contribution (Q^T)_{i,j} * Jac_i
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            // get the entry of (Q^T)_{j,i} = Q_{i,j}
+            double Q = alpha*sbp.getQ(di, i, j);
+            for (int n = 0; n < dim+2; ++n)
+            {
+               for (int m = 0; m < dim+2; ++m)
+               {
+                  elmat(m*num_nodes+j, n*num_nodes+i) -= Q*flux_jaci(m,n);
+               }
+            }
+         }
+      }
+   }
 }
 
 template <typename Derived>

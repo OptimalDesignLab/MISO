@@ -112,6 +112,11 @@ void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u, DenseMatri
 
 }
 
+double SBPFiniteElement::getQ(int di, int i, int j) const
+{
+   return Q[di](j,i); // Recall: Q[di] stores the transposed operator
+}
+
 double SBPFiniteElement::getSkewEntry(int di, int i, int j,
                                       const mfem::DenseMatrix &adjJ_i,
                                       const mfem::DenseMatrix &adjJ_j) const 

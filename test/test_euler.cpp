@@ -1,12 +1,15 @@
+#include <random>
+
 #include "catch.hpp"
 #include "mfem.hpp"
 #include "euler_fluxes.hpp"
 #include "euler.hpp"
+#include "euler_test_data.hpp"
 
 TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
                         ((int dim),dim), 1, 2, 3 )
 {
-   #include "euler_test_data.hpp"
+   using namespace euler_data;
    double delta = 1e-5;
    mfem::Vector q(dim+2);
    mfem::Vector flux(dim+2);
@@ -95,7 +98,7 @@ TEMPLATE_TEST_CASE_SIG( "Euler flux jacobian", "[euler_flux_jac]",
 TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
                        ((int dim), dim), 1, 2, 3)
 {
-#include "euler_test_data.hpp"
+   using namespace euler_data;
    // copy the data into mfem vectors for convenience
    mfem::Vector qL(dim + 2);
    mfem::Vector qR(dim + 2);
@@ -176,8 +179,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
 TEMPLATE_TEST_CASE_SIG( "Spectral Radius", "[Spectral]",
                         ((int dim), dim), 1, 2, 3 )
 {
-   #include "euler_test_data.hpp"
-
+   using namespace euler_data;
    // copy the data into mfem vectors for convenience
    double delta = 1e-5;
    mfem::Vector q(dim+2);
@@ -255,17 +257,14 @@ TEMPLATE_TEST_CASE_SIG( "Spectral Radius", "[Spectral]",
 TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
                         ((int dim), dim), 2 )
 {
-   #include "euler_test_data.hpp" 
-
+   using namespace euler_data;
    // copy the data into mfem vectors for convenience
    double delta = 1e-5;
-
    mfem::Vector nrm(dim);
    for (int di = 0; di < dim; ++di)
    {
       nrm(di) = dir[di];
    }
-
    mfem::Vector q(dim+2);
    q(0) = rho;
    q(dim+1) = rhoe;
@@ -369,7 +368,7 @@ TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
 TEMPLATE_TEST_CASE_SIG( "Entropy variables Jacobian", "[lps integrator]",
                         ((int dim), dim), 1, 2, 3 )
 {
-   #include "euler_test_data.hpp" 
+   using namespace euler_data;
    // copy the data into mfem vectors for convenience
    mfem::Vector q(dim + 2);
    mfem::Vector w(dim + 2);
@@ -416,5 +415,66 @@ TEMPLATE_TEST_CASE_SIG( "Entropy variables Jacobian", "[lps integrator]",
         REQUIRE(dwdu_v[i] == Approx(dwdu_v_fd[i]));
       }
    }
+
+   SECTION( "Apply scaling jacobian w.r.t state is correct" )
+   {
+   }
 }
 
+TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
+{
+   using namespace mfem;
+   using namespace euler_data;
+
+   const int dim = 2;  // templating is hard here because mesh constructors
+   int num_state = dim + 2;
+   static adept::Stack diff_stack;
+   double delta = 1e-5;
+
+   // generate a 2 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
+                              true /* gen. edges */, 1.0, 1.0, true));
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+                         
+         NonlinearForm res(fes.get());
+         res.AddDomainIntegrator(new mach::EulerIntegrator<2>(diff_stack));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         q.ProjectCoefficient(pert);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& Jac = res.GetGradient(q);
+         GridFunction jac_v(fes.get());
+         Jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+         q_pert.Add(-delta, v);
+         res.Mult(q_pert, r);
+         q_pert.Add(2*delta, v);
+         res.Mult(q_pert, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)) );
+         }
+      }
+   }
+}
