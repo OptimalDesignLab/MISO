@@ -15,11 +15,17 @@ namespace mach
 class ExplictStateDependentCoefficient : public mfem::Coefficient
 {
 public:
+	virtual double Eval(mfem::ElementTransformation &trans,
+							  const mfem::IntegrationPoint &ip)
+	{
+		return 1.0;
+	}
+	
 	virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
 											const mfem::IntegrationPoint &ip)
 	{
-		mfem::mfem_error("ExplicitStateDependnetCoefficient is a pure abstact"
-								"class.");
+		// mfem::mfem_error("ExplicitStateDependnetCoefficient is a pure abstact"
+								// "class.");
 		return 0.0;
 	}
 };
