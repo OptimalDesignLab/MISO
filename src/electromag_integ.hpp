@@ -76,7 +76,7 @@ public:
 	/// Construct a curl curl nonlinear form integrator for Nedelec elements
    /// \param[in] diff_stack - for algorithmic differentiation
 	/// \param[in] m - model describing nonlinear material parameter
-   CurlCurlNLFIntegrator(ExplictStateDependentCoefficient *m,
+   CurlCurlNLFIntegrator(ExplicitStateDependentCoefficient *m,
 								 double a = 1.0) 
 		: model(m), alpha(a) {}
 
@@ -102,7 +102,7 @@ public:
 
 private:
 	/// material (thus mesh) dependent model describing electromagnetic behavior
-	ExplictStateDependentCoefficient *model;
+	ExplicitStateDependentCoefficient *model;
    /// scales the terms; can be used to move to rhs/lhs
 	double alpha;
 

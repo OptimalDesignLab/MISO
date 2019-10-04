@@ -12,26 +12,18 @@ namespace mach
 {
 
 /// TODO - replace mfem_error with mach_error type
-class ExplictStateDependentCoefficient : public mfem::Coefficient
+class ExplicitStateDependentCoefficient : public mfem::Coefficient
 {
 public:
-	virtual double Eval(mfem::ElementTransformation &trans,
-							  const mfem::IntegrationPoint &ip)
-	{
-		return 1.0;
-	}
-	
+	// virtual double Eval(mfem::ElementTransformation &trans,
+	// 						  const mfem::IntegrationPoint &ip) = 0;
+
 	virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
-											const mfem::IntegrationPoint &ip)
-	{
-		// mfem::mfem_error("ExplicitStateDependnetCoefficient is a pure abstact"
-								// "class.");
-		return 0.0;
-	}
+											const mfem::IntegrationPoint &ip) = 0;
 };
 
 
-class MeshDependentCoefficient : public ExplictStateDependentCoefficient
+class MeshDependentCoefficient : public ExplicitStateDependentCoefficient
 {
 public:
 	MeshDependentCoefficient()
@@ -134,7 +126,7 @@ protected:
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
 	template <class T, typename 
-				 std::enable_if<std::is_base_of<ExplictStateDependentCoefficient,
+				 std::enable_if<std::is_base_of<ExplicitStateDependentCoefficient,
 				 T>::value, int>::type= 0>
 	inline double EvalStateDeriv(T *coeff, 
 										  mfem::ElementTransformation &trans,
@@ -160,7 +152,7 @@ protected:
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
 	template <class T, typename 
-				 std::enable_if<!std::is_base_of<ExplictStateDependentCoefficient,
+				 std::enable_if<!std::is_base_of<ExplicitStateDependentCoefficient,
 				 T>::value, int>::type = 0>
 	inline double EvalStateDeriv(T *coeff,
 										  mfem::ElementTransformation &trans,
@@ -179,7 +171,7 @@ private:
 // to a finite element space (A and T would be seperate spaces). Also need to look at how much reluctivity
 // changes with temperature. (Ask prof Shah?) 
 
-class ReluctivityCoefficient : public ExplictStateDependentCoefficient
+class ReluctivityCoefficient : public ExplicitStateDependentCoefficient
 {
 public:
 	/// Define a temperature independent reluctivity model
