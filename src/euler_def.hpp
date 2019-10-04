@@ -197,8 +197,6 @@ void EntStableLPSIntegrator<dim>::spectralRadiusJacDir(const mfem::Vector &dir,
 }
 
 template <int dim>
-<<<<<<< HEAD
-=======
 void EntStableLPSIntegrator<dim>::applyScalingJacState(
                                          const mfem::DenseMatrix &adjJ,
                                          const mfem::Vector &q,
@@ -228,7 +226,6 @@ void EntStableLPSIntegrator<dim>::applyScalingJacState(
 }
 
 template <int dim>
->>>>>>> d9f4ad53442f46fe1846b18aad7a37a6a7440a8f
 void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
                                                       mfem::DenseMatrix &dwdu)
 {
