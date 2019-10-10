@@ -92,6 +92,66 @@ void InviscidIntegrator<Derived>::AssembleElementGrad(
 }
 
 template <typename Derived>
+void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
+   const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+   const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
+{
+   using namespace mfem;
+   // This should be in a try/catch, but that creates other issues
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector ui, uj, dxidx;
+   DenseMatrix adjJ_i, adjJ_j, flux_jaci, flux_jacj;
+#endif
+   elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
+   adjJ_i.SetSize(dim);
+   adjJ_j.SetSize(dim);
+   dxidx.SetSize(dim);
+   flux_jaci.SetSize(num_states);
+   flux_jacj.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+    for (int di = 0; di < dim; ++di)
+   {  
+      for (int i = 0; i < num_nodes; ++i)
+      {
+         // get the flux Jacobian at node i
+         Trans.SetIntPoint(&el.GetNodes().IntPoint(i)); 
+         CalcAdjugate(Trans.Jacobian(), adjJ_i);
+         adjJ_i.GetRow(di, dxidx);
+         u.GetRow(i, ui);
+         // loop over rows j for contribution (Q^T)_{i,j} * Jac_i
+         for (int j = i+1; j < num_nodes; ++j)
+         {
+            // get the flux Jacobian at node i
+            Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
+            CalcAdjugate(Trans.Jacobian(), adjJ_j);
+            adjJ_j.GetRow(di, dxidx);
+            u.GetRow(j, uj);
+            fluxJacStates(di, ui, uj, flux_jaci, flux_jacj);
+            double Sij = sbp.getSkewEntry(di, i, j, adjJ_i, adjJ_j);
+            Sij *= alpha;
+            for (int n = 0; n < num_states; ++n)
+            {
+               for (int m = 0; m < num_states; ++m)
+               {
+                  // res(i,n) += Sij*fluxij(n);
+                  elmat(n*num_nodes+i, m*num_nodes+i) += Sij*flux_jaci(n,m);
+                  elmat(n*num_nodes+i, m*num_nodes+j) += Sij*flux_jacj(n,m);
+                  // res(j,n) -= Sij*fluxij(n);
+                  elmat(n*num_nodes+j, m*num_nodes+i) -= Sij*flux_jaci(n,m);
+                  elmat(n*num_nodes+j, m*num_nodes+j) -= Sij*flux_jacj(n,m);
+               }
+            } 
+         }
+      }
+   }
+}
+
+
+template <typename Derived>
 void DyadicFluxIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &Trans,

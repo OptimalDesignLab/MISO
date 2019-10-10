@@ -134,10 +134,10 @@ public:
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
-   // virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-   //                                  mfem::ElementTransformation &Ttr,
-   //                                  const mfem::Vector &elfun,
-   //                                  mfem::DenseMatrix &elmat);
+   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+                                    mfem::ElementTransformation &Trans,
+                                    const mfem::Vector &elfun,
+                                    mfem::DenseMatrix &elmat);
 
 protected:
    /// number of states
@@ -160,6 +160,13 @@ protected:
    mfem::DenseMatrix adjJ_i;
    /// used to store the adjugate of the mapping Jacobian at node j
    mfem::DenseMatrix adjJ_j;
+   /// stores a row of the adjugate of the mapping Jacobian
+   mfem::Vector dxidx;
+   /// stores the jacobian w.r.t left state
+   mfem::DenseMatrix flux_jaci;
+   /// stores the jacobian w.r.t left state
+   mfem::DenseMatrix flux_jacj;
+   
 #endif
 
    /// A two point (i.e. dyadic) flux function
