@@ -329,8 +329,9 @@ public:
                                    mfem::Vector &elvect);
 
    /// Construct the element local Jacobian
-   /// \param[in] el - the finite element whose Jacobian we want
-   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] el_bnd - the finite element whose residual we want to update
+   /// \param[in] el_unused - dummy element that is not used for boundaries
+   /// \param[in] trans - hold geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
    virtual void AssembleFaceGrad(const mfem::FiniteElement &el_bnd,
