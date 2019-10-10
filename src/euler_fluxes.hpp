@@ -236,9 +236,11 @@ void applyLPSScaling(const xdouble *adjJ, const xdouble *q, const xdouble *vec,
    }
    spect /= dim;
    calcdQdWProduct<xdouble,dim>(q, vec, mat_vec);
+   std::cout << "\nmat_vec: ";
    for (int i = 0; i < dim+2; ++i)
    {
       mat_vec[i] *= spect;
+      std::cout << std::setprecision(9) <<mat_vec[i] << ' ';
    }
 }
 
