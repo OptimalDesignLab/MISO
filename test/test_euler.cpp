@@ -176,6 +176,91 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
    }
 }
 
+TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
+                     ((int dim), dim), 1, 2, 3 )
+{
+   using namespace euler_data;
+   double delta = 1e-5;
+   int num_states = dim+2;
+
+   // construct state vec
+   mfem::Vector q(num_states);
+   q(0) = rho;
+   q(dim + 1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di + 1) = rhou[di];
+   }
+
+   // Create the adjJ matrix
+   mfem::DenseMatrix adjJ(dim);
+   for(int i = 0; i < dim; i++)
+   {
+      for(int j = 0; j < dim; j++)
+      {
+         adjJ(i,j) = adjJ_data[j*3+i];
+      }
+   }
+
+   adept::Stack diff_stack;
+   mach::EntStableLPSIntegrator<dim> lpsinteg(diff_stack);
+
+   SECTION( "Apply scaling jacobian w.r.t AdjJ is correct" )
+   {
+
+      // calculate the jacobian w.r.t AdjJ
+      mfem::DenseMatrix mat_vec_jac(num_states, dim*dim);
+
+      // random vector
+      mfem::Vector vec(num_states);
+      for (int i = 0; i <  num_states; ++i)
+      {
+         vec(i) = vec_pert[i];
+      }
+
+      // matrix perturbation reshaped into vector
+      mfem::Vector v_vec(dim*dim);
+      for (int i = 0; i < dim*dim; ++i)
+      {
+         v_vec(i) = vec_pert[i];
+      }
+
+      lpsinteg.applyScalingJacAdjJ(adjJ, q, vec, mat_vec_jac);
+
+      mfem::Vector mat_vec_jac_v(num_states);
+      mat_vec_jac.Mult(v_vec, mat_vec_jac_v);
+
+      // create perturbation direction
+      mfem::DenseMatrix v_mat(dim);
+      for (int i = 0; i < dim; ++i)
+      {
+         for (int j = 0; j < dim; ++j)
+         {
+            v_mat(i, j) = vec_pert[i + 3*j];
+         }
+      }
+
+      mfem::DenseMatrix adjJ_plus(adjJ), adjJ_minus(adjJ);
+      adjJ_plus.Add(delta, v_mat);
+      adjJ_minus.Add(-delta, v_mat);
+
+      mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+      lpsinteg.applyScaling(adjJ_plus, q, vec, mat_vec_plus);
+      lpsinteg.applyScaling(adjJ_minus, q, vec, mat_vec_minus);
+
+      // calculate the jabobian with finite differences
+      mfem::Vector mat_vec_jac_v_fd(num_states);
+      subtract(mat_vec_plus, mat_vec_minus, mat_vec_jac_v_fd);
+      mat_vec_jac_v_fd /= 2.0*delta;
+
+      // compare
+      for (int i = 0; i < num_states; ++i)
+      {
+         REQUIRE( mat_vec_jac_v(i) == Approx(mat_vec_jac_v_fd(i)).margin(1e-12) );
+      }
+   }
+}
+
 TEMPLATE_TEST_CASE_SIG( "Spectral Radius", "[Spectral]",
                         ((int dim), dim), 1, 2, 3 )
 {
