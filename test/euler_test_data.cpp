@@ -55,6 +55,12 @@ const double vec_pert[5] = {
     0.12338014544564024, -0.09515811381248972, -0.8546949642571233,
     -0.43724706495167226, -0.23245170541453294};
 
+// Use this for LPS applyscaling function and its derivatives
+const double adjJ_data[9] = { 0.964888535199277, 0.157613081677548,
+   0.970592781760616, 0.957166948242946, 0.485375648722841,
+   0.800280468888800, 0.141886338627215, 0.421761282626275,
+   0.915735525189067};
+   
 // define the random-number generator; uniform between 0 and 1
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(0.0,1.0);
