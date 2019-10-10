@@ -73,9 +73,8 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       curlshape_dFt.AddMult(b_vec, elvect);
 
-      double model_val = 0.0;
       // model->Eval(trans, b_vec.Norml2(), model_val);
-      model_val = model->Eval(trans, ip);
+      double model_val = model->Eval(trans, ip);
       model_val *= w;
       elvect *= model_val;   
    }
@@ -155,9 +154,8 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
 
       /// evaluate material model with norm of b_vec
-      double model_val = 0.0;
       // model->Eval(trans, b_vec.Norml2(), model_val);
-      model_val = model->Eval(trans, ip);
+      double model_val = model->Eval(trans, ip);
 
       /// multiply material value by integration weight
       model_val *= w;
@@ -176,9 +174,8 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
 
       // evaluate derivative of material model with norm of b_vec
-      double model_deriv = 0.0;
       // model->EvalDerivState(trans, b_vec.Norml2(), model_deriv);
-      model_deriv = model->EvalStateDeriv(trans, ip);
+      double model_deriv = model->EvalStateDeriv(trans, ip);
 
       // scale derivative by weight and devide by norm of b_vec
       model_deriv *= w;
