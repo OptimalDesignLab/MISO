@@ -134,10 +134,10 @@ public:
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
-   // virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-   //                                  mfem::ElementTransformation &Ttr,
-   //                                  const mfem::Vector &elfun,
-   //                                  mfem::DenseMatrix &elmat);
+   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+                                    mfem::ElementTransformation &Trans,
+                                    const mfem::Vector &elfun,
+                                    mfem::DenseMatrix &elmat);
 
 protected:
    /// number of states
@@ -160,6 +160,13 @@ protected:
    mfem::DenseMatrix adjJ_i;
    /// used to store the adjugate of the mapping Jacobian at node j
    mfem::DenseMatrix adjJ_j;
+   /// stores a row of the adjugate of the mapping Jacobian
+   mfem::Vector dxidx;
+   /// stores the jacobian w.r.t left state
+   mfem::DenseMatrix flux_jaci;
+   /// stores the jacobian w.r.t left state
+   mfem::DenseMatrix flux_jacj;
+   
 #endif
 
    /// A two point (i.e. dyadic) flux function
@@ -328,6 +335,18 @@ public:
                                    const mfem::Vector &elfun,
                                    mfem::Vector &elvect);
 
+   /// Construct the element local Jacobian
+   /// \param[in] el_bnd - the finite element whose residual we want to update
+   /// \param[in] el_unused - dummy element that is not used for boundaries
+   /// \param[in] trans - hold geometry and mapping information about the face
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
+   virtual void AssembleFaceGrad(const mfem::FiniteElement &el_bnd,
+                                 const mfem::FiniteElement &el_unused,
+                                 mfem::FaceElementTransformations &trans,
+                                 const mfem::Vector &elfun,
+                                 mfem::DenseMatrix &elmat);
+
 protected: 
    /// number of states
    int num_states;
@@ -346,6 +365,8 @@ protected:
    mfem::Vector nrm;
    /// stores the flux evaluated by `bnd_flux`
    mfem::Vector flux_face;
+   /// stores the jacobian of the flux with respect to the state at `u_face`
+   mfem::DenseMatrix flux_jac_face;
 #endif
 
    /// Compute a boundary flux function
