@@ -236,7 +236,7 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
       {
          for (int j = 0; j < dim; ++j)
          {
-            v_mat(i, j) = vec_pert[i + 3*j];
+            v_mat(i, j) = vec_pert[j + 3*i];
          }
       }
 
@@ -256,7 +256,7 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
       // compare
       for (int i = 0; i < num_states; ++i)
       {
-         REQUIRE( mat_vec_jac_v(i) == Approx(mat_vec_jac_v_fd(i)).margin(1e-12) );
+         REQUIRE( mat_vec_jac_v(i) == Approx(mat_vec_jac_v_fd(i)) );
       }
    }
 }
@@ -501,6 +501,7 @@ TEMPLATE_TEST_CASE_SIG( "Entropy variables Jacobian", "[lps integrator]",
       }
    }
 
+   /*
    SECTION( "Apply scaling jacobian w.r.t state is correct" )
    {
       // Create the adjJ matrix
@@ -624,7 +625,7 @@ TEMPLATE_TEST_CASE_SIG( "Entropy variables Jacobian", "[lps integrator]",
       // {
       //    REQUIRE( mat_vec_diff(i) == Approx( mat_vec_jac_v(i) ));
       // }
-   }
+   } */
 }
 
 TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
