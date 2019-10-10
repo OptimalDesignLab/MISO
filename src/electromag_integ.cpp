@@ -71,12 +71,11 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       }
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      curlshape_dFt.AddMult(b_vec, elvect);
-
       // model->Eval(trans, b_vec.Norml2(), model_val);
       double model_val = model->Eval(trans, ip);
       model_val *= w;
-      elvect *= model_val;   
+      b_vec *= model_val;   
+      curlshape_dFt.AddMult(b_vec, elvect);
    }
 }
 
