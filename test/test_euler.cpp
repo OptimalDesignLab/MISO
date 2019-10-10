@@ -207,10 +207,6 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
 
    SECTION( "Apply scaling jacobian w.r.t AdjJ is correct" )
    {
-
-      // calculate the jacobian w.r.t AdjJ
-      mfem::DenseMatrix mat_vec_jac(num_states, dim*dim);
-
       // random vector
       mfem::Vector vec(num_states);
       for (int i = 0; i <  num_states; ++i)
@@ -218,28 +214,32 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
          vec(i) = vec_pert[i];
       }
 
+      // calculate the jacobian w.r.t AdjJ
+      mfem::DenseMatrix mat_vec_jac(num_states, dim*dim);
+      lpsinteg.applyScalingJacAdjJ(adjJ, q, vec, mat_vec_jac);
+
       // matrix perturbation reshaped into vector
       mfem::Vector v_vec(dim*dim);
       for (int i = 0; i < dim*dim; ++i)
       {
          v_vec(i) = vec_pert[i];
       }
-
-      lpsinteg.applyScalingJacAdjJ(adjJ, q, vec, mat_vec_jac);
-
       mfem::Vector mat_vec_jac_v(num_states);
       mat_vec_jac.Mult(v_vec, mat_vec_jac_v);
 
-      // create perturbation direction
+      // create matrix perturbation
       mfem::DenseMatrix v_mat(dim);
-      for (int i = 0; i < dim; ++i)
+      for (int j = 0; j < dim; ++j)
       {
-         for (int j = 0; j < dim; ++j)
+         for (int i = 0; i < dim; ++i)
          {
-            v_mat(i, j) = vec_pert[j + 3*i];
+            v_mat(i, j) = vec_pert[i + 3*j];
          }
       }
 
+      // transpose perturbation so it is consistent with multiplying by the
+      // columm major reshaped vector.
+      v_mat.Transpose();
       mfem::DenseMatrix adjJ_plus(adjJ), adjJ_minus(adjJ);
       adjJ_plus.Add(delta, v_mat);
       adjJ_minus.Add(-delta, v_mat);
