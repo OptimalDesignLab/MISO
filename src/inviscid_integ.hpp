@@ -328,6 +328,17 @@ public:
                                    const mfem::Vector &elfun,
                                    mfem::Vector &elvect);
 
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
+   virtual void AssembleFaceGrad(const mfem::FiniteElement &el_bnd,
+                                 const mfem::FiniteElement &el_unused,
+                                 mfem::FaceElementTransformations &trans,
+                                 const mfem::Vector &elfun,
+                                 mfem::DenseMatrix &elmat);
+
 protected: 
    /// number of states
    int num_states;
@@ -346,6 +357,8 @@ protected:
    mfem::Vector nrm;
    /// stores the flux evaluated by `bnd_flux`
    mfem::Vector flux_face;
+   /// stores the jacobian of the flux with respect to the state at `u_face`
+   mfem::DenseMatrix flux_jac_face;
 #endif
 
    /// Compute a boundary flux function
