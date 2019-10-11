@@ -54,7 +54,10 @@ extern double entvar_check[12];
 extern double dqdw_prod_check[12];
 
 // Use this for finite-difference direction-derivative checks
-extern const double vec_pert[5];
+extern const double vec_pert[9];
+
+// Use this for LPS apply scaling jacobian checks
+extern const double adjJ_data[9];
 
 /// Returns a perturbed version of the baseline flow state
 /// \param[in] x - coordinates (not used)

@@ -209,10 +209,26 @@ void EntStableLPSIntegrator<dim>::applyScalingJacState(
    adept::set_values(adjJ_a.data(), adjJ_a_size, adjJ.GetData());
    adept::set_values(q_a.data(), q.Size(), q.GetData());
    adept::set_values(vec_a.data(), vec.Size(), vec.GetData());
+   // std::cout << "\n\n\nCheck input data.\n";
+   // std::cout << "adjJ_a: ";
+   // for(int i = 0; i<adjJ_a_size; i ++)
+   // {
+   //    std::cout << adjJ_a[i] << ' ';
+   // }
+   // std::cout << "\nq_a: ";
+   // for(int i = 0; i<q.Size(); i ++)
+   // {
+   //    std::cout << q_a[i] << ' ';
+   // }
+   // std::cout << "\nvec_a: ";
+   // for(int i = 0; i<vec.Size(); i ++)
+   // {
+   //    std::cout << vec_a[i] << ' ';
+   // }
    // start recording
    this->stack.new_recording();
    // the dependent variable must be declared after the recording
-   std::vector<adouble> mat_vec_a;
+   std::vector<adouble> mat_vec_a(q.Size());
    mach::applyLPSScaling<adouble,dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
                                       mat_vec_a.data());
    // set the independent and dependent variable
