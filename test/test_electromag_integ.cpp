@@ -17,10 +17,10 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear", "Works for line
 
    // generate a 6 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, 
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
-                              
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
@@ -30,9 +30,9 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear", "Works for line
             new ND_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
             mesh.get(), fec.get()));
-                         
+
          NonlinearForm res(fes.get());
-         
+
          std::unique_ptr<mach::ExplicitStateDependentCoefficient> nu(
             new LinearCoefficient(1.0));
 
@@ -68,9 +68,8 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear", "Works for line
          }
       }
    }
-} 
+}
 
-/// TODO - Use a nonlinear coefficient, something like 
 TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad", "[CurlCurlNLFIntegrator]")
 {
    using namespace mfem;
@@ -82,10 +81,10 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad", "[CurlCurlNLFIntegrator]
 
    // generate a 6 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, 
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
-                              
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
@@ -94,7 +93,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad", "[CurlCurlNLFIntegrator]
             new ND_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
             mesh.get(), fec.get()));
-                         
+
          NonlinearForm res(fes.get());
 
          std::unique_ptr<mach::ExplicitStateDependentCoefficient> nu(
@@ -145,10 +144,10 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
 
    // generate a 6 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, 
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
-                              
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
@@ -157,16 +156,30 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
             new ND_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
             mesh.get(), fec.get()));
-                         
+
          NonlinearForm res(fes.get());
 
          // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
+         GridFunction a(fes.get());
          VectorFunctionCoefficient pert(1, randBaselinePert);
-         q.ProjectCoefficient(pert);
+         a.ProjectCoefficient(pert);
+
+         // create H(div) finite element space and grid function
+         std::unique_ptr<FiniteElementCollection> fec_b(
+            new RT_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes_b(new FiniteElementSpace(
+            mesh.get(), fec_b.get()));
+         GridFunction b(fes_b.get());
+
+         // compute B = curl(A)
+         DiscreteLinearOperator curl(fes.get(), fes_b.get());
+         curl.AddDomainInterpolator(new CurlInterpolator);
+         curl.Assemble();
+         curl.Finalize();
+         curl.Mult(a, b);
 
          std::unique_ptr<mach::ExplicitStateDependentCoefficient> nu(
-            new NonLinearCoefficient(&q));
+            new NonLinearCoefficient(&b));
 
          res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
 
@@ -176,16 +189,16 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
-         Operator& Jac = res.GetGradient(q);
+         Operator& Jac = res.GetGradient(a);
          GridFunction jac_v(fes.get());
          Jac.Mult(v, jac_v);
 
          // now compute the finite-difference approximation...
-         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
-         q_pert.Add(-delta, v);
-         res.Mult(q_pert, r);
-         q_pert.Add(2*delta, v);
-         res.Mult(q_pert, jac_v_fd);
+         GridFunction a_pert(a), r(fes.get()), jac_v_fd(fes.get());
+         a_pert.Add(-delta, v);
+         res.Mult(a_pert, r);
+         a_pert.Add(2*delta, v);
+         res.Mult(a_pert, jac_v_fd);
          jac_v_fd -= r;
          jac_v_fd /= (2*delta);
 

@@ -123,9 +123,8 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
-   
-   elmat = 0.0;
 
+   elmat = 0.0;
 	for (int i = 0; i < ir->GetNPoints(); i++)
    {
       b_vec = 0.0;
@@ -149,16 +148,10 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /// calculate first term of Jacobian
       /////////////////////////////////////////////////////////////////////////
 
-      /// calculate B = curl(A)
-      curlshape_dFt.AddMultTranspose(elfun, b_vec);
-
-      /// evaluate material model with norm of b_vec
-      // model->Eval(trans, b_vec.Norml2(), model_val);
+      /// evaluate material model at ip
       double model_val = model->Eval(trans, ip);
-
       /// multiply material value by integration weight
       model_val *= w;
-
       /// add first term to elmat
       AddMult_a_AAt(model_val, curlshape_dFt, elmat);
 
@@ -166,24 +159,27 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /// calculate second term of Jacobian
       /////////////////////////////////////////////////////////////////////////
 
+      /// calculate B = curl(A)
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
       // calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
       // can take outer product of result to generate matrix
       temp_vec = 0.0;
       curlshape_dFt.AddMult(b_vec, temp_vec);
       DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
-
-      // evaluate derivative of material model with norm of b_vec
-      // model->EvalDerivState(trans, b_vec.Norml2(), model_deriv);
+      /// evaluate the derivative of the material model with respect to the
+      /// norm of the grid function associated with the model at the point
+      /// defined by ip.
       double model_deriv = model->EvalStateDeriv(trans, ip);
-
       // scale derivative by weight and devide by norm of b_vec
       model_deriv *= w;
 
       // TODO - make sure this is how I want to implement this. I could alternatively
       //        have `EvalStateDeriv()` return the derivative with respect to the
-      //        actual state (A) instead of the norm of B, which would make this 
+      //        actual state (A) instead of the norm of B, which would make this
       //        unnessecary
       model_deriv /= b_vec.Norml2();
+
+      // std::cout << "AssembleElementGrad: b_vec_mag: " << b_vec.Norml2() << std::endl;
 
       // add second term to elmat
       AddMult_a_AAt(model_deriv, temp_matrix, elmat);
