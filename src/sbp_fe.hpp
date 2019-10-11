@@ -85,6 +85,12 @@ public:
    /// \param[in,out] P - to store the operator
    void getProjOperator(DenseMatrix &P) const;
 
+   /// Returns the `i`th row `j`th column entry of the projection operator
+   /// \param[in] i - desired row
+   /// \param[in] j - desired column
+   /// \returns \f$ P_{ij} \f$
+   double getProjOperatorEntry(int i, int j) const;
+
    /// Applies the local projection operator, `P` or `P^T`, to the given data
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
    /// \param[out] Pu - result of applying `P` or `P^T` to `u` is stored here

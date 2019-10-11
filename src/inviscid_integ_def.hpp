@@ -44,8 +44,8 @@ void InviscidIntegrator<Derived>::AssembleElementVector(
 
 template <typename Derived>
 void InviscidIntegrator<Derived>::AssembleElementGrad(
-   const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
-   const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
+    const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+    const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
    // This should be in a try/catch, but that creates other issues
