@@ -11,15 +11,15 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
     ElementTransformation &trans,
     const Vector &elfun, Vector &elvect)
 {
-	// number of degrees of freedom
+	/// number of degrees of freedom
 	int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	// I believe this takes advantage of a 2D problem not having 
-	// a properly defined curl? Need more investigation
+	/// I believe this takes advantage of a 2D problem not having
+	/// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   // holds quadrature weight
+   /// holds quadrature weight
    double w;
 
 #ifdef MFEM_THREAD_SAFE
@@ -48,7 +48,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
-   
+
    elvect = 0.0;
 
 	for (int i = 0; i < ir->GetNPoints(); i++)
@@ -74,7 +74,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       // model->Eval(trans, b_vec.Norml2(), model_val);
       double model_val = model->Eval(trans, ip);
       model_val *= w;
-      b_vec *= model_val;   
+      b_vec *= model_val;
       curlshape_dFt.AddMult(b_vec, elvect);
    }
 }
@@ -85,15 +85,15 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
     const mfem::Vector &elfun,
     mfem::DenseMatrix &elmat)
 {
-   // number of degrees of freedom
+   /// number of degrees of freedom
 	int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	// I believe this takes advantage of a 2D problem not having 
-	// a properly defined curl? Need more investigation
+	/// I believe this takes advantage of a 2D problem not having
+	/// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   // holds quadrature weight
+   /// holds quadrature weight
    double w;
 
 #ifdef MFEM_THREAD_SAFE
@@ -127,7 +127,6 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    elmat = 0.0;
 	for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      b_vec = 0.0;
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       trans.SetIntPoint(&ip);
@@ -160,29 +159,51 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /////////////////////////////////////////////////////////////////////////
 
       /// calculate B = curl(A)
-      curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      // calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
-      // can take outer product of result to generate matrix
-      temp_vec = 0.0;
-      curlshape_dFt.AddMult(b_vec, temp_vec);
-      DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
+      b_vec = 0.0;
+      curlshape_dFt.MultTranspose(elfun, b_vec);
+      /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
+      /// can take outer product of result to generate matrix
+      // temp_vec = 0.0;
+      // curlshape_dFt.Mult(b_vec, temp_vec);
+      // DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
+
+      // std::cout << "Elfun: " << std::endl;
+      // elfun.Print();
+      // std::cout << "curlshape: " << std::endl;
+      // curlshape_dFt.PrintMatlab();
+      // std::cout << "b_vec" << std::endl;
+      // b_vec.Print();
+      // std::cout << "temp_vec" << std::endl;
+      // temp_vec.Print();
+      // std::cout << std::endl;
+
+
       /// evaluate the derivative of the material model with respect to the
       /// norm of the grid function associated with the model at the point
-      /// defined by ip.
+      /// defined by ip, and scale by integration point weight
       double model_deriv = model->EvalStateDeriv(trans, ip);
-      // scale derivative by weight and devide by norm of b_vec
       model_deriv *= w;
 
-      // TODO - make sure this is how I want to implement this. I could alternatively
-      //        have `EvalStateDeriv()` return the derivative with respect to the
-      //        actual state (A) instead of the norm of B, which would make this
-      //        unnessecary
+      /// TODO - make sure this is how I want to implement this. I could alternatively
+      ///        have `EvalStateDeriv()` return the derivative with respect to the
+      ///        actual state (A) instead of the norm of B, which would make this
+      ///        unnessecary
       model_deriv /= b_vec.Norml2();
 
-      // std::cout << "AssembleElementGrad: b_vec_mag: " << b_vec.Norml2() << std::endl;
+      for (int i = 0; i < ndof; ++i)
+      {
+         for (int j = 0; j < ndof; ++j)
+         {
+            Vector row_i(3);
+            curlshape_dFt.GetRow(i, row_i);
+            Vector row_j(3);
+            curlshape_dFt.GetRow(j, row_j);
+            elmat(i,j) +=  model_deriv*(b_vec*row_i)*(b_vec*row_i);
+         }
+      }
 
-      // add second term to elmat
-      AddMult_a_AAt(model_deriv, temp_matrix, elmat);
+      /// add second term to elmat
+      // AddMult_a_AAt(model_deriv, temp_matrix, elmat);
    }
 }
 

@@ -21,7 +21,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear", "Works for line
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
 
-   for (int p = 1; p <= 4; ++p)
+   for (int p = 1; p <= 1; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -85,7 +85,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad", "[CurlCurlNLFIntegrator]
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
 
-   for (int p = 1; p <= 4; ++p)
+   for (int p = 1; p <= 1; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -103,12 +103,12 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad", "[CurlCurlNLFIntegrator]
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(1, randBaselinePert);
+         VectorFunctionCoefficient pert(3, randBaselinePert);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(1, randState);
+         VectorFunctionCoefficient v_rand(3, randState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -148,7 +148,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
 
-   for (int p = 1; p <= 4; ++p)
+   for (int p = 1; p <= 1; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -157,12 +157,12 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
             mesh.get(), fec.get()));
 
-         NonlinearForm res(fes.get());
-
          // initialize state; here we randomly perturb a constant state
          GridFunction a(fes.get());
-         VectorFunctionCoefficient pert(1, randBaselinePert);
+         VectorFunctionCoefficient pert(3, randBaselinePert);
          a.ProjectCoefficient(pert);
+         std::cout << "GF A: " <<std::endl;
+         a.Print();
 
          // create H(div) finite element space and grid function
          std::unique_ptr<FiniteElementCollection> fec_b(
@@ -178,14 +178,18 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          curl.Finalize();
          curl.Mult(a, b);
 
+         std::cout << "GF B: " <<std::endl;
+         b.Print();
+
          std::unique_ptr<mach::ExplicitStateDependentCoefficient> nu(
             new NonLinearCoefficient(&b));
 
+         NonlinearForm res(fes.get());
          res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(1, randState);
+         VectorFunctionCoefficient v_rand(3, randState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -204,6 +208,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
+            std::cout << "Jac v: " << jac_v(i)  << "Jac v fd: " << jac_v_fd(i) << std::endl;
             REQUIRE( jac_v(i) == Approx(jac_v_fd(i)) );
          }
       }

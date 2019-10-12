@@ -9,23 +9,18 @@
 
 namespace electromag_data
 {
-// define the random-number generator; uniform between 0 and 1
+// define the random-number generator; uniform between -1 and 1
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
-// template <int dim>
 void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
 {
-   const double scale = 0.01;
+   const double scale = 0.5;
    for (int i = 0; i < u.Size(); ++i)
    {
-      u(i) = (1.0 + scale*uniform_rand(gen));
+      u(i) = (2.0 + scale*uniform_rand(gen));
    }
 }
-// explicit instantiation of the templated function above
-// template void randBaselinePert<1>(const mfem::Vector &x, mfem::Vector &u);
-// template void randBaselinePert<2>(const mfem::Vector &x, mfem::Vector &u);
-// template void randBaselinePert<3>(const mfem::Vector &x, mfem::Vector &u);
 
 void randState(const mfem::Vector &x, mfem::Vector &u)
 {
@@ -36,16 +31,6 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
       u(i) = uniform_rand(gen);
    }
 }
-
-// double randState(const mfem::Vector &x)
-// {
-// 	// std::cout << "u size: " << u.Size() << std::endl;
-//    // for (int i = 0; i < u.Size(); ++i)
-//    // {
-// 	// 	// std::cout << i << std::endl;
-//    return uniform_rand(gen);
-//    // }
-// }
 
 /// Simple linear coefficient for testing CurlCurlNLFIntegrator
 class LinearCoefficient : public mach::ExplicitStateDependentCoefficient
@@ -82,8 +67,9 @@ public:
 		mfem::Vector state;
 		stateGF->GetVectorValue(trans.ElementNo, ip, state);
 		double state_mag = state.Norml2();
+		// std::cout << "Eval state: "; state.Print();
 		// std::cout << "Eval state_mag: " << state_mag << std::endl;
-		return std::exp(-state_mag);
+		return pow(state_mag, 3.0);
 	}
 
 	double EvalStateDeriv(mfem::ElementTransformation &trans,
@@ -93,7 +79,8 @@ public:
 		stateGF->GetVectorValue(trans.ElementNo, ip, state);
 		double state_mag = state.Norml2();
 		// std::cout << "EvalStateDeriv state_mag: " << state_mag << std::endl;
-		return -std::exp(-state_mag);
+		return 3.0*pow(state_mag, 2.0);
+		// return 0.0;
 	}
 
 private:
