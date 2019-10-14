@@ -234,7 +234,7 @@ void applyLPSScaling(const xdouble *adjJ, const xdouble *q, const xdouble *vec,
    {
       spect += calcSpectralRadius<xdouble,dim>(adjJ + i*dim, q);
    }
-   spect /= dim;
+   spect /= static_cast<xdouble>(dim);
    calcdQdWProduct<xdouble,dim>(q, vec, mat_vec);
    for (int i = 0; i < dim+2; ++i)
    {

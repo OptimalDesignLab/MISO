@@ -192,22 +192,14 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
       q(di + 1) = rhou[di];
    }
 
-   // Create the adjJ matrix
-   mfem::DenseMatrix adjJ(dim);
-   for(int i = 0; i < dim; i++)
-   {
-      for(int j = 0; j < dim; j++)
-      {
-         adjJ(i,j) = adjJ_data[j*3+i];
-      }
-   }
-
+   // Create the adjJ matrix, the AD stack, and the integrator
+   mfem::DenseMatrix adjJ(adjJ_data, dim, dim);
    adept::Stack diff_stack;
    mach::EntStableLPSIntegrator<dim> lpsinteg(diff_stack);
 
    SECTION( "Apply scaling jacobian w.r.t AdjJ is correct" )
    {
-      // random vector
+      // random vector used in scaling product
       mfem::Vector vec(num_states);
       for (int i = 0; i <  num_states; ++i)
       {
@@ -219,36 +211,20 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
       lpsinteg.applyScalingJacAdjJ(adjJ, q, vec, mat_vec_jac);
 
       // matrix perturbation reshaped into vector
-      mfem::Vector v_vec(dim*dim);
-      for (int i = 0; i < dim*dim; ++i)
-      {
-         v_vec(i) = vec_pert[i];
-      }
+      mfem::Vector v_vec(vec_pert, dim*dim);
       mfem::Vector mat_vec_jac_v(num_states);
       mat_vec_jac.Mult(v_vec, mat_vec_jac_v);
 
-      // create matrix perturbation
-      mfem::DenseMatrix v_mat(dim);
-      for (int j = 0; j < dim; ++j)
-      {
-         for (int i = 0; i < dim; ++i)
-         {
-            v_mat(i, j) = vec_pert[i + 3*j];
-         }
-      }
-
-      // transpose perturbation so it is consistent with multiplying by the
-      // columm major reshaped vector.
-      v_mat.Transpose();
+      // perturb the transformation Jacobian adjugate by v_mat
+      mfem::DenseMatrix v_mat(vec_pert, dim, dim);
       mfem::DenseMatrix adjJ_plus(adjJ), adjJ_minus(adjJ);
       adjJ_plus.Add(delta, v_mat);
       adjJ_minus.Add(-delta, v_mat);
 
+      // calculate the jabobian with finite differences
       mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
       lpsinteg.applyScaling(adjJ_plus, q, vec, mat_vec_plus);
       lpsinteg.applyScaling(adjJ_minus, q, vec, mat_vec_minus);
-
-      // calculate the jabobian with finite differences
       mfem::Vector mat_vec_jac_v_fd(num_states);
       subtract(mat_vec_plus, mat_vec_minus, mat_vec_jac_v_fd);
       mat_vec_jac_v_fd /= 2.0*delta;
@@ -265,43 +241,14 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
    {
       // Create the perturbation vector
       mfem::Vector v(dim+2);
-      mfem::Vector vec(dim+2);
-      for(int i=0; i<dim+2;i++)
-      {
-         vec[i] = vec_pert[4-i];
-      }
+      mfem::Vector vec(vec_pert, dim+2);
 
       // calculate the jacobian w.r.t q
       mfem::DenseMatrix mat_vec_jac(dim+2);
       mfem::Vector mat_vec_jac_v(dim+2);
       lpsinteg.applyScalingJacState(adjJ, q, vec, mat_vec_jac);
-      //mat_vec_jac.Mult(v, mat_vec_jac_v);
-      // std::cout << "\n\nCheck the jac:\n";
-      // mat_vec_jac.Print();
 
-      // Calculate the jacobian w.r.t. q using finite difference
-      // mfem::Vector q_plus(q), q_minus(q);
-      // mfem::Vector mat_vec_plus(dim+2), mat_vec_minus(dim+2);
-      // std::cout << "\n\nCheck the data again.\n";
-      // std::cout << "adjJ: ";
-      // for(int i = 0; i< dim; i ++)
-      // {
-      //    for(int j = 0; j<dim; j++)
-      //    {
-      //       std::cout << adjJ(j,i) << ' ';
-      //    }
-      // }
-      //    std::cout << "\nq: ";
-      // for(int i = 0; i<q.Size(); i ++)
-      // {
-      //    std::cout << q(i) << ' ';
-      // }
-      // std::cout << "\nvec: ";
-      // for(int i = 0; i<vec.Size(); i ++)
-      // {
-      //    std::cout << vec(i) << ' ';
-      // }
-
+      // loop over each state variable and check column of mat_vec_jac...
       for(int i = 0; i < dim+2; i++)
       {
          mfem::Vector q_plus(q), q_minus(q);
@@ -309,72 +256,20 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
          q_plus(i) += delta;
          q_minus(i) -= delta;
 
+         // get finite-difference approximation of ith column
          lpsinteg.applyScaling(adjJ, q_plus, vec, mat_vec_plus);
          lpsinteg.applyScaling(adjJ, q_minus, vec, mat_vec_minus);
+         mfem::Vector mat_vec_fd(dim+2);
+         mat_vec_fd = 0.0;
+         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+         mat_vec_fd /= 2.0*delta;
 
-         mfem::Vector mat_vec_diff(dim+2);
-         mat_vec_diff = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_diff);
-         //mat_vec_plus -= mat_vec_minus;
-         // std::cout << "\ndelta is " << delta;
-          mat_vec_diff /= 2.0*delta;
-
-         // std::cout << "\nCheck the column of jac: ";
-         // for(int j = 0; j < dim+2; j++)
-         // {
-         //    std::cout << mat_vec_diff(j) << ' ';
-         // }
-         // std::cout << '\n';
+         // compare with explicit Jacobian 
          for(int j = 0; j < dim+2; j++)
          {
-            REQUIRE( mat_vec_jac(j,i) == Approx(mat_vec_diff(j)) );
+            REQUIRE( mat_vec_jac(j,i) == Approx(mat_vec_fd(j)) );
          }
       }
-      
-      // q_plus.Add(delta, v);
-      // q_minus.Add(-delta, v);
-
-      // std::cout << "\n\nCheck the data again.\n";
-      // std::cout << "adjJ: ";
-      // for(int i = 0; i< dim; i ++)
-      // {
-      //    for(int j = 0; j<dim; j++)
-      //    {
-      //       std::cout << adjJ(j,i) << ' ';
-      //    }
-      // }
-      //    std::cout << "\nq: ";
-      // for(int i = 0; i<q.Size(); i ++)
-      // {
-      //    std::cout << q(i) << ' ';
-      // }
-      // std::cout << "\nvec: ";
-      // for(int i = 0; i<vec.Size(); i ++)
-      // {
-      //    std::cout << vec(i) << ' ';
-      // }
-      // lpsinteg.applyScaling(adjJ, q_plus, vec, mat_vec_plus);
-      // lpsinteg.applyScaling(adjJ, q_minus, vec, mat_vec_minus);
-
-      // mfem::Vector mat_vec_diff(mat_vec_plus);
-      // mat_vec_diff -= mat_vec_minus;
-      // mat_vec_diff /= (2.0 * delta);
-      // //compare the element wise result
-      // std::cout << "\nmat_vec_jac_v is: ";
-      // for(int i = 0; i < dim+2;i ++)
-      // {
-      //    std::cout << mat_vec_jac_v(i) << ' ';
-      // }
-      // std::cout << "\nmat_vec_diff is: ";
-      // for(int i = 0; i < dim+2;i ++)
-      // {
-      //    std::cout << mat_vec_diff(i) << ' ';
-      // }
-      // std::cout << '\n';
-      // for(int i = 0; i < dim+2; i++)
-      // {
-      //    REQUIRE( mat_vec_diff(i) == Approx( mat_vec_jac_v(i) ));
-      // }
    }
 }
 
