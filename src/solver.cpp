@@ -2,20 +2,6 @@
 #include <iostream>
 #include "solver.hpp"
 #include "default_options.hpp"
-
-#ifdef MFEM_USE_SIMMETRIX
-#include <SimUtil.h>
-#include <gmi_sim.h>
-#endif
-#ifdef MFEM_USE_PUMI
-#include <apfMDS.h>
-#include <gmi_null.h>
-#include <PCU.h>
-#include <apfConvert.h>
-#include <gmi_mesh.h>
-#include <crv.h>
-#endif
-
 #include "sbp_fe.hpp"
 
 using namespace std;
@@ -106,8 +92,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
                           "\tdo not provide smesh when using PUMI!");
    }
    // problem with using these in loadMdsMesh
+   std::cout << options["model-file"].get<string>().c_str() << std::endl;
    const char *model_file = options["model-file"].get<string>().c_str();
-   const char *mesh_file= options["mesh-file"].get<string>().c_str();
+   const char *mesh_file= options["pumi-mesh"]["file"].get<string>().c_str();
    PCU_Comm_Init();
    #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
@@ -116,9 +103,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    #endif
    gmi_register_mesh();
 
-   apf::Mesh2* pumi_mesh;
+   // apf::Mesh2* pumi_mesh;
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-                                options["mesh"]["file"].get<string>().c_str());
+                                options["pumi-mesh"]["file"].get<string>().c_str());
    int dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(dim);
    int ref_levels = (int)floor(log(10000./nEle)/log(2.)/dim);
