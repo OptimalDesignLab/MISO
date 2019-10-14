@@ -34,6 +34,12 @@ nlohmann::json default_options =
    {
       {"file", "mach.mesh"}, // mesh file name
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
+   }},
+
+   {"pumi-mesh", // options related to pumi-mesh
+   {
+      {"file","mach.smb"}, //mesh file name
+      {"refine", 0} // recursive uniform refinement; 0 = no refinement
    }}
 };
 
