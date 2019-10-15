@@ -94,7 +94,9 @@ protected:
    /// final time
    double t_final;
    /// pumi mesh object
+#ifdef MFEM_USE_PUMI
    apf::Mesh2* pumi_mesh;
+#endif
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// object defining the computational mesh

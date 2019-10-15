@@ -113,6 +113,9 @@ static std::ostream *getOutStream(int rank)
    }
 }
 
+void buildInterpolation(int degree, const mfem::DenseMatrix &x_center,
+    const mfem::DenseMatrix &x_quad, mfem::DenseMatrix &interp);
+
 } // namespace mach
 
 #endif 
