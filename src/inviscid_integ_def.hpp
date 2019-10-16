@@ -270,7 +270,6 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
 #ifdef MFEM_THREAD_SAFE
    Vector u_face, x, nrm, flux_face;
 #endif
-	elvect.SetSize(num_states*num_nodes);
    u_face.SetSize(num_states);
    x.SetSize(dim);
    nrm.SetSize(dim);
@@ -390,6 +389,78 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
             // res(j, n) += alpha*flux_face(n);
             elmat(m*num_nodes+j, n*num_nodes+j) += alpha*flux_jac_face(m,n);
          }
+      }
+   }
+}
+
+template <typename Derived>
+void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
+   const mfem::FiniteElement &el_left,
+   const mfem::FiniteElement &el_right,
+   mfem::FaceElementTransformations &trans,
+   const mfem::Vector &elfun,
+   mfem::Vector &elvect)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_left);
+   const int num_nodes_left = el_left.GetDof();
+   const int num_nodes_right = el_right.GetDof();
+   const int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face, x, nrm, flux_face;
+#endif
+	elvect.SetSize(num_states*(num_nodes_left + num_nodes_right));
+   u_face_left.SetSize(num_states);
+   u_face_right.SetSize(num_states);
+   nrm.SetSize(dim);
+   flux_face.SetSize(num_states);
+   elvect.SetSize(num_states*num_nodes);
+   elvect = 0.0;
+
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+
+   const FiniteElement *sbp_face;
+   switch (dim)
+   {
+      case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
+              break;
+      case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+              break;
+      default: throw mach::MachException(
+         "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
+         "\tcannot handle given dimension");
+   }
+   IntegrationPoint el_ip;
+   for (int i = 0; i < sbp_face->GetDof(); ++i)
+   {
+      const IntegrationPoint &face_ip = sbp_face->GetNodes().IntPoint(i);
+      trans.Loc1.Transform(face_ip, el_ip);
+      trans.Elem1->Transform(el_ip, x);
+      int j = sbp.getIntegrationPointIndex(el_ip);
+      u.GetRow(j, u_face);
+
+      // get the normal vector and the flux on the face
+      trans.Face->SetIntPoint(&face_ip);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      //cout << "face node " << face_ip.x << ": nrm = " << nrm[0] << ", " << nrm[1] << endl;
+      flux(x, nrm, u_face, flux_face);
+
+      // cout << "face node " << face_ip.x << ": flux = ";
+      // for (int n = 0; n < num_states; ++n)
+      // {
+      //    cout << flux_face[n] << ", ";
+      // }
+      // cout << endl;
+
+
+      flux_face *= face_ip.weight;
+
+
+      // multiply by test function
+      for (int n = 0; n < num_states; ++n)
+      {
+         res(j, n) += alpha*flux_face(n);
       }
    }
 }
