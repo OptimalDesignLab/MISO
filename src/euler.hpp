@@ -35,16 +35,17 @@ public:
    }
 
    /// Compute the Jacobian of the Euler flux w.r.t. `q`
-   /// \parma[in] dir - desired direction for the flux
+   /// \param[in] dir - desired direction (scaled) for the flux
    /// \param[in] q - state at which to evaluate the flux Jacobian
    /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `q`
    void calcFluxJacState(const mfem::Vector &dir, const mfem::Vector &q,
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute the Jacobian of the flux function `flux` w.r.t. `dir`
-   /// \parma[in] dir - desired direction for the flux
+   /// \parma[in] dir - desired direction for the flux 
    /// \param[in] q - state at which to evaluate the flux Jacobian
    /// \param[out] flux_jac - Jacobian of the flux function w.r.t. `dir`
+   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
    void calcFluxJacDir(const mfem::Vector &dir, const mfem::Vector &q,
                        mfem::DenseMatrix &flux_jac);
 };
@@ -371,6 +372,62 @@ protected:
    // static void calcIsmailRoeJacQ(int di, const mfem::Vector &qL, 
    //                               const mfem::Vector &qR,
    //                               mfem::DenseMatrix &jac);
+};
+
+/// Interface integrator for the DG method
+/// \tparam dim - number of spatial dimension (1, 2 or 3)
+template<int dim>
+class InterfaceIntegrator : public InviscidFaceIntegrator<InterfaceIntegrator<dim>>
+{
+public:
+   /// Construct an integrator for the Euler flux over elements
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - pointer to a finite element collection
+   /// \param[in] a - factor, usually used to move terms to rhs
+   InterfaceIntegrator(adept::Stack &diff_stack,
+                       const mfem::FiniteElementCollection *fe_coll,
+                       double a = 1.0)
+      : InviscidFaceIntegrator<InterfaceIntegrator<dim>>(diff_stack, fe_coll,
+         di+2, a) { }
+   
+   /// Compute the interface function at a given (scaled) direction
+   /// \param[in] dir - vector normal to the interface
+   /// \param[in] q_left - "left" state at which to evaluate the flux
+   /// \param[in] q_right - "right" state at which to evaluate the flu 
+   /// \param[out] flux_vec - value of the flux
+   /// \note wrapper for the relevant function in `euler_fluxes.hpp`
+   void calcFlux(const mfem::Vector &dir, const mfem::Vector &q_left,
+                 const mfem::Vector &q_right, mfem::Vector &flux_vec)
+   {
+      // To be implemented
+   }
+
+   /// Compute the Jacobian of the interface flux function w.r.t. states
+   /// \param[in] dir - vector normal to the face
+   /// \param[in] q_left - "left" state at which to evaluate the flux
+   /// \param[in] q_right - "right" state at which to evaluate the flux
+   /// \param[out] jac_left - Jacobian of `flux` w.r.t. `u_left`
+   /// \param[out] jac_right - Jacobian of `flux` w.r.t. `u_right`
+   /// \note This uses the CRTP, so it wraps a call a func. in Derived.
+   void calcFluxJacState(const mfem::Vector &dir, const mfem::Vector &q_left,
+                         const mfem::Vector &q_right,
+                         mfem::DenseMatrix &jac_left,
+                         mfem::DenseMatrix &jac_right)
+   {
+      // To be implemented
+   }
+
+   /// Compute the Jacobian of the interface flux function w.r.t. `dir`
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q_left - "left" state at which to evaluate the flux
+   /// \param[in] q_right - "right" state at which to evaluate the flux
+   /// \param[out] jac_dir - Jacobian of `flux` w.r.t. `dir`
+   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
+   void calcFluxJacDir(const mfem::Vector &dir, const mfem::Vector &q_left,
+                       const mfem::Vector &q_right, mfem::DenseMatrix &jac_dir)
+   {
+      // To be implemented
+   }
 };
 
 #include "euler_def.hpp"
