@@ -11,7 +11,9 @@
 namespace mach
 {
 
-/// TODO - replace mfem_error with mach_error type
+/// Abstract class StateCoefficient
+/// Defines new signature for Eval() and new method EvalStateDeriv() that
+/// subclasses must implement.
 class StateCoefficient : public mfem::Coefficient
 {
 public:
@@ -30,7 +32,9 @@ public:
 											const double state) = 0;
 };
 
-
+/// MeshDependentCoefficient
+/// A class that contains a map of material attributes and coefficients to
+/// evaluate on for each attribute.
 class MeshDependentCoefficient : public StateCoefficient
 {
 public:

@@ -47,7 +47,7 @@ private:
 	double alpha;
 
 #ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix curlshape, curlshape_dFt, M;
+   mfem::DenseMatrix curlshape, curlshape_dFt;
    mfem::Vector b_vec, temp_vec;
 #endif
 

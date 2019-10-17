@@ -71,7 +71,6 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       }
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      // model->Eval(trans, b_vec.Norml2(), model_val);
       double model_val = model->Eval(trans, ip, b_vec.Norml2());
       model_val *= w;
       b_vec *= model_val;
@@ -97,7 +96,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    double w;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc);
    Vector b_vec(dimc), temp_vec(ndof);
 #else
    curlshape.SetSize(ndof,dimc);
@@ -146,13 +145,14 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /// calculate B = curl(A)
       b_vec = 0.0;
       curlshape_dFt.MultTranspose(elfun, b_vec);
+      const double b_mag = b_vec.Norml2();
 
       /////////////////////////////////////////////////////////////////////////
       /// calculate first term of Jacobian
       /////////////////////////////////////////////////////////////////////////
 
       /// evaluate material model at ip
-      double model_val = model->Eval(trans, ip, b_vec.Norml2());
+      double model_val = model->Eval(trans, ip, b_mag);
       /// multiply material value by integration weight
       model_val *= w;
       /// add first term to elmat
@@ -162,6 +162,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /// calculate second term of Jacobian
       /////////////////////////////////////////////////////////////////////////
 
+      /// TODO - is this thread safe?
       /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
       /// can take outer product of result to generate matrix
       temp_vec = 0.0;
@@ -171,14 +172,9 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /// evaluate the derivative of the material model with respect to the
       /// norm of the grid function associated with the model at the point
       /// defined by ip, and scale by integration point weight
-      double model_deriv = model->EvalStateDeriv(trans, ip, b_vec.Norml2());
+      double model_deriv = model->EvalStateDeriv(trans, ip, b_mag);
       model_deriv *= w;
-
-      /// TODO - make sure this is how I want to implement this. I could alternatively
-      ///        have `EvalStateDeriv()` return the derivative with respect to the
-      ///        actual state (A) instead of the norm of B, which would make this
-      ///        unnessecary
-      model_deriv /= b_vec.Norml2();
+      model_deriv /= b_mag;
 
       /// add second term to elmat
       AddMult_a_AAt(model_deriv, temp_matrix, elmat);
