@@ -34,27 +34,12 @@ public:
 class MeshDependentCoefficient : public StateCoefficient
 {
 public:
-	MeshDependentCoefficient()
-	{
-		// initialize empty material_map
-		// material_map = {};
+	MeshDependentCoefficient() {}
 
-		// // create `hasEvalStateDeriv` anonymous function
-		// const mfem::ElementTransformation &trans = mfem::IsoparametricTransformation();
-		// const mfem::IntegrationPoint &ip = mfem::IntegrationPoint();
-		// hasEvalStateDeriv = mach::is_valid([](auto&& x) -> decltype(x.EvalStateDeriv(trans, ip)) { });
-	}
-
-	MeshDependentCoefficient(const std::map<const int, mfem::Coefficient*> 
+	MeshDependentCoefficient(const std::map<const int, mfem::Coefficient*>
 									 &input_map)
-	 : material_map(input_map)
-	 {
-		// // create `hasEvalStateDeriv` anonymous function
-		// const mfem::ElementTransformation &trans = mfem::IsoparametricTransformation();
-		// const mfem::IntegrationPoint &ip = mfem::IntegrationPoint();
-		// hasEvalStateDeriv = mach::is_valid([](auto&& x) -> decltype(x.EvalStateDeriv(trans, ip)) { });
-	 }
-	
+	 : material_map(input_map) {}
+
 	/// Adds <int, mfem::Coefficient*> pair to material_map where the int
 	/// corresponds to a material attribute in the mesh.
 	/// \param coeff - attribute-Coefficient pair where the Coefficient is the
@@ -217,13 +202,7 @@ protected:
 
 private:
 	std::map<const int, mfem::Coefficient*> material_map;
-	// static const auto hasEvalStateDeriv;
 };
-
-// should i make this associated with a grid function or should I pass the state to it to evaluate?
-// need to check how Joule handles solving for temp, see if the state passed to an integrator is unique
-// to a finite element space (A and T would be seperate spaces). Also need to look at how much reluctivity
-// changes with temperature. (Ask prof Shah?)
 
 class ReluctivityCoefficient : public StateCoefficient
 {
@@ -270,13 +249,13 @@ public:
 
 protected:
 	/// Function to evalaute reluctivity model with no temperature dependence
-	/// \param mfem::Vector B - magnetic flux density
+	/// \param const double - magnitude of magnetic flux density
 	double (*Bmodel)(const double);
 
 	/// Function to evalaute reluctivity model with temperature dependence
-	/// \param mfem::Vector B - magnetic flux density
+	/// \param const double - magnitude of magnetic flux density
 	/// \param double T - temperature
-	double (*BTmodel)(const double, double);
+	double (*BTmodel)(const double, const double);
 
 	/// reference to temperature grid function
 	GridFunType *temperature_GF;

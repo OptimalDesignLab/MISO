@@ -64,8 +64,7 @@ double ReluctivityCoefficient::Eval(ElementTransformation &trans,
    }
    else
    {
-		double temp;
-		temperature_GF->GetValue(trans.ElementNo, ip, temp);
+		const double temp = temperature_GF->GetValue(trans.ElementNo, ip);
       return (*BTmodel)(state, temp);
    }
 }

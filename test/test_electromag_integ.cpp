@@ -25,7 +25,6 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear", "Works for line
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
-         int ndof = p*(p + 2)*(p + 3)/2;
          std::unique_ptr<FiniteElementCollection> fec(
             new ND_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
@@ -164,20 +163,6 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          VectorFunctionCoefficient pert(3, randBaselinePert);
          a.ProjectCoefficient(pert);
 
-         // // create H(div) finite element space and grid function
-         // std::unique_ptr<FiniteElementCollection> fec_b(
-         //    new RT_FECollection(p, dim));
-         // std::unique_ptr<FiniteElementSpace> fes_b(new FiniteElementSpace(
-         //    mesh.get(), fec_b.get()));
-         // GridFunction b(fes_b.get());
-
-         // // compute B = curl(A)
-         // DiscreteLinearOperator curl(fes.get(), fes_b.get());
-         // curl.AddDomainInterpolator(new CurlInterpolator);
-         // curl.Assemble();
-         // curl.Finalize();
-         // curl.Mult(a, b);
-
          std::unique_ptr<mach::StateCoefficient> nu(
             new NonLinearCoefficient());
 
@@ -197,10 +182,8 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          // now compute the finite-difference approximation...
          GridFunction r(fes.get()), jac_v_fd(fes.get());
          a.Add(-delta, v);
-         // curl.Mult(a, b);
          res.Mult(a, r);
          a.Add(2*delta, v);
-         // curl.Mult(a, b);
          res.Mult(a, jac_v_fd);
          jac_v_fd -= r;
          jac_v_fd /= (2*delta);
