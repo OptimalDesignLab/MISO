@@ -15,11 +15,19 @@ namespace mach
 class StateCoefficient : public mfem::Coefficient
 {
 public:
-	// virtual double Eval(mfem::ElementTransformation &trans,
-	// 						  const mfem::IntegrationPoint &ip) = 0;
+	virtual double Eval(mfem::ElementTransformation &trans,
+							  const mfem::IntegrationPoint &ip)
+	{
+		std::cerr << "Wrong Eval method for StateCoefficient!" << std::endl;
+		return 0.0;
+	}
+	virtual double Eval(mfem::ElementTransformation &trans,
+							  const mfem::IntegrationPoint &ip,
+							  const double state) = 0;
 
 	virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
-											const mfem::IntegrationPoint &ip) = 0;
+											const mfem::IntegrationPoint &ip,
+											const double state) = 0;
 };
 
 
@@ -63,59 +71,102 @@ public:
 	}
 
 	/// \brief Search the map of coefficients and evaluate the one whose key is
-	/// 		  the same as the element's `Attribute` at the point defined by 
+	/// 		  the same as the element's `Attribute` at the point defined by
 	///		  `ip`.
-	/// \param[in] trans - element transformation relating real element to 
+	/// \param[in] trans - element transformation relating real element to
 	///					 	  reference element
 	/// \param[in] ip - the integration point to evalaute the coefficient at
+	/// \param[in] state - the state at which to evaluate the coefficient
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
 	virtual double Eval(mfem::ElementTransformation &trans,
-							  const mfem::IntegrationPoint &ip);
-	
+							  const mfem::IntegrationPoint &ip,
+							  const double state);
+
 	/// TODO - implement expression SFINAE when iterating over map
 	/// TODO - Consider different model for coefficient's dependent upon multiple
 	///		  GridFunctions
-	/// \brief Search the map of coefficients and evaluate the derivative with 
-	/// 		  respect to the state of the one whose key is the same as the 
+	/// \brief Search the map of coefficients and evaluate the derivative with
+	/// 		  respect to the state of the one whose key is the same as the
 	///		  element's `Attribute` at the point defined by `ip`.
-	/// \param[in] trans - element transformation relating real element to 
+	/// \param[in] trans - element transformation relating real element to
 	///					 	  reference element
 	/// \param[in] ip - the integration point to evalaute the coefficient at
+	/// \param[in] state - the state at which to evaluate the coefficient
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
 	virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
-											const mfem::IntegrationPoint &ip);
+											const mfem::IntegrationPoint &ip,
+											const double state);
 
 protected:
-	// template <class T> auto EvalStateDeriv(T& coeff, 
-	// 													mfem::ElementTransformation &trans, 
-	// 													const mfem::IntegrationPoint &ip)
-	// 		-> typename std::enable_if<decltype(hasEvalStateDeriv(coeff))::value,
-	// 											double>::type
-	// {
-	// 	return coeff.EvalStateDeriv(trans,ip);
-	// }
 
-	// template <class T> auto EvalStateDeriv(T& coeff, 
-	// 													mfem::ElementTransformation &trans,
-	// 													const mfem::IntegrationPoint &ip)
-	// 		-> typename std::enable_if<!decltype(hasEvalStateDeriv(coeff))::value,
-	// 											double>::type
-	// {
-	// 	return 0.0;
-	// }
+	/// \brief Method to be called if a coefficient matching the element's
+	/// 		  attribute is a subclass of `StateCoefficient and
+	///		  thus implements `Eval()` with state argument
+	/// \param[in] *coeff - pointer to the coefficient in the map
+	/// \param[in] trans - element transformation relating real element to
+	///					 	  reference element
+	/// \param[in] ip - the integration point to evalaute the coefficient at
+	/// \param[in] state - the state at which to evaluate the coefficient
+	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
+	/// \tparam typename - Uses template meta programming and SFINAE to check if
+	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
+	///						  If it is not, typename is void and this function is
+	///						  an invalid overload and not considered. This enables
+	///						  compile-time introspection of object.
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+	template <class T, typename
+				 std::enable_if<std::is_base_of<StateCoefficient,
+				 T>::value, int>::type= 0>
+	inline double Eval(T *coeff,
+							 mfem::ElementTransformation &trans,
+							 const mfem::IntegrationPoint &ip,
+							 const double state)
+	{
+		return coeff->Eval(trans, ip, state);
+	}
 
+	/// \brief Method to be called if a coefficient matching the element's
+	/// 		  attribute is not a subclass of `StateCoefficient and thus
+	///		  does not implement `Eval()` with state argument
+	/// \param[in] *coeff - pointer to the coefficient in the map
+	/// \param[in] trans - element transformation relating real element to
+	///					 	  reference element
+	/// \param[in] ip - the integration point to evalaute the coefficient at
+	/// \param[in] state - the state at which to evaluate the coefficient
+	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
+	/// \tparam typename - Uses template meta programming and SFINAE to check if
+	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
+	///						  If it is not, typename is void and this function is
+	///						  an invalid overload and not considered. This enables
+	///						  compile-time introspection of object.
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+	template <class T, typename
+				 std::enable_if<!std::is_base_of<StateCoefficient,
+				 T>::value, int>::type= 0>
+	inline double Eval(T *coeff,
+							 mfem::ElementTransformation &trans,
+							 const mfem::IntegrationPoint &ip,
+							 const double state)
+	{
+		return coeff->Eval(trans, ip);
+	}
 
 	/// \brief Method to be called if a coefficient matching the element's
 	/// 		  attribute is a subclass of `StateCoefficient and
 	///		  thus implements `EvalStateDeriv()`
 	/// \param[in] *coeff - pointer to the coefficient in the map
-	/// \param[in] trans - element transformation relating real element to 
+	/// \param[in] trans - element transformation relating real element to
 	///					 	  reference element
 	/// \param[in] ip - the integration point to evalaute the coefficient at
+	/// \param[in] state - the state at which to evaluate the coefficient
 	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
 	/// \tparam typename - Uses template meta programming and SFINAE to check if
 	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
@@ -125,23 +176,25 @@ protected:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-	template <class T, typename 
+	template <class T, typename
 				 std::enable_if<std::is_base_of<StateCoefficient,
 				 T>::value, int>::type= 0>
-	inline double EvalStateDeriv(T *coeff, 
+	inline double EvalStateDeriv(T *coeff,
 										  mfem::ElementTransformation &trans,
-										  const mfem::IntegrationPoint &ip)
-	{  
-		return coeff->EvalStateDeriv(trans, ip);
+										  const mfem::IntegrationPoint &ip,
+										  const double state)
+	{
+		return coeff->EvalStateDeriv(trans, ip, state);
 	}
 
 	/// \brief Method to be called if a coefficient matching the element's
 	/// 		  attribute is not a subclass of `StateCoefficient
-	///		  and thus implements `EvalStateDeriv()`
+	///		  and does not implement `EvalStateDeriv()`
 	/// \param[in] *coeff - pointer to the coefficient in the map
-	/// \param[in] trans - element transformation relating real element to 
+	/// \param[in] trans - element transformation relating real element to
 	///					 	  reference element
 	/// \param[in] ip - the integration point to evalaute the coefficient at
+	/// \param[in] state - the state at which to evaluate the coefficient
 	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
 	/// \tparam typename - Uses template meta programming and SFINAE to check if
 	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
@@ -151,12 +204,13 @@ protected:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-	template <class T, typename 
+	template <class T, typename
 				 std::enable_if<!std::is_base_of<StateCoefficient,
 				 T>::value, int>::type = 0>
 	inline double EvalStateDeriv(T *coeff,
 										  mfem::ElementTransformation &trans,
-										  const mfem::IntegrationPoint &ip)	
+										  const mfem::IntegrationPoint &ip,
+										  const double state)
 	{
 		return 0.0;
 	}
@@ -169,28 +223,26 @@ private:
 // should i make this associated with a grid function or should I pass the state to it to evaluate?
 // need to check how Joule handles solving for temp, see if the state passed to an integrator is unique
 // to a finite element space (A and T would be seperate spaces). Also need to look at how much reluctivity
-// changes with temperature. (Ask prof Shah?) 
+// changes with temperature. (Ask prof Shah?)
 
 class ReluctivityCoefficient : public StateCoefficient
 {
 public:
 	/// Define a temperature independent reluctivity model
-	/// \param model - user defined function to evalaute relctivuty based on 
+	/// \param model - user defined function to evalaute relctivuty based on
 	///					 magnetic flux
-	/// \param *B_ - pointer to existing magnetic flux grid function
-	ReluctivityCoefficient(double (*model)(mfem::Vector), GridFunType *B_)
+	ReluctivityCoefficient(double (*model)(const double))
 	 : Bmodel(model), BTmodel(NULL),
-		magnetic_flux_GF(B_), temperature_GF(NULL) {}
+		temperature_GF(NULL) {}
 
 	/// Define a temperature dependent reluctivity model
-	/// \param model - user defined function to evalaute relctivuty based on 
+	/// \param model - user defined function to evalaute relctivuty based on
 	///					 magnetic flux density and temperature
-	/// \param *B_ - pointer to existing magnetic flux grid function
 	/// \param *T_ - pointer to existing temperature grid function
-	ReluctivityCoefficient(double (*model)(mfem::Vector, double),
-								  GridFunType *B_, GridFunType *T_)
-	 : Bmodel(NULL), BTmodel(model), 
-		magnetic_flux_GF(B_), temperature_GF(T_) {}
+	ReluctivityCoefficient(double (*model)(const double, double),
+								  GridFunType *T_)
+	 : Bmodel(NULL), BTmodel(model),
+		temperature_GF(T_) {}
 
 	/// \brief Evaluate the reluctivity in the element described by trans at the
 	/// point ip. Checks which model was initialized, temperature-dependent or
@@ -199,7 +251,8 @@ public:
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
    virtual double Eval(mfem::ElementTransformation &trans,
-                       const mfem::IntegrationPoint &ip);
+                       const mfem::IntegrationPoint &ip,
+							  const double state);
 
 	/// \brief Evaluate the derivative of reluctivity with respsect to magnetic
 	/// flux in the element described by trans at the point ip. Checks which
@@ -209,7 +262,8 @@ public:
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
 	virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
-                       				const mfem::IntegrationPoint &ip);
+                       				const mfem::IntegrationPoint &ip,
+											const double state);
 
 	/// class destructor. Not sure if I need to delete anything?
 	~ReluctivityCoefficient() {}
@@ -217,15 +271,13 @@ public:
 protected:
 	/// Function to evalaute reluctivity model with no temperature dependence
 	/// \param mfem::Vector B - magnetic flux density
-	double (*Bmodel)(const mfem::Vector);
+	double (*Bmodel)(const double);
 
 	/// Function to evalaute reluctivity model with temperature dependence
 	/// \param mfem::Vector B - magnetic flux density
 	/// \param double T - temperature
-	double (*BTmodel)(const mfem::Vector, double);
+	double (*BTmodel)(const double, double);
 
-	/// reference to magnetic flux grid function
-	GridFunType *magnetic_flux_GF;
 	/// reference to temperature grid function
 	GridFunType *temperature_GF;
 };

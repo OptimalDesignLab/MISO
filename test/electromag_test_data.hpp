@@ -39,13 +39,15 @@ public:
 	LinearCoefficient(double val = 1.0) : value(val) {}
 
 	double Eval(mfem::ElementTransformation &trans,
-					const mfem::IntegrationPoint &ip) override
+					const mfem::IntegrationPoint &ip,
+					const double state) override
 	{
 		return value;
 	}
 
 	double EvalStateDeriv(mfem::ElementTransformation &trans,
-								 const mfem::IntegrationPoint &ip) override
+								 const mfem::IntegrationPoint &ip,
+								 const double state) override
 	{
 		return 0.0;
 	}
@@ -58,29 +60,27 @@ private:
 class NonLinearCoefficient : public mach::StateCoefficient
 {
 public:
-	NonLinearCoefficient(mfem::GridFunction *state_)
-	 : stateGF(state_) {}
+	NonLinearCoefficient() {};
 
 	double Eval(mfem::ElementTransformation &trans,
-					const mfem::IntegrationPoint &ip) override
+					const mfem::IntegrationPoint &ip,
+					const double state) override
 	{
-		mfem::Vector state;
-		stateGF->GetVectorValue(trans.ElementNo, ip, state);
-		double state_mag = state.Norml2();
-		return pow(state_mag, 3.0);
+		// mfem::Vector state;
+		// stateGF->GetVectorValue(trans.ElementNo, ip, state);
+		// double state_mag = state.Norml2();
+		return pow(state, 3.0);
 	}
 
 	double EvalStateDeriv(mfem::ElementTransformation &trans,
-								 const mfem::IntegrationPoint &ip) override
+								 const mfem::IntegrationPoint &ip,
+								 const double state) override
 	{
-		mfem::Vector state;
-		stateGF->GetVectorValue(trans.ElementNo, ip, state);
-		double state_mag = state.Norml2();
-		return 3.0*pow(state_mag, 2.0);
+		// mfem::Vector state;
+		// stateGF->GetVectorValue(trans.ElementNo, ip, state);
+		// double state_mag = state.Norml2();
+		return 3.0*pow(state, 2.0);
 	}
-
-private:
-	mfem::GridFunction *stateGF;
 };
 
 } // namespace electromag_data

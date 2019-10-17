@@ -72,7 +72,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       // model->Eval(trans, b_vec.Norml2(), model_val);
-      double model_val = model->Eval(trans, ip);
+      double model_val = model->Eval(trans, ip, b_vec.Norml2());
       model_val *= w;
       b_vec *= model_val;
       curlshape_dFt.AddMult(b_vec, elvect);
@@ -143,12 +143,16 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
          el.CalcCurlShape(ip, curlshape_dFt);
       }
 
+      /// calculate B = curl(A)
+      b_vec = 0.0;
+      curlshape_dFt.MultTranspose(elfun, b_vec);
+
       /////////////////////////////////////////////////////////////////////////
       /// calculate first term of Jacobian
       /////////////////////////////////////////////////////////////////////////
 
       /// evaluate material model at ip
-      double model_val = model->Eval(trans, ip);
+      double model_val = model->Eval(trans, ip, b_vec.Norml2());
       /// multiply material value by integration weight
       model_val *= w;
       /// add first term to elmat
@@ -158,9 +162,6 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /// calculate second term of Jacobian
       /////////////////////////////////////////////////////////////////////////
 
-      /// calculate B = curl(A)
-      b_vec = 0.0;
-      curlshape_dFt.MultTranspose(elfun, b_vec);
       /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
       /// can take outer product of result to generate matrix
       temp_vec = 0.0;
@@ -170,7 +171,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /// evaluate the derivative of the material model with respect to the
       /// norm of the grid function associated with the model at the point
       /// defined by ip, and scale by integration point weight
-      double model_deriv = model->EvalStateDeriv(trans, ip);
+      double model_deriv = model->EvalStateDeriv(trans, ip, b_vec.Norml2());
       model_deriv *= w;
 
       /// TODO - make sure this is how I want to implement this. I could alternatively

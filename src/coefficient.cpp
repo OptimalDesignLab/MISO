@@ -6,7 +6,8 @@ namespace mach
 {
 
 double MeshDependentCoefficient::Eval(ElementTransformation &trans,
-                                      const IntegrationPoint &ip)
+                                      const IntegrationPoint &ip,
+                                      const double state)
 {
    // given the attribute, extract the coefficient value from the map
    std::map<const int, Coefficient*>::iterator it;
@@ -17,7 +18,7 @@ double MeshDependentCoefficient::Eval(ElementTransformation &trans,
    if (it != material_map.end())
    {
       coeff = it->second;
-		value = coeff->Eval(trans, ip);
+      value = Eval(coeff, trans, ip, state);
    }
    else
    {
@@ -30,7 +31,8 @@ double MeshDependentCoefficient::Eval(ElementTransformation &trans,
 }
 
 double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
-                                      				const IntegrationPoint &ip)
+                                      				const IntegrationPoint &ip,
+                                                const double state)
 {
    // given the attribute, extract the coefficient value from the map
    std::map<const int, Coefficient*>::iterator it;
@@ -40,7 +42,7 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
    if (it != material_map.end())
    {
       Coefficient *coeff = it->second;
-		value = EvalStateDeriv(coeff, trans, ip);
+		value = EvalStateDeriv(coeff, trans, ip, state);
    }
    else
    {
@@ -53,25 +55,24 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
 }
 
 double ReluctivityCoefficient::Eval(ElementTransformation &trans,
-												const IntegrationPoint &ip)
+												const IntegrationPoint &ip,
+                                    const double state)
 {
-	Vector B;
-   magnetic_flux_GF->GetVectorValue(trans.ElementNo, ip, B);
-
 	if (Bmodel)
    {
-      return ((*Bmodel)(B));
+      return ((*Bmodel)(state));
    }
    else
    {
 		double temp;
 		temperature_GF->GetValue(trans.ElementNo, ip, temp);
-      return (*BTmodel)(B, temp);
+      return (*BTmodel)(state, temp);
    }
 }
 
 double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
-												          const IntegrationPoint &ip)
+												          const IntegrationPoint &ip,
+                                              const double state)
 {
    mfem_error("Not yet implemented!");
    return 0.0;
