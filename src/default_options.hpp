@@ -21,13 +21,18 @@ nlohmann::json default_options =
       {"lps-coeff", 1.0} // scaling coefficient for local-proj stabilization
    }},
 
-   {"unsteady", // options related to unsteady time-marching
+   "steady", false,
+   {"time-dis", // options related to unsteady time-marching
    {
       {"ode-solver", "RK4"}, // type of ODE solver to use 
       {"const-cfl", false}, // if true, adapt dt to keep cfl constant
       {"t-final", 1.0}, // final time to simulate to
       {"dt", 0.01}, // time-step size when `const-cfl` is false
       {"cfl", 1.0} // target CFL number
+   }},
+
+   {"newton", // options related to root-finding algorithms
+   {
    }},
 
    {"mesh", // options related to the mesh
