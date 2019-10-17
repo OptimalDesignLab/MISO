@@ -437,7 +437,7 @@ public:
                                    const mfem::FiniteElement &el_right,
                                    mfem::FaceElementTransformations &trans,
                                    const mfem::Vector &elfun,
-                                   mfem::Vector &elvect);
+                                   mfem::Vector &elvect) {}
 
    /// Construct the element local Jacobian
    /// \param[in] el_left - "left" element whose residual we want to update
@@ -449,7 +449,7 @@ public:
                                  const mfem::FiniteElement &el_right,
                                  mfem::FaceElementTransformations &trans,
                                  const mfem::Vector &elfun,
-                                 mfem::DenseMatrix &elmat);
+                                 mfem::DenseMatrix &elmat) {}
 
 protected: 
    /// number of states
@@ -496,8 +496,8 @@ protected:
                      const mfem::Vector &u_right, mfem::DenseMatrix &jac_left,
                      mfem::DenseMatrix &jac_right)
    {
-      static_cast<Derived *>(this)->calcFluxJacState(dir, u_left, u_right,
-                                                     jac_left, jac_right);
+      static_cast<Derived*>(this)->calcFluxJacState(dir, u_left, u_right,
+                                                    jac_left, jac_right);
    }
    
    /// Compute the Jacobian of the interface flux function w.r.t. `dir`
@@ -509,8 +509,8 @@ protected:
    void fluxJacDir(const mfem::Vector &dir, const mfem::Vector &u_left,
                    const mfem::Vector &u_right, mfem::DenseMatrix &flux_dir)
    {
-      static_cast<Derived *>(this)->calcFluxJacDir(dir, u_left, u_right,
-                                                   flux_dir);
+      static_cast<Derived*>(this)->calcFluxJacDir(dir, u_left, u_right,
+                                                  flux_dir);
    }
 
 };

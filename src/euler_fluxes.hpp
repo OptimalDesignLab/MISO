@@ -117,6 +117,57 @@ void calcIsmailRoeFlux(int di, const xdouble *qL, const xdouble *qR,
    flux[dim + 1] = rho_hat * h_hat * U;
 }
 
+/// Ismail-Roe entropy conservative flux function in direction `dir`
+/// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] qL - conservative variables at "left" state
+/// \param[in] qR - conservative variables at "right" state
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcIsmailRoeFaceFlux(const xdouble *dir, const xdouble *qL,
+                           const xdouble *qR, xdouble *flux)
+{
+   xdouble pL = pressure<xdouble,dim>(qL);
+   xdouble pR = pressure<xdouble,dim>(qR);
+   xdouble zL[dim + 2];
+   xdouble zR[dim + 2];
+   zL[0] = sqrt(qL[0] / pL);
+   zR[0] = sqrt(qR[0] / pR);
+   for (int i = 0; i < dim; ++i)
+   {
+      zL[i + 1] = zL[0] * qL[i + 1] / qL[0];
+      zR[i + 1] = zR[0] * qR[i + 1] / qR[0];
+   }
+   zL[dim + 1] = sqrt(qL[0] * pL);
+   zR[dim + 1] = sqrt(qR[0] * pR);
+
+   xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
+
+   xdouble U = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      U += (zL[0] * qL[i + 1] / qL[0] + zR[0] * qR[i + 1] / qR[0]) *
+           dir[i] / (zL[0] + zR[0]);
+   }
+   xdouble p1_hat = (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0]);
+   xdouble p2_hat = ((euler::gamma + 1.0) * logavg(zL[dim + 1], zR[dim + 1]) /
+                         logavg(zL[0], zR[0]) +
+                     (euler::gami) * (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0])) /
+                    (2.0 * euler::gamma);
+   xdouble h_hat = euler::gamma * p2_hat / (rho_hat * euler::gami);
+
+   flux[0] = rho_hat * U;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] = (zL[i + 1] + zR[i + 1]) / (zL[0] + zR[0]); // u_hat
+      h_hat += 0.5 * flux[i + 1] * flux[i + 1];
+      flux[i + 1] *= rho_hat * U;
+      flux[i + 1] += p1_hat * dir[i];
+   }
+   flux[dim + 1] = rho_hat * h_hat * U;
+}
+
 /// The spectral radius of the flux Jacobian in the direction `dir`
 /// \param[in] dir - desired direction of flux Jacobian
 /// \param[in] q - conservative variables used to evaluate Jacobian
