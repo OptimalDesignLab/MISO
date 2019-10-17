@@ -163,20 +163,9 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       curlshape_dFt.MultTranspose(elfun, b_vec);
       /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
       /// can take outer product of result to generate matrix
-      // temp_vec = 0.0;
-      // curlshape_dFt.Mult(b_vec, temp_vec);
-      // DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
-
-      // std::cout << "Elfun: " << std::endl;
-      // elfun.Print();
-      // std::cout << "curlshape: " << std::endl;
-      // curlshape_dFt.PrintMatlab();
-      // std::cout << "b_vec" << std::endl;
-      // b_vec.Print();
-      // std::cout << "temp_vec" << std::endl;
-      // temp_vec.Print();
-      // std::cout << std::endl;
-
+      temp_vec = 0.0;
+      curlshape_dFt.Mult(b_vec, temp_vec);
+      DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
 
       /// evaluate the derivative of the material model with respect to the
       /// norm of the grid function associated with the model at the point
@@ -190,20 +179,8 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       ///        unnessecary
       model_deriv /= b_vec.Norml2();
 
-      for (int i = 0; i < ndof; ++i)
-      {
-         for (int j = 0; j < ndof; ++j)
-         {
-            Vector row_i(3);
-            curlshape_dFt.GetRow(i, row_i);
-            Vector row_j(3);
-            curlshape_dFt.GetRow(j, row_j);
-            elmat(i,j) +=  model_deriv*(b_vec*row_i)*(b_vec*row_i);
-         }
-      }
-
       /// add second term to elmat
-      // AddMult_a_AAt(model_deriv, temp_matrix, elmat);
+      AddMult_a_AAt(model_deriv, temp_matrix, elmat);
    }
 }
 

@@ -67,8 +67,6 @@ public:
 		mfem::Vector state;
 		stateGF->GetVectorValue(trans.ElementNo, ip, state);
 		double state_mag = state.Norml2();
-		// std::cout << "Eval state: "; state.Print();
-		// std::cout << "Eval state_mag: " << state_mag << std::endl;
 		return pow(state_mag, 3.0);
 	}
 
@@ -78,9 +76,7 @@ public:
 		mfem::Vector state;
 		stateGF->GetVectorValue(trans.ElementNo, ip, state);
 		double state_mag = state.Norml2();
-		// std::cout << "EvalStateDeriv state_mag: " << state_mag << std::endl;
 		return 3.0*pow(state_mag, 2.0);
-		// return 0.0;
 	}
 
 private:

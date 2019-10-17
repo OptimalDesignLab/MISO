@@ -161,8 +161,6 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          GridFunction a(fes.get());
          VectorFunctionCoefficient pert(3, randBaselinePert);
          a.ProjectCoefficient(pert);
-         std::cout << "GF A: " <<std::endl;
-         a.Print();
 
          // create H(div) finite element space and grid function
          std::unique_ptr<FiniteElementCollection> fec_b(
@@ -177,9 +175,6 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          curl.Assemble();
          curl.Finalize();
          curl.Mult(a, b);
-
-         std::cout << "GF B: " <<std::endl;
-         b.Print();
 
          std::unique_ptr<mach::ExplicitStateDependentCoefficient> nu(
             new NonLinearCoefficient(&b));
@@ -198,17 +193,18 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          Jac.Mult(v, jac_v);
 
          // now compute the finite-difference approximation...
-         GridFunction a_pert(a), r(fes.get()), jac_v_fd(fes.get());
-         a_pert.Add(-delta, v);
-         res.Mult(a_pert, r);
-         a_pert.Add(2*delta, v);
-         res.Mult(a_pert, jac_v_fd);
+         GridFunction r(fes.get()), jac_v_fd(fes.get());
+         a.Add(-delta, v);
+         curl.Mult(a, b);
+         res.Mult(a, r);
+         a.Add(2*delta, v);
+         curl.Mult(a, b);
+         res.Mult(a, jac_v_fd);
          jac_v_fd -= r;
          jac_v_fd /= (2*delta);
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            std::cout << "Jac v: " << jac_v(i)  << "Jac v fd: " << jac_v_fd(i) << std::endl;
             REQUIRE( jac_v(i) == Approx(jac_v_fd(i)) );
          }
       }
