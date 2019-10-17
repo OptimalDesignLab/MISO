@@ -92,66 +92,6 @@ void InviscidIntegrator<Derived>::AssembleElementGrad(
 }
 
 template <typename Derived>
-void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
-   const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
-   const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
-{
-   using namespace mfem;
-   // This should be in a try/catch, but that creates other issues
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
-   int num_nodes = sbp.GetDof();
-   int dim = sbp.GetDim();
-#ifdef MFEM_THREAD_SAFE
-   Vector ui, uj, dxidx;
-   DenseMatrix adjJ_i, adjJ_j, flux_jaci, flux_jacj;
-#endif
-   elmat.SetSize(num_states*num_nodes);
-   elmat = 0.0;
-   adjJ_i.SetSize(dim);
-   adjJ_j.SetSize(dim);
-   dxidx.SetSize(dim);
-   flux_jaci.SetSize(num_states);
-   flux_jacj.SetSize(num_states);
-   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-    for (int di = 0; di < dim; ++di)
-   {  
-      for (int i = 0; i < num_nodes; ++i)
-      {
-         // get the flux Jacobian at node i
-         Trans.SetIntPoint(&el.GetNodes().IntPoint(i)); 
-         CalcAdjugate(Trans.Jacobian(), adjJ_i);
-         adjJ_i.GetRow(di, dxidx);
-         u.GetRow(i, ui);
-         // loop over rows j for contribution (Q^T)_{i,j} * Jac_i
-         for (int j = i+1; j < num_nodes; ++j)
-         {
-            // get the flux Jacobian at node i
-            Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
-            CalcAdjugate(Trans.Jacobian(), adjJ_j);
-            adjJ_j.GetRow(di, dxidx);
-            u.GetRow(j, uj);
-            fluxJacStates(di, ui, uj, flux_jaci, flux_jacj);
-            double Sij = sbp.getSkewEntry(di, i, j, adjJ_i, adjJ_j);
-            Sij *= alpha;
-            for (int n = 0; n < num_states; ++n)
-            {
-               for (int m = 0; m < num_states; ++m)
-               {
-                  // res(i,n) += Sij*fluxij(n);
-                  elmat(n*num_nodes+i, m*num_nodes+i) += Sij*flux_jaci(n,m);
-                  elmat(n*num_nodes+i, m*num_nodes+j) += Sij*flux_jacj(n,m);
-                  // res(j,n) -= Sij*fluxij(n);
-                  elmat(n*num_nodes+j, m*num_nodes+i) -= Sij*flux_jaci(n,m);
-                  elmat(n*num_nodes+j, m*num_nodes+j) -= Sij*flux_jacj(n,m);
-               }
-            } 
-         }
-      }
-   }
-}
-
-
-template <typename Derived>
 void DyadicFluxIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &Trans,
@@ -200,6 +140,65 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
 			} // di loop
       } // j node loop
    } // i node loop
+}
+
+template <typename Derived>
+void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
+   const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+   const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
+{
+   using namespace mfem;
+   // This should be in a try/catch, but that creates other issues
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector ui, uj, dxidx;
+   DenseMatrix adjJ_i, adjJ_j, flux_jaci, flux_jacj;
+#endif
+   elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
+   adjJ_i.SetSize(dim);
+   adjJ_j.SetSize(dim);
+   dxidx.SetSize(dim);
+   flux_jaci.SetSize(num_states);
+   flux_jacj.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   for (int di = 0; di < dim; ++di)
+   {  
+      for (int i = 0; i < num_nodes; ++i)
+      {
+         // get the flux Jacobian at node i
+         Trans.SetIntPoint(&el.GetNodes().IntPoint(i)); 
+         CalcAdjugate(Trans.Jacobian(), adjJ_i);
+         adjJ_i.GetRow(di, dxidx);
+         u.GetRow(i, ui);
+         // loop over rows j for contribution (Q^T)_{i,j} * Jac_i
+         for (int j = i+1; j < num_nodes; ++j)
+         {
+            // get the flux Jacobian at node i
+            Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
+            CalcAdjugate(Trans.Jacobian(), adjJ_j);
+            adjJ_j.GetRow(di, dxidx);
+            u.GetRow(j, uj);
+            fluxJacStates(di, ui, uj, flux_jaci, flux_jacj);
+            double Sij = sbp.getSkewEntry(di, i, j, adjJ_i, adjJ_j);
+            Sij *= alpha;
+            for (int n = 0; n < num_states; ++n)
+            {
+               for (int m = 0; m < num_states; ++m)
+               {
+                  // res(i,n) += Sij*fluxij(n);
+                  elmat(n*num_nodes+i, m*num_nodes+i) += Sij*flux_jaci(n,m);
+                  elmat(n*num_nodes+i, m*num_nodes+j) += Sij*flux_jacj(n,m);
+                  // res(j,n) -= Sij*fluxij(n);
+                  elmat(n*num_nodes+j, m*num_nodes+i) -= Sij*flux_jaci(n,m);
+                  elmat(n*num_nodes+j, m*num_nodes+j) -= Sij*flux_jacj(n,m);
+               }
+            } 
+         }
+      }
+   }
 }
 
 template <typename Derived>
@@ -372,7 +371,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
       int j = sbp.getIntegrationPointIndex(el_ip);
       u.GetRow(j, u_face);
 
-      // get the normal vector and the flux on the face
+      // get the normal vector and the flux Jacobian on the face
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
       // flux(x, nrm, u_face, flux_face);
@@ -393,7 +392,6 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
    }
 }
 
-#if 0
 template <typename Derived>
 void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
    const mfem::FiniteElement &el_left,
@@ -408,14 +406,13 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
    const int num_nodes_right = el_right.GetDof();
    const int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   Vector u_face_left, u_face_right, x, nrm, flux_face;
+   Vector u_face_left, u_face_right, nrm, flux_face;
 #endif
-	elvect.SetSize(num_states*(num_nodes_left + num_nodes_right));
    u_face_left.SetSize(num_states);
    u_face_right.SetSize(num_states);
    nrm.SetSize(dim);
    flux_face.SetSize(num_states);
-   elvect.SetSize(num_states*num_nodes);
+	elvect.SetSize(num_states*(num_nodes_left + num_nodes_right));
    elvect = 0.0;
 
    DenseMatrix u_left(elfun.GetData(), num_nodes_left, num_states);
@@ -443,23 +440,103 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
       trans.Loc1.Transform(ip_face, ip_left);
       trans.Loc2.Transform(ip_face, ip_right);
 
-      int index_left = sbp.getIntegrationPointIndex(ip_left);
-      u_left.GetRow(index_left, u_face_left);
-      int index_right = sbp.getIntegrationPointIndex(ip_right);
-      u_right.GetRow(index_right, u_face_right); 
+      int i_left = sbp.getIntegrationPointIndex(ip_left);
+      u_left.GetRow(i_left, u_face_left);
+      int i_right = sbp.getIntegrationPointIndex(ip_right);
+      u_right.GetRow(i_right, u_face_right); 
 
       // get the normal vector and the flux on the face
       trans.Face->SetIntPoint(&ip_face);
       CalcOrtho(trans.Face->Jacobian(), nrm);
+      nrm *= ip_face.weight;
       flux(nrm, u_face_left, u_face_right, flux_face);
-      flux_face *= ip_face.weight;
 
       // multiply by test functions from left and right elements
       for (int n = 0; n < num_states; ++n)
       {
-         res_left(index_left, n) += alpha*flux_face(n);
-         res_right(index_right, n) -= alpha*flux_face(n);
+         res_left(i_left, n) += alpha*flux_face(n);
+         res_right(i_right, n) -= alpha*flux_face(n);
       }
    }
 }
+
+template <typename Derived>
+void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
+   const mfem::FiniteElement &el_left,
+   const mfem::FiniteElement &el_right,
+   mfem::FaceElementTransformations &trans,
+   const mfem::Vector &elfun,
+   mfem::DenseMatrix &elmat)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_left);
+   const int num_nodes_left = el_left.GetDof();
+   const int num_nodes_right = el_right.GetDof();
+   const int num_rows = num_states*(num_nodes_left + num_nodes_right);
+   const int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face_left, u_face_right, nrm;
+   DenseMatrix flux_jac_left, flux_jac_right;
 #endif
+	elmat.SetSize(num_rows);
+   u_face_left.SetSize(num_states);
+   u_face_right.SetSize(num_states);
+   nrm.SetSize(dim);
+   flux_jac_left.SetSize(num_states);
+   flux_jac_right.SetSize(num_states);
+
+   DenseMatrix u_left(elfun.GetData(), num_nodes_left, num_states);
+   DenseMatrix u_right(elfun.GetData() + num_nodes_left*num_states,
+                       num_nodes_right, num_states);
+   const FiniteElement *sbp_face;
+   switch (dim)
+   {
+      case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
+              break;
+      case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+              break;
+      default: throw mach::MachException(
+         "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
+         "\tcannot handle given dimension");
+   }
+   IntegrationPoint ip_left, ip_right;
+   for (int i = 0; i < sbp_face->GetDof(); ++i)
+   {
+      const IntegrationPoint &ip_face = sbp_face->GetNodes().IntPoint(i);
+      trans.Loc1.Transform(ip_face, ip_left);
+      trans.Loc2.Transform(ip_face, ip_right);
+
+      int i_left = sbp.getIntegrationPointIndex(ip_left);
+      u_left.GetRow(i_left, u_face_left);
+      int i_right = sbp.getIntegrationPointIndex(ip_right);
+      u_right.GetRow(i_right, u_face_right); 
+
+      // get the normal vector and the flux Jacobians on the face
+      trans.Face->SetIntPoint(&ip_face);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      nrm *= alpha*ip_face.weight;
+      //flux(nrm, u_face_left, u_face_right, flux_face);
+      fluxJacStates(nrm, u_face_left, u_face_right, flux_jac_left,
+                    flux_jac_right);
+
+      // insert flux Jacobians into element stiffness matrices
+      const int offset = num_states*num_nodes_left;
+      for (int n = 0; n < num_states; ++n)
+      {
+         for (int m = 0; m < num_states; ++m)
+         {
+            //res_left(i_left, n) += alpha*flux_face(n);
+            elmat(n*num_nodes_left + i_left,
+                  m*num_nodes_left + i_left) += flux_jac_left(n,m);
+            elmat(n*num_nodes_left + i_left,
+                  offset + m*num_nodes_right + i_right) += flux_jac_right(n,m);
+            //res_right(i_right, n) -= alpha*flux_face(n);
+            elmat(offset + n*num_nodes_right + i_right,
+                  m*num_nodes_left + i_left) -= flux_jac_left(n,m);
+            elmat(offset + n*num_nodes_right + i_right,
+                  offset + m*num_nodes_right + i_right) -= flux_jac_right(n,m);
+         }
+      }
+   }
+}
+

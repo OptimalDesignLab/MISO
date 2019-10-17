@@ -437,7 +437,7 @@ public:
                                    const mfem::FiniteElement &el_right,
                                    mfem::FaceElementTransformations &trans,
                                    const mfem::Vector &elfun,
-                                   mfem::Vector &elvect) {}
+                                   mfem::Vector &elvect);
 
    /// Construct the element local Jacobian
    /// \param[in] el_left - "left" element whose residual we want to update
@@ -449,7 +449,7 @@ public:
                                  const mfem::FiniteElement &el_right,
                                  mfem::FaceElementTransformations &trans,
                                  const mfem::Vector &elfun,
-                                 mfem::DenseMatrix &elmat) {}
+                                 mfem::DenseMatrix &elmat);
 
 protected: 
    /// number of states
@@ -461,16 +461,18 @@ protected:
    /// used to select the appropriate face element
    const mfem::FiniteElementCollection *fec;
 #ifndef MFEM_THREAD_SAFE
-   /// used to reference the state at face node
-   mfem::Vector u_face; 
-   /// store the physical location of a node
-   mfem::Vector x;
+   /// used to reference the left state at face node
+   mfem::Vector u_face_left; 
+   /// used to reference the right state at face node
+   mfem::Vector u_face_right;
    /// the outward pointing (scaled) normal to the boundary at a node
    mfem::Vector nrm;
    /// stores the flux evaluated by `bnd_flux`
    mfem::Vector flux_face;
-   /// stores the jacobian of the flux with respect to the state at `u_face`
-   mfem::DenseMatrix flux_jac_face;
+   /// stores the jacobian of the flux with respect to the left state
+   mfem::DenseMatrix flux_jac_left;
+   /// stores the jacobian of the flux with respect to the right state
+   mfem::DenseMatrix flux_jac_right;
 #endif
 
    /// Compute an interface flux function
@@ -492,11 +494,11 @@ protected:
    /// \param[out] jac_left - Jacobian of `flux` w.r.t. `u_left`
    /// \param[out] jac_right - Jacobian of `flux` w.r.t. `u_right`
    /// \note This uses the CRTP, so it wraps a call a func. in Derived.
-   void fluxJacState(const mfem::Vector &dir, const mfem::Vector &u_left,
-                     const mfem::Vector &u_right, mfem::DenseMatrix &jac_left,
-                     mfem::DenseMatrix &jac_right)
+   void fluxJacStates(const mfem::Vector &dir, const mfem::Vector &u_left,
+                      const mfem::Vector &u_right, mfem::DenseMatrix &jac_left,
+                      mfem::DenseMatrix &jac_right)
    {
-      static_cast<Derived*>(this)->calcFluxJacState(dir, u_left, u_right,
+      static_cast<Derived*>(this)->calcFluxJacStates(dir, u_left, u_right,
                                                     jac_left, jac_right);
    }
    
