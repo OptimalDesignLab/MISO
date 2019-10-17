@@ -217,10 +217,10 @@ public:
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
-   // virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-   //                                  mfem::ElementTransformation &Ttr,
-   //                                  const mfem::Vector &elfun,
-   //                                  mfem::DenseMatrix &elmat);
+   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+                                    mfem::ElementTransformation &Ttr,
+                                    const mfem::Vector &elfun,
+                                    mfem::DenseMatrix &elmat);
 
 protected:
    /// number of states

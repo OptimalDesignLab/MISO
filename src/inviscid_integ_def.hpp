@@ -194,6 +194,102 @@ void LPSIntegrator<Derived>::AssembleElementVector(
 }
 
 template <typename Derived>
+void LPSIntegrator<Derived>::AssembleElementGrad(
+    const FiniteElement &el, ElementTransformation &Ttr,
+    const Vector &elfun, DenseMatrix &elmat)
+{
+   using namespace mfem;
+   // This should be in a try/catch, but that creates other issues
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector ui, dxidx;
+   DenseMatrix adjJ_i, flux_jaci;
+#endif
+   elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
+   ui.SetSize(num_states);
+   adjJt.SetSize(dim);
+   DenseMatrix dwidu;
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+   DenseMatrix elmat2(elmat.Width(), elmat.Height());
+
+   // Product Rule, A ... dwdu + dAdu ... w
+   // A ... dwdu
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      nodecol = 0;
+      // Step 1: convert from working variables (this may be the identity)
+      u.GetRow(i,ui);
+      convertJacState(ui, dwidu);
+   
+      // Step 2: apply the projection operator to dwidu
+      // Define new function/get explicit P
+      sbp.multProjOperatorJac(dwidu, dPwidu, i, true);
+
+      // Step 3: apply scaling matrix at each node and diagonal norm
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
+      CalcAdjugate(Trans.Jacobian(), adjJt);
+      u.GetRow(i,ui);
+
+      // Define new function that returns matrix
+      scale(adjJt, ui, Pwi, wi);
+      wi *= lps_coeff;
+
+      // need node-wise versions of these functions which return matrices
+      sbp.multNormMatrix(w, w);
+      // Step 4: apply the transposed projection operator to H*A*P*w
+      sbp.multProjOperator(w, Pw, true);
+      // This is necessary because data in elvect is expected to be ordered `byNODES`
+      res.Transpose(Pw);
+      res *= alpha;
+
+      // Assemble each node in elmat
+      //elmat. ...
+   }
+
+   //dAdu ... w
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      // Step 1: convert from working variables (this may be the identity)
+      u.GetRow(i,ui);
+      w.GetColumnReference(i, wi);
+      convert(ui, wi);
+   }
+   // Step 2: apply the projection operator to dwidu
+   sbp.multProjOperator(wa, Pw, true);
+
+   for (int i = 0; i < num_nodes; ++i)
+      // Step 3: apply scaling matrix at each node and diagonal norm
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
+      CalcAdjugate(Trans.Jacobian(), adjJt);
+      Pw.GetColumnReference(i, Pwi);
+      u.GetRow(i,ui);
+      //apply differential scaling matrix
+      applyScalingJacState(adjJt, ui, Pwi, dwidu);
+      dwidu *= lps_coeff;
+
+      // need node-wise versions of these functions which return matrices
+      sbp.multNormMatrix(w, w);
+      // Step 4: apply the transposed projection operator to H*A*P*w
+      sbp.multProjOperator(w, Pw, true);
+      // This is necessary because data in elvect is expected to be ordered `byNODES`
+      res.Transpose(Pw);
+      res *= alpha;
+
+      // Assemble each node in elmat2
+      //elmat2. ...
+   }
+
+   //add 2nd term to elmat
+   elmat += elmat2;
+}
+
+template <typename Derived>
 void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
    const mfem::FiniteElement &el_bnd,
    const mfem::FiniteElement &el_unused,
