@@ -33,7 +33,7 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
 }
 
 /// Simple linear coefficient for testing CurlCurlNLFIntegrator
-class LinearCoefficient : public mach::ExplicitStateDependentCoefficient
+class LinearCoefficient : public mach::StateCoefficient
 {
 public:
 	LinearCoefficient(double val = 1.0) : value(val) {}
@@ -55,7 +55,7 @@ private:
 };
 
 /// Simple nonlinear coefficient for testing CurlCurlNLFIntegrator
-class NonLinearCoefficient : public mach::ExplicitStateDependentCoefficient
+class NonLinearCoefficient : public mach::StateCoefficient
 {
 public:
 	NonLinearCoefficient(mfem::GridFunction *state_)

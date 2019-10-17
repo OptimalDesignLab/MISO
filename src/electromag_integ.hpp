@@ -9,66 +9,6 @@
 namespace mach
 {
 
-// /// Abstract class for electromagnetic material models (permeability)
-// class ElectromageticMaterialModel
-// {
-// public:
-// 	/// Construct an electromagnetic material model
-//    ElectromageticMaterialModel() { }
-
-//    virtual ~ElectromageticMaterialModel() { }
-
-//    /// \brief Evaluate the material model 
-//    /// \param[in] trans - element transformation holds point in space
-//    ///                    as well as mesh attributes
-//    /// \param[in] state - appropriate input to evalaute model (B for permeability)
-//    /// \param[out] model_value - evaluated material model value at point of interest
-//    /// \note It is assumed that trans.SetIntPoint() has already called for the
-// 	/// point of interest.
-//    void Eval(mfem::ElementTransformation &trans, const double state,  
-//              double model_value);
-
-//    void EvalDerivState(mfem::ElementTransformation &trans, const double state,  
-//              double model_deriv);
-
-
-//    // /// A reference-element to target-element transformation that can be used to
-//    // /// evaluate Coefficient
-//    // /// @note It is assumed that _Ttr.SetIntPoint() is already called for the
-// 	// /// point of interest.
-//    // void SetTransformation(mfem::ElementTransformation &_Ttr) { Ttr = &_Ttr; }
-
-//    // /// \brief Evaluate the strain energy density function, W = W(Jpt).
-// 	// /// \param[in] Jpt  Represents the target->physical transformation
-//    // ///                 Jacobian matrix.
-//    // virtual double EvalW(const mfem::DenseMatrix &Jpt) const = 0;
-
-//    // /// \brief Evaluate the 1st Piola-Kirchhoff stress tensor, P = P(Jpt).
-//    // /// \param[in] Jpt  Represents the target->physical transformation
-//    // ///                 Jacobian matrix.
-//    // /// \param[out]  P  The evaluated 1st Piola-Kirchhoff stress tensor. */
-//    // virtual void EvalP(const mfem::DenseMatrix &Jpt, mfem::DenseMatrix &P) const = 0;
-
-//    // /// \brief Evaluate the derivative of the 1st Piola-Kirchhoff stress tensor
-//    // ///        and assemble its contribution to the local gradient matrix 'A'.
-//    // /// \param[in] Jpt     Represents the target->physical transformation
-//    // ///                    Jacobian matrix.
-//    // /// \param[in] DS      Gradient of the basis matrix (dof x dim).
-//    // /// \param[in] weight  Quadrature weight coefficient for the point.
-//    // /// \param[in,out]  A  Local gradient matrix where the contribution from this
-//    // ///                    point will be added.
-// 	// ///
-//    // /// Computes weight * d(dW_dxi)_d(xj) at the current point, for all i and j,
-//    // /// where x1 ... xn are the FE dofs. This function is usually defined using
-//    // /// the matrix invariants and their derivatives.
-//    // virtual void AssembleH(const mfem::DenseMatrix &Jpt, const mfem::DenseMatrix &DS,
-//    //                        const double weight, mfem::DenseMatrix &A) const = 0;
-
-// protected:
-// 	/// Reference-element to target-element transformation.
-//    // mfem::ElementTransformation *Ttr;
-// };
-
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
 class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -76,8 +16,8 @@ public:
 	/// Construct a curl curl nonlinear form integrator for Nedelec elements
    /// \param[in] diff_stack - for algorithmic differentiation
 	/// \param[in] m - model describing nonlinear material parameter
-   CurlCurlNLFIntegrator(ExplicitStateDependentCoefficient *m,
-								 double a = 1.0) 
+   CurlCurlNLFIntegrator(StateCoefficient *m,
+								 double a = 1.0)
 		: model(m), alpha(a) {}
 
    /// Construct the element local residual
@@ -102,7 +42,7 @@ public:
 
 private:
 	/// material (thus mesh) dependent model describing electromagnetic behavior
-	ExplicitStateDependentCoefficient *model;
+	StateCoefficient *model;
    /// scales the terms; can be used to move to rhs/lhs
 	double alpha;
 

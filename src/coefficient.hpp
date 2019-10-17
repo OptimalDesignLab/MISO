@@ -12,7 +12,7 @@ namespace mach
 {
 
 /// TODO - replace mfem_error with mach_error type
-class ExplicitStateDependentCoefficient : public mfem::Coefficient
+class StateCoefficient : public mfem::Coefficient
 {
 public:
 	// virtual double Eval(mfem::ElementTransformation &trans,
@@ -23,7 +23,7 @@ public:
 };
 
 
-class MeshDependentCoefficient : public ExplicitStateDependentCoefficient
+class MeshDependentCoefficient : public StateCoefficient
 {
 public:
 	MeshDependentCoefficient()
@@ -110,7 +110,7 @@ protected:
 
 
 	/// \brief Method to be called if a coefficient matching the element's
-	/// 		  attribute is a subclass of `ExplicitStateDependentCoefficient and
+	/// 		  attribute is a subclass of `StateCoefficient and
 	///		  thus implements `EvalStateDeriv()`
 	/// \param[in] *coeff - pointer to the coefficient in the map
 	/// \param[in] trans - element transformation relating real element to 
@@ -126,7 +126,7 @@ protected:
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
 	template <class T, typename 
-				 std::enable_if<std::is_base_of<ExplicitStateDependentCoefficient,
+				 std::enable_if<std::is_base_of<StateCoefficient,
 				 T>::value, int>::type= 0>
 	inline double EvalStateDeriv(T *coeff, 
 										  mfem::ElementTransformation &trans,
@@ -136,7 +136,7 @@ protected:
 	}
 
 	/// \brief Method to be called if a coefficient matching the element's
-	/// 		  attribute is not a subclass of `ExplicitStateDependentCoefficient
+	/// 		  attribute is not a subclass of `StateCoefficient
 	///		  and thus implements `EvalStateDeriv()`
 	/// \param[in] *coeff - pointer to the coefficient in the map
 	/// \param[in] trans - element transformation relating real element to 
@@ -152,7 +152,7 @@ protected:
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
 	template <class T, typename 
-				 std::enable_if<!std::is_base_of<ExplicitStateDependentCoefficient,
+				 std::enable_if<!std::is_base_of<StateCoefficient,
 				 T>::value, int>::type = 0>
 	inline double EvalStateDeriv(T *coeff,
 										  mfem::ElementTransformation &trans,
@@ -171,7 +171,7 @@ private:
 // to a finite element space (A and T would be seperate spaces). Also need to look at how much reluctivity
 // changes with temperature. (Ask prof Shah?) 
 
-class ReluctivityCoefficient : public ExplicitStateDependentCoefficient
+class ReluctivityCoefficient : public StateCoefficient
 {
 public:
 	/// Define a temperature independent reluctivity model

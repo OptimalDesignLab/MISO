@@ -33,7 +33,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear", "Works for line
 
          NonlinearForm res(fes.get());
 
-         std::unique_ptr<mach::ExplicitStateDependentCoefficient> nu(
+         std::unique_ptr<mach::StateCoefficient> nu(
             new LinearCoefficient(1.0));
 
          res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
@@ -96,7 +96,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad", "[CurlCurlNLFIntegrator]
 
          NonlinearForm res(fes.get());
 
-         std::unique_ptr<mach::ExplicitStateDependentCoefficient> nu(
+         std::unique_ptr<mach::StateCoefficient> nu(
             new LinearCoefficient());
 
          res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
@@ -176,7 +176,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
          curl.Finalize();
          curl.Mult(a, b);
 
-         std::unique_ptr<mach::ExplicitStateDependentCoefficient> nu(
+         std::unique_ptr<mach::StateCoefficient> nu(
             new NonLinearCoefficient(&b));
 
          NonlinearForm res(fes.get());
