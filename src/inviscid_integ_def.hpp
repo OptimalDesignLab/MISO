@@ -468,6 +468,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
    const mfem::Vector &elfun,
    mfem::DenseMatrix &elmat)
 {
+   std::cout << "AssembleFaceGrad is called.\n";
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_left);
    const int num_nodes_left = el_left.GetDof();
