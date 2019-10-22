@@ -14,8 +14,8 @@ class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
 	/// Construct a curl curl nonlinear form integrator for Nedelec elements
-   /// \param[in] diff_stack - for algorithmic differentiation
 	/// \param[in] m - model describing nonlinear material parameter
+   /// \param[in] a - used to move to lhs or rhs
    CurlCurlNLFIntegrator(StateCoefficient *m,
 								 double a = 1.0)
 		: model(m), alpha(a) {}

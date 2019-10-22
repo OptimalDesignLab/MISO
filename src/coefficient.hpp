@@ -32,6 +32,8 @@ public:
 											const double state) = 0;
 };
 
+/// TODO: change to a map of unique pointers so that the MeshDependentCoefficient
+///       owns the coefficients in the map
 /// MeshDependentCoefficient
 /// A class that contains a map of material attributes and coefficients to
 /// evaluate on for each attribute.
