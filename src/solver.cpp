@@ -134,7 +134,7 @@ void AbstractSolver::setInitialCondition(
    void (*u_init)(const Vector &, Vector &))
 {
    // TODO: Need to verify that this is ok for scalar fields
-   VectorFunctionCoefficient u0(num_state, u_init);
+   VectorFunctionCoefficient u0(4, u_init);
    u->ProjectCoefficient(u0);
 
    // DenseMatrix vals;

@@ -22,7 +22,7 @@ ifdef MFEM_USE_PUMI
 else 
 	CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 endif
-
+CONFIG_MK = $(MFEM_INSTALL_DIR)/share/mfem/config.mk
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)  # this includes mfem's config.mk makefile
 
@@ -30,6 +30,7 @@ MFEM_LIB_FILE = mfem_is_not_built
 SRC_DIR=$(CURDIR)/src
 TEST_DIR=$(CURDIR)/test
 SANDBOX_DIR=$(CURDIR)/sandbox
+GD_DIR=$(CURDIR)/gd
 
 # The object file dependencies are generated using the approach described at
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
@@ -98,6 +99,9 @@ sandbox: libmach.a
 tests: libmach.a
 	@cd $(TEST_DIR) && $(MAKE)
 
+gd: libmach.a
+	@cd $(GD_DIR) && $(MAKE)
+
 #@$(CXX) $(MACH_FLAGS) -static -Wl,-soname,libmach.so -o libmach.so $(OBJS) $(MACH_LIBS)
 
 clean:
@@ -108,6 +112,7 @@ clean:
 	@rmdir $(DEP_DIR)
 	@cd $(SANDBOX_DIR) && $(MAKE) clean
 	@cd $(TEST_DIR) && $(MAKE) clean
+	@cd $(GD_DIR) && $(MAKE) clean
 
 clean_sandbox:
 	@echo "deleting temporary, object, and binary files from sandbox directory"
