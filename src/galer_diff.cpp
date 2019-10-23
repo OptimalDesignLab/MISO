@@ -20,7 +20,7 @@ GalerkinDifference::GalerkinDifference(const string &opt_file_name)
    options_file >> file_options;
    options = default_options;
    options.merge_patch(file_options);
-   cout << setw(3) << options << endl;
+   //cout << setw(3) << options << endl;
    PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
@@ -33,13 +33,13 @@ GalerkinDifference::GalerkinDifference(const string &opt_file_name)
                            options["pumi-mesh"]["file"].get<string>().c_str());
    dim = pumi_mesh->getDimension();
    nEle = pumi_mesh->count(dim);
-   cout << nEle << endl;
+   //cout << nEle << endl;
    // verify pumi mesh
    pumi_mesh->verify();
    // Create the MFEM mesh object from the PUMI mesh.
    mesh.reset(new MeshType(pumi_mesh, 1, 1));
    // Mesh *mesh = new PumiMesh(pumi_mesh, 1, 1);
-   cout << mesh->GetNE() << endl;
+   //cout << mesh->GetNE() << endl;
    // write mesh
    ofstream sol_ofs("tri32_mfem.vtk");
    sol_ofs.precision(14);
