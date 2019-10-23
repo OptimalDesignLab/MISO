@@ -10,7 +10,7 @@ namespace mfem
 GalerkinDifference::GalerkinDifference(const string &opt_file_name)
 {
 #ifndef MFEM_USE_PUMI
-   error(' mfem needs to be build with pumi to use GalerkinDifference ')
+   mfem_error(' mfem needs to be build with pumi to use GalerkinDifference ')
 #endif
 
    nlohmann::json file_options;
