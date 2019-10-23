@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
       int degree = 2;
       int req_n = ((degree + 1) * (degree + 2)) / 2;
       gd.GetNeighbourSet(0, req_n, nels );
-      cout << "Patch elements of element " << id << " : " << endl;
+      cout << "Patch elements of element " << 0 << " : " << endl;
       for (int i = 0; i < nels.size(); ++i)
       {
          cout << nels[i] << endl;
