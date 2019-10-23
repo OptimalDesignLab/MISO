@@ -58,7 +58,9 @@ public:
 
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
-
+   
+   /// Solve for the steady state problem using newton method
+   /// \param[in,out] x - the current state at input and solution at ouput
    virtual void solveSteady();
 
    virtual void solveUnsteady();

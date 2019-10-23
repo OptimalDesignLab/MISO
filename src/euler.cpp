@@ -13,7 +13,7 @@ namespace mach
 
 EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
-   : AbstractSolver(opt_file_name, move(smesh))
+    : AbstractSolver(opt_file_name, move(smesh))
 {
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction
@@ -23,7 +23,7 @@ EulerSolver::EulerSolver(const string &opt_file_name,
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: "
         << fes->GlobalTrueVSize() << endl;
-#else 
+#else
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
@@ -38,9 +38,9 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    // TODO: should decide between one-point and two-point fluxes using options
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
-   
+
    res->AddDomainIntegrator(new DyadicFluxIntegrator(diff_stack,
-                                                     calcIsmailRoeFlux<double,2>,
+                                                     calcIsmailRoeFlux<double, 2>,
                                                      num_state, alpha));
 
    //res->AddDomainIntegrator(new InviscidIntegrator(diff_stack,
@@ -50,8 +50,8 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    // add the LPS stabilization
    double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
    res->AddDomainIntegrator(new LPSIntegrator(diff_stack,
-                                              calcEntropyVars<double,2>,
-                                              applyLPSScaling<double,2>,
+                                              calcEntropyVars<double, 2>,
+                                              applyLPSScaling<double, 2>,
                                               num_state, alpha, lps_coeff));
 
    // boundary face integrators are handled in their own function
@@ -65,7 +65,6 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
    evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
-
 }
 
 void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
@@ -79,8 +78,9 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-         diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-         alpha), bndry_marker[idx]);
+                                    diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
+                                    alpha),
+                                bndry_marker[idx]);
       idx++;
    }
    if (bcs.find("slip-wall") != bcs.end())
@@ -90,24 +90,27 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       bndry_marker[idx].Assign(tmp.data());
       switch (dim)
       {
-         case 1:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,1>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
-            break;
-         case 2:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,2>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
-            //res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-            //   diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-            //   alpha, bndry_marker[idx][0]), bndry_marker[idx]);
-            break;
-         case 3:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,3>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
-            break;
+      case 1:
+         res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+                                       diff_stack, calcSlipWallFlux<double, 1>, fec.get(), num_state,
+                                       alpha),
+                                   bndry_marker[idx]);
+         break;
+      case 2:
+         res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+                                       diff_stack, calcSlipWallFlux<double, 2>, fec.get(), num_state,
+                                       alpha),
+                                   bndry_marker[idx]);
+         //res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+         //   diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
+         //   alpha, bndry_marker[idx][0]), bndry_marker[idx]);
+         break;
+      case 3:
+         res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
+                                       diff_stack, calcSlipWallFlux<double, 3>, fec.get(), num_state,
+                                       alpha),
+                                   bndry_marker[idx]);
+         break;
       }
       idx++;
    }
@@ -125,8 +128,8 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
 double EulerSolver::calcResidualNorm()
 {
    GridFunType r(fes.get());
-   res->Mult(*u, r);  // TODO: option to recompute only if necessary
-   double res_norm = r*r;
+   res->Mult(*u, r); // TODO: option to recompute only if necessary
+   double res_norm = r * r;
 #ifdef MFEM_USE_MPI
    double loc_norm = res_norm;
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
@@ -135,21 +138,20 @@ double EulerSolver::calcResidualNorm()
    return res_norm;
 }
 
-
 double EulerSolver::calcStepSize(double cfl) const
 {
    double (*calcSpect)(const double *dir, const double *q);
    if (num_dim == 1)
    {
-      calcSpect = calcSpectralRadius<double,1>;
+      calcSpect = calcSpectralRadius<double, 1>;
    }
    else if (num_dim == 2)
    {
-      calcSpect = calcSpectralRadius<double,2>;
+      calcSpect = calcSpectralRadius<double, 2>;
    }
    else
    {
-      calcSpect = calcSpectralRadius<double,3>;
+      calcSpect = calcSpectralRadius<double, 3>;
    }
 
    double dt_local = 1e100;
@@ -173,11 +175,12 @@ double EulerSolver::calcStepSize(double cfl) const
          uk.GetColumnReference(i, ui);
          for (int j = 0; j < fe->GetDof(); ++j)
          {
-            if (j == i) continue;
+            if (j == i)
+               continue;
             trans->Transform(fe->GetNodes().IntPoint(j), dxij);
             dxij -= xi;
             double dx = dxij.Norml2();
-            dt_local = min(dt_local, cfl*dx*dx/calcSpect(dxij, ui)); // extra dx is to normalize dxij
+            dt_local = min(dt_local, cfl * dx * dx / calcSpect(dxij, ui)); // extra dx is to normalize dxij
          }
       }
    }
@@ -186,8 +189,60 @@ double EulerSolver::calcStepSize(double cfl) const
    MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
 #else
    dt_min = dt_local;
-#endif   
+#endif
    return dt_min;
+}
+
+/// Solve for the steady problem
+void EulerSolver::solveSteady()
+{
+   // // use Newton method with GMRES to solve for steady state problem
+   // mfem::NewtonSolver * ntsolver = new NewtonSolver();
+   // mfem::GMRESSolver * gmres = new GMRESSolver();
+
+   // // set the members of GMRES solver
+   // gmres->SetRelTol(1e-12);
+   // gmres->SetAbsTol(1e-12);
+   // gmres->SetMaxIter(50);
+   // //mfem::GSSmoother gs_prec = new GSSmoother();
+   // //gmres->SetPreconditioner(*gs_prec);
+   // gmres->iterative_mode = false;
+
+   // // // set the members for NewtonSolver
+   // ntsolver->SetRelTol(1e-10);
+   // ntsolver->SetAbsTol(1e-12);
+   // ntsolver->SetMaxIter(50);
+   // ntsolver->SetSolver(*gmres);
+   // ntsolver->SetOperator(*res);
+
+   // mfem::Vector zero;
+   // ntsolver->Mult(zero, *u);
+   // MFEM_ASSERT(ntsolver.GetConverged(), "Newton Solver didn't get converged.\n");
+   // delete gmres;`
+   // delete ntsolver;
+   // delete gs_prec;
+
+   // below are petsc solver
+#ifndef MFEM_USE_PETSC
+#error This function requires MFEM_USE_PETSC defined
+#endif
+   const char *petscrc_file="eulersteady";
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+
+   PetscNonlinearSolver *pnewton_solver = new 
+                     PetscNonlinearSolver(fes->GetComm(), *res);
+   // mfem::PetscPreconditonerFactory * j_prec = new 
+   //                   PetscPreconditionerFactory();
+   pnewton_solver->SetPrintLevel(1); // print Newton iterations
+   pnewton_solver->SetRelTol(1e-10);
+   pnewton_solver->SetAbsTol(0.0);
+   pnewton_solver->SetMaxIter(30);
+   //pnewton_solver->SetPreconditionerFactory(*j_prec);
+
+   mfem::Vector zero;
+   pnewton_solver->Mult(zero,*u);
+   MFEM_ASSERT(pnewton_solver.GetConverged(), "Newton solver didn't converge.\n");
+   MFEMFinalizePetsc();
 }
 
 } // namespace mach

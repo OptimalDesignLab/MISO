@@ -32,6 +32,9 @@ public:
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
 
+   /// Solve the steady state  problem
+   virtual void solveSteady();
+
 protected:
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
