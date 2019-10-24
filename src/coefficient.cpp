@@ -77,4 +77,26 @@ double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
    return 0.0;
 }
 
+void VectorMeshDependentCoefficient::Eval(Vector &vec,
+                                          ElementTransformation &trans,
+                                          const IntegrationPoint &ip)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   VectorCoefficient *coeff;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      coeff = it->second.get();
+      coeff->Eval(vec, trans, ip);
+   }
+   else // if attribute not found in material map set the vector to be zero
+   {
+      vec = 0.0;
+      // std::cerr << "MeshDependentCoefficient attribute " << it->first
+      //           << " not found" << std::endl;
+      // mfem_error();
+   }
+}
+
 } // namespace mach

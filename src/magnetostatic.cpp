@@ -10,8 +10,8 @@ namespace mach
 
 MagnetostaticSolver::MagnetostaticSolver(
 	 const std::string &opt_file_name,
-    std::unique_ptr<mfem::Mesh> smesh = nullptr,
-	int dim = 1)
+    std::unique_ptr<mfem::Mesh> smesh,
+	 int dim)
 	: AbstractSolver(opt_file_name, move(smesh))
 {
 	int fe_order = options["space-dis"]["degree"].get<int>();

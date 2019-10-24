@@ -267,6 +267,69 @@ protected:
 	GridFunType *temperature_GF;
 };
 
+class VectorMeshDependentCoefficient : public mfem::VectorCoefficient
+{
+public:
+	VectorMeshDependentCoefficient(const int dim = 3)
+		 : VectorCoefficient(dim) {}
+
+	// VectorMeshDependentCoefficient(const
+	// 										 std::map<const int,
+	// 													 std::unique_ptr<mfem::VectorCoefficient>>
+	// 								 		          &input_map,
+	// 										 const int dim = 3)
+	//  : VectorCoefficient(dim), material_map(input_map) {}
+
+	/// Adds <int, mfem::Coefficient*> pair to material_map where the int
+	/// corresponds to a material attribute in the mesh.
+	/// \param coeff - attribute-Coefficient pair where the Coefficient is the
+	///					 one to evaluate on elements identified by the attribute
+	virtual void addCoefficient(const int attr,
+										 std::unique_ptr<mfem::VectorCoefficient> coeff)
+	{
+		auto status = material_map.insert(std::make_pair(attr, std::move(coeff)));
+		// if the pair failed to insert
+		if (!status.second)
+		{
+			mfem::mfem_error("Key already present in map!");
+		}
+	}
+
+	/// \brief Search the map of coefficients and evaluate the one whose key is
+	/// 		  the same as the element's `Attribute` at the point defined by
+	///		  `ip`.
+	/// \param[out] vec - output vector storing the result of the evaluation
+	/// \param[in] trans - element transformation relating real element to
+	///					 	  reference element
+	/// \param[in] ip - the integration point to evalaute the coefficient at
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+	void Eval(mfem::Vector &vec,
+				 mfem::ElementTransformation &trans,
+			    const mfem::IntegrationPoint &ip);
+
+	// /// TODO - implement expression SFINAE when iterating over map
+	// /// TODO - Consider different model for coefficient's dependent upon multiple
+	// ///		  GridFunctions
+	// /// \brief Search the map of coefficients and evaluate the derivative with
+	// /// 		  respect to the state of the one whose key is the same as the
+	// ///		  element's `Attribute` at the point defined by `ip`.
+	// /// \param[in] trans - element transformation relating real element to
+	// ///					 	  reference element
+	// /// \param[in] ip - the integration point to evalaute the coefficient at
+	// /// \param[in] state - the state at which to evaluate the coefficient
+   // /// \note When this method is called, the caller must make sure that the
+   // /// IntegrationPoint associated with trans is the same as ip. This can be
+   // /// achieved by calling trans.SetIntPoint(&ip).
+	// virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
+	// 										const mfem::IntegrationPoint &ip,
+	// 										const double state);
+
+protected:
+	std::map<const int, std::unique_ptr<mfem::VectorCoefficient>> material_map;
+};
+
 } // namespace mach
 
 #endif
