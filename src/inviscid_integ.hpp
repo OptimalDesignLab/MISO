@@ -134,6 +134,11 @@ public:
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
                                     mfem::ElementTransformation &Trans,
                                     const mfem::Vector &elfun,
@@ -224,10 +229,15 @@ public:
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
-   // virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-   //                                  mfem::ElementTransformation &Ttr,
-   //                                  const mfem::Vector &elfun,
-   //                                  mfem::DenseMatrix &elmat);
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
+   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+                                    mfem::ElementTransformation &Trans,
+                                    const mfem::Vector &elfun,
+                                    mfem::DenseMatrix &elmat);
 
 protected:
    /// number of states
@@ -247,6 +257,12 @@ protected:
    mfem::DenseMatrix w;
    /// used to store the projected converted variables (for example)
    mfem::DenseMatrix Pw;
+   /// used to store the Jacobian of scale or convert
+   mfem::DenseMatrix jac_term;
+   /// used to hold a nodewise block for insertion in the element Jacobian
+   mfem::DenseMatrix jac_node;
+   /// used to hold the (i,j)th LPS matrix operator block entry
+   mfem::DenseMatrix Lij;
 #endif
 
    /// converts working variables to another set (e.g. conservative to entropy)
@@ -303,6 +319,18 @@ protected:
                      const mfem::Vector &v, mfem::DenseMatrix &Av_jac)
    {
       static_cast<Derived*>(this)->applyScalingJacAdjJ(adjJ, u, v, Av_jac);
+   }
+
+   /// Computes the Jacobian of the product `A(adjJ,u)*v` w.r.t. `v`
+   /// \param[in] adjJ - adjugate of the mapping Jacobian
+   /// \param[in] u - state at which the symmetric matrix `A` is evaluated
+   /// \param[out] Av_jac - Jacobian of product w.r.t. `v` (i.e. `A`)
+   /// \note `Av_jac` stores derivatives treating `adjJ` is a 1d array.
+   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
+   void scaleJacV(const mfem::DenseMatrix &adjJ, const mfem::Vector &u,
+                  mfem::DenseMatrix &Av_jac)
+   {
+      static_cast<Derived*>(this)->applyScalingJacV(adjJ, u, Av_jac);
    }
 };
 

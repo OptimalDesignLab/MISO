@@ -157,32 +157,16 @@ public:
                             const mfem::Vector &vec,
                             mfem::DenseMatrix &mat_vec_jac);
 
-   /// The spectral radius of the flux Jacobian in the direction `dir`
-   /// \param[in] dir - desired direction of flux Jacobian
-   /// \param[in] q - conservative variables used to evaluate Jacobian
-   /// \returns absolute value of the largest eigenvalue of the Jacobian
-   /// \note wrapper for the relevant function in `euler_fluxes.hpp`
-   double spectralRadius(const mfem::Vector &dir,
-					              const mfem::Vector &q)
-   {
-      return calcSpectralRadius<double,dim>(dir.GetData(), q.GetData());
-   }
+   /// Computes the Jacobian of the product `A(adjJ,u)*v` w.r.t. `vec`
+   /// \param[in] adjJ - adjugate of the mapping Jacobian
+   /// \param[in] q - state at which the symmetric matrix `A` is evaluated
+   /// \param[out] mat_vec_jac - Jacobian of product w.r.t. `vec`
+   /// \note `mat_vec_jac` stores derivatives treating `adjJ` is a 1d array.
+   /// \note The size of `mat_vec_jac` must be set before calling this function
+   void applyScalingJacV(const mfem::DenseMatrix &adjJ,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &mat_vec_jac);
 
-   /// Computes the Jacobian of the spectral radius w.r.t. 'q'
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - state variables at which to evaluate the spectral radius 
-   /// Jacobian of `spectral radius` w.r.t. `q`
-   void spectralRadiusJacState(const mfem::Vector &dir,
-                             	 const mfem::Vector &q,
-                        		 mfem::DenseMatrix &Jac);
-
-   /// Computes the Jacobian of the spectral radius w.r.t. 'dir'
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - state variables at which to evaluate the spectral radius
-   /// Jacobian of `spectral radius` w.r.t. `dir`
-   void spectralRadiusJacDir(const mfem::Vector &dir,
-                          	  const mfem::Vector &q,
-                         	  mfem::DenseMatrix &Jac);
 };
 
 /// Integrator for the steady isentropic-vortex boundary condition

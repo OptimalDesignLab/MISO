@@ -27,6 +27,8 @@ public:
    /// Returns the diagonal norm/mass matrix as a vector.
    const Vector &returnDiagNorm() const { return H; }
 
+   double getDiagNormEntry(int i) const { return H(i); }
+
    /// Apply the norm matrix to given vector
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
    /// \param[out] Hu - result of applying `H` to `u`
