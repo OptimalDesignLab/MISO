@@ -229,3 +229,62 @@ void EntStableLPSIntegrator<dim>::applyScalingJacV(
    // Calculate the jabobian
    this->stack.jacobian(mat_vec_jac.GetData());
 }
+
+template <int dim>
+void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
+                              const mfem::Vector &qL, const mfem::Vector &qR,
+                              mfem::DenseMatrix &jacL,
+                              mfem::DenseMatrix &jacR)
+{
+   // full size jacobian stores both left the right jac state
+   mfem::DenseMatrix jac(qL.Size(), 2 * qL.Size());
+   // vector of active input variables
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> qR_a(qR.Size());
+   std::vector<adouble> qL_a(qL.Size());
+   // initialize the value
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(qL_a.data(), qL.Size(), qL.GetData());
+   adept::set_values(qR_a.data(), qR.Size(), qR.GetData());
+   // start new recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> flux_a(qL.Size());
+   mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
+                                       qR_a.data(), flux_a.data());
+   // set the independent and dependent variables
+   this->stack.independent(qL_a.data(), qL.Size());
+   this->stack.independent(qR_a.data(), qR.Size());
+   this->stack.dependent(flux_a.data(), qL.Size());
+   // compute the jacobian
+   this->stack.jacobian_reverse(jac.GetData());
+   // retrieve the left the right jacobians
+   jacL.CopyCols(jac, 0, qL.Size()-1);
+   jacR.CopyCols(jac, qL.Size(), 2 * qL.Size() - 1);
+}
+
+template <int dim>
+void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
+                           const mfem::Vector &qL, const mfem::Vector &qR,
+                           mfem::DenseMatrix &jac_dir)
+{
+   // vector of active input variables
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> qR_a(qR.Size());
+   std::vector<adouble> qL_a(qL.Size());
+   // initialize the value
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(qL_a.data(), qL.Size(), qL.GetData());
+   adept::set_values(qR_a.data(), qR.Size(), qR.GetData());
+   // start new recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> flux_a(qL.Size());
+   mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
+                                       qR_a.data(), flux_a.data());
+   // set the independent and dependent variables
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), qL.size());
+   // compute the jacobian w.r.t dir
+   this->stack.jacobian(jac_dir.GetData());
+}

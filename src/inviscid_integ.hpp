@@ -526,7 +526,7 @@ protected:
                       const mfem::Vector &u_right, mfem::DenseMatrix &jac_left,
                       mfem::DenseMatrix &jac_right)
    {
-      static_cast<Derived*>(this)->calcFluxJacStates(dir, u_left, u_right,
+      static_cast<Derived*>(this)->calcFluxJacState(dir, u_left, u_right,
                                                     jac_left, jac_right);
    }
    
