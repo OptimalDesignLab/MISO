@@ -112,6 +112,11 @@ void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u, DenseMatri
 
 }
 
+double SBPFiniteElement::getQ(int di, int i, int j) const
+{
+   return Q[di](j,i); // Recall: Q[di] stores the transposed operator
+}
+
 double SBPFiniteElement::getSkewEntry(int di, int i, int j,
                                       const mfem::DenseMatrix &adjJ_i,
                                       const mfem::DenseMatrix &adjJ_j) const 
@@ -135,6 +140,19 @@ void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
    {
       P(i, i) += 1.0;
    }
+}
+
+double SBPFiniteElement::getProjOperatorEntry(int i, int j) const
+{
+   MFEM_ASSERT( i < Dof, "");
+   MFEM_ASSERT( j < Dof, "");
+   double Pij = (i == j) ? 1.0 : 0.0;
+   // loop over the polynomial basis functions
+   for (int k = 0; k < V.Width(); ++k)
+   {
+      Pij -= V(i,k)*V(j,k)*H(j);
+   }
+   return Pij;
 }
 
 void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
