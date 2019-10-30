@@ -254,98 +254,106 @@ void LPSIntegrator<Derived>::AssembleElementVector(
 
 template <typename Derived>
 void LPSIntegrator<Derived>::AssembleElementGrad(
-    const FiniteElement &el, ElementTransformation &Ttr,
-    const Vector &elfun, DenseMatrix &elmat)
+    const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+    const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
-   // This should be in a try/catch, but that creates other issues
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   Vector ui, dxidx;
-   DenseMatrix adjJ_i, flux_jaci;
+   Vector ui;
+   DenseMatrix adjJt, w, Pw, jac_term, jac_node, Lij;
 #endif
+   Vector wi, Pwi;
    elmat.SetSize(num_states*num_nodes);
    elmat = 0.0;
    ui.SetSize(num_states);
    adjJt.SetSize(dim);
-   DenseMatrix dwidu;
-   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-   DenseMatrix res(elvect.GetData(), num_nodes, num_states);
-   DenseMatrix elmat2(elmat.Width(), elmat.Height());
+   w.SetSize(num_states, num_nodes);
+   Pw.SetSize(num_states, num_nodes);
+   jac_term.SetSize(num_states);
+   jac_node.SetSize(num_states);
+   Lij.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);  
 
-   // Product Rule, A ... dwdu + dAdu ... w
-   // A ... dwdu
+   // convert from working variables (this may be the identity)
    for (int i = 0; i < num_nodes; ++i)
    {
-      nodecol = 0;
-      // Step 1: convert from working variables (this may be the identity)
-      u.GetRow(i,ui);
-      convertJacState(ui, dwidu);
-   
-      // Step 2: apply the projection operator to dwidu
-      // Define new function/get explicit P
-      sbp.multProjOperatorJac(dwidu, dPwidu, i, true);
-
-      // Step 3: apply scaling matrix at each node and diagonal norm
-      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
-      CalcAdjugate(Trans.Jacobian(), adjJt);
-      u.GetRow(i,ui);
-
-      // Define new function that returns matrix
-      scale(adjJt, ui, Pwi, wi);
-      wi *= lps_coeff;
-
-      // need node-wise versions of these functions which return matrices
-      sbp.multNormMatrix(w, w);
-      // Step 4: apply the transposed projection operator to H*A*P*w
-      sbp.multProjOperator(w, Pw, true);
-      // This is necessary because data in elvect is expected to be ordered `byNODES`
-      res.Transpose(Pw);
-      res *= alpha;
-
-      // Assemble each node in elmat
-      //elmat. ...
-   }
-
-   //dAdu ... w
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      // Step 1: convert from working variables (this may be the identity)
       u.GetRow(i,ui);
       w.GetColumnReference(i, wi);
       convert(ui, wi);
    }
-   // Step 2: apply the projection operator to dwidu
-   sbp.multProjOperator(wa, Pw, true);
+   // apply the projection operator to w
+   sbp.multProjOperator(w, Pw, false);
 
    for (int i = 0; i < num_nodes; ++i)
-      // Step 3: apply scaling matrix at each node and diagonal norm
+   {
+      // get contribution to Jacobian due to scaling operation
       Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
       CalcAdjugate(Trans.Jacobian(), adjJt);
+      u.GetRow(i, ui);
       Pw.GetColumnReference(i, Pwi);
-      u.GetRow(i,ui);
-      //apply differential scaling matrix
-      applyScalingJacState(adjJt, ui, Pwi, dwidu);
-      dwidu *= lps_coeff;
+      scaleJacState(adjJt, ui, Pwi, jac_term);
+      for (int j = 0; j < num_nodes; ++j)
+      {
+         double coeff = sbp.getDiagNormEntry(i) *
+                        sbp.getProjOperatorEntry(i, j);
+         for (int n = 0; n < num_states; ++n)
+         {
+            for (int m = 0; m < num_states; ++m)
+            {
+               elmat(n*num_nodes+j, m*num_nodes+i) += coeff*jac_term(n,m);
+            }
+         }
+      }
 
-      // need node-wise versions of these functions which return matrices
-      sbp.multNormMatrix(w, w);
-      // Step 4: apply the transposed projection operator to H*A*P*w
-      sbp.multProjOperator(w, Pw, true);
-      // This is necessary because data in elvect is expected to be ordered `byNODES`
-      res.Transpose(Pw);
-      res *= alpha;
-
-      // Assemble each node in elmat2
-      //elmat2. ...
+      // get contribution to Jacobian assuming scaling is constant
+      for (int j = i; j < num_nodes; ++j)
+      {
+         // find matrix entry assuming scaling is constant;
+         // Lij = sum_{k=1}^{n} (P_ki H_k A(u_k) P_kj)
+         Lij = 0.0;
+         for (int k = 0; k < num_nodes; ++k)
+         {
+            Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
+            CalcAdjugate(Trans.Jacobian(), adjJt);
+            u.GetRow(k, ui);
+            scaleJacV(adjJt, ui, jac_term);
+            double coeff = sbp.getProjOperatorEntry(k, i) *
+                           sbp.getDiagNormEntry(k) *
+                           sbp.getProjOperatorEntry(k, j);
+            Lij.Add(coeff, jac_term);
+         }
+         // insert node-level Jacobian (i,j) into element matrix
+         u.GetRow(j, ui);
+         convertJacState(ui, jac_term);
+         Mult(Lij, jac_term, jac_node);
+         for (int n = 0; n < num_states; ++n)
+         {
+            for (int m = 0; m < num_states; ++m)
+            {
+               elmat(n*num_nodes+i, m*num_nodes+j) += jac_node(n,m);
+            }
+         }
+         if (i == j)
+         {
+            continue;  // don't double count the diagonal terms
+         }
+         // insert node-level Jacobian (j,i) into element matrix
+         u.GetRow(i, ui);
+         convertJacState(ui, jac_term);
+         Mult(Lij, jac_term, jac_node);
+         for (int n = 0; n < num_states; ++n)
+         {
+            for (int m = 0; m < num_states; ++m)
+            {
+               elmat(n*num_nodes+j, m*num_nodes+i) += jac_node(n,m);
+            }
+         }
+      }  
    }
-
-   //add 2nd term to elmat
-   elmat += elmat2;
+   elmat *= alpha;
 }
 
 template <typename Derived>
