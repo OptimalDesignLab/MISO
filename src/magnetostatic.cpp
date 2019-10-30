@@ -39,6 +39,12 @@ MagnetostaticSolver::MagnetostaticSolver(
         << h_curl_space->GetTrueVSize() << endl;
 #endif
 
+	/// Construct current source coefficient
+	constructCurrent(1.0);
+
+	/// Assemble current source vector
+	assembleCurrentSource();
+
 	/// set up the spatial semi-linear form
    double alpha = 1.0;
    res.reset(new NonlinearFormType(h_curl_space.get()));
@@ -49,12 +55,49 @@ MagnetostaticSolver::MagnetostaticSolver(
 	/// add curl curl integrator to residual
 	res->AddDomainIntegrator(new CurlCurlNLFIntegrator(nu.get()));
 
-	/// Construct current source coefficient on lhs
-	constructCurrent(-1.0);
+	/// TODO - construct integrator
+	/// add magnetization integrator to residual
+	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get()));
 
-	/// Assemble current source vector
-	assembleCurrentSource();
+	/// Costruct linear system solver
+#ifdef MFEM_USE_MPI
+   prec.reset(new HypreBoomerAMG());
+   prec->SetPrintLevel(0);
 
+   solver.reset(new HyprePCG());
+   solver->SetTol(1e-14);
+   solver->SetMaxIter(200);
+   solver->SetPrintLevel(0);
+   solver->SetPreconditioner(prec);
+#else
+	/// TODO look at example 3 or other serial EM examples to see what
+	/// preconditioner they use, this one is probably not the best
+	prec.reset(new GSSmoother());
+
+	solver.reset(new CGSolver());
+   solver->SetPrintLevel(0);
+   solver->SetMaxIter(400);
+   solver->SetRelTol(1e-14);
+   solver->SetAbsTol(1e-14);
+   solver->SetPreconditioner(*prec);
+#endif
+
+	/// TODO - have this use options
+	/// Set up Newton solver
+	newton_solver.iterative_mode = false;
+   newton_solver.SetSolver(*solver);
+   newton_solver.SetOperator(*res);
+   newton_solver.SetPrintLevel(1); // print Newton iterations
+   newton_solver.SetRelTol(1e-10);
+   newton_solver.SetAbsTol(0.0);
+   newton_solver.SetMaxIter(10);
+}
+
+void MagnetostaticSolver::solveSteady()
+{
+	/// I think this is all I need?
+	newton_solver.Mult(*current_vec, *A);
+	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 }
 
 void MagnetostaticSolver::assembleCurrentSource()

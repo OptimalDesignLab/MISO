@@ -23,6 +23,9 @@ public:
                        std::unique_ptr<mfem::Mesh> smesh = nullptr,
 							  int dim = 1);
 
+   /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
+   virtual void solveSteady();
+
 private:
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    // std::vector<mfem::Array<int>> bndry_marker;
@@ -55,6 +58,14 @@ private:
    std::unique_ptr<MeshDependentCoefficient> nu;
    /// vector mesh dependent current density function coefficient
    std::unique_ptr<mfem::VectorCoefficient> current_coeff;
+
+   /// linear system solver
+   std::unique_ptr<CGType> solver;
+   /// linear system preconditioner
+   std::unique_ptr<EMPrecType> prec;
+
+   /// Newton solver
+   mfem::NewtonSolver newton_solver;
 
    /// construct mesh dependent coefficient for reluctivity
    /// \param[in] alpha - used to move to lhs or rhs
