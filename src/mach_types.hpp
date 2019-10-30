@@ -21,6 +21,10 @@ namespace mach
    using GridFunType = mfem::ParGridFunction;
    using MatrixType = mfem::HypreParMatrix;
    using SmootherType = mfem::HypreSmoother;
+   using DiscLinOperatorType = mfem::ParDiscreteLinearOperator;
+   using MixedBilinearFormType = mfem::ParMixedBilinearForm;
+   using CGType = mfem::HyprePCG;
+   using EMPrecType = mfem::HypreBoomerAMG;
 #else
    using MeshType = mfem::Mesh;
    using SpaceType = mfem::FiniteElementSpace;
@@ -29,6 +33,10 @@ namespace mach
    using GridFunType = mfem::GridFunction;
    using MatrixType = mfem::SparseMatrix;
    using SmootherType = mfem::DSmoother;
+   using DiscLinOperatorType = mfem::DiscreteLinearOperator;
+   using MixedBilinearFormType = mfem::MixedBilinearForm;
+   using CGType = mfem::CGSolver;
+   using EMPrecType = mfem::GSSmoother;
 #endif
 
 } // namespace mach

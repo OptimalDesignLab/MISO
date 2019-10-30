@@ -48,12 +48,25 @@ private:
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
 
+   /// current source vector
+   std::unique_ptr<GridFunType> current_vec;
+
    /// mesh dependent reluctivity coefficient
-   MeshDependentCoefficient nu;
+   std::unique_ptr<MeshDependentCoefficient> nu;
+   /// vector mesh dependent current density function coefficient
+   std::unique_ptr<mfem::VectorCoefficient> current_coeff;
 
    /// construct mesh dependent coefficient for reluctivity
-   /// \param alpha - used to move to lhs or rhs
+   /// \param[in] alpha - used to move to lhs or rhs
    void constructReluctivity(double alpha);
+
+   /// construct vector mesh dependent coefficient for current source
+   /// \param[in] alpha - used to move to lhs or rhs
+   void constructCurrent(double alpha);
+
+   /// assemble vector associated with current source
+   /// \note - constructCurrent must be called before calling this
+   void assembleCurrentSource();
 };
 
 } // namespace mach

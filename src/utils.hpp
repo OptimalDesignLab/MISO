@@ -5,6 +5,8 @@
 #include <iostream>
 #include "mfem.hpp"
 
+#include "mach_types.hpp"
+
 namespace mach
 {
 
@@ -164,6 +166,110 @@ static std::ostream *getOutStream(int rank)
 //     // We used auto for the return type: it will be deduced here.
 //     return Container<UnnamedType>();
 // }
+
+/// The following are adapted from MFEM's pfem_extras.xpp to use mach types
+/// and support serial usage.
+/// Serial solves use MFEM's PCG with a GSSmoother preconditioner 
+/// Parallel solves use HyprePCG with an AMS preconditioner
+class DiscreteInterpolationOperator : public DiscLinOperatorType
+{
+public:
+   DiscreteInterpolationOperator(SpaceType *dfes,
+                                 SpaceType *rfes)
+      : DiscLinOperatorType(dfes, rfes) {}
+   virtual ~DiscreteInterpolationOperator();
+};
+
+class DiscreteGradOperator : public DiscreteInterpolationOperator
+{
+public:
+   DiscreteGradOperator(SpaceType *dfes,
+                        SpaceType *rfes);
+};
+
+class DiscreteCurlOperator : public DiscreteInterpolationOperator
+{
+public:
+   DiscreteCurlOperator(SpaceType *dfes,
+                        SpaceType *rfes);
+};
+
+class DiscreteDivOperator : public DiscreteInterpolationOperator
+{
+public:
+   DiscreteDivOperator(SpaceType *dfes,
+                       SpaceType *rfes);
+};
+
+class IrrotationalProjector : public mfem::Operator
+{
+public:
+   IrrotationalProjector(SpaceType &H1FESpace,
+                         SpaceType &HCurlFESpace,
+                         const int &irOrder,
+                         BilinearFormType *s0 = NULL,
+                         MixedBilinearFormType *weakDiv = NULL,
+                         DiscreteGradOperator *grad = NULL);
+   virtual ~IrrotationalProjector();
+
+   // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
+   // compute the Nedelec DoFs of the irrotational portion, 'y', of
+   // this vector field.  The resulting GridFunction will satisfy Curl y = 0
+   // to machine precision.
+   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+
+   void Update();
+
+private:
+   void InitSolver() const;
+
+   SpaceType *H1FESpace_;
+   SpaceType *HCurlFESpace_;
+
+   BilinearFormType *s0_;
+   MixedBilinearFormType *weakDiv_;
+   DiscreteGradOperator *grad_;
+
+   GridFunType * psi_;
+   GridFunType * xDiv_;
+
+   MatrixType *S0_;
+   mutable mfem::Vector Psi_;
+   mutable mfem::Vector RHS_;
+
+   mutable EMPrecType *amg_;
+   mutable CGType *pcg_;
+
+   mfem::Array<int> ess_bdr_, ess_bdr_tdofs_;
+
+   bool ownsS0_;
+   bool ownsWeakDiv_;
+   bool ownsGrad_;
+};
+
+/// This class computes the divergence free portion of a vector field.
+/// This vector field must be discretized using Nedelec basis
+/// functions.
+class DivergenceFreeProjector : public IrrotationalProjector
+{
+public:
+   DivergenceFreeProjector(SpaceType &H1FESpace,
+                           SpaceType &HCurlFESpace,
+                           const int &irOrder,
+                           BilinearFormType *s0 = NULL,
+                           MixedBilinearFormType *weakDiv = NULL,
+                           DiscreteGradOperator *grad = NULL);
+
+   virtual ~DivergenceFreeProjector() {}
+
+   // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
+   // compute the Nedelec DoFs of the divergence free portion, 'y', of
+   // this vector field.  The resulting vector will satisfy Div y = 0
+   // in a weak sense.
+   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+
+   void Update();
+};
 
 } // namespace mach
 
