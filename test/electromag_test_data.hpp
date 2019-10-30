@@ -32,6 +32,11 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
    }
 }
 
+void mag_func(const mfem::Vector &x, mfem::Vector &y)
+{
+	y = 1.0;
+}
+
 /// Simple linear coefficient for testing CurlCurlNLFIntegrator
 class LinearCoefficient : public mach::StateCoefficient
 {

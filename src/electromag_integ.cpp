@@ -338,8 +338,8 @@ void MagnetizationIntegrator::AssembleElementGrad(
       mag->Eval(mag_vec, trans, ip);
 
       temp_vec2 = 0.0;
-      curlshape_dFt.Mult(mag_vec, temp_vec);
-      DenseMatrix temp_matrix2(temp_vec.GetData(), ndof, 1);
+      curlshape_dFt.Mult(mag_vec, temp_vec2);
+      DenseMatrix temp_matrix2(temp_vec2.GetData(), ndof, 1);
 
       /// evaluate the derivative of the material model with respect to the
       /// norm of the grid function associated with the model at the point
@@ -349,7 +349,7 @@ void MagnetizationIntegrator::AssembleElementGrad(
       nu_deriv /= b_mag;
 
       /// add second term to elmat
-      AddMult_a_ABt(nu_deriv, temp_matrix, temp_matrix2, elmat);
+      AddMult_a_ABt(nu_deriv, temp_matrix2, temp_matrix, elmat);
    }
 }
 
