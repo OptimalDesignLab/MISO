@@ -40,7 +40,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 #endif
 
 	/// Construct current source coefficient
-	constructCurrent(1.0);
+	constructCurrent();
 
 	/// Assemble current source vector
 	assembleCurrentSource();
@@ -50,14 +50,16 @@ MagnetostaticSolver::MagnetostaticSolver(
    res.reset(new NonlinearFormType(h_curl_space.get()));
 
 	/// Construct reluctivity coefficient
-	constructReluctivity(alpha);
+	constructReluctivity();
 
 	/// add curl curl integrator to residual
 	res->AddDomainIntegrator(new CurlCurlNLFIntegrator(nu.get()));
 
-	/// TODO - construct integrator
+	/// Construct magnetization coefficient
+	constructMagnetization();
+
 	/// add magnetization integrator to residual
-	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get()));
+	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get()));
 
 	/// Costruct linear system solver
 #ifdef MFEM_USE_MPI
@@ -100,17 +102,26 @@ void MagnetostaticSolver::solveSteady()
 	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 }
 
+void MagnetostaticSolver::constructCurrent()
+{
+	current_coeff.reset(new VectorMeshDependentCoefficient());
+
+	std::unique_ptr<mfem::VectorCoefficient> winding_coeff(
+		new VectorFunctionCoefficient(num_dim, winding_current_source));
+
+	/// TODO - use options to select material attribute for windings
+	/// picked 1 arbitrarily for now
+	current_coeff->addCoefficient(1, move(winding_coeff));
+}
+
 void MagnetostaticSolver::assembleCurrentSource()
 {
 	int fe_order = options["space-dis"]["degree"].get<int>();
 
-	/// get space dim, theres probably a better way
-	int dim = h_curl_space->GetElementTransformation(0)->GetSpaceDim();
-
 	/// Create the H1 finite element collection and space, only used by the
 	/// divergence free projectors so we define them here and then throw them
 	/// away
-   auto h1_coll = H1_FECollection(fe_order, dim);
+   auto h1_coll = H1_FECollection(fe_order, num_dim);
 	auto h1_space = SpaceType(mesh.get(), &h1_coll);
 
 	/// get int rule (approach followed my MFEM Tesla Miniapp)

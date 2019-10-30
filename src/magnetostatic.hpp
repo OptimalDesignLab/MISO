@@ -57,7 +57,9 @@ private:
    /// mesh dependent reluctivity coefficient
    std::unique_ptr<MeshDependentCoefficient> nu;
    /// vector mesh dependent current density function coefficient
-   std::unique_ptr<mfem::VectorCoefficient> current_coeff;
+   std::unique_ptr<VectorMeshDependentCoefficient> current_coeff;
+   /// vector mesh dependent magnetization coefficient
+   std::unique_ptr<mfem::VectorCoefficient> mag_coeff;
 
    /// linear system solver
    std::unique_ptr<CGType> solver;
@@ -69,15 +71,26 @@ private:
 
    /// construct mesh dependent coefficient for reluctivity
    /// \param[in] alpha - used to move to lhs or rhs
-   void constructReluctivity(double alpha);
+   void constructReluctivity();
+
+   /// construct mesh dependent coefficient for magnetization
+   /// \param[in] alpha - used to move to lhs or rhs
+   void constructMagnetization();
 
    /// construct vector mesh dependent coefficient for current source
    /// \param[in] alpha - used to move to lhs or rhs
-   void constructCurrent(double alpha);
+   void constructCurrent();
 
    /// assemble vector associated with current source
    /// \note - constructCurrent must be called before calling this
    void assembleCurrentSource();
+
+   /// TODO - Garo fill out function definition
+   /// function describing current density in windings
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void winding_current_source(const mfem::Vector &x,
+                                      mfem::Vector &J);
 };
 
 } // namespace mach
