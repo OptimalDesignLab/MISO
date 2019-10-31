@@ -67,10 +67,10 @@ MagnetostaticSolver::MagnetostaticSolver(
    prec->SetPrintLevel(0);
 
    solver.reset(new MINRESSolver(h_curl_space->GetComm()));
-   solver->SetTol(1e-14);
+   solver->SetRelTol(1e-14);
    solver->SetMaxIter(200);
    solver->SetPrintLevel(0);
-   solver->SetPreconditioner(prec);
+   solver->SetPreconditioner(*prec);
 #else
 	/// TODO look at example 3 or other serial EM examples to see what
 	/// preconditioner they use, this one is probably not the best
