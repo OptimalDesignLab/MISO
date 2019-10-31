@@ -10,24 +10,41 @@ double MeshDependentCoefficient::Eval(ElementTransformation &trans,
                                       const double state)
 {
    // given the attribute, extract the coefficient value from the map
-   std::map<const int, Coefficient*>::iterator it;
+   // std::map<const int, Coefficient*>::iterator it;
    int this_att = trans.Attribute;
    Coefficient *coeff;
 	double value;
-   it = material_map.find(this_att);
+   auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
-      coeff = it->second;
+      coeff = it->second.get();
       value = Eval(coeff, trans, ip, state);
    }
-   else
+   else // if attribute not found in material map default to zero
    {
       value = 0.0; // avoid compile warning
-      std::cerr << "MeshDependentCoefficient attribute " << it->first
-                << " not found" << std::endl;
-      mfem_error();
+      // std::cerr << "MeshDependentCoefficient attribute " << it->first
+      //           << " not found" << std::endl;
+      // mfem_error();
    }
    return value;
+
+   // // given the attribute, extract the coefficient value from the map
+   // int this_att = trans.Attribute;
+   // VectorCoefficient *coeff;
+   // auto it = material_map.find(this_att);
+   // if (it != material_map.end())
+   // {
+   //    coeff = it->second.get();
+   //    coeff->Eval(vec, trans, ip);
+   // }
+   // else // if attribute not found in material map set the vector to be zero
+   // {
+   //    vec = 0.0;
+   //    // std::cerr << "MeshDependentCoefficient attribute " << it->first
+   //    //           << " not found" << std::endl;
+   //    // mfem_error();
+   // }
 }
 
 double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
@@ -35,21 +52,22 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
                                                 const double state)
 {
    // given the attribute, extract the coefficient value from the map
-   std::map<const int, Coefficient*>::iterator it;
+   // std::map<const int, Coefficient*>::iterator it;
    int this_att = trans.Attribute;
+   Coefficient *coeff;
 	double value;
-   it = material_map.find(this_att);
+   auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
-      Coefficient *coeff = it->second;
+      coeff = it->second.get();
 		value = EvalStateDeriv(coeff, trans, ip, state);
    }
-   else
+   else // if attribute not found in material map default to zero
    {
       value = 0.0; // avoid compile warning
-      std::cerr << "MeshDependentCoefficient attribute " << it->first
-                << " not found" << std::endl;
-      mfem_error();
+      // std::cerr << "MeshDependentCoefficient attribute " << it->first
+      //           << " not found" << std::endl;
+      // mfem_error();
    }
    return value;
 }

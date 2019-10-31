@@ -102,6 +102,30 @@ void MagnetostaticSolver::solveSteady()
 	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 }
 
+void MagnetostaticSolver::constructReluctivity()
+{
+	nu.reset(new MeshDependentCoefficient());
+
+	std::unique_ptr<mfem::Coefficient> reluctivity_coeff(
+		new ReluctivityCoefficient(reluctivity_model));
+
+	/// TODO - use options to select material attribute for stator body
+	/// picked 2 arbitrarily for now
+	nu->addCoefficient(2, move(reluctivity_coeff));
+}
+
+void MagnetostaticSolver::constructMagnetization()
+{
+	mag_coeff.reset(new VectorMeshDependentCoefficient());
+
+	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
+		new VectorFunctionCoefficient(num_dim, magnetization_source));
+
+	/// TODO - use options to select material attribute for windings
+	/// picked 1 arbitrarily for now
+	current_coeff->addCoefficient(1, move(magnet_coeff));
+}
+
 void MagnetostaticSolver::constructCurrent()
 {
 	current_coeff.reset(new VectorMeshDependentCoefficient());
@@ -167,7 +191,7 @@ void MagnetostaticSolver::assembleCurrentSource()
 }
 
 void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
-                                      			 mfem::Vector &J)
+                                                 mfem::Vector &J)
 {
 	// example of needed geometric parameters, this should be all you need
 	int n_s = 20; //number of slots

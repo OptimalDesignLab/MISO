@@ -85,12 +85,28 @@ private:
    /// \note - constructCurrent must be called before calling this
    void assembleCurrentSource();
 
-   /// TODO - Garo fill out function definition
+   /// TODO - implement
+   /// TODO - signature will likely change because I haven't figured out how
+   ///        to take derivatives yet. Probably will end up using Adept adoubles
+   /// function describing nonlinear reluctivity model based on spline
+   ///   interpolation of experimental B-H magnetization curve
+   ///   may optionally use some temperature extrapolation
+   /// \param[in] b_mag - magnitude of magnetic flux density
+   static double reluctivity_model(const double b_mag);
+
    /// function describing current density in windings
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
    static void winding_current_source(const mfem::Vector &x,
                                       mfem::Vector &J);
+
+   /// TODO - implement function
+   /// function describing permanent magnet magnetization source
+   /// \param[in] x - position x in space
+   /// \param[out] M - magetic flux density at position x cause by permanent
+   ///                 magnets
+   static void magnetization_source(const mfem::Vector &x,
+                                    mfem::Vector &M);
 };
 
 } // namespace mach
