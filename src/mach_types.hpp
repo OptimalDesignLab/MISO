@@ -23,7 +23,7 @@ namespace mach
    using SmootherType = mfem::HypreSmoother;
    using DiscLinOperatorType = mfem::ParDiscreteLinearOperator;
    using MixedBilinearFormType = mfem::ParMixedBilinearForm;
-   using CGType = mfem::Solver;
+   using CGType = mfem::MINRESSolver;
    using EMPrecType = mfem::HypreBoomerAMG;
 #else
    using MeshType = mfem::Mesh;
@@ -35,7 +35,7 @@ namespace mach
    using SmootherType = mfem::DSmoother;
    using DiscLinOperatorType = mfem::DiscreteLinearOperator;
    using MixedBilinearFormType = mfem::MixedBilinearForm;
-   using CGType = mfem::Solver;
+   using CGType = mfem::CGSolver;
    using EMPrecType = mfem::GSSmoother;
 #endif
 
