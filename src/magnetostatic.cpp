@@ -271,8 +271,8 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
 	}
 }
 
-static void magnetization_source(const mfem::Vector &x,
-                          		 mfem::Vector &M)
+void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
+                          		 					  mfem::Vector &M)
 {
 	// example of needed geometric parameters, this should be all you need
 	int n_p = 20; //number of poles
