@@ -23,7 +23,7 @@ namespace mach
    using SmootherType = mfem::HypreSmoother;
    using DiscLinOperatorType = mfem::ParDiscreteLinearOperator;
    using MixedBilinearFormType = mfem::ParMixedBilinearForm;
-   using CGType = mfem::HyprePCG;
+   using CGType = mfem::MINRESSolver;
    using EMPrecType = mfem::HypreBoomerAMG;
 #else
    using MeshType = mfem::Mesh;
