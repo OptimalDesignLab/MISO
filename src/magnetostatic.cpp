@@ -114,6 +114,16 @@ void MagnetostaticSolver::constructCurrent()
 	current_coeff->addCoefficient(1, move(winding_coeff));
 }
 
+void MagnetostaticSolver::constructMagnetization()
+{
+	mag_coeff.reset(new VectorCoefficient());
+
+	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
+		new VectorFunctionCoefficient(num_dim, magnet_source));
+
+	
+}
+
 void MagnetostaticSolver::assembleCurrentSource()
 {
 	int fe_order = options["space-dis"]["degree"].get<int>();
@@ -228,4 +238,28 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
 		J = Jr;
 	}
 }
+
+static void magnet_source(const mfem::Vector &x,
+                          mfem::Vector &M)
+{
+	// example of needed geometric parameters, this should be all you need
+	int n_p = 20; //number of poles
+	double zb = .25; //bottom of stator
+	double zt = .75; //top of stator
+
+	//just pointing out for now
+	//TODO: implement other kinds of sources
+
+	// compute theta from x and y
+	double tha = atan2(x(1), x(0));
+
+	// just point radially outward from z, unit magnitude
+	
+	M = 0.0;
+	if(x(2) >= zb && x(2) <= zt)
+	{
+		M(0) = x(0)/x.Norml2();
+		M(1) = x(1)/x.Norml2();
+	}
+}	
 } // namespace mach

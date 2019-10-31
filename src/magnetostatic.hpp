@@ -85,12 +85,17 @@ private:
    /// \note - constructCurrent must be called before calling this
    void assembleCurrentSource();
 
-   /// TODO - Garo fill out function definition
    /// function describing current density in windings
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
    static void winding_current_source(const mfem::Vector &x,
                                       mfem::Vector &J);
+
+   /// function describing magnetization on rotor
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] M - magnetic field at position x 
+   static void magnet_source(const mfem::Vector &x,
+                                      mfem::Vector &M);
 };
 
 } // namespace mach
