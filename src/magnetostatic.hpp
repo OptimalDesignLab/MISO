@@ -21,7 +21,7 @@ public:
    /// \todo Can we infer dim some other way without using a template param?
    MagnetostaticSolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr,
-							  int dim = 1);
+							  int dim = 3);
 
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
    virtual void solveSteady();
