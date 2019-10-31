@@ -141,7 +141,7 @@ void MagnetostaticSolver::constructMagnetization()
 
 	/// TODO - use options to select material attribute for magnets
 	/// picked 4 arbitrarily for now
-	current_coeff->addCoefficient(4, move(magnet_coeff));
+	mag_coeff->addCoefficient(4, move(magnet_coeff));
 }
 
 void MagnetostaticSolver::constructCurrent()
@@ -270,4 +270,28 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
 		J = Jr;
 	}
 }
+
+static void magnetization_source(const mfem::Vector &x,
+                          		 mfem::Vector &M)
+{
+	// example of needed geometric parameters, this should be all you need
+	int n_p = 20; //number of poles
+	double zb = .25; //bottom of stator
+	double zt = .75; //top of stator
+
+	//just pointing out for now
+	//TODO: implement other kinds of sources
+
+	// compute theta from x and y
+	double tha = atan2(x(1), x(0));
+
+	// just point radially outward from z, unit magnitude
+	
+	M = 0.0;
+	if(x(2) >= zb && x(2) <= zt)
+	{
+		M(0) = x(0)/x.Norml2();
+		M(1) = x(1)/x.Norml2();
+	}
+}	
 } // namespace mach

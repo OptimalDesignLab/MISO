@@ -59,7 +59,7 @@ private:
    /// vector mesh dependent current density function coefficient
    std::unique_ptr<VectorMeshDependentCoefficient> current_coeff;
    /// vector mesh dependent magnetization coefficient
-   std::unique_ptr<mfem::VectorCoefficient> mag_coeff;
+   std::unique_ptr<VectorMeshDependentCoefficient> mag_coeff;
 
    /// linear system solver
    std::unique_ptr<CGType> solver;
