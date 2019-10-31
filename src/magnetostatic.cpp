@@ -102,6 +102,48 @@ void MagnetostaticSolver::solveSteady()
 	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 }
 
+void MagnetostaticSolver::constructReluctivity()
+{
+	/// set up default reluctivity to be that of free space
+   std::unique_ptr<Coefficient> nu_free_space(
+      new ConstantCoefficient(1.0/(4e-7*M_PI)));
+   
+	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
+
+	/// uncomment eventually, for now we use constant linear model
+	// std::unique_ptr<mfem::Coefficient> stator_coeff(
+	// 	new ReluctivityCoefficient(reluctivity_model));
+
+	/// create constant coefficient for stator body with relative permeability
+	/// 3000
+	std::unique_ptr<mfem::Coefficient> stator_coeff(
+		new ConstantCoefficient(1.0/(3000*4e-7*M_PI)));
+	
+	/// create constant coefficient for rotor body with relative permeability
+	/// 3000
+	std::unique_ptr<mfem::Coefficient> rotor_coeff(
+		new ConstantCoefficient(1.0/(3000*4e-7*M_PI)));
+
+	/// TODO - use options to select material attribute for stator body
+	/// picked 2 arbitrarily for now
+	nu->addCoefficient(2, move(stator_coeff));
+	/// TODO - use options to select material attribute for stator body
+	/// picked 2 arbitrarily for now
+	nu->addCoefficient(3, move(rotor_coeff));
+}
+
+void MagnetostaticSolver::constructMagnetization()
+{
+	mag_coeff.reset(new VectorMeshDependentCoefficient());
+
+	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
+		new VectorFunctionCoefficient(num_dim, magnetization_source));
+
+	/// TODO - use options to select material attribute for magnets
+	/// picked 4 arbitrarily for now
+	mag_coeff->addCoefficient(4, move(magnet_coeff));
+}
+
 void MagnetostaticSolver::constructCurrent()
 {
 	current_coeff.reset(new VectorMeshDependentCoefficient());
@@ -112,16 +154,6 @@ void MagnetostaticSolver::constructCurrent()
 	/// TODO - use options to select material attribute for windings
 	/// picked 1 arbitrarily for now
 	current_coeff->addCoefficient(1, move(winding_coeff));
-}
-
-void MagnetostaticSolver::constructMagnetization()
-{
-	mag_coeff.reset(new VectorCoefficient());
-
-	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
-		new VectorFunctionCoefficient(num_dim, magnet_source));
-
-	
 }
 
 void MagnetostaticSolver::assembleCurrentSource()
@@ -177,7 +209,7 @@ void MagnetostaticSolver::assembleCurrentSource()
 }
 
 void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
-                                      			 mfem::Vector &J)
+                                                 mfem::Vector &J)
 {
 	// example of needed geometric parameters, this should be all you need
 	int n_s = 20; //number of slots
@@ -239,8 +271,8 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
 	}
 }
 
-static void magnet_source(const mfem::Vector &x,
-                          mfem::Vector &M)
+static void magnetization_source(const mfem::Vector &x,
+                          		 mfem::Vector &M)
 {
 	// example of needed geometric parameters, this should be all you need
 	int n_p = 20; //number of poles

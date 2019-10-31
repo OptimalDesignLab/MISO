@@ -10,22 +10,22 @@ double MeshDependentCoefficient::Eval(ElementTransformation &trans,
                                       const double state)
 {
    // given the attribute, extract the coefficient value from the map
-   std::map<const int, Coefficient*>::iterator it;
    int this_att = trans.Attribute;
    Coefficient *coeff;
 	double value;
-   it = material_map.find(this_att);
+   auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
-      coeff = it->second;
+      coeff = it->second.get();
       value = Eval(coeff, trans, ip, state);
    }
-   else
+   else if (default_coeff)
    {
-      value = 0.0; // avoid compile warning
-      std::cerr << "MeshDependentCoefficient attribute " << it->first
-                << " not found" << std::endl;
-      mfem_error();
+      value = Eval(default_coeff.get(), trans, ip, state);
+   }
+   else // if attribute not found and no default set, evaluate to zero
+   {
+      value = 0.0;
    }
    return value;
 }
@@ -35,21 +35,22 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
                                                 const double state)
 {
    // given the attribute, extract the coefficient value from the map
-   std::map<const int, Coefficient*>::iterator it;
    int this_att = trans.Attribute;
+   Coefficient *coeff;
 	double value;
-   it = material_map.find(this_att);
+   auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
-      Coefficient *coeff = it->second;
+      coeff = it->second.get();
 		value = EvalStateDeriv(coeff, trans, ip, state);
    }
-   else
+   else if (default_coeff)
    {
-      value = 0.0; // avoid compile warning
-      std::cerr << "MeshDependentCoefficient attribute " << it->first
-                << " not found" << std::endl;
-      mfem_error();
+      value = EvalStateDeriv(default_coeff.get(), trans, ip, state);
+   }
+   else // if attribute not found in material map default to zero
+   {
+      value = 0.0;
    }
    return value;
 }
@@ -90,12 +91,13 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
       coeff = it->second.get();
       coeff->Eval(vec, trans, ip);
    }
-   else // if attribute not found in material map set the vector to be zero
+   else if (default_coeff)
+   {
+      default_coeff->Eval(vec, trans, ip);
+   }
+   else // if attribute not found and no default set, set the output to be zero
    {
       vec = 0.0;
-      // std::cerr << "MeshDependentCoefficient attribute " << it->first
-      //           << " not found" << std::endl;
-      // mfem_error();
    }
 }
 

@@ -32,28 +32,29 @@ public:
 											const double state) = 0;
 };
 
-/// TODO: change to a map of unique pointers so that the MeshDependentCoefficient
-///       owns the coefficients in the map
+
 /// MeshDependentCoefficient
 /// A class that contains a map of material attributes and coefficients to
 /// evaluate on for each attribute.
 class MeshDependentCoefficient : public StateCoefficient
 {
 public:
-	MeshDependentCoefficient() {}
+	/// Construct MeshDependentCoefficient
+	/// \param [in] dflt - default coefficient to evaluate if element attribute
+	///						  is not found in the map. If not set, will default
+	///						  to zero
+	MeshDependentCoefficient(std::unique_ptr<mfem::Coefficient> dflt = NULL)
+		: default_coeff(move(dflt)) {}
 
-	MeshDependentCoefficient(const std::map<const int, mfem::Coefficient*>
-									 &input_map)
-	 : material_map(input_map) {}
-
-	/// Adds <int, mfem::Coefficient*> pair to material_map where the int
-	/// corresponds to a material attribute in the mesh.
-	/// \param coeff - attribute-Coefficient pair where the Coefficient is the
-	///					 one to evaluate on elements identified by the attribute
-	virtual void addCoefficient(std::pair<const int, mfem::Coefficient*> coeff)
+	/// Adds <int, std::unique_ptr<mfem::Coefficient> pair to material_map
+	/// \param[in] attr - attribute integer indicating which elements coeff
+	///					    should be evaluated on
+	/// \param[in] coeff - the coefficient the to evaluate on elements
+	///						  identified by the attribute
+	virtual void addCoefficient(const int attr,
+										 std::unique_ptr<mfem::Coefficient> coeff)
 	{
-		std::pair <std::map<const int, mfem::Coefficient*>::iterator, bool> status;
-		status = material_map.insert(coeff);
+		auto status = material_map.insert(std::make_pair(attr, std::move(coeff)));
 		// if the pair failed to insert
 		if (!status.second)
 		{
@@ -207,7 +208,8 @@ protected:
 	}
 
 private:
-	std::map<const int, mfem::Coefficient*> material_map;
+	std::map<const int, std::unique_ptr<mfem::Coefficient>> material_map;
+	std::unique_ptr<mfem::Coefficient> default_coeff;
 };
 
 class ReluctivityCoefficient : public StateCoefficient
@@ -270,20 +272,16 @@ protected:
 class VectorMeshDependentCoefficient : public mfem::VectorCoefficient
 {
 public:
-	VectorMeshDependentCoefficient(const int dim = 3)
-		 : VectorCoefficient(dim) {}
+	VectorMeshDependentCoefficient(const int dim = 3,
+											 std::unique_ptr<mfem::VectorCoefficient>
+												dflt = NULL)
+		 : default_coeff(move(dflt)), VectorCoefficient(dim) {}
 
-	// VectorMeshDependentCoefficient(const
-	// 										 std::map<const int,
-	// 													 std::unique_ptr<mfem::VectorCoefficient>>
-	// 								 		          &input_map,
-	// 										 const int dim = 3)
-	//  : VectorCoefficient(dim), material_map(input_map) {}
-
-	/// Adds <int, mfem::Coefficient*> pair to material_map where the int
-	/// corresponds to a material attribute in the mesh.
-	/// \param coeff - attribute-Coefficient pair where the Coefficient is the
-	///					 one to evaluate on elements identified by the attribute
+	/// Adds <int, std::unique_ptr<mfem::VectorCoefficient> pair to material_map
+	/// \param[in] attr - attribute integer indicating which elements coeff
+	///					    should be evaluated on
+	/// \param[in] coeff - the coefficient the to evaluate on elements
+	///						  identified by the attribute
 	virtual void addCoefficient(const int attr,
 										 std::unique_ptr<mfem::VectorCoefficient> coeff)
 	{
@@ -328,6 +326,7 @@ public:
 
 protected:
 	std::map<const int, std::unique_ptr<mfem::VectorCoefficient>> material_map;
+	std::unique_ptr<mfem::VectorCoefficient> default_coeff;
 };
 
 } // namespace mach
