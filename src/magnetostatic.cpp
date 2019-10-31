@@ -66,7 +66,7 @@ MagnetostaticSolver::MagnetostaticSolver(
    prec.reset(new HypreBoomerAMG());
    prec->SetPrintLevel(0);
 
-   solver.reset(new HyprePCG());
+   solver.reset(new MINRESSolver(h_curl_space->GetComm()));
    solver->SetTol(1e-14);
    solver->SetMaxIter(200);
    solver->SetPrintLevel(0);
