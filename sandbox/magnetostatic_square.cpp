@@ -75,21 +75,21 @@ int main(int argc, char *argv[])
    mesh_ofs.precision(8);
    mesh->PrintVTK(mesh_ofs);
 
-   // try
-   // {
-   //    // construct the solver
-   //    string opt_file_name(options_file);
-   //    MagnetostaticSolver solver(opt_file_name);
-   //    solver.solveForState();
-   // }
-   // catch (MachException &exception)
-   // {
-   //    exception.print_message();
-   // }
-   // catch (std::exception &exception)
-   // {
-   //    cerr << exception.what() << endl;
-   // }
+   try
+   {
+      // construct the solver
+      string opt_file_name(options_file);
+      MagnetostaticSolver solver(opt_file_name, move(mesh));
+      solver.solveForState();
+   }
+   catch (MachException &exception)
+   {
+      exception.print_message();
+   }
+   catch (std::exception &exception)
+   {
+      cerr << exception.what() << endl;
+   }
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
