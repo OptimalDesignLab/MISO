@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
+   std::cout <<"Flag 1.\n";
    // Parse command-line options
    OptionsParser args(argc, argv);
    const char *options_file = "steady_vortex_options.json";
@@ -40,6 +41,7 @@ int main(int argc, char *argv[])
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
    args.Parse();
+   std::cout << "Flag 2.\n";
    if (!args.Good())
    {
       args.PrintUsage(cout);
@@ -50,11 +52,18 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
+      std::cout << options_file << endl;
+      std::cout << "Flag 3.\n";
       const int dim = 2;
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      std::cout << "Flag 4.\n";
       EulerSolver solver(opt_file_name, move(smesh), dim);
+      std::cout << "Flag 5.\n";
       solver.setInitialCondition(uexact);
+      std::cout << "Flag 6.\n";
       solver.printSolution("init", degree+1);
+      std::cout << "Flag 7.\n";
+
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
       mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
@@ -64,7 +73,7 @@ int main(int argc, char *argv[])
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
-
+      std::cout << "Flag 8.\n";
    }
    catch (MachException &exception)
    {

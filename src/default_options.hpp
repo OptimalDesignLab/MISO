@@ -21,7 +21,7 @@ nlohmann::json default_options =
       {"lps-coeff", 1.0} // scaling coefficient for local-proj stabilization
    }},
 
-   "steady", false,
+   "steady", true,
    {"time-dis", // options related to unsteady time-marching
    {
       {"ode-solver", "RK4"}, // type of ODE solver to use 
