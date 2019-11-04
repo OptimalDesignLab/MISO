@@ -61,6 +61,10 @@ private:
    /// vector mesh dependent magnetization coefficient
    std::unique_ptr<VectorMeshDependentCoefficient> mag_coeff;
 
+   /// boundary condition marker array
+   mfem::Array<int> ess_bdr;
+   std::unique_ptr<mfem::VectorCoefficient> bc_coef;
+
    /// linear system solver
    std::unique_ptr<CGType> solver;
    /// linear system preconditioner

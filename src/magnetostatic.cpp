@@ -61,6 +61,17 @@ MagnetostaticSolver::MagnetostaticSolver(
 	/// add magnetization integrator to residual
 	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get()));
 
+	/// apply zero tangential boundary condition everywhere
+	ess_bdr.SetSize(mesh->bdr_attributes.Max());
+	ess_bdr = 1;
+	Vector Zero(3);
+   Zero = 0.0;
+   bc_coef.reset(new VectorConstantCoefficient(Zero));
+   A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+
+	/// set essential boundary conditions in nonlinear form
+	res->SetEssentialBC(ess_bdr);
+
 	/// Costruct linear system solver
 #ifdef MFEM_USE_MPI
    prec.reset(new HypreBoomerAMG());
