@@ -38,17 +38,12 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    #else
    rank = 0; // serial case
    #endif
-   std::cout << "Create the solver.\n";
    out = getOutStream(rank); 
-   std::cout << "Get the ostream.\n";
    options = default_options;
-   std::cout << "Get the default option.\n";
    nlohmann::json file_options;
    ifstream options_file(opt_file_name);
    options_file >> file_options;
-   std::cout << "write the file options.\n";
    options.merge_patch(file_options);
-   std::cout << "patch is merged.\n";
    *out << setw(3) << options << endl;
    constructMesh(move(smesh));
    // does num_dim equal mesh->Dimension in all cases?

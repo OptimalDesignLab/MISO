@@ -214,11 +214,12 @@ void EulerSolver::solveSteady()
 #error This function requires MFEM_USE_PETSC defined
 #endif
    const char *petscrc_file="eulersteady";
+   std::cout << "EulerSolver::solveSteady() is called.\n";
    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 
    PetscNonlinearSolver *pnewton_solver = new 
                      PetscNonlinearSolver(fes->GetComm(), *res);
-   // mfem::PetscPreconditonerFactory * j_prec = new 
+   //mfem::PetscPreconditonerFactory * j_prec = new 
    //                   PetscPreconditionerFactory();
    pnewton_solver->SetPrintLevel(1); // print Newton iterations
    pnewton_solver->SetRelTol(1e-10);
@@ -228,7 +229,8 @@ void EulerSolver::solveSteady()
 
    mfem::Vector zero;
    pnewton_solver->Mult(zero,*u);
-   MFEM_ASSERT(pnewton_solver.GetConverged(), "Newton solver didn't converge.\n");
+   std::cout << "\nConverged? :"<<pnewton_solver->GetConverged() << std::endl;
+   MFEM_ASSERT(pnewton_solver->GetConverged(), "Newton solver didn't converge.\n");
    MFEMFinalizePetsc();
 }
 
