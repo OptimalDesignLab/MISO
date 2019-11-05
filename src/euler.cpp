@@ -23,7 +23,7 @@ EulerSolver::EulerSolver(const string &opt_file_name,
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: "
         << fes->GlobalTrueVSize() << endl;
-#else 
+#else
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
@@ -38,21 +38,15 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    // TODO: should decide between one-point and two-point fluxes using options
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
-   
-   res->AddDomainIntegrator(new DyadicFluxIntegrator(diff_stack,
-                                                     calcIsmailRoeFlux<double,2>,
-                                                     num_state, alpha));
 
-   //res->AddDomainIntegrator(new InviscidIntegrator(diff_stack,
-   //                                                calcEulerFlux<double,2>,
-   //                                                num_state, alpha));
+   res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
+
+   //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
 
    // add the LPS stabilization
    double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
-   res->AddDomainIntegrator(new LPSIntegrator(diff_stack,
-                                              calcEntropyVars<double,2>,
-                                              applyLPSScaling<double,2>,
-                                              num_state, alpha, lps_coeff));
+   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+                                                          lps_coeff));
 
    // boundary face integrators are handled in their own function
    addBoundaryIntegrators(alpha, dim);
@@ -78,9 +72,9 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       vector<int> tmp = bcs["vortex"].get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
-      res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-         diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-         alpha), bndry_marker[idx]);
+      res->AddBdrFaceIntegrator(
+          new IsentropicVortexBC(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
       idx++;
    }
    if (bcs.find("slip-wall") != bcs.end())
@@ -91,22 +85,19 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       switch (dim)
       {
          case 1:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,1>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+                new SlipWallBC<1>(diff_stack, fec.get(), alpha),
+                bndry_marker[idx]);
             break;
          case 2:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,2>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
-            //res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-            //   diff_stack, calcIsentropicVortexFlux<double>, fec.get(), num_state,
-            //   alpha, bndry_marker[idx][0]), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+               new SlipWallBC<2>(diff_stack, fec.get(), alpha),
+               bndry_marker[idx]);
             break;
          case 3:
-            res->AddBdrFaceIntegrator(new InviscidBoundaryIntegrator(
-               diff_stack, calcSlipWallFlux<double,3>, fec.get(), num_state,
-               alpha), bndry_marker[idx]);
+            res->AddBdrFaceIntegrator(
+               new SlipWallBC<3>(diff_stack, fec.get(), alpha),
+               bndry_marker[idx]);
             break;
       }
       idx++;
@@ -134,7 +125,6 @@ double EulerSolver::calcResidualNorm()
    res_norm = sqrt(res_norm);
    return res_norm;
 }
-
 
 double EulerSolver::calcStepSize(double cfl) const
 {
@@ -186,8 +176,9 @@ double EulerSolver::calcStepSize(double cfl) const
    MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
 #else
    dt_min = dt_local;
-#endif   
+#endif
    return dt_min;
 }
+
 
 } // namespace mach

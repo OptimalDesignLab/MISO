@@ -27,6 +27,8 @@ public:
    /// Returns the diagonal norm/mass matrix as a vector.
    const Vector &returnDiagNorm() const { return H; }
 
+   double getDiagNormEntry(int i) const { return H(i); }
+
    /// Apply the norm matrix to given vector
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
    /// \param[out] Hu - result of applying `H` to `u`
@@ -85,6 +87,12 @@ public:
    /// \param[in,out] P - to store the operator
    void getProjOperator(DenseMatrix &P) const;
 
+   /// Returns the `i`th row `j`th column entry of the projection operator
+   /// \param[in] i - desired row
+   /// \param[in] j - desired column
+   /// \returns \f$ P_{ij} \f$
+   double getProjOperatorEntry(int i, int j) const;
+
    /// Applies the local projection operator, `P` or `P^T`, to the given data
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
    /// \param[out] Pu - result of applying `P` or `P^T` to `u` is stored here
@@ -92,6 +100,13 @@ public:
    /// \warning Pu is overwritten and possibly resized.
    void multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
                          bool trans = false) const;
+
+   /// Returns the `(i,j)`th entry of the weak derivative in direction `di`
+   /// \param[in] di - desired reference space direction of operator entry
+   /// \param[in] i - row index
+   /// \param[in] j - column index
+   /// \returns \f$ (Q_{di})_{i,j} \f$ in reference space
+   double getQ(int di, int i, int j) const;
 
    /// `(i,j)`th entry of skew-symmetric matrix \f$ S_{di} \f$ in physical space
    /// \param[in] di - desired physical space coordinate direction
