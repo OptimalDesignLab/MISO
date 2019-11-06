@@ -64,8 +64,17 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
-   fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
+   if(options["finite-element-dis"]["basis-type"].get<string>() == "cg")
+   {
+       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
                                num_dim));
+   }
+   else if(options["finite-element-dis"]["basis-type"].get<string>() == "dg")
+   {
+       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
+                               num_dim));
+   }
+  
 }
 
 AbstractSolver::~AbstractSolver() 
@@ -333,8 +342,26 @@ void AbstractSolver::solveUnsteady()
       osol.precision(precision);
       u->Save(osol);
    }
-
-   printSolution("final");
+   // TODO: These mfem functions do not appear to be parallelized
+   if(options["finite-element-dis"]["basis-type"].get<string>() == "cg")
+   {
+      ofstream sol_ofs("steady_vortex_cg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs,options["space-dis"]["degree"].get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+      sol_ofs.close();
+      printSolution("final");
+   }
+   else if(options["finite-element-dis"]["basis-type"].get<string>() == "dg")
+   {
+      ofstream sol_ofs("steady_vortex_dg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs,options["space-dis"]["degree"].get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+      sol_ofs.close();
+      printSolution("final");
+   }
+   
 }
 
 } // namespace mach
