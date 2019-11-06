@@ -27,27 +27,33 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
-   if (options["finite-element-dis"]["basis-type"].get<string>() == "cg")
-   {
-      // set up the mass matrix
-      mass.reset(new BilinearFormType(fes.get()));
-      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-      mass->Assemble();
-      mass->Finalize();
-      // set up the spatial semi-linear form
-      // TODO: should decide between one-point and two-point fluxes using options
-      double alpha = 1.0;
-      res.reset(new NonlinearFormType(fes.get()));
-      res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
-      //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
-      // add the LPS stabilization
-      double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
-      res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+if (options["finite-element-dis"]["basis-type"].get<string>() == "cg")
+{
+   // set up the mass matrix
+   mass.reset(new BilinearFormType(fes.get()));
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass->Assemble();
+   mass->Finalize();
+
+   // set up the spatial semi-linear form
+   // TODO: should decide between one-point and two-point fluxes using options
+   double alpha = 1.0;
+   res.reset(new NonlinearFormType(fes.get()));
+
+   res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
+
+   //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
+
+   // add the LPS stabilization
+   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
+   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
                                                           lps_coeff));
-      // boundary face integrators are handled in their own function
-      addBoundaryIntegrators(alpha, dim);
-   }
-// define the time-dependent operator
+
+   // boundary face integrators are handled in their own function
+   addBoundaryIntegrators(alpha, dim);
+}
+
+   // define the time-dependent operator
 #ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
    mass_matrix.reset(mass->ParallelAssemble());
