@@ -52,6 +52,27 @@ if (options["finite-element-dis"]["basis-type"].get<string>() == "cg")
    // boundary face integrators are handled in their own function
    addBoundaryIntegrators(alpha, dim);
 }
+else if(options["finite-element-dis"]["basis-type"].get<string>() == "dg")
+{
+   // set up the mass matrix
+   mass.reset(new BilinearFormType(fes.get()));
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass->Assemble();
+   mass->Finalize();
+
+   // set up the spatial semi-linear form
+   // TODO: should decide between one-point and two-point fluxes using options
+   double alpha = 1.0;
+   res.reset(new NonlinearFormType(fes.get()));
+
+   res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
+   
+   //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
+   
+   res->AddInteriorFaceIntegrator(new InterfaceIntegrator<2>(diff_stack, 
+                                 fec.get(), alpha));
+   addBoundaryIntegrators(alpha, dim);
+}
 
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI
