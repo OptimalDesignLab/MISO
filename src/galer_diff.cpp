@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include "default_options.hpp"
+#ifdef MFEM_USE_PUMI
 #include "galer_diff.hpp"
 using namespace std;
 using namespace mach;
@@ -153,3 +154,4 @@ void GalerkinDifference::GetElementCenter(int id, mfem::Vector &cent)
 }
 
 } // namespace mfem
+#endif

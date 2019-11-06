@@ -27,7 +27,8 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
-
+if (options["finite-element-dis"]["basis-type"].get<string>() == "cg")
+{
    // set up the mass matrix
    mass.reset(new BilinearFormType(fes.get()));
    mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
@@ -50,6 +51,7 @@ EulerSolver::EulerSolver(const string &opt_file_name,
 
    // boundary face integrators are handled in their own function
    addBoundaryIntegrators(alpha, dim);
+}
 
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI

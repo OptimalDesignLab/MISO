@@ -3,11 +3,14 @@
       "file": "kernel-lev-1.mesh",
       "refine": 0
    },
+   "finite-element-dis": {
+       "basis-type": "cg"
+   },
    "pumi-mesh": {
-      "file": "tri32.smb",
+      "file": "model1.smb",
       "refine":0
    },
-   "model-file":"tri32.dmg",
+   "model-file":"model1.dmg",
    "space-dis": {
       "degree": 1,
       "lps-coeff": 1.0

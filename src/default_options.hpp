@@ -14,13 +14,18 @@ namespace mach
 nlohmann::json default_options =
 {
    {"model-file","mach.dmg"}, // model file name
+    
+   {"finite-element-dis", // options related to finite element discretization
+   {
+     {"basis-type", "cg"}, // default continuous galerkin
+   }},     
 
    {"space-dis", // options related to spatial discretization
    {
       {"degree", 1}, // default operator degree
       {"lps-coeff", 1.0} // scaling coefficient for local-proj stabilization
    }},
-
+      
    {"unsteady", // options related to unsteady time-marching
    {
       {"ode-solver", "RK4"}, // type of ODE solver to use 

@@ -3,6 +3,7 @@
 #include "mfem.hpp"
 #include "solver.hpp"
 #include "mach_types.hpp"
+#ifdef MFEM_USE_PUMI
 #include "pumi.h"
 
 namespace mfem
@@ -57,4 +58,5 @@ std::unique_ptr<MeshType> mesh;
 
 };
 }
+#endif
 #endif
