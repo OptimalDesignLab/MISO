@@ -14,6 +14,11 @@ namespace mach
 nlohmann::json default_options =
 {
    {"model-file","mach.dmg"}, // model file name
+    
+   {"finite-element-dis", // options related to finite element discretization
+   {
+     {"basis-type", "cg"}, // default continuous galerkin
+   }},     
 
    {"space-dis", // options related to spatial discretization
    {
