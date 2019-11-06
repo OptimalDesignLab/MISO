@@ -1,4 +1,7 @@
 {
+   "finite-element-dis": {
+      "basis-type": "cg"
+   },
    "space-dis": {
       "degree": 1,
       "lps-coeff": 1.0
