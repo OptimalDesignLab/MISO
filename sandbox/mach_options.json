@@ -1,4 +1,7 @@
 {
+   "finite-element-dis": {
+       "basis-type": "cg"
+   },
    "mesh": {
       "file": "kernel-lev-1.mesh",
       "refine": 0
