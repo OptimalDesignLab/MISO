@@ -49,7 +49,6 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
    return -c1 / (2 * c2);
 }
 
-<<<<<<< HEAD
 #ifndef MFEM_USE_LAPACK
 mfem::mfem_error(" Lapack is required for this feature ");
 #else
@@ -121,78 +120,5 @@ void buildInterpolation(int degree, const DenseMatrix &x_center,
       }
    }
 } // end of constructing interp
-=======
-// #ifndef MFEM_USE_LAPACK
-// mfem::mfem_error(" Lapack is required for this feature ");
-// #else
-// extern "C" void
-// dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
-//         double *, int *, double *, int *, int *);
-// extern "C" void
-// dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
-//        int *, int *);
-// #endif
-// /// build the interpolation operator on element patch
-// /// this function will be moved later
-// void buildInterpolation(int degree, const DenseMatrix &x_center,
-//                         const DenseMatrix &x_quad, DenseMatrix &interp)
-// {
-//    // number of quadrature points
-//    int num_quad = x_quad.Width();
-//    // number of elements
-//    int num_el = x_center.Width();
-
-//    // number of row and colomn in little r matrix
-//    int m = (degree + 1) * (degree + 2) / 2;
-//    int n = num_el;
-
-//    // Set the size of interpolation operator
-//    interp.SetSize(num_quad, num_el);
-//    // required by the lapack routine
-//    mfem::DenseMatrix rhs(n, 1);
-//    char TRANS = 'N';
-//    int nrhs = 1;
-//    int lwork = 2 * m * n;
-//    double work[lwork];
-
-//    // construct each row of R (also loop over each quadrature point)
-//    for (int i = 0; i < num_quad; i++)
-//    {
-//       // reset the rhs
-//       rhs = 0.0;
-//       rhs(0, 0) = 1.0;
-//       // construct the aux matrix to solve each row of R
-//       DenseMatrix r(m, n);
-//       r = 0.0;
-//       // loop over each column of r
-//       for (int j = 0; j < n; j++)
-//       {
-//          double x_diff = x_center(0, j) - x_quad(0, i);
-//          double y_diff = x_center(1, j) - x_quad(1, i);
-//          r(0, j) = 1.0;
-//          int index = 1;
-//          // loop over different orders
-//          for (int order = 1; order <= degree; order++)
-//          {
-//             for (int c = order; c >= 0; c--)
-//             {
-//                r(index, j) = pow(x_diff, c) * pow(y_diff, order - c);
-//                index++;
-//             }
-//          }
-//       }
-//       // Solve each row of R and put them back to R
-//       int info, rank;
-//       dgels_(&TRANS, &m, &n, &nrhs, r.GetData(), &m, rhs.GetData(), &n,
-//              work, &lwork, &info);
-//       MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
-//       // put each row back to interp
-//       for (int k = 0; k < n; k++)
-//       {
-//          interp(i, k) = rhs(k, 0);
-//       }
-//    }
-// } // end of constructing interp
->>>>>>> 755b9fa217a1cd6b65669dcc74f0a5cc542fc4d1
 
 } // namespace mach
