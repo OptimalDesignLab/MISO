@@ -1,17 +1,17 @@
 {
    "finite-element-dis": {
-      "basis-type": "cg"
+      "basis-type": "dg"
    },
    "space-dis": {
-      "degree": 1,
+      "degree": 4,
       "lps-coeff": 1.0
    },
    "steady": false,
    "time-dis": {
       "const-cfl": true,
       "cfl": 1.0,
-      "dt": 0.1,
-      "t-final": 500.0
+      "dt": 0.01,
+      "t-final": 200.0
    },
    "bcs": {
       "vortex": [1, 1, 1, 0],

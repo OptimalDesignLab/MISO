@@ -240,8 +240,8 @@ public:
       Geometry::Type GeomType) const
    {  return Tr_SBPElements[GeomType]; }
 
-   virtual int DofForGeometry(Geometry::Type GeomType) const
-   {  return DSBPdof[GeomType]; }
+   virtual int DofForGeometry(Geometry::Type GeomType) const;
+   //{  return DSBPdof[GeomType]; }
 
    virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
                                              int Or) const;

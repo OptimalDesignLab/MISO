@@ -1073,6 +1073,21 @@ const int *DSBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
    return NULL;
 }
 
+int DSBPCollection::DofForGeometry(Geometry::Type GeomType) const
+{
+   switch(GeomType)
+   {
+      case 0:
+         return 0;
+      case 1:
+         return 0;
+      case 2:
+         return 27;
+      default:
+         mfem_error("no other geometries.");
+   }
+}
+
 DSBPCollection::~DSBPCollection()
 {
    delete [] SegDofOrd[0];
