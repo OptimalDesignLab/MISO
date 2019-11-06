@@ -40,19 +40,19 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
    *out << "ode-solver type = "
-        << options["unsteady"]["ode-solver"].get<string>() << endl;
-   if (options["unsteady"]["ode-solver"].get<string>() == "RK1")
+        << options["time-dis"]["ode-solver"].get<string>() << endl;
+   if (options["time-dis"]["ode-solver"].get<string>() == "RK1")
    {
       ode_solver.reset(new ForwardEulerSolver);
    }
-   if (options["unsteady"]["ode-solver"].get<string>() == "RK4")
+   if (options["time-dis"]["ode-solver"].get<string>() == "RK4")
    {
       ode_solver.reset(new RK4Solver);
    }
    else
    {
       throw MachException("Unknown ODE solver type " +
-                          options["unsteady"]["ode-solver"].get<string>());
+                          options["time-dis"]["ode-solver"].get<string>());
       // TODO: parallel exit
    }
 
@@ -244,6 +244,24 @@ void AbstractSolver::printSolution(const std::string &file_name, int refine)
 
 void AbstractSolver::solveForState()
 {
+   if (options["steady"].get<bool>() == true)
+   {
+      solveSteady();
+   }
+   else 
+   {
+      solveUnsteady();
+   }
+}
+
+void AbstractSolver::solveSteady()
+{
+   throw MachException("AbstractSolver::solveSteady\n"
+                       "\tnot implemented");
+}
+
+void AbstractSolver::solveUnsteady()
+{
    // TODO: This is not general enough.
 
    double t = 0.0;
@@ -265,13 +283,13 @@ void AbstractSolver::solveForState()
    printSolution("init");
 
    bool done = false;
-   double t_final = options["unsteady"]["t-final"].get<double>();
-   double dt = options["unsteady"]["dt"].get<double>();
+   double t_final = options["time-dis"]["t-final"].get<double>();
+   double dt = options["time-dis"]["dt"].get<double>();
    for (int ti = 0; !done; )
    {
-      if (options["unsteady"]["const-cfl"].get<bool>())
+      if (options["time-dis"]["const-cfl"].get<bool>())
       {
-         dt = calcStepSize(options["unsteady"]["cfl"].get<double>());
+         dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
       if (ti % 100 == 0)

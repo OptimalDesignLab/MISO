@@ -176,83 +176,130 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
    }
 }
 
-TEMPLATE_TEST_CASE_SIG( "Spectral Radius", "[Spectral]",
-                        ((int dim), dim), 1, 2, 3 )
+TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
+                     ((int dim), dim), 1, 2, 3 )
 {
    using namespace euler_data;
-   // copy the data into mfem vectors for convenience
    double delta = 1e-5;
-   mfem::Vector q(dim+2);
-   mfem::Vector nrm(dim);
+   int num_states = dim+2;
+
+   // construct state vec
+   mfem::Vector q(num_states);
    q(0) = rho;
-   q(dim+1) = rhoe;
+   q(dim + 1) = rhoe;
    for (int di = 0; di < dim; ++di)
    {
-      q(di+1) = rhou[di];
-      nrm(di) = dir[di];
+      q(di + 1) = rhou[di];
    }
-   mfem::Vector q_plus(q);
-   mfem::Vector q_minus(q);
-   mfem::Vector nrm_plus(nrm);
-   mfem::Vector nrm_minus(nrm);
+
+   // Create the adjJ matrix, the AD stack, and the integrator
+   mfem::DenseMatrix adjJ(adjJ_data, dim, dim);
    adept::Stack diff_stack;
-   mach::EntStableLPSIntegrator<dim> lps_integ(diff_stack);
+   mach::EntStableLPSIntegrator<dim> lpsinteg(diff_stack);
 
-   SECTION( "Jacobian of Spectral radius w.r.t dir is correct" )
+   SECTION( "Apply scaling jacobian w.r.t AdjJ is correct" )
    {
-      // create the perturbation vector
-      mfem::Vector v(dim);
-	   for (int i = 0; i < dim; i++)
-      {
-	      v(i) = vec_pert[i];
-      }
-      nrm_plus.Add(delta, v);
-      nrm_minus.Add(-delta, v);
+      // random vector used in scaling product
+      mfem::Vector vec(vec_pert, num_states);
 
-	   // get derivative information from AD functions and form product
-	   mfem::DenseMatrix Jac_ad(1, dim);
-	   mfem::Vector Jac_v_ad(1);
-	   lps_integ.spectralRadiusJacDir(nrm, q, Jac_ad);
-	   Jac_ad.Mult(v, Jac_v_ad);
-   
-	   // FD approximation
-      mfem::Vector Jac_v_fd(1);
-	   Jac_v_fd(0) = (lps_integ.spectralRadius(nrm_plus, q) -
-		 		         lps_integ.spectralRadius(nrm_minus, q))/
-				         (2*delta);
+      // calculate the jacobian w.r.t AdjJ
+      mfem::DenseMatrix mat_vec_jac(num_states, dim*dim);
+      lpsinteg.applyScalingJacAdjJ(adjJ, q, vec, mat_vec_jac);
+
+      // matrix perturbation reshaped into vector
+      mfem::Vector v_vec(vec_pert, dim*dim);
+      mfem::Vector mat_vec_jac_v(num_states);
+      mat_vec_jac.Mult(v_vec, mat_vec_jac_v);
+
+      // perturb the transformation Jacobian adjugate by v_mat
+      mfem::DenseMatrix v_mat(vec_pert, dim, dim);
+      mfem::DenseMatrix adjJ_plus(adjJ), adjJ_minus(adjJ);
+      adjJ_plus.Add(delta, v_mat);
+      adjJ_minus.Add(-delta, v_mat);
+
+      // calculate the jabobian with finite differences
+      mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+      lpsinteg.applyScaling(adjJ_plus, q, vec, mat_vec_plus);
+      lpsinteg.applyScaling(adjJ_minus, q, vec, mat_vec_minus);
+      mfem::Vector mat_vec_jac_v_fd(num_states);
+      subtract(mat_vec_plus, mat_vec_minus, mat_vec_jac_v_fd);
+      mat_vec_jac_v_fd /= 2.0*delta;
 
       // compare
-      REQUIRE(Jac_v_ad(0) == Approx(Jac_v_fd(0)));
+      for (int i = 0; i < num_states; ++i)
+      {
+         REQUIRE( mat_vec_jac_v(i) == Approx(mat_vec_jac_v_fd(i)) );
+      }
    }
 
-   SECTION( "Jacobian of Spectral radius w.r.t state is correct" )
+   SECTION( "Apply scaling jacobian w.r.t state is correct" )
    {
-      // create the perturbation vector
-      mfem::Vector v(dim+2);
-	   for (int i = 0; i < dim+2; i++)
+      // random vector used in scaling product
+      mfem::Vector vec(vec_pert, num_states);
+
+      // calculate the jacobian w.r.t q
+      mfem::DenseMatrix mat_vec_jac(num_states);
+      mfem::Vector mat_vec_jac_v(num_states);
+      lpsinteg.applyScalingJacState(adjJ, q, vec, mat_vec_jac);
+
+      // loop over each state variable and check column of mat_vec_jac...
+      for(int i = 0; i < num_states; i++)
       {
-	      v(i) = vec_pert[i];
+         mfem::Vector q_plus(q), q_minus(q);
+         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+         q_plus(i) += delta;
+         q_minus(i) -= delta;
+
+         // get finite-difference approximation of ith column
+         lpsinteg.applyScaling(adjJ, q_plus, vec, mat_vec_plus);
+         lpsinteg.applyScaling(adjJ, q_minus, vec, mat_vec_minus);
+         mfem::Vector mat_vec_fd(num_states);
+         mat_vec_fd = 0.0;
+         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+         mat_vec_fd /= 2.0*delta;
+
+         // compare with explicit Jacobian 
+         for(int j = 0; j < num_states; j++)
+         {
+            REQUIRE( mat_vec_jac(j,i) == Approx(mat_vec_fd(j)) );
+         }
       }
-      q_plus.Add(delta, v);
-      q_minus.Add(-delta, v);
+   }
 
-	   // get derivative information from AD functions and form product
-	   mfem::DenseMatrix Jac_ad(1, dim+2);
-	   mfem::Vector Jac_v_ad(1);
-	   lps_integ.spectralRadiusJacState(nrm, q, Jac_ad);
-	   Jac_ad.Mult(v, Jac_v_ad);
-   
-	   // FD approximation
-	   mfem::Vector Jac_v_fd(1);
-	   Jac_v_fd(0) = (lps_integ.spectralRadius(nrm, q_plus) -
-		 		         lps_integ.spectralRadius(nrm, q_minus))/
-				         (2*delta);
+   SECTION( "Apply scaling jacobian w.r.t vec is correct" )
+   {
+      // random vector used in scaling product
+      mfem::Vector vec(vec_pert, num_states);
 
-      // compare
-      REQUIRE(Jac_v_ad(0) == Approx(Jac_v_fd(0)));
+      // calculate the jacobian w.r.t q
+      mfem::DenseMatrix mat_vec_jac(num_states);
+      mfem::Vector mat_vec_jac_v(num_states);
+      lpsinteg.applyScalingJacV(adjJ, q, mat_vec_jac);
+
+      // loop over each state variable and check column of mat_vec_jac...
+      for(int i = 0; i < num_states; i++)
+      {
+         mfem::Vector vec_plus(vec), vec_minus(vec);
+         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+         vec_plus(i) += delta;
+         vec_minus(i) -= delta;
+
+         // get finite-difference approximation of ith column
+         lpsinteg.applyScaling(adjJ, q, vec_plus, mat_vec_plus);
+         lpsinteg.applyScaling(adjJ, q, vec_minus, mat_vec_minus);
+         mfem::Vector mat_vec_fd(num_states);
+         mat_vec_fd = 0.0;
+         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+         mat_vec_fd /= 2.0*delta;
+
+         // compare with explicit Jacobian 
+         for(int j = 0; j < num_states; j++)
+         {
+            REQUIRE( mat_vec_jac(j,i) == Approx(mat_vec_fd(j)) );
+         }
+      }
    }
 }
-
 // TODO: add dim = 1, 3 once 3d sbp operators implemented
 TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
                         ((int dim), dim), 2 )
@@ -415,10 +462,6 @@ TEMPLATE_TEST_CASE_SIG( "Entropy variables Jacobian", "[lps integrator]",
         REQUIRE(dwdu_v[i] == Approx(dwdu_v_fd[i]));
       }
    }
-
-   SECTION( "Apply scaling jacobian w.r.t state is correct" )
-   {
-   }
 }
 
 TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
@@ -479,7 +522,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
    }
 }
 
-TEST_CASE("SlipWallBC::AssembleElementGrad", "[SlipWallBC]")
+TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
 {
    using namespace mfem;
    using namespace euler_data;
@@ -563,6 +606,125 @@ TEST_CASE("DyadicFluxIntegrator::AssembleElementGrad", "[DyadicIntegrator]")
                          
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(new mach::IsmailRoeIntegrator<2>(diff_stack));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         q.ProjectCoefficient(pert);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& Jac = res.GetGradient(q);
+         GridFunction jac_v(fes.get());
+         Jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+         q_pert.Add(-delta, v);
+         res.Mult(q_pert, r);
+         q_pert.Add(2*delta, v);
+         res.Mult(q_pert, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)) );
+         }
+      }
+   }
+}
+
+// TODO: add dim = 1, 3 once 3d sbp operators implemented
+TEST_CASE( "InviscidFaceIntegrtor::AssembleFaceGrad", "[InterfaceIntegrator]")
+{
+   using namespace euler_data;
+   using namespace mfem;
+   const int dim = 2;
+   double delta = 1e-5;
+   int num_state = dim+2;
+   adept::Stack diff_stack;
+
+   // generate a 2 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
+                              true /* gen. edges */, 1.0, 1.0, true));
+   
+   const int max_degree = 4;
+   for(int p = 0; p < max_degree; p++)
+   {
+      DYNAMIC_SECTION( "Jacobian of Interface flux w.r.t state is correct" << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+         
+         NonlinearForm res(fes.get());
+         res.AddInteriorFaceIntegrator(new 
+                  mach::InterfaceIntegrator<dim>(diff_stack, fec.get()));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         q.ProjectCoefficient(pert);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& Jac = res.GetGradient(q);
+         GridFunction jac_v(fes.get());
+         Jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+         q_pert.Add(-delta, v);
+         res.Mult(q_pert, r);
+         q_pert.Add(2*delta, v);
+         res.Mult(q_pert, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)) );
+         }
+      }
+   }// loop different order of elements
+}
+
+TEST_CASE("EntStableLPSIntegrator::AssembleElementGrad", "[LPSIntegrator]")
+{
+   using namespace mfem;
+   using namespace euler_data;
+
+   const int dim = 2;  // templating is hard here because mesh constructors
+   int num_state = dim + 2;
+   adept::Stack diff_stack;
+   double delta = 1e-5;
+
+   // generate a 2 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
+                              true /* gen. edges */, 1.0, 1.0, true));
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+                         
+         NonlinearForm res(fes.get());
+         res.AddDomainIntegrator(new mach::EntStableLPSIntegrator<2>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());

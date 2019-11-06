@@ -70,6 +70,10 @@ public:
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
 
+   virtual void solveSteady();
+
+   virtual void solveUnsteady();
+
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication

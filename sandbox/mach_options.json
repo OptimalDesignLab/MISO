@@ -12,7 +12,7 @@
       "degree": 1,
       "lps-coeff": 1.0
    },
-   "unsteady": {
+   "time-dis": {
       "dt": 0.047619047619047616,
       "t-final": 1.0
    }

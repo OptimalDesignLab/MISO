@@ -142,6 +142,19 @@ void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
    }
 }
 
+double SBPFiniteElement::getProjOperatorEntry(int i, int j) const
+{
+   MFEM_ASSERT( i < Dof, "");
+   MFEM_ASSERT( j < Dof, "");
+   double Pij = (i == j) ? 1.0 : 0.0;
+   // loop over the polynomial basis functions
+   for (int k = 0; k < V.Width(); ++k)
+   {
+      Pij -= V(i,k)*V(j,k)*H(j);
+   }
+   return Pij;
+}
+
 void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
                                         bool trans) const
 {

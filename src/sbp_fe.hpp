@@ -27,6 +27,8 @@ public:
    /// Returns the diagonal norm/mass matrix as a vector.
    const Vector &returnDiagNorm() const { return H; }
 
+   double getDiagNormEntry(int i) const { return H(i); }
+
    /// Apply the norm matrix to given vector
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
    /// \param[out] Hu - result of applying `H` to `u`
@@ -84,6 +86,12 @@ public:
    /// Sets `P` to be the operator that removes polynomials of degree `order`
    /// \param[in,out] P - to store the operator
    void getProjOperator(DenseMatrix &P) const;
+
+   /// Returns the `i`th row `j`th column entry of the projection operator
+   /// \param[in] i - desired row
+   /// \param[in] j - desired column
+   /// \returns \f$ P_{ij} \f$
+   double getProjOperatorEntry(int i, int j) const;
 
    /// Applies the local projection operator, `P` or `P^T`, to the given data
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied

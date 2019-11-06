@@ -134,6 +134,11 @@ public:
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
                                     mfem::ElementTransformation &Trans,
                                     const mfem::Vector &elfun,
@@ -224,10 +229,15 @@ public:
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
-   // virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-   //                                  mfem::ElementTransformation &Ttr,
-   //                                  const mfem::Vector &elfun,
-   //                                  mfem::DenseMatrix &elmat);
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
+   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+                                    mfem::ElementTransformation &Trans,
+                                    const mfem::Vector &elfun,
+                                    mfem::DenseMatrix &elmat);
 
 protected:
    /// number of states
@@ -247,6 +257,12 @@ protected:
    mfem::DenseMatrix w;
    /// used to store the projected converted variables (for example)
    mfem::DenseMatrix Pw;
+   /// used to store the Jacobian of scale or convert
+   mfem::DenseMatrix jac_term;
+   /// used to hold a nodewise block for insertion in the element Jacobian
+   mfem::DenseMatrix jac_node;
+   /// used to hold the (i,j)th LPS matrix operator block entry
+   mfem::DenseMatrix Lij;
 #endif
 
    /// converts working variables to another set (e.g. conservative to entropy)
@@ -304,6 +320,18 @@ protected:
    {
       static_cast<Derived*>(this)->applyScalingJacAdjJ(adjJ, u, v, Av_jac);
    }
+
+   /// Computes the Jacobian of the product `A(adjJ,u)*v` w.r.t. `v`
+   /// \param[in] adjJ - adjugate of the mapping Jacobian
+   /// \param[in] u - state at which the symmetric matrix `A` is evaluated
+   /// \param[out] Av_jac - Jacobian of product w.r.t. `v` (i.e. `A`)
+   /// \note `Av_jac` stores derivatives treating `adjJ` is a 1d array.
+   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
+   void scaleJacV(const mfem::DenseMatrix &adjJ, const mfem::Vector &u,
+                  mfem::DenseMatrix &Av_jac)
+   {
+      static_cast<Derived*>(this)->applyScalingJacV(adjJ, u, Av_jac);
+   }
 };
 
 /// Integrator for inviscid boundary fluxes (fluxes that do not need gradient)
@@ -326,7 +354,7 @@ public:
    /// Construct the contribution to the element local residual
    /// \param[in] el_bnd - the finite element whose residual we want to update
    /// \param[in] el_unused - dummy element that is not used for boundaries
-   /// \param[in] trans - hold geometry and mapping information about the face
+   /// \param[in] trans - holds geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
    virtual void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
@@ -399,13 +427,120 @@ protected:
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] u - state at which to evaluate the flux
-   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+   /// \param[out] flux_dir - Jacobian of `flux` w.r.t. `dir`
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
    void fluxJacDir(const mfem::Vector &x, const mfem::Vector &nrm,
                    const mfem::Vector &u, mfem::DenseMatrix &flux_dir)
    {
       static_cast<Derived*>(this)->calcFluxJacDir(x, nrm, u, flux_dir);
+   }
+
+};
+
+/// Integrator for inviscid interface fluxes (fluxes that do not need gradient)
+/// \tparam Derived - a class Derived from this one (needed for CRTP)
+template <typename Derived>
+class InviscidFaceIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// Constructs a face integrator based on a given interface flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] num_state_vars - the number of state variables
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   InviscidFaceIntegrator(adept::Stack &diff_stack,
+                          const mfem::FiniteElementCollection *fe_coll,
+                          int num_state_vars = 1, double a = 1.0)
+       : num_states(num_state_vars), alpha(a), stack(diff_stack),
+         fec(fe_coll) {}
+
+   /// Construct the contribution to the element local residuals
+   /// \param[in] el_left - "left" element whose residual we want to update
+   /// \param[in] el_right - "right" element whose residual we want to update
+   /// \param[in] trans - holds geometry and mapping information about the face
+   /// \param[in] elfun - element local state function
+   /// \param[out] elvect - element local residual
+   virtual void AssembleFaceVector(const mfem::FiniteElement &el_left,
+                                   const mfem::FiniteElement &el_right,
+                                   mfem::FaceElementTransformations &trans,
+                                   const mfem::Vector &elfun,
+                                   mfem::Vector &elvect);
+
+   /// Construct the element local Jacobian
+   /// \param[in] el_left - "left" element whose residual we want to update
+   /// \param[in] el_right - "right" element whose residual we want to update
+   /// \param[in] trans - holds geometry and mapping information about the face
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
+   virtual void AssembleFaceGrad(const mfem::FiniteElement &el_left,
+                                 const mfem::FiniteElement &el_right,
+                                 mfem::FaceElementTransformations &trans,
+                                 const mfem::Vector &elfun,
+                                 mfem::DenseMatrix &elmat);
+
+protected: 
+   /// number of states
+   int num_states;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+   /// stack used for algorithmic differentiation
+   adept::Stack &stack;
+   /// used to select the appropriate face element
+   const mfem::FiniteElementCollection *fec;
+#ifndef MFEM_THREAD_SAFE
+   /// used to reference the left state at face node
+   mfem::Vector u_face_left; 
+   /// used to reference the right state at face node
+   mfem::Vector u_face_right;
+   /// the outward pointing (scaled) normal to the boundary at a node
+   mfem::Vector nrm;
+   /// stores the flux evaluated by `bnd_flux`
+   mfem::Vector flux_face;
+   /// stores the jacobian of the flux with respect to the left state
+   mfem::DenseMatrix flux_jac_left;
+   /// stores the jacobian of the flux with respect to the right state
+   mfem::DenseMatrix flux_jac_right;
+#endif
+
+   /// Compute an interface flux function
+   /// \param[in] dir - vector normal to the face
+   /// \param[in] u_left - "left" state at which to evaluate the flux
+   /// \param[in] u_right - "right" state at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
+   void flux(const mfem::Vector &dir, const mfem::Vector &u_left,
+             const mfem::Vector &u_right, mfem::Vector &flux_vec)
+   {
+      static_cast<Derived*>(this)->calcFlux(dir, u_left, u_right, flux_vec);
+   }
+
+   /// Compute the Jacobian of the interface flux function w.r.t. states
+   /// \param[in] dir - vector normal to the face
+   /// \param[in] u_left - "left" state at which to evaluate the flux
+   /// \param[in] u_right - "right" state at which to evaluate the flux
+   /// \param[out] jac_left - Jacobian of `flux` w.r.t. `u_left`
+   /// \param[out] jac_right - Jacobian of `flux` w.r.t. `u_right`
+   /// \note This uses the CRTP, so it wraps a call a func. in Derived.
+   void fluxJacStates(const mfem::Vector &dir, const mfem::Vector &u_left,
+                      const mfem::Vector &u_right, mfem::DenseMatrix &jac_left,
+                      mfem::DenseMatrix &jac_right)
+   {
+      static_cast<Derived*>(this)->calcFluxJacState(dir, u_left, u_right,
+                                                    jac_left, jac_right);
+   }
+   
+   /// Compute the Jacobian of the interface flux function w.r.t. `dir`
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] u_left - "left" state at which to evaluate the flux
+   /// \param[in] u_right - "right" state at which to evaluate the flux
+   /// \param[out] flux_dir - Jacobian of `flux` w.r.t. `dir`
+   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
+   void fluxJacDir(const mfem::Vector &dir, const mfem::Vector &u_left,
+                   const mfem::Vector &u_right, mfem::DenseMatrix &flux_dir)
+   {
+      static_cast<Derived*>(this)->calcFluxJacDir(dir, u_left, u_right,
+                                                  flux_dir);
    }
 
 };
