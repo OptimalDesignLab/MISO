@@ -959,8 +959,8 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
    }
    if(dim >= 1 )
    {
-      DSBPdof[Geometry::POINT] = 1;
-      DSBPdof[Geometry::SEGMENT] = p;
+      DSBPdof[Geometry::POINT] = 0;
+      DSBPdof[Geometry::SEGMENT] = 0;
 
       DSBPElements[Geometry::POINT] = new PointFiniteElement;
       DSBPElements[Geometry::SEGMENT] = new SBPSegmentElement(p);
@@ -1039,19 +1039,19 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
       switch (p)
       {
          case 0:
-            DSBPdof[Geometry::TRIANGLE] = 3 - 3 - 3*p;
+            DSBPdof[Geometry::TRIANGLE] = 3;
             break;
          case 1:
-            DSBPdof[Geometry::TRIANGLE] = 7 - 3 - 3*p;
+            DSBPdof[Geometry::TRIANGLE] = 7;
             break;
          case 2:
-            DSBPdof[Geometry::TRIANGLE] = 12 - 3 - 3*p;
+            DSBPdof[Geometry::TRIANGLE] = 12;
             break;
          case 3:
-            DSBPdof[Geometry::TRIANGLE] = 18 - 3 - 3*p;
+            DSBPdof[Geometry::TRIANGLE] = 18;
             break;
          case 4:
-            DSBPdof[Geometry::TRIANGLE] = 27 - 3 - 3*p;
+            DSBPdof[Geometry::TRIANGLE] = 27;
             break;
          default:
             mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
@@ -1071,21 +1071,6 @@ const int *DSBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
       return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
    }
    return NULL;
-}
-
-int DSBPCollection::DofForGeometry(Geometry::Type GeomType) const
-{
-   switch(GeomType)
-   {
-      case 0:
-         return 0;
-      case 1:
-         return 0;
-      case 2:
-         return 27;
-      default:
-         mfem_error("no other geometries.");
-   }
 }
 
 DSBPCollection::~DSBPCollection()

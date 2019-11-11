@@ -66,6 +66,9 @@ else if(options["finite-element-dis"]["basis-type"].get<string>() == "dg")
    res.reset(new NonlinearFormType(fes.get()));
 
    res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
+   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
+   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+                                                          lps_coeff));
    
    //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
    

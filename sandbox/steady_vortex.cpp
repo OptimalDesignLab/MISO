@@ -31,9 +31,9 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
    const char *options_file = "steady_vortex_options.json";
-   int degree = 1.0;
-   int nx = 64.0;
-   int ny = 64.0;
+   int degree = 2.0;
+   int nx = 8.0;
+   int ny = 8.0;
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
