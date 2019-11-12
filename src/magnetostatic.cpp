@@ -83,22 +83,17 @@ MagnetostaticSolver::MagnetostaticSolver(
    bc_coef.reset(new VectorConstantCoefficient(Zero));
 	// bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
    // A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-   // A->ProjectCoefficient(*bc_coef);
+   A->ProjectCoefficient(*bc_coef);
 
-	/// set essential boundary conditions in nonlinear form
+	/// set essential boundary conditions in nonlinear form and rhs current vec
 	res->SetEssentialBC(ess_bdr, current_vec.get());
-	// res->SetEssentialTrueDofs(ess_tdof_list);
-
-	std::cout<< "ess_bdr size: " << ess_bdr.Size() << "\n";
-
-	// ess_tdof_list.Print();
-
-	std::cout << "ess_bdr set" << std::endl;
 
 	/// Costruct linear system solver
 #ifdef MFEM_USE_MPI
-   prec.reset(new HypreBoomerAMG());
+   // prec.reset(new HypreBoomerAMG());
+   prec.reset(new HypreAMS(h_curl_space.get()));
    prec->SetPrintLevel(0);
+	prec->SetSingularProblem();
 
    solver.reset(new HyprePCG(h_curl_space->GetComm()));
    solver->SetTol(1e-12);
@@ -106,13 +101,10 @@ MagnetostaticSolver::MagnetostaticSolver(
    solver->SetPrintLevel(2);
    solver->SetPreconditioner(*prec);
 #else
-	// #ifdef MFEM_USE_SUITESPARSE
-	// solver.reset(new UMFPackSolver);
-   // prec = NULL;
-	// #else
-	/// TODO look at example 3 or other serial EM examples to see what
-	/// preconditioner they use, this one is probably not the best
-
+	#ifdef MFEM_USE_SUITESPARSE
+	prec = NULL;
+	solver.reset(new UMFPackSolver);
+	#else
 	prec.reset(new GSSmoother);
 
 	solver.reset(new CGSolver());
@@ -121,9 +113,8 @@ MagnetostaticSolver::MagnetostaticSolver(
    solver->SetRelTol(1e-14);
    solver->SetAbsTol(1e-14);
    solver->SetPreconditioner(*prec);
-	// #endif
+	#endif
 #endif
-	std::cout << "initialized newton solver\n";
 
 	/// TODO - have this use options
 	/// Set up Newton solver
@@ -134,63 +125,22 @@ MagnetostaticSolver::MagnetostaticSolver(
    newton_solver.SetRelTol(1e-10);
    newton_solver.SetAbsTol(0.0);
    newton_solver.SetMaxIter(10);
-	std::cout << "set newton options\n";
 }
 
 void MagnetostaticSolver::solveSteady()
 {
 	std::cout << "solve steady\n";
-	/// I think this is all I need?
-	// newton_solver.Mult(*current_vec, *A);
-	// MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+	// /// I think this is all I need?
+	newton_solver.Mult(*current_vec, *A);
+	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-	// /*
+	/*
 	// Define and apply a parallel PCG solver for AX=B with the AMS
    // preconditioner from hypre.
-	/// For now just solve the same linear problem as Tesla miniapp
-	ess_bdr.SetSize(mesh->bdr_attributes.Max());
-	ess_bdr = 1;
-	Array<int> ess_tdof_list;
-	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-
-	// const HypreParMatrix *new_A = dynamic_cast<const HypreParMatrix *>
-	// 																		(&(res->GetGradient(*A)));
-   // MFEM_VERIFY(new_A, "new Operator must be a HypreParMatrix!");
-   // auto M = const_cast<HypreParMatrix *>(new_A);
-	// Operator *CurlMuInvCurl;
-	// HypreParVector A_hypre(h_curl_space.get());
-   // HypreParVector RHS(h_curl_space.get());
-
 	Operator &oper = res->GetGradient(*A);
 
 	const HypreParMatrix *hypre_oper_temp = dynamic_cast<const HypreParMatrix *>(&oper);
 	auto hypre_oper = const_cast<HypreParMatrix *>(hypre_oper_temp);
-
-	// hypre_oper->FormLinearSystem(ess_tdof_list, *A, *current_vec, CurlMuInvCurl,
-   //                              A_hypre, RHS);
-
-	// // oper.FormLinearSystem(ess_tdof_list, *A, 
-	// // 							 *current_vec, CurlMuInvCurl,
-   // //                       A_hypre, RHS);
-
-	// const HypreParMatrix *hypre_mat_temp = dynamic_cast<const HypreParMatrix *>
-	// 																(CurlMuInvCurl);
-	// auto hypre_mat = const_cast<HypreParMatrix *>(hypre_mat_temp);
-	// MFEM_VERIFY(hypre_mat, "new Operator must be a HypreParMatrix!");
-
-	// std:: cout << "width: " << hypre_mat->Width() << "\n";
-	// std:: cout << "width: " << hypre_mat->Height() << "\n";
-	// std::cout << "before hypre ams constructed\n";
-   // HypreAMS ams(*hypre_mat, h_curl_space.get());
-
-	// // modify current to have ess_true_dof
-	// auto mod_current(*current_vec);
-
-	// for (int i = 0; i < ess_tdof_list.Size(); ++i)
-	// {
-	// 	int idx = ess_tdof_list[i];
-	// 	mod_current[idx] = A->operator()idx;
-	// }
 
    HypreAMS ams(*hypre_oper, h_curl_space.get());
 	std::cout << "hypre ams constructed\n";
@@ -204,14 +154,10 @@ void MagnetostaticSolver::solveSteady()
    pcg.SetMaxIter(500);
    pcg.SetPrintLevel(2);
    pcg.SetPreconditioner(ams);
-   // pcg.Mult(*current_vec, *A);
-   // pcg.Mult(mod_current, *A);
-   // pcg.Mult(RHS, A_hypre);
 
 	std::cout << "start of newton step\n";
 	int it = 0;
    double norm0, norm, norm_goal;
-   // const bool have_b = (current_vec->Size() == Height());
 	const bool have_b = true;
 
 	Vector r, c;
@@ -267,11 +213,9 @@ void MagnetostaticSolver::solveSteady()
 	norm = r.Norml2();
 	std::cout << "norm of r: " << norm << "\n";
 
+	*/
 
 
-	// oper.RecoverFEMSolution(A_hypre, *current_vec, *A);
-	// hypre_oper->RecoverFEMSolution(A_hypre, *current_vec, *A);
-	// */
 	std::cout << "before curl constructed\n";
 	DiscreteCurlOperator curl(h_curl_space.get(), h_div_space.get());
 	std::cout << "curl constructed\n";
@@ -375,23 +319,19 @@ void MagnetostaticSolver::assembleCurrentSource()
 	/// compute the divergence free current source
 	auto *grad = new DiscreteGradOperator(&h1_space, h_curl_space.get());
 
-	std::cout << "ahead of grad assemble\n";
 	// assemble gradient form
 	grad->Assemble();
    grad->Finalize();
-	std::cout << "below of grad assemble\n";
 
 	auto div_free_proj = DivergenceFreeProjector(h1_space, *h_curl_space,
                                               irOrder, NULL, NULL, grad);
 
 	GridFunType j = GridFunType(h_curl_space.get());
 	j.ProjectCoefficient(*current_coeff);
-	std::cout << "below proj coeff\n";
 
 	GridFunType j_div_free = GridFunType(h_curl_space.get());
 	// Compute the discretely divergence-free portion of j
 	div_free_proj.Mult(j, j_div_free);
-	std::cout << "below mult\n";
 
 	/// create current linear form vector by multiplying mass matrix by
 	/// divergene free current source grid function
@@ -401,23 +341,15 @@ void MagnetostaticSolver::assembleCurrentSource()
 	BilinearFormType *h_curl_mass = new BilinearFormType(h_curl_space.get());
 	h_curl_mass->AddDomainIntegrator(h_curl_mass_integ);
 
-	std::cout << "ahead of h_curl_mass assemble\n";
 	// assemble mass matrix
 	h_curl_mass->Assemble();
-	std::cout << "after of h_curl_mass assemble\n";
    h_curl_mass->Finalize();
-	std::cout << "after of h_curl_mass finalize\n";
 
 	h_curl_mass->AddMult(j_div_free, *current_vec);
-	std::cout << "after of h_curl_mass add mult\n";
 
 	// I had strange errors when not using pointer versions of these
-	// delete h_curl_mass_integ;
-	std::cout << "after delete\n";
 	delete h_curl_mass;
-	std::cout << "after delete\n";
 	delete grad;
-	std::cout << "after delete\n";
 }
 
 void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,

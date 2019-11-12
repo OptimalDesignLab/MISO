@@ -237,7 +237,7 @@ private:
    mutable mfem::Vector Psi_;
    mutable mfem::Vector RHS_;
 
-   mutable EMPrecType *amg_;
+   mutable EMPrecType2 *amg_;
 #ifdef MFEM_USE_MPI
    mutable mfem::HyprePCG *pcg_;
 #else
