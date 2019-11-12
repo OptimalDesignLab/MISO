@@ -2,6 +2,9 @@
 #include "coefficient.hpp"
 #include "electromag_integ.hpp"
 
+#include <fstream>
+
+
 using namespace std;
 using namespace mfem;
 
@@ -14,6 +17,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	 int dim)
 	: AbstractSolver(opt_file_name, move(smesh))
 {
+	mesh->ReorientTetMesh();
 	int fe_order = options["space-dis"]["degree"].get<int>();
 
 	/// Create the H(Curl) finite element collection
@@ -31,6 +35,8 @@ MagnetostaticSolver::MagnetostaticSolver(
 	/// Create magnetic flux grid function
 	B.reset(new GridFunType(h_div_space.get()));
 
+	current_vec.reset(new GridFunType(h_curl_space.get()));
+
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: "
         << h_curl_space->GlobalTrueVSize() << endl;
@@ -38,15 +44,19 @@ MagnetostaticSolver::MagnetostaticSolver(
    cout << "Number of finite element unknowns: "
         << h_curl_space->GetTrueVSize() << endl;
 #endif
+	std::cout << "fe spaces and collections constructed" << std::endl;
 
+	neg_one.reset(new ConstantCoefficient(-1.0));
 	/// Construct current source coefficient
 	constructCurrent();
+	std::cout << "current constructed" << std::endl;
 
 	/// Assemble current source vector
 	assembleCurrentSource();
+	std::cout << "current assembled" << std::endl;
 
 	/// set up the spatial semi-linear form
-   double alpha = 1.0;
+   // double alpha = 1.0;
    res.reset(new NonlinearFormType(h_curl_space.get()));
 
 	/// Construct reluctivity coefficient
@@ -55,37 +65,55 @@ MagnetostaticSolver::MagnetostaticSolver(
 	/// add curl curl integrator to residual
 	res->AddDomainIntegrator(new CurlCurlNLFIntegrator(nu.get()));
 
-	/// Construct magnetization coefficient
-	constructMagnetization();
+	// /// Construct magnetization coefficient
+	// constructMagnetization();
 
-	/// add magnetization integrator to residual
-	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get()));
+	// /// add magnetization integrator to residual
+	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
+
+	std::cout << "residual constructed" << std::endl;
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
 	ess_bdr = 1;
+	Array<int> ess_tdof_list;
+	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 	Vector Zero(3);
    Zero = 0.0;
    bc_coef.reset(new VectorConstantCoefficient(Zero));
-   A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+	// bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
+   // A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+   // A->ProjectCoefficient(*bc_coef);
 
 	/// set essential boundary conditions in nonlinear form
-	res->SetEssentialBC(ess_bdr);
+	res->SetEssentialBC(ess_bdr, current_vec.get());
+	// res->SetEssentialTrueDofs(ess_tdof_list);
+
+	std::cout<< "ess_bdr size: " << ess_bdr.Size() << "\n";
+
+	// ess_tdof_list.Print();
+
+	std::cout << "ess_bdr set" << std::endl;
 
 	/// Costruct linear system solver
 #ifdef MFEM_USE_MPI
    prec.reset(new HypreBoomerAMG());
    prec->SetPrintLevel(0);
 
-   solver.reset(new MINRESSolver(h_curl_space->GetComm()));
-   solver->SetRelTol(1e-14);
-   solver->SetMaxIter(200);
-   solver->SetPrintLevel(0);
+   solver.reset(new HyprePCG(h_curl_space->GetComm()));
+   solver->SetTol(1e-12);
+   solver->SetMaxIter(500);
+   solver->SetPrintLevel(2);
    solver->SetPreconditioner(*prec);
 #else
+	// #ifdef MFEM_USE_SUITESPARSE
+	// solver.reset(new UMFPackSolver);
+   // prec = NULL;
+	// #else
 	/// TODO look at example 3 or other serial EM examples to see what
 	/// preconditioner they use, this one is probably not the best
-	prec.reset(new GSSmoother());
+
+	prec.reset(new GSSmoother);
 
 	solver.reset(new CGSolver());
    solver->SetPrintLevel(0);
@@ -93,7 +121,9 @@ MagnetostaticSolver::MagnetostaticSolver(
    solver->SetRelTol(1e-14);
    solver->SetAbsTol(1e-14);
    solver->SetPreconditioner(*prec);
+	// #endif
 #endif
+	std::cout << "initialized newton solver\n";
 
 	/// TODO - have this use options
 	/// Set up Newton solver
@@ -104,13 +134,160 @@ MagnetostaticSolver::MagnetostaticSolver(
    newton_solver.SetRelTol(1e-10);
    newton_solver.SetAbsTol(0.0);
    newton_solver.SetMaxIter(10);
+	std::cout << "set newton options\n";
 }
 
 void MagnetostaticSolver::solveSteady()
 {
+	std::cout << "solve steady\n";
 	/// I think this is all I need?
-	newton_solver.Mult(*current_vec, *A);
-	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+	// newton_solver.Mult(*current_vec, *A);
+	// MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+
+	// /*
+	// Define and apply a parallel PCG solver for AX=B with the AMS
+   // preconditioner from hypre.
+	/// For now just solve the same linear problem as Tesla miniapp
+	ess_bdr.SetSize(mesh->bdr_attributes.Max());
+	ess_bdr = 1;
+	Array<int> ess_tdof_list;
+	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+
+	// const HypreParMatrix *new_A = dynamic_cast<const HypreParMatrix *>
+	// 																		(&(res->GetGradient(*A)));
+   // MFEM_VERIFY(new_A, "new Operator must be a HypreParMatrix!");
+   // auto M = const_cast<HypreParMatrix *>(new_A);
+	// Operator *CurlMuInvCurl;
+	// HypreParVector A_hypre(h_curl_space.get());
+   // HypreParVector RHS(h_curl_space.get());
+
+	Operator &oper = res->GetGradient(*A);
+
+	const HypreParMatrix *hypre_oper_temp = dynamic_cast<const HypreParMatrix *>(&oper);
+	auto hypre_oper = const_cast<HypreParMatrix *>(hypre_oper_temp);
+
+	// hypre_oper->FormLinearSystem(ess_tdof_list, *A, *current_vec, CurlMuInvCurl,
+   //                              A_hypre, RHS);
+
+	// // oper.FormLinearSystem(ess_tdof_list, *A, 
+	// // 							 *current_vec, CurlMuInvCurl,
+   // //                       A_hypre, RHS);
+
+	// const HypreParMatrix *hypre_mat_temp = dynamic_cast<const HypreParMatrix *>
+	// 																(CurlMuInvCurl);
+	// auto hypre_mat = const_cast<HypreParMatrix *>(hypre_mat_temp);
+	// MFEM_VERIFY(hypre_mat, "new Operator must be a HypreParMatrix!");
+
+	// std:: cout << "width: " << hypre_mat->Width() << "\n";
+	// std:: cout << "width: " << hypre_mat->Height() << "\n";
+	// std::cout << "before hypre ams constructed\n";
+   // HypreAMS ams(*hypre_mat, h_curl_space.get());
+
+	// // modify current to have ess_true_dof
+	// auto mod_current(*current_vec);
+
+	// for (int i = 0; i < ess_tdof_list.Size(); ++i)
+	// {
+	// 	int idx = ess_tdof_list[i];
+	// 	mod_current[idx] = A->operator()idx;
+	// }
+
+   HypreAMS ams(*hypre_oper, h_curl_space.get());
+	std::cout << "hypre ams constructed\n";
+   ams.SetSingularProblem();
+	std::cout << "singular problem set\n";
+
+   // HyprePCG pcg(*hypre_mat);
+   HyprePCG pcg(*hypre_oper);
+	std::cout << "pcg constructed\n";
+   pcg.SetTol(1e-14);
+   pcg.SetMaxIter(500);
+   pcg.SetPrintLevel(2);
+   pcg.SetPreconditioner(ams);
+   // pcg.Mult(*current_vec, *A);
+   // pcg.Mult(mod_current, *A);
+   // pcg.Mult(RHS, A_hypre);
+
+	std::cout << "start of newton step\n";
+	int it = 0;
+   double norm0, norm, norm_goal;
+   // const bool have_b = (current_vec->Size() == Height());
+	const bool have_b = true;
+
+	Vector r, c;
+	r.SetSize(res->Width());
+	c.SetSize(res->Width());
+	res->Mult(*A, r);
+   if (have_b)
+   {
+      r -= *current_vec;
+   }
+   std::cout << "below oper-mult\n";
+
+   // norm0 = norm = Norm(r);
+	norm0 = norm = r.Norml2();
+	double rel_tol = 1e-12;
+	double abs_tol = 1e-12;
+   norm_goal = std::max(rel_tol*norm, abs_tol);
+
+   pcg.iterative_mode = false;
+
+   // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
+	MFEM_ASSERT(IsFinite(norm), "norm = " << norm);
+	// if (print_level >= 0)
+	if (true)
+	{
+		mfem::out << "Newton iteration " << setw(2) << it
+						<< " : ||r|| = " << norm;
+		// if (it > 0)
+		// {
+		// 	mfem::out << ", ||r||/||r_0|| = " << norm/norm0;
+		// }
+		mfem::out << '\n';
+	}
+
+	std::cout << "above prec-mult\n";
+	pcg.Mult(r, c);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
+	std::cout << "below prec-mult\n";
+	// std::cout << "norm of c: " << Norm(c) << "\n";
+	std::cout << "norm of c: " << c.Norml2() << "\n";
+
+	const double c_scale = 1.0;
+	add(*A, -c_scale, c, *A);
+
+	std::cout << "above oper-mult\n";
+	res->Mult(*A, r);
+	std::cout << "below oper-mult\n";
+	if (have_b)
+	{
+		std::cout << "have b?\n";
+		r -= *current_vec;
+	}
+	// norm = Norm(r);
+	norm = r.Norml2();
+	std::cout << "norm of r: " << norm << "\n";
+
+
+
+	// oper.RecoverFEMSolution(A_hypre, *current_vec, *A);
+	// hypre_oper->RecoverFEMSolution(A_hypre, *current_vec, *A);
+	// */
+	std::cout << "before curl constructed\n";
+	DiscreteCurlOperator curl(h_curl_space.get(), h_div_space.get());
+	std::cout << "curl constructed\n";
+	curl.Assemble();
+   curl.Finalize();
+	curl.Mult(*A, *B);
+	std::cout << "curl taken\n";
+
+	// TODO: These mfem functions do not appear to be parallelized
+   ofstream sol_ofs("motor_mesh_fix2.vtk");
+   sol_ofs.precision(14);
+   mesh->PrintVTK(sol_ofs, 1);
+   A->SaveVTK(sol_ofs, "A_Field", 1);
+	B->SaveVTK(sol_ofs, "B_Field", 1);
+   sol_ofs.close();
+	std::cout << "finish steady solve\n";
 }
 
 void MagnetostaticSolver::constructReluctivity()
@@ -128,31 +305,35 @@ void MagnetostaticSolver::constructReluctivity()
 	/// create constant coefficient for stator body with relative permeability
 	/// 3000
 	std::unique_ptr<mfem::Coefficient> stator_coeff(
-		new ConstantCoefficient(1.0/(3000*4e-7*M_PI)));
+		// new ConstantCoefficient(1.0/(10)));
+		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
 	
 	/// create constant coefficient for rotor body with relative permeability
 	/// 3000
 	std::unique_ptr<mfem::Coefficient> rotor_coeff(
-		new ConstantCoefficient(1.0/(3000*4e-7*M_PI)));
+		// new ConstantCoefficient(1.0/(10)));
+		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
 
 	/// TODO - use options to select material attribute for stator body
 	/// picked 2 arbitrarily for now
-	nu->addCoefficient(2, move(stator_coeff));
+	nu->addCoefficient(10, move(stator_coeff));
+	// nu->addCoefficient(1, move(stator_coeff));
 	/// TODO - use options to select material attribute for stator body
 	/// picked 2 arbitrarily for now
-	nu->addCoefficient(3, move(rotor_coeff));
+	nu->addCoefficient(11, move(rotor_coeff));
+	// nu->addCoefficient(2, move(rotor_coeff));
 }
 
 void MagnetostaticSolver::constructMagnetization()
 {
-	mag_coeff.reset(new VectorMeshDependentCoefficient());
+	mag_coeff.reset(new VectorMeshDependentCoefficient(3));
 
 	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
 		new VectorFunctionCoefficient(num_dim, magnetization_source));
 
 	/// TODO - use options to select material attribute for magnets
 	/// picked 4 arbitrarily for now
-	mag_coeff->addCoefficient(4, move(magnet_coeff));
+	mag_coeff->addCoefficient(5, move(magnet_coeff));
 }
 
 void MagnetostaticSolver::constructCurrent()
@@ -162,9 +343,17 @@ void MagnetostaticSolver::constructCurrent()
 	std::unique_ptr<mfem::VectorCoefficient> winding_coeff(
 		new VectorFunctionCoefficient(num_dim, winding_current_source));
 
+
+	std::unique_ptr<mfem::VectorCoefficient> winding_coeff2(
+		new VectorFunctionCoefficient(num_dim, winding_current_source, neg_one.get()));
+
 	/// TODO - use options to select material attribute for windings
 	/// picked 1 arbitrarily for now
-	current_coeff->addCoefficient(1, move(winding_coeff));
+	current_coeff->addCoefficient(7, move(winding_coeff));
+	current_coeff->addCoefficient(8, move(winding_coeff2));
+	// current_coeff->addCoefficient(9, move(winding_coeff)); // zero current
+	// current_coeff->addCoefficient(1, move(winding_coeff));
+	// current_coeff->addCoefficient(2, move(winding_coeff2));
 }
 
 void MagnetostaticSolver::assembleCurrentSource()
@@ -186,42 +375,55 @@ void MagnetostaticSolver::assembleCurrentSource()
 	/// compute the divergence free current source
 	auto *grad = new DiscreteGradOperator(&h1_space, h_curl_space.get());
 
+	std::cout << "ahead of grad assemble\n";
 	// assemble gradient form
 	grad->Assemble();
    grad->Finalize();
+	std::cout << "below of grad assemble\n";
 
 	auto div_free_proj = DivergenceFreeProjector(h1_space, *h_curl_space,
                                               irOrder, NULL, NULL, grad);
 
 	GridFunType j = GridFunType(h_curl_space.get());
 	j.ProjectCoefficient(*current_coeff);
+	std::cout << "below proj coeff\n";
 
 	GridFunType j_div_free = GridFunType(h_curl_space.get());
 	// Compute the discretely divergence-free portion of j
 	div_free_proj.Mult(j, j_div_free);
+	std::cout << "below mult\n";
 
 	/// create current linear form vector by multiplying mass matrix by
 	/// divergene free current source grid function
-	BilinearFormIntegrator h_curl_mass_integ = VectorFEMassIntegrator();
-	h_curl_mass_integ.SetIntRule(ir);
+	ConstantCoefficient one(1.0);
+	BilinearFormIntegrator *h_curl_mass_integ = new VectorFEMassIntegrator(one);
+	h_curl_mass_integ->SetIntRule(ir);
 	BilinearFormType *h_curl_mass = new BilinearFormType(h_curl_space.get());
-	h_curl_mass->AddDomainIntegrator(&h_curl_mass_integ);
+	h_curl_mass->AddDomainIntegrator(h_curl_mass_integ);
 
+	std::cout << "ahead of h_curl_mass assemble\n";
 	// assemble mass matrix
 	h_curl_mass->Assemble();
+	std::cout << "after of h_curl_mass assemble\n";
    h_curl_mass->Finalize();
+	std::cout << "after of h_curl_mass finalize\n";
 
-	// Compute the dual of j
 	h_curl_mass->AddMult(j_div_free, *current_vec);
+	std::cout << "after of h_curl_mass add mult\n";
 
 	// I had strange errors when not using pointer versions of these
+	// delete h_curl_mass_integ;
+	std::cout << "after delete\n";
 	delete h_curl_mass;
+	std::cout << "after delete\n";
 	delete grad;
+	std::cout << "after delete\n";
 }
 
 void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
                                                  mfem::Vector &J)
 {
+	// /*
 	// example of needed geometric parameters, this should be all you need
 	int n_s = 20; //number of slots
 	double zb = .25; //bottom of stator
@@ -280,6 +482,19 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
 		Jr /= Jr.Norml2();
 		J = Jr;
 	}
+	J *= 100000.0;
+	// */
+
+   // J.SetSize(3);
+   // J = 0.0;
+   // if ( x(1) <= .5)
+   // {
+   //    J(2) = -(1/(10.0))*2;
+   // }
+   // if ( x(1) > .5)
+   // {
+   //    J(2) = (1/(10.0))*2;
+   // }
 }
 
 void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
@@ -301,8 +516,26 @@ void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
 	M = 0.0;
 	if(x(2) >= zb && x(2) <= zt)
 	{
-		M(0) = x(0)/x.Norml2();
-		M(1) = x(1)/x.Norml2();
+		M(0) = x(0)/x.Norml2()*sin(tha);
+		M(1) = x(1)/x.Norml2()*cos(tha);
 	}
-}	
+	M *= 100.0;
+}
+
+void MagnetostaticSolver::a_bc_uniform(const Vector &x, Vector &a)
+{
+   a.SetSize(3);
+   a = 0.0;
+   double y = x(1) - .5;
+   if ( x(1) <= .5)
+   {
+      a(2) = y*y; 
+   }
+   else 
+   {
+      a(2) = -y*y;
+   }
+   //a(2) = b_uniform_(0) * x(1);
+}
+
 } // namespace mach

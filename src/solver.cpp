@@ -76,10 +76,10 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
       mesh->UniformRefinement();
    }
 
-   // Define the SBP elements and finite-element space; eventually, we will want
-   // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
-   fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
-                               num_dim));
+   // // Define the SBP elements and finite-element space; eventually, we will want
+   // // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
+   // fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
+   //                             num_dim));
 }
 
 AbstractSolver::~AbstractSolver() 

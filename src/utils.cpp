@@ -178,15 +178,16 @@ IrrotationalProjector::InitSolver() const
    pcg_->SetPrintLevel(0);
    pcg_->SetPreconditioner(*amg_);
 #else
-   GSSmoother amg_((SparseMatrix&)(*S0_));
+   amg_ = new EMPrecType((SparseMatrix&)(*S0_));
 
-   CGSolver pcg_;
-   pcg_.SetPrintLevel(0);
-   pcg_.SetMaxIter(400);
-   pcg_.SetRelTol(1e-14);
-   pcg_.SetAbsTol(1e-14);
-   pcg_.SetPreconditioner(amg_);
-   pcg_.SetOperator(*S0_);
+   // CGSolver pcg_;
+   pcg_ = new CGSolver();
+   pcg_->SetPrintLevel(1);
+   pcg_->SetMaxIter(400);
+   pcg_->SetRelTol(1e-14);
+   pcg_->SetAbsTol(1e-14);
+   pcg_->SetPreconditioner(*amg_);
+   pcg_->SetOperator(*S0_);
 #endif
 }
 
@@ -195,14 +196,17 @@ IrrotationalProjector::Mult(const Vector &x, Vector &y) const
 {
    // Compute the divergence of x
    weakDiv_->Mult(x,*xDiv_); *xDiv_ *= -1.0;
+   std::cout << "weakdiv mult\n";
 
    // Apply essential BC and form linear system
    *psi_ = 0.0;
    s0_->FormLinearSystem(ess_bdr_tdofs_, *psi_, *xDiv_, *S0_, Psi_, RHS_);
+   std::cout << "form lin system\n";
 
    // Solve the linear system for Psi
    if ( pcg_ == NULL ) { this->InitSolver(); }
    pcg_->Mult(RHS_, Psi_);
+   std::cout << "pcg mult\n";
 
    // Compute the parallel grid function correspoinding to Psi
    s0_->RecoverFEMSolution(Psi_, *xDiv_, *psi_);
@@ -255,7 +259,9 @@ DivergenceFreeProjector
 
 void DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
 {
+   std::cout << "above irrot proj mult\n";
    this->IrrotationalProjector::Mult(x, y);
+   std::cout << "below irrot proj mult\n";
    y  -= x;
    y *= -1.0;
 }

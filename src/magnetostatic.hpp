@@ -54,6 +54,11 @@ private:
    /// current source vector
    std::unique_ptr<GridFunType> current_vec;
 
+   // /// current source vector with applied BC
+   // std::unique_ptr<GridFunType> current_vec_BC;
+
+   std::unique_ptr<mfem::Coefficient> neg_one;
+
    /// mesh dependent reluctivity coefficient
    std::unique_ptr<MeshDependentCoefficient> nu;
    /// vector mesh dependent current density function coefficient
@@ -65,9 +70,9 @@ private:
    mfem::Array<int> ess_bdr;
    std::unique_ptr<mfem::VectorCoefficient> bc_coef;
 
-   /// linear system solver
-   std::unique_ptr<CGType> solver;
-   /// linear system preconditioner
+   /// linear system solver used in Newton's method
+   std::unique_ptr<SolverType> solver;
+   /// linear system preconditioner used in Newton's method
    std::unique_ptr<EMPrecType> prec;
 
    /// Newton solver
@@ -111,6 +116,8 @@ private:
    ///                 magnets
    static void magnetization_source(const mfem::Vector &x,
                                     mfem::Vector &M);
+
+   static void a_bc_uniform(const mfem::Vector &x, mfem::Vector &a);
 };
 
 } // namespace mach

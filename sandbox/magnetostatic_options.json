@@ -1,0 +1,12 @@
+{
+   "mesh": {
+      "file": "motor_fix.mesh"
+   },
+   "space-dis": {
+      "degree": 1
+   },
+   "steady": true,
+   "time-dis": {
+
+   }
+}

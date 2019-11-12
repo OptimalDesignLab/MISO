@@ -59,6 +59,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       trans.SetIntPoint(&ip);
 
       w = ip.weight / trans.Weight();
+      w *= alpha;
 
       if ( dim == 3 )
       {
@@ -74,7 +75,10 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       double model_val = model->Eval(trans, ip, b_vec.Norml2());
       model_val *= w;
       b_vec *= model_val;
+
+      // std::cout << "above curl curl add mult\n";
       curlshape_dFt.AddMult(b_vec, elvect);
+      // std::cout << "below curl curl add mult\n";
    }
 }
 
@@ -131,6 +135,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       trans.SetIntPoint(&ip);
 
       w = ip.weight / trans.Weight();
+      w *= alpha;
 
       if ( dim == 3 )
       {
@@ -157,11 +162,13 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       model_val *= w;
       /// add first term to elmat
       AddMult_a_AAt(model_val, curlshape_dFt, elmat);
+      // elmat.PrintMatlab(); std::cout << "\n";
 
       /////////////////////////////////////////////////////////////////////////
       /// calculate second term of Jacobian
       /////////////////////////////////////////////////////////////////////////
 
+      /* Commenting out because only using linear permeability for abstract
       /// TODO - is this thread safe?
       /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
       /// can take outer product of result to generate matrix
@@ -174,10 +181,13 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /// defined by ip, and scale by integration point weight
       double model_deriv = model->EvalStateDeriv(trans, ip, b_mag);
       model_deriv *= w;
+      if (abs(b_mag) < 1e-12)
       model_deriv /= b_mag;
 
       /// add second term to elmat
       AddMult_a_AAt(model_deriv, temp_matrix, elmat);
+      elmat.PrintMatlab(); std::cout << "\n";
+      */
    }
 }
 
@@ -204,6 +214,7 @@ void MagnetizationIntegrator::AssembleElementVector(
    curlshape.SetSize(ndof,dimc);
    curlshape_dFt.SetSize(ndof,dimc);
    b_vec.SetSize(dimc);
+   mag_vec.SetSize(dimc);
 #endif
 
 	elvect.SetSize(ndof);
@@ -233,6 +244,7 @@ void MagnetizationIntegrator::AssembleElementVector(
       trans.SetIntPoint(&ip);
 
       w = ip.weight / trans.Weight();
+      w *= alpha;
 
       if ( dim == 3 )
       {
@@ -252,7 +264,14 @@ void MagnetizationIntegrator::AssembleElementVector(
       mag_vec = 0.0;
       mag->Eval(mag_vec, trans, ip);
       mag_vec *= nu_val;
+
+      // std::cout << "above magnetization add mult\n";
+      // std::cout << "mag_vec size: " << mag_vec.Size() << "\n";
+      // std::cout << "elvect size: " << elvect.Size() << "\n";
+      // std::cout << "curlshape size: " << curlshape_dFt.Height() << ", " << curlshape_dFt.Width() << "\n";
+
       curlshape_dFt.AddMult(mag_vec, elvect);
+      // std::cout << "below magnetization add mult\n";
    }
 }
 
@@ -311,6 +330,7 @@ void MagnetizationIntegrator::AssembleElementGrad(
       trans.SetIntPoint(&ip);
 
       w = ip.weight / trans.Weight();
+      w *= alpha;
 
       if ( dim == 3 )
       {

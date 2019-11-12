@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
 {
    ostream *out;
 #ifdef MFEM_USE_MPI
+   std::cout << "use mpi\n";
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
    int rank;
@@ -24,7 +25,7 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "mach_options.json";
+   const char *options_file = "magnetostatic_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();
@@ -34,53 +35,57 @@ int main(int argc, char *argv[])
       return 1;
    }
 
-   // generate a simple tet mesh
-   int num_edge = 10;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
+   // // generate a simple tet mesh
+   // int num_edge = 20;
+   // std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
+   //                            Element::TETRAHEDRON, true /* gen. edges */, 1.0,
+   //                            1.0, 1.0, true));
 
-   // assign attributes to top and bottom sides
-   for (int i = 0; i < mesh->GetNE(); ++i)
-   {
-      Element *elem = mesh->GetElement(i);
+   // mesh->ReorientTetMesh();
 
-      Array<int> verts;
-      elem->GetVertices(verts);
+   // // assign attributes to top and bottom sides
+   // for (int i = 0; i < mesh->GetNE(); ++i)
+   // {
+   //    Element *elem = mesh->GetElement(i);
 
-      bool below = true;
-      for (int i = 0; i < 4; ++i)
-      {
-         auto vtx = mesh->GetVertex(verts[i]);
-         if (vtx[1] <= 0.5)
-         {
-            below = below & true;
-         }
-         else
-         {
-            below = below & false;
-         }
-      }
-      if (below)
-      {
-         elem->SetAttribute(1);
-      }
-      else
-      {
-         elem->SetAttribute(2);
-      }
-   }
+   //    Array<int> verts;
+   //    elem->GetVertices(verts);
 
-   ofstream mesh_ofs("test_cube.vtk");
-   mesh_ofs.precision(8);
-   mesh->PrintVTK(mesh_ofs);
+   //    bool below = true;
+   //    for (int i = 0; i < 4; ++i)
+   //    {
+   //       auto vtx = mesh->GetVertex(verts[i]);
+   //       if (vtx[1] <= 0.5)
+   //       {
+   //          below = below & true;
+   //       }
+   //       else
+   //       {
+   //          below = below & false;
+   //       }
+   //    }
+   //    if (below)
+   //    {
+   //       elem->SetAttribute(1);
+   //    }
+   //    else
+   //    {
+   //       elem->SetAttribute(2);
+   //    }
+   // }
+
+   // ofstream mesh_ofs("test_cube.vtk");
+   // mesh_ofs.precision(8);
+   // mesh->PrintVTK(mesh_ofs);
 
    try
    {
       // construct the solver
       string opt_file_name(options_file);
-      MagnetostaticSolver solver(opt_file_name, move(mesh));
+      // MagnetostaticSolver solver(opt_file_name, move(mesh));
+      MagnetostaticSolver solver(opt_file_name);
       solver.solveForState();
+      std::cout << "finish steady solve\n";
    }
    catch (MachException &exception)
    {
