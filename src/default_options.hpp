@@ -31,7 +31,7 @@ nlohmann::json default_options =
       {"cfl", 1.0} // target CFL number
    }},
 
-   {"lin_solver",
+   {"lin-solver",
    {
       {"print-lvl", 0}, // linear solver print level (no printing if zero)
       {"max-iter", 100}, // default to 100 iterations
