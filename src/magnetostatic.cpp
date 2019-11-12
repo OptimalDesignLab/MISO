@@ -44,16 +44,14 @@ MagnetostaticSolver::MagnetostaticSolver(
    cout << "Number of finite element unknowns: "
         << h_curl_space->GetTrueVSize() << endl;
 #endif
-	std::cout << "fe spaces and collections constructed" << std::endl;
 
 	neg_one.reset(new ConstantCoefficient(-1.0));
+
 	/// Construct current source coefficient
 	constructCurrent();
-	std::cout << "current constructed" << std::endl;
-
+	
 	/// Assemble current source vector
 	assembleCurrentSource();
-	std::cout << "current assembled" << std::endl;
 
 	/// set up the spatial semi-linear form
    // double alpha = 1.0;
@@ -62,16 +60,22 @@ MagnetostaticSolver::MagnetostaticSolver(
 	/// Construct reluctivity coefficient
 	constructReluctivity();
 
+	/// TODO: Add a check in `CurlCurlNLFIntegrator` to check if |B| is close to
+	///       zero, and if so set the second term of the Jacobian to be zero.
 	/// add curl curl integrator to residual
 	res->AddDomainIntegrator(new CurlCurlNLFIntegrator(nu.get()));
 
+	/// TODO: magnetization lines are commented out because they created NaNs
+	///       when getting gradient when B was zero because we divide by |B|.
+	///       Can probably get away with adding a check if |B| is close to zero
+	///       and setting magnetization contribution to the Jacobian to be zero,
+	///       but need to verify that that is mathematically corrent based on
+	///       the limit of the Jacobian as B goes to zero.
 	// /// Construct magnetization coefficient
 	// constructMagnetization();
 
 	// /// add magnetization integrator to residual
 	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
-
-	std::cout << "residual constructed" << std::endl;
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
@@ -92,13 +96,13 @@ MagnetostaticSolver::MagnetostaticSolver(
 #ifdef MFEM_USE_MPI
    // prec.reset(new HypreBoomerAMG());
    prec.reset(new HypreAMS(h_curl_space.get()));
-   prec->SetPrintLevel(0);
+   prec->SetPrintLevel(0); // Don't want preconditioner to print anything
 	prec->SetSingularProblem();
 
    solver.reset(new HyprePCG(h_curl_space->GetComm()));
-   solver->SetTol(1e-12);
-   solver->SetMaxIter(500);
-   solver->SetPrintLevel(2);
+   solver->SetTol(options["lin-solver"]["tol"].get<double>());
+   solver->SetMaxIter(options["lin-solver"]["max_iter"].get<int>());
+   solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
    solver->SetPreconditioner(*prec);
 #else
 	#ifdef MFEM_USE_SUITESPARSE
@@ -108,114 +112,29 @@ MagnetostaticSolver::MagnetostaticSolver(
 	prec.reset(new GSSmoother);
 
 	solver.reset(new CGSolver());
-   solver->SetPrintLevel(0);
-   solver->SetMaxIter(400);
-   solver->SetRelTol(1e-14);
-   solver->SetAbsTol(1e-14);
+   solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+   solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+   solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
+   solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
    solver->SetPreconditioner(*prec);
 	#endif
 #endif
-
-	/// TODO - have this use options
 	/// Set up Newton solver
 	newton_solver.iterative_mode = false;
    newton_solver.SetSolver(*solver);
    newton_solver.SetOperator(*res);
-   newton_solver.SetPrintLevel(1); // print Newton iterations
-   newton_solver.SetRelTol(1e-10);
-   newton_solver.SetAbsTol(0.0);
-   newton_solver.SetMaxIter(10);
+   newton_solver.SetPrintLevel(options["newton"]["print-lvl"].get<int>());
+   newton_solver.SetRelTol(options["newton"]["rel-tol"].get<double>());
+   newton_solver.SetAbsTol(options["newton"]["abs-tol"].get<double>());
+   newton_solver.SetMaxIter(options["newton"]["max-iter"].get<int>());
 }
 
 void MagnetostaticSolver::solveSteady()
 {
-	std::cout << "solve steady\n";
-	// /// I think this is all I need?
 	newton_solver.Mult(*current_vec, *A);
 	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-	/*
-	// Define and apply a parallel PCG solver for AX=B with the AMS
-   // preconditioner from hypre.
-	Operator &oper = res->GetGradient(*A);
-
-	const HypreParMatrix *hypre_oper_temp = dynamic_cast<const HypreParMatrix *>(&oper);
-	auto hypre_oper = const_cast<HypreParMatrix *>(hypre_oper_temp);
-
-   HypreAMS ams(*hypre_oper, h_curl_space.get());
-	std::cout << "hypre ams constructed\n";
-   ams.SetSingularProblem();
-	std::cout << "singular problem set\n";
-
-   // HyprePCG pcg(*hypre_mat);
-   HyprePCG pcg(*hypre_oper);
-	std::cout << "pcg constructed\n";
-   pcg.SetTol(1e-14);
-   pcg.SetMaxIter(500);
-   pcg.SetPrintLevel(2);
-   pcg.SetPreconditioner(ams);
-
-	std::cout << "start of newton step\n";
-	int it = 0;
-   double norm0, norm, norm_goal;
-	const bool have_b = true;
-
-	Vector r, c;
-	r.SetSize(res->Width());
-	c.SetSize(res->Width());
-	res->Mult(*A, r);
-   if (have_b)
-   {
-      r -= *current_vec;
-   }
-   std::cout << "below oper-mult\n";
-
-   // norm0 = norm = Norm(r);
-	norm0 = norm = r.Norml2();
-	double rel_tol = 1e-12;
-	double abs_tol = 1e-12;
-   norm_goal = std::max(rel_tol*norm, abs_tol);
-
-   pcg.iterative_mode = false;
-
-   // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
-	MFEM_ASSERT(IsFinite(norm), "norm = " << norm);
-	// if (print_level >= 0)
-	if (true)
-	{
-		mfem::out << "Newton iteration " << setw(2) << it
-						<< " : ||r|| = " << norm;
-		// if (it > 0)
-		// {
-		// 	mfem::out << ", ||r||/||r_0|| = " << norm/norm0;
-		// }
-		mfem::out << '\n';
-	}
-
-	std::cout << "above prec-mult\n";
-	pcg.Mult(r, c);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
-	std::cout << "below prec-mult\n";
-	// std::cout << "norm of c: " << Norm(c) << "\n";
-	std::cout << "norm of c: " << c.Norml2() << "\n";
-
-	const double c_scale = 1.0;
-	add(*A, -c_scale, c, *A);
-
-	std::cout << "above oper-mult\n";
-	res->Mult(*A, r);
-	std::cout << "below oper-mult\n";
-	if (have_b)
-	{
-		std::cout << "have b?\n";
-		r -= *current_vec;
-	}
-	// norm = Norm(r);
-	norm = r.Norml2();
-	std::cout << "norm of r: " << norm << "\n";
-
-	*/
-
-
+	/// TODO: Move this to a new function `ComputeSecondaryQuantities()`?
 	std::cout << "before curl constructed\n";
 	DiscreteCurlOperator curl(h_curl_space.get(), h_div_space.get());
 	std::cout << "curl constructed\n";
@@ -224,7 +143,7 @@ void MagnetostaticSolver::solveSteady()
 	curl.Mult(*A, *B);
 	std::cout << "curl taken\n";
 
-	// TODO: These mfem functions do not appear to be parallelized
+	// TODO: Print mesh out in another function?
    ofstream sol_ofs("motor_mesh_fix2.vtk");
    sol_ofs.precision(14);
    mesh->PrintVTK(sol_ofs, 1);
@@ -352,6 +271,7 @@ void MagnetostaticSolver::assembleCurrentSource()
 	delete grad;
 }
 
+/// TODO: Find a better way to handle solving the simple box problem
 void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
                                                  mfem::Vector &J)
 {
@@ -429,6 +349,7 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
    // }
 }
 
+/// TODO: Find a better way to handle solving the simple box problem
 void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
                           		 					  mfem::Vector &M)
 {
@@ -454,6 +375,7 @@ void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
 	M *= 100.0;
 }
 
+/// TODO: Find a better way to handle solving the simple box problem
 void MagnetostaticSolver::a_bc_uniform(const Vector &x, Vector &a)
 {
    a.SetSize(3);
