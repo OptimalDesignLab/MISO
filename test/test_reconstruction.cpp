@@ -4,6 +4,7 @@
 
 TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction operator]")
 {
+   #ifdef MFEM_USE_LAPACK
    const double abs_tol = std::numeric_limits<double>::epsilon()*100;
    int dim = 2;
    int num_quad = 18;
@@ -98,4 +99,5 @@ TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction opera
 
    REQUIRE( x_diff.Norml2() == Approx(0.0).margin(abs_tol));
    REQUIRE( y_diff.Norml2() == Approx(0.0).margin(abs_tol));
+   #endif
 }

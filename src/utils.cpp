@@ -50,7 +50,10 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 }
 
 #ifndef MFEM_USE_LAPACK
-mfem::mfem_error(" Lapack is required for this feature ");
+void dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
+        double *, int *, double *, int *, int *);
+void dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
+       int *, int *);
 #else
 extern "C" void
 dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
@@ -61,6 +64,7 @@ dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
 #endif
 /// build the interpolation operator on element patch
 /// this function will be moved later
+#ifdef MFEM_USE_LAPACK
 void buildInterpolation(int degree, const DenseMatrix &x_center,
                         const DenseMatrix &x_quad, DenseMatrix &interp)
 {
@@ -120,5 +124,6 @@ void buildInterpolation(int degree, const DenseMatrix &x_center,
       }
    }
 } // end of constructing interp
+#endif
 
 } // namespace mach

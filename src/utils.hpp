@@ -118,8 +118,10 @@ static std::ostream *getOutStream(int rank)
 /// \param[in] x_cent - coordinates of barycenters
 /// \param[in] x_quad - coordinates of quadrature points
 /// \param[out] interp - interpolation operator
+#ifdef MFEM_USE_LAPACK
 void buildInterpolation(int degree, const mfem::DenseMatrix &x_center,
     const mfem::DenseMatrix &x_quad, mfem::DenseMatrix &interp);
+#endif
 
 } // namespace mach
 

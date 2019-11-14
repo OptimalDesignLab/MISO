@@ -1,6 +1,6 @@
 {
    "finite-element-dis": {
-      "basis-type": "dg"
+      "basis-type": "csbp"
    },
    "space-dis": {
       "degree": 4,

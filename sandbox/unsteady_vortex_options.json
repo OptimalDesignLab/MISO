@@ -1,6 +1,6 @@
 {
    "finite-element-dis": {
-      "basis-type": "cg"
+      "basis-type": "csbp"
    },
    "mesh": {
       "file": "kernel-lev-2.mesh",

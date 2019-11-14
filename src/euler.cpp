@@ -27,7 +27,8 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
-if (options["finite-element-dis"]["basis-type"].get<string>() == "cg")
+// add the integrators based on if discretization is continuous or discrete
+if (options["finite-element-dis"]["basis-type"].get<string>() == "csbp")
 {
    // set up the mass matrix
    mass.reset(new BilinearFormType(fes.get()));
@@ -52,7 +53,7 @@ if (options["finite-element-dis"]["basis-type"].get<string>() == "cg")
    // boundary face integrators are handled in their own function
    addBoundaryIntegrators(alpha, dim);
 }
-else if(options["finite-element-dis"]["basis-type"].get<string>() == "dg")
+else if(options["finite-element-dis"]["basis-type"].get<string>() == "dsbp")
 {
    // set up the mass matrix
    mass.reset(new BilinearFormType(fes.get()));
@@ -67,7 +68,11 @@ else if(options["finite-element-dis"]["basis-type"].get<string>() == "dg")
 
    res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
    
-   //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
+   // add the LPS stabilization
+   //TODO: how to get good solution with LPS integrator
+   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
+   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+                                                          lps_coeff));
    
    res->AddInteriorFaceIntegrator(new InterfaceIntegrator<2>(diff_stack, 
                                  fec.get(), alpha));

@@ -1,21 +1,18 @@
 {
    "finite-element-dis": {
-       "basis-type": "cg"
+       "basis-type": "csbp"
    },
    "mesh": {
       "file": "kernel-lev-1.mesh",
       "refine": 0
    },
-   "pumi-mesh": {
-      "file": "tri32.smb",
-      "refine":0
-   },
-   "model-file":"tri32.dmg",
+   "model-file":"Test.dmg",
    "space-dis": {
       "degree": 1,
       "lps-coeff": 1.0
    },
    "time-dis": {
+      "ode-solver": "RK4", 
       "dt": 0.047619047619047616,
       "t-final": 1.0
    }

@@ -17,7 +17,7 @@ nlohmann::json default_options =
     
    {"finite-element-dis", // options related to finite element discretization
    {
-     {"basis-type", "cg"}, // default continuous galerkin
+     {"basis-type", "csbp"}, // csbp & dsbp for continuous & discrete SBP discretization resp. 
    }},     
 
    {"space-dis", // options related to spatial discretization
@@ -40,17 +40,19 @@ nlohmann::json default_options =
    {
    }},
 
+   #ifdef MFEM_USE_PUMI
    {"mesh", // options related to the mesh
    {
-      {"file", "mach.mesh"}, // mesh file name
+      {"file", "mach.smb"}, // mesh file name when using pumi
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
    }},
-
-   {"pumi-mesh", // options related to pumi-mesh
+   #else 
+   {"mesh", // options related to the mesh
    {
-      {"file","mach.smb"}, //mesh file name
+      {"file", "mach.mesh"}, // mesh file name when not using pumi
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
-   }}
+   }},
+   #endif
 };
 
 } // namespace mach
