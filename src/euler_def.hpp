@@ -284,7 +284,7 @@ void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
                                        qR_a.data(), flux_a.data());
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());
-   this->stack.dependent(flux_a.data(), qL.size());
+   this->stack.dependent(flux_a.data(), qL.Size());
    // compute the jacobian w.r.t dir
    this->stack.jacobian(jac_dir.GetData());
 }

@@ -7,6 +7,7 @@
       "degree": 2,
       "lps-coeff": 1.0
    },
+   "steady": false, 
    "time-dis": {
       "const-cfl": true,
       "cfl": 1.0,
