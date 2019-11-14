@@ -102,6 +102,16 @@ protected:
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
+
+   /// newton solver for the steady problem
+   mfem::NewtonSolver newton_solver;
+   /// linear system solver used in newton solver
+   std::unique_ptr<mfem::HyprePCG> solver;
+   /// linear system preconditioner for solver in newton solver
+   std::unique_ptr<mfem::HypreAMS> prec;
+   /// grid function
+   std::unique_ptr<GridFunType> A;
+   std::unique_ptr<GridFunType> b;
 };
 
 } // namespace mach

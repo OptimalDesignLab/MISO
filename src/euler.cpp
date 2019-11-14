@@ -59,6 +59,8 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
    evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+
+   //A.reset(res->ParallelAssemble());
 }
 
 void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
@@ -210,28 +212,54 @@ void EulerSolver::solveSteady()
    // delete gs_prec;
 
    // below are petsc solver
-#ifndef MFEM_USE_PETSC
-#error This function requires MFEM_USE_PETSC defined
-#endif
-   const char *petscrc_file="eulersteady";
-   std::cout << "EulerSolver::solveSteady() is called.\n";
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 
-   PetscNonlinearSolver *pnewton_solver = new 
-                     PetscNonlinearSolver(fes->GetComm(), *res);
-   //mfem::PetscPreconditonerFactory * j_prec = new 
-   //                   PetscPreconditionerFactory();
-   pnewton_solver->SetPrintLevel(1); // print Newton iterations
-   pnewton_solver->SetRelTol(1e-10);
-   pnewton_solver->SetAbsTol(0.0);
-   pnewton_solver->SetMaxIter(30);
-   //pnewton_solver->SetPreconditionerFactory(*j_prec);
+// #ifndef MFEM_USE_PETSC
+// #error This function requires MFEM_USE_PETSC defined
+// #endif
+//    const char *petscrc_file="eulersteady";
+//    std::cout << "EulerSolver::solveSteady() is called.\n";
+//    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 
-   mfem::Vector zero;
-   pnewton_solver->Mult(zero,*u);
-   std::cout << "\nConverged? :"<<pnewton_solver->GetConverged() << std::endl;
-   MFEM_ASSERT(pnewton_solver->GetConverged(), "Newton solver didn't converge.\n");
-   MFEMFinalizePetsc();
+//    PetscNonlinearSolver *pnewton_solver = new 
+//                      PetscNonlinearSolver(fes->GetComm(), *res);
+//    //mfem::PetscPreconditonerFactory * j_prec = new 
+//    //                   PetscPreconditionerFactory();
+//    pnewton_solver->SetPrintLevel(1); // print Newton iterations
+//    pnewton_solver->SetRelTol(1e-6);
+//    pnewton_solver->SetAbsTol(1e-6);
+//    pnewton_solver->SetMaxIter(30);
+//    //pnewton_solver->SetPreconditionerFactory(*j_prec);
+
+//    mfem::Vector zero;
+//    pnewton_solver->Mult(zero,*u);
+//    std::cout << "\nConverged? :"<<pnewton_solver->GetConverged() << std::endl;
+//    MFEM_ASSERT(pnewton_solver->GetConverged(), "Newton solver didn't converge.\n");
+//    MFEMFinalizePetsc();
+
+   // Use hypre solve to solve the problem
+std::cout << "steady solve is called.\n";
+   prec.reset(new HypreAMS(fes.get()));
+   prec->SetPrintLevel(0);
+
+   solver.reset(new HyprePCG(fes->GetComm()));
+   solver->SetTol(1e-10);
+   solver->SetMaxIter(30);
+   solver->SetPrintLevel(1);
+   solver->SetPreconditioner(*prec);
+   std::cout << "Inner solver is set.\n";
+
+   newton_solver.iterative_mode = false;
+   newton_solver.SetSolver(*solver);
+   newton_solver.SetOperator(*res);
+   newton_solver.SetPrintLevel(1);
+   newton_solver.SetRelTol(1e-10);
+   newton_solver.SetAbsTol(1e-10);
+   newton_solver.SetMaxIter(30);
+   std::cout << "Newton solver is set.\n";
+
+   mfem::Vector b(1);
+   newton_solver.Mult(b,  *u);
+   MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 }
 
 } // namespace mach
