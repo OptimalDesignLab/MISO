@@ -31,8 +31,21 @@ nlohmann::json default_options =
       {"cfl", 1.0} // target CFL number
    }},
 
+   {"lin-solver",
+   {
+      {"print-lvl", 0}, // linear solver print level (no printing if zero)
+      {"max-iter", 100}, // default to 100 iterations
+      {"rel-tol", 1e-12}, // solver relative tolerance
+      {"abs-tol", 1e-12}, // solver absolute tolerance
+      {"tol", 1e-12}, // Hypre solvers only let you set one value for tolerance
+   }},
+
    {"newton", // options related to root-finding algorithms
    {
+      {"print-lvl", 0}, // linear solver print level (no printing if zero)
+      {"max-iter", 100}, // default to 100 iterations
+      {"rel-tol", 1e-12}, // solver relative tolerance
+      {"abs-tol", 1e-12}, // solver absolute tolerance
    }},
 
    {"mesh", // options related to the mesh
