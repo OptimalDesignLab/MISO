@@ -238,9 +238,14 @@ void EulerSolver::solveSteady()
 
    // Use hypre solve to solve the problem
 std::cout << "steady solve is called.\n";
-   prec.reset(new HypreAMS(fes.get()));
+
+   prec.reset( new HypreBoomerAMG() );
+   
+   // prec->SetType(HypreSmoother::l1Jacobi);
+   // prec->SetPositiveDiagonal(true);
    prec->SetPrintLevel(0);
 
+   std::cout << "preconditioner is set.\n";
    solver.reset(new HyprePCG(fes->GetComm()));
    solver->SetTol(1e-10);
    solver->SetMaxIter(30);
@@ -257,7 +262,7 @@ std::cout << "steady solve is called.\n";
    newton_solver.SetMaxIter(30);
    std::cout << "Newton solver is set.\n";
 
-   mfem::Vector b(1);
+   mfem::Vector b;
    newton_solver.Mult(b,  *u);
    MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 }

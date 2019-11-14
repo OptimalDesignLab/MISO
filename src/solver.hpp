@@ -108,7 +108,7 @@ protected:
    /// linear system solver used in newton solver
    std::unique_ptr<mfem::HyprePCG> solver;
    /// linear system preconditioner for solver in newton solver
-   std::unique_ptr<mfem::HypreAMS> prec;
+   std::unique_ptr<mfem::HypreBoomerAMG> prec;
    /// grid function
    std::unique_ptr<GridFunType> A;
    std::unique_ptr<GridFunType> b;
