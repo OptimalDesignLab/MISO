@@ -67,6 +67,9 @@ else if(options["finite-element-dis"]["basis-type"].get<string>() == "dsbp")
    res.reset(new NonlinearFormType(fes.get()));
 
    res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
+   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
+   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+                                                          lps_coeff));
    
    // add the LPS stabilization
    //TODO: how to get good solution with LPS integrator
