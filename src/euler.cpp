@@ -116,11 +116,15 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
 double EulerSolver::calcResidualNorm()
 {
    GridFunType r(fes.get());
-   res->Mult(*u, r);  // TODO: option to recompute only if necessary
-   double res_norm = r*r;
+   double res_norm;
 #ifdef MFEM_USE_MPI
-   double loc_norm = res_norm;
+   HypreParVector *U = u->GetTrueDofs();
+   res->Mult(*U, r);   
+   double loc_norm = r*r;
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   res->Mult(*u, r);
+   res_norm = r*r;
 #endif
    res_norm = sqrt(res_norm);
    return res_norm;
