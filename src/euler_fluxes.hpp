@@ -418,6 +418,60 @@ void calcIsentropicVortexFlux(const xdouble *x, const xdouble *dir,
    calcBoundaryFlux<xdouble,2>(dir, qbnd, q, work, flux);
 }
 
+/// Wedge shock exact state as a function of position
+/// \param[in] x - location at which the exact state is desired
+/// \param[out] qbnd - vortex conservative variable at `x`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \note  I reversed the flow direction to be clockwise, so the problem and
+/// mesh are consistent with the LPS paper (that is, because the triangles are
+/// subdivided from the quads using the opposite diagonal)
+template <typename xdouble>
+void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
+{
+   double ri = 1.0;
+   double Mai = 0.5; //0.95 
+   double rhoi = 2.0;
+   double prsi = 1.0/euler::gamma;
+   xdouble rinv = ri/sqrt(x[0]*x[0] + x[1]*x[1]);
+   xdouble rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
+                          1.0/euler::gami);
+   xdouble Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
+                     (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
+   xdouble theta;
+   if (x[0] > 1e-15)
+   {
+      theta = atan(x[1]/x[0]);
+   }
+   else
+   {
+      theta = M_PI/2.0;
+   }
+   xdouble press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
+                 (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
+   xdouble a = sqrt(euler::gamma*press/rho);
+
+   qbnd[0] = rho;
+   qbnd[1] = rho*a*Ma*sin(theta);
+   qbnd[2] = -rho*a*Ma*cos(theta);
+   qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+}
+
+/// A wrapper for `calcBoundaryFlux` in the case of the wedge shock
+/// \param[in] x - location at which the boundary flux is desired
+/// \param[in] dir - desired (scaled) direction of the flux
+/// \param[in] q - conservative state variable on the interior of the boundary
+/// \param[out] flux - the boundary flux in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcWedgeShockFlux(const xdouble *x, const xdouble *dir,
+                              const xdouble *q, xdouble *flux)
+{
+   xdouble qbnd[4];
+   xdouble work[4];
+   calcWedgeShockState<xdouble>(x, qbnd);
+   calcBoundaryFlux<xdouble,2>(dir, qbnd, q, work, flux);
+}
+
 /// removes the component of momentum normal to the wall from `q`
 /// \param[in] dir - vector perpendicular to the wall (does not need to be unit)
 /// \param[in] q - the state whose momentum is being projected
