@@ -300,6 +300,76 @@ TEMPLATE_TEST_CASE_SIG( "ApplyLPSScaling", "[LPSScaling]",
       }
    }
 }
+
+TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
+{
+   const int dim = 2;
+   using namespace euler_data;
+   double delta = 1e-5;
+   mfem::Vector nrm(dim);
+   for(int di = 0; di < dim ; ++di)
+   {
+      nrm(di) = dir[di];
+   }
+   mfem::Vector q(dim+2);
+   q(0) = rho;
+   q(dim+1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di+1) = rhou[di];
+   }
+
+   // dummy const vector x for calcFlux - unused
+   const mfem::Vector x(nrm);
+
+   /// finite element or SBP operators
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   adept::Stack diff_stack;
+
+   const int max_degree = 4;
+   fec.reset(new mfem::SBPCollection(1, dim));
+   //mach::IsentropicVortexBC isentropic_vortex(diff_stack, fec.get());
+
+      // DYNAMIC_SECTION( "Jacobian of Isentropic Vortex BC flux w.r.t state is correct" )
+      // {
+      //    // create the perturbation vector
+      //    mfem::Vector v(dim+2);
+      //    for (int i = 0; i < dim+2; i++)
+      //    {
+      //       v(i) = vec_pert[i];
+      //    }
+
+      //    // get derivative information from AD functions and form product
+      //    mfem::DenseMatrix jac_ad(dim+2, dim+2);
+      //    mfem::Vector jac_v_ad(dim+2);
+      //    isentropic_vortex.calcFluxJacState(x, nrm, q, jac_ad);
+      //    jac_ad.Mult(v, jac_v_ad);
+      
+      //    // FD approximation
+      //    mfem::Vector q_plus(q);
+      //    mfem::Vector q_minus(q);
+      //    q_plus.Add(delta, v);
+      //    q_minus.Add(-delta, v);
+
+      //    mfem::Vector flux_plus(dim+2);
+      //    mfem::Vector flux_minus(dim+2);
+      //    isentropic_vortex.calcFlux(x, nrm, q_plus, flux_plus);
+      //    isentropic_vortex.calcFlux(x, nrm, q_minus, flux_minus);
+
+      //    // finite difference jacobian
+      //    mfem::Vector jac_v_fd(dim+2);
+      //    subtract(flux_plus, flux_minus, jac_v_fd);
+      //    jac_v_fd /= 2*delta;
+
+      //    // compare
+      //    for (int i = 0; i < dim+2; ++i)
+      //    {
+      //       REQUIRE( jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12) );
+      //    }
+      // }
+}
+
+
 // TODO: add dim = 1, 3 once 3d sbp operators implemented
 TEMPLATE_TEST_CASE_SIG( "Slip Wall Flux", "[Slip Wall]",
                         ((int dim), dim), 2 )
