@@ -1,3 +1,5 @@
+#ifndef MACH_EULER_DEF
+#define MACH_EULER_DEF
 
 template <int dim>
 void EulerIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
@@ -336,3 +338,4 @@ void IsentropicVortexBC::calcFluxJacDir(const mfem::Vector &x,
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
 }
+#endif

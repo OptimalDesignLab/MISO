@@ -322,9 +322,9 @@ void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
    xdouble lambda2 = Un - dA*a;
    xdouble lambda3 = Un;
    const xdouble rhoA = fabs(Un) + dA*a;
-   lambda1 = 0.5*(std::max(fabs(lambda1), sat_Vn*rhoA) - lambda1);
-   lambda2 = 0.5*(std::max(fabs(lambda2), sat_Vn*rhoA) - lambda2);
-   lambda3 = 0.5*(std::max(fabs(lambda3), sat_Vl*rhoA) - lambda3);
+   lambda1 = 0.5*(std::max<xdouble>(fabs(lambda1), sat_Vn*rhoA) - lambda1);
+   lambda2 = 0.5*(std::max<xdouble>(fabs(lambda2), sat_Vn*rhoA) - lambda2);
+   lambda3 = 0.5*(std::max<xdouble>(fabs(lambda3), sat_Vl*rhoA) - lambda3);
 
    xdouble *dq = work;
    for (int i = 0; i < dim+2; ++i)
