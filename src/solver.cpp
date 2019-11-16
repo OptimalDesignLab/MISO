@@ -2,20 +2,6 @@
 #include <iostream>
 #include "solver.hpp"
 #include "default_options.hpp"
-
-#ifdef MFEM_USE_SIMMETRIX
-#include <SimUtil.h>
-#include <gmi_sim.h>
-#endif
-#ifdef MFEM_USE_PUMI
-#include <apfMDS.h>
-#include <gmi_null.h>
-#include <PCU.h>
-#include <apfConvert.h>
-#include <gmi_mesh.h>
-#include <crv.h>
-#endif
-
 #include "sbp_fe.hpp"
 
 using namespace std;
@@ -30,15 +16,15 @@ adept::Stack AbstractSolver::diff_stack;
 AbstractSolver::AbstractSolver(const string &opt_file_name,
                                unique_ptr<Mesh> smesh)
 {
-   // Set the options; the defaults are overwritten by the values in the file
-   // using the merge_patch method
-   #ifdef MFEM_USE_MPI
+// Set the options; the defaults are overwritten by the values in the file
+// using the merge_patch method
+#ifdef MFEM_USE_MPI
    comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
    MPI_Comm_rank(comm, &rank);
-   #else
+#else
    rank = 0; // serial case
-   #endif
-   out = getOutStream(rank); 
+#endif
+   out = getOutStream(rank);
    options = default_options;
    nlohmann::json file_options;
    ifstream options_file(opt_file_name);
@@ -47,7 +33,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    *out << setw(3) << options << endl;
    constructMesh(move(smesh));
    // does num_dim equal mesh->Dimension in all cases?
-   num_dim = mesh->Dimension(); 
+   num_dim = mesh->Dimension();
 
    *out << "problem space dimension = " << num_dim << endl;
 
@@ -78,11 +64,20 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
-   fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
-                               num_dim));
+   // and here it is for first two
+   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   {
+      fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
+                                  num_dim));
+   }
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   {
+      fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
+                                   num_dim));
+   }
 }
 
-AbstractSolver::~AbstractSolver() 
+AbstractSolver::~AbstractSolver()
 {
    *out << "Deleting Abstract Solver..." << endl;
 }
@@ -99,29 +94,28 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 #ifdef MFEM_USE_MPI
    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
    MPI_Comm_rank(comm, &rank);
-#ifdef MFEM_USE_PUMI  // if using pumi mesh
+#ifdef MFEM_USE_PUMI // if using pumi mesh
    if (smesh != nullptr)
    {
       throw MachException("AbstractSolver::constructMesh(smesh)\n"
                           "\tdo not provide smesh when using PUMI!");
    }
    // problem with using these in loadMdsMesh
+   std::cout << options["model-file"].get<string>().c_str() << std::endl;
    const char *model_file = options["model-file"].get<string>().c_str();
-   const char *mesh_file= options["mesh-file"].get<string>().c_str();
+   const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
    PCU_Comm_Init();
-   #ifdef MFEM_USE_SIMMETRIX
+#ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
    gmi_sim_start();
    gmi_register_sim();
-   #endif
+#endif
    gmi_register_mesh();
-
-   apf::Mesh2* pumi_mesh;
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
                                 options["mesh"]["file"].get<string>().c_str());
    int dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(dim);
-   int ref_levels = (int)floor(log(10000./nEle)/log(2.)/dim);
+   int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / dim);
    // Perform Uniform refinement
    // if (ref_levels > 1)
    // {
@@ -131,10 +125,10 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    pumi_mesh->verify();
    mesh.reset(new MeshType(comm, pumi_mesh));
    PCU_Comm_Free();
-   #ifdef MFEM_USE_SIMMETRIX
+#ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
    Sim_unregisterAllKeys();
-   #endif
+#endif
 #else
    mesh.reset(new MeshType(comm, *smesh));
 #endif //MFEM_USE_PUMI
@@ -144,7 +138,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 }
 
 void AbstractSolver::setInitialCondition(
-   void (*u_init)(const Vector &, Vector &))
+    void (*u_init)(const Vector &, Vector &))
 {
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
@@ -167,7 +161,7 @@ void AbstractSolver::setInitialCondition(
 }
 
 double AbstractSolver::calcL2Error(
-   void (*u_exact)(const Vector &, Vector &), int entry)
+    void (*u_exact)(const Vector &, Vector &), int entry)
 {
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
@@ -220,7 +214,6 @@ double AbstractSolver::calcL2Error(
             loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
          }
       }
-
    }
    double norm;
 #ifdef MFEM_USE_MPI
@@ -261,7 +254,7 @@ void AbstractSolver::solveForState()
    {
       solveSteady();
    }
-   else 
+   else
    {
       solveUnsteady();
    }
@@ -298,7 +291,7 @@ void AbstractSolver::solveUnsteady()
    bool done = false;
    double t_final = options["time-dis"]["t-final"].get<double>();
    double dt = options["time-dis"]["dt"].get<double>();
-   for (int ti = 0; !done; )
+   for (int ti = 0; !done;)
    {
       if (options["time-dis"]["const-cfl"].get<bool>())
       {
@@ -306,7 +299,7 @@ void AbstractSolver::solveUnsteady()
       }
       double dt_real = min(dt, t_final - t);
       if (ti % 100 == 0)
-      {         
+      {
          cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
       }
@@ -319,9 +312,9 @@ void AbstractSolver::solveUnsteady()
 #endif
       ti++;
 
-      done = (t >= t_final - 1e-8*dt);
+      done = (t >= t_final - 1e-8 * dt);
 
-/*       if (done || ti % vis_steps == 0)
+      /*       if (done || ti % vis_steps == 0)
       {
          cout << "time step: " << ti << ", time: " << t << endl;
 
@@ -346,8 +339,26 @@ void AbstractSolver::solveUnsteady()
       osol.precision(precision);
       u->Save(osol);
    }
-
-   printSolution("final");
+   // write the solution to vtk file
+   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   {
+      ofstream sol_ofs("steady_vortex_cg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+      sol_ofs.close();
+      printSolution("final");
+   }
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   {
+      ofstream sol_ofs("steady_vortex_dg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+      sol_ofs.close();
+      printSolution("final");
+   }
+   // TODO: These mfem functions do not appear to be parallelized
 }
 
 } // namespace mach

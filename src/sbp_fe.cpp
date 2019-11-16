@@ -942,4 +942,144 @@ SBPCollection::~SBPCollection()
    }
 }
 
+// From here thee DSBPCollection class 
+DSBPCollection::DSBPCollection(const int p, const int dim)
+{
+   MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
+   MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
+   snprintf(DSBPname, 32, "DSBP_%dD_P%d", dim, p);
+   for(int g = 0; g < Geometry::NumGeom; g++)
+   {
+      DSBPElements[g] = NULL;
+      Tr_SBPElements[g] =NULL;
+   }
+   for(int i = 0; i < 2; i++)
+   {
+      SegDofOrd[i] = NULL;
+   }
+   if(dim >= 1 )
+   {
+      DSBPdof[Geometry::POINT] = 0;
+      DSBPdof[Geometry::SEGMENT] = 0;
+
+      DSBPElements[Geometry::POINT] = new PointFiniteElement;
+      DSBPElements[Geometry::SEGMENT] = new SBPSegmentElement(p);
+      Tr_SBPElements[Geometry::POINT] = new PointFiniteElement;
+      int nodeOrder0[] = {};
+      int nodeOrder1[1] = {0};
+      int nodeOrder2[2] = {0, 1};
+      int nodeOrder3[3] = {0, 1, 2};
+      int nodeOrder4[4] = {0, 1, 2, 3};
+
+      int revNodeOrder0[] = {};
+      int revNodeOrder1[1] = {0};
+      int revNodeOrder2[2] = {1, 0};
+      int revNodeOrder3[3] = {1, 0, 2};    // {0, 2, 1};
+      int revNodeOrder4[4] = {1, 0, 3, 2};    // {1, 0, 3, 2};
+      // set the dof order
+      switch (p)
+      {
+         case 0:
+            SegDofOrd[0] = new int[p];
+            SegDofOrd[1] = new int[p];
+            for (int i = 0; i < p; i++)
+            {
+               SegDofOrd[0][i] = nodeOrder0[i];
+               SegDofOrd[1][i] = revNodeOrder0[i];
+            }
+            break;
+         case 1:
+            SegDofOrd[0] = new int[p];
+            SegDofOrd[1] = new int[p];
+            for (int i = 0; i < p; i++)
+            {
+               SegDofOrd[0][i] = nodeOrder1[i];
+               SegDofOrd[1][i] = revNodeOrder1[i];
+            }
+            break;
+         case 2:
+            SegDofOrd[0] = new int[p];
+            SegDofOrd[1] = new int[p];
+            for (int i = 0; i < p; i++)
+            {
+               SegDofOrd[0][i] = nodeOrder2[i];
+               SegDofOrd[1][i] = revNodeOrder2[i];
+            }
+            break;
+         case 3:
+            SegDofOrd[0] = new int[p];
+            SegDofOrd[1] = new int[p];
+            for (int i = 0; i < p; i++)
+            {
+               SegDofOrd[0][i] = nodeOrder3[i];
+               SegDofOrd[1][i] = revNodeOrder3[i];
+            }
+            break;
+         case 4:
+            SegDofOrd[0] = new int[p];
+            SegDofOrd[1] = new int[p];
+            for (int i = 0; i < p; i++)
+            {
+               SegDofOrd[0][i] = nodeOrder4[i];
+               SegDofOrd[1][i] = revNodeOrder4[i];
+            }
+            break;
+         default:
+            mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
+            break;
+
+      }
+      DSBPElements[Geometry::SEGMENT] = new SBPSegmentElement(p);
+      Tr_SBPElements[Geometry::POINT] = new PointFiniteElement;
+   }
+
+   // two dimensional sbp triangle element
+   if(dim >= 2)
+   {
+      switch (p)
+      {
+         case 0:
+            DSBPdof[Geometry::TRIANGLE] = 3;
+            break;
+         case 1:
+            DSBPdof[Geometry::TRIANGLE] = 7;
+            break;
+         case 2:
+            DSBPdof[Geometry::TRIANGLE] = 12;
+            break;
+         case 3:
+            DSBPdof[Geometry::TRIANGLE] = 18;
+            break;
+         case 4:
+            DSBPdof[Geometry::TRIANGLE] = 27;
+            break;
+         default:
+            mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
+            break;
+      }
+      const int &TriDof = DSBPdof[Geometry::TRIANGLE] + 3*DSBPdof[Geometry::POINT]
+          + 3*DSBPdof[Geometry::SEGMENT];
+      DSBPElements[Geometry::TRIANGLE] = new SBPTriangleElement(p, TriDof);
+   }
+}
+
+const int *DSBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
+                                                   int Or) const
+{
+   if (GeomType == Geometry::SEGMENT)
+   {
+      return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
+   }
+   return NULL;
+}
+
+DSBPCollection::~DSBPCollection()
+{
+   delete [] SegDofOrd[0];
+   for (int g = 0; g < Geometry::NumGeom; g++)
+   {
+      delete DSBPElements[g];
+      delete Tr_SBPElements[g];
+   }
+}
 } // namespace mfem

@@ -22,7 +22,6 @@ ifdef MFEM_USE_PUMI
 else 
 	CONFIG_MK = $(MFEM_BUILD_DIR)/config/config.mk
 endif
-
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)  # this includes mfem's config.mk makefile
 
