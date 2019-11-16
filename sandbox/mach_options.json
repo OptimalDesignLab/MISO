@@ -1,15 +1,13 @@
 {
-   "finite-element-dis": {
-       "basis-type": "csbp"
-   },
    "mesh": {
       "file": "kernel-lev-1.mesh",
       "refine": 0
    },
-   "model-file":"Test.dmg",
+   "model-file": "Test.dmg",
    "space-dis": {
       "degree": 1,
-      "lps-coeff": 1.0
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
    },
    "time-dis": {
       "ode-solver": "RK4", 

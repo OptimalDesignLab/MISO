@@ -28,7 +28,7 @@ EulerSolver::EulerSolver(const string &opt_file_name,
         << fes->GetTrueVSize() << endl;
 #endif
    // add the integrators based on if discretization is continuous or discrete
-   if (options["finite-element-dis"]["basis-type"].get<string>() == "csbp")
+   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       // set up the mass matrix
       mass.reset(new BilinearFormType(fes.get()));
@@ -53,7 +53,7 @@ EulerSolver::EulerSolver(const string &opt_file_name,
       // boundary face integrators are handled in their own function
       addBoundaryIntegrators(alpha, dim);
    }
-   else if (options["finite-element-dis"]["basis-type"].get<string>() == "dsbp")
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       // set up the mass matrix
       mass.reset(new BilinearFormType(fes.get()));
@@ -67,7 +67,7 @@ EulerSolver::EulerSolver(const string &opt_file_name,
       res.reset(new NonlinearFormType(fes.get()));
       res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
       // add the LPS stabilization
-      //TODO: how to get good solution with LPS integrator
+      //TODO: how to get good solution without LPS integrator
       double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
       res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
                                                              lps_coeff));

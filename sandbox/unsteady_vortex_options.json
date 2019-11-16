@@ -1,14 +1,12 @@
 {
-   "finite-element-dis": {
-      "basis-type": "csbp"
-   },
    "mesh": {
       "file": "kernel-lev-2.mesh",
       "refine": 0
    },
    "space-dis": {
       "degree": 2,
-      "lps-coeff": 1.0
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
    },
    "steady": false, 
    "time-dis": {

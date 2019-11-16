@@ -65,12 +65,12 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
-   if (options["finite-element-dis"]["basis-type"].get<string>() == "csbp")
+   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
                                   num_dim));
    }
-   else if (options["finite-element-dis"]["basis-type"].get<string>() == "dsbp")
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
                                    num_dim));
@@ -111,8 +111,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    gmi_register_sim();
 #endif
    gmi_register_mesh();
-
-   // apf::Mesh2* pumi_mesh;
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
                                 options["mesh"]["file"].get<string>().c_str());
    int dim = pumi_mesh->getDimension();
@@ -342,7 +340,7 @@ void AbstractSolver::solveUnsteady()
       u->Save(osol);
    }
    // write the solution to vtk file
-   if (options["finite-element-dis"]["basis-type"].get<string>() == "csbp")
+   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       ofstream sol_ofs("steady_vortex_cg.vtk");
       sol_ofs.precision(14);
@@ -351,7 +349,7 @@ void AbstractSolver::solveUnsteady()
       sol_ofs.close();
       printSolution("final");
    }
-   else if (options["finite-element-dis"]["basis-type"].get<string>() == "dsbp")
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       ofstream sol_ofs("steady_vortex_dg.vtk");
       sol_ofs.precision(14);

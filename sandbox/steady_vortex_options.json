@@ -1,10 +1,8 @@
 {
-   "finite-element-dis": {
-      "basis-type": "csbp"
-   },
    "space-dis": {
       "degree": 1,
-      "lps-coeff": 1.0
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
    },
    "steady": false,
    "time-dis": {
