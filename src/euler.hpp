@@ -172,7 +172,8 @@ public:
 
 /// Integrator for the steady isentropic-vortex boundary condition
 /// \note This derived class uses the CRTP
-class IsentropicVortexBC : public InviscidBoundaryIntegrator<IsentropicVortexBC>
+template <int dim>
+class IsentropicVortexBC : public InviscidBoundaryIntegrator<IsentropicVortexBC<dim>>
 {
 public:
    /// Constructs an integrator for isentropic vortex boundary flux
@@ -182,7 +183,7 @@ public:
    IsentropicVortexBC(adept::Stack &diff_stack,
                       const mfem::FiniteElementCollection *fe_coll,
                       double a = 1.0)
-       : InviscidBoundaryIntegrator<IsentropicVortexBC>(
+       : InviscidBoundaryIntegrator<IsentropicVortexBC<dim>>(
              diff_stack, fe_coll, 4, a) {}
 
    /// Compute a characteristic boundary flux for the isentropic vortex
