@@ -240,6 +240,7 @@ void EulerSolver::solveSteady()
 std::cout << "steady solve is called.\n";
 
    prec.reset( new HypreBoomerAMG() );
+   //prec.reset(new GSSmoother);
    
    // prec->SetType(HypreSmoother::l1Jacobi);
    // prec->SetPositiveDiagonal(true);
@@ -247,20 +248,29 @@ std::cout << "steady solve is called.\n";
 
    std::cout << "preconditioner is set.\n";
    solver.reset(new HyprePCG(fes->GetComm()));
+   //solver.reset(new CGSolver());
    solver->SetTol(1e-10);
    solver->SetMaxIter(30);
-   solver->SetPrintLevel(1);
+   solver->SetPrintLevel(0);
    solver->SetPreconditioner(*prec);
    std::cout << "Inner solver is set.\n";
 
-   newton_solver.iterative_mode = false;
+   newton_solver.iterative_mode = true;
    newton_solver.SetSolver(*solver);
    newton_solver.SetOperator(*res);
    newton_solver.SetPrintLevel(1);
    newton_solver.SetRelTol(1e-10);
    newton_solver.SetAbsTol(1e-10);
-   newton_solver.SetMaxIter(30);
+   newton_solver.SetMaxIter(5);
    std::cout << "Newton solver is set.\n";
+   std::cout << "Print the initial condition\n";
+   u->Print();
+   // std::cout << "try a different initial guess using Nonlinearform mult.\n";
+   // mfem::Vector r2(fes->GlobalTrueVSize());
+   // mfem::Vector x0(fes->GlobalTrueVSize());
+   // x0 = 0.0;
+   // res->Mult(x0, r2);
+   // r2.Print();
 
    mfem::Vector b;
    newton_solver.Mult(b,  *u);
