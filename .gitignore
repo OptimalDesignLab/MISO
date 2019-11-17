@@ -22,7 +22,8 @@
 .vscode
 
 # Output mesh files
-.vtk
+*.vtk
+*.gf
 
 # Dependence folder
 .d
