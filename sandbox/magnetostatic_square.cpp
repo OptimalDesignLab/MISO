@@ -13,7 +13,6 @@ int main(int argc, char *argv[])
 {
    ostream *out;
 #ifdef MFEM_USE_MPI
-   std::cout << "use mpi\n";
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
    int rank;

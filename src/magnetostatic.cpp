@@ -1,9 +1,6 @@
 #include "magnetostatic.hpp"
-#include "coefficient.hpp"
-#include "electromag_integ.hpp"
 
 #include <fstream>
-
 
 using namespace std;
 using namespace mfem;
@@ -49,7 +46,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 
 	/// Construct current source coefficient
 	constructCurrent();
-	
+
 	/// Assemble current source vector
 	assembleCurrentSource();
 
@@ -71,11 +68,11 @@ MagnetostaticSolver::MagnetostaticSolver(
 	///       and setting magnetization contribution to the Jacobian to be zero,
 	///       but need to verify that that is mathematically corrent based on
 	///       the limit of the Jacobian as B goes to zero.
-	// /// Construct magnetization coefficient
-	// constructMagnetization();
+	/// Construct magnetization coefficient
+	constructMagnetization();
 
-	// /// add magnetization integrator to residual
-	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
+	/// add magnetization integrator to residual
+	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
@@ -100,9 +97,15 @@ MagnetostaticSolver::MagnetostaticSolver(
 	prec->SetSingularProblem();
 
    solver.reset(new HyprePCG(h_curl_space->GetComm()));
+	std::cout << "set tol\n";
    solver->SetTol(options["lin-solver"]["tol"].get<double>());
-   solver->SetMaxIter(options["lin-solver"]["max_iter"].get<int>());
+	std::cout << "set tol\n";
+	std::cout << "set iter\n";
+   solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+	std::cout << "set iter\n";
+	std::cout << "set print\n";
    solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+	std::cout << "set print\n";
    solver->SetPreconditioner(*prec);
 #else
 	#ifdef MFEM_USE_SUITESPARSE
@@ -265,7 +268,7 @@ void MagnetostaticSolver::assembleCurrentSource()
    h_curl_mass->Finalize();
 
 	h_curl_mass->AddMult(j_div_free, *current_vec);
-
+	std::cout << "below h_curl add mult\n";
 	// I had strange errors when not using pointer versions of these
 	delete h_curl_mass;
 	delete grad;

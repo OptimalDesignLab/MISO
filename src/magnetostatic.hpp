@@ -6,6 +6,7 @@
 
 #include "solver.hpp"
 #include "coefficient.hpp"
+#include "electromag_integ.hpp"
 
 
 namespace mach

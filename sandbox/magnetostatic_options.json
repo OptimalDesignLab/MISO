@@ -7,6 +7,14 @@
    },
    "steady": true,
    "time-dis": {
-
+   },
+   "lin-solver": {
+      "print-lvl": 2,
+      "max-iter": 500
+   },
+   "newton": {
+      "print-lvl": 1,
+      "rel-tol": 1e-8,
+      "abs-tol": 1e-8
    }
 }

@@ -323,6 +323,7 @@ void MagnetizationIntegrator::AssembleElementGrad(
    }
 
    elmat = 0.0;
+   /* // for non-ferromagnetic magnets Jacobian is zero
 	for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
@@ -371,6 +372,7 @@ void MagnetizationIntegrator::AssembleElementGrad(
       /// add second term to elmat
       AddMult_a_ABt(nu_deriv, temp_matrix2, temp_matrix, elmat);
    }
+   */
 }
 
 } // namespace mach
