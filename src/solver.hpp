@@ -102,14 +102,6 @@ protected:
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
-
-   /// newton solver for the steady problem
-   mfem::NewtonSolver newton_solver;
-   /// linear system solver used in newton solver
-   std::unique_ptr<mfem::HyprePCG> solver;
-   //std::unique_ptr<mfem::IterativeSolver> solver;
-   /// linear system preconditioner for solver in newton solver
-   std::unique_ptr<mfem::HypreBoomerAMG> prec;
 };
 
 } // namespace mach

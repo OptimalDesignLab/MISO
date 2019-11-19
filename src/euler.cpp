@@ -252,7 +252,7 @@ void EulerSolver::solveSteady()
    solver->SetTol(1e-10);
    solver->SetMaxIter(30);
    solver->SetPrintLevel(0);
-   solver->SetPreconditioner(*prec);
+   //solver->SetPreconditioner(*prec);
    std::cout << "Inner solver is set.\n";
 
    newton_solver.iterative_mode = true;
@@ -297,15 +297,15 @@ void EulerSolver::jacobiancheck()
    u_minus->Add(-delta, *perturbation_vec);
 
    std::cout << setprecision(14);
-   std::cout << "Check u:\n";
-   u->Save(std::cout);
-   std::cout << '\n';
-   std::cout << "Check u_plus:\n";
-   u_plus->Save(std::cout);
-   std::cout << '\n';
-   std::cout << "Check u_minus:\n";
-   u_minus->Save(std::cout);
-   std::cout << '\n';
+   // std::cout << "Check u:\n";
+   //u->Save(std::cout);
+   // std::cout << '\n';
+   // std::cout << "Check u_plus:\n";
+   //u_plus->Save(std::cout);
+   // std::cout << '\n';
+   // std::cout << "Check u_minus:\n";
+   //u_minus->Save(std::cout);
+   //std::cout << '\n';
 
    std::unique_ptr<GridFunType> res_plus;
    std::unique_ptr<GridFunType> res_minus;
@@ -317,16 +317,16 @@ void EulerSolver::jacobiancheck()
 
    res_plus->Add(-1.0, *res_minus);
    res_plus->Set(1/(2*delta), *res_plus);
-   std::cout << "The residual difference is:\n";
-   res_plus->Save(std::cout);
+   // std::cout << "The residual difference is:\n";
+   // res_plus->Save(std::cout);
 
    // result from GetGradient(x)
    std::unique_ptr<GridFunType> jac_v;
    jac_v.reset(new GridFunType(fes.get()));
    mfem::Operator &jac = res->GetGradient(*u);
    jac.Mult(*perturbation_vec, *jac_v);
-   std::cout << "Resuelts from GetGradient(x):\n";
-   jac_v->Save(std::cout);
+   //std::cout << "Resuelts from GetGradient(x):\n";
+   //jac_v->Save(std::cout);
    // check the difference norm
    jac_v->Add(-1.0, *res_plus);
    std::cout << "The difference norm is " << jac_v->Norml2()<<'\n';

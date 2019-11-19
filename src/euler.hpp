@@ -338,6 +338,13 @@ public:
    {  perturb_fun = fun; }
    
 protected:
+   /// newton solver for the steady problem
+   mfem::NewtonSolver newton_solver;
+   /// linear system solver used in newton solver
+   std::unique_ptr<mfem::HyprePCG> solver;
+   //std::unique_ptr<mfem::IterativeSolver> solver;
+   /// linear system preconditioner for solver in newton solver
+   std::unique_ptr<mfem::HypreBoomerAMG> prec;
    /// perturbation function that used for 
    void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC

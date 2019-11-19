@@ -12,7 +12,7 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
-std::default_random_engine gen;
+std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 
 /// \brief Defines the exact solution for the steady isentropic vortex
@@ -69,8 +69,7 @@ int main(int argc, char *argv[])
       solver.setInitialCondition(uexact);
       solver.setperturb(pert);
       solver.jacobiancheck();
-      //solver.printSolution("init", degree+1);
-
+      // solver.printSolution("init", degree+1);
       // mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
       //           << solver.calcL2Error(uexact, 0) << '\n' << endl;
       // mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
