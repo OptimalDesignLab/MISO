@@ -422,37 +422,41 @@ void calcIsentropicVortexFlux(const xdouble *x, const xdouble *dir,
 /// \param[in] x - location at which the exact state is desired
 /// \param[out] qbnd - vortex conservative variable at `x`
 /// \tparam xdouble - typically `double` or `adept::adouble`
-/// \note  I reversed the flow direction to be clockwise, so the problem and
-/// mesh are consistent with the LPS paper (that is, because the triangles are
-/// subdivided from the quads using the opposite diagonal)
+/// \note  Taken from Fundamentals of Aerodynamics (Anderson)
 template <typename xdouble>
 void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
 {
-   double ri = 1.0;
-   double Mai = 0.5; //0.95 
-   double rhoi = 2.0;
+   double Mai = 2.4; //Ma1
+   double rhoi = 1.0; //rho1
    double prsi = 1.0/euler::gamma;
-   xdouble rinv = ri/sqrt(x[0]*x[0] + x[1]*x[1]);
-   xdouble rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
-                          1.0/euler::gami);
+   //assuming theta = 25 degrees, Ma1 = 2.4
+   xdouble theta = (25/360)*2*M_PI;
+   double beta = (52/360)*2*M_PI; //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
+   
+   xdouble a = sqrt(euler::gamma*press/rho);
+   
    xdouble Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
                      (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
-   xdouble theta;
-   if (x[0] > 1e-15)
-   {
-      theta = atan(x[1]/x[0]);
-   }
-   else
-   {
-      theta = M_PI/2.0;
-   }
+   
+   xdouble rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
+                          1.0/euler::gami);
    xdouble press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
                  (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
-   xdouble a = sqrt(euler::gamma*press/rho);
+
+   xdouble thresh = .5/tan(beta); //assuming wedge tip is origin
+
+   // if behind shock, set back to upstream state
+   if(x(0) <= thresh)
+   {
+      theta = 0;
+      Ma = Mai;
+      rho = rhoi;
+      press = prsi;
+   }
 
    qbnd[0] = rho;
-   qbnd[1] = rho*a*Ma*sin(theta);
-   qbnd[2] = -rho*a*Ma*cos(theta);
+   qbnd[1] = rho*a*Ma*cos(theta);
+   qbnd[2] = rho*a*Ma*sin(theta);
    qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 }
 

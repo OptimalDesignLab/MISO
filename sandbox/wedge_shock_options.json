@@ -1,0 +1,17 @@
+{
+   "space-dis": {
+      "degree": 1,
+      "lps-coeff": 1.0
+   },
+   "steady": true,
+   "time-dis": {
+      "const-cfl": true,
+      "cfl": 1.0,
+      "dt": 0.1,
+      "t-final": 500.0
+   },
+   "bcs": {
+      "wedge-shock": [1, 1, 1, 0, 0],
+      "slip-wall": [0, 0, 0, 1, 1]
+   }
+}
