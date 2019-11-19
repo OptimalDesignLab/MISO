@@ -237,7 +237,7 @@ void EulerSolver::solveSteady()
 //    MFEMFinalizePetsc();
 
    // Use hypre solve to solve the problem
-std::cout << "steady solve is called.\n";
+   std::cout << "steady solve is called.\n";
 
    prec.reset( new HypreBoomerAMG() );
    //prec.reset(new GSSmoother);
@@ -277,52 +277,59 @@ std::cout << "steady solve is called.\n";
    MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 }
 
-// void IsentropicVortexBC::calcFluxJacState(const mfem::Vector &x, 
-//                                           const mfem::Vector &dir,
-//                                           const mfem::Vector &q, 
-//                                           mfem::DenseMatrix &flux_jac)
-// {
-//    // create containers for active double objects for each input
-//    std::vector<adouble> x_a(x.Size());
-//    std::vector<adouble> dir_a(dir.Size());
-//    std::vector<adouble> q_a(q.Size());
-//    // initialize active double containers with data from inputs
-//    adept::set_values(x_a.data(), x.Size(), x.GetData());
-//    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-//    adept::set_values(q_a.data(), q.Size(), q.GetData());
-//    // start new stack recording
-//    this->stack.new_recording();
-//    // create container for active double flux output
-//    std::vector<adouble> flux_a(q.Size());
-//    mach::calcIsentropicVortexFlux<adouble>(x_a.data(), dir_a.data(),
-//                                            q_a.data(), flux_a.data());
-//    this->stack.independent(q_a.data(), q.Size());
-//    this->stack.dependent(flux_a.data(), q.Size());
-//    this->stack.jacobian(flux_jac.GetData());
-// }
+void EulerSolver::jacobiancheck()
+{
+   // initialize the variables
+   const double delta = 1e-5;
+   std::unique_ptr<GridFunType> u_plus;
+   std::unique_ptr<GridFunType> u_minus;
+   std::unique_ptr<GridFunType> perturbation_vec;
+   perturbation_vec.reset(new GridFunType(fes.get()));
+   VectorFunctionCoefficient up(num_state, perturb_fun);
+   perturbation_vec->ProjectCoefficient(up);
+   u_plus.reset(new GridFunType(fes.get()));
+   u_minus.reset(new GridFunType(fes.get()));
 
-// void IsentropicVortexBC::calcFluxJacDir(const mfem::Vector &x,
-//                                         const mfem::Vector &dir,
-//                                         const mfem::Vector &q,
-//                                         mfem::DenseMatrix &flux_jac)
-// {
-//    // create containers for active double objects for each input
-//    std::vector<adouble> x_a(x.Size());
-//    std::vector<adouble> dir_a(dir.Size());
-//    std::vector<adouble> q_a(q.Size());
-//    // initialize active double containers with data from inputs
-//    adept::set_values(x_a.data(), x.Size(), x.GetData());
-//    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-//    adept::set_values(q_a.data(), q.Size(), q.GetData());
-//    // start new stack recording
-//    this->stack.new_recording();
-//    // create container for active double flux output
-//    std::vector<adouble> flux_a(q.Size());
-//    mach::calcIsentropicVortexFlux<adouble>(x_a.data(), dir_a.data(), 
-//                                            q_a.data(), flux_a.data());
-//    this->stack.independent(dir_a.data(), dir.Size());
-//    this->stack.dependent(flux_a.data(), q.Size());
-//    this->stack.jacobian(flux_jac.GetData());
-// }
+   // set uplus and uminus to the current state
+   *u_plus = *u;
+   *u_minus = *u;
+   u_plus->Add(delta, *perturbation_vec);
+   u_minus->Add(-delta, *perturbation_vec);
+
+   std::cout << setprecision(14);
+   std::cout << "Check u:\n";
+   u->Save(std::cout);
+   std::cout << '\n';
+   std::cout << "Check u_plus:\n";
+   u_plus->Save(std::cout);
+   std::cout << '\n';
+   std::cout << "Check u_minus:\n";
+   u_minus->Save(std::cout);
+   std::cout << '\n';
+
+   std::unique_ptr<GridFunType> res_plus;
+   std::unique_ptr<GridFunType> res_minus;
+   res_plus.reset(new GridFunType(fes.get()));
+   res_minus.reset(new GridFunType(fes.get()));
+
+   res->Mult(*u_plus, *res_plus);
+   res->Mult(*u_minus, *res_minus);
+
+   res_plus->Add(-1.0, *res_minus);
+   res_plus->Set(1/(2*delta), *res_plus);
+   std::cout << "The residual difference is:\n";
+   res_plus->Save(std::cout);
+
+   // result from GetGradient(x)
+   std::unique_ptr<GridFunType> jac_v;
+   jac_v.reset(new GridFunType(fes.get()));
+   mfem::Operator &jac = res->GetGradient(*u);
+   jac.Mult(*perturbation_vec, *jac_v);
+   std::cout << "Resuelts from GetGradient(x):\n";
+   jac_v->Save(std::cout);
+   // check the difference norm
+   jac_v->Add(-1.0, *res_plus);
+   std::cout << "The difference norm is " << jac_v->Norml2()<<'\n';
+}
 
 } // namespace mach

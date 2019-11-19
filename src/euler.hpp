@@ -328,7 +328,18 @@ public:
    /// Solve the steady state  problem
    virtual void solveSteady();
 
+   /// Check the jacobian accuracy
+   /// Compare the results jac_v = jac * pert_v w.r.t jac_v calculated from
+   /// finite difference method 
+   void jacobiancheck();
+
+   /// set the perturbation function that used for check jacobian
+   void setperturb(void (*fun)(const mfem::Vector &, mfem::Vector &))
+   {  perturb_fun = fun; }
+   
 protected:
+   /// perturbation function that used for 
+   void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// the mass matrix bilinear form

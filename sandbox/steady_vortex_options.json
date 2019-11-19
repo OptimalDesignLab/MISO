@@ -11,7 +11,7 @@
       "cfl": 1.0
    },
    "mesh": {
-      "refine": 1
+      "refine": 0
    },
    "unsteady": {
       "const-cfl": true,
