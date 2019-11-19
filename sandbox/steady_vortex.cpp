@@ -69,16 +69,16 @@ int main(int argc, char *argv[])
       solver.setInitialCondition(uexact);
       solver.setperturb(pert);
       solver.jacobiancheck();
-      // solver.printSolution("init", degree+1);
-      // mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-      //           << solver.calcL2Error(uexact, 0) << '\n' << endl;
-      // mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
-      //           << endl;
-      // solver.solveForState();
-      // mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
-      //           << endl;
-      // mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-      //           << solver.calcL2Error(uexact, 0) << '\n' << endl;
+      solver.printSolution("init", degree+1);
+      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+                << solver.calcL2Error(uexact, 0) << '\n' << endl;
+      mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
+                << endl;
+      solver.solveForState();
+      mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
+                << endl;
+      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+                << solver.calcL2Error(uexact, 0) << '\n' << endl;
    }
    catch (MachException &exception)
    {

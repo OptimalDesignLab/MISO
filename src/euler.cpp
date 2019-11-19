@@ -240,17 +240,13 @@ void EulerSolver::solveSteady()
    std::cout << "steady solve is called.\n";
 
    prec.reset( new HypreBoomerAMG() );
-   //prec.reset(new GSSmoother);
-   
-   // prec->SetType(HypreSmoother::l1Jacobi);
-   // prec->SetPositiveDiagonal(true);
    prec->SetPrintLevel(0);
 
    std::cout << "preconditioner is set.\n";
-   solver.reset(new HyprePCG(fes->GetComm()));
+   solver.reset( new HypreGMRES(fes->GetComm()) );
    //solver.reset(new CGSolver());
    solver->SetTol(1e-10);
-   solver->SetMaxIter(30);
+   solver->SetMaxIter(100);
    solver->SetPrintLevel(0);
    //solver->SetPreconditioner(*prec);
    std::cout << "Inner solver is set.\n";
@@ -261,10 +257,10 @@ void EulerSolver::solveSteady()
    newton_solver.SetPrintLevel(1);
    newton_solver.SetRelTol(1e-10);
    newton_solver.SetAbsTol(1e-10);
-   newton_solver.SetMaxIter(5);
+   newton_solver.SetMaxIter(30);
    std::cout << "Newton solver is set.\n";
    std::cout << "Print the initial condition\n";
-   u->Print();
+   u->Print(std::cout,4);
    // std::cout << "try a different initial guess using Nonlinearform mult.\n";
    // mfem::Vector r2(fes->GlobalTrueVSize());
    // mfem::Vector x0(fes->GlobalTrueVSize());
@@ -324,6 +320,7 @@ void EulerSolver::jacobiancheck()
    std::unique_ptr<GridFunType> jac_v;
    jac_v.reset(new GridFunType(fes.get()));
    mfem::Operator &jac = res->GetGradient(*u);
+   jac.PrintMatlab(std::cout);
    jac.Mult(*perturbation_vec, *jac_v);
    //std::cout << "Resuelts from GetGradient(x):\n";
    //jac_v->Save(std::cout);
