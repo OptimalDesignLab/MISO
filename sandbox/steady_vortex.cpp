@@ -1,8 +1,10 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
+#include<random>
+#include "adept.h"
 
 #include "mfem.hpp"
 #include "euler.hpp"
-#include "euler_fluxes.hpp"
+//#include "euler_fluxes.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -10,10 +12,18 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
+std::default_random_engine gen(std::random_device{}());
+std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
+
+/// \brief Defines the random function for the jabocian check
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void pert(const Vector &x, Vector& p);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -50,10 +60,15 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
+      std::cout << options_file << endl;
       const int dim = 2;
+      const int num_state = dim + 2; 
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+
       EulerSolver solver(opt_file_name, move(smesh), dim);
       solver.setInitialCondition(uexact);
+      solver.setperturb(pert);
+      solver.jacobiancheck();
       solver.printSolution("init", degree+1);
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
@@ -64,7 +79,6 @@ int main(int argc, char *argv[])
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
-
    }
    catch (MachException &exception)
    {
@@ -77,6 +91,16 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
+}
+
+// perturbation function used to check the jacobian in each iteration
+void pert(const Vector &x, Vector& p)
+{
+   p.SetSize(4);
+   for(int i = 0; i < 4; i++)
+   {
+      p(i) = normal_rand(gen);
+   }
 }
 
 // Exact solution; note that I reversed the flow direction to be clockwise, so
