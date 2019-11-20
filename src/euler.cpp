@@ -1,8 +1,8 @@
 #include "euler.hpp"
-#include "euler_fluxes.hpp"
+//#include "euler_fluxes.hpp"
 #include "sbp_fe.hpp"
 #include "diag_mass_integ.hpp"
-#include "inviscid_integ.hpp"
+#include "euler_integ.hpp"
 #include "evolver.hpp"
 
 using namespace mfem;
