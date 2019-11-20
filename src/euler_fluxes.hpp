@@ -430,8 +430,8 @@ void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
    double rhoi = 1.0; //rho1
    double prsi = 1.0/euler::gamma;
    //assuming theta = 25 degrees, Ma1 = 2.4
-   xdouble theta = (25/360)*2*M_PI;
-   double beta = (52/360)*2*M_PI; 
+   xdouble theta = 25*2*M_PI/360;
+   double beta = 52*2*M_PI/360; 
    //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
    
    //compute mach number downstream of shock

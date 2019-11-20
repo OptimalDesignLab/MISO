@@ -4,6 +4,8 @@
 #include "diag_mass_integ.hpp"
 #include "euler_integ.hpp"
 #include "evolver.hpp"
+#include <fstream>
+#include <iostream>
 
 using namespace mfem;
 using namespace std;
@@ -218,6 +220,182 @@ double EulerSolver::calcStepSize(double cfl) const
    dt_min = dt_local;
 #endif
    return dt_min;
+}
+
+/// Solve for the steady problem
+void EulerSolver::solveSteady()
+{
+   // // use Newton method with GMRES to solve for steady state problem
+   // mfem::NewtonSolver * ntsolver = new NewtonSolver();
+   // mfem::GMRESSolver * gmres = new GMRESSolver();
+
+   // // set the members of GMRES solver
+   // gmres->SetRelTol(1e-12);
+   // gmres->SetAbsTol(1e-12);
+   // gmres->SetMaxIter(50);
+   // //mfem::GSSmoother gs_prec = new GSSmoother();
+   // //gmres->SetPreconditioner(*gs_prec);
+   // gmres->iterative_mode = false;
+
+   // // // set the members for NewtonSolver
+   // ntsolver->SetRelTol(1e-10);
+   // ntsolver->SetAbsTol(1e-12);
+   // ntsolver->SetMaxIter(50);
+   // ntsolver->SetSolver(*gmres);
+   // ntsolver->SetOperator(*res);
+
+   // mfem::Vector zero;
+   // ntsolver->Mult(zero, *u);
+   // MFEM_ASSERT(ntsolver.GetConverged(), "Newton Solver didn't get converged.\n");
+   // delete gmres;`
+   // delete ntsolver;
+   // delete gs_prec;
+
+   // below are petsc solver
+
+// #ifndef MFEM_USE_PETSC
+// #error This function requires MFEM_USE_PETSC defined
+// #endif
+//    const char *petscrc_file="eulersteady";
+//    std::cout << "EulerSolver::solveSteady() is called.\n";
+//    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+
+//    PetscNonlinearSolver *pnewton_solver = new 
+//                      PetscNonlinearSolver(fes->GetComm(), *res);
+//    //mfem::PetscPreconditonerFactory * j_prec = new 
+//    //                   PetscPreconditionerFactory();
+//    pnewton_solver->SetPrintLevel(1); // print Newton iterations
+//    pnewton_solver->SetRelTol(1e-6);
+//    pnewton_solver->SetAbsTol(1e-6);
+//    pnewton_solver->SetMaxIter(30);
+//    //pnewton_solver->SetPreconditionerFactory(*j_prec);
+
+//    mfem::Vector zero;
+//    pnewton_solver->Mult(zero,*u);
+//    std::cout << "\nConverged? :"<<pnewton_solver->GetConverged() << std::endl;
+//    MFEM_ASSERT(pnewton_solver->GetConverged(), "Newton solver didn't converge.\n");
+//    MFEMFinalizePetsc();
+
+   // Use hypre solve to solve the problem
+   std::cout << "steady solve is called.\n";
+
+   prec.reset( new HypreBoomerAMG() );
+   prec->SetPrintLevel(0);
+
+   std::cout << "preconditioner is set.\n";
+   solver.reset( new HypreGMRES(fes->GetComm()) );
+   //solver.reset(new CGSolver());
+   solver->SetTol(1e-10);
+   solver->SetMaxIter(100);
+   solver->SetPrintLevel(1);
+   //solver->SetPreconditioner(*prec);
+   std::cout << "Inner solver is set.\n";
+
+   newton_solver.iterative_mode = true;
+   newton_solver.SetSolver(*solver);
+   newton_solver.SetOperator(*res);
+   newton_solver.SetPrintLevel(2);
+   newton_solver.SetRelTol(1e-10);
+   newton_solver.SetAbsTol(1e-10);
+   newton_solver.SetMaxIter(30);
+   std::cout << "Newton solver is set.\n";
+   std::cout << "Print the initial condition\n";
+   u->Print(std::cout,4);
+   // std::cout << "try a different initial guess using Nonlinearform mult.\n";
+   // mfem::Vector r2(fes->GlobalTrueVSize());
+   // mfem::Vector x0(fes->GlobalTrueVSize());
+   // x0 = 0.0;
+   // res->Mult(x0, r2);
+   // r2.Print();
+
+   mfem::Vector b;
+   newton_solver.Mult(b,  *u);
+   MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+
+   // Save the final solution. This output can be viewed later using GLVis:
+   // glvis -m unitGridTestMesh.msh -g adv-final.gf".
+   int precision = 8;
+
+   {
+      ofstream osol("wedge-shock-final.gf");
+      osol.precision(precision);
+      u->Save(osol);
+   }
+   // write the solution to vtk file
+   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   {
+      ofstream sol_ofs("wedge_shock_cg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+      sol_ofs.close();
+      printSolution("final");
+   }
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   {
+      ofstream sol_ofs("wedge_shock_dg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+      sol_ofs.close();
+      printSolution("final");
+   }
+}
+
+void EulerSolver::jacobiancheck()
+{
+   // initialize the variables
+   const double delta = 1e-5;
+   std::unique_ptr<GridFunType> u_plus;
+   std::unique_ptr<GridFunType> u_minus;
+   std::unique_ptr<GridFunType> perturbation_vec;
+   perturbation_vec.reset(new GridFunType(fes.get()));
+   VectorFunctionCoefficient up(num_state, perturb_fun);
+   perturbation_vec->ProjectCoefficient(up);
+   u_plus.reset(new GridFunType(fes.get()));
+   u_minus.reset(new GridFunType(fes.get()));
+
+   // set uplus and uminus to the current state
+   *u_plus = *u;
+   *u_minus = *u;
+   u_plus->Add(delta, *perturbation_vec);
+   u_minus->Add(-delta, *perturbation_vec);
+
+   std::cout << setprecision(14);
+   // std::cout << "Check u:\n";
+   //u->Save(std::cout);
+   // std::cout << '\n';
+   // std::cout << "Check u_plus:\n";
+   //u_plus->Save(std::cout);
+   // std::cout << '\n';
+   // std::cout << "Check u_minus:\n";
+   //u_minus->Save(std::cout);
+   //std::cout << '\n';
+
+   std::unique_ptr<GridFunType> res_plus;
+   std::unique_ptr<GridFunType> res_minus;
+   res_plus.reset(new GridFunType(fes.get()));
+   res_minus.reset(new GridFunType(fes.get()));
+
+   res->Mult(*u_plus, *res_plus);
+   res->Mult(*u_minus, *res_minus);
+
+   res_plus->Add(-1.0, *res_minus);
+   res_plus->Set(1/(2*delta), *res_plus);
+   // std::cout << "The residual difference is:\n";
+   // res_plus->Save(std::cout);
+
+   // result from GetGradient(x)
+   std::unique_ptr<GridFunType> jac_v;
+   jac_v.reset(new GridFunType(fes.get()));
+   mfem::Operator &jac = res->GetGradient(*u);
+   jac.PrintMatlab(std::cout);
+   jac.Mult(*perturbation_vec, *jac_v);
+   //std::cout << "Resuelts from GetGradient(x):\n";
+   //jac_v->Save(std::cout);
+   // check the difference norm
+   jac_v->Add(-1.0, *res_plus);
+   std::cout << "The difference norm is " << jac_v->Norml2()<<'\n';
 }
 
 } // namespace mach

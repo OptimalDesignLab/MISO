@@ -137,8 +137,8 @@ void uexact(const Vector &x, Vector& u)
    double rhoi = 1.0; //rho1
    double prsi = 1.0/euler::gamma;
    //assuming theta = 25 degrees, Ma1 = 2.4
-   double theta = (25/360)*2*M_PI;
-   double beta = (52/360)*2*M_PI; 
+   double theta = 25*2*M_PI/360;
+   double beta = 52*2*M_PI/360; 
    //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
    
    //compute mach number downstream of shock
@@ -170,5 +170,10 @@ void uexact(const Vector &x, Vector& u)
    u(1) = rho*a*Ma*cos(theta);
    u(2) = rho*a*Ma*sin(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   
+   // u(0) = 0;
+   // u(1) = 0;
+   // u(2) = 0;
+   // u(3) = 0;
 }
 
