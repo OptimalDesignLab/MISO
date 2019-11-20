@@ -1,8 +1,4 @@
 {
-   "mesh": {
-      "file": "../../cad/wedge1.smb"
-   },
-   "model-file": "../../cad/wedge1.dmg",
    "space-dis": {
       "degree": 1,
       "lps-coeff": 1.0

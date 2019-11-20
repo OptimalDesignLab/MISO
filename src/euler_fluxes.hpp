@@ -431,32 +431,27 @@ void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
    double prsi = 1.0/euler::gamma;
    //assuming theta = 25 degrees, Ma1 = 2.4
    xdouble theta = (25/360)*2*M_PI;
-   double beta = (52/360)*2*M_PI; 
-   //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
+   double beta = (52/360)*2*M_PI; //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
    
-   //compute mach number downstream of shock
-   xdouble Ma1n = Mai*sin(beta);
-   xdouble Ma2n = sqrt((1+(.5*euler::gami)*Ma1n*Ma1n) /
-                     (euler::gamma*Ma1n*Ma1n - .5*euler::gami));
-   xdouble Ma = Ma2n/sin(beta-theta);
-   
-   //compute other quantities using continuity, momentum, and energy equations
-   xdouble rho = rhoi*(euler::gamma+1)*Ma1n*Ma1n / 
-                  (2+euler::gami*Ma1n*Ma1n);
-   xdouble press = prsi*(1 + (2*euler::gamma/(euler::gamma+1))*(Ma1n*Ma1n - 1)); 
    xdouble a = sqrt(euler::gamma*press/rho);
+   
+   xdouble Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
+                     (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
+   
+   xdouble rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
+                          1.0/euler::gami);
+   xdouble press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
+                 (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
 
-   
-   
-   double thresh = .5/tan(beta); //assuming wedge tip is origin
+   xdouble thresh = .5/tan(beta); //assuming wedge tip is origin
+
    // if behind shock, set back to upstream state
-   if(x[0] <= thresh+.5)
+   if(x(0) <= thresh)
    {
       theta = 0;
       Ma = Mai;
       rho = rhoi;
       press = prsi;
-      a = sqrt(euler::gamma*press/rho);
    }
 
    qbnd[0] = rho;
