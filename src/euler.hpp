@@ -357,56 +357,6 @@ protected:
    /// \param[in] dim - number of dimensions
    void addBoundaryIntegrators(double alpha, int dim = 1);
 
-
-   /// Compute the Jacobian of the Euler flux with respect to state variables
-   /// \param[in] dir - direction in which euler flux is calculated
-   /// \param[in] q - conservative state variables
-   /// \param[out] Jac - the Jacobian of the euler flux with respect to q
-   /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-   template <int dim>
-   static void calcEulerFluxJacQ(const mfem::Vector &dir, const mfem::Vector &q,
-                                 mfem::DenseMatrix &jac);
-
-   /// Compute the Jacobian of the Euler flux with respect to dir
-   /// \param[in] dir - direction in which euler flux is calculated
-   /// \param[in] q - conservative state variables
-   /// \param[out] Jac - the Jacobian of the euler flux with respect to dir
-   /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-   template <int dim>
-   static void calcEulerFluxJacDir(const mfem::Vector &dir,
-                                   const mfem::Vector &q,
-                                   mfem::DenseMatrix &jac);
-
-   /// Compute the Jacobian of the slip wall flux with respect to Q
-   /// \param[in] x - not used
-   /// \param[in] dir - desired (scaled) normal vector to the wall
-   /// \param[in] q - conservative state variable on the boundary
-   /// \param[out] Jac - the Jacobian of the boundary flux in the direction
-   ///                   `dir` with respect to Q
-   /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-   template <int dim>
-   static void calcSlipWallFluxJacQ(const mfem::Vector &x,
-                                    const mfem::Vector &dir,
-                                    const mfem::Vector &q,
-                                    mfem::DenseMatrix &Jac);
-
-   /// Compute the Jacobian of the slip wall flux with respect to Dir
-   /// \param[in] x - not used
-   /// \param[in] dir - desired (scaled) normal vector to the wall
-   /// \param[in] q - conservative state variable on the boundary
-   /// \param[out] Jac - the Jacobian of the boundary flux in the direction
-   ///                   `dir` with respect to dir
-   /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-   template <int dim>
-   static void calcSlipWallFluxJacDir(const mfem::Vector &x,
-                                      const mfem::Vector &dir,
-                                      const mfem::Vector &q,
-                                      mfem::DenseMatrix &Jac);
-                                      
-   // template<int dim>
-   // static void calcIsmailRoeJacQ(int di, const mfem::Vector &qL, 
-   //                               const mfem::Vector &qR,
-   //                               mfem::DenseMatrix &jac);
 };
 
 #include "euler_def.hpp"
