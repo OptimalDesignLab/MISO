@@ -14,11 +14,12 @@ namespace mach
 nlohmann::json default_options =
 {
    {"model-file","mach.dmg"}, // model file name
-
+    
    {"space-dis", // options related to spatial discretization
    {
       {"degree", 1}, // default operator degree
-      {"lps-coeff", 1.0} // scaling coefficient for local-proj stabilization
+      {"lps-coeff", 1.0}, // scaling coefficient for local-proj stabilization
+      {"basis-type", "csbp"} // csbp & dsbp for continuous & discrete SBP discretization resp. 
    }},
 
    {"steady", false}, // if true, solve a steady problem
@@ -48,11 +49,12 @@ nlohmann::json default_options =
       {"abs-tol", 1e-12}, // solver absolute tolerance
    }},
 
-   {"mesh", // options related to the mesh
+   {"mesh",
    {
-      {"file", "mach.mesh"}, // mesh file name
+      {"file", "mach.mesh"}, // mesh file name when not using pumi
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
    }}
+
 };
 
 } // namespace mach
