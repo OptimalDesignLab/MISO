@@ -294,13 +294,13 @@ void EulerSolver::solveSteady()
    newton_solver.iterative_mode = true;
    newton_solver.SetSolver(*solver);
    newton_solver.SetOperator(*res);
-   newton_solver.SetPrintLevel(2);
+   newton_solver.SetPrintLevel(1);
    newton_solver.SetRelTol(1e-10);
    newton_solver.SetAbsTol(1e-10);
-   newton_solver.SetMaxIter(30);
+   newton_solver.SetMaxIter(6);
    std::cout << "Newton solver is set.\n";
    std::cout << "Print the initial condition\n";
-   u->Print(std::cout,4);
+   //u->Print(std::cout,4);
    // std::cout << "try a different initial guess using Nonlinearform mult.\n";
    // mfem::Vector r2(fes->GlobalTrueVSize());
    // mfem::Vector x0(fes->GlobalTrueVSize());
@@ -310,7 +310,6 @@ void EulerSolver::solveSteady()
 
    mfem::Vector b;
    newton_solver.Mult(b,  *u);
-   MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
@@ -340,6 +339,8 @@ void EulerSolver::solveSteady()
       sol_ofs.close();
       printSolution("final");
    }
+      MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+
 }
 
 void EulerSolver::jacobiancheck()

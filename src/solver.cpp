@@ -122,9 +122,38 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
    //    ma::adapt(uniInput);
    // }
-   pumi_mesh->verify();
-   mesh.reset(new MeshType(comm, pumi_mesh));
+         // reorder boundary faces, just in case
+         
+      apf::MeshIterator* itr = pumi_mesh->begin(dim-1);
+      apf::MeshEntity* ent ;
+      pumi_mesh->verify();
+      mesh.reset(new MeshType(comm, pumi_mesh));
+      int ent_cnt = 0;
+      cout <<"hello\n";
+
+      while ((ent = pumi_mesh->iterate(itr)))
+      {
+
+         apf::ModelEntity *me = pumi_mesh->toModel(ent);
+         if (pumi_mesh->getModelType(me) == (dim-1))
+         {
+            //Get tag from model by  reverse classification
+            int tag = pumi_mesh->getModelTag(me);
+            (mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
+            ent_cnt++;
+         }
+      }
+      pumi_mesh->end(itr);  
+      mesh->SetAttributes();
+      // pumi_mesh->destroyNative();
+      // apf::destroyMesh(pumi_mesh);
+
+   
    PCU_Comm_Free();
+   for(int k = 0; k < mesh->bdr_attributes.Size(); k++)
+   {
+      cout << mesh->bdr_attributes[k]<<"\n";
+   }
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
    Sim_unregisterAllKeys();
