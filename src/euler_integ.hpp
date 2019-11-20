@@ -172,7 +172,8 @@ public:
 
 /// Integrator for the steady isentropic-vortex boundary condition
 /// \note This derived class uses the CRTP
-class IsentropicVortexBC : public InviscidBoundaryIntegrator<IsentropicVortexBC>
+template <int dim>
+class IsentropicVortexBC : public InviscidBoundaryIntegrator<IsentropicVortexBC<dim>>
 {
 public:
    /// Constructs an integrator for isentropic vortex boundary flux
@@ -182,7 +183,7 @@ public:
    IsentropicVortexBC(adept::Stack &diff_stack,
                       const mfem::FiniteElementCollection *fe_coll,
                       double a = 1.0)
-       : InviscidBoundaryIntegrator<IsentropicVortexBC>(
+       : InviscidBoundaryIntegrator<IsentropicVortexBC<dim>>(
              diff_stack, fe_coll, 4, a) {}
 
    /// Compute a characteristic boundary flux for the isentropic vortex
@@ -194,6 +195,56 @@ public:
                  const mfem::Vector &q, mfem::Vector &flux_vec)
    {
       calcIsentropicVortexFlux<double>(x.GetData(), dir.GetData(), q.GetData(),
+                                       flux_vec.GetData());
+   }
+
+   /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `q`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+   {
+      throw MachException("Not implemented!");
+   }
+
+   /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+   void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
+                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+   {
+      throw MachException("Not implemented!");
+   }
+};
+
+/// Integrator for the steady wedge shock boundary condition
+/// \note This derived class uses the CRTP
+class WedgeShockBC : public InviscidBoundaryIntegrator<WedgeShockBC>
+{
+public:
+   /// Constructs an integrator for wedge shock boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   WedgeShockBC(adept::Stack &diff_stack,
+                      const mfem::FiniteElementCollection *fe_coll,
+                      double a = 1.0)
+       : InviscidBoundaryIntegrator<WedgeShockBC>(
+             diff_stack, fe_coll, 4, a) {}
+
+   /// Compute a characteristic boundary flux for the wedge shock
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
+                 const mfem::Vector &q, mfem::Vector &flux_vec)
+   {
+      calcWedgeShockFlux<double>(x.GetData(), dir.GetData(), q.GetData(),
                                        flux_vec.GetData());
    }
 
