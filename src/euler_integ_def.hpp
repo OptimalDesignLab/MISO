@@ -288,48 +288,98 @@ void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
    this->stack.jacobian(jac_dir.GetData());
 }
 
-// template <int dim>
-// void IsentropicVortexBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-//                                           const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
-// {
-//    // create containers for active double objects for each input
-//    std::vector<adouble> x_a(x.Size());
-//    std::vector<adouble> dir_a(dir.Size());
-//    std::vector<adouble> q_a(q.Size());
-//    // initialize active double containers with data from inputs
-//    adept::set_values(x_a.data(), x.Size(), x.GetData());
-//    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-//    adept::set_values(q_a.data(), q.Size(), q.GetData());
-//    // start new stack recording
-//    this->stack.new_recording();
-//    // create container for active double flux output
-//    std::vector<adouble> flux_a(q.Size());
-//    mach::calcIsentropicVortexFlux<adouble>(x_a.data(), dir_a.data(),
-//                                            q_a.data(), flux_a.data());
-//    this->stack.independent(q_a.data(), q.Size());
-//    this->stack.dependent(flux_a.data(), q.Size());
-//    this->stack.jacobian(flux_jac.GetData());
-// }
+template <int dim>
+void IsentropicVortexBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                                          const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcIsentropicVortexFlux<adouble>(x_a.data(), dir_a.data(),
+                                           q_a.data(), flux_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
 
-// template <int dim>
-// void IsentropicVortexBC<dim>::calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
-//                                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
-// {
-//    // create containers for active double objects for each input
-//    std::vector<adouble> x_a(x.Size());
-//    std::vector<adouble> dir_a(dir.Size());
-//    std::vector<adouble> q_a(q.Size());
-//    // initialize active double containers with data from inputs
-//    adept::set_values(x_a.data(), x.Size(), x.GetData());
-//    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
-//    adept::set_values(q_a.data(), q.Size(), q.GetData());
-//    // start new stack recording
-//    this->stack.new_recording();
-//    // create container for active double flux output
-//    std::vector<adouble> flux_a(q.Size());
-//    mach::calcIsentropicVortexFlux<adouble>(x_a.data(), dir_a.data(),
-//                                            q_a.data(), flux_a.data());
-//    this->stack.independent(dir_a.data(), dir.Size());
-//    this->stack.dependent(flux_a.data(), q.Size());
-//    this->stack.jacobian(flux_jac.GetData());
-// }
+template <int dim>
+void IsentropicVortexBC<dim>::calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
+                                        const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcIsentropicVortexFlux<adouble>(x_a.data(), dir_a.data(),
+                                           q_a.data(), flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim>
+void WedgeShockBC<dim>::calcFluxJacState(const mfem::Vector &x,
+                                       const mfem::Vector &dir,
+                                       const mfem::Vector &q,
+                                       mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+                                        flux_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim>
+void WedgeShockBC<dim>::calcFluxJacDir(const mfem::Vector &x,
+                                     const mfem::Vector &dir,
+                                     const mfem::Vector &q,
+                                     mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+                                        flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}

@@ -55,25 +55,6 @@ int main(int argc, char *argv[])
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
       const int dim = 2;
-
-      // read the SCOREC Mesh.
-   //    PCU_Comm_Init();
-   // #ifdef MFEM_USE_SIMMETRIX
-   //    Sim_readLicenseFile(0);
-   //    gmi_sim_start();
-   //    gmi_register_sim();
-   // #endif
-   //    gmi_register_mesh();
-
-   //    apf::Mesh2* pumi_mesh;
-   //    pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
-
-
-   //    pumi_mesh->verify();
-
-   //    // create the MFEM mesh object from the PUMI mesh
-   //    unique_ptr<Mesh> mesh = unique_ptr<Mesh>(new PumiMesh(pumi_mesh, 1, 1));
-
    //    // reorder boundary faces, just in case
    //    apf::MeshIterator* itr = pumi_mesh->begin(dim-1);
    //    apf::MeshEntity* ent ;
@@ -97,23 +78,7 @@ int main(int argc, char *argv[])
 
       EulerSolver solver(opt_file_name, nullptr, dim);
       solver.setInitialCondition(uexact);
-      //solver.printSolution("init", degree+1);
-      // mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-      //           << solver.calcL2Error(uexact, 0) << '\n' << endl;
-      // mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
-      //           << endl;
       solver.solveForState();
-      // mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
-      //           << endl;
-      // mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-      //           << solver.calcL2Error(uexact, 0) << '\n' << endl;
-
-      // ofstream fout("wedge1_sol.vtk");
-      // fout.precision(8); 
-      // //mesh->Print(fout);
-      // mesh->PrintVTK(fout, 0);
-      // GridFunction x = Tesla.GetVectorPotential();
-      // x.SaveVTK(mesh_ofs, "sol", 0);
 
    }
    catch (MachException &exception)
