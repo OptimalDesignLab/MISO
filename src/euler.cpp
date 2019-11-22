@@ -185,92 +185,74 @@ double EulerSolver::calcStepSize(double cfl) const
 /// Solve for the steady problem
 void EulerSolver::solveSteady()
 {
-   // // use Newton method with GMRES to solve for steady state problem
-   // mfem::NewtonSolver * ntsolver = new NewtonSolver();
-   // mfem::GMRESSolver * gmres = new GMRESSolver();
+   // // Hypre solver section
+   // prec.reset( new HypreBoomerAMG() );
+   // prec->SetPrintLevel(0);
+   // std::cout << "preconditioner is set.\n";
+   // solver.reset( new HypreGMRES(fes->GetComm()) );
+   // solver->SetTol(1e-10);
+   // solver->SetMaxIter(100);
+   // solver->SetPrintLevel(0);
+   // //solver->SetPreconditioner(*prec);
+   // std::cout << "Inner solver is set.\n";
+   // newton_solver.iterative_mode = true;
+   // newton_solver.SetSolver(*solver);
+   // newton_solver.SetOperator(*res);
+   // newton_solver.SetPrintLevel(1);
+   // newton_solver.SetRelTol(1e-10);
+   // newton_solver.SetAbsTol(1e-10);
+   // newton_solver.SetMaxIter(50);
+   // std::cout << "Newton solver is set.\n";
+   // mfem::Vector b;
+   // newton_solver.Mult(b,  *u);
+   // MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-   // // set the members of GMRES solver
-   // gmres->SetRelTol(1e-12);
-   // gmres->SetAbsTol(1e-12);
-   // gmres->SetMaxIter(50);
-   // //mfem::GSSmoother gs_prec = new GSSmoother();
-   // //gmres->SetPreconditioner(*gs_prec);
-   // gmres->iterative_mode = false;
+   // Petsc Solver section
+   // std::cout << "Steady solver is called.\n";
+   // const char *petscrc_file="eulersteady";
+   // MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+   // solver.reset(new PetscGMRESSolver(fes->GetComm(), petscrc_file));
+   // dynamic_cast<mfem::PetscSolver*>(solver.get())->SetAbsTol(1e-12);
+   // dynamic_cast<mfem::PetscSolver*>(solver.get())->SetRelTol(1e-12);
+   // dynamic_cast<mfem::PetscSolver*>(solver.get())->SetMaxIter(100);
+   // dynamic_cast<mfem::PetscSolver*>(solver.get())->SetPrintLevel(2);
+   // std::cout << "Inner solver is set.\n";
 
-   // // // set the members for NewtonSolver
-   // ntsolver->SetRelTol(1e-10);
-   // ntsolver->SetAbsTol(1e-12);
-   // ntsolver->SetMaxIter(50);
-   // ntsolver->SetSolver(*gmres);
-   // ntsolver->SetOperator(*res);
+   // newton_solver.iterative_mode = true;
+   // newton_solver.SetSolver(*solver);
+   // newton_solver.SetOperator(*res);
+   // newton_solver.SetPrintLevel(1);
+   // newton_solver.SetRelTol(1e-10);
+   // newton_solver.SetAbsTol(1e-10);
+   // newton_solver.SetMaxIter(50);
+   // std::cout << "Newton solver is set.\n";
 
-   // mfem::Vector zero;
-   // ntsolver->Mult(zero, *u);
-   // MFEM_ASSERT(ntsolver.GetConverged(), "Newton Solver didn't get converged.\n");
-   // delete gmres;`
-   // delete ntsolver;
-   // delete gs_prec;
+   // mfem::Vector b;
+   // newton_solver.Mult(b,  *u);
+   // MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-   // below are petsc solver
-
-// #ifndef MFEM_USE_PETSC
-// #error This function requires MFEM_USE_PETSC defined
-// #endif
-//    const char *petscrc_file="eulersteady";
-//    std::cout << "EulerSolver::solveSteady() is called.\n";
-//    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-
-//    PetscNonlinearSolver *pnewton_solver = new 
-//                      PetscNonlinearSolver(fes->GetComm(), *res);
-//    //mfem::PetscPreconditonerFactory * j_prec = new 
-//    //                   PetscPreconditionerFactory();
-//    pnewton_solver->SetPrintLevel(1); // print Newton iterations
-//    pnewton_solver->SetRelTol(1e-6);
-//    pnewton_solver->SetAbsTol(1e-6);
-//    pnewton_solver->SetMaxIter(30);
-//    //pnewton_solver->SetPreconditionerFactory(*j_prec);
-
-//    mfem::Vector zero;
-//    pnewton_solver->Mult(zero,*u);
-//    std::cout << "\nConverged? :"<<pnewton_solver->GetConverged() << std::endl;
-//    MFEM_ASSERT(pnewton_solver->GetConverged(), "Newton solver didn't converge.\n");
-//    MFEMFinalizePetsc();
-
-   // Use hypre solve to solve the problem
-   std::cout << "steady solve is called.\n";
-
-   prec.reset( new HypreBoomerAMG() );
-   prec->SetPrintLevel(0);
-
-   std::cout << "preconditioner is set.\n";
-   solver.reset( new HypreGMRES(fes->GetComm()) );
-   //solver.reset(new CGSolver());
-   solver->SetTol(1e-10);
-   solver->SetMaxIter(100);
-   solver->SetPrintLevel(0);
-   //solver->SetPreconditioner(*prec);
-   std::cout << "Inner solver is set.\n";
-
-   newton_solver.iterative_mode = true;
-   newton_solver.SetSolver(*solver);
-   newton_solver.SetOperator(*res);
-   newton_solver.SetPrintLevel(1);
-   newton_solver.SetRelTol(1e-10);
-   newton_solver.SetAbsTol(1e-10);
-   newton_solver.SetMaxIter(30);
-   std::cout << "Newton solver is set.\n";
-   std::cout << "Print the initial condition\n";
-   u->Print(std::cout,4);
-   // std::cout << "try a different initial guess using Nonlinearform mult.\n";
-   // mfem::Vector r2(fes->GlobalTrueVSize());
-   // mfem::Vector x0(fes->GlobalTrueVSize());
-   // x0 = 0.0;
-   // res->Mult(x0, r2);
-   // r2.Print();
-
-   mfem::Vector b;
-   newton_solver.Mult(b,  *u);
-   MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+   // Before solving the nonlinear problem, solve the simple linear problem.
+   mfem::Vector r(fes->GlobalTrueVSize());
+   res->Mult(*u, r);
+   const char *petscrc_file="eulersteady";
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+   mfem::PetscLinearSolver* psolver = new 
+               mfem::PetscLinearSolver(fes->GetComm(), petscrc_file, 0);
+   psolver->iterative_mode = true;
+   // prec = new PetscPreconditioner(res->GetGradient(*u),"solver_");
+   
+   std::cout << "The linear system is set.\n";
+   psolver->SetAbsTol(1e-10);
+   psolver->SetRelTol(1e-10);
+   psolver->SetPrintLevel(2);
+   psolver->SetMaxIter(100);
+   psolver->SetOperator(res->GetGradient(*u));
+   //psolver->SetPreconditioner(*prec);
+   mfem::Vector c(fes->GlobalTrueVSize());
+   //psolver->Mult(r, c);
+   c.Print(std::cout, 4);
+   delete psolver;
+   MFEMFinalizePetsc();
 }
 
 void EulerSolver::jacobiancheck()
@@ -320,7 +302,7 @@ void EulerSolver::jacobiancheck()
    std::unique_ptr<GridFunType> jac_v;
    jac_v.reset(new GridFunType(fes.get()));
    mfem::Operator &jac = res->GetGradient(*u);
-   jac.PrintMatlab(std::cout);
+   //jac.PrintMatlab(std::cout);
    jac.Mult(*perturbation_vec, *jac_v);
    //std::cout << "Resuelts from GetGradient(x):\n";
    //jac_v->Save(std::cout);

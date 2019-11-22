@@ -341,7 +341,7 @@ protected:
    /// newton solver for the steady problem
    mfem::NewtonSolver newton_solver;
    /// linear system solver used in newton solver
-   std::unique_ptr<mfem::HypreGMRES> solver;
+   std::unique_ptr<mfem::Solver> solver;
    //std::unique_ptr<mfem::IterativeSolver> solver;
    /// linear system preconditioner for solver in newton solver
    std::unique_ptr<mfem::HypreBoomerAMG> prec;

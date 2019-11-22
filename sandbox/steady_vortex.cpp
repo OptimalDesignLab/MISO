@@ -79,6 +79,7 @@ int main(int argc, char *argv[])
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
+      
    }
    catch (MachException &exception)
    {
