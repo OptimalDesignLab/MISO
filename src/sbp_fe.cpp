@@ -129,6 +129,31 @@ double SBPFiniteElement::getSkewEntry(int di, int i, int j,
    return Sij; 
 }
 
+double SBPFiniteElement::getSymEntry(int di, int i,
+                                     const mfem::DenseMatrix &adjJ_i) const
+{
+   double Eij = 0.0;
+   for (int k = 0; k < GetDim(); ++k)
+   {
+      Eij += adjJ_i(k,di)*Q[k](i,i);
+   }
+   return Eij;
+}
+
+double SBPFiniteElement::getQEntry(int di, int i, int j,
+                                   const mfem::DenseMatrix &adjJ_i,
+                                   const mfem::DenseMatrix &adjJ_j) const
+{
+   if (i == j)
+   {
+      return getSymEntry(di, i, adjJ_i);
+   }
+   else
+   {
+      return 0.5*getSkewEntry(di, i, j, adjJ_i, adjJ_j);
+   }
+}
+
 void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
 {
    MFEM_ASSERT( P.Size() == Dof, "");
