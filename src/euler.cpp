@@ -1,3 +1,4 @@
+#include <memory>
 #include "euler.hpp"
 //#include "euler_fluxes.hpp"
 #include "sbp_fe.hpp"
@@ -15,6 +16,10 @@ EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
     : AbstractSolver(opt_file_name, move(smesh))
 {
+   // define free-stream parameters; may or may not be used, depending on case
+   mach_fs = options["flow-param"]["mach"].get<double>();
+   aoa_fs = options["flow-param"]["aoa"].get<double>()*M_PI/180;
+
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction
    num_state = dim + 2;
@@ -27,54 +32,34 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
+
+   // set up the mass matrix
+   mass.reset(new BilinearFormType(fes.get()));
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass->Assemble();
+   mass->Finalize();
+
+   // set up the spatial semi-linear form
+   // TODO: should decide between one-point and two-point fluxes using options
+   double alpha = 1.0;
+   res.reset(new NonlinearFormType(fes.get()));
+
+   res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
+   //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
+
+   // add the LPS stabilization
+   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
+   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+                                                          lps_coeff));
    // add the integrators based on if discretization is continuous or discrete
-   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
-      // set up the mass matrix
-      mass.reset(new BilinearFormType(fes.get()));
-      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-      mass->Assemble();
-      mass->Finalize();
-
-      // set up the spatial semi-linear form
-      // TODO: should decide between one-point and two-point fluxes using options
-      double alpha = 1.0;
-      res.reset(new NonlinearFormType(fes.get()));
-
-      res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
-
-      //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
-
-      // add the LPS stabilization
-      double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
-      res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
-                                                             lps_coeff));
-
-      // boundary face integrators are handled in their own function
-      addBoundaryIntegrators(alpha, dim);
-   }
-   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
-   {
-      // set up the mass matrix
-      mass.reset(new BilinearFormType(fes.get()));
-      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-      mass->Assemble();
-      mass->Finalize();
-
-      // set up the spatial semi-linear form
-      // TODO: should decide between one-point and two-point fluxes using options
-      double alpha = 1.0;
-      res.reset(new NonlinearFormType(fes.get()));
-      res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
-      // add the LPS stabilization
-      //TODO: how to get good solution without LPS integrator
-      double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
-      res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
-                                                             lps_coeff));
       res->AddInteriorFaceIntegrator(new InterfaceIntegrator<2>(diff_stack,
-                                                                fec.get(), alpha));
-      addBoundaryIntegrators(alpha, dim);
+                                                                fec.get(),
+                                                                alpha));
    }
+   // boundary face integrators are handled in their own function
+   addBoundaryIntegrators(alpha, dim);
 
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI
@@ -84,6 +69,9 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
    evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+
+   // add the output functional QoIs 
+   addOutputs(dim);
 }
 
 void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
@@ -134,6 +122,77 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
          cout << bndry_marker[k][i] << " ";
       }
       cout << endl;
+   }
+}
+
+void EulerSolver::addOutputs(int dim)
+{
+   auto &fun = options["outputs"];
+   output_bndry_marker.resize(fun.size());
+   int idx = 0;
+   if (fun.find("drag") != fun.end())
+   { // force on the specified boundaries
+      mfem::Vector drag_dir(dim);
+      vector<int> tmp = fun["drag"].get<vector<int>>();
+      output_bndry_marker[idx].SetSize(tmp.size(), 0);
+      output_bndry_marker[idx].Assign(tmp.data());
+      output.emplace("drag", fes.get());  
+      switch (dim)
+      {
+      case 1:
+         drag_dir(0) = 1.0;
+         output.at("drag").AddBdrFaceIntegrator(
+             new PressureForce<1>(diff_stack, fec.get(), drag_dir),
+                                  output_bndry_marker[idx]);
+         break;
+      case 2:
+         drag_dir(0) = cos(aoa_fs);
+         drag_dir(1) = sin(aoa_fs);
+         output.at("drag").AddBdrFaceIntegrator(
+             new PressureForce<2>(diff_stack, fec.get(), drag_dir),
+                                  output_bndry_marker[idx]);
+         break;
+      case 3:
+         drag_dir(1) = cos(aoa_fs);
+         drag_dir(2) = sin(aoa_fs);
+         output.at("drag").AddBdrFaceIntegrator(
+             new PressureForce<3>(diff_stack, fec.get(), drag_dir),
+                                  output_bndry_marker[idx]);
+         break;
+      }
+      idx++;
+   }
+   if (fun.find("lift") != fun.end())
+   { // force on the specified boundaries
+      mfem::Vector lift_dir(dim);
+      vector<int> tmp = fun["lift"].get<vector<int>>();
+      output_bndry_marker[idx].SetSize(tmp.size(), 0);
+      output_bndry_marker[idx].Assign(tmp.data());
+      output.emplace("lift", fes.get());  
+      switch (dim)
+      {
+      case 1:
+         lift_dir(0) = 0.0;
+         output.at("lift").AddBdrFaceIntegrator(
+             new PressureForce<1>(diff_stack, fec.get(), lift_dir),
+                                  output_bndry_marker[idx]);
+         break;
+      case 2:
+         lift_dir(0) = -sin(aoa_fs);
+         lift_dir(1) = cos(aoa_fs);
+         output.at("lift").AddBdrFaceIntegrator(
+             new PressureForce<2>(diff_stack, fec.get(), lift_dir),
+                                  output_bndry_marker[idx]);
+         break;
+      case 3:
+         lift_dir(1) = -sin(aoa_fs);
+         lift_dir(2) = cos(aoa_fs);
+         output.at("lift").AddBdrFaceIntegrator(
+             new PressureForce<3>(diff_stack, fec.get(), lift_dir),
+                                  output_bndry_marker[idx]);
+         break;
+      }
+      idx++;
    }
 }
 

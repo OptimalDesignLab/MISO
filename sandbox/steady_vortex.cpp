@@ -67,8 +67,8 @@ int main(int argc, char *argv[])
       mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver.calcL2Error(uexact, 0) << '\n' << endl;
-
+                << solver.calcL2Error(uexact, 0) << endl;
+      mfem::out << "\nDrag error = " << abs(solver.calcOutput("drag") - (-1/mach::euler::gamma)) << endl << endl;
    }
    catch (MachException &exception)
    {

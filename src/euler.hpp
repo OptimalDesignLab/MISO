@@ -34,6 +34,10 @@ public:
    double calcResidualNorm();
 
 protected:
+   /// free-stream Mach number
+   double mach_fs;
+   /// free-stream angle of attack
+   double aoa_fs;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// the mass matrix bilinear form
@@ -48,6 +52,8 @@ protected:
    /// \param[in] dim - number of dimensions
    void addBoundaryIntegrators(double alpha, int dim = 1);
 
+   /// Create `output` based on `options` and add approporiate integrators
+   void addOutputs(int dim = 1);
 };
 
 } // namespace mach

@@ -185,6 +185,10 @@ public:
        : InviscidBoundaryIntegrator<IsentropicVortexBC>(
              diff_stack, fe_coll, 4, a) {}
 
+   /// Note used (or, rather, *do not use*!)
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       const mfem::Vector &q) { return 0.0; }
+
    /// Compute a characteristic boundary flux for the isentropic vortex
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -236,6 +240,10 @@ public:
               double a = 1.0)
        : InviscidBoundaryIntegrator<SlipWallBC<dim>>(
              diff_stack, fe_coll, dim+2, a) {}
+
+   /// Note used (or, rather, *do not use*!)
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       const mfem::Vector &q) { return 0.0; }
 
    /// Compute an adjoint-consistent slip-wall boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
@@ -303,8 +311,7 @@ public:
    /// \param[out] jacR - Jacobian of `flux` w.r.t. `qR`
    /// \note This uses the CRTP, so it wraps a call a func. in Derived.
    void calcFluxJacState(const mfem::Vector &dir, const mfem::Vector &qL,
-                         const mfem::Vector &qR,
-                         mfem::DenseMatrix &jacL,
+                         const mfem::Vector &qR, mfem::DenseMatrix &jacL,
                          mfem::DenseMatrix &jacR);
 
    /// Compute the Jacobian of the interface flux function w.r.t. `dir`
@@ -315,6 +322,56 @@ public:
    /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
    void calcFluxJacDir(const mfem::Vector &dir, const mfem::Vector &qL,
                        const mfem::Vector &qR, mfem::DenseMatrix &jac_dir);
+};
+
+/// Integrator for forces due to pressure
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim>
+class PressureForce : public InviscidBoundaryIntegrator<PressureForce<dim>>
+{
+public:
+   /// Constructs an integrator that computes pressure contribution to force
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] force_dir - unit vector specifying the direction of the force
+   PressureForce(adept::Stack &diff_stack,
+                 const mfem::FiniteElementCollection *fe_coll,
+                 const mfem::Vector &force_dir)
+       : InviscidBoundaryIntegrator<PressureForce<dim>>(
+             diff_stack, fe_coll, dim+2, 1.0), force_nrm(force_dir),
+             work_vec(dim+2) {}
+
+   /// Return an adjoint-consistent slip-wall normal (pressure) stress term
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \returns conmponent of stress due to pressure in `force_nrm` direction
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       const mfem::Vector &q)
+   {
+      calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
+                                   work_vec.GetData());
+      return dot<double,dim>(force_nrm.GetData(), work_vec.GetData()+1);
+   }
+
+   /// Not used
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
+                 const mfem::Vector &q, mfem::Vector &flux_vec) {}
+
+   /// Not used
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac) {}
+
+   /// Not used
+   void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
+                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac) {}
+
+private:
+   /// `dim` entry unit normal vector specifying the direction of the force
+   mfem::Vector force_nrm;
+   /// work vector used to stored the flux
+   mfem::Vector work_vec;
 };
 
 #include "euler_integ_def.hpp"

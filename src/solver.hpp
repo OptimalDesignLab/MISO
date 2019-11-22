@@ -70,9 +70,16 @@ public:
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
 
+   /// Solve for the steady-state solution using, e.g., Newton's method
    virtual void solveSteady();
 
+   /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady();
+
+   /// Evaluate and return the output functional specified by `fun`
+   /// \param[in] fun - specifies the desired functional
+   /// \returns scalar value of estimated functional value
+   double calcOutput(const std::string &fun);
 
 protected:
 #ifdef MFEM_USE_MPI
@@ -115,6 +122,10 @@ protected:
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
+   /// map of output functionals
+   std::map<std::string, NonlinearFormType> output;
+   /// `output_bndry_marker[i]` lists the boundaries associated with output i
+   std::vector<mfem::Array<int>> output_bndry_marker;
 };
 
 } // namespace mach

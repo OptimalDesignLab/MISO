@@ -361,4 +361,16 @@ void AbstractSolver::solveUnsteady()
    // TODO: These mfem functions do not appear to be parallelized
 }
 
+double AbstractSolver::calcOutput(const std::string &fun)
+{
+   try
+   {
+      return output.at(fun).GetEnergy(*u);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << endl;
+   }
+}
+
 } // namespace mach

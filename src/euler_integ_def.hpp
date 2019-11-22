@@ -232,9 +232,10 @@ void EntStableLPSIntegrator<dim>::applyScalingJacV(
 
 template <int dim>
 void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
-                              const mfem::Vector &qL, const mfem::Vector &qR,
-                              mfem::DenseMatrix &jacL,
-                              mfem::DenseMatrix &jacR)
+                                                const mfem::Vector &qL,
+                                                const mfem::Vector &qR,
+                                                mfem::DenseMatrix &jacL,
+                                                mfem::DenseMatrix &jacR)
 {
    // full size jacobian stores both left the right jac state
    mfem::DenseMatrix jac(qL.Size(), 2 * qL.Size());
@@ -265,8 +266,9 @@ void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
 
 template <int dim>
 void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
-                           const mfem::Vector &qL, const mfem::Vector &qR,
-                           mfem::DenseMatrix &jac_dir)
+                                              const mfem::Vector &qL,
+                                              const mfem::Vector &qR,
+                                              mfem::DenseMatrix &jac_dir)
 {
    // vector of active input variables
    std::vector<adouble> dir_a(dir.Size());
@@ -288,3 +290,5 @@ void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
    // compute the jacobian w.r.t dir
    this->stack.jacobian(jac_dir.GetData());
 }
+
+

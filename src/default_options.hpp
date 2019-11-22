@@ -15,6 +15,12 @@ nlohmann::json default_options =
 {
    {"model-file","mach.dmg"}, // model file name
     
+   {"flow-param", // options related to flow simulations
+   {
+      {"mach", 0.5}, // far-field mach number
+      {"aoa", 0.0} // far-field angle of attack
+   }},
+
    {"space-dis", // options related to spatial discretization
    {
       {"degree", 1}, // default operator degree
