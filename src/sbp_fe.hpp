@@ -198,7 +198,6 @@ public:
 /// Todo: members do not follow our naming convention
 class SBPCollection : public FiniteElementCollection
 {
-
 protected:
    char SBPname[32];
    FiniteElement *SBPElements[Geometry::NumGeom];
@@ -217,6 +216,37 @@ public:
    virtual const char *Name() const { return SBPname; }
    virtual ~SBPCollection();
 
+};
+
+/// High order L2-discontinous Summation By Parts operators
+class DSBPCollection :public FiniteElementCollection
+{
+protected:
+   char DSBPname[32];
+   ScalarFiniteElement *DSBPElements[Geometry::NumGeom];
+   ScalarFiniteElement *Tr_SBPElements[Geometry::NumGeom];
+   int DSBPdof[Geometry::NumGeom];
+   int *SegDofOrd[2];
+
+public:
+   explicit DSBPCollection(const int p, const int dim = 2);
+
+   // Currently we we only have point, segment and triangle elements
+   virtual const FiniteElement *FiniteElementForGeometry(
+      Geometry::Type GeomType) const
+   {  return DSBPElements[GeomType];  }
+
+   virtual const FiniteElement *TraceFiniteElementGeometry(
+      Geometry::Type GeomType) const
+   {  return Tr_SBPElements[GeomType]; }
+
+   virtual int DofForGeometry(Geometry::Type GeomType) const
+   {  return DSBPdof[GeomType]; }
+
+   virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
+                                             int Or) const;
+   virtual const char *Name() const {  return DSBPname;  }
+   virtual ~DSBPCollection();
 };
 
 } // namespace mfem

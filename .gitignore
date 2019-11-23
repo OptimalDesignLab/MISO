@@ -21,6 +21,10 @@
 # Editor files
 .vscode
 
+# Output mesh files
+*.vtk
+*.gf
+
 # Dependence folder
 .d
 

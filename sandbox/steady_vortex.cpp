@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
    const char *options_file = "steady_vortex_options.json";
-   int degree = 1.0;
+   int degree = 2.0;
    int nx = 1.0;
    int ny = 1.0;
    args.AddOption(&options_file, "-o", "--options",
@@ -52,6 +52,10 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       const int dim = 2;
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
+      ofstream sol_ofs("steady_vortex_mesh.vtk");
+      sol_ofs.precision(14);
+      smesh->PrintVTK(sol_ofs,3);
       EulerSolver solver(opt_file_name, move(smesh), dim);
       solver.setInitialCondition(uexact);
       solver.printSolution("init", degree+1);

@@ -275,6 +275,16 @@ public:
    void Update();
 };
 
+/// build the reconstruction matrix that interpolate the 
+/// \param[in] degree - order of reconstructio operator
+/// \param[in] x_cent - coordinates of barycenters
+/// \param[in] x_quad - coordinates of quadrature points
+/// \param[out] interp - interpolation operator
+#ifdef MFEM_USE_LAPACK
+void buildInterpolation(int degree, const mfem::DenseMatrix &x_center,
+    const mfem::DenseMatrix &x_quad, mfem::DenseMatrix &interp);
+#endif
+
 } // namespace mach
 
 #endif 

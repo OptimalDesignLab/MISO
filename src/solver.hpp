@@ -6,7 +6,18 @@
 #include "mach_types.hpp"
 #include "utils.hpp"
 #include "json.hpp"
-
+#ifdef MFEM_USE_SIMMETRIX
+#include <SimUtil.h>
+#include <gmi_sim.h>
+#endif
+#ifdef MFEM_USE_PUMI
+#include <apfMDS.h>
+#include <gmi_null.h>
+#include <PCU.h>
+#include <apfConvert.h>
+#include <gmi_mesh.h>
+#include <crv.h>
+#endif
 namespace mach
 {
 
@@ -82,6 +93,10 @@ protected:
    double dt;
    /// final time
    double t_final;
+   /// pumi mesh object
+#ifdef MFEM_USE_PUMI
+   apf::Mesh2* pumi_mesh;
+#endif
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// object defining the computational mesh

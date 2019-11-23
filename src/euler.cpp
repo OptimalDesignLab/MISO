@@ -13,7 +13,7 @@ namespace mach
 
 EulerSolver::EulerSolver(const string &opt_file_name,
                          unique_ptr<mfem::Mesh> smesh, int dim)
-   : AbstractSolver(opt_file_name, move(smesh))
+    : AbstractSolver(opt_file_name, move(smesh))
 {
    // set the finite-element space and create (but do not initialize) the
    // state GridFunction
@@ -27,29 +27,54 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
+   // add the integrators based on if discretization is continuous or discrete
+   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   {
+      // set up the mass matrix
+      mass.reset(new BilinearFormType(fes.get()));
+      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+      mass->Assemble();
+      mass->Finalize();
 
-   // set up the mass matrix
-   mass.reset(new BilinearFormType(fes.get()));
-   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   mass->Assemble();
-   mass->Finalize();
+      // set up the spatial semi-linear form
+      // TODO: should decide between one-point and two-point fluxes using options
+      double alpha = 1.0;
+      res.reset(new NonlinearFormType(fes.get()));
 
-   // set up the spatial semi-linear form
-   // TODO: should decide between one-point and two-point fluxes using options
-   double alpha = 1.0;
-   res.reset(new NonlinearFormType(fes.get()));
+      res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
 
-   res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
+      //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
 
-   //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
+      // add the LPS stabilization
+      double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
+      res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+                                                             lps_coeff));
 
-   // add the LPS stabilization
-   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
-   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
-                                                          lps_coeff));
+      // boundary face integrators are handled in their own function
+      addBoundaryIntegrators(alpha, dim);
+   }
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   {
+      // set up the mass matrix
+      mass.reset(new BilinearFormType(fes.get()));
+      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+      mass->Assemble();
+      mass->Finalize();
 
-   // boundary face integrators are handled in their own function
-   addBoundaryIntegrators(alpha, dim);
+      // set up the spatial semi-linear form
+      // TODO: should decide between one-point and two-point fluxes using options
+      double alpha = 1.0;
+      res.reset(new NonlinearFormType(fes.get()));
+      res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
+      // add the LPS stabilization
+      //TODO: how to get good solution without LPS integrator
+      double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
+      res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
+                                                             lps_coeff));
+      res->AddInteriorFaceIntegrator(new InterfaceIntegrator<2>(diff_stack,
+                                                                fec.get(), alpha));
+      addBoundaryIntegrators(alpha, dim);
+   }
 
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI
@@ -59,7 +84,6 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
    evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
-
 }
 
 void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
@@ -84,21 +108,21 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       bndry_marker[idx].Assign(tmp.data());
       switch (dim)
       {
-         case 1:
-            res->AddBdrFaceIntegrator(
-                new SlipWallBC<1>(diff_stack, fec.get(), alpha),
-                bndry_marker[idx]);
-            break;
-         case 2:
-            res->AddBdrFaceIntegrator(
-               new SlipWallBC<2>(diff_stack, fec.get(), alpha),
-               bndry_marker[idx]);
-            break;
-         case 3:
-            res->AddBdrFaceIntegrator(
-               new SlipWallBC<3>(diff_stack, fec.get(), alpha),
-               bndry_marker[idx]);
-            break;
+      case 1:
+         res->AddBdrFaceIntegrator(
+             new SlipWallBC<1>(diff_stack, fec.get(), alpha),
+             bndry_marker[idx]);
+         break;
+      case 2:
+         res->AddBdrFaceIntegrator(
+             new SlipWallBC<2>(diff_stack, fec.get(), alpha),
+             bndry_marker[idx]);
+         break;
+      case 3:
+         res->AddBdrFaceIntegrator(
+             new SlipWallBC<3>(diff_stack, fec.get(), alpha),
+             bndry_marker[idx]);
+         break;
       }
       idx++;
    }
@@ -116,11 +140,15 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
 double EulerSolver::calcResidualNorm()
 {
    GridFunType r(fes.get());
-   res->Mult(*u, r);  // TODO: option to recompute only if necessary
-   double res_norm = r*r;
+   double res_norm;
 #ifdef MFEM_USE_MPI
-   double loc_norm = res_norm;
+   HypreParVector *U = u->GetTrueDofs();
+   res->Mult(*U, r);   
+   double loc_norm = r*r;
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   res->Mult(*u, r);
+   res_norm = r*r;
 #endif
    res_norm = sqrt(res_norm);
    return res_norm;
@@ -131,15 +159,15 @@ double EulerSolver::calcStepSize(double cfl) const
    double (*calcSpect)(const double *dir, const double *q);
    if (num_dim == 1)
    {
-      calcSpect = calcSpectralRadius<double,1>;
+      calcSpect = calcSpectralRadius<double, 1>;
    }
    else if (num_dim == 2)
    {
-      calcSpect = calcSpectralRadius<double,2>;
+      calcSpect = calcSpectralRadius<double, 2>;
    }
    else
    {
-      calcSpect = calcSpectralRadius<double,3>;
+      calcSpect = calcSpectralRadius<double, 3>;
    }
 
    double dt_local = 1e100;
@@ -163,11 +191,12 @@ double EulerSolver::calcStepSize(double cfl) const
          uk.GetColumnReference(i, ui);
          for (int j = 0; j < fe->GetDof(); ++j)
          {
-            if (j == i) continue;
+            if (j == i)
+               continue;
             trans->Transform(fe->GetNodes().IntPoint(j), dxij);
             dxij -= xi;
             double dx = dxij.Norml2();
-            dt_local = min(dt_local, cfl*dx*dx/calcSpect(dxij, ui)); // extra dx is to normalize dxij
+            dt_local = min(dt_local, cfl * dx * dx / calcSpect(dxij, ui)); // extra dx is to normalize dxij
          }
       }
    }
@@ -179,6 +208,5 @@ double EulerSolver::calcStepSize(double cfl) const
 #endif
    return dt_min;
 }
-
 
 } // namespace mach

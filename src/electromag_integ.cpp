@@ -167,27 +167,25 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /////////////////////////////////////////////////////////////////////////
       /// calculate second term of Jacobian
       /////////////////////////////////////////////////////////////////////////
+      if (abs(b_mag) > 1e-14)
+      {
+         /// TODO: is this thread safe?
+         /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
+         /// can take outer product of result to generate matrix
+         temp_vec = 0.0;
+         curlshape_dFt.Mult(b_vec, temp_vec);
+         DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
 
-      /* Commenting out because only using linear permeability for abstract
-      /// TODO - is this thread safe?
-      /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
-      /// can take outer product of result to generate matrix
-      temp_vec = 0.0;
-      curlshape_dFt.Mult(b_vec, temp_vec);
-      DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
-
-      /// evaluate the derivative of the material model with respect to the
-      /// norm of the grid function associated with the model at the point
-      /// defined by ip, and scale by integration point weight
-      double model_deriv = model->EvalStateDeriv(trans, ip, b_mag);
-      model_deriv *= w;
-      if (abs(b_mag) < 1e-12)
-      model_deriv /= b_mag;
-
-      /// add second term to elmat
-      AddMult_a_AAt(model_deriv, temp_matrix, elmat);
-      elmat.PrintMatlab(); std::cout << "\n";
-      */
+         /// evaluate the derivative of the material model with respect to the
+         /// norm of the grid function associated with the model at the point
+         /// defined by ip, and scale by integration point weight
+         double model_deriv = model->EvalStateDeriv(trans, ip, b_mag);
+         model_deriv *= w;
+         model_deriv /= b_mag;
+      
+         /// add second term to elmat
+         AddMult_a_AAt(model_deriv, temp_matrix, elmat);
+      }
    }
 }
 
@@ -231,7 +229,6 @@ void MagnetizationIntegrator::AssembleElementVector(
       {
          order = 2*el.GetOrder();
       }
-
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
@@ -265,13 +262,7 @@ void MagnetizationIntegrator::AssembleElementVector(
       mag->Eval(mag_vec, trans, ip);
       mag_vec *= nu_val;
 
-      // std::cout << "above magnetization add mult\n";
-      // std::cout << "mag_vec size: " << mag_vec.Size() << "\n";
-      // std::cout << "elvect size: " << elvect.Size() << "\n";
-      // std::cout << "curlshape size: " << curlshape_dFt.Height() << ", " << curlshape_dFt.Width() << "\n";
-
       curlshape_dFt.AddMult(mag_vec, elvect);
-      // std::cout << "below magnetization add mult\n";
    }
 }
 
@@ -323,7 +314,6 @@ void MagnetizationIntegrator::AssembleElementGrad(
    }
 
    elmat = 0.0;
-   /* // for non-ferromagnetic magnets Jacobian is zero
 	for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
@@ -348,31 +338,32 @@ void MagnetizationIntegrator::AssembleElementGrad(
       curlshape_dFt.MultTranspose(elfun, b_vec);
       const double b_mag = b_vec.Norml2();
 
-      /// TODO - is this thread safe?
-      /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
-      /// can take outer product of result to generate matrix
-      temp_vec = 0.0;
-      curlshape_dFt.Mult(b_vec, temp_vec);
-      DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
+      if (abs(b_mag) > 1e-14)
+      {
+         /// TODO - is this thread safe?
+         /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
+         /// can take outer product of result to generate matrix
+         temp_vec = 0.0;
+         curlshape_dFt.Mult(b_vec, temp_vec);
+         DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
 
-      mag_vec = 0.0;
-      mag->Eval(mag_vec, trans, ip);
+         mag_vec = 0.0;
+         mag->Eval(mag_vec, trans, ip);
 
-      temp_vec2 = 0.0;
-      curlshape_dFt.Mult(mag_vec, temp_vec2);
-      DenseMatrix temp_matrix2(temp_vec2.GetData(), ndof, 1);
+         temp_vec2 = 0.0;
+         curlshape_dFt.Mult(mag_vec, temp_vec2);
+         DenseMatrix temp_matrix2(temp_vec2.GetData(), ndof, 1);
 
-      /// evaluate the derivative of the material model with respect to the
-      /// norm of the grid function associated with the model at the point
-      /// defined by ip, and scale by integration point weight
-      double nu_deriv = nu->EvalStateDeriv(trans, ip, b_mag);
-      nu_deriv *= w;
-      nu_deriv /= b_mag;
+         /// evaluate the derivative of the material model with respect to the
+         /// norm of the grid function associated with the model at the point
+         /// defined by ip, and scale by integration point weight
+         double nu_deriv = nu->EvalStateDeriv(trans, ip, b_mag);
+         nu_deriv *= w;
+         nu_deriv /= b_mag;
 
-      /// add second term to elmat
-      AddMult_a_ABt(nu_deriv, temp_matrix2, temp_matrix, elmat);
+         AddMult_a_ABt(nu_deriv, temp_matrix2, temp_matrix, elmat);
+      }
    }
-   */
 }
 
 } // namespace mach
