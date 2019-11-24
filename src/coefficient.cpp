@@ -27,6 +27,7 @@ double MeshDependentCoefficient::Eval(ElementTransformation &trans,
    {
       value = 0.0;
    }
+   // std::cout << "nu val in eval: " << value << "\n";
    return value;
 }
 
@@ -88,8 +89,11 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
+      std::cout << "attr found\n";
       coeff = it->second.get();
       coeff->Eval(vec, trans, ip);
+      std::cout << "mag_vec in eval: ";
+      vec.Print();
    }
    else if (default_coeff)
    {
@@ -99,6 +103,8 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
    {
       vec = 0.0;
    }
+   // std::cout << "mag_vec in eval: ";
+   // vec.Print();
 }
 
 } // namespace mach

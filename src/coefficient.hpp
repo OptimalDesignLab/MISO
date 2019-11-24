@@ -94,7 +94,6 @@ public:
 											const double state);
 
 protected:
-
 	/// \brief Method to be called if a coefficient matching the element's
 	/// 		  attribute is a subclass of `StateCoefficient and
 	///		  thus implements `Eval()` with state argument
@@ -208,8 +207,8 @@ protected:
 	}
 
 private:
-	std::map<const int, std::unique_ptr<mfem::Coefficient>> material_map;
 	std::unique_ptr<mfem::Coefficient> default_coeff;
+	std::map<const int, std::unique_ptr<mfem::Coefficient>> material_map;
 };
 
 class ReluctivityCoefficient : public StateCoefficient
@@ -325,8 +324,8 @@ public:
 	// 										const double state);
 
 protected:
-	std::map<const int, std::unique_ptr<mfem::VectorCoefficient>> material_map;
 	std::unique_ptr<mfem::VectorCoefficient> default_coeff;
+	std::map<const int, std::unique_ptr<mfem::VectorCoefficient>> material_map;
 };
 
 } // namespace mach

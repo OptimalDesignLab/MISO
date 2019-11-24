@@ -194,6 +194,7 @@ void MagnetizationIntegrator::AssembleElementVector(
     ElementTransformation &trans,
     const Vector &elfun, Vector &elvect)
 {
+   // std::cout << "mag integ\n";
 	/// number of degrees of freedom
 	int ndof = el.GetDof();
    int dim = el.GetDim();
@@ -272,6 +273,8 @@ void MagnetizationIntegrator::AssembleElementGrad(
     const mfem::Vector &elfun,
     mfem::DenseMatrix &elmat)
 {
+   elmat = 0.0;
+   /*
    /// number of degrees of freedom
 	int ndof = el.GetDof();
    int dim = el.GetDim();
@@ -364,6 +367,7 @@ void MagnetizationIntegrator::AssembleElementGrad(
          AddMult_a_ABt(nu_deriv, temp_matrix2, temp_matrix, elmat);
       }
    }
+   */
 }
 
 } // namespace mach

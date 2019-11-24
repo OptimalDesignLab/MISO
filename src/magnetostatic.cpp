@@ -83,8 +83,8 @@ MagnetostaticSolver::MagnetostaticSolver(
    Zero = 0.0;
    bc_coef.reset(new VectorConstantCoefficient(Zero));
 	// bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
-   // A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-   A->ProjectCoefficient(*bc_coef);
+   A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+   // A->ProjectCoefficient(*bc_coef);
 
 	/// set essential boundary conditions in nonlinear form and rhs current vec
 	res->SetEssentialBC(ess_bdr, current_vec.get());
@@ -180,6 +180,10 @@ void MagnetostaticSolver::constructReluctivity()
 		// new ConstantCoefficient(1.0/(10)));
 		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
 
+	std::unique_ptr<mfem::Coefficient> magnet_coeff(
+		// new ConstantCoefficient(1.0/(10)));
+		new ConstantCoefficient(1.0/(4e-7*M_PI*1.05)));
+
 	/// TODO - use options to select material attribute for stator body
 	/// picked 2 arbitrarily for now
 	nu->addCoefficient(10, move(stator_coeff));
@@ -188,11 +192,12 @@ void MagnetostaticSolver::constructReluctivity()
 	/// picked 2 arbitrarily for now
 	nu->addCoefficient(11, move(rotor_coeff));
 	// nu->addCoefficient(2, move(rotor_coeff));
+	nu->addCoefficient(5, move(magnet_coeff));
 }
 
 void MagnetostaticSolver::constructMagnetization()
 {
-	mag_coeff.reset(new VectorMeshDependentCoefficient(3));
+	mag_coeff.reset(new VectorMeshDependentCoefficient(num_dim));
 
 	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
 		new VectorFunctionCoefficient(num_dim, magnetization_source));
@@ -353,29 +358,28 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
+/// TODO: implement other kinds of sources
 void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
-                          		 					  mfem::Vector &M)
+                          		 					  mfem::Vector &B_r)
 {
-	// example of needed geometric parameters, this should be all you need
-	int n_p = 20; //number of poles
-	double zb = .25; //bottom of stator
-	double zt = .75; //top of stator
-
-	//just pointing out for now
-	//TODO: implement other kinds of sources
+	int n_p = 12; // number of poles
 
 	// compute theta from x and y
 	double tha = atan2(x(1), x(0));
 
-	// just point radially outward from z, unit magnitude
+	Vector plane_vec = x;
+	plane_vec(2) = 0;
 	
-	M = 0.0;
-	if(x(2) >= zb && x(2) <= zt)
+	B_r = 0.0;
+
+	B_r(0) = plane_vec(0)/plane_vec.Norml2();
+	B_r(1) = plane_vec(1)/plane_vec.Norml2();
+	B_r(2) = 0.0;
+
+	if ((int)round(tha) % 2 == 0)
 	{
-		M(0) = x(0)/x.Norml2()*sin(tha);
-		M(1) = x(1)/x.Norml2()*cos(tha);
+		B_r *= -1.0;
 	}
-	M *= 100.0;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
