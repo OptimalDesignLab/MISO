@@ -463,8 +463,9 @@ void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
    qbnd[1] = rho*a*Ma*cos(theta);
    qbnd[2] = rho*a*Ma*sin(theta);
    qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
-   // std::cout << x[0] << " " << x[1] << "\n";
-   // std::cout << qbnd[0] << " " << qbnd[1] << " " << qbnd[2] << " " << qbnd[3] << "\n";
+   // std::cout << "point: "<< x[0] << " " << x[1] << "\n";
+   // std::cout << "state: "<< qbnd[0] << " " << qbnd[1] << " " << qbnd[2] << " " << qbnd[3] << "\n";
+   // std::cout << "Ma1n, Ma2n, Ma, press: " << Ma1n << " " << Ma2n << " " << Ma << " " << press << "\n";
 }
 
 /// A wrapper for `calcBoundaryFlux` in the case of the wedge shock
