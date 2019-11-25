@@ -352,7 +352,7 @@ void WedgeShockBC<dim>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+   mach::calcWedgeShockFlux<adouble>(x_a.data(), dir_a.data(), q_a.data(),
                                         flux_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
@@ -377,7 +377,7 @@ void WedgeShockBC<dim>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+   mach::calcWedgeShockFlux<adouble>(x_a.data(), dir_a.data(), q_a.data(),
                                         flux_a.data());
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());

@@ -78,7 +78,11 @@ int main(int argc, char *argv[])
 
       EulerSolver solver(opt_file_name, nullptr, dim);
       solver.setInitialCondition(uexact);
+      mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
+                << endl;
       solver.solveForState();
+      mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
+                << endl;
 
    }
    catch (MachException &exception)
@@ -136,9 +140,9 @@ void uexact(const Vector &x, Vector& u)
    u(2) = rho*a*Ma*sin(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
    
-   // u(0) = 0;
+   // u(0) = 1;
    // u(1) = 0;
    // u(2) = 0;
-   // u(3) = 0;
+   // u(3) = 1;
 }
 

@@ -297,7 +297,7 @@ void EulerSolver::solveSteady()
    newton_solver.SetPrintLevel(1);
    newton_solver.SetRelTol(1e-10);
    newton_solver.SetAbsTol(1e-10);
-   newton_solver.SetMaxIter(6);
+   newton_solver.SetMaxIter(20);
    std::cout << "Newton solver is set.\n";
    std::cout << "Print the initial condition\n";
    //u->Print(std::cout,4);
