@@ -72,12 +72,15 @@ private:
    std::unique_ptr<mfem::VectorCoefficient> bc_coef;
 
    /// linear system solver used in Newton's method
-   std::unique_ptr<SolverType> solver;
+   std::unique_ptr<mfem::HypreGMRES> solver;
    /// linear system preconditioner used in Newton's method
    std::unique_ptr<EMPrecType> prec;
 
    /// Newton solver
    mfem::NewtonSolver newton_solver;
+
+   /// Material Library
+   nlohmann::json material;
 
    /// construct mesh dependent coefficient for reluctivity
    /// \param[in] alpha - used to move to lhs or rhs

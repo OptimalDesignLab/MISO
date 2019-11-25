@@ -1,4 +1,5 @@
 #include "magnetostatic.hpp"
+#include "material_library.hpp"
 
 #include <fstream>
 
@@ -41,6 +42,8 @@ MagnetostaticSolver::MagnetostaticSolver(
    cout << "Number of finite element unknowns: "
         << h_curl_space->GetTrueVSize() << endl;
 #endif
+
+	material = material_lib;
 
 	neg_one.reset(new ConstantCoefficient(-1.0));
 
@@ -96,7 +99,8 @@ MagnetostaticSolver::MagnetostaticSolver(
    prec->SetPrintLevel(0); // Don't want preconditioner to print anything
 	prec->SetSingularProblem();
 
-   solver.reset(new HyprePCG(h_curl_space->GetComm()));
+   // solver.reset(new HyprePCG(h_curl_space->GetComm()));
+	solver.reset(new HypreGMRES(h_curl_space->GetComm()));
 	std::cout << "set tol\n";
    solver->SetTol(options["lin-solver"]["tol"].get<double>());
 	std::cout << "set tol\n";
@@ -164,6 +168,9 @@ void MagnetostaticSolver::constructReluctivity()
    
 	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
 
+	auto b = material["steel"]["B"].get<std::vector<double>>();
+	auto h = material["steel"]["H"].get<std::vector<double>>();
+
 	/// uncomment eventually, for now we use constant linear model
 	// std::unique_ptr<mfem::Coefficient> stator_coeff(
 	// 	new ReluctivityCoefficient(reluctivity_model));
@@ -180,9 +187,9 @@ void MagnetostaticSolver::constructReluctivity()
 		// new ConstantCoefficient(1.0/(10)));
 		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
 
-	std::unique_ptr<mfem::Coefficient> magnet_coeff(
-		// new ConstantCoefficient(1.0/(10)));
-		new ConstantCoefficient(1.0/(4e-7*M_PI*1.05)));
+	// std::unique_ptr<mfem::Coefficient> magnet_coeff(
+	// 	// new ConstantCoefficient(1.0/(10)));
+	// 	new ConstantCoefficient(1.0/(4e-7*M_PI)));
 
 	/// TODO - use options to select material attribute for stator body
 	/// picked 2 arbitrarily for now
@@ -192,7 +199,8 @@ void MagnetostaticSolver::constructReluctivity()
 	/// picked 2 arbitrarily for now
 	nu->addCoefficient(11, move(rotor_coeff));
 	// nu->addCoefficient(2, move(rotor_coeff));
-	nu->addCoefficient(5, move(magnet_coeff));
+
+	// nu->addCoefficient(5, move(magnet_coeff));
 }
 
 void MagnetostaticSolver::constructMagnetization()
@@ -380,6 +388,7 @@ void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
 	{
 		B_r *= -1.0;
 	}
+	B_r /= 1e6;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem

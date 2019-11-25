@@ -89,11 +89,11 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
-      std::cout << "attr found\n";
+      // std::cout << "attr found\n";
       coeff = it->second.get();
       coeff->Eval(vec, trans, ip);
-      std::cout << "mag_vec in eval: ";
-      vec.Print();
+      // std::cout << "mag_vec in eval: ";
+      // vec.Print();
    }
    else if (default_coeff)
    {
