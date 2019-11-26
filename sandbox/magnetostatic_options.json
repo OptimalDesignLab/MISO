@@ -4,7 +4,7 @@
    },
    "space-dis": {
       "basis-type": "nedelec",
-      "degree": 2
+      "degree": 1
    },
    "steady": true,
    "time-dis": {
@@ -19,6 +19,7 @@
       "abs-tol": 1e-8
    },
    "material": {
+      "material-lib-path": "../src/material_library.json",
       "stator": "steel",
       "rotor": "steel"
    }

@@ -80,7 +80,7 @@ private:
    mfem::NewtonSolver newton_solver;
 
    /// Material Library
-   nlohmann::json material;
+   nlohmann::json materials;
 
    /// construct mesh dependent coefficient for reluctivity
    /// \param[in] alpha - used to move to lhs or rhs

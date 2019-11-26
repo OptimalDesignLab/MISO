@@ -1,5 +1,4 @@
 #include "magnetostatic.hpp"
-#include "material_library.hpp"
 
 #include <fstream>
 
@@ -43,7 +42,10 @@ MagnetostaticSolver::MagnetostaticSolver(
         << h_curl_space->GetTrueVSize() << endl;
 #endif
 
-	material = material_lib;
+   ifstream material_file(options["material"]["material-lib-path"].get<string>());
+	/// TODO: replace with mach exception
+	if (!material_file)
+		std::cerr << "Could not open materials library file!" << std::endl;
 
 	neg_one.reset(new ConstantCoefficient(-1.0));
 
@@ -168,8 +170,8 @@ void MagnetostaticSolver::constructReluctivity()
    
 	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
 
-	auto b = material["steel"]["B"].get<std::vector<double>>();
-	auto h = material["steel"]["H"].get<std::vector<double>>();
+	auto b = materials["steel"]["B"].get<std::vector<double>>();
+	auto h = materials["steel"]["H"].get<std::vector<double>>();
 
 	/// uncomment eventually, for now we use constant linear model
 	// std::unique_ptr<mfem::Coefficient> stator_coeff(
