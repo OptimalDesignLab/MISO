@@ -230,6 +230,13 @@ public:
 	 : Bmodel(NULL), BTmodel(model),
 		temperature_GF(T_) {}
 
+
+	/// TODO: implement
+	/// Define a reluctivity model based on experimental B-H curve
+	/// \param[in] B - magnetic flux density values from B-H curve 
+	/// \param[in] H - magnetic field intensity valyes from B-H curve
+	ReluctivityCoefficient(std::vector<double> B, std::vector<double> H);
+
 	/// \brief Evaluate the reluctivity in the element described by trans at the
 	/// point ip. Checks which model was initialized, temperature-dependent or
 	/// not, and evalutes the correct one.

@@ -42,10 +42,14 @@ MagnetostaticSolver::MagnetostaticSolver(
         << h_curl_space->GetTrueVSize() << endl;
 #endif
 
-   ifstream material_file(options["material"]["material-lib-path"].get<string>());
+   ifstream material_file(options["material-lib-path"].get<string>());
 	/// TODO: replace with mach exception
 	if (!material_file)
 		std::cerr << "Could not open materials library file!" << std::endl;
+	material_file >> materials;
+
+	constructReluctivity();
+
 
 	neg_one.reset(new ConstantCoefficient(-1.0));
 
@@ -60,7 +64,7 @@ MagnetostaticSolver::MagnetostaticSolver(
    res.reset(new NonlinearFormType(h_curl_space.get()));
 
 	/// Construct reluctivity coefficient
-	constructReluctivity();
+	// constructReluctivity();
 
 	/// TODO: Add a check in `CurlCurlNLFIntegrator` to check if |B| is close to
 	///       zero, and if so set the second term of the Jacobian to be zero.
@@ -165,13 +169,31 @@ void MagnetostaticSolver::solveSteady()
 void MagnetostaticSolver::constructReluctivity()
 {
 	/// set up default reluctivity to be that of free space
+	double mu_0 = 4e-7*M_PI;
    std::unique_ptr<Coefficient> nu_free_space(
-      new ConstantCoefficient(1.0/(4e-7*M_PI)));
-   
+      new ConstantCoefficient(1.0/mu_0));
 	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
 
-	auto b = materials["steel"]["B"].get<std::vector<double>>();
-	auto h = materials["steel"]["H"].get<std::vector<double>>();
+	for (auto& material : options["materials"])
+	{
+		std::unique_ptr<mfem::Coefficient> temp_coeff;
+		std::cout << material << '\n';
+		if (!material["linear"].get<bool>())
+		{
+			auto b = materials["steel"]["B"].get<std::vector<double>>();
+			auto h = materials["steel"]["H"].get<std::vector<double>>();
+			temp_coeff.reset(new ReluctivityCoefficient(b, h));
+		}
+		else
+		{
+			auto mu_r = material["mu_r"].get<double>();
+			// std::unique_ptr<mfem::Coefficient> temp_coeff(
+			temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
+		}
+		nu->addCoefficient(material["attr"].get<int>(), move(temp_coeff));
+	}
+		
+	
 
 	/// uncomment eventually, for now we use constant linear model
 	// std::unique_ptr<mfem::Coefficient> stator_coeff(
