@@ -24,7 +24,7 @@ using namespace mach;
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
-
+void uinit(const Vector&x, Vector& u);
 
 int main(int argc, char *argv[])
 {
@@ -77,12 +77,16 @@ int main(int argc, char *argv[])
    //    PCU_Comm_Free();
 
       EulerSolver solver(opt_file_name, nullptr, dim);
-      solver.setInitialCondition(uexact);
+      solver.setInitialCondition(uinit);
+      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+                << solver.calcL2Error(uexact, 0) << '\n' << endl;
       mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
                 << endl;
       solver.solveForState();
       mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
                 << endl;
+      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+                << solver.calcL2Error(uexact, 0) << '\n' << endl;
 
    }
    catch (MachException &exception)
@@ -99,7 +103,7 @@ int main(int argc, char *argv[])
 }
 
 // Exact solution; 
-void uexact(const Vector &x, Vector& u)
+void uinit(const Vector &x, Vector& u)
 {
    u.SetSize(4);
    double Mai = 2.4; //Ma1
@@ -107,7 +111,7 @@ void uexact(const Vector &x, Vector& u)
    double prsi = 1.0/euler::gamma;
    //assuming theta = 25 degrees, Ma1 = 2.4
    double theta = 25*2*M_PI/360;
-   double beta = 52*2*M_PI/360; 
+   double beta =  52.17187440*2*M_PI/360; 
    //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
    
    //compute mach number downstream of shock
@@ -126,7 +130,55 @@ void uexact(const Vector &x, Vector& u)
    
    double thresh = x(1)/tan(beta); //assuming wedge tip is origin
    // if behind shock, set back to upstream state
-   if(x(0) <= thresh+.5)
+   //if(x(0) <= thresh+.5)
+   {
+      theta = 0;
+      Ma = Mai;
+      rho = rhoi;
+      press = prsi;
+      a = sqrt(euler::gamma*press/rho);
+   }
+
+   u(0) = .99*rho;
+   u(1) = .99*rho*a*Ma*cos(theta);
+   u(2) = .99*rho*a*Ma*sin(theta);
+   u(3) = .99*(press/euler::gami + 0.5*rho*a*a*Ma*Ma);
+   
+   // u(0) = 1;
+   // u(1) = 0;
+   // u(2) = 0;
+   // u(3) = 1;
+}
+
+// Exact solution; 
+void uexact(const Vector &x, Vector& u)
+{
+   u.SetSize(4);
+   double Mai = 2.4; //Ma1
+   double rhoi = 1.0; //rho1
+   double prsi = 1.0/euler::gamma;
+   //assuming theta = 25 degrees, Ma1 = 2.4
+   double theta = 25*2*M_PI/360;
+   double beta =  52.17187440*2*M_PI/360; 
+   //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
+   
+   //compute mach number downstream of shock
+   double Ma1n = Mai*sin(beta);
+   double Ma2n = sqrt((1+(.5*euler::gami)*Ma1n*Ma1n) /
+                     (euler::gamma*Ma1n*Ma1n - .5*euler::gami));
+   double Ma = Ma2n/sin(beta-theta);
+   
+   //compute other quantities using continuity, momentum, and energy equations
+   double rho = rhoi*(euler::gamma+1)*Ma1n*Ma1n / 
+                  (2+euler::gami*Ma1n*Ma1n);
+   double press = prsi*(1 + (2*euler::gamma/(euler::gamma+1))*(Ma1n*Ma1n - 1)); 
+   double a = sqrt(euler::gamma*press/rho);
+
+   
+   
+   double thresh = x(1)/tan(beta); //assuming wedge tip is origin
+   // if behind shock, set back to upstream state
+   //if(x(0) <= thresh+.5)
    {
       theta = 0;
       Ma = Mai;

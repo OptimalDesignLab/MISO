@@ -431,7 +431,7 @@ void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
    double prsi = 1.0/euler::gamma;
    //assuming theta = 25 degrees, Ma1 = 2.4
    xdouble theta = 25*2*M_PI/360;
-   double beta = 52*2*M_PI/360; 
+   double beta = 52.17187440*2*M_PI/360; 
    //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
    
    //compute mach number downstream of shock
@@ -445,12 +445,20 @@ void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
                   (2+euler::gami*Ma1n*Ma1n);
    xdouble press = prsi*(1 + (2*euler::gamma/(euler::gamma+1))*(Ma1n*Ma1n - 1)); 
    xdouble a = sqrt(euler::gamma*press/rho);
+   
+   // qbnd[0] = rho;
+   // qbnd[1] = rho*a*Ma*cos(theta);
+   // qbnd[2] = rho*a*Ma*sin(theta);
+   // qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   // std::cout << "state: "<< qbnd[0] << " " << qbnd[1] << " " << qbnd[2] << " " << qbnd[3] << "\n";
+   // std::cout << "state: "<< rho << " " << Ma << " " << press << "\n";
+   // std::cout << "Ma1n, Ma2n, a: " << Ma1n << " " << Ma2n << " " <<a << "\n";
 
    
    
-   double thresh = .5/tan(beta); //assuming wedge tip is origin
+   xdouble thresh = x[1]/tan(beta); //assuming wedge tip is origin
    // if behind shock, set back to upstream state
-   if(x[0] <= thresh+.5)
+   //if(x[0] <= thresh+.5)
    {
       theta = 0;
       Ma = Mai;

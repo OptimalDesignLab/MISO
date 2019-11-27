@@ -287,7 +287,7 @@ void EulerSolver::solveSteady()
    //solver.reset(new CGSolver());
    solver->SetTol(1e-10);
    solver->SetMaxIter(100);
-   solver->SetPrintLevel(2);
+   solver->SetPrintLevel(1);
    //solver->SetPreconditioner(*prec);
    std::cout << "Inner solver is set.\n";
 
