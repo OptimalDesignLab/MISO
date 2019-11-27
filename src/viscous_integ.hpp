@@ -77,13 +77,15 @@ protected:
    }
 
    /// applies symmetric matrix `C(u)` to input `v`
+   /// \param[in] i - index `i` in `Cij` matrix
+   /// \param[in] j - index `j` in `Cij` matrix
    /// \param[in] u - state at which the symmetric matrix `C` is evaluated
    /// \param[in] v - vector that is being multiplied
    /// \param[out] Cv - product of the multiplication
    /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
-   void scale(const mfem::Vector &u, const mfem::Vector &v, mfem::Vector &Cv)
+   void scale(int i, int j, const mfem::Vector &u, const mfem::Vector &v, mfem::Vector &Cv)
    {
-      static_cast<Derived*>(this)->applyScaling(u, v, Cv);
+      static_cast<Derived*>(this)->applyScaling(i, j, u, v, Cv);
    }
 
    /// Computes the Jacobian of the product `C(u)*v` w.r.t. `u`
