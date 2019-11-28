@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
    //    PCU_Comm_Free();
 
       EulerSolver solver(opt_file_name, nullptr, dim);
-      solver.setInitialCondition(uinit);
+      solver.setInitialCondition(uexact);
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
       mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
@@ -178,7 +178,7 @@ void uexact(const Vector &x, Vector& u)
    
    double thresh = x(1)/tan(beta); //assuming wedge tip is origin
    // if behind shock, set back to upstream state
-   //if(x(0) <= thresh+.5)
+   if(x(0) <= thresh+.5)
    {
       theta = 0;
       Ma = Mai;

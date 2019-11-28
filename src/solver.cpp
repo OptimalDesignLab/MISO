@@ -104,52 +104,100 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    std::cout << options["model-file"].get<string>().c_str() << std::endl;
    const char *model_file = options["model-file"].get<string>().c_str();
    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
-   PCU_Comm_Init();
-#ifdef MFEM_USE_SIMMETRIX
-   Sim_readLicenseFile(0);
-   gmi_sim_start();
-   gmi_register_sim();
-#endif
-   gmi_register_mesh();
-   pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-                                options["mesh"]["file"].get<string>().c_str());
-   int dim = pumi_mesh->getDimension();
-   int nEle = pumi_mesh->count(dim);
-   int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / dim);
-   // Perform Uniform refinement
-   // if (ref_levels > 1)
-   // {
-   //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
-   //    ma::adapt(uniInput);
-   // }
-         // reorder boundary faces, just in case
+//    PCU_Comm_Init();
+// #ifdef MFEM_USE_SIMMETRIX
+//    Sim_readLicenseFile(0);
+//    gmi_sim_start();
+//    gmi_register_sim();
+// #endif
+//    gmi_register_mesh();
+//    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
+//                                 options["mesh"]["file"].get<string>().c_str());
+//    int dim = pumi_mesh->getDimension();
+//    int nEle = pumi_mesh->count(dim);
+//    int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / dim);
+//    // Perform Uniform refinement
+//    // if (ref_levels > 1)
+//    // {
+//    //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
+//    //    ma::adapt(uniInput);
+//    // }
+//    // // check element orientations
+//    //    apf::Numbering* aux_num = apf::createNumbering(pumi_mesh, "aux_numbering", pumi_mesh->getShape(), 1);
+
+//    // apf::MeshIterator* it = pumi_mesh->begin(0);
+//    // apf::MeshEntity* v;
+//    // int count = 0;
+//    // while ( (v = pumi_mesh->iterate(it)) ) {
+//    //   apf::number(aux_num, v, 0, 0, count++);
+//    // }
+//    // pumi_mesh->end(it);
+//    // printf("Checking element orientations after converting the pumi mesh to MFEM mesh\n");
+//    // it = pumi_mesh->begin(pumi_mesh->getDimension());
+//    // count = 0;
+//    // while ( (v = pumi_mesh->iterate(it)) ){
+//    //   if (count > 10) break;
+//    //   printf("at element %d =========\n", count);
+//    //   if (isBoundaryTet(pumi_mesh, v))
+//    //     printf("tet is connected to the boundary\n");
+//    //   else
+//    //     printf("tet is NOT connected to the boundary\n");
+//    //   apf::MeshEntity* dvs[12];
+//    //   int nd = pumi_mesh->getDownward(v, 0, dvs);
+//    //   for (int i = 0; i < nd; i++) {
+//    //     int id = apf::getNumber(aux_num, dvs[i], 0, 0);
+//    //     printf("%d ", id);
+//    //   }
+//    //   printf("\n");
+//    //   Array<int> mfem_vs;
+//    //   mesh->GetElementVertices(count, mfem_vs);
+//    //   for (int i = 0; i < mfem_vs.Size(); i++) {
+//    //     printf("%d ", mfem_vs[i]);
+//    //   }
+//    //   printf("\n");
+//    //   printf("=========\n");
+//    //   count++;
+//    // }
+
+
+
+
+//          // reorder boundary faces, just in case
          
-      apf::MeshIterator* itr = pumi_mesh->begin(dim-1);
-      apf::MeshEntity* ent ;
-      pumi_mesh->verify();
-      mesh.reset(new MeshType(comm, pumi_mesh));
-      int ent_cnt = 0;
-      cout <<"hello\n";
+//       apf::MeshIterator* itr = pumi_mesh->begin(dim-1);
+//       apf::MeshEntity* ent ;
+//       pumi_mesh->verify();
+//       mesh.reset(new MeshType(comm, pumi_mesh));
+//       int ent_cnt = 0;
+//       cout <<"hello\n";
 
-      while ((ent = pumi_mesh->iterate(itr)))
-      {
+//       while ((ent = pumi_mesh->iterate(itr)))
+//       {
 
-         apf::ModelEntity *me = pumi_mesh->toModel(ent);
-         if (pumi_mesh->getModelType(me) == (dim-1))
-         {
-            //Get tag from model by  reverse classification
-            int tag = pumi_mesh->getModelTag(me);
-            (mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
-            ent_cnt++;
-         }
-      }
-      pumi_mesh->end(itr);  
-      mesh->SetAttributes();
-      // pumi_mesh->destroyNative();
-      // apf::destroyMesh(pumi_mesh);
-
-   
-   PCU_Comm_Free();
+//          apf::ModelEntity *me = pumi_mesh->toModel(ent);
+//          if (pumi_mesh->getModelType(me) == (dim-1))
+//          {
+//             //Get tag from model by  reverse classification
+//             int tag = pumi_mesh->getModelTag(me);
+//             (mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
+//             ent_cnt++;
+//          }
+//       }
+//       pumi_mesh->end(itr);  
+//       mesh->SetAttributes();
+//       mesh->CheckElementOrientation();
+//       mesh->CheckBdrElementOrientation();
+//       // pumi_mesh->destroyNative();
+//       // apf::destroyMesh(pumi_mesh);
+//    PCU_Comm_Free();
+   cout << "hello?\n";
+   Mesh *semesh = new Mesh(40, 20,
+                                             Element::TRIANGLE, true /* gen. edges */,
+                                             1, .5, true);
+   cout << "hello?\n";
+   mesh.reset(new ParMesh(comm, *semesh));
+   cout << "hello?\n";
+   delete(semesh);
    for(int k = 0; k < mesh->bdr_attributes.Size(); k++)
    {
       cout << mesh->bdr_attributes[k]<<"\n";
@@ -240,6 +288,14 @@ double AbstractSolver::calcL2Error(
             const IntegrationPoint &ip = ir->IntPoint(j);
             T->SetIntPoint(&ip);
             loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+            if(ip.weight < 0)
+            {
+               cout << "ip.weight: " << ip.weight << "\n";
+            }
+            if(T->Weight() < 0)
+            {
+               cout << "T->Weight: " << T->Weight() << "\n";
+            }
          }
       }
    }

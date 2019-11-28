@@ -102,7 +102,7 @@ protected:
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// object defining the computational mesh
-   std::unique_ptr<MeshType> mesh;
+   std::unique_ptr<mfem::ParMesh> mesh;
    /// discrete function space
    std::unique_ptr<SpaceType> fes;
    /// state variable

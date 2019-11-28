@@ -458,7 +458,7 @@ void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
    
    xdouble thresh = x[1]/tan(beta); //assuming wedge tip is origin
    // if behind shock, set back to upstream state
-   //if(x[0] <= thresh+.5)
+   if(x[0] <= thresh+.5)
    {
       theta = 0;
       Ma = Mai;
