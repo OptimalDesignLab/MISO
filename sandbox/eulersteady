@@ -1,0 +1,4 @@
+# Dump info about the Krylov solver
+
+-ksp_type gmres
+-ksp_pc ilu

@@ -38,6 +38,8 @@ int main(int argc, char *argv[])
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
+   const char *petscrc_file="eulersteady";
+   MFEMInitializePetsc(NULL, NULL, NULL, NULL);
    // Parse command-line options
    OptionsParser args(argc, argv);
    const char *options_file = "steady_vortex_options.json";
@@ -89,6 +91,7 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
+   MFEMFinalizePetsc();
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif

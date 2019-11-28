@@ -208,51 +208,47 @@ void EulerSolver::solveSteady()
    // MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
    // Petsc Solver section
-   // std::cout << "Steady solver is called.\n";
-   // const char *petscrc_file="eulersteady";
-   // MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-   // solver.reset(new PetscGMRESSolver(fes->GetComm(), petscrc_file));
-   // dynamic_cast<mfem::PetscSolver*>(solver.get())->SetAbsTol(1e-12);
-   // dynamic_cast<mfem::PetscSolver*>(solver.get())->SetRelTol(1e-12);
-   // dynamic_cast<mfem::PetscSolver*>(solver.get())->SetMaxIter(100);
-   // dynamic_cast<mfem::PetscSolver*>(solver.get())->SetPrintLevel(2);
-   // std::cout << "Inner solver is set.\n";
+   std::cout << "Steady solver is called.\n";
+   const char *petscrc_file="eulersteady";
+   solver.reset(new mfem::PetscLinearSolver(fes->GetComm(),petscrc_file,0));
+   dynamic_cast<mfem::PetscSolver*>(solver.get())->SetAbsTol(1e-10);
+   dynamic_cast<mfem::PetscSolver*>(solver.get())->SetRelTol(1e-3);
+   dynamic_cast<mfem::PetscSolver*>(solver.get())->SetMaxIter(100);
+   dynamic_cast<mfem::PetscSolver*>(solver.get())->SetPrintLevel(0);
+   //solver->iterative_mode = true;
+   std::cout << "Inner solver is set.\n";
 
-   // newton_solver.iterative_mode = true;
-   // newton_solver.SetSolver(*solver);
-   // newton_solver.SetOperator(*res);
-   // newton_solver.SetPrintLevel(1);
-   // newton_solver.SetRelTol(1e-10);
-   // newton_solver.SetAbsTol(1e-10);
-   // newton_solver.SetMaxIter(50);
-   // std::cout << "Newton solver is set.\n";
-
-   // mfem::Vector b;
-   // newton_solver.Mult(b,  *u);
-   // MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+   newton_solver.iterative_mode = true;
+   newton_solver.SetSolver(*solver);
+   newton_solver.SetOperator(*res);
+   newton_solver.SetPrintLevel(1);
+   newton_solver.SetRelTol(1e-10);
+   newton_solver.SetAbsTol(1e-10);
+   newton_solver.SetMaxIter(100);
+   std::cout << "Newton solver is set.\n";
+   mfem::Vector b;
+   newton_solver.Mult(b,  *u);
+   MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
    // Before solving the nonlinear problem, solve the simple linear problem.
-   mfem::Vector r(fes->GlobalTrueVSize());
-   res->Mult(*u, r);
-   const char *petscrc_file="eulersteady";
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-   mfem::PetscLinearSolver* psolver = new 
-               mfem::PetscLinearSolver(fes->GetComm(), petscrc_file, 0);
-   psolver->iterative_mode = true;
-   // prec = new PetscPreconditioner(res->GetGradient(*u),"solver_");
+   // mfem::Vector r(fes->GlobalTrueVSize());
+   // res->Mult(*u, r);
+   // const char *petscrc_file="eulersteady";
+   // mfem::PetscLinearSolver* psolver = new 
+   //             mfem::PetscLinearSolver(fes->GetComm(), petscrc_file, 0);
+   // psolver->iterative_mode = true;
    
-   std::cout << "The linear system is set.\n";
-   psolver->SetAbsTol(1e-10);
-   psolver->SetRelTol(1e-10);
-   psolver->SetPrintLevel(2);
-   psolver->SetMaxIter(100);
-   psolver->SetOperator(res->GetGradient(*u));
-   //psolver->SetPreconditioner(*prec);
-   mfem::Vector c(fes->GlobalTrueVSize());
-   //psolver->Mult(r, c);
-   c.Print(std::cout, 4);
-   delete psolver;
-   MFEMFinalizePetsc();
+   // std::cout << "The linear system is set.\n";
+   // psolver->SetAbsTol(1e-10);
+   // psolver->SetRelTol(1e-10);
+   // psolver->SetPrintLevel(2);
+   // psolver->SetMaxIter(100);
+   // psolver->SetOperator(res->GetGradient(*u));
+   // //psolver->SetPreconditioner(*prec);
+   // mfem::Vector c(fes->GlobalTrueVSize());
+   // psolver->Mult(r, c);
+   // c.Print(std::cout, 4);
+   // delete psolver;
 }
 
 void EulerSolver::jacobiancheck()
