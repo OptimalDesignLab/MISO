@@ -135,7 +135,11 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
             for (int n = 0; n < num_states; ++n)
             {
                res(i,n) += Sij*fluxij(n);
+               //std::cout <<"i: "<<i<<" n: "<<n<<" fluxij(n): "<<res(i,n)<<"\n";
+
                res(j,n) -= Sij*fluxij(n);
+               //std::cout <<"j: "<<j<<" n: "<<n<<" fluxij(n): "<<res(j,n)<<"\n";
+
             }
 			} // di loop
       } // j node loop
