@@ -65,17 +65,28 @@ dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
 /// build the interpolation operator on element patch
 /// this function will be moved later
 #ifdef MFEM_USE_LAPACK
-void buildInterpolation(int degree, const DenseMatrix &x_center,
+void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
                         const DenseMatrix &x_quad, DenseMatrix &interp)
 {
    // number of quadrature points
    int num_quad = x_quad.Width();
    // number of elements
    int num_el = x_center.Width();
-
    // number of row and colomn in little r matrix
-   int m = (degree + 1) * (degree + 2) / 2;
+   int m;
    int n = num_el;
+   if (1 == dim)
+   {
+      m = degree + 1;
+   }
+   else if (2 == dim)
+   {
+      m = (degree + 1) * (degree + 2) / 2;
+   }
+   else
+   {
+      throw MachException("Other dimension interpolation has not been implemented yet.\n");
+   }
 
    // Set the size of interpolation operator
    interp.SetSize(num_quad, num_el);
@@ -98,19 +109,36 @@ void buildInterpolation(int degree, const DenseMatrix &x_center,
       // loop over each column of r
       for (int j = 0; j < n; j++)
       {
-         double x_diff = x_center(0, j) - x_quad(0, i);
-         double y_diff = x_center(1, j) - x_quad(1, i);
-         r(0, j) = 1.0;
-         int index = 1;
-         // loop over different orders
-         for (int order = 1; order <= degree; order++)
+         if (1 == dim)
          {
-            for (int c = order; c >= 0; c--)
+            double x_diff = x_center(0, j) - x_quad(0, i);
+            r(0, j) = 1.0;
+            for(int order = 1; order < m; order++)
             {
-               r(index, j) = pow(x_diff, c) * pow(y_diff, order - c);
-               index++;
+               r(order, j) = pow(x_diff, order);
             }
          }
+         else if (2 == dim)
+         {
+            double x_diff = x_center(0, j) - x_quad(0, i);
+            double y_diff = x_center(1, j) - x_quad(1, i);
+            r(0, j) = 1.0;
+            int index = 1;
+            // loop over different orders
+            for (int order = 1; order <= degree; order++)
+            {
+               for (int c = order; c >= 0; c--)
+               {
+                  r(index, j) = pow(x_diff, c) * pow(y_diff, order - c);
+                  index++;
+               }
+            }
+         }
+         else
+         {
+            throw MachException("Other dimension interpolation has not been implemented yet.\n");
+         }
+         
       }
       // Solve each row of R and put them back to R
       int info, rank;
