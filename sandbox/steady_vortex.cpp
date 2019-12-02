@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
    MPI_Init(&argc, &argv);
 #endif
    const char *petscrc_file="eulersteady";
-   MFEMInitializePetsc(NULL, NULL, NULL, NULL);
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
    // Parse command-line options
    OptionsParser args(argc, argv);
    const char *options_file = "steady_vortex_options.json";
@@ -69,8 +69,8 @@ int main(int argc, char *argv[])
 
       EulerSolver solver(opt_file_name, move(smesh), dim);
       solver.setInitialCondition(uexact);
-      solver.setperturb(pert);
-      solver.jacobiancheck();
+      // solver.setperturb(pert);
+      // solver.jacobiancheck();
       solver.printSolution("init", degree+1);
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
@@ -82,6 +82,10 @@ int main(int argc, char *argv[])
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
       
+      // ofstream sol_ofs("steady_vortex.vtk");
+      // sol_ofs.precision(14);
+      // smesh->PrintVTK(sol_ofs, 0);
+
    }
    catch (MachException &exception)
    {

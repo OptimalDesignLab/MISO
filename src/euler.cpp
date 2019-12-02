@@ -4,6 +4,8 @@
 #include "diag_mass_integ.hpp"
 #include "inviscid_integ.hpp"
 #include "evolver.hpp"
+#include <fstream>
+#include <iostream>
 
 using namespace mfem;
 using namespace std;
@@ -85,21 +87,21 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       bndry_marker[idx].Assign(tmp.data());
       switch (dim)
       {
-         case 1:
-            res->AddBdrFaceIntegrator(
-                new SlipWallBC<1>(diff_stack, fec.get(), alpha),
-                bndry_marker[idx]);
-            break;
-         case 2:
-            res->AddBdrFaceIntegrator(
-               new SlipWallBC<2>(diff_stack, fec.get(), alpha),
-               bndry_marker[idx]);
-            break;
-         case 3:
-            res->AddBdrFaceIntegrator(
-               new SlipWallBC<3>(diff_stack, fec.get(), alpha),
-               bndry_marker[idx]);
-            break;
+      case 1:
+         res->AddBdrFaceIntegrator(
+             new SlipWallBC<1>(diff_stack, fec.get(), alpha),
+             bndry_marker[idx]);
+         break;
+      case 2:
+         res->AddBdrFaceIntegrator(
+             new SlipWallBC<2>(diff_stack, fec.get(), alpha),
+             bndry_marker[idx]);
+         break;
+      case 3:
+         res->AddBdrFaceIntegrator(
+             new SlipWallBC<3>(diff_stack, fec.get(), alpha),
+             bndry_marker[idx]);
+         break;
       }
       idx++;
    }
@@ -209,12 +211,13 @@ void EulerSolver::solveSteady()
 
    // Petsc Solver section
    std::cout << "Steady solver is called.\n";
-   const char *petscrc_file="eulersteady";
-   solver.reset(new mfem::PetscLinearSolver(fes->GetComm(),petscrc_file,0));
-   dynamic_cast<mfem::PetscSolver*>(solver.get())->SetAbsTol(1e-10);
-   dynamic_cast<mfem::PetscSolver*>(solver.get())->SetRelTol(1e-3);
-   dynamic_cast<mfem::PetscSolver*>(solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::PetscSolver*>(solver.get())->SetPrintLevel(0);
+   solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
+   mfem::PetscPreconditioner *prec = new mfem::PetscPreconditioner(fes->GetComm(), "prec_");
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(1e-10);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(1e-3);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(100);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(2);
+   dynamic_cast<mfem::PetscLinearSolver *>(solver.get())->SetPreconditioner(*prec);
    //solver->iterative_mode = true;
    std::cout << "Inner solver is set.\n";
 
@@ -227,28 +230,38 @@ void EulerSolver::solveSteady()
    newton_solver.SetMaxIter(100);
    std::cout << "Newton solver is set.\n";
    mfem::Vector b;
-   newton_solver.Mult(b,  *u);
+   newton_solver.Mult(b, *u);
+   delete prec;
    MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+
+   ofstream sol_ofs("steady_vortex_cg.vtk");
+   sol_ofs.precision(14);
+   mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+   u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+   sol_ofs.close();
+   printSolution("final");
 
    // Before solving the nonlinear problem, solve the simple linear problem.
    // mfem::Vector r(fes->GlobalTrueVSize());
    // res->Mult(*u, r);
-   // const char *petscrc_file="eulersteady";
-   // mfem::PetscLinearSolver* psolver = new 
-   //             mfem::PetscLinearSolver(fes->GetComm(), petscrc_file, 0);
-   // psolver->iterative_mode = true;
-   
+   // mfem::PetscLinearSolver* psolver = new
+   //             mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0);
+   // mfem::PetscPreconditioner *prec = new
+   //             mfem::PetscPreconditioner(fes->GetComm(), "prec_");
+
    // std::cout << "The linear system is set.\n";
    // psolver->SetAbsTol(1e-10);
    // psolver->SetRelTol(1e-10);
    // psolver->SetPrintLevel(2);
    // psolver->SetMaxIter(100);
+   // psolver->SetPreconditioner(*prec);
    // psolver->SetOperator(res->GetGradient(*u));
    // //psolver->SetPreconditioner(*prec);
    // mfem::Vector c(fes->GlobalTrueVSize());
    // psolver->Mult(r, c);
-   // c.Print(std::cout, 4);
+   // //c.Print(std::cout, 4);
    // delete psolver;
+   // delete prec;
 }
 
 void EulerSolver::jacobiancheck()
@@ -290,7 +303,7 @@ void EulerSolver::jacobiancheck()
    res->Mult(*u_minus, *res_minus);
 
    res_plus->Add(-1.0, *res_minus);
-   res_plus->Set(1/(2*delta), *res_plus);
+   res_plus->Set(1 / (2 * delta), *res_plus);
    // std::cout << "The residual difference is:\n";
    // res_plus->Save(std::cout);
 
@@ -304,7 +317,7 @@ void EulerSolver::jacobiancheck()
    //jac_v->Save(std::cout);
    // check the difference norm
    jac_v->Add(-1.0, *res_plus);
-   std::cout << "The difference norm is " << jac_v->Norml2()<<'\n';
+   std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
 }
 
 } // namespace mach
