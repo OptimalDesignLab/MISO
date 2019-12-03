@@ -683,7 +683,6 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    }
    // Construct the Vandermonde matrix in order to perform LPS projections;
    V.SetSize(num_nodes, (degree + 1) * (degree + 2) / 2);
-   Vs.SetSize(num_nodes, 1);
    // First, get node coordinates and shift to triangle with vertices 
    // (-1,-1), (1,-1), (-1,1)
    Vector xi, eta;
@@ -694,10 +693,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    eta *= 2.0;
    eta -= 1.0;
    mach::getVandermondeForTri(xi, eta, Order, V);
-   mach::getVandermondeForTri(xi, eta, 0, Vs);
    // scale V to account for the different reference elements
    V *= 2.0;
-   Vs *= 2.0;
 }
 
 /// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}

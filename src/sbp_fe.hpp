@@ -137,8 +137,6 @@ protected:
    mutable Array<DenseMatrix> Q;
    /// generalized Vandermonde matrix; used for the projection operator in LPS
    mutable DenseMatrix V;
-   /// used for the projection operator in LPS for shocks
-   mutable DenseMatrix Vs;
 };
 
 // /// Class for summation-by-parts operator on interval

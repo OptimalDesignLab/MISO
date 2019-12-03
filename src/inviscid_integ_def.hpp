@@ -379,6 +379,8 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    w.SetSize(num_states, num_nodes);
    Pw.SetSize(num_states, num_nodes);
    Vector wi, Pwi;
+   Vector Vs0, prod(num_states);
+   DenseMatrix Vs;
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
@@ -389,8 +391,38 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
       w.GetColumnReference(i, wi);
       convert(ui, wi);
    }
-   // Step 2: apply the projection operator to w
-   sbp.multProjOperator(w, Pw, false);
+   // Step 2: apply the shock projection operator to w
+   Vector xi, eta;
+   sbp.getNodeCoords(0, xi);
+   sbp.getNodeCoords(1, eta);
+   xi *= 2.0;
+   xi -= 1.0;
+   eta *= 2.0;
+   eta -= 1.0;   
+   getVandermondeForTri(xi, eta, 0, Vs);
+   Vs *= 2.0;
+   Vs.GetColumnReference(0, Vs0);
+
+   // perform the inner product V(:,i)^T * H * u
+   Pw = w;
+         prod = 0.0;
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            double fac = Vs0(j)*sbp.getDiagNormEntry(j);
+            for (int n = 0; n < num_states; ++n)
+            {
+               prod(n) += fac*w(n,j);
+            }
+         }
+         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               Pw(n,j) -= Vs0(j)*prod(n);
+            }
+         }
+
    // Step 3: apply scaling matrix at each node and diagonal norm
    for (int i = 0; i < num_nodes; ++i)
    {
@@ -405,7 +437,26 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    }
    sbp.multNormMatrix(w, w);
    // Step 4: apply the transposed projection operator to H*A*P*w
-   sbp.multProjOperator(w, Pw, true);
+   // now need to replace this part
+   prod = 0.0;
+   Pw = w;
+
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               prod(n) += Vs0(j)*w(n,j); 
+            }
+         }
+         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            double fac = Vs0(j)*sbp.getDiagNormEntry(j);
+            for (int n = 0; n < num_states; ++n)
+            {
+               Pw(n,j) -= fac*prod(n);
+            }
+         }
    // This is necessary because data in elvect is expected to be ordered `byNODES`
    res.Transpose(Pw);
    res *= alpha;
