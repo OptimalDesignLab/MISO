@@ -191,7 +191,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 //       // apf::destroyMesh(pumi_mesh);
 //    PCU_Comm_Free();
    cout << "hello?\n";
-   Mesh *semesh = new Mesh(8, 4,
+   Mesh *semesh = new Mesh(20, 10,
                                              Element::TRIANGLE, true /* gen. edges */,
                                              1, .5, true);
    cout << "hello?\n";

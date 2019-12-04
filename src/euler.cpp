@@ -51,6 +51,8 @@ EulerSolver::EulerSolver(const string &opt_file_name,
       double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
       res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
                                                              lps_coeff));
+      // res->AddDomainIntegrator(new EntStableLPSShockIntegrator<2>(diff_stack, alpha,
+      //                                                        lps_coeff));
 
       // boundary face integrators are handled in their own function
       addBoundaryIntegrators(alpha, dim);

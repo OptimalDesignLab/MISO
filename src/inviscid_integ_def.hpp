@@ -1,3 +1,5 @@
+extern void getVandermondeForTri(const mfem::Vector &x, const mfem::Vector &y,
+                          const int degree, mfem::DenseMatrix &V);
 
 template <typename Derived>
 void InviscidIntegrator<Derived>::AssembleElementVector(
@@ -399,7 +401,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    xi -= 1.0;
    eta *= 2.0;
    eta -= 1.0;   
-   getVandermondeForTri(xi, eta, 0, Vs);
+   mach::getVandermondeForTri(xi, eta, 0, Vs);
    Vs *= 2.0;
    Vs.GetColumnReference(0, Vs0);
 
@@ -467,103 +469,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
     const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
 {
-   using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
-   int num_nodes = sbp.GetDof();
-   int dim = sbp.GetDim();
-#ifdef MFEM_THREAD_SAFE
-   Vector ui;
-   DenseMatrix adjJt, w, Pw, jac_term, jac_node, Lij;
-#endif
-   Vector wi, Pwi;
-   elmat.SetSize(num_states*num_nodes);
-   elmat = 0.0;
-   ui.SetSize(num_states);
-   adjJt.SetSize(dim);
-   w.SetSize(num_states, num_nodes);
-   Pw.SetSize(num_states, num_nodes);
-   jac_term.SetSize(num_states);
-   jac_node.SetSize(num_states);
-   Lij.SetSize(num_states);
-   DenseMatrix u(elfun.GetData(), num_nodes, num_states);  
-
-   // convert from working variables (this may be the identity)
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      u.GetRow(i,ui);
-      w.GetColumnReference(i, wi);
-      convert(ui, wi);
-   }
-   // apply the projection operator to w
-   sbp.multProjOperator(w, Pw, false);
-
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      // get contribution to Jacobian due to scaling operation
-      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      CalcAdjugate(Trans.Jacobian(), adjJt);
-      u.GetRow(i, ui);
-      Pw.GetColumnReference(i, Pwi);
-      scaleJacState(adjJt, ui, Pwi, jac_term);
-      for (int j = 0; j < num_nodes; ++j)
-      {
-         double coeff = sbp.getDiagNormEntry(i) *
-                        sbp.getProjOperatorEntry(i, j);
-         for (int n = 0; n < num_states; ++n)
-         {
-            for (int m = 0; m < num_states; ++m)
-            {
-               elmat(n*num_nodes+j, m*num_nodes+i) += coeff*jac_term(n,m);
-            }
-         }
-      }
-
-      // get contribution to Jacobian assuming scaling is constant
-      for (int j = i; j < num_nodes; ++j)
-      {
-         // find matrix entry assuming scaling is constant;
-         // Lij = sum_{k=1}^{n} (P_ki H_k A(u_k) P_kj)
-         Lij = 0.0;
-         for (int k = 0; k < num_nodes; ++k)
-         {
-            Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
-            CalcAdjugate(Trans.Jacobian(), adjJt);
-            u.GetRow(k, ui);
-            scaleJacV(adjJt, ui, jac_term);
-            double coeff = sbp.getProjOperatorEntry(k, i) *
-                           sbp.getDiagNormEntry(k) *
-                           sbp.getProjOperatorEntry(k, j);
-            Lij.Add(coeff, jac_term);
-         }
-         // insert node-level Jacobian (i,j) into element matrix
-         u.GetRow(j, ui);
-         convertJacState(ui, jac_term);
-         Mult(Lij, jac_term, jac_node);
-         for (int n = 0; n < num_states; ++n)
-         {
-            for (int m = 0; m < num_states; ++m)
-            {
-               elmat(n*num_nodes+i, m*num_nodes+j) += jac_node(n,m);
-            }
-         }
-         if (i == j)
-         {
-            continue;  // don't double count the diagonal terms
-         }
-         // insert node-level Jacobian (j,i) into element matrix
-         u.GetRow(i, ui);
-         convertJacState(ui, jac_term);
-         Mult(Lij, jac_term, jac_node);
-         for (int n = 0; n < num_states; ++n)
-         {
-            for (int m = 0; m < num_states; ++m)
-            {
-               elmat(n*num_nodes+j, m*num_nodes+i) += jac_node(n,m);
-            }
-         }
-      }  
-   }
-   elmat *= alpha;
+  
 }
 
 template <typename Derived>
