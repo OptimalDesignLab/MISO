@@ -1,7 +1,8 @@
 {
    "space-dis": {
       "degree": 1,
-      "lps-coeff": 1.0
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
    },
    "time-dis": {
       "ode-solver": "RK4",
@@ -16,7 +17,7 @@
    "unsteady": {
       "const-cfl": true,
       "cfl": 1.0,
-      "dt": 0.1,
+      "dt": 0.01,
       "t-final": 500.0
    },
    "bcs": {
@@ -38,5 +39,8 @@
       "maxiter": 100,
       "printlevel": 2
    },
-   "saveresults":false
+   "saveresults":false,
+   "outputs": {
+      "drag": [0, 0, 0, 1]
+   }
 }

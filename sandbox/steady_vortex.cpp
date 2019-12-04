@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
    // Parse command-line options
    OptionsParser args(argc, argv);
-   int degree = 1.0;
+   int degree = 2.0;
    int nx = 1.0;
    int ny = 1.0;
    //const char *options_file = "steady_vortex_options.json";
@@ -82,7 +82,10 @@ int main(int argc, char *argv[])
       const int dim = 2;
       const int num_state = dim + 2; 
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-
+      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
+      ofstream sol_ofs("steady_vortex_mesh.vtk");
+      sol_ofs.precision(14);
+      smesh->PrintVTK(sol_ofs,3);
       EulerSolver solver(opt_file_name, move(smesh), dim);
       solver.setInitialCondition(uexact);
       solver.setperturb(pert);
@@ -96,12 +99,8 @@ int main(int argc, char *argv[])
       mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver.calcL2Error(uexact, 0) << '\n' << endl;
-      
-      // ofstream sol_ofs("steady_vortex.vtk");
-      // sol_ofs.precision(14);
-      // smesh->PrintVTK(sol_ofs, 0);
-
+                << solver.calcL2Error(uexact, 0) << endl;
+      mfem::out << "\nDrag error = " << abs(solver.calcOutput("drag") - (-1/mach::euler::gamma)) << endl << endl;
    }
    catch (MachException &exception)
    {

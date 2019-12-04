@@ -14,11 +14,18 @@ namespace mach
 nlohmann::json default_options =
 {
    {"model-file","mach.dmg"}, // model file name
+    
+   {"flow-param", // options related to flow simulations
+   {
+      {"mach", 0.5}, // far-field mach number
+      {"aoa", 0.0} // far-field angle of attack
+   }},
 
    {"space-dis", // options related to spatial discretization
    {
       {"degree", 1}, // default operator degree
-      {"lps-coeff", 1.0} // scaling coefficient for local-proj stabilization
+      {"lps-coeff", 1.0}, // scaling coefficient for local-proj stabilization
+      {"basis-type", "csbp"} // csbp & dsbp for continuous & discrete SBP discretization resp. 
    }},
 
    {"steady", false}, // if true, solve a steady problem
@@ -31,15 +38,29 @@ nlohmann::json default_options =
       {"cfl", 1.0} // target CFL number
    }},
 
-   {"newton", // options related to root-finding algorithms
+   {"lin-solver",
    {
+      {"print-lvl", 0}, // linear solver print level (no printing if zero)
+      {"max-iter", 100}, // default to 100 iterations
+      {"rel-tol", 1e-12}, // solver relative tolerance
+      {"abs-tol", 1e-12}, // solver absolute tolerance
+      {"tol", 1e-12}, // Hypre solvers only let you set one value for tolerance
    }},
 
-   {"mesh", // options related to the mesh
+   {"newton", // options related to root-finding algorithms
    {
-      {"file", "mach.mesh"}, // mesh file name
+      {"print-lvl", 0}, // linear solver print level (no printing if zero)
+      {"max-iter", 100}, // default to 100 iterations
+      {"rel-tol", 1e-12}, // solver relative tolerance
+      {"abs-tol", 1e-12}, // solver absolute tolerance
+   }},
+
+   {"mesh",
+   {
+      {"file", "mach.mesh"}, // mesh file name when not using pumi
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
    }}
+
 };
 
 } // namespace mach

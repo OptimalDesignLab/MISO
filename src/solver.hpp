@@ -6,7 +6,18 @@
 #include "mach_types.hpp"
 #include "utils.hpp"
 #include "json.hpp"
-
+#ifdef MFEM_USE_SIMMETRIX
+#include <SimUtil.h>
+#include <gmi_sim.h>
+#endif
+#ifdef MFEM_USE_PUMI
+#include <apfMDS.h>
+#include <gmi_null.h>
+#include <PCU.h>
+#include <apfConvert.h>
+#include <gmi_mesh.h>
+#include <crv.h>
+#endif
 namespace mach
 {
 
@@ -63,7 +74,13 @@ public:
    /// \param[in,out] x - the current state at input and solution at ouput
    virtual void solveSteady();
 
+   /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady();
+
+   /// Evaluate and return the output functional specified by `fun`
+   /// \param[in] fun - specifies the desired functional
+   /// \returns scalar value of estimated functional value
+   double calcOutput(const std::string &fun);
 
 protected:
 #ifdef MFEM_USE_MPI
@@ -84,6 +101,10 @@ protected:
    double dt;
    /// final time
    double t_final;
+   /// pumi mesh object
+#ifdef MFEM_USE_PUMI
+   apf::Mesh2* pumi_mesh;
+#endif
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// object defining the computational mesh
@@ -111,6 +132,10 @@ protected:
    std::unique_ptr<mfem::Solver> solver;
    /// linear system preconditioner for solver in newton solver
    std::unique_ptr<mfem::Solver> prec;
+   /// map of output functionals
+   std::map<std::string, NonlinearFormType> output;
+   /// `output_bndry_marker[i]` lists the boundaries associated with output i
+   std::vector<mfem::Array<int>> output_bndry_marker;
 };
 
 } // namespace mach

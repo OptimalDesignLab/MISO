@@ -231,7 +231,8 @@ void EntStableLPSIntegrator<dim>::applyScalingJacV(
 
 template <int dim>
 void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
-                                                const mfem::Vector &qL, const mfem::Vector &qR,
+                                                const mfem::Vector &qL,
+                                                const mfem::Vector &qR,
                                                 mfem::DenseMatrix &jacL,
                                                 mfem::DenseMatrix &jacR)
 {
@@ -264,7 +265,8 @@ void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
 
 template <int dim>
 void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
-                                              const mfem::Vector &qL, const mfem::Vector &qR,
+                                              const mfem::Vector &qL,
+                                              const mfem::Vector &qR,
                                               mfem::DenseMatrix &jac_dir)
 {
    // vector of active input variables
