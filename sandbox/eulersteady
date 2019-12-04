@@ -1,4 +1,2 @@
-# Dump info about the Krylov solver
-
--solver_ksp_type  gmres
+-solver_ksp_type gmres
 -prec_pc_type lu

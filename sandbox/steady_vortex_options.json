@@ -23,5 +23,20 @@
       "vortex": [1, 1, 1, 0],
       "slip-wall": [0, 0, 0, 1]
    },
-   "steady": true
+   "steady": true,
+   "newtonsolver":{
+      "abstol": 1e-10,
+      "reltol": 1e-10,
+      "maxiter": 30,
+      "printlevel": 1
+   },
+   "petscsolver":{
+      "ksptype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-10,
+      "reltol": 1e-10,
+      "maxiter": 100,
+      "printlevel": 2
+   },
+   "saveresults":false
 }

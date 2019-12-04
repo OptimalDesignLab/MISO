@@ -268,8 +268,39 @@ void AbstractSolver::solveForState()
 
 void AbstractSolver::solveSteady()
 {
-   throw MachException("AbstractSolver::solveSteady\n"
-                       "\tnot implemented");
+   std::cout << "solve steady is called.\n";
+   // Get the PetscSolver option 
+   double abstol = options["petscsolver"]["abstol"].get<double>();
+   double reltol = options["petscsolver"]["reltol"].get<double>();
+   int maxiter = options["petscsolver"]["maxiter"].get<int>();
+   int ptl = options["petscsolver"]["printlevel"].get<int>();
+
+   solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
+   prec.reset(new mfem::PetscPreconditioner(fes->GetComm(), "prec_"));
+   dynamic_cast<mfem::PetscLinearSolver *>(solver.get())->SetPreconditioner(*prec);
+
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(abstol);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
+   std::cout << "PetscLinearSolver is set.\n";
+   //Get the newton solver options
+   double nabstol = options["newtonsolver"]["abstol"].get<double>();
+   double nreltol = options["newtonsolver"]["reltol"].get<double>();
+   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
+   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver->iterative_mode = true;
+   newton_solver->SetSolver(*solver);
+   newton_solver->SetOperator(*res);
+   newton_solver->SetAbsTol(nabstol);
+   newton_solver->SetRelTol(nreltol);
+   newton_solver->SetMaxIter(nmaxiter);
+   newton_solver->SetPrintLevel(nptl);
+   mfem::Vector b;
+   std::cout << "NewtonSolver is set.\n";
+   newton_solver->Mult(b, *u);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
 }
 
 void AbstractSolver::solveUnsteady()

@@ -92,6 +92,8 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   /// the spatial residual (a semilinear form)
+   std::unique_ptr<NonlinearFormType> res;
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
@@ -102,6 +104,13 @@ protected:
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
+
+   /// newton solver for the steady problem
+   std::unique_ptr<mfem::NewtonSolver> newton_solver;
+   /// linear system solver used in newton solver
+   std::unique_ptr<mfem::Solver> solver;
+   /// linear system preconditioner for solver in newton solver
+   std::unique_ptr<mfem::Solver> prec;
 };
 
 } // namespace mach

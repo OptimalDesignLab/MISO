@@ -185,8 +185,8 @@ double EulerSolver::calcStepSize(double cfl) const
 }
 
 /// Solve for the steady problem
-void EulerSolver::solveSteady()
-{
+//void EulerSolver::solveSteady()
+//{
    // // Hypre solver section
    // prec.reset( new HypreBoomerAMG() );
    // prec->SetPrintLevel(0);
@@ -209,37 +209,18 @@ void EulerSolver::solveSteady()
    // newton_solver.Mult(b,  *u);
    // MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-   // Petsc Solver section
-   std::cout << "Steady solver is called.\n";
-   solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
-   mfem::PetscPreconditioner *prec = new mfem::PetscPreconditioner(fes->GetComm(), "prec_");
-   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(1e-10);
-   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(1e-3);
-   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(2);
-   dynamic_cast<mfem::PetscLinearSolver *>(solver.get())->SetPreconditioner(*prec);
-   //solver->iterative_mode = true;
-   std::cout << "Inner solver is set.\n";
 
-   newton_solver.iterative_mode = true;
-   newton_solver.SetSolver(*solver);
-   newton_solver.SetOperator(*res);
-   newton_solver.SetPrintLevel(1);
-   newton_solver.SetRelTol(1e-10);
-   newton_solver.SetAbsTol(1e-10);
-   newton_solver.SetMaxIter(100);
-   std::cout << "Newton solver is set.\n";
-   mfem::Vector b;
-   newton_solver.Mult(b, *u);
-   delete prec;
-   MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-   ofstream sol_ofs("steady_vortex_cg.vtk");
-   sol_ofs.precision(14);
-   mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-   u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-   sol_ofs.close();
-   printSolution("final");
+   // bool saveresult = options["saveresults"].get<bool>();
+   // if (saveresult)
+   // {
+   //    ofstream sol_ofs("steady_vortex_cg.vtk");
+   //    sol_ofs.precision(14);
+   //    mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+   //    u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+   //    sol_ofs.close();
+   //    printSolution("final");
+   // }
 
    // Before solving the nonlinear problem, solve the simple linear problem.
    // mfem::Vector r(fes->GlobalTrueVSize());
@@ -262,7 +243,7 @@ void EulerSolver::solveSteady()
    // //c.Print(std::cout, 4);
    // delete psolver;
    // delete prec;
-}
+//}
 
 void EulerSolver::jacobiancheck()
 {
@@ -283,17 +264,6 @@ void EulerSolver::jacobiancheck()
    u_plus->Add(delta, *perturbation_vec);
    u_minus->Add(-delta, *perturbation_vec);
 
-   std::cout << setprecision(14);
-   // std::cout << "Check u:\n";
-   //u->Save(std::cout);
-   // std::cout << '\n';
-   // std::cout << "Check u_plus:\n";
-   //u_plus->Save(std::cout);
-   // std::cout << '\n';
-   // std::cout << "Check u_minus:\n";
-   //u_minus->Save(std::cout);
-   //std::cout << '\n';
-
    std::unique_ptr<GridFunType> res_plus;
    std::unique_ptr<GridFunType> res_minus;
    res_plus.reset(new GridFunType(fes.get()));
@@ -304,17 +274,12 @@ void EulerSolver::jacobiancheck()
 
    res_plus->Add(-1.0, *res_minus);
    res_plus->Set(1 / (2 * delta), *res_plus);
-   // std::cout << "The residual difference is:\n";
-   // res_plus->Save(std::cout);
 
    // result from GetGradient(x)
    std::unique_ptr<GridFunType> jac_v;
    jac_v.reset(new GridFunType(fes.get()));
    mfem::Operator &jac = res->GetGradient(*u);
-   //jac.PrintMatlab(std::cout);
    jac.Mult(*perturbation_vec, *jac_v);
-   //std::cout << "Resuelts from GetGradient(x):\n";
-   //jac_v->Save(std::cout);
    // check the difference norm
    jac_v->Add(-1.0, *res_plus);
    std::cout << "The difference norm is " << jac_v->Norml2() << '\n';

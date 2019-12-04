@@ -326,7 +326,7 @@ public:
    double calcResidualNorm();
 
    /// Solve the steady state  problem
-   virtual void solveSteady();
+   //virtual void solveSteady();
 
    /// Check the jacobian accuracy
    /// Compare the results jac_v = jac * pert_v w.r.t jac_v calculated from
@@ -338,21 +338,12 @@ public:
    {  perturb_fun = fun; }
    
 protected:
-   /// newton solver for the steady problem
-   mfem::NewtonSolver newton_solver;
-   /// linear system solver used in newton solver
-   std::unique_ptr<mfem::Solver> solver;
-   //std::unique_ptr<mfem::IterativeSolver> solver;
-   /// linear system preconditioner for solver in newton solver
-   std::unique_ptr<mfem::HypreBoomerAMG> prec;
    /// perturbation function that used for 
    void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// the mass matrix bilinear form
    std::unique_ptr<BilinearFormType> mass;
-   /// the spatial residual (a semilinear form)
-   std::unique_ptr<NonlinearFormType> res;
    /// mass matrix (move to AbstractSolver?)
    std::unique_ptr<MatrixType> mass_matrix;
 

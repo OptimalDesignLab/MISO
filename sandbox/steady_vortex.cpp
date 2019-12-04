@@ -34,20 +34,34 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 
 int main(int argc, char *argv[])
 {
+   const char *options_file = "steady_vortex_options.json";
+   const char *petscrc_file = "eulersteady";
+   //Get the option files
+   nlohmann::json options;
+   ifstream option_source(options_file);
+   option_source >> options;
+   // write the petsc linear solver options from options
+   ofstream petscoptions(petscrc_file);
+   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
+   const string prec_name = options["petscsolver"]["pctype"].get<string>();
+   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
+   petscoptions << "-prec_pc_type " << prec_name << '\n';
+   petscoptions.close();
+   
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
-   const char *petscrc_file="eulersteady";
    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "steady_vortex_options.json";
    int degree = 1.0;
    int nx = 1.0;
    int ny = 1.0;
-   args.AddOption(&options_file, "-o", "--options",
-                  "Options file to use.");
+   //const char *options_file = "steady_vortex_options.json";
+   
+   args.AddOption(&options_file, "-o", "--options", "Options file to use.");
+   //arg.AddOptions(&petscrc_file, "-p", "--petsc", "Petsc option file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
@@ -57,20 +71,22 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
+   string opt_file_name(options_file);
 
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+   
    try
    {
       // construct the solver, set the initial condition, and solve
-      string opt_file_name(options_file);
-      std::cout << options_file << endl;
+      
       const int dim = 2;
       const int num_state = dim + 2; 
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
 
       EulerSolver solver(opt_file_name, move(smesh), dim);
       solver.setInitialCondition(uexact);
-      // solver.setperturb(pert);
-      // solver.jacobiancheck();
+      solver.setperturb(pert);
+      solver.jacobiancheck();
       solver.printSolution("init", degree+1);
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << '\n' << endl;
