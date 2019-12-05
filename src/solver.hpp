@@ -76,7 +76,11 @@ public:
 
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady();
-
+   
+   /// Check the jabocian w.r.t jacobian calculate from finite difference
+   /// method
+   void jacobianCheck();
+   
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
    /// \returns scalar value of estimated functional value
