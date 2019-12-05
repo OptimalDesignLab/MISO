@@ -5,8 +5,6 @@
 #include "diag_mass_integ.hpp"
 #include "euler_integ.hpp"
 #include "evolver.hpp"
-#include <fstream>
-#include <iostream>
 
 using namespace mfem;
 using namespace std;
@@ -71,7 +69,6 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
    evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
-   //A.reset(res->ParallelAssemble());
    // add the output functional QoIs 
    addOutputs(dim);
 }
@@ -268,107 +265,6 @@ double EulerSolver::calcStepSize(double cfl) const
    dt_min = dt_local;
 #endif
    return dt_min;
-}
-
-/// Solve for the steady problem
-//void EulerSolver::solveSteady()
-//{
-   // // Hypre solver section
-   // prec.reset( new HypreBoomerAMG() );
-   // prec->SetPrintLevel(0);
-   // std::cout << "preconditioner is set.\n";
-   // solver.reset( new HypreGMRES(fes->GetComm()) );
-   // solver->SetTol(1e-10);
-   // solver->SetMaxIter(100);
-   // solver->SetPrintLevel(0);
-   // //solver->SetPreconditioner(*prec);
-   // std::cout << "Inner solver is set.\n";
-   // newton_solver.iterative_mode = true;
-   // newton_solver.SetSolver(*solver);
-   // newton_solver.SetOperator(*res);
-   // newton_solver.SetPrintLevel(1);
-   // newton_solver.SetRelTol(1e-10);
-   // newton_solver.SetAbsTol(1e-10);
-   // newton_solver.SetMaxIter(50);
-   // std::cout << "Newton solver is set.\n";
-   // mfem::Vector b;
-   // newton_solver.Mult(b,  *u);
-   // MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
-
-
-
-   // bool saveresult = options["saveresults"].get<bool>();
-   // if (saveresult)
-   // {
-   //    ofstream sol_ofs("steady_vortex_cg.vtk");
-   //    sol_ofs.precision(14);
-   //    mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-   //    u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-   //    sol_ofs.close();
-   //    printSolution("final");
-   // }
-
-   // Before solving the nonlinear problem, solve the simple linear problem.
-   // mfem::Vector r(fes->GlobalTrueVSize());
-   // res->Mult(*u, r);
-   // mfem::PetscLinearSolver* psolver = new
-   //             mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0);
-   // mfem::PetscPreconditioner *prec = new
-   //             mfem::PetscPreconditioner(fes->GetComm(), "prec_");
-
-   // std::cout << "The linear system is set.\n";
-   // psolver->SetAbsTol(1e-10);
-   // psolver->SetRelTol(1e-10);
-   // psolver->SetPrintLevel(2);
-   // psolver->SetMaxIter(100);
-   // psolver->SetPreconditioner(*prec);
-   // psolver->SetOperator(res->GetGradient(*u));
-   // //psolver->SetPreconditioner(*prec);
-   // mfem::Vector c(fes->GlobalTrueVSize());
-   // psolver->Mult(r, c);
-   // //c.Print(std::cout, 4);
-   // delete psolver;
-   // delete prec;
-//}
-
-void EulerSolver::jacobiancheck()
-{
-   // initialize the variables
-   const double delta = 1e-5;
-   std::unique_ptr<GridFunType> u_plus;
-   std::unique_ptr<GridFunType> u_minus;
-   std::unique_ptr<GridFunType> perturbation_vec;
-   perturbation_vec.reset(new GridFunType(fes.get()));
-   VectorFunctionCoefficient up(num_state, perturb_fun);
-   perturbation_vec->ProjectCoefficient(up);
-   u_plus.reset(new GridFunType(fes.get()));
-   u_minus.reset(new GridFunType(fes.get()));
-
-   // set uplus and uminus to the current state
-   *u_plus = *u;
-   *u_minus = *u;
-   u_plus->Add(delta, *perturbation_vec);
-   u_minus->Add(-delta, *perturbation_vec);
-
-   std::unique_ptr<GridFunType> res_plus;
-   std::unique_ptr<GridFunType> res_minus;
-   res_plus.reset(new GridFunType(fes.get()));
-   res_minus.reset(new GridFunType(fes.get()));
-
-   res->Mult(*u_plus, *res_plus);
-   res->Mult(*u_minus, *res_minus);
-
-   res_plus->Add(-1.0, *res_minus);
-   res_plus->Set(1 / (2 * delta), *res_plus);
-
-   // result from GetGradient(x)
-   std::unique_ptr<GridFunType> jac_v;
-   jac_v.reset(new GridFunType(fes.get()));
-   mfem::Operator &jac = res->GetGradient(*u);
-   jac.Mult(*perturbation_vec, *jac_v);
-   // check the difference norm
-   jac_v->Add(-1.0, *res_plus);
-   std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
 }
 
 } // namespace mach
