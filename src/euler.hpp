@@ -33,8 +33,6 @@ public:
    double calcResidualNorm();
    
 protected:
-   /// perturbation function that used for 
-   void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
    /// free-stream Mach number
    double mach_fs;
    /// free-stream angle of attack
