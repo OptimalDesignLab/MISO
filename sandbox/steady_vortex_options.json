@@ -39,6 +39,11 @@
       "maxiter": 100,
       "printlevel": 2
    },
+   "hypresolver":{
+      "tol": 1e-10,
+      "maxiter": 100,
+      "printlevel": 0
+   },
    "saveresults":false,
    "outputs": {
       "drag": [0, 0, 0, 1]

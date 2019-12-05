@@ -261,7 +261,7 @@ void AbstractSolver::solveForState()
 
 void AbstractSolver::solveSteady()
 {
-   std::cout << "solve steady is called.\n";
+#ifdef MFEM_USE_PETSC
    // Get the PetscSolver option 
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
@@ -290,10 +290,44 @@ void AbstractSolver::solveSteady()
    newton_solver->SetRelTol(nreltol);
    newton_solver->SetMaxIter(nmaxiter);
    newton_solver->SetPrintLevel(nptl);
+   // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   std::cout << "NewtonSolver is set.\n";
    newton_solver->Mult(b, *u);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+#else
+   // Hypre solver section
+   //prec.reset( new HypreBoomerAMG() );
+   //prec->SetPrintLevel(0);
+   std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
+               << " without preconditioner.\n";
+   
+   double tol = options["hypresolver"]["tol"].get<double>();
+   int maxiter = options["hypresolver"]["maxiter"].get<int>();
+   int ptl = options["hypresolver"]["printlevel"].get<int>();
+   solver.reset( new HypreGMRES(fes->GetComm()) );
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
+
+   //solver->SetPreconditioner(*prec);
+   double nabstol = options["newtonsolver"]["abstol"].get<double>();
+   double nreltol = options["newtonsolver"]["reltol"].get<double>();
+   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
+   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver->iterative_mode = true;
+   newton_solver->SetSolver(*solver);
+   newton_solver->SetOperator(*res);
+   newton_solver->SetPrintLevel(nptl);
+   newton_solver->SetRelTol(nreltol);
+   newton_solver->SetAbsTol(nabstol);
+   newton_solver->SetMaxIter(nmaxiter);
+
+   // Solve the nonlinear problem with r.h.s at 0
+   mfem::Vector b;
+   newton_solver->Mult(b,  *u);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+#endif
 }
 
 void AbstractSolver::solveUnsteady()

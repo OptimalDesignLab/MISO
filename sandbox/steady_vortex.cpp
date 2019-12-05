@@ -35,6 +35,7 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 int main(int argc, char *argv[])
 {
    const char *options_file = "steady_vortex_options.json";
+#ifdef MFEM_USE_PETSC
    const char *petscrc_file = "eulersteady";
    //Get the option files
    nlohmann::json options;
@@ -47,12 +48,14 @@ int main(int argc, char *argv[])
    petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
    petscoptions << "-prec_pc_type " << prec_name << '\n';
    petscoptions.close();
-   
+#endif
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
+#ifdef MFEM_USE_PETSC
    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+#endif
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 2.0;
@@ -72,8 +75,6 @@ int main(int argc, char *argv[])
       return 1;
    }
    string opt_file_name(options_file);
-
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
    
    try
    {
@@ -110,7 +111,9 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
+#ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
+#endif
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
