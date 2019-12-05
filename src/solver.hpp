@@ -71,15 +71,19 @@ public:
    void solveForState();
    
    /// Solve for the steady state problem using newton method
-   /// \param[in,out] x - the current state at input and solution at ouput
    virtual void solveSteady();
 
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady();
    
-   /// Check the jabocian w.r.t jacobian calculate from finite difference
-   /// method
+   /// Check the jacobian accuracy
+   /// Compare the results jac_v = jac * pert_v w.r.t jac_v calculated from
+   /// finite difference method 
    void jacobianCheck();
+
+   /// set the perturbation function that used for check jacobian
+   void setperturb(void (*fun)(const mfem::Vector &, mfem::Vector &))
+   {  perturb_fun = fun; }
    
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
