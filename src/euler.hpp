@@ -31,18 +31,6 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
-
-   /// Solve the steady state  problem
-   //virtual void solveSteady();
-
-   /// Check the jacobian accuracy
-   /// Compare the results jac_v = jac * pert_v w.r.t jac_v calculated from
-   /// finite difference method 
-   void jacobiancheck();
-
-   /// set the perturbation function that used for check jacobian
-   void setperturb(void (*fun)(const mfem::Vector &, mfem::Vector &))
-   {  perturb_fun = fun; }
    
 protected:
    /// perturbation function that used for 
