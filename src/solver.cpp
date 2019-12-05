@@ -436,5 +436,45 @@ double AbstractSolver::calcOutput(const std::string &fun)
       std::cerr << exception.what() << endl;
    }
 }
+  
+void AbstractSolver::jacobianCheck()
+{
+   // initialize the variables
+   const double delta = 1e-5;
+   std::unique_ptr<GridFunType> u_plus;
+   std::unique_ptr<GridFunType> u_minus;
+   std::unique_ptr<GridFunType> perturbation_vec;
+   perturbation_vec.reset(new GridFunType(fes.get()));
+   VectorFunctionCoefficient up(num_state, perturb_fun);
+   perturbation_vec->ProjectCoefficient(up);
+   u_plus.reset(new GridFunType(fes.get()));
+   u_minus.reset(new GridFunType(fes.get()));
+
+   // set uplus and uminus to the current state
+   *u_plus = *u;
+   *u_minus = *u;
+   u_plus->Add(delta, *perturbation_vec);
+   u_minus->Add(-delta, *perturbation_vec);
+
+   std::unique_ptr<GridFunType> res_plus;
+   std::unique_ptr<GridFunType> res_minus;
+   res_plus.reset(new GridFunType(fes.get()));
+   res_minus.reset(new GridFunType(fes.get()));
+
+   res->Mult(*u_plus, *res_plus);
+   res->Mult(*u_minus, *res_minus);
+
+   res_plus->Add(-1.0, *res_minus);
+   res_plus->Set(1 / (2 * delta), *res_plus);
+
+   // result from GetGradient(x)
+   std::unique_ptr<GridFunType> jac_v;
+   jac_v.reset(new GridFunType(fes.get()));
+   mfem::Operator &jac = res->GetGradient(*u);
+   jac.Mult(*perturbation_vec, *jac_v);
+   // check the difference norm
+   jac_v->Add(-1.0, *res_plus);
+   std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
+}
 
 } // namespace mach
