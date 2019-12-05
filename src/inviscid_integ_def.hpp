@@ -371,6 +371,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
+
 #ifdef MFEM_THREAD_SAFE
    Vector ui;
    DenseMatrix adjJt, w, Pw;
@@ -385,83 +386,90 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    DenseMatrix Vs;
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+   double frac;
 
-   // Step 1: convert from working variables (this may be the identity)
-   for (int i = 0; i < num_nodes; ++i)
+   frac = computeSensor(el, Trans, elfun, elvect);
+   //std::cout << "sensor: "<<frac<<"\n";
+   // only add anything if sensor threshold is exceeded
+   if (frac > sensor_coeff)
    {
-      u.GetRow(i,ui);
-      w.GetColumnReference(i, wi);
-      convert(ui, wi);
+      // Step 1: convert from working variables (this may be the identity)
+      for (int i = 0; i < num_nodes; ++i)
+      {
+         u.GetRow(i,ui);
+         w.GetColumnReference(i, wi);
+         convert(ui, wi);
+      }
+      // Step 2: apply the shock projection operator to w
+      Vector xi, eta;
+      sbp.getNodeCoords(0, xi);
+      sbp.getNodeCoords(1, eta);
+      xi *= 2.0;
+      xi -= 1.0;
+      eta *= 2.0;
+      eta -= 1.0;   
+      mach::getVandermondeForTri(xi, eta, 0, Vs);
+      Vs *= 2.0;
+      Vs.GetColumnReference(0, Vs0);
+
+      // perform the inner product V(:,i)^T * H * u
+      Pw = w;
+            prod = 0.0;
+            for (int j = 0; j < num_nodes; ++j)
+            {
+               double fac = Vs0(j)*sbp.getDiagNormEntry(j);
+               for (int n = 0; n < num_states; ++n)
+               {
+                  prod(n) += fac*w(n,j);
+               }
+            }
+            // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+            for (int j = 0; j < num_nodes; ++j)
+            {
+               for (int n = 0; n < num_states; ++n)
+               {
+                  Pw(n,j) -= Vs0(j)*prod(n);
+               }
+            }
+
+      // Step 3: apply scaling matrix at each node and diagonal norm
+      for (int i = 0; i < num_nodes; ++i)
+      {
+         Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+         CalcAdjugate(Trans.Jacobian(), adjJt);
+         u.GetRow(i,ui);
+         Pw.GetColumnReference(i, Pwi);
+         w.GetColumnReference(i, wi);
+         scale(adjJt, ui, Pwi, wi);
+         wi *= lps_coeff;
+      }
+      sbp.multNormMatrix(w, w);
+      // Step 4: apply the transposed projection operator to H*A*P*w
+      // now need to replace this part
+      prod = 0.0;
+      Pw = w;
+
+            for (int j = 0; j < num_nodes; ++j)
+            {
+               for (int n = 0; n < num_states; ++n)
+               {
+                  prod(n) += Vs0(j)*w(n,j); 
+               }
+            }
+            // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+            for (int j = 0; j < num_nodes; ++j)
+            {
+               double fac = Vs0(j)*sbp.getDiagNormEntry(j);
+               for (int n = 0; n < num_states; ++n)
+               {
+                  Pw(n,j) -= fac*prod(n);
+               }
+            }
+
+      // This is necessary because data in elvect is expected to be ordered `byNODES`
+      res.Transpose(Pw);
+      res *= alpha;
    }
-   // Step 2: apply the shock projection operator to w
-   Vector xi, eta;
-   sbp.getNodeCoords(0, xi);
-   sbp.getNodeCoords(1, eta);
-   xi *= 2.0;
-   xi -= 1.0;
-   eta *= 2.0;
-   eta -= 1.0;   
-   mach::getVandermondeForTri(xi, eta, 0, Vs);
-   Vs *= 2.0;
-   Vs.GetColumnReference(0, Vs0);
-
-   // perform the inner product V(:,i)^T * H * u
-   Pw = w;
-         prod = 0.0;
-         for (int j = 0; j < num_nodes; ++j)
-         {
-            double fac = Vs0(j)*sbp.getDiagNormEntry(j);
-            for (int n = 0; n < num_states; ++n)
-            {
-               prod(n) += fac*w(n,j);
-            }
-         }
-         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
-         for (int j = 0; j < num_nodes; ++j)
-         {
-            for (int n = 0; n < num_states; ++n)
-            {
-               Pw(n,j) -= Vs0(j)*prod(n);
-            }
-         }
-
-   // Step 3: apply scaling matrix at each node and diagonal norm
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
-      CalcAdjugate(Trans.Jacobian(), adjJt);
-      u.GetRow(i,ui);
-      Pw.GetColumnReference(i, Pwi);
-      w.GetColumnReference(i, wi);
-      scale(adjJt, ui, Pwi, wi);
-      wi *= lps_coeff;
-   }
-   sbp.multNormMatrix(w, w);
-   // Step 4: apply the transposed projection operator to H*A*P*w
-   // now need to replace this part
-   prod = 0.0;
-   Pw = w;
-
-         for (int j = 0; j < num_nodes; ++j)
-         {
-            for (int n = 0; n < num_states; ++n)
-            {
-               prod(n) += Vs0(j)*w(n,j); 
-            }
-         }
-         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
-         for (int j = 0; j < num_nodes; ++j)
-         {
-            double fac = Vs0(j)*sbp.getDiagNormEntry(j);
-            for (int n = 0; n < num_states; ++n)
-            {
-               Pw(n,j) -= fac*prod(n);
-            }
-         }
-   // This is necessary because data in elvect is expected to be ordered `byNODES`
-   res.Transpose(Pw);
-   res *= alpha;
 }
 
 template <typename Derived>
@@ -760,3 +768,87 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
    }
 }
 
+template <typename Derived>
+double LPSShockIntegrator<Derived>::computeSensor(const mfem::FiniteElement &el,
+                                      mfem::ElementTransformation &Trans,
+                                      const mfem::Vector &elfun,
+                                      mfem::Vector &elvect)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+   double num = 0;
+   double den = 0;
+#ifdef MFEM_THREAD_SAFE
+   Vector ui;
+   DenseMatrix adjJt, w, Pw;
+#endif
+   ui.SetSize(num_states);
+   adjJt.SetSize(dim);
+   DenseMatrix w2(num_states, num_nodes);
+
+   w.SetSize(num_states, num_nodes);
+   Pw.SetSize(num_states, num_nodes);
+   Vector wi, Pwi;
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+
+   // Compute the numerator wtPtHPw
+
+   // Step 1: convert from working variables (this may be the identity)
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      u.GetRow(i,ui);
+      w.GetColumnReference(i, wi);
+      convert(ui, wi);
+   }
+   // Step 2: apply the projection operator to w
+   sbp.multProjOperator(w, Pw, false);
+   sbp.multNormMatrix(w, w);
+   // Step 3: apply the transposed projection operator to H*A*P*w
+   sbp.multProjOperator(w, Pw, true);
+   // Step 4: multiply back w transposed
+   // retrieve original w
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      u.GetRow(i,ui);
+      w.GetColumnReference(i, wi);
+      convert(ui, wi);
+   }
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      for (int j = 0; j < num_states; ++j)
+      {
+         num += w(j,i)*Pw(j,i);
+      }
+   }
+
+
+   // Compute the denominator wtHAw
+
+   // Step 1: convert from working variables (this may be the identity)
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      u.GetRow(i,ui);
+      w.GetColumnReference(i, wi);
+      convert(ui, wi);
+   }
+   sbp.multNormMatrix(w, w);
+   // Step 2: multiply back w transposed
+   // retrieve original w
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      u.GetRow(i,ui);
+      w2.GetColumnReference(i, wi);
+      convert(ui, wi);
+   }
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      for (int j = 0; j < num_states; ++j)
+      {
+         den += w(j,i)*w2(j,i);
+      }
+   }
+
+   return num/den;
+}

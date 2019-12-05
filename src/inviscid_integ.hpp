@@ -346,9 +346,9 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    /// \param[in] coeff - the LPS coefficient
    LPSShockIntegrator(adept::Stack &diff_stack, int num_state_vars = 1,
-                 double a = 1.0, double coeff = 1.0)
+                 double a = 1.0, double coeff = 1.0, double sensor = .5)
        : num_states(num_state_vars), alpha(a), lps_coeff(coeff),
-         stack(diff_stack) {}
+         stack(diff_stack), sensor_coeff(sensor)  {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -370,6 +370,7 @@ public:
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
+
 protected:
    /// number of states
    int num_states;
@@ -377,6 +378,8 @@ protected:
    double alpha;
    /// the LPS coefficient
    double lps_coeff;
+   /// threshold for presence of shocks/high order behavior
+   double sensor_coeff;
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
 #ifndef MFEM_THREAD_SAFE
@@ -463,6 +466,16 @@ protected:
    {
       static_cast<Derived*>(this)->applyScalingJacV(adjJ, u, Av_jac);
    }
+
+   // Computes the shock sensor parameter to determine if we apply stabilization
+   /// \param[in] el - the finite element whose residual we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elvect - element local residual
+   double computeSensor(const mfem::FiniteElement &el,
+                                      mfem::ElementTransformation &Trans,
+                                      const mfem::Vector &elfun,
+                                      mfem::Vector &elvect);
 };
 
 

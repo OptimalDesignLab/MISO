@@ -45,15 +45,16 @@ EulerSolver::EulerSolver(const string &opt_file_name,
 
       res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
 
-      //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
-
       // add the LPS stabilization
       double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
       res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
                                                              lps_coeff));
-      // res->AddDomainIntegrator(new EntStableLPSShockIntegrator<2>(diff_stack, alpha,
-      //                                                        lps_coeff));
-
+      if(options["shock-capturing"]["use"].get<bool>() == true)
+      {
+         res->AddDomainIntegrator(new EntStableLPSShockIntegrator<2>(diff_stack, alpha,
+                                                             lps_coeff, 
+                                                             options["shock-capturing"]["sensor-param"].get<double>()));
+      }
       // boundary face integrators are handled in their own function
       addBoundaryIntegrators(alpha, dim);
    }

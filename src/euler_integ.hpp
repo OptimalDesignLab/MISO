@@ -182,9 +182,9 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    /// \param[in] coeff - the LPS coefficient
    EntStableLPSShockIntegrator(adept::Stack &diff_stack, double a = 1.0,
-                          double coeff = 1.0)
+                          double coeff = 1.0, double sensor = 0.5)
        : LPSShockIntegrator<EntStableLPSShockIntegrator<dim>>(
-             diff_stack, dim + 2, a, coeff) {}
+             diff_stack, dim + 2, a, coeff, sensor) {}
 
    /// converts conservative variables to entropy variables
    /// \param[in] q - conservative variables that are to be converted

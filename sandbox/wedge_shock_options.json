@@ -1,6 +1,7 @@
 {
    "mesh": {
-      "file": "../../cad/wedge1.smb"
+      "file": "../../cad/wedge1.smb",
+      "size": 10
    },
    "model-file": "../../cad/wedge1.dmg",
    "space-dis": {
@@ -12,10 +13,14 @@
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.1,
-      "t-final": 5.0
+      "t-final": 50.0
    },
    "bcs": {
       "wedge-shock": [1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
       "slip-wall":   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+   },
+   "shock-capturing": {
+      "use": true,
+      "sensor-param": 0.001
    }
 }
