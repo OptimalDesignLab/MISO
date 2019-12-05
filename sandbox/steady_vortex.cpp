@@ -52,9 +52,7 @@ int main(int argc, char *argv[])
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
+  
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 2.0;
@@ -74,7 +72,10 @@ int main(int argc, char *argv[])
       return 1;
    }
    string opt_file_name(options_file);
-   
+  
+#ifdef MFEM_USE_PETSC
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+#endif
    try
    {
       // construct the solver, set the initial condition, and solve
