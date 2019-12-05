@@ -144,6 +144,9 @@ protected:
    std::map<std::string, NonlinearFormType> output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
+   
+   /// perturbation function that used for 
+   void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
 };
 
 } // namespace mach
