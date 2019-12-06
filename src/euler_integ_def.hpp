@@ -1,4 +1,3 @@
-
 template <int dim>
 void EulerIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
                                             const mfem::Vector &q,
@@ -71,7 +70,7 @@ void IsmailRoeIntegrator<dim>::calcFluxJacStates(int di, const mfem::Vector &qL,
    this->stack.independent(qL_a.data(), qL.Size());
    this->stack.independent(qR_a.data(), qR.Size());
    this->stack.dependent(flux_a.data(), qL.Size());
-   // compute and store jacobian in jac 
+   // compute and store jacobian in jac
    this->stack.jacobian_reverse(jac.GetData());
    // retrieve the jacobian w.r.t left state
    jacL.CopyCols(jac, 0, dim + 1);
@@ -142,7 +141,7 @@ void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
    // create vector of active output variables
    std::vector<adouble> w_a(q.Size());
    // run algorithm
-   calcEntropyVars<adouble,dim>(q_a.data(), w_a.data());
+   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
    // identify independent and dependent variables
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(w_a.data(), q.Size());
@@ -156,7 +155,7 @@ void EntStableLPSIntegrator<dim>::applyScalingJacState(
     const mfem::Vector &vec, mfem::DenseMatrix &mat_vec_jac)
 {
    // declare vectors of active input variables
-	int adjJ_a_size = adjJ.Height() * adjJ.Width();
+   int adjJ_a_size = adjJ.Height() * adjJ.Width();
    std::vector<adouble> adjJ_a(adjJ_a_size);
    std::vector<adouble> q_a(q.Size());
    std::vector<adouble> vec_a(vec.Size());
@@ -168,8 +167,8 @@ void EntStableLPSIntegrator<dim>::applyScalingJacState(
    this->stack.new_recording();
    // the dependent variable must be declared after the recording
    std::vector<adouble> mat_vec_a(q.Size());
-   mach::applyLPSScaling<adouble,dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
-                                      mat_vec_a.data());
+   mach::applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
+                                       mat_vec_a.data());
    // set the independent and dependent variable
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(mat_vec_a.data(), q.Size());
@@ -183,11 +182,11 @@ void EntStableLPSIntegrator<dim>::applyScalingJacAdjJ(
     const mfem::Vector &vec, mfem::DenseMatrix &mat_vec_jac)
 {
    // create containers for active double objects
-   std::vector<adouble> adjJ_a(adjJ.Height()*adjJ.Width());
+   std::vector<adouble> adjJ_a(adjJ.Height() * adjJ.Width());
    std::vector<adouble> q_a(q.Size());
    std::vector<adouble> vec_a(vec.Size());
    // initialize active double containers with input data
-   adept::set_values(adjJ_a.data(), adjJ.Height()*adjJ.Width(),
+   adept::set_values(adjJ_a.data(), adjJ.Height() * adjJ.Width(),
                      adjJ.GetData());
    adept::set_values(q_a.data(), q.Size(), q.GetData());
    adept::set_values(vec_a.data(), vec.Size(), vec.GetData());
@@ -196,10 +195,10 @@ void EntStableLPSIntegrator<dim>::applyScalingJacAdjJ(
    // create container for active double mat_vec output
    std::vector<adouble> mat_vec_a(q.Size());
    applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
-                                       mat_vec_a.data());
-   this->stack.independent(adjJ_a.data(), adjJ.Height()*adjJ.Width());
+                                 mat_vec_a.data());
+   this->stack.independent(adjJ_a.data(), adjJ.Height() * adjJ.Width());
    this->stack.dependent(mat_vec_a.data(), q.Size());
-   this->stack.jacobian(mat_vec_jac.GetData()); 
+   this->stack.jacobian(mat_vec_jac.GetData());
 }
 
 template <int dim>
@@ -208,7 +207,7 @@ void EntStableLPSIntegrator<dim>::applyScalingJacV(
     mfem::DenseMatrix &mat_vec_jac)
 {
    // declare vectors of active input variables
-	int adjJ_a_size = adjJ.Height() * adjJ.Width();
+   int adjJ_a_size = adjJ.Height() * adjJ.Width();
    std::vector<adouble> adjJ_a(adjJ_a_size);
    std::vector<adouble> q_a(q.Size());
    std::vector<adouble> vec_a(q.Size());
@@ -221,8 +220,8 @@ void EntStableLPSIntegrator<dim>::applyScalingJacV(
    this->stack.new_recording();
    // the dependent variable must be declared after the recording
    std::vector<adouble> mat_vec_a(q.Size());
-   mach::applyLPSScaling<adouble,dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
-                                      mat_vec_a.data());
+   mach::applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
+                                       mat_vec_a.data());
    // set the independent and dependent variable
    this->stack.independent(vec_a.data(), q.Size());
    this->stack.dependent(mat_vec_a.data(), q.Size());
@@ -252,7 +251,7 @@ void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
    // create vector of active output variables
    std::vector<adouble> flux_a(qL.Size());
    mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
-                                       qR_a.data(), flux_a.data());
+                                             qR_a.data(), flux_a.data());
    // set the independent and dependent variables
    this->stack.independent(qL_a.data(), qL.Size());
    this->stack.independent(qR_a.data(), qR.Size());
@@ -260,7 +259,7 @@ void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
    // compute the jacobian
    this->stack.jacobian_reverse(jac.GetData());
    // retrieve the left the right jacobians
-   jacL.CopyCols(jac, 0, qL.Size()-1);
+   jacL.CopyCols(jac, 0, qL.Size() - 1);
    jacR.CopyCols(jac, qL.Size(), 2 * qL.Size() - 1);
 }
 
@@ -283,7 +282,7 @@ void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
    // create vector of active output variables
    std::vector<adouble> flux_a(qL.Size());
    mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
-                                       qR_a.data(), flux_a.data());
+                                             qR_a.data(), flux_a.data());
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), qL.Size());
@@ -291,4 +290,48 @@ void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
    this->stack.jacobian(jac_dir.GetData());
 }
 
+template <int dim>
+void IsentropicVortexBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                                          const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcIsentropicVortexFlux<adouble>(x_a.data(), dir_a.data(),
+                                           q_a.data(), flux_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
 
+template <int dim>
+void IsentropicVortexBC<dim>::calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
+                                        const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcIsentropicVortexFlux<adouble>(x_a.data(), dir_a.data(),
+                                           q_a.data(), flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}

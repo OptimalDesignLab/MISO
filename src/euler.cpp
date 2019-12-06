@@ -69,7 +69,6 @@ EulerSolver::EulerSolver(const string &opt_file_name,
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
    evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
-
    // add the output functional QoIs 
    addOutputs(dim);
 }
@@ -85,7 +84,7 @@ void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-          new IsentropicVortexBC(diff_stack, fec.get(), alpha),
+          new IsentropicVortexBC<2>(diff_stack, fec.get(), alpha),
           bndry_marker[idx]);
       idx++;
    }

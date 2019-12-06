@@ -172,7 +172,8 @@ public:
 
 /// Integrator for the steady isentropic-vortex boundary condition
 /// \note This derived class uses the CRTP
-class IsentropicVortexBC : public InviscidBoundaryIntegrator<IsentropicVortexBC>
+template <int dim>
+class IsentropicVortexBC : public InviscidBoundaryIntegrator<IsentropicVortexBC<dim>>
 {
 public:
    /// Constructs an integrator for isentropic vortex boundary flux
@@ -182,7 +183,7 @@ public:
    IsentropicVortexBC(adept::Stack &diff_stack,
                       const mfem::FiniteElementCollection *fe_coll,
                       double a = 1.0)
-       : InviscidBoundaryIntegrator<IsentropicVortexBC>(
+       : InviscidBoundaryIntegrator<IsentropicVortexBC<dim>>(
              diff_stack, fe_coll, 4, a) {}
 
    /// Note used (or, rather, *do not use*!)
@@ -207,10 +208,7 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
-   {
-      throw MachException("Not implemented!");
-   }
+                         const mfem::Vector &q, mfem::DenseMatrix &flux_jac);
 
    /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `dir`
    /// \param[in] x - coordinate location at which flux is evaluated
@@ -218,10 +216,7 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
    void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
-                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac)
-   {
-      throw MachException("Not implemented!");
-   }
+                       const mfem::Vector &q, mfem::DenseMatrix &flux_jac);
 };
 
 /// Integrator for inviscid slip-wall boundary condition

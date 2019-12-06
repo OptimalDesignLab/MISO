@@ -7,7 +7,6 @@ using adept::adouble;
 
 namespace mach
 {
-
 /// Solver for linear advection problems
 class EulerSolver : public AbstractSolver
 {
@@ -32,7 +31,7 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
-
+   
 protected:
    /// free-stream Mach number
    double mach_fs;
@@ -42,8 +41,6 @@ protected:
    std::vector<mfem::Array<int>> bndry_marker;
    /// the mass matrix bilinear form
    std::unique_ptr<BilinearFormType> mass;
-   /// the spatial residual (a semilinear form)
-   std::unique_ptr<NonlinearFormType> res;
    /// mass matrix (move to AbstractSolver?)
    std::unique_ptr<MatrixType> mass_matrix;
 

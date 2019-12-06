@@ -143,7 +143,6 @@ void AbstractSolver::setInitialCondition(
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
-
    // DenseMatrix vals;
    // Vector uj;
    // for (int i = 0; i < fes->GetNE(); i++)
@@ -262,8 +261,73 @@ void AbstractSolver::solveForState()
 
 void AbstractSolver::solveSteady()
 {
-   throw MachException("AbstractSolver::solveSteady\n"
-                       "\tnot implemented");
+#ifdef MFEM_USE_PETSC
+   // Get the PetscSolver option 
+   double abstol = options["petscsolver"]["abstol"].get<double>();
+   double reltol = options["petscsolver"]["reltol"].get<double>();
+   int maxiter = options["petscsolver"]["maxiter"].get<int>();
+   int ptl = options["petscsolver"]["printlevel"].get<int>();
+
+   solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
+   prec.reset(new mfem::PetscPreconditioner(fes->GetComm(), "prec_"));
+   dynamic_cast<mfem::PetscLinearSolver *>(solver.get())->SetPreconditioner(*prec);
+
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(abstol);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
+   std::cout << "PetscLinearSolver is set.\n";
+   //Get the newton solver options
+   double nabstol = options["newtonsolver"]["abstol"].get<double>();
+   double nreltol = options["newtonsolver"]["reltol"].get<double>();
+   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
+   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver->iterative_mode = true;
+   newton_solver->SetSolver(*solver);
+   newton_solver->SetOperator(*res);
+   newton_solver->SetAbsTol(nabstol);
+   newton_solver->SetRelTol(nreltol);
+   newton_solver->SetMaxIter(nmaxiter);
+   newton_solver->SetPrintLevel(nptl);
+   // Solve the nonlinear problem with r.h.s at 0
+   mfem::Vector b;
+   newton_solver->Mult(b, *u);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+#else
+   // Hypre solver section
+   //prec.reset( new HypreBoomerAMG() );
+   //prec->SetPrintLevel(0);
+   std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
+               << " without preconditioner.\n";
+   
+   double tol = options["hypresolver"]["tol"].get<double>();
+   int maxiter = options["hypresolver"]["maxiter"].get<int>();
+   int ptl = options["hypresolver"]["printlevel"].get<int>();
+   solver.reset( new HypreGMRES(fes->GetComm()) );
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
+
+   //solver->SetPreconditioner(*prec);
+   double nabstol = options["newtonsolver"]["abstol"].get<double>();
+   double nreltol = options["newtonsolver"]["reltol"].get<double>();
+   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
+   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver->iterative_mode = true;
+   newton_solver->SetSolver(*solver);
+   newton_solver->SetOperator(*res);
+   newton_solver->SetPrintLevel(nptl);
+   newton_solver->SetRelTol(nreltol);
+   newton_solver->SetAbsTol(nabstol);
+   newton_solver->SetMaxIter(nmaxiter);
+
+   // Solve the nonlinear problem with r.h.s at 0
+   mfem::Vector b;
+   newton_solver->Mult(b,  *u);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+#endif
 }
 
 void AbstractSolver::solveUnsteady()
@@ -371,6 +435,46 @@ double AbstractSolver::calcOutput(const std::string &fun)
    {
       std::cerr << exception.what() << endl;
    }
+}
+  
+void AbstractSolver::jacobianCheck()
+{
+   // initialize the variables
+   const double delta = 1e-5;
+   std::unique_ptr<GridFunType> u_plus;
+   std::unique_ptr<GridFunType> u_minus;
+   std::unique_ptr<GridFunType> perturbation_vec;
+   perturbation_vec.reset(new GridFunType(fes.get()));
+   VectorFunctionCoefficient up(num_state, perturb_fun);
+   perturbation_vec->ProjectCoefficient(up);
+   u_plus.reset(new GridFunType(fes.get()));
+   u_minus.reset(new GridFunType(fes.get()));
+
+   // set uplus and uminus to the current state
+   *u_plus = *u;
+   *u_minus = *u;
+   u_plus->Add(delta, *perturbation_vec);
+   u_minus->Add(-delta, *perturbation_vec);
+
+   std::unique_ptr<GridFunType> res_plus;
+   std::unique_ptr<GridFunType> res_minus;
+   res_plus.reset(new GridFunType(fes.get()));
+   res_minus.reset(new GridFunType(fes.get()));
+
+   res->Mult(*u_plus, *res_plus);
+   res->Mult(*u_minus, *res_minus);
+
+   res_plus->Add(-1.0, *res_minus);
+   res_plus->Set(1 / (2 * delta), *res_plus);
+
+   // result from GetGradient(x)
+   std::unique_ptr<GridFunType> jac_v;
+   jac_v.reset(new GridFunType(fes.get()));
+   mfem::Operator &jac = res->GetGradient(*u);
+   jac.Mult(*perturbation_vec, *jac_v);
+   // check the difference norm
+   jac_v->Add(-1.0, *res_plus);
+   std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
 }
 
 } // namespace mach
