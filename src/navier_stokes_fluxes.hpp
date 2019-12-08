@@ -24,6 +24,31 @@ const double mu = 1.81e-05;
 const double kappa = 0.026;
 } // namespace navierstokes
 
+// To do: we may not need this, as it is same as for inviscid case
+/// Convert conservative variables `q` to entropy variables `w`
+/// \param[in] q - conservative variables that we want to convert from
+/// \param[out] w - entropy variables we want to convert to
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcEntropyVars(const xdouble *q, xdouble *w)
+{
+   xdouble u[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = q[i+1]/q[0];
+   }
+   xdouble p = pressure<xdouble,dim>(q);
+   xdouble s = log(p/pow(q[0],euler::gamma));
+   xdouble fac = 1.0/p;
+   w[0] = (euler::gamma-s)/euler::gami - 0.5*dot<xdouble,dim>(u,u)*fac*q[0];
+   for (int i = 0; i < dim; ++i)
+   {
+      w[i+1] = q[i+1]*fac;
+   }
+   w[dim+1] = -q[0]*fac;
+}
+
 /// Applies the matrix `Cij` to `dW/dX`
 /// \param[in] i - index `i` in `Cij` matrix
 /// \param[in] j - index `j` in `Cij` matrix is calculated

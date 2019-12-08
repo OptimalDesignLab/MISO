@@ -1,10 +1,10 @@
-//To do: All Assemble stuff will go here 
+//To do: All Assemble stuff will go here
 #ifndef MACH_VISCOUS_INTEG_DEF
 #define MACH_VISCOUS_INTEG_DEF
 
 #include "mfem.hpp"
 #include "adept.h"
-#include "viscid_integ.hpp"
+#include "viscous_integ.hpp"
 #include "navier_stokes_fluxes.hpp"
 using adept::adouble;
 
@@ -30,14 +30,14 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted
    /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
    void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
-    
+
    /// applies symmetric matrix `C(u)` to input `v`
    /// \param[in] i - index `i` in `Cij` matrix
    /// \param[in] j - index `j` in `Cij` matrix
@@ -46,10 +46,10 @@ public:
    /// \param[out] Cv - product of the multiplication
    /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
    void applyScaling(const int i, const int j,
-                     const mfem::Vector &u,  const mfem::Vector &v, mfem::Vector &Cv)
+                     const mfem::Vector &u, const mfem::Vector &v, mfem::Vector &Cv)
    {
-      applyViscousScaling<double,dim>(i, j, u.GetData(),
-                                  v.GetData(), Cv.GetData());
+      applyViscousScaling<double, dim>(i, j, u.GetData(),
+                                       v.GetData(), Cv.GetData());
    }
 
    /// Computes the Jacobian of the product `C(u)*v` w.r.t. `u`
@@ -60,11 +60,13 @@ public:
    void applyScalingJacState(const mfem::Vector &u,
                              const mfem::Vector &v,
                              mfem::DenseMatrix &Cv_jac);
-   
+
    /// Computes the Jacobian of the product `C(u)*v` w.r.t. `v`
    /// \param[in] u - state at which the symmetric matrix `C` is evaluated
    /// \param[out] Cv_jac - Jacobian of product w.r.t. `v` (i.e. `C`)
    /// \note This uses the CRTP, so it wraps call to a func. in Derived.
    void applyScalingJacV(const mfem::Vector &u, mfem::DenseMatrix &Cv_jac);
 };
+
+} // namespace mach
 #endif
