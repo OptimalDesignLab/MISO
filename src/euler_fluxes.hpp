@@ -12,6 +12,8 @@ namespace mach
 /// For constants related to the Euler equations
 namespace euler
 {
+/// gas constant
+const double R = 287;
 /// heat capcity ratio for air
 const double gamma = 1.4;
 /// ratio minus one

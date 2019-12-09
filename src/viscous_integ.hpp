@@ -86,7 +86,7 @@ protected:
       static_cast<Derived *>(this)->convertVarsJacState(u, dwdu);
    }
 
-   /// applies symmetric matrix `C(u)` to input `v`
+   /// applies symmetric matrices \f$ C_{d,:}(u) \f$ to input `Du`
    /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
    /// \param[in] u - state at which the symmetric matrices `C` are evaluated
    /// \param[in] Du - `Du[:,d2]` stores derivative of `u` in direction `d2`. 

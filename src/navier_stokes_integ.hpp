@@ -39,18 +39,16 @@ public:
    /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
    void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
 
-   /// applies symmetric matrix `C(u)` to input `v`
-   /// \param[in] i - index `i` in `Cij` matrix
-   /// \param[in] j - index `j` in `Cij` matrix
-   /// \param[in] u - state at which the symmetric matrix `C` is evaluated
-   /// \param[in] v - vector that is being multiplied
-   /// \param[out] Cv - product of the multiplication
-   /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
-   void applyScaling(const int i, const int j,
-                     const mfem::Vector &u, const mfem::Vector &v, mfem::Vector &Cv)
+   /// applies symmetric matrices \f$ C_{d,:}(u) \f$ to input `Du`
+   /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
+   /// \param[in] u - state at which the symmetric matrices `C` are evaluated
+   /// \param[in] Du - `Du[:,d2]` stores derivative of `u` in direction `d2`. 
+   /// \param[out] CDu - product of the multiplication between the `C` and `Du`.
+   void applyScaling(int d, const mfem::Vector &u, const mfem::DenseMatrix &Du,
+                     mfem::Vector &CDu)
    {
-      applyViscousScaling<double, dim>(i, j, u.GetData(),
-                                       v.GetData(), Cv.GetData());
+      applyViscousScaling<double, dim>(d, u.GetData(), Du.GetData(), 
+                                       CDu.GetData());
    }
 
    /// Computes the Jacobian of the product `C(u)*v` w.r.t. `u`
