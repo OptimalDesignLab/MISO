@@ -417,7 +417,7 @@ protected:
    /// \note This uses the CRTP, so it wraps a call to `calcFunction` in
    /// Derived.
    double bndryFun(const mfem::Vector &x, const mfem::Vector &dir,
-                 const mfem::Vector &u)
+                   const mfem::Vector &u)
    {
       return static_cast<Derived*>(this)->calcBndryFun(x, dir, u);
    }
