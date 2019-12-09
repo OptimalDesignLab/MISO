@@ -12,11 +12,11 @@ namespace mach
 /// For constants related to the Euler equations
 namespace euler
 {
-   /// heat capcity ratio for air
-   const double gamma = 1.4;
-   /// ratio minus one
-   const double gami = gamma - 1.0;
-}
+/// heat capcity ratio for air
+const double gamma = 1.4;
+/// ratio minus one
+const double gami = gamma - 1.0;
+} // namespace euler
 
 /// Pressure based on the ideal gas law equation of state
 /// \param[in] q - the conservative variables

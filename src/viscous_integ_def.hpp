@@ -1,72 +1,75 @@
-//To do: All Assemble stuff will go here
-#ifndef MACH_VISCOUS_INTEG_DEF
-#define MACH_VISCOUS_INTEG_DEF
 
-#include "mfem.hpp"
-#include "adept.h"
-#include "viscous_integ.hpp"
-#include "navier_stokes_fluxes.hpp"
-using adept::adouble;
-
-namespace mach
+template <typename Derived>
+void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
+    const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+    const mfem::Vector &elfun, mfem::Vector &elvect)
 {
-/// Integrator for viscous terms
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-/// \note This derived class uses the CRTP
-template <int dim>
-class ViscousIntegrator : public SymmetricViscousIntegrator<ViscousIntegrator<dim>>
-{
-public:
-   /// Construct a Viscous integrator
-   /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   ViscousIntegrator(adept::Stack &diff_stack, double a = 1.0)
-       : SymmetricViscousIntegrator<ViscousIntegrator<dim>>(
-             diff_stack, dim + 2, a) {}
-
-   /// converts conservative variables to entropy variables
-   /// \param[in] q - conservative variables that are to be converted
-   /// \param[out] w - entropy variables corresponding to `q`
-   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
-   void convertVars(const mfem::Vector &q, mfem::Vector &w)
-   {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
-   }
-
-   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
-   /// \param[in] q - conservative variables that are to be converted
-   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
-   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
-
-   /// applies symmetric matrix `C(u)` to input `v`
-   /// \param[in] i - index `i` in `Cij` matrix
-   /// \param[in] j - index `j` in `Cij` matrix
-   /// \param[in] u - state at which the symmetric matrix `C` is evaluated
-   /// \param[in] v - vector that is being multiplied
-   /// \param[out] Cv - product of the multiplication
-   /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
-   void applyScaling(const int i, const int j,
-                     const mfem::Vector &u, const mfem::Vector &v, mfem::Vector &Cv)
-   {
-      applyViscousScaling<double, dim>(i, j, u.GetData(),
-                                       v.GetData(), Cv.GetData());
-   }
-
-   /// Computes the Jacobian of the product `C(u)*v` w.r.t. `u`
-   /// \param[in] u - state at which the symmetric matrix `C` is evaluated
-   /// \param[in] v - vector that is being multiplied
-   /// \param[out] Cv_jac - Jacobian of product w.r.t. `u`
-   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
-   void applyScalingJacState(const mfem::Vector &u,
-                             const mfem::Vector &v,
-                             mfem::DenseMatrix &Cv_jac);
-
-   /// Computes the Jacobian of the product `C(u)*v` w.r.t. `v`
-   /// \param[in] u - state at which the symmetric matrix `C` is evaluated
-   /// \param[out] Cv_jac - Jacobian of product w.r.t. `v` (i.e. `C`)
-   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
-   void applyScalingJacV(const mfem::Vector &u, mfem::DenseMatrix &Cv_jac);
-};
-
-} // namespace mach
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector ui, wj, uj, Qwi, CQwd1d2;
+   DenseMatrix w, adjJ_i, adjJ_j, adjJ_k;
 #endif
+   elvect.SetSize(num_states * num_nodes);
+   ui.SetSize(num_states);
+   wj.SetSize(num_states);
+   uj.SetSize(num_states);
+   Qwi.SetSize(num_states);
+   CQwd1d2.SetSize(num_states);
+   w.SetSize(num_states, num_nodes);
+   adjJ_i.SetSize(dim);
+   adjJ_j.SetSize(dim);
+   adjJ_k.SetSize(dim);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+   elvect = 0.0;
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      Qwi = 0;
+      // get the Jacobian (Trans.Weight) and cubature weight (node.weight)
+      const IntegrationRule &ir = el.GetNodes();
+      const IntegrationPoint &node = ir.IntPoint(i);
+      Trans.SetIntPoint(&node);
+      double norm = node.weight * Trans.Weight();
+      double H = 1 / norm;
+      CalcAdjugate(Trans.Jacobian(), adjJ_i);
+      for (int d2 = 0; d2 < dim; ++d2)
+      {
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
+            CalcAdjugate(Trans.Jacobian(), adjJ_j);
+            double Qij = sbp.getQEntry(d2, i, j, adjJ_i, adjJ_j);
+            u.GetRow(j, uj);
+            w.GetColumnReference(j, wj);
+            // Step 1: convert to entropy variables
+            convert(uj, wj);
+            // Step 2: find the derivative in `d2` direction
+            for (int s = 0; s < num_states; ++s)
+            {
+               Qwi(s) += Qij * wj(s);
+            }
+         } // j node loop
+         u.GetRow(i, ui);
+         for (int d1 = 0; d1 < dim; ++d1)
+         {
+            // Step 3: apply the viscous coefficients' scaling
+            scale(d1, d2, ui, Qwi, CQwd1d2);
+            for (int k = 0; k < num_nodes; ++k)
+            {
+               Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
+               CalcAdjugate(Trans.Jacobian(), adjJ_k);
+               double Qik = sbp.getQEntry(d1, i, k, adjJ_i, adjJ_k);
+               // Step 4: apply derivative in `d1` direction
+               // this evaluates Qd1'*C*(H^-1)*Qd2
+               for (int s = 0; s < num_states; ++s)
+               {
+                  res(k, s) += alpha * Qik * H * CQwd1d2(s);
+               }
+            } // k loop
+         }    // d1 loop
+      }       //d2 loop
+   }          // i node loop
+}

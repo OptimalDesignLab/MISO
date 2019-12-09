@@ -1,57 +1,31 @@
-/// Functions related to Euler equations
-
-#ifndef MACH_EULER_FLUXES
-#define MACH_EULER_FLUXES
+/// Functions related to Navier-Stokes equations
+#ifndef MACH_NAVIER_STOKES_FLUXES
+#define MACH_NAVIER_STOKES_FLUXES
 
 #include <algorithm> // std::max
 #include "utils.hpp"
+#include "euler_fluxes.hpp"
 
 namespace mach
 {
+
 /// For constants related to the Navier-Stokes equations
+/// \todo Some of these constants really belong in the euler namespace (e.g. R and cv)
 namespace navierstokes
 {
-/// heat capacity ratio for air
-const double gamma = 1.4;
-/// ratio minus one
-const double gami = gamma - 1.0;
 /// gas constant
 const double R = 287;
 /// specfic heat for constant volume
-const double cv = R / gami;
+const double cv = R / euler::gami;
 /// use constant `kappa` and `mu` for time being
 const double mu = 1.81e-05;
 const double kappa = 0.026;
 } // namespace navierstokes
 
-// To do: we may not need this, as it is same as for inviscid case
-/// Convert conservative variables `q` to entropy variables `w`
-/// \param[in] q - conservative variables that we want to convert from
-/// \param[out] w - entropy variables we want to convert to
-/// \tparam xdouble - typically `double` or `adept::adouble`
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
-void calcEntropyVars(const xdouble *q, xdouble *w)
-{
-   xdouble u[dim];
-   for (int i = 0; i < dim; ++i)
-   {
-      u[i] = q[i+1]/q[0];
-   }
-   xdouble p = pressure<xdouble,dim>(q);
-   xdouble s = log(p/pow(q[0],euler::gamma));
-   xdouble fac = 1.0/p;
-   w[0] = (euler::gamma-s)/euler::gami - 0.5*dot<xdouble,dim>(u,u)*fac*q[0];
-   for (int i = 0; i < dim; ++i)
-   {
-      w[i+1] = q[i+1]*fac;
-   }
-   w[dim+1] = -q[0]*fac;
-}
-
 /// Applies the matrix `Cij` to `dW/dX`
 /// \param[in] i - index `i` in `Cij` matrix
 /// \param[in] j - index `j` in `Cij` matrix is calculated
+/// \param[in] q - state used to evaluate `Cij` matrix
 /// \param[in] vec - the vector being multiplied
 /// \param[out] mat_vec - the result of the operation
 template <typename xdouble, int dim>
@@ -60,14 +34,14 @@ void applyViscousScaling(int i, int j, const xdouble *q, const xdouble *vec,
 {
    using namespace navierstokes;
    xdouble E = q[dim + 2] / q[0];
-   for (int p = 0; p < dim; ++p)
+   for (int p = 0; p < dim; ++p) // p is not a good variable name given potential confusion with pressure
    {
       e -= 0.5 * (q[p + 1] / q[0]) * (q[p + 1] / q[0]);
    }
    e += E;
    T = e / cv;
    // apply diagonal block matrices (Cij; i=j) on `vec`
-  if (i == j)
+   if (i == j)
    {
       // get all entries of `mat_vec` except last one
       for (int k = 0; k < dim; ++k)
