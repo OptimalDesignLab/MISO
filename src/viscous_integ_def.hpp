@@ -9,14 +9,14 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   Vector ui, wj, uj, Dwi, CDwi;
-   DenseMatrix adjJ_i, adjJ_j, adjJ_k;
+   Vector ui, wj, uj, CDwi;
+   DenseMatrix adjJ_i, adjJ_j, adjJ_k, Dwi;
 #endif
    elvect.SetSize(num_states * num_nodes);
    ui.SetSize(num_states);
    wj.SetSize(num_states);
    uj.SetSize(num_states);
-   Dwi.SetSize(num_states);
+   Dwi.SetSize(num_states,dim);
    CDw.SetSize(num_states);
    adjJ_i.SetSize(dim);
    adjJ_j.SetSize(dim);
@@ -27,50 +27,52 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
    for (int i = 0; i < num_nodes; ++i)
    {
       // get the Jacobian (Trans.Weight) and cubature weight (node.weight)
-      const IntegrationRule &ir = el.GetNodes();
-      const IntegrationPoint &node = ir.IntPoint(i);
+      const IntegrationPoint &node = el.GetNodes().IntPoint(i);
       Trans.SetIntPoint(&node);
-      double norm = sbp.getDiagNormEntry(i) * Trans.Weight();
-      double Hinv = 1 / norm;
+      double Hinv = 1.0 / (sbp.getDiagNormEntry(i) * Trans.Weight());
       CalcAdjugate(Trans.Jacobian(), adjJ_i);
       u.GetRow(i, ui);
-      for (int di2 = 0; di2 < dim; ++di2)
+
+      // compute the (physcial space) derivatives at node i
+      Dwi = 0.0;
+      for (int j = 0; j < num_nodes; ++j)
       {
-         Dwi = 0.0;
-         for (int j = 0; j < num_nodes; ++j)
+         // Get mapping Jacobian adjugate and transform state to entropy vars
+         Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
+         CalcAdjugate(Trans.Jacobian(), adjJ_j);
+         u.GetRow(j, uj);
+         convert(uj, wj);
+         for (int d = 0; d < dim; ++d)
          {
-            Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
-            CalcAdjugate(Trans.Jacobian(), adjJ_j);
-            double Qij = sbp.getQEntry(di2, i, j, adjJ_i, adjJ_j);
-            u.GetRow(j, uj);
-            // Step 1: convert to entropy variables
-            convert(uj, wj);
-            // Step 2: find the derivative in `di2` direction
+            double Qij = sbp.getQEntry(d, i, j, adjJ_i, adjJ_j);
             for (int s = 0; s < num_states; ++s)
             {
-               Dwi(s) += Qij * wj(s);
+               Dwi(s,d) += Qij * wj(s);
             }
-         } // j node loop
-         Dwi *= Hinv;
-         for (int di1 = 0; di1 < dim; ++di1)
+         } // loop over space dimensions d
+      } // loop over element nodes j
+      Dwi *= Hinv;
+
+      // next, scale the derivatives (e.g. using \hat{C} matrices), and then 
+      // apply derivative of test function 
+      for (int d = 0; d < dim; ++d) {
+         scale(d, ui, Dwi, CDwi);
+         for (int k = 0; k < num_nodes; ++k) 
          {
-            // Step 3: apply the viscous coefficients' scaling
-            scale(di1, di2, ui, Dwi, CDwi);
-            for (int k = 0; k < num_nodes; ++k)
+            // TODO: should we just reuse index j here?  Or is this clearer?
+            // Get mapping Jacobian adjugate and transform state to entropy vars
+            Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
+            CalcAdjugate(Trans.Jacobian(), adjJ_k);
+            double Qik = sbp.getQEntry(d, i, k, adjJ_i, adjJ_k);
+            // apply transposed derivative in `d` direction
+            // this evaluates Q_d'*(C_d,1 D_1 + C_d,2 D_2 + ...) w
+            for (int s = 0; s < num_states; ++s)
             {
-               Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
-               CalcAdjugate(Trans.Jacobian(), adjJ_k);
-               double Qik = sbp.getQEntry(di1, i, k, adjJ_i, adjJ_k);
-               // Step 4: apply derivative in `di1` direction
-               // this evaluates Qd1'*C*(H^-1)*Qd2
-               for (int s = 0; s < num_states; ++s)
-               {
-                  res(k, s) += alpha * Qik * CDwi(s);
-               }
-            } // k loop
-         }    // di1 loop
-      }       // di2 loop
-   }          // i node loop
+               res(k, s) += alpha * Qik * CDwi(s);
+            }
+         } // loop over element nodes k
+      } // loop over space dimensions d
+   } // loop over element nodes i
 }
 
 template <typename Derived>

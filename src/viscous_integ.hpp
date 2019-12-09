@@ -56,10 +56,10 @@ protected:
    mfem::Vector wj;
    /// used to reference the entropy variables at node j
    mfem::Vector uj;
-   /// stores the derivative w.r.t space direction at node i
-   mfem::Vector Dwi;
    /// stores the product of c_{hat} matrices with Dwi
    mfem::Vector CDwi;
+   /// stores the derivatives in all (physical) space directions at node i
+   mfem::DenseMatrix Dwi;
    /// used to store the adjugate of the mapping Jacobian at node i
    mfem::DenseMatrix adjJ_i;
    /// used to store the adjugate of the mapping Jacobian at node j
@@ -87,15 +87,15 @@ protected:
    }
 
    /// applies symmetric matrix `C(u)` to input `v`
-   /// \param[in] i - index `i` in `Cij` matrix
-   /// \param[in] j - index `j` in `Cij` matrix
-   /// \param[in] u - state at which the symmetric matrix `C` is evaluated
-   /// \param[in] v - vector that is being multiplied
-   /// \param[out] Cv - product of the multiplication
+   /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
+   /// \param[in] u - state at which the symmetric matrices `C` are evaluated
+   /// \param[in] Du - `Du[:,d2]` stores derivative of `u` in direction `d2`. 
+   /// \param[out] CDu - product of the multiplication between the `C` and `Du`.
    /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
-   void scale(int i, int j, const mfem::Vector &u, const mfem::Vector &v, mfem::Vector &Cv)
+   void scale(int d, const mfem::Vector &u, const mfem::DenseMatrix &Du,
+              mfem::Vector &CDu)
    {
-      static_cast<Derived *>(this)->applyScaling(i, j, u, v, Cv);
+      static_cast<Derived *>(this)->applyScaling(d, u, Du, CDu);
    }
 
    /// Computes the Jacobian of the product `C(u)*v` w.r.t. `u`
@@ -145,7 +145,7 @@ public:
 	virtual double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
                                 const mfem::FiniteElement &el_unused,
                                 mfem::FaceElementTransformations &trans,
-                                const mfem::Vector &elfun);
+                                const mfem::Vector &elfun) {}
 
    /// Construct the contribution to the element local residual
    /// \param[in] el_bnd - the finite element whose residual we want to update
@@ -169,7 +169,7 @@ public:
                                  const mfem::FiniteElement &el_unused,
                                  mfem::FaceElementTransformations &trans,
                                  const mfem::Vector &elfun,
-                                 mfem::DenseMatrix &elmat);
+                                 mfem::DenseMatrix &elmat) {}
 
 protected: 
    /// number of states
