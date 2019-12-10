@@ -20,10 +20,13 @@ class ESViscousIntegrator : public SymmetricViscousIntegrator<ESViscousIntegrato
 public:
    /// Construct a Viscous integrator
    /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   ESViscousIntegrator(adept::Stack &diff_stack, double a = 1.0)
+   ESViscousIntegrator(adept::Stack &diff_stack, double Re_num, double Pr_num,
+                       double a = 1.0)
        : SymmetricViscousIntegrator<ESViscousIntegrator<dim>>(
-             diff_stack, dim + 2, a) {}
+             diff_stack, dim + 2, a), Re(Re_num), Pr(Pr_num) {}
 
    /// converts conservative variables to entropy variables
    /// \param[in] q - conservative variables that are to be converted
@@ -47,7 +50,7 @@ public:
    void applyScaling(int d, const mfem::Vector &u, const mfem::DenseMatrix &Du,
                      mfem::Vector &CDu)
    {
-      applyViscousScaling<double, dim>(d, u.GetData(), Du.GetData(), 
+      applyViscousScaling<double, dim>(d, Re, Pr, u.GetData(), Du.GetData(), 
                                        CDu.GetData());
    }
 
@@ -65,6 +68,12 @@ public:
    /// \param[out] Cv_jac - Jacobian of product w.r.t. `v` (i.e. `C`)
    /// \note This uses the CRTP, so it wraps call to a func. in Derived.
    void applyScalingJacV(const mfem::Vector &u, mfem::DenseMatrix &Cv_jac);
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
 };
 
 } // namespace mach 

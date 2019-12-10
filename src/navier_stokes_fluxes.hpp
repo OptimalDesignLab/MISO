@@ -13,43 +13,54 @@ namespace mach
 /// \todo Some of these constants really belong in the euler namespace (e.g. R and cv)
 namespace navierstokes
 {
-/// gas constant
-const double R = 287;
-/// specfic heat for constant volume
-const double cv = R / euler::gami;
-/// use constant `kappa` and `mu` for time being
-const double mu = 1.81e-05;
-const double kappa = 0.026;
+/// Ratio of Sutherland's constant and free-stream temperature
+const double ST = 198.6d0/460.d0;
 } // namespace navierstokes
 
+/// Returns the dynamic viscosity based on Sutherland's law
+/// \param[in] q - state used to define the viscosity
+/// \returns mu - nondimensionalized viscosity
+/// \note This assumes the free-stream temperature given by navierstokes::ST
+xdouble calcSutherlandViscosity(const xdouble *q)
+{
+   xdouble a = sqrt(euler::gamma*pressure<xdouble,dim>(q)/q[0]);
+   xdouble a2 = a*a;
+   xdouble a3 = a*a*a;
+   return a3*(1.0 + navierstokes::ST)/(a2 + navierstokes::ST);
+}
+
 /// Compute the product \f$ \sum_{d'=0}^{dim} C_{d,d'} D_{d'} w \f$
-/// \param[in] d - desired space component of the flux 
+/// \param[in] d - desired space component of the flux
+/// \param[in] Re - Reynolds number
+/// \param[in] Pr - Prandtl number
 /// \param[in] q - state used to evaluate the \f$ C_d,d'} \f$ matrices
 /// \param[in] Dw - derivatives of entropy varaibles, stored column-major
 /// \param[out] mat_vec - stores the resulting matrix vector product
 template <typename xdouble, int dim>
-void applyViscousScaling(int d, const xdouble *q, const xdouble *Dw,
-                         xdouble *mat_vec)
+void applyViscousScaling(int d, double Re, double Pr, const xdouble *q,
+                         const xdouble *Dw, xdouble *mat_vec)
 {
    for (int k = 0; k < dim+2; ++k) {
       mat_vec[k] = 0.0;
    }
+   xdouble mu = calcSutherlandViscosity<xdouble, dim>(q)/Re;
    for (int d2 = 0; d2 < dim; ++d2) {
-      applyCijMatrix(d, d2, q, Dq+(d2*(dim+2)), mat_vec);
+      applyCijMatrix(d, d2, mu, Pr, q, Dq+(d2*(dim+2)), mat_vec);
    }
 }
 
 /// Applies the matrix `Cij` to `dW/dX`
 /// \param[in] i - index `i` in `Cij` matrix
 /// \param[in] j - index `j` in `Cij` matrix is calculated
-/// \param[in] mu - dynamic viscosity 
-/// \param[in] kappa - thermal conductivity
+/// \param[in] mu - nondimensionalized dynamic viscosity 
+/// \param[in] Pr - Prandtl number
 /// \param[in] q - state used to evaluate `Cij` matrix
 /// \param[in] vec - the vector being multiplied
 /// \param[in,out] mat_vec - the result of the operation
 /// \warning `mat_vec` is added to and *not* initialized to zero
+/// \note this function has been nondimensionalized
 template <typename xdouble, int dim>
-void applyCijMatrix(int i, int j, const xdouble mu, const xdouble kappa,
+void applyCijMatrix(int i, int j, const xdouble mu, const xdouble Pr,
                     const xdouble *q, const xdouble *vec, xdouble *mat_vec)
 {
    // define the velocity components
@@ -58,8 +69,8 @@ void applyCijMatrix(int i, int j, const xdouble mu, const xdouble kappa,
    {
       u[i] = q[i+1]/q[0];
    }
-   xdouble T = pressure<xdouble,dim>(q)/(euler::R*q[0]);
-   xdouble RTmu = euler::R*T*mu;
+   xdouble RTmu = pressure<xdouble,dim>(q)*mu/q[0];
+   xdouble RT2k = (RTmu*RTmu)*euler::gamma/(mu*euler::gami*Pr);
    // apply diagonal block matrices (Cij; i=j) on `vec`
    if (i == j)
    {
@@ -76,7 +87,7 @@ void applyCijMatrix(int i, int j, const xdouble mu, const xdouble kappa,
       }
       mat_vec[dim + 1] += (1 / 3) * RTmu * u[i] * (vec[i + 1] + 
                                                    u[i] * vec[dim + 1]);
-      mat_vec[dim + 1] += euler::R * T * T * kappa * vec[dim + 1];
+      mat_vec[dim + 1] += RT2k * vec[dim + 1];
    }
    else // apply off-diagonal block matrices (Cij; i!=j) on `vec`
    {
