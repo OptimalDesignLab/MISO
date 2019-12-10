@@ -241,7 +241,7 @@ public:
        : InviscidBoundaryIntegrator<SlipWallBC<dim>>(
              diff_stack, fe_coll, dim+2, a) {}
 
-   /// Note used (or, rather, *do not use*!)
+   /// Not used (or, rather, *do not use*!)
    double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
                        const mfem::Vector &q) { return 0.0; }
 

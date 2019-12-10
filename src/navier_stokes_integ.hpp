@@ -76,6 +76,42 @@ private:
    double Pr;
 };
 
+/// Integrator for no-slip adiabatic-wall boundary condition
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim>
+class NoSlipAdiabaticWallBC : public ViscousBoundaryIntegrator<NoSlipAdiabaticWallBC<dim>>
+{
+public:
+   /// Constructs an integrator for a no-slip, adiabatic boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   NoSlipAdiabaticWallBC(adept::Stack &diff_stack,
+                         const mfem::FiniteElementCollection *fe_coll,
+                         double Re_num, double Pr_num,
+                         double a = 1.0)
+       : ViscousBoundaryIntegrator<NoSlipAdiabaticWallBC<dim>>(
+             diff_stack, fe_coll, dim + 2, a), Re(Re_num), Pr(Pr_num) {}
+
+   /// Compute entropy stable no-slip, adiabatic wall boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
+                 const mfem::Vector &q, const mfem::DenseMatrix &Dq,
+                 mfem::Vector &flux_vec)
+   {
+      throw(-1);
+      //calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
+      //                             flux_vec.GetData());
+   }
+
+};
+
 } // namespace mach 
 
 #endif

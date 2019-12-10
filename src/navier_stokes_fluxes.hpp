@@ -19,7 +19,7 @@ const double ST = 198.6d0/460.d0;
 
 /// Returns the dynamic viscosity based on Sutherland's law
 /// \param[in] q - state used to define the viscosity
-/// \returns mu - nondimensionalized viscosity
+/// \returns mu - **nondimensionalized** viscosity
 /// \note This assumes the free-stream temperature given by navierstokes::ST
 xdouble calcSutherlandViscosity(const xdouble *q)
 {
@@ -45,7 +45,7 @@ void applyViscousScaling(int d, double Re, double Pr, const xdouble *q,
    }
    xdouble mu = calcSutherlandViscosity<xdouble, dim>(q)/Re;
    for (int d2 = 0; d2 < dim; ++d2) {
-      applyCijMatrix(d, d2, mu, Pr, q, Dq+(d2*(dim+2)), mat_vec);
+      applyCijMatrix(d, d2, mu, Pr, q, Dw+(d2*(dim+2)), mat_vec);
    }
 }
 
@@ -98,6 +98,42 @@ void applyCijMatrix(int i, int j, const xdouble mu, const xdouble Pr,
       mat_vec[dim + 1] += RTmu * (u[j] * vec[i + 1] 
                                   - (2 / 3) * u[i] * vec[j + 1]
                                   + (1 / 3) * u[i] * u[j] * vec[dim + 1]));
+   }
+}
+
+/// Computes an entropy stable adiabatic-wall flux for the derivatives
+/// \param[in] x - coordinates of the wall (not used)
+/// \param[in] dir - desired (scaled) normal vector to the wall
+/// \param[in] Re - Reynolds number
+/// \param[in] Pr - Prandtl number
+/// \param[in] q - state at the wall location `x`
+/// \param[in] Dw - space derivatives of the entropy variables (column major)
+/// \param[out] flux - wall flux
+/// \note This **does not** account for the no-slip condition.
+template <typename xdouble, int dim>
+void calcAdiabaticWallFlux(const xdouble *x, const xdouble *dir, double Re,
+                           double Pr, const xdouble *q, const xdouble *Dw, 
+                           xdouble *flux)
+{
+   for (int k = 0; k < dim+2; ++k) {
+      flux[k] = 0.0;
+   }
+   xdouble mu = calcSutherlandViscosity<xdouble, dim>(q)/Re;
+   xdouble Dw_bnd[dim+1];
+   for (int d = 0; d < dim; ++d)
+   {
+      for (int d2 = 0; d2 < dim; ++d2)
+      {
+         for (int k = 0; k < dim+2; ++k)
+         {
+            Dw_bnd[k] = Dq[d2*(dim+2) + k]
+         }
+         if (d2 == d) {
+            Dw_bnd[dim+1] = 0.0; // set flux to zero
+         }
+         // we "sneak" dir[d] into the computation via mu
+         applyCijMatrix(d, d2, mu*dir[d], Pr, q, Dw_bnd, flux);
+      }
    }
 }
 
