@@ -14,7 +14,7 @@ namespace mach
 namespace navierstokes
 {
 /// Ratio of Sutherland's constant and free-stream temperature
-const double ST = 198.6d0/460.d0;
+const double ST = 198.60/460.0;
 } // namespace navierstokes
 
 /// Returns the dynamic viscosity based on Sutherland's law
@@ -71,11 +71,12 @@ template <typename xdouble, int dim>
 void applyCijMatrix(int i, int j, const xdouble mu, const xdouble Pr,
                     const xdouble *q, const xdouble *vec, xdouble *mat_vec)
 {
+   using namespace std;
    // define the velocity components
    xdouble u[dim];
-   for (int i = 0; i < dim; ++i)
+   for (int k = 0; k < dim; ++k)
    {
-      u[i] = q[i+1]/q[0];
+      u[k] = q[k+1]/q[0];
    }
    xdouble RTmu = pressure<xdouble,dim>(q)*mu/q[0];
    xdouble RT2k = (RTmu*RTmu)*euler::gamma/(mu*euler::gami*Pr);
@@ -85,7 +86,7 @@ void applyCijMatrix(int i, int j, const xdouble mu, const xdouble Pr,
       // get all entries of `mat_vec` except last one
       for (int k = 0; k < dim; ++k)
       {
-         mat_vec[k + 1] += RTmu * (vec[k + 1] + u[k]*vec[dim + 1]));
+         mat_vec[k + 1] += RTmu * (vec[k + 1] + u[k]*vec[dim + 1]);
       }
       mat_vec[i + 1] += (1 / 3) * RTmu * (vec[i + 1] + u[i]*vec[dim+1]);
       // get last entry of `mat_vec`
@@ -105,7 +106,7 @@ void applyCijMatrix(int i, int j, const xdouble mu, const xdouble Pr,
       // get last entry of `mat_vec`
       mat_vec[dim + 1] += RTmu * (u[j] * vec[i + 1] 
                                   - (2 / 3) * u[i] * vec[j + 1]
-                                  + (1 / 3) * u[i] * u[j] * vec[dim + 1]));
+                                  + (1 / 3) * u[i] * u[j] * vec[dim + 1]);
    }
 }
 
@@ -136,7 +137,7 @@ void calcAdiabaticWallFlux(const xdouble *dir, double Re, double Pr,
       {
          for (int k = 0; k < dim+2; ++k)
          {
-            Dw_bnd[k] = Dq[d2*(dim+2) + k]
+            Dw_bnd[k] = Dw[d2*(dim+2) + k];
          }
          if (d2 == d) {
             Dw_bnd[dim+1] = 0.0; // set flux to zero
