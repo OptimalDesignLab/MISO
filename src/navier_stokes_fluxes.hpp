@@ -88,25 +88,25 @@ void applyCijMatrix(int i, int j, const xdouble mu, const xdouble Pr,
       {
          mat_vec[k + 1] += RTmu * (vec[k + 1] + u[k]*vec[dim + 1]);
       }
-      mat_vec[i + 1] += (1 / 3) * RTmu * (vec[i + 1] + u[i]*vec[dim+1]);
+      mat_vec[i + 1] +=  RTmu * (vec[i + 1] + u[i]*vec[dim+1])/3;
       // get last entry of `mat_vec`
       for (int k = 0; k < dim; ++k)
       {
          mat_vec[dim + 1] += RTmu * u[k] * (vec[k + 1] + u[k] * vec[dim + 1]);
       }
-      mat_vec[dim + 1] += (1 / 3) * RTmu * u[i] * (vec[i + 1] + 
-                                                   u[i] * vec[dim + 1]);
+      mat_vec[dim + 1] +=  RTmu * u[i] * (vec[i + 1] + 
+                                                   u[i] * vec[dim + 1])/3;
       mat_vec[dim + 1] += RT2k * vec[dim + 1];
    }
    else // apply off-diagonal block matrices (Cij; i!=j) on `vec`
    {
       // get all non-zero entries of `mat_vec` except last
-      mat_vec[i + 1] -= (2 / 3) * RTmu * (vec[j + 1] + u[j] * vec[dim + 1]);
+      mat_vec[i + 1] -= 2 * RTmu * (vec[j + 1] + u[j] * vec[dim + 1])/3;
       mat_vec[j + 1] += RTmu * (vec[i + 1] + u[i] * vec[dim + 1]);
       // get last entry of `mat_vec`
       mat_vec[dim + 1] += RTmu * (u[j] * vec[i + 1] 
-                                  - (2 / 3) * u[i] * vec[j + 1]
-                                  + (1 / 3) * u[i] * u[j] * vec[dim + 1]);
+                                  - 2 * u[i] * vec[j + 1]/3
+                                  +  u[i] * u[j] * vec[dim + 1]/3);
    }
 }
 
@@ -179,7 +179,7 @@ void calcNoSlipPenaltyFlux(const xdouble *dir, const xdouble Jac,
    xdouble mu = calcSutherlandViscosity<xdouble, dim>(q)/Re;
    for (int d = 0; d < dim; ++d)
    {
-      applyCijMatrix(d, d, mu*dir[d], Pr, qfs, dw, flux);
+      applyCijMatrix(d, d, mu * dir[d], Pr, qfs, dw, flux);
    }
    // scale the penalty
    xdouble fac = sqrt(dot<xdouble,dim>(dir, dir))/Jac;

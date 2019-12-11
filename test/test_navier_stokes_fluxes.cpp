@@ -30,41 +30,70 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
    // conservative variables
    q(0) = rho;
    q(dim + 1) = rhoe;
-   
+
    for (int di = 0; di < dim; ++di)
    {
       q(di + 1) = rhou[di];
    }
+   cout << "-------------- " << endl;
+   cout << "conservative variables " << endl;
+   cout << "-------------- " << endl;
+   for (int i = 0; i < dim + 2; ++i)
+   {
+      cout << q(i) << endl;
+   }
+
    // spatial derivatives of entropy variables
    for (int j = 0; j < dim; ++j)
    {
       for (int i = 0; i < dim + 2; ++i)
       {
-         del_w(i, j) = 0.02 + (i * 0.01);
-         del_w(i, j) += j * 0.02;
+         del_w(i, j) = 0.02 + (i * 0.01) +
+                       j * 0.02;
       }
    }
    // entropy variables derivatives
+   cout << "-------------- " << endl;
    cout << "dwdxj" << endl;
+   cout << "-------------- " << endl;
    del_w.Print();
+   cout << "conservative variables derivatives " << endl;
+   cout << "-------------- " << endl;
    // get spatial derivatives of conservative variables
    // and use them to get respective derivatives for primitive variables
    for (int j = 0; j < dim; ++j)
    {
-      del_vxj(dim + 1, j) = 0;
       del_w.GetColumn(j, del_wxj);
       mach::calcdQdWProduct<double, dim>(q.GetData(), del_wxj.GetData(),
                                          del_qxj.GetData());
+      del_vxj(dim + 1, j) = (gami * del_qxj(dim + 1)) / q(0);
+      cout << "del_vxj 1 " << del_vxj(dim + 1, j) << endl;
       del_vxj(0, j) = del_qxj(0);
+      cout << del_qxj(0) << endl;
       for (int i = 1; i < dim + 1; ++i)
       {
+         cout <<  del_qxj(i) << endl;
          del_vxj(i, j) = (del_qxj(i) - (q(i) * del_qxj(0) / q(0))) / q(0);
-         del_vxj(dim + 1, j) += (q(i) * ((q(i) * del_qxj(0) / q(0)) - del_qxj(i))) / q(0) * q(0);
+         del_vxj(dim + 1, j) -= gami * q(i) * del_qxj(i) / (q(0) * q(0));
+         cout << "del_vxj 2 " << del_vxj(dim + 1, j) << endl;
+         del_vxj(dim + 1, j) += gami * (q(i) * q(i) * del_qxj(0)) / (2 * q(0) * q(0) * q(0));
+         cout << "del_vxj 3 " << del_vxj(dim + 1, j) << endl;
       }
-      del_vxj(dim + 1, j) = (del_qxj(dim + 1) - (q(dim + 1) * del_qxj(0) / q(0))) / q(0);
-      del_vxj(dim + 1, j) *= gami;
+      del_vxj(dim + 1, j) -= mach::pressure<double, dim>(q) * del_qxj(0) / (q(0) * q(0));
+      cout << "del_vxj 4 " << del_vxj(dim + 1, j) << endl;
    }
-
+   cout << "pressure " << mach::pressure<double, dim>(q) << endl;
+   cout << "-------------- " << endl;
+   cout << "del_vxj " << endl;
+   cout << "-------------- " << endl;
+   del_vxj.Print();
+   cout << "-------------- " << endl;
+   cout << "velocity" << endl;
+   cout << "-------------- " << endl;
+   for (int i = 1; i < dim + 1; ++i)
+   {
+      cout << q(i) / q(0) << endl;
+   }
    // get the fluxes
    for (int i = 0; i < dim; ++i)
    {
@@ -75,13 +104,13 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
          {
             for (int k = 0; k < dim; ++k)
             {
-               tau_ij(j) -= 2*del_vxj(k + 1, k)/3;
+               tau_ij(j) -= 2 * del_vxj(k + 1, k) / 3;
             }
          }
          tau_ij(j) /= Re;
          fv(0, j) = 0;
          fv(j + 1, i) = tau_ij(j);
-        // cout << "stress" << tau_ij(j) <<endl;
+         // cout << "stress" << tau_ij(j) <<endl;
       }
       for (int k = 0; k < dim; ++k)
       {
@@ -98,6 +127,7 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
       }
       for (int j = 0; j < dim; ++j)
       {
+         // `cdel_wxj` should be initialized to zero
          for (int di = 0; di < dim + 2; ++di)
          {
             cdel_wxj(di) = 0;
@@ -114,10 +144,15 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
          fcdwij(s, i) = cdwij(s);
       }
    }
+   cout << "-------------- " << endl;
    cout << "computed fluxes" << endl;
+   cout << "-------------- " << endl;
    fcdwij.Print();
+   cout << "-------------- " << endl;
    std::cout << "Analytical fluxes" << endl;
+   cout << "-------------- " << endl;
    fv.Print();
+   cout << "-------------- " << endl;
 }
 
 // back up to calculate flux
