@@ -92,25 +92,43 @@ public:
    NoSlipAdiabaticWallBC(adept::Stack &diff_stack,
                          const mfem::FiniteElementCollection *fe_coll,
                          double Re_num, double Pr_num,
-                         double a = 1.0)
+                         const mfem::Vector &q_ref, double a = 1.0)
        : ViscousBoundaryIntegrator<NoSlipAdiabaticWallBC<dim>>(
-             diff_stack, fe_coll, dim + 2, a), Re(Re_num), Pr(Pr_num) {}
+             diff_stack, fe_coll, dim + 2, a), Re(Re_num), Pr(Pr_num),
+             qfs(q_ref), work_vec(dim+2) {}
 
-   /// Compute entropy stable no-slip, adiabatic wall boundary flux
-   /// \param[in] x - coordinate location at which flux is evaluated (not used)
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - conservative variables at which to evaluate the flux
-   /// \param[out] flux_vec - value of the flux
-   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
-                 const mfem::Vector &q, const mfem::DenseMatrix &Dq,
-                 mfem::Vector &flux_vec)
+   /// converts conservative variables to entropy variables
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] w - entropy variables corresponding to `q`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      throw(-1);
-      //calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
-      //                             flux_vec.GetData());
+      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
    }
 
+   /// Compute entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                 const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                 mfem::Vector &flux_vec);
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
+   /// Fixed state used to compute no-slip penalty matrix
+   mfem::Vector qfs;
+   /// work space for flux computations
+   mfem::Vector work_vec;
 };
+
+#include "navier_stokes_integ_def.hpp"
 
 } // namespace mach 
 

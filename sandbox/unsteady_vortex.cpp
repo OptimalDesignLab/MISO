@@ -37,8 +37,7 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      const int dim = 2;
-      EulerSolver solver(opt_file_name, nullptr, dim);
+      EulerSolver<2> solver(opt_file_name, nullptr);
       solver.setInitialCondition(u0_function);
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver.calcL2Error(u0_function) << '\n' << endl;      

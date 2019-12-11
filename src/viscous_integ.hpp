@@ -203,19 +203,29 @@ protected:
    mfem::DenseMatrix flux_jac_face;
 #endif
 
+   /// converts working variables to another set (e.g. conservative to entropy)
+   /// \param[in] u - working states that are to be converted
+   /// \param[out] w - transformed variables
+   /// \note This uses the CRTP, so it wraps a call to `convertVars` in Derived.
+   void convert(const mfem::Vector &u, mfem::Vector &w)
+   {
+      static_cast<Derived *>(this)->convertVars(u, w);
+   }
+
    /// Compute a boundary flux function
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
    /// \param[in] u - state at which to evaluate the flux
-   /// \param[in] Du - `Du[:,di]` is the derivative of u in direction di
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
    /// \param[out] flux_vec - value of the flux
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
-   double flux(const mfem::Vector &x, const mfem::Vector &dir,
-               const mfem::Vector &u, const mfem::DenseMatrix &Du,
-               mfem::Vector &flux_vec)
+   double flux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                 const mfem::Vector &u, const mfem::DenseMatrix &Dw,
+                 mfem::Vector &flux_vec)
    {
-      static_cast<Derived*>(this)->calcFlux(x, dir, u, Du, flux_vec);
+      static_cast<Derived*>(this)->calcFlux(x, dir, jac, u, Dw, flux_vec);
    }
 
 #if 0
