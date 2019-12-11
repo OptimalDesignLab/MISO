@@ -32,29 +32,6 @@ xdouble calcSutherlandViscosity(const xdouble *q)
    return a3*(1.0 + navierstokes::ST)/(a2 + navierstokes::ST);
 }
 
-/// Compute the product \f$ \sum_{d'=0}^{dim} C_{d,d'} D_{d'} w \f$
-/// \param[in] d - desired space component of the flux
-/// \param[in] Re - Reynolds number
-/// \param[in] Pr - Prandtl number
-/// \param[in] q - state used to evaluate the \f$ C_d,d'} \f$ matrices
-/// \param[in] Dw - derivatives of entropy varaibles, stored column-major
-/// \param[out] mat_vec - stores the resulting matrix vector product
-/// \tparam xdouble - typically `double` or `adept::adouble`
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
-void applyViscousScaling(int d, double Re, double Pr, const xdouble *q,
-                         const xdouble *Dw, xdouble *mat_vec)
-{
-   for (int k = 0; k < dim+2; ++k)
-   {
-      mat_vec[k] = 0.0;
-   }
-   xdouble mu = calcSutherlandViscosity<xdouble, dim>(q)/Re;
-   for (int d2 = 0; d2 < dim; ++d2) {
-      applyCijMatrix(d, d2, mu, Pr, q, Dw+(d2*(dim+2)), mat_vec);
-   }
-}
-
 /// Applies the matrix `Cij` to `dW/dX`
 /// \param[in] i - index `i` in `Cij` matrix
 /// \param[in] j - index `j` in `Cij` matrix is calculated
@@ -110,6 +87,29 @@ void applyCijMatrix(int i, int j, const xdouble mu, const xdouble Pr,
    }
 }
 
+/// Compute the product \f$ \sum_{d'=0}^{dim} C_{d,d'} D_{d'} w \f$
+/// \param[in] d - desired space component of the flux
+/// \param[in] Re - Reynolds number
+/// \param[in] Pr - Prandtl number
+/// \param[in] q - state used to evaluate the \f$ C_d,d'} \f$ matrices
+/// \param[in] Dw - derivatives of entropy varaibles, stored column-major
+/// \param[out] mat_vec - stores the resulting matrix vector product
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void applyViscousScaling(int d, double Re, double Pr, const xdouble *q,
+                         const xdouble *Dw, xdouble *mat_vec)
+{
+   for (int k = 0; k < dim+2; ++k)
+   {
+      mat_vec[k] = 0.0;
+   }
+   xdouble mu = calcSutherlandViscosity<xdouble, dim>(q)/Re;
+   for (int d2 = 0; d2 < dim; ++d2) {
+      applyCijMatrix<xdouble, dim>(d, d2, mu, Pr, q, Dw+(d2*(dim+2)), mat_vec);
+   }
+}
+
 /// Computes an entropy conservative adiabatic-wall flux for the derivatives
 /// \param[in] dir - desired (scaled) normal vector to the wall
 /// \param[in] Re - Reynolds number
@@ -143,7 +143,7 @@ void calcAdiabaticWallFlux(const xdouble *dir, double Re, double Pr,
             Dw_bnd[dim+1] = 0.0; // set flux to zero
          }
          // we "sneak" dir[d] into the computation via mu
-         applyCijMatrix(d, d2, mu*dir[d], Pr, q, Dw_bnd, flux);
+         applyCijMatrix<xdouble, dim>(d, d2, mu*dir[d], Pr, q, Dw_bnd, flux);
       }
    }
 }
@@ -153,14 +153,15 @@ void calcAdiabaticWallFlux(const xdouble *dir, double Re, double Pr,
 /// \param[in] Jac - mapping Jacobian at the wall
 /// \param[in] Re - Reynolds number
 /// \param[in] Pr - Prandtl number
+/// \param[in] qfs - a fixed state (e.g. free-stream value)
 /// \param[in] q - state at the wall location
 /// \param[out] flux - wall flux
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
 void calcNoSlipPenaltyFlux(const xdouble *dir, const xdouble Jac, 
-                           double Re, double Pr, const xdouble *q,
-                           xdouble *flux)
+                           double Re, double Pr, const xdouble *qfs,
+                           const xdouble *q, xdouble *flux)
 {
    // evaluate the difference w - w_bc, where w_bc = [w[0], 0, 0, ...,w[dim+1]]
    xdouble dw[dim+2];
@@ -179,7 +180,7 @@ void calcNoSlipPenaltyFlux(const xdouble *dir, const xdouble Jac,
    xdouble mu = calcSutherlandViscosity<xdouble, dim>(q)/Re;
    for (int d = 0; d < dim; ++d)
    {
-      applyCijMatrix(d, d, mu * dir[d], Pr, qfs, dw, flux);
+      applyCijMatrix<xdouble, dim>(d, d, mu*dir[d], Pr, qfs, dw, flux);
    }
    // scale the penalty
    xdouble fac = sqrt(dot<xdouble,dim>(dir, dir))/Jac;

@@ -3,12 +3,14 @@
 #include "mfem.hpp"
 #include "solver.hpp"
 #include "euler_integ.hpp"
-using adept::adouble;
+//using adept::adouble;
 
 namespace mach
 {
 
-/// Solver for linear advection problems
+/// Solver for inviscid flow problems
+/// dim - number of spatial dimensions (1, 2, or 3)
+template <int dim>
 class EulerSolver : public AbstractSolver
 {
 public:
@@ -18,8 +20,7 @@ public:
    /// \param[in] dim - number of dimensions
    /// \todo Can we infer dim some other way without using a template param?
    EulerSolver(const std::string &opt_file_name,
-               std::unique_ptr<mfem::Mesh> smesh = nullptr,
-               int dim = 1);
+               std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Find the gobal step size for the given CFL number
    /// \param[in] cfl - target CFL number for the domain
@@ -38,6 +39,10 @@ protected:
    double mach_fs;
    /// free-stream angle of attack
    double aoa_fs;
+   /// index of dimension corresponding to nose to tail axis
+   int iroll;
+   /// index of "vertical" dimension in body frame
+   int ipitch;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// the mass matrix bilinear form
@@ -47,13 +52,23 @@ protected:
    /// mass matrix (move to AbstractSolver?)
    std::unique_ptr<MatrixType> mass_matrix;
 
+   /// Add volume integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addVolumeIntegrators(double alpha);
+
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   /// \param[in] dim - number of dimensions
-   void addBoundaryIntegrators(double alpha, int dim = 1);
+   virtual void addBoundaryIntegrators(double alpha);
+
+   /// Add interior-face integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addInterfaceIntegrators(double alpha);
 
    /// Create `output` based on `options` and add approporiate integrators
-   void addOutputs(int dim = 1);
+   void addOutputs();
+
+   /// Sets `q_ref` to the free-stream conservative variables
+   void getFreeStreamState(mfem::Vector &q_ref);
 };
 
 } // namespace mach

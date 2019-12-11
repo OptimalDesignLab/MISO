@@ -18,7 +18,11 @@ nlohmann::json default_options =
    {"flow-param", // options related to flow simulations
    {
       {"mach", 0.5}, // far-field mach number
-      {"aoa", 0.0} // far-field angle of attack
+      {"aoa", 0.0},  // far-field angle of attack
+      {"roll-axis", 0},  // axis aligned with nose to tail of aircraft
+      {"pitch-axis", 1}, // axis in the "vertical" direction
+      {"Re", 0.0},  // far-field Reynolds number
+      {"Pr", 0.72}  // the Prandtl number
    }},
 
    {"space-dis", // options related to spatial discretization

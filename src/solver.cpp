@@ -13,6 +13,7 @@ namespace mach
 // Static member function diff_stack needs to be defined
 adept::Stack AbstractSolver::diff_stack;
 
+
 AbstractSolver::AbstractSolver(const string &opt_file_name,
                                unique_ptr<Mesh> smesh)
 {
@@ -33,9 +34,8 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    *out << setw(3) << options << endl;
    constructMesh(move(smesh));
    // does num_dim equal mesh->Dimension in all cases?
-   num_dim = mesh->Dimension();
-
-   *out << "problem space dimension = " << num_dim << endl;
+   int dim = mesh->Dimension();
+   *out << "problem space dimension = " << dim << endl;
 
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
@@ -68,12 +68,12 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
-                                  num_dim));
+                                  dim));
    }
    else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
-                                   num_dim));
+                                   dim));
    }
 }
 
@@ -113,9 +113,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    gmi_register_mesh();
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
                                 options["mesh"]["file"].get<string>().c_str());
-   int dim = pumi_mesh->getDimension();
-   int nEle = pumi_mesh->count(dim);
-   int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / dim);
+   int mesh_dim = pumi_mesh->getDimension();
+   int nEle = pumi_mesh->count(mesh_dim);
+   int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
    // Perform Uniform refinement
    // if (ref_levels > 1)
    // {
@@ -234,7 +234,9 @@ double AbstractSolver::calcStepSize(double cfl) const
                        "\tis not implemented for this class!");
 }
 
-void AbstractSolver::printSolution(const std::string &file_name, int refine)
+
+void AbstractSolver::printSolution(const std::string &file_name,
+                                   int refine)
 {
    // TODO: These mfem functions do not appear to be parallelized
    ofstream sol_ofs(file_name + ".vtk");
@@ -365,6 +367,10 @@ double AbstractSolver::calcOutput(const std::string &fun)
 {
    try
    {
+      if (output.find(fun) == output.end())
+      {
+         cout << "Did not find " << fun << " in output map?" << endl;
+      }
       return output.at(fun).GetEnergy(*u);
    }
    catch (const std::out_of_range &exception)

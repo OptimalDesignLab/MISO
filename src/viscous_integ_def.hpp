@@ -17,7 +17,7 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
    wj.SetSize(num_states);
    uj.SetSize(num_states);
    Dwi.SetSize(num_states,dim);
-   CDw.SetSize(num_states);
+   CDwi.SetSize(num_states);
    adjJ_i.SetSize(dim);
    adjJ_j.SetSize(dim);
    adjJ_k.SetSize(dim);
@@ -129,17 +129,18 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
 
       // get the state at element node i, as well as the mapping adjugate
       u.GetRow(i, u_face);
-      Trans.SetIntPoint(&el_ip);
-      double Hinv = 1.0 /(sbp.getDiagNormEntry(i) * Trans.Weight());
-      CalcAdjugate(Trans.Jacobian(), adjJ_i);
+      trans.Elem1->SetIntPoint(&el_ip);
+      double jac_i = trans.Elem1->Weight();
+      double Hinv = 1.0 /(sbp.getDiagNormEntry(i) * jac_i);
+      CalcAdjugate(trans.Elem1->Jacobian(), adjJ_i);
 
       // compute the (physcial space) derivatives at node i
       Dwi = 0.0;
       for (int j = 0; j < num_nodes; ++j)
       {
          // Get mapping Jacobian adjugate and transform state to entropy vars
-         Trans.SetIntPoint(&el_bnd.GetNodes().IntPoint(j));
-         CalcAdjugate(Trans.Jacobian(), adjJ_j);
+         trans.Elem1->SetIntPoint(&el_bnd.GetNodes().IntPoint(j));
+         CalcAdjugate(trans.Elem1->Jacobian(), adjJ_j);
          u.GetRow(j, uj);
          convert(uj, wj);
          for (int d = 0; d < dim; ++d)
@@ -156,7 +157,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
       // get the normal vector to the face, and then compute the flux
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
-      flux(x, nrm, u_face, Dwi, flux_face);
+      flux(x, nrm, jac_i, u_face, Dwi, flux_face);
       flux_face *= face_ip.weight;
 
       // multiply by test function

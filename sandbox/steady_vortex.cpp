@@ -50,13 +50,12 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      const int dim = 2;
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
       std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
-      EulerSolver solver(opt_file_name, move(smesh), dim);
+      EulerSolver<2> solver(opt_file_name, move(smesh));
       solver.setInitialCondition(uexact);
       solver.printSolution("init", degree+1);
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
@@ -68,7 +67,9 @@ int main(int argc, char *argv[])
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver.calcL2Error(uexact, 0) << endl;
-      mfem::out << "\nDrag error = " << abs(solver.calcOutput("drag") - (-1/mach::euler::gamma)) << endl << endl;
+      mfem::out << "\nDrag error = "
+                << abs(solver.calcOutput("drag") - (-1 / mach::euler::gamma)) << endl
+                << endl;
    }
    catch (MachException &exception)
    {

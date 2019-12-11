@@ -22,9 +22,10 @@ namespace mach
 {
 
 /// Serves as a base class for specific PDE solvers
+/// dim - number of spatial dimensions (1, 2, or 3)
+//template <int dim>
 class AbstractSolver
 {
-   
 public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
@@ -92,8 +93,6 @@ protected:
    std::ostream *out;
    /// solver options
    nlohmann::json options;
-   /// number of space dimensions
-   int num_dim;
    /// number of state variables at each node
    int num_state = 0;
    /// time step size
@@ -126,6 +125,7 @@ protected:
    std::map<std::string, NonlinearFormType> output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
+
 };
 
 } // namespace mach
