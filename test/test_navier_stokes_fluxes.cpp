@@ -4,7 +4,7 @@
 #include "euler_test_data.hpp"
 #include "euler_fluxes.hpp"
 TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values",
-                       "[navierstokes]", ((int dim), dim), 1)
+                       "[navierstokes]", ((int dim), dim), 1, 2, 3)
 {
    using namespace euler_data;
    using namespace std;
@@ -12,21 +12,29 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
    double gami = gamma - 1.0;
    // copy the data into mfem vectors for convenience
    mfem::Vector q(dim + 2);
+   // stores shear stress vector for given direction
    mfem::Vector tau_ij(dim);
    mfem::Vector cdel_wxj(dim + 2);
    mfem::Vector cdwij(dim + 2);
+   // stores analytical flux vector for given direction
+   mfem::Vector flux(dim + 2);
+   // stores computed flux vector for given direction
+   mfem::Vector flux_vec(dim + 2);
    // create the derivative vector
    mfem::Vector del_wxj(dim + 2);
    mfem::Vector del_qxj(dim + 2);
+   // stores analytical fluxes for all directions
    mfem::DenseMatrix fv(dim + 2, dim);
+   // stores entropy variables derivatives along all directions
    mfem::DenseMatrix del_w(dim + 2, dim);
+   // stores spatial derivatives of primitive variables
    mfem::DenseMatrix del_vxj(dim + 2, dim);
+   // stores computed fluxes for all directions
    mfem::DenseMatrix fcdwij(dim + 2, dim);
-   // mfem::DenseMatrix tau_ij(dim);
    double Re, mu, Pr;
-   Re = 1;
-   mu = 1;
-   Pr = 1;
+   Re = 1.2;
+   mu = 1.4;
+   Pr = 1.2;
    // conservative variables
    q(0) = rho;
    q(dim + 1) = rhoe;
@@ -35,14 +43,6 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
    {
       q(di + 1) = rhou[di];
    }
-   cout << "-------------- " << endl;
-   cout << "conservative variables " << endl;
-   cout << "-------------- " << endl;
-   for (int i = 0; i < dim + 2; ++i)
-   {
-      cout << q(i) << endl;
-   }
-
    // spatial derivatives of entropy variables
    for (int j = 0; j < dim; ++j)
    {
@@ -52,13 +52,6 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
                        j * 0.02;
       }
    }
-   // entropy variables derivatives
-   cout << "-------------- " << endl;
-   cout << "dwdxj" << endl;
-   cout << "-------------- " << endl;
-   del_w.Print();
-   cout << "conservative variables derivatives " << endl;
-   cout << "-------------- " << endl;
    // get spatial derivatives of conservative variables
    // and use them to get respective derivatives for primitive variables
    for (int j = 0; j < dim; ++j)
@@ -67,34 +60,20 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
       mach::calcdQdWProduct<double, dim>(q.GetData(), del_wxj.GetData(),
                                          del_qxj.GetData());
       del_vxj(dim + 1, j) = (gami * del_qxj(dim + 1)) / q(0);
-      cout << "del_vxj 1 " << del_vxj(dim + 1, j) << endl;
       del_vxj(0, j) = del_qxj(0);
-      cout << del_qxj(0) << endl;
       for (int i = 1; i < dim + 1; ++i)
       {
-         cout <<  del_qxj(i) << endl;
+
          del_vxj(i, j) = (del_qxj(i) - (q(i) * del_qxj(0) / q(0))) / q(0);
          del_vxj(dim + 1, j) -= gami * q(i) * del_qxj(i) / (q(0) * q(0));
-         cout << "del_vxj 2 " << del_vxj(dim + 1, j) << endl;
+
          del_vxj(dim + 1, j) += gami * (q(i) * q(i) * del_qxj(0)) / (2 * q(0) * q(0) * q(0));
-         cout << "del_vxj 3 " << del_vxj(dim + 1, j) << endl;
       }
       del_vxj(dim + 1, j) -= mach::pressure<double, dim>(q) * del_qxj(0) / (q(0) * q(0));
-      cout << "del_vxj 4 " << del_vxj(dim + 1, j) << endl;
+      del_vxj(dim + 1, j) *= mu * gamma / (Pr * gami);
    }
-   cout << "pressure " << mach::pressure<double, dim>(q) << endl;
-   cout << "-------------- " << endl;
-   cout << "del_vxj " << endl;
-   cout << "-------------- " << endl;
-   del_vxj.Print();
-   cout << "-------------- " << endl;
-   cout << "velocity" << endl;
-   cout << "-------------- " << endl;
-   for (int i = 1; i < dim + 1; ++i)
-   {
-      cout << q(i) / q(0) << endl;
-   }
-   // get the fluxes
+
+   // get the analytical fluxes
    for (int i = 0; i < dim; ++i)
    {
       for (int j = 0; j < dim; ++j)
@@ -107,16 +86,16 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
                tau_ij(j) -= 2 * del_vxj(k + 1, k) / 3;
             }
          }
-         tau_ij(j) /= Re;
+         tau_ij(j) *= mu;
+         // tau_ij(j) /= Re; // this gives error
          fv(0, j) = 0;
          fv(j + 1, i) = tau_ij(j);
-         // cout << "stress" << tau_ij(j) <<endl;
       }
       for (int k = 0; k < dim; ++k)
       {
          fv(dim + 1, k) += tau_ij(k) * q(i + 1) / q(0);
       }
-      fv(dim + 1, i) -= mu * gamma * del_vxj(dim + 1, i) / (Pr * gami);
+      fv(dim + 1, i) += del_vxj(dim + 1, i);
    }
    // get flux using c_{hat} matrices
    for (int i = 0; i < dim; ++i)
@@ -144,48 +123,19 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
          fcdwij(s, i) = cdwij(s);
       }
    }
-   cout << "-------------- " << endl;
-   cout << "computed fluxes" << endl;
-   cout << "-------------- " << endl;
-   fcdwij.Print();
-   cout << "-------------- " << endl;
-   std::cout << "Analytical fluxes" << endl;
-   cout << "-------------- " << endl;
-   fv.Print();
-   cout << "-------------- " << endl;
+   // compare numerical vs analytical fluxes
+   for (int i = 0; i < dim; ++i)
+   {
+      for (int k = 0; k < dim + 2; ++k)
+      {
+         flux(k) = 0;
+         flux_vec(k) = 0;
+      }
+      fv.GetColumn(i, flux);
+      fcdwij.GetColumn(i, flux_vec);
+      for (int j = 0; j < dim + 2; ++j)
+      {
+         REQUIRE(flux(j) == Approx(flux_vec(j)));
+      }
+   }
 }
-
-// back up to calculate flux
-// // get the stress tensor
-// for (int i = 0; i < dim; ++i)
-// {
-//    for (int j = 0; j < dim; ++j)
-//    {
-//       tau_ij(i, j) = del_vxj(i + 1, j) + del_vxj(j + 1, i);
-//       if (i == j)
-//       {
-//          for (int k = 0; k < dim; ++k)
-//          {
-//             tau_ij(i, j) -= del_vxj(k + 1, k);
-//          }
-//          tau_ij(i, j) *= 2 / 3;
-//       }
-//       tau_ij(i, j) /= Re;
-//       fv(0, j) = 0;
-//       fv(j + 1, i) = tau_ij(i , j);
-//    }
-//    for (int k = 0; k < dim; ++k)
-//    {
-//       fv(dim + 1, k) += tau_ij(i) * q(k + 1) / q(0);
-//    }
-// }
-
-// for (int j = 0; j < dim; ++j)
-// {
-//    fv(dim + 1, j) = 0;
-//    for (int k = 0; k < dim ; ++k)
-//    {
-//       fv(dim + 1, j) += tau_ij(k, j) * q(k+1) / q(0);
-//    }
-//    fv(dim + 1, j) -= mu * euler::gammma * del_vxj(dim + 1, j) / (Pr * euler::gami);
-// }
