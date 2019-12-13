@@ -59,9 +59,9 @@ EulerSolver<dim>::EulerSolver(const string &opt_file_name,
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
    // Add integrators; this can be simplified if we template the entire class
-   addVolumeIntegrators(alpha);
-   addBoundaryIntegrators(alpha);
-   addInterfaceIntegrators(alpha);
+   this->addVolumeIntegrators(alpha);
+   this->addBoundaryIntegrators(alpha);
+   this->addInterfaceIntegrators(alpha);
 
    // This just lists the boundary markers for debugging purposes
    for (int k = 0; k < bndry_marker.size(); ++k)

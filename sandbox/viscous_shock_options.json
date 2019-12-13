@@ -1,0 +1,29 @@
+{
+   "flow-param": {
+      "mach": 2.5,
+      "aoa": 0.0,
+      "roll-axis": 0,
+      "pitch-axis": 1,
+      "Re": 10.0,
+      "Pr": 0.75
+   },
+   "space-dis": {
+      "degree": 1,
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
+   },
+   "steady": false,
+   "time-dis": {
+      "const-cfl": true,
+      "cfl": 1.0,
+      "dt": 0.01,
+      "t-final": 0.25
+   },
+   "bcs": {
+      "vortex": [1, 1, 1, 0],
+      "slip-wall": [0, 0, 0, 1]
+   },
+   "outputs": {
+      "drag": [0, 0, 0, 1]
+   }
+}

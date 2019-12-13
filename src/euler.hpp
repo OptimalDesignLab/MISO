@@ -32,7 +32,7 @@ public:
 
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
-   double calcResidualNorm();
+   virtual double calcResidualNorm();
 
 protected:
    /// free-stream Mach number

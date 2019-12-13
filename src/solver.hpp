@@ -81,6 +81,8 @@ public:
    /// \param[in] fun - specifies the desired functional
    /// \returns scalar value of estimated functional value
    double calcOutput(const std::string &fun);
+   
+   virtual double calcResidualNorm() {}
 
 protected:
 #ifdef MFEM_USE_MPI
@@ -125,6 +127,18 @@ protected:
    std::map<std::string, NonlinearFormType> output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
+
+   /// Add volume integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addVolumeIntegrators(double alpha) {}
+
+   /// Add boundary-face integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addBoundaryIntegrators(double alpha) {}
+
+   /// Add interior-face integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addInterfaceIntegrators(double alpha) {}
 
 };
 

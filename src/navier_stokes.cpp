@@ -30,6 +30,7 @@ void NavierStokesSolver<dim>::addVolumeIntegrators(double alpha)
 {
    // add base class integrators
    EulerSolver<dim>::addVolumeIntegrators(alpha);
+   cout << "Inside NS add volume integrators" << endl;
    // now add NS integrators
    this->res->AddDomainIntegrator(new ESViscousIntegrator<dim>(
        this->diff_stack, re_fs, pr_fs, alpha));

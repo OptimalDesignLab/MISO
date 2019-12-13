@@ -40,7 +40,7 @@ public:
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
                                     mfem::ElementTransformation &Trans,
                                     const mfem::Vector &elfun,
-                                    mfem::DenseMatrix &elmat);
+                                    mfem::DenseMatrix &elmat) {}
 
 protected:
    /// number of states
@@ -77,6 +77,7 @@ protected:
       static_cast<Derived *>(this)->convertVars(u, w);
    }
 
+#if 0
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] u - working states that are to be converted
    /// \param[out] dwdu - Jacobian of transformed variables w.r.t. `u`
@@ -85,6 +86,7 @@ protected:
    {
       static_cast<Derived *>(this)->convertVarsJacState(u, dwdu);
    }
+#endif
 
    /// applies symmetric matrices \f$ C_{d,:}(u) \f$ to input `Du`
    /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
@@ -98,6 +100,7 @@ protected:
       static_cast<Derived *>(this)->applyScaling(d, u, Du, CDu);
    }
 
+#if 0
    /// Computes the Jacobian of the product `C(u)*v` w.r.t. `u`
    /// \param[in] u - state at which the symmetric matrix `C` is evaluated
    /// \param[in] v - vector that is being multiplied
@@ -117,6 +120,8 @@ protected:
    {
       static_cast<Derived *>(this)->applyScalingJacV(u, Cv_jac);
    }
+#endif
+
 };
 
 /// Integrator for viscous boundary fluxes

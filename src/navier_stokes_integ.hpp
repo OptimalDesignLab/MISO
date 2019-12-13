@@ -50,6 +50,7 @@ public:
    void applyScaling(int d, const mfem::Vector &u, const mfem::DenseMatrix &Du,
                      mfem::Vector &CDu)
    {
+      std::cout << "Here I am!!!" << std::endl;
       applyViscousScaling<double, dim>(d, Re, Pr, u.GetData(), Du.GetData(), 
                                        CDu.GetData());
    }
