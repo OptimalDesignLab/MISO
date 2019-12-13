@@ -360,20 +360,20 @@ void AbstractSolver::solveUnsteady()
    double t_final = options["time-dis"]["t-final"].get<double>();
    std::cout << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
+   bool calc_dt = options["time-dis"]["explicit"].get<bool>() && 
+         options["time-dis"]["const-cfl"].get<bool>();
    for (int ti = 0; !done;)
    {
-      if (options["time-dis"]["const-cfl"].get<bool>())
+      if (calc_dt)
       {
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
-         //std::cout << "dt is " << dt << '\n';
       }
-      //std::cout << "t is " << t <<'\n';
       double dt_real = min(dt, t_final - t);
       // if (ti % 100 == 0)
       // {
          cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      //}
+      // }
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);
@@ -382,7 +382,6 @@ void AbstractSolver::solveUnsteady()
       ode_solver->Step(*u, t, dt_real);
 #endif
       ti++;
-      //std::cout << "t_final is " << t_final << '\n';
       done = (t >= t_final - 1e-8 * dt);
       //std::cout << "t_final is " << t_final << ", done is " << done << std::endl;
       /*       if (done || ti % vis_steps == 0)

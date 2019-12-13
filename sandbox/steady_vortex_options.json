@@ -5,10 +5,11 @@
       "basis-type": "csbp"
    },
    "time-dis": {
-      "ode-solver": "MIDPOINT",
-      "t-final": 10.0,
-      "dt": 0.01,
+      "explicit": false,
       "const-cfl": true,
+      "ode-solver": "MIDPOINT",
+      "t-final": 20.0,
+      "dt": 0.1,
       "cfl": 1.0
    },
    "mesh": {
@@ -45,7 +46,8 @@
       "printlevel": 0
    },
    "saveresults":false,
-   "outputs": {
+   "outputs": 
+   {
       "drag": [0, 0, 0, 1]
    }
 }
