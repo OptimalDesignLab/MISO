@@ -68,7 +68,20 @@ EulerSolver::EulerSolver(const string &opt_file_name,
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
-   evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+   if(options["time-dis"]["ode-solver"].get<string>() == "MIDPOINT")
+   {
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+   }
+   else if (options["time-dis"]["ode-solver"].get<string>() == "RK4")
+   {
+      evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+   }
+   else
+   {
+      throw MachException("Unknown ODE solver type " +
+                          options["time-dis"]["ode-solver"].get<string>());
+   }
+   
    // add the output functional QoIs 
    addOutputs(dim);
 }

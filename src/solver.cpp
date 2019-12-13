@@ -45,11 +45,11 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    {
       ode_solver.reset(new ForwardEulerSolver);
    }
-   if (options["time-dis"]["ode-solver"].get<string>() == "RK4")
+   else if (options["time-dis"]["ode-solver"].get<string>() == "RK4")
    {
       ode_solver.reset(new RK4Solver);
    }
-   if (options["time-dis"]["ode-solver"].get<string>() == "MIDPOINT")
+   else if (options["time-dis"]["ode-solver"].get<string>() == "MIDPOINT")
    {
       ode_solver.reset(new ImplicitMidpointSolver);
    }
@@ -369,11 +369,11 @@ void AbstractSolver::solveUnsteady()
       }
       //std::cout << "t is " << t <<'\n';
       double dt_real = min(dt, t_final - t);
-      if (ti % 100 == 0)
-      {
+      // if (ti % 100 == 0)
+      // {
          cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      }
+      //}
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);
