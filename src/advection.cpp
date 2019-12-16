@@ -88,57 +88,41 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
    MultADAt(P, AH, elmat);
 }
 
-AdvectionSolver::AdvectionSolver(const string &opt_file_name,
-                                 void (*vel_field)(const Vector &, Vector &))
-   : AbstractSolver(opt_file_name)
+template <int dim>
+AdvectionSolver<dim>::AdvectionSolver(
+    const string &opt_file_name, void (*vel_field)(const Vector &, Vector &))
+    : AbstractSolver<dim>(opt_file_name)
 {
-   // set the finite-element space and create (but do not initialize) the
-   // state GridFunction
-   num_state = 1;
-   fes.reset(new SpaceType(static_cast<MeshType*>(mesh.get()), fec.get(), num_state, Ordering::byVDIM)); 
-   u.reset(new GridFunType(static_cast<SpaceType*>(fes.get())));
-#ifdef MFEM_USE_MPI
-   *out << "Number of finite element unknowns: "
-        << fes->GlobalTrueVSize() << endl;
-#else
-   *out << "Number of finite element unknowns: "
-        << fes->GetTrueVSize() << endl;
-#endif
-   //cout << "\tNumber of vertices = " << fes->GetNV() << endl;
-   //cout << "\tNumber of vertex Dofs = " << fes->GetNVDofs() << endl;
-   //cout << "\tNumber of edge Dofs = " << fes->GetNEDofs() << endl;
-   //cout << "\tNumber of face Dofs = " << fes->GetNFDofs() << endl;
-   //cout << "\tNumber of Boundary Edges = "<< fes->GetNBE() << endl;
-
-   // set up the mass matrix
-   mass.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
-   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   mass->Assemble();
-   mass->Finalize();
-
    // set up the stiffness matrix
-   velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
-   *out << "dimension is " << mesh->Dimension() << endl;
-   stiff.reset(new BilinearFormType(static_cast<SpaceType*>(fes.get())));
+   velocity.reset(
+       new VectorFunctionCoefficient(this->mesh->Dimension(), vel_field));
+   *(this->out) << "dimension is " << this->mesh->Dimension() << endl;
+   stiff.reset(new BilinearFormType(static_cast<SpaceType *>(this->fes.get())));
    stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
    // add the LPS stabilization
-   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
-   stiff->AddDomainIntegrator(new AdvectLPSIntegrator(*velocity, -1.0, lps_coeff));
+   double lps_coeff = this->options["space-dis"]["lps-coeff"].get<double>();
+   stiff->AddDomainIntegrator(
+       new AdvectLPSIntegrator(*velocity, -1.0, lps_coeff));
    int skip_zeros = 0;
    stiff->Assemble(skip_zeros);
    stiff->Finalize(skip_zeros);
 
-   // define the time-dependent operator
 #ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
-   mass_matrix.reset(mass->ParallelAssemble());
    stiff_matrix.reset(stiff->ParallelAssemble());
 #else
-   mass_matrix.reset(new MatrixType(mass->SpMat()));
    stiff_matrix.reset(new MatrixType(stiff->SpMat()));
 #endif
-   evolver.reset(new LinearEvolver(*mass_matrix, *stiff_matrix, *out));
 
+   /// This should overwrite the evolver defined in base class constructor
+   this->evolver.reset(
+       new LinearEvolver(*(this->mass_matrix), *(this->stiff_matrix),
+                         *(this->out)));
 }
+
+// explicit instantiation
+//template class AdvectionSolver<1>;
+template class AdvectionSolver<2>;
+//template class AdvectionSolver<3>;
 
 } // namespace mach

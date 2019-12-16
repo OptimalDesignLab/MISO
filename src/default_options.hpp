@@ -22,7 +22,8 @@ nlohmann::json default_options =
       {"roll-axis", 0},  // axis aligned with nose to tail of aircraft
       {"pitch-axis", 1}, // axis in the "vertical" direction
       {"Re", 0.0},  // far-field Reynolds number
-      {"Pr", 0.72}  // the Prandtl number
+      {"Pr", 0.72}, // the Prandtl number
+      {"mu", -1.0}   // nondimensional viscosity (if negative, use Sutherland's)
    }},
 
    {"space-dis", // options related to spatial discretization

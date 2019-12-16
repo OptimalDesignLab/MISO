@@ -11,7 +11,7 @@ namespace mach
 /// Solver for inviscid flow problems
 /// dim - number of spatial dimensions (1, 2, or 3)
 template <int dim>
-class EulerSolver : public AbstractSolver
+class EulerSolver : public AbstractSolver<dim>
 {
 public:
    /// Class constructor.
@@ -30,10 +30,6 @@ public:
    /// number.
    virtual double calcStepSize(double cfl) const;
 
-   /// Compute the residual norm based on the current solution in `u`
-   /// \returns the l2 (discrete) norm of the residual evaluated at `u`
-   virtual double calcResidualNorm();
-
 protected:
    /// free-stream Mach number
    double mach_fs;
@@ -43,14 +39,6 @@ protected:
    int iroll;
    /// index of "vertical" dimension in body frame
    int ipitch;
-   /// `bndry_marker[i]` lists the boundaries associated with a particular BC
-   std::vector<mfem::Array<int>> bndry_marker;
-   /// the mass matrix bilinear form
-   std::unique_ptr<BilinearFormType> mass;
-   /// the spatial residual (a semilinear form)
-   std::unique_ptr<NonlinearFormType> res;
-   /// mass matrix (move to AbstractSolver?)
-   std::unique_ptr<MatrixType> mass_matrix;
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
@@ -65,10 +53,13 @@ protected:
    virtual void addInterfaceIntegrators(double alpha);
 
    /// Create `output` based on `options` and add approporiate integrators
-   void addOutputs();
+   virtual void addOutputs();
 
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);
+
+   /// Return the number of state variables
+   virtual int getNumState() {return dim+2; }
 };
 
 } // namespace mach

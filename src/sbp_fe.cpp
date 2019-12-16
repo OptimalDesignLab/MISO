@@ -847,7 +847,7 @@ SBPCollection::SBPCollection(const int p, const int dim)
       int revNodeOrder0[] = {};
       int revNodeOrder1[1] = {0};
       int revNodeOrder2[2] = {1, 0};
-      int revNodeOrder3[3] = {1, 0, 2};    // {0, 2, 1};
+      int revNodeOrder3[3] = {0, 2, 1}; // {1, 0, 2};    // {0, 2, 1};
       int revNodeOrder4[4] = {1, 0, 3, 2};    // {1, 0, 3, 2};
 
       switch (p)

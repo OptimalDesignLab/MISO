@@ -32,8 +32,8 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
    const char *options_file = "steady_vortex_options.json";
    int degree = 2.0;
-   int nx = 1.0;
-   int ny = 1.0;
+   int nx = 1;
+   int ny = 1;
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
@@ -55,20 +55,24 @@ int main(int argc, char *argv[])
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
-      EulerSolver<2> solver(opt_file_name, move(smesh));
-      solver.setInitialCondition(uexact);
-      solver.printSolution("init", degree+1);
+
+      unique_ptr<AbstractSolver<2>> solver(
+         new EulerSolver<2>(opt_file_name, move(smesh)));
+      solver->initDerived();
+
+      solver->setInitialCondition(uexact);
+      solver->printSolution("init", degree+1);
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver.calcL2Error(uexact, 0) << '\n' << endl;
-      mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
+                << solver->calcL2Error(uexact, 0) << '\n' << endl;
+      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
-      solver.solveForState();
-      mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
+      solver->solveForState();
+      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver.calcL2Error(uexact, 0) << endl;
+                << solver->calcL2Error(uexact, 0) << endl;
       mfem::out << "\nDrag error = "
-                << abs(solver.calcOutput("drag") - (-1 / mach::euler::gamma)) << endl
+                << abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma)) << endl
                 << endl;
    }
    catch (MachException &exception)

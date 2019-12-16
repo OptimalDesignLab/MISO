@@ -37,13 +37,15 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      EulerSolver<2> solver(opt_file_name, nullptr);
-      solver.setInitialCondition(u0_function);
+      unique_ptr<AbstractSolver<2>> solver(
+         new EulerSolver<2>(opt_file_name, nullptr));
+      solver->initDerived();
+      solver->setInitialCondition(u0_function);
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver.calcL2Error(u0_function) << '\n' << endl;      
-      solver.solveForState();
+                << solver->calcL2Error(u0_function) << '\n' << endl;      
+      solver->solveForState();
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver.calcL2Error(u0_function) << '\n' << endl;
+                << solver->calcL2Error(u0_function) << '\n' << endl;
 
    }
    catch (MachException &exception)

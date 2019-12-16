@@ -1,6 +1,6 @@
 {
    "mesh": {
-      "file": "kernel-lev-2.mesh",
+      "file": "kernel-lev-1.mesh",
       "refine": 0
    },
    "space-dis": {

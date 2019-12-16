@@ -1,6 +1,8 @@
 #ifndef MACH_SOLVER
 #define MACH_SOLVER
 
+#include <fstream>
+#include <iostream>
 #include "mfem.hpp"
 #include "adept.h"
 #include "mach_types.hpp"
@@ -18,12 +20,13 @@
 #include <gmi_mesh.h>
 #include <crv.h>
 #endif
+
 namespace mach
 {
 
 /// Serves as a base class for specific PDE solvers
 /// dim - number of spatial dimensions (1, 2, or 3)
-//template <int dim>
+template <int dim>
 class AbstractSolver
 {
 public:
@@ -33,6 +36,10 @@ public:
    AbstractSolver(const std::string &opt_file_name =
                       std::string("mach_options.json"),
                   std::unique_ptr<mfem::Mesh> smesh = nullptr);
+
+   /// Perform set-up of derived classes using virtual functions
+   /// \todo Put the constructors and this in a factory
+   void initDerived();
 
    /// class destructor
    ~AbstractSolver();
@@ -68,6 +75,14 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printSolution(const std::string &file_name, int refine = -1);
 
+   /// Write the mesh and residual to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \todo make this work for parallel!
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printResidual(const std::string &file_name, int refine = -1);
+
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
 
@@ -82,7 +97,9 @@ public:
    /// \returns scalar value of estimated functional value
    double calcOutput(const std::string &fun);
    
-   virtual double calcResidualNorm() {}
+   /// Compute the residual norm based on the current solution in `u`
+   /// \returns the l2 (discrete) norm of the residual evaluated at `u`
+   double calcResidualNorm();
 
 protected:
 #ifdef MFEM_USE_MPI
@@ -116,13 +133,17 @@ protected:
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
-   //std::unique_ptr<MassFormType> mass;
-   /// operator for spatial residual (linear in some cases)
-   //std::unique_ptr<ResFormType> res;
+   std::unique_ptr<BilinearFormType> mass;
+   /// the spatial residual (a semilinear form in general)
+   std::unique_ptr<NonlinearFormType> res;
+   /// mass matrix
+   std::unique_ptr<MatrixType> mass_matrix;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
+   /// `bndry_marker[i]` lists the boundaries associated with a particular BC
+   std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
    std::map<std::string, NonlinearFormType> output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
@@ -130,17 +151,26 @@ protected:
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addVolumeIntegrators(double alpha) {}
+   virtual void addVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addBoundaryIntegrators(double alpha) {}
+   virtual void addBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addInterfaceIntegrators(double alpha) {}
+   virtual void addInterfaceIntegrators(double alpha) {};
+
+   /// Define the number of states, the finite element space, and state u
+   virtual int getNumState() {};
+
+   /// Create `output` based on `options` and add approporiate integrators
+   virtual void addOutputs() {};
 
 };
+
+//template <int dim>
+//adept::Stack AbstractSolver<dim>::diff_stack;
 
 } // namespace mach
 

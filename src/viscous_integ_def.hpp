@@ -9,11 +9,12 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   Vector ui, wj, uj, CDwi;
+   Vector ui, xi, wj, uj, CDwi;
    DenseMatrix adjJ_i, adjJ_j, adjJ_k, Dwi;
 #endif
    elvect.SetSize(num_states * num_nodes);
    ui.SetSize(num_states);
+   xi.SetSize(dim);
    wj.SetSize(num_states);
    uj.SetSize(num_states);
    Dwi.SetSize(num_states,dim);
@@ -32,6 +33,7 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
       double Hinv = 1.0 / (sbp.getDiagNormEntry(i) * Trans.Weight());
       CalcAdjugate(Trans.Jacobian(), adjJ_i);
       u.GetRow(i, ui);
+      Trans.Transform(node, xi);
 
       // compute the (physcial space) derivatives at node i
       Dwi = 0.0;
@@ -56,7 +58,7 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
       // next, scale the derivatives (e.g. using \hat{C} matrices), and then 
       // apply derivative of test function 
       for (int d = 0; d < dim; ++d) {
-         scale(d, ui, Dwi, CDwi);
+         scale(d, xi, ui, Dwi, CDwi);
          for (int k = 0; k < num_nodes; ++k) 
          {
             // TODO: should we just reuse index j here?  Or is this clearer?

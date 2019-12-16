@@ -1,7 +1,6 @@
 #ifndef MACH_NAVIER_STOKES
 #define MACH_NAVIER_STOKES
 #include "mfem.hpp"
-#include "solver.hpp"
 #include "euler.hpp"
 
 namespace mach
@@ -40,6 +39,14 @@ protected:
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addInterfaceIntegrators() first
    virtual void addInterfaceIntegrators(double alpha);
+
+   /// Set the state corresponding to the inflow boundary
+   /// \param[in] q_in - state corresponding to the inflow
+   void getViscousInflowState(mfem::Vector &q_in);
+
+   /// Set the state corresponding to the outflow boundary
+   /// \param[in] q_out - state corresponding to the outflow
+   void getViscousOutflowState(mfem::Vector &q_out);
 
    /// Create `output` based on `options` and add approporiate integrators
    ///void addOutputs();

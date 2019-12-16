@@ -52,6 +52,8 @@ protected:
 #ifndef MFEM_THREAD_SAFE
    /// used to reference the states at node i
    mfem::Vector ui;
+   /// used to store the (physical) space location of node i
+   mfem::Vector xi;
    /// used to reference the entropy variables at node j
    mfem::Vector wj;
    /// used to reference the entropy variables at node j
@@ -90,14 +92,15 @@ protected:
 
    /// applies symmetric matrices \f$ C_{d,:}(u) \f$ to input `Du`
    /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
+   /// \param[in] x - coordinate location at which scaling is evaluated  
    /// \param[in] u - state at which the symmetric matrices `C` are evaluated
    /// \param[in] Du - `Du[:,d2]` stores derivative of `u` in direction `d2`. 
    /// \param[out] CDu - product of the multiplication between the `C` and `Du`.
    /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
-   void scale(int d, const mfem::Vector &u, const mfem::DenseMatrix &Du,
-              mfem::Vector &CDu)
+   void scale(int d, const mfem::Vector &x, const mfem::Vector &u,
+              const mfem::DenseMatrix &Du, mfem::Vector &CDu)
    {
-      static_cast<Derived *>(this)->applyScaling(d, u, Du, CDu);
+      static_cast<Derived *>(this)->applyScaling(d, x, u, Du, CDu);
    }
 
 #if 0
