@@ -150,8 +150,10 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
       // get flux using c_{hat} matrices
       for (int i = 0; i < dim; ++i)
       {
+         double mu_Re = mach::calcSutherlandViscosity<double, dim>(q.GetData());
+         mu_Re /= Re;
          // no need to initialize `cdwij` here, it's done in the function itself
-         mach::applyViscousScaling<double, dim>(i, Re, Pr, q.GetData(), del_w.GetData(), cdwij.GetData());
+         mach::applyViscousScaling<double, dim>(i, mu_Re, Pr, q.GetData(), del_w.GetData(), cdwij.GetData());
          for (int s = 0; s < dim + 2; ++s)
          {
             fcdwij(s, i) = cdwij(s);
