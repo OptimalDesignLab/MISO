@@ -3,6 +3,7 @@
 #include "navier_stokes_fluxes.hpp"
 #include "euler_test_data.hpp"
 #include "euler_fluxes.hpp"
+
 TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values",
                        "[navierstokes]", ((int dim), dim), 1, 2, 3)
 {
@@ -31,10 +32,10 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
    mfem::DenseMatrix del_vxj(dim + 2, dim);
    // stores computed fluxes for all directions
    mfem::DenseMatrix fcdwij(dim + 2, dim);
-   double Re, mu, Pr;
-   Re = 1.2;
-   mu = 1.4;
-   Pr = 1.2;
+   // define the constants
+   double Re = 1000;
+   double Pr = 0.71;
+   //double mu = 1.4;
    // conservative variables
    q(0) = rho;
    q(dim + 1) = rhoe;
@@ -43,6 +44,8 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
    {
       q(di + 1) = rhou[di];
    }
+   // viscosity coefficient
+   double mu = mach::calcSutherlandViscosity<double, dim>(q) / Re;
    // spatial derivatives of entropy variables
    for (int j = 0; j < dim; ++j)
    {
@@ -87,7 +90,6 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
             }
          }
          tau_ij(j) *= mu;
-         // tau_ij(j) /= Re; // this gives error
          fv(0, j) = 0;
          fv(j + 1, i) = tau_ij(j);
       }
@@ -97,45 +99,78 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
       }
       fv(dim + 1, i) += del_vxj(dim + 1, i);
    }
-   // get flux using c_{hat} matrices
-   for (int i = 0; i < dim; ++i)
+
+   SECTION("applyCijMatrix is correct")
    {
-      for (int k = 0; k < dim + 2; ++k)
+      // get flux using c_{hat} matrices
+      for (int i = 0; i < dim; ++i)
       {
-         cdwij(k) = 0;
-      }
-      for (int j = 0; j < dim; ++j)
-      {
-         // `cdel_wxj` should be initialized to zero
-         for (int di = 0; di < dim + 2; ++di)
-         {
-            cdel_wxj(di) = 0;
-         }
-         del_w.GetColumn(j, del_wxj);
-         mach::applyCijMatrix<double, dim>(i, j, mu, Pr, q.GetData(), del_wxj.GetData(), cdel_wxj.GetData());
          for (int k = 0; k < dim + 2; ++k)
          {
-            cdwij(k) += cdel_wxj(k);
+            cdwij(k) = 0;
+         }
+         for (int j = 0; j < dim; ++j)
+         {
+            // `cdel_wxj` should be initialized to zero
+            for (int di = 0; di < dim + 2; ++di)
+            {
+               cdel_wxj(di) = 0;
+            }
+            del_w.GetColumn(j, del_wxj);
+            mach::applyCijMatrix<double, dim>(i, j, mu, Pr, q.GetData(), del_wxj.GetData(), cdel_wxj.GetData());
+            for (int k = 0; k < dim + 2; ++k)
+            {
+               cdwij(k) += cdel_wxj(k);
+            }
+         }
+         for (int s = 0; s < dim + 2; ++s)
+         {
+            fcdwij(s, i) = cdwij(s);
          }
       }
-      for (int s = 0; s < dim + 2; ++s)
+      // compare numerical vs analytical fluxes
+      for (int i = 0; i < dim; ++i)
       {
-         fcdwij(s, i) = cdwij(s);
+         for (int k = 0; k < dim + 2; ++k)
+         {
+            flux(k) = 0;
+            flux_vec(k) = 0;
+         }
+         fv.GetColumn(i, flux);
+         fcdwij.GetColumn(i, flux_vec);
+         for (int j = 0; j < dim + 2; ++j)
+         {
+            REQUIRE(flux(j) == Approx(flux_vec(j)));
+         }
       }
    }
-   // compare numerical vs analytical fluxes
-   for (int i = 0; i < dim; ++i)
+
+   SECTION("applyViscousScaling is correct")
    {
-      for (int k = 0; k < dim + 2; ++k)
+      // get flux using c_{hat} matrices
+      for (int i = 0; i < dim; ++i)
       {
-         flux(k) = 0;
-         flux_vec(k) = 0;
+         // no need to initialize `cdwij` here, it's done in the function itself
+         mach::applyViscousScaling<double, dim>(i, Re, Pr, q.GetData(), del_w.GetData(), cdwij.GetData());
+         for (int s = 0; s < dim + 2; ++s)
+         {
+            fcdwij(s, i) = cdwij(s);
+         }
       }
-      fv.GetColumn(i, flux);
-      fcdwij.GetColumn(i, flux_vec);
-      for (int j = 0; j < dim + 2; ++j)
+      // compare numerical vs analytical fluxes
+      for (int i = 0; i < dim; ++i)
       {
-         REQUIRE(flux(j) == Approx(flux_vec(j)));
+         for (int k = 0; k < dim + 2; ++k)
+         {
+            flux(k) = 0;
+            flux_vec(k) = 0;
+         }
+         fv.GetColumn(i, flux);
+         fcdwij.GetColumn(i, flux_vec);
+         for (int j = 0; j < dim + 2; ++j)
+         {
+            REQUIRE(flux(j) == Approx(flux_vec(j)));
+         }
       }
    }
 }
