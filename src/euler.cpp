@@ -16,10 +16,10 @@ EulerSolver<dim>::EulerSolver(const string &opt_file_name,
     : AbstractSolver<dim>(opt_file_name, move(smesh))
 {
    // define free-stream parameters; may or may not be used, depending on case
-   mach_fs = this->options["flow-param"]["mach"].get<double>();
-   aoa_fs = this->options["flow-param"]["aoa"].get<double>()*M_PI/180;
-   iroll = this->options["flow-param"]["roll-axis"].get<int>();
-   ipitch = this->options["flow-param"]["pitch-axis"].get<int>();
+   mach_fs = this->options["flow-param"]["mach"].template get<double>();
+   aoa_fs = this->options["flow-param"]["aoa"].template get<double>()*M_PI/180;
+   iroll = this->options["flow-param"]["roll-axis"].template get<int>();
+   ipitch = this->options["flow-param"]["pitch-axis"].template get<int>();
    if (iroll == ipitch)
    {
       throw MachException("iroll and ipitch must be distinct dimensions!");
@@ -43,7 +43,7 @@ void EulerSolver<dim>::addVolumeIntegrators(double alpha)
    //res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
 
    // add the LPS stabilization
-   double lps_coeff = this->options["space-dis"]["lps-coeff"].get<double>();
+   double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
    this->res->AddDomainIntegrator(
        new EntStableLPSIntegrator<dim>(this->diff_stack, alpha, lps_coeff));
 }
@@ -60,7 +60,7 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
          throw MachException("EulerSolver::addBoundaryIntegrators(alpha)\n"
                              "\tisentropic vortex BC must use 2D mesh!");
       }
-      vector<int> tmp = bcs["vortex"].get<vector<int>>();
+      vector<int> tmp = bcs["vortex"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       this->res->AddBdrFaceIntegrator(
@@ -70,7 +70,7 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
    }
    if (bcs.find("slip-wall") != bcs.end())
    { // slip-wall boundary condition
-      vector<int> tmp = bcs["slip-wall"].get<vector<int>>();
+      vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       this->res->AddBdrFaceIntegrator(
@@ -84,7 +84,7 @@ template <int dim>
 void EulerSolver<dim>::addInterfaceIntegrators(double alpha)
 {
    // add the integrators based on if discretization is continuous or discrete
-   if (this->options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   if (this->options["space-dis"]["basis-type"].template get<string>() == "dsbp")
    {
       this->res->AddInteriorFaceIntegrator(
           new InterfaceIntegrator<dim>(this->diff_stack, this->fec.get(),
@@ -100,7 +100,7 @@ void EulerSolver<dim>::addOutputs()
    if (fun.find("drag") != fun.end())
    { 
       // drag on the specified boundaries
-      vector<int> tmp = fun["drag"].get<vector<int>>();
+      vector<int> tmp = fun["drag"].template get<vector<int>>();
       this->output_bndry_marker[idx].SetSize(tmp.size(), 0);
       this->output_bndry_marker[idx].Assign(tmp.data());
       this->output.emplace("drag", this->fes.get());
@@ -123,7 +123,7 @@ void EulerSolver<dim>::addOutputs()
    if (fun.find("lift") != fun.end())
    { 
       // lift on the specified boundaries
-      vector<int> tmp = fun["lift"].get<vector<int>>();
+      vector<int> tmp = fun["lift"].template get<vector<int>>();
       this->output_bndry_marker[idx].SetSize(tmp.size(), 0);
       this->output_bndry_marker[idx].Assign(tmp.data());
       this->output.emplace("lift", this->fes.get());

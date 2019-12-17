@@ -14,8 +14,8 @@ NavierStokesSolver<dim>::NavierStokesSolver(const string &opt_file_name,
     : EulerSolver<dim>(opt_file_name, move(smesh))
 {
    // define NS-related parameters; may or may not be used, depending on case
-   re_fs = this->options["flow-param"]["Re"].get<double>();
-   pr_fs = this->options["flow-param"]["Pr"].get<double>();
+   re_fs = this->options["flow-param"]["Re"].template get<double>();
+   pr_fs = this->options["flow-param"]["Pr"].template get<double>();
 
    // Note: the viscous terms are added to the semi-linear form `res` via
    // virtual function calls to addVolumeIntegrators(), addBoundaryIntegrators,
@@ -32,7 +32,7 @@ void NavierStokesSolver<dim>::addVolumeIntegrators(double alpha)
    EulerSolver<dim>::addVolumeIntegrators(alpha);
    cout << "Inside NS add volume integrators" << endl;
    // now add NS integrators
-   double mu = this->options["flow-param"]["mu"].get<double>();
+   double mu = this->options["flow-param"]["mu"].template get<double>();
    this->res->AddDomainIntegrator(new ESViscousIntegrator<dim>(
        this->diff_stack, re_fs, pr_fs, mu, alpha));
 }
@@ -42,11 +42,11 @@ void NavierStokesSolver<dim>::addBoundaryIntegrators(double alpha)
 {
    // add base class integrators
    auto &bcs = this->options["bcs"];
-   double mu = this->options["flow-param"]["mu"].get<double>();
+   double mu = this->options["flow-param"]["mu"].template get<double>();
    int idx = 0;
    if (bcs.find("slip-wall") != bcs.end())
    { // slip-wall boundary condition
-      vector<int> tmp = bcs["slip-wall"].get<vector<int>>();
+      vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       this->res->AddBdrFaceIntegrator(
@@ -57,7 +57,7 @@ void NavierStokesSolver<dim>::addBoundaryIntegrators(double alpha)
    }
    if (bcs.find("no-slip-adiabatic") != bcs.end())
    {
-      vector<int> tmp = bcs["no-slip-adiabatic"].get<vector<int>>();
+      vector<int> tmp = bcs["no-slip-adiabatic"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       // reference state needed by penalty flux
@@ -72,7 +72,7 @@ void NavierStokesSolver<dim>::addBoundaryIntegrators(double alpha)
    }
    if (bcs.find("viscous-inflow") != bcs.end())
    {
-      vector<int> tmp = bcs["viscous-inflow"].get<vector<int>>();
+      vector<int> tmp = bcs["viscous-inflow"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       // get the in-flow state needed by the integrator
@@ -87,7 +87,7 @@ void NavierStokesSolver<dim>::addBoundaryIntegrators(double alpha)
    }
    if (bcs.find("viscous-outflow") != bcs.end())
    {
-      vector<int> tmp = bcs["viscous-outflow"].get<vector<int>>();
+      vector<int> tmp = bcs["viscous-outflow"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       // get the out-flow state needed by the integrator
@@ -112,7 +112,7 @@ void NavierStokesSolver<dim>::getViscousInflowState(Vector &q_in)
 {
    vector<double> tmp = this->options["flow-param"]
                                      ["inflow-state"]
-                                         .get<vector<double>>();
+                                         .template get<vector<double>>();
    if (tmp.size() != dim+2)
    {
       throw MachException("inflow-state option has wrong number of entries"
@@ -129,7 +129,7 @@ void NavierStokesSolver<dim>::getViscousOutflowState(Vector &q_out)
 {
    vector<double> tmp = this->options["flow-param"]
                                      ["outflow-state"]
-                                         .get<vector<double>>();
+                                         .template get<vector<double>>();
    if (tmp.size() != dim+2)
    {
       throw MachException("outflow-state option has wrong number of entries"
