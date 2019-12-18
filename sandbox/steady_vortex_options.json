@@ -8,8 +8,8 @@
       "explicit": false,
       "const-cfl": true,
       "ode-solver": "MIDPOINT",
-      "t-final": 20.0,
-      "dt": 0.1,
+      "t-final": 1,
+      "dt": 0.05,
       "cfl": 1.0
    },
    "mesh": {
@@ -33,7 +33,7 @@
       "printlevel": 1
    },
    "petscsolver":{
-      "ksptype": "minres",
+      "ksptype": "gmres",
       "pctype": "lu",
       "abstol": 1e-10,
       "reltol": 1e-10,
