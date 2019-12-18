@@ -100,7 +100,7 @@ AdvectionSolver<dim>::AdvectionSolver(
    stiff.reset(new BilinearFormType(static_cast<SpaceType *>(this->fes.get())));
    stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
    // add the LPS stabilization
-   double lps_coeff = this->options["space-dis"]["lps-coeff"].get<double>();
+   double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
    stiff->AddDomainIntegrator(
        new AdvectLPSIntegrator(*velocity, -1.0, lps_coeff));
    int skip_zeros = 0;
