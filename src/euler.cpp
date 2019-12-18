@@ -78,6 +78,20 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
              this->bndry_marker[idx]);
       idx++;
    }
+   if (bcs.find("far-field") != bcs.end())
+   { 
+      // far-field boundary conditions
+      vector<int> tmp = bcs["far-field"].get<vector<int>>();
+      mfem::Vector qfar(dim+2);
+      this->getFreeStreamState(qfar);
+      this->bndry_marker[idx].SetSize(tmp.size(), 0);
+      this->bndry_marker[idx].Assign(tmp.data());
+      this->res->AddBdrFaceIntegrator(
+          new FarFieldBC<dim>(this->diff_stack, this->fec.get(), qfar,
+                              alpha),
+          this->bndry_marker[idx]);
+      idx++;
+   }
 }
 
 template <int dim>

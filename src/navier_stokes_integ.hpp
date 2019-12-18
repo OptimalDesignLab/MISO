@@ -264,12 +264,12 @@ template <int dim>
 class ViscousOutflowBC : public ViscousBoundaryIntegrator<ViscousOutflowBC<dim>>
 {
 public:
-   /// Constructs an integrator for a viscous inflow boundary
+   /// Constructs an integrator for a viscous outflow boundary
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
    /// \param[in] Re_num - Reynolds number
    /// \param[in] Pr_num - Prandtl number
-   /// \param[in] q_inflow - state at the inflow
+   /// \param[in] q_outflow - state at the outflow
    /// \param[in] vis - viscosity (if negative use Sutherland's law)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    ViscousOutflowBC(adept::Stack &diff_stack,
@@ -311,6 +311,68 @@ private:
    double mu;
    /// Outflow boundary state
    mfem::Vector q_out;
+   /// work space for flux computations
+   mfem::Vector work_vec;
+};
+
+/// Integrator for viscous far-field boundary conditions
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim>
+class ViscousFarFieldBC : public ViscousBoundaryIntegrator<ViscousFarFieldBC<dim>>
+{
+public:
+   /// Constructs an integrator for a viscous far-field boundary
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] q_far - state at the far-field
+   /// \param[in] vis - viscosity (if negative use Sutherland's law)
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   ViscousFarFieldBC(adept::Stack &diff_stack,
+                     const mfem::FiniteElementCollection *fe_coll,
+                     double Re_num, double Pr_num,
+                     const mfem::Vector &q_far, double vis = -1.0,
+                     double a = 1.0)
+       : ViscousBoundaryIntegrator<ViscousFarFieldBC<dim>>(
+             diff_stack, fe_coll, dim + 2, a),
+         Re(Re_num), Pr(Pr_num),
+         qfs(q_far), mu(vis), work_vec(dim + 2) {}
+
+   /// converts conservative variables to entropy variables
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] w - entropy variables corresponding to `q`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &q, mfem::Vector &w)
+   {
+      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+   }
+
+   /// Compute flux corresponding to a viscous inflow boundary
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                 const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                 mfem::Vector &flux_vec)
+   {
+      calcBoundaryFlux<double, dim>(dir.GetData(), qfs.GetData(), q.GetData(),
+                                    work_vec.GetData(), flux_vec.GetData());
+   }
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
+   /// nondimensionalized dynamic viscosity
+   double mu;
+   /// far-field boundary state
+   mfem::Vector qfs;
    /// work space for flux computations
    mfem::Vector work_vec;
 };

@@ -5,6 +5,7 @@
 
 #include <algorithm> // std::max
 #include "utils.hpp"
+#include "adept.h"
 
 namespace mach
 {
@@ -309,24 +310,27 @@ template <typename xdouble, int dim>
 void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
                       xdouble *work, xdouble *flux)
 {
+   using std::max;
+   using adept::max;
+
    // Define some constants
    const xdouble sat_Vn = 0.0; // 0.025
    const xdouble sat_Vl = 0.0; // 0.025
 
    // Define some constants used to construct the "Jacobian"
-   const double dA = sqrt(dot<xdouble,dim>(dir,dir));
-   const double fac = 1.0/qbnd[0];
-   const double phi = 0.5*dot<xdouble,dim>(qbnd+1,qbnd+1)*fac*fac;
-   const double H = euler::gamma*qbnd[dim+1]*fac - euler::gami*phi;
-   const double a = sqrt(euler::gami*(H - phi));
-   const double Un = dot<xdouble,dim>(qbnd+1,dir)*fac;
-   double lambda1 = Un + dA*a;
-   double lambda2 = Un - dA*a;
-   double lambda3 = Un;
-   const double rhoA = fabs(Un) + dA*a;
-   lambda1 = 0.5*(std::max(fabs(lambda1), sat_Vn*rhoA) - lambda1);
-   lambda2 = 0.5*(std::max(fabs(lambda2), sat_Vn*rhoA) - lambda2);
-   lambda3 = 0.5*(std::max(fabs(lambda3), sat_Vl*rhoA) - lambda3);
+   const xdouble dA = sqrt(dot<xdouble,dim>(dir,dir));
+   const xdouble fac = 1.0/qbnd[0];
+   const xdouble phi = 0.5*dot<xdouble,dim>(qbnd+1,qbnd+1)*fac*fac;
+   const xdouble H = euler::gamma*qbnd[dim+1]*fac - euler::gami*phi;
+   const xdouble a = sqrt(euler::gami*(H - phi));
+   const xdouble Un = dot<xdouble,dim>(qbnd+1,dir)*fac;
+   xdouble lambda1 = Un + dA*a;
+   xdouble lambda2 = Un - dA*a;
+   xdouble lambda3 = Un;
+   const xdouble rhoA = fabs(Un) + dA*a;
+   lambda1 = 0.5*(max(fabs(lambda1), sat_Vn*rhoA) - lambda1);
+   lambda2 = 0.5*(max(fabs(lambda2), sat_Vn*rhoA) - lambda2);
+   lambda3 = 0.5*(max(fabs(lambda3), sat_Vl*rhoA) - lambda3);
 
    xdouble *dq = work;
    for (int i = 0; i < dim+2; ++i)
@@ -456,10 +460,19 @@ template <typename xdouble, int dim>
 void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
                       xdouble *flux)
 {
+#if 0
    xdouble qbnd[dim+2];
    projectStateOntoWall<xdouble,dim>(dir, q, qbnd);
    calcEulerFlux<xdouble,dim>(dir, qbnd, flux);
    //calcIsentropicVortexFlux<xdouble>(x, dir, q, flux);
+#endif
+   xdouble press = pressure<xdouble,dim>(q);
+   flux[0] = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i+1] = dir[i]*press;
+   }
+   flux[dim+1] = 0.0;
 }
 
 } // namespace mach

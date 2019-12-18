@@ -229,6 +229,14 @@ void AbstractSolver<dim>::setInitialCondition(
 }
 
 template <int dim>
+void AbstractSolver<dim>::setInitialCondition(const Vector &uic)
+{
+   // TODO: Need to verify that this is ok for scalar fields
+   VectorConstantCoefficient u0(uic);
+   u->ProjectCoefficient(u0);
+}
+
+template <int dim>
 double AbstractSolver<dim>::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {

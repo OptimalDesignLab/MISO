@@ -30,6 +30,9 @@ public:
    /// number.
    virtual double calcStepSize(double cfl) const;
 
+   /// Sets `q_ref` to the free-stream conservative variables
+   void getFreeStreamState(mfem::Vector &q_ref);
+
 protected:
    /// free-stream Mach number
    double mach_fs;
@@ -54,9 +57,6 @@ protected:
 
    /// Create `output` based on `options` and add approporiate integrators
    virtual void addOutputs();
-
-   /// Sets `q_ref` to the free-stream conservative variables
-   void getFreeStreamState(mfem::Vector &q_ref);
 
    /// Return the number of state variables
    virtual int getNumState() {return dim+2; }

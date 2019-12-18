@@ -55,6 +55,10 @@ public:
    void setInitialCondition(void (*u_init)(const mfem::Vector &,
                                            mfem::Vector &));
 
+   /// Initializes the state variable to a given constant
+   /// \param[in] u_init - vector that defines the initial condition
+   void setInitialCondition(const mfem::Vector &uic); 
+
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned

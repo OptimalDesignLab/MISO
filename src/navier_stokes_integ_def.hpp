@@ -80,7 +80,7 @@ void ViscousInflowBC<dim>::calcFlux(const mfem::Vector &x,
                                       Dw.GetData(), work_vec.GetData());
    flux_vec -= work_vec; // note the minus sign!!!
 #endif
-#if 1
+#if 0
    for (int d = 0; d < dim; ++d)
    {
       work_vec = 0.0;
@@ -109,6 +109,7 @@ void ViscousOutflowBC<dim>::calcFlux(const mfem::Vector &x,
       mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
    }
    mu_Re /= Re;
+#if 0
    for (int d = 0; d < dim; ++d)
    {
       work_vec = 0.0;
@@ -117,5 +118,6 @@ void ViscousOutflowBC<dim>::calcFlux(const mfem::Vector &x,
       work_vec *= dir[d];
       flux_vec -= work_vec;      
    }
+#endif
    //flux_vec -= work_vec; // note the minus sign!!!
 }
