@@ -103,7 +103,7 @@ void NavierStokesSolver<dim>::addBoundaryIntegrators(double alpha)
    if (bcs.find("far-field") != bcs.end())
    { 
       // far-field boundary conditions
-      vector<int> tmp = bcs["far-field"].get<vector<int>>();
+      vector<int> tmp = bcs["far-field"].template get<vector<int>>();
       mfem::Vector qfar(dim+2);
       this->getFreeStreamState(qfar);
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
