@@ -8,8 +8,8 @@
       "explicit": false,
       "const-cfl": true,
       "ode-solver": "MIDPOINT",
-      "t-final": 1,
-      "dt": 0.05,
+      "t-final": 100,
+      "dt": 0.1,
       "cfl": 1.0
    },
    "mesh": {
@@ -17,7 +17,7 @@
    },
    "unsteady": {
       "const-cfl": true,
-      "cfl": 1.0,
+      "cfl": 0.50,
       "dt": 0.01,
       "t-final": 500.0
    },

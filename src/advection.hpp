@@ -89,7 +89,8 @@ private:
 };
 
 /// Solver for linear advection problems
-class AdvectionSolver : public AbstractSolver
+template <int dim>
+class AdvectionSolver : public AbstractSolver<dim>
 {
 public:
    /// Class constructor.
@@ -101,14 +102,26 @@ public:
 protected:
    /// the velocity field
    std::unique_ptr<mfem::VectorFunctionCoefficient> velocity;
-   /// the mass matrix bilinear form
-   std::unique_ptr<BilinearFormType> mass;
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
-   /// mass matrix (move to AbstractSolver?)
-   std::unique_ptr<MatrixType> mass_matrix;
    /// stiffness matrix 
    std::unique_ptr<MatrixType> stiff_matrix;
+
+   /// Add volume integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addVolumeIntegrators(double alpha) {}
+
+   /// Add boundary-face integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   /// \returns num_bc - total number of BCs, including those of super classes
+   virtual void addBoundaryIntegrators(double alpha) {}
+
+   /// Add interior-face integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addInterfaceIntegrators(double alpha) {}
+
+   /// Return the number of state variables
+   virtual int getNumState() { return 1; }
 };
     
 } // namespace mach

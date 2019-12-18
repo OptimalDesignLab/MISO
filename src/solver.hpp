@@ -1,6 +1,8 @@
 #ifndef MACH_SOLVER
 #define MACH_SOLVER
 
+#include <fstream>
+#include <iostream>
 #include "mfem.hpp"
 #include "adept.h"
 #include "mach_types.hpp"
@@ -18,13 +20,15 @@
 #include <gmi_mesh.h>
 #include <crv.h>
 #endif
+
 namespace mach
 {
 
 /// Serves as a base class for specific PDE solvers
+/// dim - number of spatial dimensions (1, 2, or 3)
+template <int dim>
 class AbstractSolver
 {
-   
 public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
@@ -32,6 +36,10 @@ public:
    AbstractSolver(const std::string &opt_file_name =
                       std::string("mach_options.json"),
                   std::unique_ptr<mfem::Mesh> smesh = nullptr);
+
+   /// Perform set-up of derived classes using virtual functions
+   /// \todo Put the constructors and this in a factory
+   void initDerived();
 
    /// class destructor
    ~AbstractSolver();
@@ -46,6 +54,10 @@ public:
    /// value.  This may be a vector of length 1 for scalar.
    void setInitialCondition(void (*u_init)(const mfem::Vector &,
                                            mfem::Vector &));
+
+   /// Initializes the state variable to a given constant
+   /// \param[in] u_init - vector that defines the initial condition
+   void setInitialCondition(const mfem::Vector &uic); 
 
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
@@ -66,6 +78,14 @@ public:
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printSolution(const std::string &file_name, int refine = -1);
+
+   /// Write the mesh and residual to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \todo make this work for parallel!
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printResidual(const std::string &file_name, int refine = -1);
 
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
@@ -89,6 +109,10 @@ public:
    /// \param[in] fun - specifies the desired functional
    /// \returns scalar value of estimated functional value
    double calcOutput(const std::string &fun);
+   
+   /// Compute the residual norm based on the current solution in `u`
+   /// \returns the l2 (discrete) norm of the residual evaluated at `u`
+   double calcResidualNorm();
 
 protected:
 #ifdef MFEM_USE_MPI
@@ -101,8 +125,6 @@ protected:
    std::ostream *out;
    /// solver options
    nlohmann::json options;
-   /// number of space dimensions
-   int num_dim;
    /// number of state variables at each node
    int num_state = 0;
    /// time step size
@@ -126,9 +148,9 @@ protected:
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
-   //std::unique_ptr<MassFormType> mass;
-   /// operator for spatial residual (linear in some cases)
-   //std::unique_ptr<ResFormType> res;
+   std::unique_ptr<BilinearFormType> mass;
+   /// mass matrix
+   std::unique_ptr<MatrixType> mass_matrix;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
@@ -140,6 +162,8 @@ protected:
    std::unique_ptr<mfem::Solver> solver;
    /// linear system preconditioner for solver in newton solver
    std::unique_ptr<mfem::Solver> prec;
+   /// `bndry_marker[i]` lists the boundaries associated with a particular BC
+   std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
    std::map<std::string, NonlinearFormType> output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
@@ -147,7 +171,29 @@ protected:
    
    /// perturbation function that used for 
    void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
+
+   /// Add volume integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addVolumeIntegrators(double alpha) {};
+
+   /// Add boundary-face integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addBoundaryIntegrators(double alpha) {};
+
+   /// Add interior-face integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addInterfaceIntegrators(double alpha) {};
+
+   /// Define the number of states, the finite element space, and state u
+   virtual int getNumState() {};
+
+   /// Create `output` based on `options` and add approporiate integrators
+   virtual void addOutputs() {};
+
 };
+
+//template <int dim>
+//adept::Stack AbstractSolver<dim>::diff_stack;
 
 } // namespace mach
 

@@ -166,9 +166,10 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       mfem::Vector x(dim);
       mach::calcSlipWallFlux<double,dim>(x.GetData(), q.GetData()+1,
                                          q.GetData(), flux.GetData());
-      mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
-                                             work.GetData());
-      double press = mach::pressure<double,dim>(work.GetData());
+      //mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
+      //                                       work.GetData());
+      //double press = mach::pressure<double,dim>(work.GetData());
+      double press = mach::pressure<double,dim>(q.GetData());
       REQUIRE( flux(0) == Approx(0.0).margin(abs_tol) );
       for (int i = 0; i < dim; ++i)
       {

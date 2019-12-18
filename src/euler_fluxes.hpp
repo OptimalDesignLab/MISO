@@ -5,6 +5,7 @@
 
 #include <algorithm> // std::max
 #include "utils.hpp"
+#include "adept.h"
 
 namespace mach
 {
@@ -12,11 +13,13 @@ namespace mach
 /// For constants related to the Euler equations
 namespace euler
 {
-   /// heat capcity ratio for air
-   const double gamma = 1.4;
-   /// ratio minus one
-   const double gami = gamma - 1.0;
-}
+/// gas constant
+const double R = 287;
+/// heat capcity ratio for air
+const double gamma = 1.4;
+/// ratio minus one
+const double gami = gamma - 1.0;
+} // namespace euler
 
 /// Pressure based on the ideal gas law equation of state
 /// \param[in] q - the conservative variables
@@ -307,6 +310,9 @@ template <typename xdouble, int dim>
 void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
                       xdouble *work, xdouble *flux)
 {
+   using std::max;
+   using adept::max;
+
    // Define some constants
    const xdouble sat_Vn = 0.0; // 0.025
    const xdouble sat_Vl = 0.0; // 0.025
@@ -322,9 +328,9 @@ void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
    xdouble lambda2 = Un - dA*a;
    xdouble lambda3 = Un;
    const xdouble rhoA = fabs(Un) + dA*a;
-   lambda1 = 0.5*(std::max<xdouble>(fabs(lambda1), sat_Vn*rhoA) - lambda1);
-   lambda2 = 0.5*(std::max<xdouble>(fabs(lambda2), sat_Vn*rhoA) - lambda2);
-   lambda3 = 0.5*(std::max<xdouble>(fabs(lambda3), sat_Vl*rhoA) - lambda3);
+   lambda1 = 0.5*(max(fabs(lambda1), sat_Vn*rhoA) - lambda1);
+   lambda2 = 0.5*(max(fabs(lambda2), sat_Vn*rhoA) - lambda2);
+   lambda3 = 0.5*(max(fabs(lambda3), sat_Vl*rhoA) - lambda3);
 
    xdouble *dq = work;
    for (int i = 0; i < dim+2; ++i)
@@ -454,10 +460,19 @@ template <typename xdouble, int dim>
 void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
                       xdouble *flux)
 {
+#if 0
    xdouble qbnd[dim+2];
    projectStateOntoWall<xdouble,dim>(dir, q, qbnd);
    calcEulerFlux<xdouble,dim>(dir, qbnd, flux);
    //calcIsentropicVortexFlux<xdouble>(x, dir, q, flux);
+#endif
+   xdouble press = pressure<xdouble,dim>(q);
+   flux[0] = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i+1] = dir[i]*press;
+   }
+   flux[dim+1] = 0.0;
 }
 
 } // namespace mach

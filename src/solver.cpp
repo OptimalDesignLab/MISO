@@ -3,6 +3,8 @@
 #include "solver.hpp"
 #include "default_options.hpp"
 #include "sbp_fe.hpp"
+#include "diag_mass_integ.hpp"
+#include "evolver.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -10,11 +12,12 @@ using namespace mfem;
 namespace mach
 {
 
-// Static member function diff_stack needs to be defined
-adept::Stack AbstractSolver::diff_stack;
+template <int dim>
+adept::Stack AbstractSolver<dim>::diff_stack;
 
-AbstractSolver::AbstractSolver(const string &opt_file_name,
-                               unique_ptr<Mesh> smesh)
+template <int dim>
+AbstractSolver<dim>::AbstractSolver(const string &opt_file_name,
+                                    unique_ptr<Mesh> smesh)
 {
 // Set the options; the defaults are overwritten by the values in the file
 // using the merge_patch method
@@ -32,10 +35,13 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
    constructMesh(move(smesh));
-   // does num_dim equal mesh->Dimension in all cases?
-   num_dim = mesh->Dimension();
-
-   *out << "problem space dimension = " << num_dim << endl;
+   // does dim equal mesh->Dimension in all cases?
+   if (dim != mesh->Dimension())
+   {
+      throw MachException("Template parameter and mesh dimension must agree");
+   }
+   //int dim = mesh->Dimension();
+   *out << "problem space dimension = " << dim << endl;
 
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
@@ -72,21 +78,90 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
-                                  num_dim));
+                                  dim));
    }
    else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
-                                   num_dim));
+                                   dim));
    }
 }
 
-AbstractSolver::~AbstractSolver()
+template <int dim>
+void AbstractSolver<dim>::initDerived()
+{
+   // define the number of states, the fes, and the state grid function
+   num_state = this->getNumState(); // <--- this is a virtual fun
+   cout << "Num states = " << num_state << endl;
+   fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
+                   Ordering::byVDIM));
+   u.reset(new GridFunType(fes.get()));
+#ifdef MFEM_USE_MPI
+   cout << "Number of finite element unknowns: "
+        << fes->GlobalTrueVSize() << endl;
+#else
+   cout << "Number of finite element unknowns: "
+        << fes->GetTrueVSize() << endl;
+#endif
+
+   // set up the mass matrix
+   mass.reset(new BilinearFormType(fes.get()));
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass->Assemble();
+   mass->Finalize();
+
+   // set up the spatial semi-linear form
+   double alpha = 1.0;
+   res.reset(new NonlinearFormType(fes.get()));
+   // Add integrators; this can be simplified if we template the entire class
+   this->addVolumeIntegrators(alpha);
+   auto &bcs = options["bcs"];
+   bndry_marker.resize(bcs.size()); // need to set this before next method
+   this->addBoundaryIntegrators(alpha);
+   this->addInterfaceIntegrators(alpha);
+
+   // This just lists the boundary markers for debugging purposes
+   for (int k = 0; k < bndry_marker.size(); ++k)
+   {
+      cout << "boundary_marker[" << k << "]: ";
+      for (int i = 0; i < bndry_marker[k].Size(); ++i)
+      {
+         cout << bndry_marker[k][i] << " ";
+      }
+      cout << endl;
+   }
+
+   // define the time-dependent operator
+#ifdef MFEM_USE_MPI
+   // The parallel bilinear forms return a pointer that this solver owns
+   mass_matrix.reset(mass->ParallelAssemble());
+#else
+   mass_matrix.reset(new MatrixType(mass->SpMat()));
+#endif
+   bool is_explicit = options["time-dis"]["explicit"].get<bool>();
+   if(is_explicit)
+   {
+      evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+   }
+   else
+   {
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+   }
+
+   // add the output functional QoIs 
+   auto &fun = options["outputs"];
+   output_bndry_marker.resize(fun.size());
+   this->addOutputs(); // virtual function
+}
+
+template <int dim>
+AbstractSolver<dim>::~AbstractSolver()
 {
    *out << "Deleting Abstract Solver..." << endl;
 }
 
-void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
+template <int dim>
+void AbstractSolver<dim>::constructMesh(unique_ptr<Mesh> smesh)
 {
 #ifndef MFEM_USE_PUMI
    if (smesh == nullptr)
@@ -117,9 +192,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    gmi_register_mesh();
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
                                 options["mesh"]["file"].get<string>().c_str());
-   int dim = pumi_mesh->getDimension();
-   int nEle = pumi_mesh->count(dim);
-   int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / dim);
+   int mesh_dim = pumi_mesh->getDimension();
+   int nEle = pumi_mesh->count(mesh_dim);
+   int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
    // Perform Uniform refinement
    // if (ref_levels > 1)
    // {
@@ -141,7 +216,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 #endif //MFEM_USE_MPI
 }
 
-void AbstractSolver::setInitialCondition(
+template <int dim>
+void AbstractSolver<dim>::setInitialCondition(
     void (*u_init)(const Vector &, Vector &))
 {
    // TODO: Need to verify that this is ok for scalar fields
@@ -163,7 +239,16 @@ void AbstractSolver::setInitialCondition(
    // }
 }
 
-double AbstractSolver::calcL2Error(
+template <int dim>
+void AbstractSolver<dim>::setInitialCondition(const Vector &uic)
+{
+   // TODO: Need to verify that this is ok for scalar fields
+   VectorConstantCoefficient u0(uic);
+   u->ProjectCoefficient(u0);
+}
+
+template <int dim>
+double AbstractSolver<dim>::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
    // TODO: need to generalize to parallel
@@ -231,13 +316,34 @@ double AbstractSolver::calcL2Error(
    return sqrt(norm);
 }
 
-double AbstractSolver::calcStepSize(double cfl) const
+template <int dim>
+double AbstractSolver<dim>::calcResidualNorm()
+{
+   GridFunType r(fes.get());
+   double res_norm;
+#ifdef MFEM_USE_MPI
+   HypreParVector *U = u->GetTrueDofs();
+   res->Mult(*U, r);   
+   double loc_norm = r*r;
+   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   res->Mult(*u, r);
+   res_norm = r*r;
+#endif
+   res_norm = sqrt(res_norm);
+   return res_norm;
+}
+
+template <int dim>
+double AbstractSolver<dim>::calcStepSize(double cfl) const
 {
    throw MachException("AbstractSolver::calcStepSize(cfl)\n"
                        "\tis not implemented for this class!");
 }
 
-void AbstractSolver::printSolution(const std::string &file_name, int refine)
+template <int dim>
+void AbstractSolver<dim>::printSolution(const std::string &file_name,
+                                   int refine)
 {
    // TODO: These mfem functions do not appear to be parallelized
    ofstream sol_ofs(file_name + ".vtk");
@@ -251,7 +357,31 @@ void AbstractSolver::printSolution(const std::string &file_name, int refine)
    sol_ofs.close();
 }
 
-void AbstractSolver::solveForState()
+template <int dim>
+void AbstractSolver<dim>::printResidual(const std::string &file_name,
+                                        int refine)
+{
+   GridFunType r(fes.get());
+#ifdef MFEM_USE_MPI
+   HypreParVector *U = u->GetTrueDofs();
+   res->Mult(*U, r);
+#else
+   res->Mult(*u, r);
+#endif
+   // TODO: These mfem functions do not appear to be parallelized
+   ofstream res_ofs(file_name + ".vtk");
+   res_ofs.precision(14);
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].get<int>() + 1;
+   }
+   mesh->PrintVTK(res_ofs, refine);
+   r.SaveVTK(res_ofs, "Residual", refine);
+   res_ofs.close();
+}
+
+template <int dim>
+void AbstractSolver<dim>::solveForState()
 {
    if (options["steady"].get<bool>() == true)
    {
@@ -263,7 +393,8 @@ void AbstractSolver::solveForState()
    }
 }
 
-void AbstractSolver::solveSteady()
+template <int dim>
+void AbstractSolver<dim>::solveSteady()
 {
 #ifdef MFEM_USE_PETSC
    // Get the PetscSolver option 
@@ -334,7 +465,8 @@ void AbstractSolver::solveSteady()
 #endif
 }
 
-void AbstractSolver::solveUnsteady()
+template <int dim>
+void AbstractSolver<dim>::solveUnsteady()
 {
    // TODO: This is not general enough.
 
@@ -346,10 +478,10 @@ void AbstractSolver::solveUnsteady()
    // TODO: need to swtich to vtk for SBP
    int precision = 8;
    {
-      ofstream omesh("unsteady-vortex.mesh");
+      ofstream omesh("initial.mesh");
       omesh.precision(precision);
       mesh->Print(omesh);
-      ofstream osol("unsteady-vortex-init.gf");
+      ofstream osol("initial-sol.gf");
       osol.precision(precision);
       u->Save(osol);
    }
@@ -369,11 +501,11 @@ void AbstractSolver::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
-      // if (ti % 100 == 0)
-      // {
+      if (ti % 100 == 0)
+      {
          cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      // }
+      }
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);
@@ -405,14 +537,14 @@ void AbstractSolver::solveUnsteady()
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
    {
-      ofstream osol("unsteady-vortex-final.gf");
+      ofstream osol("final.gf");
       osol.precision(precision);
       u->Save(osol);
    }
    // write the solution to vtk file
    if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
-      ofstream sol_ofs("steady_vortex_cg.vtk");
+      ofstream sol_ofs("final_cg.vtk");
       sol_ofs.precision(14);
       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
       u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
@@ -421,7 +553,7 @@ void AbstractSolver::solveUnsteady()
    }
    else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
-      ofstream sol_ofs("steady_vortex_dg.vtk");
+      ofstream sol_ofs("final_dg.vtk");
       sol_ofs.precision(14);
       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
       u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
@@ -431,10 +563,15 @@ void AbstractSolver::solveUnsteady()
    // TODO: These mfem functions do not appear to be parallelized
 }
 
-double AbstractSolver::calcOutput(const std::string &fun)
+template <int dim>
+double AbstractSolver<dim>::calcOutput(const std::string &fun)
 {
    try
    {
+      if (output.find(fun) == output.end())
+      {
+         cout << "Did not find " << fun << " in output map?" << endl;
+      }
       return output.at(fun).GetEnergy(*u);
    }
    catch (const std::out_of_range &exception)
@@ -442,8 +579,8 @@ double AbstractSolver::calcOutput(const std::string &fun)
       std::cerr << exception.what() << endl;
    }
 }
-  
-void AbstractSolver::jacobianCheck()
+template <int dim>
+void AbstractSolver<dim>::jacobianCheck()
 {
    // initialize the variables
    const double delta = 1e-5;
@@ -482,5 +619,12 @@ void AbstractSolver::jacobianCheck()
    jac_v->Add(-1.0, *res_plus);
    std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
 }
+
+// explicit instantiation
+//template class AbstractSolver<1>;
+template class AbstractSolver<2>;
+///template class AbstractSolver<3>;
+
+//template <> adept::Stack AbstractSolver<2>::diff_stack;
 
 } // namespace mach

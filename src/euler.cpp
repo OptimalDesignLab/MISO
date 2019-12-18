@@ -2,9 +2,7 @@
 #include "euler.hpp"
 //#include "euler_fluxes.hpp"
 #include "sbp_fe.hpp"
-#include "diag_mass_integ.hpp"
 #include "euler_integ.hpp"
-#include "evolver.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -12,248 +10,173 @@ using namespace std;
 namespace mach
 {
 
-EulerSolver::EulerSolver(const string &opt_file_name,
-                         unique_ptr<mfem::Mesh> smesh, int dim)
-    : AbstractSolver(opt_file_name, move(smesh))
+template <int dim>
+EulerSolver<dim>::EulerSolver(const string &opt_file_name,
+                              unique_ptr<mfem::Mesh> smesh)
+    : AbstractSolver<dim>(opt_file_name, move(smesh))
 {
    // define free-stream parameters; may or may not be used, depending on case
-   mach_fs = options["flow-param"]["mach"].get<double>();
-   aoa_fs = options["flow-param"]["aoa"].get<double>()*M_PI/180;
-
-   // set the finite-element space and create (but do not initialize) the
-   // state GridFunction
-   num_state = dim + 2;
-   fes.reset(new SpaceType(mesh.get(), fec.get(), num_state, Ordering::byVDIM));
-   u.reset(new GridFunType(fes.get()));
-#ifdef MFEM_USE_MPI
-   cout << "Number of finite element unknowns: "
-        << fes->GlobalTrueVSize() << endl;
-#else
-   cout << "Number of finite element unknowns: "
-        << fes->GetTrueVSize() << endl;
-#endif
-
-   // set up the mass matrix
-   mass.reset(new BilinearFormType(fes.get()));
-   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   mass->Assemble();
-   mass->Finalize();
-
-   // set up the spatial semi-linear form
-   // TODO: should decide between one-point and two-point fluxes using options
-   double alpha = 1.0;
-   res.reset(new NonlinearFormType(fes.get()));
-
-   res->AddDomainIntegrator(new IsmailRoeIntegrator<2>(diff_stack, alpha));
-   //res->AddDomainIntegrator(new EulerIntegrator<2>(diff_stack, alpha));
-
-   // add the LPS stabilization
-   double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
-   res->AddDomainIntegrator(new EntStableLPSIntegrator<2>(diff_stack, alpha,
-                                                          lps_coeff));
-   // add the integrators based on if discretization is continuous or discrete
-   if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   mach_fs = this->options["flow-param"]["mach"].template get<double>();
+   aoa_fs = this->options["flow-param"]["aoa"].template get<double>()*M_PI/180;
+   iroll = this->options["flow-param"]["roll-axis"].template get<int>();
+   ipitch = this->options["flow-param"]["pitch-axis"].template get<int>();
+   if (iroll == ipitch)
    {
-      res->AddInteriorFaceIntegrator(new InterfaceIntegrator<2>(diff_stack,
-                                                                fec.get(),
-                                                                alpha));
+      throw MachException("iroll and ipitch must be distinct dimensions!");
    }
-   // boundary face integrators are handled in their own function
-   addBoundaryIntegrators(alpha, dim);
-
-   // define the time-dependent operator
-#ifdef MFEM_USE_MPI
-   // The parallel bilinear forms return a pointer that this solver owns
-   mass_matrix.reset(mass->ParallelAssemble());
-#else
-   mass_matrix.reset(new MatrixType(mass->SpMat()));
-#endif
-   if(options["time-dis"]["ode-solver"].get<string>() == "MIDPOINT")
+   if ( (iroll < 0) || (iroll > 2) )
    {
-      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      throw MachException("iroll axis must be between 0 and 2!");
    }
-   else if (options["time-dis"]["ode-solver"].get<string>() == "RK4")
+   if ( (ipitch < 0) || (ipitch > 2) )
    {
-      evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+      throw MachException("ipitch axis must be between 0 and 2!");
    }
-   else
-   {
-      throw MachException("Unknown ODE solver type " +
-                          options["time-dis"]["ode-solver"].get<string>());
-   }
-   
-   // add the output functional QoIs 
-   addOutputs(dim);
 }
 
-void EulerSolver::addBoundaryIntegrators(double alpha, int dim)
+template <int dim>
+void EulerSolver<dim>::addVolumeIntegrators(double alpha)
 {
-   auto &bcs = options["bcs"];
-   bndry_marker.resize(bcs.size());
+   // TODO: should decide between one-point and two-point fluxes using options
+   this->res->AddDomainIntegrator(
+       new IsmailRoeIntegrator<dim>(this->diff_stack, alpha));
+   //res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
+
+   // add the LPS stabilization
+   double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
+   this->res->AddDomainIntegrator(
+       new EntStableLPSIntegrator<dim>(this->diff_stack, alpha, lps_coeff));
+}
+
+template <int dim>
+void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
+{
+   auto &bcs = this->options["bcs"];
    int idx = 0;
    if (bcs.find("vortex") != bcs.end())
    { // isentropic vortex BC
-      vector<int> tmp = bcs["vortex"].get<vector<int>>();
-      bndry_marker[idx].SetSize(tmp.size(), 0);
-      bndry_marker[idx].Assign(tmp.data());
-      res->AddBdrFaceIntegrator(
-          new IsentropicVortexBC<2>(diff_stack, fec.get(), alpha),
-          bndry_marker[idx]);
+      if (dim != 2)
+      {
+         throw MachException("EulerSolver::addBoundaryIntegrators(alpha)\n"
+                             "\tisentropic vortex BC must use 2D mesh!");
+      }
+      vector<int> tmp = bcs["vortex"].template get<vector<int>>();
+      this->bndry_marker[idx].SetSize(tmp.size(), 0);
+      this->bndry_marker[idx].Assign(tmp.data());
+      this->res->AddBdrFaceIntegrator(
+          new IsentropicVortexBC<dim>(this->diff_stack, this->fec.get(), alpha),
+          this->bndry_marker[idx]);
       idx++;
    }
    if (bcs.find("slip-wall") != bcs.end())
    { // slip-wall boundary condition
-      vector<int> tmp = bcs["slip-wall"].get<vector<int>>();
-      bndry_marker[idx].SetSize(tmp.size(), 0);
-      bndry_marker[idx].Assign(tmp.data());
-      switch (dim)
-      {
-      case 1:
-         res->AddBdrFaceIntegrator(
-             new SlipWallBC<1>(diff_stack, fec.get(), alpha),
-             bndry_marker[idx]);
-         break;
-      case 2:
-         res->AddBdrFaceIntegrator(
-             new SlipWallBC<2>(diff_stack, fec.get(), alpha),
-             bndry_marker[idx]);
-         break;
-      case 3:
-         res->AddBdrFaceIntegrator(
-             new SlipWallBC<3>(diff_stack, fec.get(), alpha),
-             bndry_marker[idx]);
-         break;
-      }
+      vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
+      this->bndry_marker[idx].SetSize(tmp.size(), 0);
+      this->bndry_marker[idx].Assign(tmp.data());
+      this->res->AddBdrFaceIntegrator(
+             new SlipWallBC<dim>(this->diff_stack, this->fec.get(), alpha),
+             this->bndry_marker[idx]);
       idx++;
    }
-   for (int k = 0; k < bndry_marker.size(); ++k)
-   {
-      cout << "boundary_marker[" << k << "]: ";
-      for (int i = 0; i < bndry_marker[k].Size(); ++i)
-      {
-         cout << bndry_marker[k][i] << " ";
-      }
-      cout << endl;
+   if (bcs.find("far-field") != bcs.end())
+   { 
+      // far-field boundary conditions
+      vector<int> tmp = bcs["far-field"].template get<vector<int>>();
+      mfem::Vector qfar(dim+2);
+      this->getFreeStreamState(qfar);
+      this->bndry_marker[idx].SetSize(tmp.size(), 0);
+      this->bndry_marker[idx].Assign(tmp.data());
+      this->res->AddBdrFaceIntegrator(
+          new FarFieldBC<dim>(this->diff_stack, this->fec.get(), qfar,
+                              alpha),
+          this->bndry_marker[idx]);
+      idx++;
    }
 }
 
-void EulerSolver::addOutputs(int dim)
+template <int dim>
+void EulerSolver<dim>::addInterfaceIntegrators(double alpha)
 {
-   auto &fun = options["outputs"];
-   output_bndry_marker.resize(fun.size());
+   // add the integrators based on if discretization is continuous or discrete
+   if (this->options["space-dis"]["basis-type"].template get<string>() == "dsbp")
+   {
+      this->res->AddInteriorFaceIntegrator(
+          new InterfaceIntegrator<dim>(this->diff_stack, this->fec.get(),
+                                       alpha));
+   }
+}
+
+template <int dim>
+void EulerSolver<dim>::addOutputs()
+{
+   auto &fun = this->options["outputs"];
    int idx = 0;
    if (fun.find("drag") != fun.end())
-   { // force on the specified boundaries
+   { 
+      // drag on the specified boundaries
+      vector<int> tmp = fun["drag"].template get<vector<int>>();
+      this->output_bndry_marker[idx].SetSize(tmp.size(), 0);
+      this->output_bndry_marker[idx].Assign(tmp.data());
+      this->output.emplace("drag", this->fes.get());
       mfem::Vector drag_dir(dim);
-      vector<int> tmp = fun["drag"].get<vector<int>>();
-      output_bndry_marker[idx].SetSize(tmp.size(), 0);
-      output_bndry_marker[idx].Assign(tmp.data());
-      output.emplace("drag", fes.get());  
-      switch (dim)
+      drag_dir = 0.0;
+      if (dim == 1)
       {
-      case 1:
          drag_dir(0) = 1.0;
-         output.at("drag").AddBdrFaceIntegrator(
-             new PressureForce<1>(diff_stack, fec.get(), drag_dir),
-                                  output_bndry_marker[idx]);
-         break;
-      case 2:
-         drag_dir(0) = cos(aoa_fs);
-         drag_dir(1) = sin(aoa_fs);
-         output.at("drag").AddBdrFaceIntegrator(
-             new PressureForce<2>(diff_stack, fec.get(), drag_dir),
-                                  output_bndry_marker[idx]);
-         break;
-      case 3:
-         drag_dir(1) = cos(aoa_fs);
-         drag_dir(2) = sin(aoa_fs);
-         output.at("drag").AddBdrFaceIntegrator(
-             new PressureForce<3>(diff_stack, fec.get(), drag_dir),
-                                  output_bndry_marker[idx]);
-         break;
       }
+      else 
+      {
+         drag_dir(iroll) = cos(aoa_fs);
+         drag_dir(ipitch) = sin(aoa_fs);
+      }
+      this->output.at("drag").AddBdrFaceIntegrator(
+          new PressureForce<dim>(this->diff_stack, this->fec.get(), drag_dir),
+          this->output_bndry_marker[idx]);
       idx++;
    }
    if (fun.find("lift") != fun.end())
-   { // force on the specified boundaries
+   { 
+      // lift on the specified boundaries
+      vector<int> tmp = fun["lift"].template get<vector<int>>();
+      this->output_bndry_marker[idx].SetSize(tmp.size(), 0);
+      this->output_bndry_marker[idx].Assign(tmp.data());
+      this->output.emplace("lift", this->fes.get());
       mfem::Vector lift_dir(dim);
-      vector<int> tmp = fun["lift"].get<vector<int>>();
-      output_bndry_marker[idx].SetSize(tmp.size(), 0);
-      output_bndry_marker[idx].Assign(tmp.data());
-      output.emplace("lift", fes.get());  
-      switch (dim)
+      lift_dir = 0.0;
+      if (dim == 1)
       {
-      case 1:
          lift_dir(0) = 0.0;
-         output.at("lift").AddBdrFaceIntegrator(
-             new PressureForce<1>(diff_stack, fec.get(), lift_dir),
-                                  output_bndry_marker[idx]);
-         break;
-      case 2:
-         lift_dir(0) = -sin(aoa_fs);
-         lift_dir(1) = cos(aoa_fs);
-         output.at("lift").AddBdrFaceIntegrator(
-             new PressureForce<2>(diff_stack, fec.get(), lift_dir),
-                                  output_bndry_marker[idx]);
-         break;
-      case 3:
-         lift_dir(1) = -sin(aoa_fs);
-         lift_dir(2) = cos(aoa_fs);
-         output.at("lift").AddBdrFaceIntegrator(
-             new PressureForce<3>(diff_stack, fec.get(), lift_dir),
-                                  output_bndry_marker[idx]);
-         break;
       }
+      else
+      {
+         lift_dir(iroll) = -sin(aoa_fs);
+         lift_dir(ipitch) = cos(aoa_fs);
+      }
+      this->output.at("lift").AddBdrFaceIntegrator(
+          new PressureForce<dim>(this->diff_stack, this->fec.get(), lift_dir),
+          this->output_bndry_marker[idx]);
       idx++;
    }
 }
 
-double EulerSolver::calcResidualNorm()
-{
-   GridFunType r(fes.get());
-   double res_norm;
-#ifdef MFEM_USE_MPI
-   HypreParVector *U = u->GetTrueDofs();
-   res->Mult(*U, r);   
-   double loc_norm = r*r;
-   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   res->Mult(*u, r);
-   res_norm = r*r;
-#endif
-   res_norm = sqrt(res_norm);
-   return res_norm;
-}
-
-double EulerSolver::calcStepSize(double cfl) const
+template <int dim>
+double EulerSolver<dim>::calcStepSize(double cfl) const
 {
    double (*calcSpect)(const double *dir, const double *q);
-   if (num_dim == 1)
-   {
-      calcSpect = calcSpectralRadius<double, 1>;
-   }
-   else if (num_dim == 2)
-   {
-      calcSpect = calcSpectralRadius<double, 2>;
-   }
-   else
-   {
-      calcSpect = calcSpectralRadius<double, 3>;
-   }
-
+   calcSpect = calcSpectralRadius<double, dim>;
    double dt_local = 1e100;
-   Vector xi(num_dim);
-   Vector dxij(num_dim);
+   Vector xi(dim);
+   Vector dxij(dim);
    Vector ui, dxidx;
    DenseMatrix uk;
-   DenseMatrix adjJt(num_dim);
-   for (int k = 0; k < fes->GetNE(); k++)
+   DenseMatrix adjJt(dim);
+   for (int k = 0; k < this->fes->GetNE(); k++)
    {
       // get the element, its transformation, and the state values on element
-      const FiniteElement *fe = fes->GetFE(k);
+      const FiniteElement *fe = this->fes->GetFE(k);
       const IntegrationRule *ir = &(fe->GetNodes());
-      ElementTransformation *trans = fes->GetElementTransformation(k);
-      u->GetVectorValues(*trans, *ir, uk);
+      ElementTransformation *trans = this->fes->GetElementTransformation(k);
+      this->u->GetVectorValues(*trans, *ir, uk);
       for (int i = 0; i < fe->GetDof(); ++i)
       {
          trans->SetIntPoint(&fe->GetNodes().IntPoint(i));
@@ -273,11 +196,33 @@ double EulerSolver::calcStepSize(double cfl) const
    }
    double dt_min;
 #ifdef MFEM_USE_MPI
-   MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
+   MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, this->comm);
 #else
    dt_min = dt_local;
 #endif
    return dt_min;
 }
+
+template <int dim>
+void EulerSolver<dim>::getFreeStreamState(mfem::Vector &q_ref) 
+{
+   q_ref = 0.0;
+   q_ref(0) = 1.0;
+   if (dim == 1)
+   {
+      q_ref(1) = q_ref(0)*mach_fs; // ignore angle of attack
+   }
+   else
+   {
+      q_ref(iroll+1) = q_ref(0)*mach_fs*cos(aoa_fs);
+      q_ref(ipitch+1) = q_ref(0)*mach_fs*sin(aoa_fs);
+   }
+   q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
+}
+
+// explicit instantiation
+//template class EulerSolver<1>;
+template class EulerSolver<2>;
+//template class EulerSolver<3>;
 
 } // namespace mach

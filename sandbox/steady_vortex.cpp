@@ -56,12 +56,10 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 2.0;
-   int nx = 1.0;
-   int ny = 1.0;
-   //const char *options_file = "steady_vortex_options.json";
-   
-   args.AddOption(&options_file, "-o", "--options", "Options file to use.");
-   //arg.AddOptions(&petscrc_file, "-p", "--petsc", "Petsc option file to use.");
+   int nx = 1;
+   int ny = 1;
+   args.AddOption(&options_file, "-o", "--options",
+                  "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
@@ -79,29 +77,31 @@ int main(int argc, char *argv[])
    try
    {
       // construct the solver, set the initial condition, and solve
-      
-      const int dim = 2;
-      const int num_state = dim + 2; 
+      string opt_file_name(options_file);
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
       std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
-      EulerSolver solver(opt_file_name, move(smesh), dim);
-      solver.setInitialCondition(uexact);
-      // solver.setperturb(pert);
-      // solver.jacobianCheck();
-      solver.printSolution("init", degree+1);
+
+      unique_ptr<AbstractSolver<2>> solver(
+         new EulerSolver<2>(opt_file_name, move(smesh)));
+      solver->initDerived();
+
+      solver->setInitialCondition(uexact);
+      solver->printSolution("init", degree+1);
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver.calcL2Error(uexact, 0) << '\n' << endl;
-      mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
+                << solver->calcL2Error(uexact, 0) << '\n' << endl;
+      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
-      solver.solveForState();
-      mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
+      solver->solveForState();
+      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver.calcL2Error(uexact, 0) << endl;
-      mfem::out << "\nDrag error = " << abs(solver.calcOutput("drag") - (-1/mach::euler::gamma)) << endl << endl;
+                << solver->calcL2Error(uexact, 0) << endl;
+      mfem::out << "\nDrag error = "
+                << abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma)) << endl
+                << endl;
    }
    catch (MachException &exception)
    {
