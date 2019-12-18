@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 {
    const char *options_file = "steady_vortex_options.json";
 #ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady";
+   const char *petscrc_file = "eulersteady.petsc";
    //Get the option files
    nlohmann::json options;
    ifstream option_source(options_file);
