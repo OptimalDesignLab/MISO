@@ -147,7 +147,7 @@ void AbstractSolver<dim>::initDerived()
    {
       evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
-
+   std::cout << "evolver is set.\n";
    // add the output functional QoIs 
    auto &fun = options["outputs"];
    output_bndry_marker.resize(fun.size());
@@ -323,8 +323,9 @@ double AbstractSolver<dim>::calcResidualNorm()
    double res_norm;
 #ifdef MFEM_USE_MPI
    HypreParVector *U = u->GetTrueDofs();
-   res->Mult(*U, r);   
-   double loc_norm = r*r;
+   HypreParVector *R = r.GetTrueDofs();
+   res->Mult(*U, *R);   
+   double loc_norm = (*R)*(*R);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 #else
    res->Mult(*u, r);
