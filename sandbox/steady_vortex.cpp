@@ -69,11 +69,11 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
-   string opt_file_name(options_file);
   
 #ifdef MFEM_USE_PETSC
    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 #endif
+
    try
    {
       // construct the solver, set the initial condition, and solve
@@ -111,9 +111,11 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
+
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
 #endif
+
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif

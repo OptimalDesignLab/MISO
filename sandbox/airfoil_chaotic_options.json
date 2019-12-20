@@ -21,9 +21,17 @@
       "explicit": false,
       "const-cfl": true,
       "ode-solver": "MIDPOINT",
-      "t-final": 100,
-      "dt": 0.1,
+      "t-final": 10,
+      "dt": 0.05,
       "cfl": 1.0
+   },
+   "petscsolver":{
+      "ksptype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-10,
+      "reltol": 1e-10,
+      "maxiter": 100,
+      "printlevel": 2
    },
    "bcs": {
       "no-slip-adiabatic": [0, 0, 1, 1],

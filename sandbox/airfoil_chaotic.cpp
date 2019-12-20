@@ -13,13 +13,27 @@ void uinit(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
 {
+   const char *options_file = "airfoil_chaotic_options.json";
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "airfoil_chaotic.petsc";
+   //Get the option files
+   nlohmann::json options;
+   ifstream option_source(options_file);
+   option_source >> options;
+   // write the petsc linear solver options from options
+   ofstream petscoptions(petscrc_file);
+   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
+   const string prec_name = options["petscsolver"]["pctype"].get<string>();
+   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
+   petscoptions << "-prec_pc_type " << prec_name << '\n';
+   petscoptions.close();
+#endif
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "airfoil_chaotic_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();
@@ -28,6 +42,9 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
+#ifdef MFEM_USE_PETSC
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+#endif
 
    try
    {
@@ -70,6 +87,11 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
+
+#ifdef MFEM_USE_PETSC
+   MFEMFinalizePetsc();
+#endif
+
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
