@@ -143,11 +143,11 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
       }
 
       jac = &oper->GetGradient(x);
-      std::cout << "Get the jacobian matrix.\n";
+     // std::cout << "Get the jacobian matrix.\n";
       prec->SetOperator(*jac);
-      std::cout << "jac is set as one operator.\n";
+      //std::cout << "jac is set as one operator.\n";
       prec->Mult(r, c);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
-      std::cout << "Solve for the newton step.\n";
+     // std::cout << "Solve for the newton step.\n";
       double c_scale = ComputeStepSize(x, b, norm);
 
       if (c_scale == 0.0)
