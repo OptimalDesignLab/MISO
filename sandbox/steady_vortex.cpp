@@ -1,8 +1,9 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
+#include<random>
+#include "adept.h"
 
 #include "mfem.hpp"
 #include "euler.hpp"
-#include "euler_fluxes.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -10,10 +11,18 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
+std::default_random_engine gen(std::random_device{}());
+std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
+
+/// \brief Defines the random function for the jabocian check
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void pert(const Vector &x, Vector& p);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -24,13 +33,28 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 
 int main(int argc, char *argv[])
 {
+   const char *options_file = "steady_vortex_options.json";
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "eulersteady.petsc";
+   //Get the option files
+   nlohmann::json options;
+   ifstream option_source(options_file);
+   option_source >> options;
+   // write the petsc linear solver options from options
+   ofstream petscoptions(petscrc_file);
+   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
+   const string prec_name = options["petscsolver"]["pctype"].get<string>();
+   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
+   petscoptions << "-prec_pc_type " << prec_name << '\n';
+   petscoptions.close();
+#endif
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
+  
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "steady_vortex_options.json";
    int degree = 2.0;
    int nx = 1;
    int ny = 1;
@@ -45,6 +69,10 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
+  
+#ifdef MFEM_USE_PETSC
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+#endif
 
    try
    {
@@ -83,9 +111,24 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
+
+#ifdef MFEM_USE_PETSC
+   MFEMFinalizePetsc();
+#endif
+
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
+}
+
+// perturbation function used to check the jacobian in each iteration
+void pert(const Vector &x, Vector& p)
+{
+   p.SetSize(4);
+   for(int i = 0; i < 4; i++)
+   {
+      p(i) = normal_rand(gen);
+   }
 }
 
 // Exact solution; note that I reversed the flow direction to be clockwise, so

@@ -4,8 +4,18 @@
       "lps-coeff": 1.0,
       "basis-type": "csbp"
    },
-   "steady": false,
    "time-dis": {
+      "explicit": false,
+      "const-cfl": true,
+      "ode-solver": "MIDPOINT",
+      "t-final": 100,
+      "dt": 0.1,
+      "cfl": 1.0
+   },
+   "mesh": {
+      "refine": 0
+   },
+   "unsteady": {
       "const-cfl": true,
       "cfl": 0.50,
       "dt": 0.01,
@@ -15,7 +25,29 @@
       "vortex": [1, 1, 1, 0],
       "slip-wall": [0, 0, 0, 1]
    },
-   "outputs": {
+   "steady": false,
+   "newtonsolver":{
+      "abstol": 1e-10,
+      "reltol": 1e-10,
+      "maxiter": 30,
+      "printlevel": 1
+   },
+   "petscsolver":{
+      "ksptype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-10,
+      "reltol": 1e-10,
+      "maxiter": 100,
+      "printlevel": 2
+   },
+   "hypresolver":{
+      "tol": 1e-10,
+      "maxiter": 100,
+      "printlevel": 0
+   },
+   "saveresults":false,
+   "outputs": 
+   {
       "drag": [0, 0, 0, 1]
    }
 }

@@ -64,7 +64,7 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       this->res->AddBdrFaceIntegrator(
-          new IsentropicVortexBC(this->diff_stack, this->fec.get(), alpha),
+          new IsentropicVortexBC<dim>(this->diff_stack, this->fec.get(), alpha),
           this->bndry_marker[idx]);
       idx++;
    }

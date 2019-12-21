@@ -51,9 +51,13 @@ AbstractSolver<dim>::AbstractSolver(const string &opt_file_name,
    {
       ode_solver.reset(new ForwardEulerSolver);
    }
-   if (options["time-dis"]["ode-solver"].get<string>() == "RK4")
+   else if (options["time-dis"]["ode-solver"].get<string>() == "RK4")
    {
       ode_solver.reset(new RK4Solver);
+   }
+   else if (options["time-dis"]["ode-solver"].get<string>() == "MIDPOINT")
+   {
+      ode_solver.reset(new ImplicitMidpointSolver);
    }
    else
    {
@@ -134,8 +138,16 @@ void AbstractSolver<dim>::initDerived()
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
-   evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
-
+   bool is_explicit = options["time-dis"]["explicit"].get<bool>();
+   if(is_explicit)
+   {
+      evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+   }
+   else
+   {
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+   }
+   std::cout << "evolver is set.\n";
    // add the output functional QoIs 
    auto &fun = options["outputs"];
    output_bndry_marker.resize(fun.size());
@@ -211,7 +223,6 @@ void AbstractSolver<dim>::setInitialCondition(
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
-
    // DenseMatrix vals;
    // Vector uj;
    // for (int i = 0; i < fes->GetNE(); i++)
@@ -312,8 +323,9 @@ double AbstractSolver<dim>::calcResidualNorm()
    double res_norm;
 #ifdef MFEM_USE_MPI
    HypreParVector *U = u->GetTrueDofs();
-   res->Mult(*U, r);   
-   double loc_norm = r*r;
+   HypreParVector *R = r.GetTrueDofs();
+   res->Mult(*U, *R);   
+   double loc_norm = (*R)*(*R);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 #else
    res->Mult(*u, r);
@@ -385,8 +397,73 @@ void AbstractSolver<dim>::solveForState()
 template <int dim>
 void AbstractSolver<dim>::solveSteady()
 {
-   throw MachException("AbstractSolver::solveSteady\n"
-                       "\tnot implemented");
+#ifdef MFEM_USE_PETSC
+   // Get the PetscSolver option 
+   double abstol = options["petscsolver"]["abstol"].get<double>();
+   double reltol = options["petscsolver"]["reltol"].get<double>();
+   int maxiter = options["petscsolver"]["maxiter"].get<int>();
+   int ptl = options["petscsolver"]["printlevel"].get<int>();
+
+   solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
+   prec.reset(new mfem::PetscPreconditioner(fes->GetComm(), "prec_"));
+   dynamic_cast<mfem::PetscLinearSolver *>(solver.get())->SetPreconditioner(*prec);
+
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(abstol);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
+   std::cout << "PetscLinearSolver is set.\n";
+   //Get the newton solver options
+   double nabstol = options["newtonsolver"]["abstol"].get<double>();
+   double nreltol = options["newtonsolver"]["reltol"].get<double>();
+   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
+   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver->iterative_mode = true;
+   newton_solver->SetSolver(*solver);
+   newton_solver->SetOperator(*res);
+   newton_solver->SetAbsTol(nabstol);
+   newton_solver->SetRelTol(nreltol);
+   newton_solver->SetMaxIter(nmaxiter);
+   newton_solver->SetPrintLevel(nptl);
+   // Solve the nonlinear problem with r.h.s at 0
+   mfem::Vector b;
+   newton_solver->Mult(b, *u);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+#else
+   // Hypre solver section
+   //prec.reset( new HypreBoomerAMG() );
+   //prec->SetPrintLevel(0);
+   std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
+               << " without preconditioner.\n";
+   
+   double tol = options["hypresolver"]["tol"].get<double>();
+   int maxiter = options["hypresolver"]["maxiter"].get<int>();
+   int ptl = options["hypresolver"]["printlevel"].get<int>();
+   solver.reset( new HypreGMRES(fes->GetComm()) );
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
+
+   //solver->SetPreconditioner(*prec);
+   double nabstol = options["newtonsolver"]["abstol"].get<double>();
+   double nreltol = options["newtonsolver"]["reltol"].get<double>();
+   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
+   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver->iterative_mode = true;
+   newton_solver->SetSolver(*solver);
+   newton_solver->SetOperator(*res);
+   newton_solver->SetPrintLevel(nptl);
+   newton_solver->SetRelTol(nreltol);
+   newton_solver->SetAbsTol(nabstol);
+   newton_solver->SetMaxIter(nmaxiter);
+
+   // Solve the nonlinear problem with r.h.s at 0
+   mfem::Vector b;
+   newton_solver->Mult(b,  *u);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+#endif
 }
 
 template <int dim>
@@ -414,19 +491,22 @@ void AbstractSolver<dim>::solveUnsteady()
 
    bool done = false;
    double t_final = options["time-dis"]["t-final"].get<double>();
+   std::cout << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
+   bool calc_dt = options["time-dis"]["explicit"].get<bool>() && 
+         options["time-dis"]["const-cfl"].get<bool>();
    for (int ti = 0; !done;)
    {
-      if (options["time-dis"]["const-cfl"].get<bool>())
+      if (calc_dt)
       {
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
-      if (ti % 100 == 0)
-      {
+      // if (ti % 100 == 0)
+      // {
          cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      }
+      // }
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);
@@ -435,9 +515,8 @@ void AbstractSolver<dim>::solveUnsteady()
       ode_solver->Step(*u, t, dt_real);
 #endif
       ti++;
-
       done = (t >= t_final - 1e-8 * dt);
-
+      //std::cout << "t_final is " << t_final << ", done is " << done << std::endl;
       /*       if (done || ti % vis_steps == 0)
       {
          cout << "time step: " << ti << ", time: " << t << endl;
@@ -500,6 +579,46 @@ double AbstractSolver<dim>::calcOutput(const std::string &fun)
    {
       std::cerr << exception.what() << endl;
    }
+}
+template <int dim>
+void AbstractSolver<dim>::jacobianCheck()
+{
+   // initialize the variables
+   const double delta = 1e-5;
+   std::unique_ptr<GridFunType> u_plus;
+   std::unique_ptr<GridFunType> u_minus;
+   std::unique_ptr<GridFunType> perturbation_vec;
+   perturbation_vec.reset(new GridFunType(fes.get()));
+   VectorFunctionCoefficient up(num_state, perturb_fun);
+   perturbation_vec->ProjectCoefficient(up);
+   u_plus.reset(new GridFunType(fes.get()));
+   u_minus.reset(new GridFunType(fes.get()));
+
+   // set uplus and uminus to the current state
+   *u_plus = *u;
+   *u_minus = *u;
+   u_plus->Add(delta, *perturbation_vec);
+   u_minus->Add(-delta, *perturbation_vec);
+
+   std::unique_ptr<GridFunType> res_plus;
+   std::unique_ptr<GridFunType> res_minus;
+   res_plus.reset(new GridFunType(fes.get()));
+   res_minus.reset(new GridFunType(fes.get()));
+
+   res->Mult(*u_plus, *res_plus);
+   res->Mult(*u_minus, *res_minus);
+
+   res_plus->Add(-1.0, *res_minus);
+   res_plus->Set(1 / (2 * delta), *res_plus);
+
+   // result from GetGradient(x)
+   std::unique_ptr<GridFunType> jac_v;
+   jac_v.reset(new GridFunType(fes.get()));
+   mfem::Operator &jac = res->GetGradient(*u);
+   jac.Mult(*perturbation_vec, *jac_v);
+   // check the difference norm
+   jac_v->Add(-1.0, *res_plus);
+   std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
 }
 
 // explicit instantiation

@@ -89,13 +89,22 @@ public:
 
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
-
-   /// Solve for the steady-state solution using, e.g., Newton's method
+   
+   /// Solve for the steady state problem using newton method
    virtual void solveSteady();
 
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady();
+   
+   /// Check the jacobian accuracy
+   /// Compare the results jac_v = jac * pert_v w.r.t jac_v calculated from
+   /// finite difference method 
+   void jacobianCheck();
 
+   /// set the perturbation function that used for check jacobian
+   void setperturb(void (*fun)(const mfem::Vector &, mfem::Vector &))
+   {  perturb_fun = fun; }
+   
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
    /// \returns scalar value of estimated functional value
@@ -134,24 +143,34 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   /// the spatial residual (a semilinear form)
+   std::unique_ptr<NonlinearFormType> res;
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
    std::unique_ptr<BilinearFormType> mass;
-   /// the spatial residual (a semilinear form in general)
-   std::unique_ptr<NonlinearFormType> res;
    /// mass matrix
    std::unique_ptr<MatrixType> mass_matrix;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
+
+   /// newton solver for the steady problem
+   std::unique_ptr<mfem::NewtonSolver> newton_solver;
+   /// linear system solver used in newton solver
+   std::unique_ptr<mfem::Solver> solver;
+   /// linear system preconditioner for solver in newton solver
+   std::unique_ptr<mfem::Solver> prec;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
    std::map<std::string, NonlinearFormType> output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
+   
+   /// perturbation function that used for 
+   void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs

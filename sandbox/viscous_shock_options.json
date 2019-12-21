@@ -17,6 +17,8 @@
    },
    "steady": false,
    "time-dis": {
+      "explicit": false,
+      "ode-solver": "MIDPOINT",
       "const-cfl": true,
       "cfl": 0.09,
       "dt": 0.0001,
