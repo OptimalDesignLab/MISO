@@ -83,9 +83,9 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
 #else
    //using hypre solver instead
    linear_solver.reset(new mfem::HypreGMRES(mass.GetComm()));
-   linear_solver->SetTol(1e-10);
-   linear_solver->SetPrintLevel(1);
-   linear_solver->SetMaxIter(100);
+   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
+   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(1);
+   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
 #endif
    newton_solver.reset(new mfem::NewtonSolver(mass.GetComm()));
    //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
