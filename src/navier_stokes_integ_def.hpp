@@ -234,6 +234,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(const mfem::Vector &x, const m
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(Dw_a.data(), Dw_size, Dw.GetData());
    adept::set_values(qfs_a.data(), qfs.Size(), qfs.GetData());
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
    // start new stack recording
    this->stack.new_recording();
    // create container for active double flux output

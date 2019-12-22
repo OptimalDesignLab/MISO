@@ -122,7 +122,7 @@ void applyViscousScaling(int d, xdouble mu, double Pr, const xdouble *q,
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \note This **does not** account for the no-slip condition.
 template <typename xdouble, int dim>
-void calcAdiabaticWallFlux(const xdouble *dir, double mu, double Pr,
+void calcAdiabaticWallFlux(const xdouble *dir, xdouble mu, double Pr,
                            const xdouble *q, const xdouble *Dw, 
                            xdouble *flux)
 {
