@@ -6,7 +6,7 @@
 #include <algorithm> // std::max
 #include "utils.hpp"
 #include "adept.h"
-
+using adept::adouble;
 namespace mach
 {
 
@@ -28,7 +28,7 @@ const double gami = gamma - 1.0;
 template <typename xdouble, int dim>
 inline xdouble pressure(const xdouble *q)
 {
-   return euler::gami*(q[dim+1] - 0.5*dot<xdouble,dim>(q+1,q+1)/q[0]);
+   return euler::gami * (q[dim + 1] - 0.5 * dot<xdouble, dim>(q + 1, q + 1) / q[0]);
 }
 
 /// Euler flux function in a given (scaled) direction
@@ -40,15 +40,15 @@ inline xdouble pressure(const xdouble *q)
 template <typename xdouble, int dim>
 void calcEulerFlux(const xdouble *dir, const xdouble *q, xdouble *flux)
 {
-   xdouble press = pressure<xdouble,dim>(q);
-   xdouble U = dot<xdouble,dim>(q+1,dir);
+   xdouble press = pressure<xdouble, dim>(q);
+   xdouble U = dot<xdouble, dim>(q + 1, dir);
    flux[0] = U;
    U /= q[0];
    for (int i = 0; i < dim; ++i)
    {
-      flux[i+1] = q[i+1]*U + dir[i]*press;
+      flux[i + 1] = q[i + 1] * U + dir[i] * press;
    }
-   flux[dim+1] = (q[dim+1] + press)*U;
+   flux[dim + 1] = (q[dim + 1] + press) * U;
 }
 
 /// Log-average function used in the Ismail-Roe flux function
@@ -86,8 +86,8 @@ template <typename xdouble, int dim>
 void calcIsmailRoeFlux(int di, const xdouble *qL, const xdouble *qR,
                        xdouble *flux)
 {
-   xdouble pL = pressure<xdouble,dim>(qL);
-   xdouble pR = pressure<xdouble,dim>(qR);
+   xdouble pL = pressure<xdouble, dim>(qL);
+   xdouble pR = pressure<xdouble, dim>(qR);
    xdouble zL[dim + 2];
    xdouble zR[dim + 2];
    zL[0] = sqrt(qL[0] / pL);
@@ -131,8 +131,8 @@ template <typename xdouble, int dim>
 void calcIsmailRoeFaceFlux(const xdouble *dir, const xdouble *qL,
                            const xdouble *qR, xdouble *flux)
 {
-   xdouble pL = pressure<xdouble,dim>(qL);
-   xdouble pR = pressure<xdouble,dim>(qR);
+   xdouble pL = pressure<xdouble, dim>(qL);
+   xdouble pR = pressure<xdouble, dim>(qR);
    xdouble zL[dim + 2];
    xdouble zR[dim + 2];
    zL[0] = sqrt(qL[0] / pL);
@@ -180,12 +180,12 @@ void calcIsmailRoeFaceFlux(const xdouble *dir, const xdouble *qL,
 template <typename xdouble, int dim>
 xdouble calcSpectralRadius(const xdouble *dir, const xdouble *q)
 {
-   xdouble press = pressure<xdouble,dim>(q);
-   xdouble sndsp = sqrt(euler::gamma*press/q[0]);
+   xdouble press = pressure<xdouble, dim>(q);
+   xdouble sndsp = sqrt(euler::gamma * press / q[0]);
    // U = u*dir[0] + v*dir[1] + ...
-   xdouble U = dot<xdouble,dim>(q+1,dir)/q[0];
-   xdouble dir_norm = sqrt(dot<xdouble,dim>(dir,dir));
-   return fabs(U) + sndsp*dir_norm;
+   xdouble U = dot<xdouble, dim>(q + 1, dir) / q[0];
+   xdouble dir_norm = sqrt(dot<xdouble, dim>(dir, dir));
+   return fabs(U) + sndsp * dir_norm;
 }
 
 /// Convert conservative variables `q` to entropy variables `w`
@@ -199,76 +199,75 @@ void calcEntropyVars(const xdouble *q, xdouble *w)
    xdouble u[dim];
    for (int i = 0; i < dim; ++i)
    {
-      u[i] = q[i+1]/q[0];
+      u[i] = q[i + 1] / q[0];
    }
-   xdouble p = pressure<xdouble,dim>(q);
-   xdouble s = log(p/pow(q[0],euler::gamma));
-   xdouble fac = 1.0/p;
-   w[0] = (euler::gamma-s)/euler::gami - 0.5*dot<xdouble,dim>(u,u)*fac*q[0];
+   xdouble p = pressure<xdouble, dim>(q);
+   xdouble s = log(p / pow(q[0], euler::gamma));
+   xdouble fac = 1.0 / p;
+   w[0] = (euler::gamma - s) / euler::gami - 0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
    for (int i = 0; i < dim; ++i)
    {
-      w[i+1] = q[i+1]*fac;
+      w[i + 1] = q[i + 1] * fac;
    }
-   w[dim+1] = -q[0]*fac;
+   w[dim + 1] = -q[0] * fac;
 }
 
 // TODO: How should we return matrices, particularly when they will be differentiated?
 template <typename xdouble, int dim>
 void calcdQdWProduct(const xdouble *q, const xdouble *vec, xdouble *dqdw_vec)
 {
-   xdouble p = pressure<xdouble,dim>(q);
-   xdouble rho_inv = 1.0/q[0];
-   xdouble h = (q[dim+1] + p)*rho_inv; // scaled version of h
-   xdouble a2 = euler::gamma*p*rho_inv; // square of speed of sound
+   xdouble p = pressure<xdouble, dim>(q);
+   xdouble rho_inv = 1.0 / q[0];
+   xdouble h = (q[dim + 1] + p) * rho_inv;  // scaled version of h
+   xdouble a2 = euler::gamma * p * rho_inv; // square of speed of sound
 
    // first row of dq/dw times vec
    dqdw_vec[0] = 0.0;
-   for (int i = 0; i < dim+2; ++i)
+   for (int i = 0; i < dim + 2; ++i)
    {
-      dqdw_vec[0] += q[i]*vec[i];
+      dqdw_vec[0] += q[i] * vec[i];
    }
 
    // second through dim-1 rows of dq/dw times vec
    for (int j = 0; j < dim; ++j)
    {
-      dqdw_vec[j+1] = 0.0;
-      xdouble u = q[j+1]*rho_inv;
-      for (int i = 0; i < dim+2; ++i)
+      dqdw_vec[j + 1] = 0.0;
+      xdouble u = q[j + 1] * rho_inv;
+      for (int i = 0; i < dim + 2; ++i)
       {
-         dqdw_vec[j+1] += u*q[i]*vec[i];
+         dqdw_vec[j + 1] += u * q[i] * vec[i];
       }
-      dqdw_vec[j+1] += p*vec[j+1];
-      dqdw_vec[j+1] += p*u*vec[dim+1];
+      dqdw_vec[j + 1] += p * vec[j + 1];
+      dqdw_vec[j + 1] += p * u * vec[dim + 1];
    }
 
    // dim-th row of dq/dw times vec
-   dqdw_vec[dim+1] = q[dim+1]*vec[0];
+   dqdw_vec[dim + 1] = q[dim + 1] * vec[0];
    for (int i = 0; i < dim; ++i)
    {
-      dqdw_vec[dim+1] += q[i+1]*h*vec[i+1];
+      dqdw_vec[dim + 1] += q[i + 1] * h * vec[i + 1];
    }
-   dqdw_vec[dim+1] += (q[0]*h*h - a2*p/euler::gami)*vec[dim+1];
+   dqdw_vec[dim + 1] += (q[0] * h * h - a2 * p / euler::gami) * vec[dim + 1];
 
-//   dqdw[1,1] = rho
-//   dqdw[2,1] = rhou
-//   dqdw[3,1] = rhov
-//   dqdw[4,1] = rhoe
+   //   dqdw[1,1] = rho
+   //   dqdw[2,1] = rhou
+   //   dqdw[3,1] = rhov
+   //   dqdw[4,1] = rhoe
 
-//   dqdw[1,2] = rhou
-//   dqdw[2,2] = rhou*rhou*rhoinv + p
-//   dqdw[3,2] = rhou*rhov*rhoinv
-//   dqdw[4,2] = rhou*h
+   //   dqdw[1,2] = rhou
+   //   dqdw[2,2] = rhou*rhou*rhoinv + p
+   //   dqdw[3,2] = rhou*rhov*rhoinv
+   //   dqdw[4,2] = rhou*h
 
-//   dqdw[1,3] = rhov
-//   dqdw[2,3] = rhou*rhov/rho
-//   dqdw[3,3] = rhov*rhov*rhoinv + p
-//   dqdw[4,3] = rhov*h
+   //   dqdw[1,3] = rhov
+   //   dqdw[2,3] = rhou*rhov/rho
+   //   dqdw[3,3] = rhov*rhov*rhoinv + p
+   //   dqdw[4,3] = rhov*h
 
-//   dqdw[1,4] = rhoe
-//   dqdw[2,4] = h*rhou
-//   dqdw[3,4] = h*rhov
-//   dqdw[4,4] = rho*h*h - a2*p/gami
-
+   //   dqdw[1,4] = rhoe
+   //   dqdw[2,4] = h*rhou
+   //   dqdw[3,4] = h*rhov
+   //   dqdw[4,4] = rho*h*h - a2*p/gami
 }
 
 /// Applies the matrix `dQ/dW` to `vec`, and scales by the avg. spectral radius
@@ -286,11 +285,11 @@ void applyLPSScaling(const xdouble *adjJ, const xdouble *q, const xdouble *vec,
    xdouble spect = 0.0;
    for (int i = 0; i < dim; ++i)
    {
-      spect += calcSpectralRadius<xdouble,dim>(adjJ + i*dim, q);
+      spect += calcSpectralRadius<xdouble, dim>(adjJ + i * dim, q);
    }
    spect /= static_cast<xdouble>(dim);
-   calcdQdWProduct<xdouble,dim>(q, vec, mat_vec);
-   for (int i = 0; i < dim+2; ++i)
+   calcdQdWProduct<xdouble, dim>(q, vec, mat_vec);
+   for (int i = 0; i < dim + 2; ++i)
    {
       mat_vec[i] *= spect;
    }
@@ -310,64 +309,64 @@ template <typename xdouble, int dim>
 void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
                       xdouble *work, xdouble *flux)
 {
-   using std::max;
    using adept::max;
+   using std::max;
 
    // Define some constants
    const xdouble sat_Vn = 0.0; // 0.025
    const xdouble sat_Vl = 0.0; // 0.025
 
    // Define some constants used to construct the "Jacobian"
-   const xdouble dA = sqrt(dot<xdouble,dim>(dir,dir));
-   const xdouble fac = 1.0/qbnd[0];
-   const xdouble phi = 0.5*dot<xdouble,dim>(qbnd+1,qbnd+1)*fac*fac;
-   const xdouble H = euler::gamma*qbnd[dim+1]*fac - euler::gami*phi;
-   const xdouble a = sqrt(euler::gami*(H - phi));
-   const xdouble Un = dot<xdouble,dim>(qbnd+1,dir)*fac;
-   xdouble lambda1 = Un + dA*a;
-   xdouble lambda2 = Un - dA*a;
+   const xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
+   const xdouble fac = 1.0 / qbnd[0];
+   const xdouble phi = 0.5 * dot<xdouble, dim>(qbnd + 1, qbnd + 1) * fac * fac;
+   const xdouble H = euler::gamma * qbnd[dim + 1] * fac - euler::gami * phi;
+   const xdouble a = sqrt(euler::gami * (H - phi));
+   const xdouble Un = dot<xdouble, dim>(qbnd + 1, dir) * fac;
+   xdouble lambda1 = Un + dA * a;
+   xdouble lambda2 = Un - dA * a;
    xdouble lambda3 = Un;
-   const xdouble rhoA = fabs(Un) + dA*a;
-   lambda1 = 0.5*(max(fabs(lambda1), sat_Vn*rhoA) - lambda1);
-   lambda2 = 0.5*(max(fabs(lambda2), sat_Vn*rhoA) - lambda2);
-   lambda3 = 0.5*(max(fabs(lambda3), sat_Vl*rhoA) - lambda3);
+   const xdouble rhoA = fabs(Un) + dA * a;
+   lambda1 = 0.5 * (max(fabs(lambda1), sat_Vn * rhoA) - lambda1);
+   lambda2 = 0.5 * (max(fabs(lambda2), sat_Vn * rhoA) - lambda2);
+   lambda3 = 0.5 * (max(fabs(lambda3), sat_Vl * rhoA) - lambda3);
 
    xdouble *dq = work;
-   for (int i = 0; i < dim+2; ++i)
+   for (int i = 0; i < dim + 2; ++i)
    {
       dq[i] = q[i] - qbnd[i];
    }
-   calcEulerFlux<xdouble,dim>(dir, q, flux);
+   calcEulerFlux<xdouble, dim>(dir, q, flux);
 
    // diagonal matrix multiply; note that flux was initialized by calcEulerFlux
-   for (int i = 0; i < dim+2; ++i)
+   for (int i = 0; i < dim + 2; ++i)
    {
-      flux[i] += lambda3*dq[i];
+      flux[i] += lambda3 * dq[i];
    }
 
    // some scalars needed for E1*dq, E2*dq, E3*dq, and E4*dq
-   xdouble tmp1 = 0.5*(lambda1 + lambda2) - lambda3;
-   xdouble E1dq_fac = tmp1*euler::gami/(a*a);
-   xdouble E2dq_fac = tmp1/(dA*dA);
-   xdouble E34dq_fac = 0.5*(lambda1 - lambda2)/(dA*a);
+   xdouble tmp1 = 0.5 * (lambda1 + lambda2) - lambda3;
+   xdouble E1dq_fac = tmp1 * euler::gami / (a * a);
+   xdouble E2dq_fac = tmp1 / (dA * dA);
+   xdouble E34dq_fac = 0.5 * (lambda1 - lambda2) / (dA * a);
 
    // get E1*dq + E4*dq and add to flux
-   xdouble Edq = phi*dq[0] + dq[dim+1] - dot<xdouble,dim>(qbnd+1,dq+1)*fac;
-   flux[0] += E1dq_fac*Edq;
+   xdouble Edq = phi * dq[0] + dq[dim + 1] - dot<xdouble, dim>(qbnd + 1, dq + 1) * fac;
+   flux[0] += E1dq_fac * Edq;
    for (int i = 0; i < dim; ++i)
    {
-      flux[i+1] += Edq*(E1dq_fac*qbnd[i+1]*fac + euler::gami*E34dq_fac*dir[i]);
+      flux[i + 1] += Edq * (E1dq_fac * qbnd[i + 1] * fac + euler::gami * E34dq_fac * dir[i]);
    }
-   flux[dim+1] += Edq*(E1dq_fac*H + euler::gami*E34dq_fac*Un);
+   flux[dim + 1] += Edq * (E1dq_fac * H + euler::gami * E34dq_fac * Un);
 
    // get E2*dq + E3*dq and add to flux
-   Edq = -Un*dq[0] + dot<xdouble,dim>(dir, dq+1);
-   flux[0] += E34dq_fac*Edq;
+   Edq = -Un * dq[0] + dot<xdouble, dim>(dir, dq + 1);
+   flux[0] += E34dq_fac * Edq;
    for (int i = 0; i < dim; ++i)
    {
-      flux[i+1] += Edq*(E2dq_fac*dir[i] + E34dq_fac*qbnd[i+1]*fac);
+      flux[i + 1] += Edq * (E2dq_fac * dir[i] + E34dq_fac * qbnd[i + 1] * fac);
    }
-   flux[dim+1] += Edq*(E2dq_fac*Un + E34dq_fac*H);
+   flux[dim + 1] += Edq * (E2dq_fac * Un + E34dq_fac * H);
 }
 
 /// Isentropic vortex exact state as a function of position
@@ -381,31 +380,33 @@ template <typename xdouble>
 void calcIsentropicVortexState(const xdouble *x, xdouble *qbnd)
 {
    double ri = 1.0;
-   double Mai = 0.5; //0.95 
+   double Mai = 0.5; //0.95
    double rhoi = 2.0;
-   double prsi = 1.0/euler::gamma;
-   xdouble rinv = ri/sqrt(x[0]*x[0] + x[1]*x[1]);
-   xdouble rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
-                          1.0/euler::gami);
-   xdouble Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
-                     (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
+   double prsi = 1.0 / euler::gamma;
+   xdouble rinv = ri / sqrt(x[0] * x[0] + x[1] * x[1]);
+   xdouble rho = rhoi * pow(1.0 + 0.5 * euler::gami * Mai * Mai * (1.0 - rinv * rinv),
+                            1.0 / euler::gami);
+   xdouble Ma = sqrt((2.0 / euler::gami) * ((pow(rhoi / rho, euler::gami)) *
+                                                (1.0 + 0.5 * euler::gami * Mai * Mai) -
+                                            1.0));
    xdouble theta;
    if (x[0] > 1e-15)
    {
-      theta = atan(x[1]/x[0]);
+      theta = atan(x[1] / x[0]);
    }
    else
    {
-      theta = M_PI/2.0;
+      theta = M_PI / 2.0;
    }
-   xdouble press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
-                 (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
-   xdouble a = sqrt(euler::gamma*press/rho);
+   xdouble press = prsi * pow((1.0 + 0.5 * euler::gami * Mai * Mai) /
+                                  (1.0 + 0.5 * euler::gami * Ma * Ma),
+                              euler::gamma / euler::gami);
+   xdouble a = sqrt(euler::gamma * press / rho);
 
    qbnd[0] = rho;
-   qbnd[1] = rho*a*Ma*sin(theta);
-   qbnd[2] = -rho*a*Ma*cos(theta);
-   qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   qbnd[1] = rho * a * Ma * sin(theta);
+   qbnd[2] = -rho * a * Ma * cos(theta);
+   qbnd[3] = press / euler::gami + 0.5 * rho * a * a * Ma * Ma;
 }
 
 /// A wrapper for `calcBoundaryFlux` in the case of the isentropic vortex
@@ -421,7 +422,7 @@ void calcIsentropicVortexFlux(const xdouble *x, const xdouble *dir,
    xdouble qbnd[4];
    xdouble work[4];
    calcIsentropicVortexState<xdouble>(x, qbnd);
-   calcBoundaryFlux<xdouble,2>(dir, qbnd, q, work, flux);
+   calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
 }
 
 /// removes the component of momentum normal to the wall from `q`
@@ -434,22 +435,22 @@ template <typename xdouble, int dim>
 void projectStateOntoWall(const xdouble *dir, const xdouble *q, xdouble *qbnd)
 {
    xdouble nrm[dim];
-   xdouble fac = 1.0/sqrt(dot<xdouble,dim>(dir,dir));
+   xdouble fac = 1.0 / sqrt(dot<xdouble, dim>(dir, dir));
    xdouble Unrm = 0.0;
    for (int i = 0; i < dim; ++i)
    {
-      nrm[i] = dir[i]*fac;
-      Unrm += nrm[i]*q[i+1];
+      nrm[i] = dir[i] * fac;
+      Unrm += nrm[i] * q[i + 1];
    }
    qbnd[0] = q[0];
-   qbnd[dim+1] = q[dim+1];
+   qbnd[dim + 1] = q[dim + 1];
    for (int i = 0; i < dim; ++i)
    {
-      qbnd[i+1] = q[i+1] - nrm[i]*Unrm;
+      qbnd[i + 1] = q[i + 1] - nrm[i] * Unrm;
    }
 }
 
-/// computes an adjoint consistent slip wall boundary condition 
+/// computes an adjoint consistent slip wall boundary condition
 /// \param[in] x - not used
 /// \param[in] dir - desired (scaled) normal vector to the wall
 /// \param[in] q - conservative state variable on the boundary
@@ -466,13 +467,51 @@ void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
    calcEulerFlux<xdouble,dim>(dir, qbnd, flux);
    //calcIsentropicVortexFlux<xdouble>(x, dir, q, flux);
 #endif
-   xdouble press = pressure<xdouble,dim>(q);
+   xdouble press = pressure<xdouble, dim>(q);
    flux[0] = 0.0;
    for (int i = 0; i < dim; ++i)
    {
-      flux[i+1] = dir[i]*press;
+      flux[i + 1] = dir[i] * press;
    }
-   flux[dim+1] = 0.0;
+   flux[dim + 1] = 0.0;
+}
+// computes an adjoint consistent slip wall boundary condition
+/// \param[in] x - not used
+/// \param[in] dir - desired (scaled) normal vector to the wall
+/// \param[in] q - conservative state variable on the boundary
+/// \param[out] flux - the boundary flux in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <int dim>
+void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+              const mfem::Vector &q, const mfem::Vector &work_vec,
+              const mfem::Vector &q_ref,
+              const mfem::DenseMatrix &Dw, adept::Stack &stack,
+              mfem::DenseMatrix &flux_jac)
+{
+   int Dw_size = Dw.Height() * Dw.Width();
+   // create containers for active double objects for each input
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> Dw_a(Dw_size);
+   std::vector<adouble> q_ref_a(q_ref.Size());
+   std::vector<adouble> work_vec_a(work_vec.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(Dw_a.data(), Dw_size, Dw.GetData());
+   adept::set_values(q_ref_a.data(), q_ref.Size(), q_ref.GetData());
+   // start new stack recording
+   stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcBoundaryFlux<adouble, dim>(dir_a.data(), q_ref_a.data(), q_a.data(),
+                                        work_vec_a.data(), flux_a.data());
+   stack.independent(q_a.data(), q.Size());
+   stack.dependent(flux_a.data(), q.Size());
+   stack.jacobian(flux_jac.GetData());
 }
 
 } // namespace mach

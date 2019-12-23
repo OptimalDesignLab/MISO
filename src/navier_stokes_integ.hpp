@@ -165,9 +165,9 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables
    /// \param[out] flux_jac - jacobian of the flux w.r.t. entropy-variables' derivatives
-   void calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir, double jac,
                      const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                     mfem::DenseMatrix &flux_jac);
+                    vector<mfem::DenseMatrix> &flux_jac);
 
 private:
    /// Reynolds number
@@ -245,10 +245,9 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables 
    /// \param[out] flux_jac - jacobian of the flux
-   void calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir,
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
                      const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                     mfem::DenseMatrix &flux_jac);
-
+                     vector<mfem::DenseMatrix> &flux_jac);
 private:
    /// Reynolds number
    double Re;
@@ -469,13 +468,15 @@ public:
                                     work_vec.GetData(), flux_vec.GetData());
    }
 
-   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+    /// Compute jacobian of flux corresponding to a viscous farfield boundary
    /// w.r.t `states`
+   /// \param[in] x - coordinate location at which flux is evaluated 
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
    /// \param[out] flux_jac - jacobian of the flux
-   void calcFluxJacState(const mfem::Vector &dir,
-                         const mfem::Vector &q,
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute jacobian of flux corresponding to a viscous inflow boundary

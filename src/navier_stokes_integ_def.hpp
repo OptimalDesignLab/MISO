@@ -268,9 +268,9 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(const mfem::Vector &x, const m
 }
 
 template <int dim>
-void NoSlipAdiabaticWallBC<dim>::calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir, double jac,
                                               const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                                              mfem::DenseMatrix &flux_jac)
+                                              vector<mfem::DenseMatrix> &flux_jac)
 {
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
@@ -315,7 +315,12 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacV(const mfem::Vector &x, const mfem:
    }
    this->stack.independent(Dw_a.data(),Dw_size);
    this->stack.dependent(flux_a.data(), q.Size());
-   this->stack.jacobian(flux_jac.GetData());
+   mfem::Vector work(dim*this->num_states*this->num_states);
+   this->stack.jacobian(work.GetData());
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = (work.GetData() + i*this->num_states*this->num_states);
+   }
 }
 
 template <int dim>
@@ -345,11 +350,48 @@ void ViscousSlipWallBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem:
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
 }
+#if 0
+template <int dim>
+void ViscousSlipWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
+                                              const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                                              vector<mfem::DenseMatrix> &flux_jac)
+
+{
+   // create containers for active double objects for each input
+   int Dw_size = Dw.Height() * Dw.Width();
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> Dw_a(Dw_size);
+   // initialize active double containers with data from inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(Dw_a.data(),Dw_size, Dw.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+                                        flux_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   mfem::Vector work(dim*this->num_states*this->num_states);
+   this->stack.jacobian(work.GetData());
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = (work.GetData() + i*this->num_states*this->num_states);
+   }
+}
+#endif
 template <int dim>
 void ViscousInflowBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
                                             const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                                             mfem::DenseMatrix &flux_jac)
 {
+   // function defined in euler_fluxes.hpp
+   mach::calcFluxJacState<dim>(x, dir, q, work_vec, q_in, Dw, this->stack, flux_jac);
+   #if 0
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
    std::vector<adouble> q_a(q.Size());
@@ -373,6 +415,7 @@ void ViscousInflowBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::V
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+   #endif
 }
 
 template <int dim>
@@ -380,6 +423,8 @@ void ViscousOutflowBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::
                                              const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                                              mfem::DenseMatrix &flux_jac)
 {
+   mach::calcFluxJacState<dim>(x, dir, q, work_vec, q_out, Dw, this->stack, flux_jac);
+   #if 0
    int Dw_size = Dw.Height() * Dw.Width();
    // create containers for active double objects for each input
    std::vector<adouble> q_a(q.Size());
@@ -403,13 +448,16 @@ void ViscousOutflowBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+   #endif
 }
 
 template <int dim>
-void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &dir,
-                                              const mfem::Vector &q,
-                                              mfem::DenseMatrix &flux_jac)
+void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                                             const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                                             mfem::DenseMatrix &flux_jac)
 {
+   mach::calcFluxJacState<dim>(x, dir, q, work_vec, qfs, Dw, this->stack, flux_jac);
+   #if 0
    // create containers for active double objects for each input
    std::vector<adouble> q_a(q.Size());
    std::vector<adouble> dir_a(dir.Size());
@@ -428,4 +476,5 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &dir,
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+   #endif
 }

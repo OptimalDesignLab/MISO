@@ -59,6 +59,8 @@ extern double vec_pert[9];
 // Use this for LPS apply scaling jacobian checks
 extern double adjJ_data[9];
 
+// Use this for spatial derivatives of entropy-variables
+extern double delw_data[15];
 /// Returns a perturbed version of the baseline flow state
 /// \param[in] x - coordinates (not used)
 /// \param[out] u - pertrubed state variable

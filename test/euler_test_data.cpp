@@ -15,7 +15,7 @@ double flux_check[12] = {
 // dim fluxes to check, each with dim+2 values (so these arrays have dim*(dim+2)
 // entries)
 double fluxIR_1D_check[3] = {
-   0.05762997059393852, 0.8657490584200118, 0.18911342719531313};
+    0.05762997059393852, 0.8657490584200118, 0.18911342719531313};
 double fluxIR_2D_check[8] = {
     0.05745695853179271, 0.8577689686179764, -0.00950417495796846,
     0.1876024933934876, -0.15230563477618272, -0.00950417495796846,
@@ -57,25 +57,30 @@ double vec_pert[9] = {
     -0.6550915049869203, 0.6064661887024042, 0.5870937295355494};
 
 // Use this for LPS applyscaling function and its derivatives
-double adjJ_data[9] = { 0.964888535199277, 0.157613081677548,
-   0.970592781760616, 0.957166948242946, 0.485375648722841,
-   0.800280468888800, 0.141886338627215, 0.421761282626275,
-   0.915735525189067};
+double adjJ_data[9] = {0.964888535199277, 0.157613081677548,
+                       0.970592781760616, 0.957166948242946, 0.485375648722841,
+                       0.800280468888800, 0.141886338627215, 0.421761282626275,
+                       0.915735525189067};
+// spatial derivatives of entropy-variables
+double delw_data[15] = {0.964888535199277, 0.7354003853089198, 0.157613081677548,
+                   0.970592781760616, 0.7353303956712847, 0.957166948242946, 0.485375648722841,
+                   0.800280468888800, 0.11662500508421983, 0.141886338627215, 0.421761282626275,
+                   0.915735525189067, 0.6064661887024042, 0.19554342457115859, 0.12338014544564024};
 
 // define the random-number generator; uniform between 0 and 1
 static std::default_random_engine gen;
-static std::uniform_real_distribution<double> uniform_rand(0.0,1.0);
+static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
 
 template <int dim>
 void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
 {
-   const double scale = 0.01;
-   u(0) = rho*(1.0 + scale*uniform_rand(gen));
-   u(dim+1) = rhoe*(1.0 + scale*uniform_rand(gen));
-   for (int di = 0; di < dim; ++di)
-   {
-      u(di+1) = rhou[di]*(1.0 + scale*uniform_rand(gen));
-   }
+    const double scale = 0.01;
+    u(0) = rho * (1.0 + scale * uniform_rand(gen));
+    u(dim + 1) = rhoe * (1.0 + scale * uniform_rand(gen));
+    for (int di = 0; di < dim; ++di)
+    {
+        u(di + 1) = rhou[di] * (1.0 + scale * uniform_rand(gen));
+    }
 }
 // explicit instantiation of the templated function above
 template void randBaselinePert<1>(const mfem::Vector &x, mfem::Vector &u);
@@ -84,10 +89,10 @@ template void randBaselinePert<3>(const mfem::Vector &x, mfem::Vector &u);
 
 void randState(const mfem::Vector &x, mfem::Vector &u)
 {
-   for (int i = 0; i < u.Size(); ++i)
-   {
-      u(i) = 2.0*uniform_rand(gen) - 1.0;
-   }
+    for (int i = 0; i < u.Size(); ++i)
+    {
+        u(i) = 2.0 * uniform_rand(gen) - 1.0;
+    }
 }
 
-}
+} // namespace euler_data
