@@ -20,8 +20,7 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    SymmetricViscousIntegrator(adept::Stack &diff_stack, int num_state_vars = 1,
                               double a = 1.0)
-       : num_states(num_state_vars), alpha(a), stack(diff_stack),
-         CDw_jac(Derived::ndim) {}
+       : num_states(num_state_vars), alpha(a), stack(diff_stack) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -41,7 +40,7 @@ public:
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
                                     mfem::ElementTransformation &Trans,
                                     const mfem::Vector &elfun,
-                                    mfem::DenseMatrix &elmat) {}
+                                    mfem::DenseMatrix &elmat);
 
 protected:
    /// number of states
@@ -70,9 +69,13 @@ protected:
    /// used to store the adjugate of the mapping Jacobian at node j
    mfem::DenseMatrix adjJ_k;
    /// stores (num_state x num_state) Jacobian terms
-   mfem::DenseMatrix jac_term;
-   /// stores the derivative of scaled derivatives w.r.t. Dw
-   std::vector<std::unique_ptr<mfem::DenseMatrix>> CDw_jac(dim);
+   mfem::DenseMatrix jac_term1;
+  /// stores (num_state x num_state) Jacobian terms
+   mfem::DenseMatrix jac_term2;
+   /// Jacobian of w variables with respect to states u at node j
+   mfem::DenseMatrix dwduj;
+   /// stores the derivative of C*(D*w) w.r.t. Dw
+   std::vector<mfem::DenseMatrix> CDw_jac;
 #endif
 
    /// converts working variables to another set (e.g. conservative to entropy)
@@ -114,7 +117,7 @@ protected:
 
    void scaleJacDw(int d, const mfem::Vector &x, const mfem::Vector &u,
                    const mfem::DenseMatrix &Dw,
-                   mfem::Array<mfem::DenseMatrix> &CDw_jac)
+                   std::vector<mfem::DenseMatrix> &CDw_jac)
    {
       static_cast<Derived *>(this)->applyScalingJacDw(d, x, u, Dw, CDw_jac);
    }

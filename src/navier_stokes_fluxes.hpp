@@ -75,7 +75,6 @@ void applyCijMatrix(int i, int j, const xdouble mu, const xdouble Pr,
      mat_vec[dim + 1] +=  RTmu * u[i] * (vec[i + 1] + 
                                                u[i] * vec[dim + 1])/3.0;
      mat_vec[dim + 1] += RT2k * vec[dim + 1];
-   
    }
    else // apply off-diagonal block matrices (Cij; i!=j) on `vec`
    {

@@ -88,10 +88,9 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector ui, xi, wj, uj;
-   DenseMatrix adjJ_i, adjJ_j, adjJ_k, Dwi, jac_term;
-   vector<unique_ptr<DenseMatrix>> CDw_jac(dim);
+   DenseMatrix adjJ_i, adjJ_j, adjJ_k, Dwi, jac_term1, jac_term2, dwduj;
+   vector<DenseMatrix> CDw_jac(dim);
 #endif
-   elvect.SetSize(num_states * num_nodes);
    ui.SetSize(num_states);
    xi.SetSize(dim);
    wj.SetSize(num_states);
@@ -100,12 +99,17 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
    adjJ_i.SetSize(dim);
    adjJ_j.SetSize(dim);
    adjJ_k.SetSize(dim);
-   jac_term.SetSize(num_states, num_states);
+   jac_term1.SetSize(num_states);
+   jac_term2.SetSize(num_states);
+   dwduj.SetSize(num_states);
+   CDw_jac.resize(dim);
    for (int d = 0; d < dim; ++d)
    {
-      CDw_jac[d]->SetSize(num_states);
+      CDw_jac[d].SetSize(num_states);
    }
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
 
    for (int i = 0; i < num_nodes; ++i)
    {
@@ -137,10 +141,9 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
       } // loop over element nodes j
       Dwi *= Hinv;
 
-      // Contribution to Jacobian due to scaling operation
       for (int d = 0; d < dim; ++d) {
          // scale(d, xi, ui, Dwi, CDwi);
-         scaleJacState(d, xi, ui, Dwi, jac_term);
+         scaleJacState(d, xi, ui, Dwi, jac_term1);
          scaleJacDw(d, xi, ui, Dwi, CDw_jac);
          for (int k = 0; k < num_nodes; ++k) 
          {
@@ -148,14 +151,14 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
             Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
             CalcAdjugate(Trans.Jacobian(), adjJ_k);
             double Qik = sbp.getQEntry(d, i, k, adjJ_i, adjJ_k);
-
+            
             // Contribution to Jacobian due to scaling operation
             for (int sk = 0; sk < num_states; ++sk)
             {
                for (int si = 0; si < num_states; ++si)
                {
                   // res(k, s) += alpha * Qik * CDwi(s);
-                  elmat(sk*num_nodes+k, si*num_nodes+i) += Qik*jac_term(sk,si);
+                  elmat(sk*num_nodes+k, si*num_nodes+i) += Qik*jac_term1(sk,si);
                }
             }
 
@@ -175,16 +178,15 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
                   // (Q_d2)_ij, (Q_d1)_ij, and H^{-1} are scalars, and 
                   // (dw/du_j) is a (state x state) matrix
                   double Qij = sbp.getQEntry(d2, i, j, adjJ_i, adjJ_j);
-                  Mult(*CDw_jac[d2], dwduj, jac_term);
-                  jac_term *= (Qik*Hinv*Qij);
-
+                  Mult(CDw_jac[d2], dwduj, jac_term2);
+                  jac_term2 *= (Qik*Hinv*Qij);
                   // Add to the Jacobian
                   for (int sk = 0; sk < num_states; ++sk)
                   {
                      for (int sj = 0; sj < num_states; ++sj)
                      {
                         elmat(sk * num_nodes + k, sj * num_nodes + j) +=
-                            jac_term(sk, sj);
+                            jac_term2(sk, sj);
                      }
                   }
 

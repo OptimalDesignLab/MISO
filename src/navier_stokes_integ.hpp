@@ -6,8 +6,10 @@
 #include "viscous_integ.hpp"
 #include "euler_fluxes.hpp"
 #include "navier_stokes_fluxes.hpp"
+
 using adept::adouble;
-using namespace std;
+using namespace std; /// TODO: this is polluting other headers!
+
 namespace mach
 {
 
@@ -64,21 +66,30 @@ public:
    }
 
    /// Computes the Jacobian of the product `C(q)*Dw` w.r.t. `q`
+   /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices   
+   /// \param[in] x - coordinate location at which scaling evaluated (not used)
    /// \param[in] q - state at which the symmetric matrix `C` is evaluated
    /// \param[in] Dw - vector that is being multiplied
    /// \param[out] CDw_jac - Jacobian of product w.r.t. `q`
    /// \note This uses the CRTP, so it wraps call to a func. in Derived.
-   void applyScalingJacState(int d, const mfem::Vector &q,
+   void applyScalingJacState(int d, const mfem::Vector &x,
+                             const mfem::Vector &q,
                              const mfem::DenseMatrix &Dw,
                              mfem::DenseMatrix &CDw_jac);
 
    /// Computes the Jacobian of the product `C(q)*Dw` w.r.t. `Dw`
+   /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices   
+   /// \param[in] x - coordinate location at which scaling evaluated (not used)
    /// \param[in] q - state at which the symmetric matrix `C` is evaluated
-   /// \param[out] CDw_jac - Jacobian of product w.r.t. `v` (i.e. `C`)
+   /// \param[in] Dw - vector that is being multiplied
+   /// \param[out] CDw_jac - Jacobian of product w.r.t. `Dw` (i.e. `C`)
    /// \note This uses the CRTP, so it wraps call to a func. in Derived.
-   void applyScalingJacV(int d, const mfem::Vector &q,
-                         const mfem::DenseMatrix &Dw,
-                         mfem::DenseMatrix &CDw_jac);
+   void applyScalingJacDw(int d, const mfem::Vector &x, const mfem::Vector &q,
+                          const mfem::DenseMatrix &Dw,
+                          vector<mfem::DenseMatrix> &CDw_jac);
+
+   /// This allows the base class to access the number of dimensions
+   static const int ndim = dim;
 
 private:
    /// Reynolds number

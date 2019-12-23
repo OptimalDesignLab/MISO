@@ -146,7 +146,8 @@ void ESViscousIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
 }
 
 template <int dim>
-void ESViscousIntegrator<dim>::applyScalingJacState(int d, const mfem::Vector &q,
+void ESViscousIntegrator<dim>::applyScalingJacState(int d, const mfem::Vector &x,
+                                                    const mfem::Vector &q,
                                                     const mfem::DenseMatrix &Dw,
                                                     mfem::DenseMatrix &CDw_jac)
 {
@@ -170,24 +171,17 @@ void ESViscousIntegrator<dim>::applyScalingJacState(int d, const mfem::Vector &q
    mu_Re /= Re;
    applyViscousScaling<adouble, dim>(d, mu_Re, Pr, q_a.data(), Dw_a.data(),
                                      CDw_a.data());
-   //std::cout << "In applyScalingJacState " << std::endl;
-   for (int j = 0; j < dim + 2; j++)
-   {
-      //std::cout <<  CDw_a[j] << std::endl;
-   }
    // identify independent and dependent variables
    this->stack.independent(q_a.data(), q.Size());
-   // test with only one independent variable
-   //this->stack.independent(&q_a[0], 1);
    this->stack.dependent(CDw_a.data(), q.Size());
    // compute and store jacobian in CDw_jac
    this->stack.jacobian(CDw_jac.GetData());
 }
 
 template <int dim>
-void ESViscousIntegrator<dim>::applyScalingJacV(int d, const mfem::Vector &q,
-                                                const mfem::DenseMatrix &Dw,
-                                                mfem::DenseMatrix &CDw_jac)
+void ESViscousIntegrator<dim>::applyScalingJacDw(
+    int d, const mfem::Vector &x, const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw, vector<mfem::DenseMatrix> &CDw_jac)
 {
    // vector of active input variables
    int Dw_size = Dw.Height() * Dw.Width();
@@ -213,7 +207,12 @@ void ESViscousIntegrator<dim>::applyScalingJacV(int d, const mfem::Vector &q,
    this->stack.independent(Dw_a.data(), Dw_size);
    this->stack.dependent(CDw_a.data(), q.Size());
    // compute and store jacobian in CDw_jac
-   this->stack.jacobian(CDw_jac.GetData());
+   mfem::Vector work(dim*this->num_states*this->num_states);
+   this->stack.jacobian(work.GetData());
+   for (int i = 0; i < dim; ++i)
+   {
+      CDw_jac[i] = (work.GetData() + i*this->num_states*this->num_states);
+   }
 }
 
 template <int dim>

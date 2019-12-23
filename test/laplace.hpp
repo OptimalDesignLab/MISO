@@ -40,11 +40,18 @@ public:
       CDu(0) = mu*Du(0,d); // no cross derivatives
    }
 
-   void applyScalingJacState(const mfem::Vector &u,
-                             const mfem::Vector &v,
-                             mfem::DenseMatrix &Cv_jac) {}
+   void applyScalingJacState(int d, const mfem::Vector &x, 
+                             const mfem::Vector &u,
+                             const mfem::DenseMatrix &Du,
+                             mfem::DenseMatrix &CDu_jac) {}
 
-   void applyScalingJacV(const mfem::Vector &u, mfem::DenseMatrix &Cv_jac) {}
+   void applyScalingJacDw(
+      int d, const mfem::Vector &x, const mfem::Vector &u,
+      const mfem::DenseMatrix &Du,
+      std::vector<mfem::DenseMatrix> &CDu_jac) {}
+
+   /// This allows the base class to access the number of dimensions
+   static const int ndim = dim;
 };
 
 /// Integrator for Laplace natural boundaries
