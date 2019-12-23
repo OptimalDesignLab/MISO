@@ -2,6 +2,7 @@
 #define MACH_LINEAR_EVOLVER
 
 #include "mfem.hpp"
+#include "inexact_newton.hpp"
 #include "mach_types.hpp"
 
 namespace mach
@@ -123,8 +124,11 @@ private:
    mfem::Vector x;
    /// Solver for the implicit time marching
    std::unique_ptr<mfem::NewtonSolver> newton_solver;
+   //std::unique_ptr<mfem::InexactNewton> newton_solver;
    /// linear solver in the newton solver
-   std::unique_ptr<mfem::HypreGMRES> linear_solver;
+   std::unique_ptr<mfem::Solver> linear_solver;
+   /// linear system preconditioner for solver in newton solver
+   std::unique_ptr<mfem::Solver> prec;
 };
 
 // /// For implicit time marching of nonlinear problems 

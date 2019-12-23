@@ -71,20 +71,34 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
    : TimeDependentOperator(m.Height()), mass(m), res(r), alpha(a)
 {
 #ifdef MFEM_USE_MPI
+#ifdef MFEM_USE_PETSC
+   // using petsc gmres solver
+   linear_solver.reset(new mfem::PetscLinearSolver(mass.GetComm(), "solver_", 0));
+   prec.reset(new mfem::PetscPreconditioner(mass.GetComm(), "prec_"));
+   dynamic_cast<mfem::PetscLinearSolver *>(linear_solver.get())->SetPreconditioner(*prec);
+   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetAbsTol(1e-10);
+   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-10);
+   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetMaxIter(100);
+   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(2);
+#else
+   //using hypre solver instead
    linear_solver.reset(new mfem::HypreGMRES(mass.GetComm()));
+   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
+   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(1);
+   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
+#endif
    newton_solver.reset(new mfem::NewtonSolver(mass.GetComm()));
+   //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
 #else
    linear_solver.reset(new mfem::HypreGMRES());
    newton_solver.reset(new mfem::NewtonSolver());
 #endif
-   // set parameters for the linear solver
-   linear_solver->SetTol(1e-10);
-   linear_solver->SetPrintLevel(-1);
-   linear_solver->SetMaxIter(100);
+
    // set paramters for the newton solver
    newton_solver->SetRelTol(1e-10);
    newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(-1);
+   newton_solver->SetPrintLevel(1);
+   newton_solver->SetMaxIter(30);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
    newton_solver->SetOperator(*this);

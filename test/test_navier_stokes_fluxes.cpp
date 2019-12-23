@@ -27,7 +27,7 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
    // stores analytical fluxes for all directions
    mfem::DenseMatrix fv(dim + 2, dim);
    // stores entropy variables derivatives along all directions
-   mfem::DenseMatrix del_w(dim + 2, dim);
+   //mfem::DenseMatrix del_w(dim + 2, dim);
    // stores spatial derivatives of primitive variables
    mfem::DenseMatrix del_vxj(dim + 2, dim);
    // stores computed fluxes for all directions
@@ -47,14 +47,16 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
    // viscosity coefficient
    double mu = mach::calcSutherlandViscosity<double, dim>(q) / Re;
    // spatial derivatives of entropy variables
-   for (int j = 0; j < dim; ++j)
-   {
-      for (int i = 0; i < dim + 2; ++i)
-      {
-         del_w(i, j) = 0.02 + (i * 0.01) +
-                       j * 0.02;
-      }
-   }
+   // for (int j = 0; j < dim; ++j)
+   // {
+   //    for (int i = 0; i < dim + 2; ++i)
+   //    {
+   //       del_w(i, j) = 0.02 + (i * 0.01) +
+   //                     j * 0.02;
+   //    }
+   // }
+   // stores entropy variables derivatives along all directions
+   mfem::DenseMatrix del_w(vec_pert, dim + 2, dim);
    // get spatial derivatives of conservative variables
    // and use them to get respective derivatives for primitive variables
    for (int j = 0; j < dim; ++j)
@@ -147,11 +149,11 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
 
    SECTION("applyViscousScaling is correct")
    {
+      double mu_Re = mach::calcSutherlandViscosity<double, dim>(q.GetData());
+      mu_Re /= Re;
       // get flux using c_{hat} matrices
       for (int i = 0; i < dim; ++i)
-      {
-         double mu_Re = mach::calcSutherlandViscosity<double, dim>(q.GetData());
-         mu_Re /= Re;
+      {      
          // no need to initialize `cdwij` here, it's done in the function itself
          mach::applyViscousScaling<double, dim>(i, mu_Re, Pr, q.GetData(), del_w.GetData(), cdwij.GetData());
          for (int s = 0; s < dim + 2; ++s)

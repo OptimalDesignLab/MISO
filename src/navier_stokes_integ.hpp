@@ -7,7 +7,7 @@
 #include "euler_fluxes.hpp"
 #include "navier_stokes_fluxes.hpp"
 using adept::adouble;
-
+using namespace std;
 namespace mach
 {
 
@@ -27,7 +27,8 @@ public:
    ESViscousIntegrator(adept::Stack &diff_stack, double Re_num, double Pr_num,
                        double vis = -1.0, double a = 1.0)
        : SymmetricViscousIntegrator<ESViscousIntegrator<dim>>(
-             diff_stack, dim + 2, a), Re(Re_num), Pr(Pr_num), mu(vis) {}
+             diff_stack, dim + 2, a),
+         Re(Re_num), Pr(Pr_num), mu(vis) {}
 
    /// converts conservative variables to entropy variables
    /// \param[in] q - conservative variables that are to be converted
@@ -47,7 +48,7 @@ public:
    /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
    /// \param[in] x - coordinate location at which scaling evaluated (not used)
    /// \param[in] q - state at which the symmetric matrices `C` are evaluated
-   /// \param[in] Dw - `Du[:,d2]` stores derivative of `w` in direction `d2`. 
+   /// \param[in] Dw - `Du[:,d2]` stores derivative of `w` in direction `d2`.
    /// \param[out] CDw - product of the multiplication between the `C` and `Dw`.
    void applyScaling(int d, const mfem::Vector &x, const mfem::Vector &q,
                      const mfem::DenseMatrix &Dw, mfem::Vector &CDw)
@@ -58,7 +59,7 @@ public:
          mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
       }
       mu_Re /= Re;
-      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(), 
+      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
                                        CDw.GetData());
    }
 
@@ -67,22 +68,24 @@ public:
    /// \param[in] Dw - vector that is being multiplied
    /// \param[out] CDw_jac - Jacobian of product w.r.t. `q`
    /// \note This uses the CRTP, so it wraps call to a func. in Derived.
-   void applyScalingJacState(const mfem::Vector &q,
-                             const mfem::Vector &Dw,
+   void applyScalingJacState(int d, const mfem::Vector &q,
+                             const mfem::DenseMatrix &Dw,
                              mfem::DenseMatrix &CDw_jac);
 
    /// Computes the Jacobian of the product `C(q)*Dw` w.r.t. `Dw`
    /// \param[in] q - state at which the symmetric matrix `C` is evaluated
    /// \param[out] CDw_jac - Jacobian of product w.r.t. `v` (i.e. `C`)
    /// \note This uses the CRTP, so it wraps call to a func. in Derived.
-   void applyScalingJacV(const mfem::Vector &q, mfem::DenseMatrix &CDw_jac);
+   void applyScalingJacV(int d, const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &CDw_jac);
 
 private:
    /// Reynolds number
    double Re;
    /// Prandtl number
    double Pr;
-   /// nondimensional dynamic viscosity 
+   /// nondimensional dynamic viscosity
    double mu;
 };
 
@@ -107,8 +110,9 @@ public:
                          const mfem::Vector &q_ref, double vis = -1.0,
                          double a = 1.0)
        : ViscousBoundaryIntegrator<NoSlipAdiabaticWallBC<dim>>(
-             diff_stack, fe_coll, dim + 2, a), Re(Re_num), Pr(Pr_num),
-             qfs(q_ref), mu(vis), work_vec(dim+2) {}
+             diff_stack, fe_coll, dim + 2, a),
+         Re(Re_num), Pr(Pr_num),
+         qfs(q_ref), mu(vis), work_vec(dim + 2) {}
 
    /// converts conservative variables to entropy variables
    /// \param[in] q - conservative variables that are to be converted
@@ -116,7 +120,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
    /// Compute entropy-stable, no-slip, adiabatic-wall boundary flux
@@ -129,6 +133,30 @@ public:
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
                  const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                  mfem::Vector &flux_vec);
+
+   /// Compute Jacobian of entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// w.r.t states
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux w.r.t. states
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute Jacobian of entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// w.r.t vector of entropy-variables' derivatives
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux w.r.t. entropy-variables' derivatives
+   void calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                     mfem::DenseMatrix &flux_jac);
 
 private:
    /// Reynolds number
@@ -161,9 +189,9 @@ public:
    /// \param[in] vis - viscosity (if negative use Sutherland's law)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    ViscousSlipWallBC(adept::Stack &diff_stack,
-                   const mfem::FiniteElementCollection *fe_coll,
-                   double Re_num, double Pr_num, double vis = -1.0, 
-                   double a = 1.0)
+                     const mfem::FiniteElementCollection *fe_coll,
+                     double Re_num, double Pr_num, double vis = -1.0,
+                     double a = 1.0)
        : ViscousBoundaryIntegrator<ViscousSlipWallBC<dim>>(
              diff_stack, fe_coll, dim + 2, a),
          Re(Re_num), Pr(Pr_num), mu(vis), work_vec(dim + 2) {}
@@ -174,7 +202,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
    /// Compute flux corresponding to a viscous inflow boundary
@@ -187,6 +215,28 @@ public:
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
                  const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                  mfem::Vector &flux_vec);
+
+   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// w.r.t `states`
+   /// \param[in] x - coordinate location at which flux is evaluated 
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// w.r.t `entrpy-variables' derivatives`
+   /// \param[in] x - coordinate location at which flux is evaluated 
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables 
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir,
+                     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                     mfem::DenseMatrix &flux_jac);
 
 private:
    /// Reynolds number
@@ -217,7 +267,7 @@ public:
    ViscousInflowBC(adept::Stack &diff_stack,
                    const mfem::FiniteElementCollection *fe_coll,
                    double Re_num, double Pr_num,
-                   const mfem::Vector &q_inflow, double vis = -1.0, 
+                   const mfem::Vector &q_inflow, double vis = -1.0,
                    double a = 1.0)
        : ViscousBoundaryIntegrator<ViscousInflowBC<dim>>(
              diff_stack, fe_coll, dim + 2, a),
@@ -230,7 +280,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
    /// Compute flux corresponding to a viscous inflow boundary
@@ -243,6 +293,28 @@ public:
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
                  const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                  mfem::Vector &flux_vec);
+
+   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// w.r.t `states`
+   /// \param[in] x - coordinate location at which flux is evaluated 
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// w.r.t `entrpy-variables' derivatives`
+   /// \param[in] x - coordinate location at which flux is evaluated 
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir,
+                     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                     mfem::DenseMatrix &flux_jac);
 
 private:
    /// Reynolds number
@@ -288,7 +360,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
    /// Compute flux corresponding to a viscous inflow boundary
@@ -301,6 +373,28 @@ public:
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
                  const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                  mfem::Vector &flux_vec);
+
+   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// w.r.t `states`
+   /// \param[in] x - coordinate location at which flux is evaluated 
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// w.r.t `entrpy-variables' derivatives`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir,
+                     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                     mfem::DenseMatrix &flux_jac);
 
 private:
    /// Reynolds number
@@ -346,7 +440,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
    /// Compute flux corresponding to a viscous inflow boundary
@@ -364,6 +458,24 @@ public:
                                     work_vec.GetData(), flux_vec.GetData());
    }
 
+   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// w.r.t `states`
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacState(const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// w.r.t `entrpy-variables' derivatives`
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacV(const mfem::Vector &dir,
+                     const mfem::Vector &q,
+                     mfem::DenseMatrix &flux_jac);
+
 private:
    /// Reynolds number
    double Re;
@@ -379,6 +491,6 @@ private:
 
 #include "navier_stokes_integ_def.hpp"
 
-} // namespace mach 
+} // namespace mach
 
 #endif
