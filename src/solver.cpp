@@ -504,7 +504,7 @@ void AbstractSolver<dim>::solveUnsteady()
       double dt_real = min(dt, t_final - t);
       if (ti % 100 == 0)
       {
-         cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+         *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
       }
 #ifdef MFEM_USE_MPI

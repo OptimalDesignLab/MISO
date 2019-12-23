@@ -25,7 +25,7 @@
       "vortex": [1, 1, 1, 0],
       "slip-wall": [0, 0, 0, 1]
    },
-   "steady": false,
+   "steady": true,
    "newtonsolver":{
       "abstol": 1e-10,
       "reltol": 1e-10,

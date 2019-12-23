@@ -20,7 +20,8 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    SymmetricViscousIntegrator(adept::Stack &diff_stack, int num_state_vars = 1,
                               double a = 1.0)
-       : num_states(num_state_vars), alpha(a), stack(diff_stack) {}
+       : num_states(num_state_vars), alpha(a), stack(diff_stack),
+         CDw_jac(Derived::ndim) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -68,6 +69,10 @@ protected:
    mfem::DenseMatrix adjJ_j;
    /// used to store the adjugate of the mapping Jacobian at node j
    mfem::DenseMatrix adjJ_k;
+   /// stores (num_state x num_state) Jacobian terms
+   mfem::DenseMatrix jac_term;
+   /// stores the derivative of scaled derivatives w.r.t. Dw
+   std::vector<std::unique_ptr<mfem::DenseMatrix>> CDw_jac(dim);
 #endif
 
    /// converts working variables to another set (e.g. conservative to entropy)
@@ -79,7 +84,6 @@ protected:
       static_cast<Derived *>(this)->convertVars(u, w);
    }
 
-#if 0
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] u - working states that are to be converted
    /// \param[out] dwdu - Jacobian of transformed variables w.r.t. `u`
@@ -88,42 +92,32 @@ protected:
    {
       static_cast<Derived *>(this)->convertVarsJacState(u, dwdu);
    }
-#endif
 
-   /// applies symmetric matrices \f$ C_{d,:}(u) \f$ to input `Du`
+   /// applies symmetric matrices \f$ C_{d,:}(u) \f$ to input `Dw`
    /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
    /// \param[in] x - coordinate location at which scaling is evaluated  
    /// \param[in] u - state at which the symmetric matrices `C` are evaluated
-   /// \param[in] Du - `Du[:,d2]` stores derivative of `u` in direction `d2`. 
-   /// \param[out] CDu - product of the multiplication between the `C` and `Du`.
+   /// \param[in] Dw - `Dw[:,d2]` stores derivative of `w` in direction `d2`. 
+   /// \param[out] CDw - product of the multiplication between the `C` and `Dw`.
    /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
    void scale(int d, const mfem::Vector &x, const mfem::Vector &u,
-              const mfem::DenseMatrix &Du, mfem::Vector &CDu)
+              const mfem::DenseMatrix &Dw, mfem::Vector &CDw)
    {
-      static_cast<Derived *>(this)->applyScaling(d, x, u, Du, CDu);
+      static_cast<Derived *>(this)->applyScaling(d, x, u, Dw, CDw);
    }
 
-#if 0
-   /// Computes the Jacobian of the product `C(u)*v` w.r.t. `u`
-   /// \param[in] u - state at which the symmetric matrix `C` is evaluated
-   /// \param[in] v - vector that is being multiplied
-   /// \param[out] Cv_jac - Jacobian of product w.r.t. `u`
-   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
-   void scaleJacState(const mfem::Vector &u, const mfem::Vector &v,
-                      mfem::DenseMatrix &Cv_jac)
+   void scaleJacState(int d, const mfem::Vector &x, const mfem::Vector &u,
+                      const mfem::DenseMatrix &Dw, mfem::DenseMatrix &CDw_jac)
    {
-      static_cast<Derived *>(this)->applyScalingJacState(u, v, Cv_jac);
+      static_cast<Derived *>(this)->applyScalingJacState(d, x, u, Dw, CDw_jac);
    }
 
-   /// Computes the Jacobian of the product `C(u)*v` w.r.t. `v`
-   /// \param[in] u - state at which the symmetric matrix `C` is evaluated
-   /// \param[out] Cv_jac - Jacobian of product w.r.t. `v` (i.e. `C`)
-   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
-   void scaleJacV(const mfem::Vector &u, mfem::DenseMatrix &Cv_jac)
+   void scaleJacDw(int d, const mfem::Vector &x, const mfem::Vector &u,
+                   const mfem::DenseMatrix &Dw,
+                   mfem::Array<mfem::DenseMatrix> &CDw_jac)
    {
-      static_cast<Derived *>(this)->applyScalingJacV(u, Cv_jac);
+      static_cast<Derived *>(this)->applyScalingJacDw(d, x, u, Dw, CDw_jac);
    }
-#endif
 
 };
 
