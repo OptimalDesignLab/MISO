@@ -134,6 +134,11 @@ public:
       calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+
    /// Compute entropy-stable, no-slip, adiabatic-wall boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -166,8 +171,8 @@ public:
    /// \param[in] Dw - space derivatives of the entropy variables
    /// \param[out] flux_jac - jacobian of the flux w.r.t. entropy-variables' derivatives
    void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir, double jac,
-                     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                    vector<mfem::DenseMatrix> &flux_jac);
+                      const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac);
 
 private:
    /// Reynolds number
@@ -216,6 +221,11 @@ public:
       calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+
    /// Compute flux corresponding to a viscous inflow boundary
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -231,23 +241,28 @@ public:
    /// w.r.t `states`
    /// \param[in] x - coordinate location at which flux is evaluated 
    /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
    /// \param[out] flux_jac - jacobian of the flux
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         double jac, const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute jacobian of flux corresponding to a viscous inflow boundary
    /// w.r.t `entrpy-variables' derivatives`
    /// \param[in] x - coordinate location at which flux is evaluated 
-   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] dir - vector normal to the boundary at `x` 
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables 
    /// \param[out] flux_jac - jacobian of the flux
    void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
-                     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                     vector<mfem::DenseMatrix> &flux_jac);
+                      double jac, const mfem::Vector &q,
+                      const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac);
+
 private:
    /// Reynolds number
    double Re;
@@ -293,6 +308,11 @@ public:
       calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+
    /// Compute flux corresponding to a viscous inflow boundary
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -308,23 +328,27 @@ public:
    /// w.r.t `states`
    /// \param[in] x - coordinate location at which flux is evaluated 
    /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
    /// \param[out] flux_jac - jacobian of the flux
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         double jac, const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute jacobian of flux corresponding to a viscous inflow boundary
    /// w.r.t `entrpy-variables' derivatives`
    /// \param[in] x - coordinate location at which flux is evaluated 
    /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables
    /// \param[out] flux_jac - jacobian of the flux
-   void calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir,
-                     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                     mfem::DenseMatrix &flux_jac);
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
+                      double jac, const mfem::Vector &q,
+                      const mfem::DenseMatrix &Dw,
+                      vector<mfem::DenseMatrix> &flux_jac);
 
 private:
    /// Reynolds number
@@ -373,6 +397,11 @@ public:
       calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+
    /// Compute flux corresponding to a viscous inflow boundary
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -388,11 +417,13 @@ public:
    /// w.r.t `states`
    /// \param[in] x - coordinate location at which flux is evaluated 
    /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
    /// \param[out] flux_jac - jacobian of the flux
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         double jac, const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute jacobian of flux corresponding to a viscous inflow boundary
@@ -402,9 +433,10 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables
    /// \param[out] flux_jac - jacobian of the flux
-   void calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir,
-                     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                     mfem::DenseMatrix &flux_jac);
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
+                      double jac, const mfem::Vector &q,
+                      const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac);
 
 private:
    /// Reynolds number
@@ -453,6 +485,11 @@ public:
       calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
 
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+
    /// Compute flux corresponding to a viscous inflow boundary
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -468,25 +505,31 @@ public:
                                     work_vec.GetData(), flux_vec.GetData());
    }
 
-    /// Compute jacobian of flux corresponding to a viscous farfield boundary
+   /// Compute jacobian of flux corresponding to a viscous far-field boundary
    /// w.r.t `states`
    /// \param[in] x - coordinate location at which flux is evaluated 
    /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
    /// \param[out] flux_jac - jacobian of the flux
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         double jac, const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
                          mfem::DenseMatrix &flux_jac);
 
-   /// Compute jacobian of flux corresponding to a viscous inflow boundary
+   /// Compute jacobian of flux corresponding to a viscous far-field boundary
    /// w.r.t `entrpy-variables' derivatives`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
    /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
    /// \param[out] flux_jac - jacobian of the flux
-   void calcFluxJacV(const mfem::Vector &dir,
-                     const mfem::Vector &q,
-                     mfem::DenseMatrix &flux_jac);
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
+                      double jac, const mfem::Vector &q,
+                      const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac);
 
 private:
    /// Reynolds number

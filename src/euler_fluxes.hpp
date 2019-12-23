@@ -484,10 +484,9 @@ void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <int dim>
 void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-              const mfem::Vector &q, const mfem::Vector &work_vec,
-              const mfem::Vector &q_ref,
-              const mfem::DenseMatrix &Dw, adept::Stack &stack,
-              mfem::DenseMatrix &flux_jac)
+              const double jac, const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+              const mfem::Vector &q_ref, const mfem::Vector &work_vec,              
+              adept::Stack &stack, mfem::DenseMatrix &flux_jac)
 {
    int Dw_size = Dw.Height() * Dw.Width();
    // create containers for active double objects for each input
