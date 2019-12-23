@@ -174,7 +174,7 @@ public:
                                  const mfem::FiniteElement &el_unused,
                                  mfem::FaceElementTransformations &trans,
                                  const mfem::Vector &elfun,
-                                 mfem::DenseMatrix &elmat) {}
+                                 mfem::DenseMatrix &elmat);
 
 protected: 
    /// number of states
@@ -204,8 +204,12 @@ protected:
    mfem::DenseMatrix adjJ_j;
    /// stores the derivatives in all (physical) space directions at node i
    mfem::DenseMatrix Dwi;
-   /// stores the jacobian of the flux with respect to the state at `u_face`
-   mfem::DenseMatrix flux_jac_face;
+   /// stores various Jacobian terms
+   mfem::DenseMatrix jac_term;
+   /// Jacobian of w variables with respect to states u at node j
+   mfem::DenseMatrix dwduj;
+   /// stores the derivative of C*(D*w) w.r.t. Dw
+   std::vector<mfem::DenseMatrix> fluxDw_jac;
 #endif
 
    /// converts working variables to another set (e.g. conservative to entropy)
@@ -215,6 +219,15 @@ protected:
    void convert(const mfem::Vector &u, mfem::Vector &w)
    {
       static_cast<Derived *>(this)->convertVars(u, w);
+   }
+
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] u - working states that are to be converted
+   /// \param[out] dwdu - Jacobian of transformed variables w.r.t. `u`
+   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
+   void convertJacState(const mfem::Vector &u, mfem::DenseMatrix &dwdu)
+   {
+      static_cast<Derived *>(this)->convertVarsJacState(u, dwdu);
    }
 
    /// Compute a boundary flux function
@@ -247,33 +260,43 @@ protected:
    {
       return static_cast<Derived*>(this)->calcBndryFun(x, dir, u);
    }
-
-   /// Compute a boundary flux function
-   /// \param[in] x - coordinate location at which flux is evaluated
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] u - state at which to evaluate the flux
-   /// \param[out] flux_vec - value of the flux
-   /// \note `x` can be ignored depending on the flux
-   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
-   void flux(const mfem::Vector &x, const mfem::Vector &dir,
-             const mfem::Vector &u, mfem::Vector &flux_vec)
-   {
-      static_cast<Derived*>(this)->calcFlux(x, dir, u, flux_vec);
-   }
+#endif
 
    /// Compute the Jacobian of the boundary flux function w.r.t. `u`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
    /// \param[in] u - state at which to evaluate the flux
    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `u`
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call a func. in Derived.
    void fluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                     const mfem::Vector &u, mfem::DenseMatrix &flux_jac)
+                     double jac, const mfem::Vector &u,
+                     const mfem::DenseMatrix &Dw,
+                     mfem::DenseMatrix &flux_jac)
    {
-      static_cast<Derived*>(this)->calcFluxJacState(x, dir, u, flux_jac);
+      static_cast<Derived *>(this)->calcFluxJacState(x, dir, jac, u, Dw,
+                                                     flux_jac);
    }
    
+   /// Compute the Jacobian of the boundary flux function w.r.t. `u`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
+   /// \param[in] u - state at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `u`
+   /// \note `x` can be ignored depending on the flux
+   /// \note This uses the CRTP, so it wraps a call a func. in Derived.
+   void fluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
+                  double jac, const mfem::Vector &u,
+                  const mfem::DenseMatrix &Dw,
+                  std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      static_cast<Derived *>(this)->calcFluxJacDw(x, dir, jac, u, Dw,
+                                                  flux_jac);
+   }
+
+#if 0
    /// Compute the Jacobian of the boundary flux function w.r.t. `dir`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`

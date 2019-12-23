@@ -1,128 +1,6 @@
 
-template <int dim>
-void NoSlipAdiabaticWallBC<dim>::calcFlux(const mfem::Vector &x,
-                                          const mfem::Vector &dir, double jac,
-                                          const mfem::Vector &q,
-                                          const mfem::DenseMatrix &Dw,
-                                          mfem::Vector &flux_vec)
-{
-   // Step 1: apply the EC slip wall flux
-   calcSlipWallFlux<double, dim>(x.GetData(), dir.GetData(), q.GetData(),
-                                 flux_vec.GetData());
-   // Step 2: evaluate the adiabatic flux
-   double mu_Re = mu;
-   if (mu < 0.0)
-   {
-      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
-   }
-   mu_Re /= Re;
-   calcAdiabaticWallFlux<double, dim>(dir.GetData(), mu_Re, Pr, q.GetData(),
-                                      Dw.GetData(), work_vec.GetData());
-   flux_vec -= work_vec; // note the minus sign!!!
-   // Step 3: evaluate the no-slip penalty
-   calcNoSlipPenaltyFlux<double, dim>(dir.GetData(), jac, mu_Re, Pr, qfs.GetData(),
-                                      q.GetData(), work_vec.GetData());
-   flux_vec += work_vec;
-}
-//To do: do we need `jac` here ?
-template <int dim>
-void ViscousSlipWallBC<dim>::calcFlux(const mfem::Vector &x,
-                                      const mfem::Vector &dir, double jac,
-                                      const mfem::Vector &q,
-                                      const mfem::DenseMatrix &Dw,
-                                      mfem::Vector &flux_vec)
-{
-   // Part 1: apply the inviscid slip wall BCs
-   calcSlipWallFlux<double, dim>(x.GetData(), dir.GetData(), q.GetData(),
-                                 flux_vec.GetData());
-#if 0
-   // Part 2: supply the viscous flux (based on numercial solution)
-   double mu_Re = mu;
-   if (mu < 0.0)
-   {
-      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
-   }
-   mu_Re /= Re;
-
-   calcAdiabaticWallFlux<double, dim>(dir.GetData(), mu_Re, Pr, q.GetData(),
-                                      Dw.GetData(), work_vec.GetData());
-#endif
-#if 0
-   for (int d = 0; d < dim; ++d)
-   {
-      work_vec = 0.0;
-      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
-                                       work_vec.GetData());
-      work_vec *= dir(d);
-      flux_vec -= work_vec;
-   }
-#endif
-}
-//To do: do we need `jac` here ?
-template <int dim>
-void ViscousInflowBC<dim>::calcFlux(const mfem::Vector &x,
-                                    const mfem::Vector &dir, double jac,
-                                    const mfem::Vector &q,
-                                    const mfem::DenseMatrix &Dw,
-                                    mfem::Vector &flux_vec)
-{
-   // Part 1: apply the inviscid inflow boundary condition
-   calcBoundaryFlux<double, dim>(dir.GetData(), q_in.GetData(), q.GetData(),
-                                 work_vec.GetData(), flux_vec.GetData());
-#if 0
-   // Part 2: evaluate the adiabatic flux
-   double mu_Re = mu;
-   if (mu < 0.0)
-   {
-      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
-   }
-   mu_Re /= Re;
-
-   calcAdiabaticWallFlux<double, dim>(dir.GetData(), mu_Re, Pr, q.GetData(),
-                                      Dw.GetData(), work_vec.GetData());
-   flux_vec -= work_vec; // note the minus sign!!!
-#endif
-#if 0
-   for (int d = 0; d < dim; ++d)
-   {
-      work_vec = 0.0;
-      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
-                                       work_vec.GetData());
-      work_vec *= dir[d];
-      flux_vec -= work_vec;      
-   }
-#endif
-}
-//To do: do we need `jac` here ?
-template <int dim>
-void ViscousOutflowBC<dim>::calcFlux(const mfem::Vector &x,
-                                     const mfem::Vector &dir, double jac,
-                                     const mfem::Vector &q,
-                                     const mfem::DenseMatrix &Dw,
-                                     mfem::Vector &flux_vec)
-{
-   // Part 1: apply the inviscid inflow boundary condition
-   calcBoundaryFlux<double, dim>(dir.GetData(), q_out.GetData(), q.GetData(),
-                                 work_vec.GetData(), flux_vec.GetData());
-#if 0
-   // Part 2: evaluate the adiabatic flux
-   double mu_Re = mu;
-   if (mu < 0.0)
-   {
-      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
-   }
-   mu_Re /= Re;
-
-   for (int d = 0; d < dim; ++d)
-   {
-      work_vec = 0.0;
-      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
-                                       work_vec.GetData());
-      work_vec *= dir[d];
-      flux_vec -= work_vec; // note the minus sign!!!
-   }
-#endif
-}
+//==============================================================================
+// ESViscousIntegrator methods
 
 template <int dim>
 void ESViscousIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
@@ -215,10 +93,61 @@ void ESViscousIntegrator<dim>::applyScalingJacDw(
    }
 }
 
+//==============================================================================
+// NoSlipAdiabaticWallBC methods
+
 template <int dim>
-void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir, double jac,
-                                                  const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                                                  mfem::DenseMatrix &flux_jac)
+void NoSlipAdiabaticWallBC<dim>::convertVarsJacState(const mfem::Vector &q,
+                                                     mfem::DenseMatrix &dwdu)
+{
+   // vector of active input variables
+   std::vector<adouble> q_a(q.Size());
+   // initialize adouble inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> w_a(q.Size());
+   // run algorithm
+   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+   // identify independent and dependent variables
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(w_a.data(), q.Size());
+   // compute and store jacobian in dwdu
+   this->stack.jacobian(dwdu.GetData());
+}
+
+template <int dim>
+void NoSlipAdiabaticWallBC<dim>::calcFlux(const mfem::Vector &x,
+                                          const mfem::Vector &dir, double jac,
+                                          const mfem::Vector &q,
+                                          const mfem::DenseMatrix &Dw,
+                                          mfem::Vector &flux_vec)
+{
+   // Step 1: apply the EC slip wall flux
+   calcSlipWallFlux<double, dim>(x.GetData(), dir.GetData(), q.GetData(),
+                                 flux_vec.GetData());
+   // Step 2: evaluate the adiabatic flux
+   double mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
+   mu_Re /= Re;
+   calcAdiabaticWallFlux<double, dim>(dir.GetData(), mu_Re, Pr, q.GetData(),
+                                      Dw.GetData(), work_vec.GetData());
+   flux_vec -= work_vec; // note the minus sign!!!
+   // Step 3: evaluate the no-slip penalty
+   calcNoSlipPenaltyFlux<double, dim>(dir.GetData(), jac, mu_Re, Pr, qfs.GetData(),
+                                      q.GetData(), work_vec.GetData());
+   flux_vec += work_vec;
+}
+
+template <int dim>
+void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(
+    const mfem::Vector &x, const mfem::Vector &dir, double jac,
+    const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+    mfem::DenseMatrix &flux_jac)
 {
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
@@ -268,9 +197,9 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(const mfem::Vector &x, const m
 }
 
 template <int dim>
-void NoSlipAdiabaticWallBC<dim>::calcFluxJacV(const mfem::Vector &x, const mfem::Vector &dir, double jac,
-                                              const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                                              mfem::DenseMatrix &flux_jac)
+void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                                               const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                                               vector<mfem::DenseMatrix> &flux_jac)
 {
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
@@ -315,14 +244,77 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacV(const mfem::Vector &x, const mfem:
    }
    this->stack.independent(Dw_a.data(),Dw_size);
    this->stack.dependent(flux_a.data(), q.Size());
-   this->stack.jacobian(flux_jac.GetData());
+   // compute and store jacobian in CDw_jac
+   mfem::Vector work(dim*this->num_states*this->num_states);
+   this->stack.jacobian(work.GetData());
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = (work.GetData() + i*this->num_states*this->num_states);
+   }
+}
+
+//==============================================================================
+// ViscousSlipWallBC methods
+
+template <int dim>
+void ViscousSlipWallBC<dim>::convertVarsJacState(const mfem::Vector &q,
+                                                 mfem::DenseMatrix &dwdu)
+{
+   // vector of active input variables
+   std::vector<adouble> q_a(q.Size());
+   // initialize adouble inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> w_a(q.Size());
+   // run algorithm
+   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+   // identify independent and dependent variables
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(w_a.data(), q.Size());
+   // compute and store jacobian in dwdu
+   this->stack.jacobian(dwdu.GetData());
 }
 
 template <int dim>
-void ViscousSlipWallBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                                              const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                                              mfem::DenseMatrix &flux_jac)
+void ViscousSlipWallBC<dim>::calcFlux(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   mfem::Vector &flux_vec)
+{
+   // Part 1: apply the inviscid slip wall BCs
+   calcSlipWallFlux<double, dim>(x.GetData(), dir.GetData(), q.GetData(),
+                                 flux_vec.GetData());
+#if 0
+   // Part 2: supply the viscous flux (based on numercial solution)
+   double mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
+   mu_Re /= Re;
 
+   calcAdiabaticWallFlux<double, dim>(dir.GetData(), mu_Re, Pr, q.GetData(),
+                                      Dw.GetData(), work_vec.GetData());
+#endif
+#if 0
+   for (int d = 0; d < dim; ++d)
+   {
+      work_vec = 0.0;
+      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
+                                       work_vec.GetData());
+      work_vec *= dir(d);
+      flux_vec -= work_vec;
+   }
+#endif
+}
+
+template <int dim>
+void ViscousSlipWallBC<dim>::calcFluxJacState(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   mfem::DenseMatrix &flux_jac)
 {
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
@@ -345,10 +337,82 @@ void ViscousSlipWallBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem:
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
 }
+
 template <int dim>
-void ViscousInflowBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                                            const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                                            mfem::DenseMatrix &flux_jac)
+void ViscousSlipWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                                           const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                                           vector<mfem::DenseMatrix> &flux_jac)
+{
+   // Presently, this BC has no dependence on the derivative
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = 0.0;
+   }
+}
+
+//==============================================================================
+// ViscousInflowBC methods
+
+template <int dim>
+void ViscousInflowBC<dim>::convertVarsJacState(const mfem::Vector &q,
+                                               mfem::DenseMatrix &dwdu)
+{
+   // vector of active input variables
+   std::vector<adouble> q_a(q.Size());
+   // initialize adouble inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> w_a(q.Size());
+   // run algorithm
+   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+   // identify independent and dependent variables
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(w_a.data(), q.Size());
+   // compute and store jacobian in dwdu
+   this->stack.jacobian(dwdu.GetData());
+}
+
+template <int dim>
+void ViscousInflowBC<dim>::calcFlux(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   mfem::Vector &flux_vec)
+{
+   // Part 1: apply the inviscid inflow boundary condition
+   calcBoundaryFlux<double, dim>(dir.GetData(), q_in.GetData(), q.GetData(),
+                                 work_vec.GetData(), flux_vec.GetData());
+#if 0
+   // Part 2: evaluate the adiabatic flux
+   double mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
+   mu_Re /= Re;
+
+   calcAdiabaticWallFlux<double, dim>(dir.GetData(), mu_Re, Pr, q.GetData(),
+                                      Dw.GetData(), work_vec.GetData());
+   flux_vec -= work_vec; // note the minus sign!!!
+#endif
+#if 0
+   for (int d = 0; d < dim; ++d)
+   {
+      work_vec = 0.0;
+      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
+                                       work_vec.GetData());
+      work_vec *= dir[d];
+      flux_vec -= work_vec;      
+   }
+#endif
+}
+
+template <int dim>
+void ViscousInflowBC<dim>::calcFluxJacState(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   mfem::DenseMatrix &flux_jac)
 {
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
@@ -376,9 +440,76 @@ void ViscousInflowBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::V
 }
 
 template <int dim>
-void ViscousOutflowBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                                             const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-                                             mfem::DenseMatrix &flux_jac)
+void ViscousInflowBC<dim>::calcFluxJacDw(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   vector<mfem::DenseMatrix> &flux_jac)
+{
+   // Presently, this BC has no dependence on the derivative
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = 0.0;
+   }
+}
+
+//==============================================================================
+// ViscousOutflowBC methods
+
+template <int dim>
+void ViscousOutflowBC<dim>::convertVarsJacState(const mfem::Vector &q,
+                                                mfem::DenseMatrix &dwdu)
+{
+   // vector of active input variables
+   std::vector<adouble> q_a(q.Size());
+   // initialize adouble inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> w_a(q.Size());
+   // run algorithm
+   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+   // identify independent and dependent variables
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(w_a.data(), q.Size());
+   // compute and store jacobian in dwdu
+   this->stack.jacobian(dwdu.GetData());
+}
+
+template <int dim>
+void ViscousOutflowBC<dim>::calcFlux(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   mfem::Vector &flux_vec)
+{
+   // Part 1: apply the inviscid inflow boundary condition
+   calcBoundaryFlux<double, dim>(dir.GetData(), q_out.GetData(), q.GetData(),
+                                 work_vec.GetData(), flux_vec.GetData());
+#if 0
+   // Part 2: evaluate the adiabatic flux
+   double mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
+   mu_Re /= Re;
+
+   for (int d = 0; d < dim; ++d)
+   {
+      work_vec = 0.0;
+      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
+                                       work_vec.GetData());
+      work_vec *= dir[d];
+      flux_vec -= work_vec; // note the minus sign!!!
+   }
+#endif
+}
+
+template <int dim>
+void ViscousOutflowBC<dim>::calcFluxJacState(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   mfem::DenseMatrix &flux_jac)
 {
    int Dw_size = Dw.Height() * Dw.Width();
    // create containers for active double objects for each input
@@ -406,9 +537,47 @@ void ViscousOutflowBC<dim>::calcFluxJacState(const mfem::Vector &x, const mfem::
 }
 
 template <int dim>
-void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &dir,
-                                              const mfem::Vector &q,
-                                              mfem::DenseMatrix &flux_jac)
+void ViscousOutflowBC<dim>::calcFluxJacDw(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   vector<mfem::DenseMatrix> &flux_jac)
+{
+   // Presently, this BC has no dependence on the derivative
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = 0.0;
+   }
+}
+
+//==============================================================================
+// ViscouFarFieldBC methods
+
+template <int dim>
+void ViscousFarFieldBC<dim>::convertVarsJacState(const mfem::Vector &q,
+                                                 mfem::DenseMatrix &dwdu)
+{
+   // vector of active input variables
+   std::vector<adouble> q_a(q.Size());
+   // initialize adouble inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> w_a(q.Size());
+   // run algorithm
+   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+   // identify independent and dependent variables
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(w_a.data(), q.Size());
+   // compute and store jacobian in dwdu
+   this->stack.jacobian(dwdu.GetData());
+}
+
+template <int dim>
+void ViscousFarFieldBC<dim>::calcFluxJacState(
+    const mfem::Vector &x, const mfem::Vector &dir, double jac,
+    const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+    mfem::DenseMatrix &flux_jac)
 {
    // create containers for active double objects for each input
    std::vector<adouble> q_a(q.Size());
@@ -428,4 +597,17 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &dir,
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim>
+void ViscousFarFieldBC<dim>::calcFluxJacDw(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   vector<mfem::DenseMatrix> &flux_jac)
+{
+   // Presently, this BC has no dependence on the derivative
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = 0.0;
+   }
 }

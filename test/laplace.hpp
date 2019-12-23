@@ -76,6 +76,8 @@ public:
    /// \param[out] w - copy of state out
    void convertVars(const mfem::Vector &u, mfem::Vector &w) { w = u; }
 
+   void convertVarsJacState(const mfem::Vector &u, mfem::DenseMatrix &dwdu) {}
+
    /// Compute Laplace natural boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -94,6 +96,16 @@ public:
          flux_vec(0) -= mu*Dw(0,d)*dir(d);
       }
    }
+
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         double jac, const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac) {}
+
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
+                      double jac, const mfem::Vector &q,
+                      const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac) {}
 };
 
 /// Implements a source for verifying the viscous terms

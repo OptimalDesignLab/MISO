@@ -151,7 +151,7 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
             Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
             CalcAdjugate(Trans.Jacobian(), adjJ_k);
             double Qik = sbp.getQEntry(d, i, k, adjJ_i, adjJ_k);
-            
+
             // Contribution to Jacobian due to scaling operation
             for (int sk = 0; sk < num_states; ++sk)
             {
@@ -288,5 +288,137 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
       {
          res(i, s) += alpha*flux_face(s);
       }
+   } // k/i loop
+}
+
+template <typename Derived>
+void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
+    const mfem::FiniteElement &el_bnd, const mfem::FiniteElement &el_unused,
+    mfem::FaceElementTransformations &trans, const mfem::Vector &elfun,
+    mfem::DenseMatrix &elmat)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_bnd);
+   const int num_nodes = el_bnd.GetDof();
+   const int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face, uj, wj, x, nrm, flux_face;
+   DenseMatrix adjJ_i, adjJ_j, Dwi, jac_term, dwduj;
+   vector<DenseMatrix> fluxDw_jac(dim);
+#endif
+   u_face.SetSize(num_states);
+   uj.SetSize(num_states);
+   wj.SetSize(num_states);
+   x.SetSize(dim);
+   nrm.SetSize(dim);
+   flux_face.SetSize(num_states);
+   adjJ_i.SetSize(dim);
+   adjJ_j.SetSize(dim);
+   Dwi.SetSize(num_states, dim);
+   jac_term.SetSize(num_states);
+   dwduj.SetSize(num_states);
+   fluxDw_jac.resize(dim);
+   for (int d = 0; d < dim; ++d)
+   {
+      fluxDw_jac[d].SetSize(num_states);
+   }
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
+
+   const FiniteElement *sbp_face;
+   switch (dim)
+   {
+      case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
+              break;
+      case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+              break;
+      default: throw mach::MachException(
+         "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
+         "\tcannot handle given dimension");
+   }
+   IntegrationPoint el_ip;
+   for (int k = 0; k < sbp_face->GetDof(); ++k)
+   {
+      // convert face index k to element index i, and get node location
+      const IntegrationPoint &face_ip = sbp_face->GetNodes().IntPoint(k);
+      trans.Loc1.Transform(face_ip, el_ip);
+      trans.Elem1->Transform(el_ip, x);
+      int i = sbp.getIntegrationPointIndex(el_ip);
+
+      // get the state at element node i, as well as the mapping adjugate
+      u.GetRow(i, u_face);
+      trans.Elem1->SetIntPoint(&el_ip);
+      double jac_i = trans.Elem1->Weight();
+      double Hinv = 1.0 /(sbp.getDiagNormEntry(i) * jac_i);
+      CalcAdjugate(trans.Elem1->Jacobian(), adjJ_i);
+
+      // compute the (physcial space) derivatives at node i
+      Dwi = 0.0;
+      for (int j = 0; j < num_nodes; ++j)
+      {
+         // Get mapping Jacobian adjugate and transform state to entropy vars
+         trans.Elem1->SetIntPoint(&el_bnd.GetNodes().IntPoint(j));
+         CalcAdjugate(trans.Elem1->Jacobian(), adjJ_j);
+         u.GetRow(j, uj);
+         convert(uj, wj);
+         for (int d = 0; d < dim; ++d)
+         {
+            double Qij = sbp.getQEntry(d, i, j, adjJ_i, adjJ_j);
+            for (int s = 0; s < num_states; ++s)
+            {
+               Dwi(s,d) += Qij * wj(s);
+            }
+         } // d loop
+      } // j loop
+      Dwi *= Hinv;
+
+      // get the normal vector to the face, and then compute the flux
+      trans.Face->SetIntPoint(&face_ip);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      //flux(x, nrm, jac_i, u_face, Dwi, flux_face);
+      fluxJacState(x, nrm, jac_i, u_face, Dwi, jac_term);
+      jac_term *= face_ip.weight;
+
+      // Add contribution due to dependence on state
+      for (int s1 = 0; s1 < num_states; ++s1)
+      {
+         for (int s2 = 0; s2 < num_states; ++s2)
+         {
+            //res(i, s) += alpha*flux_face(s);
+            elmat(s1 * num_nodes + i, s2 * num_nodes + i) +=
+                jac_term(s1, s2);
+         }
+      }
+
+      //flux(x, nrm, jac_i, u_face, Dwi, flux_face);
+      fluxJacDw(x, nrm, jac_i, u_face, Dwi, fluxDw_jac);
+      //flux_jac *= face_ip.weight;
+
+      // Add contribution due to dependence on state derivative
+      for (int j = 0; j < num_nodes; ++j)
+      {
+         // Get mapping Jacobian adjugate and transform state to entropy vars
+         trans.Elem1->SetIntPoint(&el_bnd.GetNodes().IntPoint(j));
+         CalcAdjugate(trans.Elem1->Jacobian(), adjJ_j);
+         u.GetRow(j, uj);
+         //convert(uj, wj);
+         convertJacState(uj, dwduj);
+         for (int d = 0; d < dim; ++d)
+         {
+            double Qij = sbp.getQEntry(d, i, j, adjJ_i, adjJ_j);
+            Mult(fluxDw_jac[d], dwduj, jac_term);
+            jac_term *= (Hinv*Qij*face_ip.weight);
+            for (int si = 0; si < num_states; ++si)
+            {
+               for (int sj = 0; sj < num_states; ++sj)
+               {
+                  // Dwi(s,d) += Qij * wj(s);
+                  elmat(si * num_nodes + i, sj * num_nodes + j) +=
+                      jac_term(si, sj);
+               }
+            }
+         } // d loop
+      } // j loop
    } // k/i loop
 }

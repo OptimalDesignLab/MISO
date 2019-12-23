@@ -176,7 +176,7 @@ TEMPLATE_TEST_CASE_SIG("Slip wall Jacobian", "[ViscousSlipWallBC]",
         DYNAMIC_SECTION("jacobian of Viscous Slip Wall BC w.r.t state is correct")
         {
             mfem::DenseMatrix mat_vec_jac(num_states);
-            viscousslipwall.calcFluxJacState(x, nrm, q, v_mat, mat_vec_jac);
+            viscousslipwall.calcFluxJacState(x, nrm, jac, q, v_mat, mat_vec_jac);
             //mat_vec_jac.Print();
             // loop over each state variable and check column of mat_vec_jac...
             for (int i = 0; i < num_states; ++i)
@@ -245,7 +245,7 @@ TEMPLATE_TEST_CASE_SIG("Viscous inflow Jacobian", "[ViscousInflowBC]",
         DYNAMIC_SECTION("jacobian of viscous inflow bc w.r.t state is correct")
         {
             mfem::DenseMatrix mat_vec_jac(num_states);
-            viscousinflow.calcFluxJacState(x, nrm, q, v_mat, mat_vec_jac);
+            viscousinflow.calcFluxJacState(x, nrm, jac, q, v_mat, mat_vec_jac);
             // loop over each state variable and check column of mat_vec_jac...
             for (int i = 0; i < num_states; ++i)
             {
@@ -313,7 +313,7 @@ TEMPLATE_TEST_CASE_SIG("Viscous outflow Jacobian", "[ViscousOutflowBC]",
         DYNAMIC_SECTION("jacobian of viscous outflow bc w.r.t state is correct")
         {
             mfem::DenseMatrix mat_vec_jac(num_states);
-            viscousoutflow.calcFluxJacState(x, nrm, q, v_mat, mat_vec_jac);
+            viscousoutflow.calcFluxJacState(x, nrm, jac, q, v_mat, mat_vec_jac);
             // loop over each state variable and check column of mat_vec_jac...
             for (int i = 0; i < num_states; ++i)
             {
@@ -381,7 +381,7 @@ TEMPLATE_TEST_CASE_SIG("Viscous farfield Jacobian", "[ViscousFarFieldBC]",
         DYNAMIC_SECTION("jacobian of viscous farfield bc w.r.t state is correct")
         {
             mfem::DenseMatrix mat_vec_jac(num_states);
-            viscousfarfield.calcFluxJacState(nrm, q, mat_vec_jac);
+            viscousfarfield.calcFluxJacState(x, nrm, jac, q, v_mat, mat_vec_jac);
             // loop over each state variable and check column of mat_vec_jac...
             for (int i = 0; i < num_states; ++i)
             {
@@ -404,7 +404,6 @@ TEMPLATE_TEST_CASE_SIG("Viscous farfield Jacobian", "[ViscousFarFieldBC]",
         }
     }
 }
-
 
 TEST_CASE("ESViscousIntegrator::AssembleElementGrad", "[ESViscousIntegrator]")
 {
@@ -466,3 +465,75 @@ TEST_CASE("ESViscousIntegrator::AssembleElementGrad", "[ESViscousIntegrator]")
       }
    }
 }
+
+TEST_CASE("NoSlipAdiabaticWallBC::AssembleFaceGrad", "[NpSlipBC]")
+{
+   using namespace mfem;
+   using namespace euler_data;
+
+   const int dim = 2; // templating is hard here because mesh constructors
+   int num_state = dim + 2;
+   const double Re_num = 1.0;
+   const double Pr_num = 1.0;
+   const double vis = -1.0; // use Sutherland's law
+   adept::Stack diff_stack;
+   double delta = 1e-5;
+
+   Vector q_ref(dim+2);
+   q_ref(0) = rho; 
+   q_ref(dim + 1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q_ref(di + 1) = rhou[di];
+   }
+
+   // generate a 2 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
+                                       true /* gen. edges */, 1.0, 1.0, true));
+   for (int p = 1; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+             new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+
+         NonlinearForm res(fes.get());
+         res.AddBdrFaceIntegrator(
+            new mach::NoSlipAdiabaticWallBC<dim>(diff_stack, fec.get(), Re_num,
+                                                 Pr_num, q_ref, vis));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         q.ProjectCoefficient(pert);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator &Jac = res.GetGradient(q);
+         GridFunction jac_v(fes.get());
+         Jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+         q_pert.Add(-delta, v);
+         res.Mult(q_pert, r);
+         q_pert.Add(2 * delta, v);
+         res.Mult(q_pert, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2 * delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+         }
+      }
+   }
+}
+
