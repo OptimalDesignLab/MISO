@@ -475,6 +475,30 @@ void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
    }
    flux[dim + 1] = 0.0;
 }
+/// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+/// \param[in] q - conservative variables that are to be converted
+/// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+template <int dim>
+void convertVarsJac(const mfem::Vector &q, adept::Stack &stack, 
+                        mfem::DenseMatrix &dwdu)
+{
+   // vector of active input variables
+   std::vector<adouble> q_a(q.Size());
+   // initialize adouble inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start recording
+   stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> w_a(q.Size());
+   // run algorithm
+   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+   // identify independent and dependent variables
+   stack.independent(q_a.data(), q.Size());
+   stack.dependent(w_a.data(), q.Size());
+   // compute and store jacobian in dwdu
+   stack.jacobian(dwdu.GetData());
+}
+
 // computes an adjoint consistent slip wall boundary condition
 /// \param[in] x - not used
 /// \param[in] dir - desired (scaled) normal vector to the wall
@@ -484,9 +508,9 @@ void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <int dim>
 void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-              const double jac, const mfem::Vector &q, const mfem::DenseMatrix &Dw,
-              const mfem::Vector &q_ref, const mfem::Vector &work_vec,              
-              adept::Stack &stack, mfem::DenseMatrix &flux_jac)
+                      const double jac, const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                      const mfem::Vector &q_ref, const mfem::Vector &work_vec,
+                      adept::Stack &stack, mfem::DenseMatrix &flux_jac)
 {
    int Dw_size = Dw.Height() * Dw.Width();
    // create containers for active double objects for each input

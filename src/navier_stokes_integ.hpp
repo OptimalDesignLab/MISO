@@ -44,7 +44,10 @@ public:
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted
    /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
-   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      convertVarsJac<dim>(q, this->stack, dwdu);
+   }
 
    /// applies symmetric matrices \f$ C_{d,:}(q) \f$ to input `Dw`
    /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
@@ -137,7 +140,10 @@ public:
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted
    /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
-   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      convertVarsJac<dim>(q, this->stack, dwdu);
+   }
 
    /// Compute entropy-stable, no-slip, adiabatic-wall boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
@@ -224,8 +230,10 @@ public:
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted
    /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
-   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
-
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      convertVarsJac<dim>(q, this->stack, dwdu);
+   }
    /// Compute flux corresponding to a viscous inflow boundary
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -311,7 +319,10 @@ public:
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted
    /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
-   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      convertVarsJac<dim>(q, this->stack, dwdu);
+   }
 
    /// Compute flux corresponding to a viscous inflow boundary
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
@@ -400,7 +411,10 @@ public:
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted
    /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
-   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      convertVarsJac<dim>(q, this->stack, dwdu);
+   }
 
    /// Compute flux corresponding to a viscous inflow boundary
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
@@ -488,7 +502,10 @@ public:
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted
    /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
-   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      convertVarsJac<dim>(q, this->stack, dwdu);
+   }
 
    /// Compute flux corresponding to a viscous inflow boundary
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
