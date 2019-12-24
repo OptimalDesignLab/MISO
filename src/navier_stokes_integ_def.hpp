@@ -331,8 +331,8 @@ void ViscousInflowBC<dim>::calcFluxJacState(
    mfem::DenseMatrix &flux_jac)
 {
    // function defined in euler_fluxes.hpp
-   mach::calcFluxJacState<dim>(x, dir, jac, q,  Dw, q_in, work_vec, this->stack, flux_jac);
-   #if 0
+   mach::calcFluxJacState<dim>(x, dir, jac, q, Dw, q_in, work_vec, this->stack, flux_jac);
+#if 0
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
    std::vector<adouble> q_a(q.Size());
@@ -356,7 +356,7 @@ void ViscousInflowBC<dim>::calcFluxJacState(
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
-   #endif
+#endif
 }
 
 template <int dim>
@@ -384,6 +384,7 @@ void ViscousOutflowBC<dim>::calcFlux(
    // Part 1: apply the inviscid inflow boundary condition
    calcBoundaryFlux<double, dim>(dir.GetData(), q_out.GetData(), q.GetData(),
                                  work_vec.GetData(), flux_vec.GetData());
+#if 0
    // Part 2: evaluate the adiabatic flux
    double mu_Re = mu;
    if (mu < 0.0)
@@ -400,6 +401,7 @@ void ViscousOutflowBC<dim>::calcFlux(
       work_vec *= dir[d];
       flux_vec -= work_vec; // note the minus sign!!!
    }
+#endif
 }
 
 template <int dim>
@@ -408,7 +410,8 @@ void ViscousOutflowBC<dim>::calcFluxJacState(
    const mfem::Vector &q, const mfem::DenseMatrix &Dw,
    mfem::DenseMatrix &flux_jac)
 {
-   // mach::calcFluxJacState<dim>(x, dir, jac, q,  Dw, q_out, work_vec, this->stack, flux_jac);
+   mach::calcFluxJacState<dim>(x, dir, jac, q, Dw, q_out, work_vec, this->stack, flux_jac);
+#if 0
    int Dw_size = Dw.Height() * Dw.Width();
    // create containers for active double objects for each input
    std::vector<adouble> q_a(q.Size());
@@ -454,7 +457,7 @@ void ViscousOutflowBC<dim>::calcFluxJacState(
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
-  
+#endif
 }
 
 template <int dim>
@@ -479,8 +482,8 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(
     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
     mfem::DenseMatrix &flux_jac)
 {
-   mach::calcFluxJacState<dim>(x, dir, jac, q,  Dw, qfs, work_vec, this->stack, flux_jac);
-   #if 0
+   mach::calcFluxJacState<dim>(x, dir, jac, q, Dw, qfs, work_vec, this->stack, flux_jac);
+#if 0
    // create containers for active double objects for each input
    std::vector<adouble> q_a(q.Size());
    std::vector<adouble> dir_a(dir.Size());
@@ -499,7 +502,7 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
-   #endif
+#endif
 }
 
 template <int dim>
