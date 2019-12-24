@@ -3,27 +3,6 @@
 // ESViscousIntegrator methods
 
 template <int dim>
-void ESViscousIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
-                                                   mfem::DenseMatrix &dwdu)
-{
-   // vector of active input variables
-   std::vector<adouble> q_a(q.Size());
-   // initialize adouble inputs
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   // start recording
-   this->stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> w_a(q.Size());
-   // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
-   // identify independent and dependent variables
-   this->stack.independent(q_a.data(), q.Size());
-   this->stack.dependent(w_a.data(), q.Size());
-   // compute and store jacobian in dwdu
-   this->stack.jacobian(dwdu.GetData());
-}
-
-template <int dim>
 void ESViscousIntegrator<dim>::applyScalingJacState(int d, const mfem::Vector &x,
                                                     const mfem::Vector &q,
                                                     const mfem::DenseMatrix &Dw,
@@ -95,27 +74,6 @@ void ESViscousIntegrator<dim>::applyScalingJacDw(
 
 //==============================================================================
 // NoSlipAdiabaticWallBC methods
-
-template <int dim>
-void NoSlipAdiabaticWallBC<dim>::convertVarsJacState(const mfem::Vector &q,
-                                                     mfem::DenseMatrix &dwdu)
-{
-   // vector of active input variables
-   std::vector<adouble> q_a(q.Size());
-   // initialize adouble inputs
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   // start recording
-   this->stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> w_a(q.Size());
-   // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
-   // identify independent and dependent variables
-   this->stack.independent(q_a.data(), q.Size());
-   this->stack.dependent(w_a.data(), q.Size());
-   // compute and store jacobian in dwdu
-   this->stack.jacobian(dwdu.GetData());
-}
 
 template <int dim>
 void NoSlipAdiabaticWallBC<dim>::calcFlux(const mfem::Vector &x,
@@ -257,27 +215,6 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem
 // ViscousSlipWallBC methods
 
 template <int dim>
-void ViscousSlipWallBC<dim>::convertVarsJacState(const mfem::Vector &q,
-                                                 mfem::DenseMatrix &dwdu)
-{
-   // vector of active input variables
-   std::vector<adouble> q_a(q.Size());
-   // initialize adouble inputs
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   // start recording
-   this->stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> w_a(q.Size());
-   // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
-   // identify independent and dependent variables
-   this->stack.independent(q_a.data(), q.Size());
-   this->stack.dependent(w_a.data(), q.Size());
-   // compute and store jacobian in dwdu
-   this->stack.jacobian(dwdu.GetData());
-}
-
-template <int dim>
 void ViscousSlipWallBC<dim>::calcFlux(
    const mfem::Vector &x, const mfem::Vector &dir, double jac,
    const mfem::Vector &q, const mfem::DenseMatrix &Dw,
@@ -354,27 +291,6 @@ void ViscousSlipWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem::Ve
 // ViscousInflowBC methods
 
 template <int dim>
-void ViscousInflowBC<dim>::convertVarsJacState(const mfem::Vector &q,
-                                               mfem::DenseMatrix &dwdu)
-{
-   // vector of active input variables
-   std::vector<adouble> q_a(q.Size());
-   // initialize adouble inputs
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   // start recording
-   this->stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> w_a(q.Size());
-   // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
-   // identify independent and dependent variables
-   this->stack.independent(q_a.data(), q.Size());
-   this->stack.dependent(w_a.data(), q.Size());
-   // compute and store jacobian in dwdu
-   this->stack.jacobian(dwdu.GetData());
-}
-
-template <int dim>
 void ViscousInflowBC<dim>::calcFlux(
    const mfem::Vector &x, const mfem::Vector &dir, double jac,
    const mfem::Vector &q, const mfem::DenseMatrix &Dw,
@@ -414,6 +330,9 @@ void ViscousInflowBC<dim>::calcFluxJacState(
    const mfem::Vector &q, const mfem::DenseMatrix &Dw,
    mfem::DenseMatrix &flux_jac)
 {
+   // function defined in euler_fluxes.hpp
+   mach::calcFluxJacState<dim>(x, dir, jac, q,  Dw, q_in, work_vec, this->stack, flux_jac);
+   #if 0
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
    std::vector<adouble> q_a(q.Size());
@@ -437,6 +356,7 @@ void ViscousInflowBC<dim>::calcFluxJacState(
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+   #endif
 }
 
 template <int dim>
@@ -456,27 +376,6 @@ void ViscousInflowBC<dim>::calcFluxJacDw(
 // ViscousOutflowBC methods
 
 template <int dim>
-void ViscousOutflowBC<dim>::convertVarsJacState(const mfem::Vector &q,
-                                                mfem::DenseMatrix &dwdu)
-{
-   // vector of active input variables
-   std::vector<adouble> q_a(q.Size());
-   // initialize adouble inputs
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   // start recording
-   this->stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> w_a(q.Size());
-   // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
-   // identify independent and dependent variables
-   this->stack.independent(q_a.data(), q.Size());
-   this->stack.dependent(w_a.data(), q.Size());
-   // compute and store jacobian in dwdu
-   this->stack.jacobian(dwdu.GetData());
-}
-
-template <int dim>
 void ViscousOutflowBC<dim>::calcFlux(
    const mfem::Vector &x, const mfem::Vector &dir, double jac,
    const mfem::Vector &q, const mfem::DenseMatrix &Dw,
@@ -485,7 +384,6 @@ void ViscousOutflowBC<dim>::calcFlux(
    // Part 1: apply the inviscid inflow boundary condition
    calcBoundaryFlux<double, dim>(dir.GetData(), q_out.GetData(), q.GetData(),
                                  work_vec.GetData(), flux_vec.GetData());
-#if 0
    // Part 2: evaluate the adiabatic flux
    double mu_Re = mu;
    if (mu < 0.0)
@@ -502,7 +400,6 @@ void ViscousOutflowBC<dim>::calcFlux(
       work_vec *= dir[d];
       flux_vec -= work_vec; // note the minus sign!!!
    }
-#endif
 }
 
 template <int dim>
@@ -511,6 +408,7 @@ void ViscousOutflowBC<dim>::calcFluxJacState(
    const mfem::Vector &q, const mfem::DenseMatrix &Dw,
    mfem::DenseMatrix &flux_jac)
 {
+   // mach::calcFluxJacState<dim>(x, dir, jac, q,  Dw, q_out, work_vec, this->stack, flux_jac);
    int Dw_size = Dw.Height() * Dw.Width();
    // create containers for active double objects for each input
    std::vector<adouble> q_a(q.Size());
@@ -529,11 +427,34 @@ void ViscousOutflowBC<dim>::calcFluxJacState(
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
+   // Part 1: apply the inviscid inflow boundary condition
    mach::calcBoundaryFlux<adouble, dim>(dir_a.data(), q_out_a.data(), q_a.data(),
                                         work_vec_a.data(), flux_a.data());
+   // Part 2: evaluate the adiabatic flux
+   adouble mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
+   mu_Re /= Re;
+   for (int d = 0; d < dim; ++d)
+   {
+      for (int i = 0; i < work_vec_a.size(); ++i)
+      {
+         work_vec_a[i] = 0.0;
+      }
+      applyViscousScaling<adouble, dim>(d, mu_Re, Pr, q_a.data(), Dw_a.data(),
+                                       work_vec_a.data());
+      for (int i = 0; i < flux_a.size(); ++i)
+      {
+         work_vec_a[i] *= dir_a[d];
+         flux_a[i] -= work_vec_a[i]; // note the minus sign!!!
+      }
+   }
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+  
 }
 
 template <int dim>
@@ -553,32 +474,13 @@ void ViscousOutflowBC<dim>::calcFluxJacDw(
 // ViscouFarFieldBC methods
 
 template <int dim>
-void ViscousFarFieldBC<dim>::convertVarsJacState(const mfem::Vector &q,
-                                                 mfem::DenseMatrix &dwdu)
-{
-   // vector of active input variables
-   std::vector<adouble> q_a(q.Size());
-   // initialize adouble inputs
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   // start recording
-   this->stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> w_a(q.Size());
-   // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
-   // identify independent and dependent variables
-   this->stack.independent(q_a.data(), q.Size());
-   this->stack.dependent(w_a.data(), q.Size());
-   // compute and store jacobian in dwdu
-   this->stack.jacobian(dwdu.GetData());
-}
-
-template <int dim>
 void ViscousFarFieldBC<dim>::calcFluxJacState(
     const mfem::Vector &x, const mfem::Vector &dir, double jac,
     const mfem::Vector &q, const mfem::DenseMatrix &Dw,
     mfem::DenseMatrix &flux_jac)
 {
+   mach::calcFluxJacState<dim>(x, dir, jac, q,  Dw, qfs, work_vec, this->stack, flux_jac);
+   #if 0
    // create containers for active double objects for each input
    std::vector<adouble> q_a(q.Size());
    std::vector<adouble> dir_a(dir.Size());
@@ -597,6 +499,7 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+   #endif
 }
 
 template <int dim>
