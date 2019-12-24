@@ -201,7 +201,6 @@ public:
    /// \param[in] fe_coll - used to determine the face elements
    /// \param[in] Re_num - Reynolds number
    /// \param[in] Pr_num - Prandtl number
-   /// \param[in] q_inflow - state at the inflow
    /// \param[in] vis - viscosity (if negative use Sutherland's law)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    ViscousSlipWallBC(adept::Stack &diff_stack,
