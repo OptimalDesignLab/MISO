@@ -114,6 +114,18 @@ void NavierStokesSolver<dim>::addBoundaryIntegrators(double alpha)
           this->bndry_marker[idx]);
       idx++;
    }
+   if (bcs.find("viscous-shock") != bcs.end())
+   { 
+      // viscous shock boundary conditions
+      vector<int> tmp = bcs["viscous-shock"].template get<vector<int>>();
+      this->bndry_marker[idx].SetSize(tmp.size(), 0);
+      this->bndry_marker[idx].Assign(tmp.data());
+      this->res->AddBdrFaceIntegrator(
+          new ViscousExactBC<dim>(this->diff_stack, this->fec.get(), re_fs,
+                                  pr_fs, shockExact, mu, alpha),
+          this->bndry_marker[idx]);
+      idx++;
+   }
 }
 
 template <int dim>
@@ -160,6 +172,52 @@ void NavierStokesSolver<dim>::getViscousOutflowState(Vector &q_out)
 template class NavierStokesSolver<2>;
 //template class NavierStokesSolver<3>;
 
+double shockEquation(double Re, double Ma, double v)
+{
+   double vf = (2.0 + euler::gami * Ma * Ma) / ((euler::gamma + 1) * Ma * Ma);
+   double alpha = (8*euler::gamma)/(3*(euler::gamma+1)*Re*Ma);
+   double r = (1 + vf) / (1 - vf);
+   double a = abs((v - 1) * (v - vf));
+   double b = (1 + vf) / (1 - vf);
+   double c = abs((v - 1) / (v - vf));
+   return 0.5 * alpha * (log(a) + b * log(c));
+}
+
+// Exact solution
+void shockExact(const mfem::Vector &x, mfem::Vector& u)
+{
+   double Re = 10.0; // !!!!! Values from options file are ignored
+   double Ma = 2.5;
+   double vf = (2.0 + euler::gami*Ma*Ma)/((euler::gamma + 1)*Ma*Ma);
+   double v;
+   double ftol = 1e-10;
+   double xtol = 1e-10;
+   int maxiter = 50;
+   if (x(0) < -1.25) 
+   {
+      v = 1.0;
+   }
+   else if (x(0) > 0.4) 
+   {
+      v = vf;
+   }
+   else
+   {
+      // define a lambda function for equation (7.5)
+      auto func = [&](double vroot)
+      {
+         return x(0) - shockEquation(Re, Ma, vroot);
+      };
+      v = bisection(func, 1.0000001*vf, 0.9999999, ftol, xtol, maxiter);
+   }
+   double vel = v*Ma;
+   u(0) = Ma/vel;  // rho*u = M_L
+   u(1) = Ma;
+   u(2) = 0.0;
+   u(3) = 0.5 * (euler::gamma + 1) * vf * u(0) * Ma * Ma /
+              (euler::gamma * euler::gami) +
+          euler::gami * Ma * vel / (2 * euler::gamma);
+}
 
 } // namespace mach 
 

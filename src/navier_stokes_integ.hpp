@@ -560,6 +560,103 @@ private:
    mfem::Vector work_vec;
 };
 
+/// Integrator for exact, prescribed BCs (with zero normal derivative)
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim>
+class ViscousExactBC : public ViscousBoundaryIntegrator<ViscousExactBC<dim>>
+{
+public:
+   /// Constructs an integrator for a viscous exact BCs
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] q_far - state at the far-field
+   /// \param[in] vis - viscosity (if negative use Sutherland's law)
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   ViscousExactBC(adept::Stack &diff_stack,
+                  const mfem::FiniteElementCollection *fe_coll,
+                  double Re_num, double Pr_num,
+                  void (*fun)(const mfem::Vector &, mfem::Vector &),
+                  double vis = -1.0, double a = 1.0)
+       : ViscousBoundaryIntegrator<ViscousExactBC<dim>>(
+             diff_stack, fe_coll, dim + 2, a),
+         Re(Re_num), Pr(Pr_num),
+         mu(vis), qexact(dim + 2), work_vec(dim + 2)
+   {
+      exactSolution = fun;
+   }
+
+   /// converts conservative variables to entropy variables
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] w - entropy variables corresponding to `q`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &q, mfem::Vector &w)
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   }
+
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      convertVarsJac<dim>(q, this->stack, dwdu);
+   }
+
+   /// Compute flux corresponding to an exact solution
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                 const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                 mfem::Vector &flux_vec);
+
+   /// Compute jacobian of flux corresponding to an exact solution
+   /// w.r.t `states`
+   /// \param[in] x - coordinate location at which flux is evaluated 
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         double jac, const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute jacobian of flux corresponding to an exact solution
+   /// w.r.t `entrpy-variables' derivatives`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
+                      double jac, const mfem::Vector &q,
+                      const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac);
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
+   /// nondimensionalized dynamic viscosity
+   double mu;
+   /// Function to evaluate the exact solution at a given x value
+   void (*exactSolution)(const mfem::Vector &, mfem::Vector &);
+   /// far-field boundary state
+   mfem::Vector qexact;
+   /// work space for flux computations
+   mfem::Vector work_vec;
+};
+
 #include "navier_stokes_integ_def.hpp"
 
 } // namespace mach

@@ -32,6 +32,30 @@ xdouble calcSutherlandViscosity(const xdouble *q)
    return a3*(1.0 + navierstokes::ST)/(a2 + navierstokes::ST);
 }
 
+template <typename xdouble, int dim>
+void setZeroNormalDeriv(const xdouble *dir, const xdouble *Dw, xdouble *Dwt)
+{
+   xdouble nrm[dim];
+   xdouble fac = 1.0 / sqrt(dot<xdouble, dim>(dir, dir));
+   int num_state = dim+2;
+   for (int i = 0; i < dim; ++i)
+   {
+      nrm[i] = dir[i] * fac;
+   }
+   for (int s = 0; s < dim+2; ++s)
+   {
+      xdouble Dw_nrm = 0.0;
+      for (int i = 0; i < dim; ++i)
+      {
+         Dw_nrm += Dw[s + i*num_state]*nrm[i];
+      }
+      for (int i = 0; i < dim; ++i)
+      {
+         Dwt[s + i*num_state] = Dw[s + i*num_state] - nrm[i]*Dw_nrm;
+      }
+   }
+}
+
 /// Applies the matrix `Cij` to `dW/dX`
 /// \param[in] i - index `i` in `Cij` matrix
 /// \param[in] j - index `j` in `Cij` matrix is calculated

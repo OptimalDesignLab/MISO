@@ -9,31 +9,6 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
-/// Find root of `func` using bisection
-/// \param[in] func - function to find root of 
-/// \param[in] xl - left bracket of root
-/// \param[in] xr - right bracket of root
-/// \param[in] ftol - absolute tolerance for root function
-/// \param[in] xtol - absolute tolerance for root value
-/// \param[in] maxiter - maximum number of iterations
-double bisection(std::function<double(double)> func, double xl, double xr,
-                 double ftol, double xtol, int maxiter);
-
-/// Defines the right-hand side of Equation (7.5) in "Entropy stable spectral
-/// collocation schemes for the Navier-Stokes questions: discontinuous
-/// interfaces."  See also Fisher's thesis in the appendix, but note that the 
-/// value of alpha listed there is incorrect!!!
-/// \param[in] Re - Reynolds number
-/// \param[in] Ma - Mach number
-/// \param[in] v - velocity ration u/u_L
-/// \returns the right hand side of Equation (7.5)
-double shockEquation(double Re, double Ma, double v);
-
-/// Defines the exact solution for the steady viscous shock.
-/// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - conservative variables stored as a 4-vector
-void uexact(const mfem::Vector &x, mfem::Vector& u);
-
 /// Generate smoothly perturbed mesh 
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_x - number of nodes in the x direction
@@ -42,13 +17,30 @@ std::unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y);
 
 int main(int argc, char *argv[])
 {
+   const char *options_file = "viscous_shock_options.json";
+
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "eulersteady.petsc";
+   //Get the option files
+   nlohmann::json options;
+   ifstream option_source(options_file);
+   option_source >> options;
+   // write the petsc linear solver options from options
+   ofstream petscoptions(petscrc_file);
+   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
+   const string prec_name = options["petscsolver"]["pctype"].get<string>();
+   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
+   petscoptions << "-prec_pc_type " << prec_name << '\n';
+   petscoptions.close();
+#endif
+
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "viscous_shock_options.json";
+
    int degree = 2.0;
    int nx = 20;
    int ny = 2;
@@ -63,6 +55,10 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
+
+#ifdef MFEM_USE_PETSC
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+#endif
 
    try
    {
@@ -79,12 +75,12 @@ int main(int argc, char *argv[])
       solver->initDerived();
 
       // Define the initial condition function
-      solver->setInitialCondition(uexact);
+      solver->setInitialCondition(shockExact);
       solver->printSolution("init", degree+1);
       solver->printResidual("init-res", degree+1);
 
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver->calcL2Error(uexact, 0) << '\n' << endl;
+                << solver->calcL2Error(shockExact, 0) << '\n' << endl;
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
 
@@ -92,7 +88,7 @@ int main(int argc, char *argv[])
       solver->printSolution("final", degree+1);
 
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver->calcL2Error(uexact, 0) << '\n' << endl;
+                << solver->calcL2Error(shockExact, 0) << '\n' << endl;
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
 
@@ -108,96 +104,6 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
-}
-
-double bisection(std::function<double(double)> func, double xl, double xr,
-                 double ftol, double xtol, int maxiter)
-{
-
-   double fl = func(xl);
-   double fr = func(xr);
-   if (fl*fr > 0.0)
-   {
-      cerr << "bisection: func(xl)*func(xr) is positive." << endl;
-      throw(-1);
-   }
-   double xm = 0.5*(xl + xr);
-   double fm = func(xm);
-   int iter = 0;
-   while ( (abs(fm) > ftol) && (abs(xr - xl) > xtol) && (iter < maxiter) )
-   {
-      iter++;
-      //cout << "iter = " << iter << ": f(x) = " << fm << endl;
-      if (fm*fl < 0.0)
-      {
-         xr = xm;
-         fr = fm;
-      }
-      else if (fm*fr < 0.0)
-      {
-         xl = xm;
-         fl = fm;
-      }
-      else {
-         break;
-      }
-      xm = 0.5*(xl + xr);
-      fm = func(xm);
-   }
-   if (iter >= maxiter)
-   {
-      cerr << "bisection: failed to find a solution in maxiter." << endl;
-      throw(-1);
-   }
-   return xm;
-}
-
-double shockEquation(double Re, double Ma, double v)
-{
-   double vf = (2.0 + euler::gami * Ma * Ma) / ((euler::gamma + 1) * Ma * Ma);
-   double alpha = (8*euler::gamma)/(3*(euler::gamma+1)*Re*Ma);
-   double r = (1 + vf) / (1 - vf);
-   double a = abs((v - 1) * (v - vf));
-   double b = (1 + vf) / (1 - vf);
-   double c = abs((v - 1) / (v - vf));
-   return 0.5 * alpha * (log(a) + b * log(c));
-}
-
-// Exact solution
-void uexact(const mfem::Vector &x, mfem::Vector& u)
-{
-   double Re = 10.0; // !!!!! Values from options file are ignored
-   double Ma = 2.5;
-   double vf = (2.0 + euler::gami*Ma*Ma)/((euler::gamma + 1)*Ma*Ma);
-   double v;
-   double ftol = 1e-10;
-   double xtol = 1e-10;
-   int maxiter = 50;
-   if (x(0) < -1.25) 
-   {
-      v = 1.0;
-   }
-   else if (x(0) > 0.4) 
-   {
-      v = vf;
-   }
-   else
-   {
-      // define a lambda function for equation (7.5)
-      auto func = [&](double vroot)
-      {
-         return x(0) - shockEquation(Re, Ma, vroot);
-      };
-      v = bisection(func, 1.0000001*vf, 0.9999999, ftol, xtol, maxiter);
-   }
-
-   double vel = v*Ma;
-   u(0) = Ma/vel;  // rho*u = M_L
-   u(1) = Ma;
-   u(2) = 0.0;
-   u(3) = 0.5 * (euler::gamma + 1) * vf * u(0) * Ma * Ma /
-              (euler::gamma * euler::gami) +
-          euler::gami * Ma * vel / (2 * euler::gamma);
 }
 
 std::unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y)

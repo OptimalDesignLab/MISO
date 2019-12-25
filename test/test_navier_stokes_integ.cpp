@@ -644,6 +644,80 @@ TEMPLATE_TEST_CASE_SIG("Viscous farfield Jacobian", "[ViscousFarFieldBC]",
     }
 }
 
+TEMPLATE_TEST_CASE_SIG("Viscous Exact BC Jacobian", "[VisExactBC]",
+                       ((int dim), dim), 2)
+{
+   // Simple function to act as the exact solution
+   auto exact = [](const mfem::Vector& x, mfem::Vector &q)
+   {
+      q(0) = 0.9856566615165173;
+      q(1) = 0.09595562550099601;
+      q(2) = -0.030658751626551423;
+      q(3) = 2.061597236955558;
+   };
+
+   using namespace euler_data;
+   double delta = 1e-5;
+   int num_states = dim + 2;
+   double Re_num = 1;
+   double Pr_num = 1;
+   double mu = 1;
+   double jac = 1;
+   // construct state vec
+   mfem::Vector q(num_states);
+   mfem::Vector nrm(dim);
+   for (int di = 0; di < dim; ++di)
+   {
+      nrm(di) = dir[di];
+   }
+   q(0) = rho;
+   q(dim + 1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di + 1) = rhou[di];
+   }
+   // random delw matrix
+   // spatial derivatives of entropy variables
+   mfem::DenseMatrix delw(delw_data, dim + 2, dim);
+   // dummy const vector x for calcFlux - unused
+   const mfem::Vector x(nrm);
+   /// finite element or SBP operators
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   // Create the AD stack, and the integrator
+   adept::Stack diff_stack;
+   const int max_degree = 4;
+   for (int p = 1; p <= max_degree; ++p)
+   {
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::ViscousExactBC<dim> viscousexact(diff_stack, fec.get(), Re_num,
+                                             Pr_num, exact, mu);
+      DYNAMIC_SECTION("jacobian of viscous farfield bc w.r.t state is correct")
+      {
+         mfem::DenseMatrix mat_vec_jac(num_states);
+         viscousexact.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
+         // loop over each state variable and check column of mat_vec_jac...
+         for (int i = 0; i < num_states; ++i)
+         {
+            mfem::Vector q_plus(q), q_minus(q);
+            mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+            q_plus(i) += delta;
+            q_minus(i) -= delta;
+            viscousexact.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
+            viscousexact.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
+            mfem::Vector mat_vec_fd(num_states);
+            mat_vec_fd = 0.0;
+            subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+            mat_vec_fd /= 2.0 * delta;
+            // compare with explicit Jacobian
+            for (int j = 0; j < num_states; j++)
+            {
+               REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            }
+         }
+      }
+   }
+}
+
 TEST_CASE("ESViscousIntegrator::AssembleElementGrad", "[ESViscousIntegrator]")
 {
     using namespace mfem;

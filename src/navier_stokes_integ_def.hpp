@@ -235,12 +235,22 @@ void ViscousSlipWallBC<dim>::calcFlux(
    calcAdiabaticWallFlux<double, dim>(dir.GetData(), mu_Re, Pr, q.GetData(),
                                       Dw.GetData(), work_vec.GetData());
 #endif
-#if 0
+#if 1
+   int Dw_size = Dw.Height() * Dw.Width();
+   mfem::Vector Dw_work(Dw_size);
+   setZeroNormalDeriv<double, dim>(dir.GetData(), Dw.GetData(),
+                                   Dw_work.GetData());
+   double mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
+   mu_Re /= Re;
    for (int d = 0; d < dim; ++d)
    {
       work_vec = 0.0;
-      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
-                                       work_vec.GetData());
+      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(),
+                                       Dw_work.GetData(), work_vec.GetData());
       work_vec *= dir(d);
       flux_vec -= work_vec;
    }
@@ -263,13 +273,37 @@ void ViscousSlipWallBC<dim>::calcFluxJacState(
    adept::set_values(q_a.data(), q.Size(), q.GetData());
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(x_a.data(), x.Size(), x.GetData());
-   adept::set_values(Dw_a.data(),Dw_size, Dw.GetData());
+   adept::set_values(Dw_a.data(), Dw_size, Dw.GetData());
    // start new stack recording
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
                                         flux_a.data());
+#if 1
+   std::vector<adouble> Dw_work(Dw_size);
+   setZeroNormalDeriv<adouble, dim>(dir_a.data(), Dw_a.data(), Dw_work.data());  
+   adouble mu_Re_a = mu;
+   if (mu < 0.0)
+   {
+      mu_Re_a = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
+   mu_Re_a /= Re;
+   std::vector<adouble> work_a(q.Size());
+   for (int d = 0; d < dim; ++d)
+   {
+      for (int i = 0; i < q.Size(); ++i)
+      {
+         work_a[i] = 0.0;
+      }
+      applyViscousScaling<adouble, dim>(d, mu_Re_a, Pr, q_a.data(),
+                                        Dw_work.data(), work_a.data());
+      for (int i = 0; i < q.Size(); ++i)
+      {  
+         flux_a[i] -= dir_a[d]*work_a[i];
+      }
+   }
+#endif
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
@@ -280,11 +314,65 @@ void ViscousSlipWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem::Ve
                                            const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                                            vector<mfem::DenseMatrix> &flux_jac)
 {
+#if 0
    // Presently, this BC has no dependence on the derivative
    for (int i = 0; i < dim; ++i)
    {
       flux_jac[i] = 0.0;
    }
+#endif
+#if 1
+   // create containers for active double objects for each input
+   int Dw_size = Dw.Height() * Dw.Width();
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> Dw_a(Dw_size);
+   std::vector<adouble> work_vec_a(work_vec.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(Dw_a.data(), Dw_size, Dw.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   // Step 1: apply the EC slip wall flux
+   mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
+                                        flux_a.data());
+   // Step 2: evaluate the derivative flux
+   std::vector<adouble> Dw_work(Dw_size);
+   setZeroNormalDeriv<adouble, dim>(dir_a.data(), Dw_a.data(), Dw_work.data());
+   adouble mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
+   mu_Re /= Re;
+   std::vector<adouble> work_a(q.Size());
+   for (int d = 0; d < dim; ++d)
+   {
+      for (int i = 0; i < q.Size(); ++i)
+      {
+         work_a[i] = 0.0;
+      }
+      applyViscousScaling<adouble, dim>(d, mu_Re, Pr, q_a.data(),
+                                        Dw_work.data(), work_a.data());
+      for (int i = 0; i < q.Size(); ++i)
+      {  
+         flux_a[i] -= dir_a[d]*work_a[i];
+      }
+   }
+   this->stack.independent(Dw_a.data(),Dw_size);
+   this->stack.dependent(flux_a.data(), q.Size());
+   // compute and store jacobian in CDw_jac
+   mfem::Vector work(dim*this->num_states*this->num_states);
+   this->stack.jacobian(work.GetData());
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = (work.GetData() + i*this->num_states*this->num_states);
+   }
+#endif 
 }
 
 //==============================================================================
@@ -515,5 +603,150 @@ void ViscousFarFieldBC<dim>::calcFluxJacDw(
    for (int i = 0; i < dim; ++i)
    {
       flux_jac[i] = 0.0;
+   }
+}
+
+//==============================================================================
+// ViscouExactBC methods
+
+template <int dim>
+void ViscousExactBC<dim>::calcFlux(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   mfem::Vector &flux_vec)
+{
+   // Part 1: apply the characteristic, invsicid BCs
+   exactSolution(x, qexact);
+   calcBoundaryFlux<double, dim>(dir.GetData(), qexact.GetData(), q.GetData(),
+                                 work_vec.GetData(), flux_vec.GetData());
+   // Part 2: apply the zero normal derivative condition
+   int Dw_size = Dw.Height() * Dw.Width();
+   mfem::Vector Dw_work(Dw_size);
+   setZeroNormalDeriv<double, dim>(dir.GetData(), Dw.GetData(),
+                                   Dw_work.GetData());
+   double mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
+   mu_Re /= Re;
+   for (int d = 0; d < dim; ++d)
+   {
+      work_vec = 0.0;
+      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(),
+                                       Dw_work.GetData(), work_vec.GetData());
+      work_vec *= dir(d);
+      flux_vec -= work_vec;
+   }
+}
+
+template <int dim>
+void ViscousExactBC<dim>::calcFluxJacState(
+   const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+   mfem::DenseMatrix &flux_jac)
+{
+   exactSolution(x, qexact);
+   // create containers for active double objects for each input
+   int Dw_size = Dw.Height() * Dw.Width();
+   std::vector<adouble> qexact_a(qexact.Size());
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> Dw_a(Dw_size);
+   std::vector<adouble> work_vec_a(work_vec.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(qexact_a.data(), qexact.Size(), qexact.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(Dw_a.data(), Dw_size, Dw.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcBoundaryFlux<adouble, dim>(dir_a.data(), qexact_a.data(), q_a.data(),
+                                  work_vec_a.data(), flux_a.data());
+   std::vector<adouble> Dw_work(Dw_size);
+   setZeroNormalDeriv<adouble, dim>(dir_a.data(), Dw_a.data(), Dw_work.data());  
+   adouble mu_Re_a = mu;
+   if (mu < 0.0)
+   {
+      mu_Re_a = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
+   mu_Re_a /= Re;
+   std::vector<adouble> work_a(q.Size());
+   for (int d = 0; d < dim; ++d)
+   {
+      for (int i = 0; i < q.Size(); ++i)
+      {
+         work_a[i] = 0.0;
+      }
+      applyViscousScaling<adouble, dim>(d, mu_Re_a, Pr, q_a.data(),
+                                        Dw_work.data(), work_a.data());
+      for (int i = 0; i < q.Size(); ++i)
+      {  
+         flux_a[i] -= dir_a[d]*work_a[i];
+      }
+   }
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim>
+void ViscousExactBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                                        const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                                        vector<mfem::DenseMatrix> &flux_jac)
+{
+   exactSolution(x, qexact);
+   // create containers for active double objects for each input
+   int Dw_size = Dw.Height() * Dw.Width();
+   std::vector<adouble> qexact_a(qexact.Size());
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> Dw_a(Dw_size);
+   std::vector<adouble> work_vec_a(work_vec.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(qexact_a.data(), qexact.Size(), qexact.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(Dw_a.data(), Dw_size, Dw.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   // Step 1: apply the characteristic BCs
+   calcBoundaryFlux<adouble, dim>(dir_a.data(), qexact_a.data(), q_a.data(),
+                                  work_vec_a.data(), flux_a.data());
+   // Step 2: evaluate the derivative flux
+   std::vector<adouble> Dw_work(Dw_size);
+   setZeroNormalDeriv<adouble, dim>(dir_a.data(), Dw_a.data(), Dw_work.data());
+   adouble mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
+   mu_Re /= Re;
+   std::vector<adouble> work_a(q.Size());
+   for (int d = 0; d < dim; ++d)
+   {
+      for (int i = 0; i < q.Size(); ++i)
+      {
+         work_a[i] = 0.0;
+      }
+      applyViscousScaling<adouble, dim>(d, mu_Re, Pr, q_a.data(),
+                                        Dw_work.data(), work_a.data());
+      for (int i = 0; i < q.Size(); ++i)
+      {  
+         flux_a[i] -= dir_a[d]*work_a[i];
+      }
+   }
+   this->stack.independent(Dw_a.data(),Dw_size);
+   this->stack.dependent(flux_a.data(), q.Size());
+   // compute and store jacobian in CDw_jac
+   mfem::Vector work(dim*this->num_states*this->num_states);
+   this->stack.jacobian(work.GetData());
+   for (int i = 0; i < dim; ++i)
+   {
+      flux_jac[i] = (work.GetData() + i*this->num_states*this->num_states);
    }
 }

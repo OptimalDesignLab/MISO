@@ -52,6 +52,21 @@ protected:
    ///void addOutputs();
 };
 
+/// Defines the right-hand side of Equation (7.5) in "Entropy stable spectral
+/// collocation schemes for the Navier-Stokes questions: discontinuous
+/// interfaces."  See also Fisher's thesis in the appendix, but note that the 
+/// value of alpha listed there is incorrect!!!
+/// \param[in] Re - Reynolds number
+/// \param[in] Ma - Mach number
+/// \param[in] v - velocity ration u/u_L
+/// \returns the right hand side of Equation (7.5)
+double shockEquation(double Re, double Ma, double v);
+
+/// Defines the exact solution for the steady viscous shock.
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void shockExact(const mfem::Vector &x, mfem::Vector& u);
+
 } // namespace mach
 
 #endif
