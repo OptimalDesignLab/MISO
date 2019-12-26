@@ -502,10 +502,10 @@ void AbstractSolver<dim>::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
-      if (ti % 100 == 0)
+      if (ti % 10 == 0)
       {
          *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-              << " (" << round(100 * t / t_final) << "% complete)" << endl;
+              << " (" << round(10 * t / t_final) << "% complete)" << endl;
       }
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();

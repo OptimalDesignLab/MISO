@@ -26,6 +26,9 @@ int main(int argc, char *argv[])
    const string prec_name = options["petscsolver"]["pctype"].get<string>();
    petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
    petscoptions << "-prec_pc_type " << prec_name << '\n';
+   petscoptions << "-pc_factor_mat_ordering_type rcm" << endl;
+   petscoptions << "-pc_factor_levels 0" << endl;
+   petscoptions << "-pc_factor_reuse_ordering" << endl;
    petscoptions.close();
 #endif
 #ifdef MFEM_USE_MPI
