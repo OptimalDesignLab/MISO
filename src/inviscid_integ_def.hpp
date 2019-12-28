@@ -357,6 +357,54 @@ void LPSIntegrator<Derived>::AssembleElementGrad(
 }
 
 template <typename Derived>
+double InviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
+   const mfem::FiniteElement &el_bnd,
+   const mfem::FiniteElement &el_unused,
+   mfem::FaceElementTransformations &trans,
+   const mfem::Vector &elfun)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_bnd);
+   const int num_nodes = el_bnd.GetDof();
+   const int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face, x, nrm, flux_face;
+#endif
+   u_face.SetSize(num_states);
+   x.SetSize(dim);
+   nrm.SetSize(dim);
+   double fun = 0.0; // initialize the functional value
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+
+   const FiniteElement *sbp_face;
+   switch (dim)
+   {
+      case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
+              break;
+      case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+              break;
+      default: throw mach::MachException(
+         "InviscidBoundaryIntegrator::GetFaceEnergy())\n"
+         "\tcannot handle given dimension");
+   }
+   IntegrationPoint el_ip;
+   for (int i = 0; i < sbp_face->GetDof(); ++i)
+   {
+      const IntegrationPoint &face_ip = sbp_face->GetNodes().IntPoint(i);
+      trans.Loc1.Transform(face_ip, el_ip);
+      trans.Elem1->Transform(el_ip, x);
+      int j = sbp.getIntegrationPointIndex(el_ip);
+      u.GetRow(j, u_face);
+
+      // get the normal vector, and then add contribution to function
+      trans.Face->SetIntPoint(&face_ip);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      fun += bndryFun(x, nrm, u_face)*face_ip.weight*alpha;
+   }
+   return fun;
+}
+
+template <typename Derived>
 void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
    const mfem::FiniteElement &el_bnd,
    const mfem::FiniteElement &el_unused,
@@ -364,8 +412,6 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
    const mfem::Vector &elfun,
    mfem::Vector &elvect)
 {
-   //cout << "bnd_marker = " << bnd_marker << endl;
-   //cout.flush();
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_bnd);
    const int num_nodes = el_bnd.GetDof();
@@ -406,19 +452,8 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
       // get the normal vector and the flux on the face
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
-      //cout << "face node " << face_ip.x << ": nrm = " << nrm[0] << ", " << nrm[1] << endl;
       flux(x, nrm, u_face, flux_face);
-
-      // cout << "face node " << face_ip.x << ": flux = ";
-      // for (int n = 0; n < num_states; ++n)
-      // {
-      //    cout << flux_face[n] << ", ";
-      // }
-      // cout << endl;
-
-
       flux_face *= face_ip.weight;
-
 
       // multiply by test function
       for (int n = 0; n < num_states; ++n)
@@ -463,7 +498,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
       case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
               break;
       default: throw mach::MachException(
-         "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
+         "InviscidBoundaryIntegrator::AssembleFaceGrad())\n"
          "\tcannot handle given dimension");
    }
    IntegrationPoint el_ip;

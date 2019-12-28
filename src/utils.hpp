@@ -1,6 +1,7 @@
 #ifndef MACH_UTILS
 #define MACH_UTILS
 
+#include <functional>
 #include <exception>
 #include <iostream>
 #include "mfem.hpp"
@@ -112,6 +113,16 @@ static std::ostream *getOutStream(int rank)
       return &obj;
    }
 }
+
+/// Find root of `func` using bisection
+/// \param[in] func - function to find root of 
+/// \param[in] xl - left bracket of root
+/// \param[in] xr - right bracket of root
+/// \param[in] ftol - absolute tolerance for root function
+/// \param[in] xtol - absolute tolerance for root value
+/// \param[in] maxiter - maximum number of iterations
+double bisection(std::function<double(double)> func, double xl, double xr,
+                 double ftol, double xtol, int maxiter);
 
 /// build the reconstruction matrix that interpolate the 
 /// \param[in] degree - order of reconstructio operator

@@ -351,6 +351,17 @@ public:
        : num_states(num_state_vars), alpha(a), stack(diff_stack),
          fec(fe_coll) {}
 
+	/// Construct the contribution to a functional from the boundary element
+	/// \param[in] el_bnd - boundary element that contribute to the functional
+	/// \param[in] el_unused - dummy element that is not used for boundaries
+   /// \param[in] trans - hold geometry and mapping information about the face
+   /// \param[in] elfun - element local state function
+   /// \return element local contribution to functional
+	virtual double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
+                                const mfem::FiniteElement &el_unused,
+                                mfem::FaceElementTransformations &trans,
+                                const mfem::Vector &elfun);
+
    /// Construct the contribution to the element local residual
    /// \param[in] el_bnd - the finite element whose residual we want to update
    /// \param[in] el_unused - dummy element that is not used for boundaries
@@ -396,6 +407,20 @@ protected:
    /// stores the jacobian of the flux with respect to the state at `u_face`
    mfem::DenseMatrix flux_jac_face;
 #endif
+
+   /// Compute a scalar boundary function
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] u - state at which to evaluate the function
+   /// \returns fun - value of the function
+   /// \note `x` can be ignored depending on the function
+   /// \note This uses the CRTP, so it wraps a call to `calcFunction` in
+   /// Derived.
+   double bndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                   const mfem::Vector &u)
+   {
+      return static_cast<Derived*>(this)->calcBndryFun(x, dir, u);
+   }
 
    /// Compute a boundary flux function
    /// \param[in] x - coordinate location at which flux is evaluated

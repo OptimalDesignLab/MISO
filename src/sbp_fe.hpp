@@ -108,6 +108,13 @@ public:
    /// \returns \f$ (Q_{di})_{i,j} \f$ in reference space
    double getQ(int di, int i, int j) const;
 
+   /// `(i,i)`th entry of symmetric matrix \f$ E_{di} \f$ in physical space
+   /// \param[in] di - desired physical space coordinate direction
+   /// \param[in] i - row/column index for \f$ E_{di} \f$
+   /// \param[in] adjJ_i - adjugate of the mapping Jacobian at node `i`
+   /// \returns \f$ (E_{di})_{i,j} \f$ in physical space 
+   double getSymEntry(int di, int i, const mfem::DenseMatrix &adjJ_i) const;
+
    /// `(i,j)`th entry of skew-symmetric matrix \f$ S_{di} \f$ in physical space
    /// \param[in] di - desired physical space coordinate direction
    /// \param[in] i - row index for \f$ S_{di} \f$
@@ -119,6 +126,16 @@ public:
    /// two-point fluxes that cancel. 
    double getSkewEntry(int di, int i, int j, const mfem::DenseMatrix &adjJ_i,
                        const mfem::DenseMatrix &adjJ_j) const;
+
+   /// `(i,j)`th entry of matrix \f$ Q_{di} \f$ in physical space
+   /// \param[in] di - desired physical space coordinate direction
+   /// \param[in] i - row index for \f$ Q_{di} \f$
+   /// \param[in] j - column index for \f$ Q_{di} \f$
+   /// \param[in] adjJ_i - adjugate of the mapping Jacobian at node `i`
+   /// \param[in] adjJ_j - adjugate of the mapping Jacobian at node `j`
+   /// \returns \f$ (Q_{di})_{i,j} \f$ in physical space
+   double getQEntry(int di, int i, int j, const mfem::DenseMatrix &adjJ_i,
+                    const mfem::DenseMatrix &adjJ_j) const;
 
    /// Attempts to find the index corresponding to a given IntegrationPoint
    /// \param[in] ip - try to match the coordinates of this point
