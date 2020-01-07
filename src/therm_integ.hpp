@@ -6,6 +6,7 @@
 #include "coefficient.hpp"
 #include "solver.hpp"
 
+#if 0
 namespace mach
 {
 
@@ -53,5 +54,5 @@ public:
 
 
 } // namespace mach
-
+#endif
 #endif

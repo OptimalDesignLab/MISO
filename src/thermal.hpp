@@ -41,38 +41,36 @@ private:
 
 
    /// mesh dependent mass density coefficient
-   std::unique_ptr<MeshDependentCoefficient> rho;
-
-   /// mesh dependent specific heat coefficient
-   std::unique_ptr<MeshDependentCoefficient> cv;
+   std::unique_ptr<MeshDependentCoefficient> rho_cv;
 
    /// mesh dependent thermal conductivity tensor
-   //std::unique_ptr<MeshDependentCoefficient> kappa;
+   std::unique_ptr<MeshDependentCoefficient> kappa;
 
    /// mesh dependent electrical conductivity tensor
-   //std::unique_ptr<MeshDependentCoefficient> sigma;
+   std::unique_ptr<MeshDependentCoefficient> sigma;
 
 
    /// boundary condition marker array
    mfem::Array<int> ess_bdr;
    std::unique_ptr<mfem::Coefficient> bc_coef;
 
+   /// the bilinear form
+   std::unique_ptr<BilinearFormType> a;
+   /// the linear form
+   std::unique_ptr<LinearFormType> b;
    /// linear system solver
    std::unique_ptr<mfem::HypreGMRES> solver;
 //    /// linear system preconditioner used in Newton's method
 //    std::unique_ptr<EMPrecType> prec;
 
-   /// construct mesh dependent coefficient for density
-   void constructDensity();
-
-   /// construct mesh dependent coefficient for specific heat
-   void constructSpecificHeat();
+   /// construct mesh dependent coefficient for density and specific heat
+   void constructMassCoeff();
 
    /// construct vector mesh dependent coefficient for conductivity
-   void constructConductivity());
+   void constructConductivity();
      
    /// construct vector mesh dependent coefficient for electrical conductivity
-   void constructElecConductivity());
+   void constructElecConductivity();
 
    /// TODO: Source Terms, Flux Boundary Conditions
 };

@@ -3,7 +3,7 @@
 
 using namespace mfem;
 using namespace std;
-
+#if 0
 namespace mach
 {
 
@@ -43,3 +43,4 @@ void HeatMassIntegrator::AssembleElementMatrix
 
 
 } // namespace mach
+#endif

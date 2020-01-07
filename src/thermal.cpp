@@ -8,7 +8,7 @@ using namespace mfem;
 namespace mach
 {
 
-MagnetostaticSolver::MagnetostaticSolver(
+ThermalSolver::ThermalSolver(
 	 const std::string &opt_file_name,
     std::unique_ptr<mfem::Mesh> smesh,
 	 int dim)
@@ -17,88 +17,63 @@ MagnetostaticSolver::MagnetostaticSolver(
 	mesh->ReorientTetMesh();
 	int fe_order = options["space-dis"]["degree"].get<int>();
 
-	/// Create the H(Curl) finite element collection
-   h_curl_coll.reset(new ND_FECollection(fe_order, dim));
-	/// Create the H(Div) finite element collection
-   h_div_coll.reset(new RT_FECollection(fe_order, dim));
+	/// Create the H(Grad) finite element collection
+    h_grad_coll.reset(new H1_FECollection(fe_order, dim));
 
-	/// Create the H(Curl) finite element space
-	h_curl_space.reset(new SpaceType(mesh.get(), h_curl_coll.get()));
-	/// Create the H(Div) finite element space
-	h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
+	/// Create the H(Grad) finite element space
+	h_grad_space.reset(new SpaceType(mesh.get(), h_grad_coll.get()));
 
 	/// Create MVP grid function
-	A.reset(new GridFunType(h_curl_space.get()));
-	/// Create magnetic flux grid function
-	B.reset(new GridFunType(h_div_space.get()));
+	T.reset(new GridFunType(h_grad_space.get()));
 
 	current_vec.reset(new GridFunType(h_curl_space.get()));
 
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: "
-        << h_curl_space->GlobalTrueVSize() << endl;
+        << h_grad_space->GlobalTrueVSize() << endl;
 #else
    cout << "Number of finite element unknowns: "
-        << h_curl_space->GetTrueVSize() << endl;
+        << h_grad_space->GetTrueVSize() << endl;
 #endif
 
-   ifstream material_file(options["material-lib-path"].get<string>());
+    ifstream material_file(options["material-lib-path"].get<string>());
 	/// TODO: replace with mach exception
 	if (!material_file)
 		std::cerr << "Could not open materials library file!" << std::endl;
 	material_file >> materials;
 
-	constructReluctivity();
+	///TODO: Define these based on materials library
+	constructMassCoeff();
+
+    constructConductivity();
+     
+    constructElecConductivity();
+
+	/// set up the bilinear form
+    a.reset(new BilinearFormType(h_curl_space.get()));
+
+	/// add mass integrator to bilinear form
+	a->AddDomainIntegrator(new MassIntegrator(rho_cv.get()));
+
+	/// add diffusion integrator to bilinear form
+	a->AddDomainIntegrator(new DiffusionIntegrator(kappa.get()));
+
+	/// add boundary integrator to bilinear form for flux BC, elsewhere is natural
+	///TODO: Define Boundary Conditions, Make More General, Selectively Apply To Certain Faces
+	a->AddBdrFaceIntegrator(new OutwardHeatFluxBC());
+
+	/// set up the linear form (volumetric fluxes)
+	a.reset(new LinearFormType(h_curl_space.get()));
+
+	/// add joule heating term
+	a->AddDomainIntegrator(new JouleIntegrator(sigma.get()));
+
+	/// add iron loss heating terms
+	a->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
 
-	neg_one.reset(new ConstantCoefficient(-1.0));
-
-	/// Construct current source coefficient
-	constructCurrent();
-
-	/// Assemble current source vector
-	assembleCurrentSource();
-
-	/// set up the spatial semi-linear form
-   // double alpha = 1.0;
-   res.reset(new NonlinearFormType(h_curl_space.get()));
-
-	/// Construct reluctivity coefficient
-	// constructReluctivity();
-
-	/// TODO: Add a check in `CurlCurlNLFIntegrator` to check if |B| is close to
-	///       zero, and if so set the second term of the Jacobian to be zero.
-	/// add curl curl integrator to residual
-	res->AddDomainIntegrator(new CurlCurlNLFIntegrator(nu.get()));
-
-	/// TODO: magnetization lines are commented out because they created NaNs
-	///       when getting gradient when B was zero because we divide by |B|.
-	///       Can probably get away with adding a check if |B| is close to zero
-	///       and setting magnetization contribution to the Jacobian to be zero,
-	///       but need to verify that that is mathematically corrent based on
-	///       the limit of the Jacobian as B goes to zero.
-	/// Construct magnetization coefficient
-	constructMagnetization();
-
-	/// add magnetization integrator to residual
-	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
-
-	/// apply zero tangential boundary condition everywhere
-	ess_bdr.SetSize(mesh->bdr_attributes.Max());
-	ess_bdr = 1;
-	Array<int> ess_tdof_list;
-	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-	Vector Zero(3);
-   Zero = 0.0;
-   bc_coef.reset(new VectorConstantCoefficient(Zero));
-	// bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
-   A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-   // A->ProjectCoefficient(*bc_coef);
-
-	/// set essential boundary conditions in nonlinear form and rhs current vec
-	res->SetEssentialBC(ess_bdr, current_vec.get());
-
-	/// Costruct linear system solver
+	/// Construct linear system solver
+	///TODO: Think about preconditioner
 #ifdef MFEM_USE_MPI
    // prec.reset(new HypreBoomerAMG());
    prec.reset(new HypreAMS(h_curl_space.get()));
@@ -125,21 +100,13 @@ MagnetostaticSolver::MagnetostaticSolver(
 	prec.reset(new GSSmoother);
 
 	solver.reset(new CGSolver());
-   solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-   solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
-   solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
-   solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
-   solver->SetPreconditioner(*prec);
+    solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+    solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+    solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
+    solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
+    solver->SetPreconditioner(*prec);
 	#endif
 #endif
-	/// Set up Newton solver
-	newton_solver.iterative_mode = false;
-   newton_solver.SetSolver(*solver);
-   newton_solver.SetOperator(*res);
-   newton_solver.SetPrintLevel(options["newton"]["print-lvl"].get<int>());
-   newton_solver.SetRelTol(options["newton"]["rel-tol"].get<double>());
-   newton_solver.SetAbsTol(options["newton"]["abs-tol"].get<double>());
-   newton_solver.SetMaxIter(options["newton"]["max-iter"].get<int>());
 }
 
 void MagnetostaticSolver::solveSteady()
