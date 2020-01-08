@@ -114,6 +114,34 @@ void AbstractSolver<dim>::initDerived()
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
    // Add integrators; this can be simplified if we template the entire class
+   if(0 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(1 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(2 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size() << '\n';
+   }
+   MPI_Barrier(comm);
+   if(3 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size() << '\n';
+   }
+   MPI_Barrier(comm);
    this->addVolumeIntegrators(alpha);
    auto &bcs = options["bcs"];
    bndry_marker.resize(bcs.size()); // need to set this before next method
@@ -412,7 +440,6 @@ void AbstractSolver<dim>::solveSteady()
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
-   std::cout << "PetscLinearSolver is set.\n";
    //Get the newton solver options
    double nabstol = options["newtonsolver"]["abstol"].get<double>();
    double nreltol = options["newtonsolver"]["reltol"].get<double>();
@@ -428,8 +455,11 @@ void AbstractSolver<dim>::solveSteady()
    newton_solver->SetPrintLevel(nptl);
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   newton_solver->Mult(b, *u);
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
+   newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   u->SetFromTrueDofs(u_true);
 #else
    // Hypre solver section
    //prec.reset( new HypreBoomerAMG() );
@@ -461,8 +491,11 @@ void AbstractSolver<dim>::solveSteady()
 
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
    newton_solver->Mult(b,  *u);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   u->SetFromTrueDofs(u_true);
 #endif
 }
 
