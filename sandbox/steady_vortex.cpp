@@ -52,7 +52,10 @@ int main(int argc, char *argv[])
 
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
+   int num_procs, myid;
    MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 #endif
   
    // Parse command-line options
@@ -92,18 +95,20 @@ int main(int argc, char *argv[])
 
       solver->setInitialCondition(uexact);
       solver->printSolution("init", degree+1);
+
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver->calcL2Error(uexact, 0) << '\n' << endl;
+         << solver->calcL2Error(uexact, 0) << '\n' << endl;
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-                << endl;
+         << endl;
       solver->solveForState();
+
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-                << endl;
+         << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver->calcL2Error(uexact, 0) << endl;
+         << solver->calcL2Error(uexact, 0) << endl;
       mfem::out << "\nDrag error = "
-                << abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma)) << endl
-                << endl;
+         << abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma)) << endl;
+
    }
    catch (MachException &exception)
    {
