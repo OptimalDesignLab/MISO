@@ -39,6 +39,9 @@ private:
    /// Temperature T grid function
    std::unique_ptr<GridFunType> T;
 
+   OperatorPtr A;
+   Vector X, B;
+
 
    /// mesh dependent mass density coefficient
    std::unique_ptr<MeshDependentCoefficient> rho_cv;
@@ -50,18 +53,28 @@ private:
    std::unique_ptr<MeshDependentCoefficient> sigma;
 
 
-   /// boundary condition marker array
-   mfem::Array<int> ess_bdr;
+   /// essential boundary condition marker array (not using )
+   mfem::Array<int> ess_bdr = 0;
    std::unique_ptr<mfem::Coefficient> bc_coef;
 
-   /// the bilinear form
-   std::unique_ptr<BilinearFormType> a;
+   /// the bilinear forms, mass m, stiffness k
+   std::unique_ptr<BilinearFormType> m;
+   std::unique_ptr<BilinearFormType> k;
    /// the linear form
    std::unique_ptr<LinearFormType> b;
    /// linear system solver
    std::unique_ptr<mfem::HypreGMRES> solver;
 //    /// linear system preconditioner used in Newton's method
 //    std::unique_ptr<EMPrecType> prec;
+
+   /// time marching method
+   std::unique_ptr<mfem::ODESolver> ode_solver;
+
+   /// time dependent operator
+   std::unique_ptr<mfem::TimeDependentOperator> evolver;
+
+   /// boundary condition marker array
+   std::vector<mfem::Array<int>> bndry_marker;
 
    /// construct mesh dependent coefficient for density and specific heat
    void constructMassCoeff();
@@ -71,6 +84,9 @@ private:
      
    /// construct vector mesh dependent coefficient for electrical conductivity
    void constructElecConductivity();
+
+   /// implementation of implicitsolve
+   virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
 
    /// TODO: Source Terms, Flux Boundary Conditions
 };

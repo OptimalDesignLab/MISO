@@ -66,3 +66,21 @@ void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
 }
 
 }
+
+ImplicitLinearEvolver::ImplicitLinearEvolver(MatrixType &m,
+                                            MatrixType &k, 
+                                            std::ostream &outstream)
+   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), z(m.Height())
+{
+#ifdef MFEM_USE_MPI
+   mass_prec.SetType(HypreSmoother::Jacobi);
+   mass_solver.reset(new CGSolver(mass.GetComm()));
+#else
+   mass_solver.reset(new CGSolver());
+#endif
+   // set parameters for the linear solver
+   mass_solver->SetTol(1e-10);
+   mass_solver->SetPrintLevel(-1);
+   mass_solver->SetMaxIter(100);
+
+}

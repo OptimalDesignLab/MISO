@@ -50,27 +50,48 @@ ThermalSolver::ThermalSolver(
     constructElecConductivity();
 
 	/// set up the bilinear form
-    a.reset(new BilinearFormType(h_curl_space.get()));
+	m.reset(new BilinearFormType(h_curl_space.get()));
+    k.reset(new BilinearFormType(h_curl_space.get()));
 
 	/// add mass integrator to bilinear form
-	a->AddDomainIntegrator(new MassIntegrator(rho_cv.get()));
+	m->AddDomainIntegrator(new MassIntegrator(rho_cv.get()));
 
 	/// add diffusion integrator to bilinear form
-	a->AddDomainIntegrator(new DiffusionIntegrator(kappa.get()));
+	k->AddDomainIntegrator(new DiffusionIntegrator(kappa.get()));
 
 	/// add boundary integrator to bilinear form for flux BC, elsewhere is natural
 	///TODO: Define Boundary Conditions, Make More General, Selectively Apply To Certain Faces
-	a->AddBdrFaceIntegrator(new OutwardHeatFluxBC());
+	auto &bcs = options["bcs"];
+    bndry_marker.resize(bcs.size());
+	int idx = 0;
+	if (bcs.find("outflux") != bcs.end())
+    { // isentropic vortex BC
+        vector<int> tmp = bcs["vortex"].get<vector<int>>();
+        bndry_marker[idx].SetSize(tmp.size(), 0);
+        bndry_marker[idx].Assign(tmp.data());
+        k->AddBdrFaceIntegrator(new OutwardHeatFluxBC(), bndry_marker[idx]);
+        idx++;
+    }
+	
 
 	/// set up the linear form (volumetric fluxes)
-	a.reset(new LinearFormType(h_curl_space.get()));
+	b.reset(new LinearFormType(h_curl_space.get()));
 
 	/// add joule heating term
-	a->AddDomainIntegrator(new JouleIntegrator(sigma.get()));
+	b->AddDomainIntegrator(new JouleIntegrator(sigma.get()));
 
 	/// add iron loss heating terms
-	a->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
+	b->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
+
+	/// form system
+	Array<int> thermal_ess_tdof_list;
+    h_grad_space.GetEssentialTrueDofs(ess_bdr, thermal_ess_tdof_list);
+	k->FormLinearSystem(thermal_ess_tdof_list, T, *b, A, X, B);
+
+	/// define ode solver
+	ode_solver = NULL;
+ 	ode_solver.reset(new ImplicitMidpointSolver);
 
 	/// Construct linear system solver
 	///TODO: Think about preconditioner
@@ -83,54 +104,94 @@ ThermalSolver::ThermalSolver(
    // solver.reset(new HyprePCG(h_curl_space->GetComm()));
 	solver.reset(new HypreGMRES(h_curl_space->GetComm()));
 	std::cout << "set tol\n";
-   solver->SetTol(options["lin-solver"]["tol"].get<double>());
+    solver->SetTol(options["lin-solver"]["tol"].get<double>());
 	std::cout << "set tol\n";
 	std::cout << "set iter\n";
-   solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+    solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
 	std::cout << "set iter\n";
 	std::cout << "set print\n";
-   solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+    solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
 	std::cout << "set print\n";
-   solver->SetPreconditioner(*prec);
+    //solver->SetPreconditioner(*prec);
 #else
 	#ifdef MFEM_USE_SUITESPARSE
 	prec = NULL;
 	solver.reset(new UMFPackSolver);
 	#else
-	prec.reset(new GSSmoother);
+	//prec.reset(new GSSmoother);
 
 	solver.reset(new CGSolver());
     solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
     solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
     solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
     solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
-    solver->SetPreconditioner(*prec);
+    //solver->SetPreconditioner(*prec);
 	#endif
 #endif
 }
 
-void MagnetostaticSolver::solveSteady()
+void ThermalSolver::solveUnsteady()
 {
-	newton_solver.Mult(*current_vec, *A);
-	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+	double t = 0.0;
+    evolver->SetTime(t);
+    ode_solver->Init(*evolver);
 
-	/// TODO: Move this to a new function `ComputeSecondaryQuantities()`?
-	std::cout << "before curl constructed\n";
-	DiscreteCurlOperator curl(h_curl_space.get(), h_div_space.get());
-	std::cout << "curl constructed\n";
-	curl.Assemble();
-   curl.Finalize();
-	curl.Mult(*A, *B);
-	std::cout << "curl taken\n";
+	int precision = 8;
+    {
+		ofstream omesh("motor_heat_init.mesh");
+    	omesh.precision(precision);
+    	mesh->Print(omesh);
+    	ofstream osol("motor_heat_init.gf");
+    	osol.precision(precision);
+      	u->Save(osol);
+   	}
 
-	// TODO: Print mesh out in another function?
-   ofstream sol_ofs("motor_mesh_fix2.vtk");
-   sol_ofs.precision(14);
-   mesh->PrintVTK(sol_ofs, 1);
-   A->SaveVTK(sol_ofs, "A_Field", 1);
-	B->SaveVTK(sol_ofs, "B_Field", 1);
-   sol_ofs.close();
-	std::cout << "finish steady solve\n";
+	bool done = false;
+    double t_final = options["time-dis"]["t-final"].get<double>();
+    double dt = options["time-dis"]["dt"].get<double>();
+
+	for (int ti = 0; !done;)
+    {
+      	if (options["time-dis"]["const-cfl"].get<bool>())
+    	{
+    	    dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
+    	}
+    	double dt_real = min(dt, t_final - t);
+    	if (ti % 100 == 0)
+    	{
+        	 cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+              << " (" << round(100 * t / t_final) << "% complete)" << endl;
+      	}
+#ifdef MFEM_USE_MPI
+	    HypreParVector *TV = T->GetTrueDofs();
+	    ode_solver->Step(*TV, t, dt_real);
+	    *T = *TV;
+#else
+      	ode_solver->Step(*T, t, dt_real);
+#endif
+      	ti++;
+
+      	done = (t >= t_final - 1e-8 * dt);
+    }
+
+    {
+        ofstream osol("motor_heat.gf");
+        osol.precision(precision);
+        T->Save(osol);
+    }
+	{
+        ofstream sol_ofs("motor_heat.vtk");
+        sol_ofs.precision(14);
+        mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+        T->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+        sol_ofs.close();
+    }
+
+}
+
+void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dX_dt)
+{
+	dX_dt = 0.0;
 }
 
 void MagnetostaticSolver::constructReluctivity()
