@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
    const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
    const string prec_name = options["petscsolver"]["pctype"].get<string>();
    petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
+   //petscoptions << "-prec_pc_type " << prec_name << '\n';
    petscoptions.close();
 #endif
 
@@ -96,18 +96,26 @@ int main(int argc, char *argv[])
       solver->setInitialCondition(uexact);
       solver->printSolution("init", degree+1);
 
-      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-         << solver->calcL2Error(uexact, 0) << '\n' << endl;
-      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-         << endl;
+      double l_error = solver->calcL2Error(uexact, 0);
+      double res_error = solver->calcResidualNorm();
+      if(0==myid)
+      {
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
+         mfem::out << "\ninitial residual norm = " << res_error << endl;
+      }
+
       solver->solveForState();
 
-      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-         << endl;
-      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-         << solver->calcL2Error(uexact, 0) << endl;
-      mfem::out << "\nDrag error = "
-         << abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma)) << endl;
+      l_error = solver->calcL2Error(uexact, 0);
+      res_error = solver->calcResidualNorm();
+      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+
+      if(0==myid)
+      {
+         mfem::out << "\nfinal residual norm = " << res_error;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
+         mfem::out << "\nDrag error = " << drag << endl;
+      }
 
    }
    catch (MachException &exception)

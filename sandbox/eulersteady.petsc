@@ -1,2 +1,1 @@
 -solver_ksp_type gmres
--prec_pc_type lu
