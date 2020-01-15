@@ -36,8 +36,10 @@ private:
    /// H(grad) finite element space
    std::unique_ptr<SpaceType> h_grad_space;
 
-   /// Temperature T grid function
+   /// Temperature T grid function and derivative
    std::unique_ptr<GridFunType> T;
+   std::unique_ptr<GridFunType> dTdt;
+   std::unique_ptr<GridFunType> rhs;
 
    OperatorPtr A;
    Vector X, B;
@@ -84,6 +86,9 @@ private:
      
    /// construct vector mesh dependent coefficient for electrical conductivity
    void constructElecConductivity();
+
+   /// set up solver for every time step
+   void setupSolver(const int idt, const double dt) const;
 
    /// implementation of implicitsolve
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);

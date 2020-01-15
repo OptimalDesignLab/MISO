@@ -25,6 +25,9 @@ ThermalSolver::ThermalSolver(
 
 	/// Create MVP grid function
 	T.reset(new GridFunType(h_grad_space.get()));
+	dTdt.reset(new GridFunType(h_grad_space.get()));
+	rhs.reset(new GridFunType(h_grad_space.get()));
+
 
 	current_vec.reset(new GridFunType(h_curl_space.get()));
 
@@ -84,10 +87,20 @@ ThermalSolver::ThermalSolver(
 	b->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
 
-	/// form system
+	/// assemble matrices
+	m->Assemble();
+	k->Assemble();
+	b->Assemble();
+
+	m->Finalize();
+	k->Finalize();
+	b->Finalize();
+
+	/// initialize dTdt 0
+	*dTdt = 0.0;
+
 	Array<int> thermal_ess_tdof_list;
     h_grad_space.GetEssentialTrueDofs(ess_bdr, thermal_ess_tdof_list);
-	k->FormLinearSystem(thermal_ess_tdof_list, T, *b, A, X, B);
 
 	/// define ode solver
 	ode_solver = NULL;
@@ -189,12 +202,23 @@ void ThermalSolver::solveUnsteady()
 
 }
 
-void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dX_dt)
+void ThermalSolver::Mult(const Vector &X, Vector &dXdt)
 {
-	dX_dt = 0.0;
+   	ImplicitSolve(0.0, X, dXdt);
 }
 
-void MagnetostaticSolver::constructReluctivity()
+void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dXdt)
+{
+	k->Mult(*X, *rhs);
+	*rhs -= *b;
+
+
+	m->FormLinearSystem(thermal_ess_tdof_list, *dTdt, *rhs, A, X, B);
+	solver->Mult(*B, dTdt);
+	m->RecoverFEMSolution(dTdt, *rhs, *dTdt);
+}
+
+void MagnetostaticSolver::constructMassCoeff()
 {
 	/// set up default reluctivity to be that of free space
 	double mu_0 = 4e-7*M_PI;
