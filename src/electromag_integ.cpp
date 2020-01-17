@@ -72,7 +72,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       }
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      double model_val = model->Eval(trans, ip, b_vec.Norml2());
+      double model_val = model->Eval(trans, ip);
       model_val *= w;
       b_vec *= model_val;
 
@@ -157,7 +157,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /////////////////////////////////////////////////////////////////////////
 
       /// evaluate material model at ip
-      double model_val = model->Eval(trans, ip, b_mag);
+      double model_val = model->Eval(trans, ip);
       /// multiply material value by integration weight
       model_val *= w;
       /// add first term to elmat
@@ -179,7 +179,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
          /// evaluate the derivative of the material model with respect to the
          /// norm of the grid function associated with the model at the point
          /// defined by ip, and scale by integration point weight
-         double model_deriv = model->EvalStateDeriv(trans, ip, b_mag);
+         double model_deriv = 0;
          model_deriv *= w;
          model_deriv /= b_mag;
       

@@ -101,9 +101,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 #ifdef MFEM_USE_PUMI // if using pumi mesh
    if (smesh != nullptr)
    {
-      throw MachException("AbstractSolver::constructMesh(smesh)\n"
-                          "\tdo not provide smesh when using PUMI!");
+      // throw MachException("AbstractSolver::constructMesh(smesh)\n"
+      //                     "\tdo not provide smesh when using PUMI!");
+      mesh.reset(new ParMesh(comm, *semesh));
+
    }
+   else
+   {
    // problem with using these in loadMdsMesh
    std::cout << options["model-file"].get<string>().c_str() << std::endl;
    const char *model_file = options["model-file"].get<string>().c_str();
@@ -129,6 +133,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    pumi_mesh->verify();
    mesh.reset(new MeshType(comm, pumi_mesh));
    PCU_Comm_Free();
+   }
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
    Sim_unregisterAllKeys();

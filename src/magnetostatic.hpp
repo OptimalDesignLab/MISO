@@ -61,9 +61,9 @@ private:
    std::unique_ptr<mfem::Coefficient> neg_one;
 
    /// mesh dependent reluctivity coefficient
-   std::unique_ptr<MeshDependentCoefficient> nu;
+   std::unique_ptr<mfem::FunctionCoefficient> nu;
    /// vector mesh dependent current density function coefficient
-   std::unique_ptr<VectorMeshDependentCoefficient> current_coeff;
+   std::unique_ptr<mfem::VectorFunctionCoefficient> current_coeff;
    /// vector mesh dependent magnetization coefficient
    std::unique_ptr<VectorMeshDependentCoefficient> mag_coeff;
 
@@ -122,6 +122,14 @@ private:
                                     mfem::Vector &M);
 
    static void a_bc_uniform(const mfem::Vector &x, mfem::Vector &a);
+
+   static void sol_analytic(const mfem::Vector &x, mfem::Vector & a);
+
+   static void sol_b_analytic(const mfem::Vector &x, mfem::Vector & b);
+
+   static void boxcurrent(const mfem::Vector &x, mfem::Vector &j);
+
+   static double reluctivity(const mfem::Vector &x);
 };
 
 } // namespace mach

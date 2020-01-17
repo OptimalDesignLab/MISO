@@ -200,6 +200,7 @@ IrrotationalProjector::Mult(const Vector &x, Vector &y) const
 
    // Apply essential BC and form linear system
    *psi_ = 0.0;
+   std::cout <<"psi length: "<< psi_->Size() <<"\n xDiv length: "<< xDiv_->Size() <<"\n Psi length: "<< Psi_.Size() <<"\n RHS length: "<< RHS_.Size() <<"\n";
    s0_->FormLinearSystem(ess_bdr_tdofs_, *psi_, *xDiv_, *S0_, Psi_, RHS_);
    std::cout << "form lin system\n";
 

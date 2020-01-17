@@ -7,6 +7,7 @@ using namespace mfem;
 
 namespace mach
 {
+double y;
 
 MagnetostaticSolver::MagnetostaticSolver(
 	 const std::string &opt_file_name,
@@ -48,20 +49,25 @@ MagnetostaticSolver::MagnetostaticSolver(
 		std::cerr << "Could not open materials library file!" << std::endl;
 	material_file >> materials;
 
+	cout<< "hello 2?\n";
+
 	constructReluctivity();
 
-
+	cout<< "hello 3?\n";
 	neg_one.reset(new ConstantCoefficient(-1.0));
 
 	/// Construct current source coefficient
 	constructCurrent();
-
+	cout<< "hello 4?\n";
 	/// Assemble current source vector
 	assembleCurrentSource();
-
+	cout<< "hello 5?\n";
 	/// set up the spatial semi-linear form
    // double alpha = 1.0;
    res.reset(new NonlinearFormType(h_curl_space.get()));
+
+	cout<< "hello 6?\n";
+	
 
 	/// Construct reluctivity coefficient
 	// constructReluctivity();
@@ -78,10 +84,10 @@ MagnetostaticSolver::MagnetostaticSolver(
 	///       but need to verify that that is mathematically corrent based on
 	///       the limit of the Jacobian as B goes to zero.
 	/// Construct magnetization coefficient
-	constructMagnetization();
+	//constructMagnetization();
 
 	/// add magnetization integrator to residual
-	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
+	//res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
@@ -89,11 +95,11 @@ MagnetostaticSolver::MagnetostaticSolver(
 	Array<int> ess_tdof_list;
 	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 	Vector Zero(3);
-   Zero = 0.0;
-   bc_coef.reset(new VectorConstantCoefficient(Zero));
+    Zero = 0.0;
+    bc_coef.reset(new VectorFunctionCoefficient(3, *sol_analytic));
 	// bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
-   A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-   // A->ProjectCoefficient(*bc_coef);
+    A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+    // A->ProjectCoefficient(*bc_coef);
 
 	/// set essential boundary conditions in nonlinear form and rhs current vec
 	res->SetEssentialBC(ess_bdr, current_vec.get());
@@ -170,61 +176,44 @@ void MagnetostaticSolver::constructReluctivity()
 {
 	/// set up default reluctivity to be that of free space
 	double mu_0 = 4e-7*M_PI;
-   std::unique_ptr<Coefficient> nu_free_space(
+    std::unique_ptr<Coefficient> nu_free_space(
       new ConstantCoefficient(1.0/mu_0));
-	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
+	nu.reset(new FunctionCoefficient(reluctivity));
+}
 
-	for (auto& material : options["materials"])
-	{
-		std::unique_ptr<mfem::Coefficient> temp_coeff;
-		std::cout << material << '\n';
-		if (!material["linear"].get<bool>())
-		{
-			auto b = materials["steel"]["B"].get<std::vector<double>>();
-			auto h = materials["steel"]["H"].get<std::vector<double>>();
-			temp_coeff.reset(new ReluctivityCoefficient(b, h));
-		}
-		else
-		{
-			auto mu_r = material["mu_r"].get<double>();
-			// std::unique_ptr<mfem::Coefficient> temp_coeff(
-			temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
-		}
-		nu->addCoefficient(material["attr"].get<int>(), move(temp_coeff));
-	}
-		
-	
+double MagnetostaticSolver::reluctivity(const Vector &x)
+{
 
-	/// uncomment eventually, for now we use constant linear model
-	// std::unique_ptr<mfem::Coefficient> stator_coeff(
-	// 	new ReluctivityCoefficient(reluctivity_model));
+    if ( x(1) <= .5)
+    {
+       return 1;//ms_params_(0);
+    }
+   // if (x(1) == .5)
+   // {
+   //    return (ms_params_(0)+ms_params_(1))/2;
+   // }
+    if (x(1) > .5)
+    {
+        return 1;//ms_params_(1);
+    }
+}
 
-	/// create constant coefficient for stator body with relative permeability
-	/// 3000
-	std::unique_ptr<mfem::Coefficient> stator_coeff(
-		// new ConstantCoefficient(1.0/(10)));
-		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
-	
-	/// create constant coefficient for rotor body with relative permeability
-	/// 3000
-	std::unique_ptr<mfem::Coefficient> rotor_coeff(
-		// new ConstantCoefficient(1.0/(10)));
-		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
+void MagnetostaticSolver::boxcurrent(const Vector &x, Vector &j)
+{
+   j.SetSize(3);
+   j = 0.0;
+   y = x(1) - .5;
+   if ( x(1) < .5)
+   {
 
-	// std::unique_ptr<mfem::Coefficient> magnet_coeff(
-	// 	// new ConstantCoefficient(1.0/(10)));
-	// 	new ConstantCoefficient(1.0/(4e-7*M_PI)));
 
-	/// TODO - use options to select material attribute for stator body
-	/// picked 2 arbitrarily for now
-	nu->addCoefficient(10, move(stator_coeff));
-	// nu->addCoefficient(1, move(stator_coeff));
-	/// TODO - use options to select material attribute for stator body
-	/// picked 2 arbitrarily for now
-	nu->addCoefficient(11, move(rotor_coeff));
-	// nu->addCoefficient(2, move(rotor_coeff));
+      j(2) = -6*y/1;//(1/ms_params_(0))*2;
+   }
+   if ( x(1) > .5)
+   {
+      j(2) = 6*y/1;//(1/ms_params_(1))*2;
 
-	// nu->addCoefficient(5, move(magnet_coeff));
+   }
 }
 
 void MagnetostaticSolver::constructMagnetization()
@@ -241,22 +230,9 @@ void MagnetostaticSolver::constructMagnetization()
 
 void MagnetostaticSolver::constructCurrent()
 {
-	current_coeff.reset(new VectorMeshDependentCoefficient());
+	current_coeff.reset(new VectorFunctionCoefficient(3, *boxcurrent));
 
-	std::unique_ptr<mfem::VectorCoefficient> winding_coeff(
-		new VectorFunctionCoefficient(num_dim, winding_current_source));
-
-
-	std::unique_ptr<mfem::VectorCoefficient> winding_coeff2(
-		new VectorFunctionCoefficient(num_dim, winding_current_source, neg_one.get()));
-
-	/// TODO - use options to select material attribute for windings
-	/// picked 1 arbitrarily for now
-	current_coeff->addCoefficient(7, move(winding_coeff));
-	current_coeff->addCoefficient(8, move(winding_coeff2));
-	// current_coeff->addCoefficient(9, move(winding_coeff)); // zero current
-	// current_coeff->addCoefficient(1, move(winding_coeff));
-	// current_coeff->addCoefficient(2, move(winding_coeff2));
+	
 }
 
 void MagnetostaticSolver::assembleCurrentSource()
@@ -285,13 +261,15 @@ void MagnetostaticSolver::assembleCurrentSource()
 	auto div_free_proj = DivergenceFreeProjector(h1_space, *h_curl_space,
                                               irOrder, NULL, NULL, grad);
 
+	cout<< "hello k?\n";
 	GridFunType j = GridFunType(h_curl_space.get());
 	j.ProjectCoefficient(*current_coeff);
 
 	GridFunType j_div_free = GridFunType(h_curl_space.get());
 	// Compute the discretely divergence-free portion of j
+	cout<< "hello k2?\n";
 	div_free_proj.Mult(j, j_div_free);
-
+	cout<< "hello m?\n";
 	/// create current linear form vector by multiplying mass matrix by
 	/// divergene free current source grid function
 	ConstantCoefficient one(1.0);
@@ -299,11 +277,11 @@ void MagnetostaticSolver::assembleCurrentSource()
 	h_curl_mass_integ->SetIntRule(ir);
 	BilinearFormType *h_curl_mass = new BilinearFormType(h_curl_space.get());
 	h_curl_mass->AddDomainIntegrator(h_curl_mass_integ);
-
+	cout<< "hello n?\n";
 	// assemble mass matrix
 	h_curl_mass->Assemble();
    h_curl_mass->Finalize();
-
+	cout<< "hello o?\n";
 	h_curl_mass->AddMult(j_div_free, *current_vec);
 	std::cout << "below h_curl add mult\n";
 	// I had strange errors when not using pointer versions of these
@@ -430,6 +408,36 @@ void MagnetostaticSolver::a_bc_uniform(const Vector &x, Vector &a)
       a(2) = -y*y;
    }
    //a(2) = b_uniform_(0) * x(1);
+}
+
+void MagnetostaticSolver::sol_analytic(const Vector &x, Vector & a)
+{
+   a.SetSize(3);
+   a = 0.0;
+   y = x(1) - .5;
+   if ( x(1) <= .5)
+   {
+      a(2) = y*y*y; 
+   }
+   else 
+   {
+      a(2) = -y*y*y;
+   }
+}
+
+void MagnetostaticSolver::sol_b_analytic(const Vector &x, Vector & b)
+{
+   b.SetSize(3);
+   b = 0.0;
+   y = x(1) - .5;
+   if ( x(1) <= .5)
+   {
+      b(0) = 3*y*y;
+   }
+   else 
+   {
+      b(0) = -3*y*y;
+   }
 }
 
 } // namespace mach

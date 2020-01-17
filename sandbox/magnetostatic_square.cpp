@@ -33,12 +33,16 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
-
+   nlohmann::json options;
+   string opt_file_name(options_file);
+   cout<<"hello?\n";
+   options.merge_patch(opt_file_name);
+   cout<<"hello?\n";
    // generate a simple tet mesh
    int num_edge = 20;
-   std::unique_ptr<Mesh> mesh(new Mesh(options["num-elem"]["x-num"].get<int>(), 
-                              options["num-elem"]["y-num"].get<int>(),
-                              options["num-elem"]["z-num"].get<int>(),
+   std::unique_ptr<Mesh> mesh(new Mesh(10,//options["num-elem"]["x-num"].get<int>(), 
+                              10,//options["num-elem"]["y-num"].get<int>(),
+                              4,//options["num-elem"]["z-num"].get<int>(),
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 0.1, true));
 
@@ -82,9 +86,8 @@ int main(int argc, char *argv[])
    try
    {
       // construct the solver
-      string opt_file_name(options_file);
       // MagnetostaticSolver solver(opt_file_name, move(mesh));
-      MagnetostaticSolver solver(opt_file_name);
+      MagnetostaticSolver solver(opt_file_name, move(mesh));
       solver.solveForState();
       std::cout << "finish steady solve\n";
    }
