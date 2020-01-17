@@ -56,18 +56,27 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
    return value;
 }
 
+ReluctivityCoefficient::ReluctivityCoefficient(std::vector<double> B,
+                                               std::vector<double> H)
+   : temperature_GF(NULL), b_h_curve()
+{
+   b_h_curve.set_boundary(Spline::second_deriv, 0.0,
+                          Spline::second_deriv, 0.0);
+   b_h_curve.set_points(B, H);
+}
+
 double ReluctivityCoefficient::Eval(ElementTransformation &trans,
 												const IntegrationPoint &ip,
                                     const double state)
 {
-	if (Bmodel)
+	if (temperature_GF)
    {
-      return ((*Bmodel)(state));
+      throw MachException(
+         "Temperature dependent reluctivity is not currently supported!");
    }
    else
    {
-		const double temp = temperature_GF->GetValue(trans.ElementNo, ip);
-      return (*BTmodel)(state, temp);
+      return b_h_curve.deriv(1, state);
    }
 }
 
@@ -75,8 +84,15 @@ double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
 												          const IntegrationPoint &ip,
                                               const double state)
 {
-   mfem_error("Not yet implemented!");
-   return 0.0;
+   if (temperature_GF)
+   {
+      throw MachException(
+         "Temperature dependent reluctivity is not currently supported!");
+   }
+   else
+   {
+      return b_h_curve.deriv(2, state);
+   }
 }
 
 void VectorMeshDependentCoefficient::Eval(Vector &vec,

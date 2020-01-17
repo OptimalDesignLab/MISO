@@ -23,8 +23,8 @@ public:
         left_bnd_value(0.0), right_bnd_value(0.0),
         linear_extrap(false) {}
 
-   /// \brief Optional function to first or second derivative values at each
-   ///        boundary
+   /// \brief Optional function to set first or second derivative values at
+   ///        each boundary
    /// \note must be called before set_points()
    void set_boundary(bnd_type left_boundary, double left_boundary_value,
                      bnd_type right_boundary, double right_boundary_value,

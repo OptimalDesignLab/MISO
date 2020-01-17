@@ -6,6 +6,7 @@
 
 #include "mach_types.hpp"
 #include "utils.hpp"
+#include "spline.hpp"
 
 
 namespace mach
@@ -215,27 +216,18 @@ class ReluctivityCoefficient : public StateCoefficient
 {
 public:
 	/// Define a temperature independent reluctivity model
-	/// \param model - user defined function to evalaute relctivuty based on
-	///					 magnetic flux
-	ReluctivityCoefficient(double (*model)(const double))
-	 : Bmodel(model), BTmodel(NULL),
-		temperature_GF(NULL) {}
-
-	/// Define a temperature dependent reluctivity model
-	/// \param model - user defined function to evalaute relctivuty based on
-	///					 magnetic flux density and temperature
-	/// \param *T_ - pointer to existing temperature grid function
-	ReluctivityCoefficient(double (*model)(const double, double),
-								  GridFunType *T_)
-	 : Bmodel(NULL), BTmodel(model),
-		temperature_GF(T_) {}
-
-
-	/// TODO: implement
-	/// Define a reluctivity model based on experimental B-H curve
 	/// \param[in] B - magnetic flux density values from B-H curve 
 	/// \param[in] H - magnetic field intensity valyes from B-H curve
 	ReluctivityCoefficient(std::vector<double> B, std::vector<double> H);
+
+	/// TODO - implement
+	/// Define a temperature dependent reluctivity model
+	/// \param[in] B - magnetic flux density values from B-H curve 
+	/// \param[in] H - magnetic field intensity valyes from B-H curve
+	/// \param *T_ - pointer to existing temperature grid function
+	/// \note - Not currently implemented
+	ReluctivityCoefficient(std::vector<double> B, std::vector<double> H,
+								  GridFunType *T_);
 
 	/// \brief Evaluate the reluctivity in the element described by trans at the
 	/// point ip. Checks which model was initialized, temperature-dependent or
@@ -262,17 +254,11 @@ public:
 	~ReluctivityCoefficient() {}
 
 protected:
-	/// Function to evalaute reluctivity model with no temperature dependence
-	/// \param const double - magnitude of magnetic flux density
-	double (*Bmodel)(const double);
-
-	/// Function to evalaute reluctivity model with temperature dependence
-	/// \param const double - magnitude of magnetic flux density
-	/// \param double T - temperature
-	double (*BTmodel)(const double, const double);
-
 	/// reference to temperature grid function
 	GridFunType *temperature_GF;
+
+	/// spline representing B-H curve, 1st deriv is reluctivity
+	Spline b_h_curve;
 };
 
 class VectorMeshDependentCoefficient : public mfem::VectorCoefficient
