@@ -18,24 +18,21 @@
       "rel-tol": 1e-8,
       "abs-tol": 1e-8
    },
-   "materials": {
+   "components": {
       "stator": {
          "material": "steel",
          "attr": 10,
-         "linear": false,
-         "mu_r": 2000
+         "linear": false
       },
       "rotor": {
          "material": "steel",
          "attr": 11,
-         "linear": false,
-         "mu_r": 2000
+         "linear": false
       },
       "magnets": {
          "material": "NdFeB",
          "attr": 5,
-         "linear": true,
-         "mu_r": 1.05
+         "linear": true
       }
    },
    "material-lib-path": "../src/material_library.json"

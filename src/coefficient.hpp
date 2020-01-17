@@ -225,7 +225,7 @@ public:
 	/// \param[in] B - magnetic flux density values from B-H curve 
 	/// \param[in] H - magnetic field intensity valyes from B-H curve
 	/// \param *T_ - pointer to existing temperature grid function
-	/// \note - Not currently implemented
+	/// \note not currently implemented
 	ReluctivityCoefficient(std::vector<double> B, std::vector<double> H,
 								  GridFunType *T_);
 

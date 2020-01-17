@@ -43,9 +43,8 @@ MagnetostaticSolver::MagnetostaticSolver(
 #endif
 
    ifstream material_file(options["material-lib-path"].get<string>());
-	/// TODO: replace with mach exception
 	if (!material_file)
-		std::cerr << "Could not open materials library file!" << std::endl;
+		throw MachException("Could not open materials library file!");
 	material_file >> materials;
 
 	constructReluctivity();
@@ -174,27 +173,29 @@ void MagnetostaticSolver::constructReluctivity()
       new ConstantCoefficient(1.0/mu_0));
 	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
 
-	for (auto& material : options["materials"])
+	/// loop over all components, construct either a linear or nonlinear
+	///    reluctivity coefficient for each
+	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> temp_coeff;
-		std::cout << material << '\n';
-		if (!material["linear"].get<bool>())
+		std::cout << component << '\n';
+		std::string material = component["material"].get<std::string>();
+		if (!component["linear"].get<bool>())
 		{
-			auto b = materials["steel"]["B"].get<std::vector<double>>();
-			auto h = materials["steel"]["H"].get<std::vector<double>>();
+			auto b = materials[material]["B"].get<std::vector<double>>();
+			auto h = materials[material]["H"].get<std::vector<double>>();
 			temp_coeff.reset(new ReluctivityCoefficient(b, h));
 		}
 		else
 		{
-			auto mu_r = material["mu_r"].get<double>();
-			// std::unique_ptr<mfem::Coefficient> temp_coeff(
+			auto mu_r = materials[material]["mu_r"].get<double>();
 			temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
 		}
-		nu->addCoefficient(material["attr"].get<int>(), move(temp_coeff));
+		nu->addCoefficient(component["attr"].get<int>(), move(temp_coeff));
 	}
 		
 	
-
+	/**
 	/// uncomment eventually, for now we use constant linear model
 	// std::unique_ptr<mfem::Coefficient> stator_coeff(
 	// 	new ReluctivityCoefficient(reluctivity_model));
@@ -225,8 +226,11 @@ void MagnetostaticSolver::constructReluctivity()
 	// nu->addCoefficient(2, move(rotor_coeff));
 
 	// nu->addCoefficient(5, move(magnet_coeff));
+	*/
 }
 
+/// TODO - this approach cannot support general magnet topologies where the
+///        magnetization cannot be described by a single vector function 
 void MagnetostaticSolver::constructMagnetization()
 {
 	mag_coeff.reset(new VectorMeshDependentCoefficient(num_dim));
@@ -234,11 +238,13 @@ void MagnetostaticSolver::constructMagnetization()
 	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
 		new VectorFunctionCoefficient(num_dim, magnetization_source));
 
-	/// TODO - use options to select material attribute for magnets
-	/// picked 4 arbitrarily for now
-	mag_coeff->addCoefficient(5, move(magnet_coeff));
+	int mag_attr = options["materials"]["magnets"]["attr"].get<int>();
+	mag_coeff->addCoefficient(mag_attr, move(magnet_coeff));
 }
 
+/// TODO - use options to select which winding belongs to which phase, need to
+///        finalize mesh reading before I finish this, as the mesh will decide
+///        how to do this (each winding getting its own attribute or not)
 void MagnetostaticSolver::constructCurrent()
 {
 	current_coeff.reset(new VectorMeshDependentCoefficient());
@@ -391,6 +397,7 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
 
 /// TODO: Find a better way to handle solving the simple box problem
 /// TODO: implement other kinds of sources
+/// TODO: This needs to use materials library to query mu_r, B_r, H_c
 void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
                           		 					  mfem::Vector &B_r)
 {
