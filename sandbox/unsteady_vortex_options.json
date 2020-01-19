@@ -1,6 +1,6 @@
 {
    "mesh": {
-      "file": "kernel-lev-2.mesh",
+      "file": "kernel-lev-1.mesh",
       "refine": 0
    },
    "space-dis": {
@@ -10,6 +10,7 @@
    },
    "steady": false, 
    "time-dis": {
+      "explicit": true,
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.002,

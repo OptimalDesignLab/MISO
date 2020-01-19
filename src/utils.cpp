@@ -271,6 +271,47 @@ void DivergenceFreeProjector::Update()
    this->IrrotationalProjector::Update();
 }
 
+double bisection(std::function<double(double)> func, double xl, double xr,
+                 double ftol, double xtol, int maxiter)
+{
+   double fl = func(xl);
+   double fr = func(xr);
+   if (fl*fr > 0.0)
+   {
+      cerr << "bisection: func(xl)*func(xr) is positive." << endl;
+      throw(-1);
+   }
+   double xm = 0.5*(xl + xr);
+   double fm = func(xm);
+   int iter = 0;
+   while ( (abs(fm) > ftol) && (abs(xr - xl) > xtol) && (iter < maxiter) )
+   {
+      iter++;
+      //cout << "iter = " << iter << ": f(x) = " << fm << endl;
+      if (fm*fl < 0.0)
+      {
+         xr = xm;
+         fr = fm;
+      }
+      else if (fm*fr < 0.0)
+      {
+         xl = xm;
+         fl = fm;
+      }
+      else {
+         break;
+      }
+      xm = 0.5*(xl + xr);
+      fm = func(xm);
+   }
+   if (iter >= maxiter)
+   {
+      cerr << "bisection: failed to find a solution in maxiter." << endl;
+      throw(-1);
+   }
+   return xm;
+}
+
 #ifndef MFEM_USE_LAPACK
 void dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
         double *, int *, double *, int *, int *);

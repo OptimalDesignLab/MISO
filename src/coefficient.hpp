@@ -267,7 +267,7 @@ public:
 	VectorMeshDependentCoefficient(const int dim = 3,
 											 std::unique_ptr<mfem::VectorCoefficient>
 												dflt = NULL)
-		 : default_coeff(move(dflt)), VectorCoefficient(dim) {}
+		 : VectorCoefficient(dim), default_coeff(move(dflt)) {}
 
 	/// Adds <int, std::unique_ptr<mfem::VectorCoefficient> pair to material_map
 	/// \param[in] attr - attribute integer indicating which elements coeff

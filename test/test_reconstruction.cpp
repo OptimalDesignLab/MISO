@@ -94,8 +94,8 @@ TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction opera
    x_diff -= quad_x;
    y_diff -= quad_y;
 
-   std::cout << "x difference norm is " << x_diff.Norml2() << '\n';
-   std::cout << "y difference norm is " << y_diff.Norml2() << '\n';
+   //std::cout << "x difference norm is " << x_diff.Norml2() << '\n';
+   //std::cout << "y difference norm is " << y_diff.Norml2() << '\n';
 
    REQUIRE( x_diff.Norml2() == Approx(0.0).margin(abs_tol));
    REQUIRE( y_diff.Norml2() == Approx(0.0).margin(abs_tol));

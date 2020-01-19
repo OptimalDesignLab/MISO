@@ -12,7 +12,10 @@
 namespace mach
 {
 
-class MagnetostaticSolver : public AbstractSolver
+/// Solver for magnetostatic electromagnetic problems
+/// dim - number of spatial dimensions (only 3 supported)
+template<int dim>
+class MagnetostaticSolver : public AbstractSolver<dim>
 {
 public:
 	/// Class constructor.
@@ -21,8 +24,7 @@ public:
    /// \param[in] dim - number of dimensions
    /// \todo Can we infer dim some other way without using a template param?
    MagnetostaticSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
-							  int dim = 3);
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
    virtual void solveSteady();

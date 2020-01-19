@@ -15,6 +15,17 @@ nlohmann::json default_options =
 {
    {"model-file","mach.dmg"}, // model file name
     
+   {"flow-param", // options related to flow simulations
+   {
+      {"mach", 0.5}, // far-field mach number
+      {"aoa", 0.0},  // far-field angle of attack
+      {"roll-axis", 0},  // axis aligned with nose to tail of aircraft
+      {"pitch-axis", 1}, // axis in the "vertical" direction
+      {"Re", 0.0},  // far-field Reynolds number
+      {"Pr", 0.72}, // the Prandtl number
+      {"mu", -1.0}   // nondimensional viscosity (if negative, use Sutherland's)
+   }},
+
    {"space-dis", // options related to spatial discretization
    {
       {"degree", 1}, // default operator degree
@@ -38,7 +49,17 @@ nlohmann::json default_options =
       {"max-iter", 100}, // default to 100 iterations
       {"rel-tol", 1e-12}, // solver relative tolerance
       {"abs-tol", 1e-12}, // solver absolute tolerance
-      {"tol", 1e-12}, // Hypre solvers only let you set one value for tolerance
+      {"tol", 1e-12} // Hypre solvers only let you set one value for tolerance
+   }},
+
+   {"petscsolver",
+   {
+      {"ksptype", "gmres"}, // GMRES is the default solver for PETSC
+      {"pctype", "lu"}, // TODO: LU or ILU?
+      {"abstol", 1e-10},
+      {"reltol", 1e-10},
+      {"maxiter", 100},
+      {"printlevel", 2}
    }},
 
    {"newton", // options related to root-finding algorithms
