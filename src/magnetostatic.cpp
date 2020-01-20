@@ -230,8 +230,14 @@ void MagnetostaticSolver::constructMagnetization()
 
 void MagnetostaticSolver::constructCurrent()
 {
-	current_coeff.reset(new VectorFunctionCoefficient(3, *boxcurrent));
+	current_coeff.reset(new VectorMeshDependentCoefficient());
 
+	std::unique_ptr<mfem::VectorCoefficient> current(
+		new VectorFunctionCoefficient(num_dim, boxcurrent));
+
+	/// TODO - use options to select material attribute for windings
+	/// picked 1 arbitrarily for now
+	current_coeff->addCoefficient(1, move(current));
 	
 }
 

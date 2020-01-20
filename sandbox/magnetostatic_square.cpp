@@ -41,13 +41,13 @@ int main(int argc, char *argv[])
    // generate a simple tet mesh
    int num_edge = 20;
    std::unique_ptr<Mesh> mesh(new Mesh(10,//options["num-elem"]["x-num"].get<int>(), 
-                              10,//options["num-elem"]["y-num"].get<int>(),
+                              20,//options["num-elem"]["y-num"].get<int>(),
                               4,//options["num-elem"]["z-num"].get<int>(),
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 0.1, true));
 
    mesh->ReorientTetMesh();
-
+   cout << "attribute: " << mesh->GetAttribute(1) <<"\n";
    // // assign attributes to top and bottom sides
    // for (int i = 0; i < mesh->GetNE(); ++i)
    // {
