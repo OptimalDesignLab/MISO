@@ -448,4 +448,6 @@ void MagnetostaticSolver<dim>::a_bc_uniform(const Vector &x, Vector &a)
    //a(2) = b_uniform_(0) * x(1);
 }
 
+template class MagnetostaticSolver<3>;
+
 } // namespace mach

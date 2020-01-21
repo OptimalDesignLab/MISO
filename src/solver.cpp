@@ -627,8 +627,8 @@ void AbstractSolver<dim>::jacobianCheck()
 
 // explicit instantiation
 //template class AbstractSolver<1>;
-template class AbstractSolver<2>;
-///template class AbstractSolver<3>;
+// template class AbstractSolver<2>;
+template class AbstractSolver<3>;
 
 //template <> adept::Stack AbstractSolver<2>::diff_stack;
 
