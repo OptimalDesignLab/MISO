@@ -147,7 +147,7 @@ void MagnetostaticSolver<dim>::solveSteady()
 	newton_solver.Mult(*current_vec, *A);
 	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-	computeSecondaryQuantities();
+	computeSecondaryFields();
 
 	// TODO: Print mesh out in another function?
    ofstream sol_ofs("motor_mesh_fix2.vtk");
@@ -235,7 +235,9 @@ void MagnetostaticSolver<dim>::constructMagnetization()
 	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
 		new VectorFunctionCoefficient(dim, magnetization_source));
 
-	int mag_attr = this->options["materials"]["magnets"]["attr"].template get<int>();
+	/// TODO: error check to make sure this worked
+	int mag_attr = this->options["components"]["magnets"]
+							["attr"].template get<int>();
 	mag_coeff->addCoefficient(mag_attr, move(magnet_coeff));
 }
 
@@ -317,7 +319,7 @@ void MagnetostaticSolver<dim>::assembleCurrentSource()
 }
 
 template<int dim>
-void MagnetostaticSolver<dim>::computeSecondaryQuantities()
+void MagnetostaticSolver<dim>::computeSecondaryFields()
 {
 	std::cout << "before curl constructed\n";
 	DiscreteCurlOperator curl(h_curl_space.get(), h_div_space.get());
@@ -412,9 +414,14 @@ void MagnetostaticSolver<dim>::winding_current_source(const mfem::Vector &x,
 /// TODO: This needs to use materials library to query mu_r, B_r, H_c
 template<int dim>
 void MagnetostaticSolver<dim>::magnetization_source(const mfem::Vector &x,
-                          		 					  mfem::Vector &B_r)
+                          		 					  mfem::Vector &M)
 {
-	int n_p = 12; // number of poles
+	/// TODO: put all of these options calls somewhere else, function will be
+	///        evaluated millions of times, need to be fast
+	/// TODO: add error checking to confirm that these were all read
+	int n_p = this->options["components"]["magnets"]["poles"].template get<int>(); //number of poles
+	auto material = this->options["components"]["magnets"]["material"].template get<std::string>();
+	double remnant_flux = materials[material]["B_r"].template get<double>();
 
 	// compute theta from x and y
 	double tha = atan2(x(1), x(0));
@@ -422,17 +429,20 @@ void MagnetostaticSolver<dim>::magnetization_source(const mfem::Vector &x,
 	Vector plane_vec = x;
 	plane_vec(2) = 0;
 	
-	B_r = 0.0;
+	M = 0.0;
 
-	B_r(0) = plane_vec(0)/plane_vec.Norml2();
-	B_r(1) = plane_vec(1)/plane_vec.Norml2();
-	B_r(2) = 0.0;
+	M(0) = plane_vec(0)/plane_vec.Norml2();
+	M(1) = plane_vec(1)/plane_vec.Norml2();
+	M(2) = 0.0;
 
 	if ((int)round(tha) % 2 == 0)
 	{
-		B_r *= -1.0;
+		M *= -1.0;
 	}
-	B_r /= 1e6;
+	
+	M *= remnant_flux;
+	double mu_0 = 4e-7*M_PI;
+	M /= mu_0;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem

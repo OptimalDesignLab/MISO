@@ -102,9 +102,9 @@ private:
    /// \note - constructCurrent must be called before calling this
    void assembleCurrentSource();
 
-   /// Function to compute seconday field quantities
+   /// Function to compute seconday fields
    /// For magnetostatics, computes the magnetic flux density
-   void computeSecondaryQuantities();
+   void computeSecondaryFields();
 
    /// function describing current density in windings
    /// \param[in] x - position x in space of evaluation
