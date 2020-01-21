@@ -96,18 +96,15 @@ private:
    /// \param[in] alpha - used to move to lhs or rhs
    void constructCurrent();
 
+   /// TODO: throw MachException if constructCurrent not called first
+   ///       introdue some current constructed flag?
    /// assemble vector associated with current source
    /// \note - constructCurrent must be called before calling this
    void assembleCurrentSource();
 
-   /// TODO - implement
-   /// TODO - signature will likely change because I haven't figured out how
-   ///        to take derivatives yet. Probably will end up using Adept adoubles
-   /// function describing nonlinear reluctivity model based on spline
-   ///   interpolation of experimental B-H magnetization curve
-   ///   may optionally use some temperature extrapolation
-   /// \param[in] b_mag - magnitude of magnetic flux density
-   static double reluctivity_model(const double b_mag);
+   /// Function to compute seconday field quantities
+   /// For magnetostatics, computes the magnetic flux density
+   void computeSecondaryQuantities();
 
    /// function describing current density in windings
    /// \param[in] x - position x in space of evaluation

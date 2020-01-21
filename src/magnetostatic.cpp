@@ -147,14 +147,7 @@ void MagnetostaticSolver<dim>::solveSteady()
 	newton_solver.Mult(*current_vec, *A);
 	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-	/// TODO: Move this to a new function `ComputeSecondaryQuantities()`?
-	std::cout << "before curl constructed\n";
-	DiscreteCurlOperator curl(h_curl_space.get(), h_div_space.get());
-	std::cout << "curl constructed\n";
-	curl.Assemble();
-   curl.Finalize();
-	curl.Mult(*A, *B);
-	std::cout << "curl taken\n";
+	computeSecondaryQuantities();
 
 	// TODO: Print mesh out in another function?
    ofstream sol_ofs("motor_mesh_fix2.vtk");
@@ -321,6 +314,18 @@ void MagnetostaticSolver<dim>::assembleCurrentSource()
 	// I had strange errors when not using pointer versions of these
 	delete h_curl_mass;
 	delete grad;
+}
+
+template<int dim>
+void MagnetostaticSolver<dim>::computeSecondaryQuantities()
+{
+	std::cout << "before curl constructed\n";
+	DiscreteCurlOperator curl(h_curl_space.get(), h_div_space.get());
+	std::cout << "curl constructed\n";
+	curl.Assemble();
+   curl.Finalize();
+	curl.Mult(*A, *B);
+	std::cout << "secondary quantities computed\n";
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
