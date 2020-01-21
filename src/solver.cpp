@@ -90,15 +90,19 @@ AbstractSolver<dim>::AbstractSolver(const string &opt_file_name,
 template <int dim>
 void AbstractSolver<dim>::initDerived()
 {
+   double t1, t2;
+   if(0 == rank)
+   {
+      t1 = MPI_Wtime();
+   }
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState(); // <--- this is a virtual fun
-   cout << "Num states = " << num_state << endl;
+   if ( 0==rank ) { cout << "Num states = " << num_state << endl; }
    fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                    Ordering::byVDIM));
    u.reset(new GridFunType(fes.get()));
 #ifdef MFEM_USE_MPI
-   cout << "Number of finite element unknowns: "
-        << fes->GlobalTrueVSize() << endl;
+   cout << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
 #else
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
@@ -114,6 +118,38 @@ void AbstractSolver<dim>::initDerived()
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
    // Add integrators; this can be simplified if we template the entire class
+   if(0 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(1 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(2 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(3 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
    this->addVolumeIntegrators(alpha);
    auto &bcs = options["bcs"];
    bndry_marker.resize(bcs.size()); // need to set this before next method
@@ -121,14 +157,17 @@ void AbstractSolver<dim>::initDerived()
    this->addInterfaceIntegrators(alpha);
 
    // This just lists the boundary markers for debugging purposes
-   for (int k = 0; k < bndry_marker.size(); ++k)
+   if (0==rank)
    {
-      cout << "boundary_marker[" << k << "]: ";
-      for (int i = 0; i < bndry_marker[k].Size(); ++i)
+      for (int k = 0; k < bndry_marker.size(); ++k)
       {
-         cout << bndry_marker[k][i] << " ";
+         cout << "boundary_marker[" << k << "]: ";
+         for (int i = 0; i < bndry_marker[k].Size(); ++i)
+         {
+            cout << bndry_marker[k][i] << " ";
+         }
+         cout << endl;
       }
-      cout << endl;
    }
 
    // define the time-dependent operator
@@ -147,11 +186,16 @@ void AbstractSolver<dim>::initDerived()
    {
       evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
-   std::cout << "evolver is set.\n";
+   if( 0==rank ) { std::cout << "evolver is set.\n"; }
    // add the output functional QoIs 
    auto &fun = options["outputs"];
    output_bndry_marker.resize(fun.size());
    this->addOutputs(); // virtual function
+   if(0 == rank)
+   {
+      t2 = MPI_Wtime();
+      cout << "Time for assembling integrators and etc is " << (t2 - t1) << endl;
+   }
 }
 
 template <int dim>
@@ -397,6 +441,11 @@ void AbstractSolver<dim>::solveForState()
 template <int dim>
 void AbstractSolver<dim>::solveSteady()
 {
+   double t1, t2;
+   if(0==rank)
+   {
+      t1 = MPI_Wtime();
+   }
 #ifdef MFEM_USE_PETSC
    // Get the PetscSolver option 
    double abstol = options["petscsolver"]["abstol"].get<double>();
@@ -412,7 +461,6 @@ void AbstractSolver<dim>::solveSteady()
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
-   std::cout << "PetscLinearSolver is set.\n";
    //Get the newton solver options
    double nabstol = options["newtonsolver"]["abstol"].get<double>();
    double nreltol = options["newtonsolver"]["reltol"].get<double>();
@@ -428,8 +476,16 @@ void AbstractSolver<dim>::solveSteady()
    newton_solver->SetPrintLevel(nptl);
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   newton_solver->Mult(b, *u);
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
+   newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   u->SetFromTrueDofs(u_true);
+   if(0==rank)
+   {
+      t2 = MPI_Wtime();
+      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
 #else
    // Hypre solver section
    //prec.reset( new HypreBoomerAMG() );
@@ -461,8 +517,11 @@ void AbstractSolver<dim>::solveSteady()
 
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
    newton_solver->Mult(b,  *u);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   u->SetFromTrueDofs(u_true);
 #endif
 }
 

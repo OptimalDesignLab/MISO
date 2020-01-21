@@ -113,8 +113,9 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
    int num_quad = x_quad.Width();
    // number of elements
    int num_el = x_center.Width();
-   // number of row and colomn in little r matrix
-   int m;
+
+   // number of row and colomn in r matrix
+   int m = (degree + 1) * (degree + 2) / 2; // in 1 and 3D the size will be different
    int n = num_el;
    if (1 == dim)
    {

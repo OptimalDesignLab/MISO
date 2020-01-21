@@ -1,6 +1,6 @@
 {
    "space-dis": {
-      "degree": 1,
+      "degree": 4,
       "lps-coeff": 1.0,
       "basis-type": "csbp"
    },
@@ -27,15 +27,15 @@
    },
    "steady": true,
    "newtonsolver":{
-      "abstol": 1e-10,
-      "reltol": 1e-10,
+      "abstol": 1e-14,
+      "reltol": 1e-9,
       "maxiter": 30,
       "printlevel": 1
    },
    "petscsolver":{
       "ksptype": "gmres",
       "pctype": "lu",
-      "abstol": 1e-10,
+      "abstol": 1e-20,
       "reltol": 1e-10,
       "maxiter": 100,
       "printlevel": 2
