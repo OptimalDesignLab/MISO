@@ -32,11 +32,11 @@ ThermalSolver::ThermalSolver(
 	current_vec.reset(new GridFunType(h_curl_space.get()));
 
 #ifdef MFEM_USE_MPI
-   cout << "Number of finite element unknowns: "
-        << h_grad_space->GlobalTrueVSize() << endl;
+   //cout << "Number of finite element unknowns: "
+   //     << h_grad_space->GlobalTrueSize() << endl;
 #else
    cout << "Number of finite element unknowns: "
-        << h_grad_space->GetTrueVSize() << endl;
+        << h_grad_space->GetNDofs() << endl;
 #endif
 
     ifstream material_file(options["material-lib-path"].get<string>());
@@ -46,6 +46,10 @@ ThermalSolver::ThermalSolver(
 	material_file >> materials;
 
 	///TODO: Define these based on materials library
+	constructDensityCoeff();
+
+	constructHeatCoeff();
+
 	constructMassCoeff();
 
     constructConductivity();
@@ -218,97 +222,86 @@ void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dXdt
 	m->RecoverFEMSolution(dTdt, *rhs, *dTdt);
 }
 
-void MagnetostaticSolver::constructMassCoeff()
+void ThermalSolver::constructDensityCoeff()
 {
-	/// set up default reluctivity to be that of free space
-	double mu_0 = 4e-7*M_PI;
-   std::unique_ptr<Coefficient> nu_free_space(
-      new ConstantCoefficient(1.0/mu_0));
-	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
+	rho.reset(new MeshDependentCoefficient());
 
 	for (auto& material : options["materials"])
 	{
-		std::unique_ptr<mfem::Coefficient> temp_coeff;
+		std::unique_ptr<mfem::Coefficient> rho_coeff;
 		std::cout << material << '\n';
-		if (!material["linear"].get<bool>())
 		{
-			auto b = materials["steel"]["B"].get<std::vector<double>>();
-			auto h = materials["steel"]["H"].get<std::vector<double>>();
-			temp_coeff.reset(new ReluctivityCoefficient(b, h));
+			auto rho = material["rho"].get<double>();
+			rho_coeff.reset(new ConstantCoefficient(rho));
 		}
-		else
-		{
-			auto mu_r = material["mu_r"].get<double>();
-			// std::unique_ptr<mfem::Coefficient> temp_coeff(
-			temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
-		}
-		nu->addCoefficient(material["attr"].get<int>(), move(temp_coeff));
+		rho->addCoefficient(material["attr"].get<int>(), move(rho_coeff));
 	}
-		
-	
-
-	/// uncomment eventually, for now we use constant linear model
-	// std::unique_ptr<mfem::Coefficient> stator_coeff(
-	// 	new ReluctivityCoefficient(reluctivity_model));
-
-	/// create constant coefficient for stator body with relative permeability
-	/// 3000
-	std::unique_ptr<mfem::Coefficient> stator_coeff(
-		// new ConstantCoefficient(1.0/(10)));
-		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
-	
-	/// create constant coefficient for rotor body with relative permeability
-	/// 3000
-	std::unique_ptr<mfem::Coefficient> rotor_coeff(
-		// new ConstantCoefficient(1.0/(10)));
-		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
-
-	// std::unique_ptr<mfem::Coefficient> magnet_coeff(
-	// 	// new ConstantCoefficient(1.0/(10)));
-	// 	new ConstantCoefficient(1.0/(4e-7*M_PI)));
-
-	/// TODO - use options to select material attribute for stator body
-	/// picked 2 arbitrarily for now
-	nu->addCoefficient(10, move(stator_coeff));
-	// nu->addCoefficient(1, move(stator_coeff));
-	/// TODO - use options to select material attribute for stator body
-	/// picked 2 arbitrarily for now
-	nu->addCoefficient(11, move(rotor_coeff));
-	// nu->addCoefficient(2, move(rotor_coeff));
-
-	// nu->addCoefficient(5, move(magnet_coeff));
 }
 
-void MagnetostaticSolver::constructMagnetization()
+void ThermalSolver::constructHeatCoeff()
 {
-	mag_coeff.reset(new VectorMeshDependentCoefficient(num_dim));
+	cv.reset(new MeshDependentCoefficient());
 
-	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
-		new VectorFunctionCoefficient(num_dim, magnetization_source));
-
-	/// TODO - use options to select material attribute for magnets
-	/// picked 4 arbitrarily for now
-	mag_coeff->addCoefficient(5, move(magnet_coeff));
+	for (auto& material : options["materials"])
+	{
+		std::unique_ptr<mfem::Coefficient> cv_coeff;
+		std::cout << material << '\n';
+		{
+			auto cv = material["cv"].get<double>();
+			cv_coeff.reset(new ConstantCoefficient(cv));
+		}
+		cv->addCoefficient(material["attr"].get<int>(), move(cv_coeff));
+	}
 }
 
-void MagnetostaticSolver::constructCurrent()
+
+void ThermalSolver::constructMassCoeff()
 {
-	current_coeff.reset(new VectorMeshDependentCoefficient());
+	rho_cv.reset(new ProductCoefficient(rho,cv));
+}
 
-	std::unique_ptr<mfem::VectorCoefficient> winding_coeff(
-		new VectorFunctionCoefficient(num_dim, winding_current_source));
+void ThermalSolver::constructConductivity()
+{
+	kappa.reset(new MeshDependentCoefficient());
 
+	for (auto& material : options["materials"])
+	{
+		std::unique_ptr<mfem::Coefficient> kappa_coeff;
+		std::cout << material << '\n';
+		{
+			auto kappa = material["kappa"].get<double>();
+			kappa_coeff.reset(new ConstantCoefficient(kappa));
+		}
+		kappa->addCoefficient(material["attr"].get<int>(), move(kappa_coeff));
 
-	std::unique_ptr<mfem::VectorCoefficient> winding_coeff2(
-		new VectorFunctionCoefficient(num_dim, winding_current_source, neg_one.get()));
+		///TODO: generate anisotropic conductivity for the copper windings
+	}
+}
 
-	/// TODO - use options to select material attribute for windings
-	/// picked 1 arbitrarily for now
-	current_coeff->addCoefficient(7, move(winding_coeff));
-	current_coeff->addCoefficient(8, move(winding_coeff2));
-	// current_coeff->addCoefficient(9, move(winding_coeff)); // zero current
-	// current_coeff->addCoefficient(1, move(winding_coeff));
-	// current_coeff->addCoefficient(2, move(winding_coeff2));
+void ThermalSolver::constructElecConductivity()
+{
+	sigmainv.reset(new MeshDependentCoefficient());
+
+	for (auto& material : options["materials"])
+	{
+		std::unique_ptr<mfem::Coefficient> sigmainv_coeff;
+		std::cout << material << '\n';
+		if(material["conductor"].template get<bool>())
+		{
+			auto sigma = material["sigma"].get<double>();
+			sigmainv_coeff.reset(new ConstantCoefficient(1/sigma));
+		}
+		sigmainv->addCoefficient(material["attr"].get<int>(), move(sigmainv_coeff));
+	}
+}
+
+void ThermalSolver::constructCurrent()
+{
+	// Can we get this from the em solver? To avoid recomputing divergence-free current field
+	// all we need is I^2*(1/Sigma)
+
+	// assume isotropic
+	double isr = sigmainv.Eval()*current_vec*current_vec;
 }
 
 } // namespace mach

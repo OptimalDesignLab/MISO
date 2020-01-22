@@ -1,0 +1,32 @@
+
+{
+    "mesh": {
+       "file": "motor_fix.mesh"
+    },
+    "space-dis": {
+       "basis-type": "H1",
+       "degree": 1
+    },
+    "steady": false,
+    "time-dis": {
+        "const-cfl": true,
+        "cfl": 1.0,
+        "dt": 0.002,
+        "t-final": 0.2
+    },
+    "lin-solver": {
+       "print-lvl": 2,
+       "max-iter": 500
+    },
+    "components": {
+       "stator": {
+          "material": "steel",
+          "attr": 1
+       },
+       "rotor": {
+          "material": "air",
+          "attr": 2
+       }
+    },
+    "material-lib-path": "../src/material_library.json"
+ }

@@ -40,19 +40,29 @@ private:
    std::unique_ptr<GridFunType> T;
    std::unique_ptr<GridFunType> dTdt;
    std::unique_ptr<GridFunType> rhs;
+   std::unique_ptr<GridFunType> current_vec;
 
    OperatorPtr A;
    Vector X, B;
 
 
-   /// mesh dependent mass density coefficient
-   std::unique_ptr<MeshDependentCoefficient> rho_cv;
+   /// mesh dependent density coefficient
+   std::unique_ptr<MeshDependentCoefficient> rho;
+
+   /// mesh dependent specific heat coefficient
+   std::unique_ptr<MeshDependentCoefficient> cv;
+
+   /// mesh dependent mass*specificheat coefficient
+   std::unique_ptr<mfem::Coefficient> rho_cv;
 
    /// mesh dependent thermal conductivity tensor
    std::unique_ptr<MeshDependentCoefficient> kappa;
 
    /// mesh dependent electrical conductivity tensor
-   std::unique_ptr<MeshDependentCoefficient> sigma;
+   std::unique_ptr<MeshDependentCoefficient> sigmainv;
+
+   /// mesh dependent 
+   std::unique_ptr<MeshDependentCoefficient> sigmainv;
 
 
    /// essential boundary condition marker array (not using )
@@ -77,6 +87,12 @@ private:
 
    /// boundary condition marker array
    std::vector<mfem::Array<int>> bndry_marker;
+
+   /// construct mesh dependent coefficient for density
+   void constructDensityCoeff();
+
+   /// construct mesh dependent coefficient for specific heat
+   void constructHeatCoeff();
 
    /// construct mesh dependent coefficient for density and specific heat
    void constructMassCoeff();
