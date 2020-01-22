@@ -99,6 +99,14 @@
 //    // nmat1.SetSize((max_n + req_n-min_n), nEle);
 // }
 
+// // an overload function of previous one (more doable?)
+// void GalerkinDiffereence::BuildNeighbourMat(const std::vector<int> elmt_id,
+//                                             mfem::DenseMatrix &mat_cent,
+//                                             mfem::DenseMatrix &mat_quad)
+// {
+   
+// }
+
 // void GalerkinDifference::GetNeighbourSet(int id, int req_n, std::vector<int> &nels)
 // {
 //    /// this stores the elements for which we need neighbours
@@ -109,6 +117,7 @@
 //    /// first, need to find neighbour of the given element
 //    el.push_back(e);
 //    /// first entry in neighbour vector should be the element itself
+//    nels.resize(0); // clean the queue vector 
 //    nels.push_back(id);
 //    /// iterate for finding element neighbours.
 //    /// it stops when the # of elements in patch are equal/greater
@@ -157,37 +166,53 @@
 //    eltransf->Transform(Geometries.GetCenter(geom), cent);
 // }
 
-// // void GalerkinDifference::BuildGDProlongation() const
-// // {
-// //    // allocate the space for the prolongation matrix
-// //    // this step should be done in the constructor (probably)
-// //    // should it be GetTrueVSize() ? or GetVSize()?
-// //    // need a new method that directly construct a CSR format sparsematrix
-// //    cP = new mfem::SparseMatrix(GetVSize(), nEle);
-// //    // loop over all the element:
-// //    // 1. build the patch for each element,
-// //    // 2. construct the local reconstruction operator
-// //    // 3. assemble local reconstruction operator
-// //    for(int i = 0; i < nEle; i++)
-// //    {
-// //       // 1. construct the patch the patch
-// //       GetNeighbourSet(i, nelmt, elmt_id);
+// void GalerkinDifference::BuildGDProlongation() const
+// {
+//    // allocate the space for the prolongation matrix
+//    // this step should be done in the constructor (probably)
+//    // should it be GetTrueVSize() ? or GetVSize()?
+//    // need a new method that directly construct a CSR format sparsematrix
+//    cP = new mfem::SparseMatrix(GetVSize(), nEle);
+//    // determine the minimum # of element in each patch
+//    int nelmt;
+//    switch(dim)
+//    {
+//       case 1: nelmt = degree + 1; break;
+//       case 2: nelmt = (degree+1) * (degree+2) / 2; break;
+//       case 3: throw MachException("Not implemeneted yet.\n"); break;
+//       default: throw MachException("dim must be 1, 2 or 3.\n");
+//    }
+//    // loop over all the element:
+//    // 1. build the patch for each element,
+//    // 2. construct the local reconstruction operator
+//    // 3. assemble local reconstruction operator
+   
+//    // vector that contains element id (resize to zero )
+//    std::vector<int> elmt_id;
+//    mfem::DenseMatrix cent_mat, quad_mat;
+
+//    for(int i = 0; i < nEle; i++)
+//    {
+//       // 1. construct the patch the patch
+//       // have more element than required to make it a underdetermined system
+//       elmt_id.clear();
+//       GetNeighbourSet(i, nelmt, elmt_id);
       
-// //       // 2. build the quadrature and barycenter coordinate matrices
-// //       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
+//       // 2. build the quadrature and barycenter coordinate matrices
+//       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
 
-// //       // 3. buil the loacl reconstruction matrix
-// //       buildInterpolation(degree, cent_mat, quad_mat, local_mat);
+//       // 3. buil the loacl reconstruction matrix
+//       buildInterpolation(degree, cent_mat, quad_mat, local_mat);
 
-// //       // 4. assemble them back to prolongation matrix
-// //       AssmbleProlongationMatrix(local_mat);
-// //    }
-// // }
+//       // 4. assemble them back to prolongation matrix
+//       AssmbleProlongationMatrix(local_mat);
+//    }
+// }
 
-// // void GalerkinDifference::AssembleProlongationMatrix(const 
-// //                            mfem::DenseMatrix local_mat) const
-// // {
+// void GalerkinDifference::AssembleProlongationMatrix(const 
+//                            mfem::DenseMatrix local_mat) const
+// {
 
-// // }
+// }
 
-// // } // namespace mfem
+// } // namespace mfem

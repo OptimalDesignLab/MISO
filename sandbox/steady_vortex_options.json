@@ -1,8 +1,8 @@
 {
    "space-dis": {
-      "degree": 4,
+      "degree": 2,
       "lps-coeff": 1.0,
-      "basis-type": "csbp"
+      "basis-type": "dsbp"
    },
    "time-dis": {
       "explicit": false,
@@ -28,7 +28,7 @@
    "steady": true,
    "newtonsolver":{
       "abstol": 1e-14,
-      "reltol": 1e-9,
+      "reltol": 1e-12,
       "maxiter": 30,
       "printlevel": 1
    },

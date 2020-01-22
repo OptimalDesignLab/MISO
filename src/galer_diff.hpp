@@ -26,7 +26,7 @@
 //    void BuildNeighbourMat(DenseMatrix &nmat1, DenseMatrix &nmat2);
 
 //    /// An overload function for build the densmatrix
-//    void BuildNeighbourMat(std::vector<int> els_id,
+//    void BuildNeighbourMat(const std::vector<int> els_id,
 //                           DenseMatrix &mat_cent,
 //                           DenseMatrix &mat_quad);
 
@@ -58,6 +58,8 @@
 //    int dim;
 //    /// number of elements in mesh
 //    int nEle;
+//    /// degree of lagrange interpolation
+//    int degree;   
 //    /// use pumi mesh
 //    using MeshType = mfem::PumiMesh;
 //    /// object defining the computational mesh
