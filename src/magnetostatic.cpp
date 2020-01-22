@@ -152,14 +152,17 @@ void MagnetostaticSolver<dim>::solveSteady()
 
 	computeSecondaryFields();
 
-	// TODO: Print mesh out in another function?
-   ofstream sol_ofs("motor_mesh_fix2.vtk");
-   sol_ofs.precision(14);
-   this->mesh->PrintVTK(sol_ofs, 1);
-   A->SaveVTK(sol_ofs, "A_Field", 1);
-	B->SaveVTK(sol_ofs, "B_Field", 1);
-   sol_ofs.close();
-	std::cout << "finish steady solve\n";
+	// // TODO: Print mesh out in another function?
+   // ofstream sol_ofs("motor_mesh_fix2.vtk");
+   // sol_ofs.precision(14);
+   // this->mesh->PrintVTK(sol_ofs, 1);
+   // A->SaveVTK(sol_ofs, "A_Field", 1);
+	// B->SaveVTK(sol_ofs, "B_Field", 1);
+   // sol_ofs.close();
+	// std::cout << "finish steady solve\n";
+	this->printGridFuns("motor_mesh_fix2",
+							  {A.get(), B.get()},
+	                    {"A_Field", "B_Field"});
 }
 
 template<int dim>

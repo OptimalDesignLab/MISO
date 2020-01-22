@@ -87,6 +87,20 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printResidual(const std::string &file_name, int refine = -1);
 
+   /// TODO: make this work for parallel!
+   /// Write the mesh and an initializer list to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] grid_funs - list of grid functions to print, passed as an
+   ///                        initializer list
+   /// \param[in] names - list of names to use for each grid function printed
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printGridFuns(const std::string &file_name,
+                      std::vector<GridFunType*> grid_funs,
+                      std::vector<std::string> names,
+                      int refine = -1);
+
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
    

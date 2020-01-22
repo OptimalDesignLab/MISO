@@ -385,6 +385,33 @@ void AbstractSolver<dim>::printResidual(const std::string &file_name,
    res_ofs.close();
 }
 
+template<int dim>
+void AbstractSolver<dim>::printGridFuns(const std::string &file_name,
+                                        std::vector<GridFunType*> grid_funs,
+                                        std::vector<std::string> names,
+                                        int refine)
+{
+   if (grid_funs.size() != names.size())
+   {
+      throw MachException(
+         "Must supply a name for each grid function to print!");
+   }
+   // TODO: These mfem functions do not appear to be parallelized
+   ofstream sol_ofs(file_name + ".vtk");
+   sol_ofs.precision(14);
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].template get<int>() + 1;
+   }
+   mesh->PrintVTK(sol_ofs, refine);
+   for (int i = 0; i < grid_funs.size(); ++i)
+   {
+      grid_funs[i]->SaveVTK(sol_ofs, names[i], refine);
+   }
+   sol_ofs.close();
+
+}
+
 template <int dim>
 void AbstractSolver<dim>::solveForState()
 {

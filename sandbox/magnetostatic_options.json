@@ -22,12 +22,12 @@
       "stator": {
          "material": "steel",
          "attr": 10,
-         "linear": false
+         "linear": true
       },
       "rotor": {
          "material": "steel",
          "attr": 11,
-         "linear": false
+         "linear": true
       },
       "magnets": {
          "material": "NdFeB",
