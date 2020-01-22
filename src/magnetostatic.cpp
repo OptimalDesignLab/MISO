@@ -47,6 +47,9 @@ MagnetostaticSolver<dim>::MagnetostaticSolver(
 		throw MachException("Could not open materials library file!");
 	material_file >> materials;
 
+	/// read options file to set the proper values of static member variables
+	setStaticMembers();
+
 	constructReluctivity();
 
 
@@ -157,6 +160,17 @@ void MagnetostaticSolver<dim>::solveSteady()
 	B->SaveVTK(sol_ofs, "B_Field", 1);
    sol_ofs.close();
 	std::cout << "finish steady solve\n";
+}
+
+template<int dim>
+void MagnetostaticSolver<dim>::setStaticMembers()
+{
+	num_poles = this->options["components"]["magnets"]
+						["poles"].template get<int>();
+	auto material = this->options["components"]["magnets"]
+							["material"].template get<std::string>();
+	remnant_flux = materials[material]["B_r"].template get<double>();
+	mag_mu_r = materials[material]["mu_r"].template get<double>();
 }
 
 template<int dim>
@@ -419,10 +433,11 @@ void MagnetostaticSolver<dim>::magnetization_source(const mfem::Vector &x,
 	/// TODO: put all of these options calls somewhere else, function will be
 	///        evaluated millions of times, need to be fast
 	/// TODO: add error checking to confirm that these were all read
-	int n_p = this->options["components"]["magnets"]["poles"].template get<int>(); //number of poles
-	auto material = this->options["components"]["magnets"]["material"].template get<std::string>();
-	double remnant_flux = materials[material]["B_r"].template get<double>();
+	// int n_p = this->options["components"]["magnets"]["poles"].template get<int>(); //number of poles
+	// auto material = this->options["components"]["magnets"]["material"].template get<std::string>();
+	// double remnant_flux = materials[material]["B_r"].template get<double>();
 
+	int n_p = num_poles;
 	// compute theta from x and y
 	double tha = atan2(x(1), x(0));
 
@@ -443,6 +458,7 @@ void MagnetostaticSolver<dim>::magnetization_source(const mfem::Vector &x,
 	M *= remnant_flux;
 	double mu_0 = 4e-7*M_PI;
 	M /= mu_0;
+	M /= mag_mu_r;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -462,6 +478,15 @@ void MagnetostaticSolver<dim>::a_bc_uniform(const Vector &x, Vector &a)
    }
    //a(2) = b_uniform_(0) * x(1);
 }
+
+template<int dim>
+int MagnetostaticSolver<dim>::num_poles = -1;
+
+template<int dim>
+double MagnetostaticSolver<dim>::remnant_flux = 0.0;
+
+template<int dim>
+double MagnetostaticSolver<dim>::mag_mu_r = 0.0;
 
 template class MagnetostaticSolver<3>;
 

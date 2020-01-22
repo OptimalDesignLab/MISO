@@ -30,13 +30,6 @@ public:
    virtual void solveSteady();
 
 private:
-   // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
-   // std::vector<mfem::Array<int>> bndry_marker;
-   // /// the mass matrix bilinear form
-   // std::unique_ptr<BilinearFormType> mass;
-   // /// mass matrix (move to AbstractSolver?)
-   // std::unique_ptr<MatrixType> mass_matrix;
-
    /// Nedelec finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
    /// Raviart-Thomas finite element collection
@@ -51,6 +44,7 @@ private:
    /// Magnetic flux density B = curl(A) grid function
    std::unique_ptr<GridFunType> B;
 
+   /// TODO: delete? defined in abstract solver
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
 
@@ -83,6 +77,16 @@ private:
 
    /// Material Library
    nlohmann::json materials;
+
+   /// static member variables used inside static member functions
+   /// magnetization_source and winding_current_source
+   /// values set by options in setStaticMembers
+   static int num_poles;
+   static double remnant_flux;
+   static double mag_mu_r;
+
+   /// set the values of static member variables used based on options file
+   void setStaticMembers();
 
    /// construct mesh dependent coefficient for reluctivity
    /// \param[in] alpha - used to move to lhs or rhs

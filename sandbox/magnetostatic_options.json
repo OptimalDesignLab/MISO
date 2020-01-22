@@ -32,7 +32,8 @@
       "magnets": {
          "material": "NdFeB",
          "attr": 5,
-         "linear": true
+         "linear": true,
+         "poles": 16
       }
    },
    "material-lib-path": "../src/material_library.json"
