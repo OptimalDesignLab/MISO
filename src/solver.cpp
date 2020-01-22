@@ -386,12 +386,12 @@ void AbstractSolver<dim>::printResidual(const std::string &file_name,
 }
 
 template<int dim>
-void AbstractSolver<dim>::printGridFuns(const std::string &file_name,
-                                        std::vector<GridFunType*> grid_funs,
+void AbstractSolver<dim>::printFields(const std::string &file_name,
+                                        std::vector<GridFunType*> fields,
                                         std::vector<std::string> names,
                                         int refine)
 {
-   if (grid_funs.size() != names.size())
+   if (fields.size() != names.size())
    {
       throw MachException(
          "Must supply a name for each grid function to print!");
@@ -404,9 +404,9 @@ void AbstractSolver<dim>::printGridFuns(const std::string &file_name,
       refine = options["space-dis"]["degree"].template get<int>() + 1;
    }
    mesh->PrintVTK(sol_ofs, refine);
-   for (int i = 0; i < grid_funs.size(); ++i)
+   for (int i = 0; i < fields.size(); ++i)
    {
-      grid_funs[i]->SaveVTK(sol_ofs, names[i], refine);
+      fields[i]->SaveVTK(sol_ofs, names[i], refine);
    }
    sol_ofs.close();
 

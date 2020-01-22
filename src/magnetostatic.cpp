@@ -160,9 +160,9 @@ void MagnetostaticSolver<dim>::solveSteady()
 	// B->SaveVTK(sol_ofs, "B_Field", 1);
    // sol_ofs.close();
 	// std::cout << "finish steady solve\n";
-	this->printGridFuns("motor_mesh_fix2",
-							  {A.get(), B.get()},
-	                    {"A_Field", "B_Field"});
+	this->printFields("motor_mesh_fix2",
+							{A.get(), B.get()},
+	                  {"A_Field", "B_Field"});
 }
 
 template<int dim>
