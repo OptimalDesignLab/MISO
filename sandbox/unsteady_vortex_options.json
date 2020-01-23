@@ -10,7 +10,6 @@
    },
    "steady": false, 
    "time-dis": {
-      "explicit": true,
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.002,

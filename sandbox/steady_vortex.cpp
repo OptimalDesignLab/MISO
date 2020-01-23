@@ -34,29 +34,15 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 int main(int argc, char *argv[])
 {
    const char *options_file = "steady_vortex_options.json";
-
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady.petsc";
-   //Get the option files
-   nlohmann::json options;
-   ifstream option_source(options_file);
-   option_source >> options;
-   // write the petsc linear solver options from options
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
-   petscoptions.close();
-#endif
-
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+#endif
+#ifdef MFEM_USE_PETSC
+   MFEMInitializePetsc(NULL, NULL, NULL, NULL);
 #endif
   
    // Parse command-line options
@@ -76,10 +62,6 @@ int main(int argc, char *argv[])
       return 1;
    }
   
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
-
    try
    {
       // construct the solver, set the initial condition, and solve
@@ -131,7 +113,6 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
 #endif
-
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif

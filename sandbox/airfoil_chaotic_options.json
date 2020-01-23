@@ -18,7 +18,6 @@
    },
    "steady": false,
    "time-dis": {
-      "explicit": false,
       "const-cfl": false,
       "ode-solver": "MIDPOINT",
       "t-final": 2.0,

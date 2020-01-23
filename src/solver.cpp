@@ -5,6 +5,9 @@
 #include "sbp_fe.hpp"
 #include "diag_mass_integ.hpp"
 #include "evolver.hpp"
+#ifdef MFEM_USE_PETSC
+   #include "petscsys.h"
+#endif
 
 using namespace std;
 using namespace mfem;
@@ -34,6 +37,18 @@ AbstractSolver<dim>::AbstractSolver(const string &opt_file_name,
    options_file >> file_options;
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "eulersteady.petsc";
+   // write the petsc linear solver options from options
+   ofstream petscoptions(petscrc_file);
+   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
+   const string prec_name = options["petscsolver"]["pctype"].get<string>();
+   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
+   petscoptions << "-prec_pc_type " << prec_name << '\n';
+   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
+   petscoptions.close();
+   PetscOptionsInsert(NULL, NULL, NULL, petscrc_file);
+#endif
    constructMesh(move(smesh));
    // does dim equal mesh->Dimension in all cases?
    if (dim != mesh->Dimension())
@@ -177,8 +192,9 @@ void AbstractSolver<dim>::initDerived()
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
-   bool is_explicit = options["time-dis"]["explicit"].get<bool>();
-   if(is_explicit)
+   const string odes = options["time-dis"]["ode-solver"].get<string>();
+   std::cout << "ode solver is " << odes << std::endl;
+   if(odes == "RK1" || odes == "RK4")
    {
       evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
    }
@@ -186,7 +202,7 @@ void AbstractSolver<dim>::initDerived()
    {
       evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
-   if( 0==rank ) { std::cout << "evolver is set.\n"; }
+
    // add the output functional QoIs 
    auto &fun = options["outputs"];
    output_bndry_marker.resize(fun.size());
@@ -428,8 +444,10 @@ void AbstractSolver<dim>::printResidual(const std::string &file_name,
 template <int dim>
 void AbstractSolver<dim>::solveForState()
 {
+   std::cout << "steady ? " << options["steady"].get<bool>() <<std::endl;
    if (options["steady"].get<bool>() == true)
    {
+      std::cout << "Going to solve steady.\n";
       solveSteady();
    }
    else
@@ -446,7 +464,7 @@ void AbstractSolver<dim>::solveSteady()
    {
       t1 = MPI_Wtime();
    }
-#ifdef MFEM_USE_PETSC
+#ifdef MFEM_USE_PETSC   
    // Get the PetscSolver option 
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
@@ -461,11 +479,12 @@ void AbstractSolver<dim>::solveSteady()
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
+   std::cout << "Petsc Solver set.\n";
    //Get the newton solver options
-   double nabstol = options["newtonsolver"]["abstol"].get<double>();
-   double nreltol = options["newtonsolver"]["reltol"].get<double>();
-   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
-   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   double nabstol = options["newton"]["abstol"].get<double>();
+   double nreltol = options["newton"]["reltol"].get<double>();
+   int nmaxiter = options["newton"]["maxiter"].get<int>();
+   int nptl = options["newton"]["printlevel"].get<int>();
    newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
@@ -474,6 +493,7 @@ void AbstractSolver<dim>::solveSteady()
    newton_solver->SetRelTol(nreltol);
    newton_solver->SetMaxIter(nmaxiter);
    newton_solver->SetPrintLevel(nptl);
+   std::cout << "Newton solver is set.\n";
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
    mfem::Vector u_true;
@@ -493,19 +513,19 @@ void AbstractSolver<dim>::solveSteady()
    std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
                << " without preconditioner.\n";
    
-   double tol = options["hypresolver"]["tol"].get<double>();
-   int maxiter = options["hypresolver"]["maxiter"].get<int>();
-   int ptl = options["hypresolver"]["printlevel"].get<int>();
+   double tol = options["lin-solver"]["tol"].get<double>();
+   int maxiter = options["lin-solver"]["maxiter"].get<int>();
+   int ptl = options["lin-solver"]["printlevel"].get<int>();
    solver.reset( new HypreGMRES(fes->GetComm()) );
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
 
    //solver->SetPreconditioner(*prec);
-   double nabstol = options["newtonsolver"]["abstol"].get<double>();
-   double nreltol = options["newtonsolver"]["reltol"].get<double>();
-   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
-   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   double nabstol = options["newton"]["abstol"].get<double>();
+   double nreltol = options["newton"]["reltol"].get<double>();
+   int nmaxiter = options["newton"]["maxiter"].get<int>();
+   int nptl = options["newton"]["printlevel"].get<int>();
    newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
@@ -552,8 +572,7 @@ void AbstractSolver<dim>::solveUnsteady()
    double t_final = options["time-dis"]["t-final"].get<double>();
    std::cout << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
-   bool calc_dt = options["time-dis"]["explicit"].get<bool>() && 
-         options["time-dis"]["const-cfl"].get<bool>();
+   bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
    for (int ti = 0; !done;)
    {
       if (calc_dt)

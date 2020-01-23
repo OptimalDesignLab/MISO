@@ -28,7 +28,7 @@ nlohmann::json default_options =
 
    {"space-dis", // options related to spatial discretization
    {
-      {"degree", 1}, // default operator degree
+      {"degree", 2}, // default operator degree
       {"lps-coeff", 1.0}, // scaling coefficient for local-proj stabilization
       {"basis-type", "csbp"} // csbp & dsbp for continuous & discrete SBP discretization resp. 
    }},
@@ -45,10 +45,10 @@ nlohmann::json default_options =
 
    {"lin-solver",
    {
-      {"print-lvl", 0}, // linear solver print level (no printing if zero)
-      {"max-iter", 100}, // default to 100 iterations
-      {"rel-tol", 1e-12}, // solver relative tolerance
-      {"abs-tol", 1e-12}, // solver absolute tolerance
+      {"printlevel", 0}, // linear solver print level (no printing if zero)
+      {"maxiter", 100}, // default to 100 iterations
+      {"reltol", 1e-12}, // solver relative tolerance
+      {"abstol", 1e-12}, // solver absolute tolerance
       {"tol", 1e-12} // Hypre solvers only let you set one value for tolerance
    }},
 
@@ -64,18 +64,17 @@ nlohmann::json default_options =
 
    {"newton", // options related to root-finding algorithms
    {
-      {"print-lvl", 0}, // linear solver print level (no printing if zero)
-      {"max-iter", 100}, // default to 100 iterations
-      {"rel-tol", 1e-12}, // solver relative tolerance
-      {"abs-tol", 1e-12}, // solver absolute tolerance
+      {"printlevel", 1}, // linear solver print level (no printing if zero)
+      {"maxiter", 100}, // default to 100 iterations
+      {"reltol", 1e-14}, // solver relative tolerance
+      {"abstol", 1e-14}, // solver absolute tolerance
    }},
 
    {"mesh",
    {
       {"file", "mach.mesh"}, // mesh file name when not using pumi
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
-   }}
-
+   }},
 };
 
 } // namespace mach
