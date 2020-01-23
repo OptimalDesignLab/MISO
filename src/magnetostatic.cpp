@@ -14,6 +14,7 @@ MagnetostaticSolver<dim>::MagnetostaticSolver(
     std::unique_ptr<mfem::Mesh> smesh)
 	: AbstractSolver<dim>(opt_file_name, move(smesh))
 {
+	this->num_state = dim;
 	this->mesh->ReorientTetMesh();
 	int fe_order = this->options["space-dis"]["degree"].template get<int>();
 
@@ -92,8 +93,8 @@ MagnetostaticSolver<dim>::MagnetostaticSolver(
 	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 	Vector Zero(3);
    Zero = 0.0;
-   bc_coef.reset(new VectorConstantCoefficient(Zero));
-	// bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
+   // bc_coef.reset(new VectorConstantCoefficient(Zero));
+	bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
    A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
    // A->ProjectCoefficient(*bc_coef);
 
@@ -164,6 +165,11 @@ void MagnetostaticSolver<dim>::solveSteady()
 	this->printFields(out_file,
 							{A.get(), B.get()},
 	                  {"A_Field", "B_Field"});
+	
+	// VectorFunctionCoefficient A_exact(3, a_bc_uniform);
+	// VectorFunctionCoefficient B_exact(3, sol_b_analytic);
+	std::cout << "A error: " << this->calcL2Error(A.get(), a_bc_uniform);
+	std::cout << " B error: " << this->calcL2Error(B.get(), sol_b_analytic) << "\n";
 }
 
 template<int dim>

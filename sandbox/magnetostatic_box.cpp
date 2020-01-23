@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
    const char *options_file = "magnetostatic_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
-   int nx, ny, nz = 0;
+   int nx, ny, nz = 10;
    args.AddOption(&nx, "-nx", "--numx",
                   "Number of elements in x direction");
    args.AddOption(&ny, "-ny", "--numy",

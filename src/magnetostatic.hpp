@@ -78,6 +78,8 @@ private:
    /// Material Library
    nlohmann::json materials;
 
+   int getNumState() {return dim;};
+
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source
    /// values set by options in setStaticMembers
