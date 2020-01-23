@@ -160,7 +160,8 @@ void MagnetostaticSolver<dim>::solveSteady()
 	// B->SaveVTK(sol_ofs, "B_Field", 1);
    // sol_ofs.close();
 	// std::cout << "finish steady solve\n";
-	this->printFields("motor_mesh_fix2",
+	auto out_file = this->options["mesh"]["out-file"].template get<std::string>();
+	this->printFields(out_file,
 							{A.get(), B.get()},
 	                  {"A_Field", "B_Field"});
 }
@@ -428,19 +429,13 @@ void MagnetostaticSolver<dim>::winding_current_source(const mfem::Vector &x,
 
 /// TODO: Find a better way to handle solving the simple box problem
 /// TODO: implement other kinds of sources
-/// TODO: This needs to use materials library to query mu_r, B_r, H_c
 template<int dim>
 void MagnetostaticSolver<dim>::magnetization_source(const mfem::Vector &x,
                           		 					  mfem::Vector &M)
 {
-	/// TODO: put all of these options calls somewhere else, function will be
-	///        evaluated millions of times, need to be fast
-	/// TODO: add error checking to confirm that these were all read
-	// int n_p = this->options["components"]["magnets"]["poles"].template get<int>(); //number of poles
-	// auto material = this->options["components"]["magnets"]["material"].template get<std::string>();
-	// double remnant_flux = materials[material]["B_r"].template get<double>();
-
 	int n_p = num_poles;
+
+	/// TODO: fix this so it actually uses num_poles
 	// compute theta from x and y
 	double tha = atan2(x(1), x(0));
 
@@ -459,9 +454,9 @@ void MagnetostaticSolver<dim>::magnetization_source(const mfem::Vector &x,
 	}
 	
 	M *= remnant_flux;
-	double mu_0 = 4e-7*M_PI;
-	M /= mu_0;
-	M /= mag_mu_r;
+	// double mu_0 = 4e-7*M_PI;
+	// M /= mu_0;
+	// M /= mag_mu_r;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem

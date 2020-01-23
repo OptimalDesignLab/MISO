@@ -1,6 +1,7 @@
 {
    "mesh": {
-      "file": "motor_fix.mesh"
+      "file": "motor_fix.mesh",
+      "out-file": "motor_mesh"
    },
    "space-dis": {
       "basis-type": "nedelec",
