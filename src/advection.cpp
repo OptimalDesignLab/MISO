@@ -91,16 +91,16 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
 template <int dim>
 AdvectionSolver<dim>::AdvectionSolver(
     const string &opt_file_name, void (*vel_field)(const Vector &, Vector &))
-    : AbstractSolver<dim>(opt_file_name)
+    : AbstractSolver(opt_file_name)
 {
    // set up the stiffness matrix
    velocity.reset(
-       new VectorFunctionCoefficient(this->mesh->Dimension(), vel_field));
-   *(this->out) << "dimension is " << this->mesh->Dimension() << endl;
-   stiff.reset(new BilinearFormType(static_cast<SpaceType *>(this->fes.get())));
+       new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
+   *out << "dimension is " << mesh->Dimension() << endl;
+   stiff.reset(new BilinearFormType(static_cast<SpaceType *>(fes.get())));
    stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
    // add the LPS stabilization
-   double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
+   double lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    stiff->AddDomainIntegrator(
        new AdvectLPSIntegrator(*velocity, -1.0, lps_coeff));
    int skip_zeros = 0;
@@ -115,14 +115,13 @@ AdvectionSolver<dim>::AdvectionSolver(
 #endif
 
    /// This should overwrite the evolver defined in base class constructor
-   this->evolver.reset(
-       new LinearEvolver(*(this->mass_matrix), *(this->stiff_matrix),
-                         *(this->out)));
+   evolver.reset(
+       new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out)));
 }
 
 // explicit instantiation
-//template class AdvectionSolver<1>;
+template class AdvectionSolver<1>;
 template class AdvectionSolver<2>;
-//template class AdvectionSolver<3>;
+template class AdvectionSolver<3>;
 
 } // namespace mach

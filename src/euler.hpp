@@ -11,7 +11,7 @@ namespace mach
 /// Solver for inviscid flow problems
 /// dim - number of spatial dimensions (1, 2, or 3)
 template <int dim>
-class EulerSolver : public AbstractSolver<dim>
+class EulerSolver : public AbstractSolver
 {
 public:
    /// Class constructor.
