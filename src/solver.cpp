@@ -1,13 +1,10 @@
 #include <fstream>
 #include <iostream>
-#include "solver.hpp"
 #include "default_options.hpp"
+#include "solver.hpp"
 #include "sbp_fe.hpp"
 #include "diag_mass_integ.hpp"
 #include "evolver.hpp"
-#ifdef MFEM_USE_PETSC
-   #include "petscsys.h"
-#endif
 
 using namespace std;
 using namespace mfem;
@@ -37,18 +34,6 @@ AbstractSolver<dim>::AbstractSolver(const string &opt_file_name,
    options_file >> file_options;
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady.petsc";
-   // write the petsc linear solver options from options
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
-   petscoptions.close();
-   PetscOptionsInsert(NULL, NULL, NULL, petscrc_file);
-#endif
    constructMesh(move(smesh));
    // does dim equal mesh->Dimension in all cases?
    if (dim != mesh->Dimension())
