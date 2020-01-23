@@ -369,7 +369,7 @@ double AbstractSolver<dim>::calcL2Error(GridFunType *field,
    else
    {
       // calculate the L2 error for component index `entry`
-      for (int i = 0; i < fes->GetNE(); i++)
+      for (int i = 0; i < fe_space->GetNE(); i++)
       {
          fe = fe_space->GetFE(i);
          const IntegrationRule *ir;
