@@ -80,10 +80,10 @@ MagnetostaticSolver<dim>::MagnetostaticSolver(
 	///       but need to verify that that is mathematically corrent based on
 	///       the limit of the Jacobian as B goes to zero.
 	/// Construct magnetization coefficient
-	constructMagnetization();
+	// constructMagnetization();
 
 	/// add magnetization integrator to residual
-	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
+	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(this->mesh->bdr_attributes.Max());
@@ -353,7 +353,7 @@ template<int dim>
 void MagnetostaticSolver<dim>::winding_current_source(const mfem::Vector &x,
                                                  mfem::Vector &J)
 {
-	// /*
+	/*
 	// example of needed geometric parameters, this should be all you need
 	int n_s = 20; //number of slots
 	double zb = .25; //bottom of stator
@@ -413,18 +413,19 @@ void MagnetostaticSolver<dim>::winding_current_source(const mfem::Vector &x,
 		J = Jr;
 	}
 	J *= 100000.0;
-	// */
+	*/
 
-   // J.SetSize(3);
-   // J = 0.0;
-   // if ( x(1) <= .5)
-   // {
-   //    J(2) = -(1/(10.0))*2;
-   // }
-   // if ( x(1) > .5)
-   // {
-   //    J(2) = (1/(10.0))*2;
-   // }
+   J.SetSize(3);
+   J = 0.0;
+	double y = x(1) - .5;
+   if ( x(1) <= .5)
+   {
+      J(2) = -6*y*(1/(10.0));
+   }
+   if ( x(1) > .5)
+   {
+      J(2) = 6*y*(1/(10.0));
+   }
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -461,20 +462,36 @@ void MagnetostaticSolver<dim>::magnetization_source(const mfem::Vector &x,
 
 /// TODO: Find a better way to handle solving the simple box problem
 template<int dim>
-void MagnetostaticSolver<dim>::a_bc_uniform(const Vector &x, Vector &a)
+void MagnetostaticSolver<dim>::a_bc_uniform(const Vector &x, Vector &A)
 {
-   a.SetSize(3);
-   a = 0.0;
+   A.SetSize(3);
+   A = 0.0;
    double y = x(1) - .5;
    if ( x(1) <= .5)
    {
-      a(2) = y*y; 
+   	A(2) = y*y*y; 
    }
    else 
    {
-      a(2) = -y*y;
+      A(2) = -y*y*y;
    }
    //a(2) = b_uniform_(0) * x(1);
+}
+
+template<int dim>
+void MagnetostaticSolver<dim>::sol_b_analytic(const Vector &x, Vector &B)
+{
+	B.SetSize(3);
+   B = 0.0;
+   double y = x(1) - .5;
+   if ( x(1) <= .5)
+   {
+   	B(0) = 3*y*y; 
+   }
+   else 
+   {
+      B(0) = -3*y*y;
+   }	
 }
 
 template<int dim>

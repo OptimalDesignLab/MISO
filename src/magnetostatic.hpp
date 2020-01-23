@@ -124,7 +124,9 @@ private:
    static void magnetization_source(const mfem::Vector &x,
                                     mfem::Vector &M);
 
-   static void a_bc_uniform(const mfem::Vector &x, mfem::Vector &a);
+   static void a_bc_uniform(const mfem::Vector &x, mfem::Vector &A);
+
+   static void sol_b_analytic(const mfem::Vector &x, mfem::Vector &B);
 };
 
 } // namespace mach
