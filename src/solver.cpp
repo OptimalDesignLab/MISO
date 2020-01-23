@@ -327,7 +327,7 @@ double AbstractSolver<dim>::calcL2Error(GridFunType *field,
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
    //return u->ComputeL2Error(ue);
-
+   FiniteElementSpace *fe_space = field->FESpace();
    double loc_norm = 0.0;
    const FiniteElement *fe;
    ElementTransformation *T;
@@ -337,11 +337,11 @@ double AbstractSolver<dim>::calcL2Error(GridFunType *field,
    if (entry < 0)
    {
       // sum up the L2 error over all states
-      for (int i = 0; i < fes->GetNE(); i++)
+      for (int i = 0; i < fe_space->GetNE(); i++)
       {
-         fe = fes->GetFE(i);
+         fe = fe_space->GetFE(i);
          const IntegrationRule *ir = &(fe->GetNodes());
-         T = fes->GetElementTransformation(i);
+         T = fe_space->GetElementTransformation(i);
          field->GetVectorValues(*T, *ir, vals);
          exsol.Eval(exact_vals, *T, *ir);
          vals -= exact_vals;
@@ -360,9 +360,9 @@ double AbstractSolver<dim>::calcL2Error(GridFunType *field,
       // calculate the L2 error for component index `entry`
       for (int i = 0; i < fes->GetNE(); i++)
       {
-         fe = fes->GetFE(i);
+         fe = fe_space->GetFE(i);
          const IntegrationRule *ir = &(fe->GetNodes());
-         T = fes->GetElementTransformation(i);
+         T = fe_space->GetElementTransformation(i);
          field->GetVectorValues(*T, *ir, vals);
          exsol.Eval(exact_vals, *T, *ir);
          vals -= exact_vals;
