@@ -182,7 +182,7 @@ void MagnetostaticSolver<dim>::solveSteady()
 	                  {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
 	
 	/// TODO: This method gives zero error for some reason...
-	std::cout << "A error: " << this->calcL2Error(A.get(), a_bc_uniform, 0);
+	std::cout << "A error: " << this->calcL2Error(A.get(), a_bc_uniform);
 	std::cout << " B error: " << this->calcL2Error(B.get(), sol_b_analytic) << "\n";
 }
 

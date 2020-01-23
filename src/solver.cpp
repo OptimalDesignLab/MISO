@@ -255,69 +255,7 @@ template <int dim>
 double AbstractSolver<dim>::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
-   // TODO: need to generalize to parallel
-   VectorFunctionCoefficient exsol(num_state, u_exact);
-   //return u->ComputeL2Error(ue);
-
-   double loc_norm = 0.0;
-   const FiniteElement *fe;
-   ElementTransformation *T;
-   DenseMatrix vals, exact_vals;
-   Vector loc_errs;
-
-   if (entry < 0)
-   {
-      // sum up the L2 error over all states
-      for (int i = 0; i < fes->GetNE(); i++)
-      {
-         fe = fes->GetFE(i);
-         const IntegrationRule *ir = &(fe->GetNodes());
-         T = fes->GetElementTransformation(i);
-         u->GetVectorValues(*T, *ir, vals);
-         exsol.Eval(exact_vals, *T, *ir);
-         vals -= exact_vals;
-         loc_errs.SetSize(vals.Width());
-         vals.Norm2(loc_errs);
-         for (int j = 0; j < ir->GetNPoints(); j++)
-         {
-            const IntegrationPoint &ip = ir->IntPoint(j);
-            T->SetIntPoint(&ip);
-            loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
-         }
-      }
-   }
-   else
-   {
-      // calculate the L2 error for component index `entry`
-      for (int i = 0; i < fes->GetNE(); i++)
-      {
-         fe = fes->GetFE(i);
-         const IntegrationRule *ir = &(fe->GetNodes());
-         T = fes->GetElementTransformation(i);
-         u->GetVectorValues(*T, *ir, vals);
-         exsol.Eval(exact_vals, *T, *ir);
-         vals -= exact_vals;
-         loc_errs.SetSize(vals.Width());
-         vals.GetRow(entry, loc_errs);
-         for (int j = 0; j < ir->GetNPoints(); j++)
-         {
-            const IntegrationPoint &ip = ir->IntPoint(j);
-            T->SetIntPoint(&ip);
-            loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
-         }
-      }
-   }
-   double norm;
-#ifdef MFEM_USE_MPI
-   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   norm = loc_norm;
-#endif
-   if (norm < 0.0) // This was copied from mfem...should not happen for us
-   {
-      return -sqrt(-norm);
-   }
-   return sqrt(norm);
+   calcL2Error(u.get(), u_exact, entry);
 }
 
 template <int dim>
