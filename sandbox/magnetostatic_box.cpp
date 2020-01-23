@@ -24,14 +24,12 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "magnetostatic_options.json";
+   const char *options_file = "mag_box_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
-   int nx, ny, nz = 10;
-   args.AddOption(&nx, "-nx", "--numx",
-                  "Number of elements in x direction");
-   args.AddOption(&ny, "-ny", "--numy",
-                  "Number of elements in y direction");
+   int nxy = 10, nz = 1;
+   args.AddOption(&nxy, "-nxy", "--numxy",
+                  "Number of elements in x and y directions");
    args.AddOption(&nz, "-nz", "--numz",
                   "Number of elements in z direction");
    args.Parse();
@@ -42,10 +40,9 @@ int main(int argc, char *argv[])
    }
 
    // generate a simple tet mesh
-   int num_edge = 20;
-   std::unique_ptr<Mesh> mesh(new Mesh(nx, ny, nz,
+   std::unique_ptr<Mesh> mesh(new Mesh(nxy, nxy, nz,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
+                              1.0, (double)nz / (double)nxy, true));
 
    mesh->ReorientTetMesh();
 

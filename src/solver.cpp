@@ -326,8 +326,10 @@ double AbstractSolver<dim>::calcL2Error(GridFunType *field,
 {
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
-   //return u->ComputeL2Error(ue);
    FiniteElementSpace *fe_space = field->FESpace();
+
+   const char* name = fe_space->FEColl()->Name();
+
    double loc_norm = 0.0;
    const FiniteElement *fe;
    ElementTransformation *T;
@@ -340,7 +342,16 @@ double AbstractSolver<dim>::calcL2Error(GridFunType *field,
       for (int i = 0; i < fe_space->GetNE(); i++)
       {
          fe = fe_space->GetFE(i);
-         const IntegrationRule *ir = &(fe->GetNodes());
+         const IntegrationRule *ir;
+         if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+         {        
+            ir = &(fe->GetNodes());
+         }
+         else
+         {
+            int intorder = 2*fe->GetOrder() + 1;
+            ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+         }
          T = fe_space->GetElementTransformation(i);
          field->GetVectorValues(*T, *ir, vals);
          exsol.Eval(exact_vals, *T, *ir);
@@ -361,7 +372,16 @@ double AbstractSolver<dim>::calcL2Error(GridFunType *field,
       for (int i = 0; i < fes->GetNE(); i++)
       {
          fe = fe_space->GetFE(i);
-         const IntegrationRule *ir = &(fe->GetNodes());
+         const IntegrationRule *ir;
+         if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+         {        
+            ir = &(fe->GetNodes());
+         }
+         else
+         {
+            int intorder = 2*fe->GetOrder() + 1;
+            ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+         }
          T = fe_space->GetElementTransformation(i);
          field->GetVectorValues(*T, *ir, vals);
          exsol.Eval(exact_vals, *T, *ir);

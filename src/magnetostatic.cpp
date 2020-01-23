@@ -49,7 +49,7 @@ MagnetostaticSolver<dim>::MagnetostaticSolver(
 	material_file >> materials;
 
 	/// read options file to set the proper values of static member variables
-	setStaticMembers();
+	// setStaticMembers();
 
 	constructReluctivity();
 
@@ -89,14 +89,17 @@ MagnetostaticSolver<dim>::MagnetostaticSolver(
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(this->mesh->bdr_attributes.Max());
 	ess_bdr = 1;
+	ess_bdr[0] = 1;
+	ess_bdr[3] = 1;
+	ess_bdr.Print();
 	Array<int> ess_tdof_list;
 	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 	Vector Zero(3);
    Zero = 0.0;
    // bc_coef.reset(new VectorConstantCoefficient(Zero));
 	bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
-   A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-   // A->ProjectCoefficient(*bc_coef);
+   // A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+   A->ProjectCoefficient(*bc_coef);
 
 	/// set essential boundary conditions in nonlinear form and rhs current vec
 	res->SetEssentialBC(ess_bdr, current_vec.get());
@@ -105,7 +108,7 @@ MagnetostaticSolver<dim>::MagnetostaticSolver(
 #ifdef MFEM_USE_MPI
    // prec.reset(new HypreBoomerAMG());
    prec.reset(new HypreAMS(h_curl_space.get()));
-   prec->SetPrintLevel(0); // Don't want preconditioner to print anything
+   prec->SetPrintLevel(1); // Don't want preconditioner to print anything
 	prec->SetSingularProblem();
 
    // solver.reset(new HyprePCG(h_curl_space->GetComm()));
@@ -161,14 +164,25 @@ void MagnetostaticSolver<dim>::solveSteady()
 	// B->SaveVTK(sol_ofs, "B_Field", 1);
    // sol_ofs.close();
 	// std::cout << "finish steady solve\n";
+
+	VectorFunctionCoefficient A_exact(3, a_bc_uniform);
+	VectorFunctionCoefficient B_exact(3, sol_b_analytic);
+
+	GridFunType A_ex(h_curl_space.get());
+	A_ex.ProjectCoefficient(A_exact);
+	GridFunType B_ex(h_div_space.get());
+	B_ex.ProjectCoefficient(B_exact);
+
+	GridFunType J(h_div_space.get());
+	J.ProjectCoefficient(*current_coeff);
+
 	auto out_file = this->options["mesh"]["out-file"].template get<std::string>();
 	this->printFields(out_file,
-							{A.get(), B.get()},
-	                  {"A_Field", "B_Field"});
+							{A.get(), B.get(), &A_ex, &B_ex, &J},
+	                  {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
 	
-	// VectorFunctionCoefficient A_exact(3, a_bc_uniform);
-	// VectorFunctionCoefficient B_exact(3, sol_b_analytic);
-	std::cout << "A error: " << this->calcL2Error(A.get(), a_bc_uniform);
+	/// TODO: This method gives zero error for some reason...
+	std::cout << "A error: " << this->calcL2Error(A.get(), a_bc_uniform, 0);
 	std::cout << " B error: " << this->calcL2Error(B.get(), sol_b_analytic) << "\n";
 }
 
@@ -197,7 +211,7 @@ void MagnetostaticSolver<dim>::constructReluctivity()
 	for (auto& component : this->options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> temp_coeff;
-		std::cout << component << '\n';
+		// std::cout << component << '\n';
 		std::string material = component["material"].template get<std::string>();
 		if (!component["linear"].template get<bool>())
 		{
@@ -209,9 +223,11 @@ void MagnetostaticSolver<dim>::constructReluctivity()
 		{
 			auto mu_r = materials[material]["mu_r"].template get<double>();
 			temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
+			std::cout << "new coeff with mu_r: " << mu_r << "\n";
 		}
 		nu->addCoefficient(component["attr"].template get<int>(),
                          move(temp_coeff));
+		std::cout << "added component " << component << " to nu\n";
 	}
 		
 	
@@ -276,14 +292,15 @@ void MagnetostaticSolver<dim>::constructCurrent()
 	std::unique_ptr<mfem::VectorCoefficient> winding_coeff(
 		new VectorFunctionCoefficient(dim, winding_current_source));
 
-
+	// std::unique_ptr<mfem::VectorCoefficient> winding_coeff2(
+	// 	new VectorFunctionCoefficient(dim, winding_current_source, neg_one.get()));
 	std::unique_ptr<mfem::VectorCoefficient> winding_coeff2(
-		new VectorFunctionCoefficient(dim, winding_current_source, neg_one.get()));
+		new VectorFunctionCoefficient(dim, winding_current_source));
 
 	/// TODO - use options to select material attribute for windings
 	/// picked 1 arbitrarily for now
-	current_coeff->addCoefficient(7, move(winding_coeff));
-	current_coeff->addCoefficient(8, move(winding_coeff2));
+	current_coeff->addCoefficient(1, move(winding_coeff));
+	current_coeff->addCoefficient(2, move(winding_coeff2));
 	// current_coeff->addCoefficient(9, move(winding_coeff)); // zero current
 	// current_coeff->addCoefficient(1, move(winding_coeff));
 	// current_coeff->addCoefficient(2, move(winding_coeff2));
@@ -481,7 +498,6 @@ void MagnetostaticSolver<dim>::a_bc_uniform(const Vector &x, Vector &A)
    {
       A(2) = -y*y*y;
    }
-   //a(2) = b_uniform_(0) * x(1);
 }
 
 template<int dim>
