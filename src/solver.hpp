@@ -185,7 +185,7 @@ protected:
    virtual void addInterfaceIntegrators(double alpha) {};
 
    /// Define the number of states, the finite element space, and state u
-   virtual int getNumState() {};
+   virtual int getNumState() = 0; 
 
    /// Create `output` based on `options` and add approporiate integrators
    virtual void addOutputs() {};
