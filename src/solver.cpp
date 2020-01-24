@@ -429,10 +429,8 @@ void AbstractSolver<dim>::printResidual(const std::string &file_name,
 template <int dim>
 void AbstractSolver<dim>::solveForState()
 {
-   std::cout << "steady ? " << options["steady"].get<bool>() <<std::endl;
    if (options["steady"].get<bool>() == true)
    {
-      std::cout << "Going to solve steady.\n";
       solveSteady();
    }
    else

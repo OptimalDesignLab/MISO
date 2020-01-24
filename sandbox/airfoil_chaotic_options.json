@@ -23,26 +23,7 @@
       "t-final": 2.0,
       "dt": 0.05,
       "cfl": 0.05
-   },
-   "newtonsolver":{
-      "abstol": 1e-8,
-      "reltol": 1e-8,
-      "maxiter": 30,
-      "printlevel": 1
-   },
-   "petscsolver":{
-      "ksptype": "gmres",
-      "pctype": "lu",
-      "abstol": 1e-7,
-      "reltol": 1e-7,
-      "maxiter": 100,
-      "printlevel": 2
-   },
-   "hypresolver":{
-      "tol": 1e-4,
-      "maxiter": 100,
-      "printlevel": 0
-   },   
+   }, 
    "bcs": {
       "no-slip-adiabatic": [0, 0, 1, 1],
       "far-field": [1, 1, 0, 0]
