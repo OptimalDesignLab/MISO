@@ -6,7 +6,7 @@
    },
    "space-dis": {
       "basis-type": "nedelec",
-      "degree": 1
+      "degree": 3
    },
    "steady": true,
    "time-dis": {

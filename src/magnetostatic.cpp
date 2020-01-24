@@ -89,20 +89,19 @@ MagnetostaticSolver<dim>::MagnetostaticSolver(
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(this->mesh->bdr_attributes.Max());
 	ess_bdr = 1;
-	ess_bdr[0] = 1;
-	ess_bdr[3] = 1;
-	ess_bdr.Print();
+
 	Array<int> ess_tdof_list;
 	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 	Vector Zero(3);
    Zero = 0.0;
    // bc_coef.reset(new VectorConstantCoefficient(Zero));
 	bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform));
-   // A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-   A->ProjectCoefficient(*bc_coef);
+   A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+   // A->ProjectCoefficient(*bc_coef);
 
 	/// set essential boundary conditions in nonlinear form and rhs current vec
 	res->SetEssentialBC(ess_bdr, current_vec.get());
+	res->SetEssentialTrueDofs(ess_tdof_list);
 
 	/// Costruct linear system solver
 #ifdef MFEM_USE_MPI
@@ -201,7 +200,7 @@ template<int dim>
 void MagnetostaticSolver<dim>::constructReluctivity()
 {
 	/// set up default reluctivity to be that of free space
-	double mu_0 = 4e-7*M_PI;
+	const double mu_0 = 4e-7*M_PI;
    std::unique_ptr<Coefficient> nu_free_space(
       new ConstantCoefficient(1.0/mu_0));
 	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
@@ -211,7 +210,6 @@ void MagnetostaticSolver<dim>::constructReluctivity()
 	for (auto& component : this->options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> temp_coeff;
-		// std::cout << component << '\n';
 		std::string material = component["material"].template get<std::string>();
 		if (!component["linear"].template get<bool>())
 		{
@@ -227,7 +225,6 @@ void MagnetostaticSolver<dim>::constructReluctivity()
 		}
 		nu->addCoefficient(component["attr"].template get<int>(),
                          move(temp_coeff));
-		std::cout << "added component " << component << " to nu\n";
 	}
 		
 	
@@ -443,11 +440,11 @@ void MagnetostaticSolver<dim>::winding_current_source(const mfem::Vector &x,
 	double y = x(1) - .5;
    if ( x(1) <= .5)
    {
-      J(2) = -6*y*(1/(10.0));
+      J(2) = -6*y*(1/(M_PI*4e-7));
    }
    if ( x(1) > .5)
    {
-      J(2) = 6*y*(1/(10.0));
+      J(2) = 6*y*(1/(M_PI*4e-7));
    }
 }
 
