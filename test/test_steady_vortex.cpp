@@ -40,22 +40,22 @@ TEST_CASE( "Steady Vortex Problem", "[stdy-vrtx]")
          string opt_file_name(options_file);
          const int dim = 2;
          std::unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-         std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
+         //std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
          ofstream sol_ofs("steady_vortex_mesh.vtk");
          sol_ofs.precision(14);
          smesh->PrintVTK(sol_ofs,3);
          EulerSolver solver(opt_file_name, move(smesh), dim);
          solver.setInitialCondition(uexact);
          solver.printSolution("init", degree+1);
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                  << solver.calcL2Error(uexact, 0) << '\n' << endl;
-         mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
-                  << endl;
+         // mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+         //          << solver.calcL2Error(uexact, 0) << '\n' << endl;
+         // mfem::out << "\ninitial residual norm = " << solver.calcResidualNorm()
+         //          << endl;
          solver.solveForState();
-         mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
-                  << endl;
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                  << solver.calcL2Error(uexact, 0) << '\n' << endl;
+         // mfem::out << "\nfinal residual norm = " << solver.calcResidualNorm()
+         //          << endl;
+         // mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+         //          << solver.calcL2Error(uexact, 0) << '\n' << endl;
 
          double error = solver.calcL2Error(uexact, 0);
 
