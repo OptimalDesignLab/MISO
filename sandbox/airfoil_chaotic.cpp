@@ -2,7 +2,6 @@
 
 #include "mfem.hpp"
 #include "navier_stokes.hpp"
-#include "default_options.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -18,9 +17,9 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    const char *petscrc_file = "airfoil_chaotic.petsc";
    //Get the option files
-   nlohmann::json options = default_options;
-   // ifstream option_source(options_file);
-   // option_source >> options;
+   nlohmann::json options;
+   ifstream option_source(options_file);
+   option_source >> options;
    // write the petsc linear solver options from options
    ofstream petscoptions(petscrc_file);
    const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();

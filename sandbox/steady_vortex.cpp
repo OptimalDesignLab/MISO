@@ -2,7 +2,6 @@
 #include<random>
 #include "adept.h"
 
-#include "default_options.hpp"
 #include "mfem.hpp"
 #include "euler.hpp"
 #include <fstream>
@@ -37,7 +36,11 @@ int main(int argc, char *argv[])
    const char *options_file = "steady_vortex_options.json";
 #ifdef MFEM_USE_PETSC
    const char *petscrc_file = "eulersteady.petsc";
-   nlohmann::json options = default_options;
+   // Get the option file
+   nlohmann::json options;
+   ifstream option_source(options_file);
+   option_source >> options;
+   // Write the petsc option file
    ofstream petscoptions(petscrc_file);
    const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
    const string prec_name = options["petscsolver"]["pctype"].get<string>();
