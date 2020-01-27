@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<AbstractSolver<2>> solver(
+      unique_ptr<AbstractSolver> solver(
          new AdvectionSolver<2>(opt_file_name, velocity_function));
       solver->setInitialCondition(u0_function);
       *out << "\n|| u_h - u ||_{L^2} = " 

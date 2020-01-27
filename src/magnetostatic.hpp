@@ -14,8 +14,7 @@ namespace mach
 
 /// Solver for magnetostatic electromagnetic problems
 /// dim - number of spatial dimensions (only 3 supported)
-template<int dim>
-class MagnetostaticSolver : public AbstractSolver<dim>
+class MagnetostaticSolver : public AbstractSolver
 {
 public:
 	/// Class constructor.
@@ -77,6 +76,8 @@ private:
 
    /// Material Library
    nlohmann::json materials;
+
+   int dim;
 
    int getNumState() {return dim;};
 

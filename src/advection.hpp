@@ -90,7 +90,7 @@ private:
 
 /// Solver for linear advection problems
 template <int dim>
-class AdvectionSolver : public AbstractSolver<dim>
+class AdvectionSolver : public AbstractSolver
 {
 public:
    /// Class constructor.
