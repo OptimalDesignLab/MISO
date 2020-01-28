@@ -1,4 +1,4 @@
-#include "magnetostatic.hpp"
+#include "thermal.hpp"
 
 #include <fstream>
 
@@ -55,44 +55,44 @@ ThermalSolver::ThermalSolver(
     constructJoule();
 
 	/// set essential BCs (none)
-	Array<int> thermal_ess_tdof_list;
-    h_grad_space.GetEssentialTrueDofs(ess_bdr, thermal_ess_tdof_list);
+	Array<int> ess_tdof_list;
+    h_grad_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
 	/// set up the bilinear forms
-	m.reset(new BilinearFormType(h_curl_space.get()));
-    k.reset(new BilinearFormType(h_curl_space.get()));
+	m->reset(new BilinearFormType(h_grad_space.get()));
+    k->reset(new BilinearFormType(h_grad_space.get()));
 
 	/// add mass integrator to m bilinear form
-	m->AddDomainIntegrator(new MassIntegrator(rho_cv.get()));
+	m->AddDomainIntegrator(new MassIntegrator(rho_cv->get()));
 
 	/// assemble mass matrix, and invert
 	m->Assemble(0);
 	m->FormSystemMatrix(ess_tdof_list, M);
-	M_solver.iterative_mode = false;
-    M_solver.SetRelTol(1e-8);
-    M_solver.SetAbsTol(0.0);
-    M_solver.SetMaxIter(100);
-    M_solver.SetPrintLevel(0);
-    M_prec.SetType(HypreSmoother::Jacobi);
-    M_solver.SetPreconditioner(M_prec);
-    M_solver.SetOperator(M);
+	M_solver->iterative_mode = false;
+    M_solver->SetRelTol(1e-8);
+    M_solver->SetAbsTol(0.0);
+    M_solver->SetMaxIter(100);
+    M_solver->SetPrintLevel(0);
+    M_prec->SetType(HypreSmoother::Jacobi);
+    M_solver->SetPreconditioner(M_prec.get());
+    M_solver->SetOperator(M);
 
 	/// add diffusion integrator to k bilinear form
-	k->AddDomainIntegrator(new DiffusionIntegrator(kappa.get()));
+	k->AddDomainIntegrator(new DiffusionIntegrator(kappa->get()));
 
 
 	/// set up the linear form (volumetric fluxes)
-	b.reset(new LinearFormType(h_curl_space.get()));
+	b->reset(new LinearForm(h_grad_space.get()));
 
 	/// add joule heating term
-	b->AddDomainIntegrator(new DomainLFIntegrator(i2sigmainv.get()));
+	b->AddDomainIntegrator(new DomainLFIntegrator(i2sigmainv->get()));
 
 	/// add iron loss heating terms
 	//b->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
 	/// add boundary integrator to bilinear form for flux BC, elsewhere is natural
 	///TODO: Define Boundary Conditions, Make More General, Selectively Apply To Certain Faces
-	fluxcoeff.reset(new VectorFunctionCoefficient(FluxFunc));
+	fluxcoeff.reset(new VectorFunctionCoefficient(*FluxFunc));
 	auto &bcs = options["bcs"];
     bndry_marker.resize(bcs.size());
 	int idx = 0;
@@ -101,23 +101,24 @@ ThermalSolver::ThermalSolver(
         vector<int> tmp = bcs["vortex"].get<vector<int>>();
         bndry_marker[idx].SetSize(tmp.size(), 0);
         bndry_marker[idx].Assign(tmp.data());
-        b->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(fluxcoeff), bndry_marker[idx]);
+        b->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(*fluxcoeff), bndry_marker[idx]);
         idx++;
     }
 
 
-    T_solver.iterative_mode = false;
-    T_solver.SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
-    T_solver.SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
-    T_solver.SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
-    T_solver.SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-    T_solver.SetPreconditioner(T_prec);
+    T_solver->iterative_mode = false;
+    T_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
+    T_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
+    T_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+    T_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+    T_solver->SetPreconditioner(T_prec.get());
 
 	/// assemble stiffness matrix and linear form
 	k->Assemble(0);
 	k->FormSystemMatrix(ess_tdof_list, K);
 	b->Assemble();
 
+	B(*b);
 	delete T;
     T = NULL;
 
@@ -240,11 +241,12 @@ void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dXdt
     if (!T)
     {
        T = Add(1.0, M, dt, K);
-       T_solver.SetOperator(*T);
+       T_solver->SetOperator(*T);
     }
     K.Mult(X, z);
     z.Neg();
-    T_solver.Mult(z, dX_dt);
+	z.Add(1, B);
+    T_solver->Mult(z, dXdt);
 }
 
 void ThermalSolver::constructDensityCoeff()
@@ -256,8 +258,8 @@ void ThermalSolver::constructDensityCoeff()
 		std::unique_ptr<mfem::Coefficient> rho_coeff;
 		std::cout << material << '\n';
 		{
-			auto rho = material["rho"].get<double>();
-			rho_coeff.reset(new ConstantCoefficient(rho));
+			auto rho_val = material["rho"].get<double>();
+			rho_coeff.reset(new ConstantCoefficient(rho_val));
 		}
 		rho->addCoefficient(material["attr"].get<int>(), move(rho_coeff));
 	}
@@ -272,8 +274,8 @@ void ThermalSolver::constructHeatCoeff()
 		std::unique_ptr<mfem::Coefficient> cv_coeff;
 		std::cout << material << '\n';
 		{
-			auto cv = material["cv"].get<double>();
-			cv_coeff.reset(new ConstantCoefficient(cv));
+			auto cv_val = material["cv"].get<double>();
+			cv_coeff.reset(new ConstantCoefficient(cv_val));
 		}
 		cv->addCoefficient(material["attr"].get<int>(), move(cv_coeff));
 	}
@@ -282,7 +284,16 @@ void ThermalSolver::constructHeatCoeff()
 
 void ThermalSolver::constructMassCoeff()
 {
-	rho_cv.reset(new ProductCoefficient(rho,cv));
+	for (auto& material : options["materials"])
+	{
+		std::unique_ptr<mfem::Coefficient> rho_cv_coeff;
+		std::cout << material << '\n';
+		{
+			auto attr = material["attr"].get<int>();
+			rho_cv_coeff.reset(new ProductCoefficient(move(rho->getCoefficient(attr)),move(cv->getCoefficient(attr))));
+		}
+		rho_cv->addCoefficient(material["attr"].get<int>(), move(rho_cv_coeff));
+	}
 }
 
 void ThermalSolver::constructConductivity()
@@ -294,8 +305,8 @@ void ThermalSolver::constructConductivity()
 		std::unique_ptr<mfem::Coefficient> kappa_coeff;
 		std::cout << material << '\n';
 		{
-			auto kappa = material["kappa"].get<double>();
-			kappa_coeff.reset(new ConstantCoefficient(kappa));
+			auto kappa_val = material["kappa"].get<double>();
+			kappa_coeff.reset(new ConstantCoefficient(kappa_val));
 		}
 		kappa->addCoefficient(material["attr"].get<int>(), move(kappa_coeff));
 
@@ -314,7 +325,7 @@ void ThermalSolver::constructJoule()
 		if(material["conductor"].template get<bool>())
 		{
 			auto sigma = material["sigma"].get<double>();
-			auto current = options["current"].get<double>()
+			auto current = options["current"].get<double>();
 			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
 		}
 		i2sigmainv->addCoefficient(material["attr"].get<int>(), move(i2sigmainv_coeff));
@@ -324,11 +335,11 @@ void ThermalSolver::constructJoule()
 void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
 {
 	y.SetSize(3);
-
+	double outflux;
 	//use constant in time for now
-	if(options["bcs"]["const"].get<bool>())
+	if (options["bcs"]["const"].get<bool>())
 	{
-		double outflux = options["bcs"]["const-val"].get<double>();
+		outflux = options["bcs"]["const-val"].get<double>();
 	}
 	else
 	{

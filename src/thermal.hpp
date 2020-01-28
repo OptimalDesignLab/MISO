@@ -6,7 +6,7 @@
 
 #include "solver.hpp"
 #include "coefficient.hpp"
-#include "thermal_integ.hpp"
+#include "therm_integ.hpp"
 
 namespace mach
 {
@@ -41,9 +41,10 @@ private:
    std::unique_ptr<GridFunType> dTdt;
    std::unique_ptr<GridFunType> rhs;
 
-   HypreParMatrix M;
-   HypreParMatrix K;
-   HypreParMatrix *T;
+   mfem::HypreParMatrix M;
+   mfem::HypreParMatrix K;
+   mfem::HypreParMatrix *T;
+   mfem::Vector B;
 
 
    /// mesh dependent density coefficient
@@ -53,7 +54,7 @@ private:
    std::unique_ptr<MeshDependentCoefficient> cv;
 
    /// mesh dependent mass*specificheat coefficient
-   std::unique_ptr<mfem::Coefficient> rho_cv;
+   std::unique_ptr<MeshDependentCoefficient> rho_cv;
 
    /// mesh dependent thermal conductivity tensor
    std::unique_ptr<MeshDependentCoefficient> kappa;
@@ -68,14 +69,14 @@ private:
    std::unique_ptr<mfem::VectorCoefficient> fluxcoeff;
 
    /// essential boundary condition marker array (not using )
-   mfem::Array<int> ess_bdr = 0;
+   mfem::Array<int> ess_bdr;
    std::unique_ptr<mfem::Coefficient> bc_coef;
 
    /// the bilinear forms, mass m, stiffness k
    std::unique_ptr<BilinearFormType> m;
    std::unique_ptr<BilinearFormType> k;
    /// the linear form
-   std::unique_ptr<LinearFormType> b;
+   std::unique_ptr<mfem::LinearForm> b;
    
    /// linear system solvers and preconditioners
    std::unique_ptr<mfem::CGSolver> M_solver;
@@ -91,6 +92,9 @@ private:
 
    /// boundary condition marker array
    std::vector<mfem::Array<int>> bndry_marker;
+
+   /// material Library
+   nlohmann::json materials;
 
    /// construct mesh dependent coefficient for density
    void constructDensityCoeff();
@@ -108,16 +112,22 @@ private:
    void constructJoule();
 
    /// compute outward flux at boundary, for 
-   void FluxFunc(const Vector &x, Vector &y );
+   void FluxFunc(const mfem::Vector &x, mfem::Vector &y );
 
    /// set up solver for every time step
    void setupSolver(const int idt, const double dt) const;
 
-   /// implementation of implicitsolve
-   virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
+   /// for calls of mult
+   void Mult(const mfem::Vector &X, mfem::Vector &dXdt);
+
+   /// implementation of ImplicitSolve
+   virtual void ImplicitSolve(const double dt, const mfem::Vector &x, mfem::Vector &k);
+
+   /// implementation of solveUnsteady
+   virtual void solveUnsteady();
 
    /// work vector
-   mutable Vector z;
+   mutable mfem::Vector z;
 };
 
 } // namespace mach

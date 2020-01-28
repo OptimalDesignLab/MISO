@@ -94,6 +94,22 @@ public:
 											const mfem::IntegrationPoint &ip,
 											const double state);
 
+	/// Returns reference to <std::unique_ptr<mfem::Coefficient> from material_map
+	/// \param[in] attr - attribute integer indicating which elements coeff
+	///					    should be evaluated on
+	/// \param[in] coeff - the coefficient the to evaluate on elements
+	///						  identified by the attribute
+	mfem::Coefficient* getCoefficient(const int attr)
+	{
+		auto it = material_map.find(attr);
+		mfem::Coefficient *coeff;
+   		if (it != material_map.end())
+		{
+      		coeff = it->second.get();
+			return coeff;
+   		}
+	}
+
 protected:
 	/// \brief Method to be called if a coefficient matching the element's
 	/// 		  attribute is a subclass of `StateCoefficient and
