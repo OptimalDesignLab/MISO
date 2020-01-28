@@ -24,12 +24,10 @@ ThermalSolver::ThermalSolver(
 	h_grad_space.reset(new SpaceType(mesh.get(), h_grad_coll.get()));
 
 	/// Create MVP grid function
-	T.reset(new GridFunType(h_grad_space.get()));
+	phi.reset(new GridFunType(h_grad_space.get()));
 	dTdt.reset(new GridFunType(h_grad_space.get()));
 	rhs.reset(new GridFunType(h_grad_space.get()));
 
-
-	current_vec.reset(new GridFunType(h_curl_space.get()));
 
 #ifdef MFEM_USE_MPI
    //cout << "Number of finite element unknowns: "
@@ -54,20 +52,47 @@ ThermalSolver::ThermalSolver(
 
     constructConductivity();
      
-    constructElecConductivity();
+    constructJoule();
 
-	/// set up the bilinear form
+	/// set essential BCs (none)
+	Array<int> thermal_ess_tdof_list;
+    h_grad_space.GetEssentialTrueDofs(ess_bdr, thermal_ess_tdof_list);
+
+	/// set up the bilinear forms
 	m.reset(new BilinearFormType(h_curl_space.get()));
     k.reset(new BilinearFormType(h_curl_space.get()));
 
-	/// add mass integrator to bilinear form
+	/// add mass integrator to m bilinear form
 	m->AddDomainIntegrator(new MassIntegrator(rho_cv.get()));
 
-	/// add diffusion integrator to bilinear form
+	/// assemble mass matrix, and invert
+	m->Assemble(0);
+	m->FormSystemMatrix(ess_tdof_list, M);
+	M_solver.iterative_mode = false;
+    M_solver.SetRelTol(1e-8);
+    M_solver.SetAbsTol(0.0);
+    M_solver.SetMaxIter(100);
+    M_solver.SetPrintLevel(0);
+    M_prec.SetType(HypreSmoother::Jacobi);
+    M_solver.SetPreconditioner(M_prec);
+    M_solver.SetOperator(M);
+
+	/// add diffusion integrator to k bilinear form
 	k->AddDomainIntegrator(new DiffusionIntegrator(kappa.get()));
+
+
+	/// set up the linear form (volumetric fluxes)
+	b.reset(new LinearFormType(h_curl_space.get()));
+
+	/// add joule heating term
+	b->AddDomainIntegrator(new DomainLFIntegrator(i2sigmainv.get()));
+
+	/// add iron loss heating terms
+	//b->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
 	/// add boundary integrator to bilinear form for flux BC, elsewhere is natural
 	///TODO: Define Boundary Conditions, Make More General, Selectively Apply To Certain Faces
+	fluxcoeff.reset(new VectorFunctionCoefficient(FluxFunc));
 	auto &bcs = options["bcs"];
     bndry_marker.resize(bcs.size());
 	int idx = 0;
@@ -76,40 +101,35 @@ ThermalSolver::ThermalSolver(
         vector<int> tmp = bcs["vortex"].get<vector<int>>();
         bndry_marker[idx].SetSize(tmp.size(), 0);
         bndry_marker[idx].Assign(tmp.data());
-        k->AddBdrFaceIntegrator(new OutwardHeatFluxBC(), bndry_marker[idx]);
+        b->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(fluxcoeff), bndry_marker[idx]);
         idx++;
     }
-	
-
-	/// set up the linear form (volumetric fluxes)
-	b.reset(new LinearFormType(h_curl_space.get()));
-
-	/// add joule heating term
-	b->AddDomainIntegrator(new JouleIntegrator(sigma.get()));
-
-	/// add iron loss heating terms
-	b->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
 
-	/// assemble matrices
-	m->Assemble();
-	k->Assemble();
+    T_solver.iterative_mode = false;
+    T_solver.SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
+    T_solver.SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
+    T_solver.SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+    T_solver.SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+    T_solver.SetPreconditioner(T_prec);
+
+	/// assemble stiffness matrix and linear form
+	k->Assemble(0);
+	k->FormSystemMatrix(ess_tdof_list, K);
 	b->Assemble();
 
-	m->Finalize();
-	k->Finalize();
-	b->Finalize();
+	delete T;
+    T = NULL;
 
 	/// initialize dTdt 0
 	*dTdt = 0.0;
-
-	Array<int> thermal_ess_tdof_list;
-    h_grad_space.GetEssentialTrueDofs(ess_bdr, thermal_ess_tdof_list);
 
 	/// define ode solver
 	ode_solver = NULL;
  	ode_solver.reset(new ImplicitMidpointSolver);
 
+//might be needed
+#if 0
 	/// Construct linear system solver
 	///TODO: Think about preconditioner
 #ifdef MFEM_USE_MPI
@@ -144,6 +164,7 @@ ThermalSolver::ThermalSolver(
     solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
     //solver->SetPreconditioner(*prec);
 	#endif
+#endif
 #endif
 }
 
@@ -180,11 +201,11 @@ void ThermalSolver::solveUnsteady()
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
       	}
 #ifdef MFEM_USE_MPI
-	    HypreParVector *TV = T->GetTrueDofs();
+	    HypreParVector *TV = phi->GetTrueDofs();
 	    ode_solver->Step(*TV, t, dt_real);
-	    *T = *TV;
+	    *phi = *TV;
 #else
-      	ode_solver->Step(*T, t, dt_real);
+      	ode_solver->Step(*phi, t, dt_real);
 #endif
       	ti++;
 
@@ -194,13 +215,13 @@ void ThermalSolver::solveUnsteady()
     {
         ofstream osol("motor_heat.gf");
         osol.precision(precision);
-        T->Save(osol);
+        phi->Save(osol);
     }
 	{
         ofstream sol_ofs("motor_heat.vtk");
         sol_ofs.precision(14);
         mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-        T->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+        phi->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
         sol_ofs.close();
     }
 
@@ -213,13 +234,17 @@ void ThermalSolver::Mult(const Vector &X, Vector &dXdt)
 
 void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dXdt)
 {
-	k->Mult(*X, *rhs);
-	*rhs -= *b;
-
-
-	m->FormLinearSystem(thermal_ess_tdof_list, *dTdt, *rhs, A, X, B);
-	solver->Mult(*B, dTdt);
-	m->RecoverFEMSolution(dTdt, *rhs, *dTdt);
+    // Solve the equation:
+    //    dX_dt = M^{-1}*[-K(X + dt*dX_dt)]
+    // for dX_dt
+    if (!T)
+    {
+       T = Add(1.0, M, dt, K);
+       T_solver.SetOperator(*T);
+    }
+    K.Mult(X, z);
+    z.Neg();
+    T_solver.Mult(z, dX_dt);
 }
 
 void ThermalSolver::constructDensityCoeff()
@@ -278,30 +303,49 @@ void ThermalSolver::constructConductivity()
 	}
 }
 
-void ThermalSolver::constructElecConductivity()
+void ThermalSolver::constructJoule()
 {
-	sigmainv.reset(new MeshDependentCoefficient());
+	i2sigmainv.reset(new MeshDependentCoefficient());
 
 	for (auto& material : options["materials"])
 	{
-		std::unique_ptr<mfem::Coefficient> sigmainv_coeff;
+		std::unique_ptr<mfem::Coefficient> i2sigmainv_coeff;
 		std::cout << material << '\n';
 		if(material["conductor"].template get<bool>())
 		{
 			auto sigma = material["sigma"].get<double>();
-			sigmainv_coeff.reset(new ConstantCoefficient(1/sigma));
+			auto current = options["current"].get<double>()
+			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
 		}
-		sigmainv->addCoefficient(material["attr"].get<int>(), move(sigmainv_coeff));
+		i2sigmainv->addCoefficient(material["attr"].get<int>(), move(i2sigmainv_coeff));
 	}
 }
 
-void ThermalSolver::constructCurrent()
+void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
 {
-	// Can we get this from the em solver? To avoid recomputing divergence-free current field
-	// all we need is I^2*(1/Sigma)
+	y.SetSize(3);
 
-	// assume isotropic
-	double isr = sigmainv.Eval()*current_vec*current_vec;
+	//use constant in time for now
+	if(options["bcs"]["const"].get<bool>())
+	{
+		double outflux = options["bcs"]["const-val"].get<double>();
+	}
+	else
+	{
+		std::cerr << "Time Dependent BC Not Implemented!" << std::endl;
+	}
+
+	//assuming centered coordinate system, will offset
+	double th = atan(x(1)/x(0));
+
+	y(0) = outflux*cos(th);
+	y(1) = outflux*sin(th);
+	y(2) = 0;
+
+
+
+	
 }
 
 } // namespace mach
+

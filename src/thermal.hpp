@@ -36,14 +36,14 @@ private:
    /// H(grad) finite element space
    std::unique_ptr<SpaceType> h_grad_space;
 
-   /// Temperature T grid function and derivative
-   std::unique_ptr<GridFunType> T;
+   /// Temperature phi grid function and derivative
+   std::unique_ptr<GridFunType> phi;
    std::unique_ptr<GridFunType> dTdt;
    std::unique_ptr<GridFunType> rhs;
-   std::unique_ptr<GridFunType> current_vec;
 
-   OperatorPtr A;
-   Vector X, B;
+   HypreParMatrix M;
+   HypreParMatrix K;
+   HypreParMatrix *T;
 
 
    /// mesh dependent density coefficient
@@ -58,12 +58,14 @@ private:
    /// mesh dependent thermal conductivity tensor
    std::unique_ptr<MeshDependentCoefficient> kappa;
 
-   /// mesh dependent electrical conductivity tensor
-   std::unique_ptr<MeshDependentCoefficient> sigmainv;
+   /// mesh dependent i^2(1/sigma) term (purely scalar)
+   std::unique_ptr<MeshDependentCoefficient> i2sigmainv;
 
    /// mesh dependent 
    std::unique_ptr<MeshDependentCoefficient> sigmainv;
 
+   /// natural bc coefficient
+   std::unique_ptr<mfem::VectorCoefficient> fluxcoeff;
 
    /// essential boundary condition marker array (not using )
    mfem::Array<int> ess_bdr = 0;
@@ -74,10 +76,12 @@ private:
    std::unique_ptr<BilinearFormType> k;
    /// the linear form
    std::unique_ptr<LinearFormType> b;
-   /// linear system solver
-   std::unique_ptr<mfem::HypreGMRES> solver;
-//    /// linear system preconditioner used in Newton's method
-//    std::unique_ptr<EMPrecType> prec;
+   
+   /// linear system solvers and preconditioners
+   std::unique_ptr<mfem::CGSolver> M_solver;
+   std::unique_ptr<mfem::HypreSmoother> M_prec;
+   std::unique_ptr<mfem::CGSolver> T_solver;
+   std::unique_ptr<mfem::HypreSmoother> T_prec;
 
    /// time marching method
    std::unique_ptr<mfem::ODESolver> ode_solver;
@@ -100,8 +104,11 @@ private:
    /// construct vector mesh dependent coefficient for conductivity
    void constructConductivity();
      
-   /// construct vector mesh dependent coefficient for electrical conductivity
-   void constructElecConductivity();
+   /// construct vector mesh dependent coefficient for joule heating
+   void constructJoule();
+
+   /// compute outward flux at boundary, for 
+   void FluxFunc(const Vector &x, Vector &y );
 
    /// set up solver for every time step
    void setupSolver(const int idt, const double dt) const;
@@ -109,7 +116,8 @@ private:
    /// implementation of implicitsolve
    virtual void ImplicitSolve(const double dt, const Vector &x, Vector &k);
 
-   /// TODO: Source Terms, Flux Boundary Conditions
+   /// work vector
+   mutable Vector z;
 };
 
 } // namespace mach

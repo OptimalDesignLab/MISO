@@ -67,6 +67,7 @@ void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
 
 }
 
+#if 0
 ImplicitLinearEvolver::ImplicitLinearEvolver(MatrixType &m,
                                             MatrixType &k, 
                                             std::ostream &outstream)
@@ -84,3 +85,4 @@ ImplicitLinearEvolver::ImplicitLinearEvolver(MatrixType &m,
    mass_solver->SetMaxIter(100);
 
 }
+#endif

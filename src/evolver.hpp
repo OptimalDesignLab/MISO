@@ -73,6 +73,8 @@ private:
    double alpha;
 };
 
+/// use in solver for now
+#if 0
 /// For implicit time marching of linear problems
 class ImplicitLinearEvolver : public mfem::TimeDependentOperator
 {
@@ -122,7 +124,7 @@ private:
    /// a work vector
    mutable mfem::Vector z;
 };
-
+#endif
 
 } // namespace mach
 
