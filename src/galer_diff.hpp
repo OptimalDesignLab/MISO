@@ -41,6 +41,8 @@
 //    /// \param[out] cent - the vector of coordinates of center of an element
 //    void GetElementCenter(int id, mfem::Vector &cent);
 
+//    void GetEelementQuad(int id, mfem::)
+
 //    /// Get the prolongation matrix in GD method
 //    virtual const Operator *GetProlongationMatrix() const
 //    { BuildGDProlongation(); return cP; }
@@ -49,9 +51,14 @@
 //    void BuildGDProlongation() const;
 
 //    /// Assemble the local reconstruction matrix into the prolongation matrix
+//    /// \param[in] id - vector of element id in patch
 //    /// \param[in] local_mat - the local reconstruction matrix
 //    /// problem to be solved: how the ensure the oder of dofs consistent with other forms?
-//    void AssembleProlongationMatrix(const DenseMatrix local_mat) const;
+//    void AssembleProlongationMatrix(const std::vector<int> id,
+//                            const DenseMatrix local_mat) const;
+
+//    /// check the duplication of quadrature points in the quad matrix
+//    bool duplicated(const mfem::Vector quad, const std::vector<double> data);
 
 // protected:
 //    /// mesh dimension
@@ -75,5 +82,6 @@
 // #endif
 
 // };
-// }
+
+// } // end of namespace mach
 // #endif
