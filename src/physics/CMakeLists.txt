@@ -2,6 +2,7 @@ target_sources(mach
    PRIVATE
       diag_mass_integ.cpp
       diag_mass_integ.hpp
+      physics.hpp
       solver.cpp
       solver.hpp
 )

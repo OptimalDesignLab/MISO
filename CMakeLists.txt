@@ -32,7 +32,9 @@ endif (MFEM_USE_PUMI)
 
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
-
+target_sources(mach
+   mach.hpp
+)
 # Use CMakeLists.txt files in subdirectories to add sources to mach
 add_subdirectory(src)
 
@@ -74,7 +76,7 @@ install(TARGETS mach
    INCLUDES DESTINATION include
 )
 
-install(DIRECTORY src 
+install(DIRECTORY "${CMAKE_SOURCE_DIR}" 
    DESTINATION include
    FILES_MATCHING PATTERN "*.h*"
 )

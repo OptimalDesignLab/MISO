@@ -1,5 +1,6 @@
 target_sources(mach
    PRIVATE
+      common.hpp
       default_options.hpp
       evolver.cpp
       evolver.hpp
