@@ -5,57 +5,49 @@ project(ODLMach VERSION 1.0
                 DESCRIPTION "Optimal Design Lab multi-physics solver"
                 LANGUAGES CXX)
 
-IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-   SET(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}" CACHE PATH "default source dir" FORCE)
-   message ("CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
-ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+   set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}" CACHE PATH "default source dir" FORCE)
+   message("CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
+endif (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
+# Let CMake know where to find custom FindFoo.cmake files
+set(CMAKE_MODULE_PATH
+   ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+
+find_package(Adept MODULE REQUIRED)
 find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 
-
-# if (MFEM_USE_CUDA)
-#    # MFEM_USE_CUDA requires CMake 3.8 or newer (for direct CUDA support)
-#    cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-#    enable_language(CUDA)
-#    message(STATUS "Using CUDA architecture: ${CUDA_ARCH}")
-# endif()
-
-
-# find_package(Git QUIET)
-# if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-# # Update submodules as needed
-#     option(GIT_SUBMODULE "Check submodules during build" ON)
-#     if(GIT_SUBMODULE)
-#         message(STATUS "Submodule update")
-#         execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-#                         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#                         RESULT_VARIABLE GIT_SUBMOD_RESULT)
-#         if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-#             message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-#         endif()
-#     endif()
-# endif()
-
-# if(NOT EXISTS "${PROJECT_SOURCE_DIR}/extern/mfem/CMakeLists.txt")
-#     message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
-# endif()
+if (MFEM_USE_PUMI)
+   # If PUMI_DIR was specified, only link to that directory,
+   # i.e. don't link to another installation in /usr/lib by mistake
+   find_package(SCOREC 2.1.0 REQUIRED OPTIONAL_COMPONENTS gmi_sim
+      CONFIG PATHS ${PUMI_DIR} NO_DEFAULT_PATH)
+   if (SCOREC_FOUND)
+      set(PUMI_FOUND ${SCOREC_FOUND})
+      get_target_property(PUMI_INCLUDE_DIRS
+         SCOREC::apf INTERFACE_INCLUDE_DIRECTORIES)
+      set(PUMI_LIBRARIES SCOREC::core)
+   endif (SCOREC_FOUND)
+endif (MFEM_USE_PUMI)
 
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
 
 # Use CMakeLists.txt files in subdirectories to add sources to mach
 add_subdirectory(src)
-# # mfem git submodule can be added directly since it has a CMakeLists.txt file
-# add_subdirectory(extern/mfem)
 
 target_link_libraries(mach
    PUBLIC
+      "${ADEPT_LIBRARIES}"
       "${MFEM_LIBRARIES}"
+      # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
 )
 
 target_include_directories(mach
    PUBLIC
+      "${ADEPT_INCLUDE_DIRS}"
       "${MFEM_INCLUDE_DIRS}"
+      "${PUMI_INCLUDE_DIRS}"
 )
 
 target_compile_features(mach
