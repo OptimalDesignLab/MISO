@@ -43,7 +43,7 @@ ThermalSolver::ThermalSolver(
 		std::cerr << "Could not open materials library file!" << std::endl;
 	material_file >> materials;
 
-	///TODO: Define these based on materials library
+	std::cout << "Constructing Material Coefficient..." << std::endl;
 	constructDensityCoeff();
 
 	constructHeatCoeff();
@@ -54,77 +54,89 @@ ThermalSolver::ThermalSolver(
      
     constructJoule();
 
+	
+
+	std::cout << "Defining Finite Element Spaces..." << std::endl;
 	/// set essential BCs (none)
 	Array<int> ess_tdof_list;
+	mfem::Array<int> ess_bdr(mesh->bdr_attributes.Max());;
     h_grad_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
 	/// set up the bilinear forms
-	m->reset(new BilinearFormType(h_grad_space.get()));
-    k->reset(new BilinearFormType(h_grad_space.get()));
+	m.reset(new BilinearFormType(h_grad_space.get()));
+    k.reset(new BilinearFormType(h_grad_space.get()));
 
+	std::cout << "Creating Mass Matrix..." << std::endl;
 	/// add mass integrator to m bilinear form
-	m->AddDomainIntegrator(new MassIntegrator(rho_cv->get()));
+	m->AddDomainIntegrator(new MassIntegrator(*rho_cv));
 
+	std::cout << "Inverting Mass Matrix..." << std::endl;
 	/// assemble mass matrix, and invert
 	m->Assemble(0);
 	m->FormSystemMatrix(ess_tdof_list, M);
+	M_solver.reset(new CGSolver());
+	M_prec.reset(new HypreSmoother());
 	M_solver->iterative_mode = false;
     M_solver->SetRelTol(1e-8);
     M_solver->SetAbsTol(0.0);
     M_solver->SetMaxIter(100);
     M_solver->SetPrintLevel(0);
     M_prec->SetType(HypreSmoother::Jacobi);
-    M_solver->SetPreconditioner(M_prec.get());
+    M_solver->SetPreconditioner(*M_prec);
     M_solver->SetOperator(M);
 
 	/// add diffusion integrator to k bilinear form
-	k->AddDomainIntegrator(new DiffusionIntegrator(kappa->get()));
+	k->AddDomainIntegrator(new DiffusionIntegrator(*kappa));
 
 
 	/// set up the linear form (volumetric fluxes)
-	b->reset(new LinearForm(h_grad_space.get()));
+	b.reset(new LinearForm(h_grad_space.get()));
 
 	/// add joule heating term
-	b->AddDomainIntegrator(new DomainLFIntegrator(i2sigmainv->get()));
-
+	b->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
+	std::cout << "Constructing Boundary Conditions..." << std::endl;
 	/// add iron loss heating terms
 	//b->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
 	/// add boundary integrator to bilinear form for flux BC, elsewhere is natural
 	///TODO: Define Boundary Conditions, Make More General, Selectively Apply To Certain Faces
-	fluxcoeff.reset(new VectorFunctionCoefficient(*FluxFunc));
+	fluxcoeff.reset(new VectorFunctionCoefficient(3, FluxFunc));
 	auto &bcs = options["bcs"];
     bndry_marker.resize(bcs.size());
 	int idx = 0;
 	if (bcs.find("outflux") != bcs.end())
     { // isentropic vortex BC
-        vector<int> tmp = bcs["vortex"].get<vector<int>>();
+        vector<int> tmp = bcs["outflux"].get<vector<int>>();
         bndry_marker[idx].SetSize(tmp.size(), 0);
         bndry_marker[idx].Assign(tmp.data());
         b->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(*fluxcoeff), bndry_marker[idx]);
         idx++;
     }
 
-
+	std::cout << "Setting Up Linear Solver..." << std::endl;
+	T_solver.reset(new CGSolver());
+	T_prec.reset(new HypreSmoother());
     T_solver->iterative_mode = false;
     T_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
     T_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
     T_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
     T_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-    T_solver->SetPreconditioner(T_prec.get());
+    T_solver->SetPreconditioner(*T_prec);
 
+	std::cout << "Assembling Other Matrices and Vectors..." << std::endl;
 	/// assemble stiffness matrix and linear form
 	k->Assemble(0);
 	k->FormSystemMatrix(ess_tdof_list, K);
 	b->Assemble();
 
-	B(*b);
+	//B(*b);
 	delete T;
     T = NULL;
 
 	/// initialize dTdt 0
 	*dTdt = 0.0;
 
+	std::cout << "Setting Up ODE Solver..." << std::endl;
 	/// define ode solver
 	ode_solver = NULL;
  	ode_solver.reset(new ImplicitMidpointSolver);
@@ -175,6 +187,11 @@ void ThermalSolver::solveUnsteady()
     evolver->SetTime(t);
     ode_solver->Init(*evolver);
 
+	FunctionCoefficient phi_0(InitialTemperature);
+    phi->ProjectCoefficient(phi_0);
+    Vector u;
+    phi->GetTrueDofs(u);
+
 	int precision = 8;
     {
 		ofstream omesh("motor_heat_init.mesh");
@@ -182,7 +199,9 @@ void ThermalSolver::solveUnsteady()
     	mesh->Print(omesh);
     	ofstream osol("motor_heat_init.gf");
     	osol.precision(precision);
-      	u->Save(osol);
+      	phi->Save(osol);
+		mesh->PrintVTK(osol, options["space-dis"]["degree"].get<int>() + 1);
+        phi->SaveVTK(osol, "Solution", options["space-dis"]["degree"].get<int>() + 1);
    	}
 
 	bool done = false;
@@ -245,7 +264,7 @@ void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dXdt
     }
     K.Mult(X, z);
     z.Neg();
-	z.Add(1, B);
+	z.Add(1, *b);
     T_solver->Mult(z, dXdt);
 }
 
@@ -289,8 +308,11 @@ void ThermalSolver::constructMassCoeff()
 		std::unique_ptr<mfem::Coefficient> rho_cv_coeff;
 		std::cout << material << '\n';
 		{
-			auto attr = material["attr"].get<int>();
-			rho_cv_coeff.reset(new ProductCoefficient(move(rho->getCoefficient(attr)),move(cv->getCoefficient(attr))));
+			//auto attr = material["attr"].get<int>();
+			auto cv_val = material["cv"].get<double>();
+			auto rho_val = material["rho"].get<double>();
+			//rho_cv_coeff.reset(new ProductCoefficient(rho->getCoefficient(attr), cv->getCoefficient(attr)));
+			rho_cv_coeff.reset(new ConstantCoefficient(cv_val*rho_val));
 		}
 		rho_cv->addCoefficient(material["attr"].get<int>(), move(rho_cv_coeff));
 	}
@@ -335,8 +357,10 @@ void ThermalSolver::constructJoule()
 void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
 {
 	y.SetSize(3);
-	double outflux;
+	double outflux = 100;
 	//use constant in time for now
+	///TODO: Need to find a way to get options in static member
+	#if 0
 	if (options["bcs"]["const"].get<bool>())
 	{
 		outflux = options["bcs"]["const-val"].get<double>();
@@ -345,17 +369,19 @@ void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
 	{
 		std::cerr << "Time Dependent BC Not Implemented!" << std::endl;
 	}
-
+	#endif
 	//assuming centered coordinate system, will offset
 	double th = atan(x(1)/x(0));
 
 	y(0) = outflux*cos(th);
 	y(1) = outflux*sin(th);
 	y(2) = 0;
-
-
-
 	
+}
+
+double ThermalSolver::InitialTemperature(const Vector &x)
+{
+   return 300;
 }
 
 } // namespace mach

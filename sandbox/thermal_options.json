@@ -1,7 +1,6 @@
-
 {
     "mesh": {
-       "file": "motor_fix.mesh"
+       "file": "initial.mesh"
     },
     "space-dis": {
        "basis-type": "H1",
@@ -18,15 +17,21 @@
        "print-lvl": 2,
        "max-iter": 500
     },
+    "current": 1,
     "components": {
        "stator": {
-          "material": "steel",
+          "material": "cuwinding",
           "attr": 1
        },
        "rotor": {
-          "material": "air",
+          "material": "steel",
           "attr": 2
        }
     },
-    "material-lib-path": "../src/material_library.json"
+    "bcs": {
+        "outflux": [0, 1, 0, 0, 0, 0],
+        "const": true,
+        "const-val": 100
+    },
+    "material-lib-path": "../src/material_options.json"
  }

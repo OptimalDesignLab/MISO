@@ -25,11 +25,6 @@ public:
 
 private:
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
-   // std::vector<mfem::Array<int>> bndry_marker;
-   // /// the mass matrix bilinear form
-   // std::unique_ptr<BilinearFormType> mass;
-   // /// mass matrix (move to AbstractSolver?)
-   // std::unique_ptr<MatrixType> mass_matrix;
 
    /// H(grad) finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> h_grad_coll;
@@ -69,7 +64,6 @@ private:
    std::unique_ptr<mfem::VectorCoefficient> fluxcoeff;
 
    /// essential boundary condition marker array (not using )
-   mfem::Array<int> ess_bdr;
    std::unique_ptr<mfem::Coefficient> bc_coef;
 
    /// the bilinear forms, mass m, stiffness k
@@ -111,14 +105,17 @@ private:
    /// construct vector mesh dependent coefficient for joule heating
    void constructJoule();
 
-   /// compute outward flux at boundary, for 
-   void FluxFunc(const mfem::Vector &x, mfem::Vector &y );
-
    /// set up solver for every time step
    void setupSolver(const int idt, const double dt) const;
 
    /// for calls of mult
    void Mult(const mfem::Vector &X, mfem::Vector &dXdt);
+
+   /// compute outward flux at boundary, for 
+   static void FluxFunc(const mfem::Vector &x, mfem::Vector &y );
+
+   /// initial temperature
+   static double InitialTemperature(const mfem::Vector &x);
 
    /// implementation of ImplicitSolve
    virtual void ImplicitSolve(const double dt, const mfem::Vector &x, mfem::Vector &k);
