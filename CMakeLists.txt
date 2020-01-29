@@ -43,6 +43,15 @@ add_subdirectory(src)
 # # mfem git submodule can be added directly since it has a CMakeLists.txt file
 # add_subdirectory(extern/mfem)
 
+target_link_libraries(mach
+   PUBLIC
+      "${MFEM_LIBRARIES}"
+)
+
+target_include_directories(mach
+   PUBLIC
+      "${MFEM_INCLUDE_DIRS}"
+)
 
 target_compile_features(mach
    PUBLIC
