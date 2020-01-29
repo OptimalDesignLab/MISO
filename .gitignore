@@ -32,3 +32,6 @@
 /doc/CodeDocumentation/
 /doc/CodeDocumentation.conf
 /doc/CodeDocumentation.html
+
+# build files
+build/*
