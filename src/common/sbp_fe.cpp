@@ -1,5 +1,6 @@
 #include "mfem.hpp"
-#include "utils.hpp"
+
+#include "../utils/utils.hpp"
 #include "sbp_fe.hpp"
 #include "orthopoly.hpp"
 

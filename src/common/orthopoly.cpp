@@ -1,5 +1,6 @@
 #include <assert.h>
-#include "utils.hpp"
+
+#include "../utils/utils.hpp"
 #include "orthopoly.hpp"
 
 using namespace std;

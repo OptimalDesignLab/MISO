@@ -4,9 +4,13 @@
 #define MACH_EULER_FLUXES
 
 #include <algorithm> // std::max
-#include "utils.hpp"
+
 #include "adept.h"
+
+#include "../../utils/utils.hpp"
+
 using adept::adouble;
+
 namespace mach
 {
 

@@ -1,4 +1,3 @@
-
 template <typename Derived>
 void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,

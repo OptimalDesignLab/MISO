@@ -1,10 +1,12 @@
 #include <fstream>
 #include <iostream>
-#include "solver.hpp"
-#include "default_options.hpp"
-#include "sbp_fe.hpp"
+
+#include "../utils/default_options.hpp"
+#include "../common/sbp_fe.hpp"
+#include "../common/evolver.hpp"
 #include "diag_mass_integ.hpp"
-#include "evolver.hpp"
+#include "solver.hpp"
+
 
 using namespace std;
 using namespace mfem;

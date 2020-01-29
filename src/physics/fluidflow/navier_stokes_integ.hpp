@@ -1,8 +1,9 @@
 #ifndef MACH_NAVIER_STOKES_INTEG
 #define MACH_NAVIER_STOKES_INTEG
 
-#include "mfem.hpp"
 #include "adept.h"
+#include "mfem.hpp"
+
 #include "viscous_integ.hpp"
 #include "euler_fluxes.hpp"
 #include "navier_stokes_fluxes.hpp"

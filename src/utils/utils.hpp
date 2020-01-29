@@ -4,6 +4,7 @@
 #include <functional>
 #include <exception>
 #include <iostream>
+
 #include "mfem.hpp"
 
 namespace mach

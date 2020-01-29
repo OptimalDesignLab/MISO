@@ -1,10 +1,12 @@
 #ifndef MACH_EULER_INTEG
 #define MACH_EULER_INTEG
 
-#include "mfem.hpp"
 #include "adept.h"
+#include "mfem.hpp"
+
 #include "inviscid_integ.hpp"
 #include "euler_fluxes.hpp"
+
 using adept::adouble;
 
 namespace mach

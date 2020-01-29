@@ -2,6 +2,7 @@
 #define MFEM_SBP_FE
 
 #include <unordered_map> // TODO: delete when we re-implement SBP elements?
+
 #include "mfem.hpp"
 
 // We add to the mfem namespace, since this seems appropriate; it will also

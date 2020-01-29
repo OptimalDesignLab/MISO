@@ -2,8 +2,9 @@
 #define MACH_LINEAR_EVOLVER
 
 #include "mfem.hpp"
+
+#include "../utils/mach_types.hpp"
 #include "inexact_newton.hpp"
-#include "mach_types.hpp"
 
 namespace mach
 {

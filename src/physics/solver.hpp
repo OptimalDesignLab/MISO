@@ -3,11 +3,9 @@
 
 #include <fstream>
 #include <iostream>
-#include "mfem.hpp"
+
 #include "adept.h"
-#include "mach_types.hpp"
-#include "utils.hpp"
-#include "json.hpp"
+#include "mfem.hpp"
 #ifdef MFEM_USE_SIMMETRIX
 #include <SimUtil.h>
 #include <gmi_sim.h>
@@ -20,6 +18,10 @@
 #include <gmi_mesh.h>
 #include <crv.h>
 #endif
+
+#include "../utils/mach_types.hpp"
+#include "../utils/utils.hpp"
+#include "../utils/json.hpp"
 
 namespace mach
 {

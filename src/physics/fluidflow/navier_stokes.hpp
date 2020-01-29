@@ -1,6 +1,8 @@
 #ifndef MACH_NAVIER_STOKES
 #define MACH_NAVIER_STOKES
+
 #include "mfem.hpp"
+
 #include "euler.hpp"
 
 namespace mach

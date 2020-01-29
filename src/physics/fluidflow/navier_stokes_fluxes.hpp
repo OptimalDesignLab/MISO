@@ -3,7 +3,8 @@
 #define MACH_NAVIER_STOKES_FLUXES
 
 #include <algorithm> // std::max
-#include "utils.hpp"
+
+#include "../../utils/utils.hpp"
 #include "euler_fluxes.hpp"
 
 namespace mach

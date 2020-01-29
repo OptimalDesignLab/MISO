@@ -1,11 +1,11 @@
-
 #ifndef MFEM_INEXACTNEWTON
 #define MFEM_INEXACTNEWTON
 
 #include "mfem.hpp"
-#include "solver.hpp"
-using namespace mach;
 
+#include "../physics/solver.hpp"
+
+using namespace mach;
 
 namespace mfem
 {

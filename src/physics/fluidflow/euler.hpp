@@ -1,8 +1,11 @@
 #ifndef MACH_EULER
 #define MACH_EULER
+
 #include "mfem.hpp"
-#include "solver.hpp"
+
+#include "../solver.hpp"
 #include "euler_integ.hpp"
+
 //using adept::adouble;
 
 namespace mach
