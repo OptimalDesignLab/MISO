@@ -1,4 +1,4 @@
 target_sources(mach
-   PRIVATE 
+   PRIVATE
       sbp_operators.hpp
 )

@@ -78,8 +78,11 @@ target_compile_options(mach
 
 install(TARGETS mach
    EXPORT machTargets
-   LIBRARY DESTINATION ${CMAKE_SOURCE_DIR}/lib
-   INCLUDES DESTINATION ${CMAKE_SOURCE_DIR}/include
+   LIBRARY DESTINATION lib
+   INCLUDES DESTINATION include
 )
 
-
+install(DIRECTORY src 
+   DESTINATION include
+   FILES_MATCHING PATTERN "*.h*"
+)
