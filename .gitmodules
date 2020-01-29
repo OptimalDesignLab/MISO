@@ -1,3 +1,0 @@
-[submodule "extern/mfem"]
-	path = extern/mfem
-	url = git@github.com:mfem/mfem.git
