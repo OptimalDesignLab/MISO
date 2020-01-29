@@ -5,7 +5,7 @@ project(ODLMach VERSION 1.0
                 DESCRIPTION "Optimal Design Lab multi-physics solver"
                 LANGUAGES CXX)
 
-find_package(mfem CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
+find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 
 
 # if (MFEM_USE_CUDA)
