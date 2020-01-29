@@ -12,11 +12,9 @@ using namespace mfem;
 namespace mach
 {
 
-template <int dim>
-adept::Stack AbstractSolver<dim>::diff_stack;
+adept::Stack AbstractSolver::diff_stack;
 
-template <int dim>
-AbstractSolver<dim>::AbstractSolver(const string &opt_file_name,
+AbstractSolver::AbstractSolver(const string &opt_file_name,
                                     unique_ptr<Mesh> smesh)
 {
 // Set the options; the defaults are overwritten by the values in the file
@@ -35,12 +33,7 @@ AbstractSolver<dim>::AbstractSolver(const string &opt_file_name,
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
    constructMesh(move(smesh));
-   // does dim equal mesh->Dimension in all cases?
-   if (dim != mesh->Dimension())
-   {
-      throw MachException("Template parameter and mesh dimension must agree");
-   }
-   //int dim = mesh->Dimension();
+   int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
 
    // Define the ODE solver used for time integration (possibly not used)
@@ -87,8 +80,7 @@ AbstractSolver<dim>::AbstractSolver(const string &opt_file_name,
    }
 }
 
-template <int dim>
-void AbstractSolver<dim>::initDerived()
+void AbstractSolver::initDerived()
 {
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState(); // <--- this is a virtual fun
@@ -113,43 +105,11 @@ void AbstractSolver<dim>::initDerived()
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
    // Add integrators; this can be simplified if we template the entire class
-   // if(0 == rank)
-   // {
-   //    std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-   //    std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
-   //    const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-   //    if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
-   // }
-   // MPI_Barrier(comm);
-   // if(1 == rank)
-   // {
-   //    std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-   //    std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
-   //    const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-   //    if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
-   // }
-   // MPI_Barrier(comm);
-   // if(2 == rank)
-   // {
-   //    std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-   //    std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
-   //    const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-   //    if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
-   // }
-   // MPI_Barrier(comm);
-   // if(3 == rank)
-   // {
-   //    std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-   //    std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
-   //    const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-   //    if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
-   // }
-   // MPI_Barrier(comm);
    this->addVolumeIntegrators(alpha);
    auto &bcs = options["bcs"];
    bndry_marker.resize(bcs.size()); // need to set this before next method
-   this->addBoundaryIntegrators(alpha);
-   this->addInterfaceIntegrators(alpha);
+   addBoundaryIntegrators(alpha);
+   addInterfaceIntegrators(alpha);
 
    // This just lists the boundary markers for debugging purposes
    if (0==rank)
@@ -186,17 +146,15 @@ void AbstractSolver<dim>::initDerived()
    // add the output functional QoIs 
    auto &fun = options["outputs"];
    output_bndry_marker.resize(fun.size());
-   this->addOutputs(); // virtual function
+   addOutputs(); // virtual function
 }
 
-template <int dim>
-AbstractSolver<dim>::~AbstractSolver()
+AbstractSolver::~AbstractSolver()
 {
    *out << "Deleting Abstract Solver..." << endl;
 }
 
-template <int dim>
-void AbstractSolver<dim>::constructMesh(unique_ptr<Mesh> smesh)
+void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 {
 #ifndef MFEM_USE_PUMI
    if (smesh == nullptr)
@@ -251,8 +209,7 @@ void AbstractSolver<dim>::constructMesh(unique_ptr<Mesh> smesh)
 #endif //MFEM_USE_MPI
 }
 
-template <int dim>
-void AbstractSolver<dim>::setInitialCondition(
+void AbstractSolver::setInitialCondition(
     void (*u_init)(const Vector &, Vector &))
 {
    // TODO: Need to verify that this is ok for scalar fields
@@ -274,16 +231,14 @@ void AbstractSolver<dim>::setInitialCondition(
    // }
 }
 
-template <int dim>
-void AbstractSolver<dim>::setInitialCondition(const Vector &uic)
+void AbstractSolver::setInitialCondition(const Vector &uic)
 {
    // TODO: Need to verify that this is ok for scalar fields
    VectorConstantCoefficient u0(uic);
    u->ProjectCoefficient(u0);
 }
 
-template <int dim>
-double AbstractSolver<dim>::calcL2Error(
+double AbstractSolver::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
    // TODO: need to generalize to parallel
@@ -351,8 +306,7 @@ double AbstractSolver<dim>::calcL2Error(
    return sqrt(norm);
 }
 
-template <int dim>
-double AbstractSolver<dim>::calcResidualNorm()
+double AbstractSolver::calcResidualNorm()
 {
    GridFunType r(fes.get());
    double res_norm;
@@ -370,15 +324,13 @@ double AbstractSolver<dim>::calcResidualNorm()
    return res_norm;
 }
 
-template <int dim>
-double AbstractSolver<dim>::calcStepSize(double cfl) const
+double AbstractSolver::calcStepSize(double cfl) const
 {
    throw MachException("AbstractSolver::calcStepSize(cfl)\n"
                        "\tis not implemented for this class!");
 }
 
-template <int dim>
-void AbstractSolver<dim>::printSolution(const std::string &file_name,
+void AbstractSolver::printSolution(const std::string &file_name,
                                    int refine)
 {
    // TODO: These mfem functions do not appear to be parallelized
@@ -393,8 +345,7 @@ void AbstractSolver<dim>::printSolution(const std::string &file_name,
    sol_ofs.close();
 }
 
-template <int dim>
-void AbstractSolver<dim>::printResidual(const std::string &file_name,
+void AbstractSolver::printResidual(const std::string &file_name,
                                         int refine)
 {
    GridFunType r(fes.get());
@@ -416,8 +367,7 @@ void AbstractSolver<dim>::printResidual(const std::string &file_name,
    res_ofs.close();
 }
 
-template <int dim>
-void AbstractSolver<dim>::solveForState()
+void AbstractSolver::solveForState()
 {
    if (options["steady"].get<bool>() == true)
    {
@@ -429,8 +379,7 @@ void AbstractSolver<dim>::solveForState()
    }
 }
 
-template <int dim>
-void AbstractSolver<dim>::solveSteady()
+void AbstractSolver::solveSteady()
 {
    double t1, t2;
    if(0==rank)
@@ -518,8 +467,7 @@ void AbstractSolver<dim>::solveSteady()
 #endif
 }
 
-template <int dim>
-void AbstractSolver<dim>::solveUnsteady()
+void AbstractSolver::solveUnsteady()
 {
    // TODO: This is not general enough.
 
@@ -615,8 +563,7 @@ void AbstractSolver<dim>::solveUnsteady()
    // TODO: These mfem functions do not appear to be parallelized
 }
 
-template <int dim>
-double AbstractSolver<dim>::calcOutput(const std::string &fun)
+double AbstractSolver::calcOutput(const std::string &fun)
 {
    try
    {
@@ -631,8 +578,8 @@ double AbstractSolver<dim>::calcOutput(const std::string &fun)
       std::cerr << exception.what() << endl;
    }
 }
-template <int dim>
-void AbstractSolver<dim>::jacobianCheck()
+
+void AbstractSolver::jacobianCheck()
 {
    // initialize the variables
    const double delta = 1e-5;
@@ -671,12 +618,5 @@ void AbstractSolver<dim>::jacobianCheck()
    jac_v->Add(-1.0, *res_plus);
    std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
 }
-
-// explicit instantiation
-//template class AbstractSolver<1>;
-template class AbstractSolver<2>;
-///template class AbstractSolver<3>;
-
-//template <> adept::Stack AbstractSolver<2>::diff_stack;
 
 } // namespace mach

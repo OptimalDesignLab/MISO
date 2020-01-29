@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs, 3);
 
-      unique_ptr<AbstractSolver<2>> solver(
+      unique_ptr<AbstractSolver> solver(
          new NavierStokesSolver<2>(opt_file_name, move(smesh)));
       solver->initDerived();
 

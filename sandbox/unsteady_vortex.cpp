@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<AbstractSolver<2>> solver(
+      unique_ptr<AbstractSolver> solver(
          new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
       solver->setInitialCondition(u0_function);

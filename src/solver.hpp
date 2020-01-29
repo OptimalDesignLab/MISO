@@ -25,8 +25,6 @@ namespace mach
 {
 
 /// Serves as a base class for specific PDE solvers
-/// dim - number of spatial dimensions (1, 2, or 3)
-template <int dim>
 class AbstractSolver
 {
 public:
@@ -34,7 +32,7 @@ public:
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
    AbstractSolver(const std::string &opt_file_name =
-                      std::string("mach_options.json"),
+                  std::string("mach_options.json"),
                   std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Perform set-up of derived classes using virtual functions
@@ -191,9 +189,6 @@ protected:
    virtual void addOutputs() {};
 
 };
-
-//template <int dim>
-//adept::Stack AbstractSolver<dim>::diff_stack;
 
 } // namespace mach
 
