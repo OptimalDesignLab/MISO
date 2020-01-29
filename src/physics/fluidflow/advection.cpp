@@ -1,7 +1,7 @@
+#include "../../common/evolver.hpp"
 #include "../../common/sbp_fe.hpp"
 #include "../diag_mass_integ.hpp"
 #include "advection.hpp"
-#include "evolver.hpp"
 
 using namespace mfem;
 using namespace std;

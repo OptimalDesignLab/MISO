@@ -2,8 +2,6 @@ target_sources(mach
    PRIVATE
       advection.cpp
       advection.hpp
-      diag_mass_integ.cpp
-      diag_mass_integ.hpp
       euler_fluxes.hpp
       euler_integ_def.hpp
       euler_integ.hpp

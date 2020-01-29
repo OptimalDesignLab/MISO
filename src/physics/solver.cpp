@@ -1,7 +1,7 @@
 #include <fstream>
 #include <iostream>
 
-#include "../utils/default_options.hpp"
+#include "../common/default_options.hpp"
 #include "../common/sbp_fe.hpp"
 #include "../common/evolver.hpp"
 #include "diag_mass_integ.hpp"
