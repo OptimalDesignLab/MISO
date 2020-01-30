@@ -35,13 +35,13 @@ int main(int argc, char *argv[])
    }
 
    // generate a simple tet mesh
-   int num_edge = 20;
+   int num_edge = 4;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
 
    mesh->ReorientTetMesh();
-
+   std::cout << "Number of Boundary Attributes: "<< mesh->bdr_attributes.Size() <<std::endl;
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh->GetNE(); ++i)
    {
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
       // construct the solver
       string opt_file_name(options_file);
       
-      ThermalSolver solver(opt_file_name);
+      ThermalSolver solver(opt_file_name, move(mesh));
       // unique_ptr<MagnetostaticSolver<3>> solver(
       //    new MagnetostaticSolver<3>(opt_file_name, nullptr));
       std::cout << "Solving..." << std::endl;

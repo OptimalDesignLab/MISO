@@ -106,7 +106,7 @@ ThermalSolver::ThermalSolver(
     bndry_marker.resize(bcs.size());
 	int idx = 0;
 	if (bcs.find("outflux") != bcs.end())
-    { // isentropic vortex BC
+    { // outward flux bc
         vector<int> tmp = bcs["outflux"].get<vector<int>>();
         bndry_marker[idx].SetSize(tmp.size(), 0);
         bndry_marker[idx].Assign(tmp.data());
@@ -133,7 +133,7 @@ ThermalSolver::ThermalSolver(
 	b->Assemble();
 
 	//B(*b);
-	delete T;
+	//delete T;
     T = NULL;
 
 	/// initialize dTdt 0
@@ -360,8 +360,9 @@ void ThermalSolver::constructJoule()
 			auto sigma = materials[material]["sigma"].template get<double>();
 			auto current = options["current"].template get<double>();
 			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
+			i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(i2sigmainv_coeff));
 		}
-		i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(i2sigmainv_coeff));
+		
 	}
 }
 
