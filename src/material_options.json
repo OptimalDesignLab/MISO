@@ -124,7 +124,8 @@
         "mu_r" : 2000,
         "rho" : 7750,
         "cv" : 420, 
-        "kappa" : 50
+		"kappa" : 50,
+		"conductor" : false
 	},
 	"NdFeB" : {
         "mu_r" : 1.05,

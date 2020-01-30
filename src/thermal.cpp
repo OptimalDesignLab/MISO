@@ -43,7 +43,8 @@ ThermalSolver::ThermalSolver(
 		std::cerr << "Could not open materials library file!" << std::endl;
 	material_file >> materials;
 
-	std::cout << "Constructing Material Coefficient..." << std::endl;
+	std::cout << "Constructing Material Coefficients..." << std::endl;
+	
 	constructDensityCoeff();
 
 	constructHeatCoeff();
@@ -123,10 +124,12 @@ ThermalSolver::ThermalSolver(
     T_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
     T_solver->SetPreconditioner(*T_prec);
 
-	std::cout << "Assembling Other Matrices and Vectors..." << std::endl;
+	std::cout << "Assembling Stiffness Matrix..." << std::endl;
 	/// assemble stiffness matrix and linear form
 	k->Assemble(0);
+
 	k->FormSystemMatrix(ess_tdof_list, K);
+	std::cout << "Assembling Forcing Term..." << std::endl;
 	b->Assemble();
 
 	//B(*b);
@@ -272,15 +275,17 @@ void ThermalSolver::constructDensityCoeff()
 {
 	rho.reset(new MeshDependentCoefficient());
 
-	for (auto& material : options["materials"])
+	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> rho_coeff;
+		std::string material = component["material"].template get<std::string>();
 		std::cout << material << '\n';
 		{
-			auto rho_val = material["rho"].get<double>();
+			auto rho_val = materials[material]["rho"].template get<double>();
 			rho_coeff.reset(new ConstantCoefficient(rho_val));
 		}
-		rho->addCoefficient(material["attr"].get<int>(), move(rho_coeff));
+		int attrib = component["attr"].template get<int>();
+		rho->addCoefficient(component["attr"].template get<int>(), move(rho_coeff));
 	}
 }
 
@@ -288,33 +293,37 @@ void ThermalSolver::constructHeatCoeff()
 {
 	cv.reset(new MeshDependentCoefficient());
 
-	for (auto& material : options["materials"])
+	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> cv_coeff;
+		std::string material = component["material"].template get<std::string>();
 		std::cout << material << '\n';
 		{
-			auto cv_val = material["cv"].get<double>();
+			auto cv_val = materials[material]["cv"].template get<double>();
 			cv_coeff.reset(new ConstantCoefficient(cv_val));
 		}
-		cv->addCoefficient(material["attr"].get<int>(), move(cv_coeff));
+		cv->addCoefficient(component["attr"].template get<int>(), move(cv_coeff));
 	}
 }
 
 
 void ThermalSolver::constructMassCoeff()
 {
-	for (auto& material : options["materials"])
+	rho_cv.reset(new MeshDependentCoefficient());
+
+	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> rho_cv_coeff;
+		std::string material = component["material"].template get<std::string>();
 		std::cout << material << '\n';
 		{
 			//auto attr = material["attr"].get<int>();
-			auto cv_val = material["cv"].get<double>();
-			auto rho_val = material["rho"].get<double>();
+			auto cv_val = materials[material]["cv"].template get<double>();
+			auto rho_val = materials[material]["rho"].template get<double>();
 			//rho_cv_coeff.reset(new ProductCoefficient(rho->getCoefficient(attr), cv->getCoefficient(attr)));
 			rho_cv_coeff.reset(new ConstantCoefficient(cv_val*rho_val));
 		}
-		rho_cv->addCoefficient(material["attr"].get<int>(), move(rho_cv_coeff));
+		rho_cv->addCoefficient(component["attr"].template get<int>(), move(rho_cv_coeff));
 	}
 }
 
@@ -322,15 +331,16 @@ void ThermalSolver::constructConductivity()
 {
 	kappa.reset(new MeshDependentCoefficient());
 
-	for (auto& material : options["materials"])
+	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> kappa_coeff;
+		std::string material = component["material"].template get<std::string>();
 		std::cout << material << '\n';
 		{
-			auto kappa_val = material["kappa"].get<double>();
+			auto kappa_val = materials[material]["kappa"].template get<double>();
 			kappa_coeff.reset(new ConstantCoefficient(kappa_val));
 		}
-		kappa->addCoefficient(material["attr"].get<int>(), move(kappa_coeff));
+		kappa->addCoefficient(component["attr"].template get<int>(), move(kappa_coeff));
 
 		///TODO: generate anisotropic conductivity for the copper windings
 	}
@@ -340,17 +350,18 @@ void ThermalSolver::constructJoule()
 {
 	i2sigmainv.reset(new MeshDependentCoefficient());
 
-	for (auto& material : options["materials"])
+	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> i2sigmainv_coeff;
+		std::string material = component["material"].template get<std::string>();
 		std::cout << material << '\n';
-		if(material["conductor"].template get<bool>())
+		if(materials[material]["conductor"].template get<bool>())
 		{
-			auto sigma = material["sigma"].get<double>();
-			auto current = options["current"].get<double>();
+			auto sigma = materials[material]["sigma"].template get<double>();
+			auto current = options["current"].template get<double>();
 			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
 		}
-		i2sigmainv->addCoefficient(material["attr"].get<int>(), move(i2sigmainv_coeff));
+		i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(i2sigmainv_coeff));
 	}
 }
 
