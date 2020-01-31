@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
    const char *options_file = "mag_box_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
-   int nxy = 8, nz = 2;
+   int nxy = 2, nz = 2;
    args.AddOption(&nxy, "-nxy", "--numxy",
                   "Number of elements in x and y directions");
    args.AddOption(&nz, "-nz", "--numz",

@@ -91,32 +91,42 @@ MagnetostaticSolver::MagnetostaticSolver(
 	ess_bdr = 1;
 
 
-	reduced_op.reset(new ReducedSystemOperator(res.get(), current_vec.get(),
-															 ess_bdr));
+	// reduced_op.reset(new ReducedSystemOperator(res.get(), current_vec.get(),
+	// 														 ess_bdr));
 
 
 	Array<int> ess_tdof_list;
-	/// I don't understand the difference between these
-	// h_curl_space->GetEssentialVDofs(ess_bdr, ess_tdof_list);
 	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-
 	res->SetEssentialTrueDofs(ess_tdof_list);
 
 	Vector Zero(3);
    Zero = 0.0;
    // bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
-	bc_coef.reset(new VectorFunctionCoefficient(3, a_bc_uniform)); // for box problem
-   
+	bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
+   // VectorFunctionCoefficient A_exact(3, a_exact);
+
 	/// I think any of these should work
 	// A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-   A->ProjectBdrCoefficient(*bc_coef, ess_bdr);
+   // A->ProjectBdrCoefficient(*bc_coef, ess_bdr);
    // A->ProjectCoefficient(*bc_coef);
 
+	*A = 0.0;
+	std::cout << "\n\nA before:\n\n";
+	A->Print_HYPRE(std::cout);
+	A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+	// A->ProjectBdrCoefficient(*bc_coef, ess_bdr);
+	std::cout << "\n\nA after:\n\n";
+	A->Print_HYPRE(cout);
+
+	std::cout << "\n\ness tdof:\n\n";
+	ess_tdof_list.Print();
+
 	/// set essential boundary conditions in nonlinear form and rhs current vec
-	res->SetEssentialBC(ess_bdr, current_vec.get());
+	// res->SetEssentialBC(ess_bdr, current_vec.get());
+	// res->SetEssentialTrueDofs()
 
 	/// alternative method to set current vector's ess_tdofs to zero
-	// current_vec->SetSubVector(ess_tdof_list, 0.0);
+	current_vec->SetSubVector(ess_tdof_list, 0.0);
 
 	/// Costruct linear system solver
 #ifdef MFEM_USE_MPI
@@ -153,8 +163,8 @@ MagnetostaticSolver::MagnetostaticSolver(
 	/// Set up Newton solver
 	newton_solver.iterative_mode = false;
    newton_solver.SetSolver(*solver);
-   // newton_solver.SetOperator(*res); // if not using reduced operator
-   newton_solver.SetOperator(*reduced_op); // if using reduced operator
+   newton_solver.SetOperator(*res); // if not using reduced operator
+   // newton_solver.SetOperator(*reduced_op); // if using reduced operator
    newton_solver.SetPrintLevel(options["newton"]["print-lvl"].template get<int>());
    newton_solver.SetRelTol(options["newton"]["rel-tol"].template get<double>());
    newton_solver.SetAbsTol(options["newton"]["abs-tol"].template get<double>());
@@ -183,10 +193,13 @@ void MagnetostaticSolver::solveSteady()
 
 	newton_solver.Mult(*current_hpv, *A);
 #else
-	// newton_solver.Mult(*current_vec, *A);
-	Vector zero;
-	newton_solver.Mult(zero, *A); // if using reduced operator
+	newton_solver.Mult(*current_vec, *A);
+	// Vector zero;
+	// newton_solver.Mult(zero, *A); // if using reduced operator
 #endif
+	std::cout << "\n\na after newton:\n\n";
+	A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+	A->Print_HYPRE(cout);
 	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
 	computeSecondaryFields();
@@ -200,11 +213,18 @@ void MagnetostaticSolver::solveSteady()
    // sol_ofs.close();
 	// std::cout << "finish steady solve\n";
 
-	VectorFunctionCoefficient A_exact(3, a_bc_uniform);
-	VectorFunctionCoefficient B_exact(3, sol_b_analytic);
-
+	VectorFunctionCoefficient A_exact(3, a_exact);
+	VectorFunctionCoefficient B_exact(3, b_exact);
+	ess_bdr.SetSize(mesh->bdr_attributes.Max());
+	ess_bdr = 1;
 	GridFunType A_ex(h_curl_space.get());
 	A_ex.ProjectCoefficient(A_exact);
+	// std::cout << "a before:\n\n\n\n";
+	// A_ex.Print();
+	// // A_ex.ProjectBdrCoefficientTangent(A_exact, ess_bdr);
+	// std::cout << "A after: \n\n\n\n";
+	// A_ex.Print();
+	
 	GridFunType B_ex(h_div_space.get());
 	B_ex.ProjectCoefficient(B_exact);
 
@@ -217,8 +237,8 @@ void MagnetostaticSolver::solveSteady()
 	            {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
 	
 	/// TODO: This method gives zero error for some reason...
-	std::cout << "A error: " << calcL2Error(A.get(), a_bc_uniform);
-	std::cout << " B error: " << calcL2Error(B.get(), sol_b_analytic) << "\n";
+	std::cout << "A error: " << calcL2Error(A.get(), a_exact);
+	std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
 }
 
 void MagnetostaticSolver::setStaticMembers()
@@ -509,7 +529,7 @@ void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
-void MagnetostaticSolver::a_bc_uniform(const Vector &x, Vector &A)
+void MagnetostaticSolver::a_exact(const Vector &x, Vector &A)
 {
    A.SetSize(3);
    A = 0.0;
@@ -524,7 +544,7 @@ void MagnetostaticSolver::a_bc_uniform(const Vector &x, Vector &A)
    }
 }
 
-void MagnetostaticSolver::sol_b_analytic(const Vector &x, Vector &B)
+void MagnetostaticSolver::b_exact(const Vector &x, Vector &B)
 {
 	B.SetSize(3);
    B = 0.0;
