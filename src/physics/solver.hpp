@@ -19,9 +19,9 @@
 #include <crv.h>
 #endif
 
-#include "../utils/mach_types.hpp"
-#include "../utils/utils.hpp"
-#include "../utils/json.hpp"
+#include "mach_types.hpp"
+#include "utils.hpp"
+#include "json.hpp"
 
 namespace mach
 {

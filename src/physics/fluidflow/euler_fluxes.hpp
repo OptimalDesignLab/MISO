@@ -7,7 +7,7 @@
 
 #include "adept.h"
 
-#include "../../utils/utils.hpp"
+#include "utils.hpp"
 
 using adept::adouble;
 

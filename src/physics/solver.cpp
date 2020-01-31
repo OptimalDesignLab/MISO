@@ -1,9 +1,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "../common/default_options.hpp"
-#include "../common/sbp_fe.hpp"
-#include "../common/evolver.hpp"
+#include "default_options.hpp"
+#include "sbp_fe.hpp"
+#include "evolver.hpp"
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
 
