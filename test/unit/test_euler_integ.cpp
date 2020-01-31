@@ -2,8 +2,9 @@
 
 #include "catch.hpp"
 #include "mfem.hpp"
-#include "euler_fluxes.hpp"
-#include "euler_integ.hpp"
+#include "mach.hpp"
+//#include "euler_fluxes.hpp"
+//#include "euler_integ.hpp"
 #include "euler_test_data.hpp"
 
 TEMPLATE_TEST_CASE_SIG("Euler flux jacobian", "[euler_flux_jac]",

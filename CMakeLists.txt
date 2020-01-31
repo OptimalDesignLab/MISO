@@ -17,6 +17,7 @@ set(CMAKE_MODULE_PATH
 find_package(Adept MODULE REQUIRED)
 find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 
+# if MFEM was compiled with PUMI, we need to find it so we can 
 if (MFEM_USE_PUMI)
    # If PUMI_DIR was specified, only link to that directory,
    # i.e. don't link to another installation in /usr/lib by mistake
@@ -30,14 +31,19 @@ if (MFEM_USE_PUMI)
    endif (SCOREC_FOUND)
 endif (MFEM_USE_PUMI)
 
+# Try to find OpenMP (used by Adept)
+find_package(OpenMP)
+
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
+
 target_sources(mach
    PUBLIC
 
    PRIVATE
       mach.hpp
 )
+
 # Use CMakeLists.txt files in subdirectories to add sources to mach
 add_subdirectory(src)
 
@@ -47,6 +53,13 @@ target_link_libraries(mach
       "${MFEM_LIBRARIES}"
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
 )
+
+# if OpenMP found on system, link to it
+if(OpenMP_CXX_FOUND)
+   target_link_libraries(mach
+      PUBLIC
+         OpenMP::OpenMP_CXX)
+endif()
 
 target_include_directories(mach
    PUBLIC

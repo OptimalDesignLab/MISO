@@ -38,6 +38,17 @@ target_link_libraries(test_euler_flux
 
 add_test(NAME euler_flux COMMAND test_euler_flux)
 
+add_executable(test_euler_integ unit_test_main.cpp test_euler_integ.cpp euler_test_data.cpp)
+target_link_libraries(test_euler_integ
+   PUBLIC
+      mach
+      Catch
+      # "${ADEPT_LIBRARIES}" # shouldn't need since mach should take care of the linking
+)
+message(${ADEPT_LIBRARIES})
+add_test(NAME euler_integ COMMAND test_euler_integ)
+
+
 #add_executable(unit_tests ${UNIT_TESTS_SRCS})
 #target_link_libraries(unit_tests mach)
 
