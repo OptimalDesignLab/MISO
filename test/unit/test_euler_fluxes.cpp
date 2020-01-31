@@ -1,6 +1,6 @@
 #include "catch.hpp"
 #include "mfem.hpp"
-#include "mach.hpp"
+#include "euler.cpp"
 #include "euler_test_data.hpp"
 
 TEST_CASE( "Log-average is correct", "[log-avg]")
