@@ -29,7 +29,7 @@
        }
     },
     "bcs": {
-        "outflux": [0, 1, 0, 0, 0, 0],
+        "outflux": [1, 1, 1, 1, 1, 1],
         "const": true,
         "const-val": 100
     },

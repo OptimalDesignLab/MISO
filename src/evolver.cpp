@@ -65,24 +65,45 @@ void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
    y *= alpha;
 }
 
-}
-
-#if 0
 ImplicitLinearEvolver::ImplicitLinearEvolver(MatrixType &m,
                                             MatrixType &k, 
+                                            LinearForm &b,
                                             std::ostream &outstream)
-   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), z(m.Height())
+   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), force(b), z(m.Height())
 {
+   // t = m + dt*k
+
+	std::cout << "Setting Up Linear Solver..." << std::endl;
+   t_prec.reset(new HypreSmoother());
 #ifdef MFEM_USE_MPI
-   mass_prec.SetType(HypreSmoother::Jacobi);
-   mass_solver.reset(new CGSolver(mass.GetComm()));
+   t_prec->SetType(HypreSmoother::Jacobi);
+   t_solver.reset(new CGSolver(stiff.GetComm()));
 #else
-   mass_solver.reset(new CGSolver());
+   t_solver.reset(new CGSolver());
 #endif
    // set parameters for the linear solver
-   mass_solver->SetTol(1e-10);
-   mass_solver->SetPrintLevel(-1);
-   mass_solver->SetMaxIter(100);
 
+
+   t_solver->iterative_mode = false;
+   t_solver->SetRelTol(1e-8);//options["lin-solver"]["rel-tol"].get<double>());
+   t_solver->SetAbsTol(0.0);//options["lin-solver"]["abs-tol"].get<double>());
+   t_solver->SetMaxIter(100);//options["lin-solver"]["max-iter"].get<int>());
+   t_solver->SetPrintLevel(1);//options["lin-solver"]["print-lvl"].get<int>());
+   t_solver->SetPreconditioner(*t_prec);
 }
-#endif
+
+void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
+{
+   // if (!T)
+   // {
+      T = Add(1.0, mass, dt, stiff);
+      t_solver->SetOperator(*T);
+   //}
+   stiff.Mult(x, z);
+   z.Neg();  
+   z.Add(-1, force);
+   t_solver->Mult(z, k); 
+   T = NULL;
+}
+
+}//namespace mach

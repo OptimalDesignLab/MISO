@@ -38,7 +38,7 @@ private:
 
    mfem::HypreParMatrix M;
    mfem::HypreParMatrix K;
-   mfem::HypreParMatrix *T;
+   //mfem::HypreParMatrix *T;
    mfem::Vector B;
 
 
@@ -73,10 +73,10 @@ private:
    std::unique_ptr<mfem::LinearForm> b;
    
    /// linear system solvers and preconditioners
-   std::unique_ptr<mfem::CGSolver> M_solver;
-   std::unique_ptr<mfem::HypreSmoother> M_prec;
-   std::unique_ptr<mfem::CGSolver> T_solver;
-   std::unique_ptr<mfem::HypreSmoother> T_prec;
+   // std::unique_ptr<mfem::CGSolver> M_solver;
+   // std::unique_ptr<mfem::HypreSmoother> M_prec;
+   // std::unique_ptr<mfem::CGSolver> T_solver;
+   // std::unique_ptr<mfem::HypreSmoother> T_prec;
 
    /// time marching method
    std::unique_ptr<mfem::ODESolver> ode_solver;
@@ -106,7 +106,7 @@ private:
    void constructJoule();
 
    /// set up solver for every time step
-   void setupSolver(const int idt, const double dt) const;
+   //void setupSolver(const int idt, const double dt) const;
 
    /// for calls of mult
    void Mult(const mfem::Vector &X, mfem::Vector &dXdt);
@@ -118,7 +118,7 @@ private:
    static double InitialTemperature(const mfem::Vector &x);
 
    /// implementation of ImplicitSolve
-   virtual void ImplicitSolve(const double dt, const mfem::Vector &x, mfem::Vector &k);
+   //virtual void ImplicitSolve(const double dt, const mfem::Vector &x, mfem::Vector &k);
 
    /// implementation of solveUnsteady
    virtual void solveUnsteady();

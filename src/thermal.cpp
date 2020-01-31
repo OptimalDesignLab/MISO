@@ -1,4 +1,5 @@
 #include "thermal.hpp"
+#include "evolver.hpp"
 
 #include <fstream>
 
@@ -70,21 +71,9 @@ ThermalSolver::ThermalSolver(
 	std::cout << "Creating Mass Matrix..." << std::endl;
 	/// add mass integrator to m bilinear form
 	m->AddDomainIntegrator(new MassIntegrator(*rho_cv));
-
-	std::cout << "Inverting Mass Matrix..." << std::endl;
-	/// assemble mass matrix, and invert
+	/// assemble mass matrix
 	m->Assemble(0);
 	m->FormSystemMatrix(ess_tdof_list, M);
-	M_solver.reset(new CGSolver());
-	M_prec.reset(new HypreSmoother());
-	M_solver->iterative_mode = false;
-    M_solver->SetRelTol(1e-8);
-    M_solver->SetAbsTol(0.0);
-    M_solver->SetMaxIter(100);
-    M_solver->SetPrintLevel(0);
-    M_prec->SetType(HypreSmoother::Jacobi);
-    M_solver->SetPreconditioner(*M_prec);
-    M_solver->SetOperator(M);
 
 	/// add diffusion integrator to k bilinear form
 	k->AddDomainIntegrator(new DiffusionIntegrator(*kappa));
@@ -114,16 +103,6 @@ ThermalSolver::ThermalSolver(
         idx++;
     }
 
-	std::cout << "Setting Up Linear Solver..." << std::endl;
-	T_solver.reset(new CGSolver());
-	T_prec.reset(new HypreSmoother());
-    T_solver->iterative_mode = false;
-    T_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
-    T_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
-    T_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
-    T_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-    T_solver->SetPreconditioner(*T_prec);
-
 	std::cout << "Assembling Stiffness Matrix..." << std::endl;
 	/// assemble stiffness matrix and linear form
 	k->Assemble(0);
@@ -132,56 +111,11 @@ ThermalSolver::ThermalSolver(
 	std::cout << "Assembling Forcing Term..." << std::endl;
 	b->Assemble();
 
-	//B(*b);
-	//delete T;
-    T = NULL;
-
-	/// initialize dTdt 0
-	*dTdt = 0.0;
-
 	std::cout << "Setting Up ODE Solver..." << std::endl;
 	/// define ode solver
 	ode_solver = NULL;
  	ode_solver.reset(new ImplicitMidpointSolver);
-
-//might be needed
-#if 0
-	/// Construct linear system solver
-	///TODO: Think about preconditioner
-#ifdef MFEM_USE_MPI
-   // prec.reset(new HypreBoomerAMG());
-   prec.reset(new HypreAMS(h_curl_space.get()));
-   prec->SetPrintLevel(0); // Don't want preconditioner to print anything
-	prec->SetSingularProblem();
-
-   // solver.reset(new HyprePCG(h_curl_space->GetComm()));
-	solver.reset(new HypreGMRES(h_curl_space->GetComm()));
-	std::cout << "set tol\n";
-    solver->SetTol(options["lin-solver"]["tol"].get<double>());
-	std::cout << "set tol\n";
-	std::cout << "set iter\n";
-    solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
-	std::cout << "set iter\n";
-	std::cout << "set print\n";
-    solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-	std::cout << "set print\n";
-    //solver->SetPreconditioner(*prec);
-#else
-	#ifdef MFEM_USE_SUITESPARSE
-	prec = NULL;
-	solver.reset(new UMFPackSolver);
-	#else
-	//prec.reset(new GSSmoother);
-
-	solver.reset(new CGSolver());
-    solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-    solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
-    solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
-    solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
-    //solver->SetPreconditioner(*prec);
-	#endif
-#endif
-#endif
+	evolver.reset(new ImplicitLinearEvolver(M, K, *b, *out));
 }
 
 void ThermalSolver::solveUnsteady()
@@ -213,10 +147,10 @@ void ThermalSolver::solveUnsteady()
 
 	for (int ti = 0; !done;)
     {
-      	if (options["time-dis"]["const-cfl"].get<bool>())
-    	{
-    	    dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
-    	}
+      	// if (options["time-dis"]["const-cfl"].get<bool>())
+    	// {
+    	//     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
+    	// }
     	double dt_real = min(dt, t_final - t);
     	if (ti % 100 == 0)
     	{
@@ -249,7 +183,7 @@ void ThermalSolver::solveUnsteady()
     }
 
 }
-
+#if 0
 void ThermalSolver::Mult(const Vector &X, Vector &dXdt)
 {
    	ImplicitSolve(0.0, X, dXdt);
@@ -270,7 +204,7 @@ void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dXdt
 	z.Add(1, *b);
     T_solver->Mult(z, dXdt);
 }
-
+#endif
 void ThermalSolver::constructDensityCoeff()
 {
 	rho.reset(new MeshDependentCoefficient());

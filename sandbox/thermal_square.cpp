@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
    }
 
    // generate a simple tet mesh
-   int num_edge = 4;
+   int num_edge = 20;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
