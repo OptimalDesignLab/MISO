@@ -107,6 +107,18 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif ()
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
-   message("Add tests")
-   add_subdirectory(test)
+   # `make test` only runs the tests by default, doesn't build them
+   # work around to use `make tests` to build and run the tests
+   add_custom_target(build_tests)
+   # 'tests' triggers 'ctest'.
+   add_custom_target(tests COMMAND ${CMAKE_CTEST_COMMAND})
+   # tests' implies 'build_tests'
+   add_dependencies(tests build_tests)
+   add_subdirectory(test EXCLUDE_FROM_ALL)
 endif ()
+
+# TODO: This doesn't really work...I used MFEM's approach but should look at scorec's
+# add documentation subdirectory
+# creates custom target `doc' to build the doxygen documentation
+add_subdirectory(doc)
+

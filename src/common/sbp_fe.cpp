@@ -277,7 +277,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
    : SBPFiniteElement(1, Geometry::SEGMENT, degree+2, degree)
 {
    const int num_nodes = degree+2;
-   #include "data/sbp_operators.hpp"
+   #include "sbp_operators.hpp"
    Q[0].SetSize(num_nodes);
    Vector pts(num_nodes), wts(num_nodes);
    mach::getLobattoQuadrature(degree+2, pts, wts);
@@ -581,7 +581,7 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree)
 {
    /// Header file including SBP Dx and Dy matrix data
-   #include "data/sbp_operators.hpp"
+   #include "sbp_operators.hpp"
    Q[0].SetSize(num_nodes);
    Q[1].SetSize(num_nodes);
    

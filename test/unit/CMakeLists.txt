@@ -1,8 +1,9 @@
 function(create_tests source_list data_files)
    foreach(X ${source_list})
       add_executable("${X}.bin" "${X}.cpp" unit_test_main.cpp ${data_files})
+      add_dependencies(tests "${X}.bin")
       target_link_libraries("${X}.bin" mach Catch)
-      add_test(NAME "${X}" COMMAND "${X}.bin")
+      add_test(NAME "${X}" COMMAND "${X}.bin") 
    endforeach()
 endfunction(create_tests)
 
