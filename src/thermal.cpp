@@ -29,10 +29,12 @@ ThermalSolver::ThermalSolver(
 	dTdt.reset(new GridFunType(h_grad_space.get()));
 	rhs.reset(new GridFunType(h_grad_space.get()));
 
+	/// Set static variables
+	setStaticMembers();
 
 #ifdef MFEM_USE_MPI
-   //cout << "Number of finite element unknowns: "
-   //     << h_grad_space->GlobalTrueSize() << endl;
+   cout << "Number of finite element unknowns: "
+       << h_grad_space->GlobalTrueVSize() << endl;
 #else
    cout << "Number of finite element unknowns: "
         << h_grad_space->GetNDofs() << endl;
@@ -131,15 +133,17 @@ void ThermalSolver::solveUnsteady()
 
 	int precision = 8;
     {
-		ofstream omesh("motor_heat_init.mesh");
-    	omesh.precision(precision);
-    	mesh->Print(omesh);
-    	ofstream osol("motor_heat_init.gf");
-    	osol.precision(precision);
-      	phi->Save(osol);
-		mesh->PrintVTK(osol, options["space-dis"]["degree"].get<int>() + 1);
-        phi->SaveVTK(osol, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-   	}
+        ofstream osol("motor_heat_init.gf");
+        osol.precision(precision);
+        phi->Save(osol);
+    }
+	{
+        ofstream sol_ofs("motor_heat_init.vtk");
+        sol_ofs.precision(14);
+        mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+        phi->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+        sol_ofs.close();
+    }
 
 	bool done = false;
     double t_final = options["time-dis"]["t-final"].get<double>();
@@ -152,7 +156,7 @@ void ThermalSolver::solveUnsteady()
     	//     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
     	// }
     	double dt_real = min(dt, t_final - t);
-    	if (ti % 100 == 0)
+    	//if (ti % 100 == 0)
     	{
         	 cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
@@ -183,28 +187,13 @@ void ThermalSolver::solveUnsteady()
     }
 
 }
-#if 0
-void ThermalSolver::Mult(const Vector &X, Vector &dXdt)
+
+void ThermalSolver::setStaticMembers()
 {
-   	ImplicitSolve(0.0, X, dXdt);
+	outflux = options["bcs"]["const-val"].get<double>();
+    temp_0 = options["init-temp"].get<double>();
 }
 
-void ThermalSolver::ImplicitSolve(const double dt, const Vector &X, Vector &dXdt)
-{
-    // Solve the equation:
-    //    dX_dt = M^{-1}*[-K(X + dt*dX_dt)]
-    // for dX_dt
-    if (!T)
-    {
-       T = Add(1.0, M, dt, K);
-       T_solver->SetOperator(*T);
-    }
-    K.Mult(X, z);
-    z.Neg();
-	z.Add(1, *b);
-    T_solver->Mult(z, dXdt);
-}
-#endif
 void ThermalSolver::constructDensityCoeff()
 {
 	rho.reset(new MeshDependentCoefficient());
@@ -303,19 +292,8 @@ void ThermalSolver::constructJoule()
 void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
 {
 	y.SetSize(3);
-	double outflux = 100;
 	//use constant in time for now
-	///TODO: Need to find a way to get options in static member
-	#if 0
-	if (options["bcs"]["const"].get<bool>())
-	{
-		outflux = options["bcs"]["const-val"].get<double>();
-	}
-	else
-	{
-		std::cerr << "Time Dependent BC Not Implemented!" << std::endl;
-	}
-	#endif
+
 	//assuming centered coordinate system, will offset
 	double th = atan(x(1)/x(0));
 
@@ -327,8 +305,11 @@ void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
 
 double ThermalSolver::InitialTemperature(const Vector &x)
 {
-   return 300;
+   return temp_0;
 }
+
+double ThermalSolver::temp_0 = 0.0;
+double ThermalSolver::outflux = 0.0;
 
 } // namespace mach
 

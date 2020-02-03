@@ -34,8 +34,15 @@ int main(int argc, char *argv[])
       return 1;
    }
 
+   string opt_file_name(options_file);
+   nlohmann::json options;
+   nlohmann::json file_options;
+   ifstream opts(opt_file_name);
+   opts >> file_options;
+   options.merge_patch(file_options);
+
    // generate a simple tet mesh
-   int num_edge = 20;
+   int num_edge = options["mesh"]["num-edge"].get<int>();
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
@@ -80,7 +87,7 @@ int main(int argc, char *argv[])
    try
    {
       // construct the solver
-      string opt_file_name(options_file);
+
       
       ThermalSolver solver(opt_file_name, move(mesh));
       // unique_ptr<MagnetostaticSolver<3>> solver(

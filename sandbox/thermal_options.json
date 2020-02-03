@@ -1,6 +1,7 @@
 {
     "mesh": {
-       "file": "initial.mesh"
+       "file": "initial.mesh",
+       "num-edge": 5
     },
     "space-dis": {
        "basis-type": "H1",
@@ -10,7 +11,7 @@
     "time-dis": {
         "const-cfl": true,
         "cfl": 1.0,
-        "dt": 0.002,
+        "dt": 0.02,
         "t-final": 0.2
     },
     "lin-solver": {
@@ -29,9 +30,10 @@
        }
     },
     "bcs": {
-        "outflux": [1, 1, 1, 1, 1, 1],
+        "outflux": [0, 0, 0, 0, 0, 0],
         "const": true,
         "const-val": 100
     },
+    "init-temp": 300,
     "material-lib-path": "../src/material_options.json"
  }

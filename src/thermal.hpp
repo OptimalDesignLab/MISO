@@ -71,12 +71,6 @@ private:
    std::unique_ptr<BilinearFormType> k;
    /// the linear form
    std::unique_ptr<mfem::LinearForm> b;
-   
-   /// linear system solvers and preconditioners
-   // std::unique_ptr<mfem::CGSolver> M_solver;
-   // std::unique_ptr<mfem::HypreSmoother> M_prec;
-   // std::unique_ptr<mfem::CGSolver> T_solver;
-   // std::unique_ptr<mfem::HypreSmoother> T_prec;
 
    /// time marching method
    std::unique_ptr<mfem::ODESolver> ode_solver;
@@ -89,6 +83,13 @@ private:
 
    /// material Library
    nlohmann::json materials;
+
+   /// static variables for use in static member functions
+   static double outflux;
+   static double temp_0;
+
+   /// set static variables
+   void setStaticMembers();
 
    /// construct mesh dependent coefficient for density
    void constructDensityCoeff();
