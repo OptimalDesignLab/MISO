@@ -63,7 +63,8 @@ ThermalSolver::ThermalSolver(
 	std::cout << "Defining Finite Element Spaces..." << std::endl;
 	/// set essential BCs (none)
 	Array<int> ess_tdof_list;
-	mfem::Array<int> ess_bdr(mesh->bdr_attributes.Max());;
+	mfem::Array<int> ess_bdr(mesh->bdr_attributes.Max());
+	ess_bdr = 0;
     h_grad_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
 	/// set up the bilinear forms
@@ -295,11 +296,20 @@ void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
 	//use constant in time for now
 
 	//assuming centered coordinate system, will offset
-	double th = atan(x(1)/x(0));
+	double th;// = atan(x(1)/x(0));
 
-	y(0) = outflux*cos(th);
-	y(1) = outflux*sin(th);
-	y(2) = 0;
+	if (x(2) > .5)
+	{
+		th = 1;
+	}
+	else
+	{
+		th = -1;
+	}
+
+	y(0) = 0;
+	y(1) = 0;
+	y(2) = th*outflux;
 	
 }
 

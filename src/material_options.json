@@ -122,8 +122,8 @@
 			73321.1169499999000000
 		],
         "mu_r" : 2000,
-        "rho" : 7750,
-        "cv" : 420, 
+        "rho" : 7.750,
+        "cv" : 0.420, 
 		"kappa" : 50,
 		"conductor" : false
 	},
@@ -136,12 +136,13 @@
         "mu_t" : 1,
         "rho" : 1.225,
         "cv" : 93,
-        "kappa" : 0.026
+		"kappa" : 0.026,
+		"conductor" : false
     },
     "cuwinding" : {
         "mu_r" : 1,
-        "rho" : 5000,
-        "cv" : 376,
+        "rho" : 5.000,
+        "cv" : 0.376,
         "kappa" : 23,
         "kappae" : 10,
         "sigma" : 0.04,
