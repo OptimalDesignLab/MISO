@@ -90,11 +90,6 @@ MagnetostaticSolver::MagnetostaticSolver(
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
 	ess_bdr = 1;
 
-
-	// reduced_op.reset(new ReducedSystemOperator(res.get(), current_vec.get(),
-	// 														 ess_bdr));
-
-
 	Array<int> ess_tdof_list;
 	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 	res->SetEssentialTrueDofs(ess_tdof_list);
@@ -103,7 +98,6 @@ MagnetostaticSolver::MagnetostaticSolver(
    Zero = 0.0;
    // bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
 	bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
-   // VectorFunctionCoefficient A_exact(3, a_exact);
 
 	/// I think any of these should work
 	// A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
@@ -111,15 +105,7 @@ MagnetostaticSolver::MagnetostaticSolver(
    // A->ProjectCoefficient(*bc_coef);
 
 	*A = 0.0;
-	std::cout << "\n\nA before:\n\n";
-	A->Print_HYPRE(std::cout);
 	A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-	// A->ProjectBdrCoefficient(*bc_coef, ess_bdr);
-	std::cout << "\n\nA after:\n\n";
-	A->Print_HYPRE(cout);
-
-	std::cout << "\n\ness tdof:\n\n";
-	ess_tdof_list.Print();
 
 	/// set essential boundary conditions in nonlinear form and rhs current vec
 	// res->SetEssentialBC(ess_bdr, current_vec.get());
@@ -131,7 +117,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	/// Costruct linear system solver
 #ifdef MFEM_USE_MPI
    prec.reset(new HypreAMS(h_curl_space.get()));
-   prec->SetPrintLevel(1); // Don't want preconditioner to print anything
+   prec->SetPrintLevel(0); // Don't want preconditioner to print anything
 	prec->SetSingularProblem();
 
 	solver.reset(new HypreGMRES(h_curl_space->GetComm()));
@@ -161,10 +147,9 @@ MagnetostaticSolver::MagnetostaticSolver(
 	#endif
 #endif
 	/// Set up Newton solver
-	newton_solver.iterative_mode = false;
+	newton_solver.iterative_mode = true;
    newton_solver.SetSolver(*solver);
-   newton_solver.SetOperator(*res); // if not using reduced operator
-   // newton_solver.SetOperator(*reduced_op); // if using reduced operator
+   newton_solver.SetOperator(*res);
    newton_solver.SetPrintLevel(options["newton"]["print-lvl"].template get<int>());
    newton_solver.SetRelTol(options["newton"]["rel-tol"].template get<double>());
    newton_solver.SetAbsTol(options["newton"]["abs-tol"].template get<double>());
@@ -174,32 +159,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 
 void MagnetostaticSolver::solveSteady()
 {
-// #ifdef MFEM_USE_MPI
-#if 0 // using this to quickly comment out related block
-	ess_bdr.SetSize(mesh->bdr_attributes.Max());
-	ess_bdr = 1;
-
-	Array<int> ess_tdof_list;
-	// h_curl_space->GetEssentialVDofs(ess_bdr, ess_tdof_list);
-	h_curl_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-
-	/// not sure of the difference between these two
-	// HypreParVector *current_hpv = current_vec->GetTrueDofs();
-	HypreParVector *current_hpv = current_vec->ParallelProject();
-
-
-	// res->SetEssentialBC(ess_bdr, current_hpv);
-	current_hpv->SetSubVector(ess_tdof_list, 0.0);
-
-	newton_solver.Mult(*current_hpv, *A);
-#else
 	newton_solver.Mult(*current_vec, *A);
-	// Vector zero;
-	// newton_solver.Mult(zero, *A); // if using reduced operator
-#endif
-	std::cout << "\n\na after newton:\n\n";
-	A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-	A->Print_HYPRE(cout);
 	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
 	computeSecondaryFields();
@@ -215,15 +175,9 @@ void MagnetostaticSolver::solveSteady()
 
 	VectorFunctionCoefficient A_exact(3, a_exact);
 	VectorFunctionCoefficient B_exact(3, b_exact);
-	ess_bdr.SetSize(mesh->bdr_attributes.Max());
-	ess_bdr = 1;
+
 	GridFunType A_ex(h_curl_space.get());
 	A_ex.ProjectCoefficient(A_exact);
-	// std::cout << "a before:\n\n\n\n";
-	// A_ex.Print();
-	// // A_ex.ProjectBdrCoefficientTangent(A_exact, ess_bdr);
-	// std::cout << "A after: \n\n\n\n";
-	// A_ex.Print();
 	
 	GridFunType B_ex(h_div_space.get());
 	B_ex.ProjectCoefficient(B_exact);
@@ -231,14 +185,15 @@ void MagnetostaticSolver::solveSteady()
 	GridFunType J(h_div_space.get());
 	J.ProjectCoefficient(*current_coeff);
 
+	std::cout << "A error: " << calcL2Error(A.get(), a_exact);
+	std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
+
 	auto out_file = options["mesh"]["out-file"].template get<std::string>();
+
+	/// TODO: this function seems super slow
 	printFields(out_file,
 					{A.get(), B.get(), &A_ex, &B_ex, &J},
 	            {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
-	
-	/// TODO: This method gives zero error for some reason...
-	std::cout << "A error: " << calcL2Error(A.get(), a_exact);
-	std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
 }
 
 void MagnetostaticSolver::setStaticMembers()
@@ -564,33 +519,3 @@ double MagnetostaticSolver::remnant_flux = 0.0;
 double MagnetostaticSolver::mag_mu_r = 0.0;
 
 } // namespace mach
-
-ReducedSystemOperator::ReducedSystemOperator(
-	const mach::NonlinearFormType *res_,
-	const mach::GridFunType *rhs_,
-	const Array<int> &ess_bdr)
-	: Operator(res_->Height()), res(res_), rhs(rhs_)
-{
-#ifdef MFEM_USE_MPI
-	res->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-#else
-	res->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-#endif
-	// ess_tdof_list = ess_tdof_list_;
-}
-
-void ReducedSystemOperator::Mult(const Vector &A, Vector &r) const
-{
-	std::cout << "reduced op mult\n";
-	res->Mult(A, r);
-	std::cout << "res mult\n";
-	r -= *rhs;
-	std::cout << "subtraction\n";
-	r.SetSubVector(ess_tdof_list, 0.0);
-	std::cout << "set sub vec\n";
-}
-
-Operator& ReducedSystemOperator::GetGradient(const Vector &A) const
-{
-	return res->GetGradient(A);
-}

@@ -8,31 +8,6 @@
 #include "coefficient.hpp"
 #include "electromag_integ.hpp"
 
-/// Operator that combines residual nonlinear form with right hand side vector
-/// to go from solving r(A) = J to solve R(A) = 0
-/// \note Intentionally not in mach namespace to avoid potential collisions.
-/// \note Since this is an incomplete type I must use a pointer. The size of 
-///       the class must be known to be able to declare a unique_ptr to the
-///       class, so the class description must be in this header 
-class ReducedSystemOperator : public mfem::Operator
-{
-public:
-	ReducedSystemOperator(const mach::NonlinearFormType *res,
-								 const mach::GridFunType *rhs,
-								 const mfem::Array<int> &ess_bdr);
-	
-	/// compute r = res(A) - rhs
-	void Mult(const mfem::Vector &A, mfem::Vector &r) const;
-
-	/// compute the gradient of the residual
-	mfem::Operator& GetGradient(const mfem::Vector &A) const;
-
-private:
-	const mach::NonlinearFormType *res;
-	const mach::GridFunType *rhs;
-	mfem::Array<int> ess_tdof_list;
-};
-
 namespace mach
 {
 
@@ -53,7 +28,6 @@ public:
    virtual void solveSteady();
 
 private:
-   std::unique_ptr<ReducedSystemOperator> reduced_op;
    /// Nedelec finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
    /// Raviart-Thomas finite element collection
