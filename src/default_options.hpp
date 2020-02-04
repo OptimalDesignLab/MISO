@@ -45,7 +45,7 @@ nlohmann::json default_options
 
    {"lin-solver",
    {
-      {"printlevel", 0}, // linear solver print level (no printing if zero)
+      {"printlevel", 1}, // linear solver print level (no printing if zero)
       {"maxiter", 100}, // default to 100 iterations
       {"reltol", 1e-12}, // solver relative tolerance
       {"abstol", 1e-12}, // solver absolute tolerance
