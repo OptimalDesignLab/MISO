@@ -60,16 +60,16 @@ TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction opera
        0.807440331805559,  0.604182962239129,
        0.475283523586553,  0.912027542895358,
        0.919038054203134,  0.734926949150810};
-   for(int i = 0; i < num_cent; i++)
+   for (int i = 0; i < num_cent; i++)
    {
-      for(int j = 0; j < dim; j++)
+      for (int j = 0; j < dim; j++)
       {
          x_cent(j,i) = barycenters[i*dim+j]; 
       }
    }
-   for(int i = 0; i < num_quad; i++)
+   for (int i = 0; i < num_quad; i++)
    {
-      for(int j = 0; j < dim; j ++)
+      for (int j = 0; j < dim; j ++)
       {
          x_quad(0,i) = quadratures[i*dim+j];
       }
@@ -82,24 +82,24 @@ TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction opera
    mfem::Vector y_coord(num_cent), y_coord_interp(num_quad);
    mfem::Vector quad_x(num_quad), quad_y(num_quad);
    
-   for(int i = 0; i < num_cent; i++)
+   for (int i = 0; i < num_cent; i++)
    {
       x_coord(i) = x_cent(0,i);
-      if(2 == dim)
+      if (2 == dim)
       {
          y_coord(i) = x_cent(1,i);
       }
    }
-   for(int i = 0; i < num_quad; i++)
+   for (int i = 0; i < num_quad; i++)
    {
       quad_x(i) = x_quad(0,i);
-      if(2 == dim)
+      if (2 == dim)
       {
          quad_y(i) = x_quad(1,i);
       }
    }
    interp.Mult(x_coord, x_coord_interp);
-   if(2 == dim)
+   if (2 == dim)
    {
       interp.Mult(y_coord, y_coord_interp);
    }
