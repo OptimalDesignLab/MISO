@@ -33,7 +33,7 @@ TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction opera
    //     0.693487239847824, 0.319487583949834,
    //     0.928374987348194, 0.123873485794834};
 
-   const double barycenters[dim*num_cent] =
+   const double barycenters[12] =
       {0.903990418271183,  0.812791939414471,
        0.940947447226948,  0.697425752267883,
        0.802520365203252,  0.269452959819304,
@@ -41,7 +41,7 @@ TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction opera
        0.975656775859888,  0.833047083813182,
        0.317231562283264,  0.363781892662813};
 
-   const double quadratures[dim*num_quad] =
+   const double quadratures[36] =
       {0.709794173746531,  0.380097949454923,
        0.338284837383885,  0.477113409671625,
        0.046575558064835,  0.990824967160828,
@@ -60,44 +60,65 @@ TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction opera
        0.807440331805559,  0.604182962239129,
        0.475283523586553,  0.912027542895358,
        0.919038054203134,  0.734926949150810};
-   for(int i = 0; i < num_cent; i++)
+   for (int i = 0; i < num_cent; i++)
    {
-      x_cent(0,i) = barycenters[i*dim];
-      x_cent(1,i) = barycenters[i*dim+1];
+      for (int j = 0; j < dim; j++)
+      {
+         x_cent(j,i) = barycenters[i*dim+j]; 
+      }
    }
-   for(int i = 0; i < num_quad; i++)
+   for (int i = 0; i < num_quad; i++)
    {
-      x_quad(0,i) = quadratures[i*dim];
-      x_quad(1,i) = quadratures[i*dim+1];
+      for (int j = 0; j < dim; j ++)
+      {
+         x_quad(0,i) = quadratures[i*dim+j];
+      }
    }
-   mach::buildInterpolation(order, x_cent, x_quad, interp);
+
+   mach::buildInterpolation(dim, order, x_cent, x_quad, interp);
 
    //std::cout << "Check the accuracy:\n";
    mfem::Vector x_coord(num_cent), x_coord_interp(num_quad);
    mfem::Vector y_coord(num_cent), y_coord_interp(num_quad);
    mfem::Vector quad_x(num_quad), quad_y(num_quad);
    
-   for(int i = 0; i < num_cent; i++)
+   for (int i = 0; i < num_cent; i++)
    {
       x_coord(i) = x_cent(0,i);
-      y_coord(i) = x_cent(1,i);
+      if (2 == dim)
+      {
+         y_coord(i) = x_cent(1,i);
+      }
    }
-   for(int i = 0; i < num_quad; i++)
+   for (int i = 0; i < num_quad; i++)
    {
       quad_x(i) = x_quad(0,i);
-      quad_y(i) = x_quad(1,i);
+      if (2 == dim)
+      {
+         quad_y(i) = x_quad(1,i);
+      }
    }
    interp.Mult(x_coord, x_coord_interp);
-   interp.Mult(y_coord, y_coord_interp);
+   if (2 == dim)
+   {
+      interp.Mult(y_coord, y_coord_interp);
+   }
 
-   mfem::Vector x_diff(x_coord_interp), y_diff(y_coord_interp);
+   mfem::Vector x_diff(x_coord_interp);
+   mfem::Vector y_diff(y_coord_interp);
    x_diff -= quad_x;
-   y_diff -= quad_y;
+   if (2 == dim)
+   {
+      y_diff -= quad_y;
+   }
 
    //std::cout << "x difference norm is " << x_diff.Norml2() << '\n';
    //std::cout << "y difference norm is " << y_diff.Norml2() << '\n';
 
    REQUIRE( x_diff.Norml2() == Approx(0.0).margin(abs_tol));
-   REQUIRE( y_diff.Norml2() == Approx(0.0).margin(abs_tol));
+   if (2 == dim)
+   {
+      REQUIRE( y_diff.Norml2() == Approx(0.0).margin(abs_tol));
+   }
    #endif
 }

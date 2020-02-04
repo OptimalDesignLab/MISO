@@ -11,7 +11,7 @@ namespace mach
 /// This is placed in its own file because it is likely to grow large.  Also,
 /// while it would have been nice to use a raw string here to define the default
 /// options, this would not have permitted comments.
-nlohmann::json default_options =
+nlohmann::json default_options
 {
    {"model-file","mach.dmg"}, // model file name
     
@@ -45,10 +45,10 @@ nlohmann::json default_options =
 
    {"lin-solver",
    {
-      {"print-lvl", 0}, // linear solver print level (no printing if zero)
-      {"max-iter", 100}, // default to 100 iterations
-      {"rel-tol", 1e-12}, // solver relative tolerance
-      {"abs-tol", 1e-12}, // solver absolute tolerance
+      {"printlevel", 0}, // linear solver print level (no printing if zero)
+      {"maxiter", 100}, // default to 100 iterations
+      {"reltol", 1e-12}, // solver relative tolerance
+      {"abstol", 1e-12}, // solver absolute tolerance
       {"tol", 1e-12} // Hypre solvers only let you set one value for tolerance
    }},
 
@@ -59,23 +59,22 @@ nlohmann::json default_options =
       {"abstol", 1e-10},
       {"reltol", 1e-10},
       {"maxiter", 100},
-      {"printlevel", 2}
+      {"printlevel", 0}
    }},
 
    {"newton", // options related to root-finding algorithms
    {
-      {"print-lvl", 0}, // linear solver print level (no printing if zero)
-      {"max-iter", 100}, // default to 100 iterations
-      {"rel-tol", 1e-12}, // solver relative tolerance
-      {"abs-tol", 1e-12}, // solver absolute tolerance
+      {"printlevel", 1}, // linear solver print level (no printing if zero)
+      {"maxiter", 100}, // default to 100 iterations
+      {"reltol", 1e-14}, // solver relative tolerance
+      {"abstol", 1e-14}, // solver absolute tolerance
    }},
 
    {"mesh",
    {
       {"file", "mach.mesh"}, // mesh file name when not using pumi
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
-   }}
-
+   }},
 };
 
 } // namespace mach

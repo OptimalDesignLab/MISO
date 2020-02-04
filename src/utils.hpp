@@ -124,13 +124,13 @@ static std::ostream *getOutStream(int rank)
 double bisection(std::function<double(double)> func, double xl, double xr,
                  double ftol, double xtol, int maxiter);
 
-/// build the reconstruction matrix that interpolate the 
+/// build the reconstruction matrix that interpolate the GD dofs to quadrature points
 /// \param[in] degree - order of reconstructio operator
 /// \param[in] x_cent - coordinates of barycenters
 /// \param[in] x_quad - coordinates of quadrature points
 /// \param[out] interp - interpolation operator
 #ifdef MFEM_USE_LAPACK
-void buildInterpolation(int degree, const mfem::DenseMatrix &x_center,
+void buildInterpolation(int dim, int degree, const mfem::DenseMatrix &x_center,
     const mfem::DenseMatrix &x_quad, mfem::DenseMatrix &interp);
 #endif
 

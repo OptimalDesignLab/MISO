@@ -973,16 +973,16 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
    snprintf(DSBPname, 32, "DSBP_%dD_P%d", dim, p);
-   for(int g = 0; g < Geometry::NumGeom; g++)
+   for (int g = 0; g < Geometry::NumGeom; g++)
    {
       DSBPElements[g] = NULL;
       Tr_SBPElements[g] =NULL;
    }
-   for(int i = 0; i < 2; i++)
+   for (int i = 0; i < 2; i++)
    {
       SegDofOrd[i] = NULL;
    }
-   if(dim >= 1 )
+   if (dim >= 1 )
    {
       DSBPdof[Geometry::POINT] = 0;
       DSBPdof[Geometry::SEGMENT] = 0;
@@ -1059,7 +1059,7 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
    }
 
    // two dimensional sbp triangle element
-   if(dim >= 2)
+   if (dim >= 2)
    {
       switch (p)
       {

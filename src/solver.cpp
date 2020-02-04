@@ -1,7 +1,7 @@
 #include <fstream>
 #include <iostream>
-#include "solver.hpp"
 #include "default_options.hpp"
+#include "solver.hpp"
 #include "sbp_fe.hpp"
 #include "diag_mass_integ.hpp"
 #include "evolver.hpp"
@@ -83,14 +83,13 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 void AbstractSolver::initDerived()
 {
    // define the number of states, the fes, and the state grid function
-   num_state = getNumState(); // <--- this is a virtual fun
-   cout << "Num states = " << num_state << endl;
+   num_state = this->getNumState(); // <--- this is a virtual fun
+   *out << "Num states = " << num_state << endl;
    fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                    Ordering::byVDIM));
    u.reset(new GridFunType(fes.get()));
 #ifdef MFEM_USE_MPI
-   cout << "Number of finite element unknowns: "
-        << fes->GlobalTrueVSize() << endl;
+   cout << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
 #else
    cout << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
@@ -113,14 +112,17 @@ void AbstractSolver::initDerived()
    addInterfaceIntegrators(alpha);
 
    // This just lists the boundary markers for debugging purposes
-   for (int k = 0; k < bndry_marker.size(); ++k)
+   if (0==rank)
    {
-      cout << "boundary_marker[" << k << "]: ";
-      for (int i = 0; i < bndry_marker[k].Size(); ++i)
+      for (int k = 0; k < bndry_marker.size(); ++k)
       {
-         cout << bndry_marker[k][i] << " ";
+         cout << "boundary_marker[" << k << "]: ";
+         for (int i = 0; i < bndry_marker[k].Size(); ++i)
+         {
+            cout << bndry_marker[k][i] << " ";
+         }
+         cout << endl;
       }
-      cout << endl;
    }
 
    // define the time-dependent operator
@@ -130,8 +132,9 @@ void AbstractSolver::initDerived()
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
-   bool is_explicit = options["time-dis"]["explicit"].get<bool>();
-   if(is_explicit)
+   const string odes = options["time-dis"]["ode-solver"].get<string>();
+   std::cout << "ode solver is " << odes << std::endl;
+   if (odes == "RK1" || odes == "RK4")
    {
       evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
    }
@@ -139,7 +142,7 @@ void AbstractSolver::initDerived()
    {
       evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
-   std::cout << "evolver is set.\n";
+
    // add the output functional QoIs 
    auto &fun = options["outputs"];
    output_bndry_marker.resize(fun.size());
@@ -378,7 +381,12 @@ void AbstractSolver::solveForState()
 
 void AbstractSolver::solveSteady()
 {
-#ifdef MFEM_USE_PETSC
+   double t1, t2;
+   if (0==rank)
+   {
+      t1 = MPI_Wtime();
+   }
+#ifdef MFEM_USE_PETSC   
    // Get the PetscSolver option 
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
@@ -393,12 +401,12 @@ void AbstractSolver::solveSteady()
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
-   std::cout << "PetscLinearSolver is set.\n";
+   std::cout << "Petsc Solver set.\n";
    //Get the newton solver options
-   double nabstol = options["newtonsolver"]["abstol"].get<double>();
-   double nreltol = options["newtonsolver"]["reltol"].get<double>();
-   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
-   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   double nabstol = options["newton"]["abstol"].get<double>();
+   double nreltol = options["newton"]["reltol"].get<double>();
+   int nmaxiter = options["newton"]["maxiter"].get<int>();
+   int nptl = options["newton"]["printlevel"].get<int>();
    newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
@@ -407,10 +415,19 @@ void AbstractSolver::solveSteady()
    newton_solver->SetRelTol(nreltol);
    newton_solver->SetMaxIter(nmaxiter);
    newton_solver->SetPrintLevel(nptl);
+   std::cout << "Newton solver is set.\n";
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   newton_solver->Mult(b, *u);
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
+   newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   u->SetFromTrueDofs(u_true);
+   if (0==rank)
+   {
+      t2 = MPI_Wtime();
+      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
 #else
    // Hypre solver section
    //prec.reset( new HypreBoomerAMG() );
@@ -418,19 +435,19 @@ void AbstractSolver::solveSteady()
    std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
                << " without preconditioner.\n";
    
-   double tol = options["hypresolver"]["tol"].get<double>();
-   int maxiter = options["hypresolver"]["maxiter"].get<int>();
-   int ptl = options["hypresolver"]["printlevel"].get<int>();
+   double tol = options["lin-solver"]["tol"].get<double>();
+   int maxiter = options["lin-solver"]["maxiter"].get<int>();
+   int ptl = options["lin-solver"]["printlevel"].get<int>();
    solver.reset( new HypreGMRES(fes->GetComm()) );
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
 
    //solver->SetPreconditioner(*prec);
-   double nabstol = options["newtonsolver"]["abstol"].get<double>();
-   double nreltol = options["newtonsolver"]["reltol"].get<double>();
-   int nmaxiter = options["newtonsolver"]["maxiter"].get<int>();
-   int nptl = options["newtonsolver"]["printlevel"].get<int>();
+   double nabstol = options["newton"]["abstol"].get<double>();
+   double nreltol = options["newton"]["reltol"].get<double>();
+   int nmaxiter = options["newton"]["maxiter"].get<int>();
+   int nptl = options["newton"]["printlevel"].get<int>();
    newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
@@ -442,8 +459,11 @@ void AbstractSolver::solveSteady()
 
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
    newton_solver->Mult(b,  *u);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   u->SetFromTrueDofs(u_true);
 #endif
 }
 
@@ -473,8 +493,7 @@ void AbstractSolver::solveUnsteady()
    double t_final = options["time-dis"]["t-final"].get<double>();
    std::cout << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
-   bool calc_dt = options["time-dis"]["explicit"].get<bool>() && 
-         options["time-dis"]["const-cfl"].get<bool>();
+   bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
    for (int ti = 0; !done;)
    {
       if (calc_dt)

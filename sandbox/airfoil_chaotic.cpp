@@ -24,8 +24,8 @@ int main(int argc, char *argv[])
    ofstream petscoptions(petscrc_file);
    const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
    const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
+   petscoptions << "-solver_ksp_type " << linearsolver_name << endl;
+   petscoptions << "-prec_pc_type " << prec_name << endl;
    petscoptions << "-pc_factor_mat_ordering_type rcm" << endl;
    petscoptions << "-pc_factor_levels 0" << endl;
    petscoptions << "-pc_factor_reuse_ordering" << endl;
