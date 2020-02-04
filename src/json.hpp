@@ -512,9 +512,9 @@ class other_error : public exception
 #else
     #include <cstdlib>
     #define JSON_THROW(exception) std::abort()
-    #define JSON_TRY if(true)
-    #define JSON_CATCH(exception) if(false)
-    #define JSON_INTERNAL_CATCH(exception) if(false)
+    #define JSON_TRY if (true)
+    #define JSON_CATCH(exception) if (false)
+    #define JSON_INTERNAL_CATCH(exception) if (false)
 #endif
 
 // override exception macros
@@ -565,7 +565,7 @@ class other_error : public exception
     {                                                                                          \
         static_assert(std::is_enum<ENUM_TYPE>::value, #ENUM_TYPE " must be an enum!");         \
         static const std::pair<ENUM_TYPE, BasicJsonType> m[] = __VA_ARGS__;                    \
-        auto it = std::find_if(std::begin(m), std::end(m),                                     \
+        auto it = std::find_if (std::begin(m), std::end(m),                                     \
                                [e](const std::pair<ENUM_TYPE, BasicJsonType>& ej_pair) -> bool \
         {                                                                                      \
             return ej_pair.first == e;                                                         \
@@ -577,7 +577,7 @@ class other_error : public exception
     {                                                                                          \
         static_assert(std::is_enum<ENUM_TYPE>::value, #ENUM_TYPE " must be an enum!");         \
         static const std::pair<ENUM_TYPE, BasicJsonType> m[] = __VA_ARGS__;                    \
-        auto it = std::find_if(std::begin(m), std::end(m),                                     \
+        auto it = std::find_if (std::begin(m), std::end(m),                                     \
                                [j](const std::pair<ENUM_TYPE, BasicJsonType>& ej_pair) -> bool \
         {                                                                                      \
             return ej_pair.second == j;                                                        \

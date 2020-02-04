@@ -155,7 +155,7 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
          {
             double x_diff = x_center(0, j) - x_quad(0, i);
             r(0, j) = 1.0;
-            for(int order = 1; order < m; order++)
+            for (int order = 1; order < m; order++)
             {
                r(order, j) = pow(x_diff, order);
             }

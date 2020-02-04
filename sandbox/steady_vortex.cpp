@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 
       double l_error = solver->calcL2Error(uexact, 0);
       double res_error = solver->calcResidualNorm();
-      if(0==myid)
+      if (0==myid)
       {
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
-      if(0==myid)
+      if (0==myid)
       {
          mfem::out << "\nfinal residual norm = " << res_error;
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
 void pert(const Vector &x, Vector& p)
 {
    p.SetSize(4);
-   for(int i = 0; i < 4; i++)
+   for (int i = 0; i < 4; i++)
    {
       p(i) = normal_rand(gen);
    }

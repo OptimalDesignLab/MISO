@@ -110,25 +110,25 @@
 //    vector<double> quad_data;
 //    Vector quad_coord(dim); // used to store quadrature coordinate temperally
 //    ElementTransformation *eltransf;
-//    for(int j = 0; j < num_el; j++)
+//    for (int j = 0; j < num_el; j++)
 //    {
 //       // Get and store the element center
 //       mfem::Vector cent_coord(dim);
 //       GetElementCenter(elmt_id[j], cent_coord);
-//       for(int i = 0; i < dim; i++)
+//       for (int i = 0; i < dim; i++)
 //       {
 //          mat_cent(i,j) = cent_coord(i);
 //       }
       
 //       // deal with quadrature points
 //       eltransf = mesh->GetElementTransformation(elmt_id[j]);
-//       for(int k = 0; k < num_dofs; k++)
+//       for (int k = 0; k < num_dofs; k++)
 //       {
 //          eltransf->Transform(fe->GetNodes.IntPoint(k), quad_coord);
 //          //check duplication
-//          if( !duplicated(quad_coord, quad_data) )
+//          if ( !duplicated(quad_coord, quad_data) )
 //          {
-//             for(int di = 0; di < dim; di++)
+//             for (int di = 0; di < dim; di++)
 //             {
 //                quad_data.push_back(quad_coord(di));
 //             }
@@ -139,9 +139,9 @@
 //    mat_quad.Clear();
 //    int num_col = quad_data.size()/dim;
 //    mat_quad.SetSize(dim, num_col);
-//    for(int i = 0; i < num_col; i++)
+//    for (int i = 0; i < num_col; i++)
 //    {
-//       for(int j = 0; j < dim; j++)
+//       for (int j = 0; j < dim; j++)
 //       {
 //          mat_quad(i,j) = quad_data[i*dim+j];
 //       }
@@ -231,7 +231,7 @@
 //    std::vector<int> elmt_id;
 //    mfem::DenseMatrix cent_mat, quad_mat;
 
-//    for(int i = 0; i < nEle; i++)
+//    for (int i = 0; i < nEle; i++)
 //    {
 //       // 1. construct the patch the patch
 //       // have more element than required to make it a underdetermined system
@@ -254,11 +254,11 @@
 //    bool duplicated;
 //    int data_size = data.size();
 //    MFEM_ASSERT(data_size % dim == 0," Quadrature data size is wrong.\n");
-//    for(int i = 0; i < data_size/dim; i++)
+//    for (int i = 0; i < data_size/dim; i++)
 //    {
-//       for(int di = 0; di < dim; di++)
+//       for (int di = 0; di < dim; di++)
 //       {
-//          if( quad(di) != data[i*dim+di] ){ return false; }
+//          if ( quad(di) != data[i*dim+di] ){ return false; }
 //       }
 //    }
 //    // fall to pass the duplication test
