@@ -147,5 +147,14 @@
         "kappae" : 10,
         "sigma" : 0.04,
         "conductor" : true
-    }
+	},
+	"testmat" : {
+		"mu_r" : 1,
+        "rho" : 1,
+        "cv" : 1,
+        "kappa" : 1,
+        "kappae" : 1,
+        "sigma" : 1,
+        "conductor" : false
+	}
 }

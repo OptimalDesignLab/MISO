@@ -8,6 +8,13 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
+static double temp_0;
+
+static double t_final;
+
+static double InitialTemperature(const Vector &x);
+
+static double ExactSolution(const Vector &x);
 
 int main(int argc, char *argv[])
 {
@@ -41,9 +48,12 @@ int main(int argc, char *argv[])
    opts >> file_options;
    options.merge_patch(file_options);
 
+   temp_0 = options["init-temp"].get<double>();
+   t_final = options["time-dis"]["t-final"].get<double>();
+
    // generate a simple tet mesh
    int num_edge = options["mesh"]["num-edge"].get<int>();
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, 2, 2,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
 
@@ -90,12 +100,16 @@ int main(int argc, char *argv[])
 
       
       ThermalSolver solver(opt_file_name, move(mesh));
+      solver.setInitialTemperature(InitialTemperature);
       // unique_ptr<MagnetostaticSolver<3>> solver(
       //    new MagnetostaticSolver<3>(opt_file_name, nullptr));
       std::cout << "Solving..." << std::endl;
       solver.solveForState();
       // solver->solveForState();
       std::cout << "Solver Done" << std::endl;
+
+      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+                << solver.calcL2Error(ExactSolution, 0) << '\n' << endl;
    }
    catch (MachException &exception)
    {
@@ -108,4 +122,14 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
+}
+
+double InitialTemperature(const Vector &x)
+{
+   return cos(M_PI*x(0));
+}
+
+double ExactSolution(const Vector &x)
+{
+   return cos(M_PI*x(0))*exp(-M_PI*M_PI*t_final);
 }

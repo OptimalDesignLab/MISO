@@ -1,7 +1,7 @@
 {
     "mesh": {
        "file": "initial.mesh",
-       "num-edge": 2
+       "num-edge": 10
     },
     "space-dis": {
        "basis-type": "H1",
@@ -12,25 +12,25 @@
         "const-cfl": true,
         "cfl": 1.0,
         "dt": 0.02,
-        "t-final": 0.2
+        "t-final": 1.0
     },
     "lin-solver": {
-       "print-lvl": 2,
+       "print-lvl": 0,
        "max-iter": 500
     },
     "current": 1,
     "components": {
        "stator": {
-          "material": "cuwinding",
+          "material": "testmat",
           "attr": 1
        },
        "rotor": {
-          "material": "steel",
+          "material": "testmat",
           "attr": 2
        }
     },
     "bcs": {
-        "outflux": [1, 0, 0, 0, 0, 0],
+        "outflux": [0, 0, 0, 0, 0, 0],
         "const": true,
         "const-val": 100
     },

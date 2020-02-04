@@ -22,6 +22,17 @@ public:
                        std::unique_ptr<mfem::Mesh> smesh = nullptr,
 							  int dim = 3);
 
+   /// Set initial temperature
+   /// \param[in] f - static user function that defines the initial condition
+   void setInitialTemperature(double (*f)(const mfem::Vector &));
+
+   /// Returns the L2 error between the state `u` and given exact solution.
+   /// Overload for scalar quantities
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \returns L2 error
+   double calcL2Error(double (*u_exact)(const mfem::Vector &),
+                      int entry = -1);
 
 private:
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
@@ -87,6 +98,9 @@ private:
    /// static variables for use in static member functions
    static double outflux;
    static double temp_0;
+
+   /// check if initial conditions are set
+   bool setInit;
 
    /// set static variables
    void setStaticMembers();
