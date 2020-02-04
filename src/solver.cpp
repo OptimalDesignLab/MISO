@@ -105,7 +105,7 @@ void AbstractSolver::initDerived()
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
    // Add integrators; this can be simplified if we template the entire class
-   this->addVolumeIntegrators(alpha);
+   addVolumeIntegrators(alpha);
    auto &bcs = options["bcs"];
    bndry_marker.resize(bcs.size()); // need to set this before next method
    addBoundaryIntegrators(alpha);
@@ -134,7 +134,7 @@ void AbstractSolver::initDerived()
 #endif
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    std::cout << "ode solver is " << odes << std::endl;
-   if(odes == "RK1" || odes == "RK4")
+   if (odes == "RK1" || odes == "RK4")
    {
       evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
    }
@@ -382,7 +382,7 @@ void AbstractSolver::solveForState()
 void AbstractSolver::solveSteady()
 {
    double t1, t2;
-   if(0==rank)
+   if (0==rank)
    {
       t1 = MPI_Wtime();
    }
@@ -423,7 +423,7 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
-   if(0==rank)
+   if (0==rank)
    {
       t2 = MPI_Wtime();
       cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
