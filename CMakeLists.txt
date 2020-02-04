@@ -79,11 +79,16 @@ set_target_properties(mach
       POSITION_INDEPENDENT_CODE ON
 )
 
+set(DEBUG_OPTIONS "-g")
+set(RELEASE_OPTIONS "-O2")
+
 target_compile_options(mach
    PRIVATE 
       -Wall 
-      -Wextra
+      # -Wextra
       # -Werror
+      "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
+      "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
 )
 
 install(TARGETS mach
