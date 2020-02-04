@@ -84,7 +84,7 @@ void AbstractSolver::initDerived()
 {
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState(); // <--- this is a virtual fun
-   if ( 0==rank ) { cout << "Num states = " << num_state << endl; }
+   *out << "Num states = " << num_state << endl;
    fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                    Ordering::byVDIM));
    u.reset(new GridFunType(fes.get()));
