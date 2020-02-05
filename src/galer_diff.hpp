@@ -15,8 +15,9 @@ class GalerkinDifference : public FiniteElementSpace
 public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
-   GalerkinDifference(const std::string &opt_file_name =
-                        std::string("mach_options.json"));
+   GalerkinDifference(const std::string &opt_file_name
+                      = std::string("mach_options.json"),
+                      apf::Mesh2 *mesh = NULL);
 
    /// constructs the neighbour matrices for all mesh elements. 
    /// and second neighbours (shared vertices).
@@ -43,7 +44,17 @@ public:
 
    /// Get the prolongation matrix in GD method
    virtual const Operator *GetProlongationMatrix() const
-   { BuildGDProlongation(); return cP; }
+   { 
+      if (!cP)
+      {
+         BuildGDProlongation();
+         return cP;
+      }
+      else
+      {
+         return cP; 
+      }
+   }
 
    /// Build the prolongation matrix in GD method
    void BuildGDProlongation() const;

@@ -8,7 +8,7 @@
       "file": "tri32.smb"
    },
    "space-dis": {
-      "degree": 1,
+      "degree": 3,
       "lps-coeff": 1.0,
       "basis-type": "csbp"
    },

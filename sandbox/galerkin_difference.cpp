@@ -19,15 +19,16 @@ std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 // This function will be used to check the local R and the assembled prolongation matrix
 int main(int argc, char *argv[])
 {
+   // the specfic option file for this problem
    const char *options_file = "galerkin_difference.json";
-
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "galerkin_difference.petsc";
-   // Get the option file
    nlohmann::json options;
    ifstream option_source(options_file);
    option_source >> options;
-   // Write the petsc option file
+   option_source.close();
+
+   // write the petsc option file
+#ifdef MFEM_USE_PETSC
+   const char *petscrc_file = "galerkin_difference.petsc";
    ofstream petscoptions(petscrc_file);
    const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
    const string prec_name = options["petscsolver"]["pctype"].get<string>();
@@ -50,6 +51,8 @@ int main(int argc, char *argv[])
 #endif
    int nx = 1, ny = 1;
    int degree = 2;
+   int dim; // space dimension of the mesh
+   int nEle; // number of element in the pumi mesh
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options",
@@ -66,13 +69,44 @@ int main(int argc, char *argv[])
   
    try
    {
-      // construct the solver, set the initial condition, and solve
-      string opt_file_name(options_file);
+      PCU_Comm_Init();
+#ifdef MFEM_USE_SIMMETRIX
+      Sim_readLicenseFile(0);
+      gmi_sim_start();
+      gmi_register_sim();
+#endif
+      gmi_register_mesh();
+
+      apf::Mesh2 *pumi_mesh;
+      pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
+                           options["pumi-mesh"]["file"].get<string>().c_str());
+      pumi_mesh->verify();
+
+      dim = pumi_mesh->getDimension();
+      nEle = pumi_mesh->count(dim);
+      cout << "Mesh dimension is " << dim << '\n';
+      cout << "Number of element " << nEle << '\n';
+      
+      
       cout << "Construct the GD fespace.\n";
-      GalerkinDifference gd(options_file);
+      GalerkinDifference gd(options_file, pumi_mesh);
       gd.BuildGDProlongation();
 
+      // test the prolongation 
+      mfem::Vector cent_val(4*nEle);
+      mfem::Vector quad_val(gd.GetVSize());
+      cout << "Size of cent_val " << cent_val.Size() << '\n';
+      cout << "Size of quad_val " << quad_val.Size() << '\n';
+
+      cent_val = 1.0;
+      gd.GetProlongationMatrix()->Mult(cent_val, quad_val);
+      ofstream 
+      cout << "Check the result:\n";
+      quad_val.Print(cout, 4);
+      PCU_Comm_Free();
    }
+
+
    catch (MachException &exception)
    {
       exception.print_message();

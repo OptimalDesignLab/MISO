@@ -8,45 +8,45 @@ using namespace mach;
 using namespace apf;
 namespace mfem
 {
-GalerkinDifference::GalerkinDifference(const string &opt_file_name)
+GalerkinDifference::GalerkinDifference(const string &opt_file_name,
+                                       Mesh2* mesh)
 {
 #ifndef MFEM_USE_PUMI
    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
 #endif
-
-   // first construct the pumi mesh and convert to mfem mesh
    // should we keep this part to the problem specific file?
-   nlohmann::json file_options;
-   // solver options
    nlohmann::json options;
    ifstream options_file(opt_file_name);
-   options_file >> file_options;
-   options = default_options;
-   options.merge_patch(file_options);
+   options_file >> options;
+   options.merge_patch(default_options);
    cout << setw(3) << options << endl;
-   PCU_Comm_Init();
-#ifdef MFEM_USE_SIMMETRIX
-   Sim_readLicenseFile(0);
-   gmi_sim_start();
-   gmi_register_sim();
-#endif
-   gmi_register_mesh();
-   // load pumi mesh
-   pumi_mesh = loadMdsMesh(options["model-file"].get<string>().c_str(),
-                           options["pumi-mesh"]["file"].get<string>().c_str());
-   dim = pumi_mesh->getDimension();
-   nEle = pumi_mesh->count(dim);
    
-   // verify pumi mesh
-   pumi_mesh->verify();
-   // Create the MFEM mesh object from the PUMI mesh.
+//    PCU_Comm_Init();
+// #ifdef MFEM_USE_SIMMETRIX
+//    Sim_readLicenseFile(0);
+//    gmi_sim_start();
+//    gmi_register_sim();
+// #endif
+//    gmi_register_mesh();
+//    // load pumi mesh
+//    pumi_mesh = loadMdsMesh(options["model-file"].get<string>().c_str(),
+//                            options["pumi-mesh"]["file"].get<string>().c_str());
+//    // verify pumi mesh
+//    pumi_mesh->verify();
+//    dim = pumi_mesh->getDimension();
+//    nEle = pumi_mesh->count(dim);
+// pmesh.reset(new MeshType(pumi_mesh, 1, 1));
+   pumi_mesh = mesh;
    pmesh.reset(new MeshType(pumi_mesh, 1, 1));
+   nEle = pmesh->GetNE();
+   dim = pmesh->Dimension();
+   cout << "check dim and nEle: " << dim << ' ' << nEle << '\n';
    // write meshx
-   ofstream sol_ofs("tri32_mfem.vtk");
-   sol_ofs.precision(14);
-   pmesh->PrintVTK(sol_ofs, 0);
-   apf::writeVtkFiles("pumi_mesh", pumi_mesh);
-   PCU_Comm_Free();
+   // ofstream sol_ofs("tri32_mfem.vtk");
+   // sol_ofs.precision(14);
+   // pmesh->PrintVTK(sol_ofs, 0);
+   // apf::writeVtkFiles("pumi_mesh", pumi_mesh);
+   // PCU_Comm_Free();
 
    // TODO:
    // 1. determine the size of cP. i.e. # of quadrature points and barycenters.
@@ -59,7 +59,6 @@ GalerkinDifference::GalerkinDifference(const string &opt_file_name)
    fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),dim));
    Constructor(pmesh.get(), NULL, fec.get(), dim+2, Ordering::byVDIM);
    cout << "Galerkin Difference space is constructed.\n";
-   cout << "There are " << nEle << " elements in the mesh.\n";
    cout << "Start to build the GD prolongation matrix of degree " << degree << '\n';
 } // class constructor ends
 
@@ -250,17 +249,17 @@ void GalerkinDifference::BuildGDProlongation() const
       
       // 2. build the quadrature and barycenter coordinate matrices
       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
-      cout << "The element center matrix:\n";
-      cent_mat.Print(cout, cent_mat.Width());
-      cout << endl;
-      cout << "Quadrature points id matrix:\n";
-      quad_mat.Print(cout, quad_mat.Width());
-      cout << endl;
+      // cout << "The element center matrix:\n";
+      // cent_mat.Print(cout, cent_mat.Width());
+      // cout << endl;
+      // cout << "Quadrature points id matrix:\n";
+      // quad_mat.Print(cout, quad_mat.Width());
+      // cout << endl;
 
       // 3. buil the loacl reconstruction matrix
       buildInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
-      cout << "Local reconstruction matrix R:\n";
-      local_mat.Print(cout, local_mat.Width());
+      // cout << "Local reconstruction matrix R:\n";
+      // local_mat.Print(cout, local_mat.Width());
 
       // 4. assemble them back to prolongation matrix
       AssembleProlongationMatrix(elmt_id, local_mat);
@@ -305,14 +304,14 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
    for(int i = 0; i < nel; i ++)
    {
       GetElementVDofs(id[i], el_dofs);
-      cout << "The dofs size is " << el_dofs.Size() << " and data: ";
+      //cout << "The dofs size is " << el_dofs.Size() << " and data: ";
       for(int v = 0; v < vdim; v++)
       {
          el_dofs.GetSubArray(v * num_dofs, num_dofs, local_dofs);
          dofs_mat[v].Append(local_dofs);
          local_dofs.LoseData();
       }
-      el_dofs.Print(cout, el_dofs.Size());
+      //el_dofs.Print(cout, el_dofs.Size());
       el_dofs.LoseData();
    }
    for(int v = 0; v < vdim; v++)
