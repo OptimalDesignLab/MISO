@@ -5,6 +5,7 @@
 #include "mfem.hpp"
 #include "euler.hpp"
 #include "galer_diff.hpp"
+#include "centgridfunc.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -15,6 +16,12 @@ using namespace apf;
 
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+
+/// \brief Defines the exact solution for the steady isentropic vortex
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void uexact(const mfem::Vector &x, mfem::Vector &u);
+void uexact_single(const mfem::Vector &x, mfem::Vector &u);
 
 // This function will be used to check the local R and the assembled prolongation matrix
 int main(int argc, char *argv[])
@@ -93,16 +100,73 @@ int main(int argc, char *argv[])
       gd.BuildGDProlongation();
 
       // test the prolongation 
-      mfem::Vector cent_val(4*nEle);
-      mfem::Vector quad_val(gd.GetVSize());
-      cout << "Size of cent_val " << cent_val.Size() << '\n';
-      cout << "Size of quad_val " << quad_val.Size() << '\n';
+      // mfem::Vector cent_val(4*nEle);
+      // mfem::Vector quad_val(gd.GetVSize());
+      // cout << "Size of cent_val " << cent_val.Size() << '\n';
+      // cout << "Size of quad_val " << quad_val.Size() << '\n';
+      // for (int j = 0; j < nEle; j++)
+      // {
+      //    for(int i = 0; i < 4; i++)
+      //    {
+      //       cent_val(4*j+i) = i+1.0;
+      //    }
+      // }
+      // cout << "Check the center value:\n";
+      // cent_val.Print(cout, 4);
+      // gd.GetProlongationMatrix()->Mult(cent_val, quad_val);
+      // cout << "\n\n\nCheck the quad value:\n";
+      // quad_val.Print(cout, 4);
 
-      cent_val = 1.0;
-      gd.GetProlongationMatrix()->Mult(cent_val, quad_val);
-      ofstream 
-      cout << "Check the result:\n";
-      quad_val.Print(cout, 4);
+
+
+      // Test the prolongation matrix with gridfunction vdim = 4
+      mfem::GridFunction x(&gd);
+      mfem::GridFunction x_exact(&gd);
+      cout << "Size of x and x_exact is " << x.Size() << '\n';
+
+      mfem::VectorFunctionCoefficient u0(4, uexact);
+      x_exact.ProjectCoefficient(u0);
+      cout << "Check the exact solution:\n";
+      x_exact.Print(cout ,4);
+
+
+      mfem::CentGridFunction x_cent(&gd);
+      cout << "Size of x_cent is " << x_cent.Size() << '\n';
+      x_cent.ProjectCoefficient(u0);
+      cout << "\n\n\n\nCheck the the center values:\n";
+      x_cent.Print(cout, 4);
+
+
+      gd.GetProlongationMatrix()->Mult(x_cent, x);
+      cout << "\n\n\n\nCheck the results:\n";
+      x.Print(cout,4);
+      x -= x_exact;
+      cout << "Check the error: " << x.Norml2() << '\n';
+
+      // Test the prolongation matrix with gridfunction vdim = 1
+      // mfem::GridFunction x(&gd);
+      // mfem::GridFunction x_exact(&gd);
+      // cout << "Size of x and x_exact is " << x.Size() << '\n';
+
+      // mfem::VectorFunctionCoefficient u0(1, uexact_single);
+      // x_exact.ProjectCoefficient(u0);
+      // cout << "Check the exact solution:\n";
+      // x_exact.Print(cout ,7);
+
+
+      // mfem::CentGridFunction x_cent(&gd);
+      // cout << "Size of x_cent is " << x_cent.Size() << '\n';
+      // x_cent.ProjectCoefficient(u0);
+      // cout << "\n\n\n\nCheck the the center values:\n";
+      // x_cent.Print(cout, 7);
+
+
+      // gd.GetProlongationMatrix()->Mult(x_cent, x);
+      // cout << "\n\n\n\nCheck the results:\n";
+      // x.Print(cout,7);
+      // x -= x_exact;
+      // cout << "Check the error: " << x.Norml2() << '\n';
+
       PCU_Comm_Free();
    }
 
@@ -124,3 +188,20 @@ int main(int argc, char *argv[])
 #endif
 }
 
+// Exact solution; note that I reversed the flow direction to be clockwise, so
+// the problem and mesh are consistent with the LPS paper (that is, because the
+// triangles are subdivided from the quads using the opposite diagonal)
+void uexact(const mfem::Vector &x, mfem::Vector &u)
+{
+   // different degree 2d polynomial to test the acccuracy
+   u(0) = 1.0;  // constant
+   u(1) = x(0); // linear function
+   u(2) = x(0) * x(0) - x(0) * x(1) + x(1) * x(1); // quadrature function
+   u(3) = x(0) * x(0) * x(1) - 2.0 * x(0) * x(1) + 3.0 * x(1) * x(1) * x(1); // cubic function
+}
+
+void uexact_single(const mfem::Vector &x, mfem::Vector &u)
+{
+   u(0) = x(0);
+   //u(0) = x(0) * x (0) - 7.0 * x(0) + 3.0;
+}

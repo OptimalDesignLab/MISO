@@ -15,10 +15,11 @@ GalerkinDifference::GalerkinDifference(const string &opt_file_name,
    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
 #endif
    // should we keep this part to the problem specific file?
-   nlohmann::json options;
+   nlohmann::json options = default_options;
+   nlohmann::json file_options;
    ifstream options_file(opt_file_name);
-   options_file >> options;
-   options.merge_patch(default_options);
+   options_file >> file_options;
+   options.merge_patch(file_options);
    cout << setw(3) << options << endl;
    
 //    PCU_Comm_Init();
@@ -58,50 +59,51 @@ GalerkinDifference::GalerkinDifference(const string &opt_file_name,
    degree = options["GD"]["degree"].get<int>();
    fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),dim));
    Constructor(pmesh.get(), NULL, fec.get(), dim+2, Ordering::byVDIM);
+   //Constructor(pmesh.get(), NULL, fec.get(), 1, Ordering::byVDIM);
    cout << "Galerkin Difference space is constructed.\n";
    cout << "Start to build the GD prolongation matrix of degree " << degree << '\n';
 } // class constructor ends
 
-void GalerkinDifference::BuildNeighbourMat(DenseMatrix &nmat1, DenseMatrix &nmat2)
-{
-   // create pumi iterator over elements
-   pMeshIter it = pumi_mesh->begin(pumi_mesh_getDim(pumi_mesh));
-   pMeshEnt e;
-   Vector3 x;
-   // vector<int> nv1;
-   //cout << "pumi mesh element centers " << endl;
-   cout << "element neighbours " << endl;
-   int degree = 2;
-   int req_n = ((degree + 1) * (degree + 2)) / 2;
-   int max_n = 0;
-   int min_n = req_n;
-   // iterate over mesh elements to get maximum number of neighbours for an element.
-   // this provides the row size of neighbour matrices
-   while ((e = pumi_mesh->iterate(it)))
-   {
-      // create pumi mesh entity for neighbouring elements
-      Adjacent nels_e;
-      //get first neighbours (with shared edges)
-      getBridgeAdjacent(pumi_mesh, e, pumi_mesh_getDim(pumi_mesh) - 1,
-                        pumi_mesh_getDim(pumi_mesh), nels_e);
-      if (nels_e.size() > max_n)
-      {
-         max_n = nels_e.size();
-      }
-      if (nels_e.size() < min_n)
-      {
-         min_n = nels_e.size();
-      }
-   }
-   pumi_mesh->end(it); // end pumi iterations
-   cout << "max size " << endl;
-   cout << max_n << ", " << min_n << endl;
-   vector<int> nels;
-   //GetNeighbourSet(0, req_n, nels);
-   // set size of neighbour matrix
-   // To do: in 3D the # neighbours may be more than the required # neighbours
-   // nmat1.SetSize((max_n + req_n-min_n), nEle);
-}
+// void GalerkinDifference::BuildNeighbourMat(DenseMatrix &nmat1, DenseMatrix &nmat2)
+// {
+//    // create pumi iterator over elements
+//    pMeshIter it = pumi_mesh->begin(pumi_mesh_getDim(pumi_mesh));
+//    pMeshEnt e;
+//    Vector3 x;
+//    // vector<int> nv1;
+//    //cout << "pumi mesh element centers " << endl;
+//    cout << "element neighbours " << endl;
+//    int degree = 2;
+//    int req_n = ((degree + 1) * (degree + 2)) / 2;
+//    int max_n = 0;
+//    int min_n = req_n;
+//    // iterate over mesh elements to get maximum number of neighbours for an element.
+//    // this provides the row size of neighbour matrices
+//    while ((e = pumi_mesh->iterate(it)))
+//    {
+//       // create pumi mesh entity for neighbouring elements
+//       Adjacent nels_e;
+//       //get first neighbours (with shared edges)
+//       getBridgeAdjacent(pumi_mesh, e, pumi_mesh_getDim(pumi_mesh) - 1,
+//                         pumi_mesh_getDim(pumi_mesh), nels_e);
+//       if (nels_e.size() > max_n)
+//       {
+//          max_n = nels_e.size();
+//       }
+//       if (nels_e.size() < min_n)
+//       {
+//          min_n = nels_e.size();
+//       }
+//    }
+//    pumi_mesh->end(it); // end pumi iterations
+//    cout << "max size " << endl;
+//    cout << max_n << ", " << min_n << endl;
+//    vector<int> nels;
+//    //GetNeighbourSet(0, req_n, nels);
+//    // set size of neighbour matrix
+//    // To do: in 3D the # neighbours may be more than the required # neighbours
+//    // nmat1.SetSize((max_n + req_n-min_n), nEle);
+// }
 
 // an overload function of previous one (more doable?)
 void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
@@ -299,25 +301,67 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
 
    int nel = id.Size();
    Array<int> el_dofs;
-   Array<int> local_dofs(num_dofs);
+   Array<int> col_index;
+   Array<int> row_index(num_dofs);
    Array<Array<int>> dofs_mat(vdim);
-   for(int i = 0; i < nel; i ++)
+
+   // Get the local basis for certain element
+   DenseMatrix el_mat(num_dofs, nel);
+   for (int c = 0; c < nel; c++)
    {
-      GetElementVDofs(id[i], el_dofs);
-      //cout << "The dofs size is " << el_dofs.Size() << " and data: ";
-      for(int v = 0; v < vdim; v++)
+      for (int r = 0; r < num_dofs; r++)
       {
-         el_dofs.GetSubArray(v * num_dofs, num_dofs, local_dofs);
-         dofs_mat[v].Append(local_dofs);
-         local_dofs.LoseData();
+         el_mat(r,c) = local_mat(r,c);
       }
-      //el_dofs.Print(cout, el_dofs.Size());
-      el_dofs.LoseData();
    }
-   for(int v = 0; v < vdim; v++)
+   // cout << "Print the element mat:\n";
+   // el_mat.Print(cout, nel);
+   // Get the id of the element want to assemble in
+   int el_id = id[0];
+   GetElementVDofs(el_id, el_dofs);
+   cout << "Element dofs indices are: ";
+   el_dofs.Print(cout, el_dofs.Size());
+   cout << endl;
+   cout << "local mat size is " << el_mat.Height() << ' ' << el_mat.Width() << '\n';
+   col_index.SetSize(nel);
+   for(int e = 0; e < nel; e++)
    {
-      cP->AddSubMatrix(dofs_mat[v], id, local_mat, 1);
+      col_index[e] = vdim * id[e];
    }
+   for (int v = 0; v < vdim; v++)
+   {
+      el_dofs.GetSubArray(v * num_dofs, num_dofs, row_index);
+      cout << "local mat will be assembled into: ";
+      row_index.Print(cout, num_dofs);
+      cout << endl;
+      cP->SetSubMatrix(row_index, col_index, el_mat, 1);
+      row_index.LoseData();
+      // elements id also need to be shift accordingly
+      col_index.SetSize(nel);
+      for (int e = 0; e < nel; e++)
+      {
+         col_index[e]++;
+      }
+   }
+   
+
+   // for(int i = 0; i < nel; i ++)
+   // {
+   //    GetElementVDofs(id[i], el_dofs);
+   //    //cout << "The dofs size is " << el_dofs.Size() << " and data: ";
+   //    for(int v = 0; v < vdim; v++)
+   //    {
+   //       el_dofs.GetSubArray(v * num_dofs, num_dofs, local_dofs);
+   //       dofs_mat[v].Append(local_dofs);
+   //       local_dofs.LoseData();
+   //    }
+   //    //el_dofs.Print(cout, el_dofs.Size());
+   //    el_dofs.LoseData();
+   // }
+   // for(int v = 0; v < vdim; v++)
+   // {
+   //    cP->AddSubMatrix(dofs_mat[v], id, local_mat, 1);
+   // }
 }
 
 } // namespace mfem
