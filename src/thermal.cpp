@@ -27,9 +27,7 @@ ThermalSolver::ThermalSolver(
 	h_grad_space.reset(new SpaceType(mesh.get(), h_grad_coll.get()));
 
 	/// Create MVP grid function
-	phi.reset(new GridFunType(h_grad_space.get()));
-	dTdt.reset(new GridFunType(h_grad_space.get()));
-	rhs.reset(new GridFunType(h_grad_space.get()));
+	theta.reset(new GridFunType(h_grad_space.get()));
 
 	/// Set static variables
 	setStaticMembers();
@@ -85,16 +83,16 @@ ThermalSolver::ThermalSolver(
 
 
 	/// set up the linear form (volumetric fluxes)
-	b.reset(new LinearForm(h_grad_space.get()));
+	bs.reset(new LinearForm(h_grad_space.get()));
 
 	/// add joule heating term
-	b->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
+	bs->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
 	std::cout << "Constructing Boundary Conditions..." << std::endl;
 	/// add iron loss heating terms
-	//b->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
+	//bs->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
 	/// add boundary integrator to bilinear form for flux BC, elsewhere is natural
-	///TODO: Define Boundary Conditions, Make More General, Selectively Apply To Certain Faces
+	///TODO: MOVE TO OPERATOR
 	fluxcoeff.reset(new VectorFunctionCoefficient(3, FluxFunc));
 	auto &bcs = options["bcs"];
     bndry_marker.resize(bcs.size());
@@ -104,7 +102,7 @@ ThermalSolver::ThermalSolver(
         vector<int> tmp = bcs["outflux"].get<vector<int>>();
         bndry_marker[idx].SetSize(tmp.size(), 0);
         bndry_marker[idx].Assign(tmp.data());
-        b->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(*fluxcoeff), bndry_marker[idx]);
+        bs->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(*fluxcoeff), bndry_marker[idx]);
         idx++;
     }
 
@@ -114,13 +112,13 @@ ThermalSolver::ThermalSolver(
 
 	k->FormSystemMatrix(ess_tdof_list, K);
 	std::cout << "Assembling Forcing Term..." << std::endl;
-	b->Assemble();
+	bs->Assemble();
 
 	std::cout << "Setting Up ODE Solver..." << std::endl;
 	/// define ode solver
 	ode_solver = NULL;
  	ode_solver.reset(new ImplicitMidpointSolver);
-	evolver.reset(new ImplicitLinearEvolver(M, K, *b, *out));
+	evolver.reset(new ConductionEvolver(M, K, *bs, *out));
 }
 
 void ThermalSolver::solveUnsteady()
@@ -131,24 +129,24 @@ void ThermalSolver::solveUnsteady()
 
 	if(!setInit)
 	{
-		FunctionCoefficient phi_0(InitialTemperature);
-    	phi->ProjectCoefficient(phi_0);
+		FunctionCoefficient theta_0(InitialTemperature);
+    	theta->ProjectCoefficient(theta_0);
 	}
 
     Vector u;
-    phi->GetTrueDofs(u);
+    theta->GetTrueDofs(u);
 
 	int precision = 8;
     {
         ofstream osol("motor_heat_init.gf");
         osol.precision(precision);
-        phi->Save(osol);
+        theta->Save(osol);
     }
 	{
         ofstream sol_ofs("motor_heat_init.vtk");
         sol_ofs.precision(14);
         mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-        phi->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+        theta->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
         sol_ofs.close();
     }
 
@@ -169,11 +167,11 @@ void ThermalSolver::solveUnsteady()
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
       	}
 #ifdef MFEM_USE_MPI
-	    HypreParVector *TV = phi->GetTrueDofs();
+	    HypreParVector *TV = theta->GetTrueDofs();
 	    ode_solver->Step(*TV, t, dt_real);
-	    *phi = *TV;
+	    *theta = *TV;
 #else
-      	ode_solver->Step(*phi, t, dt_real);
+      	ode_solver->Step(*theta, t, dt_real);
 #endif
       	ti++;
 
@@ -183,13 +181,13 @@ void ThermalSolver::solveUnsteady()
     {
         ofstream osol("motor_heat.gf");
         osol.precision(precision);
-        phi->Save(osol);
+        theta->Save(osol);
     }
 	{
         ofstream sol_ofs("motor_heat.vtk");
         sol_ofs.precision(14);
         mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-        phi->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+        theta->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
         sol_ofs.close();
     }
 
@@ -321,8 +319,8 @@ void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
 
 void ThermalSolver::setInitialTemperature(double (*f)(const Vector &))
 {
-	FunctionCoefficient phi_0(f);
-    phi->ProjectCoefficient(phi_0);
+	FunctionCoefficient theta_0(f);
+    theta->ProjectCoefficient(theta_0);
 
 	setInit = true;
 }
@@ -332,7 +330,7 @@ double ThermalSolver::calcL2Error(
 {
    // TODO: need to generalize to parallel
    FunctionCoefficient exsol(u_exact);
-   return phi->ComputeL2Error(exsol);
+   return theta->ComputeL2Error(exsol);
 
 //    double loc_norm = 0.0;
 //    const FiniteElement *fe;
@@ -348,7 +346,7 @@ double ThermalSolver::calcL2Error(
 //          fe = fes->GetFE(i);
 //          const IntegrationRule *ir = &(fe->GetNodes());
 //          T = fes->GetElementTransformation(i);
-//          phi->GetValues(*T, *ir, vals);
+//          theta->GetValues(*T, *ir, vals);
 //          exsol.Eval(exact_vals, *T, *ir);
 //          vals -= exact_vals;
 //          loc_errs.SetSize(vals.Width());
@@ -369,7 +367,7 @@ double ThermalSolver::calcL2Error(
 //          fe = fes->GetFE(i);
 //          const IntegrationRule *ir = &(fe->GetNodes());
 //          T = fes->GetElementTransformation(i);
-//          phi->GetValues(*T, *ir, vals);
+//          theta->GetValues(*T, *ir, vals);
 //          exsol.Eval(exact_vals, *T, *ir);
 //          vals -= exact_vals;
 //          loc_errs.SetSize(vals.Width());

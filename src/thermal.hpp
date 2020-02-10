@@ -5,6 +5,7 @@
 #include "adept.h"
 
 #include "solver.hpp"
+#include "evolver.hpp"
 #include "coefficient.hpp"
 #include "therm_integ.hpp"
 
@@ -42,10 +43,8 @@ private:
    /// H(grad) finite element space
    std::unique_ptr<SpaceType> h_grad_space;
 
-   /// Temperature phi grid function and derivative
-   std::unique_ptr<GridFunType> phi;
-   std::unique_ptr<GridFunType> dTdt;
-   std::unique_ptr<GridFunType> rhs;
+   /// Temperature theta grid function
+   std::unique_ptr<GridFunType> theta;
 
    mfem::HypreParMatrix M;
    mfem::HypreParMatrix K;
@@ -80,8 +79,8 @@ private:
    /// the bilinear forms, mass m, stiffness k
    std::unique_ptr<BilinearFormType> m;
    std::unique_ptr<BilinearFormType> k;
-   /// the linear form
-   std::unique_ptr<mfem::LinearForm> b;
+   /// the source term linear form
+   std::unique_ptr<mfem::LinearForm> bs;
 
    /// time marching method
    std::unique_ptr<mfem::ODESolver> ode_solver;
@@ -126,7 +125,7 @@ private:
    /// for calls of mult
    void Mult(const mfem::Vector &X, mfem::Vector &dXdt);
 
-   /// compute outward flux at boundary, for 
+   /// compute outward flux at boundary
    static void FluxFunc(const mfem::Vector &x, mfem::Vector &y );
 
    /// initial temperature
@@ -140,6 +139,23 @@ private:
 
    /// work vector
    mutable mfem::Vector z;
+};
+
+class ConductionEvolver : public ImplicitLinearEvolver
+{
+   /// class constructor, inherited from base (will this work?)
+   using ImplicitLinearEvolver::ImplicitLinearEvolver;
+
+public:
+   
+   /// set updated parameters at time step, specifically boundary conditions
+   void UpdateParameters();
+
+private:
+
+   /// compute outward flux at boundary
+   //static void FluxFunc(const mfem::Vector &x, mfem::Vector &y);
+
 };
 
 } // namespace mach

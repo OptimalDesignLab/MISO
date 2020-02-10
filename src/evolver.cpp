@@ -69,7 +69,7 @@ ImplicitLinearEvolver::ImplicitLinearEvolver(MatrixType &m,
                                             MatrixType &k, 
                                             LinearForm &b,
                                             std::ostream &outstream)
-   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), force(b), z(m.Height())
+   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), force(b), z(m.Height()), rhs(force)
 {
    // t = m + dt*k
 
@@ -87,21 +87,24 @@ ImplicitLinearEvolver::ImplicitLinearEvolver(MatrixType &m,
    t_solver->iterative_mode = false;
    t_solver->SetRelTol(1e-8);//options["lin-solver"]["rel-tol"].get<double>());
    t_solver->SetAbsTol(0.0);//options["lin-solver"]["abs-tol"].get<double>());
-   t_solver->SetMaxIter(100);//options["lin-solver"]["max-iter"].get<int>());
+   t_solver->SetMaxIter(500);//options["lin-solver"]["max-iter"].get<int>());
    t_solver->SetPrintLevel(1);//options["lin-solver"]["print-lvl"].get<int>());
    t_solver->SetPreconditioner(*t_prec);
+
+   // if no other integrators are added, use this
+   rhs = force;
 }
 
 void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
 {
-   // if (!T)
+   // if (T == NULL)
    // {
       T = Add(1.0, mass, dt, stiff);
       t_solver->SetOperator(*T);
    //}
    stiff.Mult(x, z);
    z.Neg();  
-   z.Add(-1, force);
+   z.Add(-1, rhs);
    t_solver->Mult(z, k); 
    T = NULL;
 }

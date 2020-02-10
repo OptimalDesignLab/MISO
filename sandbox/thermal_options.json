@@ -1,7 +1,7 @@
 {
     "mesh": {
        "file": "initial.mesh",
-       "num-edge": 10
+       "num-edge": 20
     },
     "space-dis": {
        "basis-type": "H1",
@@ -12,10 +12,10 @@
         "const-cfl": true,
         "cfl": 1.0,
         "dt": 0.02,
-        "t-final": 1.0
+        "t-final": 0.06
     },
     "lin-solver": {
-       "print-lvl": 0,
+       "print-lvl": 1,
        "max-iter": 500
     },
     "current": 1,

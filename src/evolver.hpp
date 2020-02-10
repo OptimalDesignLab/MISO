@@ -98,8 +98,10 @@ private:
    MatrixType &mass;
    /// stiffness matrix represented as a sparse matrix
    MatrixType &stiff;
-   /// linear form
+   /// linear form (time independent)
    mfem::LinearForm &force;
+   /// linear form (w/ time dependent terms if present)
+   mfem::LinearForm &rhs;
    /// time operator represented as a matrix
    mfem::HypreParMatrix *T;
    /// preconditioner for implicit system
