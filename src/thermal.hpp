@@ -70,9 +70,6 @@ private:
    /// mesh dependent 
    std::unique_ptr<MeshDependentCoefficient> sigmainv;
 
-   /// natural bc coefficient
-   std::unique_ptr<mfem::VectorCoefficient> fluxcoeff;
-
    /// essential boundary condition marker array (not using )
    std::unique_ptr<mfem::Coefficient> bc_coef;
 
@@ -86,16 +83,12 @@ private:
    std::unique_ptr<mfem::ODESolver> ode_solver;
 
    /// time dependent operator
-   std::unique_ptr<mfem::TimeDependentOperator> evolver;
-
-   /// boundary condition marker array
-   std::vector<mfem::Array<int>> bndry_marker;
+   std::unique_ptr<ImplicitLinearEvolver> evolver;
 
    /// material Library
    nlohmann::json materials;
 
    /// static variables for use in static member functions
-   static double outflux;
    static double temp_0;
 
    /// check if initial conditions are set
@@ -143,19 +136,35 @@ private:
 
 class ConductionEvolver : public ImplicitLinearEvolver
 {
-   /// class constructor, inherited from base (will this work?)
-   using ImplicitLinearEvolver::ImplicitLinearEvolver;
-
 public:
-   
+   ConductionEvolver(const std::string &opt_file_name, 
+                     MatrixType &m, MatrixType &k, 
+                     std::unique_ptr<mfem::LinearForm> b, 
+                     std::ostream &outstream);
+
    /// set updated parameters at time step, specifically boundary conditions
-   void UpdateParameters();
+   void updateParameters();
+
+   /// set static member values
+   void setStaticMembers();
 
 private:
-
    /// compute outward flux at boundary
-   //static void FluxFunc(const mfem::Vector &x, mfem::Vector &y);
+   static void fluxFunc(const mfem::Vector &x, double time, mfem::Vector &y);
+   
+   /// static variables for use in static member functions
+   static double outflux;
 
+   /// the natural boundary linear form
+   std::unique_ptr<mfem::LinearForm> bb;
+
+   /// natural bc coefficient
+   std::unique_ptr<mfem::VectorCoefficient> fluxcoeff;
+   
+   /// boundary condition marker array
+   std::vector<mfem::Array<int>> bndry_marker;
+
+   mfem::Vector zero;
 };
 
 } // namespace mach

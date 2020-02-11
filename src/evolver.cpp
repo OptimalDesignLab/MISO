@@ -1,6 +1,8 @@
 #include "evolver.hpp"
 #include "utils.hpp"
 
+#include <fstream>
+
 using namespace mfem;
 using namespace std;
 
@@ -65,13 +67,21 @@ void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
    y *= alpha;
 }
 
-ImplicitLinearEvolver::ImplicitLinearEvolver(MatrixType &m,
-                                            MatrixType &k, 
-                                            LinearForm &b,
-                                            std::ostream &outstream)
-   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), force(b), z(m.Height()), rhs(force)
+ImplicitLinearEvolver::ImplicitLinearEvolver(const std::string &opt_file_name,
+                                             MatrixType &m,
+                                             MatrixType &k, 
+                                             std::unique_ptr<LinearForm> b,
+                                             std::ostream &outstream)
+   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), 
+                                             force(move(b)), z(m.Height())
 {
    // t = m + dt*k
+
+   // get options
+   nlohmann::json file_options;
+   ifstream opts(opt_file_name);
+   opts >> file_options;
+   options.merge_patch(file_options);
 
 	std::cout << "Setting Up Linear Solver..." << std::endl;
    t_prec.reset(new HypreSmoother());
@@ -90,9 +100,6 @@ ImplicitLinearEvolver::ImplicitLinearEvolver(MatrixType &m,
    t_solver->SetMaxIter(500);//options["lin-solver"]["max-iter"].get<int>());
    t_solver->SetPrintLevel(1);//options["lin-solver"]["print-lvl"].get<int>());
    t_solver->SetPreconditioner(*t_prec);
-
-   // if no other integrators are added, use this
-   rhs = force;
 }
 
 void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
@@ -104,7 +111,7 @@ void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vect
    //}
    stiff.Mult(x, z);
    z.Neg();  
-   z.Add(-1, rhs);
+   z.Add(-1, *rhs);
    t_solver->Mult(z, k); 
    T = NULL;
 }

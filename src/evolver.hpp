@@ -3,6 +3,7 @@
 
 #include "mfem.hpp"
 #include "mach_types.hpp"
+#include "json.hpp"
 
 namespace mach
 {
@@ -81,15 +82,27 @@ public:
    /// \param[in] m - mass matrix
    /// \param[in] k - stiffness matrix
    /// \param[in] outstream - for output
-   ImplicitLinearEvolver(MatrixType &m, MatrixType &k, mfem::LinearForm &b, std::ostream &outstream);
+   ImplicitLinearEvolver(const std::string &opt_file_name, MatrixType &m, 
+                        MatrixType &k, std::unique_ptr<mfem::LinearForm> b, std::ostream &outstream);
 
    /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
    /// Currently implemented for the implicit midpoint method
    virtual void ImplicitSolve(const double dt, const mfem::Vector &x,
                               mfem::Vector &k);
 
+   /// Implement updates to time dependent terms
+   virtual void updateParameters() { }
+
    /// Class destructor
    virtual ~ImplicitLinearEvolver() { }
+
+protected:
+   /// input options
+   nlohmann::json options;
+   /// linear form (time independent)
+   std::unique_ptr<mfem::LinearForm> force;
+   /// linear form (w/ time dependent terms if present)
+   std::unique_ptr<mfem::LinearForm> rhs;
 
 private:
    /// used to print information
@@ -98,10 +111,6 @@ private:
    MatrixType &mass;
    /// stiffness matrix represented as a sparse matrix
    MatrixType &stiff;
-   /// linear form (time independent)
-   mfem::LinearForm &force;
-   /// linear form (w/ time dependent terms if present)
-   mfem::LinearForm &rhs;
    /// time operator represented as a matrix
    mfem::HypreParMatrix *T;
    /// preconditioner for implicit system

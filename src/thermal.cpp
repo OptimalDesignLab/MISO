@@ -26,7 +26,7 @@ ThermalSolver::ThermalSolver(
 	/// Create the H(Grad) finite element space
 	h_grad_space.reset(new SpaceType(mesh.get(), h_grad_coll.get()));
 
-	/// Create MVP grid function
+	/// Create temperature grid function
 	theta.reset(new GridFunType(h_grad_space.get()));
 
 	/// Set static variables
@@ -91,20 +91,6 @@ ThermalSolver::ThermalSolver(
 	/// add iron loss heating terms
 	//bs->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
 
-	/// add boundary integrator to bilinear form for flux BC, elsewhere is natural
-	///TODO: MOVE TO OPERATOR
-	fluxcoeff.reset(new VectorFunctionCoefficient(3, FluxFunc));
-	auto &bcs = options["bcs"];
-    bndry_marker.resize(bcs.size());
-	int idx = 0;
-	if (bcs.find("outflux") != bcs.end())
-    { // outward flux bc
-        vector<int> tmp = bcs["outflux"].get<vector<int>>();
-        bndry_marker[idx].SetSize(tmp.size(), 0);
-        bndry_marker[idx].Assign(tmp.data());
-        bs->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(*fluxcoeff), bndry_marker[idx]);
-        idx++;
-    }
 
 	std::cout << "Assembling Stiffness Matrix..." << std::endl;
 	/// assemble stiffness matrix and linear form
@@ -118,7 +104,8 @@ ThermalSolver::ThermalSolver(
 	/// define ode solver
 	ode_solver = NULL;
  	ode_solver.reset(new ImplicitMidpointSolver);
-	evolver.reset(new ConductionEvolver(M, K, *bs, *out));
+	evolver.reset(new ConductionEvolver(opt_file_name, M, 
+										K, move(bs), *out));
 }
 
 void ThermalSolver::solveUnsteady()
@@ -173,6 +160,8 @@ void ThermalSolver::solveUnsteady()
 #else
       	ode_solver->Step(*theta, t, dt_real);
 #endif
+		evolver->updateParameters();
+
       	ti++;
 
       	done = (t >= t_final - 1e-8 * dt);
@@ -195,7 +184,7 @@ void ThermalSolver::solveUnsteady()
 
 void ThermalSolver::setStaticMembers()
 {
-	outflux = options["bcs"]["const-val"].get<double>();
+	
     temp_0 = options["init-temp"].get<double>();
 }
 
@@ -294,29 +283,6 @@ void ThermalSolver::constructJoule()
 	}
 }
 
-void ThermalSolver::FluxFunc(const Vector &x, Vector &y )
-{
-	y.SetSize(3);
-	//use constant in time for now
-
-	//assuming centered coordinate system, will offset
-	double th;// = atan(x(1)/x(0));
-
-	if (x(2) > .5)
-	{
-		th = 1;
-	}
-	else
-	{
-		th = -1;
-	}
-
-	y(0) = 0;
-	y(1) = 0;
-	y(2) = th*outflux;
-	
-}
-
 void ThermalSolver::setInitialTemperature(double (*f)(const Vector &))
 {
 	FunctionCoefficient theta_0(f);
@@ -399,7 +365,75 @@ double ThermalSolver::InitialTemperature(const Vector &x)
 }
 
 double ThermalSolver::temp_0 = 0.0;
-double ThermalSolver::outflux = 0.0;
+
+ConductionEvolver::ConductionEvolver(const std::string &opt_file_name, 
+									MatrixType &m, 
+									MatrixType &k, 
+									std::unique_ptr<mfem::LinearForm> b, 
+									std::ostream &outstream)
+	: ImplicitLinearEvolver(opt_file_name, m, k, move(b), outstream), zero(m.Height())
+{
+	/// set static members
+	setStaticMembers();
+
+	/// set initial boundary state	
+	updateParameters();
+}
+
+void ConductionEvolver::setStaticMembers()
+{
+	outflux = options["bcs"]["const-val"].get<double>();
+}
+
+void ConductionEvolver::updateParameters()
+{
+	bb.reset(new LinearForm(force->FESpace()));
+	rhs.reset(new LinearForm(force->FESpace()));
+
+	/// add boundary integrator to linear form for flux BC, elsewhere is natural 0
+	fluxcoeff.reset(new VectorFunctionCoefficient(3, fluxFunc));
+	fluxcoeff->SetTime(t);
+	auto &bcs = options["bcs"];
+    bndry_marker.resize(bcs.size());
+	int idx = 0;
+	if (bcs.find("outflux") != bcs.end())
+    { // outward flux bc
+        vector<int> tmp = bcs["outflux"].get<vector<int>>();
+        bndry_marker[idx].SetSize(tmp.size(), 0);
+        bndry_marker[idx].Assign(tmp.data());
+        bb->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(*fluxcoeff), bndry_marker[idx]);
+        idx++;
+    }
+	bb->Assemble();
+
+	rhs->SetData(*force);
+	rhs->Add(1, *bb);
+}
+
+void ConductionEvolver::fluxFunc(const Vector &x, double time, Vector &y)
+{
+	y.SetSize(3);
+	//use constant in time for now
+
+	//assuming centered coordinate system, will offset
+	double th;// = atan(x(1)/x(0));
+
+	// if (x(2) > .5)
+	// {
+	// 	th = 1;
+	// }
+	// else
+	// {
+	// 	th = -1;
+	// }
+
+	y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
+	y(1) = 0;
+	y(2) = 0;
+	
+}
+
+double ConductionEvolver::outflux = 0.0;
 
 } // namespace mach
 
