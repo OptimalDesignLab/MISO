@@ -115,6 +115,38 @@ void AbstractSolver<dim>::initDerived()
    // set up the spatial semi-linear form
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
+   if(0 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(1 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(2 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(3 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
    // Add integrators; this can be simplified if we template the entire class
    this->addVolumeIntegrators(alpha);
    auto &bcs = options["bcs"];
