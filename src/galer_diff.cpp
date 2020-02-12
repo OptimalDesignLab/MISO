@@ -217,6 +217,8 @@ void GalerkinDifference::GetElementCenter(int id, mfem::Vector &cent) const
 
 void GalerkinDifference::BuildGDProlongation() const
 {
+   const FiniteElement *fe = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+   const int num_dofs = fe->GetDof();
    // allocate the space for the prolongation matrix
    // this step should be done in the constructor (probably)
    // should it be GetTrueVSize() ? or GetVSize()?
@@ -240,7 +242,7 @@ void GalerkinDifference::BuildGDProlongation() const
    mfem::Array<int> elmt_id;
    mfem::DenseMatrix cent_mat, quad_mat, local_mat;
    cout << "The size of the prolongation matrix is " << cP->Height() << " x " << cP->Width() << '\n';
-   for(int i = 0; i < nEle; i++)
+   for (int i = 0; i < nEle; i++)
    {
       cout << "Element " << i << ":\n";
       // 1. construct the patch the patch
@@ -259,7 +261,7 @@ void GalerkinDifference::BuildGDProlongation() const
       // cout << endl;
 
       // 3. buil the loacl reconstruction matrix
-      buildInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
+      buildInterpolation(dim, degree, num_dofs, cent_mat, quad_mat, local_mat);
       // cout << "Local reconstruction matrix R:\n";
       // local_mat.Print(cout, local_mat.Width());
 
@@ -306,14 +308,14 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
    Array<Array<int>> dofs_mat(vdim);
 
    // Get the local basis for certain element
-   DenseMatrix el_mat(num_dofs, nel);
-   for (int c = 0; c < nel; c++)
-   {
-      for (int r = 0; r < num_dofs; r++)
-      {
-         el_mat(r,c) = local_mat(r,c);
-      }
-   }
+   // DenseMatrix el_mat(num_dofs, nel);
+   // for (int c = 0; c < nel; c++)
+   // {
+   //    for (int r = 0; r < num_dofs; r++)
+   //    {
+   //       el_mat(r,c) = local_mat(r,c);
+   //    }
+   // }
    // cout << "Print the element mat:\n";
    // el_mat.Print(cout, nel);
    // Get the id of the element want to assemble in
@@ -322,7 +324,7 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
    cout << "Element dofs indices are: ";
    el_dofs.Print(cout, el_dofs.Size());
    cout << endl;
-   cout << "local mat size is " << el_mat.Height() << ' ' << el_mat.Width() << '\n';
+   //cout << "local mat size is " << el_mat.Height() << ' ' << el_mat.Width() << '\n';
    col_index.SetSize(nel);
    for(int e = 0; e < nel; e++)
    {
@@ -334,7 +336,7 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
       cout << "local mat will be assembled into: ";
       row_index.Print(cout, num_dofs);
       cout << endl;
-      cP->SetSubMatrix(row_index, col_index, el_mat, 1);
+      cP->SetSubMatrix(row_index, col_index, local_mat, 1);
       row_index.LoseData();
       // elements id also need to be shift accordingly
       col_index.SetSize(nel);

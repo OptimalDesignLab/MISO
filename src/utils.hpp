@@ -125,13 +125,16 @@ double bisection(std::function<double(double)> func, double xl, double xr,
                  double ftol, double xtol, int maxiter);
 
 /// build the reconstruction matrix that interpolate the GD dofs to quadrature points
+/// \param[in] dim - the dimemsion of the interpolation function
 /// \param[in] degree - order of reconstructio operator
+/// \param[in] output - the number of basis functions
 /// \param[in] x_cent - coordinates of barycenters
 /// \param[in] x_quad - coordinates of quadrature points
 /// \param[out] interp - interpolation operator
 #ifdef MFEM_USE_LAPACK
-void buildInterpolation(int dim, int degree, const mfem::DenseMatrix &x_center,
-    const mfem::DenseMatrix &x_quad, mfem::DenseMatrix &interp);
+void buildInterpolation(int dim, int degree, int output,
+   const mfem::DenseMatrix &x_center, const mfem::DenseMatrix &x_quad,
+   mfem::DenseMatrix &interp);
 #endif
 
 } // namespace mach

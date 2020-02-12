@@ -106,8 +106,9 @@ dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
 /// build the interpolation operator on element patch
 /// this function will be moved later
 #ifdef MFEM_USE_LAPACK
-void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
-                        const DenseMatrix &x_quad, DenseMatrix &interp)
+void buildInterpolation(int dim, int degree, int output,
+                        const DenseMatrix &x_center, const DenseMatrix &x_quad,
+                        DenseMatrix &interp)
 {
    // number of quadrature points
    int num_quad = x_quad.Width();
@@ -115,7 +116,7 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
    int num_el = x_center.Width();
 
    // number of row and colomn in r matrix
-   int m = (degree + 1) * (degree + 2) / 2; // in 1 and 3D the size will be different
+   int m;
    int n = num_el;
    if (1 == dim)
    {
@@ -131,7 +132,7 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
    }
 
    // Set the size of interpolation operator
-   interp.SetSize(num_quad, num_el);
+   interp.SetSize(output, num_el);
    // required by the lapack routine
    mfem::DenseMatrix rhs(n, 1);
    char TRANS = 'N';
@@ -140,7 +141,7 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
    double work[lwork];
 
    // construct each row of R (also loop over each quadrature point)
-   for (int i = 0; i < num_quad; i++)
+   for (int i = 0; i < output; i++)
    {
       // reset the rhs
       rhs = 0.0;
