@@ -1,6 +1,6 @@
 #include <memory>
 
-#include "../../common/sbp_fe.hpp"
+#include "sbp_fe.hpp"
 #include "euler.hpp"
 //#include "euler_fluxes.hpp"
 #include "euler_integ.hpp"

@@ -3,7 +3,7 @@
 
 #include "mfem.hpp"
 
-#include "../physics/solver.hpp"
+#include "solver.hpp"
 
 using namespace mach;
 

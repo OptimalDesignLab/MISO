@@ -1,5 +1,5 @@
 #include "evolver.hpp"
-#include "../utils/utils.hpp"
+#include "utils.hpp"
 
 using namespace mfem;
 using namespace std;

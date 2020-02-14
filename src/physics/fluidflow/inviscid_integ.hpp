@@ -3,8 +3,8 @@
 
 #include "mfem.hpp"
 
-#include "../../common/sbp_fe.hpp" // needed in inviscid_integ_def.hpp 
-#include "../solver.hpp"
+#include "sbp_fe.hpp" // needed in inviscid_integ_def.hpp 
+#include "solver.hpp"
 
 namespace mach
 {

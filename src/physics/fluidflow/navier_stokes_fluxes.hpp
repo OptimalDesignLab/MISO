@@ -4,7 +4,7 @@
 
 #include <algorithm> // std::max
 
-#include "../../utils/utils.hpp"
+#include "utils.hpp"
 #include "euler_fluxes.hpp"
 
 namespace mach

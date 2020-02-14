@@ -1,6 +1,6 @@
-#include "../../common/evolver.hpp"
-#include "../../common/sbp_fe.hpp"
-#include "../diag_mass_integ.hpp"
+#include "evolver.hpp"
+#include "sbp_fe.hpp"
+#include "diag_mass_integ.hpp"
 #include "advection.hpp"
 
 using namespace mfem;

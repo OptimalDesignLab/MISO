@@ -20,3 +20,9 @@ target_sources(mach
       viscous_integ_def.hpp
       viscous_integ.hpp
 )
+
+target_include_directories(mach
+   PUBLIC
+      "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+

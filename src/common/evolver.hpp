@@ -3,7 +3,7 @@
 
 #include "mfem.hpp"
 
-#include "../utils/mach_types.hpp"
+#include "mach_types.hpp"
 #include "inexact_newton.hpp"
 
 namespace mach

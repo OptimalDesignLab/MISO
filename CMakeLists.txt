@@ -17,6 +17,7 @@ set(CMAKE_MODULE_PATH
 find_package(Adept MODULE REQUIRED)
 find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 
+# if MFEM was compiled with PUMI, we need to find it so we can 
 if (MFEM_USE_PUMI)
    # If PUMI_DIR was specified, only link to that directory,
    # i.e. don't link to another installation in /usr/lib by mistake
@@ -35,14 +36,19 @@ if (MFEM_USE_MPI)
    find_package(MPI REQUIRED)
 endif (MFEM_USE_MPI)
 
+# Try to find OpenMP (used by Adept)
+find_package(OpenMP)
+
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
+
 target_sources(mach
    PUBLIC
 
    PRIVATE
       mach.hpp
 )
+
 # Use CMakeLists.txt files in subdirectories to add sources to mach
 add_subdirectory(src)
 
@@ -52,6 +58,13 @@ target_link_libraries(mach
       "${MFEM_LIBRARIES}"
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
 )
+
+# if OpenMP found on system, link to it
+if(OpenMP_CXX_FOUND)
+   target_link_libraries(mach
+      PUBLIC
+         OpenMP::OpenMP_CXX)
+endif()
 
 target_include_directories(mach
    PUBLIC
@@ -71,11 +84,16 @@ set_target_properties(mach
       POSITION_INDEPENDENT_CODE ON
 )
 
+set(DEBUG_OPTIONS "-g")
+set(RELEASE_OPTIONS "-O2")
+
 target_compile_options(mach
    PRIVATE 
       -Wall 
-      -Wextra
+      # -Wextra
       # -Werror
+      "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
+      "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
 )
 
 install(TARGETS mach
@@ -99,6 +117,18 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif ()
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
-   message("Add tests")
-   add_subdirectory(test)
+   # `make test` only runs the tests by default, doesn't build them
+   # work around to use `make tests` to build and run the tests
+   add_custom_target(build_tests)
+   # 'tests' triggers 'ctest'.
+   add_custom_target(tests COMMAND ${CMAKE_CTEST_COMMAND})
+   # tests' implies 'build_tests'
+   add_dependencies(tests build_tests)
+   add_subdirectory(test EXCLUDE_FROM_ALL)
 endif ()
+
+# TODO: This doesn't really work...I used MFEM's approach but should look at scorec's
+# add documentation subdirectory
+# creates custom target `doc' to build the doxygen documentation
+add_subdirectory(doc)
+
