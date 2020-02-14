@@ -126,14 +126,14 @@ int main(int argc, char *argv[])
 
 double InitialTemperature(const Vector &x)
 {
-   return cos(M_PI*x(0));
+   //return cos(M_PI*x(0));
 
-   //return sin(M_PI*x(0)/2);
+   return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
 }
 
 double ExactSolution(const Vector &x)
 {
-   return cos(M_PI*x(0))*exp(-M_PI*M_PI*t_final);
+   //return cos(M_PI*x(0))*exp(-M_PI*M_PI*t_final);
 
-   //return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4);
+   return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
 }

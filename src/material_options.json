@@ -154,7 +154,7 @@
         "cv" : 1,
         "kappa" : 1,
         "kappae" : 1,
-        "sigma" : 1,
-        "conductor" : false
+        "sigma" : -1,
+        "conductor" : true
 	}
 }

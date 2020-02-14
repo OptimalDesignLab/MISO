@@ -37,6 +37,7 @@ public:
 
 private:
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
+   std::ofstream sol_ofs;
 
    /// H(grad) finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> h_grad_coll;
@@ -45,6 +46,9 @@ private:
 
    /// Temperature theta grid function
    std::unique_ptr<GridFunType> theta;
+
+   /// Use for exact solution
+   std::unique_ptr<GridFunType> th_exact;
 
    mfem::HypreParMatrix M;
    mfem::HypreParMatrix K;
@@ -66,6 +70,9 @@ private:
 
    /// mesh dependent i^2(1/sigma) term (purely scalar)
    std::unique_ptr<MeshDependentCoefficient> i2sigmainv;
+
+   /// mesh dependent core losses term
+   std::unique_ptr<MeshDependentCoefficient> coreloss;
 
    /// mesh dependent 
    std::unique_ptr<MeshDependentCoefficient> sigmainv;

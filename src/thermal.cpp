@@ -13,7 +13,7 @@ ThermalSolver::ThermalSolver(
 	 const std::string &opt_file_name,
     std::unique_ptr<mfem::Mesh> smesh,
 	 int dim)
-	: AbstractSolver(opt_file_name, move(smesh))
+	: AbstractSolver(opt_file_name, move(smesh)), sol_ofs("motor_heat.vtk")
 {
 	setInit = false;
 
@@ -28,6 +28,7 @@ ThermalSolver::ThermalSolver(
 
 	/// Create temperature grid function
 	theta.reset(new GridFunType(h_grad_space.get()));
+	th_exact.reset(new GridFunType(h_grad_space.get()));
 
 	/// Set static variables
 	setStaticMembers();
@@ -129,13 +130,13 @@ void ThermalSolver::solveUnsteady()
         osol.precision(precision);
         theta->Save(osol);
     }
-	{
-        ofstream sol_ofs("motor_heat_init.vtk");
-        sol_ofs.precision(14);
-        mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-        theta->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-        sol_ofs.close();
-    }
+	// {
+    //     ofstream sol_ofs("motor_heat_init.vtk");
+    //     sol_ofs.precision(14);
+    //     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+    //     theta->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+    //     sol_ofs.close();
+    // }
 
 	bool done = false;
     double t_final = options["time-dis"]["t-final"].get<double>();
@@ -172,13 +173,13 @@ void ThermalSolver::solveUnsteady()
         osol.precision(precision);
         theta->Save(osol);
     }
-	{
-        ofstream sol_ofs("motor_heat.vtk");
+	
+        
         sol_ofs.precision(14);
         mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
         theta->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-        sol_ofs.close();
-    }
+        
+    
 
 }
 
@@ -283,6 +284,28 @@ void ThermalSolver::constructJoule()
 	}
 }
 
+#if 0
+void ThermalSolver::constructCore()
+{
+	coreloss.reset(new MeshDependentCoefficient());
+
+	for (auto& component : options["components"])
+	{
+		std::unique_ptr<mfem::Coefficient> i2sigmainv_coeff;
+		std::string material = component["material"].template get<std::string>();
+		std::cout << material << '\n';
+		if(materials[material]["core"].template get<bool>())
+		{
+			auto sigma = materials[material]["sigma"].template get<double>();
+			auto current = options["current"].template get<double>();
+			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
+			i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(i2sigmainv_coeff));
+		}
+		
+	}
+}
+#endif
+
 void ThermalSolver::setInitialTemperature(double (*f)(const Vector &))
 {
 	FunctionCoefficient theta_0(f);
@@ -294,69 +317,16 @@ void ThermalSolver::setInitialTemperature(double (*f)(const Vector &))
 double ThermalSolver::calcL2Error(
     double (*u_exact)(const Vector &), int entry)
 {
-   // TODO: need to generalize to parallel
-   FunctionCoefficient exsol(u_exact);
-   return theta->ComputeL2Error(exsol);
+    // TODO: need to generalize to parallel
+    FunctionCoefficient exsol(u_exact);
+	th_exact->ProjectCoefficient(exsol);
 
-//    double loc_norm = 0.0;
-//    const FiniteElement *fe;
-//    ElementTransformation *T;
-//    DenseMatrix vals, exact_vals;
-//    Vector loc_errs;
+	
+        sol_ofs.precision(14);
+        th_exact->SaveVTK(sol_ofs, "Analytic", options["space-dis"]["degree"].get<int>() + 1);
+		sol_ofs.close();
 
-//    if (entry < 0)
-//    {
-//       // sum up the L2 error over all states
-//       for (int i = 0; i < fes->GetNE(); i++)
-//       {
-//          fe = fes->GetFE(i);
-//          const IntegrationRule *ir = &(fe->GetNodes());
-//          T = fes->GetElementTransformation(i);
-//          theta->GetValues(*T, *ir, vals);
-//          exsol.Eval(exact_vals, *T, *ir);
-//          vals -= exact_vals;
-//          loc_errs.SetSize(vals.Width());
-//          vals.Norm2(loc_errs);
-//          for (int j = 0; j < ir->GetNPoints(); j++)
-//          {
-//             const IntegrationPoint &ip = ir->IntPoint(j);
-//             T->SetIntPoint(&ip);
-//             loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
-//          }
-//       }
-//    }
-//    else
-//    {
-//       // calculate the L2 error for component index `entry`
-//       for (int i = 0; i < fes->GetNE(); i++)
-//       {
-//          fe = fes->GetFE(i);
-//          const IntegrationRule *ir = &(fe->GetNodes());
-//          T = fes->GetElementTransformation(i);
-//          theta->GetValues(*T, *ir, vals);
-//          exsol.Eval(exact_vals, *T, *ir);
-//          vals -= exact_vals;
-//          loc_errs.SetSize(vals.Width());
-//          vals.GetRow(entry, loc_errs);
-//          for (int j = 0; j < ir->GetNPoints(); j++)
-//          {
-//             const IntegrationPoint &ip = ir->IntPoint(j);
-//             T->SetIntPoint(&ip);
-//             loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
-//          }
-//       }
-//    }
-//    double norm;
-// #ifdef MFEM_USE_MPI
-//    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-// #else
-//    norm = loc_norm;
-// #endif
-//    if (norm < 0.0) // This was copied from mfem...should not happen for us
-//    {
-//       return -sqrt(-norm);
-//    }
-//    return sqrt(norm);
+    return theta->ComputeL2Error(exsol);
 }
 
 double ThermalSolver::InitialTemperature(const Vector &x)
@@ -406,7 +376,7 @@ void ConductionEvolver::updateParameters()
     }
 	bb->Assemble();
 
-	rhs->SetData(*force);
+	rhs->Set(1, *force);
 	rhs->Add(1, *bb);
 }
 
@@ -418,16 +388,16 @@ void ConductionEvolver::fluxFunc(const Vector &x, double time, Vector &y)
 	//assuming centered coordinate system, will offset
 	double th;// = atan(x(1)/x(0));
 
-	// if (x(2) > .5)
-	// {
-	// 	th = 1;
-	// }
-	// else
-	// {
-	// 	th = -1;
-	// }
+	if (x(0) > .5)
+	{
+		y(0) = 1;
+	}
+	else
+	{
+		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
+		//cout << "outflux val = " << y(0) << std::endl;
+	}
 
-	y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
 	y(1) = 0;
 	y(2) = 0;
 	
