@@ -30,6 +30,11 @@ if (MFEM_USE_PUMI)
    endif (SCOREC_FOUND)
 endif (MFEM_USE_PUMI)
 
+# If MFEM uses MPI find the MPI compilers
+if (MFEM_USE_MPI)
+   find_package(MPI REQUIRED)
+endif (MFEM_USE_MPI)
+
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
 target_sources(mach
