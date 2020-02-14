@@ -95,10 +95,10 @@ ImplicitLinearEvolver::ImplicitLinearEvolver(const std::string &opt_file_name,
 
 
    t_solver->iterative_mode = false;
-   t_solver->SetRelTol(1e-8);//options["lin-solver"]["rel-tol"].get<double>());
-   t_solver->SetAbsTol(0.0);//options["lin-solver"]["abs-tol"].get<double>());
-   t_solver->SetMaxIter(500);//options["lin-solver"]["max-iter"].get<int>());
-   t_solver->SetPrintLevel(1);//options["lin-solver"]["print-lvl"].get<int>());
+   t_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
+   t_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
+   t_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+   t_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
    t_solver->SetPreconditioner(*t_prec);
 }
 
