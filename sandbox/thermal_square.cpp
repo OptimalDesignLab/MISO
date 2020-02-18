@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
       for (int i = 0; i < 4; ++i)
       {
          auto vtx = mesh->GetVertex(verts[i]);
-         if (vtx[1] <= 0.5)
+         if (vtx[0] <= 0.5)
          {
             below = below & true;
          }
@@ -128,12 +128,30 @@ double InitialTemperature(const Vector &x)
 {
    //return cos(M_PI*x(0));
 
-   return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
+   //return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
+
+   if (x(0) <= .5)
+   {
+      return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
+   }
+   else
+   {
+      return sin(M_PI*x(0)/2) + x(0)*x(0)/2 - 1.0/4;
+   }
 }
 
 double ExactSolution(const Vector &x)
 {
    //return cos(M_PI*x(0))*exp(-M_PI*M_PI*t_final);
+   
+   //return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
 
-   return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
+   if (x(0) <= .5)
+   {
+      return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
+   }
+   else
+   {
+      return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) + x(0)*x(0)/2 - 1.0/4;
+   }
 }

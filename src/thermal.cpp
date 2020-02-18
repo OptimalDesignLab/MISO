@@ -15,6 +15,9 @@ ThermalSolver::ThermalSolver(
 	 int dim)
 	: AbstractSolver(opt_file_name, move(smesh)), sol_ofs("motor_heat.vtk")
 {
+	/// check for B field solution?
+	Bfield = nullptr;
+
 	setInit = false;
 
 	mesh->ReorientTetMesh();
@@ -59,7 +62,7 @@ ThermalSolver::ThermalSolver(
      
     constructJoule();
 
-	
+	constructCore();
 
 	std::cout << "Defining Finite Element Spaces..." << std::endl;
 	/// set essential BCs (none)
@@ -90,7 +93,7 @@ ThermalSolver::ThermalSolver(
 	bs->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
 	std::cout << "Constructing Boundary Conditions..." << std::endl;
 	/// add iron loss heating terms
-	//bs->AddDomainIntegrator(new IronLossIntegrator(rho_cv.get()));
+	bs->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
 
 
 	std::cout << "Assembling Stiffness Matrix..." << std::endl;
@@ -276,7 +279,7 @@ void ThermalSolver::constructJoule()
 		if(materials[material]["conductor"].template get<bool>())
 		{
 			auto sigma = materials[material]["sigma"].template get<double>();
-			auto current = options["current"].template get<double>();
+			auto current = options["motor-opts"]["current"].template get<double>();
 			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
 			i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(i2sigmainv_coeff));
 		}
@@ -284,27 +287,34 @@ void ThermalSolver::constructJoule()
 	}
 }
 
-#if 0
 void ThermalSolver::constructCore()
 {
 	coreloss.reset(new MeshDependentCoefficient());
 
 	for (auto& component : options["components"])
 	{
-		std::unique_ptr<mfem::Coefficient> i2sigmainv_coeff;
+		std::unique_ptr<mfem::Coefficient> coreloss_coeff;
 		std::string material = component["material"].template get<std::string>();
 		std::cout << material << '\n';
 		if(materials[material]["core"].template get<bool>())
 		{
-			auto sigma = materials[material]["sigma"].template get<double>();
-			auto current = options["current"].template get<double>();
-			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
-			i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(i2sigmainv_coeff));
+			auto rho_val = materials[material]["rho"].template get<double>(); 
+			auto alpha = materials[material]["alpha"].template get<double>(); 
+			auto freq = options["motor-opts"]["frequency"].template get<double>();
+			auto kh = materials[material]["kh"].template get<double>(); 
+			auto ke = materials[material]["ke"].template get<double>(); 
+			Bmax = 0;
+			if(Bfield == nullptr)
+			{
+				Bmax = 2.5; ///TODO: OBTAIN FROM MAGNETOSTATIC SOLVER
+			}
+			double loss = rho_val*(kh*freq*pow(Bmax, alpha) + ke*freq*freq*Bmax*Bmax);
+			coreloss_coeff.reset(new ConstantCoefficient(loss));
+			i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(coreloss_coeff));
 		}
 		
 	}
 }
-#endif
 
 void ThermalSolver::setInitialTemperature(double (*f)(const Vector &))
 {
@@ -390,7 +400,7 @@ void ConductionEvolver::fluxFunc(const Vector &x, double time, Vector &y)
 
 	if (x(0) > .5)
 	{
-		y(0) = 1;
+		y(0) = -1;
 	}
 	else
 	{

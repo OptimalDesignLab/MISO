@@ -47,14 +47,15 @@ private:
    /// Temperature theta grid function
    std::unique_ptr<GridFunType> theta;
 
+   /// Magnetic flux density B grid function;
+   std::unique_ptr<GridFunType> Bfield; //needed?
+
    /// Use for exact solution
    std::unique_ptr<GridFunType> th_exact;
 
    mfem::HypreParMatrix M;
    mfem::HypreParMatrix K;
-   //mfem::HypreParMatrix *T;
    mfem::Vector B;
-
 
    /// mesh dependent density coefficient
    std::unique_ptr<MeshDependentCoefficient> rho;
@@ -98,6 +99,9 @@ private:
    /// static variables for use in static member functions
    static double temp_0;
 
+   /// maximum magnetic flux density aka "amplitude"
+   double Bmax;
+
    /// check if initial conditions are set
    bool setInit;
 
@@ -113,14 +117,14 @@ private:
    /// construct mesh dependent coefficient for density and specific heat
    void constructMassCoeff();
 
-   /// construct vector mesh dependent coefficient for conductivity
+   /// construct mesh dependent coefficient for conductivity
    void constructConductivity();
      
-   /// construct vector mesh dependent coefficient for joule heating
+   /// construct mesh dependent coefficient for joule heating
    void constructJoule();
 
-   /// set up solver for every time step
-   //void setupSolver(const int idt, const double dt) const;
+   /// construct mesh dependent coefficient for core loss heating
+   void constructCore();
 
    /// for calls of mult
    void Mult(const mfem::Vector &X, mfem::Vector &dXdt);
@@ -130,9 +134,6 @@ private:
 
    /// initial temperature
    static double InitialTemperature(const mfem::Vector &x);
-
-   /// implementation of ImplicitSolve
-   //virtual void ImplicitSolve(const double dt, const mfem::Vector &x, mfem::Vector &k);
 
    /// implementation of solveUnsteady
    virtual void solveUnsteady();

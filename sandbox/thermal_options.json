@@ -5,14 +5,14 @@
     },
     "space-dis": {
        "basis-type": "H1",
-       "degree": 1
+       "degree": 2
     },
     "steady": false,
     "time-dis": {
         "const-cfl": true,
         "cfl": 1.0,
-        "dt": 0.0001,
-        "t-final": 0.2
+        "dt": 0.001,
+        "t-final": 0.4
     },
     "lin-solver": {
        "rel-tol": 1e-8,
@@ -20,14 +20,17 @@
        "print-lvl": 0,
        "max-iter": 500
     },
-    "current": 1,
+    "motor-opts" : {
+       "current": 1,
+       "frequency": 1500
+    },
     "components": {
        "stator": {
           "material": "testmat",
           "attr": 1
        },
        "rotor": {
-          "material": "testmat",
+          "material": "testmat2",
           "attr": 2
        }
     },
