@@ -6,6 +6,7 @@
 using namespace std;
 using namespace mach;
 using namespace apf;
+using namespace mfem;
 namespace mfem
 {
 GalerkinDifference::GalerkinDifference(const string &opt_file_name,
@@ -63,6 +64,22 @@ GalerkinDifference::GalerkinDifference(const string &opt_file_name,
    cout << "Galerkin Difference space is constructed.\n";
    cout << "Start to build the GD prolongation matrix of degree " << degree << '\n';
 } // class constructor ends
+
+GalerkinDifference::GalerkinDifference(int de, Mesh2 *mesh,
+                                       int vdim, int ordering)
+{
+#ifndef MFEM_USE_PUMI
+   mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
+#endif
+   pumi_mesh = mesh;
+   pmesh.reset(new MeshType(pumi_mesh, 1, 1));
+   degree = de;
+   nEle = pmesh->GetNE();
+   dim = pmesh->Dimension();
+   cout << "The mesh dimension is " << dim << '\n';
+   fec.reset(new DSBPCollection(1, dim));
+   Constructor(pmesh.get(), NULL, fec.get(), vdim, Ordering::byVDIM);
+}
 
 // void GalerkinDifference::BuildNeighbourMat(DenseMatrix &nmat1, DenseMatrix &nmat2)
 // {
@@ -233,6 +250,7 @@ void GalerkinDifference::BuildGDProlongation() const
       case 3: throw MachException("Not implemeneted yet.\n"); break;
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
+   cout << "Number of required element: " << nelmt << '\n';
    // loop over all the element:
    // 1. build the patch for each element,
    // 2. construct the local reconstruction operator
@@ -273,6 +291,7 @@ void GalerkinDifference::BuildGDProlongation() const
    ofstream cp_save("cp_example.txt");
    cP->PrintMatlab(cp_save);
    cp_save.close();
+   
 }
 
 // This function will be deleted because of the usage of dsbp

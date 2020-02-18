@@ -1,6 +1,6 @@
 {
    "GD":{
-      "degree": 1
+      "degree": 2
    },
    "mesh": {
       "file": "kernel-lev-1.mesh",

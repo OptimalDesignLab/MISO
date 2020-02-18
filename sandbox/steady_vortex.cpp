@@ -87,8 +87,7 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
 
-      unique_ptr<AbstractSolver<2>> solver(
-         new EulerSolver<2>(opt_file_name, move(smesh)));
+      unique_ptr<AbstractSolver<2>> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
@@ -153,13 +152,13 @@ void uexact(const Vector &x, Vector& u)
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
    double prsi = 1.0/euler::gamma;
-   double rinv = ri/sqrt(x(0)*x(0) + x(1)*x(1));
+   double rinv = ri/sqrt((x(0)+1.0)*(x(0)+1.0) + (x(1)+1.0)*(x(1)+1.0));
    double rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
                          1.0/euler::gami);
    double Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
                     (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
    double theta;
-   if (x(0) > 1e-15)
+   if ((x(0)+1.0) > 1e-15)
    {
       theta = atan(x(1)/x(0));
    }

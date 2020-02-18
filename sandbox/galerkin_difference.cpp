@@ -1,6 +1,6 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
 #include<random>
-#include "adept.h"
+//#include "adept.h"
 
 #include "mfem.hpp"
 #include "euler.hpp"
@@ -14,8 +14,7 @@ using namespace mfem;
 using namespace mach;
 using namespace apf;
 
-std::default_random_engine gen(std::random_device{}());
-std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+const int degree = 2;
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -33,17 +32,6 @@ int main(int argc, char *argv[])
    option_source >> options;
    option_source.close();
 
-   // write the petsc option file
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "galerkin_difference.petsc";
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   petscoptions.close();
-#endif
-
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    int num_procs, myid;
@@ -53,20 +41,13 @@ int main(int argc, char *argv[])
 #else
    int myid = 0;
 #endif
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
-   int nx = 1, ny = 1;
-   int degree = 2;
+
    int dim; // space dimension of the mesh
    int nEle; // number of element in the pumi mesh
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
-   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
-   args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
-   args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
    args.Parse();
    if (!args.Good())
    {
@@ -88,35 +69,26 @@ int main(int argc, char *argv[])
       pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
                            options["pumi-mesh"]["file"].get<string>().c_str());
       pumi_mesh->verify();
+      
 
       dim = pumi_mesh->getDimension();
       nEle = pumi_mesh->count(dim);
-      cout << "Mesh dimension is " << dim << '\n';
-      cout << "Number of element " << nEle << '\n';
+
+      // for(int degree = 0; degree < 4; degree++)
+      // {
+      //    GalerkinDifference gd(degree, pumi_mesh, fec.get(), 1, Ordering::byVDIM);
+      //    gd.BuildGDProlongation();
+      //    mfem::GridFunction x(&gd);
+      //    mfem::GridFunction x_exact(&gd);
+
+      // }
       
       
       cout << "Construct the GD fespace.\n";
-      GalerkinDifference gd(options_file, pumi_mesh);
+      GalerkinDifference gd(degree, pumi_mesh, 1, Ordering::byVDIM);
+      cout << "Now build the prolongation matrix.\n";
+      //GalerkinDifference gd(options_file, pumi_mesh);
       gd.BuildGDProlongation();
-
-      // test the prolongation 
-      // mfem::Vector cent_val(4*nEle);
-      // mfem::Vector quad_val(gd.GetVSize());
-      // cout << "Size of cent_val " << cent_val.Size() << '\n';
-      // cout << "Size of quad_val " << quad_val.Size() << '\n';
-      // for (int j = 0; j < nEle; j++)
-      // {
-      //    for(int i = 0; i < 4; i++)
-      //    {
-      //       cent_val(4*j+i) = i+1.0;
-      //    }
-      // }
-      // cout << "Check the center value:\n";
-      // cent_val.Print(cout, 4);
-      // gd.GetProlongationMatrix()->Mult(cent_val, quad_val);
-      // cout << "\n\n\nCheck the quad value:\n";
-      // quad_val.Print(cout, 4);
-
 
 
       // Test the prolongation matrix with gridfunction vdim = 4
@@ -124,7 +96,7 @@ int main(int argc, char *argv[])
       mfem::GridFunction x_exact(&gd);
       cout << "Size of x and x_exact is " << x.Size() << '\n';
 
-      mfem::VectorFunctionCoefficient u0(4, uexact);
+      mfem::VectorFunctionCoefficient u0(1, uexact);
       x_exact.ProjectCoefficient(u0);
       cout << "Check the exact solution:\n";
       x_exact.Print(cout ,4);
@@ -166,8 +138,8 @@ int main(int argc, char *argv[])
       // x.Print(cout,7);
       // x -= x_exact;
       // cout << "Check the error: " << x.Norml2() << '\n';
-
       PCU_Comm_Free();
+      
    }
 
 
@@ -179,10 +151,6 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-
-#ifdef MFEM_USE_PETSC
-   MFEMFinalizePetsc();
-#endif
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
@@ -193,11 +161,16 @@ int main(int argc, char *argv[])
 // triangles are subdivided from the quads using the opposite diagonal)
 void uexact(const mfem::Vector &x, mfem::Vector &u)
 {
+   u(0) = 0;
+   for(int i = degree; i >= 0; i--)
+   {
+      u(0) += pow(x(0)+x(1), i);
+   }
    // different degree 2d polynomial to test the acccuracy
-   u(0) = 1.0;  // constant
-   u(1) = x(0); // linear function
-   u(2) = x(0) * x(0) - x(0) * x(1) + x(1) * x(1); // quadrature function
-   u(3) = x(0) * x(0) * x(1) - 2.0 * x(0) * x(1) + 3.0 * x(1) * x(1) * x(1); // cubic function
+   // u(0) = 1.0;  // constant
+   // u(1) = x(0); // linear function
+   // u(2) = x(0) * x(0) - x(0) * x(1) + x(1) * x(1); // quadrature function
+   // u(3) = x(0) * x(0) * x(1) - 2.0 * x(0) * x(1) + 3.0 * x(1) * x(1) * x(1); // cubic function
    
    // steady vortext exact solution with shifted coordinate
    // u.SetSize(4);

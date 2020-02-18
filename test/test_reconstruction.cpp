@@ -75,7 +75,7 @@ TEST_CASE(" Reconstruction operator passed the test... ", "[reconstruction opera
       }
    }
 
-   mach::buildInterpolation(dim, order, x_cent, x_quad, interp);
+   mach::buildInterpolation(dim, order, num_quad, x_cent, x_quad, interp);
 
    //std::cout << "Check the accuracy:\n";
    mfem::Vector x_coord(num_cent), x_coord_interp(num_quad);

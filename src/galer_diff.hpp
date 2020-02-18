@@ -18,6 +18,10 @@ public:
    GalerkinDifference(const std::string &opt_file_name
                       = std::string("mach_options.json"),
                       apf::Mesh2 *mesh = NULL);
+   
+   /// Another convenient constructor
+   GalerkinDifference(int de, apf::Mesh2 *mesh,
+                      int vdim, int ordering = mfem::Ordering::byVDIM);
 
    /// constructs the neighbour matrices for all mesh elements. 
    /// and second neighbours (shared vertices).
@@ -89,7 +93,7 @@ protected:
    MPI_Comm comm;
 #ifdef MFEM_USE_PUMI
    /// create pumi mesh object
-   apf::Mesh2* pumi_mesh;
+   apf::Mesh2 *pumi_mesh;
 #endif
 #endif
 
