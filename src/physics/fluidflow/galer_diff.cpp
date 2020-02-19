@@ -1,3 +1,4 @@
+#ifdef MFEM_USE_PUMI
 #include <fstream>
 #include <iostream>
 #include "default_options.hpp"
@@ -13,7 +14,7 @@ GalerkinDifference::GalerkinDifference(const string &opt_file_name,
                                        Mesh2* mesh)
 {
 #ifndef MFEM_USE_PUMI
-   mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
+   mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ");
 #endif
    // should we keep this part to the problem specific file?
    nlohmann::json options = default_options;
@@ -387,3 +388,4 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
 }
 
 } // namespace mfem
+#endif

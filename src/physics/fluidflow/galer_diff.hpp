@@ -1,5 +1,8 @@
 #ifndef MFEM_GALER_DIFF
 #define MFEM_GALER_DIFF
+
+#ifdef MFEM_USE_PUMI
+
 #include "mfem.hpp"
 #include "solver.hpp"
 #include "mach_types.hpp"
@@ -98,6 +101,7 @@ protected:
 #endif
 
 };
-
 } // end of namespace mach
-#endif
+
+#endif // end of ifdef pumi
+#endif // end of GALERKIN DIFF
