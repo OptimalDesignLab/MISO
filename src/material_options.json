@@ -166,8 +166,8 @@
 		"kh": -0.00013333333333333,
         "ke": -3.55555555555e-8,
         "alpha": 1.0,
-		"conductor" : false,
-		"core" : true
+		"conductor" : true,
+		"core" : false
 	},
 	"testmat2" : {
 		"mu_r" : 1,
