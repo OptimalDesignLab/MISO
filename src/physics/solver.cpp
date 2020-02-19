@@ -139,14 +139,9 @@ void AbstractSolver::initDerived()
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
-<<<<<<< HEAD:src/solver.cpp
-   bool is_explicit = options["time-dis"]["explicit"].template get<bool>();
-   if(is_explicit)
-=======
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    std::cout << "ode solver is " << odes << std::endl;
    if (odes == "RK1" || odes == "RK4")
->>>>>>> dev:src/physics/solver.cpp
    {
       evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
    }
@@ -467,17 +462,10 @@ void AbstractSolver::solveSteady()
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
    std::cout << "Petsc Solver set.\n";
    //Get the newton solver options
-<<<<<<< HEAD:src/solver.cpp
-   double nabstol = options["newtonsolver"]["abstol"].template get<double>();
-   double nreltol = options["newtonsolver"]["reltol"].template get<double>();
-   int nmaxiter = options["newtonsolver"]["maxiter"].template get<int>();
-   int nptl = options["newtonsolver"]["printlevel"].template get<int>();
-=======
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
    int nptl = options["newton"]["printlevel"].get<int>();
->>>>>>> dev:src/physics/solver.cpp
    newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
@@ -506,32 +494,19 @@ void AbstractSolver::solveSteady()
    std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
                << " without preconditioner.\n";
    
-<<<<<<< HEAD:src/solver.cpp
-   double tol = options["hypresolver"]["tol"].template get<double>();
-   int maxiter = options["hypresolver"]["maxiter"].template get<int>();
-   int ptl = options["hypresolver"]["printlevel"].template get<int>();
-=======
    double tol = options["lin-solver"]["tol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
->>>>>>> dev:src/physics/solver.cpp
    solver.reset( new HypreGMRES(fes->GetComm()) );
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
 
    //solver->SetPreconditioner(*prec);
-<<<<<<< HEAD:src/solver.cpp
-   double nabstol = options["newtonsolver"]["abstol"].template get<double>();
-   double nreltol = options["newtonsolver"]["reltol"].template get<double>();
-   int nmaxiter = options["newtonsolver"]["maxiter"].template get<int>();
-   int nptl = options["newtonsolver"]["printlevel"].template get<int>();
-=======
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
    int nptl = options["newton"]["printlevel"].get<int>();
->>>>>>> dev:src/physics/solver.cpp
    newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
@@ -576,14 +551,8 @@ void AbstractSolver::solveUnsteady()
    bool done = false;
    double t_final = options["time-dis"]["t-final"].template get<double>();
    std::cout << "t_final is " << t_final << '\n';
-<<<<<<< HEAD:src/solver.cpp
-   double dt = options["time-dis"]["dt"].template get<double>();
-   bool calc_dt = options["time-dis"]["explicit"].template get<bool>() && 
-         options["time-dis"]["const-cfl"].template get<bool>();
-=======
    double dt = options["time-dis"]["dt"].get<double>();
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
->>>>>>> dev:src/physics/solver.cpp
    for (int ti = 0; !done;)
    {
       if (calc_dt)
