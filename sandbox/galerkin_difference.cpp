@@ -14,7 +14,7 @@ using namespace mfem;
 using namespace mach;
 using namespace apf;
 
-const int degree = 2;
+const int degree = 3;
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -139,7 +139,10 @@ int main(int argc, char *argv[])
       // x -= x_exact;
       // cout << "Check the error: " << x.Norml2() << '\n';
       PCU_Comm_Free();
-      
+#ifdef MFEM_USE_SIMMETRIX
+      gmi_sim_stop();
+      Sim_unregisterAllKeys();
+#endif
    }
 
 

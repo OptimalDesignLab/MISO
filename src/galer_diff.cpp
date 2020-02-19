@@ -287,6 +287,7 @@ void GalerkinDifference::BuildGDProlongation() const
       AssembleProlongationMatrix(elmt_id, local_mat);
    }
    cP->Finalize();
+   cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
    ofstream cp_save("cp_example.txt");
    cP->PrintMatlab(cp_save);
