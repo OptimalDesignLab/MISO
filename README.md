@@ -34,7 +34,7 @@ The test/ subdirectory has unit and regression tests. These are not included in 
 
 To run the tests with verbose output, use `ctest` directly. From the build directory, run `ctest --verbose` instead of `make tests` to see the output from all of the individual test cases. 
 
-TODO: make `make tests` and alias to `ctest --verbose` to always see verbose output?
+TODO: make `make tests` an alias to `ctest --verbose` to always see verbose output?
 
 ### Installation: ###
 
@@ -46,6 +46,7 @@ TODO: Install pkg-config files so it is easier to use Mach in other CMake projec
 
 Use the build target `doc` to build the doxygen documentaion for Mach.
 
+TODO: make building the documentaion work
 
 ### Sandbox: ###
 
