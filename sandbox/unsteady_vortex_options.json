@@ -8,9 +8,16 @@
       "lps-coeff": 1.0,
       "basis-type": "csbp"
    },
+   "petscsolver": {
+      "solvertype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-15,
+      "reltol": 1e-15,
+      "maxiter": 100,
+      "printlevel": 2
+   },
    "steady": false, 
    "time-dis": {
-      "explicit": true,
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.002,

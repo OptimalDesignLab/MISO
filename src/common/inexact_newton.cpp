@@ -72,7 +72,7 @@ double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
          break;
       }
    }
-   if(print_level>=0)
+   if (print_level>=0)
    {
       mfem::out << " Globalization factors: theta= "<< s 
             << ", eta= " << eta <<'\n';

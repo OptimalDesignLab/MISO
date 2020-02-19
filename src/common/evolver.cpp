@@ -90,7 +90,7 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
    newton_solver.reset(new mfem::NewtonSolver(mass.GetComm()));
    //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
 #else
-   linear_solver.reset(new mfem::HypreGMRES());
+   linear_solver.reset(new mfem::GMRESSolver());
    newton_solver.reset(new mfem::NewtonSolver());
 #endif
 
