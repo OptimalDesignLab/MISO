@@ -1,7 +1,7 @@
 {
     "mesh": {
        "file": "initial.mesh",
-       "num-edge": 10
+       "num-edge": 20
     },
     "space-dis": {
        "basis-type": "H1",
@@ -11,8 +11,8 @@
     "time-dis": {
         "const-cfl": true,
         "cfl": 1.0,
-        "dt": 0.001,
-        "t-final": 0.4
+        "dt": 0.000001,
+        "t-final": 0.2
     },
     "lin-solver": {
        "rel-tol": 1e-8,
@@ -30,7 +30,7 @@
           "attr": 1
        },
        "rotor": {
-          "material": "testmat2",
+          "material": "testmat",
           "attr": 2
        }
     },
