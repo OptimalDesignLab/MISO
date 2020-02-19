@@ -32,6 +32,10 @@ If using a build system other than GNU `make`, you can let CMake pick the comput
 
 The test/ subdirectory has unit and regression tests. These are not included in the default `make` target, but can be built and run by executing `make tests`.
 
+To run the tests with verbose output, use `ctest` directly. From the build directory, run `ctest --verbose` instead of `make tests` to see the output from all of the individual test cases. 
+
+TODO: make `make tests` and alias to `ctest --verbose` to always see verbose output?
+
 ### Installation: ###
 
 To install Mach in a specific location, add `-DCMAKE_INSTALL_PREFIX="/path/to/mach/install"` to the configuration file. If not specified, the install directory will be the root directory, and the library will be installed to `lib/`, and the header files will be copied to `include/`. Use `make install` to install the library.
