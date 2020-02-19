@@ -43,4 +43,6 @@ TODO: Install pkg-config files so it is easier to use Mach in other CMake projec
 Use the build target `doc` to build the doxygen documentaion for Mach.
 
 
-TODO: Add support for building the sandbox
+### Sandbox: ###
+
+Use the build target `sandbox` to build the sandbox. The executables are built in the `/build/sandbox` directory, and the options files are copied over.
