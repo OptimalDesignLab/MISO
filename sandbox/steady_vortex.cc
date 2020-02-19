@@ -34,25 +34,30 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 int main(int argc, char *argv[])
 {
    const char *options_file = "steady_vortex_options.json";
-
 #ifdef MFEM_USE_PETSC
    const char *petscrc_file = "eulersteady.petsc";
-   //Get the option files
+   // Get the option file
    nlohmann::json options;
    ifstream option_source(options_file);
    option_source >> options;
-   // write the petsc linear solver options from options
+   // Write the petsc option file
    ofstream petscoptions(petscrc_file);
    const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
    const string prec_name = options["petscsolver"]["pctype"].get<string>();
    petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
    petscoptions << "-prec_pc_type " << prec_name << '\n';
+   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
    petscoptions.close();
 #endif
-
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
+   int num_procs, myid;
    MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+#endif
+#ifdef MFEM_USE_PETSC
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 #endif
   
    // Parse command-line options
@@ -72,10 +77,6 @@ int main(int argc, char *argv[])
       return 1;
    }
   
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
-
    try
    {
       // construct the solver, set the initial condition, and solve
@@ -92,18 +93,28 @@ int main(int argc, char *argv[])
 
       solver->setInitialCondition(uexact);
       solver->printSolution("init", degree+1);
-      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver->calcL2Error(uexact, 0) << '\n' << endl;
-      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-                << endl;
+
+      double l_error = solver->calcL2Error(uexact, 0);
+      double res_error = solver->calcResidualNorm();
+      if (0==myid)
+      {
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
+         mfem::out << "\ninitial residual norm = " << res_error << endl;
+      }
+
       solver->solveForState();
-      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-                << endl;
-      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver->calcL2Error(uexact, 0) << endl;
-      mfem::out << "\nDrag error = "
-                << abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma)) << endl
-                << endl;
+
+      l_error = solver->calcL2Error(uexact, 0);
+      res_error = solver->calcResidualNorm();
+      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+
+      if (0==myid)
+      {
+         mfem::out << "\nfinal residual norm = " << res_error;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
+         mfem::out << "\nDrag error = " << drag << endl;
+      }
+
    }
    catch (MachException &exception)
    {
@@ -117,7 +128,6 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
 #endif
-
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif
@@ -127,7 +137,7 @@ int main(int argc, char *argv[])
 void pert(const Vector &x, Vector& p)
 {
    p.SetSize(4);
-   for(int i = 0; i < 4; i++)
+   for (int i = 0; i < 4; i++)
    {
       p(i) = normal_rand(gen);
    }
