@@ -37,4 +37,10 @@ The test/ subdirectory has unit and regression tests. These are not included in 
 To install Mach in a specific location, add `-DCMAKE_INSTALL_PREFIX="/path/to/mach/install"` to the configuration file. If not specified, the install directory will be the root directory, and the library will be installed to `lib/`, and the header files will be copied to `include/`. Use `make install` to install the library.
 
 TODO: Install pkg-config files so it is easier to use Mach in other CMake projects.
+
+### Documentation: ###
+
+Use the build target `doc` to build the doxygen documentaion for Mach.
+
+
 TODO: Add support for building the sandbox
