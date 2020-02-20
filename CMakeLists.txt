@@ -127,6 +127,12 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
    add_subdirectory(test EXCLUDE_FROM_ALL)
 endif ()
 
+
+
+# create sandbox target
+add_custom_target(sandbox)
+add_subdirectory(sandbox EXCLUDE_FROM_ALL)
+
 # TODO: This doesn't really work...I used MFEM's approach but should look at scorec's
 # add documentation subdirectory
 # creates custom target `doc' to build the doxygen documentation
