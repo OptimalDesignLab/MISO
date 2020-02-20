@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "thermal_options.json";
+   const char *options_file = "thermal_square_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();

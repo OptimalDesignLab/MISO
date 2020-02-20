@@ -1,12 +1,20 @@
 {
    "mesh": {
-      "file": "kernel-lev-2.mesh",
+      "file": "kernel-lev-1.mesh",
       "refine": 0
    },
    "space-dis": {
       "degree": 2,
       "lps-coeff": 1.0,
       "basis-type": "csbp"
+   },
+   "petscsolver": {
+      "solvertype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-15,
+      "reltol": 1e-15,
+      "maxiter": 100,
+      "printlevel": 2
    },
    "steady": false, 
    "time-dis": {

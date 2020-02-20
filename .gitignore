@@ -32,3 +32,9 @@
 /doc/CodeDocumentation/
 /doc/CodeDocumentation.conf
 /doc/CodeDocumentation.html
+
+# ignore build files except for config script
+build/*
+lib/*
+include/*
+!build/mach_config.sh

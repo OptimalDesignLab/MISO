@@ -1,0 +1,48 @@
+{
+   "flow-param": {
+      "mach": 2.5,
+      "aoa": 0.0,
+      "roll-axis": 0,
+      "pitch-axis": 1,
+      "Re": 10.0,
+      "Pr": 0.75,
+      "mu": 1.0,
+      "inflow-state": [1.0, 2.5, 0.0, 4.9107142857142865],
+      "outflow-state": [3.333333333333333, 2.5, 0.0, 13.66071428571429]
+   },
+   "space-dis": {
+      "degree": 1,
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
+   },
+   "steady": true,
+   "time-dis": {
+      "ode-solver": "MIDPOINT",
+      "const-cfl": true,
+      "cfl": 0.09,
+      "dt": 0.0001,
+      "t-final": 1.0
+   },
+   "newtonsolver":{
+      "abstol": 1e-10,
+      "reltol": 1e-10,
+      "maxiter": 30,
+      "printlevel": 1
+   },
+   "petscsolver":{
+      "ksptype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-10,
+      "reltol": 1e-10,
+      "maxiter": 100,
+      "printlevel": 2
+   },
+   "hypresolver":{
+      "tol": 1e-10,
+      "maxiter": 100,
+      "printlevel": 0
+   },
+   "bcs": {
+      "viscous-shock": [1, 1, 1, 1]
+   }
+}
