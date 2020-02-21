@@ -71,7 +71,12 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
-   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   if (options["GD"]["degree"].get<int>() >= 0)
+   {
+      fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
+                                   dim));
+   }
+   else if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
                                   dim));
@@ -107,6 +112,38 @@ void AbstractSolver::initDerived()
    // set up the spatial semi-linear form
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
+   if(0 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(1 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(2 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
+   if(3 == rank)
+   {
+      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
+      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+   }
+   MPI_Barrier(comm);
    // Add integrators; this can be simplified if we template the entire class
    addVolumeIntegrators(alpha);
    auto &bcs = options["bcs"];
@@ -426,17 +463,8 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
-   if (0==rank)
-   {
-      t2 = MPI_Wtime();
-      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
-   }
 #else
    // Hypre solver section
-   //prec.reset( new HypreBoomerAMG() );
-   //prec->SetPrintLevel(0);
-   std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
-               << " without preconditioner.\n";
    prec.reset(new HypreEuclid(fes->GetComm()));
    double tol = options["lin-solver"]["tol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
@@ -445,9 +473,7 @@ void AbstractSolver::solveSteady()
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(
-                  * dynamic_cast<mfem::HypreSolver *>(prec.get()));
-   //solver->SetPreconditioner(*prec);
+   //dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(*prec);
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
@@ -465,10 +491,15 @@ void AbstractSolver::solveSteady()
    mfem::Vector b;
    mfem::Vector u_true;
    u->GetTrueDofs(u_true);
-   newton_solver->Mult(b,  *u);
+   newton_solver->Mult(b,  u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
 #endif
+   if (0==rank)
+   {
+      t2 = MPI_Wtime();
+      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
 }
 
 void AbstractSolver::solveUnsteady()
