@@ -10,5 +10,6 @@
 #include "navier_stokes_integ.hpp"
 #include "navier_stokes.hpp"
 #include "viscous_integ.hpp"
+#include "galer_diff.hpp"
 
 #endif

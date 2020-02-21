@@ -6,5 +6,6 @@
 #include "inexact_newton.hpp"
 #include "orthopoly.hpp"
 #include "sbp_fe.hpp"
+#include "centgridfunc.hpp"
 
 #endif

@@ -7,6 +7,7 @@
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
+#include "galer_diff.hpp"
 
 
 using namespace std;
@@ -71,6 +72,11 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
+   if (options["GD"]["degree"].get<int>() >= 0)
+   {
+      fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
+                                   dim));
+   }
    if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
@@ -88,8 +94,18 @@ void AbstractSolver::initDerived()
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState(); // <--- this is a virtual fun
    *out << "Num states = " << num_state << endl;
-   fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
+   if (options["GD"]["degree"].get<int>() >= 0)
+   {
+      int gd_degree = options["GD"]["degree"].get<int>();
+      fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
+                        Ordering::byVDIM, gd_degree, pumi_mesh));
+   }
+   else
+   {
+      fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                            Ordering::byVDIM));
+   }
+   
    u.reset(new GridFunType(fes.get()));
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;

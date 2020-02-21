@@ -1,20 +1,30 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
-#include<random>
-//#include "adept.h"
-
 #include "mfem.hpp"
 #include "euler.hpp"
 #include "galer_diff.hpp"
 #include "centgridfunc.hpp"
+
 #include <fstream>
 #include <iostream>
+#include<random>
+
+#ifdef MFEM_USE_SIMMETRIX
+#include <SimUtil.h>
+#include <gmi_sim.h>
+#endif
+#include <apfMDS.h>
+#include <gmi_null.h>
+#include <PCU.h>
+#include <apfConvert.h>
+#include <gmi_mesh.h>
+#include <crv.h>
 
 using namespace std;
 using namespace mfem;
 using namespace mach;
 using namespace apf;
 
-const int degree = 3;
+const int degree = 2;
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -69,6 +79,8 @@ int main(int argc, char *argv[])
       pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
                            options["pumi-mesh"]["file"].get<string>().c_str());
       pumi_mesh->verify();
+
+      ParPumiMesh pm(MPI_COMM_WORLD, pumi_mesh);
       
 
       dim = pumi_mesh->getDimension();
@@ -85,7 +97,9 @@ int main(int argc, char *argv[])
       
       
       cout << "Construct the GD fespace.\n";
-      GalerkinDifference gd(degree, pumi_mesh, 1, Ordering::byVDIM);
+      DSBPCollection fec(1,dim);
+      GalerkinDifference gd(&pm, &fec, 1, Ordering::byVDIM, degree, pumi_mesh);
+      //GalerkinDifference gd(degree, pumi_mesh, 1, Ordering::byVDIM);
       cout << "Now build the prolongation matrix.\n";
       //GalerkinDifference gd(options_file, pumi_mesh);
       gd.BuildGDProlongation();

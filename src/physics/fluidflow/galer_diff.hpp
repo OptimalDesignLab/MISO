@@ -1,9 +1,11 @@
 #ifndef MFEM_GALER_DIFF
 #define MFEM_GALER_DIFF
 
-#ifdef MFEM_USE_PUMI
-
 #include "mfem.hpp"
+
+#ifdef MFEM_USE_PUMI
+#ifdef MFEM_USE_MPI
+
 #include "solver.hpp"
 #include "mach_types.hpp"
 #include "pumi.h"
@@ -12,7 +14,7 @@ namespace mfem
 {
 
 /// Abstract class for Galerkin difference method using patch construction
-class GalerkinDifference : public FiniteElementSpace
+class GalerkinDifference : public ParFiniteElementSpace
 {
 
 public:
@@ -21,10 +23,15 @@ public:
    GalerkinDifference(const std::string &opt_file_name
                       = std::string("mach_options.json"),
                       apf::Mesh2 *mesh = NULL);
+
+   /// Another convenient constructor for test the prolongation matrix
+   GalerkinDifference(int de, apf::Mesh2 *pm, int vdim = 1,
+                        int ordering = mfem::Ordering::byVDIM);
+   GalerkinDifference(mfem::ParMesh *pm, const mfem::FiniteElementCollection *f,
+                      int vdim = 1, int ordering = mfem::Ordering::byVDIM,
+                      int degree = 0, apf::Mesh2 *pumimesh = NULL);
    
-   /// Another convenient constructor
-   GalerkinDifference(int de, apf::Mesh2 *mesh,
-                      int vdim, int ordering = mfem::Ordering::byVDIM);
+   
 
    /// constructs the neighbour matrices for all mesh elements. 
    /// and second neighbours (shared vertices).
@@ -85,11 +92,12 @@ protected:
    int degree;
 
    /// use pumi mesh
-   using MeshType = mfem::PumiMesh;
+   //using MeshType = mfem::PumiMesh;
    /// object defining the computational mesh
-   std::unique_ptr<MeshType> pmesh;
+   std::unique_ptr<mach::MeshType> pmesh;
    /// the finite element collection pointer
-   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   //std::unique_ptr<const mfem::FiniteElementCollection> fec;
+   const mfem::FiniteElementCollection *fec; // not owned
 
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
@@ -103,5 +111,6 @@ protected:
 };
 } // end of namespace mach
 
-#endif // end of ifdef pumi
+#endif // MFEM_USE_PUMI
+#endif // MFEM_USE_MPI
 #endif // end of GALERKIN DIFF

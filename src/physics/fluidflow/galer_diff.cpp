@@ -1,86 +1,104 @@
-#ifdef MFEM_USE_PUMI
+// #ifdef MFEM_USE_PUMI
 #include <fstream>
 #include <iostream>
-#include "default_options.hpp"
 #include "galer_diff.hpp"
 #include "sbp_fe.hpp"
 using namespace std;
 using namespace mach;
 using namespace apf;
 using namespace mfem;
+
 namespace mfem
 {
-GalerkinDifference::GalerkinDifference(const string &opt_file_name,
-                                       Mesh2* mesh)
-{
-#ifndef MFEM_USE_PUMI
-   mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ");
-#endif
-   // should we keep this part to the problem specific file?
-   nlohmann::json options = default_options;
-   nlohmann::json file_options;
-   ifstream options_file(opt_file_name);
-   options_file >> file_options;
-   options.merge_patch(file_options);
-   cout << setw(3) << options << endl;
-   
-//    PCU_Comm_Init();
-// #ifdef MFEM_USE_SIMMETRIX
-//    Sim_readLicenseFile(0);
-//    gmi_sim_start();
-//    gmi_register_sim();
+// GalerkinDifference::GalerkinDifference(const string &opt_file_name,
+//                                        Mesh2* mesh)
+// {
+// #ifndef MFEM_USE_PUMI
+//    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ");
 // #endif
-//    gmi_register_mesh();
-//    // load pumi mesh
-//    pumi_mesh = loadMdsMesh(options["model-file"].get<string>().c_str(),
-//                            options["pumi-mesh"]["file"].get<string>().c_str());
-//    // verify pumi mesh
-//    pumi_mesh->verify();
-//    dim = pumi_mesh->getDimension();
-//    nEle = pumi_mesh->count(dim);
-// pmesh.reset(new MeshType(pumi_mesh, 1, 1));
-   pumi_mesh = mesh;
-   pmesh.reset(new MeshType(pumi_mesh, 1, 1));
-   nEle = pmesh->GetNE();
-   dim = pmesh->Dimension();
-   cout << "check dim and nEle: " << dim << ' ' << nEle << '\n';
-   // write meshx
-   // ofstream sol_ofs("tri32_mfem.vtk");
-   // sol_ofs.precision(14);
-   // pmesh->PrintVTK(sol_ofs, 0);
-   // apf::writeVtkFiles("pumi_mesh", pumi_mesh);
-   // PCU_Comm_Free();
+//    // should we keep this part to the problem specific file?
+//    nlohmann::json options = default_options;
+//    nlohmann::json file_options;
+//    ifstream options_file(opt_file_name);
+//    options_file >> file_options;
+//    options.merge_patch(file_options);
+//    cout << setw(3) << options << endl;
+   
+// //    PCU_Comm_Init();
+// // #ifdef MFEM_USE_SIMMETRIX
+// //    Sim_readLicenseFile(0);
+// //    gmi_sim_start();
+// //    gmi_register_sim();
+// // #endif
+// //    gmi_register_mesh();
+// //    // load pumi mesh
+// //    pumi_mesh = loadMdsMesh(options["model-file"].get<string>().c_str(),
+// //                            options["pumi-mesh"]["file"].get<string>().c_str());
+// //    // verify pumi mesh
+// //    pumi_mesh->verify();
+// //    dim = pumi_mesh->getDimension();
+// //    nEle = pumi_mesh->count(dim);
+// // pmesh.reset(new MeshType(pumi_mesh, 1, 1));
+//    pumi_mesh = mesh;
+//    pmesh.reset(new MeshType(pumi_mesh, 1, 1));
+//    nEle = pmesh->GetNE();
+//    dim = pmesh->Dimension();
+//    cout << "check dim and nEle: " << dim << ' ' << nEle << '\n';
+//    // write meshx
+//    // ofstream sol_ofs("tri32_mfem.vtk");
+//    // sol_ofs.precision(14);
+//    // pmesh->PrintVTK(sol_ofs, 0);
+//    // apf::writeVtkFiles("pumi_mesh", pumi_mesh);
+//    // PCU_Comm_Free();
 
-   // TODO:
-   // 1. determine the size of cP. i.e. # of quadrature points and barycenters.
-   // 2. call the mfem::FiniteElementSpace constructor.
-   // 3. make sure that the dofs' order is consistent with that in bi/nonlinearforms
+//    // TODO:
+//    // 1. determine the size of cP. i.e. # of quadrature points and barycenters.
+//    // 2. call the mfem::FiniteElementSpace constructor.
+//    // 3. make sure that the dofs' order is consistent with that in bi/nonlinearforms
 
-   // GD method requires DG fe collection
-   // this function temporaly stay here
-   degree = options["GD"]["degree"].get<int>();
-   fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),dim));
-   Constructor(pmesh.get(), NULL, fec.get(), dim+2, Ordering::byVDIM);
-   //Constructor(pmesh.get(), NULL, fec.get(), 1, Ordering::byVDIM);
-   cout << "Galerkin Difference space is constructed.\n";
-   cout << "Start to build the GD prolongation matrix of degree " << degree << '\n';
-} // class constructor ends
+//    // GD method requires DG fe collection
+//    // this function temporaly stay here
+//    degree = options["GD"]["degree"].get<int>();
+//    fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),dim));
+//    Constructor(pmesh.get(), NULL, fec.get(), dim+2, Ordering::byVDIM);
+//    //Constructor(pmesh.get(), NULL, fec.get(), 1, Ordering::byVDIM);
+//    cout << "Galerkin Difference space is constructed.\n";
+//    cout << "Start to build the GD prolongation matrix of degree " << degree << '\n';
+// } // class constructor ends
 
-GalerkinDifference::GalerkinDifference(int de, Mesh2 *mesh,
-                                       int vdim, int ordering)
+GalerkinDifference::GalerkinDifference(ParMesh *pm, const FiniteElementCollection *f,
+   int vdim, int ordering, int de, Mesh2 *pumimesh)
+   : SpaceType(pm, f, vdim, ordering)
 {
 #ifndef MFEM_USE_PUMI
    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
 #endif
-   pumi_mesh = mesh;
-   pmesh.reset(new MeshType(pumi_mesh, 1, 1));
+   pumi_mesh = pumimesh;
+   pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
+   //pmesh.reset(new MeshType(pumi_mesh, 1, 1));
    degree = de;
    nEle = pmesh->GetNE();
    dim = pmesh->Dimension();
    cout << "The mesh dimension is " << dim << '\n';
-   fec.reset(new DSBPCollection(1, dim));
-   Constructor(pmesh.get(), NULL, fec.get(), vdim, Ordering::byVDIM);
+   fec = f;
+   //fec = unique_ptr<FiniteElementCollection>(f);
+   //fec.reset(new DSBPCollection(1, dim));
+   //Constructor(pmesh.get(), NULL, fec.get(), vdim, Ordering::byVDIM);
 }
+
+// GalerkinDifference::GalerkinDifference(int de, Mesh2* pm, int vdim, )
+// {
+// #ifndef MFEM_USE_PUMI
+//    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
+// #endif
+//    pumi_mesh = pumimesh;
+//    pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
+//    degree = de;
+//    nEle = pmesh->GetNE();
+//    dim = pmesh->Dimension();
+//    fec.reset(new DSBPCollection(1, dim));
+//    Constructor(pmesh.get(), NULL, fec.get(), vdim, Ordering::byVDIM);
+// }
 
 // void GalerkinDifference::BuildNeighbourMat(DenseMatrix &nmat1, DenseMatrix &nmat2)
 // {
@@ -388,4 +406,4 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
 }
 
 } // namespace mfem
-#endif
+// #endif
