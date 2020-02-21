@@ -83,11 +83,15 @@ ImplicitLinearEvolver::ImplicitLinearEvolver(const std::string &opt_file_name,
 
 	std::cout << "Setting Up Linear Solver..." << std::endl;
    t_prec.reset(new HypreSmoother());
+   m_prec.reset(new HypreSmoother());
 #ifdef MFEM_USE_MPI
    t_prec->SetType(HypreSmoother::Jacobi);
    t_solver.reset(new CGSolver(stiff.GetComm()));
+   m_prec->SetType(HypreSmoother::Jacobi);
+   m_solver.reset(new CGSolver(stiff.GetComm()));
 #else
    t_solver.reset(new CGSolver());
+   m_solver.reset(new CGSolver());
 #endif
    // set parameters for the linear solver
 
@@ -98,6 +102,22 @@ ImplicitLinearEvolver::ImplicitLinearEvolver(const std::string &opt_file_name,
    t_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
    t_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
    t_solver->SetPreconditioner(*t_prec);
+
+   m_solver->iterative_mode = false;
+   m_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
+   m_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
+   m_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+   m_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+   m_solver->SetPreconditioner(*m_prec);
+   m_solver->SetOperator(mass);
+}
+
+void ImplicitLinearEvolver::Mult(const mfem::Vector &x, mfem::Vector &k) const
+{
+   stiff.Mult(x, z);
+   z.Neg();  
+   z.Add(-1, *rhs);
+   m_solver->Mult(z, k);
 }
 
 void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)

@@ -86,8 +86,10 @@ public:
    ImplicitLinearEvolver(const std::string &opt_file_name, MatrixType &m, 
                         MatrixType &k, std::unique_ptr<mfem::LinearForm> b, std::ostream &outstream);
 
+   /// Compute explicit solve, if chosen
+   virtual void Mult(const mfem::Vector &x, mfem::Vector &k) const;
+
    /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
-   /// Currently implemented for the implicit midpoint method
    virtual void ImplicitSolve(const double dt, const mfem::Vector &x,
                               mfem::Vector &k);
 
@@ -118,6 +120,10 @@ private:
    std::unique_ptr<SmootherType> t_prec;
    /// solver for the implicit system
    std::unique_ptr<mfem::CGSolver> t_solver;
+   /// preconditioner for explicit system
+   std::unique_ptr<SmootherType> m_prec;
+   /// solver for the explicit system
+   std::unique_ptr<mfem::CGSolver> m_solver;
    /// a work vector
    mutable mfem::Vector z;
 };

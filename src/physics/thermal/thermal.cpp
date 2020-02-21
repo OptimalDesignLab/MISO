@@ -107,7 +107,20 @@ ThermalSolver::ThermalSolver(
 	std::cout << "Setting Up ODE Solver..." << std::endl;
 	/// define ode solver
 	ode_solver = NULL;
- 	ode_solver.reset(new ImplicitMidpointSolver);
+	ode_solver.reset(new ImplicitMidpointSolver);
+	std::string ode_opt = 
+		options["time-dis"]["ode-solver"].template get<std::string>();
+	if(ode_opt == "MIDPOINT")
+	{
+		ode_solver = NULL;
+		ode_solver.reset(new ImplicitMidpointSolver);
+	}
+	if(ode_opt == "RK4")
+	{
+		ode_solver = NULL;
+		ode_solver.reset(new RK4Solver);
+	}
+ 	
 	evolver.reset(new ConductionEvolver(opt_file_name, M, 
 										K, move(bs), *out));
 }
