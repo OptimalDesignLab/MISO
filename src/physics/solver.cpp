@@ -427,7 +427,8 @@ void AbstractSolver::solveSteady()
       t1 = MPI_Wtime();
    }
 #ifdef MFEM_USE_PETSC   
-   // Get the PetscSolver option 
+   // Get the PetscSolver option
+   *out << "Petsc solver with ilu preconditioner.\n";
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
    int maxiter = options["petscsolver"]["maxiter"].get<int>();
@@ -465,6 +466,7 @@ void AbstractSolver::solveSteady()
    u->SetFromTrueDofs(u_true);
 #else
    // Hypre solver section
+   *out << "HypreGMRES Solver with euclid preconditioner.\n";
    prec.reset(new HypreEuclid(fes->GetComm()));
    double tol = options["lin-solver"]["tol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
@@ -473,7 +475,7 @@ void AbstractSolver::solveSteady()
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
-   //dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(*prec);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();

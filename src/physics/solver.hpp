@@ -161,7 +161,7 @@ protected:
    /// linear system solver used in newton solver
    std::unique_ptr<mfem::Solver> solver;
    /// linear system preconditioner for solver in newton solver
-   std::unique_ptr<mfem::HypreSolver> prec;
+   std::unique_ptr<mfem::Solver> prec;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
