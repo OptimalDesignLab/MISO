@@ -22,6 +22,8 @@ cmake .. \
 
 Source this config file from the build directory to let CMake configure the build. If MFEM was built with MPI, CMake will find the MPI compilers on your system. If MFEM was built with PUMI, the `PUMI_DIR` must be specified. You can use a front-end like `ccmake` to see a full list of options.
 
+To configure the library to build in `release` mode (with optimizations turned on and warnings silenced) add `-DCMAKE_BUILD_TYPE=Release` to the config file.
+
 ### Build: ###
 
 Once configured, execute `make` from the build directory to build Mach. As usual, you can also use the `-j` argument to build in parallel.
