@@ -3,70 +3,44 @@
 
 using namespace mfem;
 using namespace std;
-#if 0
+
 namespace mach
 {
 
 
-double AggregateIntegrator::GetFaceEnergy(
-	const FiniteElement &el_bnd,
-   const FiniteElement &el_unused,
-   FaceElementTransformations &trans,
-   const Vector &elfun)
+double AggregateIntegrator::GetIEAggregate(std::unique_ptr<GridFunType> temp)
 {
    cout.flush();
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_bnd);
-   const int num_nodes = el_bnd.GetDof();
-   const int dim = sbp.GetDim();
-#ifdef MFEM_THREAD_SAFE
-   Vector u_face, x, nrm, flux_face;
-#endif
-   u_face.SetSize(num_states);
-   x.SetSize(dim);
-   nrm.SetSize(dim);
-   flux_face.SetSize(num_states);
+   Array<int> dofs;
+   ElementTransformation *eltrans;
 
-   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-   //DenseMatrix res(elvect.GetData(), num_nodes, num_states);
-   double functional;
-   const FiniteElement *sbp_face;
-   switch (dim)
-   {
-      case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
-              break;
-      case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
-              break;
-      default: throw mach::MachException(
-         "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
-         "\tcannot handle given dimension");
-   }
-   IntegrationPoint el_ip;
-   for (int i = 0; i < sbp_face->GetDof(); ++i)
-   {
-      const IntegrationPoint &face_ip = sbp_face->GetNodes().IntPoint(i);
-      trans.Loc1.Transform(face_ip, el_ip);
-      trans.Elem1->Transform(el_ip, x);
-      int j = sbp.getIntegrationPointIndex(el_ip);
-      u.GetRow(j, u_face);
+   double numer = 0;
+   double denom = 0;
 
-      // get the normal vector and the flux on the face
-      trans.Face->SetIntPoint(&face_ip);
-      CalcOrtho(trans.Face->Jacobian(), nrm);
-      //cout << "face node " << face_ip.x << ": nrm = " << nrm[0] << ", " << nrm[1] << endl;
-      bnd_fun(x.GetData(), nrm.GetData(), u_face.GetData(),flux_face.GetData());
-      
-      // Todo: angle of attack and orther dimension.
-      switch(dim)
+   // loop through elements
+   // TODO: USE MULTIPLE MAXIMA, ONE FOR EACH MESH ATTRIBUTE)
+   for (int j = 0; j < fes->GetNE(); j++)
+   {
+      fes->GetElementDofs(j, dofs);
+      eltrans = fes->GetElementTransformation(j);
+      const FiniteElement *el = fes->GetFE(j);
+      const int dim = el->GetDim();
+      x.SetSize(dim);
+
+      // loop through nodes
+      for (int i = 0; i < el->GetDof(); ++i)
       {
-         case 1:
-         case 2: functional += flux_face[1]*dir[2] + flux_face[2]*dir[3];
-                  break;
-         default: ;
+         const IntegrationPoint &ip = el->GetNodes().IntPoint(i);
+         eltrans->SetIntPoint(&ip);
+         double val = temp->GetValue(j, ip);
+
+         numer += eltrans->Weight()*val*exp(rho*(val - max));
+
+         denom += eltrans->Weight()*exp(rho*(val - max));
       }
    }
-   return functional;
+   return numer/denom;
 }
 
 
 } // namespace mach
-#endif

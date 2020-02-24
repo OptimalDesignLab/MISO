@@ -4,6 +4,8 @@ target_sources(mach
       thermal.hpp
       therm_integ.cpp
       therm_integ.hpp
+      temp_integ.cpp
+      temp_integ.hpp
 )
 
 target_include_directories(mach
