@@ -84,14 +84,19 @@ set_target_properties(mach
       POSITION_INDEPENDENT_CODE ON
 )
 
-set(DEBUG_OPTIONS "-g")
-set(RELEASE_OPTIONS "-O2")
+set(DEBUG_OPTIONS
+   "-g"
+   -Wall
+   # -Wextra
+   # -Werror
+)
+
+set(RELEASE_OPTIONS
+   "-O2"
+)
 
 target_compile_options(mach
    PRIVATE 
-      -Wall 
-      # -Wextra
-      # -Werror
       "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
 )
@@ -126,6 +131,12 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
    add_dependencies(tests build_tests)
    add_subdirectory(test EXCLUDE_FROM_ALL)
 endif ()
+
+
+
+# create sandbox target
+add_custom_target(sandbox)
+add_subdirectory(sandbox EXCLUDE_FROM_ALL)
 
 # TODO: This doesn't really work...I used MFEM's approach but should look at scorec's
 # add documentation subdirectory
