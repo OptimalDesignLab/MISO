@@ -224,7 +224,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
                           "\tdo not provide smesh when using PUMI!");
    }
    // problem with using these in loadMdsMesh
-   std::cout << options["model-file"].get<string>().c_str() << std::endl;
    const char *model_file = options["model-file"].get<string>().c_str();
    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
@@ -240,6 +239,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // }
    pumi_mesh->verify();
    mesh.reset(new MeshType(comm, pumi_mesh));
+   ofstream savemesh("annulus.mesh");
+   mesh->Print(savemesh);
+   savemesh.close();
 #else
    mesh.reset(new MeshType(comm, *smesh));
 #endif // end of MFEM_USE_PUMI
