@@ -68,19 +68,19 @@ namespace mfem
 
 GalerkinDifference::GalerkinDifference(ParMesh *pm, const FiniteElementCollection *f,
    int vdim, int ordering, int de, Mesh2 *pumimesh)
-   : SpaceType(pm, f, vdim, ordering)
+   : SpaceType(pm, f, vdim, ordering), pmesh(pm), pumi_mesh(pumimesh)
 {
 #ifndef MFEM_USE_PUMI
    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
 #endif
-   pumi_mesh = pumimesh;
-   pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
+   //pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
    //pmesh.reset(new MeshType(pumi_mesh, 1, 1));
    degree = de;
    nEle = pmesh->GetNE();
    dim = pmesh->Dimension();
    cout << "The mesh dimension is " << dim << '\n';
    fec = f;
+   BuildGDProlongation();
    //fec = unique_ptr<FiniteElementCollection>(f);
    //fec.reset(new DSBPCollection(1, dim));
    //Constructor(pmesh.get(), NULL, fec.get(), vdim, Ordering::byVDIM);
@@ -281,12 +281,12 @@ void GalerkinDifference::BuildGDProlongation() const
    cout << "The size of the prolongation matrix is " << cP->Height() << " x " << cP->Width() << '\n';
    for (int i = 0; i < nEle; i++)
    {
-      cout << "Element " << i << ":\n";
+      // cout << "Element " << i << ":\n";
       // 1. construct the patch the patch
-      // have more element than required to make it a underdetermined system
+      // have more elements than required to make it a underdetermined system
       GetNeighbourSet(i, nelmt, elmt_id);
-      cout << "Elements id(s) in patch: ";
-      elmt_id.Print(cout, elmt_id.Size());
+      // cout << "Elements id(s) in patch: ";
+      // elmt_id.Print(cout, elmt_id.Size());
       
       // 2. build the quadrature and barycenter coordinate matrices
       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
@@ -360,9 +360,9 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
    // Get the id of the element want to assemble in
    int el_id = id[0];
    GetElementVDofs(el_id, el_dofs);
-   cout << "Element dofs indices are: ";
-   el_dofs.Print(cout, el_dofs.Size());
-   cout << endl;
+   // cout << "Element dofs indices are: ";
+   // el_dofs.Print(cout, el_dofs.Size());
+   // cout << endl;
    //cout << "local mat size is " << el_mat.Height() << ' ' << el_mat.Width() << '\n';
    col_index.SetSize(nel);
    for(int e = 0; e < nel; e++)
@@ -372,9 +372,9 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
    for (int v = 0; v < vdim; v++)
    {
       el_dofs.GetSubArray(v * num_dofs, num_dofs, row_index);
-      cout << "local mat will be assembled into: ";
-      row_index.Print(cout, num_dofs);
-      cout << endl;
+      // cout << "local mat will be assembled into: ";
+      // row_index.Print(cout, num_dofs);
+      // cout << endl;
       cP->SetSubMatrix(row_index, col_index, local_mat, 1);
       row_index.LoseData();
       // elements id also need to be shift accordingly

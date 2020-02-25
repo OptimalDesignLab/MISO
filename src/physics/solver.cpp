@@ -98,6 +98,7 @@ void AbstractSolver::initDerived()
       int gd_degree = options["GD"]["degree"].get<int>();
       fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
                                        Ordering::byVDIM, gd_degree, pumi_mesh));
+      cout << "GD fespace is set.\n";
    }
    else
    {
@@ -106,6 +107,7 @@ void AbstractSolver::initDerived()
    }
 
    u.reset(new GridFunType(fes.get()));
+   cout << "gridfunction is set.\n";
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
 #else
@@ -121,6 +123,7 @@ void AbstractSolver::initDerived()
 
    // set up the spatial semi-linear form
    double alpha = 1.0;
+   cout << "before set res.\n";
    res.reset(new NonlinearFormType(fes.get()));
    if (0 == rank)
    {
