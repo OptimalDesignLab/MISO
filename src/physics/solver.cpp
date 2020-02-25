@@ -9,7 +9,6 @@
 #include "solver.hpp"
 #include "galer_diff.hpp"
 
-
 using namespace std;
 using namespace mfem;
 
@@ -19,7 +18,7 @@ namespace mach
 adept::Stack AbstractSolver::diff_stack;
 
 AbstractSolver::AbstractSolver(const string &opt_file_name,
-                                    unique_ptr<Mesh> smesh)
+                               unique_ptr<Mesh> smesh)
 {
 // Set the options; the defaults are overwritten by the values in the file
 // using the merge_patch method
@@ -98,14 +97,14 @@ void AbstractSolver::initDerived()
    {
       int gd_degree = options["GD"]["degree"].get<int>();
       fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
-                        Ordering::byVDIM, gd_degree, pumi_mesh));
+                                       Ordering::byVDIM, gd_degree, pumi_mesh));
    }
    else
    {
       fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
-                           Ordering::byVDIM));
+                              Ordering::byVDIM));
    }
-   
+
    u.reset(new GridFunType(fes.get()));
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
@@ -123,36 +122,52 @@ void AbstractSolver::initDerived()
    // set up the spatial semi-linear form
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
-   if(0 == rank)
+   if (0 == rank)
    {
       std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
       const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+      if (!P)
+      {
+         std::cout << ". P is empty. "
+                   << "Conforming dof " << fes->GetConformingVSize() << '\n';
+      }
    }
    MPI_Barrier(comm);
-   if(1 == rank)
+   if (1 == rank)
    {
       std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
       const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+      if (!P)
+      {
+         std::cout << ". P is empty. "
+                   << "Conforming dof " << fes->GetConformingVSize() << '\n';
+      }
    }
    MPI_Barrier(comm);
-   if(2 == rank)
+   if (2 == rank)
    {
       std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
       const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+      if (!P)
+      {
+         std::cout << ". P is empty. "
+                   << "Conforming dof " << fes->GetConformingVSize() << '\n';
+      }
    }
    MPI_Barrier(comm);
-   if(3 == rank)
+   if (3 == rank)
    {
       std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
+      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
       const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
+      if (!P)
+      {
+         std::cout << ". P is empty. "
+                   << "Conforming dof " << fes->GetConformingVSize() << '\n';
+      }
    }
    MPI_Barrier(comm);
    // Add integrators; this can be simplified if we template the entire class
@@ -207,12 +222,12 @@ AbstractSolver::~AbstractSolver()
 
 void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 {
-// #ifndef MFEM_USE_PUMI
-//    if (smesh == nullptr)
-//    { // read in the serial mesh
-//       smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1));
-//    }
-// #endif
+   // #ifndef MFEM_USE_PUMI
+   //    if (smesh == nullptr)
+   //    { // read in the serial mesh
+   //       smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1));
+   //    }
+   // #endif
 
 #ifdef MFEM_USE_MPI
    comm = MPI_COMM_WORLD;
@@ -224,6 +239,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
                           "\tdo not provide smesh when using PUMI!");
    }
    // problem with using these in loadMdsMesh
+   cout << "Construct pumi mesh.\n";
    const char *model_file = options["model-file"].get<string>().c_str();
    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
@@ -249,50 +265,50 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    mesh.reset(new MeshType(*smesh));
 #endif // end of MFEM_USE_MPI
 
-// #ifdef MFEM_USE_MPI
-//    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
-//    MPI_Comm_rank(comm, &rank);
-// #ifdef MFEM_USE_PUMI // if using pumi mesh
-//    if (smesh != nullptr)
-//    {
-//       throw MachException("AbstractSolver::constructMesh(smesh)\n"
-//                           "\tdo not provide smesh when using PUMI!");
-//    }
-//    // problem with using these in loadMdsMesh
-//    std::cout << options["model-file"].get<string>().c_str() << std::endl;
-//    const char *model_file = options["model-file"].get<string>().c_str();
-//    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
-//    PCU_Comm_Init();
-// #ifdef MFEM_USE_SIMMETRIX
-//    Sim_readLicenseFile(0);
-//    gmi_sim_start();
-//    gmi_register_sim();
-// #endif
-//    gmi_register_mesh();
-//    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-//                                 options["mesh"]["file"].get<string>().c_str());
-//    int mesh_dim = pumi_mesh->getDimension();
-//    int nEle = pumi_mesh->count(mesh_dim);
-//    int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
-//    // Perform Uniform refinement
-//    // if (ref_levels > 1)
-//    // {
-//    //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
-//    //    ma::adapt(uniInput);
-//    // }
-//    pumi_mesh->verify();
-//    mesh.reset(new MeshType(comm, pumi_mesh));
-//    PCU_Comm_Free();
-// #ifdef MFEM_USE_SIMMETRIX
-//    gmi_sim_stop();
-//    Sim_unregisterAllKeys();
-// #endif
-// #else
-//    mesh.reset(new MeshType(comm, *smesh));
-// #endif //MFEM_USE_PUMI
-// #else
-//    mesh.reset(new MeshType(*smesh));
-// #endif //MFEM_USE_MPI
+   // #ifdef MFEM_USE_MPI
+   //    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
+   //    MPI_Comm_rank(comm, &rank);
+   // #ifdef MFEM_USE_PUMI // if using pumi mesh
+   //    if (smesh != nullptr)
+   //    {
+   //       throw MachException("AbstractSolver::constructMesh(smesh)\n"
+   //                           "\tdo not provide smesh when using PUMI!");
+   //    }
+   //    // problem with using these in loadMdsMesh
+   //    std::cout << options["model-file"].get<string>().c_str() << std::endl;
+   //    const char *model_file = options["model-file"].get<string>().c_str();
+   //    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
+   //    PCU_Comm_Init();
+   // #ifdef MFEM_USE_SIMMETRIX
+   //    Sim_readLicenseFile(0);
+   //    gmi_sim_start();
+   //    gmi_register_sim();
+   // #endif
+   //    gmi_register_mesh();
+   //    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
+   //                                 options["mesh"]["file"].get<string>().c_str());
+   //    int mesh_dim = pumi_mesh->getDimension();
+   //    int nEle = pumi_mesh->count(mesh_dim);
+   //    int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
+   //    // Perform Uniform refinement
+   //    // if (ref_levels > 1)
+   //    // {
+   //    //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
+   //    //    ma::adapt(uniInput);
+   //    // }
+   //    pumi_mesh->verify();
+   //    mesh.reset(new MeshType(comm, pumi_mesh));
+   //    PCU_Comm_Free();
+   // #ifdef MFEM_USE_SIMMETRIX
+   //    gmi_sim_stop();
+   //    Sim_unregisterAllKeys();
+   // #endif
+   // #else
+   //    mesh.reset(new MeshType(comm, *smesh));
+   // #endif //MFEM_USE_PUMI
+   // #else
+   //    mesh.reset(new MeshType(*smesh));
+   // #endif //MFEM_USE_MPI
 }
 
 void AbstractSolver::setInitialCondition(
@@ -432,7 +448,7 @@ void AbstractSolver::printSolution(const std::string &file_name,
 }
 
 void AbstractSolver::printResidual(const std::string &file_name,
-                                        int refine)
+                                   int refine)
 {
    GridFunType r(fes.get());
 #ifdef MFEM_USE_MPI
@@ -471,11 +487,11 @@ void AbstractSolver::solveSteady()
 #ifdef MFEM_USE_PETSC
    // Get the PetscSolver option
    double t1, t2;
-   if (0==rank)
+   if (0 == rank)
    {
       t1 = MPI_Wtime();
-   } 
-   // Get the PetscSolver option 
+   }
+   // Get the PetscSolver option
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
    int maxiter = options["petscsolver"]["maxiter"].get<int>();
@@ -511,7 +527,7 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
-   if (0==rank)
+   if (0 == rank)
    {
       t2 = MPI_Wtime();
       cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
