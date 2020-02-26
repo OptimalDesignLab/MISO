@@ -16,7 +16,7 @@ public:
    /// \param[in] fe_coll - used to determine the face elements
    AggregateIntegrator(const mfem::FiniteElementSpace *fe_space,
                               const double r,
-                              const double m)
+                              const mfem::Vector m)
        : fes(fe_space), rho(r), max(m) { }
    
    /// Computes the induced functional estimate for aggregated temperature
@@ -31,7 +31,7 @@ private:
    const double rho;
 
    /// maximum temperature constraint (TODO: USE MULTIPLE MAXIMA, ONE FOR EACH MESH ATTRIBUTE)
-   const double max;
+   const mfem::Vector max;
 
    /// maximum temperature value
    double maxt;

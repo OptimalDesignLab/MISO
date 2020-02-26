@@ -126,7 +126,16 @@ ThermalSolver::ThermalSolver(
 
 	/// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
 	rhoa = options["rho-agg"].template get<double>();
-	double max = options["max-temp"].template get<double>();
+	//double max = options["max-temp"].template get<double>();
+
+	/// assemble max temp array
+	max.SetSize(h_grad_space->GetMesh()->attributes.Size()+1);
+	for (auto& component : options["components"])
+	{
+		double mat_max = component["max-temp"].template get<double>();
+		int attrib = component["attr"].template get<int>();
+		max(attrib) = mat_max;
+	}
 
 	/// pass through aggregation parameters for functional
 	func.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));

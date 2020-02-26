@@ -148,6 +148,9 @@ private:
    /// aggregation parameter
    double rhoa;
 
+   /// vector of maximum temperature constraints
+   mfem::Vector max;
+
    /// work vector
    mutable mfem::Vector z;
 };
