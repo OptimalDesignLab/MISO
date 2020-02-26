@@ -8,6 +8,7 @@
 #include "evolver.hpp"
 #include "coefficient.hpp"
 #include "therm_integ.hpp"
+#include "temp_integ.hpp"
 
 namespace mach
 {
@@ -56,6 +57,9 @@ private:
    mfem::HypreParMatrix M;
    mfem::HypreParMatrix K;
    mfem::Vector B;
+
+   /// aggregation functional
+   std::unique_ptr<AggregateIntegrator> func;
 
    /// mesh dependent density coefficient
    std::unique_ptr<MeshDependentCoefficient> rho;
@@ -140,6 +144,9 @@ private:
 
    /// Return the number of state variables
    virtual int getNumState() {return 1; }
+
+   /// aggregation parameter
+   double rhoa;
 
    /// work vector
    mutable mfem::Vector z;

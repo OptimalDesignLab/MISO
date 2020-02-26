@@ -8,7 +8,7 @@ namespace mach
 {
 
 
-double AggregateIntegrator::GetIEAggregate(std::unique_ptr<GridFunType> temp)
+double AggregateIntegrator::GetIEAggregate(GridFunType *temp)
 {
    cout.flush();
    Array<int> dofs;
@@ -16,6 +16,8 @@ double AggregateIntegrator::GetIEAggregate(std::unique_ptr<GridFunType> temp)
 
    double numer = 0;
    double denom = 0;
+
+   maxt = temp->Max()/max;
 
    // loop through elements
    // TODO: USE MULTIPLE MAXIMA, ONE FOR EACH MESH ATTRIBUTE)
@@ -32,13 +34,15 @@ double AggregateIntegrator::GetIEAggregate(std::unique_ptr<GridFunType> temp)
       {
          const IntegrationPoint &ip = el->GetNodes().IntPoint(i);
          eltrans->SetIntPoint(&ip);
-         double val = temp->GetValue(j, ip);
+         double val = temp->GetValue(j, ip)/max;
 
-         numer += eltrans->Weight()*val*exp(rho*(val - max));
+         numer += eltrans->Weight()*val*exp(rho*(val - maxt));
 
-         denom += eltrans->Weight()*exp(rho*(val - max));
+         denom += eltrans->Weight()*exp(rho*(val - maxt));
       }
    }
+   //std::cout << "max temp: " << max << endl;
+
    return numer/denom;
 }
 

@@ -20,7 +20,7 @@ public:
        : fes(fe_space), rho(r), max(m) { }
    
    /// Computes the induced functional estimate for aggregated temperature
-	double GetIEAggregate(std::unique_ptr<GridFunType> temp);
+	double GetIEAggregate(GridFunType *temp);
 
 private: 
 
@@ -30,8 +30,11 @@ private:
    /// aggregation parameter rho
    const double rho;
 
-   /// maximum temperature value (TODO: USE MULTIPLE MAXIMA, ONE FOR EACH MESH ATTRIBUTE)
+   /// maximum temperature constraint (TODO: USE MULTIPLE MAXIMA, ONE FOR EACH MESH ATTRIBUTE)
    const double max;
+
+   /// maximum temperature value
+   double maxt;
 
 #ifndef MFEM_THREAD_SAFE
    /// store the physical location of a node

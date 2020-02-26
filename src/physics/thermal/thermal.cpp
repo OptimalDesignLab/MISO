@@ -123,6 +123,13 @@ ThermalSolver::ThermalSolver(
  	
 	evolver.reset(new ConductionEvolver(opt_file_name, M, 
 										K, move(bs), *out));
+
+	/// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
+	rhoa = options["rho-agg"].template get<double>();
+	double max = options["max-temp"].template get<double>();
+
+	/// pass through aggregation parameters for functional
+	func.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));
 }
 
 void ThermalSolver::solveUnsteady()
@@ -157,6 +164,7 @@ void ThermalSolver::solveUnsteady()
 	bool done = false;
     double t_final = options["time-dis"]["t-final"].get<double>();
     double dt = options["time-dis"]["dt"].get<double>();
+	double agg;
 
 	for (int ti = 0; !done;)
     {
@@ -177,6 +185,14 @@ void ThermalSolver::solveUnsteady()
 #else
       	ode_solver->Step(*theta, t, dt_real);
 #endif
+
+		// compute functional
+		if (rhoa != 0)
+		{
+			agg = func->GetIEAggregate(theta.get());
+			cout << "aggregated temp constraint = " << agg << endl;
+		}
+
 		evolver->updateParameters();
 
       	ti++;
