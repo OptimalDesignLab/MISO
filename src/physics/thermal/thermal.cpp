@@ -144,7 +144,9 @@ ThermalSolver::ThermalSolver(
 void ThermalSolver::solveUnsteady()
 {
 	double t = 0.0;
-    evolver->SetTime(t);
+    double agg;
+	double gerror = 0;
+	evolver->SetTime(t);
     ode_solver->Init(*evolver);
 
 	if(!setInit)
@@ -173,7 +175,17 @@ void ThermalSolver::solveUnsteady()
 	bool done = false;
     double t_final = options["time-dis"]["t-final"].get<double>();
     double dt = options["time-dis"]["dt"].get<double>();
-	double agg;
+
+	// compute functional for first step, testing purposes
+	if (rhoa != 0)
+	{
+		agg = func->GetIEAggregate(theta.get());
+		cout << "aggregated temp constraint = " << agg << endl;
+
+		//compare to actual max, ASSUMING UNIFORM CONSTRAINT
+		gerror = (theta->Max()/max(1) - agg)/(theta->Max()/max(1));
+		
+	}
 
 	for (int ti = 0; !done;)
     {
@@ -200,6 +212,7 @@ void ThermalSolver::solveUnsteady()
 		{
 			agg = func->GetIEAggregate(theta.get());
 			cout << "aggregated temp constraint = " << agg << endl;
+
 		}
 
 		evolver->updateParameters();
@@ -208,6 +221,11 @@ void ThermalSolver::solveUnsteady()
 
       	done = (t >= t_final - 1e-8 * dt);
     }
+
+	if (rhoa != 0)
+	{
+		cout << "aggregated constraint error at initial state = " << gerror << endl;
+	}
 
     {
         ofstream osol("motor_heat.gf");
