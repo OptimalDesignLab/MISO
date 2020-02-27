@@ -92,6 +92,7 @@ int main(int argc, char *argv[])
 
    ofstream mesh_ofs("test_cube.vtk");
    mesh_ofs.precision(8);
+   mesh->SetAttributes(); //need to do this to set the attributes array
    mesh->PrintVTK(mesh_ofs);
 
    try
@@ -128,7 +129,7 @@ double InitialTemperature(const Vector &x)
 {
    //return cos(M_PI*x(0));
 
-   return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
+   //return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
 
    // if (x(0) <= .5)
    // {
@@ -138,13 +139,16 @@ double InitialTemperature(const Vector &x)
    // {
    //    return sin(M_PI*x(0)/2) + x(0)*x(0)/2 - 1.0/4;
    // }
+
+   //For Use Testing Aggregated Constraint
+   return sin(M_PI*x(0))*sin(M_PI*x(0));
 }
 
 double ExactSolution(const Vector &x)
 {
-   //return cos(M_PI*x(0))*exp(-M_PI*M_PI*t_final);
+   return cos(M_PI*x(0))*exp(-M_PI*M_PI*t_final);
    
-   return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
+   //return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
 
    // if (x(0) <= .5)
    // {

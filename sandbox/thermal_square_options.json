@@ -5,13 +5,14 @@
     },
     "space-dis": {
        "basis-type": "H1",
-       "degree": 2
+       "degree": 1
     },
     "steady": false,
     "time-dis": {
+        "ode-solver": "MIDPOINT",
         "const-cfl": true,
         "cfl": 1.0,
-        "dt": 0.0001,
+        "dt": 0.01,
         "t-final": 0.2
     },
     "lin-solver": {
@@ -27,18 +28,22 @@
     "components": {
        "stator": {
           "material": "testmat",
-          "attr": 1
+          "attr": 1,
+          "max-temp": 0.5
        },
        "rotor": {
           "material": "testmat",
-          "attr": 2
+          "attr": 2,
+          "max-temp": 0.5
        }
     },
     "bcs": {
-        "outflux": [0, 0, 1, 0, 1, 0],
+        "outflux": [0, 0, 0, 0, 0, 0],
         "const": true,
         "const-val": 1
     },
+    "rho-agg": 10,
+    "max-temp": 0.1,
     "init-temp": 300,
     "material-lib-path": "../../src/material_options.json"
  }
