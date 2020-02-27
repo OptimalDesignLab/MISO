@@ -30,6 +30,11 @@
       "maxiter": 100,
       "printlevel": 0
    },
+   "lin-solver": {
+      "printlevel": 0,
+      "maxiter": 100,
+      "tol": 1e-12
+   },
    "saveresults":false,
    "outputs":
    {
