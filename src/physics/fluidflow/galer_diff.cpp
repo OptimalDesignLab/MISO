@@ -68,11 +68,13 @@ namespace mfem
 
 GalerkinDifference::GalerkinDifference(ParMesh *pm, const FiniteElementCollection *f,
    int vdim, int ordering, int de, Mesh2 *pumimesh)
-   : SpaceType(pm, f, vdim, ordering), pmesh(pm), pumi_mesh(pumimesh)
+   : SpaceType(pm, f, vdim, ordering)
 {
 #ifndef MFEM_USE_PUMI
    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
 #endif
+   pmesh = dynamic_cast<ParPumiMesh*>(pm);
+   pumi_mesh = pumimesh;
    //pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
    //pmesh.reset(new MeshType(pumi_mesh, 1, 1));
    degree = de;

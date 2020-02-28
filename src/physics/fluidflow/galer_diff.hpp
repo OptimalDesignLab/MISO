@@ -95,7 +95,7 @@ protected:
    //using MeshType = mfem::PumiMesh;
    /// object defining the computational mesh
    //std::unique_ptr<mach::MeshType> pmesh;
-   mfem::ParPumiMesh pmesh;
+   mfem::ParPumiMesh *pmesh;
    /// the finite element collection pointer
    //std::unique_ptr<const mfem::FiniteElementCollection> fec;
    const mfem::FiniteElementCollection *fec; // not owned

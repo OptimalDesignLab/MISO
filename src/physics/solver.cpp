@@ -247,6 +247,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
                                 options["mesh"]["file"].get<string>().c_str());
+   cout << "pumi mesh is constructed from file.\n";
    int mesh_dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(mesh_dim);
    int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
@@ -261,6 +262,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    ofstream savemesh("annulus.mesh");
    mesh->Print(savemesh);
    savemesh.close();
+   cout << "ParPumiMesh is constructed from pumi_mesh.\n";
 #else
    mesh.reset(new MeshType(comm, *smesh));
 #endif // end of MFEM_USE_PUMI
@@ -537,11 +539,8 @@ void AbstractSolver::solveSteady()
    }
 #else
    // Hypre solver section
-   //prec.reset( new HypreBoomerAMG() );
-   //prec->SetPrintLevel(0);
-   std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
-             << " without preconditioner.\n";
-
+   cout << "HypreGMRESSolver with HypreEuclid preconditioner.\n";
+   prec.reset(new HypreEuclid(fes->GetComm()));
    double tol = options["lin-solver"]["tol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
@@ -549,8 +548,8 @@ void AbstractSolver::solveSteady()
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(* dynamic_cast<mfem::HypreSolver*>(prec.get()));
 
-   //solver->SetPreconditioner(*prec);
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
