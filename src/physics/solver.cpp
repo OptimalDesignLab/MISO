@@ -99,6 +99,7 @@ void AbstractSolver::initDerived()
       fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
                                        Ordering::byVDIM, gd_degree, pumi_mesh));
       cout << "GD fespace is set.\n";
+      dynamic_cast<GalerkinDifference*>(fes.get())->checkpcp();
    }
    else
    {

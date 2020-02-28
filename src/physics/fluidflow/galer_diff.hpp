@@ -2,6 +2,7 @@
 #define MFEM_GALER_DIFF
 
 #include "mfem.hpp"
+#include <iostream>
 
 #ifdef MFEM_USE_PUMI
 #ifdef MFEM_USE_MPI
@@ -66,8 +67,16 @@ public:
       }
       else
       {
+         std::cout << "cP is set.\n";
          return cP; 
       }
+   }
+
+   void checkpcp()
+   {
+      if (cP) {std::cout << "cP is set.\n";}
+      mfem::SparseMatrix *P = dynamic_cast<mfem::SparseMatrix *> (cP);
+      if (P) {std::cout << "convert succeeded.\n";}
    }
 
    /// Build the prolongation matrix in GD method

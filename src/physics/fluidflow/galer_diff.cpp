@@ -74,15 +74,17 @@ GalerkinDifference::GalerkinDifference(ParMesh *pm, const FiniteElementCollectio
    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
 #endif
    pmesh = dynamic_cast<ParPumiMesh*>(pm);
+
    pumi_mesh = pumimesh;
    //pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
    //pmesh.reset(new MeshType(pumi_mesh, 1, 1));
    degree = de;
    nEle = pmesh->GetNE();
    dim = pmesh->Dimension();
-   cout << "The mesh dimension is " << dim << '\n';
    fec = f;
    BuildGDProlongation();
+   cout << "The mesh dimension is " << dim << '\n';
+   cout << "Is the ParPumiMesh conforming ? : " << (pmesh->pncmesh == NULL) << '\n';
    //fec = unique_ptr<FiniteElementCollection>(f);
    //fec.reset(new DSBPCollection(1, dim));
    //Constructor(pmesh.get(), NULL, fec.get(), vdim, Ordering::byVDIM);
