@@ -262,10 +262,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    //mesh.reset(new MeshType(comm, pumi_mesh));
    // currently do this in serial in the MPI configuration because of gd and gridfunction is not
    //    complete
-   mesh.reset(new MeshType(pumi_mesh, 1, 1));
+   mesh.reset(new MeshType(pumi_mesh, 1, 0));
    ofstream savemesh("annulus.mesh");
+   ofstream savevtk("annulus.vtk");
    mesh->Print(savemesh);
+   mesh->PrintVTK(savevtk);
    savemesh.close();
+   savevtk.close();
    cout << "PumiMesh is constructed from pumi_mesh.\n";
 #else
    mesh.reset(new MeshType(comm, *smesh));
@@ -419,7 +422,8 @@ double AbstractSolver::calcL2Error(
 
 double AbstractSolver::calcResidualNorm()
 {
-   GridFunType r(fes.get());
+   //GridFunType r(fes.get());
+   CentGridFunction r(fes.get());
    double res_norm;
 #ifdef MFEM_USE_MPI
    // HypreParVector *U = u->GetTrueDofs();

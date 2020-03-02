@@ -81,7 +81,8 @@ int main(int argc, char *argv[])
       pumi_mesh = apf::loadMdsMesh("annulus.dmg", "annulus.smb");                           
       pumi_mesh->verify();
 
-      ParPumiMesh pm(MPI_COMM_WORLD, pumi_mesh);
+      //ParPumiMesh pm(MPI_COMM_WORLD, pumi_mesh);
+      PumiMesh pm(pumi_mesh, 1, 0);
       
 
       dim = pumi_mesh->getDimension();
