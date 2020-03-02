@@ -1,5 +1,7 @@
 target_sources(mach
    PRIVATE
+      coefficient.cpp
+      coefficient.hpp
       common.hpp
       default_options.hpp
       evolver.cpp
@@ -10,6 +12,8 @@ target_sources(mach
       orthopoly.hpp
       sbp_fe.cpp
       sbp_fe.hpp
+      spline.cpp
+      spline.hpp
 )
 
 target_include_directories(mach

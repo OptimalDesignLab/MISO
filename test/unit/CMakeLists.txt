@@ -22,5 +22,10 @@ set(FLUID_TEST_SRCS
    test_viscous_integ
 )
 
-create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
+# group EM tests
+set(EM_TEST_SRCS
+   test_electromag_integ
+)
 
+create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
+create_tests("${EM_TEST_SRCS}" electromag_test_data.hpp)

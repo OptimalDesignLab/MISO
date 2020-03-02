@@ -17,6 +17,7 @@ set(SANDBOX_SRCS
    unsteady_vortex
    viscous_shock
    airfoil_chaotic
+   magnetostatic_box
 )
 
 create_sandbox("${SANDBOX_SRCS}")
