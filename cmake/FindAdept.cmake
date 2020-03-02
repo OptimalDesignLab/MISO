@@ -11,7 +11,7 @@
 
 # look for Adept static library
 find_path(ADEPT_INCLUDE_DIR adept.h PATHS "${ADEPT_DIR}/include")
-find_library(ADEPT_LIBRARY NAMES libadept.a adept PATHS "${ADEPT_DIR}/lib")
+find_library(ADEPT_LIBRARY NAMES libadept.so adept PATHS "${ADEPT_DIR}/lib")
 
 
 set(ADEPT_INCLUDE_DIRS "${ADEPT_INCLUDE_DIR}")
