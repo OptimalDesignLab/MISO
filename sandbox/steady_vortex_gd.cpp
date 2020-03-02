@@ -97,11 +97,14 @@ int main(int argc, char *argv[])
 
       unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
+      std::cout << "initDerived is called.\n";
 
       solver->setInitialCondition(uexact);
       solver->printSolution("init", 0);
+      std::cout << "initial solution is printed.\n";
 
       double l_error = solver->calcL2Error(uexact, 0);
+      std::cout << "L2 error is " << l_error << '\n';
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {

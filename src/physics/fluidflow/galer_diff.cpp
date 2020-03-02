@@ -66,15 +66,16 @@ namespace mfem
 //    cout << "Start to build the GD prolongation matrix of degree " << degree << '\n';
 // } // class constructor ends
 
-GalerkinDifference::GalerkinDifference(ParMesh *pm, const FiniteElementCollection *f,
+GalerkinDifference::GalerkinDifference(MPI_Comm _comm, Mesh *pm, const FiniteElementCollection *f,
    int vdim, int ordering, int de, Mesh2 *pumimesh)
    : SpaceType(pm, f, vdim, ordering)
 {
 #ifndef MFEM_USE_PUMI
    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
 #endif
-   pmesh = dynamic_cast<ParPumiMesh*>(pm);
-
+   comm = _comm;
+   //pmesh = dynamic_cast<PumiMesh*>(pm);
+   pmesh = dynamic_cast<PumiMesh*>(pm);
    pumi_mesh = pumimesh;
    //pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
    //pmesh.reset(new MeshType(pumi_mesh, 1, 1));
@@ -84,7 +85,7 @@ GalerkinDifference::GalerkinDifference(ParMesh *pm, const FiniteElementCollectio
    fec = f;
    BuildGDProlongation();
    cout << "The mesh dimension is " << dim << '\n';
-   cout << "Is the ParPumiMesh conforming ? : " << (pmesh->pncmesh == NULL) << '\n';
+   //cout << "Is the ParPumiMesh conforming ? : " << (pmesh->pncmesh == NULL) << '\n';
    //fec = unique_ptr<FiniteElementCollection>(f);
    //fec.reset(new DSBPCollection(1, dim));
    //Constructor(pmesh.get(), NULL, fec.get(), vdim, Ordering::byVDIM);

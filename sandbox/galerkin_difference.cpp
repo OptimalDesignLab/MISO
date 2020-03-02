@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
       
       cout << "Construct the GD fespace.\n";
       DSBPCollection fec(1,dim);
-      GalerkinDifference gd(&pm, &fec, 1, Ordering::byVDIM, degree, pumi_mesh);
+      GalerkinDifference gd(MPI_COMM_WORLD, &pm, &fec, 1, Ordering::byVDIM, degree, pumi_mesh);
       //GalerkinDifference gd(degree, pumi_mesh, 1, Ordering::byVDIM);
       cout << "Now build the prolongation matrix.\n";
       //GalerkinDifference gd(options_file, pumi_mesh);

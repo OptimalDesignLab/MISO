@@ -15,7 +15,7 @@ namespace mfem
 {
 
 /// Abstract class for Galerkin difference method using patch construction
-class GalerkinDifference : public ParFiniteElementSpace
+class GalerkinDifference : public FiniteElementSpace
 {
 
 public:
@@ -28,7 +28,7 @@ public:
    /// Another convenient constructor for test the prolongation matrix
    GalerkinDifference(int de, apf::Mesh2 *pm, int vdim = 1,
                         int ordering = mfem::Ordering::byVDIM);
-   GalerkinDifference(mfem::ParMesh *pm, const mfem::FiniteElementCollection *f,
+   GalerkinDifference(MPI_Comm _comm, mfem::Mesh *pm, const mfem::FiniteElementCollection *f,
                       int vdim = 1, int ordering = mfem::Ordering::byVDIM,
                       int degree = 0, apf::Mesh2 *pumimesh = NULL);
    
@@ -92,6 +92,10 @@ public:
    /// check the duplication of quadrature points in the quad matrix
    bool duplicated(const mfem::Vector quad, const std::vector<double> data);
 
+   MPI_Comm GetComm() {return comm;}
+
+   virtual int GetTrueVSize() const {return nEle * vdim; }
+
 protected:
    /// mesh dimension
    int dim;
@@ -104,7 +108,7 @@ protected:
    //using MeshType = mfem::PumiMesh;
    /// object defining the computational mesh
    //std::unique_ptr<mach::MeshType> pmesh;
-   mfem::ParPumiMesh *pmesh;
+   mfem::PumiMesh *pmesh;
    /// the finite element collection pointer
    //std::unique_ptr<const mfem::FiniteElementCollection> fec;
    const mfem::FiniteElementCollection *fec; // not owned
