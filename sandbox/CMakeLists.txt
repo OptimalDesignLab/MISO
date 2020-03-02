@@ -13,11 +13,13 @@ function(create_sandbox source_list)
 endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
+   advection2d
    steady_vortex
    unsteady_vortex
    viscous_shock
    airfoil_chaotic
    thermal_square
+   mesh_move
 )
 
 create_sandbox("${SANDBOX_SRCS}")
