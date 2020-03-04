@@ -1,6 +1,6 @@
 {
     "mesh": {
-       "file": "../../sandbox/move_box0.smb"
+       "file": "../../sandbox/move_box.smb"
     },
     "model-file-old": "../../sandbox/move_box.egads",
     "model-file-new": "../../sandbox/move_box_2.egads",
