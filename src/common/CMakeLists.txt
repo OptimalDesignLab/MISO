@@ -14,6 +14,8 @@ target_sources(mach
       sbp_fe.hpp
       spline.cpp
       spline.hpp
+      mesh_movement.cpp
+      mesh_movement.hpp
 )
 
 target_include_directories(mach

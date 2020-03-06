@@ -36,6 +36,18 @@ if (MFEM_USE_MPI)
    find_package(MPI REQUIRED)
 endif (MFEM_USE_MPI)
 
+option(MACH_USE_EGADS "Build with EGADS support" OFF)
+message(STATUS "MACH_USE_EGADS: ${MACH_USE_EGADS}")
+
+if(MACH_USE_EGADS)
+  add_definitions(-DUSE_EGADS)
+endif()
+
+# EGADS Support for mesh movement
+if (MACH_USE_EGADS)
+  find_package(EGADS MODULE REQUIRED)
+endif()
+
 # Try to find OpenMP (used by Adept)
 find_package(OpenMP)
 

@@ -3,6 +3,11 @@
 
 #include "mfem.hpp"
 #include "adept.h"
+#include "egads.h"
+
+#ifdef MACH_USE_EGADS
+#include "mach_egads.h"
+#endif
 
 #include "solver.hpp"
 #include "coefficient.hpp"
@@ -24,13 +29,15 @@ protected:
     }
 };
 
+#ifdef MACH_USE_EGADS
 class LEAnalogySolver : public MeshMovementSolver
 {
 public:
     /// Class Constructor
     LEAnalogySolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr,
-					    int dim = 3);
+					    
+                        int dim = 3);
 
 private:
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
@@ -46,6 +53,8 @@ private:
 
    mfem::HypreParMatrix K;
    mfem::Vector B;
+
+   ///
 
    /// mesh dependent density coefficient
    /// TODO: Do we assign an attribute to every element and use this?
@@ -83,6 +92,10 @@ private:
    /// work vector
    mutable mfem::Vector z;
     
-}
+};
+
+#endif
 
 } //namespace mach
+
+#endif
