@@ -4,6 +4,8 @@
 
 #include "mfem.hpp"
 #include "euler.hpp"
+#include "galer_diff.hpp"
+#include "centgridfunc.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -87,13 +89,52 @@ int main(int argc, char *argv[])
 #endif
       gmi_register_mesh();
 
+      // test gd prolongation
+      apf::Mesh2 *pumi_mesh;
+      pumi_mesh = apf::loadMdsMesh("annulus.dmg", "annulus.smb");                           
+      pumi_mesh->verify();
+
+      //ParPumiMesh pm(MPI_COMM_WORLD, pumi_mesh);
+      PumiMesh pm(pumi_mesh, 1, 0);
+
+      int dim = pumi_mesh->getDimension();
+      int nEle = pumi_mesh->count(dim);
+
+      cout << "Construct the GD fespace.\n";
+      DSBPCollection fec(1,dim);
+      GalerkinDifference gd(MPI_COMM_WORLD, &pm, &fec, 4, Ordering::byVDIM, degree, pumi_mesh);
+      cout << "GetVSize returns " << gd.GetVSize() << '\n';
+      cout << "Now build the prolongation matrix.\n";
+      //GalerkinDifference gd(options_file, pumi_mesh);
+      gd.BuildGDProlongation();
+
+
+      // Test the prolongation matrix with gridfunction vdim = 4
+      mfem::GridFunction x(&gd);
+      mfem::GridFunction x_exact(&gd);
+      cout << "Size of x and x_exact is " << x.Size() << '\n';
+
+      mfem::VectorFunctionCoefficient u0(4, uexact);
+      x_exact.ProjectCoefficient(u0);
+      // cout << "Check the exact solution:\n";
+      // x_exact.Print(cout ,4);
+
+
+      mfem::CentGridFunction x_cent(&gd);
+      cout << "Size of x_cent is " << x_cent.Size() << '\n';
+      x_cent.ProjectCoefficient(u0);
+      // cout << "\n\n\n\nCheck the the center values:\n";
+      // x_cent.Print(cout, 4);
+
+
+      gd.GetProlongationMatrix()->Mult(x_cent, x);
+      //cout << "\n\n\n\nCheck the results:\n";
+      //x.Print(cout,4);
+      x -= x_exact;
+      cout << "Check the error: " << x.Norml2() << '\n';
+
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
-      ofstream sol_ofs("steady_vortex_mesh.vtk");
-      sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,3);
 
       unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
@@ -188,7 +229,6 @@ void uexact(const Vector &x, Vector& u)
 
    u(0) = rho;
    u(1) = rho*a*Ma*sin(theta);
-   //u(1) = 0.4;
    u(2) = -rho*a*Ma*cos(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 }

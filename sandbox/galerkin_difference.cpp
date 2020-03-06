@@ -76,8 +76,6 @@ int main(int argc, char *argv[])
       gmi_register_mesh();
 
       apf::Mesh2 *pumi_mesh;
-      // pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-      //                      options["pumi-mesh"]["file"].get<string>().c_str());
       pumi_mesh = apf::loadMdsMesh("annulus.dmg", "annulus.smb");                           
       pumi_mesh->verify();
 
