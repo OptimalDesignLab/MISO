@@ -3,6 +3,8 @@
 	 "degree": -1
   },
    "space-dis": {
+      "GD": false,
+      "GD-degree": 1,
       "degree": 1,
       "lps-coeff": 1.0,
       "basis-type": "csbp"
