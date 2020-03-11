@@ -25,6 +25,11 @@ endif
 MFEM_LIB_FILE = mfem_is_not_built
 -include $(CONFIG_MK)  # this includes mfem's config.mk makefile
 
+ifdef MACH_USE_EGADS
+	EGADS_LIBRARY ?= $(EGADS_LIBRARY)
+	EGADS_INCLUDE_DIR ?= $(EGADS_INCLUDE_DIR)
+endif
+
 # directories
 SRC_DIR=$(CURDIR)/src
 TEST_DIR=$(CURDIR)/test

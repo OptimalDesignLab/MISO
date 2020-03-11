@@ -10,15 +10,16 @@
 #  message(STATUS "EGADS_PREFIX: ${EGADS_PREFIX}")
 #endif()
 
-find_path(EGADS_INCLUDE_DIR egads.h PATHS "${EGADS_DIR}/include")
+find_path(EGADS_INCLUDE_DIR egads.h PATHS "${EGADS_DIR}/include" NO_DEFAULT_PATH)
 
 option(EGADS_LITE "Use EGADS_LITE" OFF)
 if (EGADS_LITE)
   message(STATUS "Using EGADSlite")
-  find_library(EGADS_LIBRARY NAMES egadslite PATHS "${EGADS_DIR}/lib")
+  find_library(EGADS_LIBRARY NAMES egadslite PATHS "${EGADS_DIR}/lib" NO_DEFAULT_PATH)
 else()
   message(STATUS "Using EGADS")
-  find_library(EGADS_LIBRARY NAMES egads libegads.so libegads.dylib PATHS "${EGADS_DIR}/lib")
+  find_library(EGADS_LIBRARY NAMES egads libegads.so libegads.dylib PATHS "${EGADS_DIR}/lib" NO_DEFAULT_PATH)  
+  message("EGADS Directory: ${EGADS_DIR}")
 endif()
 
 set(EGADS_LIBRARIES ${EGADS_LIBRARY} )
@@ -27,7 +28,7 @@ set(EGADS_INCLUDE_DIRS ${EGADS_INCLUDE_DIR} )
 include(FindPackageHandleStandardArgs)
 # handle the QUIETLY and REQUIRED arguments and set EGADS_FOUND to TRUE
 # if all listed variables are TRUE
-message(STATUS "beep boop: ${EGADS_LIBRARY}")
+message(STATUS "EGADS Library: ${EGADS_LIBRARY}")
 find_package_handle_standard_args(
     EGADS
     DEFAULT_MSG
