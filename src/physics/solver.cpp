@@ -71,7 +71,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
-   if (options["GD"]["degree"].get<bool>() == true || 
+   if (options["space-dis"]["GD"].get<bool>() == true || 
         options["space-dis"]["basis-type"].get<string> == "dsbp")
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
@@ -108,38 +108,6 @@ void AbstractSolver::initDerived()
    // set up the spatial semi-linear form
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
-   if(0 == rank)
-   {
-      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
-      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
-   }
-   MPI_Barrier(comm);
-   if(1 == rank)
-   {
-      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
-      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
-   }
-   MPI_Barrier(comm);
-   if(2 == rank)
-   {
-      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
-      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
-   }
-   MPI_Barrier(comm);
-   if(3 == rank)
-   {
-      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is "<<fes->GetNDofs() << ". res size " << res->Width() << ". u size "<< u->Size();
-      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if(!P) {std::cout << ". P is empty. " << "Conforming dof " << fes->GetConformingVSize()<< '\n';}
-   }
-   MPI_Barrier(comm);
    // Add integrators; this can be simplified if we template the entire class
    addVolumeIntegrators(alpha);
    auto &bcs = options["bcs"];
