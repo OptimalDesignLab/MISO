@@ -392,7 +392,7 @@ void AbstractSolver::solveSteady()
    }
 #ifdef MFEM_USE_PETSC   
    // Get the PetscSolver option
-   *out << "Petsc solver with ilu preconditioner.\n";
+   *out << "Petsc solver with lu preconditioner.\n";
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
    int maxiter = options["petscsolver"]["maxiter"].get<int>();
