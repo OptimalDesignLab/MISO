@@ -71,9 +71,9 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
-   if (options["space-dis"]["GD"].get<bool>() == true || 
-        options["space-dis"]["basis-type"].get<string> == "dsbp")
-   {
+   if (options["space-dis"]["GD"].get<bool>() == true ||
+		 options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   {   
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
                                    dim));
    }
