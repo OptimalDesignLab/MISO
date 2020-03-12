@@ -72,7 +72,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
    if (options["space-dis"]["GD"].get<bool>() == true || 
-        options["space-dis"]["basis-type"].get<string> == "dsbp")
+       options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
                                    dim));
@@ -392,7 +392,7 @@ void AbstractSolver::solveSteady()
    }
 #ifdef MFEM_USE_PETSC   
    // Get the PetscSolver option
-   *out << "Petsc solver with ilu preconditioner.\n";
+   *out << "Petsc solver with lu preconditioner.\n";
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
    int maxiter = options["petscsolver"]["maxiter"].get<int>();
