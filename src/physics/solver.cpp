@@ -239,23 +239,23 @@ void AbstractSolver::setInitialCondition(
    u->ProjectCoefficient(u0);
    uc->ProjectCoefficient(u0);
 
-   cout << "\nCheck exact solution:\n";
-   u->Print(cout, num_state);
-   cout << "\n\nCheck center values:\n";
-   uc->Print(cout, num_state);
+   // cout << "\nCheck exact solution:\n";
+   // u->Print(cout, num_state);
+   // cout << "\n\nCheck center values:\n";
+   // uc->Print(cout, num_state);
 
    Vector u_test(fes->GetVSize());
    fes->GetProlongationMatrix()->Mult(*uc, u_test);
-   cout << "\n\nCheck the prolongated results:\n";
-   u_test.Print(cout,4);
+   // cout << "\n\nCheck the prolongated results:\n";
+   // u_test.Print(cout,4);
    u_test -= *u;
    cout << "The difference norm is " << u_test.Norml2() << '\n';
-   ofstream u_write("u.txt");
-   ofstream uc_write("uc.txt");
-   u->Print(u_write, 1);
-   uc->Print(uc_write,1);
-   u_write.close();
-   uc_write.close();
+   // ofstream u_write("u.txt");
+   // ofstream uc_write("uc.txt");
+   // u->Print(u_write, 1);
+   // uc->Print(uc_write,1);
+   // u_write.close();
+   // uc_write.close();
    // DenseMatrix vals;
    // Vector uj;
    // for (int i = 0; i < fes->GetNE(); i++)
@@ -441,10 +441,12 @@ void AbstractSolver::solveSteady()
    int maxiter = options["petscsolver"]["maxiter"].get<int>();
    int ptl = options["petscsolver"]["printlevel"].get<int>();
    solver.reset(new GMRESSolver());
+   prec.reset(new GSSmoother(1,1));
    dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetAbsTol(abstol);
    dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetRelTol(reltol);
    dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetPrintLevel(ptl);
+   dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetPreconditioner(*prec);
 
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
@@ -721,7 +723,7 @@ void AbstractSolver::jacobianCheck()
    jac.Mult(*perturbation_vec, *jac_v);
    // check the difference norm
    jac_v->Add(-1.0, *res_plus);
-   std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
+   std::cout << "The (jav * v) difference norm is " << jac_v->Norml2() << '\n';
 }
 
 } // namespace mach

@@ -1,7 +1,10 @@
-// #ifdef MFEM_USE_PUMI
+
+#include "galer_diff.hpp"
+
+#ifdef MFEM_USE_PUMI
+#ifdef MFEM_USE_MPI
 #include <fstream>
 #include <iostream>
-#include "galer_diff.hpp"
 #include "sbp_fe.hpp"
 using namespace std;
 using namespace mach;
@@ -389,7 +392,14 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
          col_index[e]++;
       }
    }
-   
+
+   // convert sparse matrix into a Hypre_ParCSRMatrix
+   // HYPRE_Int *row_starts, *col_starts;
+   // row_starts = col_starts = mfem_hypre_TAlloc(HYPRE_Int, 2);
+   // row_starts[0] = 0; row_starts[1] = cP->Height();
+   // col_starts[0] = 0; col_starts[1] = cP->Width();
+   // P = Hypre_ParCSRMatrix(comm, row_starts, col_starts, cP);
+
 
    // for(int i = 0; i < nel; i ++)
    // {
@@ -411,4 +421,5 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
 }
 
 } // namespace mfem
-// #endif
+#endif
+#endif

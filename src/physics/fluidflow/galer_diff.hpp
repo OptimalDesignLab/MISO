@@ -2,11 +2,10 @@
 #define MFEM_GALER_DIFF
 
 #include "mfem.hpp"
-#include <iostream>
 
 #ifdef MFEM_USE_PUMI
 #ifdef MFEM_USE_MPI
-
+#include <iostream>
 #include "solver.hpp"
 #include "mach_types.hpp"
 #include "pumi.h"

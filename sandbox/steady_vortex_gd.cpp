@@ -88,51 +88,6 @@ int main(int argc, char *argv[])
       gmi_register_sim();
 #endif
       gmi_register_mesh();
-
-      // test gd prolongation
-      apf::Mesh2 *pumi_mesh;
-      pumi_mesh = apf::loadMdsMesh("annulus.dmg", "annulus.smb");                           
-      pumi_mesh->verify();
-
-      //ParPumiMesh pm(MPI_COMM_WORLD, pumi_mesh);
-      PumiMesh pm(pumi_mesh, 1, 0);
-
-      int dim = pumi_mesh->getDimension();
-      int nEle = pumi_mesh->count(dim);
-
-      cout << "Construct the GD fespace.\n";
-      DSBPCollection fec(1,dim);
-      GalerkinDifference gd(MPI_COMM_WORLD, &pm, &fec, 4, Ordering::byVDIM, degree, pumi_mesh);
-      cout << "GetVSize returns " << gd.GetVSize() << '\n';
-      cout << "Now build the prolongation matrix.\n";
-      //GalerkinDifference gd(options_file, pumi_mesh);
-      gd.BuildGDProlongation();
-
-
-      // Test the prolongation matrix with gridfunction vdim = 4
-      mfem::GridFunction x(&gd);
-      mfem::GridFunction x_exact(&gd);
-      cout << "Size of x and x_exact is " << x.Size() << '\n';
-
-      mfem::VectorFunctionCoefficient u0(4, uexact);
-      x_exact.ProjectCoefficient(u0);
-      // cout << "Check the exact solution:\n";
-      // x_exact.Print(cout ,4);
-
-
-      mfem::CentGridFunction x_cent(&gd);
-      cout << "Size of x_cent is " << x_cent.Size() << '\n';
-      x_cent.ProjectCoefficient(u0);
-      // cout << "\n\n\n\nCheck the the center values:\n";
-      // x_cent.Print(cout, 4);
-
-
-      gd.GetProlongationMatrix()->Mult(x_cent, x);
-      //cout << "\n\n\n\nCheck the results:\n";
-      //x.Print(cout,4);
-      x -= x_exact;
-      cout << "Check the error: " << x.Norml2() << '\n';
-
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
 
@@ -143,7 +98,8 @@ int main(int argc, char *argv[])
       solver->setInitialCondition(uexact);
       solver->printSolution("init", 0);
       std::cout << "initial solution is printed.\n";
-
+		// solver->setperturb(pert);
+		// solver->jacobianCheck();
       double l_error = solver->calcL2Error(uexact, 0);
       std::cout << "L2 error is " << l_error << '\n';
       double res_error = solver->calcResidualNorm();
@@ -158,13 +114,13 @@ int main(int argc, char *argv[])
 
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();
-      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
       if (0==myid)
       {
          mfem::out << "\nfinal residual norm = " << res_error;
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
-         mfem::out << "\nDrag error = " << drag << endl;
+         //mfem::out << "\nDrag error = " << drag << endl;
       }
       PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
