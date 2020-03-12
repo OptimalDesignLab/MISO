@@ -17,6 +17,7 @@ set(CMAKE_MODULE_PATH
 find_package(Adept MODULE REQUIRED)
 find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 
+
 # if MFEM was compiled with PUMI, we need to find it so we can 
 if (MFEM_USE_PUMI)
    # If PUMI_DIR was specified, only link to that directory,
@@ -45,7 +46,8 @@ endif()
 
 # EGADS Support for mesh movement
 if (MACH_USE_EGADS)
-  find_package(EGADS MODULE REQUIRED)
+   message(STATUS "hello")
+   find_package(EGADS MODULE REQUIRED)
 endif()
 
 # Try to find OpenMP (used by Adept)
@@ -71,6 +73,13 @@ target_link_libraries(mach
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
 )
 
+if(MACH_USE_EGADS)
+   target_link_libraries(mach
+      PUBLIC
+         "${EGADS_LIBRARIES}"
+   )
+endif()
+
 # if OpenMP found on system, link to it
 if(OpenMP_CXX_FOUND)
    target_link_libraries(mach
@@ -84,6 +93,13 @@ target_include_directories(mach
       "${MFEM_INCLUDE_DIRS}"
       "${PUMI_INCLUDE_DIRS}"
 )
+
+if(MACH_USE_EGADS)
+   target_include_directories(mach
+      PUBLIC
+         "${EGADS_INCLUDE_DIRS}"
+   )
+endif()
 
 target_compile_features(mach
    PUBLIC

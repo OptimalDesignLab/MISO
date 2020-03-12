@@ -1,6 +1,7 @@
 #include "mfem.hpp"
 #include "thermal.hpp"
 #include "gmi_egads.h"
+#include "mach_egads.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -52,6 +53,7 @@ int main(int argc, char *argv[])
     string model_file_old = options["model-file-old"].template get<string>();
     string model_file_new = options["model-file-new"].template get<string>();
     string mesh_file = options["mesh"]["file"].template get<string>();
+    string tess_file = options["tess-file-old"].template get<string>();
 
     cout << model_file_old << endl;
     PCU_Comm_Init();
@@ -80,33 +82,45 @@ int main(int argc, char *argv[])
     mfem::Vector disp;
     disp.SetSize(3);
     Array<mfem::Vector> disp_list;
-    disp_list.SetSize(mesh->GetNV());
+    //disp_list.SetSize(mesh->GetNV());
+    gmi_egads_stop();
 
-   int j = 0;
-   while((bndn = pumi_mesh->iterate(itb)))
+   cout << "Displacing" << endl;
+   getBoundaryNodeDisplacement(model_file_old, model_file_new, tess_file,
+                                pumi_mesh, &disp_list);
+
+   cout << "Number of displaced nodes: " << 40 << endl;                     
+
+   for(int j = 1; j <= 40; j++)
    {
-      pumi_mesh->getPoint(bndn, 0, xold);
-      pumi_mesh->getParam(bndn, param);
-      cout << "param point: " << param.x() << " "<<  param.y() << " " << param.z() << endl;
-
-      bnd_face_old = pumi_mesh->toModel(bndn);
-      int tag = pumi_mesh->getModelTag(bnd_face_old);
-      cout << "tag: " << tag << endl;
-      int type = pumi_mesh->getModelType(bnd_face_old);
-      cout << "type: " << type << endl;
-      //bnd_face_new = (apf::ModelEntity*)gmi_find(new_surf, type, tag);
-      //gmi_reparam(new_surf, (gmi_ent*)bnd_face_old, &param[0], (gmi_ent*)bnd_face_new, &param2[0]);
-      //gmi_eval(new_surf, (gmi_ent*)bnd_face_new, &param[0], &xnew[0]);
-      gmi_eval(pumi_mesh->getModel(), (gmi_ent*)bnd_face_old, &param[0], &xnew[0]);
-      disp(0) = xnew.x() - xold.x();
-      disp(1) = xnew.y() - xold.y();
-      disp(2) = xnew.z() - xold.z();
-      disp_list[j] = disp;
-      j++;
-      cout << "node: " << j << ", oldx: " << xold.x() << " " << xold.y() << " " << xold.z() << endl;
+      disp = disp_list[j];
       cout << "node: " << j << ", disp: " << disp(0) << " " << disp(1) << " " << disp(2) << endl;
    }
-   gmi_egads_stop();
+   // int j = 0;
+   // while((bndn = pumi_mesh->iterate(itb)))
+   // {
+   //    pumi_mesh->getPoint(bndn, 0, xold);
+   //    pumi_mesh->getParam(bndn, param);
+   //    cout << "param point: " << param.x() << " "<<  param.y() << " " << param.z() << endl;
+
+   //    bnd_face_old = pumi_mesh->toModel(bndn);
+   //    int tag = pumi_mesh->getModelTag(bnd_face_old);
+   //    cout << "tag: " << tag << endl;
+   //    int type = pumi_mesh->getModelType(bnd_face_old);
+   //    cout << "type: " << type << endl;
+   //    //bnd_face_new = (apf::ModelEntity*)gmi_find(new_surf, type, tag);
+   //    //gmi_reparam(new_surf, (gmi_ent*)bnd_face_old, &param[0], (gmi_ent*)bnd_face_new, &param2[0]);
+   //    //gmi_eval(new_surf, (gmi_ent*)bnd_face_new, &param[0], &xnew[0]);
+   //    gmi_eval(pumi_mesh->getModel(), (gmi_ent*)bnd_face_old, &param[0], &xnew[0]);
+   //    disp(0) = xnew.x() - xold.x();
+   //    disp(1) = xnew.y() - xold.y();
+   //    disp(2) = xnew.z() - xold.z();
+   //    disp_list[j] = disp;
+   //    j++;
+   //    cout << "node: " << j << ", oldx: " << xold.x() << " " << xold.y() << " " << xold.z() << endl;
+   //    cout << "node: " << j << ", disp: " << disp(0) << " " << disp(1) << " " << disp(2) << endl;
+   // }
+   //gmi_egads_stop();
     PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
     gmi_sim_stop();
