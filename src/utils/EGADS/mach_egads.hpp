@@ -1,6 +1,8 @@
 #ifndef MACH_EGADS
 #define MACH_EGADS
 
+/// try to put includes in the .cpp file unless theyre explicitly needed for
+/// the function prototypes
 #include "mfem.hpp"
 #include "utils.hpp"
 #include "egads.h"

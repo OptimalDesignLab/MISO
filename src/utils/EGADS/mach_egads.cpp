@@ -1,5 +1,9 @@
 #include "mach_egads.hpp"
 
+extern "C" int EG_saveTess(egObject *tess, const char *name);
+extern "C" int EG_loadTess(egObject *body, const char *name,
+                           egObject **tess);
+
 void getBoundaryNodeDisplacement(std::string something, apf::Mesh2* mesh, 
 
                                 mfem::Array<mfem::Vector> disp_list)
