@@ -100,8 +100,10 @@ int main(int argc, char *argv[])
 
       solver->setInitialCondition(uexact);
       solver->printSolution("init", 0);
+      std::cout << "Initial solution is printed.\n";
 
       double l_error = solver->calcL2Error(uexact, 0);
+      std::cout << "l2 error is " << l_error << '\n';
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {

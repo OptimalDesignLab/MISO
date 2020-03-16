@@ -24,7 +24,7 @@ using namespace mfem;
 using namespace mach;
 using namespace apf;
 
-const int degree = 2;
+const int degree = 4;
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -76,83 +76,39 @@ int main(int argc, char *argv[])
       gmi_register_mesh();
 
       apf::Mesh2 *pumi_mesh;
-      // pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-      //                      options["pumi-mesh"]["file"].get<string>().c_str());
       pumi_mesh = apf::loadMdsMesh("annulus.dmg", "annulus.smb");                           
       pumi_mesh->verify();
-
       ParPumiMesh pm(MPI_COMM_WORLD, pumi_mesh);
       
-
       dim = pumi_mesh->getDimension();
       nEle = pumi_mesh->count(dim);
 
-      // for(int degree = 0; degree < 4; degree++)
-      // {
-      //    GalerkinDifference gd(degree, pumi_mesh, fec.get(), 1, Ordering::byVDIM);
-      //    gd.BuildGDProlongation();
-      //    mfem::GridFunction x(&gd);
-      //    mfem::GridFunction x_exact(&gd);
-
-      // }
-      
-      
       cout << "Construct the GD fespace.\n";
       DSBPCollection fec(1,dim);
       GalerkinDifference gd(&pm, &fec, 1, Ordering::byVDIM, degree, pumi_mesh);
-      //GalerkinDifference gd(degree, pumi_mesh, 1, Ordering::byVDIM);
-      cout << "Now build the prolongation matrix.\n";
-      //GalerkinDifference gd(options_file, pumi_mesh);
-      gd.BuildGDProlongation();
-
 
       // Test the prolongation matrix with gridfunction vdim = 4
       mfem::GridFunction x(&gd);
       mfem::GridFunction x_exact(&gd);
-      cout << "Size of x and x_exact is " << x.Size() << '\n';
+      //cout << "Size of x and x_exact is " << x.Size() << '\n';
 
       mfem::VectorFunctionCoefficient u0(1, uexact);
       x_exact.ProjectCoefficient(u0);
-      cout << "Check the exact solution:\n";
-      x_exact.Print(cout ,4);
-
+      // cout << "Check the exact solution:\n";
+      // x_exact.Print(cout ,4);
 
       mfem::CentGridFunction x_cent(&gd);
-      cout << "Size of x_cent is " << x_cent.Size() << '\n';
+      //cout << "Size of x_cent is " << x_cent.Size() << '\n';
       x_cent.ProjectCoefficient(u0);
-      cout << "\n\n\n\nCheck the the center values:\n";
-      x_cent.Print(cout, 4);
-
+      // cout << "\n\n\n\nCheck the the center values:\n";
+      // x_cent.Print(cout, 4);
 
       gd.GetProlongationMatrix()->Mult(x_cent, x);
-      cout << "\n\n\n\nCheck the results:\n";
-      x.Print(cout,4);
+      // cout << "\n\n\n\nCheck the results:\n";
+      // x.Print(cout,4);
       x -= x_exact;
       cout << "Check the error: " << x.Norml2() << '\n';
 
-      // Test the prolongation matrix with gridfunction vdim = 1
-      // mfem::GridFunction x(&gd);
-      // mfem::GridFunction x_exact(&gd);
-      // cout << "Size of x and x_exact is " << x.Size() << '\n';
-
-      // mfem::VectorFunctionCoefficient u0(1, uexact_single);
-      // x_exact.ProjectCoefficient(u0);
-      // cout << "Check the exact solution:\n";
-      // x_exact.Print(cout ,7);
-
-
-      // mfem::CentGridFunction x_cent(&gd);
-      // cout << "Size of x_cent is " << x_cent.Size() << '\n';
-      // x_cent.ProjectCoefficient(u0);
-      // cout << "\n\n\n\nCheck the the center values:\n";
-      // x_cent.Print(cout, 7);
-
-
-      // gd.GetProlongationMatrix()->Mult(x_cent, x);
-      // cout << "\n\n\n\nCheck the results:\n";
-      // x.Print(cout,7);
-      // x -= x_exact;
-      // cout << "Check the error: " << x.Norml2() << '\n';
       PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
       gmi_sim_stop();

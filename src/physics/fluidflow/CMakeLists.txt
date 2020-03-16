@@ -19,6 +19,8 @@ target_sources(mach
       navier_stokes.hpp
       viscous_integ_def.hpp
       viscous_integ.hpp
+		gdsolver.cpp
+		gdsolver.hpp
 )
 
 target_include_directories(mach

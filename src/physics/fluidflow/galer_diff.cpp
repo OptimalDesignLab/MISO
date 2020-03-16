@@ -1,7 +1,10 @@
-// #ifdef MFEM_USE_PUMI
+#include "galer_diff.hpp"
+
+#ifdef MFEM_USE_PUMI
+#ifdef MFEM_USE_MPI
+
 #include <fstream>
 #include <iostream>
-#include "galer_diff.hpp"
 #include "sbp_fe.hpp"
 using namespace std;
 using namespace mach;
@@ -66,15 +69,14 @@ namespace mfem
 //    cout << "Start to build the GD prolongation matrix of degree " << degree << '\n';
 // } // class constructor ends
 
-GalerkinDifference::GalerkinDifference(ParMesh *pm, const FiniteElementCollection *f,
-   int vdim, int ordering, int de, Mesh2 *pumimesh)
-   : SpaceType(pm, f, vdim, ordering)
+GalerkinDifference::GalerkinDifference(ParPumiMesh *pm,
+      const FiniteElementCollection *f, int vdim, int ordering,
+      int de, Mesh2 *pumimesh) : SpaceType(pm, f, vdim, ordering)
 {
 #ifndef MFEM_USE_PUMI
    mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
 #endif
-   pmesh = dynamic_cast<ParPumiMesh*>(pm);
-
+   pmesh = pm;
    pumi_mesh = pumimesh;
    //pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
    //pmesh.reset(new MeshType(pumi_mesh, 1, 1));
@@ -83,11 +85,8 @@ GalerkinDifference::GalerkinDifference(ParMesh *pm, const FiniteElementCollectio
    dim = pmesh->Dimension();
    fec = f;
    BuildGDProlongation();
-   cout << "The mesh dimension is " << dim << '\n';
-   cout << "Is the ParPumiMesh conforming ? : " << (pmesh->pncmesh == NULL) << '\n';
-   //fec = unique_ptr<FiniteElementCollection>(f);
-   //fec.reset(new DSBPCollection(1, dim));
-   //Constructor(pmesh.get(), NULL, fec.get(), vdim, Ordering::byVDIM);
+   cout << "The mesh dimension is " << dim;
+   cout << ", with " << nEle << "elements.\n";
 }
 
 // GalerkinDifference::GalerkinDifference(int de, Mesh2* pm, int vdim, )
@@ -310,12 +309,26 @@ void GalerkinDifference::BuildGDProlongation() const
       AssembleProlongationMatrix(elmt_id, local_mat);
    }
    cP->Finalize();
+
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-   ofstream cp_save("cp_example.txt");
+   ofstream cp_save("cp_coarse.txt");
    cP->PrintMatlab(cp_save);
    cp_save.close();
-   
+
+   // convert sparse matrix into a Hypre_ParCSRMatrix
+   HYPRE_Int *row_starts = new HYPRE_Int[2];
+   HYPRE_Int *col_starts = new HYPRE_Int[2];
+   row_starts[0] = 0; row_starts[1] = cP->Height();
+   col_starts[0] = 0; col_starts[1] = cP->Width();
+   HYPRE_Int gnrow = cP->Height();
+   HYPRE_Int gncol = cP->Width();
+   P = new HypreParMatrix(GetComm(), cP->Height(), gnrow, gncol, 
+                       cP->GetI(), cP->GetJ(), cP->GetData(),
+                       row_starts, col_starts);
+   delete cP;
+   delete row_starts;
+   delete col_starts;
 }
 
 // This function will be deleted because of the usage of dsbp
@@ -388,7 +401,6 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
          col_index[e]++;
       }
    }
-   
 
    // for(int i = 0; i < nel; i ++)
    // {
@@ -410,4 +422,6 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
 }
 
 } // namespace mfem
-// #endif
+
+#endif //MFEM_USE_MPI
+#endif //MFEM_USE_PUMI

@@ -2,6 +2,10 @@
 #define MACH_GDSOLVER
 
 #include "mfem.hpp"
+
+#ifdef MFEM_USE_PUMI
+#ifdef MFEM_USE_MPI
+
 #include "euler.hpp"
 #include "galer_diff.hpp"
 
@@ -19,5 +23,8 @@ public:
 };
 
 } // end of namesapce mach
+
+#endif //MFEM_USE_MPI
+#endif //MFEM_USE_PUMI
 
 #endif

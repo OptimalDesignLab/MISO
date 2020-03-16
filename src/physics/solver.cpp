@@ -63,28 +63,28 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    }
 
    // Refine the mesh here, or have a separate member function?
-   for (int l = 0; l < options["mesh"]["refine"].get<int>(); l++)
-   {
-      mesh->UniformRefinement();
-   }
+   // for (int l = 0; l < options["mesh"]["refine"].get<int>(); l++)
+   // {
+   //    mesh->UniformRefinement();
+   // }
 
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
-   if (options["GD"]["degree"].get<int>() >= 0)
+   if (options["space-dis"]["GD"].get<bool>() == true ||
+       options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
                                    dim));
    }
-   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   else if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
                                   dim));
    }
-   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   else
    {
-      fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
-                                   dim));
+      throw MachException("Finite element collection is not defined.\n");
    }
 }
 
@@ -93,21 +93,22 @@ void AbstractSolver::initDerived()
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState(); // <--- this is a virtual fun
    *out << "Num states = " << num_state << endl;
-   if (options["GD"]["degree"].get<int>() >= 0)
+   if (options["space-dis"]["GD"].get<bool>() == true)
    {
-      int gd_degree = options["GD"]["degree"].get<int>();
+      int gd_degree = options["space-dis"]["GD-degree"].get<int>();
       fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
                                        Ordering::byVDIM, gd_degree, pumi_mesh));
-      cout << "GD fespace is set.\n";
-      dynamic_cast<GalerkinDifference*>(fes.get())->checkpcp();
+      u.reset(new GridFunType(fes.get()));
+      uc.reset(new CentGridFunction(fes.get()));
    }
    else
    {
       fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                               Ordering::byVDIM));
+      u.reset(new GridFunType(fes.get()));
    }
 
-   u.reset(new GridFunType(fes.get()));
+   
    cout << "gridfunction is set.\n";
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
@@ -129,49 +130,9 @@ void AbstractSolver::initDerived()
    if (0 == rank)
    {
       std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
-      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if (!P)
-      {
-         std::cout << ". P is empty. "
-                   << "Conforming dof " << fes->GetConformingVSize() << '\n';
-      }
-   }
-   MPI_Barrier(comm);
-   if (1 == rank)
-   {
-      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
-      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if (!P)
-      {
-         std::cout << ". P is empty. "
-                   << "Conforming dof " << fes->GetConformingVSize() << '\n';
-      }
-   }
-   MPI_Barrier(comm);
-   if (2 == rank)
-   {
-      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
-      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if (!P)
-      {
-         std::cout << ". P is empty. "
-                   << "Conforming dof " << fes->GetConformingVSize() << '\n';
-      }
-   }
-   MPI_Barrier(comm);
-   if (3 == rank)
-   {
-      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
-      const mfem::SparseMatrix *P = fes->GetConformingProlongation();
-      if (!P)
-      {
-         std::cout << ". P is empty. "
-                   << "Conforming dof " << fes->GetConformingVSize() << '\n';
-      }
+      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width();
+      std::cout << ". fes global true size is " << fes->GlobalTrueVSize();
+      std::cout << ". uc size " << uc->Size() << ". u size is " << u->Size() << '\n';
    }
    MPI_Barrier(comm);
    // Add integrators; this can be simplified if we template the entire class
@@ -212,11 +173,13 @@ void AbstractSolver::initDerived()
    {
       evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
+   std::cout << "evolver is set.\n";
 
    // add the output functional QoIs
    auto &fun = options["outputs"];
    output_bndry_marker.resize(fun.size());
    addOutputs(); // virtual function
+   std::cout << "output is added.\n";
 }
 
 AbstractSolver::~AbstractSolver()
@@ -226,13 +189,6 @@ AbstractSolver::~AbstractSolver()
 
 void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 {
-   // #ifndef MFEM_USE_PUMI
-   //    if (smesh == nullptr)
-   //    { // read in the serial mesh
-   //       smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1));
-   //    }
-   // #endif
-
 #ifdef MFEM_USE_MPI
    comm = MPI_COMM_WORLD;
    MPI_Comm_rank(comm, &rank);
@@ -251,7 +207,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    cout << "pumi mesh is constructed from file.\n";
    int mesh_dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(mesh_dim);
-   int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
+   //int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
    // Perform Uniform refinement
    // if (ref_levels > 1)
    // {
@@ -260,10 +216,10 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // }
    pumi_mesh->verify();
    mesh.reset(new MeshType(comm, pumi_mesh));
-   ofstream savemesh("annulus.mesh");
-   mesh->Print(savemesh);
-   savemesh.close();
-   cout << "ParPumiMesh is constructed from pumi_mesh.\n";
+   // ofstream savemesh("annulus.mesh");
+   // mesh->Print(savemesh);
+   // savemesh.close();
+   // cout << "ParPumiMesh is constructed from pumi_mesh.\n";
 #else
    mesh.reset(new MeshType(comm, *smesh));
 #endif // end of MFEM_USE_PUMI
@@ -323,6 +279,7 @@ void AbstractSolver::setInitialCondition(
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
+   uc->ProjectCoefficient(u0);
    // DenseMatrix vals;
    // Vector uj;
    // for (int i = 0; i < fes->GetNE(); i++)
@@ -416,14 +373,17 @@ double AbstractSolver::calcL2Error(
 
 double AbstractSolver::calcResidualNorm()
 {
-   GridFunType r(fes.get());
+   //GridFunType r(fes.get());
+   CentGridFunction rc(fes.get());
    double res_norm;
 #ifdef MFEM_USE_MPI
-   HypreParVector *U = u->GetTrueDofs();
-   HypreParVector *R = r.GetTrueDofs();
-   res->Mult(*U, *R);
-   double loc_norm = (*R) * (*R);
-   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   // HypreParVector *U = uc->GetTrueDofs();
+   // HypreParVector *R = rc.GetTrueDofs();
+   // res->Mult(*U, *R);
+   // double loc_norm = (*R) * (*R);
+   // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   res->Mult(*uc, rc);
+   res_norm = rc * rc;
 #else
    res->Mult(*u, r);
    res_norm = r * r;
@@ -490,13 +450,12 @@ void AbstractSolver::solveForState()
 void AbstractSolver::solveSteady()
 {
 #ifdef MFEM_USE_MPI
-#ifdef MFEM_USE_PETSC
-   // Get the PetscSolver option
    double t1, t2;
    if (0 == rank)
    {
       t1 = MPI_Wtime();
    }
+#ifdef MFEM_USE_PETSC
    // Get the PetscSolver option
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
@@ -533,15 +492,12 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
-   if (0 == rank)
-   {
-      t2 = MPI_Wtime();
-      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
-   }
 #else
    // Hypre solver section
    cout << "HypreGMRESSolver with HypreEuclid preconditioner.\n";
+   int fill_level = options["lin-solver"]["fill-level"].get<int>();
    prec.reset(new HypreEuclid(fes->GetComm()));
+   HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid *>(prec.get())->GetPrec(), fill_level);
    double tol = options["lin-solver"]["tol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
@@ -566,12 +522,17 @@ void AbstractSolver::solveSteady()
 
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   mfem::Vector u_true;
-   u->GetTrueDofs(u_true);
-   newton_solver->Mult(b, *u);
+   //mfem::Vector u_true;
+   //u->GetTrueDofs(u_true);
+   newton_solver->Mult(b, *uc);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-   u->SetFromTrueDofs(u_true);
-#endif
+   //u->SetFromTrueDofs(u_true);
+#endif // MFEM_USE_PETSC
+   if (0 == rank)
+   {
+      t2 = MPI_Wtime();
+      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
 #else
    // serial
    // linear solver
@@ -607,7 +568,7 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b, *u);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
-#endif
+#endif // MFEM_USE_MPI
 }
 
 void AbstractSolver::solveUnsteady()

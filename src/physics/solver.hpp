@@ -6,6 +6,7 @@
 
 #include "adept.h"
 #include "mfem.hpp"
+#include "centgridfunc.hpp"
 #ifdef MFEM_USE_SIMMETRIX
 #include <SimUtil.h>
 #include <gmi_sim.h>
@@ -143,6 +144,7 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   std::unique_ptr<mfem::CentGridFunction> uc;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
    /// time-marching method (might be NULL)

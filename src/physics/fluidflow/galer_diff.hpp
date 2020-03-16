@@ -2,11 +2,11 @@
 #define MFEM_GALER_DIFF
 
 #include "mfem.hpp"
-#include <iostream>
 
 #ifdef MFEM_USE_PUMI
 #ifdef MFEM_USE_MPI
 
+#include <iostream>
 #include "solver.hpp"
 #include "mach_types.hpp"
 #include "pumi.h"
@@ -28,9 +28,11 @@ public:
    /// Another convenient constructor for test the prolongation matrix
    GalerkinDifference(int de, apf::Mesh2 *pm, int vdim = 1,
                         int ordering = mfem::Ordering::byVDIM);
-   GalerkinDifference(mfem::ParMesh *pm, const mfem::FiniteElementCollection *f,
-                      int vdim = 1, int ordering = mfem::Ordering::byVDIM,
-                      int degree = 0, apf::Mesh2 *pumimesh = NULL);
+   
+   GalerkinDifference(mfem::ParPumiMesh *pm,
+                      const mfem::FiniteElementCollection *f, int vdim = 1,
+                      int ordering = mfem::Ordering::byVDIM, int degree = 0,
+                      apf::Mesh2 *pumimesh = NULL);
    
    
 
@@ -59,16 +61,15 @@ public:
 
    /// Get the prolongation matrix in GD method
    virtual const Operator *GetProlongationMatrix() const
-   { 
-      if (!cP)
+   {
+      if (!P)
       {
          BuildGDProlongation();
-         return cP;
+         return P;
       }
       else
       {
-         std::cout << "cP is set.\n";
-         return cP; 
+         return P; 
       }
    }
 
@@ -92,6 +93,10 @@ public:
    /// check the duplication of quadrature points in the quad matrix
    bool duplicated(const mfem::Vector quad, const std::vector<double> data);
 
+   /// overwrite functions in fes
+   virtual int GetTrueVSize() const
+   { return vdim * nEle; }
+
 protected:
    /// mesh dimension
    int dim;
@@ -111,7 +116,7 @@ protected:
 
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
-   MPI_Comm comm;
+   //MPI_Comm comm;
 #ifdef MFEM_USE_PUMI
    /// create pumi mesh object
    apf::Mesh2 *pumi_mesh;
