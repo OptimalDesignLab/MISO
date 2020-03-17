@@ -132,7 +132,8 @@ void AbstractSolver::initDerived()
       std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
       std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width();
       std::cout << ". fes global true size is " << fes->GlobalTrueVSize();
-      std::cout << ". uc size " << uc->Size() << ". u size is " << u->Size() << '\n';
+      std::cout << ". uc size " << uc->Size();
+      std::cout << ". u size is " << u->Size() << '\n';
    }
    MPI_Barrier(comm);
    // Add integrators; this can be simplified if we template the entire class
@@ -173,13 +174,11 @@ void AbstractSolver::initDerived()
    {
       evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
-   std::cout << "evolver is set.\n";
 
    // add the output functional QoIs
    auto &fun = options["outputs"];
    output_bndry_marker.resize(fun.size());
    addOutputs(); // virtual function
-   std::cout << "output is added.\n";
 }
 
 AbstractSolver::~AbstractSolver()
@@ -193,11 +192,11 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    comm = MPI_COMM_WORLD;
    MPI_Comm_rank(comm, &rank);
 #ifdef MFEM_USE_PUMI
-   if (smesh != nullptr)
-   {
-      throw MachException("AbstractSolver::constructMesh(smesh)\n"
-                          "\tdo not provide smesh when using PUMI!");
-   }
+   // if (smesh != nullptr)
+   // {
+   //    throw MachException("AbstractSolver::constructMesh(smesh)\n"
+   //                        "\tdo not provide smesh when using PUMI!");
+   // }
    // problem with using these in loadMdsMesh
    cout << "Construct pumi mesh.\n";
    const char *model_file = options["model-file"].get<string>().c_str();
@@ -222,10 +221,10 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // cout << "ParPumiMesh is constructed from pumi_mesh.\n";
 #else
    mesh.reset(new MeshType(comm, *smesh));
-#endif // end of MFEM_USE_PUMI
+#endif // MFEM_USE_PUMI
 #else
    mesh.reset(new MeshType(*smesh));
-#endif // end of MFEM_USE_MPI
+#endif // MFEM_USE_MPI
 
    // #ifdef MFEM_USE_MPI
    //    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
@@ -377,13 +376,14 @@ double AbstractSolver::calcResidualNorm()
    CentGridFunction rc(fes.get());
    double res_norm;
 #ifdef MFEM_USE_MPI
-   // HypreParVector *U = uc->GetTrueDofs();
-   // HypreParVector *R = rc.GetTrueDofs();
+   // HypreParVector *U = u->GetTrueDofs();
+   // HypreParVector *R = r.GetTrueDofs();
    // res->Mult(*U, *R);
    // double loc_norm = (*R) * (*R);
    // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    res->Mult(*uc, rc);
-   res_norm = rc * rc;
+   double loc_norm = rc * rc;
+   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 #else
    res->Mult(*u, r);
    res_norm = r * r;
@@ -487,11 +487,12 @@ void AbstractSolver::solveSteady()
    std::cout << "Newton solver is set.\n";
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   mfem::Vector u_true;
-   u->GetTrueDofs(u_true);
-   newton_solver->Mult(b, u_true);
+   //mfem::Vector u_true;
+   //u->GetTrueDofs(u_true);
+   //newton_solver->Mult(b, u_true);
+   newton_solver->Mult(b, *uc);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-   u->SetFromTrueDofs(u_true);
+   //u->SetFromTrueDofs(u_true);
 #else
    // Hypre solver section
    cout << "HypreGMRESSolver with HypreEuclid preconditioner.\n";
@@ -721,6 +722,43 @@ void AbstractSolver::jacobianCheck()
    // check the difference norm
    jac_v->Add(-1.0, *res_plus);
    std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
+
+   // //jacobian check for gd solver
+   // const double delta = 1e-5;
+   // std::unique_ptr<CentGridFunction> u_plus;
+   // std::unique_ptr<CentGridFunction> u_minus;
+   // std::unique_ptr<CentGridFunction> perturbation_vec;
+   // perturbation_vec.reset(new CentGridFunction(fes.get()));
+   // VectorFunctionCoefficient up(num_state, perturb_fun);
+   // perturbation_vec->ProjectCoefficient(up);
+   // u_plus.reset(new CentGridFunction(fes.get()));
+   // u_minus.reset(new CentGridFunction(fes.get()));
+
+   // // set uplus and uminus to the current state
+   // *u_plus = *u;
+   // *u_minus = *u;
+   // u_plus->Add(delta, *perturbation_vec);
+   // u_minus->Add(-delta, *perturbation_vec);
+
+   // std::unique_ptr<CentGridFunction> res_plus;
+   // std::unique_ptr<CentGridFunction> res_minus;
+   // res_plus.reset(new CentGridFunction(fes.get()));
+   // res_minus.reset(new CentGridFunction(fes.get()));
+
+   // res->Mult(*u_plus, *res_plus);
+   // res->Mult(*u_minus, *res_minus);
+
+   // res_plus->Add(-1.0, *res_minus);
+   // res_plus->Set(1 / (2 * delta), *res_plus);
+
+   // // result from GetGradient(x)
+   // std::unique_ptr<CentGridFunction> jac_v;
+   // jac_v.reset(new CentGridFunction(fes.get()));
+   // mfem::Operator &jac = res->GetGradient(*u);
+   // jac.Mult(*perturbation_vec, *jac_v);
+   // // check the difference norm
+   // jac_v->Add(-1.0, *res_plus);
+   // std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
 }
 
 } // namespace mach

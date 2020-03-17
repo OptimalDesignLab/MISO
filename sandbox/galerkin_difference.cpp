@@ -24,7 +24,7 @@ using namespace mfem;
 using namespace mach;
 using namespace apf;
 
-const int degree = 4;
+const int degree = 3;
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -85,14 +85,14 @@ int main(int argc, char *argv[])
 
       cout << "Construct the GD fespace.\n";
       DSBPCollection fec(1,dim);
-      GalerkinDifference gd(&pm, &fec, 1, Ordering::byVDIM, degree, pumi_mesh);
+      GalerkinDifference gd(&pm, &fec, 4, Ordering::byVDIM, degree, pumi_mesh);
 
       // Test the prolongation matrix with gridfunction vdim = 4
       mfem::GridFunction x(&gd);
       mfem::GridFunction x_exact(&gd);
       //cout << "Size of x and x_exact is " << x.Size() << '\n';
 
-      mfem::VectorFunctionCoefficient u0(1, uexact);
+      mfem::VectorFunctionCoefficient u0(4, uexact);
       x_exact.ProjectCoefficient(u0);
       // cout << "Check the exact solution:\n";
       // x_exact.Print(cout ,4);
@@ -135,45 +135,45 @@ int main(int argc, char *argv[])
 // triangles are subdivided from the quads using the opposite diagonal)
 void uexact(const mfem::Vector &x, mfem::Vector &u)
 {
-   u(0) = 0;
-   for(int i = degree; i >= 0; i--)
-   {
-      u(0) += pow(x(0)+x(1), i);
-   }
+   // u(0) = 0;
+   // for(int i = 0; i >= 0; i--)
+   // {
+   //    u(0) += pow(x(0)+x(1), i);
+   // }
    // different degree 2d polynomial to test the acccuracy
    // u(0) = 1.0;  // constant
    // u(1) = x(0); // linear function
    // u(2) = x(0) * x(0) - x(0) * x(1) + x(1) * x(1); // quadrature function
    // u(3) = x(0) * x(0) * x(1) - 2.0 * x(0) * x(1) + 3.0 * x(1) * x(1) * x(1); // cubic function
    
-   // steady vortext exact solution with shifted coordinate
-   // u.SetSize(4);
-   // double ri = 1.0;
-   // double Mai = 0.5; //0.95 
-   // double rhoi = 2.0;
-   // double prsi = 1.0/euler::gamma;
-   // double rinv = ri/sqrt((x(0)+2.0)*(x(0)+2.0) + (x(1)+1.0)*(x(1)+1.0));
-   // double rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
-   //                       1.0/euler::gami);
-   // double Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
-   //                  (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
-   // double theta;
-   // if ((x(0)+2.0) > 1e-15)
-   // {
-   //    theta = atan((x(1)+1.0)/(x(0)+2.0));
-   // }
-   // else
-   // {
-   //    theta = M_PI/2.0;
-   // }
-   // double press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
-   //               (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
-   // double a = sqrt(euler::gamma*press/rho);
+   //steady vortext exact solution with shifted coordinate
+   u.SetSize(4);
+   double ri = 1.0;
+   double Mai = 0.5; //0.95 
+   double rhoi = 2.0;
+   double prsi = 1.0/euler::gamma;
+   double rinv = ri/sqrt((x(0)+2.0)*(x(0)+2.0) + (x(1)+1.0)*(x(1)+1.0));
+   double rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
+                         1.0/euler::gami);
+   double Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
+                    (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
+   double theta;
+   if ((x(0)+2.0) > 1e-15)
+   {
+      theta = atan((x(1)+1.0)/(x(0)+2.0));
+   }
+   else
+   {
+      theta = M_PI/2.0;
+   }
+   double press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
+                 (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
+   double a = sqrt(euler::gamma*press/rho);
 
-   // u(0) = rho;
-   // u(1) = rho*a*Ma*sin(theta);
-   // u(2) = -rho*a*Ma*cos(theta);
-   // u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   u(0) = rho;
+   u(1) = rho*a*Ma*sin(theta);
+   u(2) = -rho*a*Ma*cos(theta);
+   u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 }
 
 void uexact_single(const mfem::Vector &x, mfem::Vector &u)

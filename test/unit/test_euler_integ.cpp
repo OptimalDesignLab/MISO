@@ -585,7 +585,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
@@ -643,7 +643,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 1; ++p)
@@ -702,7 +702,7 @@ TEST_CASE("DyadicFluxIntegrator::AssembleElementGrad", "[DyadicIntegrator]")
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
@@ -760,7 +760,7 @@ TEST_CASE("InviscidFaceIntegrtor::AssembleFaceGrad", "[InterfaceIntegrator]")
    adept::Stack diff_stack;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
 
@@ -820,7 +820,7 @@ TEST_CASE("EntStableLPSIntegrator::AssembleElementGrad", "[LPSIntegrator]")
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)

@@ -86,7 +86,7 @@ GalerkinDifference::GalerkinDifference(ParPumiMesh *pm,
    fec = f;
    BuildGDProlongation();
    cout << "The mesh dimension is " << dim;
-   cout << ", with " << nEle << "elements.\n";
+   cout << ", with " << nEle << " elements.\n";
 }
 
 // GalerkinDifference::GalerkinDifference(int de, Mesh2* pm, int vdim, )

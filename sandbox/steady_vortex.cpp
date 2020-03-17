@@ -92,7 +92,8 @@ int main(int argc, char *argv[])
 
       solver->setInitialCondition(uexact);
       solver->printSolution("init", degree+1);
-
+      solver->setperturb(pert);
+      solver->jacobianCheck();
       double l_error = solver->calcL2Error(uexact, 0);
       double res_error = solver->calcResidualNorm();
       if (0==myid)
@@ -102,6 +103,7 @@ int main(int argc, char *argv[])
       }
 
       solver->solveForState();
+      solver->printSolution("final", degree+1);
 
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();
