@@ -95,11 +95,11 @@ void AbstractSolver::initDerived()
    *out << "Num states = " << num_state << endl;
    if (options["space-dis"]["GD"].get<bool>() == true)
    {
-      int gd_degree = options["space-dis"]["GD-degree"].get<int>();
-      fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
-                                       Ordering::byVDIM, gd_degree, pumi_mesh));
-      u.reset(new GridFunType(fes.get()));
-      uc.reset(new CentGridFunction(fes.get()));
+      // int gd_degree = options["space-dis"]["GD-degree"].get<int>();
+      // fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
+      //                                  Ordering::byVDIM, gd_degree, pumi_mesh));
+      // u.reset(new GridFunType(fes.get()));
+      // uc.reset(new CentGridFunction(fes.get()));
    }
    else
    {
@@ -132,7 +132,7 @@ void AbstractSolver::initDerived()
       std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
       std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width();
       std::cout << ". fes global true size is " << fes->GlobalTrueVSize();
-      std::cout << ". uc size " << uc->Size();
+      //std::cout << ". uc size " << uc->Size();
       std::cout << ". u size is " << u->Size() << '\n';
    }
    MPI_Barrier(comm);
@@ -278,7 +278,7 @@ void AbstractSolver::setInitialCondition(
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
-   uc->ProjectCoefficient(u0);
+   //uc->ProjectCoefficient(u0);
    // DenseMatrix vals;
    // Vector uj;
    // for (int i = 0; i < fes->GetNE(); i++)
@@ -372,18 +372,18 @@ double AbstractSolver::calcL2Error(
 
 double AbstractSolver::calcResidualNorm()
 {
-   //GridFunType r(fes.get());
-   CentGridFunction rc(fes.get());
+   //CentGridFunction rc(fes.get());
+   GridFunType r(fes.get());
    double res_norm;
 #ifdef MFEM_USE_MPI
-   // HypreParVector *U = u->GetTrueDofs();
-   // HypreParVector *R = r.GetTrueDofs();
-   // res->Mult(*U, *R);
-   // double loc_norm = (*R) * (*R);
-   // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   res->Mult(*uc, rc);
-   double loc_norm = rc * rc;
+   HypreParVector *U = u->GetTrueDofs();
+   HypreParVector *R = r.GetTrueDofs();
+   res->Mult(*U, *R);
+   double loc_norm = (*R) * (*R);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   // res->Mult(*uc, rc);
+   // double loc_norm = rc * rc;
+   // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 #else
    res->Mult(*u, r);
    res_norm = r * r;
@@ -487,12 +487,13 @@ void AbstractSolver::solveSteady()
    std::cout << "Newton solver is set.\n";
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   //mfem::Vector u_true;
-   //u->GetTrueDofs(u_true);
-   //newton_solver->Mult(b, u_true);
-   newton_solver->Mult(b, *uc);
-   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-   //u->SetFromTrueDofs(u_true);
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
+   newton_solver->Mult(b, u_true);
+   u->SetFromTrueDofs(u_true);
+   // newton_solver->Mult(b, *uc);
+   // MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   
 #else
    // Hypre solver section
    cout << "HypreGMRESSolver with HypreEuclid preconditioner.\n";
@@ -721,7 +722,7 @@ void AbstractSolver::jacobianCheck()
    jac.Mult(*perturbation_vec, *jac_v);
    // check the difference norm
    jac_v->Add(-1.0, *res_plus);
-   std::cout << "The difference norm is " << jac_v->Norml2() << '\n';
+   std::cout << "The jac_v difference norm is " << jac_v->Norml2() << '\n';
 
    // //jacobian check for gd solver
    // const double delta = 1e-5;
