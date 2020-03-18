@@ -112,19 +112,39 @@ private:
    /// For magnetostatics, computes the magnetic flux density
    void computeSecondaryFields();
 
-   /// function describing current density in windings
+   /// function describing current density in phase A windings
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
-   static void winding_current_source(const mfem::Vector &x,
-                                      mfem::Vector &J);
+   static void phase_a_source(const mfem::Vector &x,
+                              mfem::Vector &J);
+
+   /// function describing current density in phase B windings
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void phase_b_source(const mfem::Vector &x,
+                              mfem::Vector &J);
+
+   /// function describing current density in phase C windings
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void phase_c_source(const mfem::Vector &x,
+                              mfem::Vector &J);
 
    /// TODO - implement function
-   /// function describing permanent magnet magnetization source
+   /// function describing permanent magnet magnetization pointing outwards
    /// \param[in] x - position x in space
    /// \param[out] M - magetic flux density at position x cause by permanent
    ///                 magnets
-   static void magnetization_source(const mfem::Vector &x,
-                                    mfem::Vector &M);
+   static void magnetization_source_north(const mfem::Vector &x,
+                                          mfem::Vector &M);
+   
+   /// TODO - implement function
+   /// function describing permanent magnet magnetization pointing inwards
+   /// \param[in] x - position x in space
+   /// \param[out] M - magetic flux density at position x cause by permanent
+   ///                 magnets
+   static void magnetization_source_south(const mfem::Vector &x,
+                                          mfem::Vector &M);
 
    static void a_exact(const mfem::Vector &x, mfem::Vector &A);
 

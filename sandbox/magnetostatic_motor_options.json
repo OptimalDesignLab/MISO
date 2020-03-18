@@ -21,22 +21,49 @@
       "abs-tol": 1e-8
    },
    "components": {
-      "stator": {
+      "rotor": {
+         "attr": 1,
          "material": "steel",
-         "attr": 10,
          "linear": true
       },
-      "rotor": {
+      "stator": {
+         "attr": 2,
          "material": "steel",
-         "attr": 11,
          "linear": true
+      },
+      "airgap": {
+         "attr": 3,
+         "material": "air"
+      },
+      "mag-airgap": {
+         "attr": 4,
+         "material": "air"
+      },
+      "heatsink": {
+         "attr": 5,
+         "material": "heatsink"
       },
       "magnets": {
          "material": "NdFeB",
-         "attr": 5,
          "linear": true,
-         "poles": 16
-      }
+         "attrs": [6, 7, 8, 9, 10, 11, 12, 13]
+      },
+      "windings": {
+         "material": "copper",
+         "linear": true,
+         "attrs": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
+         "fill-factor": 0.5
+      },
+      "farfields": {
+         "material": "air",
+         "linear": true,
+         "attrs": [26, 27]
+      },
+      "magnet_north": [6, 8, 10, 12],
+      "magnet_south": [7, 9, 11, 13],
+      "winding-phase-A": [14, 17, 20, 23],
+      "winding-phase-B": [15, 18, 21, 24],
+      "winding-phase-C": [16, 19, 22, 25]
    },
-   "material-lib-path": "../src/material_library.json"
+   "material-lib-path": "../../src/material_library.json"
 }

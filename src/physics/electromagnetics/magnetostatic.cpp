@@ -232,43 +232,20 @@ void MagnetostaticSolver::constructReluctivity()
 			temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
 			std::cout << "new coeff with mu_r: " << mu_r << "\n";
 		}
-		nu->addCoefficient(component["attr"].template get<int>(),
-                         move(temp_coeff));
+		int attr = component.value("attr", -1);
+		if (-1 == attr)
+		{
+			nu->addCoefficient(attr, move(temp_coeff));
+		}
+		else
+		{
+			auto attrs = component["attrs"].get<std::vector<int>>();
+			for (auto& attribute : attrs)
+			{
+				nu->addCoefficient(attribute, move(temp_coeff));
+			}
+		}
 	}
-		
-	
-	/**
-	/// uncomment eventually, for now we use constant linear model
-	// std::unique_ptr<mfem::Coefficient> stator_coeff(
-	// 	new ReluctivityCoefficient(reluctivity_model));
-
-	/// create constant coefficient for stator body with relative permeability
-	/// 3000
-	std::unique_ptr<mfem::Coefficient> stator_coeff(
-		// new ConstantCoefficient(1.0/(10)));
-		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
-	
-	/// create constant coefficient for rotor body with relative permeability
-	/// 3000
-	std::unique_ptr<mfem::Coefficient> rotor_coeff(
-		// new ConstantCoefficient(1.0/(10)));
-		new ConstantCoefficient(1.0/(5000*4e-7*M_PI)));
-
-	// std::unique_ptr<mfem::Coefficient> magnet_coeff(
-	// 	// new ConstantCoefficient(1.0/(10)));
-	// 	new ConstantCoefficient(1.0/(4e-7*M_PI)));
-
-	/// TODO - use options to select material attribute for stator body
-	/// picked 2 arbitrarily for now
-	nu->addCoefficient(10, move(stator_coeff));
-	// nu->addCoefficient(1, move(stator_coeff));
-	/// TODO - use options to select material attribute for stator body
-	/// picked 2 arbitrarily for now
-	nu->addCoefficient(11, move(rotor_coeff));
-	// nu->addCoefficient(2, move(rotor_coeff));
-
-	// nu->addCoefficient(5, move(magnet_coeff));
-	*/
 }
 
 /// TODO - this approach cannot support general magnet topologies where the
@@ -277,13 +254,26 @@ void MagnetostaticSolver::constructMagnetization()
 {
 	mag_coeff.reset(new VectorMeshDependentCoefficient(dim));
 
-	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff(
-		new VectorFunctionCoefficient(dim, magnetization_source));
+	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff_north(
+		new VectorFunctionCoefficient(dim, magnetization_source_north));
 
-	/// TODO: error check to make sure this worked
-	int mag_attr = options["components"]["magnets"]
-							["attr"].template get<int>();
-	mag_coeff->addCoefficient(mag_attr, move(magnet_coeff));
+	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff_south(
+		new VectorFunctionCoefficient(dim, magnetization_source_south));
+
+	// /// TODO: error check to make sure this worked
+	// int mag_attr = options["components"]["magnets"]
+	// 						["attr"].template get<int>();
+
+	auto north_attr = options["components"]["magnet_north"].get<std::vector<int>>();
+	auto south_attr = options["components"]["magnet_south"].get<std::vector<int>>();
+	for (auto& attr : north_attr)
+	{
+		mag_coeff->addCoefficient(attr, move(magnet_coeff_north));
+	}
+	for (auto& attr : south_attr)
+	{
+		mag_coeff->addCoefficient(attr, move(magnet_coeff_south));
+	}
 }
 
 /// TODO - use options to select which winding belongs to which phase, need to
@@ -293,21 +283,33 @@ void MagnetostaticSolver::constructCurrent()
 {
 	current_coeff.reset(new VectorMeshDependentCoefficient());
 
-	std::unique_ptr<mfem::VectorCoefficient> winding_coeff(
-		new VectorFunctionCoefficient(dim, winding_current_source));
+	std::unique_ptr<mfem::VectorCoefficient> phase_a_coeff(
+		new VectorFunctionCoefficient(dim, phase_a_source));
 
-	// std::unique_ptr<mfem::VectorCoefficient> winding_coeff2(
-	// 	new VectorFunctionCoefficient(dim, winding_current_source, neg_one.get()));
-	std::unique_ptr<mfem::VectorCoefficient> winding_coeff2(
-		new VectorFunctionCoefficient(dim, winding_current_source));
+	std::unique_ptr<mfem::VectorCoefficient> phase_b_coeff(
+		new VectorFunctionCoefficient(dim, phase_b_source));
 
-	/// TODO - use options to select material attribute for windings
-	/// picked 1 arbitrarily for now
-	current_coeff->addCoefficient(1, move(winding_coeff));
-	current_coeff->addCoefficient(2, move(winding_coeff2));
-	// current_coeff->addCoefficient(9, move(winding_coeff)); // zero current
-	// current_coeff->addCoefficient(1, move(winding_coeff));
-	// current_coeff->addCoefficient(2, move(winding_coeff2));
+	std::unique_ptr<mfem::VectorCoefficient> phase_c_coeff(
+		new VectorFunctionCoefficient(dim, phase_c_source));
+
+	auto phase_a_attr = options["components"]
+										["winding-phase-A"].get<std::vector<int>>();
+	auto phase_b_attr = options["components"]
+										["winding-phase-B"].get<std::vector<int>>();
+	auto phase_c_attr = options["components"]
+										["winding-phase-C"].get<std::vector<int>>();
+	for (auto& attr : phase_a_attr)
+	{
+		current_coeff->addCoefficient(attr, move(phase_a_coeff));
+	}
+	for (auto& attr : phase_b_attr)
+	{
+		current_coeff->addCoefficient(attr, move(phase_b_coeff));
+	}
+	for (auto& attr : phase_c_attr)
+	{
+		current_coeff->addCoefficient(attr, move(phase_c_coeff));
+	}
 }
 
 void MagnetostaticSolver::assembleCurrentSource()
@@ -374,10 +376,9 @@ void MagnetostaticSolver::computeSecondaryFields()
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
-void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
-                                                 mfem::Vector &J)
+void MagnetostaticSolver::phase_a_source(const mfem::Vector &x,
+                                         mfem::Vector &J)
 {
-	/*
 	// example of needed geometric parameters, this should be all you need
 	int n_s = 20; //number of slots
 	double zb = .25; //bottom of stator
@@ -437,25 +438,111 @@ void MagnetostaticSolver::winding_current_source(const mfem::Vector &x,
 		J = Jr;
 	}
 	J *= 100000.0;
-	*/
+}
 
-   J.SetSize(3);
-   J = 0.0;
-	double y = x(1) - .5;
-   if ( x(1) <= .5)
-   {
-      J(2) = -6*y*(1/(M_PI*4e-7));
-   }
-   if ( x(1) > .5)
-   {
-      J(2) = 6*y*(1/(M_PI*4e-7));
-   }
+void MagnetostaticSolver::phase_b_source(const mfem::Vector &x,
+                                         mfem::Vector &J)
+{
+	// example of needed geometric parameters, this should be all you need
+	int n_s = 20; //number of slots
+	double zb = .25; //bottom of stator
+	double zt = .75; //top of stator
+
+
+	// compute r and theta from x and y
+	// double r = sqrt(x(0)*x(0) + x(1)*x(1)); (r not needed)
+	double tha = atan2(x(1), x(0));
+	double th;
+
+	double thw = 2*M_PI/n_s; //total angle of slot
+	int w; //current slot
+	J = 0.0;
+
+	// check which winding we're in
+	th = remquo(tha, thw, &w);
+
+	// check if we're in the stator body
+	if(x(2) >= zb && x(2) <= zt)
+	{
+		// check if we're in left or right half
+		if(th > 0)
+		{
+			J(2) = -1; // set to 1 for now, and direction depends on current direction
+		}
+		if(th < 0)
+		{
+			J(2) = 1;	
+		}
+	}
+	else  // outside of the stator body, check if above or below
+	{
+		// 'subtract' z position to 0 depending on if above or below
+		mfem::Vector rx(x);
+		if(x(2) > zt) 
+		{
+			rx(2) -= zt; 
+		}
+		if(x(2) < zb) 
+		{
+			rx(2) -= zb; 
+		}
+
+		// draw top rotation axis
+		mfem::Vector ax(3);
+		mfem::Vector Jr(3);
+		ax = 0.0;
+		ax(0) = cos(w*thw);
+		ax(1) = sin(w*thw);
+
+		// take x cross ax, normalize
+		Jr(0) = rx(1)*ax(2) - rx(2)*ax(1);
+		Jr(1) = rx(2)*ax(0) - rx(0)*ax(2);
+		Jr(2) = rx(0)*ax(1) - rx(1)*ax(0);
+		Jr /= Jr.Norml2();
+		J = Jr;
+	}
+	J *= -100000.0;
+}
+
+void MagnetostaticSolver::phase_c_source(const mfem::Vector &x,
+                                         mfem::Vector &J)
+{
+	J = 0.0;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
 /// TODO: implement other kinds of sources
-void MagnetostaticSolver::magnetization_source(const mfem::Vector &x,
-                          		 					  mfem::Vector &M)
+void MagnetostaticSolver::magnetization_source_north(const mfem::Vector &x,
+                          		 					        mfem::Vector &M)
+{
+	int n_p = num_poles;
+
+	/// TODO: fix this so it actually uses num_poles
+	// compute theta from x and y
+	double tha = atan2(x(1), x(0));
+
+	Vector plane_vec = x;
+	plane_vec(2) = 0;
+	
+	M = 0.0;
+
+	M(0) = plane_vec(0)/plane_vec.Norml2();
+	M(1) = plane_vec(1)/plane_vec.Norml2();
+	M(2) = 0.0;
+
+	if ((int)round(tha) % 2 == 0)
+	{
+		M *= -1.0;
+	}
+	
+	M *= remnant_flux;
+	// double mu_0 = 4e-7*M_PI;
+	// M /= mu_0;
+	// M /= mag_mu_r;
+}
+
+void MagnetostaticSolver::magnetization_source_south(const mfem::Vector &x,
+                          		 					        mfem::Vector &M)
 {
 	int n_p = num_poles;
 
