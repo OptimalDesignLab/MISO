@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
    petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
    petscoptions << "-prec_pc_type " << prec_name << '\n';
    //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
+
    petscoptions.close();
 #endif
 #ifdef MFEM_USE_MPI
