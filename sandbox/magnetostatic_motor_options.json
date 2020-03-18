@@ -1,6 +1,6 @@
 {
    "mesh": {
-      "file": "motor0.smb",
+      "file": "motor.smb",
       "out-file": "motor_mesh"
    },
    "model-file": "motor.egads",
