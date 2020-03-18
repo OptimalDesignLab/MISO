@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
-      solver->printSolution("init", degree+1);
+      solver->printSolution("arbitary_init", degree+1);
       solver->setperturb(pert);
       solver->jacobianCheck();
       double l_error = solver->calcL2Error(uexact, 0);
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
       // solver->setperturb(pert);
       // solver->jacobianCheck();
       solver->solveForState();
-      solver->printSolution("final", degree+1);
+      solver->printSolution("arbitary_final", degree+1);
 
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();
@@ -156,7 +156,7 @@ void uexact(const Vector &x, Vector& u)
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
    double prsi = 1.0/euler::gamma;
-   double rinv = ri/sqrt(x(0)*x(0)) + x(1)*x(1));
+   double rinv = ri/sqrt(x(0)*x(0) + x(1)*x(1));
    double rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
                          1.0/euler::gami);
    double Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
