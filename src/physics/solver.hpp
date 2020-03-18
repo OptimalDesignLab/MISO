@@ -17,6 +17,9 @@
 #include <apfConvert.h>
 #include <gmi_mesh.h>
 #include <crv.h>
+#ifdef MFEM_USE_EGADS
+#include <gmi_egads.h>
+#endif
 #endif
 
 #include "mach_types.hpp"

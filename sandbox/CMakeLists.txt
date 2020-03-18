@@ -18,6 +18,7 @@ set(SANDBOX_SRCS
    viscous_shock
    airfoil_chaotic
    magnetostatic_box
+   magnetostatic_motor
 )
 
 create_sandbox("${SANDBOX_SRCS}")

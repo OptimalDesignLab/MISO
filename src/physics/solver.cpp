@@ -189,6 +189,10 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    gmi_sim_start();
    gmi_register_sim();
 #endif
+#ifdef MFEM_USE_EGADS
+   gmi_egads_start();
+   gmi_register_egads();
+#endif
    gmi_register_mesh();
    pumi_mesh = apf::loadMdsMesh(options["model-file"].template get<string>().c_str(),
                                 options["mesh"]["file"].template get<string>().c_str());
@@ -207,6 +211,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
    Sim_unregisterAllKeys();
+#endif
+#ifdef MFEM_USE_EGADS
+   gmi_egads_stop();
 #endif
 #else
    mesh.reset(new MeshType(comm, *smesh));

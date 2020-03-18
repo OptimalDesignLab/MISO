@@ -1,8 +1,9 @@
 {
    "mesh": {
-      "file": "motor_fix.mesh",
+      "file": "motor0.smb",
       "out-file": "motor_mesh"
    },
+   "model-file": "motor.egads",
    "space-dis": {
       "basis-type": "nedelec",
       "degree": 1

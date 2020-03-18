@@ -101,6 +101,11 @@ target_compile_options(mach
       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
 )
 
+target_compile_definitions(mach
+   PUBLIC
+      MFEM_USE_EGADS
+)
+
 install(TARGETS mach
    EXPORT machTargets
    LIBRARY DESTINATION lib
