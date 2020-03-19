@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs,3);
 
       unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
+      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
 
       solver->setInitialCondition(uexact);

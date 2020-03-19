@@ -89,17 +89,12 @@ int main(int argc, char *argv[])
 
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
-      ofstream sol_ofs("steady_vortex_mesh.vtk");
-      sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,3);
 
       unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
-      solver->printSolution("init", 0);
+      solver->printSolution("arbitary_init", 0);
       std::cout << "Initial solution is printed.\n";
 
       double l_error = solver->calcL2Error(uexact, 0);
@@ -110,10 +105,8 @@ int main(int argc, char *argv[])
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
-      // solver->setperturb(pert);
-      // solver->jacobianCheck();
       solver->solveForState();
-      solver->printSolution("final",0);
+      solver->printSolution("arbitary_final",0);
 
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();

@@ -201,8 +201,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    cout << "Construct pumi mesh.\n";
    const char *model_file = options["model-file"].get<string>().c_str();
    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
-   pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-                                options["mesh"]["file"].get<string>().c_str());
+   pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
    cout << "pumi mesh is constructed from file.\n";
    int mesh_dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(mesh_dim);
