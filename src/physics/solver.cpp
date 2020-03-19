@@ -205,8 +205,91 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
    //    ma::adapt(uniInput);
    // }
+
+   /// If it is higher order change shape
+   // if (order > 1){
+   //     crv::BezierCurver bc(pumi_mesh, order, 2);
+   //     bc.run();
+   // }
+
    pumi_mesh->verify();
+
+   apf::Numbering* aux_num = apf::createNumbering(pumi_mesh, "aux_numbering",
+                                                  pumi_mesh->getShape(), 1);
+
+   apf::MeshIterator* it = pumi_mesh->begin(0);
+   apf::MeshEntity* v;
+   int count = 0;
+   while (v = pumi_mesh->iterate(it))
+   {
+     apf::number(aux_num, v, 0, 0, count++);
+   }
+   pumi_mesh->end(it)
+
    mesh.reset(new MeshType(comm, pumi_mesh));
+
+   it = pumi_mesh->begin(pumi_mesh->getDimension());
+   count = 0;
+   while (v = pumi_mesh->iterate(it))
+   {
+     if (count > 10) break;
+     printf("at element %d =========\n", count);
+     if (isBoundaryTet(pumi_mesh, v))
+       printf("tet is connected to the boundary\n");
+     else
+       printf("tet is NOT connected to the boundary\n");
+     apf::MeshEntity* dvs[12];
+     int nd = pumi_mesh->getDownward(v, 0, dvs);
+     for (int i = 0; i < nd; i++) {
+       int id = apf::getNumber(aux_num, dvs[i], 0, 0);
+       printf("%d ", id);
+     }
+     printf("\n");
+     Array<int> mfem_vs;
+     mesh->GetElementVertices(count, mfem_vs);
+     for (int i = 0; i < mfem_vs.Size(); i++) {
+       printf("%d ", mfem_vs[i]);
+     }
+     printf("\n");
+     printf("=========\n");
+     count++;
+   }
+
+   /// Add attributes based on reverse classification
+   // Boundary faces
+   int dim = mesh->Dimension();
+   apf::MeshIterator* itr = pumi_mesh->begin(dim-1);
+   apf::MeshEntity* ent ;
+   int ent_cnt = 0;
+   while ((ent = pumi_mesh->iterate(itr)))
+   {
+      apf::ModelEntity *me = pumi_mesh->toModel(ent);
+      if (pumi_mesh->getModelType(me) == (dim-1))
+      {
+         //Get tag from model by  reverse classification
+         int tag = pumi_mesh->getModelTag(me);
+         (mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
+         ent_cnt++;
+      }
+   }
+   pumi_mesh->end(itr);  
+   
+   // Volume faces
+   itr = pumi_mesh->begin(dim);
+   ent_cnt = 0;
+   while ((ent = pumi_mesh->iterate(itr)))
+   {
+       apf::ModelEntity *me = pumi_mesh->toModel(ent);
+       int tag = pumi_mesh->getModelTag(me);
+       mesh->SetAttribute(ent_cnt, tag);
+       ent_cnt++;
+   }
+   pumi_mesh->end(itr);
+   
+   // Apply the attributes
+   mesh->SetAttributes();
+
+
    PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
