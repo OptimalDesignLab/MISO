@@ -202,12 +202,12 @@ void MagnetostaticSolver::solveSteady()
 
 void MagnetostaticSolver::setStaticMembers()
 {
-	num_poles = options["components"]["magnets"]
-						["poles"].get<int>();
 	auto material = options["components"]["magnets"]
 							["material"].get<std::string>();
 	remnant_flux = materials[material]["B_r"].get<double>();
 	mag_mu_r = materials[material]["mu_r"].get<double>();
+	fill_factor = options["components"]["windings"]["fill_factor"].get<double>();
+	current_density = options["components"]["windings"]["current_density"].get<double>();
 }
 
 void MagnetostaticSolver::constructReluctivity()
@@ -222,7 +222,6 @@ void MagnetostaticSolver::constructReluctivity()
 	///    reluctivity coefficient for each
 	for (auto& component : options["components"])
 	{
-         std::cout << component;
 		std::unique_ptr<mfem::Coefficient> temp_coeff;
 		std::string material = component["material"].get<std::string>();
 		if (!component["linear"].get<bool>())
@@ -378,8 +377,8 @@ void MagnetostaticSolver::computeSecondaryFields()
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
-void MagnetostaticSolver::phase_a_source(const mfem::Vector &x,
-                                         mfem::Vector &J)
+void MagnetostaticSolver::phase_a_source(const Vector &x,
+                                         Vector &J)
 {
 	// example of needed geometric parameters, this should be all you need
 	int n_s = 20; //number of slots
@@ -439,14 +438,14 @@ void MagnetostaticSolver::phase_a_source(const mfem::Vector &x,
 		Jr /= Jr.Norml2();
 		J = Jr;
 	}
-	J *= 100000.0;
+	J *= current_density * fill_factor;
 }
 
-void MagnetostaticSolver::phase_b_source(const mfem::Vector &x,
-                                         mfem::Vector &J)
+void MagnetostaticSolver::phase_b_source(const Vector &x,
+                                         Vector &J)
 {
 	// example of needed geometric parameters, this should be all you need
-	int n_s = 20; //number of slots
+	int n_s = 12; //number of slots
 	double zb = .25; //bottom of stator
 	double zt = .75; //top of stator
 
@@ -503,73 +502,35 @@ void MagnetostaticSolver::phase_b_source(const mfem::Vector &x,
 		Jr /= Jr.Norml2();
 		J = Jr;
 	}
-	J *= -100000.0;
+	J *= -current_density * fill_factor;
 }
 
-void MagnetostaticSolver::phase_c_source(const mfem::Vector &x,
-                                         mfem::Vector &J)
+void MagnetostaticSolver::phase_c_source(const Vector &x,
+                                         Vector &J)
 {
 	J = 0.0;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
 /// TODO: implement other kinds of sources
-void MagnetostaticSolver::magnetization_source_north(const mfem::Vector &x,
-                          		 					        mfem::Vector &M)
+void MagnetostaticSolver::magnetization_source_north(const Vector &x,
+                          		 					        Vector &M)
 {
-	int n_p = num_poles;
-
-	/// TODO: fix this so it actually uses num_poles
-	// compute theta from x and y
-	double tha = atan2(x(1), x(0));
-
 	Vector plane_vec = x;
 	plane_vec(2) = 0;
-	
-	M = 0.0;
-
-	M(0) = plane_vec(0)/plane_vec.Norml2();
-	M(1) = plane_vec(1)/plane_vec.Norml2();
-	M(2) = 0.0;
-
-	if ((int)round(tha) % 2 == 0)
-	{
-		M *= -1.0;
-	}
-	
+	M = plane_vec;
+	M /= M.Norml2();
 	M *= remnant_flux;
-	// double mu_0 = 4e-7*M_PI;
-	// M /= mu_0;
-	// M /= mag_mu_r;
 }
 
-void MagnetostaticSolver::magnetization_source_south(const mfem::Vector &x,
-                          		 					        mfem::Vector &M)
+void MagnetostaticSolver::magnetization_source_south(const Vector &x,
+                          		 					        Vector &M)
 {
-	int n_p = num_poles;
-
-	/// TODO: fix this so it actually uses num_poles
-	// compute theta from x and y
-	double tha = atan2(x(1), x(0));
-
 	Vector plane_vec = x;
 	plane_vec(2) = 0;
-	
-	M = 0.0;
-
-	M(0) = plane_vec(0)/plane_vec.Norml2();
-	M(1) = plane_vec(1)/plane_vec.Norml2();
-	M(2) = 0.0;
-
-	if ((int)round(tha) % 2 == 0)
-	{
-		M *= -1.0;
-	}
-	
-	M *= remnant_flux;
-	// double mu_0 = 4e-7*M_PI;
-	// M /= mu_0;
-	// M /= mag_mu_r;
+	M = plane_vec;
+	M /= M.Norml2();
+	M *= -remnant_flux;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -603,8 +564,9 @@ void MagnetostaticSolver::b_exact(const Vector &x, Vector &B)
    }	
 }
 
-int MagnetostaticSolver::num_poles = -1;
 double MagnetostaticSolver::remnant_flux = 0.0;
 double MagnetostaticSolver::mag_mu_r = 0.0;
+double MagnetostaticSolver::fill_factor = 0.0;
+double MagnetostaticSolver::current_density = 0.0;
 
 } // namespace mach

@@ -83,9 +83,10 @@ private:
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source
    /// values set by options in setStaticMembers
-   static int num_poles;
    static double remnant_flux;
    static double mag_mu_r;
+   static double fill_factor;
+   static double current_density;
 
    /// set the values of static member variables used based on options file
    void setStaticMembers();
@@ -130,7 +131,6 @@ private:
    static void phase_c_source(const mfem::Vector &x,
                               mfem::Vector &J);
 
-   /// TODO - implement function
    /// function describing permanent magnet magnetization pointing outwards
    /// \param[in] x - position x in space
    /// \param[out] M - magetic flux density at position x cause by permanent
@@ -138,7 +138,6 @@ private:
    static void magnetization_source_north(const mfem::Vector &x,
                                           mfem::Vector &M);
    
-   /// TODO - implement function
    /// function describing permanent magnet magnetization pointing inwards
    /// \param[in] x - position x in space
    /// \param[out] M - magetic flux density at position x cause by permanent

@@ -55,7 +55,8 @@
          "material": "copper",
          "linear": true,
          "attrs": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
-         "fill-factor": 0.5
+         "fill-factor": 0.5,
+         "current_density": 100000
       },
       "farfields": {
          "material": "air",
