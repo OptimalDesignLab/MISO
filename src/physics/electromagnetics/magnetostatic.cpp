@@ -2,6 +2,8 @@
 
 #include <fstream>
 
+#include "material_library.hpp"
+
 using namespace std;
 using namespace mfem;
 
@@ -43,10 +45,12 @@ MagnetostaticSolver::MagnetostaticSolver(
         << h_curl_space->GetTrueVSize() << endl;
 #endif
 
-   ifstream material_file(options["material-lib-path"].template get<string>());
-	if (!material_file)
-		throw MachException("Could not open materials library file!");
-	material_file >> materials;
+   // ifstream material_file(options["material-lib-path"].template get<string>());
+	// if (!material_file)
+	// 	throw MachException("Could not open materials library file!");
+	// material_file >> materials;
+	/// using hpp file instead of json
+	materials = material_library;
 
 	/// read options file to set the proper values of static member variables
 	// setStaticMembers();

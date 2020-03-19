@@ -1,12 +1,28 @@
+#ifndef MACH_MATERIAL_LIBRARY
+#define MACH_MATERIAL_LIBRARY
+
+#include "json.hpp"
+
+namespace mach
 {
-	"box1" : {
-		"mu_r" : 1.0
-	},
-	"box2" : {
-		"mu_r" : 1.0
-	},
-	"steel" : {
-		"B" : [
+
+/// Defines the material library for for mach
+///
+/// This is placed in a hpp file instead of a json file so that it can be
+/// compiled in and doesn't require a path to it. This also allows comments.
+nlohmann::json material_library
+{
+	{"box1",
+	{
+		{"mu_r", 1.0}
+	}},
+	{"box2",
+	{
+		{"mu_r", 1.0}
+	}},
+	{"steel", {
+		{"B",
+		{
 			0.0000000000000000,
 			0.0044450000000000,
 			0.0058190000000000,
@@ -64,8 +80,9 @@
 			2.1610999999999900,
 			2.1772000000000000,
 			2.1903999999999900
-		],
-		"H" : [
+		}},
+		{"H",
+		{
 			0.0000000000000000,
 			9.5103069999999900,
 			11.2124700000000000,
@@ -123,11 +140,16 @@
 			52819.5656250000000000,
 			62227.2176750000000000,
 			73321.1169499999000000
-		],
-		"mu_r" : 2000
-	},
-	"NdFeB" : {
-		"mu_r" : 1.05,
-		"B_r" : 1
-	}
-}
+		}},
+		{"mu_r", 2000}
+	}},
+	{"NdFeB",
+	{
+		{"mu_r", 1.05},
+		{"B_r", 1}
+	}},
+};
+
+} // namespace mach
+
+#endif
