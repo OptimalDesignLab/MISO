@@ -12,13 +12,13 @@
    "time-dis": {
    },
    "lin-solver": {
-      "print-lvl": 2,
-      "max-iter": 500
+      "printlevel": 2,
+      "maxiter": 500
    },
    "newton": {
-      "print-lvl": 1,
-      "rel-tol": 1e-8,
-      "abs-tol": 1e-8
+      "printlevel": 1,
+      "reltol": 1e-8,
+      "abstol": 1e-8
    },
    "components": {
       "rotor": {
@@ -33,15 +33,18 @@
       },
       "airgap": {
          "attr": 3,
-         "material": "air"
+         "material": "air",
+         "linear": true
       },
       "mag-airgap": {
          "attr": 4,
-         "material": "air"
+         "material": "air",
+         "linear": true
       },
       "heatsink": {
          "attr": 5,
-         "material": "heatsink"
+         "material": "heatsink",
+         "linear": true
       },
       "magnets": {
          "material": "NdFeB",
@@ -58,12 +61,15 @@
          "material": "air",
          "linear": true,
          "attrs": [26, 27]
-      },
-      "magnet_north": [6, 8, 10, 12],
-      "magnet_south": [7, 9, 11, 13],
-      "winding-phase-A": [14, 17, 20, 23],
-      "winding-phase-B": [15, 18, 21, 24],
-      "winding-phase-C": [16, 19, 22, 25]
+      }
    },
-   "material-lib-path": "../../src/material_library.json"
+   "magnets": {
+      "north": [6, 8, 10, 12],
+      "south": [7, 9, 11, 13]
+   },
+   "phases": {
+      "A": [14, 17, 20, 23],
+      "B": [15, 18, 21, 24],
+      "C": [16, 19, 22, 25]
+   }
 }

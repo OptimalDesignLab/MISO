@@ -18,7 +18,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	dim = mesh->SpaceDimension();
 	num_state = dim;
 	mesh->ReorientTetMesh();
-	int fe_order = options["space-dis"]["degree"].template get<int>();
+	int fe_order = options["space-dis"]["degree"].get<int>();
 
 	/// Create the H(Curl) finite element collection
    h_curl_coll.reset(new ND_FECollection(fe_order, dim));
@@ -45,7 +45,7 @@ MagnetostaticSolver::MagnetostaticSolver(
         << h_curl_space->GetTrueVSize() << endl;
 #endif
 
-   // ifstream material_file(options["material-lib-path"].template get<string>());
+   // ifstream material_file(options["material-lib-path"].get<string>());
 	// if (!material_file)
 	// 	throw MachException("Could not open materials library file!");
 	// material_file >> materials;
@@ -126,13 +126,13 @@ MagnetostaticSolver::MagnetostaticSolver(
 
 	solver.reset(new HypreGMRES(h_curl_space->GetComm()));
 	std::cout << "set tol\n";
-   solver->SetTol(options["lin-solver"]["tol"].template get<double>());
+   solver->SetTol(options["lin-solver"]["tol"].get<double>());
 	std::cout << "set tol\n";
 	std::cout << "set iter\n";
-   solver->SetMaxIter(options["lin-solver"]["max-iter"].template get<int>());
+   solver->SetMaxIter(options["lin-solver"]["maxiter"].get<int>());
 	std::cout << "set iter\n";
 	std::cout << "set print\n";
-   solver->SetPrintLevel(options["lin-solver"]["print-lvl"].template get<int>());
+   solver->SetPrintLevel(options["lin-solver"]["printlevel"].get<int>());
 	std::cout << "set print\n";
    solver->SetPreconditioner(*prec);
 #else
@@ -143,10 +143,10 @@ MagnetostaticSolver::MagnetostaticSolver(
 	prec.reset(new GSSmoother);
 
 	solver.reset(new CGSolver());
-   solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-   solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
-   solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
-   solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
+   solver->SetPrintLevel(options["lin-solver"]["printlevel"].get<int>());
+   solver->SetMaxIter(options["lin-solver"]["maxiter"].get<int>());
+   solver->SetRelTol(options["lin-solver"]["reltol"].get<double>());
+   solver->SetAbsTol(options["lin-solver"]["abstol"].get<double>());
    solver->SetPreconditioner(*prec);
 	#endif
 #endif
@@ -154,10 +154,10 @@ MagnetostaticSolver::MagnetostaticSolver(
 	newton_solver.iterative_mode = true;
    newton_solver.SetSolver(*solver);
    newton_solver.SetOperator(*res);
-   newton_solver.SetPrintLevel(options["newton"]["print-lvl"].template get<int>());
-   newton_solver.SetRelTol(options["newton"]["rel-tol"].template get<double>());
-   newton_solver.SetAbsTol(options["newton"]["abs-tol"].template get<double>());
-   newton_solver.SetMaxIter(options["newton"]["max-iter"].template get<int>());
+   newton_solver.SetPrintLevel(options["newton"]["printlevel"].get<int>());
+   newton_solver.SetRelTol(options["newton"]["reltol"].get<double>());
+   newton_solver.SetAbsTol(options["newton"]["abstol"].get<double>());
+   newton_solver.SetMaxIter(options["newton"]["maxiter"].get<int>());
 	std::cout << "set newton solver\n";
 }
 
@@ -192,7 +192,7 @@ void MagnetostaticSolver::solveSteady()
 	std::cout << "A error: " << calcL2Error(A.get(), a_exact);
 	std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
 
-	auto out_file = options["mesh"]["out-file"].template get<std::string>();
+	auto out_file = options["mesh"]["out-file"].get<std::string>();
 
 	/// TODO: this function seems super slow
 	printFields(out_file,
@@ -203,11 +203,11 @@ void MagnetostaticSolver::solveSteady()
 void MagnetostaticSolver::setStaticMembers()
 {
 	num_poles = options["components"]["magnets"]
-						["poles"].template get<int>();
+						["poles"].get<int>();
 	auto material = options["components"]["magnets"]
-							["material"].template get<std::string>();
-	remnant_flux = materials[material]["B_r"].template get<double>();
-	mag_mu_r = materials[material]["mu_r"].template get<double>();
+							["material"].get<std::string>();
+	remnant_flux = materials[material]["B_r"].get<double>();
+	mag_mu_r = materials[material]["mu_r"].get<double>();
 }
 
 void MagnetostaticSolver::constructReluctivity()
@@ -222,22 +222,23 @@ void MagnetostaticSolver::constructReluctivity()
 	///    reluctivity coefficient for each
 	for (auto& component : options["components"])
 	{
+         std::cout << component;
 		std::unique_ptr<mfem::Coefficient> temp_coeff;
-		std::string material = component["material"].template get<std::string>();
-		if (!component["linear"].template get<bool>())
+		std::string material = component["material"].get<std::string>();
+		if (!component["linear"].get<bool>())
 		{
-			auto b = materials[material]["B"].template get<std::vector<double>>();
-			auto h = materials[material]["H"].template get<std::vector<double>>();
+			auto b = materials[material]["B"].get<std::vector<double>>();
+			auto h = materials[material]["H"].get<std::vector<double>>();
 			temp_coeff.reset(new ReluctivityCoefficient(b, h));
 		}
 		else
 		{
-			auto mu_r = materials[material]["mu_r"].template get<double>();
+			auto mu_r = materials[material]["mu_r"].get<double>();
 			temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
 			std::cout << "new coeff with mu_r: " << mu_r << "\n";
 		}
 		int attr = component.value("attr", -1);
-		if (-1 == attr)
+		if (-1 != attr)
 		{
 			nu->addCoefficient(attr, move(temp_coeff));
 		}
@@ -266,10 +267,10 @@ void MagnetostaticSolver::constructMagnetization()
 
 	// /// TODO: error check to make sure this worked
 	// int mag_attr = options["components"]["magnets"]
-	// 						["attr"].template get<int>();
+	// 						["attr"].get<int>();
 
-	auto north_attr = options["components"]["magnet_north"].get<std::vector<int>>();
-	auto south_attr = options["components"]["magnet_south"].get<std::vector<int>>();
+	auto north_attr = options["magnets"]["north"].get<std::vector<int>>();
+	auto south_attr = options["magnets"]["south"].get<std::vector<int>>();
 	for (auto& attr : north_attr)
 	{
 		mag_coeff->addCoefficient(attr, move(magnet_coeff_north));
@@ -296,12 +297,9 @@ void MagnetostaticSolver::constructCurrent()
 	std::unique_ptr<mfem::VectorCoefficient> phase_c_coeff(
 		new VectorFunctionCoefficient(dim, phase_c_source));
 
-	auto phase_a_attr = options["components"]
-										["winding-phase-A"].get<std::vector<int>>();
-	auto phase_b_attr = options["components"]
-										["winding-phase-B"].get<std::vector<int>>();
-	auto phase_c_attr = options["components"]
-										["winding-phase-C"].get<std::vector<int>>();
+	auto phase_a_attr = options["phases"]["A"].get<std::vector<int>>();
+	auto phase_b_attr = options["phases"]["B"].get<std::vector<int>>();
+	auto phase_c_attr = options["phases"]["C"].get<std::vector<int>>();
 	for (auto& attr : phase_a_attr)
 	{
 		current_coeff->addCoefficient(attr, move(phase_a_coeff));
@@ -318,7 +316,7 @@ void MagnetostaticSolver::constructCurrent()
 
 void MagnetostaticSolver::assembleCurrentSource()
 {
-	int fe_order = options["space-dis"]["degree"].template get<int>();
+	int fe_order = options["space-dis"]["degree"].get<int>();
 
 	/// Create the H1 finite element collection and space, only used by the
 	/// divergence free projectors so we define them here and then throw them

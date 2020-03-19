@@ -148,6 +148,18 @@ nlohmann::json material_library
 		{"mu_r", 1.05},
 		{"B_r", 1}
 	}},
+	{"air",
+	{
+		{"mu_r", 1}
+	}},
+	{"heatsink",
+	{
+		{"mu_r", 1}
+	}},
+	{"copper",
+	{
+		{"mu_r", 1}
+	}}
 };
 
 } // namespace mach
