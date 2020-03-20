@@ -289,7 +289,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // Apply the attributes
    mesh->SetAttributes();
 
-
+   pumi_mesh->destroyNative();
+   apf::destroyMesh(pumi_mesh);
+   
    PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
