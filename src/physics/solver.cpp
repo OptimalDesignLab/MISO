@@ -12,6 +12,20 @@
 using namespace std;
 using namespace mfem;
 
+/// function to figure out if tet element is next to a model surface
+bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
+{
+   apf::MeshEntity* dfs[12];
+   int nfs = m->getDownward(e, 2, dfs);
+   for (int i = 0; i < nfs; i++)
+   {
+      int mtype = m->getModelType(m->toModel(dfs[i]));
+      if (mtype == 2)
+         return true;
+   }
+   return false;
+}
+
 namespace mach
 {
 
@@ -206,6 +220,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    //    ma::adapt(uniInput);
    // }
 
+   /// TODO: change this to use options
    /// If it is higher order change shape
    // if (order > 1){
    //     crv::BezierCurver bc(pumi_mesh, order, 2);
@@ -220,17 +235,17 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    apf::MeshIterator* it = pumi_mesh->begin(0);
    apf::MeshEntity* v;
    int count = 0;
-   while (v = pumi_mesh->iterate(it))
+   while ((v = pumi_mesh->iterate(it)))
    {
      apf::number(aux_num, v, 0, 0, count++);
    }
-   pumi_mesh->end(it)
+   pumi_mesh->end(it);
 
    mesh.reset(new MeshType(comm, pumi_mesh));
 
    it = pumi_mesh->begin(pumi_mesh->getDimension());
    count = 0;
-   while (v = pumi_mesh->iterate(it))
+   while ((v = pumi_mesh->iterate(it)))
    {
      if (count > 10) break;
      printf("at element %d =========\n", count);
