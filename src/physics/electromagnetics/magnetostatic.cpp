@@ -258,24 +258,18 @@ void MagnetostaticSolver::constructMagnetization()
 {
 	mag_coeff.reset(new VectorMeshDependentCoefficient(dim));
 
-	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff_north(
-		new VectorFunctionCoefficient(dim, magnetization_source_north));
-
-	std::unique_ptr<mfem::VectorCoefficient> magnet_coeff_south(
-		new VectorFunctionCoefficient(dim, magnetization_source_south));
-
-	// /// TODO: error check to make sure this worked
-	// int mag_attr = options["components"]["magnets"]
-	// 						["attr"].get<int>();
-
 	auto north_attr = options["magnets"]["north"].get<std::vector<int>>();
 	auto south_attr = options["magnets"]["south"].get<std::vector<int>>();
 	for (auto& attr : north_attr)
 	{
+		std::unique_ptr<mfem::VectorCoefficient> magnet_coeff_north(
+			new VectorFunctionCoefficient(dim, magnetization_source_north));
 		mag_coeff->addCoefficient(attr, move(magnet_coeff_north));
 	}
 	for (auto& attr : south_attr)
 	{
+		std::unique_ptr<mfem::VectorCoefficient> magnet_coeff_south(
+			new VectorFunctionCoefficient(dim, magnetization_source_south));
 		mag_coeff->addCoefficient(attr, move(magnet_coeff_south));
 	}
 }
@@ -287,28 +281,25 @@ void MagnetostaticSolver::constructCurrent()
 {
 	current_coeff.reset(new VectorMeshDependentCoefficient());
 
-	std::unique_ptr<mfem::VectorCoefficient> phase_a_coeff(
-		new VectorFunctionCoefficient(dim, phase_a_source));
-
-	std::unique_ptr<mfem::VectorCoefficient> phase_b_coeff(
-		new VectorFunctionCoefficient(dim, phase_b_source));
-
-	std::unique_ptr<mfem::VectorCoefficient> phase_c_coeff(
-		new VectorFunctionCoefficient(dim, phase_c_source));
-
 	auto phase_a_attr = options["phases"]["A"].get<std::vector<int>>();
 	auto phase_b_attr = options["phases"]["B"].get<std::vector<int>>();
 	auto phase_c_attr = options["phases"]["C"].get<std::vector<int>>();
 	for (auto& attr : phase_a_attr)
 	{
+		std::unique_ptr<mfem::VectorCoefficient> phase_a_coeff(
+			new VectorFunctionCoefficient(dim, phase_a_source));
 		current_coeff->addCoefficient(attr, move(phase_a_coeff));
 	}
 	for (auto& attr : phase_b_attr)
 	{
+		std::unique_ptr<mfem::VectorCoefficient> phase_b_coeff(
+			new VectorFunctionCoefficient(dim, phase_b_source));
 		current_coeff->addCoefficient(attr, move(phase_b_coeff));
 	}
 	for (auto& attr : phase_c_attr)
 	{
+		std::unique_ptr<mfem::VectorCoefficient> phase_c_coeff(
+			new VectorFunctionCoefficient(dim, phase_c_source));
 		current_coeff->addCoefficient(attr, move(phase_c_coeff));
 	}
 }
