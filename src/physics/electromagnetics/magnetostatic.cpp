@@ -381,7 +381,7 @@ void MagnetostaticSolver::phase_a_source(const Vector &x,
                                          Vector &J)
 {
 	// example of needed geometric parameters, this should be all you need
-	int n_s = 20; //number of slots
+	int n_s = 12; //number of slots
 	double zb = .25; //bottom of stator
 	double zt = .75; //top of stator
 
