@@ -192,14 +192,14 @@ void MagnetostaticSolver::solveSteady()
 
 	computeSecondaryFields();
 
-	// // TODO: Print mesh out in another function?
-   // ofstream sol_ofs("motor_mesh_fix2.vtk");
-   // sol_ofs.precision(14);
-   // mesh->PrintVTK(sol_ofs, 1);
-   // A->SaveVTK(sol_ofs, "A_Field", 1);
-	// B->SaveVTK(sol_ofs, "B_Field", 1);
-   // sol_ofs.close();
-	// std::cout << "finish steady solve\n";
+	// TODO: Print mesh out in another function?
+   ofstream sol_ofs("motor_mesh_2.vtk");
+   sol_ofs.precision(14);
+   mesh->PrintVTK(sol_ofs, 1);
+   A->SaveVTK(sol_ofs, "A_Field", 1);
+	B->SaveVTK(sol_ofs, "B_Field", 1);
+   sol_ofs.close();
+	std::cout << "finish steady solve\n";
 
 	// VectorFunctionCoefficient A_exact(3, a_exact);
 	// VectorFunctionCoefficient B_exact(3, b_exact);
@@ -210,21 +210,21 @@ void MagnetostaticSolver::solveSteady()
 	// GridFunType B_ex(h_div_space.get());
 	// B_ex.ProjectCoefficient(B_exact);
 
-	GridFunType J(h_div_space.get());
-	J.ProjectCoefficient(*current_coeff);
+	// GridFunType J(h_div_space.get());
+	// J.ProjectCoefficient(*current_coeff);
 
 	// std::cout << "A error: " << calcL2Error(A.get(), a_exact);
 	// std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
 
-	auto out_file = options["mesh"]["out-file"].get<std::string>();
+	// auto out_file = options["mesh"]["out-file"].get<std::string>();
 
 	/// TODO: this function seems super slow
 	// printFields(out_file,
 	// 				{A.get(), B.get(), &A_ex, &B_ex, &J},
 	//             {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
-	printFields(out_file,
-					{A.get(), B.get(), &J},
-	            {"A_Field", "B_Field", "current"});
+	// printFields(out_file,
+	// 				{A.get(), B.get(), &J},
+	//             {"A_Field", "B_Field", "current"});
 
 }
 
