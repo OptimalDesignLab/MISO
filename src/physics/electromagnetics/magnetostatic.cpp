@@ -77,7 +77,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	materials = material_library;
 
 	/// read options file to set the proper values of static member variables
-	// setStaticMembers();
+	setStaticMembers();
 
 	constructReluctivity();
 
@@ -95,7 +95,7 @@ MagnetostaticSolver::MagnetostaticSolver(
    res.reset(new NonlinearFormType(h_curl_space.get()));
 
 	/// Construct reluctivity coefficient
-	// constructReluctivity();
+	constructReluctivity();
 
 	/// TODO: Add a check in `CurlCurlNLFIntegrator` to check if |B| is close to
 	///       zero, and if so set the second term of the Jacobian to be zero.
@@ -109,10 +109,10 @@ MagnetostaticSolver::MagnetostaticSolver(
 	///       but need to verify that that is mathematically corrent based on
 	///       the limit of the Jacobian as B goes to zero.
 	/// Construct magnetization coefficient
-	// constructMagnetization();
+	constructMagnetization();
 
 	/// add magnetization integrator to residual
-	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
+	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
@@ -201,14 +201,14 @@ void MagnetostaticSolver::solveSteady()
    // sol_ofs.close();
 	// std::cout << "finish steady solve\n";
 
-	VectorFunctionCoefficient A_exact(3, a_exact);
-	VectorFunctionCoefficient B_exact(3, b_exact);
+	// VectorFunctionCoefficient A_exact(3, a_exact);
+	// VectorFunctionCoefficient B_exact(3, b_exact);
 
-	GridFunType A_ex(h_curl_space.get());
-	A_ex.ProjectCoefficient(A_exact);
+	// GridFunType A_ex(h_curl_space.get());
+	// A_ex.ProjectCoefficient(A_exact);
 	
-	GridFunType B_ex(h_div_space.get());
-	B_ex.ProjectCoefficient(B_exact);
+	// GridFunType B_ex(h_div_space.get());
+	// B_ex.ProjectCoefficient(B_exact);
 
 	GridFunType J(h_div_space.get());
 	J.ProjectCoefficient(*current_coeff);
