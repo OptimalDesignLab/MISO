@@ -12,6 +12,10 @@
 using namespace std;
 using namespace mfem;
 
+/// anonymous namespace for this function so it's only available in this file
+#ifdef MFEM_USE_PUMI
+namespace
+{
 /// function to figure out if tet element is next to a model surface
 bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
 {
@@ -25,6 +29,8 @@ bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
    }
    return false;
 }
+} // anonymous namespace
+#endif
 
 namespace mach
 {

@@ -7,6 +7,30 @@
 using namespace std;
 using namespace mfem;
 
+namespace
+{
+std::unique_ptr<mfem::Coefficient>
+constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
+{
+	const double mu_0 = 4e-7*M_PI;
+	std::unique_ptr<mfem::Coefficient> temp_coeff;
+	std::string material = component["material"].get<std::string>();
+	if (!component["linear"].get<bool>())
+	{
+		auto b = materials[material]["B"].get<std::vector<double>>();
+		auto h = materials[material]["H"].get<std::vector<double>>();
+		temp_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+	}
+	else
+	{
+		auto mu_r = materials[material]["mu_r"].get<double>();
+		temp_coeff.reset(new mfem::ConstantCoefficient(1.0/(mu_r*mu_0)));
+		std::cout << "new coeff with mu_r: " << mu_r << "\n";
+	}
+	return temp_coeff;
+}
+} // anonymous namespace
+
 namespace mach
 {
 
@@ -100,8 +124,8 @@ MagnetostaticSolver::MagnetostaticSolver(
 
 	Vector Zero(3);
    Zero = 0.0;
-   // bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
-	bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
+   bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
+	// bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
 
 	/// I think any of these should work
 	// A->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
@@ -189,15 +213,19 @@ void MagnetostaticSolver::solveSteady()
 	GridFunType J(h_div_space.get());
 	J.ProjectCoefficient(*current_coeff);
 
-	std::cout << "A error: " << calcL2Error(A.get(), a_exact);
-	std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
+	// std::cout << "A error: " << calcL2Error(A.get(), a_exact);
+	// std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
 
 	auto out_file = options["mesh"]["out-file"].get<std::string>();
 
 	/// TODO: this function seems super slow
+	// printFields(out_file,
+	// 				{A.get(), B.get(), &A_ex, &B_ex, &J},
+	//             {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
 	printFields(out_file,
-					{A.get(), B.get(), &A_ex, &B_ex, &J},
-	            {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
+					{A.get(), B.get(), &J},
+	            {"A_Field", "B_Field", "current"});
+
 }
 
 void MagnetostaticSolver::setStaticMembers()
@@ -222,23 +250,25 @@ void MagnetostaticSolver::constructReluctivity()
 	///    reluctivity coefficient for each
 	for (auto& component : options["components"])
 	{
-		std::unique_ptr<mfem::Coefficient> temp_coeff;
-		std::string material = component["material"].get<std::string>();
-		if (!component["linear"].get<bool>())
-		{
-			auto b = materials[material]["B"].get<std::vector<double>>();
-			auto h = materials[material]["H"].get<std::vector<double>>();
-			temp_coeff.reset(new ReluctivityCoefficient(b, h));
-		}
-		else
-		{
-			auto mu_r = materials[material]["mu_r"].get<double>();
-			temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
-			std::cout << "new coeff with mu_r: " << mu_r << "\n";
-		}
+		// std::unique_ptr<mfem::Coefficient> temp_coeff;
+		// std::string material = component["material"].get<std::string>();
+		// if (!component["linear"].get<bool>())
+		// {
+		// 	auto b = materials[material]["B"].get<std::vector<double>>();
+		// 	auto h = materials[material]["H"].get<std::vector<double>>();
+		// 	temp_coeff.reset(new ReluctivityCoefficient(b, h));
+		// }
+		// else
+		// {
+		// 	auto mu_r = materials[material]["mu_r"].get<double>();
+		// 	temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
+		// 	std::cout << "new coeff with mu_r: " << mu_r << "\n";
+		// }
 		int attr = component.value("attr", -1);
 		if (-1 != attr)
 		{
+			std::unique_ptr<mfem::Coefficient> temp_coeff;
+			temp_coeff = constructReluctivityCoeff(component, materials);
 			nu->addCoefficient(attr, move(temp_coeff));
 		}
 		else
@@ -246,6 +276,8 @@ void MagnetostaticSolver::constructReluctivity()
 			auto attrs = component["attrs"].get<std::vector<int>>();
 			for (auto& attribute : attrs)
 			{
+				std::unique_ptr<mfem::Coefficient> temp_coeff;
+				temp_coeff = constructReluctivityCoeff(component, materials);
 				nu->addCoefficient(attribute, move(temp_coeff));
 			}
 		}
