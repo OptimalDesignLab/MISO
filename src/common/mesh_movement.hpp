@@ -5,9 +5,7 @@
 #include "adept.h"
 #include "egads.h"
 
-#ifdef MACH_USE_EGADS
-#include "mach_egads.h"
-#endif
+#include "mach_egads.hpp"
 
 #include "solver.hpp"
 #include "coefficient.hpp"
@@ -29,14 +27,13 @@ protected:
     }
 };
 
-#ifdef MACH_USE_EGADS
+//#ifdef MACH_USE_EGADS
 class LEAnalogySolver : public MeshMovementSolver
 {
 public:
     /// Class Constructor
     LEAnalogySolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr,
-					    
                         int dim = 3);
 
 private:
@@ -52,9 +49,10 @@ private:
    std::unique_ptr<GridFunType> u;
 
    mfem::HypreParMatrix K;
-   mfem::Vector B;
+   mfem::Vector B, U;
 
-   ///
+   /// list of boundary displacements
+   mfem::Array<mfem::Vector> disp_list;
 
    /// mesh dependent density coefficient
    /// TODO: Do we assign an attribute to every element and use this?
@@ -72,16 +70,22 @@ private:
    std::unique_ptr<mfem::LinearForm> bs;
 
    /// linear solver
-   std::unique_ptr<mfem::Solver> solver;
+   std::unique_ptr<mfem::CGSolver> solver;
    
    /// linear system preconditioner
-   std::unique_ptr<mfem::Solver> prec;
+   std::unique_ptr<SmootherType> prec;
+
+   /// Stiffness coefficients
+   std::unique_ptr<mfem::Coefficient> lambda_c;
+   std::unique_ptr<mfem::Coefficient> mu_c;
 
    /// static variables for use in static member functions
    static double something;
 
    /// set static variables
    void setStaticMembers() { }
+
+   virtual int getNumState() {return 1; }
 
    /// construct element-level coefficient for stiffness
    void constructStiffnessCoeff();
@@ -94,7 +98,7 @@ private:
     
 };
 
-#endif
+//#endif
 
 } //namespace mach
 

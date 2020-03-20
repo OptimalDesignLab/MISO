@@ -1,5 +1,5 @@
 cmake .. \
- -DCMAKE_BUILD_TYPE=Release \
+ -DCMAKE_BUILD_TYPE=Debug \
  -DADEPT_DIR="/users/babcot/Developer/adept-install/" \
  -DMFEM_DIR="/users/bedong/Builds/mfem-install/" \
  -DPUMI_DIR="/lore/babcot/core/build/install/" \

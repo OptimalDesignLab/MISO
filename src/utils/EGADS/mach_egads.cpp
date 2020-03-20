@@ -65,16 +65,16 @@ void getBoundaryNodeDisplacement(std::string oldmodel,
     if (error == 0)
     {
         //how will surface node ordering work?
-        egTessel *btess = (egTessel *) newtess->blind;
-        disp_list->SetSize(41);
+        egTessel *btess = (egTessel *) oldtess->blind;
+        disp_list->SetSize(btess->nGlobal + 1);
         cout << "Number of tess nodes: " << btess->nGlobal << endl;                     
 
         //get new coordinates
-        for(global = 1; global <= 40; global++)
+        for(global = 1; global <= btess->nGlobal; global++)
         {
             bndn = mesh->iterate(itb);
             mesh->getPoint(bndn, 0, xold);
-            cout << "Point: " << global << endl;                     
+            //cout << "Point: " << global << endl;                     
             int error2 = EG_getGlobal(newtess, global, &ptype, &pindex, s_coords);
             if (error2 != 0)
             {

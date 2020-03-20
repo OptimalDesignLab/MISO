@@ -2,7 +2,7 @@
     "mesh": {
        "file": "../../sandbox/move_box.smb"
     },
-    "model-file-old": "../../sandbox/move_box.egads",
+    "model-file": "../../sandbox/move_box.egads",
     "model-file-new": "../../sandbox/move_box_2.egads",
     "tess-file-old": "../../sandbox/move_box.eto",
     "space-dis": {
@@ -20,5 +20,11 @@
       "on": true,
       "lambda": 1,
       "mu": 1
+    },
+    "time-dis": {
+        "const-cfl": true,
+        "cfl": 1.0,
+        "dt": 0.0001,
+        "t-final": 0.2
     }
 }

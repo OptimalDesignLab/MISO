@@ -21,7 +21,8 @@ ThermalSolver::ThermalSolver(
 	setInit = false;
 
 	mesh->ReorientTetMesh();
-	int fe_order = options["space-dis"]["degree"].get<int>();
+	/// Override, only use 1st order H elements
+	int fe_order = 1;// options["space-dis"]["degree"].get<int>();
 
 	/// Create the H(Grad) finite element collection
     h_grad_coll.reset(new H1_FECollection(fe_order, dim));

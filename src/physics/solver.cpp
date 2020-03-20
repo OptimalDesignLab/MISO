@@ -8,6 +8,7 @@
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
 
+#include "gmi_egads.h"
 
 using namespace std;
 using namespace mfem;
@@ -185,6 +186,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    gmi_sim_start();
    gmi_register_sim();
 #endif
+   gmi_register_egads();
+   gmi_egads_start();
    gmi_register_mesh();
    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
                                 options["mesh"]["file"].get<string>().c_str());
@@ -197,7 +200,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
    //    ma::adapt(uniInput);
    // }
-   pumi_mesh->verify();
+   //pumi_mesh->verify();
    mesh.reset(new MeshType(comm, pumi_mesh));
    PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
