@@ -234,8 +234,8 @@ void MagnetostaticSolver::setStaticMembers()
 							["material"].get<std::string>();
 	remnant_flux = materials[material]["B_r"].get<double>();
 	mag_mu_r = materials[material]["mu_r"].get<double>();
-	fill_factor = options["components"]["windings"]["fill_factor"].get<double>();
-	current_density = options["components"]["windings"]["current_density"].get<double>();
+	fill_factor = options["components"]["windings"]["fill-factor"].get<double>();
+	current_density = options["components"]["windings"]["current-density"].get<double>();
 }
 
 void MagnetostaticSolver::constructReluctivity()
