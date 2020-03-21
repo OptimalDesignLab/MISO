@@ -198,6 +198,9 @@ void MagnetostaticSolver::solveSteady()
    mesh->PrintVTK(sol_ofs, 1);
    A->SaveVTK(sol_ofs, "A_Field", 1);
 	B->SaveVTK(sol_ofs, "B_Field", 1);
+	GridFunType J(h_div_space.get());
+	J.ProjectCoefficient(*current_coeff);
+	J.SaveVTK(sol_ofs, "J_Field", 1);
    sol_ofs.close();
 	std::cout << "finish steady solve\n";
 
