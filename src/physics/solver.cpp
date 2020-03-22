@@ -203,10 +203,11 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    }
    // problem with using these in loadMdsMesh
    cout << "Construct pumi mesh.\n";
-   const char *model_file = options["model-file"].get<string>().c_str();
-   const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
-   pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-                                options["mesh"]["file"].get<string>().c_str());
+   std::string model_file = options["model-file"].get<string>().c_str();
+   std::string mesh_file = options["mesh"]["file"].get<string>().c_str();
+   std::cout << "model file " << model_file.c_str() << '\n';
+   std::cout << "mesh file " << mesh_file.c_str() << '\n';
+   pumi_mesh = apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str());
    cout << "pumi mesh is constructed from file.\n";
    int mesh_dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(mesh_dim);
@@ -316,6 +317,7 @@ double AbstractSolver::calcL2Error(
    else
    {
       // calculate the L2 error for component index `entry`
+      fes->GetProlongationMatrix()->Mult(*uc,*u);
       for (int i = 0; i < fes->GetNE(); i++)
       {
          fe = fes->GetFE(i);
