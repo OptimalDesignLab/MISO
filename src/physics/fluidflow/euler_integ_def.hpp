@@ -45,11 +45,26 @@ void EulerIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
    this->stack.jacobian(flux_jac.GetData());
 }
 
-template <int dim>
-void IsmailRoeIntegrator<dim>::calcFluxJacStates(int di, const mfem::Vector &qL,
-                                                 const mfem::Vector &qR,
-                                                 mfem::DenseMatrix &jacL,
-                                                 mfem::DenseMatrix &jacR)
+template <int dim, bool entvar>
+void IsmailRoeIntegrator<dim, entvar>::calcFlux(int di, const mfem::Vector &qL,
+                                                const mfem::Vector &qR,
+                                                mfem::Vector &flux)
+{
+   if (entvar)
+   {
+      // TODO: add code for when states are entropy variables
+   }
+   else
+   {
+      calcIsmailRoeFlux<double, dim>(di, qL.GetData(), qR.GetData(),
+                                     flux.GetData());
+   }
+}
+
+template <int dim, bool entvar>
+void IsmailRoeIntegrator<dim, entvar>::calcFluxJacStates(
+    int di, const mfem::Vector &qL, const mfem::Vector &qR,
+    mfem::DenseMatrix &jacL, mfem::DenseMatrix &jacR)
 {
    // store the full jacobian in jac
    mfem::DenseMatrix jac(dim + 2, 2 * (dim + 2));
@@ -179,29 +194,55 @@ void FarFieldBC<dim>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.jacobian(flux_jac.GetData());
 }
 
-template <int dim>
-void EntStableLPSIntegrator<dim>::convertVarsJacState(const mfem::Vector &q,
-                                                      mfem::DenseMatrix &dwdu)
+template <int dim, bool entvar>
+void EntStableLPSIntegrator<dim, entvar>::convertVars(
+    const mfem::Vector &q, mfem::Vector &w)
 {
-   // vector of active input variables
-   std::vector<adouble> q_a(q.Size());
-   // initialize adouble inputs
-   adept::set_values(q_a.data(), q.Size(), q.GetData());
-   // start recording
-   this->stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> w_a(q.Size());
-   // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
-   // identify independent and dependent variables
-   this->stack.independent(q_a.data(), q.Size());
-   this->stack.dependent(w_a.data(), q.Size());
-   // compute and store jacobian in dwdu
-   this->stack.jacobian(dwdu.GetData());
+   // This conditional should have no overhead, if the compiler is good
+   if (entvar)
+   {
+      w = q;
+   }
+   else
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   }
 }
 
-template <int dim>
-void EntStableLPSIntegrator<dim>::applyScalingJacState(
+template <int dim, bool entvar>
+void EntStableLPSIntegrator<dim, entvar>::convertVarsJacState(
+   const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+{
+   if (entvar)
+   {
+      dwdu = 0.0;
+      for (int i = 0; i < dim+2; ++i)
+      {
+         dwdu(i,i) = 1.0;
+      }
+   }
+   else
+   {
+      // vector of active input variables
+      std::vector<adouble> q_a(q.Size());
+      // initialize adouble inputs
+      adept::set_values(q_a.data(), q.Size(), q.GetData());
+      // start recording
+      this->stack.new_recording();
+      // create vector of active output variables
+      std::vector<adouble> w_a(q.Size());
+      // run algorithm
+      calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+      // identify independent and dependent variables
+      this->stack.independent(q_a.data(), q.Size());
+      this->stack.dependent(w_a.data(), q.Size());
+      // compute and store jacobian in dwdu
+      this->stack.jacobian(dwdu.GetData());
+   }
+}
+
+template <int dim, bool entvar>
+void EntStableLPSIntegrator<dim, entvar>::applyScalingJacState(
     const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
     const mfem::Vector &vec, mfem::DenseMatrix &mat_vec_jac)
 {
@@ -227,8 +268,8 @@ void EntStableLPSIntegrator<dim>::applyScalingJacState(
    this->stack.jacobian(mat_vec_jac.GetData());
 }
 
-template <int dim>
-void EntStableLPSIntegrator<dim>::applyScalingJacAdjJ(
+template <int dim, bool entvar>
+void EntStableLPSIntegrator<dim, entvar>::applyScalingJacAdjJ(
     const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
     const mfem::Vector &vec, mfem::DenseMatrix &mat_vec_jac)
 {
@@ -252,8 +293,8 @@ void EntStableLPSIntegrator<dim>::applyScalingJacAdjJ(
    this->stack.jacobian(mat_vec_jac.GetData());
 }
 
-template <int dim>
-void EntStableLPSIntegrator<dim>::applyScalingJacV(
+template <int dim, bool entvar>
+void EntStableLPSIntegrator<dim, entvar>::applyScalingJacV(
     const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
     mfem::DenseMatrix &mat_vec_jac)
 {

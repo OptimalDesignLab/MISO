@@ -216,6 +216,30 @@ void calcEntropyVars(const xdouble *q, xdouble *w)
    w[dim + 1] = -q[0] * fac;
 }
 
+/// Convert entropy variables `w` to conservative variables `q`
+/// \param[in] w - entropy variables we want to convert from
+/// \param[out] q - conservative variables that we want to convert to
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcConservativeVars(const xdouble *w, xdouble *q)
+{
+   xdouble u[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = -w[i + 1] / w[dim + 1];
+   }
+   xdouble Vel2 = dot<xdouble, dim>(u, u);
+   xdouble s = euler::gamma + euler::gami*(0.5*Vel2*w[dim+1] - w[0]);
+   q[0] = pow(-exp(-s)/w[dim+1], 1.0/euler::gami);
+   for (int i = 0; i < dim; ++i)
+   {
+      q[i + 1] = q[0]*u[i];
+   }
+   xdouble p = -q[0]/w[dim+1];
+   q[dim+1] = p/euler::gami + 0.5*q[0]*Vel2;  
+}
+
 // TODO: How should we return matrices, particularly when they will be differentiated?
 template <typename xdouble, int dim>
 void calcdQdWProduct(const xdouble *q, const xdouble *vec, xdouble *dqdw_vec)

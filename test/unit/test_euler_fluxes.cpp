@@ -100,7 +100,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       }
    }
 
-   SECTION( "Entropy variables are correct" )
+   SECTION( "Entropy variable conversion is correct" )
    {
       // Load the data to test the entropy variables; the pointer arithmetic in
       // the following constructor is to find the appropriate offset
@@ -110,6 +110,19 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       for (int i = 0; i < dim+2; ++i)
       {
          REQUIRE( qR(i) == Approx(entvar_vec(i)) );
+      }
+   }
+
+   SECTION( "Conservative variable conversion is correct" )
+   {
+      // Load the data to test the entropy variables; the pointer arithmetic in
+      // the following constructor is to find the appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector w(entvar_check + offset, dim + 2);
+      mach::calcConservativeVars<double,dim>(w.GetData(), qR.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( qR(i) == Approx(q(i)) );
       }
    }
 

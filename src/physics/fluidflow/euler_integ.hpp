@@ -54,30 +54,28 @@ public:
 
 /// Integrator for the two-point entropy conservative Ismail-Roe flux
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, the state variables are the entropy variables
 /// \note This derived class uses the CRTP
-template <int dim>
-class IsmailRoeIntegrator : public DyadicFluxIntegrator<IsmailRoeIntegrator<dim>>
+template <int dim, bool entvar = false>
+class IsmailRoeIntegrator : public DyadicFluxIntegrator<
+                                IsmailRoeIntegrator<dim, entvar>>
 {
 public:
    /// Construct an integrator for the Ismail-Roe flux over domains
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] a - factor, usually used to move terms to rhs
    IsmailRoeIntegrator(adept::Stack &diff_stack, double a = 1.0)
-       : DyadicFluxIntegrator<IsmailRoeIntegrator<dim>>(
-             diff_stack, dim+2, a) {}
+       : DyadicFluxIntegrator<IsmailRoeIntegrator<dim, entvar>>(
+             diff_stack, dim + 2, a) {}
 
    /// Ismail-Roe two-point (dyadic) entropy conservative flux function
    /// \param[in] di - physical coordinate direction in which flux is wanted
-   /// \param[in] qL - conservative variables at "left" state
-   /// \param[in] qR - conservative variables at "right" state
+   /// \param[in] qL - state variables at "left" state
+   /// \param[in] qR - state variables at "right" state
    /// \param[out] flux - fluxes in the direction `di`
    /// \note This is simply a wrapper for the function in `euler_fluxes.hpp`
    void calcFlux(int di, const mfem::Vector &qL,
-                 const mfem::Vector &qR, mfem::Vector &flux)
-   {
-      calcIsmailRoeFlux<double,dim>(di, qL.GetData(), qR.GetData(),
-                                 flux.GetData());
-   }
+                 const mfem::Vector &qR, mfem::Vector &flux);
 
    /// Compute the Jacobians of `flux` with respect to `u_left` and `u_right`
    /// \param[in] di - desired coordinate direction for flux
@@ -94,8 +92,9 @@ public:
 /// Integrator for entropy stable local-projection stabilization
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \note This derived class uses the CRTP
-template <int dim>
-class EntStableLPSIntegrator : public LPSIntegrator<EntStableLPSIntegrator<dim>>
+template <int dim, bool entvar = false>
+class EntStableLPSIntegrator : public LPSIntegrator<
+                                   EntStableLPSIntegrator<dim, entvar>>
 {
 public:
    /// Construct an entropy-stable LPS integrator
@@ -104,17 +103,14 @@ public:
    /// \param[in] coeff - the LPS coefficient
    EntStableLPSIntegrator(adept::Stack &diff_stack, double a = 1.0,
                           double coeff = 1.0)
-       : LPSIntegrator<EntStableLPSIntegrator<dim>>(
+       : LPSIntegrator<EntStableLPSIntegrator<dim,entvar>>(
              diff_stack, dim + 2, a, coeff) {}
 
-   /// converts conservative variables to entropy variables
-   /// \param[in] q - conservative variables that are to be converted
+   /// converts state variables to entropy variables, if necessary
+   /// \param[in] q - state variables that are to be converted
    /// \param[out] w - entropy variables corresponding to `q`
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
-   void convertVars(const mfem::Vector &q, mfem::Vector &w)
-   {
-      calcEntropyVars<double,dim>(q.GetData(), w.GetData());
-   }
+   void convertVars(const mfem::Vector &q, mfem::Vector &w);
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
    /// \param[in] q - conservative variables that are to be converted

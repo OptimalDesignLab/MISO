@@ -38,14 +38,16 @@ EulerSolver<dim>::EulerSolver(const string &opt_file_name,
 template <int dim>
 void EulerSolver<dim>::addVolumeIntegrators(double alpha)
 {
+   // TODO: if statement when using entropy variables as state variables
    // TODO: should decide between one-point and two-point fluxes using options
-   res->AddDomainIntegrator(new IsmailRoeIntegrator<dim>(diff_stack, alpha));
+   res->AddDomainIntegrator(
+       new IsmailRoeIntegrator<dim, false>(diff_stack, alpha));
    //res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
 
    // add the LPS stabilization
    double lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    res->AddDomainIntegrator(
-       new EntStableLPSIntegrator<dim>(diff_stack, alpha, lps_coeff));
+       new EntStableLPSIntegrator<dim, false>(diff_stack, alpha, lps_coeff));
 }
 
 template <int dim>
