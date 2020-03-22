@@ -205,8 +205,10 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    cout << "Construct pumi mesh.\n";
    std::string model_file = options["model-file"].get<string>().c_str();
    std::string mesh_file = options["mesh"]["file"].get<string>().c_str();
+
    std::cout << "model file " << model_file.c_str() << '\n';
    std::cout << "mesh file " << mesh_file.c_str() << '\n';
+   
    pumi_mesh = apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str());
    cout << "pumi mesh is constructed from file.\n";
    int mesh_dim = pumi_mesh->getDimension();
