@@ -95,11 +95,11 @@ void AbstractSolver::initDerived()
    *out << "Num states = " << num_state << endl;
    if (options["space-dis"]["GD"].get<bool>() == true)
    {
-      // int gd_degree = options["space-dis"]["GD-degree"].get<int>();
-      // fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
-      //                                  Ordering::byVDIM, gd_degree, pumi_mesh));
-      // u.reset(new GridFunType(fes.get()));
-      // uc.reset(new CentGridFunction(fes.get()));
+      int gd_degree = options["space-dis"]["GD-degree"].get<int>();
+      fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
+                                       Ordering::byVDIM, gd_degree, pumi_mesh));
+      u.reset(new GridFunType(fes.get()));
+      uc.reset(new CentGridFunction(fes.get()));
    }
    else
    {
@@ -132,7 +132,7 @@ void AbstractSolver::initDerived()
       std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
       std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width();
       std::cout << ". fes global true size is " << fes->GlobalTrueVSize();
-      //std::cout << ". uc size " << uc->Size();
+      std::cout << ". uc size " << uc->Size();
       std::cout << ". u size is " << u->Size() << '\n';
    }
    MPI_Barrier(comm);
@@ -199,9 +199,11 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // }
    // problem with using these in loadMdsMesh
    cout << "Construct pumi mesh.\n";
-   const char *model_file = options["model-file"].get<string>().c_str();
-   const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
-   pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
+   std::string model_file = options["model-file"].get<string>();
+   std::string mesh_file = options["mesh"]["file"].get<string>();
+   std::cout << "model file is " << model_file << '\n';
+   std::cout << "mesh file is " << mesh_file << '\n';
+   pumi_mesh = apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str());
    cout << "pumi mesh is constructed from file.\n";
    int mesh_dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(mesh_dim);
@@ -277,7 +279,7 @@ void AbstractSolver::setInitialCondition(
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
-   //uc->ProjectCoefficient(u0);
+   uc->ProjectCoefficient(u0);
    // DenseMatrix vals;
    // Vector uj;
    // for (int i = 0; i < fes->GetNE(); i++)
@@ -336,7 +338,7 @@ double AbstractSolver::calcL2Error(
       }
    }
    else
-   {
+   {  
       // calculate the L2 error for component index `entry`
       for (int i = 0; i < fes->GetNE(); i++)
       {
@@ -371,18 +373,18 @@ double AbstractSolver::calcL2Error(
 
 double AbstractSolver::calcResidualNorm()
 {
-   //CentGridFunction rc(fes.get());
-   GridFunType r(fes.get());
+   CentGridFunction rc(fes.get());
+   //GridFunType r(fes.get());
    double res_norm;
 #ifdef MFEM_USE_MPI
-   HypreParVector *U = u->GetTrueDofs();
-   HypreParVector *R = r.GetTrueDofs();
-   res->Mult(*U, *R);
-   double loc_norm = (*R) * (*R);
-   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   // res->Mult(*uc, rc);
-   // double loc_norm = rc * rc;
+   // HypreParVector *U = u->GetTrueDofs();
+   // HypreParVector *R = r.GetTrueDofs();
+   // res->Mult(*U, *R);
+   // double loc_norm = (*R) * (*R);
    // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   res->Mult(*uc, rc);
+   double loc_norm = rc * rc;
+   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 #else
    res->Mult(*u, r);
    res_norm = r * r;
@@ -408,6 +410,7 @@ void AbstractSolver::printSolution(const std::string &file_name,
       refine = options["space-dis"]["degree"].get<int>() + 1;
    }
    mesh->PrintVTK(sol_ofs, refine);
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
    u->SaveVTK(sol_ofs, "Solution", refine);
    sol_ofs.close();
 }
@@ -487,12 +490,12 @@ void AbstractSolver::solveSteady()
    std::cout << "Newton solver is set.\n";
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   mfem::Vector u_true;
-   u->GetTrueDofs(u_true);
-   newton_solver->Mult(b, u_true);
-   u->SetFromTrueDofs(u_true);
-   // newton_solver->Mult(b, *uc);
-   // MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   // mfem::Vector u_true;
+   // u->GetTrueDofs(u_true);
+   // newton_solver->Mult(b, u_true);
+   // u->SetFromTrueDofs(u_true);
+   newton_solver->Mult(b, *uc);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    
 #else
    // Hypre solver section
@@ -528,6 +531,7 @@ void AbstractSolver::solveSteady()
    //u->GetTrueDofs(u_true);
    newton_solver->Mult(b, *uc);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
    //u->SetFromTrueDofs(u_true);
 #endif // MFEM_USE_PETSC
    if (0 == rank)
