@@ -176,6 +176,91 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
    }
 }
 
+TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
+                       ((int dim), dim), 1, 2, 3)
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   mfem::Vector qL(dim + 2);
+   mfem::Vector qR(dim + 2);
+   mfem::Vector wL(dim + 2);
+   mfem::Vector wR(dim + 2);
+   mfem::Vector flux(dim + 2);
+   mfem::Vector flux_plus(dim + 2);
+   mfem::Vector flux_minus(dim + 2);
+   mfem::Vector v(dim + 2);
+   mfem::Vector jac_v(dim + 2);
+   mfem::DenseMatrix jacL(dim + 2, 2 * (dim + 2));
+   mfem::DenseMatrix jacR(dim + 2, 2 * (dim + 2));
+   double delta = 1e-5;
+   qL(0) = rho;
+   qL(dim + 1) = rhoe;
+   qR(0) = rho2;
+   qR(dim + 1) = rhoe2;
+   for (int di = 0; di < dim; ++di)
+   {
+      qL(di + 1) = rhou[di];
+      qR(di + 1) = rhou2[di];
+   }
+   mach::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
+   mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+   // create perturbation vector
+   for (int di = 0; di < dim + 2; ++di)
+   {
+      v(di) = vec_pert[di];
+   }
+   // perturbed vectors
+   mfem::Vector wL_plus(wL), wL_minus(wL);
+   mfem::Vector wR_plus(wR), wR_minus(wR);
+   adept::Stack diff_stack;
+   mach::IsmailRoeIntegrator<dim,true> ismailinteg(diff_stack);
+   // +ve perturbation
+   wL_plus.Add(delta, v);
+   wR_plus.Add(delta, v);
+   // -ve perturbation
+   wL_minus.Add(-delta, v);
+   wR_minus.Add(-delta, v);
+   for (int di = 0; di < dim; ++di)
+   {
+      DYNAMIC_SECTION("Ismail-Roe flux jacismailintegian is correct w.r.t left state ")
+      {
+         // get perturbed states flux vector
+         ismailinteg.calcFlux(di, wL_plus, wR, flux_plus);
+         ismailinteg.calcFlux(di, wL_minus, wR, flux_minus);
+         // compute the jacobian
+         ismailinteg.calcFluxJacStates(di, wL, wR, jacL, jacR);
+         jacL.Mult(v, jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0 * delta;
+         // compare each component of the matrix-vector products
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+         }
+      }
+      DYNAMIC_SECTION("Ismail-Roe flux jacismailintegian is correct w.r.t right state ")
+      {
+         // get perturbed states flux vector
+         ismailinteg.calcFlux(di, wL, wR_plus, flux_plus);
+         ismailinteg.calcFlux(di, wL, wR_minus, flux_minus);
+         // compute the jacobian
+         ismailinteg.calcFluxJacStates(di, wL, wR, jacL, jacR);
+         jacR.Mult(v, jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0 * delta;
+         // compare each component of the matrix-vector products
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+         }
+      }
+   }
+}
+
 TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
                        ((int dim), dim), 1, 2, 3)
 {

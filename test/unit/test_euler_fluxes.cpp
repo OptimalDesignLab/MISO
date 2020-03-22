@@ -81,6 +81,19 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
             REQUIRE( flux(i) == Approx(fluxIR_check(i,di)) );
          }
       }
+      DYNAMIC_SECTION( "Ismail-Roe flux (based on entropy vars) is correct in direction " << di )
+      {
+         mfem::Vector wL(dim + 2), wR(dim + 2);
+         mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
+         mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+         mach::calcIsmailRoeFluxUsingEntVars<double, dim>(di, wL.GetData(),
+                                                          wR.GetData(),
+                                                          flux.GetData());
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(flux(i) == Approx(fluxIR_check(i, di)));
+         }
+      }
    }
 
    SECTION( "Ismail-Roe face flux is correct in given direction" )

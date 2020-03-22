@@ -52,7 +52,8 @@ void IsmailRoeIntegrator<dim, entvar>::calcFlux(int di, const mfem::Vector &qL,
 {
    if (entvar)
    {
-      // TODO: add code for when states are entropy variables
+      calcIsmailRoeFluxUsingEntVars<double, dim>(di, qL.GetData(), qR.GetData(),
+                                                 flux.GetData());
    }
    else
    {
@@ -79,8 +80,17 @@ void IsmailRoeIntegrator<dim, entvar>::calcFluxJacStates(
    // create vector of active output variables
    std::vector<adouble> flux_a(qL.Size());
    // run algorithm
-   mach::calcIsmailRoeFlux<adouble, dim>(di, qL_a.data(),
-                                         qR_a.data(), flux_a.data());
+   if (entvar)
+   {
+      mach::calcIsmailRoeFluxUsingEntVars<adouble, dim>(di, qL_a.data(),
+                                                        qR_a.data(),
+                                                        flux_a.data());
+   }
+   else
+   {
+      mach::calcIsmailRoeFlux<adouble, dim>(di, qL_a.data(),
+                                            qR_a.data(), flux_a.data());
+   }
    // identify independent and dependent variables
    this->stack.independent(qL_a.data(), qL.Size());
    this->stack.independent(qR_a.data(), qR.Size());

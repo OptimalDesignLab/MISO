@@ -105,7 +105,56 @@ void calcIsmailRoeFlux(int di, const xdouble *qL, const xdouble *qR,
    zR[dim + 1] = sqrt(qR[0] * pR);
 
    xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
-   xdouble U = (zL[0] * qL[di + 1] / qL[0] + zR[0] * qR[di + 1] / qR[0]) / (zL[0] + zR[0]);
+   xdouble U = (zL[di + 1] + zR[di + 1]) / (zL[0] + zR[0]);
+   xdouble p1_hat = (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0]);
+   xdouble p2_hat = ((euler::gamma + 1.0) * logavg(zL[dim + 1], zR[dim + 1]) /
+                         logavg(zL[0], zR[0]) +
+                     (euler::gami) * (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0])) /
+                    (2.0 * euler::gamma);
+   xdouble h_hat = euler::gamma * p2_hat / (rho_hat * euler::gami);
+
+   flux[0] = rho_hat * U;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] = (zL[i + 1] + zR[i + 1]) / (zL[0] + zR[0]); // u_hat
+      h_hat += 0.5 * flux[i + 1] * flux[i + 1];
+      flux[i + 1] *= rho_hat * U;
+   }
+   flux[di + 1] += p1_hat;
+   flux[dim + 1] = rho_hat * h_hat * U;
+}
+
+/// Ismail-Roe flux function evaluated using entropy variables
+/// \param[in] di - physical coordinate direction in which flux is wanted
+/// \param[in] wL - entropy variables at "left" state
+/// \param[in] wR - entropy variables at "right" state
+/// \param[out] flux - fluxes in the direction `di`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcIsmailRoeFluxUsingEntVars(int di, const xdouble *wL, const xdouble *wR,
+                                   xdouble *flux)
+{
+   xdouble zL[dim + 2];
+   xdouble zR[dim + 2];
+   zL[0] = sqrt(-wL[dim+1]);
+   zR[0] = sqrt(-wR[dim+1]);
+   xdouble sL = 0.0;
+   xdouble sR = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {      
+      zL[i + 1] = -wL[i + 1] * zL[0] / wL[dim + 1];
+      sL += wL[i + 1]*wL[i + 1];
+      zR[i + 1] = -wR[i + 1] * zR[0] / wR[dim + 1];
+      sR += wR[i + 1]*wR[i + 1];
+   }
+   sL = euler::gamma + euler::gami*(0.5*sL/wL[dim+1] - wL[0]); // physical ent.
+   zL[dim + 1] = pow(-exp(-sL)/wL[dim+1], 1.0/euler::gami)/zL[0];
+   sR = euler::gamma + euler::gami*(0.5*sR/wR[dim+1] - wR[0]); // physical ent.
+   zR[dim + 1] = pow(-exp(-sR)/wR[dim+1], 1.0/euler::gami)/zR[0];
+
+   xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
+   xdouble U = (zL[di + 1] + zR[di + 1])/(zL[0] + zR[0]);
    xdouble p1_hat = (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0]);
    xdouble p2_hat = ((euler::gamma + 1.0) * logavg(zL[dim + 1], zR[dim + 1]) /
                          logavg(zL[0], zR[0]) +
@@ -225,11 +274,12 @@ template <typename xdouble, int dim>
 void calcConservativeVars(const xdouble *w, xdouble *q)
 {
    xdouble u[dim];
+   xdouble Vel2 = 0.0;
    for (int i = 0; i < dim; ++i)
    {
       u[i] = -w[i + 1] / w[dim + 1];
+      Vel2 += u[i]*u[i];
    }
-   xdouble Vel2 = dot<xdouble, dim>(u, u);
    xdouble s = euler::gamma + euler::gami*(0.5*Vel2*w[dim+1] - w[0]);
    q[0] = pow(-exp(-s)/w[dim+1], 1.0/euler::gami);
    for (int i = 0; i < dim; ++i)
