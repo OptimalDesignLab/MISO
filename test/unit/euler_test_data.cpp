@@ -69,7 +69,7 @@ double delw_data[15] = {0.964888535199277, 0.7354003853089198, 0.157613081677548
                    0.915735525189067, 0.6064661887024042, 0.19554342457115859, 0.12338014544564024};
 
 // define the random-number generator; uniform between 0 and 1
-static std::default_random_engine gen;
+static std::default_random_engine gen(std::random_device{}());
 static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
 
 template <int dim, bool entvar>
