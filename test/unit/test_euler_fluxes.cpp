@@ -170,6 +170,42 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       }
    }
 
+   SECTION( "Far-field flux is consistent" )
+   {
+      // Load the data to test the far-field flux; this only tests that the
+      // flux agrees with the Euler flux when given the same states.
+      // The pointer arithmetic in the following constructor is to find the
+      // appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mach::calcFarFieldFlux<double, dim>(nrm.GetData(), q.GetData(),
+                                          q.GetData(), work.GetData(),
+                                          flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)) );
+      }
+   }
+
+   SECTION( "Far-field flux is consistent when states are entropy vars" )
+   {
+      // Load the data to test the far-field flux; this only tests that the
+      // flux agrees with the Euler flux when given the same states.
+      // The pointer arithmetic in the following constructor is to find the
+      // appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mfem::Vector w(dim+2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      mach::calcFarFieldFlux<double, dim, true>(nrm.GetData(), q.GetData(),
+                                                w.GetData(), work.GetData(),
+                                                flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)) );
+      }
+   }
+
    SECTION( "projectStateOntoWall removes normal component" )
    {
       // In this test case, the wall normal is set proportional to the momentum,

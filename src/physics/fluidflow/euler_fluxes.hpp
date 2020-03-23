@@ -444,6 +444,33 @@ void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
    flux[dim + 1] += Edq * (E2dq_fac * Un + E34dq_fac * H);
 }
 
+/// Boundary flux that uses characteristics to determine which state to use
+/// \param[in] dir - direction in which the flux is desired
+/// \param[in] qbnd - boundary values of the **conservative** variables
+/// \param[in] q - interior domain values of the state variables
+/// \param[in] work - a work vector of size `dim+2`
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, `q` is entropy var; otherwise, `q` is conservative
+/// \note the "flux Jacobian" is computed using `qbnd`, so the boundary values
+/// define what is inflow and what is outflow.
+template <typename xdouble, int dim, bool entvar = false>
+void calcFarFieldFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
+                      xdouble *work, xdouble *flux)
+{
+   if (entvar)
+   {
+      xdouble qcons[dim+1];
+      calcConservativeVars<xdouble, dim>(q, qcons);
+      calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
+   }
+   else
+   {
+      calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, work, flux);
+   }
+}
+
 /// Isentropic vortex exact state as a function of position
 /// \param[in] x - location at which the exact state is desired
 /// \param[out] qbnd - vortex conservative variable at `x`

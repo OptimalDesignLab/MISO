@@ -261,9 +261,10 @@ public:
 
 /// Integrator for inviscid far-field boundary condition
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
-template <int dim>
-class FarFieldBC : public InviscidBoundaryIntegrator<FarFieldBC<dim>>
+template <int dim, bool entvar = false>
+class FarFieldBC : public InviscidBoundaryIntegrator<FarFieldBC<dim, entvar>>
 {
 public:
    /// Constructs an integrator for a far-field boundary flux
@@ -275,7 +276,7 @@ public:
               const mfem::FiniteElementCollection *fe_coll,
               const mfem::Vector q_far, 
               double a = 1.0)
-       : InviscidBoundaryIntegrator<FarFieldBC<dim>>(
+       : InviscidBoundaryIntegrator<FarFieldBC<dim, entvar>>(
              diff_stack, fe_coll, dim+2, a), qfs(q_far), work_vec(dim+2) {}
 
    /// Not used (or, rather, *do not use*!)
@@ -288,11 +289,7 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_vec - value of the flux
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
-                 const mfem::Vector &q, mfem::Vector &flux_vec)
-   {
-      calcBoundaryFlux<double, dim>(dir.GetData(), qfs.GetData(), q.GetData(),
-                                    work_vec.GetData(), flux_vec.GetData());
-   }
+                 const mfem::Vector &q, mfem::Vector &flux_vec);
 
    /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `q`
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
