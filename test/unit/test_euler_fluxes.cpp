@@ -204,6 +204,25 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       REQUIRE( flux(dim+1) == Approx(0.0).margin(abs_tol) );
    }
 
+   SECTION( "calcSlipWallFlux is correct when using entropy variables" )
+   {
+      // As above with projectStateOntoWall, the wall normal is set
+      // proportional to the momentum, so the flux will be zero, except for the
+      // term flux[1:dim] = pressure*dir[0:dim-1]
+      mfem::Vector x(dim);
+      mfem::Vector w(dim + 2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      mach::calcSlipWallFlux<double, dim, true>(x.GetData(), q.GetData() + 1,
+                                                w.GetData(), flux.GetData());
+      double press = mach::pressure<double,dim>(q.GetData());
+      REQUIRE( flux(0) == Approx(0.0).margin(abs_tol) );
+      for (int i = 0; i < dim; ++i)
+      {
+         REQUIRE( flux(i+1) == Approx(press*q(i+1)) );
+      }
+      REQUIRE( flux(dim+1) == Approx(0.0).margin(abs_tol) );
+   }
+
 }
 
 TEST_CASE( "calcBoundaryFlux is correct", "[bndry-flux]")

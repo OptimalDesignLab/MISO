@@ -39,7 +39,7 @@ template <int dim>
 void EulerSolver<dim>::addVolumeIntegrators(double alpha)
 {
    // TODO: if statement when using entropy variables as state variables
-   
+
    // TODO: should decide between one-point and two-point fluxes using options
    res->AddDomainIntegrator(
        new IsmailRoeIntegrator<dim, false>(diff_stack, alpha));
@@ -67,7 +67,7 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-          new IsentropicVortexBC<dim>(diff_stack, fec.get(), alpha),
+          new IsentropicVortexBC<dim, false>(diff_stack, fec.get(), alpha),
           bndry_marker[idx]);
       idx++;
    }
@@ -77,7 +77,7 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-             new SlipWallBC<dim>(diff_stack, fec.get(), alpha),
+             new SlipWallBC<dim, false>(diff_stack, fec.get(), alpha),
              bndry_marker[idx]);
       idx++;
    }

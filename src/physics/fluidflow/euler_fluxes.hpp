@@ -487,17 +487,26 @@ void calcIsentropicVortexState(const xdouble *x, xdouble *qbnd)
 /// A wrapper for `calcBoundaryFlux` in the case of the isentropic vortex
 /// \param[in] x - location at which the boundary flux is desired
 /// \param[in] dir - desired (scaled) direction of the flux
-/// \param[in] q - conservative state variable on the interior of the boundary
+/// \param[in] q - state variable on the interior of the boundary
 /// \param[out] flux - the boundary flux in the direction `dir`
 /// \tparam xdouble - typically `double` or `adept::adouble`
-template <typename xdouble>
+/// \tparam entvar - if true, `q` is entropy var; otherwise, `q` is conservative
+template <typename xdouble, bool entvar = false>
 void calcIsentropicVortexFlux(const xdouble *x, const xdouble *dir,
                               const xdouble *q, xdouble *flux)
 {
    xdouble qbnd[4];
    xdouble work[4];
    calcIsentropicVortexState<xdouble>(x, qbnd);
-   calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
+   if (entvar)
+   {
+      xdouble qcons[4];
+      calcConservativeVars<xdouble, 2>(q, qcons);
+      calcBoundaryFlux<xdouble, 2>(dir, qbnd, qcons, work, flux);
+   }
+   else {
+      calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
+   }
 }
 
 /// removes the component of momentum normal to the wall from `q`
@@ -532,7 +541,8 @@ void projectStateOntoWall(const xdouble *dir, const xdouble *q, xdouble *qbnd)
 /// \param[out] flux - the boundary flux in the direction `dir`
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
+/// \tparam entvar - if true, `q` = ent. vars; otherwise, `q` = conserv. vars
+template <typename xdouble, int dim, bool entvar = false>
 void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
                       xdouble *flux)
 {
@@ -542,7 +552,17 @@ void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
    calcEulerFlux<xdouble,dim>(dir, qbnd, flux);
    //calcIsentropicVortexFlux<xdouble>(x, dir, q, flux);
 #endif
-   xdouble press = pressure<xdouble, dim>(q);
+   xdouble press;
+   if (entvar)
+   {
+      xdouble Vel2 = dot<xdouble, dim>(q+1, q+1);
+      xdouble s = euler::gamma + euler::gami*(0.5*Vel2/q[dim+1] - q[0]);
+      press = -pow(-exp(-s)/q[dim+1], 1.0/euler::gami)/q[dim+1];
+   }
+   else
+   {
+      press = pressure<xdouble, dim>(q);
+   }
    flux[0] = 0.0;
    for (int i = 0; i < dim; ++i)
    {

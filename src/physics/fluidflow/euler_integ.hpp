@@ -165,9 +165,12 @@ public:
 };
 
 /// Integrator for the steady isentropic-vortex boundary condition
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
-template <int dim>
-class IsentropicVortexBC : public InviscidBoundaryIntegrator<IsentropicVortexBC<dim>>
+template <int dim, bool entvar = false>
+class IsentropicVortexBC : public InviscidBoundaryIntegrator<
+                               IsentropicVortexBC<dim, entvar>>
 {
 public:
    /// Constructs an integrator for isentropic vortex boundary flux
@@ -177,10 +180,10 @@ public:
    IsentropicVortexBC(adept::Stack &diff_stack,
                       const mfem::FiniteElementCollection *fe_coll,
                       double a = 1.0)
-       : InviscidBoundaryIntegrator<IsentropicVortexBC<dim>>(
+       : InviscidBoundaryIntegrator<IsentropicVortexBC<dim, entvar>>(
              diff_stack, fe_coll, 4, a) {}
 
-   /// Note used (or, rather, *do not use*!)
+   /// Not used (or, rather, *do not use*!)
    double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
                        const mfem::Vector &q) { return 0.0; }
 
@@ -190,11 +193,7 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_vec - value of the flux
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
-                 const mfem::Vector &q, mfem::Vector &flux_vec)
-   {
-      calcIsentropicVortexFlux<double>(x.GetData(), dir.GetData(), q.GetData(),
-                                       flux_vec.GetData());
-   }
+                 const mfem::Vector &q, mfem::Vector &flux_vec);
 
    /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `q`
    /// \param[in] x - coordinate location at which flux is evaluated
@@ -215,9 +214,10 @@ public:
 
 /// Integrator for inviscid slip-wall boundary condition
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
-template <int dim>
-class SlipWallBC : public InviscidBoundaryIntegrator<SlipWallBC<dim>>
+template <int dim, bool entvar = false>
+class SlipWallBC : public InviscidBoundaryIntegrator<SlipWallBC<dim, entvar>>
 {
 public:
    /// Constructs an integrator for a slip-wall boundary flux
@@ -227,7 +227,7 @@ public:
    SlipWallBC(adept::Stack &diff_stack,
               const mfem::FiniteElementCollection *fe_coll,
               double a = 1.0)
-       : InviscidBoundaryIntegrator<SlipWallBC<dim>>(
+       : InviscidBoundaryIntegrator<SlipWallBC<dim, entvar>>(
              diff_stack, fe_coll, dim+2, a) {}
 
    /// Not used (or, rather, *do not use*!)
@@ -240,11 +240,7 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[out] flux_vec - value of the flux
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
-                 const mfem::Vector &q, mfem::Vector &flux_vec)
-   {
-      calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
-                                   flux_vec.GetData());
-   }
+                 const mfem::Vector &q, mfem::Vector &flux_vec);
 
    /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `q`
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
