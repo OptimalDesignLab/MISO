@@ -90,7 +90,7 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-          new FarFieldBC<dim>(diff_stack, fec.get(), qfar, alpha),
+          new FarFieldBC<dim, false>(diff_stack, fec.get(), qfar, alpha),
           bndry_marker[idx]);
       idx++;
    }
@@ -103,7 +103,7 @@ void EulerSolver<dim>::addInterfaceIntegrators(double alpha)
    if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
    {
       res->AddInteriorFaceIntegrator(
-          new InterfaceIntegrator<dim>(diff_stack, fec.get(), alpha));
+          new InterfaceIntegrator<dim, false>(diff_stack, fec.get(), alpha));
    }
 }
 

@@ -113,6 +113,26 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       }
    }
 
+   SECTION( "Ismail-Roe face flux (based on entropy vars) is correct in given direction" )
+   {
+      // get flux from function
+      mfem::Vector wL(dim+2), wR(dim+2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
+      mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+      mach::calcIsmailRoeFaceFluxUsingEntVars<double, dim>(nrm.GetData(), wL.GetData(),
+                                               wR.GetData(), flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         // get true flux by scaling fluxIR_check data
+         double fluxIR = 0.0;
+         for (int di = 0; di < dim; ++di)
+         {
+            fluxIR += fluxIR_check(i,di)*nrm(di);
+         }
+         REQUIRE( flux(i) == Approx(fluxIR) );
+      }
+   }
+
    SECTION( "Entropy variable conversion is correct" )
    {
       // Load the data to test the entropy variables; the pointer arithmetic in

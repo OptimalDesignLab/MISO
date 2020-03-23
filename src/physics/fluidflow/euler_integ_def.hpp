@@ -453,12 +453,30 @@ void FarFieldBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.jacobian(flux_jac.GetData());
 }
 
-template <int dim>
-void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
+template <int dim, bool entvar>
+void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
                                                 const mfem::Vector &qL,
                                                 const mfem::Vector &qR,
-                                                mfem::DenseMatrix &jacL,
-                                                mfem::DenseMatrix &jacR)
+                                                mfem::Vector &flux)
+{
+   if (entvar)
+   {
+      calcIsmailRoeFaceFluxUsingEntVars<double, dim>(
+          dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
+   }
+   else 
+   {
+      calcIsmailRoeFaceFlux<double, dim>(dir.GetData(), qL.GetData(),
+                                         qR.GetData(), flux.GetData());
+   }
+}
+
+template <int dim, bool entvar>
+void InterfaceIntegrator<dim, entvar>::calcFluxJacState(const mfem::Vector &dir,
+                                                        const mfem::Vector &qL,
+                                                        const mfem::Vector &qR,
+                                                        mfem::DenseMatrix &jacL,
+                                                        mfem::DenseMatrix &jacR)
 {
    // full size jacobian stores both left the right jac state
    mfem::DenseMatrix jac(qL.Size(), 2 * qL.Size());
@@ -474,8 +492,16 @@ void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
    this->stack.new_recording();
    // create vector of active output variables
    std::vector<adouble> flux_a(qL.Size());
-   mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
-                                             qR_a.data(), flux_a.data());
+   if (entvar)
+   {
+      mach::calcIsmailRoeFaceFluxUsingEntVars<adouble, dim>(
+          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+   }
+   else
+   {
+      mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
+                                                qR_a.data(), flux_a.data());
+   }
    // set the independent and dependent variables
    this->stack.independent(qL_a.data(), qL.Size());
    this->stack.independent(qR_a.data(), qR.Size());
@@ -487,11 +513,11 @@ void InterfaceIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
    jacR.CopyCols(jac, qL.Size(), 2 * qL.Size() - 1);
 }
 
-template <int dim>
-void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
-                                              const mfem::Vector &qL,
-                                              const mfem::Vector &qR,
-                                              mfem::DenseMatrix &jac_dir)
+template <int dim, bool entvar>
+void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
+                                                      const mfem::Vector &qL,
+                                                      const mfem::Vector &qR,
+                                                      mfem::DenseMatrix &jac_dir)
 {
    // vector of active input variables
    std::vector<adouble> dir_a(dir.Size());
@@ -505,8 +531,16 @@ void InterfaceIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
    this->stack.new_recording();
    // create vector of active output variables
    std::vector<adouble> flux_a(qL.Size());
-   mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
-                                             qR_a.data(), flux_a.data());
+   if (entvar)
+   {
+      mach::calcIsmailRoeFaceFluxUsingEntVars<adouble, dim>(
+          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+   }
+   else
+   {
+      mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
+                                                qR_a.data(), flux_a.data());
+   }
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), qL.Size());
