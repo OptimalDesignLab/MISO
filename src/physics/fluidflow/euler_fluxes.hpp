@@ -326,31 +326,11 @@ void calcdQdWProduct(const xdouble *q, const xdouble *vec, xdouble *dqdw_vec)
       dqdw_vec[dim + 1] += q[i + 1] * h * vec[i + 1];
    }
    dqdw_vec[dim + 1] += (q[0] * h * h - a2 * p / euler::gami) * vec[dim + 1];
-
-   //   dqdw[1,1] = rho
-   //   dqdw[2,1] = rhou
-   //   dqdw[3,1] = rhov
-   //   dqdw[4,1] = rhoe
-
-   //   dqdw[1,2] = rhou
-   //   dqdw[2,2] = rhou*rhou*rhoinv + p
-   //   dqdw[3,2] = rhou*rhov*rhoinv
-   //   dqdw[4,2] = rhou*h
-
-   //   dqdw[1,3] = rhov
-   //   dqdw[2,3] = rhou*rhov/rho
-   //   dqdw[3,3] = rhov*rhov*rhoinv + p
-   //   dqdw[4,3] = rhov*h
-
-   //   dqdw[1,4] = rhoe
-   //   dqdw[2,4] = h*rhou
-   //   dqdw[3,4] = h*rhov
-   //   dqdw[4,4] = rho*h*h - a2*p/gami
 }
 
 /// Applies the matrix `dQ/dW` to `vec`, and scales by the avg. spectral radius
 /// \param[in] adjJ - the adjugate of the mapping Jacobian
-/// \param[in] q - the state at which `dQ/dW` and radius are to be evaluated
+/// \param[in] q - cons. variable at which `dQ/dW` and radius are to be evaluated
 /// \param[in] vec - the vector being multiplied
 /// \param[out] mat_vec - the result of the operation
 /// \warning adjJ must be supplied transposed from its `mfem` storage format,
@@ -371,6 +351,23 @@ void applyLPSScaling(const xdouble *adjJ, const xdouble *q, const xdouble *vec,
    {
       mat_vec[i] *= spect;
    }
+}
+
+/// Applies the matrix `dQ/dW` to `vec`, and scales by the avg. spectral radius
+/// \param[in] adjJ - the adjugate of the mapping Jacobian
+/// \param[in] w - ent. variables at which `dQ/dW` and radius are to be evaluated
+/// \param[in] vec - the vector being multiplied
+/// \param[out] mat_vec - the result of the operation
+/// \warning adjJ must be supplied transposed from its `mfem` storage format,
+/// so we can use pointer arithmetic to access its rows.
+/// \todo This converts w to conservative variables, which is inefficient
+template <typename xdouble, int dim>
+void applyLPSScalingUsingEntVars(const xdouble *adjJ, const xdouble *w,
+                                 const xdouble *vec, xdouble *mat_vec)
+{
+   xdouble q[dim+2];
+   calcConservativeVars<xdouble, dim>(w, q);
+   applyLPSScaling<xdouble, dim>(adjJ, q, vec, mat_vec);
 }
 
 /// Boundary flux that uses characteristics to determine which state to use

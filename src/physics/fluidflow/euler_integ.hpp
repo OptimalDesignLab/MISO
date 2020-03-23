@@ -126,11 +126,7 @@ public:
    /// so we can use pointer arithmetic to access its rows.
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void applyScaling(const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
-                     const mfem::Vector &vec, mfem::Vector &mat_vec)
-   {
-      applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
-                                  mat_vec.GetData());
-   }
+                     const mfem::Vector &vec, mfem::Vector &mat_vec);
 
    /// Computes the Jacobian of the product `A(adjJ,q)*v` w.r.t. `q`
    /// \param[in] adjJ - adjugate of the mapping Jacobian

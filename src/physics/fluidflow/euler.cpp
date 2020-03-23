@@ -39,6 +39,7 @@ template <int dim>
 void EulerSolver<dim>::addVolumeIntegrators(double alpha)
 {
    // TODO: if statement when using entropy variables as state variables
+   
    // TODO: should decide between one-point and two-point fluxes using options
    res->AddDomainIntegrator(
        new IsmailRoeIntegrator<dim, false>(diff_stack, alpha));

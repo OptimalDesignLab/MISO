@@ -252,6 +252,23 @@ void EntStableLPSIntegrator<dim, entvar>::convertVarsJacState(
 }
 
 template <int dim, bool entvar>
+void EntStableLPSIntegrator<dim, entvar>::applyScaling(
+   const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
+   const mfem::Vector &vec, mfem::Vector &mat_vec)
+{
+   if (entvar)
+   {
+      applyLPSScalingUsingEntVars<double, dim>(adjJ.GetData(), q.GetData(),
+                                               vec.GetData(), mat_vec.GetData());
+   }
+   else
+   {
+      applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
+                                  mat_vec.GetData());
+   }
+}
+
+template <int dim, bool entvar>
 void EntStableLPSIntegrator<dim, entvar>::applyScalingJacState(
     const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
     const mfem::Vector &vec, mfem::DenseMatrix &mat_vec_jac)
@@ -269,8 +286,16 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacState(
    this->stack.new_recording();
    // the dependent variable must be declared after the recording
    std::vector<adouble> mat_vec_a(q.Size());
-   mach::applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
-                                       mat_vec_a.data());
+   if (entvar)
+   {
+      applyLPSScalingUsingEntVars<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                                vec_a.data(), mat_vec_a.data());
+   }
+   else
+   {
+      applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                    vec_a.data(), mat_vec_a.data());
+   }
    // set the independent and dependent variable
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(mat_vec_a.data(), q.Size());
@@ -296,8 +321,16 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacAdjJ(
    this->stack.new_recording();
    // create container for active double mat_vec output
    std::vector<adouble> mat_vec_a(q.Size());
-   applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
-                                 mat_vec_a.data());
+   if (entvar)
+   {
+      applyLPSScalingUsingEntVars<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                                vec_a.data(), mat_vec_a.data());
+   }
+   else
+   {
+      applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                    vec_a.data(), mat_vec_a.data());
+   }
    this->stack.independent(adjJ_a.data(), adjJ.Height() * adjJ.Width());
    this->stack.dependent(mat_vec_a.data(), q.Size());
    this->stack.jacobian(mat_vec_jac.GetData());
@@ -322,8 +355,16 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacV(
    this->stack.new_recording();
    // the dependent variable must be declared after the recording
    std::vector<adouble> mat_vec_a(q.Size());
-   mach::applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(), vec_a.data(),
-                                       mat_vec_a.data());
+   if (entvar)
+   {
+      applyLPSScalingUsingEntVars<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                                vec_a.data(), mat_vec_a.data());
+   }
+   else
+   {
+      applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                    vec_a.data(), mat_vec_a.data());
+   }
    // set the independent and dependent variable
    this->stack.independent(vec_a.data(), q.Size());
    this->stack.dependent(mat_vec_a.data(), q.Size());
