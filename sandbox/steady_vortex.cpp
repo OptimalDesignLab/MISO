@@ -88,12 +88,12 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
 
-      unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
-      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
+      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
+      unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
-      solver->printSolution("euler_init", degree+1);
+      solver->printSolution("euler_init", 0);
 
       double l_error = solver->calcL2Error(uexact, 0);
       double res_error = solver->calcResidualNorm();
@@ -102,10 +102,10 @@ int main(int argc, char *argv[])
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
-      // solver->setperturb(pert);
-      // solver->jacobianCheck();
+      solver->setperturb(pert);
+      solver->jacobianCheck();
       solver->solveForState();
-      solver->printSolution("euler_final",degree+1);
+      solver->printSolution("euler_final",0);
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));

@@ -177,9 +177,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
                           "\tdo not provide smesh when using PUMI!");
    }
    // problem with using these in loadMdsMesh
-   std::cout << options["model-file"].get<string>().c_str() << std::endl;
-   const char *model_file = options["model-file"].get<string>().c_str();
-   const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
    PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
