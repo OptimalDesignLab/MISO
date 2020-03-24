@@ -82,7 +82,9 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      //unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      unique_ptr<Mesh> smesh;
+      smesh.reset(new Mesh("annulus_fine.mesh", 1, 0, 1));
       std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
