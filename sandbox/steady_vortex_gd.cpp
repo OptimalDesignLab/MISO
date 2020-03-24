@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
       std::cout << "initDerived is called.\n";
 
       solver->setInitialCondition(uexact);
-      solver->printSolution("init", 0);
+      solver->printSolution("gd_init", 0);
       std::cout << "initial solution is printed.\n";
 		// solver->setperturb(pert);
 		// solver->jacobianCheck();
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
       }
 
       solver->solveForState();
-      solver->printSolution("final",0);
+      solver->printSolution("gd_final",0);
 
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();

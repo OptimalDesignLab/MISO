@@ -217,8 +217,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // currently do this in serial in the MPI configuration because of gd and gridfunction is not
    //    complete
    mesh.reset(new MeshType(pumi_mesh, 1, 0));
-   ofstream savemesh("annulus.mesh");
-   ofstream savevtk("annulus.vtk");
+   ofstream savemesh("annulus_fine.mesh");
+   ofstream savevtk("annulus_fine.vtk");
    mesh->Print(savemesh);
    mesh->PrintVTK(savevtk);
    savemesh.close();
@@ -391,6 +391,7 @@ void AbstractSolver::printSolution(const std::string &file_name,
       refine = options["space-dis"]["degree"].get<int>() + 1;
    }
    mesh->PrintVTK(sol_ofs, refine);
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
    u->SaveVTK(sol_ofs, "Solution", refine);
    sol_ofs.close();
 }
