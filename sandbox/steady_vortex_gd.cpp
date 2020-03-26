@@ -96,12 +96,13 @@ int main(int argc, char *argv[])
       std::cout << "initDerived is called.\n";
 
       solver->setInitialCondition(uexact);
-      solver->printSolution("gd_init", 0);
+      solver->printSolution("gd_serial_init", 0);
       std::cout << "initial solution is printed.\n";
-		// solver->setperturb(pert);
-		// solver->jacobianCheck();
+      
+      solver->setperturb(pert);
+      solver->jacobianCheck();
+
       double l_error = solver->calcL2Error(uexact, 0);
-      std::cout << "L2 error is " << l_error << '\n';
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {
@@ -110,7 +111,7 @@ int main(int argc, char *argv[])
       }
 
       solver->solveForState();
-      solver->printSolution("gd_final",0);
+      solver->printSolution("gd_serial_final",0);
 
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();

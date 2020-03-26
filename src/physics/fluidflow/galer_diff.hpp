@@ -66,7 +66,6 @@ public:
       }
       else
       {
-         std::cout << "cP is set.\n";
          return cP; 
       }
    }

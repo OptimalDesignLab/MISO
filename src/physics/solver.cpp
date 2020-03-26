@@ -105,7 +105,7 @@ void AbstractSolver::initDerived()
       u.reset(new GridFunType(fes.get()));
       cout << "GD space is set, uc size is " << uc->Size() << ", u size is " << u->Size() << '\n';
    }
-   else
+else
    {
       fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                               Ordering::byVDIM));
@@ -250,7 +250,7 @@ void AbstractSolver::setInitialCondition(
    // cout << "\n\nCheck the prolongated results:\n";
    // u_test.Print(cout,4);
    u_test -= *u;
-   cout << "The difference norm is " << u_test.Norml2() << '\n';
+   cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
    // ofstream u_write("u.txt");
    // ofstream uc_write("uc.txt");
    // u->Print(u_write, 1);
@@ -363,8 +363,8 @@ double AbstractSolver::calcResidualNorm()
    // double loc_norm = (*R) * (*R);
    // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    res->Mult(*uc, r);
-   cout << "Residual now is:\n";
-   r.Print(cout, 4);
+   // cout << "Residual now is:\n";
+   // r.Print(cout, 4);
    res_norm = r * r;
 #else
    res->Mult(*u, r);
@@ -693,36 +693,37 @@ void AbstractSolver::jacobianCheck()
 {
    // initialize the variables
    const double delta = 1e-5;
-   std::unique_ptr<GridFunType> u_plus;
-   std::unique_ptr<GridFunType> u_minus;
-   std::unique_ptr<GridFunType> perturbation_vec;
-   perturbation_vec.reset(new GridFunType(fes.get()));
+   std::unique_ptr<CentGridFunction> u_plus;
+   std::unique_ptr<CentGridFunction> u_minus;
+   std::unique_ptr<CentGridFunction> perturbation_vec;
+
+   perturbation_vec.reset(new CentGridFunction(fes.get()));
    VectorFunctionCoefficient up(num_state, perturb_fun);
    perturbation_vec->ProjectCoefficient(up);
-   u_plus.reset(new GridFunType(fes.get()));
-   u_minus.reset(new GridFunType(fes.get()));
+   u_plus.reset(new CentGridFunction(fes.get()));
+   u_minus.reset(new CentGridFunction(fes.get()));
 
    // set uplus and uminus to the current state
-   *u_plus = *u;
-   *u_minus = *u;
+   *u_plus = 0.0; *u_minus = 0.0;
+   u_plus->Add(1.0, *uc);
+   u_minus->Add(1.0, *uc);
    u_plus->Add(delta, *perturbation_vec);
    u_minus->Add(-delta, *perturbation_vec);
 
-   std::unique_ptr<GridFunType> res_plus;
-   std::unique_ptr<GridFunType> res_minus;
-   res_plus.reset(new GridFunType(fes.get()));
-   res_minus.reset(new GridFunType(fes.get()));
-
+   std::unique_ptr<CentGridFunction> res_plus;
+   std::unique_ptr<CentGridFunction> res_minus;
+   res_plus.reset(new CentGridFunction(fes.get()));
+   res_minus.reset(new CentGridFunction(fes.get()));
+   
    res->Mult(*u_plus, *res_plus);
    res->Mult(*u_minus, *res_minus);
 
    res_plus->Add(-1.0, *res_minus);
    res_plus->Set(1 / (2 * delta), *res_plus);
-
    // result from GetGradient(x)
-   std::unique_ptr<GridFunType> jac_v;
-   jac_v.reset(new GridFunType(fes.get()));
-   mfem::Operator &jac = res->GetGradient(*u);
+   std::unique_ptr<CentGridFunction> jac_v;
+   jac_v.reset(new CentGridFunction(fes.get()));
+   mfem::Operator &jac = res->GetGradient(*uc);
    jac.Mult(*perturbation_vec, *jac_v);
    // check the difference norm
    jac_v->Add(-1.0, *res_plus);

@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
-      solver->printSolution("init", degree+1);
+      solver->printSolution("init", 0);
 
       double l_error = solver->calcL2Error(uexact, 0);
       double res_error = solver->calcResidualNorm();
@@ -101,6 +101,8 @@ int main(int argc, char *argv[])
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
 
+      // solver->setperturb(pert);
+      // solver->jacobianCheck();
       solver->solveForState();
 
       l_error = solver->calcL2Error(uexact, 0);

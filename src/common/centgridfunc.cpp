@@ -48,4 +48,18 @@ void CentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
    }
 }
 
+CentGridFunction & CentGridFunction::operator=(const Vector &v)
+{
+   std::cout << "cent = is called.\n";
+   MFEM_ASSERT(fes && v.Size() == fes->GetTrueVSize(), "");
+   Vector::operator=(v);
+   return *this;
+}
+
+CentGridFunction & CentGridFunction::operator=(double value)
+{
+   Vector::operator=(value);
+   return *this;
+}
+
 } // end of namespace mfem
