@@ -295,6 +295,7 @@ double AbstractSolver::calcL2Error(
 
    if (entry < 0)
    {
+      fes->GetProlongationMatrix()->Mult(*uc, *u);
       // sum up the L2 error over all states
       for (int i = 0; i < fes->GetNE(); i++)
       {
@@ -443,14 +444,18 @@ void AbstractSolver::solveSteady()
    double reltol = options["petscsolver"]["reltol"].get<double>();
    int maxiter = options["petscsolver"]["maxiter"].get<int>();
    int ptl = options["petscsolver"]["printlevel"].get<int>();
-   solver.reset(new GMRESSolver());
-   prec.reset(new GSSmoother(1,1));
-   dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetAbsTol(abstol);
-   dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetRelTol(reltol);
-   dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetMaxIter(maxiter);
-   dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetPreconditioner(*prec);
+   // solver.reset(new GMRESSolver());
+   // prec.reset(new GSSmoother(1,1));
+   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetAbsTol(abstol);
+   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetRelTol(reltol);
+   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetMaxIter(maxiter);
+   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetPrintLevel(ptl);
+   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetPreconditioner(*prec);
 
+   //solver.reset(new KLUSolver());
+   solver.reset(new UMFPackSolver());
+   dynamic_cast<UMFPackSolver*>(solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   dynamic_cast<UMFPackSolver*>(solver.get())->SetPrintLevel(1);
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
