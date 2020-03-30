@@ -7,7 +7,15 @@ extern "C" int EG_saveTess(egObject *tess, const char *name);
 extern "C" int EG_loadTess(egObject *body, const char *name,
                            egObject **tess);
 
+<<<<<<< HEAD
 using namespace std;
+=======
+extern "C" int EG_saveTess(egObject *tess, const char *name);
+extern "C" int EG_loadTess(egObject *body, const char *name,
+                           egObject **tess);
+
+void getBoundaryNodeDisplacement(std::string something, apf::Mesh2* mesh, 
+>>>>>>> 3ddfc5871b62216afe8a500a58348197e2285c48
 
 void getBoundaryNodeDisplacement(std::string oldmodel,
                                 std::string newmodel, 
