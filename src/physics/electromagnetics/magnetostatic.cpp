@@ -1,7 +1,9 @@
-#include "magnetostatic.hpp"
-
 #include <fstream>
 
+#include "pfem_extras.hpp"
+
+#include "magnetostatic.hpp"
+#include "electromag_integ.hpp"
 #include "material_library.hpp"
 
 using namespace std;
@@ -350,19 +352,19 @@ void MagnetostaticSolver::assembleCurrentSource()
 	auto h1_space = SpaceType(mesh.get(), &h1_coll);
 
 	/// get int rule (approach followed my MFEM Tesla Miniapp)
-	int irOrder = h_curl_space->GetElementTransformation(0)->OrderW()
+	int irOrder = h1_space.GetElementTransformation(0)->OrderW()
                  + 2 * fe_order;
-   int geom = h_curl_space->GetFE(0)->GetGeomType();
+   int geom = h1_space.GetFE(0)->GetGeomType();
    const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
 
 	/// compute the divergence free current source
-	auto *grad = new DiscreteGradOperator(&h1_space, h_curl_space.get());
+	auto *grad = new mfem::common::ParDiscreteGradOperator(&h1_space, h_curl_space.get());
 
 	// assemble gradient form
 	grad->Assemble();
    grad->Finalize();
 
-	auto div_free_proj = DivergenceFreeProjector(h1_space, *h_curl_space,
+	auto div_free_proj = mfem::common::DivergenceFreeProjector(h1_space, *h_curl_space,
                                               irOrder, NULL, NULL, grad);
 
 	GridFunType j = GridFunType(h_curl_space.get());
@@ -373,9 +375,9 @@ void MagnetostaticSolver::assembleCurrentSource()
 	div_free_proj.Mult(j, j_div_free);
 
 	/// create current linear form vector by multiplying mass matrix by
-	/// divergene free current source grid function
-	ConstantCoefficient one(1.0);
-	BilinearFormIntegrator *h_curl_mass_integ = new VectorFEMassIntegrator(one);
+	/// divergence free current source grid function
+	// ConstantCoefficient one(1.0);
+	BilinearFormIntegrator *h_curl_mass_integ = new VectorFEMassIntegrator;
 	h_curl_mass_integ->SetIntRule(ir);
 	BilinearFormType *h_curl_mass = new BilinearFormType(h_curl_space.get());
 	h_curl_mass->AddDomainIntegrator(h_curl_mass_integ);
@@ -384,6 +386,7 @@ void MagnetostaticSolver::assembleCurrentSource()
 	h_curl_mass->Assemble();
    h_curl_mass->Finalize();
 
+	*current_vec = 0.0;
 	h_curl_mass->AddMult(j_div_free, *current_vec);
 	std::cout << "below h_curl add mult\n";
 	// I had strange errors when not using pointer versions of these

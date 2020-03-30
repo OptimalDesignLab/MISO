@@ -2,11 +2,9 @@
 #define MACH_MAGNETOSTATIC
 
 #include "mfem.hpp"
-#include "adept.h"
 
 #include "solver.hpp"
 #include "coefficient.hpp"
-#include "electromag_integ.hpp"
 
 namespace mach
 {
