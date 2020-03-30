@@ -73,6 +73,9 @@ default: all
 
 all: libmach.a
 
+status info:
+	$(info MACH_USE_EGADS          = $(MACH_USE_EGADS))
+
 .PHONY: temp
 temp:
 	@echo $(DEP_DIR)

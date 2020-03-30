@@ -93,3 +93,46 @@ void getBoundaryNodeDisplacement(std::string oldmodel,
 
     EG_close(eg_context);
 }
+
+apf::Mesh2* getNewMesh(std::string newmodel,
+                        std::string newmesh,
+                        mfem::Mesh* mfemmesh,
+                        apf::Mesh2* oldmesh)
+{
+    PCU_Comm_Init();
+    //start egads
+    egObject* eg_context;
+    int status = EG_open(&eg_context);
+
+    apf::Mesh2* moved_mesh;
+    gmi_model* model;
+    //int modelerr = EG_loadModel(eg_context, 0, newmodel.c_str(), 
+    //         &model);
+    model = gmi_egads_load(newmodel.c_str());
+    moved_mesh = apf::createMdsMesh(model, oldmesh);
+    apf::MeshEntity* node;
+    apf::MeshIterator* it = moved_mesh->begin(0);
+    double* pointd;
+    apf::Vector3 point;
+    int global = 0;
+    while ((node = oldmesh->iterate(it)))
+    {
+        pointd = mfemmesh->GetVertex(global);
+        point.x() = pointd[0];
+        point.y() = pointd[1];
+        point.z() = pointd[2];
+        moved_mesh->setPoint(node, 0, point);
+        global++;
+    }
+    
+    if(global != mfemmesh->GetNV() - 1)
+    {
+        cout << "Numbering Mismatch!" << endl;
+    }
+    
+    moved_mesh->verify();
+    apf::writeMdsPart(moved_mesh, newmesh.c_str());
+    EG_close(eg_context);
+    PCU_Comm_Free();
+    return moved_mesh;
+}

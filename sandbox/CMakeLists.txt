@@ -20,6 +20,7 @@ set(SANDBOX_SRCS
    airfoil_chaotic
    thermal_square
    mesh_move
+   mesh_move_2
 )
 
 create_sandbox("${SANDBOX_SRCS}")

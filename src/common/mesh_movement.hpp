@@ -4,8 +4,11 @@
 #include "mfem.hpp"
 #include "adept.h"
 #include "egads.h"
+#include "../../build/_config.hpp"
 
+#ifdef MACH_USE_EGADS
 #include "mach_egads.hpp"
+#endif
 
 #include "solver.hpp"
 #include "coefficient.hpp"
@@ -27,7 +30,8 @@ protected:
     }
 };
 
-//#ifdef MACH_USE_EGADS
+#ifdef MFEM_USE_PUMI
+#ifdef MACH_USE_EGADS
 class LEAnalogySolver : public MeshMovementSolver
 {
 public:
@@ -37,6 +41,9 @@ public:
                         int dim = 3);
 
 private:
+    /// Moved mesh
+    apf::Mesh2 *moved_mesh;
+
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::ofstream sol_ofs;
 
@@ -98,7 +105,8 @@ private:
     
 };
 
-//#endif
+#endif
+#endif
 
 } //namespace mach
 

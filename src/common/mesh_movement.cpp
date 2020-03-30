@@ -1,6 +1,7 @@
 #include "mesh_movement.hpp"
 
 #include <fstream>
+#include "../../build/_config.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -8,12 +9,19 @@ using namespace mfem;
 namespace mach
 {
 
+#ifdef MACH_USE_EGADS
 LEAnalogySolver::LEAnalogySolver(
 	 const std::string &opt_file_name,
     std::unique_ptr<mfem::Mesh> smesh,
 	 int dim)
 	: MeshMovementSolver(opt_file_name, move(smesh))
 {
+    //testing
+    if(options["test-removed-bound"].get<bool>())
+    {
+        mesh->RemoveInternalBoundaries();
+    }
+
     int fe_order = options["space-dis"]["degree"].get<int>();
 
 	/// Create the H(Grad) finite element collection
@@ -33,6 +41,7 @@ LEAnalogySolver::LEAnalogySolver(
     Array<int> ess_tdof_list, ess_bdr(mesh->bdr_attributes.Max());
     ess_bdr = 1;
     h_grad_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+    cout << "Number of Essential DOF's: " << ess_tdof_list.Size() << endl;
 
     /// zero right hand side
     bs.reset(new LinearForm(h_grad_space.get()));
@@ -94,6 +103,10 @@ LEAnalogySolver::LEAnalogySolver(
         }
     }
 
+    cout << "Number of Surface Nodes: " << disp_list.Size() << endl;
+    cout << "Total Nodes: " << mesh->GetNV() << endl;
+
+
     /// set solver
     solver.reset(new CGSolver());
     prec.reset(new HypreSmoother());
@@ -141,7 +154,13 @@ void LEAnalogySolver::solveSteady()
        mesh_ofs_2.precision(8);
        mesh->PrintVTK(mesh_ofs_2, options["space-dis"]["degree"].get<int>());
        //nodes->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>()); 
+
+       //update pumi mesh and write to file
+        string model_file_new = options["model-file-new"].template get<string>();
+        string mesh_file_new = options["mesh"]["moved-file"].template get<string>();
+       moved_mesh = getNewMesh(model_file_new, mesh_file_new, mesh.get(), pumi_mesh);
     }
 }
+#endif
 
 } //namespace mach
