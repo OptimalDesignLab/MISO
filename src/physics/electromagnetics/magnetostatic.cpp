@@ -201,6 +201,10 @@ void MagnetostaticSolver::solveSteady()
 	GridFunType J(h_div_space.get());
 	J.ProjectCoefficient(*current_coeff);
 	J.SaveVTK(sol_ofs, "J_Field", 1);
+   GridFunType Mag(h_div_space.get());
+   Mag.ProjectCoefficient(*mag_coeff);
+   Mag.SaveVTK(sol_ofs, "Mag_Field", 1);
+   current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
    sol_ofs.close();
 	std::cout << "finish steady solve\n";
 
@@ -408,8 +412,8 @@ void MagnetostaticSolver::phase_a_source(const Vector &x,
 {
 	// example of needed geometric parameters, this should be all you need
 	int n_s = 12; //number of slots
-	double zb = .25; //bottom of stator
-	double zt = .75; //top of stator
+	double zb = 0.0; //bottom of stator
+	double zt = 0.25; //top of stator
 
 
 	// compute r and theta from x and y
@@ -472,8 +476,8 @@ void MagnetostaticSolver::phase_b_source(const Vector &x,
 {
 	// example of needed geometric parameters, this should be all you need
 	int n_s = 12; //number of slots
-	double zb = .25; //bottom of stator
-	double zt = .75; //top of stator
+	double zb = 0.0; //bottom of stator
+	double zt = 0.25; //top of stator
 
 
 	// compute r and theta from x and y
