@@ -10,6 +10,8 @@ target_sources(mach
       inexact_newton.hpp
       orthopoly.cpp
       orthopoly.hpp
+      pfem_extras.cpp
+      pfem_extras.hpp
       sbp_fe.cpp
       sbp_fe.hpp
       spline.cpp
