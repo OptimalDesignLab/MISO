@@ -93,32 +93,7 @@ inline xdouble dot(const xdouble *a, const xdouble *b)
     return DotProduct<xdouble,dim>::result(a,b);
 }
 
-/// Handles print in parallel case
-template<typename _CharT, typename _Traits>
-
-class basic_oblackholestream
-    : virtual public std::basic_ostream<_CharT, _Traits>
-{
-public:   
-  /// called when rank is not root, prints nothing 
-    explicit basic_oblackholestream() : std::basic_ostream<_CharT, _Traits>(NULL) {}
-}; // end class basic_oblackholestream
-
-using oblackholestream = basic_oblackholestream<char,std::char_traits<char> >;
-static oblackholestream obj;
-
-static std::ostream *getOutStream(int rank) 
-{
-   /// print only on root
-   if (0==rank)
-   {
-      return &std::cout;
-   }
-   else
-   {
-      return &obj;
-   }
-}
+std::ostream *getOutStream(int rank);
 
 /// Implementation of expression SFINAE, used to check if an object has a 
 /// method with a specific signature implemented. Usage looks like:

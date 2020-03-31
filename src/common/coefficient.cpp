@@ -6,6 +6,31 @@ namespace mach
 {
 
 double MeshDependentCoefficient::Eval(ElementTransformation &trans,
+                                      const IntegrationPoint &ip)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   Coefficient *coeff;
+	double value;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      coeff = it->second.get();
+      value = coeff->Eval(trans, ip);
+   }
+   else if (default_coeff)
+   {
+      value = default_coeff->Eval(trans, ip);
+   }
+   else // if attribute not found and no default set, evaluate to zero
+   {
+      value = 0.0;
+   }
+   // std::cout << "nu val in eval: " << value << "\n";
+   return value;
+}
+
+double MeshDependentCoefficient::Eval(ElementTransformation &trans,
                                       const IntegrationPoint &ip,
                                       const double state)
 {
