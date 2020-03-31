@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
   
    // Parse command-line options
    OptionsParser args(argc, argv);
-   int degree = 2.0;
+   int degree = 2;
    int nx = 1;
    int ny = 1;
    args.AddOption(&options_file, "-o", "--options",
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
-      solver->printSolution("init", 0);
+      solver->printSolution("gd_serial_init", 0);
 
       double l_error = solver->calcL2Error(uexact, 0);
       double res_error = solver->calcResidualNorm();
@@ -101,19 +101,21 @@ int main(int argc, char *argv[])
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
 
-      // solver->setperturb(pert);
-      // solver->jacobianCheck();
+      solver->setperturb(pert);
+      solver->jacobianCheck();
       solver->solveForState();
+      solver->printSolution("gd_serial_final", 0);
+      solver->printError("gd_error", 0, uexact);
 
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();
-      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
       if (0==myid)
       {
          mfem::out << "\nfinal residual norm = " << res_error;
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
-         mfem::out << "\nDrag error = " << drag << endl;
+         //mfem::out << "\nDrag error = " << drag << endl;
       }
 
    }
@@ -154,13 +156,13 @@ void uexact(const Vector &x, Vector& u)
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
    double prsi = 1.0/euler::gamma;
-   double rinv = ri/sqrt((x(0)+1.0)*(x(0)+1.0) + (x(1)+1.0)*(x(1)+1.0));
+   double rinv = ri/sqrt(x(0)*x(0) + x(1)*x(1));
    double rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
                          1.0/euler::gami);
    double Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
                     (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
    double theta;
-   if ((x(0)+1.0) > 1e-15)
+   if (x(0) > 1e-15)
    {
       theta = atan(x(1)/x(0));
    }

@@ -12,6 +12,7 @@ namespace mach
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PUMI
    using MeshType = mfem::PumiMesh;
+   //using MeshType = mfem::Mesh;
    //using MeshType = mfem::ParPumiMesh;
 #else
    using MeshType = mfem::ParMesh;

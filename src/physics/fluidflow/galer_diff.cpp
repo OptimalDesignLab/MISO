@@ -1,14 +1,10 @@
 
 #include "galer_diff.hpp"
-
-#ifdef MFEM_USE_PUMI
-#ifdef MFEM_USE_MPI
 #include <fstream>
 #include <iostream>
 #include "sbp_fe.hpp"
 using namespace std;
 using namespace mach;
-using namespace apf;
 using namespace mfem;
 
 namespace mfem
@@ -69,25 +65,20 @@ namespace mfem
 //    cout << "Start to build the GD prolongation matrix of degree " << degree << '\n';
 // } // class constructor ends
 
-GalerkinDifference::GalerkinDifference(MPI_Comm _comm, Mesh *pm, const FiniteElementCollection *f,
-   int vdim, int ordering, int de, Mesh2 *pumimesh)
+GalerkinDifference::GalerkinDifference(Mesh *pm, const FiniteElementCollection *f,
+   int vdim, int ordering, int de)
    : SpaceType(pm, f, vdim, ordering)
 {
-#ifndef MFEM_USE_PUMI
-   mfem_error(" mfem needs to be build with pumi to use GalerkinDifference ")
-#endif
-   comm = _comm;
    //pmesh = dynamic_cast<PumiMesh*>(pm);
-   pmesh = dynamic_cast<PumiMesh*>(pm);
-   pumi_mesh = pumimesh;
+   // pmesh = dynamic_cast<PumiMesh*>(pm);
+   // pumi_mesh = pumimesh;
    //pmesh.reset(new MeshType(MPI_COMM_WORLD, pumi_mesh));
    //pmesh.reset(new MeshType(pumi_mesh, 1, 1));
    degree = de;
-   nEle = pmesh->GetNE();
-   dim = pmesh->Dimension();
+   nEle = mesh->GetNE();
+   dim = mesh->Dimension();
    fec = f;
    BuildGDProlongation();
-   cout << "The mesh dimension is " << dim << '\n';
    //cout << "Is the ParPumiMesh conforming ? : " << (pmesh->pncmesh == NULL) << '\n';
    //fec = unique_ptr<FiniteElementCollection>(f);
    //fec.reset(new DSBPCollection(1, dim));
@@ -177,7 +168,7 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
       }
       
       // deal with quadrature points
-      eltransf = pmesh->GetElementTransformation(elmt_id[j]);
+      eltransf = mesh->GetElementTransformation(elmt_id[j]);
       for(int k = 0; k < num_dofs; k++)
       {
          eltransf->Transform(fe->GetNodes().IntPoint(k), quad_coord);
@@ -203,59 +194,107 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
 void GalerkinDifference::GetNeighbourSet(int id, int req_n,
                                     mfem::Array<int> &nels) const
 {
-   // this stores the elements for which we need neighbours
-   vector<pMeshEnt> el;
-   pMeshEnt e;
-   // get pumi mesh entity (element) for the given id
-   e = getMdsEntity(pumi_mesh, dim, id);
-   // first, need to find neighbour of the given element
-   el.push_back(e);
-   // first entry in neighbour vector should be the element itself
-   nels.LoseData(); // clean the queue vector 
+   // using mfem mesh object to construct the element patch
+   // initialize the patch list
+   nels.LoseData();
    nels.Append(id);
-   // iterate for finding element neighbours.
-   // it stops when the # of elements in patch are equal/greater
-   // than the minimum required # of elements in patch.
-   while (nels.Size() < req_n)
+   // Creat the adjacent array and fill it with the first layer of adj
+   // adjcant element list, candidates neighbors, candidates neighbors' adj
+   Array<int> adj, cand, cand_adj, cand_next;
+   mesh->ElementToElementTable().GetRow(id, adj);
+   cand.Append(adj);
+   //cout << "List is initialized as: ";
+   //nels.Print(cout, nels.Size());
+   //cout << "Initial candidates: ";
+   //cand.Print(cout, cand.Size());
+   while(nels.Size() < req_n)
    {
-      // this stores the neighbour elements for which we need neighbours
-      vector<pMeshEnt> elm;
-      //get neighbours (with shared edges)
-      for (int j = 0; j < el.size(); ++j)
+      for(int i = 0; i < adj.Size(); i++)
       {
-         // vector for storing neighbours of el[j]
-         Adjacent nels_e1;
-         // get neighbours
-         getBridgeAdjacent(pumi_mesh, el[j], pumi_mesh_getDim(pumi_mesh) - 1,
-                           pumi_mesh_getDim(pumi_mesh), nels_e1);
-         // retrieve the id of neighbour elements
-         // push in nels
-         for (int i = 0; i < nels_e1.size(); ++i)
+         if (-1 == nels.Find(adj[i]))
          {
-            int nid;
-            nid = getMdsIndex(pumi_mesh, nels_e1[i]);
-            // check for element, push it if not there already
-            if( -1 == nels.Find(nid))
-            {
-               nels.Append(nid);
-            }
-            // push neighbour elements for next iteration
-            // and use them if required
-            elm.push_back(nels_e1[i]);
+            nels.Append(adj[i]); 
          }
       }
-      // resizing el to zero prevents finding neighbours of the same elements
-      el.resize(0);
-      // insert the neighbour elements in 'el' and iterate to find their neighbours if needed
-      el.insert(end(el), begin(elm), end(elm));
+      //cout << "List now is: ";
+      //nels.Print(cout, nels.Size());
+      adj.LoseData();
+      for (int i = 0; i < cand.Size(); i++)
+      {
+         //cout << "deal with cand " << cand[i];
+         mesh->ElementToElementTable().GetRow(cand[i], cand_adj);
+         //cout << "'s adj are ";
+         //cand_adj.Print(cout, cand_adj.Size());
+         for(int j = 0; j < cand_adj.Size(); j++)
+         {
+            if (-1 == nels.Find(cand_adj[j]))
+            {
+               //cout << cand_adj[j] << " is not found in nels. add to adj and cand_next.\n";
+               adj.Append(cand_adj[j]);
+               cand_next.Append(cand_adj[j]);
+            }
+         }
+         cand_adj.LoseData();
+      }
+      cand.LoseData();
+      cand = cand_next;
+      //cout << "cand copy from next: ";
+      //cand.Print(cout, cand.Size());
+      cand_next.LoseData();
    }
+   // // this stores the elements for which we need neighbours
+   // vector<pMeshEnt> el;
+   // pMeshEnt e;
+   // // get pumi mesh entity (element) for the given id
+   // e = getMdsEntity(pumi_mesh, dim, id);
+   // // first, need to find neighbour of the given element
+   // el.push_back(e);
+   // // first entry in neighbour vector should be the element itself
+   // nels.LoseData(); // clean the queue vector 
+   // nels.Append(id);
+   // // iterate for finding element neighbours.
+   // // it stops when the # of elements in patch are equal/greater
+   // // than the minimum required # of elements in patch.
+   // while (nels.Size() < req_n)
+   // {
+   //    // this stores the neighbour elements for which we need neighbours
+   //    vector<pMeshEnt> elm;
+   //    //get neighbours (with shared edges)
+   //    for (int j = 0; j < el.size(); ++j)
+   //    {
+   //       // vector for storing neighbours of el[j]
+   //       Adjacent nels_e1;
+   //       // get neighbours
+   //       getBridgeAdjacent(pumi_mesh, el[j], pumi_mesh_getDim(pumi_mesh) - 1,
+   //                         pumi_mesh_getDim(pumi_mesh), nels_e1);
+   //       // retrieve the id of neighbour elements
+   //       // push in nels
+   //       for (int i = 0; i < nels_e1.size(); ++i)
+   //       {
+   //          int nid;
+   //          nid = getMdsIndex(pumi_mesh, nels_e1[i]);
+   //          // check for element, push it if not there already
+   //          if( -1 == nels.Find(nid))
+   //          {
+   //             nels.Append(nid);
+   //          }
+   //          // push neighbour elements for next iteration
+   //          // and use them if required
+   //          elm.push_back(nels_e1[i]);
+   //       }
+   //    }
+   //    // resizing el to zero prevents finding neighbours of the same elements
+   //    el.resize(0);
+   //    // insert the neighbour elements in 'el' and iterate to find their neighbours if needed
+   //    el.insert(end(el), begin(elm), end(elm));
+   //}
 }
 
 void GalerkinDifference::GetElementCenter(int id, mfem::Vector &cent) const
 {
-   cent.SetSize(pmesh->Dimension());
-   int geom = pmesh->GetElement(id)->GetGeometryType();
-   ElementTransformation *eltransf = pmesh->GetElementTransformation(id);
+   cent.SetSize(mesh->Dimension());
+   int geom = mesh->GetElement(id)->GetGeometryType();
+   ElementTransformation *eltransf = mesh->GetElementTransformation(id);
    eltransf->Transform(Geometries.GetCenter(geom), cent);
 }
 
@@ -289,7 +328,7 @@ void GalerkinDifference::BuildGDProlongation() const
    cout << "The size of the prolongation matrix is " << cP->Height() << " x " << cP->Width() << '\n';
    for (int i = 0; i < nEle; i++)
    {
-      // cout << "Element " << i << ":\n";
+      //cout << "Element " << i << ":\n";
       // 1. construct the patch the patch
       // have more elements than required to make it a underdetermined system
       GetNeighbourSet(i, nelmt, elmt_id);
@@ -316,7 +355,7 @@ void GalerkinDifference::BuildGDProlongation() const
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-   ofstream cp_save("cp_example.txt");
+   ofstream cp_save("cP.txt");
    cP->PrintMatlab(cp_save);
    cp_save.close();
    
@@ -422,5 +461,3 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
 }
 
 } // namespace mfem
-#endif
-#endif

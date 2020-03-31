@@ -2,13 +2,8 @@
 #define MFEM_GALER_DIFF
 
 #include "mfem.hpp"
-
-#ifdef MFEM_USE_PUMI
-#ifdef MFEM_USE_MPI
-#include <iostream>
 #include "solver.hpp"
 #include "mach_types.hpp"
-#include "pumi.h"
 
 namespace mfem
 {
@@ -21,15 +16,15 @@ public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    GalerkinDifference(const std::string &opt_file_name
-                      = std::string("mach_options.json"),
-                      apf::Mesh2 *mesh = NULL);
+                      = std::string("mach_options.json"));
 
    /// Another convenient constructor for test the prolongation matrix
-   GalerkinDifference(int de, apf::Mesh2 *pm, int vdim = 1,
+   GalerkinDifference(int de, int vdim = 1,
                         int ordering = mfem::Ordering::byVDIM);
-   GalerkinDifference(MPI_Comm _comm, mfem::Mesh *pm, const mfem::FiniteElementCollection *f,
+   
+   GalerkinDifference(mfem::Mesh *pm, const mfem::FiniteElementCollection *f,
                       int vdim = 1, int ordering = mfem::Ordering::byVDIM,
-                      int degree = 0, apf::Mesh2 *pumimesh = NULL);
+                      int degree = 0);
    
    
 
@@ -90,8 +85,6 @@ public:
    /// check the duplication of quadrature points in the quad matrix
    bool duplicated(const mfem::Vector quad, const std::vector<double> data);
 
-   MPI_Comm GetComm() {return comm;}
-
    virtual int GetTrueVSize() const {return nEle * vdim; }
 
 protected:
@@ -106,23 +99,10 @@ protected:
    //using MeshType = mfem::PumiMesh;
    /// object defining the computational mesh
    //std::unique_ptr<mach::MeshType> pmesh;
-   mfem::PumiMesh *pmesh;
    /// the finite element collection pointer
    //std::unique_ptr<const mfem::FiniteElementCollection> fec;
    const mfem::FiniteElementCollection *fec; // not owned
 
-#ifdef MFEM_USE_MPI
-   /// communicator used by MPI group for communication
-   MPI_Comm comm;
-#ifdef MFEM_USE_PUMI
-   /// create pumi mesh object
-   apf::Mesh2 *pumi_mesh;
-#endif
-#endif
-
 };
 } // end of namespace mach
-
-#endif // MFEM_USE_PUMI
-#endif // MFEM_USE_MPI
 #endif // end of GALERKIN DIFF

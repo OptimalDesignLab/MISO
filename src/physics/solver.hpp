@@ -115,6 +115,10 @@ public:
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
 
+   void printError(const std::string &file_name,
+                                  int refine,
+                                  void (*u_exact)(const mfem::Vector &, mfem::Vector &));
+
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
@@ -191,7 +195,6 @@ protected:
 
    /// Create `output` based on `options` and add approporiate integrators
    virtual void addOutputs() {};
-
 };
 
 } // namespace mach

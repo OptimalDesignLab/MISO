@@ -35,7 +35,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    ifstream options_file(opt_file_name);
    options_file >> file_options;
    options.merge_patch(file_options);
-   //*out << setw(3) << options << endl;
+   *out << setw(3) << options << endl;
 
    // Construct Mesh
    constructMesh(move(smesh));
@@ -78,12 +78,12 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
                                    dim));
    }
-   else if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
                                   dim));
    }
-   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   else
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
                                    dim));
@@ -98,14 +98,14 @@ void AbstractSolver::initDerived()
    if (options["GD"]["degree"].get<int>() >= 0)
    {
       int gd_degree = options["GD"]["degree"].get<int>();
-      fes.reset(new GalerkinDifference(comm, mesh.get(), fec.get(), num_state,
-                                       Ordering::byVDIM, gd_degree, pumi_mesh));
-      dynamic_cast<GalerkinDifference *>(fes.get())->BuildGDProlongation();
+      mesh->ElementToElementTable();
+      fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
+                                       Ordering::byVDIM, gd_degree));
       uc.reset(new CentGridFunction(fes.get()));
       u.reset(new GridFunType(fes.get()));
       cout << "GD space is set, uc size is " << uc->Size() << ", u size is " << u->Size() << '\n';
    }
-else
+   else
    {
       fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                               Ordering::byVDIM));
@@ -130,13 +130,10 @@ else
    double alpha = 1.0;
    cout << "before set res.\n";
    res.reset(new NonlinearFormType(fes.get()));
-   if (0 == rank)
-   {
-      std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-      std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
-      std::cout << ". uc size is " << uc->Size() << '\n';
-   }
-   MPI_Barrier(comm);
+
+   std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+   std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
+   std::cout << ". uc size is " << uc->Size() << '\n';
 
    // Add integrators; this can be simplified if we template the entire class
    addVolumeIntegrators(alpha);
@@ -193,8 +190,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 {
    cout << "In construct Mesh:\n";
 #ifdef MFEM_USE_MPI
-   comm = MPI_COMM_WORLD;
-   MPI_Comm_rank(comm, &rank);
 #ifdef MFEM_USE_PUMI
    if (smesh != nullptr)
    {
@@ -205,8 +200,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    cout << "Construct pumi mesh.\n";
    std::string model_file = options["model-file"].get<string>().c_str();
    std::string mesh_file = options["mesh"]["file"].get<string>().c_str();
-   std::cout << "model file " << model_file.c_str() << '\n';
-   std::cout << "mesh file " << mesh_file.c_str() << '\n';
+   std::cout << "model file " << model_file << '\n';
+   std::cout << "mesh file " << mesh_file << '\n';
    pumi_mesh = apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str());
    cout << "pumi mesh is constructed from file.\n";
    int mesh_dim = pumi_mesh->getDimension();
@@ -223,7 +218,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    mesh->PrintVTK(savevtk);
    savemesh.close();
    savevtk.close();
-   cout << "PumiMesh is constructed from pumi_mesh.\n";
+   // mesh.reset(new MeshType("annulus_fine.mesh", 1, 0, 1));
+   // std::cout << "Mesh is constructed.\n";
 #else
    mesh.reset(new MeshType(comm, *smesh));
 #endif // end of MFEM_USE_PUMI
@@ -251,12 +247,12 @@ void AbstractSolver::setInitialCondition(
    // u_test.Print(cout,4);
    u_test -= *u;
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
-   // ofstream u_write("u.txt");
-   // ofstream uc_write("uc.txt");
-   // u->Print(u_write, 1);
-   // uc->Print(uc_write,1);
-   // u_write.close();
-   // uc_write.close();
+   ofstream u_write("u_init.txt");
+   ofstream uc_write("uc_init.txt");
+   u->Print(u_write, 1);
+   uc->Print(uc_write, 1);
+   u_write.close();
+   uc_write.close();
    // DenseMatrix vals;
    // Vector uj;
    // for (int i = 0; i < fes->GetNE(); i++)
@@ -318,7 +314,7 @@ double AbstractSolver::calcL2Error(
    else
    {
       // calculate the L2 error for component index `entry`
-      fes->GetProlongationMatrix()->Mult(*uc,*u);
+      fes->GetProlongationMatrix()->Mult(*uc, *u);
       for (int i = 0; i < fes->GetNE(); i++)
       {
          fe = fes->GetFE(i);
@@ -334,6 +330,7 @@ double AbstractSolver::calcL2Error(
             const IntegrationPoint &ip = ir->IntPoint(j);
             T->SetIntPoint(&ip);
             loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+            //cout << "loc_norm is " << loc_errs(j) <<'\n';
          }
       }
    }
@@ -397,6 +394,51 @@ void AbstractSolver::printSolution(const std::string &file_name,
    sol_ofs.close();
 }
 
+void AbstractSolver::printError(const std::string &file_name,
+                                  int refine,
+                                  void (*u_exact)(const Vector &, Vector &))
+{
+   VectorFunctionCoefficient u0(num_state, u_exact);
+   GridFunType *u_q = new GridFunType(fes.get());
+   u_q->ProjectCoefficient(u0);
+   ofstream sol_ofs(file_name + ".vtk");
+   sol_ofs.precision(14);
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].get<int>() + 1;
+   }
+   mesh->PrintVTK(sol_ofs, refine);
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
+   *u -= *u_q;
+   u->SaveVTK(sol_ofs, "loc_error", refine);
+   sol_ofs.close();
+   delete u_q;
+
+   // sum up the L2 error over all states
+   // double loc_norm = 0.0;
+   // const FiniteElement *fe;
+   // ElementTransformation *T;
+   // DenseMatrix vals, exact_vals;
+   // Vector loc_errs;
+   // for (int i = 0; i < fes->GetNE(); i++)
+   // {
+   //    fe = fes->GetFE(i);
+   //    const IntegrationRule *ir = &(fe->GetNodes());
+   //    T = fes->GetElementTransformation(i);
+   //    u->GetVectorValues(*T, *ir, vals);
+   //    exsol.Eval(exact_vals, *T, *ir);
+   //    vals -= exact_vals;
+   //    loc_errs.SetSize(vals.Width());
+   //    vals.Norm2(loc_errs);
+   //    for (int j = 0; j < ir->GetNPoints(); j++)
+   //    {
+   //       const IntegrationPoint &ip = ir->IntPoint(j);
+   //       T->SetIntPoint(&ip);
+   //       loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+   //    }
+   // }
+}
+
 void AbstractSolver::printResidual(const std::string &file_name,
                                    int refine)
 {
@@ -454,8 +496,8 @@ void AbstractSolver::solveSteady()
 
    //solver.reset(new KLUSolver());
    solver.reset(new UMFPackSolver());
-   dynamic_cast<UMFPackSolver*>(solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-   dynamic_cast<UMFPackSolver*>(solver.get())->SetPrintLevel(1);
+   dynamic_cast<UMFPackSolver *>(solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   dynamic_cast<UMFPackSolver *>(solver.get())->SetPrintLevel(1);
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
@@ -512,21 +554,21 @@ void AbstractSolver::solveSteady()
 #else
    // Hypre solver section
    cout << "HypreGMRESSolver with HypreEuclid preconditioner.\n";
-   prec.reset(new HypreEuclid(dynamic_cast<GalerkinDifference*>(fes.get())->GetComm()));
+   prec.reset(new HypreEuclid(dynamic_cast<GalerkinDifference *>(fes.get())->GetComm()));
    double tol = options["lin-solver"]["tol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
-   solver.reset(new HypreGMRES(dynamic_cast<GalerkinDifference*>(fes.get())->GetComm()));
+   solver.reset(new HypreGMRES(dynamic_cast<GalerkinDifference *>(fes.get())->GetComm()));
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(* dynamic_cast<mfem::HypreSolver*>(prec.get()));
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<mfem::HypreSolver *>(prec.get()));
 
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
    int nptl = options["newton"]["printlevel"].get<int>();
-   newton_solver.reset(new mfem::NewtonSolver(dynamic_cast<GalerkinDifference*>(fes.get())->GetComm()));
+   newton_solver.reset(new mfem::NewtonSolver(dynamic_cast<GalerkinDifference *>(fes.get())->GetComm()));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
    newton_solver->SetOperator(*res);
@@ -546,17 +588,10 @@ void AbstractSolver::solveSteady()
 #else
    // serial
    // linear solver
-   double tol = options["lin-solver"]["tol"].get<double>();
-   int maxiter = options["lin-solver"]["maxiter"].get<int>();
-   int ptl = options["lin-solver"]["printlevel"].get<int>();
-   prec.reset(new mfem::GSSmoother());
-   solver.reset(new mfem::SLISolver());
-   dynamic_cast<mfem::SLISolver *>(solver.get())->SetRelTol(tol);
-   dynamic_cast<mfem::SLISolver *>(solver.get())->SetAbsTol(tol);
-   dynamic_cast<mfem::SLISolver *>(solver.get())->SetMaxIter(maxiter);
-   dynamic_cast<mfem::SLISolver *>(solver.get())->SetPrintLevel(ptl);
-   //dynamic_cast<mfem::GMRESSolver *>(solver.get())->SetPreconditioner(*prec);
-   dynamic_cast<mfem::SLISolver *>(solver.get())->iterative_mode = false;
+   cout << "Solve the gd problem in serial.\n";
+   solver.reset(new UMFPackSolver());
+   dynamic_cast<UMFPackSolver *>(solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   dynamic_cast<UMFPackSolver *>(solver.get())->SetPrintLevel(1);
 
    // newton solver
    double nabstol = options["newton"]["abstol"].get<double>();
@@ -573,11 +608,13 @@ void AbstractSolver::solveSteady()
    newton_solver->SetMaxIter(nmaxiter);
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   mfem::Vector u_true;
-   u->GetTrueDofs(u_true);
-   newton_solver->Mult(b, *u);
+   // mfem::Vector u_true;
+   // u->GetTrueDofs(u_true);
+   // newton_solver->Mult(b, *u);
+   // MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   // u->SetFromTrueDofs(u_true);
+   newton_solver->Mult(b, *uc);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-   u->SetFromTrueDofs(u_true);
 #endif
 }
 
@@ -709,7 +746,8 @@ void AbstractSolver::jacobianCheck()
    u_minus.reset(new CentGridFunction(fes.get()));
 
    // set uplus and uminus to the current state
-   *u_plus = 0.0; *u_minus = 0.0;
+   *u_plus = 0.0;
+   *u_minus = 0.0;
    u_plus->Add(1.0, *uc);
    u_minus->Add(1.0, *uc);
    u_plus->Add(delta, *perturbation_vec);
@@ -719,7 +757,7 @@ void AbstractSolver::jacobianCheck()
    std::unique_ptr<CentGridFunction> res_minus;
    res_plus.reset(new CentGridFunction(fes.get()));
    res_minus.reset(new CentGridFunction(fes.get()));
-   
+
    res->Mult(*u_plus, *res_plus);
    res->Mult(*u_minus, *res_minus);
 
