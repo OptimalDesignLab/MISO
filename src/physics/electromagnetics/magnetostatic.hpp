@@ -107,6 +107,13 @@ private:
    /// \note - constructCurrent must be called before calling this
    void assembleCurrentSource();
 
+   /// TODO: throw MachException if constructMagnetization or
+   ///       assembleCurrentSource not called first
+   /// \brief assemble magnetization source terms into rhs vector and add them
+   ///        with the current source terms
+   /// \note - constructMagnetization must be called before calling this
+   void assembleMagnetizationSource(void);
+
    /// Function to compute seconday fields
    /// For magnetostatics, computes the magnetic flux density
    void computeSecondaryFields();

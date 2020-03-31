@@ -11,10 +11,13 @@ using namespace mfem;
 
 namespace
 {
+/// permeability of free space
+const double mu_0 = 4e-7*M_PI;
+
 std::unique_ptr<mfem::Coefficient>
 constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
 {
-	const double mu_0 = 4e-7*M_PI;
+	// const double mu_0 = 4e-7*M_PI;
 	std::unique_ptr<mfem::Coefficient> temp_coeff;
 	std::string material = component["material"].get<std::string>();
 	if (!component["linear"].get<bool>())
@@ -115,7 +118,8 @@ MagnetostaticSolver::MagnetostaticSolver(
 	constructMagnetization();
 
 	/// add magnetization integrator to residual
-	res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
+	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
+	assembleMagnetizationSource();
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
@@ -252,7 +256,7 @@ void MagnetostaticSolver::setStaticMembers()
 void MagnetostaticSolver::constructReluctivity()
 {
 	/// set up default reluctivity to be that of free space
-	const double mu_0 = 4e-7*M_PI;
+	// const double mu_0 = 4e-7*M_PI;
    std::unique_ptr<Coefficient> nu_free_space(
       new ConstantCoefficient(1.0/mu_0));
 	nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
@@ -394,11 +398,28 @@ void MagnetostaticSolver::assembleCurrentSource()
    h_curl_mass->Finalize();
 
 	*current_vec = 0.0;
-	h_curl_mass->AddMult(j_div_free, *current_vec);
+	h_curl_mass->AddMult(*div_free_current_vec, *current_vec);
 	std::cout << "below h_curl add mult\n";
 	// I had strange errors when not using pointer versions of these
 	delete h_curl_mass;
 	delete grad;
+}
+
+void MagnetostaticSolver::assembleMagnetizationSource(void)
+{
+   /// set up default reluctivity to be that of free space
+
+   auto mag = new GridFunType(h_div_space.get());
+   
+
+   auto weakCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), h_curl_space.get());
+   weakCurlMuInv_->AddDomainIntegrator(new VectorFECurlIntegrator(*nu));
+
+   weakCurlMuInv_->Assemble();
+   weakCurlMuInv_->Finalize();
+
+   mag->ProjectCoefficient(*mag_coeff);
+   weakCurlMuInv_->AddMult(*mag, *current_vec, mu_0);
 }
 
 void MagnetostaticSolver::computeSecondaryFields()
