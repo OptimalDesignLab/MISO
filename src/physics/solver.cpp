@@ -383,6 +383,18 @@ void AbstractSolver::solveForState()
    }
 }
 
+void AbstractSolver::solveForAdjoint(const std::string &fun)
+{
+   if (options["steady"].get<bool>() == true)
+   {
+      solveSteadyAdjoint(fun);
+   }
+   else 
+   {
+      solveUnsteadyAdjoint(fun);
+   }
+}
+
 void AbstractSolver::solveSteady()
 {
    double t1, t2;
@@ -457,7 +469,7 @@ void AbstractSolver::solveSteady()
    mfem::Vector b;
    mfem::Vector u_true;
    u->GetTrueDofs(u_true);
-   newton_solver->Mult(b,  u_true);
+   newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
 #endif
@@ -562,6 +574,66 @@ void AbstractSolver::solveUnsteady()
       printSolution("final");
    }
    // TODO: These mfem functions do not appear to be parallelized
+}
+
+void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
+{
+   double time_beg, time_end;
+   if (0==rank)
+   {
+      time_beg = MPI_Wtime();
+   }
+
+   // Step 0: allocate the adjoint variable
+   adj.reset(new GridFunType(fes.get()));
+
+   // Step 1: get the right-hand side vector, dJdu, and make an appropriate
+   // alias to it, the state, and the adjoint
+   std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+#ifdef MFEM_USE_MPI
+   HypreParVector *state = u->GetTrueDofs();
+   HypreParVector *dJ = dJdu->GetTrueDofs();
+   HypreParVector *adjoint = adj->GetTrueDofs();
+#else
+   GridFunType *state = u.get();
+   GridFunType *dJ = dJdu.get();
+   GridFunType *adjoint = adj.get();
+#endif
+   output.at(fun).Mult(*state, *dJ);
+
+   // Step 2: get the Jacobian and transpose it
+   Operator *jac = &res->GetGradient(*state);
+   TransposeOperator jac_trans = TransposeOperator(jac);
+
+   // Step 3: Solve the adjoint problem
+   *out << "Solving adjoint problem:\n"
+        << "\tsolver: HypreGMRES\n"
+        << "\tprec. : Euclid ILU" << endl;
+   prec.reset(new HypreEuclid(fes->GetComm()));
+   double tol = options["adj-solver"]["tol"].get<double>();
+   int maxiter = options["adj-solver"]["maxiter"].get<int>();
+   int ptl = options["adj-solver"]["printlevel"].get<int>();
+   solver.reset(new HypreGMRES(fes->GetComm()));
+   solver->SetOperator(jac_trans);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
+   solver->Mult(*dJ, *adjoint);
+#ifdef MFEM_USE_MPI
+   adj->SetFromTrueDofs(*adjoint);
+#endif
+   if (0==rank)
+   {
+      time_end = MPI_Wtime();
+      cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+   }
+}
+
+void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
+{
+   throw MachException("AbstractSolver::solveUnsteadyAdjoint(fun)\n"
+                       "\tnot implemented yet!");
 }
 
 double AbstractSolver::calcOutput(const std::string &fun)
