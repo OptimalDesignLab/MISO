@@ -62,6 +62,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	B.reset(new GridFunType(h_div_space.get()));
 
 	current_vec.reset(new GridFunType(h_curl_space.get()));
+   div_free_current_vec.reset(new GridFunType(h_curl_space.get()));
 
 #ifdef MFEM_USE_MPI
    cout << "Number of finite element unknowns: "
@@ -81,7 +82,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	/// read options file to set the proper values of static member variables
 	setStaticMembers();
 
-	constructReluctivity();
+	// constructReluctivity();
 
 
 	neg_one.reset(new ConstantCoefficient(-1.0));
@@ -207,6 +208,7 @@ void MagnetostaticSolver::solveSteady()
    Mag.ProjectCoefficient(*mag_coeff);
    Mag.SaveVTK(sol_ofs, "Mag_Field", 1);
    current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
+   div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", 1);
    sol_ofs.close();
 	std::cout << "finish steady solve\n";
 
@@ -376,8 +378,9 @@ void MagnetostaticSolver::assembleCurrentSource()
 
 	GridFunType j_div_free = GridFunType(h_curl_space.get());
 	// Compute the discretely divergence-free portion of j
-	div_free_proj.Mult(j, j_div_free);
-
+	// div_free_proj.Mult(j, j_div_free);
+	*div_free_current_vec = 0.0;
+   div_free_proj.Mult(j, *div_free_current_vec);
 	/// create current linear form vector by multiplying mass matrix by
 	/// divergence free current source grid function
 	// ConstantCoefficient one(1.0);

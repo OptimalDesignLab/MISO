@@ -46,7 +46,7 @@ private:
 
    /// current source vector
    std::unique_ptr<GridFunType> current_vec;
-
+   std::unique_ptr<GridFunType> div_free_current_vec;
    // /// current source vector with applied BC
    // std::unique_ptr<GridFunType> current_vec_BC;
 
