@@ -44,6 +44,9 @@ private:
     /// Moved mesh
     apf::Mesh2 *moved_mesh;
 
+    // static copy of the original mesh
+    static mfem::Mesh *mesh_copy;
+
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::ofstream sol_ofs;
 
@@ -103,6 +106,11 @@ private:
    /// work vector
    mutable mfem::Vector z;
     
+    // Lambda element wise function
+    static double LambdaFunc(const mfem::Vector &x, int ie);
+
+    // Mu element wise function
+    static double MuFunc(const mfem::Vector &x, int ie);
 };
 
 #endif

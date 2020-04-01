@@ -148,4 +148,24 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
    // vec.Print();
 }
 
+double ElementFunctionCoefficient::Eval (ElementTransformation &trans,
+                                       const IntegrationPoint &ip)
+{
+   double x[3];
+   Vector transip(x, 3);
+   
+   trans.Transform(ip, transip);
+   
+   int ei = trans.ElementNo;
+
+   if (Function)
+   {
+      return (*Function)(transip, ei);
+   }
+   else
+   {
+      return (*TDFunction)(transip, ei, GetTime());
+   }
+}
+
 } // namespace mach

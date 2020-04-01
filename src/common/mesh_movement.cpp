@@ -57,7 +57,9 @@ LEAnalogySolver::LEAnalogySolver(
     }
     else
     {
-
+        mesh_copy = mesh.get();
+        lambda_c.reset(new ElementFunctionCoefficient(LambdaFunc));
+        mu_c.reset(new ElementFunctionCoefficient(MuFunc));
     }
 
     /// for loading model files
@@ -161,6 +163,19 @@ void LEAnalogySolver::solveSteady()
        moved_mesh = getNewMesh(model_file_new, mesh_file_new, mesh.get(), pumi_mesh);
     }
 }
+
+double LEAnalogySolver::LambdaFunc(const mfem::Vector &x, int ie)
+{
+    return 1.0/mesh_copy->GetElementVolume(ie);
+}
+
+double LEAnalogySolver::MuFunc(const mfem::Vector &x, int ie)
+{
+    return 1.0;//mesh_copy->GetElementVolume(ie);
+}
+
+mfem::Mesh* LEAnalogySolver::mesh_copy = 0;
+
 #endif
 
 } //namespace mach
