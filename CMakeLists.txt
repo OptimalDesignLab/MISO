@@ -37,7 +37,7 @@ if (MFEM_USE_MPI)
 endif (MFEM_USE_MPI)
 
 # Try to find OpenMP (used by Adept)
-find_package(OpenMP)
+# find_package(OpenMP)
 
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
@@ -83,15 +83,19 @@ set_target_properties(mach
       CXX_EXTENSIONS OFF
       POSITION_INDEPENDENT_CODE ON
 )
+set(DEBUG_OPTIONS
+   "-g"
+   -Wall
+   # -Wextra
+   # -Werror
+)
 
-set(DEBUG_OPTIONS "-g")
-set(RELEASE_OPTIONS "-O2")
+set(RELEASE_OPTIONS
+   "-O2"
+)
 
 target_compile_options(mach
    PRIVATE 
-      -Wall 
-      # -Wextra
-      # -Werror
       "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
 )

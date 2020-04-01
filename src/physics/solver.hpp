@@ -90,12 +90,10 @@ public:
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
    
-   /// Solve for the steady state problem using newton method
-   virtual void solveSteady();
+   /// Solve for the adjoint based on current mesh, solver, etc.
+   /// \param[in] fun - specifies the functional corresponding to the adjoint
+   void solveForAdjoint(const std::string &fun);
 
-   /// Solve for a transient state using a selected time-marching scheme
-   virtual void solveUnsteady();
-   
    /// Check the jacobian accuracy
    /// Compare the results jac_v = jac * pert_v w.r.t jac_v calculated from
    /// finite difference method 
@@ -143,6 +141,8 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   /// adjoint variable 
+   std::unique_ptr<GridFunType> adj;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
    /// time-marching method (might be NULL)
@@ -189,6 +189,20 @@ protected:
 
    /// Create `output` based on `options` and add approporiate integrators
    virtual void addOutputs() {};
+
+   /// Solve for the steady state problem using newton method
+   virtual void solveSteady();
+
+   /// Solve for a transient state using a selected time-marching scheme
+   virtual void solveUnsteady();
+   
+   /// Solve for a steady adjoint
+   /// \param[in] fun - specifies the functional corresponding to the adjoint
+   virtual void solveSteadyAdjoint(const std::string &fun);
+
+   /// Solve for an unsteady adjoint
+   /// \param[in] fun - specifies the functional corresponding to the adjoint
+   virtual void solveUnsteadyAdjoint(const std::string &fun);
 
 };
 

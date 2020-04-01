@@ -52,6 +52,14 @@ nlohmann::json default_options
       {"tol", 1e-12} // Hypre solvers only let you set one value for tolerance
    }},
 
+   {"adj-solver",
+   {
+      {"printlevel", 0}, // adjoint solver print level (no printing if zero)
+      {"maxiter", 100}, // maximum number of solver iterations 
+      {"reltol", 1e-8}, // adjoint solver relative tolerance
+      {"abstol", 1e-10} // adjoint solver absolute tolerance
+   }},
+
    {"petscsolver",
    {
       {"ksptype", "gmres"}, // GMRES is the default solver for PETSC
