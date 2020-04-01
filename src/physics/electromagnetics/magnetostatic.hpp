@@ -30,10 +30,14 @@ private:
    std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
    /// Raviart-Thomas finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
+   /// H1 finite element collection
+   std::unique_ptr<mfem::FiniteElementCollection> h1_coll;
    /// H(Curl) finite element space
    std::unique_ptr<SpaceType> h_curl_space;
    /// H(Div) finite element space
    std::unique_ptr<SpaceType> h_div_space;
+   /// H1 finite element space
+   std::unique_ptr<SpaceType> h1_space;
 
    /// Magnetic vector potential A grid function
    std::unique_ptr<GridFunType> A;
@@ -43,6 +47,8 @@ private:
    std::unique_ptr<GridFunType> B_dual;
    /// Magnetization grid function
    std::unique_ptr<GridFunType> M;
+   /// Reluctivity grid function
+   std::unique_ptr<GridFunType> nu_gf;
 
    /// TODO: delete? defined in abstract solver
    /// the spatial residual (a semilinear form)

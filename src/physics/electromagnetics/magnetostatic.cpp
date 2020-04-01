@@ -53,11 +53,15 @@ MagnetostaticSolver::MagnetostaticSolver(
    h_curl_coll.reset(new ND_FECollection(fe_order, dim));
 	/// Create the H(Div) finite element collection
    h_div_coll.reset(new RT_FECollection(fe_order, dim));
+	/// Create the H1 finite element collection
+	h1_coll.reset(new H1_FECollection(fe_order, dim));
 
 	/// Create the H(Curl) finite element space
 	h_curl_space.reset(new SpaceType(mesh.get(), h_curl_coll.get()));
 	/// Create the H(Div) finite element space
 	h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
+	/// Create the H1 finite element space
+	h1_space.reset(new SpaceType(mesh.get(), h1_coll.get()));
 
 	/// Create MVP grid function
 	A.reset(new GridFunType(h_curl_space.get()));
@@ -209,8 +213,11 @@ void MagnetostaticSolver::solveSteady()
 	GridFunType J(h_div_space.get());
 	J.ProjectCoefficient(*current_coeff);
 	J.SaveVTK(sol_ofs, "J_Field", 1);
+	GridFunType Nu(h1_space.get());
+	Nu.ProjectCoefficient(*nu);
+	Nu.SaveVTK(sol_ofs, "Nu", 1);
    M->SaveVTK(sol_ofs, "Mag_Field", 1);
-   current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
+   // current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
    div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", 1);
    sol_ofs.close();
 	std::cout << "finish steady solve\n";
@@ -357,23 +364,23 @@ void MagnetostaticSolver::assembleCurrentSource()
 	/// Create the H1 finite element collection and space, only used by the
 	/// divergence free projectors so we define them here and then throw them
 	/// away
-   auto h1_coll = H1_FECollection(fe_order, dim);
-	auto h1_space = SpaceType(mesh.get(), &h1_coll);
+   // auto h1_coll = H1_FECollection(fe_order, dim);
+	// auto h1_space = SpaceType(mesh.get(), &h1_coll);
 
 	/// get int rule (approach followed my MFEM Tesla Miniapp)
-	int irOrder = h1_space.GetElementTransformation(0)->OrderW()
+	int irOrder = h1_space->GetElementTransformation(0)->OrderW()
                  + 2 * fe_order;
-   int geom = h1_space.GetFE(0)->GetGeomType();
+   int geom = h1_space->GetFE(0)->GetGeomType();
    const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
 
 	/// compute the divergence free current source
-	auto *grad = new mfem::common::ParDiscreteGradOperator(&h1_space, h_curl_space.get());
+	auto *grad = new mfem::common::ParDiscreteGradOperator(h1_space.get(), h_curl_space.get());
 
 	// assemble gradient form
 	grad->Assemble();
    grad->Finalize();
 
-	auto div_free_proj = mfem::common::DivergenceFreeProjector(h1_space, *h_curl_space,
+	auto div_free_proj = mfem::common::DivergenceFreeProjector(*h1_space, *h_curl_space,
                                               irOrder, NULL, NULL, grad);
 
 	GridFunType j = GridFunType(h_curl_space.get());
@@ -419,6 +426,8 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
 
    M->ProjectCoefficient(*mag_coeff);
    weakCurlMuInv_->AddMult(*M, *current_vec, mu_0);
+
+	delete weakCurlMuInv_;
 }
 
 void MagnetostaticSolver::computeSecondaryFields()
@@ -434,13 +443,13 @@ void MagnetostaticSolver::computeSecondaryFields()
 	add(*B, -1.0*mu_0, *M, *B);
 
 	int fe_order = options["space-dis"]["degree"].get<int>();
-	auto h1_coll = H1_FECollection(fe_order, dim);
-	auto h1_space = SpaceType(mesh.get(), &h1_coll);
+	// auto h1_coll = H1_FECollection(fe_order, dim);
+	// auto h1_space = SpaceType(mesh.get(), &h1_coll);
 
 	/// get int rule (approach followed my MFEM Tesla Miniapp)
-	int irOrder = h1_space.GetElementTransformation(0)->OrderW()
+	int irOrder = h1_space->GetElementTransformation(0)->OrderW()
                  + 2 * fe_order;
-   int geom = h1_space.GetFE(0)->GetGeomType();
+   int geom = h1_space->GetFE(0)->GetGeomType();
    const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
 
 	BilinearFormIntegrator * hDivHCurlInteg =
@@ -458,6 +467,8 @@ void MagnetostaticSolver::computeSecondaryFields()
 	hDivHCurlMuInv_->Mult(*B, *B_dual);
 
 	hDivHCurlMuInv_->AddMult(*M, *B_dual, -1.0 * mu_0);
+
+	delete hDivHCurlMuInv_;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
