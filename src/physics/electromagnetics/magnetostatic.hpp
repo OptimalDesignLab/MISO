@@ -39,6 +39,10 @@ private:
    std::unique_ptr<GridFunType> A;
    /// Magnetic flux density B = curl(A) grid function
    std::unique_ptr<GridFunType> B;
+   /// Magnetic flux density B = curl(A) grid function in H(curl) space
+   std::unique_ptr<GridFunType> B_dual;
+   /// Magnetization grid function
+   std::unique_ptr<GridFunType> M;
 
    /// TODO: delete? defined in abstract solver
    /// the spatial residual (a semilinear form)
@@ -50,7 +54,7 @@ private:
    // /// current source vector with applied BC
    // std::unique_ptr<GridFunType> current_vec_BC;
 
-   std::unique_ptr<mfem::Coefficient> neg_one;
+   // std::unique_ptr<mfem::Coefficient> neg_one;
 
    /// mesh dependent reluctivity coefficient
    std::unique_ptr<MeshDependentCoefficient> nu;

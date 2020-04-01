@@ -88,7 +88,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	// constructReluctivity();
 
 
-	neg_one.reset(new ConstantCoefficient(-1.0));
+	// neg_one.reset(new ConstantCoefficient(-1.0));
 
 	/// Construct current source coefficient
 	constructCurrent();
@@ -205,12 +205,11 @@ void MagnetostaticSolver::solveSteady()
    mesh->PrintVTK(sol_ofs, 1);
    A->SaveVTK(sol_ofs, "A_Field", 1);
 	B->SaveVTK(sol_ofs, "B_Field", 1);
+	B_dual->SaveVTK(sol_ofs, "B_dual", 1);
 	GridFunType J(h_div_space.get());
 	J.ProjectCoefficient(*current_coeff);
 	J.SaveVTK(sol_ofs, "J_Field", 1);
-   GridFunType Mag(h_div_space.get());
-   Mag.ProjectCoefficient(*mag_coeff);
-   Mag.SaveVTK(sol_ofs, "Mag_Field", 1);
+   M->SaveVTK(sol_ofs, "Mag_Field", 1);
    current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
    div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", 1);
    sol_ofs.close();
@@ -409,7 +408,7 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
 {
    /// set up default reluctivity to be that of free space
 
-   auto mag = new GridFunType(h_div_space.get());
+   M.reset(new GridFunType(h_div_space.get()));
    
 
    auto weakCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), h_curl_space.get());
@@ -418,8 +417,8 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
    weakCurlMuInv_->Assemble();
    weakCurlMuInv_->Finalize();
 
-   mag->ProjectCoefficient(*mag_coeff);
-   weakCurlMuInv_->AddMult(*mag, *current_vec, mu_0);
+   M->ProjectCoefficient(*mag_coeff);
+   weakCurlMuInv_->AddMult(*M, *current_vec, mu_0);
 }
 
 void MagnetostaticSolver::computeSecondaryFields()
@@ -431,6 +430,31 @@ void MagnetostaticSolver::computeSecondaryFields()
    curl.Finalize();
 	curl.Mult(*A, *B);
 	std::cout << "secondary quantities computed\n";
+	/// add magnetization to B (both in H(Div) function space)
+	add(*B, -1.0*mu_0, *M, *B);
+
+	int fe_order = options["space-dis"]["degree"].get<int>();
+	auto h1_coll = H1_FECollection(fe_order, dim);
+	auto h1_space = SpaceType(mesh.get(), &h1_coll);
+
+	/// get int rule (approach followed my MFEM Tesla Miniapp)
+	int irOrder = h1_space.GetElementTransformation(0)->OrderW()
+                 + 2 * fe_order;
+   int geom = h1_space.GetFE(0)->GetGeomType();
+   const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
+
+	BilinearFormIntegrator * hDivHCurlInteg =
+      new VectorFEMassIntegrator(*nu);
+   hDivHCurlInteg->SetIntRule(ir);
+	ParMixedBilinearForm *hDivHCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), h_curl_space.get());
+   hDivHCurlMuInv_->AddDomainIntegrator(hDivHCurlInteg);
+
+	B_dual.reset(new GridFunType(h_curl_space.get()));
+	*B_dual = 0.0;
+
+	hDivHCurlMuInv_->Mult(*B, *B_dual);
+
+	hDivHCurlMuInv_->AddMult(*M, *B_dual, -1.0 * mu_0);
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
