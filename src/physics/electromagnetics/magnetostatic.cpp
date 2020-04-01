@@ -449,6 +449,9 @@ void MagnetostaticSolver::computeSecondaryFields()
 	ParMixedBilinearForm *hDivHCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), h_curl_space.get());
    hDivHCurlMuInv_->AddDomainIntegrator(hDivHCurlInteg);
 
+	hDivHCurlMuInv_->Assemble();
+	hDivHCurlMuInv_->Finalize();
+
 	B_dual.reset(new GridFunType(h_curl_space.get()));
 	*B_dual = 0.0;
 
