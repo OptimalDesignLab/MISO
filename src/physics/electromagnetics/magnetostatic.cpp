@@ -119,11 +119,11 @@ MagnetostaticSolver::MagnetostaticSolver(
 	///       but need to verify that that is mathematically corrent based on
 	///       the limit of the Jacobian as B goes to zero.
 	/// Construct magnetization coefficient
-	constructMagnetization();
+	// constructMagnetization();
 
 	/// add magnetization integrator to residual
 	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
-	assembleMagnetizationSource();
+	// assembleMagnetizationSource();
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
@@ -440,35 +440,35 @@ void MagnetostaticSolver::computeSecondaryFields()
 	curl.Mult(*A, *B);
 	std::cout << "secondary quantities computed\n";
 	/// add magnetization to B (both in H(Div) function space)
-	add(*B, -1.0*mu_0, *M, *B);
+	// add(*B, -1.0*mu_0, *M, *B);
 
-	int fe_order = options["space-dis"]["degree"].get<int>();
+	// int fe_order = options["space-dis"]["degree"].get<int>();
 	// auto h1_coll = H1_FECollection(fe_order, dim);
 	// auto h1_space = SpaceType(mesh.get(), &h1_coll);
 
-	/// get int rule (approach followed my MFEM Tesla Miniapp)
-	int irOrder = h1_space->GetElementTransformation(0)->OrderW()
-                 + 2 * fe_order;
-   int geom = h1_space->GetFE(0)->GetGeomType();
-   const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
+	// /// get int rule (approach followed my MFEM Tesla Miniapp)
+	// int irOrder = h1_space->GetElementTransformation(0)->OrderW()
+   //               + 2 * fe_order;
+   // int geom = h1_space->GetFE(0)->GetGeomType();
+   // const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
 
-	BilinearFormIntegrator * hDivHCurlInteg =
-      new VectorFEMassIntegrator(*nu);
-   hDivHCurlInteg->SetIntRule(ir);
-	ParMixedBilinearForm *hDivHCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), h_curl_space.get());
-   hDivHCurlMuInv_->AddDomainIntegrator(hDivHCurlInteg);
+	// BilinearFormIntegrator * hDivHCurlInteg =
+   //    new VectorFEMassIntegrator(*nu);
+   // hDivHCurlInteg->SetIntRule(ir);
+	// ParMixedBilinearForm *hDivHCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), h_curl_space.get());
+   // hDivHCurlMuInv_->AddDomainIntegrator(hDivHCurlInteg);
 
-	hDivHCurlMuInv_->Assemble();
-	hDivHCurlMuInv_->Finalize();
+	// hDivHCurlMuInv_->Assemble();
+	// hDivHCurlMuInv_->Finalize();
 
-	B_dual.reset(new GridFunType(h_curl_space.get()));
-	*B_dual = 0.0;
+	// B_dual.reset(new GridFunType(h_curl_space.get()));
+	// *B_dual = 0.0;
 
-	hDivHCurlMuInv_->Mult(*B, *B_dual);
+	// hDivHCurlMuInv_->Mult(*B, *B_dual);
 
-	hDivHCurlMuInv_->AddMult(*M, *B_dual, -1.0 * mu_0);
+	// hDivHCurlMuInv_->AddMult(*M, *B_dual, -1.0 * mu_0);
 
-	delete hDivHCurlMuInv_;
+	// delete hDivHCurlMuInv_;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -603,7 +603,11 @@ void MagnetostaticSolver::phase_b_source(const Vector &x,
 void MagnetostaticSolver::phase_c_source(const Vector &x,
                                          Vector &J)
 {
+	// J = 0.0;
+
+	J.SetSize(3);
 	J = 0.0;
+	J(2) = current_density;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem

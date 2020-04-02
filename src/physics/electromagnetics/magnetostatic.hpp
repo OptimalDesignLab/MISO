@@ -47,8 +47,6 @@ private:
    std::unique_ptr<GridFunType> B_dual;
    /// Magnetization grid function
    std::unique_ptr<GridFunType> M;
-   /// Reluctivity grid function
-   std::unique_ptr<GridFunType> nu_gf;
 
    /// TODO: delete? defined in abstract solver
    /// the spatial residual (a semilinear form)
