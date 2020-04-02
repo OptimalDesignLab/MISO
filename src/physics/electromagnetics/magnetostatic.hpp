@@ -32,12 +32,17 @@ private:
    std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
    /// H1 finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> h1_coll;
+   ///L2 finite element collection
+   std::unique_ptr<mfem::FiniteElementCollection> l2_coll;
+
    /// H(Curl) finite element space
    std::unique_ptr<SpaceType> h_curl_space;
    /// H(Div) finite element space
    std::unique_ptr<SpaceType> h_div_space;
    /// H1 finite element space
    std::unique_ptr<SpaceType> h1_space;
+   /// L2 finite element space
+   std::unique_ptr<SpaceType> l2_space;
 
    /// Magnetic vector potential A grid function
    std::unique_ptr<GridFunType> A;
