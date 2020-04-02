@@ -55,6 +55,8 @@ MagnetostaticSolver::MagnetostaticSolver(
    h_div_coll.reset(new RT_FECollection(fe_order, dim));
 	/// Create the H1 finite element collection
 	h1_coll.reset(new H1_FECollection(fe_order, dim));
+   /// Create the L2 finite element collection
+   l2_coll.reset(new L2_FECollection(fe_order, dim));
 
 	/// Create the H(Curl) finite element space
 	h_curl_space.reset(new SpaceType(mesh.get(), h_curl_coll.get()));
@@ -62,6 +64,8 @@ MagnetostaticSolver::MagnetostaticSolver(
 	h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
 	/// Create the H1 finite element space
 	h1_space.reset(new SpaceType(mesh.get(), h1_coll.get()));
+   /// Create the L2 finite element space
+   l2_space.reset(new SpaceType(mesh.get(), l2_coll.get()));
 
 	/// Create MVP grid function
 	A.reset(new GridFunType(h_curl_space.get()));
@@ -213,7 +217,7 @@ void MagnetostaticSolver::solveSteady()
 	GridFunType J(h_div_space.get());
 	J.ProjectCoefficient(*current_coeff);
 	J.SaveVTK(sol_ofs, "J_Field", 1);
-	GridFunType Nu(h1_space.get());
+	GridFunType Nu(l2_space.get());
 	Nu.ProjectCoefficient(*nu);
 	Nu.SaveVTK(sol_ofs, "Nu", 1);
    M->SaveVTK(sol_ofs, "Mag_Field", 1);
