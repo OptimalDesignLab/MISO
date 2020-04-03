@@ -84,8 +84,12 @@ int main(int argc, char *argv[])
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
       std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
+      ofstream meshsave("steady_vortex_mesh.mesh");
       sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,3);
+      smesh->PrintVTK(sol_ofs,0);
+      smesh->Print(meshsave);
+      sol_ofs.close();
+      meshsave.close();
 
       unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
       solver->initDerived();

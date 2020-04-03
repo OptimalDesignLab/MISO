@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
       // }
 
       cout << "Construct the GD fespace.\n";
-      DSBPCollection fec(1, dim);
+      DSBPCollection fec(degree, dim);
       GalerkinDifference gd(mesh, &fec, 1, Ordering::byVDIM, p);
       //GalerkinDifference gd(degree, pumi_mesh, 1, Ordering::byVDIM);
       cout << "Now build the prolongation matrix.\n";
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
       mfem::GridFunction x(&gd);
       mfem::GridFunction x_exact(&gd);
 
-      mfem::VectorFunctionCoefficient u0(1, upoly);
+      mfem::VectorFunctionCoefficient u0(1, uexact);
       x_exact.ProjectCoefficient(u0);
       // cout << "Check the exact solution:\n";
       // x_exact.Print(cout ,4);

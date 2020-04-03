@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <time.h>
 
 #include "default_options.hpp"
 #include "solver.hpp"
@@ -241,18 +242,23 @@ void AbstractSolver::setInitialCondition(
    // cout << "\n\nCheck center values:\n";
    // uc->Print(cout, num_state);
 
-   Vector u_test(fes->GetVSize());
+   GridFunType u_test(fes.get());
    fes->GetProlongationMatrix()->Mult(*uc, u_test);
-   // cout << "\n\nCheck the prolongated results:\n";
-   // u_test.Print(cout,4);
    u_test -= *u;
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
-   ofstream u_write("u_init.txt");
-   ofstream uc_write("uc_init.txt");
-   u->Print(u_write, 1);
-   uc->Print(uc_write, 1);
-   u_write.close();
-   uc_write.close();
+
+   ofstream sol_ofs("p_error.vtk");
+   sol_ofs.precision(14);
+   mesh->PrintVTK(sol_ofs, 0);
+   u_test.SaveVTK(sol_ofs, "project_error", 0);
+   sol_ofs.close();
+
+   // ofstream u_write("u_init.txt");
+   // ofstream uc_write("uc_init.txt");
+   // u->Print(u_write, 1);
+   // uc->Print(uc_write, 1);
+   // u_write.close();
+   // uc_write.close();
    // DenseMatrix vals;
    // Vector uj;
    // for (int i = 0; i < fes->GetNE(); i++)
@@ -274,6 +280,50 @@ void AbstractSolver::setInitialCondition(const Vector &uic)
    // TODO: Need to verify that this is ok for scalar fields
    VectorConstantCoefficient u0(uic);
    u->ProjectCoefficient(u0);
+}
+
+void AbstractSolver::printError(const std::string &file_name,
+                                  int refine,
+                                  void (*u_exact)(const Vector &, Vector &))
+{
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   GridFunType u_q(fes.get());
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
+
+   double loc_norm = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals;
+   Vector loc_errs;
+
+   const int num_el = fes->GetNE();
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fe = fes->GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      T = fes->GetElementTransformation(i);
+      u->GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      vals -= exact_vals;
+      const int num_q = ir->GetNPoints();
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         for(int k = 0; k < num_state; k++)
+         {
+            u_q(i*num_q*num_state + j*num_state + k) = vals(k, j); 
+         }
+      }
+   }
+
+   ofstream sol_ofs(file_name + ".vtk");
+   sol_ofs.precision(14);
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].get<int>() + 1;
+   }
+   mesh->PrintVTK(sol_ofs, refine);
+   u_q.SaveVTK(sol_ofs, "loc_error", refine);
+   sol_ofs.close();
 }
 
 double AbstractSolver::calcL2Error(
@@ -394,51 +444,6 @@ void AbstractSolver::printSolution(const std::string &file_name,
    sol_ofs.close();
 }
 
-void AbstractSolver::printError(const std::string &file_name,
-                                  int refine,
-                                  void (*u_exact)(const Vector &, Vector &))
-{
-   VectorFunctionCoefficient u0(num_state, u_exact);
-   GridFunType *u_q = new GridFunType(fes.get());
-   u_q->ProjectCoefficient(u0);
-   ofstream sol_ofs(file_name + ".vtk");
-   sol_ofs.precision(14);
-   if (refine == -1)
-   {
-      refine = options["space-dis"]["degree"].get<int>() + 1;
-   }
-   mesh->PrintVTK(sol_ofs, refine);
-   fes->GetProlongationMatrix()->Mult(*uc, *u);
-   *u -= *u_q;
-   u->SaveVTK(sol_ofs, "loc_error", refine);
-   sol_ofs.close();
-   delete u_q;
-
-   // sum up the L2 error over all states
-   // double loc_norm = 0.0;
-   // const FiniteElement *fe;
-   // ElementTransformation *T;
-   // DenseMatrix vals, exact_vals;
-   // Vector loc_errs;
-   // for (int i = 0; i < fes->GetNE(); i++)
-   // {
-   //    fe = fes->GetFE(i);
-   //    const IntegrationRule *ir = &(fe->GetNodes());
-   //    T = fes->GetElementTransformation(i);
-   //    u->GetVectorValues(*T, *ir, vals);
-   //    exsol.Eval(exact_vals, *T, *ir);
-   //    vals -= exact_vals;
-   //    loc_errs.SetSize(vals.Width());
-   //    vals.Norm2(loc_errs);
-   //    for (int j = 0; j < ir->GetNPoints(); j++)
-   //    {
-   //       const IntegrationPoint &ip = ir->IntPoint(j);
-   //       T->SetIntPoint(&ip);
-   //       loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
-   //    }
-   // }
-}
-
 void AbstractSolver::printResidual(const std::string &file_name,
                                    int refine)
 {
@@ -511,8 +516,12 @@ void AbstractSolver::solveSteady()
    newton_solver->SetMaxIter(nmaxiter);
    newton_solver->SetPrintLevel(nptl);
    std::cout << "Newton solver is set.\n";
+   clock_t start_t = clock();
    mfem::Vector b;
    newton_solver->Mult(b, *uc);
+   clock_t end_t = clock();
+   double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+   cout << "Time for solve the nonlinear prroblem: " << total_t << '\n';
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
 
    // // Get the PetscSolver option
@@ -613,7 +622,11 @@ void AbstractSolver::solveSteady()
    // newton_solver->Mult(b, *u);
    // MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    // u->SetFromTrueDofs(u_true);
+   clock_t start_t = clock();
    newton_solver->Mult(b, *uc);
+   clock_t end_t = clock();
+   double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+   cout << "Time for solve the nonlinear prroblem: " << total_t << '\n';
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
 #endif
 }
