@@ -103,6 +103,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    }
    else if (basis_type == "nedelec")
    {
+      // mesh->ReorientTetMesh();
       fec.reset(new ND_FECollection(fe_order, dim));
    }
 }
@@ -228,7 +229,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 
    /// TODO: change this to use options
    /// If it is higher order change shape
-   // if (order > 1){
+   // int order = options["space-dis"]["degree"].template get<int>();
+   // if (order > 1)
+   // {
    //     crv::BezierCurver bc(pumi_mesh, order, 2);
    //     bc.run();
    // }

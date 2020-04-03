@@ -47,6 +47,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	dim = mesh->SpaceDimension();
 	num_state = dim;
 	mesh->ReorientTetMesh();
+   mesh->RemoveInternalBoundaries();
 	int fe_order = options["space-dis"]["degree"].get<int>();
 
 	/// Create the H(Curl) finite element collection
@@ -202,54 +203,58 @@ MagnetostaticSolver::MagnetostaticSolver(
 
 void MagnetostaticSolver::solveSteady()
 {
-	newton_solver.Mult(*current_vec, *A);
-	MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
+   newton_solver.Mult(*current_vec, *A);
+   MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge.");
 
-	computeSecondaryFields();
+   computeSecondaryFields();
 
-	// TODO: Print mesh out in another function?
-   ofstream sol_ofs("motor_mesh_2.vtk");
+   // TODO: Print mesh out in another function?
+   int fe_order = options["space-dis"]["degree"].get<int>();
+
+   auto out_file = options["mesh"]["out-file"].get<std::string>();
+   std::cout << "mesh outfile: " << out_file << "\n";
+   ofstream sol_ofs(out_file.c_str());
    sol_ofs.precision(14);
-   mesh->PrintVTK(sol_ofs, 1);
-   A->SaveVTK(sol_ofs, "A_Field", 1);
-	B->SaveVTK(sol_ofs, "B_Field", 1);
-	B_dual->SaveVTK(sol_ofs, "B_dual", 1);
-	GridFunType J(h_div_space.get());
-	J.ProjectCoefficient(*current_coeff);
-	J.SaveVTK(sol_ofs, "J_Field", 1);
-	GridFunType Nu(l2_space.get());
-	Nu.ProjectCoefficient(*nu);
-	Nu.SaveVTK(sol_ofs, "Nu", 1);
-   M->SaveVTK(sol_ofs, "Mag_Field", 1);
+   mesh->PrintVTK(sol_ofs, fe_order);
+   A->SaveVTK(sol_ofs, "A_Field", fe_order);
+   B->SaveVTK(sol_ofs, "B_Field", fe_order);
+   //B_dual->SaveVTK(sol_ofs, "B_dual", 1);
+   GridFunType J(h_div_space.get());
+   J.ProjectCoefficient(*current_coeff);
+   J.SaveVTK(sol_ofs, "J_Field", fe_order);
+   GridFunType Nu(l2_space.get());
+   Nu.ProjectCoefficient(*nu);
+   Nu.SaveVTK(sol_ofs, "Nu", fe_order);
+   //M->SaveVTK(sol_ofs, "Mag_Field", 1);
    // current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
-   div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", 1);
+   div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", fe_order);
    sol_ofs.close();
-	std::cout << "finish steady solve\n";
+   std::cout << "finish steady solve\n";
 
-	// VectorFunctionCoefficient A_exact(3, a_exact);
-	// VectorFunctionCoefficient B_exact(3, b_exact);
+   // VectorFunctionCoefficient A_exact(3, a_exact);
+   // VectorFunctionCoefficient B_exact(3, b_exact);
 
-	// GridFunType A_ex(h_curl_space.get());
-	// A_ex.ProjectCoefficient(A_exact);
-	
-	// GridFunType B_ex(h_div_space.get());
-	// B_ex.ProjectCoefficient(B_exact);
+   // GridFunType A_ex(h_curl_space.get());
+   // A_ex.ProjectCoefficient(A_exact);
 
-	// GridFunType J(h_div_space.get());
-	// J.ProjectCoefficient(*current_coeff);
+   // GridFunType B_ex(h_div_space.get());
+   // B_ex.ProjectCoefficient(B_exact);
 
-	// std::cout << "A error: " << calcL2Error(A.get(), a_exact);
-	// std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
+   // GridFunType J(h_div_space.get());
+   // J.ProjectCoefficient(*current_coeff);
 
-	// auto out_file = options["mesh"]["out-file"].get<std::string>();
+   // std::cout << "A error: " << calcL2Error(A.get(), a_exact);
+   // std::cout << " B error: " << calcL2Error(B.get(), b_exact) << "\n";
 
-	/// TODO: this function seems super slow
-	// printFields(out_file,
-	// 				{A.get(), B.get(), &A_ex, &B_ex, &J},
-	//             {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
-	// printFields(out_file,
-	// 				{A.get(), B.get(), &J},
-	//             {"A_Field", "B_Field", "current"});
+   // auto out_file = options["mesh"]["out-file"].get<std::string>();
+
+   /// TODO: this function seems super slow
+   // printFields(out_file,
+   // 				{A.get(), B.get(), &A_ex, &B_ex, &J},
+   //             {"A_Field", "B_Field", "A_Exact", "B_exact", "current"});
+   // printFields(out_file,
+   // 				{A.get(), B.get(), &J},
+   //             {"A_Field", "B_Field", "current"});
 
 }
 
