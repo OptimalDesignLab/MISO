@@ -176,6 +176,91 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
    }
 }
 
+TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
+                       ((int dim), dim), 1, 2, 3)
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   mfem::Vector qL(dim + 2);
+   mfem::Vector qR(dim + 2);
+   mfem::Vector wL(dim + 2);
+   mfem::Vector wR(dim + 2);
+   mfem::Vector flux(dim + 2);
+   mfem::Vector flux_plus(dim + 2);
+   mfem::Vector flux_minus(dim + 2);
+   mfem::Vector v(dim + 2);
+   mfem::Vector jac_v(dim + 2);
+   mfem::DenseMatrix jacL(dim + 2, 2 * (dim + 2));
+   mfem::DenseMatrix jacR(dim + 2, 2 * (dim + 2));
+   double delta = 1e-5;
+   qL(0) = rho;
+   qL(dim + 1) = rhoe;
+   qR(0) = rho2;
+   qR(dim + 1) = rhoe2;
+   for (int di = 0; di < dim; ++di)
+   {
+      qL(di + 1) = rhou[di];
+      qR(di + 1) = rhou2[di];
+   }
+   mach::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
+   mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+   // create perturbation vector
+   for (int di = 0; di < dim + 2; ++di)
+   {
+      v(di) = vec_pert[di];
+   }
+   // perturbed vectors
+   mfem::Vector wL_plus(wL), wL_minus(wL);
+   mfem::Vector wR_plus(wR), wR_minus(wR);
+   adept::Stack diff_stack;
+   mach::IsmailRoeIntegrator<dim,true> ismailinteg(diff_stack);
+   // +ve perturbation
+   wL_plus.Add(delta, v);
+   wR_plus.Add(delta, v);
+   // -ve perturbation
+   wL_minus.Add(-delta, v);
+   wR_minus.Add(-delta, v);
+   for (int di = 0; di < dim; ++di)
+   {
+      DYNAMIC_SECTION("Ismail-Roe flux jacismailintegian is correct w.r.t left state ")
+      {
+         // get perturbed states flux vector
+         ismailinteg.calcFlux(di, wL_plus, wR, flux_plus);
+         ismailinteg.calcFlux(di, wL_minus, wR, flux_minus);
+         // compute the jacobian
+         ismailinteg.calcFluxJacStates(di, wL, wR, jacL, jacR);
+         jacL.Mult(v, jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0 * delta;
+         // compare each component of the matrix-vector products
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+         }
+      }
+      DYNAMIC_SECTION("Ismail-Roe flux jacismailintegian is correct w.r.t right state ")
+      {
+         // get perturbed states flux vector
+         ismailinteg.calcFlux(di, wL, wR_plus, flux_plus);
+         ismailinteg.calcFlux(di, wL, wR_minus, flux_minus);
+         // compute the jacobian
+         ismailinteg.calcFluxJacStates(di, wL, wR, jacL, jacR);
+         jacR.Mult(v, jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0 * delta;
+         // compare each component of the matrix-vector products
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+         }
+      }
+   }
+}
+
 TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
                        ((int dim), dim), 1, 2, 3)
 {
@@ -939,7 +1024,9 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
    }
 }
 
-TEST_CASE("DyadicFluxIntegrator::AssembleElementGrad", "[DyadicIntegrator]")
+TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
+                       "[DyadicIntegrator]",
+                       ((bool entvar), entvar), false, true)
 {
    using namespace mfem;
    using namespace euler_data;
@@ -963,11 +1050,12 @@ TEST_CASE("DyadicFluxIntegrator::AssembleElementGrad", "[DyadicIntegrator]")
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::IsmailRoeIntegrator<2>(diff_stack));
+         res.AddDomainIntegrator(
+            new mach::IsmailRoeIntegrator<2,entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<2,entvar>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
@@ -1137,7 +1225,9 @@ TEST_CASE("InviscidFaceIntegrator::AssembleFaceGrad", "[InterfaceIntegrator]")
    } // loop different order of elements
 }
 
-TEST_CASE("EntStableLPSIntegrator::AssembleElementGrad", "[LPSIntegrator]")
+TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad",
+                       "[LPSIntegrator]",
+                       ((bool entvar), entvar), false, true)
 {
    using namespace mfem;
    using namespace euler_data;
@@ -1161,11 +1251,12 @@ TEST_CASE("EntStableLPSIntegrator::AssembleElementGrad", "[LPSIntegrator]")
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::EntStableLPSIntegrator<2>(diff_stack));
+         res.AddDomainIntegrator(
+             new mach::EntStableLPSIntegrator<2, entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
@@ -1234,233 +1325,3 @@ TEST_CASE("EntStableLPSIntegrator::AssembleElementGrad", "[LPSIntegrator]")
       }
    }
 }
-
-// append from test_euler_flux
-// TEST_CASE( "Log-average is correct", "[log-avg]")
-// {
-//    using namespace euler_data;
-//    REQUIRE( mach::logavg(rho, rho) == Approx(rho) );
-//    REQUIRE( mach::logavg(rho, 2.0*rho) == Approx(1.422001977589051) );
-// }
-
-// TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
-//                        "[euler]", ((int dim), dim), 1, 2, 3)
-// {
-//    using namespace euler_data;
-//    // copy the data into mfem vectors for convenience 
-//    mfem::Vector q(dim+2);
-//    mfem::Vector qR(dim+2);
-//    mfem::Vector flux(dim+2);
-//    mfem::Vector nrm(dim);
-//    mfem::Vector work(dim+2);
-//    q(0) = rho;
-//    q(dim+1) = rhoe;
-//    qR(0) = rho2;
-//    qR(dim+1) = rhoe2;
-//    for (int di = 0; di < dim; ++di)
-//    {
-//       q(di+1) = rhou[di];
-//       qR(di+1) = rhou2[di];
-//       nrm(di) = dir[di];
-//    }
-
-//    SECTION( "Pressure function is correct" )
-//    {
-//       REQUIRE( mach::pressure<double,dim>(q.GetData()) == 
-//                Approx(press_check[dim-1]) );
-//    }
-
-//    SECTION( "Spectral radius of flux Jacobian is correct" )
-//    {
-//       REQUIRE(mach::calcSpectralRadius<double, dim>(nrm.GetData(), q.GetData()) == Approx(spect_check[dim - 1]));
-//    }
-
-//    SECTION( "Euler flux is correct" )
-//    {
-//       // Load the data to test the Euler flux; the pointer arithmetic in the 
-//       // following constructor is to find the appropriate offset
-//       int offset = div((dim+1)*(dim+2),2).quot - 3;
-//       mfem::Vector flux_vec(flux_check + offset, dim + 2);
-//       mach::calcEulerFlux<double,dim>(nrm.GetData(), q.GetData(), flux.GetData());
-//       for (int i = 0; i < dim+2; ++i)
-//       {
-//          REQUIRE( flux(i) == Approx(flux_vec(i)) );
-//       }
-//    }  
-   
-//    // load the data to test the IR flux function into an mfem DenseMatrix
-//    // TODO: I could not find an elegant way to do this
-//    mfem::DenseMatrix fluxIR_check;
-//    if (dim == 1)
-//    {
-//       fluxIR_check.Reset(fluxIR_1D_check, dim+2, dim);
-//    }
-//    else if (dim == 2)
-//    {
-//       fluxIR_check.Reset(fluxIR_2D_check, dim+2, dim);
-//    }
-//    else 
-//    {
-//       fluxIR_check.Reset(fluxIR_3D_check, dim+2, dim);
-//    }
-//    for (int di = 0; di < dim; ++di)
-//    {
-//       DYNAMIC_SECTION( "Ismail-Roe flux is correct in direction " << di )
-//       {
-//          mach::calcIsmailRoeFlux<double,dim>(di, q.GetData(), qR.GetData(),
-//                                              flux.GetData());
-//          for (int i = 0; i < dim+2; ++i)
-//          {
-//             REQUIRE( flux(i) == Approx(fluxIR_check(i,di)) );
-//          }
-//       }
-//    }
-
-//    SECTION( "Ismail-Roe face flux is correct in given direction" )
-//    {
-//       // get flux from function
-//       mach::calcIsmailRoeFaceFlux<double, dim>(nrm.GetData(), q.GetData(),
-//                                                qR.GetData(), flux.GetData());
-//       for (int i = 0; i < dim+2; ++i)
-//       {
-//          // get true flux by scaling fluxIR_check data
-//          double fluxIR = 0.0;
-//          for (int di = 0; di < dim; ++di)
-//          {
-//             fluxIR += fluxIR_check(i,di)*nrm(di);
-//          }
-//          REQUIRE( flux(i) == Approx(fluxIR) );
-//       }
-//    }
-
-//    SECTION( "Entropy variables are correct" )
-//    {
-//       // Load the data to test the entropy variables; the pointer arithmetic in
-//       // the following constructor is to find the appropriate offset
-//       int offset = div((dim+1)*(dim+2),2).quot - 3;
-//       mfem::Vector entvar_vec(entvar_check + offset, dim + 2);
-//       mach::calcEntropyVars<double,dim>(q.GetData(), qR.GetData());
-//       for (int i = 0; i < dim+2; ++i)
-//       {
-//          REQUIRE( qR(i) == Approx(entvar_vec(i)) );
-//       }
-//    }
-
-//    SECTION( "dQ/dW * vec product is correct" )
-//    {
-//       // Load the data to test the dQ/dW * vec product; the pointer arithmetic
-//       // in the following constructor is to find the appropriate offset
-//       int offset = div((dim+1)*(dim+2),2).quot - 3;
-//       mfem::Vector dqdw_prod(dqdw_prod_check + offset, dim+2);
-//       mach::calcdQdWProduct<double, dim>(q.GetData(), qR.GetData(),
-//                                          flux.GetData());
-//       for (int i = 0; i < dim+2; ++i)
-//       {
-//          REQUIRE( flux(i) == Approx(dqdw_prod(i)) );
-//       }
-//    }
-
-//    SECTION( "Boundary flux is consistent" )
-//    {
-//       // Load the data to test the boundary flux; this only tests that the
-//       // boundary flux agrees with the Euler flux when given the same states.
-//       // The pointer arithmetic in the following constructor is to find the
-//       // appropriate offset
-//       int offset = div((dim+1)*(dim+2),2).quot - 3;
-//       mfem::Vector flux_vec(flux_check + offset, dim + 2);
-//       mach::calcBoundaryFlux<double,dim>(nrm.GetData(), q.GetData(),
-//                                          q.GetData(), work.GetData(),
-//                                          flux.GetData());
-//       for (int i = 0; i < dim+2; ++i)
-//       {
-//          REQUIRE( flux(i) == Approx(flux_vec(i)) );
-//       }
-//    }
-
-//    SECTION( "projectStateOntoWall removes normal component" )
-//    {
-//       // In this test case, the wall normal is set proportional to the momentum,
-//       // so the momentum should come back as zero
-//       mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
-//                                              flux.GetData());
-//       REQUIRE( flux(0) == Approx(q(0)) );
-//       for (int i = 0; i < dim; ++i)
-//       {
-//          REQUIRE( flux(i+1) == Approx(0.0).margin(abs_tol) );
-//       }
-//       REQUIRE( flux(dim+1) == Approx(q(dim+1)) );      
-//    }
-
-//    SECTION( "calcSlipWallFlux is correct" )
-//    {
-//       // As above with projectStateOntoWall, the wall normal is set
-//       // proportional to the momentum, so the flux will be zero, except for the
-//       // term flux[1:dim] = pressure*dir[0:dim-1]
-//       mfem::Vector x(dim);
-//       mach::calcSlipWallFlux<double,dim>(x.GetData(), q.GetData()+1,
-//                                          q.GetData(), flux.GetData());
-//       mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
-//                                              work.GetData());
-//       double press = mach::pressure<double,dim>(work.GetData());
-//       REQUIRE( flux(0) == Approx(0.0).margin(abs_tol) );
-//       for (int i = 0; i < dim; ++i)
-//       {
-//          REQUIRE( flux(i+1) == Approx(press*q(i+1)) );
-//       }
-//       REQUIRE( flux(dim+1) == Approx(0.0).margin(abs_tol) );
-//    }
-
-// }
-
-// TEST_CASE( "calcBoundaryFlux is correct", "[bndry-flux]")
-// {
-//    using namespace euler_data;
-//    // copy the data into mfem vectors
-//    mfem::Vector q(4);
-//    mfem::Vector flux(4);
-//    mfem::Vector qbnd(4);
-//    mfem::Vector work(4);
-//    mfem::Vector nrm(2);
-//    q(0) = rho;
-//    q(3) = rhoe;
-//    qbnd(0) = rho2;
-//    qbnd(3) = rhoe2;
-//    for (int di = 0; di < 2; ++di)
-//    {
-//       q(di+1) = rhou[di];
-//       qbnd(di+1) = rhou2[di];
-//       nrm(di) = dir[di];
-//    }
-//    mach::calcBoundaryFlux<double,2>(nrm.GetData(), qbnd.GetData(), q.GetData(),
-//                                     work.GetData(), flux.GetData());
-//    for (int i = 0; i < 4; ++i)
-//    {
-//       REQUIRE( flux(i) == Approx(flux_bnd_check[i]) );
-//    }
-// }
-
-// TEST_CASE( "calcIsentropicVortexFlux is correct", "[vortex-flux]")
-// {
-//    using namespace euler_data;
-//    // copy the data into mfem vectors for convenience 
-//    mfem::Vector q(4);
-//    mfem::Vector flux(4);
-//    mfem::Vector flux2(4);
-//    mfem::Vector x(2);
-//    mfem::Vector nrm(2);
-//    // set location where we want to evaluate the flux
-//    x(0) = cos(M_PI*0.25);
-//    x(1) = sin(M_PI*0.25);
-//    for (int di = 0; di < 2; ++di)
-//    {
-//       nrm(di) = dir[di];
-//    }
-//    mach::calcIsentropicVortexState<double>(x.GetData(), q.GetData());
-//    mach::calcIsentropicVortexFlux<double>(x.GetData(), nrm.GetData(),
-//                                           q.GetData(), flux.GetData());
-//    mach::calcEulerFlux<double,2>(nrm.GetData(), q.GetData(), flux2.GetData());
-//    for (int i = 0; i < 4; ++i)
-//    {
-//       REQUIRE( flux(i) == Approx(flux2(i)) );
-//    }
-// }

@@ -81,6 +81,19 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
             REQUIRE( flux(i) == Approx(fluxIR_check(i,di)) );
          }
       }
+      DYNAMIC_SECTION( "Ismail-Roe flux (based on entropy vars) is correct in direction " << di )
+      {
+         mfem::Vector wL(dim + 2), wR(dim + 2);
+         mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
+         mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+         mach::calcIsmailRoeFluxUsingEntVars<double, dim>(di, wL.GetData(),
+                                                          wR.GetData(),
+                                                          flux.GetData());
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(flux(i) == Approx(fluxIR_check(i, di)));
+         }
+      }
    }
 
    SECTION( "Ismail-Roe face flux is correct in given direction" )
@@ -100,7 +113,27 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       }
    }
 
-   SECTION( "Entropy variables are correct" )
+   SECTION( "Ismail-Roe face flux (based on entropy vars) is correct in given direction" )
+   {
+      // get flux from function
+      mfem::Vector wL(dim+2), wR(dim+2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
+      mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+      mach::calcIsmailRoeFaceFluxUsingEntVars<double, dim>(nrm.GetData(), wL.GetData(),
+                                               wR.GetData(), flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         // get true flux by scaling fluxIR_check data
+         double fluxIR = 0.0;
+         for (int di = 0; di < dim; ++di)
+         {
+            fluxIR += fluxIR_check(i,di)*nrm(di);
+         }
+         REQUIRE( flux(i) == Approx(fluxIR) );
+      }
+   }
+
+   SECTION( "Entropy variable conversion is correct" )
    {
       // Load the data to test the entropy variables; the pointer arithmetic in
       // the following constructor is to find the appropriate offset
@@ -110,6 +143,19 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       for (int i = 0; i < dim+2; ++i)
       {
          REQUIRE( qR(i) == Approx(entvar_vec(i)) );
+      }
+   }
+
+   SECTION( "Conservative variable conversion is correct" )
+   {
+      // Load the data to test the entropy variables; the pointer arithmetic in
+      // the following constructor is to find the appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector w(entvar_check + offset, dim + 2);
+      mach::calcConservativeVars<double,dim>(w.GetData(), qR.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( qR(i) == Approx(q(i)) );
       }
    }
 
@@ -144,6 +190,42 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       }
    }
 
+   SECTION( "Far-field flux is consistent" )
+   {
+      // Load the data to test the far-field flux; this only tests that the
+      // flux agrees with the Euler flux when given the same states.
+      // The pointer arithmetic in the following constructor is to find the
+      // appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mach::calcFarFieldFlux<double, dim>(nrm.GetData(), q.GetData(),
+                                          q.GetData(), work.GetData(),
+                                          flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)) );
+      }
+   }
+
+   SECTION( "Far-field flux is consistent when states are entropy vars" )
+   {
+      // Load the data to test the far-field flux; this only tests that the
+      // flux agrees with the Euler flux when given the same states.
+      // The pointer arithmetic in the following constructor is to find the
+      // appropriate offset
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mfem::Vector w(dim+2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      mach::calcFarFieldFlux<double, dim, true>(nrm.GetData(), q.GetData(),
+                                                w.GetData(), work.GetData(),
+                                                flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)) );
+      }
+   }
+
    SECTION( "projectStateOntoWall removes normal component" )
    {
       // In this test case, the wall normal is set proportional to the momentum,
@@ -169,6 +251,25 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       //mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
       //                                       work.GetData());
       //double press = mach::pressure<double,dim>(work.GetData());
+      double press = mach::pressure<double,dim>(q.GetData());
+      REQUIRE( flux(0) == Approx(0.0).margin(abs_tol) );
+      for (int i = 0; i < dim; ++i)
+      {
+         REQUIRE( flux(i+1) == Approx(press*q(i+1)) );
+      }
+      REQUIRE( flux(dim+1) == Approx(0.0).margin(abs_tol) );
+   }
+
+   SECTION( "calcSlipWallFlux is correct when using entropy variables" )
+   {
+      // As above with projectStateOntoWall, the wall normal is set
+      // proportional to the momentum, so the flux will be zero, except for the
+      // term flux[1:dim] = pressure*dir[0:dim-1]
+      mfem::Vector x(dim);
+      mfem::Vector w(dim + 2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      mach::calcSlipWallFlux<double, dim, true>(x.GetData(), q.GetData() + 1,
+                                                w.GetData(), flux.GetData());
       double press = mach::pressure<double,dim>(q.GetData());
       REQUIRE( flux(0) == Approx(0.0).margin(abs_tol) );
       for (int i = 0; i < dim; ++i)
