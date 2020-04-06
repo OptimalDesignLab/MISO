@@ -382,12 +382,14 @@ void AbstractSolver::solveForState()
 
 void AbstractSolver::solveSteady()
 {
+
+#ifdef MFEM_USE_MPI
    double t1, t2;
    if (0==rank)
    {
       t1 = MPI_Wtime();
    }
-#ifdef MFEM_USE_PETSC   
+#ifdef MFEM_USE_PETSC
    // Get the PetscSolver option
    *out << "Petsc solver with lu preconditioner.\n";
    double abstol = options["petscsolver"]["abstol"].get<double>();
@@ -404,6 +406,7 @@ void AbstractSolver::solveSteady()
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
    std::cout << "Petsc Solver set.\n";
+   
    //Get the newton solver options
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
@@ -457,12 +460,38 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b,  u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
-#endif
+#endif // MFEM_USE_PETSC
    if (0==rank)
    {
       t2 = MPI_Wtime();
       cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
    }
+#else
+   solver.reset(new UMFPackSolver());
+   dynamic_cast<UMFPackSolver*>(solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   dynamic_cast<UMFPackSolver*>(solver.get())->SetPrintLevel(2);
+   //Get the newton solver options
+   double nabstol = options["newton"]["abstol"].get<double>();
+   double nreltol = options["newton"]["reltol"].get<double>();
+   int nmaxiter = options["newton"]["maxiter"].get<int>();
+   int nptl = options["newton"]["printlevel"].get<int>();
+   newton_solver.reset(new mfem::NewtonSolver());
+   newton_solver->iterative_mode = true;
+   newton_solver->SetSolver(*solver);
+   newton_solver->SetOperator(*res);
+   newton_solver->SetAbsTol(nabstol);
+   newton_solver->SetRelTol(nreltol);
+   newton_solver->SetMaxIter(nmaxiter);
+   newton_solver->SetPrintLevel(nptl);
+   std::cout << "Newton solver is set.\n";
+   // Solve the nonlinear problem with r.h.s at 0
+   mfem::Vector b;
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
+   newton_solver->Mult(b, u_true);
+   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   u->SetFromTrueDofs(u_true);
+#endif // MFEM_USE_MPI
 }
 
 void AbstractSolver::solveUnsteady()
