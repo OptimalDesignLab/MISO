@@ -74,20 +74,16 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
-   if (options["GD"]["degree"].get<int>() >= 0)
+   if (options["space-dis"]["GD"].get<bool>() == true || 
+       options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
                                    dim));
    }
-   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   else if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
                                   dim));
-   }
-   else
-   {
-      fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
-                                   dim));
    }
 }
 
@@ -485,7 +481,14 @@ void AbstractSolver::solveForState()
 void AbstractSolver::solveSteady()
 {
 #ifdef MFEM_USE_MPI
+   double t1, t2;
+   if (0==rank)
+   {
+      t1 = MPI_Wtime();
+   }
 #ifdef MFEM_USE_PETSC
+   // Get the PetscSolver option
+   *out << "Petsc solver with lu preconditioner.\n";
    // Currently need to use serial GMRES solver
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
@@ -596,12 +599,10 @@ void AbstractSolver::solveSteady()
 #endif
 #else
    // serial
-   // linear solver
    cout << "Solve the gd problem in serial.\n";
    solver.reset(new UMFPackSolver());
    dynamic_cast<UMFPackSolver *>(solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    dynamic_cast<UMFPackSolver *>(solver.get())->SetPrintLevel(1);
-
    // newton solver
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
@@ -629,6 +630,11 @@ void AbstractSolver::solveSteady()
    cout << "Time for solve the nonlinear prroblem: " << total_t << "s.\n";
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
 #endif
+   if (0==rank)
+   {
+      t2 = MPI_Wtime();
+      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
 }
 
 void AbstractSolver::solveUnsteady()

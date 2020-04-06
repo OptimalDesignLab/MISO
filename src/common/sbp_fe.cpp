@@ -940,13 +940,12 @@ const FiniteElement *SBPCollection::FiniteElementForGeometry(
 {
    if (GeomType == Geometry::TRIANGLE || GeomType == Geometry::SEGMENT || GeomType == Geometry::POINT)
    {
-
+      return SBPElements[GeomType]; 
    }
    else
    {
       MFEM_ABORT("Unsupported geometry type " << GeomType);
-   }
-   return SBPElements[GeomType]; 
+   }  
 }
 
 const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
@@ -1000,7 +999,7 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
       int revNodeOrder0[] = {};
       int revNodeOrder1[1] = {0};
       int revNodeOrder2[2] = {1, 0};
-      int revNodeOrder3[3] = {1, 0, 2};    // {0, 2, 1};
+      int revNodeOrder3[3] = {0, 2, 1}; //{1, 0, 2};    // {0, 2, 1};
       int revNodeOrder4[4] = {1, 0, 3, 2};    // {1, 0, 3, 2};
       // set the dof order
       switch (p)
@@ -1055,8 +1054,6 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
             break;
 
       }
-      DSBPElements[Geometry::SEGMENT] = new SBPSegmentElement(p);
-      Tr_SBPElements[Geometry::POINT] = new PointFiniteElement;
    }
 
    // two dimensional sbp triangle element
@@ -1086,6 +1083,7 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
       const int &TriDof = DSBPdof[Geometry::TRIANGLE] + 3*DSBPdof[Geometry::POINT]
           + 3*DSBPdof[Geometry::SEGMENT];
       DSBPElements[Geometry::TRIANGLE] = new SBPTriangleElement(p, TriDof);
+      Tr_SBPElements[Geometry::SEGMENT] = new SBPSegmentElement(p);
    }
 }
 

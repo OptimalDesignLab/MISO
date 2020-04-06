@@ -83,7 +83,6 @@ set_target_properties(mach
       CXX_EXTENSIONS OFF
       POSITION_INDEPENDENT_CODE ON
 )
-
 set(DEBUG_OPTIONS
    "-g"
    -Wall

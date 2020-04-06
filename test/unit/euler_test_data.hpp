@@ -61,11 +61,13 @@ extern double adjJ_data[9];
 
 // Use this for spatial derivatives of entropy-variables
 extern double delw_data[15];
+
 /// Returns a perturbed version of the baseline flow state
 /// \param[in] x - coordinates (not used)
 /// \param[out] u - pertrubed state variable
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <int dim>
+/// \tparam entvar - if true, returns entropy variables
+template <int dim, bool entvar = false>
 void randBaselinePert(const mfem::Vector &x, mfem::Vector &u);
 
 /// Returns a random state with entries uniformly distributed in [-1,1]
