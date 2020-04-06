@@ -415,7 +415,7 @@ double AbstractSolver::calcResidualNorm()
    // r.Print(cout, 4);
    res_norm = r * r;
 #else
-   res->Mult(*u, r);
+   res->Mult(*uc, r);
    res_norm = r * r;
 #endif
    res_norm = sqrt(res_norm);
@@ -521,7 +521,7 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b, *uc);
    clock_t end_t = clock();
    double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-   cout << "Time for solve the nonlinear prroblem: " << total_t << '\n';
+   cout << "Time for solve the nonlinear prroblem: " << total_t << "s.\n";
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
 
    // // Get the PetscSolver option
@@ -626,7 +626,7 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b, *uc);
    clock_t end_t = clock();
    double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-   cout << "Time for solve the nonlinear prroblem: " << total_t << '\n';
+   cout << "Time for solve the nonlinear prroblem: " << total_t << "s.\n";
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
 #endif
 }

@@ -332,7 +332,7 @@ void GalerkinDifference::BuildGDProlongation() const
       cout << "Element " << i << ": ";
       // 1. construct the patch the patch
       // have more elements than required to make it a underdetermined system
-      // if( i%64 == 0)
+      // if( i%32 == 0)
       // {
       //    degree_actual = degree+1;
       //    nelmt = (degree_actual+1) * (degree_actual+2) / 2;
@@ -356,7 +356,7 @@ void GalerkinDifference::BuildGDProlongation() const
       // cout << endl;
 
       // 3. buil the loacl reconstruction matrix
-      buildInterpolation(dim, degree, num_dofs, cent_mat, quad_mat, local_mat);
+      buildLSInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
       // cout << "Local reconstruction matrix R:\n";
       // local_mat.Print(cout, local_mat.Width());
 

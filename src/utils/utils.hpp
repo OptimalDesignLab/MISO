@@ -102,7 +102,7 @@ public:
 using oblackholestream = basic_oblackholestream<char,std::char_traits<char> >;
 static oblackholestream obj;
 
-static std::ostream *getOutStream(int rank) 
+static std::ostream *getOutStream(int rank)
 {
    /// print only on root
    if (0==rank)
@@ -136,6 +136,11 @@ double bisection(std::function<double(double)> func, double xl, double xr,
 void buildInterpolation(int dim, int degree, int output,
    const mfem::DenseMatrix &x_center, const mfem::DenseMatrix &x_quad,
    mfem::DenseMatrix &interp);
+
+void buildLSInterpolation(int dim, int degree,
+                          const mfem::DenseMatrix &x_center,
+                          const mfem::DenseMatrix &x_quad,
+                          mfem::DenseMatrix &interp);
 #endif
 
 } // namespace mach
