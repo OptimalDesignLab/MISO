@@ -124,11 +124,11 @@ MagnetostaticSolver::MagnetostaticSolver(
 	///       but need to verify that that is mathematically corrent based on
 	///       the limit of the Jacobian as B goes to zero.
 	/// Construct magnetization coefficient
-	// constructMagnetization();
+	constructMagnetization();
 
 	/// add magnetization integrator to residual
 	// res->AddDomainIntegrator(new MagnetizationIntegrator(nu.get(), mag_coeff.get(), -1.0));
-	// assembleMagnetizationSource();
+	assembleMagnetizationSource();
 
 	/// apply zero tangential boundary condition everywhere
 	ess_bdr.SetSize(mesh->bdr_attributes.Max());
@@ -175,6 +175,7 @@ MagnetostaticSolver::MagnetostaticSolver(
    solver->SetPrintLevel(options["lin-solver"]["printlevel"].get<int>());
 	std::cout << "set print\n";
    solver->SetPreconditioner(*prec);
+   solver->SetKDim(100);
 #else
 	#ifdef MFEM_USE_SUITESPARSE
 	prec = NULL;
@@ -225,9 +226,9 @@ void MagnetostaticSolver::solveSteady()
    GridFunType Nu(l2_space.get());
    Nu.ProjectCoefficient(*nu);
    Nu.SaveVTK(sol_ofs, "Nu", fe_order);
-   //M->SaveVTK(sol_ofs, "Mag_Field", 1);
+   M->SaveVTK(sol_ofs, "Mag_Field", fe_order);
    // current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
-   div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", fe_order);
+   // div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", fe_order);
    sol_ofs.close();
    std::cout << "finish steady solve\n";
 
@@ -434,9 +435,9 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
    weakCurlMuInv_->Finalize();
 
    M->ProjectCoefficient(*mag_coeff);
-   weakCurlMuInv_->AddMult(*M, *current_vec, mu_0);
+   weakCurlMuInv_->AddMult(*M, *current_vec, 1.0);
 
-	delete weakCurlMuInv_;
+   delete weakCurlMuInv_;
 }
 
 void MagnetostaticSolver::computeSecondaryFields()
@@ -612,11 +613,17 @@ void MagnetostaticSolver::phase_b_source(const Vector &x,
 void MagnetostaticSolver::phase_c_source(const Vector &x,
                                          Vector &J)
 {
-	// J = 0.0;
+   J.SetSize(3);
+   J = 0.0;
 
-	J.SetSize(3);
-	J = 0.0;
-	J(2) = current_density;
+   // J(2) = current_density;
+
+   Vector r = x;
+   r(2) = 0.0;
+   r /= r.Norml2();
+   J(0) = -r(1);
+   J(1) = r(0);
+   J *= current_density;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -634,11 +641,14 @@ void MagnetostaticSolver::magnetization_source_north(const Vector &x,
 void MagnetostaticSolver::magnetization_source_south(const Vector &x,
                           		 					        Vector &M)
 {
-	Vector plane_vec = x;
-	plane_vec(2) = 0;
-	M = plane_vec;
-	M /= M.Norml2();
-	M *= -remnant_flux;
+	// Vector plane_vec = x;
+	// plane_vec(2) = 0;
+	// M = plane_vec;
+	// M /= M.Norml2();
+	// M *= -remnant_flux;
+
+	M = 0.0;
+	M(2) = remnant_flux;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem

@@ -145,7 +145,7 @@ nlohmann::json material_library
 	}},
 	{"NdFeB",
 	{
-		{"mu_r", 1.05},
+		{"mu_r", 1.0},
 		{"B_r", 1}
 	}},
 	{"air",
