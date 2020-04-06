@@ -326,17 +326,20 @@ void GalerkinDifference::BuildGDProlongation() const
    mfem::Array<int> elmt_id;
    mfem::DenseMatrix cent_mat, quad_mat, local_mat;
    cout << "The size of the prolongation matrix is " << cP->Height() << " x " << cP->Width() << '\n';
+   //int degree_actual;
    for (int i = 0; i < nEle; i++)
    {
       cout << "Element " << i << ": ";
       // 1. construct the patch the patch
       // have more elements than required to make it a underdetermined system
-      // if( i%32 == 0)
+      // if( i%64 == 0)
       // {
-      //    nelmt = (degree+3) * (degree+4) / 2;
+      //    degree_actual = degree+1;
+      //    nelmt = (degree_actual+1) * (degree_actual+2) / 2;
       // }
       // else
       // {
+      //    degree_actual = degree;
       //    nelmt = (degree+1) * (degree+2) / 2;
       // }
       GetNeighbourSet(i, nelmt, elmt_id);
