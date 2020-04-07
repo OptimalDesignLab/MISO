@@ -106,7 +106,9 @@ int main(int argc, char *argv[])
       //    new MagnetostaticSolver<3>(opt_file_name, nullptr));
       std::cout << "Solving..." << std::endl;
       solver.solveForState();
+      std::cout << "Solving Adjoint..." << std::endl;
       // solver->solveForState();
+      solver.solveForAdjoint(options["outputs"]["temp-agg"].get<std::string>());
       std::cout << "Solver Done" << std::endl;
 
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 

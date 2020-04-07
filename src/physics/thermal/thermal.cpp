@@ -124,9 +124,8 @@ ThermalSolver::ThermalSolver(
 	evolver.reset(new ConductionEvolver(opt_file_name, M, 
 										K, move(bs), *out));
 
-	/// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
 	rhoa = options["rho-agg"].template get<double>();
-	//double max = options["max-temp"].template get<double>();
+	// //double max = options["max-temp"].template get<double>();
 
 	/// assemble max temp array
 	max.SetSize(h_grad_space->GetMesh()->attributes.Size()+1);
@@ -137,8 +136,38 @@ ThermalSolver::ThermalSolver(
 		max(attrib) = mat_max;
 	}
 
-	/// pass through aggregation parameters for functional
+	// /// pass through aggregation parameters for functional
+	// does not include dJdu calculation, need AddOutputs for that
 	func.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));
+
+}
+
+void ThermalSolver::addOutputs()
+{
+	auto &fun = options["outputs"];
+    int idx = 0;
+    if (fun.find("temp-agg") != fun.end())
+    {
+		rhoa = options["rho-agg"].template get<double>();
+		//double max = options["max-temp"].template get<double>();
+		output.emplace("temp-agg", h_grad_space.get());
+		/// assemble max temp array
+		max.SetSize(h_grad_space->GetMesh()->attributes.Size()+1);
+		for (auto& component : options["components"])
+		{
+			double mat_max = component["max-temp"].template get<double>();
+			int attrib = component["attr"].template get<int>();
+			max(attrib) = mat_max;
+		}
+		
+		// call the second constructor of the aggregate integrator
+		output.at("temp-agg").AddDomainIntegrator(
+        	new AggregateIntegrator(h_grad_space.get(), rhoa, max, theta.get()));
+
+//		func.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));
+
+      	idx++; 
+	}
 }
 
 void ThermalSolver::solveUnsteady()
@@ -393,6 +422,43 @@ double ThermalSolver::calcL2Error(
 		sol_ofs.close();
 
     return theta->ComputeL2Error(exsol);
+}
+
+
+void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
+{
+	// only solve for state at end time
+    double time_beg, time_end;
+    if (0==rank)
+    {
+       time_beg = MPI_Wtime();
+    }
+
+	// add the dJdu output, do this now to precompute max temperature and 
+	// certain values for the functional so that we don't need it at every call
+	addOutputs();
+
+    // Step 0: allocate the adjoint variable
+    adj.reset(new GridFunType(h_grad_space.get()));
+
+	// Step 1: get the right-hand side vector, dJdu, and make an appropriate
+    // alias to it, the state, and the adjoint
+    std::unique_ptr<GridFunType> dJdu(new GridFunType(h_grad_space.get()));
+#ifdef MFEM_USE_MPI
+    HypreParVector *state = theta->GetTrueDofs();
+    HypreParVector *dJ = dJdu->GetTrueDofs();
+    HypreParVector *adjoint = adj->GetTrueDofs();
+#else
+    GridFunType *state = theta.get();
+    GridFunType *dJ = dJdu.get();
+    GridFunType *adjoint = adj.get();
+#endif
+	//mfem::Array<mfem::NonlinearFormIntegrator*>* arr = output.at(fun).GetDNFI();
+	//double unused = arr[0]->GetElementEnergy(theta.get());
+    
+	output.at(fun).Mult(*state, *dJ);
+
+
 }
 
 double ThermalSolver::InitialTemperature(const Vector &x)

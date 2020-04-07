@@ -145,6 +145,12 @@ private:
    /// Return the number of state variables
    virtual int getNumState() {return 1; }
 
+   /// implementation of solveUnsteadyAdjoint, call only after solveForState
+   virtual void solveUnsteadyAdjoint(const std::string &fun);
+
+   /// implementation of addOutputs
+   virtual void addOutputs();
+
    /// aggregation parameter
    double rhoa;
 

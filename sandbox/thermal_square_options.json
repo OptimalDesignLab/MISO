@@ -5,7 +5,8 @@
     },
     "space-dis": {
        "basis-type": "H1",
-       "degree": 1
+       "degree": 1,
+       "GD": false
     },
     "steady": false,
     "time-dis": {
@@ -41,6 +42,9 @@
         "outflux": [0, 0, 0, 0, 0, 0],
         "const": true,
         "const-val": 1
+    },
+    "outputs": {
+        "temp-agg": "temp-agg"
     },
     "rho-agg": 10,
     "max-temp": 0.1,
