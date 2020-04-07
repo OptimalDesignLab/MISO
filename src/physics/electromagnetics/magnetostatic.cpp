@@ -618,12 +618,12 @@ void MagnetostaticSolver::phase_c_source(const Vector &x,
 
    // J(2) = current_density;
 
-   Vector r = x;
-   r(2) = 0.0;
-   r /= r.Norml2();
-   J(0) = -r(1);
-   J(1) = r(0);
-   J *= current_density;
+   // Vector r = x;
+   // r(2) = 0.0;
+   // r /= r.Norml2();
+   // J(0) = -r(1);
+   // J(1) = r(0);
+   // J *= current_density;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -641,14 +641,14 @@ void MagnetostaticSolver::magnetization_source_north(const Vector &x,
 void MagnetostaticSolver::magnetization_source_south(const Vector &x,
                           		 					        Vector &M)
 {
-	// Vector plane_vec = x;
-	// plane_vec(2) = 0;
-	// M = plane_vec;
-	// M /= M.Norml2();
-	// M *= -remnant_flux;
+   Vector plane_vec = x;
+   plane_vec(2) = 0;
+   M = plane_vec;
+   M /= M.Norml2();
+   M *= -remnant_flux;
 
-	M = 0.0;
-	M(2) = remnant_flux;
+   // M = 0.0;
+   // M(2) = remnant_flux;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
