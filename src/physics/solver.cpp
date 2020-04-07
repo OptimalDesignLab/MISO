@@ -349,6 +349,21 @@ void AbstractSolver::printSolution(const std::string &file_name,
    sol_ofs.close();
 }
 
+void AbstractSolver::printAdjoint(const std::string &file_name,
+                                  int refine)
+{
+   // TODO: These mfem functions do not appear to be parallelized
+   ofstream adj_ofs(file_name + ".vtk");
+   adj_ofs.precision(14);
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].get<int>() + 1;
+   }
+   mesh->PrintVTK(adj_ofs, refine);
+   adj->SaveVTK(adj_ofs, "Adjoint", refine);
+   adj_ofs.close();
+}
+
 void AbstractSolver::printResidual(const std::string &file_name,
                                         int refine)
 {
@@ -456,7 +471,8 @@ void AbstractSolver::solveSteady()
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
    int nptl = options["newton"]["printlevel"].get<int>();
-   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   //newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver.reset(new InexactNewton(fes->GetComm()));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
    newton_solver->SetOperator(*res);
