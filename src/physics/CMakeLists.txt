@@ -14,3 +14,4 @@ target_include_directories(mach
 
 add_subdirectory(electromagnetics)
 add_subdirectory(fluidflow)
+add_subdirectory(thermal)

@@ -65,6 +65,75 @@ void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
    y *= alpha;
 }
 
+ImplicitLinearEvolver::ImplicitLinearEvolver(const std::string &opt_file_name,
+                                             MatrixType &m,
+                                             MatrixType &k, 
+                                             std::unique_ptr<LinearForm> b,
+                                             std::ostream &outstream)
+   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), 
+                                             force(move(b)), z(m.Height())
+{
+   // t = m + dt*k
+
+   // get options
+   nlohmann::json file_options;
+   ifstream opts(opt_file_name);
+   opts >> file_options;
+   options.merge_patch(file_options);
+
+	std::cout << "Setting Up Linear Solver..." << std::endl;
+   t_prec.reset(new HypreSmoother());
+   m_prec.reset(new HypreSmoother());
+#ifdef MFEM_USE_MPI
+   t_prec->SetType(HypreSmoother::Jacobi);
+   t_solver.reset(new CGSolver(stiff.GetComm()));
+   m_prec->SetType(HypreSmoother::Jacobi);
+   m_solver.reset(new CGSolver(stiff.GetComm()));
+#else
+   t_solver.reset(new CGSolver());
+   m_solver.reset(new CGSolver());
+#endif
+   // set parameters for the linear solver
+
+
+   t_solver->iterative_mode = false;
+   t_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
+   t_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
+   t_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+   t_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+   t_solver->SetPreconditioner(*t_prec);
+
+   m_solver->iterative_mode = false;
+   m_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
+   m_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
+   m_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
+   m_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
+   m_solver->SetPreconditioner(*m_prec);
+   m_solver->SetOperator(mass);
+}
+
+void ImplicitLinearEvolver::Mult(const mfem::Vector &x, mfem::Vector &k) const
+{
+   stiff.Mult(x, z);
+   z.Neg();  
+   z.Add(-1, *rhs);
+   m_solver->Mult(z, k);
+}
+
+void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
+{
+   // if (T == NULL)
+   // {
+      T = Add(1.0, mass, dt, stiff);
+      t_solver->SetOperator(*T);
+   //}
+   stiff.Mult(x, z);
+   z.Neg();  
+   z.Add(-1, *rhs);
+   t_solver->Mult(z, k); 
+   T = NULL;
+}
+
 ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
                                             NonlinearFormType &r,
                                             double a)

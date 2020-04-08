@@ -75,6 +75,59 @@ private:
    double alpha;
 };
 
+/// For implicit time marching of linear problems
+class ImplicitLinearEvolver : public mfem::TimeDependentOperator
+{
+public:
+   /// class constructor
+   /// \param[in] m - mass matrix
+   /// \param[in] k - stiffness matrix
+   /// \param[in] outstream - for output
+   ImplicitLinearEvolver(const std::string &opt_file_name, MatrixType &m, 
+                        MatrixType &k, std::unique_ptr<mfem::LinearForm> b, std::ostream &outstream);
+
+   /// Compute explicit solve, if chosen
+   virtual void Mult(const mfem::Vector &x, mfem::Vector &k) const;
+
+   /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
+   virtual void ImplicitSolve(const double dt, const mfem::Vector &x,
+                              mfem::Vector &k);
+
+   /// Implement updates to time dependent terms
+   virtual void updateParameters() { }
+
+   /// Class destructor
+   virtual ~ImplicitLinearEvolver() { }
+
+protected:
+   /// input options
+   nlohmann::json options;
+   /// linear form (time independent)
+   std::unique_ptr<mfem::LinearForm> force;
+   /// linear form (w/ time dependent terms if present)
+   std::unique_ptr<mfem::LinearForm> rhs;
+
+private:
+   /// used to print information
+   std::ostream &out;
+   /// mass matrix represented as a matrix
+   MatrixType &mass;
+   /// stiffness matrix represented as a sparse matrix
+   MatrixType &stiff;
+   /// time operator represented as a matrix
+   mfem::HypreParMatrix *T;
+   /// preconditioner for implicit system
+   std::unique_ptr<SmootherType> t_prec;
+   /// solver for the implicit system
+   std::unique_ptr<mfem::CGSolver> t_solver;
+   /// preconditioner for explicit system
+   std::unique_ptr<SmootherType> m_prec;
+   /// solver for the explicit system
+   std::unique_ptr<mfem::CGSolver> m_solver;
+   /// a work vector
+   mutable mfem::Vector z;
+};
+
 /// Implicit Nonlinear evolver
 class ImplicitNonlinearEvolver : public mfem::TimeDependentOperator
 {
