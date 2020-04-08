@@ -617,6 +617,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
    DenseMatrix flux_jac_left, flux_jac_right;
 #endif
 	elmat.SetSize(num_rows);
+   elmat = 0.0;
    u_face_left.SetSize(num_states);
    u_face_right.SetSize(num_states);
    nrm.SetSize(dim);

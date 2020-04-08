@@ -90,6 +90,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 
    int fe_order = options["space-dis"]["degree"].template get<int>();
    std::string basis_type = options["space-dis"]["basis-type"].template get<string>();
+   bool galerkin_diff = options["space-dis"]["GD"].get<bool>();
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
@@ -97,14 +98,14 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    {
       fec.reset(new SBPCollection(fe_order, dim));
    }
-   else if (basis_type == "dsbp")
+   else if (basis_type == "dsbp" || galerkin_diff)
    {
       fec.reset(new DSBPCollection(fe_order, dim));
    }
    else if (basis_type == "nedelec")
    {
-      // mesh->ReorientTetMesh();
       fec.reset(new ND_FECollection(fe_order, dim));
+      // mesh->ReorientTetMesh();
    }
 }
 
@@ -563,11 +564,20 @@ void AbstractSolver::solveSteady()
       t1 = MPI_Wtime();
    }
 #ifdef MFEM_USE_PETSC   
+<<<<<<< HEAD
    // Get the PetscSolver option 
    double abstol = options["petscsolver"]["abstol"].template get<double>();
    double reltol = options["petscsolver"]["reltol"].template get<double>();
    int maxiter = options["petscsolver"]["maxiter"].template get<int>();
    int ptl = options["petscsolver"]["printlevel"].template get<int>();
+=======
+   // Get the PetscSolver option
+   *out << "Petsc solver with lu preconditioner.\n";
+   double abstol = options["petscsolver"]["abstol"].get<double>();
+   double reltol = options["petscsolver"]["reltol"].get<double>();
+   int maxiter = options["petscsolver"]["maxiter"].get<int>();
+   int ptl = options["petscsolver"]["printlevel"].get<int>();
+>>>>>>> dev
 
    solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
    prec.reset(new mfem::PetscPreconditioner(fes->GetComm(), "prec_"));
@@ -599,18 +609,10 @@ void AbstractSolver::solveSteady()
    newton_solver->Mult(b, u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
-   if (0==rank)
-   {
-      t2 = MPI_Wtime();
-      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
-   }
 #else
    // Hypre solver section
-   //prec.reset( new HypreBoomerAMG() );
-   //prec->SetPrintLevel(0);
-   std::cout << "ILU preconditioner is not available in Hypre. Running HypreGMRES"
-               << " without preconditioner.\n";
-   
+   *out << "HypreGMRES Solver with euclid preconditioner.\n";
+   prec.reset(new HypreEuclid(fes->GetComm()));
    double tol = options["lin-solver"]["tol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
@@ -618,8 +620,7 @@ void AbstractSolver::solveSteady()
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
-
-   //solver->SetPreconditioner(*prec);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
@@ -637,10 +638,15 @@ void AbstractSolver::solveSteady()
    mfem::Vector b;
    mfem::Vector u_true;
    u->GetTrueDofs(u_true);
-   newton_solver->Mult(b,  *u);
+   newton_solver->Mult(b,  u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    u->SetFromTrueDofs(u_true);
 #endif
+   if (0==rank)
+   {
+      t2 = MPI_Wtime();
+      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
 }
 
 void AbstractSolver::solveUnsteady()

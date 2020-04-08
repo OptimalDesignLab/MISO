@@ -60,11 +60,11 @@ target_link_libraries(mach
 )
 
 # if OpenMP found on system, link to it
-if(OpenMP_CXX_FOUND)
-   target_link_libraries(mach
-      PUBLIC
-         OpenMP::OpenMP_CXX)
-endif()
+# if(OpenMP_CXX_FOUND)
+#    target_link_libraries(mach
+#       PUBLIC
+#          OpenMP::OpenMP_CXX)
+# endif()
 
 target_include_directories(mach
    PUBLIC
@@ -132,7 +132,7 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
    add_custom_target(build_tests)
    # 'tests' triggers 'ctest'.
    add_custom_target(tests COMMAND ${CMAKE_CTEST_COMMAND})
-   # tests' implies 'build_tests'
+   # 'tests' implies 'build_tests'
    add_dependencies(tests build_tests)
    add_subdirectory(test EXCLUDE_FROM_ALL)
 endif ()

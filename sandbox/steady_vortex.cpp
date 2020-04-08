@@ -47,6 +47,7 @@ int main(int argc, char *argv[])
    petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
    petscoptions << "-prec_pc_type " << prec_name << '\n';
    //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
+
    petscoptions.close();
 #endif
 #ifdef MFEM_USE_MPI
@@ -87,8 +88,8 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
 
-      unique_ptr<AbstractSolver> solver(
-         new EulerSolver<2>(opt_file_name, move(smesh)));
+      unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
+      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
@@ -101,9 +102,10 @@ int main(int argc, char *argv[])
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
-
+      solver->setperturb(pert);
+      solver->jacobianCheck();
       solver->solveForState();
-
+      solver->printSolution("final",degree+1);
       l_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
