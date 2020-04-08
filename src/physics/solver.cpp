@@ -564,20 +564,12 @@ void AbstractSolver::solveSteady()
       t1 = MPI_Wtime();
    }
 #ifdef MFEM_USE_PETSC   
-<<<<<<< HEAD
-   // Get the PetscSolver option 
-   double abstol = options["petscsolver"]["abstol"].template get<double>();
-   double reltol = options["petscsolver"]["reltol"].template get<double>();
-   int maxiter = options["petscsolver"]["maxiter"].template get<int>();
-   int ptl = options["petscsolver"]["printlevel"].template get<int>();
-=======
    // Get the PetscSolver option
    *out << "Petsc solver with lu preconditioner.\n";
    double abstol = options["petscsolver"]["abstol"].get<double>();
    double reltol = options["petscsolver"]["reltol"].get<double>();
    int maxiter = options["petscsolver"]["maxiter"].get<int>();
    int ptl = options["petscsolver"]["printlevel"].get<int>();
->>>>>>> dev
 
    solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
    prec.reset(new mfem::PetscPreconditioner(fes->GetComm(), "prec_"));
