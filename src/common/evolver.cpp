@@ -122,6 +122,7 @@ void ImplicitLinearEvolver::Mult(const mfem::Vector &x, mfem::Vector &k) const
 
 void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
 {
+   T = NULL;
    // if (T == NULL)
    // {
       T = Add(1.0, mass, dt, stiff);
@@ -130,8 +131,7 @@ void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vect
    stiff.Mult(x, z);
    z.Neg();  
    z.Add(-1, *rhs);
-   t_solver->Mult(z, k); 
-   T = NULL;
+   t_solver->Mult(z, k);    
 }
 
 ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,

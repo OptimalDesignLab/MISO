@@ -22,6 +22,12 @@
        "print-lvl": 0,
        "max-iter": 500
     },
+    "adj-solver":{
+       "rel-tol": 1e-8,
+       "abs-tol": 0.0,
+       "print-lvl": 0,
+       "max-iter": 500
+    },
     "motor-opts" : {
        "current": 1,
        "frequency": 1500

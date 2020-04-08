@@ -458,7 +458,34 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
     
 	output.at(fun).Mult(*state, *dJ);
 
+	// Step 2: get the last time step's operator
+	HypreParMatrix *jac = evolver->GetOperator();
+	//TransposeOperator jac_trans = TransposeOperator(jac);
+	HypreParMatrix *jac_trans = jac->Transpose();
 
+	// Step 3: Solve the adjoint problem
+    *out << "Solving adjoint problem:\n"
+         << "\tsolver: HypreGMRES\n"
+         << "\tprec. : Euclid ILU" << endl;
+    prec.reset(new HypreEuclid(h_grad_space->GetComm()));
+    double tol = options["adj-solver"]["rel-tol"].get<double>();
+    int maxiter = options["adj-solver"]["max-iter"].get<int>();
+    int ptl = options["adj-solver"]["print-lvl"].get<int>();
+    solver.reset(new HypreGMRES(h_grad_space->GetComm()));
+    solver->SetOperator(*jac_trans);
+    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
+    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
+    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
+    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
+    solver->Mult(*dJ, *adjoint);
+#ifdef MFEM_USE_MPI
+    adj->SetFromTrueDofs(*adjoint);
+#endif
+    if (0==rank)
+    {
+       time_end = MPI_Wtime();
+       cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+    }
 }
 
 double ThermalSolver::InitialTemperature(const Vector &x)

@@ -99,6 +99,8 @@ public:
    /// Class destructor
    virtual ~ImplicitLinearEvolver() { }
 
+   /// Get the last time step's operator
+   mfem::HypreParMatrix* GetOperator() {return T;}
 protected:
    /// input options
    nlohmann::json options;
