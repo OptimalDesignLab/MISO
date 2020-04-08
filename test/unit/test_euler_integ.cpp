@@ -1143,45 +1143,45 @@ TEST_CASE("InviscidFaceIntegrator::AssembleFaceGrad", "[InterfaceIntegrator]")
    const int max_degree = 4;
    for (int p = 0; p <= max_degree; p++)
    {
-      DYNAMIC_SECTION("Jacobian of Interface flux w.r.t state is correct " << p)
-      {
-         std::unique_ptr<FiniteElementCollection> fec(
-             new SBPCollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+      // DYNAMIC_SECTION("Jacobian of Interface flux w.r.t state is correct " << p)
+      // {
+      //    std::unique_ptr<FiniteElementCollection> fec(
+      //        new SBPCollection(p, dim));
+      //    std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+      //        mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
-         NonlinearForm res(fes.get());
-         res.AddInteriorFaceIntegrator(new mach::InterfaceIntegrator<dim>(diff_stack, fec.get()));
+      //    NonlinearForm res(fes.get());
+      //    res.AddInteriorFaceIntegrator(new mach::InterfaceIntegrator<dim>(diff_stack, fec.get()));
 
-         // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
-         q.ProjectCoefficient(pert);
+      //    // initialize state; here we randomly perturb a constant state
+      //    GridFunction q(fes.get());
+      //    VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+      //    q.ProjectCoefficient(pert);
 
-         // initialize the vector that the Jacobian multiplies
-         GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
-         v.ProjectCoefficient(v_rand);
+      //    // initialize the vector that the Jacobian multiplies
+      //    GridFunction v(fes.get());
+      //    VectorFunctionCoefficient v_rand(num_state, randState);
+      //    v.ProjectCoefficient(v_rand);
 
-         // evaluate the Jacobian and compute its product with v
-         Operator &Jac = res.GetGradient(q);
-         GridFunction jac_v(fes.get());
-         Jac.Mult(v, jac_v);
+      //    // evaluate the Jacobian and compute its product with v
+      //    Operator &Jac = res.GetGradient(q);
+      //    GridFunction jac_v(fes.get());
+      //    Jac.Mult(v, jac_v);
 
-         // now compute the finite-difference approximation...
-         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
-         q_pert.Add(-delta, v);
-         res.Mult(q_pert, r);
-         q_pert.Add(2 * delta, v);
-         res.Mult(q_pert, jac_v_fd);
-         jac_v_fd -= r;
-         jac_v_fd /= (2 * delta);
+      //    // now compute the finite-difference approximation...
+      //    GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+      //    q_pert.Add(-delta, v);
+      //    res.Mult(q_pert, r);
+      //    q_pert.Add(2 * delta, v);
+      //    res.Mult(q_pert, jac_v_fd);
+      //    jac_v_fd -= r;
+      //    jac_v_fd /= (2 * delta);
 
-         for (int i = 0; i < jac_v.Size(); ++i)
-         {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
-         }
-      }
+      //    for (int i = 0; i < jac_v.Size(); ++i)
+      //    {
+      //       REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+      //    }
+      // }
 
       DYNAMIC_SECTION("Jacobian of Interface flux w.r.t state is correct (DSBP)" << p)
       {
