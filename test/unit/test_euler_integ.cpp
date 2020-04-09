@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux jacobian", "[euler_flux_jac]",
       diff -= jac_v_fd;
       for (int i = 0; i < dim + 2; ++i)
       {
-         REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+         REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
       }
    }
 
@@ -90,7 +90,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux jacobian", "[euler_flux_jac]",
       diff -= jac_v_fd;
       for (int i = 0; i < dim; ++i)
       {
-         REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+         REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
       }
    }
 }
@@ -152,7 +152,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
       DYNAMIC_SECTION("Ismail-Roe flux jacismailintegian is correct w.r.t right state ")
@@ -170,7 +170,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
    }
@@ -237,7 +237,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
       DYNAMIC_SECTION("Ismail-Roe flux jacismailintegian is correct w.r.t right state ")
@@ -255,7 +255,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
    }
@@ -313,7 +313,7 @@ TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
       // compare
       for (int i = 0; i < num_states; ++i)
       {
-         REQUIRE(mat_vec_jac_v(i) == Approx(mat_vec_jac_v_fd(i)));
+         REQUIRE(mat_vec_jac_v(i) == Approx(mat_vec_jac_v_fd(i)).margin(1e-10));
       }
    }
 
@@ -346,7 +346,7 @@ TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
          // compare with explicit Jacobian
          for (int j = 0; j < num_states; j++)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)).margin(1e-10));
          }
       }
    }
@@ -380,7 +380,7 @@ TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
          // compare with explicit Jacobian
          for (int j = 0; j < num_states; j++)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)).margin(1e-10));
          }
       }
    }
@@ -451,7 +451,7 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -491,7 +491,7 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -531,7 +531,7 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -571,7 +571,7 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -645,7 +645,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -686,7 +686,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -727,7 +727,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -768,7 +768,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -846,7 +846,7 @@ TEMPLATE_TEST_CASE_SIG("Pressure force gradient", "[Pressure Force]",
          dJdu_dot_v_fd /= 2 * delta;
 
          // compare
-         REQUIRE(dJdu_dot_v_ad == Approx(dJdu_dot_v_fd).margin(1e-12));
+         REQUIRE(dJdu_dot_v_ad == Approx(dJdu_dot_v_fd).margin(1e-10));
       }
    }
    mfem::Vector w(dim+2);
@@ -883,7 +883,7 @@ TEMPLATE_TEST_CASE_SIG("Pressure force gradient", "[Pressure Force]",
          dJdu_dot_v_fd /= 2 * delta;
 
          // compare
-         REQUIRE(dJdu_dot_v_ad == Approx(dJdu_dot_v_fd).margin(1e-12));
+         REQUIRE(dJdu_dot_v_ad == Approx(dJdu_dot_v_fd).margin(1e-10));
       }
    }
 }
@@ -935,7 +935,7 @@ TEMPLATE_TEST_CASE_SIG("Entropy variables Jacobian", "[lps integrator]",
       // compare each component of the matrix-vector products
       for (int i = 0; i < dim + 2; ++i)
       {
-         REQUIRE(dwdu_v[i] == Approx(dwdu_v_fd[i]));
+         REQUIRE(dwdu_v[i] == Approx(dwdu_v_fd[i]).margin(1e-10));
       }
    }
 }
@@ -992,7 +992,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1032,7 +1032,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -1091,7 +1091,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1132,7 +1132,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -1192,8 +1192,7 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
          q_pert.Add(2 * delta, v);
          dJdu_dot_v_fd += drag.GetEnergy(q_pert);
          dJdu_dot_v_fd /= (2 * delta);
-         std::cout << "dJdu_dot_v = " << dJdu_dot_v << std::endl;
-         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
+         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd).margin(1e-10));
       }
 
       DYNAMIC_SECTION("(DSBP)...for degree p = " << p)
@@ -1229,8 +1228,7 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
          q_pert.Add(2 * delta, v);
          dJdu_dot_v_fd += drag.GetEnergy(q_pert);
          dJdu_dot_v_fd /= (2 * delta);
-         std::cout << "dJdu_dot_v = " << dJdu_dot_v << std::endl;
-         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
+         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd).margin(1e-10));
       }
    }
 }
@@ -1290,7 +1288,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1330,7 +1328,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -1390,7 +1388,7 @@ TEST_CASE("InviscidFaceIntegrator::AssembleFaceGrad", "[InterfaceIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1430,7 +1428,7 @@ TEST_CASE("InviscidFaceIntegrator::AssembleFaceGrad", "[InterfaceIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    } // loop different order of elements
@@ -1491,7 +1489,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1531,7 +1529,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
