@@ -1491,7 +1491,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-12));
          }
       }
 
@@ -1531,7 +1531,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-12));
          }
       }
    }
