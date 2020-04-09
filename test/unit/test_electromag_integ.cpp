@@ -127,7 +127,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad", "[CurlCurlNLFIntegrator]
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)) );
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10) );
          }
       }
    }
@@ -189,7 +189,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)) );
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10) );
          }
       }
    }
