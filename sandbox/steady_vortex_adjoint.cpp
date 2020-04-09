@@ -1,4 +1,5 @@
-/// Solve the steady isentropic vortex problem on a quarter annulus
+/// Solve the steady isentropic vortex problem on a quarter annulus, and then
+/// solves the adjoint corresponding to the drag computed over the inner radius
 #include<random>
 #include "adept.h"
 
@@ -33,23 +34,7 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "steady_vortex_options.json";
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady.petsc";
-   // Get the option file
-   nlohmann::json options;
-   ifstream option_source(options_file);
-   option_source >> options;
-   // Write the petsc option file
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
-
-   petscoptions.close();
-#endif
+   const char *options_file = "steady_vortex_adjoint_options.json";
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    int num_procs, myid;
@@ -57,18 +42,15 @@ int main(int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 #endif
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
   
    // Parse command-line options
    OptionsParser args(argc, argv);
-   int degree = 2.0;
+   int map_degree = 2.0;
    int nx = 1;
    int ny = 1;
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
-   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
+   args.AddOption(&map_degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
    args.Parse();
@@ -82,39 +64,42 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
-      ofstream sol_ofs("steady_vortex_mesh.vtk");
+      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(map_degree, nx, ny);
+      std::cout << "Number of elements " << smesh->GetNE() << std::endl;
+      ofstream sol_ofs("steady_vortex_adjoint_mesh.vtk");
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
 
       unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
-      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
-      solver->printSolution("init", degree+1);
+      solver->printSolution("init", map_degree+1);
 
-      double l_error = solver->calcL2Error(uexact, 0);
+      double l2_error = solver->calcL2Error(uexact, 0);
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
       solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("final",degree+1);
-      l_error = solver->calcL2Error(uexact, 0);
+      solver->printSolution("final", map_degree+1);
+      l2_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
       if (0==myid)
       {
          mfem::out << "\nfinal residual norm = " << res_error;
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
          mfem::out << "\nDrag error = " << drag << endl;
       }
+
+      // Solve for and print out the adjoint
+      solver->solveForAdjoint("drag");
+      solver->printAdjoint("adjoint", map_degree+1);
 
    }
    catch (MachException &exception)

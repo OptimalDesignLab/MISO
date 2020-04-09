@@ -364,9 +364,11 @@ public:
 
 /// Integrator for forces due to pressure
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
-template <int dim>
-class PressureForce : public InviscidBoundaryIntegrator<PressureForce<dim>>
+template <int dim, bool entvar = false>
+class PressureForce : public InviscidBoundaryIntegrator<
+                          PressureForce<dim, entvar>>
 {
 public:
    /// Constructs an integrator that computes pressure contribution to force
@@ -376,26 +378,25 @@ public:
    PressureForce(adept::Stack &diff_stack,
                  const mfem::FiniteElementCollection *fe_coll,
                  const mfem::Vector &force_dir)
-       : InviscidBoundaryIntegrator<PressureForce<dim>>(
+       : InviscidBoundaryIntegrator<PressureForce<dim, entvar>>(
              diff_stack, fe_coll, dim+2, 1.0), force_nrm(force_dir),
              work_vec(dim+2) {}
 
    /// Return an adjoint-consistent slip-wall normal (pressure) stress term
-   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] x - coordinate location at which stress is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] q - conservative variables at which to evaluate the stress
    /// \returns conmponent of stress due to pressure in `force_nrm` direction
    double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
-                       const mfem::Vector &q)
-   {
-      calcSlipWallFlux<double,dim>(x.GetData(), dir.GetData(), q.GetData(),
-                                   work_vec.GetData());
-      return dot<double,dim>(force_nrm.GetData(), work_vec.GetData()+1);
-   }
+                       const mfem::Vector &q);
 
-   /// Not used
+   /// Returns the gradient of the stress with respect to `q`
+   /// \param[in] x - coordinate location at which stress is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the stress
+   /// \param[out] flux_vec - derivative of stress with respect to `q`
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
-                 const mfem::Vector &q, mfem::Vector &flux_vec) {}
+                 const mfem::Vector &q, mfem::Vector &flux_vec);
 
    /// Not used
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,

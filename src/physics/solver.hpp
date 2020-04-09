@@ -59,6 +59,12 @@ public:
    /// \param[in] u_init - vector that defines the initial condition
    void setInitialCondition(const mfem::Vector &uic); 
 
+   /// Returns the integral inner product between two grid functions
+   /// \param[in] x - grid function 
+   /// \param[in] y - grid function 
+   /// \returns integral inner product between `x` and `y`
+   double calcInnerProduct(const GridFunType &x, const GridFunType &y);
+
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
@@ -79,6 +85,14 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printSolution(const std::string &file_name, int refine = -1);
 
+   /// Write the mesh and adjoint to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \todo make this work for parallel!
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printAdjoint(const std::string &file_name, int refine = -1);
+
    /// Write the mesh and residual to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] refine - if >=0, indicates the number of refinements to make
@@ -90,20 +104,15 @@ public:
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
    
-   /// Solve for the steady state problem using newton method
-   virtual void solveSteady();
+   /// Solve for the adjoint based on current mesh, solver, etc.
+   /// \param[in] fun - specifies the functional corresponding to the adjoint
+   void solveForAdjoint(const std::string &fun);
 
-   /// Solve for a transient state using a selected time-marching scheme
-   virtual void solveUnsteady();
-   
-   /// Check the jacobian accuracy
-   /// Compare the results jac_v = jac * pert_v w.r.t jac_v calculated from
-   /// finite difference method 
-   void jacobianCheck();
-
-   /// set the perturbation function that used for check jacobian
-   void setperturb(void (*fun)(const mfem::Vector &, mfem::Vector &))
-   {  perturb_fun = fun; }
+   /// Check the Jacobian using a finite-difference directional derivative
+   /// \param[in] pert - function that defines the perturbation direction
+   /// \note Compare the results of the project Jac*pert using the Jacobian
+   /// directly versus a finite-difference based product.  
+   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
    
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
@@ -143,6 +152,8 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   /// adjoint variable 
+   std::unique_ptr<GridFunType> adj;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
    /// time-marching method (might be NULL)
@@ -168,9 +179,6 @@ protected:
    std::map<std::string, NonlinearFormType> output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
-   
-   /// perturbation function that used for 
-   void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
@@ -189,6 +197,20 @@ protected:
 
    /// Create `output` based on `options` and add approporiate integrators
    virtual void addOutputs() {};
+
+   /// Solve for the steady state problem using newton method
+   virtual void solveSteady();
+
+   /// Solve for a transient state using a selected time-marching scheme
+   virtual void solveUnsteady();
+   
+   /// Solve for a steady adjoint
+   /// \param[in] fun - specifies the functional corresponding to the adjoint
+   virtual void solveSteadyAdjoint(const std::string &fun);
+
+   /// Solve for an unsteady adjoint
+   /// \param[in] fun - specifies the functional corresponding to the adjoint
+   virtual void solveUnsteadyAdjoint(const std::string &fun);
 
 };
 

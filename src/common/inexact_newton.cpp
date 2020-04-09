@@ -90,6 +90,8 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
    MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
    MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
 
+   std::cout << "Beginning of inexact Newton..." << std::endl;
+
    int it;
    double norm0, norm, norm_goal;
    const bool have_b = (b.Size() == Height());
@@ -106,7 +108,6 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
    norm0 = norm = Norm(r);
    norm_goal = std::max(rel_tol*norm, abs_tol);
    prec->iterative_mode = false;
-   static_cast<IterativeSolver*> (prec)->SetRelTol(eta);
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
    {
