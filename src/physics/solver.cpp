@@ -12,6 +12,26 @@
 using namespace std;
 using namespace mfem;
 
+/// anonymous namespace for this function so it's only available in this file
+#ifdef MFEM_USE_PUMI
+namespace
+{
+/// function to figure out if tet element is next to a model surface
+bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
+{
+   apf::MeshEntity* dfs[12];
+   int nfs = m->getDownward(e, 2, dfs);
+   for (int i = 0; i < nfs; i++)
+   {
+      int mtype = m->getModelType(m->toModel(dfs[i]));
+      if (mtype == 2)
+         return true;
+   }
+   return false;
+}
+} // anonymous namespace
+#endif
+
 namespace mach
 {
 
@@ -42,45 +62,50 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
    *out << "ode-solver type = "
-        << options["time-dis"]["ode-solver"].get<string>() << endl;
-   if (options["time-dis"]["ode-solver"].get<string>() == "RK1")
+        << options["time-dis"]["ode-solver"].template get<string>() << endl;
+   if (options["time-dis"]["ode-solver"].template get<string>() == "RK1")
    {
       ode_solver.reset(new ForwardEulerSolver);
    }
-   else if (options["time-dis"]["ode-solver"].get<string>() == "RK4")
+   else if (options["time-dis"]["ode-solver"].template get<string>() == "RK4")
    {
       ode_solver.reset(new RK4Solver);
    }
-   else if (options["time-dis"]["ode-solver"].get<string>() == "MIDPOINT")
+   else if (options["time-dis"]["ode-solver"].template get<string>() == "MIDPOINT")
    {
       ode_solver.reset(new ImplicitMidpointSolver);
    }
    else
    {
       throw MachException("Unknown ODE solver type " +
-                          options["time-dis"]["ode-solver"].get<string>());
+                          options["time-dis"]["ode-solver"].template get<string>());
       // TODO: parallel exit
    }
 
    // Refine the mesh here, or have a separate member function?
-   for (int l = 0; l < options["mesh"]["refine"].get<int>(); l++)
+   for (int l = 0; l < options["mesh"]["refine"].template get<int>(); l++)
    {
       mesh->UniformRefinement();
    }
 
+   int fe_order = options["space-dis"]["degree"].template get<int>();
+   std::string basis_type = options["space-dis"]["basis-type"].template get<string>();
+   bool galerkin_diff = options["space-dis"]["GD"].get<bool>();
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
-   if (options["space-dis"]["GD"].get<bool>() == true || 
-       options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   if (basis_type == "csbp")
    {
-      fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
-                                   dim));
+      fec.reset(new SBPCollection(fe_order, dim));
    }
-   else if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   else if (basis_type == "dsbp" || galerkin_diff)
    {
-      fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
-                                  dim));
+      fec.reset(new DSBPCollection(fe_order, dim));
+   }
+   else if (basis_type == "nedelec")
+   {
+      fec.reset(new ND_FECollection(fe_order, dim));
+      // mesh->ReorientTetMesh();
    }
 }
 
@@ -162,7 +187,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 #ifndef MFEM_USE_PUMI
    if (smesh == nullptr)
    { // read in the serial mesh
-      smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1));
+      smesh.reset(new Mesh(options["mesh"]["file"].template get<string>().c_str(), 1, 1));
    }
 #endif
 
@@ -176,18 +201,22 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
                           "\tdo not provide smesh when using PUMI!");
    }
    // problem with using these in loadMdsMesh
-   *out << options["model-file"].get<string>().c_str() << std::endl;
-   const char *model_file = options["model-file"].get<string>().c_str();
-   const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
+   *out << options["model-file"].template get<string>().c_str() << std::endl;
+   const char *model_file = options["model-file"].template get<string>().c_str();
+   const char *mesh_file = options["mesh"]["file"].template get<string>().c_str();
    PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
    gmi_sim_start();
    gmi_register_sim();
 #endif
+#ifdef MFEM_USE_EGADS
+   gmi_egads_start();
+   gmi_register_egads();
+#endif
    gmi_register_mesh();
-   pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-                                options["mesh"]["file"].get<string>().c_str());
+   pumi_mesh = apf::loadMdsMesh(options["model-file"].template get<string>().c_str(),
+                                options["mesh"]["file"].template get<string>().c_str());
    int mesh_dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(mesh_dim);
    int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
@@ -197,12 +226,104 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
    //    ma::adapt(uniInput);
    // }
+
+   /// TODO: change this to use options
+   /// If it is higher order change shape
+   // int order = options["space-dis"]["degree"].template get<int>();
+   // if (order > 1)
+   // {
+   //     crv::BezierCurver bc(pumi_mesh, order, 2);
+   //     bc.run();
+   // }
+
    pumi_mesh->verify();
+
+   apf::Numbering* aux_num = apf::createNumbering(pumi_mesh, "aux_numbering",
+                                                  pumi_mesh->getShape(), 1);
+
+   apf::MeshIterator* it = pumi_mesh->begin(0);
+   apf::MeshEntity* v;
+   int count = 0;
+   while ((v = pumi_mesh->iterate(it)))
+   {
+     apf::number(aux_num, v, 0, 0, count++);
+   }
+   pumi_mesh->end(it);
+
    mesh.reset(new MeshType(comm, pumi_mesh));
+
+   it = pumi_mesh->begin(pumi_mesh->getDimension());
+   count = 0;
+   while ((v = pumi_mesh->iterate(it)))
+   {
+     if (count > 10) break;
+     printf("at element %d =========\n", count);
+     if (isBoundaryTet(pumi_mesh, v))
+       printf("tet is connected to the boundary\n");
+     else
+       printf("tet is NOT connected to the boundary\n");
+     apf::MeshEntity* dvs[12];
+     int nd = pumi_mesh->getDownward(v, 0, dvs);
+     for (int i = 0; i < nd; i++) {
+       int id = apf::getNumber(aux_num, dvs[i], 0, 0);
+       printf("%d ", id);
+     }
+     printf("\n");
+     Array<int> mfem_vs;
+     mesh->GetElementVertices(count, mfem_vs);
+     for (int i = 0; i < mfem_vs.Size(); i++) {
+       printf("%d ", mfem_vs[i]);
+     }
+     printf("\n");
+     printf("=========\n");
+     count++;
+   }
+
+   /// Add attributes based on reverse classification
+   // Boundary faces
+   int dim = mesh->Dimension();
+   apf::MeshIterator* itr = pumi_mesh->begin(dim-1);
+   apf::MeshEntity* ent ;
+   int ent_cnt = 0;
+   while ((ent = pumi_mesh->iterate(itr)))
+   {
+      apf::ModelEntity *me = pumi_mesh->toModel(ent);
+      if (pumi_mesh->getModelType(me) == (dim-1))
+      {
+         //Get tag from model by  reverse classification
+         int tag = pumi_mesh->getModelTag(me);
+         (mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
+         ent_cnt++;
+      }
+   }
+   pumi_mesh->end(itr);  
+   
+   // Volume faces
+   itr = pumi_mesh->begin(dim);
+   ent_cnt = 0;
+   while ((ent = pumi_mesh->iterate(itr)))
+   {
+       apf::ModelEntity *me = pumi_mesh->toModel(ent);
+       int tag = pumi_mesh->getModelTag(me);
+       mesh->SetAttribute(ent_cnt, tag);
+       ent_cnt++;
+   }
+   pumi_mesh->end(itr);
+   
+   // Apply the attributes
+   mesh->SetAttributes();
+
+   /// where should we destroy the mesh?
+   // pumi_mesh->destroyNative();
+   // apf::destroyMesh(pumi_mesh);
+   
    PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
    Sim_unregisterAllKeys();
+#endif
+#ifdef MFEM_USE_EGADS
+   gmi_egads_stop();
 #endif
 #else
    mesh.reset(new MeshType(comm, *smesh));
@@ -279,9 +400,17 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
 double AbstractSolver::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
+   calcL2Error(u.get(), u_exact, entry);
+}
+
+double AbstractSolver::calcL2Error(GridFunType *field,
+    void (*u_exact)(const Vector &, Vector &), int entry)
+{
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
-   //return u->ComputeL2Error(ue);
+   FiniteElementSpace *fe_space = field->FESpace();
+
+   const char* name = fe_space->FEColl()->Name();
 
    double loc_norm = 0.0;
    const FiniteElement *fe;
@@ -292,12 +421,21 @@ double AbstractSolver::calcL2Error(
    if (entry < 0)
    {
       // sum up the L2 error over all states
-      for (int i = 0; i < fes->GetNE(); i++)
+      for (int i = 0; i < fe_space->GetNE(); i++)
       {
-         fe = fes->GetFE(i);
-         const IntegrationRule *ir = &(fe->GetNodes());
-         T = fes->GetElementTransformation(i);
-         u->GetVectorValues(*T, *ir, vals);
+         fe = fe_space->GetFE(i);
+         const IntegrationRule *ir;
+         if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+         {        
+            ir = &(fe->GetNodes());
+         }
+         else
+         {
+            int intorder = 2*fe->GetOrder() + 1;
+            ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+         }
+         T = fe_space->GetElementTransformation(i);
+         field->GetVectorValues(*T, *ir, vals);
          exsol.Eval(exact_vals, *T, *ir);
          vals -= exact_vals;
          loc_errs.SetSize(vals.Width());
@@ -313,12 +451,21 @@ double AbstractSolver::calcL2Error(
    else
    {
       // calculate the L2 error for component index `entry`
-      for (int i = 0; i < fes->GetNE(); i++)
+      for (int i = 0; i < fe_space->GetNE(); i++)
       {
-         fe = fes->GetFE(i);
-         const IntegrationRule *ir = &(fe->GetNodes());
-         T = fes->GetElementTransformation(i);
-         u->GetVectorValues(*T, *ir, vals);
+         fe = fe_space->GetFE(i);
+         const IntegrationRule *ir;
+         if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+         {        
+            ir = &(fe->GetNodes());
+         }
+         else
+         {
+            int intorder = 2*fe->GetOrder() + 1;
+            ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+         }
+         T = fe_space->GetElementTransformation(i);
+         field->GetVectorValues(*T, *ir, vals);
          exsol.Eval(exact_vals, *T, *ir);
          vals -= exact_vals;
          loc_errs.SetSize(vals.Width());
@@ -376,7 +523,7 @@ void AbstractSolver::printSolution(const std::string &file_name,
    sol_ofs.precision(14);
    if (refine == -1)
    {
-      refine = options["space-dis"]["degree"].get<int>() + 1;
+      refine = options["space-dis"]["degree"].template get<int>() + 1;
    }
    mesh->PrintVTK(sol_ofs, refine);
    u->SaveVTK(sol_ofs, "Solution", refine);
@@ -413,16 +560,42 @@ void AbstractSolver::printResidual(const std::string &file_name,
    res_ofs.precision(14);
    if (refine == -1)
    {
-      refine = options["space-dis"]["degree"].get<int>() + 1;
+      refine = options["space-dis"]["degree"].template get<int>() + 1;
    }
    mesh->PrintVTK(res_ofs, refine);
    r.SaveVTK(res_ofs, "Residual", refine);
    res_ofs.close();
 }
 
+void AbstractSolver::printFields(const std::string &file_name,
+                                 std::vector<GridFunType*> fields,
+                                 std::vector<std::string> names,
+                                 int refine)
+{
+   if (fields.size() != names.size())
+   {
+      throw MachException(
+         "Must supply a name for each grid function to print!");
+   }
+   // TODO: These mfem functions do not appear to be parallelized
+   ofstream sol_ofs(file_name + ".vtk");
+   sol_ofs.precision(14);
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].template get<int>() + 1;
+   }
+   mesh->PrintVTK(sol_ofs, refine);
+   for (int i = 0; i < fields.size(); ++i)
+   {
+      fields[i]->SaveVTK(sol_ofs, names[i], refine);
+   }
+   sol_ofs.close();
+
+}
+
 void AbstractSolver::solveForState()
 {
-   if (options["steady"].get<bool>() == true)
+   if (options["steady"].template get<bool>() == true)
    {
       solveSteady();
    }
@@ -451,13 +624,13 @@ void AbstractSolver::solveSteady()
    {
       t1 = MPI_Wtime();
    }
-#ifdef MFEM_USE_PETSC   
+#ifdef MFEM_USE_PETSC
    // Get the PetscSolver option
    *out << "Petsc solver with lu preconditioner.\n";
-   double abstol = options["petscsolver"]["abstol"].get<double>();
-   double reltol = options["petscsolver"]["reltol"].get<double>();
-   int maxiter = options["petscsolver"]["maxiter"].get<int>();
-   int ptl = options["petscsolver"]["printlevel"].get<int>();
+   double abstol = options["petscsolver"]["abstol"].template get<double>();
+   double reltol = options["petscsolver"]["reltol"].template get<double>();
+   int maxiter = options["petscsolver"]["maxiter"].template get<int>();
+   int ptl = options["petscsolver"]["printlevel"].template get<int>();
 
    solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
    prec.reset(new mfem::PetscPreconditioner(fes->GetComm(), "prec_"));
@@ -557,7 +730,7 @@ void AbstractSolver::solveUnsteady()
    printSolution("init");
 
    bool done = false;
-   double t_final = options["time-dis"]["t-final"].get<double>();
+   double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
@@ -565,7 +738,7 @@ void AbstractSolver::solveUnsteady()
    {
       if (calc_dt)
       {
-         dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
+         dt = calcStepSize(options["time-dis"]["cfl"].template get<double>());
       }
       double dt_real = min(dt, t_final - t);
       if (ti % 10 == 0)
@@ -609,21 +782,21 @@ void AbstractSolver::solveUnsteady()
       u->Save(osol);
    }
    // write the solution to vtk file
-   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
    {
       ofstream sol_ofs("final_cg.vtk");
       sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
       sol_ofs.close();
       printSolution("final");
    }
-   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
    {
       ofstream sol_ofs("final_dg.vtk");
       sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
       sol_ofs.close();
       printSolution("final");
    }

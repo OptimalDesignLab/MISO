@@ -17,6 +17,9 @@
 #include <apfConvert.h>
 #include <gmi_mesh.h>
 #include <crv.h>
+#ifdef MFEM_USE_EGADS
+#include <gmi_egads.h>
+#endif
 #endif
 
 #include "mach_types.hpp"
@@ -71,6 +74,15 @@ public:
    /// \returns L2 error
    double calcL2Error(void (*u_exact)(const mfem::Vector &, mfem::Vector &),
                       int entry = -1);
+   
+   /// Returns the L2 error of a field and given exact solution.
+   /// \param[in] field - grid function to compute L2 error for
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \returns L2 error
+   double calcL2Error(GridFunType *field,
+                      void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+                      int entry = -1);
 
    /// Find the gobal step size for the given CFL number
    /// \param[in] cfl - target CFL number for the domain
@@ -100,6 +112,20 @@ public:
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printResidual(const std::string &file_name, int refine = -1);
+
+   /// TODO: make this work for parallel!
+   /// Write the mesh and an initializer list to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] fields - list of grid functions to print, passed as an
+   ///                     initializer list
+   /// \param[in] names - list of names to use for each grid function printed
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printFields(const std::string &file_name,
+                      std::vector<GridFunType*> fields,
+                      std::vector<std::string> names,
+                      int refine = -1);
 
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
