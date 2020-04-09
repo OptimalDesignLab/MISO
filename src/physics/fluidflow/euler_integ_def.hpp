@@ -461,12 +461,12 @@ void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
 {
    if (entvar)
    {
-      calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
+      calcIsmailRoeFaceFluxUsingEntVars<double, dim>(
           dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
    }
    else 
    {
-      calcIsmailRoeFaceFluxWithDiss<double, dim>(dir.GetData(), qL.GetData(),
+      calcIsmailRoeFaceFlux<double, dim>(dir.GetData(), qL.GetData(),
                                          qR.GetData(), flux.GetData());
    }
 }
@@ -494,12 +494,12 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacState(const mfem::Vector &dir,
    std::vector<adouble> flux_a(qL.Size());
    if (entvar)
    {
-      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
+      mach::calcIsmailRoeFaceFluxUsingEntVars<adouble, dim>(
           dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(dir_a.data(), qL_a.data(),
+      mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
                                                 qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
@@ -533,12 +533,12 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
    std::vector<adouble> flux_a(qL.Size());
    if (entvar)
    {
-      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
+      mach::calcIsmailRoeFaceFluxUsingEntVars<adouble, dim>(
           dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(dir_a.data(), qL_a.data(),
+      mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
                                                 qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables

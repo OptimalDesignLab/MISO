@@ -176,12 +176,9 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
                           "\tdo not provide smesh when using PUMI!");
    }
    // problem with using these in loadMdsMesh
-<<<<<<< HEAD
-=======
    *out << options["model-file"].get<string>().c_str() << std::endl;
    const char *model_file = options["model-file"].get<string>().c_str();
    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
->>>>>>> dev
    PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
@@ -472,12 +469,7 @@ void AbstractSolver::solveSteady()
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
-<<<<<<< HEAD
-   std::cout << "Petsc Solver set.\n";
-   
-=======
    *out << "Petsc Solver set.\n";
->>>>>>> dev
    //Get the newton solver options
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
@@ -536,14 +528,9 @@ void AbstractSolver::solveSteady()
    //u->GetTrueDofs(u_true);
    newton_solver->Mult(b, *u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-<<<<<<< HEAD
-   u->SetFromTrueDofs(u_true);
-#endif // MFEM_USE_PETSC
-=======
    //u->SetFromTrueDofs(u_true);
    u->SetFromTrueDofs(*u_true);
 #endif
->>>>>>> dev
    if (0==rank)
    {
       t2 = MPI_Wtime();
