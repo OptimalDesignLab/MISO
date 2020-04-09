@@ -48,8 +48,15 @@ nlohmann::json default_options
       {"printlevel", 0}, // linear solver print level (no printing if zero)
       {"maxiter", 100}, // default to 100 iterations
       {"reltol", 1e-12}, // solver relative tolerance
-      {"abstol", 1e-12}, // solver absolute tolerance
-      {"tol", 1e-12} // Hypre solvers only let you set one value for tolerance
+      {"abstol", 1e-12} // solver absolute tolerance
+   }},
+
+   {"adj-solver",
+   {
+      {"printlevel", 0}, // adjoint solver print level (no printing if zero)
+      {"maxiter", 100}, // maximum number of solver iterations 
+      {"reltol", 1e-8}, // adjoint solver relative tolerance
+      {"abstol", 1e-10} // adjoint solver absolute tolerance
    }},
 
    {"petscsolver",
