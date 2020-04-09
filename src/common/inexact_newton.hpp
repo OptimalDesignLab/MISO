@@ -20,8 +20,8 @@ public:
    /// \note this only defines the inexact Newton parameters; the actual
    /// problem is defined by the operator `oper`
    /// \note parameters is set up in function `init`
-   InexactNewton(double eta_init = 1e-4,double eta_maximum = 1e-1,
-                  double ared_scale=1e-4)
+   InexactNewton(double eta_init = 1e-4, double eta_maximum = 1e-1,
+                 double ared_scale = 1e-4)
    {
       init(eta_init, eta_maximum, ared_scale);
    }
