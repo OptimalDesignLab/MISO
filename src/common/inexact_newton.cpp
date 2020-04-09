@@ -5,18 +5,11 @@ using namespace std;
 
 namespace mfem
 {
-
-void InexactNewton::init(double eta_init, double eta_maximum,
-                             double ared_scale)
-{
-   eta = eta_init;
-   eta_max = eta_maximum;
-   t = ared_scale;
-}
    
 double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
                                        const double norm)
 {
+   double theta = 0.0;
    double s = 1.0;
    // p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
    // p0 is the value of p(0), p0p is the derivative p'(0), and 
