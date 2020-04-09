@@ -39,6 +39,7 @@
    },
    "lin-solver": {
       "printlevel": 0,
+      "filllevel": 3,
       "maxiter": 100,
       "tol": 1e-12
    },

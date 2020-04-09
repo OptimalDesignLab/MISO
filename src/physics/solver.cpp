@@ -435,6 +435,8 @@ void AbstractSolver::solveSteady()
    double tol = options["lin-solver"]["tol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
+   int fill = options["lin-solver"]["filllevel"].get<int>();
+   HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
    solver.reset( new HypreGMRES(fes->GetComm()) );
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
