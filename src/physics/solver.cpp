@@ -128,14 +128,23 @@ void AbstractSolver::initDerived()
         << fes->GetTrueVSize() << endl;
 #endif
 
+   double alpha = 1.0;
+
    // set up the mass matrix
    mass.reset(new BilinearFormType(fes.get()));
-   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   mass->Assemble();
-   mass->Finalize();
+   addMassVolumeIntegrators();
+
+   stiff.reset(new BilinearFormType(fes.get()));
+   addStiffVolumeIntegrators(alpha);
+   addStiffBoundaryIntegrators(alpha);
+   addStiffInterfaceIntegrators(alpha);
+
+   load.reset(new LinearFormType(fes.get()));
+   addLoadVolumeIntegrators(alpha);
+   addLoadBoundaryIntegrators(alpha);
+   addLoadInterfaceIntegrators(alpha);
 
    // set up the spatial semi-linear form
-   double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
    // Add integrators; this can be simplified if we template the entire class
    addVolumeIntegrators(alpha);
@@ -144,8 +153,15 @@ void AbstractSolver::initDerived()
    addBoundaryIntegrators(alpha);
    addInterfaceIntegrators(alpha);
 
+   /// TODO: look at partial assembly
+   mass->Assemble();
+   mass->Finalize();
+   stiff->Assemble();
+   stiff->Finalize();
+   load->Assemble();
+
    // This just lists the boundary markers for debugging purposes
-   if (0==rank)
+   if (0 == rank)
    {
       for (int k = 0; k < bndry_marker.size(); ++k)
       {
@@ -162,17 +178,34 @@ void AbstractSolver::initDerived()
 #ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
    mass_matrix.reset(mass->ParallelAssemble());
+   stiffness_matrix.reset(stiff->ParallelAssemble());
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
+   stiffness_matrix.reset(new MatrixType(stiff->SpMat()));
 #endif
+
+   /// check to see if the nonlinear residual has any domain integrators added
+   const Array<NonlinearFormIntegrator*> *num_dnfi = res->GetDNFI();
+   bool nonlinear = num_dnfi->Size() > 0 ? true : false;
+
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    if (odes == "RK1" || odes == "RK4")
    {
-      evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+      if (nonlinear)
+         evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+      else
+         evolver.reset(new LinearEvolver(*mass_matrix, *stiffness_matrix, *out));
    }
    else
    {
-      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      if (nonlinear)
+         evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      else
+      {
+         /// TODO: revisit this -> evolvers shouldn't need options file
+         std::string opt_file_name = "options";
+         evolver.reset(new ImplicitLinearEvolver(opt_file_name, *mass_matrix, *stiffness_matrix, *load, *out));
+      }
    }
 
    // add the output functional QoIs 
@@ -629,6 +662,19 @@ void AbstractSolver::solveForAdjoint(const std::string &fun)
    else 
    {
       solveUnsteadyAdjoint(fun);
+   }
+}
+
+void AbstractSolver::addMassVolumeIntegrators()
+{
+   const char* name = fes->FEColl()->Name();
+   if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+   {
+      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   }
+   else
+   {
+      mass->AddDomainIntegrator(new MassIntegrator());
    }
 }
 

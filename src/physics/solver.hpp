@@ -199,6 +199,13 @@ protected:
    std::unique_ptr<BilinearFormType> mass;
    /// mass matrix
    std::unique_ptr<MatrixType> mass_matrix;
+   /// the stiffness matrix bilinear form
+   std::unique_ptr<BilinearFormType> stiff;
+   /// the stiffness matrix (linear components of the total jacobian)
+   std::unique_ptr<MatrixType> stiffness_matrix;
+   /// the load vector linear form
+   std::unique_ptr<LinearFormType> load;
+
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
@@ -217,17 +224,45 @@ protected:
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
 
+   /// Add volume integrators to `mass`
+   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   virtual void addMassVolumeIntegrators();
+
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addVolumeIntegrators(double alpha) {};
+   virtual void addVolumeIntegrators(double alpha = 1.0) {};
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addBoundaryIntegrators(double alpha) {};
+   virtual void addBoundaryIntegrators(double alpha = 1.0) {};
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addInterfaceIntegrators(double alpha) {};
+   virtual void addInterfaceIntegrators(double alpha = 1.0) {};
+
+   /// Add volume integrators to `stiff`
+   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   virtual void addStiffVolumeIntegrators(double alpha = 1.0) {};
+
+   /// Add boundary-face integrators to `stiff`
+   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   virtual void addStiffBoundaryIntegrators(double alpha = 1.0) {};
+
+   /// Add interior-face integrators to `stiff`
+   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   virtual void addStiffInterfaceIntegrators(double alpha = 1.0) {};
+
+   /// Add volume integrators to 'load'
+   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   virtual void addLoadVolumeIntegrators(double alpha = 1.0) {};
+
+   /// Add boundary-face integrators to `load'
+   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   virtual void addLoadBoundaryIntegrators(double alpha = 1.0) {};
+
+   /// Add interior-face integrators to `load'
+   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   virtual void addLoadInterfaceIntegrators(double alpha = 1.0) {};
 
    /// Define the number of states, the finite element space, and state u
    virtual int getNumState() = 0; 

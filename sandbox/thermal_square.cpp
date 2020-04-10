@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 
       
       ThermalSolver solver(opt_file_name, move(mesh));
-      solver.setInitialTemperature(InitialTemperature);
+      solver.setInitialCondition(InitialTemperature);
       // unique_ptr<MagnetostaticSolver<3>> solver(
       //    new MagnetostaticSolver<3>(opt_file_name, nullptr));
       std::cout << "Solving..." << std::endl;

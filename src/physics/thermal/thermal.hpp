@@ -35,7 +35,7 @@ public:
                       int entry = -1);
 
 private:
-   std::ofstream sol_ofs;
+   // std::ofstream sol_ofs;
 
    /// Magnetic flux density B grid function;
    GridFunType *mag_field;
@@ -115,6 +115,10 @@ private:
 
    /// construct mesh dependent coefficient for core loss heating
    void constructCore();
+
+   void addMassVolumeIntegrators() override;
+   void addStiffVolumeIntegrators(double alpha) override;
+   void addLoadVolumeIntegrators(double alpha) override;
 
    // /// for calls of mult
    // void Mult(const mfem::Vector &X, mfem::Vector &dXdt);

@@ -84,7 +84,7 @@ public:
    /// \param[in] k - stiffness matrix
    /// \param[in] outstream - for output
    ImplicitLinearEvolver(const std::string &opt_file_name, MatrixType &m, 
-                        MatrixType &k, std::unique_ptr<mfem::LinearForm> b, std::ostream &outstream);
+                        MatrixType &k, mfem::Vector b, std::ostream &outstream);
 
    /// Compute explicit solve, if chosen
    virtual void Mult(const mfem::Vector &x, mfem::Vector &k) const;

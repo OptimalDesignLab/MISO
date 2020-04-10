@@ -15,15 +15,14 @@ ThermalSolver::ThermalSolver(
     std::unique_ptr<mfem::Mesh> smesh,
 	 int dim,
 	 GridFunType *B)
-	: AbstractSolver(opt_file_name, move(smesh)),
-	sol_ofs("motor_heat.vtk"), mag_field(B)
+	: AbstractSolver(opt_file_name, move(smesh)), mag_field(B)
 {
 	setInit = false;
 
 	mesh->ReorientTetMesh();
 
 	/// Create temperature grid function
-	u.reset(new GridFunType(fes.get()));
+	// u.reset(new GridFunType(fes.get()));
 	th_exact.reset(new GridFunType(fes.get()));
 
 	/// Set static variables
@@ -67,37 +66,38 @@ ThermalSolver::ThermalSolver(
    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
 	/// set up the bilinear forms
-	m.reset(new BilinearFormType(fes.get()));
-	k.reset(new BilinearFormType(fes.get()));
+	// m.reset(new BilinearFormType(fes.get()));
+	// k.reset(new BilinearFormType(fes.get()));
 
 	std::cout << "Creating Mass Matrix..." << std::endl;
 	/// add mass integrator to m bilinear form
-	m->AddDomainIntegrator(new MassIntegrator(*rho_cv));
+	// m->AddDomainIntegrator(new MassIntegrator(*rho_cv));
 	/// assemble mass matrix
-	m->Assemble(0);
+	// m->Assemble(0);
+
 	m->FormSystemMatrix(ess_tdof_list, M);
 
 	/// add diffusion integrator to k bilinear form
-	k->AddDomainIntegrator(new DiffusionIntegrator(*kappa));
+	// k->AddDomainIntegrator(new DiffusionIntegrator(*kappa));
 
 
 	/// set up the linear form (volumetric fluxes)
-	bs.reset(new LinearForm(fes.get()));
+	// bs.reset(new LinearForm(fes.get()));
 
 	/// add joule heating term
-	bs->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
-	std::cout << "Constructing Boundary Conditions..." << std::endl;
+	// bs->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
+	// std::cout << "Constructing Boundary Conditions..." << std::endl;
 	/// add iron loss heating terms
-	bs->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
+	// bs->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
 
 
 	std::cout << "Assembling Stiffness Matrix..." << std::endl;
 	/// assemble stiffness matrix and linear form
-	k->Assemble(0);
+	// k->Assemble(0);
 
 	k->FormSystemMatrix(ess_tdof_list, K);
 	std::cout << "Assembling Forcing Term..." << std::endl;
-	bs->Assemble();
+	// bs->Assemble();
 
 	std::cout << "Setting Up ODE Solver..." << std::endl;
 	/// define ode solver
@@ -144,7 +144,7 @@ void ThermalSolver::solveUnsteady()
 	evolver->SetTime(t);
 	ode_solver->Init(*evolver);
 
-	if(!setInit)
+	if (!setInit)
 	{
 		setInitialCondition(initialTemperature);
 	}
@@ -187,9 +187,9 @@ void ThermalSolver::solveUnsteady()
     	double dt_real = min(dt, t_final - t);
     	//if (ti % 100 == 0)
     	{
-        	 cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+			cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      	}
+      }
 #ifdef MFEM_USE_MPI
 		HypreParVector *TV = u->GetTrueDofs();
 		ode_solver->Step(*TV, t, dt_real);
@@ -208,10 +208,10 @@ void ThermalSolver::solveUnsteady()
 
 		evolver->updateParameters();
 
-      	ti++;
+		ti++;
 
-      	done = (t >= t_final - 1e-8 * dt);
-    }
+		done = (t >= t_final - 1e-8 * dt);
+	}
 
 	if (rhoa != 0)
 	{
@@ -225,9 +225,9 @@ void ThermalSolver::solveUnsteady()
 	}
 	
         
-		sol_ofs.precision(14);
-		mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-		u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+	// sol_ofs.precision(14);
+	// mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+	// u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
 }
 
 void ThermalSolver::setStaticMembers()
@@ -426,11 +426,29 @@ double ThermalSolver::calcL2Error(
 	th_exact->ProjectCoefficient(exsol);
 
 	
-	sol_ofs.precision(14);
-	th_exact->SaveVTK(sol_ofs, "Analytic", options["space-dis"]["degree"].get<int>() + 1);
-	sol_ofs.close();
+	// sol_ofs.precision(14);
+	// th_exact->SaveVTK(sol_ofs, "Analytic", options["space-dis"]["degree"].get<int>() + 1);
+	// sol_ofs.close();
 
 	return u->ComputeL2Error(exsol);
+}
+
+void ThermalSolver::addMassVolumeIntegrators()
+{
+	mass->AddDomainIntegrator(new MassIntegrator(*rho_cv));
+}
+
+void ThermalSolver::addStiffVolumeIntegrators(double alpha)
+{
+	stiff->AddDomainIntegrator(new DiffusionIntegrator(*kappa));
+}
+
+void ThermalSolver::addLoadVolumeIntegrators(double alpha)
+{
+	/// add joule heating term
+	load->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
+	/// add iron loss heating terms
+	load->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
 }
 
 double ThermalSolver::initialTemperature(const Vector &x)
@@ -458,6 +476,10 @@ void ConductionEvolver::setStaticMembers()
 {
 	outflux = options["bcs"]["const-val"].get<double>();
 }
+
+/// TODO: move this to addLoadBoundaryIntegrator
+/// Make fluxFunc a regular function in this file in anonymous namespace
+
 
 void ConductionEvolver::updateParameters()
 {

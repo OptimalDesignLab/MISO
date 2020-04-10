@@ -8,7 +8,8 @@ namespace mach
 {
 
 LinearEvolver::LinearEvolver(MatrixType &m, MatrixType &k, ostream &outstream)
-   : out(outstream), TimeDependentOperator(m.Height()), mass(m), stiff(k), z(m.Height())
+   : TimeDependentOperator(m.Height(), 0.0, EXPLICIT), out(outstream), mass(m),
+     stiff(k), z(m.Height())
 {
     // Here we extract the diagonal from the mass matrix and invert it
     //M.GetDiag(z);
@@ -41,7 +42,8 @@ void LinearEvolver::Mult(const Vector &x, Vector &y) const
 
 NonlinearEvolver::NonlinearEvolver(MatrixType &m, NonlinearFormType &r,
                                    double a)
-   : TimeDependentOperator(m.Height()), mass(m), res(r), z(m.Height()), alpha(a)
+   : TimeDependentOperator(m.Height(), 0.0, EXPLICIT), mass(m), res(r),
+     z(m.Height()), alpha(a)
 {
 #ifdef MFEM_USE_MPI
    mass_prec.SetType(HypreSmoother::Jacobi);
@@ -65,13 +67,14 @@ void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
    y *= alpha;
 }
 
+/// TODO: rewrite this
 ImplicitLinearEvolver::ImplicitLinearEvolver(const std::string &opt_file_name,
                                              MatrixType &m,
                                              MatrixType &k, 
-                                             std::unique_ptr<LinearForm> b,
+                                             Vector b,
                                              std::ostream &outstream)
-   : out(outstream),  TimeDependentOperator(m.Height()), mass(m), stiff(k), 
-                                             force(move(b)), z(m.Height())
+   : TimeDependentOperator(m.Height(), 0.0, IMPLICIT), out(outstream),
+     force(move(b)), mass(m), stiff(k), z(m.Height())
 {
    // t = m + dt*k
 
@@ -124,8 +127,8 @@ void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vect
 {
    // if (T == NULL)
    // {
-      T = Add(1.0, mass, dt, stiff);
-      t_solver->SetOperator(*T);
+   T = Add(1.0, mass, dt, stiff);
+   t_solver->SetOperator(*T);
    //}
    stiff.Mult(x, z);
    z.Neg();  
@@ -137,7 +140,8 @@ void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vect
 ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
                                             NonlinearFormType &r,
                                             double a)
-   : TimeDependentOperator(m.Height()), mass(m), res(r), alpha(a)
+   : TimeDependentOperator(m.Height(), 0.0, IMPLICIT), alpha(a), mass(m),
+     res(r)
 {
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PETSC
