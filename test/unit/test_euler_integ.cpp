@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux jacobian", "[euler_flux_jac]",
       diff -= jac_v_fd;
       for (int i = 0; i < dim + 2; ++i)
       {
-         REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+         REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
       }
    }
 
@@ -90,7 +90,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux jacobian", "[euler_flux_jac]",
       diff -= jac_v_fd;
       for (int i = 0; i < dim; ++i)
       {
-         REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+         REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
       }
    }
 }
@@ -152,7 +152,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
       DYNAMIC_SECTION("Ismail-Roe flux jacismailintegian is correct w.r.t right state ")
@@ -170,7 +170,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
    }
@@ -237,7 +237,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
       DYNAMIC_SECTION("Ismail-Roe flux jacismailintegian is correct w.r.t right state ")
@@ -255,7 +255,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
    }
@@ -313,7 +313,7 @@ TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
       // compare
       for (int i = 0; i < num_states; ++i)
       {
-         REQUIRE(mat_vec_jac_v(i) == Approx(mat_vec_jac_v_fd(i)));
+         REQUIRE(mat_vec_jac_v(i) == Approx(mat_vec_jac_v_fd(i)).margin(1e-10));
       }
    }
 
@@ -346,7 +346,7 @@ TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
          // compare with explicit Jacobian
          for (int j = 0; j < num_states; j++)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)).margin(1e-10));
          }
       }
    }
@@ -380,7 +380,7 @@ TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
          // compare with explicit Jacobian
          for (int j = 0; j < num_states; j++)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)).margin(1e-10));
          }
       }
    }
@@ -451,7 +451,7 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -491,7 +491,7 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -531,7 +531,7 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -571,7 +571,7 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -645,7 +645,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -686,7 +686,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -727,7 +727,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -768,8 +768,122 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
+      }
+   }
+}
+
+// TODO: add dim = 1, 3 once 3d sbp operators implemented
+TEMPLATE_TEST_CASE_SIG("Pressure force gradient", "[Pressure Force]",
+                       ((int dim), dim), 2)
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   double delta = 1e-5;
+   mfem::Vector nrm(dim);
+   for (int di = 0; di < dim; ++di)
+   {
+      nrm(di) = dir[di];
+   }
+   mfem::Vector q(dim + 2);
+   q(0) = rho;
+   q(dim + 1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di + 1) = rhou[di];
+   }
+   mfem::Vector drag_dir(dim);
+   drag_dir = 0.0;
+   double aoa_fs = 5.0*M_PI/180;
+   if (dim == 1)
+   {
+      drag_dir(0) = 1.0;
+   }
+   else 
+   {
+      drag_dir(0) = cos(aoa_fs);
+      drag_dir(1) = sin(aoa_fs);
+   }
+
+   // dummy const vector x for calcBndryFun and calcFlux - unused
+   const mfem::Vector x(nrm);
+
+   /// finite element or SBP operators
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   adept::Stack diff_stack;
+
+   const int max_degree = 4;
+   for (int p = 1; p <= max_degree; ++p)
+   {
+      DYNAMIC_SECTION("Gradient of pressure stress w.r.t convars is correct")
+      {
+         // Define the SBP elements and finite-element space
+         fec.reset(new mfem::SBPCollection(p, dim));
+         mach::PressureForce<dim> force(diff_stack, fec.get(), drag_dir);
+         // create the perturbation vector
+         mfem::Vector v(dim + 2);
+         for (int i = 0; i < dim + 2; i++)
+         {
+            v(i) = vec_pert[i];
+         }
+
+         // get derivative information from AD functions
+         mfem::Vector dJdu_ad(dim + 2);
+         force.calcFlux(x, nrm, q, dJdu_ad);
+         double dJdu_dot_v_ad = mfem::InnerProduct(dJdu_ad, v);
+
+         // FD approximation
+         mfem::Vector q_plus(q);
+         mfem::Vector q_minus(q);
+         q_plus.Add(delta, v);
+         q_minus.Add(-delta, v);
+
+         mfem::Vector force_plus(dim + 2);
+         mfem::Vector force_minus(dim + 2);
+         double dJdu_dot_v_fd = force.calcBndryFun(x, nrm, q_plus);
+         dJdu_dot_v_fd -= force.calcBndryFun(x, nrm, q_minus);
+         dJdu_dot_v_fd /= 2 * delta;
+
+         // compare
+         REQUIRE(dJdu_dot_v_ad == Approx(dJdu_dot_v_fd).margin(1e-10));
+      }
+   }
+   mfem::Vector w(dim+2);
+   mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   for (int p = 1; p <= max_degree; ++p)
+   {
+      DYNAMIC_SECTION("Gradient of pressure stress w.r.t entvars is correct")
+      {
+         // Define the SBP elements and finite-element space
+         fec.reset(new mfem::SBPCollection(p, dim));
+         mach::PressureForce<dim,true> force(diff_stack, fec.get(), drag_dir);
+         // create the perturbation vector
+         mfem::Vector v(dim + 2);
+         for (int i = 0; i < dim + 2; i++)
+         {
+            v(i) = vec_pert[i];
+         }
+
+         // get derivative information from AD functions
+         mfem::Vector dJdu_ad(dim + 2);
+         force.calcFlux(x, nrm, w, dJdu_ad);
+         double dJdu_dot_v_ad = mfem::InnerProduct(dJdu_ad, v);
+
+         // FD approximation
+         mfem::Vector w_plus(w);
+         mfem::Vector w_minus(w);
+         w_plus.Add(delta, v);
+         w_minus.Add(-delta, v);
+
+         mfem::Vector force_plus(dim + 2);
+         mfem::Vector force_minus(dim + 2);
+         double dJdu_dot_v_fd = force.calcBndryFun(x, nrm, w_plus);
+         dJdu_dot_v_fd -= force.calcBndryFun(x, nrm, w_minus);
+         dJdu_dot_v_fd /= 2 * delta;
+
+         // compare
+         REQUIRE(dJdu_dot_v_ad == Approx(dJdu_dot_v_fd).margin(1e-10));
       }
    }
 }
@@ -821,7 +935,7 @@ TEMPLATE_TEST_CASE_SIG("Entropy variables Jacobian", "[lps integrator]",
       // compare each component of the matrix-vector products
       for (int i = 0; i < dim + 2; ++i)
       {
-         REQUIRE(dwdu_v[i] == Approx(dwdu_v_fd[i]));
+         REQUIRE(dwdu_v[i] == Approx(dwdu_v_fd[i]).margin(1e-10));
       }
    }
 }
@@ -878,7 +992,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -918,7 +1032,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -977,7 +1091,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1018,8 +1132,103 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
+      }
+   }
+}
+
+TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
+{
+   using namespace mfem;
+   using namespace euler_data;
+
+   const int dim = 2; // templating is hard here because mesh constructors
+   int num_state = dim + 2;
+   adept::Stack diff_stack;
+   double delta = 1e-5;
+
+   mfem::Vector drag_dir(dim);
+   double aoa_fs = 5.0*M_PI/180;
+   drag_dir(0) = cos(aoa_fs);
+   drag_dir(1) = sin(aoa_fs);
+
+   // generate a 2 element mesh
+   int num_edge = 2;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
+                                       true /* gen. edges */, 1.0, 1.0, true));
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+             new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+
+         NonlinearForm drag(fes.get());
+         drag.AddBdrFaceIntegrator(
+            new mach::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         q.ProjectCoefficient(pert);
+
+         // initialize the vector that dJdu multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(fes.get());
+         drag.Mult(q, dJdu);
+         double dJdu_dot_v = InnerProduct(dJdu, v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q);
+         q_pert.Add(-delta, v);
+         double dJdu_dot_v_fd = -drag.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, v);
+         dJdu_dot_v_fd += drag.GetEnergy(q_pert);
+         dJdu_dot_v_fd /= (2 * delta);
+         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd).margin(1e-10));
+      }
+
+      DYNAMIC_SECTION("(DSBP)...for degree p = " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+             new DSBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+
+         NonlinearForm drag(fes.get());
+         drag.AddBdrFaceIntegrator(
+            new mach::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         q.ProjectCoefficient(pert);
+
+         // initialize the vector that dJdu multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(fes.get());
+         drag.Mult(q, dJdu);
+         double dJdu_dot_v = InnerProduct(dJdu, v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q);
+         q_pert.Add(-delta, v);
+         double dJdu_dot_v_fd = -drag.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, v);
+         dJdu_dot_v_fd += drag.GetEnergy(q_pert);
+         dJdu_dot_v_fd /= (2 * delta);
+         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd).margin(1e-10));
       }
    }
 }
@@ -1079,7 +1288,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1119,7 +1328,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -1179,7 +1388,7 @@ TEST_CASE("InviscidFaceIntegrator::AssembleFaceGrad", "[InterfaceIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1219,7 +1428,7 @@ TEST_CASE("InviscidFaceIntegrator::AssembleFaceGrad", "[InterfaceIntegrator]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    } // loop different order of elements
@@ -1280,7 +1489,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1320,7 +1529,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }

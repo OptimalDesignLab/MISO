@@ -14,6 +14,7 @@ endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
    steady_vortex
+   steady_vortex_adjoint
    unsteady_vortex
    viscous_shock
    airfoil_chaotic
