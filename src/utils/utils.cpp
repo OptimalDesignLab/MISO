@@ -615,4 +615,41 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
 }
 #endif
 
+#ifdef MFEM_USE_GSLIB
+void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
+                      const GridFunType &in, GridFunType &out)
+{
+   const int dim = old_mesh.Dimension(); 
+
+   Vector vxyz = *(new_mesh.GetNodes());
+   const int nodes_cnt = vxyz.Size() / dim;
+   FindPointsGSLIB finder;
+   const double rel_bbox_el = 0.05;
+   const double newton_tol  = 1.0e-12;
+   const int npts_at_once   = 256;
+
+   // Get the values at the nodes of mesh 1.
+   Array<unsigned int> el_id_out(nodes_cnt), code_out(nodes_cnt),
+         task_id_out(nodes_cnt);
+   Vector pos_r_out(nodes_cnt * dim), dist_p_out(nodes_cnt * dim),
+         interp_vals(nodes_cnt);
+   finder.Setup(old_mesh, rel_bbox_el, newton_tol, npts_at_once);
+   finder.FindPoints(vxyz, code_out, task_id_out,
+                     el_id_out, pos_r_out, dist_p_out);
+   finder.Interpolate(code_out, task_id_out, el_id_out,
+                      pos_r_out, in, interp_vals);
+   for (int n = 0; n < nodes_cnt; n++)
+   {
+      out(n) = interp_vals(n);
+   }
+}
+#else
+void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
+                      const GridFunType &in, GridFunType &out)
+{
+   throw MachException("transferSolution requires GSLIB!"
+                       "\trecompile MFEM with GSLIB!");
+}
+#endif
+
 } // namespace mach

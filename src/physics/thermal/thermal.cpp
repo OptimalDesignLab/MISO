@@ -1,56 +1,51 @@
+#include <fstream>
+
 #include "thermal.hpp"
 #include "evolver.hpp"
-
-#include <fstream>
+#include "material_library.hpp"
 
 using namespace std;
 using namespace mfem;
-//just copying magnetostatic.cpp for now
+
 namespace mach
 {
 
 ThermalSolver::ThermalSolver(
 	 const std::string &opt_file_name,
     std::unique_ptr<mfem::Mesh> smesh,
-	 int dim)
-	: AbstractSolver(opt_file_name, move(smesh)), sol_ofs("motor_heat.vtk")
+	 int dim,
+	 GridFunType *B)
+	: AbstractSolver(opt_file_name, move(smesh)),
+	sol_ofs("motor_heat.vtk"), mag_field(B)
 {
-	/// check for B field solution?
-	Bfield = nullptr;
-
 	setInit = false;
 
 	mesh->ReorientTetMesh();
-	int fe_order = options["space-dis"]["degree"].get<int>();
-
-	/// Create the H(Grad) finite element collection
-    h_grad_coll.reset(new H1_FECollection(fe_order, dim));
-
-	/// Create the H(Grad) finite element space
-	h_grad_space.reset(new SpaceType(mesh.get(), h_grad_coll.get()));
 
 	/// Create temperature grid function
-	theta.reset(new GridFunType(h_grad_space.get()));
-	th_exact.reset(new GridFunType(h_grad_space.get()));
+	u.reset(new GridFunType(fes.get()));
+	th_exact.reset(new GridFunType(fes.get()));
 
 	/// Set static variables
 	setStaticMembers();
 
 #ifdef MFEM_USE_MPI
-   cout << "Number of finite element unknowns: "
-       << h_grad_space->GlobalTrueVSize() << endl;
+   *out << "Number of finite element unknowns: "
+       << fes->GlobalTrueVSize() << endl;
 #else
-   cout << "Number of finite element unknowns: "
-        << h_grad_space->GetNDofs() << endl;
+   *out << "Number of finite element unknowns: "
+        << fes->GetNDofs() << endl;
 #endif
 
-    ifstream material_file(options["material-lib-path"].get<string>());
-	/// TODO: replace with mach exception
-	if (!material_file)
-		std::cerr << "Could not open materials library file!" << std::endl;
-	material_file >> materials;
+   //  ifstream material_file(options["material-lib-path"].get<string>());
+	// /// TODO: replace with mach exception
+	// if (!material_file)
+	// 	std::cerr << "Could not open materials library file!" << std::endl;
+	// material_file >> materials;
 
-	std::cout << "Constructing Material Coefficients..." << std::endl;
+	materials = material_library;
+
+	*out << "Constructing Material Coefficients..." << std::endl;
 	
 	constructDensityCoeff();
 
@@ -58,9 +53,9 @@ ThermalSolver::ThermalSolver(
 
 	constructMassCoeff();
 
-    constructConductivity();
+   constructConductivity();
      
-    constructJoule();
+   constructJoule();
 
 	constructCore();
 
@@ -69,11 +64,11 @@ ThermalSolver::ThermalSolver(
 	Array<int> ess_tdof_list;
 	mfem::Array<int> ess_bdr(mesh->bdr_attributes.Max());
 	ess_bdr = 0;
-    h_grad_space->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
 	/// set up the bilinear forms
-	m.reset(new BilinearFormType(h_grad_space.get()));
-    k.reset(new BilinearFormType(h_grad_space.get()));
+	m.reset(new BilinearFormType(fes.get()));
+	k.reset(new BilinearFormType(fes.get()));
 
 	std::cout << "Creating Mass Matrix..." << std::endl;
 	/// add mass integrator to m bilinear form
@@ -87,7 +82,7 @@ ThermalSolver::ThermalSolver(
 
 
 	/// set up the linear form (volumetric fluxes)
-	bs.reset(new LinearForm(h_grad_space.get()));
+	bs.reset(new LinearForm(fes.get()));
 
 	/// add joule heating term
 	bs->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
@@ -109,13 +104,13 @@ ThermalSolver::ThermalSolver(
 	ode_solver = NULL;
 	ode_solver.reset(new ImplicitMidpointSolver);
 	std::string ode_opt = 
-		options["time-dis"]["ode-solver"].template get<std::string>();
-	if(ode_opt == "MIDPOINT")
+		options["time-dis"]["ode-solver"].get<std::string>();
+	if (ode_opt == "MIDPOINT")
 	{
 		ode_solver = NULL;
 		ode_solver.reset(new ImplicitMidpointSolver);
 	}
-	if(ode_opt == "RK4")
+	if (ode_opt == "RK4")
 	{
 		ode_solver = NULL;
 		ode_solver.reset(new RK4Solver);
@@ -125,71 +120,67 @@ ThermalSolver::ThermalSolver(
 										K, move(bs), *out));
 
 	/// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
-	rhoa = options["rho-agg"].template get<double>();
-	//double max = options["max-temp"].template get<double>();
+	rhoa = options["rho-agg"].get<double>();
+	//double max = options["max-temp"].get<double>();
 
 	/// assemble max temp array
-	max.SetSize(h_grad_space->GetMesh()->attributes.Size()+1);
+	max.SetSize(fes->GetMesh()->attributes.Size()+1);
 	for (auto& component : options["components"])
 	{
-		double mat_max = component["max-temp"].template get<double>();
-		int attrib = component["attr"].template get<int>();
+		double mat_max = component["max-temp"].get<double>();
+		int attrib = component["attr"].get<int>();
 		max(attrib) = mat_max;
 	}
 
 	/// pass through aggregation parameters for functional
-	func.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));
+	func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
 }
 
 void ThermalSolver::solveUnsteady()
 {
 	double t = 0.0;
-    double agg;
+	double agg;
 	double gerror = 0;
 	evolver->SetTime(t);
-    ode_solver->Init(*evolver);
+	ode_solver->Init(*evolver);
 
 	if(!setInit)
 	{
-		FunctionCoefficient theta_0(InitialTemperature);
-    	theta->ProjectCoefficient(theta_0);
+		setInitialCondition(initialTemperature);
 	}
 
-    Vector u;
-    theta->GetTrueDofs(u);
-
 	int precision = 8;
-    {
-        ofstream osol("motor_heat_init.gf");
-        osol.precision(precision);
-        theta->Save(osol);
-    }
+	{
+		ofstream osol("motor_heat_init.gf");
+		osol.precision(precision);
+		u->Save(osol);
+	}
 	// {
-    //     ofstream sol_ofs("motor_heat_init.vtk");
-    //     sol_ofs.precision(14);
-    //     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-    //     theta->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-    //     sol_ofs.close();
+	//     ofstream sol_ofs("motor_heat_init.vtk");
+	//     sol_ofs.precision(14);
+	//     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+	//     u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+	//     sol_ofs.close();
     // }
 
 	bool done = false;
-    double t_final = options["time-dis"]["t-final"].get<double>();
-    double dt = options["time-dis"]["dt"].get<double>();
+	double t_final = options["time-dis"]["t-final"].get<double>();
+	double dt = options["time-dis"]["dt"].get<double>();
 
 	// compute functional for first step, testing purposes
 	if (rhoa != 0)
 	{
-		agg = func->GetIEAggregate(theta.get());
+		agg = func->GetIEAggregate(u.get());
 		cout << "aggregated temp constraint = " << agg << endl;
 
 		//compare to actual max, ASSUMING UNIFORM CONSTRAINT
-		gerror = (theta->Max()/max(1) - agg)/(theta->Max()/max(1));
+		gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
 		
 	}
 
 	for (int ti = 0; !done;)
-    {
-      	// if (options["time-dis"]["const-cfl"].get<bool>())
+	{
+		// if (options["time-dis"]["const-cfl"].get<bool>())
     	// {
     	//     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
     	// }
@@ -200,17 +191,17 @@ void ThermalSolver::solveUnsteady()
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
       	}
 #ifdef MFEM_USE_MPI
-	    HypreParVector *TV = theta->GetTrueDofs();
-	    ode_solver->Step(*TV, t, dt_real);
-	    *theta = *TV;
+		HypreParVector *TV = u->GetTrueDofs();
+		ode_solver->Step(*TV, t, dt_real);
+		*u = *TV;
 #else
-      	ode_solver->Step(*theta, t, dt_real);
+		ode_solver->Step(*u, t, dt_real);
 #endif
 
 		// compute functional
 		if (rhoa != 0)
 		{
-			agg = func->GetIEAggregate(theta.get());
+			agg = func->GetIEAggregate(u.get());
 			cout << "aggregated temp constraint = " << agg << endl;
 
 		}
@@ -227,25 +218,21 @@ void ThermalSolver::solveUnsteady()
 		cout << "aggregated constraint error at initial state = " << gerror << endl;
 	}
 
-    {
-        ofstream osol("motor_heat.gf");
-        osol.precision(precision);
-        theta->Save(osol);
-    }
+	{
+		ofstream osol("motor_heat.gf");
+		osol.precision(precision);
+		u->Save(osol);
+	}
 	
         
-        sol_ofs.precision(14);
-        mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-        theta->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-        
-    
-
+		sol_ofs.precision(14);
+		mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+		u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
 }
 
 void ThermalSolver::setStaticMembers()
 {
-	
-    temp_0 = options["init-temp"].get<double>();
+	temp_0 = options["init-temp"].get<double>();
 }
 
 void ThermalSolver::constructDensityCoeff()
@@ -255,14 +242,14 @@ void ThermalSolver::constructDensityCoeff()
 	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> rho_coeff;
-		std::string material = component["material"].template get<std::string>();
+		std::string material = component["material"].get<std::string>();
 		std::cout << material << '\n';
 		{
-			auto rho_val = materials[material]["rho"].template get<double>();
+			auto rho_val = materials[material]["rho"].get<double>();
 			rho_coeff.reset(new ConstantCoefficient(rho_val));
 		}
-		int attrib = component["attr"].template get<int>();
-		rho->addCoefficient(component["attr"].template get<int>(), move(rho_coeff));
+		// int attrib = component["attr"].get<int>();
+		rho->addCoefficient(component["attr"].get<int>(), move(rho_coeff));
 	}
 }
 
@@ -273,16 +260,15 @@ void ThermalSolver::constructHeatCoeff()
 	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> cv_coeff;
-		std::string material = component["material"].template get<std::string>();
+		std::string material = component["material"].get<std::string>();
 		std::cout << material << '\n';
 		{
-			auto cv_val = materials[material]["cv"].template get<double>();
+			auto cv_val = materials[material]["cv"].get<double>();
 			cv_coeff.reset(new ConstantCoefficient(cv_val));
 		}
-		cv->addCoefficient(component["attr"].template get<int>(), move(cv_coeff));
+		cv->addCoefficient(component["attr"].get<int>(), move(cv_coeff));
 	}
 }
-
 
 void ThermalSolver::constructMassCoeff()
 {
@@ -291,16 +277,16 @@ void ThermalSolver::constructMassCoeff()
 	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> rho_cv_coeff;
-		std::string material = component["material"].template get<std::string>();
+		std::string material = component["material"].get<std::string>();
 		std::cout << material << '\n';
 		{
 			//auto attr = material["attr"].get<int>();
-			auto cv_val = materials[material]["cv"].template get<double>();
-			auto rho_val = materials[material]["rho"].template get<double>();
+			auto cv_val = materials[material]["cv"].get<double>();
+			auto rho_val = materials[material]["rho"].get<double>();
 			//rho_cv_coeff.reset(new ProductCoefficient(rho->getCoefficient(attr), cv->getCoefficient(attr)));
 			rho_cv_coeff.reset(new ConstantCoefficient(cv_val*rho_val));
 		}
-		rho_cv->addCoefficient(component["attr"].template get<int>(), move(rho_cv_coeff));
+		rho_cv->addCoefficient(component["attr"].get<int>(), move(rho_cv_coeff));
 	}
 }
 
@@ -311,13 +297,13 @@ void ThermalSolver::constructConductivity()
 	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> kappa_coeff;
-		std::string material = component["material"].template get<std::string>();
+		std::string material = component["material"].get<std::string>();
 		std::cout << material << '\n';
 		{
-			auto kappa_val = materials[material]["kappa"].template get<double>();
+			auto kappa_val = materials[material]["kappa"].get<double>();
 			kappa_coeff.reset(new ConstantCoefficient(kappa_val));
 		}
-		kappa->addCoefficient(component["attr"].template get<int>(), move(kappa_coeff));
+		kappa->addCoefficient(component["attr"].get<int>(), move(kappa_coeff));
 
 		///TODO: generate anisotropic conductivity for the copper windings
 	}
@@ -330,14 +316,14 @@ void ThermalSolver::constructJoule()
 	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> i2sigmainv_coeff;
-		std::string material = component["material"].template get<std::string>();
+		std::string material = component["material"].get<std::string>();
 		std::cout << material << '\n';
-		if(materials[material]["conductor"].template get<bool>())
+		if(materials[material]["conductor"].get<bool>())
 		{
-			auto sigma = materials[material]["sigma"].template get<double>();
-			auto current = options["motor-opts"]["current"].template get<double>();
+			auto sigma = materials[material]["sigma"].get<double>();
+			auto current = options["motor-opts"]["current"].get<double>();
 			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
-			i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(i2sigmainv_coeff));
+			i2sigmainv->addCoefficient(component["attr"].get<int>(), move(i2sigmainv_coeff));
 		}
 		
 	}
@@ -350,52 +336,44 @@ void ThermalSolver::constructCore()
 	for (auto& component : options["components"])
 	{
 		std::unique_ptr<mfem::Coefficient> coreloss_coeff;
-		std::string material = component["material"].template get<std::string>();
+		std::string material = component["material"].get<std::string>();
 		std::cout << material << '\n';
-		if(materials[material]["core"].template get<bool>())
+		if(materials[material]["core"].get<bool>())
 		{
-			auto rho_val = materials[material]["rho"].template get<double>(); 
-			auto alpha = materials[material]["alpha"].template get<double>(); 
-			auto freq = options["motor-opts"]["frequency"].template get<double>();
-			auto kh = materials[material]["kh"].template get<double>(); 
-			auto ke = materials[material]["ke"].template get<double>(); 
+			auto rho_val = materials[material]["rho"].get<double>(); 
+			auto alpha = materials[material]["alpha"].get<double>(); 
+			auto freq = options["motor-opts"]["frequency"].get<double>();
+			auto kh = materials[material]["kh"].get<double>(); 
+			auto ke = materials[material]["ke"].get<double>(); 
 			Bmax = 0;
-			if(Bfield == nullptr)
+			if (mag_field == nullptr)
 			{
 				Bmax = 2.5; ///TODO: OBTAIN FROM MAGNETOSTATIC SOLVER
 			}
-			double loss = rho_val*(kh*freq*pow(Bmax, alpha) + ke*freq*freq*Bmax*Bmax);
-			coreloss_coeff.reset(new ConstantCoefficient(loss));
-			i2sigmainv->addCoefficient(component["attr"].template get<int>(), move(coreloss_coeff));
+			// double loss = rho_val*(kh*freq*pow(Bmax, alpha) + ke*freq*freq*Bmax*Bmax);
+			// coreloss_coeff.reset(new ConstantCoefficient(loss));
+			coreloss_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq, kh, ke, mag_field));
+			i2sigmainv->addCoefficient(component["attr"].get<int>(), move(coreloss_coeff));
 		}
-		
 	}
-}
-
-void ThermalSolver::setInitialTemperature(double (*f)(const Vector &))
-{
-	FunctionCoefficient theta_0(f);
-    theta->ProjectCoefficient(theta_0);
-
-	setInit = true;
 }
 
 double ThermalSolver::calcL2Error(
     double (*u_exact)(const Vector &), int entry)
 {
-    // TODO: need to generalize to parallel
-    FunctionCoefficient exsol(u_exact);
+	// TODO: need to generalize to parallel
+	FunctionCoefficient exsol(u_exact);
 	th_exact->ProjectCoefficient(exsol);
 
 	
-        sol_ofs.precision(14);
-        th_exact->SaveVTK(sol_ofs, "Analytic", options["space-dis"]["degree"].get<int>() + 1);
-		sol_ofs.close();
+	sol_ofs.precision(14);
+	th_exact->SaveVTK(sol_ofs, "Analytic", options["space-dis"]["degree"].get<int>() + 1);
+	sol_ofs.close();
 
-    return theta->ComputeL2Error(exsol);
+	return u->ComputeL2Error(exsol);
 }
 
-double ThermalSolver::InitialTemperature(const Vector &x)
+double ThermalSolver::initialTemperature(const Vector &x)
 {
    return 100;
 }
@@ -433,13 +411,13 @@ void ConductionEvolver::updateParameters()
     bndry_marker.resize(bcs.size());
 	int idx = 0;
 	if (bcs.find("outflux") != bcs.end())
-    { // outward flux bc
+	{ // outward flux bc
         vector<int> tmp = bcs["outflux"].get<vector<int>>();
         bndry_marker[idx].SetSize(tmp.size(), 0);
         bndry_marker[idx].Assign(tmp.data());
         bb->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(*fluxcoeff), bndry_marker[idx]);
         idx++;
-    }
+	}
 	bb->Assemble();
 
 	rhs->Set(1, *force);

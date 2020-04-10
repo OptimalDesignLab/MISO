@@ -107,6 +107,10 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
       fec.reset(new ND_FECollection(fe_order, dim));
       // mesh->ReorientTetMesh();
    }
+   else if (basis_type == "H1")
+   {
+      fec.reset(new H1_FECollection(fe_order, dim));
+   }
 }
 
 void AbstractSolver::initDerived()
@@ -356,6 +360,13 @@ void AbstractSolver::setInitialCondition(
    // }
 }
 
+void AbstractSolver::setInitialCondition(
+    double (*u_init)(const Vector &))
+{
+   FunctionCoefficient u0(u_init);
+	u->ProjectCoefficient(u0);
+}
+
 void AbstractSolver::setInitialCondition(const Vector &uic)
 {
    // TODO: Need to verify that this is ok for scalar fields
@@ -489,7 +500,7 @@ void AbstractSolver::printSolution(const std::string &file_name,
    sol_ofs.precision(14);
    if (refine == -1)
    {
-      refine = options["space-dis"]["degree"].template get<int>() + 1;
+      refine = options["space-dis"]["degree"].get<int>() + 1;
    }
    mesh->PrintVTK(sol_ofs, refine);
    u->SaveVTK(sol_ofs, "Solution", refine);
@@ -511,7 +522,7 @@ void AbstractSolver::printResidual(const std::string &file_name,
    res_ofs.precision(14);
    if (refine == -1)
    {
-      refine = options["space-dis"]["degree"].template get<int>() + 1;
+      refine = options["space-dis"]["degree"].get<int>() + 1;
    }
    mesh->PrintVTK(res_ofs, refine);
    r.SaveVTK(res_ofs, "Residual", refine);
@@ -533,7 +544,7 @@ void AbstractSolver::printFields(const std::string &file_name,
    sol_ofs.precision(14);
    if (refine == -1)
    {
-      refine = options["space-dis"]["degree"].template get<int>() + 1;
+      refine = options["space-dis"]["degree"].get<int>() + 1;
    }
    mesh->PrintVTK(sol_ofs, refine);
    for (int i = 0; i < fields.size(); ++i)
@@ -541,12 +552,16 @@ void AbstractSolver::printFields(const std::string &file_name,
       fields[i]->SaveVTK(sol_ofs, names[i], refine);
    }
    sol_ofs.close();
+}
 
+std::vector<GridFunType*> AbstractSolver::getFields()
+{
+   return {u.get()};
 }
 
 void AbstractSolver::solveForState()
 {
-   if (options["steady"].template get<bool>() == true)
+   if (options["steady"].get<bool>() == true)
    {
       solveSteady();
    }

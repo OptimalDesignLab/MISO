@@ -95,55 +95,6 @@ inline xdouble dot(const xdouble *a, const xdouble *b)
 
 std::ostream *getOutStream(int rank);
 
-/// Implementation of expression SFINAE, used to check if an object has a 
-/// method with a specific signature implemented. Usage looks like:
-///
-/// auto hasEval = is_valid([](auto&& x) -> decltype(x.Eval(trans, ip)) { });
-///
-/// In above espression, `decltype(x.Eval(trans, ip))` is the return type of
-/// the lambda expression. `decltype()` returns the type of the expression
-/// passed to it without actually evaluating the expression. This calls
-/// `is_valid()` with the return type of `x.Eval(trans, ip)`. If x has an
-/// `Eval` method with the same signature, function `testValidity` will return
-/// a true_type, otherwise it will return a false type.
-/// View MeshDependentCoefficient for complete usage.
-/// Adapted from https://jguegant.github.io/blogs/tech/sfinae-introduction.html
-// template <typename UnnamedType> struct Container
-// {
-// public:
-//     // A public operator() that accept the argument we wish to test onto the UnnamedType.
-//     // Notice that the return type is automatic!
-//     template <typename Param> constexpr auto operator()(const Param& p)
-//     {
-//         // The argument is forwarded to one of the two overloads.
-//         // The SFINAE on the 'true_type' will come into play to dispatch.
-//         // Once again, we use the int for the precedence.
-//         return testValidity<Param>(int());
-//     }
-// private:
-//     // We use std::declval to 'recreate' an object of 'UnnamedType'.
-//     // We use std::declval to also 'recreate' an object of type 'Param'.
-//     // We can use both of these recreated objects to test the validity!
-//     template <typename Param> constexpr auto testValidity(int /* unused */)
-//     -> decltype(std::declval<UnnamedType>()(std::declval<Param>()), std::true_type())
-//     {
-//         // If substitution didn't fail, we can return a true_type.
-//         return std::true_type();
-//     }
-
-//     template <typename Param> constexpr std::false_type testValidity(...)
-//     {
-//         // Our sink-hole returns a false_type.
-//         return std::false_type();
-//     }
-// };
-
-// template <typename UnnamedType> constexpr auto is_valid(const UnnamedType& t) 
-// {
-//     // We used auto for the return type: it will be deduced here.
-//     return Container<UnnamedType>();
-// }
-
 /// The following are adapted from MFEM's pfem_extras.xpp to use mach types
 /// and support serial usage.
 /// Serial solves use MFEM's PCG with a GSSmoother preconditioner 
@@ -283,6 +234,12 @@ void buildLSInterpolation(int dim, int degree,
                           const mfem::DenseMatrix &x_center,
                           const mfem::DenseMatrix &x_quad,
                           mfem::DenseMatrix &interp);
+#endif
+
+#ifdef MFEM_USE_GSLIB
+/// \brief transfer GridFunction from one mesh to another
+void transferSolution(const MeshType &old_mesh, const MeshType &new_mesh,
+                      const GridFunType &in, GridFunType &out);
 #endif
 
 } // namespace mach

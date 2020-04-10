@@ -22,8 +22,19 @@ public:
    MagnetostaticSolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
+   /// Write the mesh and solution to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printSolution(const std::string &file_name, int refine = -1) override;
+
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
-   virtual void solveSteady();
+   void solveSteady() override;
+
+   /// \brief Returns a vector of pointers to grid functions that define fields
+   /// returns {A, B}
+   std::vector<GridFunType*> getFields() override;
 
 private:
    /// Nedelec finite element collection
@@ -89,7 +100,7 @@ private:
 
    int dim;
 
-   int getNumState() {return dim;};
+   int getNumState() override {return dim;};
 
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source

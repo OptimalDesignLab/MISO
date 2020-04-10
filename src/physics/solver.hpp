@@ -45,7 +45,7 @@ public:
    void initDerived();
 
    /// class destructor
-   ~AbstractSolver();
+   virtual ~AbstractSolver();
 
    /// Constructs the mesh member based on c preprocesor defs
    /// \param[in] smesh - if provided, defines the mesh for the problem
@@ -57,6 +57,10 @@ public:
    /// value.  This may be a vector of length 1 for scalar.
    void setInitialCondition(void (*u_init)(const mfem::Vector &,
                                            mfem::Vector &));
+
+   /// Initializes the state variable to a given function.
+   /// \param[in] u_init - function that defines the initial condition
+   void setInitialCondition(double (*u_init)(const mfem::Vector &));
 
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - vector that defines the initial condition
@@ -89,7 +93,7 @@ public:
    /// \todo make this work for parallel!
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
-   void printSolution(const std::string &file_name, int refine = -1);
+   virtual void printSolution(const std::string &file_name, int refine = -1);
 
    /// Write the mesh and residual to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -113,8 +117,12 @@ public:
                       std::vector<std::string> names,
                       int refine = -1);
 
+   /// \brief Returns a vector of pointers to grid functions that define fields
+   /// Default behavior is to return just the state `u`
+   virtual std::vector<GridFunType*> getFields();
+
    /// Solve for the state variables based on current mesh, solver, etc.
-   void solveForState();
+   virtual void solveForState();
    
    /// Solve for the steady state problem using newton method
    virtual void solveSteady();
@@ -139,6 +147,9 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
+
+   /// Return a pointer to the solver's mesh
+   MeshType* getMesh() {return mesh.get();}
 
 protected:
 #ifdef MFEM_USE_MPI

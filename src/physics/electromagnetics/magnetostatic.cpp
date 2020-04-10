@@ -3,6 +3,7 @@
 #include "pfem_extras.hpp"
 
 #include "magnetostatic.hpp"
+#include "solver.hpp"
 #include "electromag_integ.hpp"
 #include "material_library.hpp"
 
@@ -202,6 +203,16 @@ MagnetostaticSolver::MagnetostaticSolver(
 	std::cout << "set newton solver\n";
 }
 
+void MagnetostaticSolver::printSolution(const std::string &file_name,
+                                        int refine)
+{
+   printFields(file_name,
+               {A.get(), B.get()},
+               {"MVP", "Magnetic Flux Density"},
+               refine);
+}
+
+
 void MagnetostaticSolver::solveSteady()
 {
    newton_solver.Mult(*current_vec, *A);
@@ -209,28 +220,28 @@ void MagnetostaticSolver::solveSteady()
 
    computeSecondaryFields();
 
-   // TODO: Print mesh out in another function?
-   int fe_order = options["space-dis"]["degree"].get<int>();
+   // // TODO: Print mesh out in another function?
+   // int fe_order = options["space-dis"]["degree"].get<int>();
 
-   auto out_file = options["mesh"]["out-file"].get<std::string>();
-   std::cout << "mesh outfile: " << out_file << "\n";
-   ofstream sol_ofs(out_file.c_str());
-   sol_ofs.precision(14);
-   mesh->PrintVTK(sol_ofs, fe_order);
-   A->SaveVTK(sol_ofs, "A_Field", fe_order);
-   B->SaveVTK(sol_ofs, "B_Field", fe_order);
-   //B_dual->SaveVTK(sol_ofs, "B_dual", 1);
-   GridFunType J(h_div_space.get());
-   J.ProjectCoefficient(*current_coeff);
-   J.SaveVTK(sol_ofs, "J_Field", fe_order);
-   GridFunType Nu(l2_space.get());
-   Nu.ProjectCoefficient(*nu);
-   Nu.SaveVTK(sol_ofs, "Nu", fe_order);
-   M->SaveVTK(sol_ofs, "Mag_Field", fe_order);
-   // current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
-   // div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", fe_order);
-   sol_ofs.close();
-   std::cout << "finish steady solve\n";
+   // auto out_file = options["mesh"]["out-file"].get<std::string>();
+   // std::cout << "mesh outfile: " << out_file << "\n";
+   // ofstream sol_ofs(out_file.c_str());
+   // sol_ofs.precision(14);
+   // mesh->PrintVTK(sol_ofs, fe_order);
+   // A->SaveVTK(sol_ofs, "A_Field", fe_order);
+   // B->SaveVTK(sol_ofs, "B_Field", fe_order);
+   // //B_dual->SaveVTK(sol_ofs, "B_dual", 1);
+   // GridFunType J(h_div_space.get());
+   // J.ProjectCoefficient(*current_coeff);
+   // J.SaveVTK(sol_ofs, "J_Field", fe_order);
+   // GridFunType Nu(l2_space.get());
+   // Nu.ProjectCoefficient(*nu);
+   // Nu.SaveVTK(sol_ofs, "Nu", fe_order);
+   // M->SaveVTK(sol_ofs, "Mag_Field", fe_order);
+   // // current_vec->SaveVTK(sol_ofs, "J_RHS", 1);
+   // // div_free_current_vec->SaveVTK(sol_ofs, "J_div_free", fe_order);
+   // sol_ofs.close();
+   // std::cout << "finish steady solve\n";
 
    // VectorFunctionCoefficient A_exact(3, a_exact);
    // VectorFunctionCoefficient B_exact(3, b_exact);
@@ -257,6 +268,11 @@ void MagnetostaticSolver::solveSteady()
    // 				{A.get(), B.get(), &J},
    //             {"A_Field", "B_Field", "current"});
 
+}
+
+std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
+{
+	return {A.get(), B.get()};
 }
 
 void MagnetostaticSolver::setStaticMembers()
