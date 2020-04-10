@@ -276,17 +276,28 @@ void ThermalSolver::constructMassCoeff()
 
 	for (auto& component : options["components"])
 	{
-		std::unique_ptr<mfem::Coefficient> rho_cv_coeff;
+		int attr = component.value("attr", -1);
+
 		std::string material = component["material"].get<std::string>();
-		std::cout << material << '\n';
+		auto cv_val = materials[material]["cv"].get<double>();
+		auto rho_val = materials[material]["rho"].get<double>();
+
+		if (-1 != attr)
 		{
-			//auto attr = material["attr"].get<int>();
-			auto cv_val = materials[material]["cv"].get<double>();
-			auto rho_val = materials[material]["rho"].get<double>();
-			//rho_cv_coeff.reset(new ProductCoefficient(rho->getCoefficient(attr), cv->getCoefficient(attr)));
-			rho_cv_coeff.reset(new ConstantCoefficient(cv_val*rho_val));
+			std::unique_ptr<mfem::Coefficient> temp_coeff;
+			temp_coeff.reset(new ConstantCoefficient(cv_val*rho_val));
+			rho_cv->addCoefficient(attr, move(temp_coeff));
 		}
-		rho_cv->addCoefficient(component["attr"].get<int>(), move(rho_cv_coeff));
+		else
+		{
+			auto attrs = component["attrs"].get<std::vector<int>>();
+			for (auto& attribute : attrs)
+			{
+				std::unique_ptr<mfem::Coefficient> temp_coeff;
+				temp_coeff.reset(new ConstantCoefficient(cv_val*rho_val));
+				rho_cv->addCoefficient(attribute, move(temp_coeff));
+			}
+		}
 	}
 }
 
@@ -296,16 +307,27 @@ void ThermalSolver::constructConductivity()
 
 	for (auto& component : options["components"])
 	{
-		std::unique_ptr<mfem::Coefficient> kappa_coeff;
-		std::string material = component["material"].get<std::string>();
-		std::cout << material << '\n';
-		{
-			auto kappa_val = materials[material]["kappa"].get<double>();
-			kappa_coeff.reset(new ConstantCoefficient(kappa_val));
-		}
-		kappa->addCoefficient(component["attr"].get<int>(), move(kappa_coeff));
+		int attr = component.value("attr", -1);
 
-		///TODO: generate anisotropic conductivity for the copper windings
+		std::string material = component["material"].get<std::string>();
+		auto kappa_val = materials[material]["kappa"].get<double>();
+
+		if (-1 != attr)
+		{
+			std::unique_ptr<mfem::Coefficient> temp_coeff;
+			temp_coeff.reset(new ConstantCoefficient(kappa_val));
+			kappa->addCoefficient(attr, move(temp_coeff));
+		}
+		else
+		{
+			auto attrs = component["attrs"].get<std::vector<int>>();
+			for (auto& attribute : attrs)
+			{
+				std::unique_ptr<mfem::Coefficient> temp_coeff;
+				temp_coeff.reset(new ConstantCoefficient(kappa_val));
+				kappa->addCoefficient(attribute, move(temp_coeff));
+			}
+		}
 	}
 }
 
@@ -315,17 +337,37 @@ void ThermalSolver::constructJoule()
 
 	for (auto& component : options["components"])
 	{
-		std::unique_ptr<mfem::Coefficient> i2sigmainv_coeff;
+		int attr = component.value("attr", -1);
+
 		std::string material = component["material"].get<std::string>();
-		std::cout << material << '\n';
-		if(materials[material]["conductor"].get<bool>())
+
+		/// todo use grid function?
+		auto current = options["motor-opts"]["current"].get<double>();
+
+		double sigma = materials[material].value("sigma", 0.0);
+
+		if (-1 != attr)
 		{
-			auto sigma = materials[material]["sigma"].get<double>();
-			auto current = options["motor-opts"]["current"].get<double>();
-			i2sigmainv_coeff.reset(new ConstantCoefficient(current*current/sigma));
-			i2sigmainv->addCoefficient(component["attr"].get<int>(), move(i2sigmainv_coeff));
+			if (sigma > 1e-12)
+			{
+				std::unique_ptr<mfem::Coefficient> temp_coeff;
+				temp_coeff.reset(new ConstantCoefficient(current*current/sigma));
+				i2sigmainv->addCoefficient(attr, move(temp_coeff));
+			}
 		}
-		
+		else
+		{
+			auto attrs = component["attrs"].get<std::vector<int>>();
+			for (auto& attribute : attrs)
+			{
+				if (sigma > 1e-12)
+				{
+					std::unique_ptr<mfem::Coefficient> temp_coeff;
+					temp_coeff.reset(new ConstantCoefficient(current*current/sigma));
+					i2sigmainv->addCoefficient(attribute, move(temp_coeff));
+				}
+			}
+		}
 	}
 }
 
@@ -335,25 +377,43 @@ void ThermalSolver::constructCore()
 
 	for (auto& component : options["components"])
 	{
-		std::unique_ptr<mfem::Coefficient> coreloss_coeff;
 		std::string material = component["material"].get<std::string>();
-		std::cout << material << '\n';
-		if(materials[material]["core"].get<bool>())
+
+		/// check for each of these values --- if they do not exist they take
+		/// the value of zero
+		double rho_val = materials[material].value("rho", 0.0);
+		double alpha = materials[material].value("alpha", 0.0);
+		double freq = options["motor-opts"].value("frequency", 0.0);
+		double kh = materials[material].value("kh", 0.0);
+		double ke = materials[material].value("ke", 0.0);
+
+		/// make sure that there is a coefficient
+		double params = rho_val + alpha + freq + kh + ke;
+
+		int attr = component.value("attr", -1);
+		if (-1 != attr)
 		{
-			auto rho_val = materials[material]["rho"].get<double>(); 
-			auto alpha = materials[material]["alpha"].get<double>(); 
-			auto freq = options["motor-opts"]["frequency"].get<double>();
-			auto kh = materials[material]["kh"].get<double>(); 
-			auto ke = materials[material]["ke"].get<double>(); 
-			Bmax = 0;
-			if (mag_field == nullptr)
+			if (params > 1e-12)
 			{
-				Bmax = 2.5; ///TODO: OBTAIN FROM MAGNETOSTATIC SOLVER
+				std::unique_ptr<mfem::Coefficient> temp_coeff;
+				temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
+																		kh, ke, mag_field));
+				coreloss->addCoefficient(attr, move(temp_coeff));		
 			}
-			// double loss = rho_val*(kh*freq*pow(Bmax, alpha) + ke*freq*freq*Bmax*Bmax);
-			// coreloss_coeff.reset(new ConstantCoefficient(loss));
-			coreloss_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq, kh, ke, mag_field));
-			i2sigmainv->addCoefficient(component["attr"].get<int>(), move(coreloss_coeff));
+		}
+		else
+		{
+			auto attrs = component["attrs"].get<std::vector<int>>();
+			for (auto& attribute : attrs)
+			{
+				if (params > 1e-12)
+				{
+					std::unique_ptr<mfem::Coefficient> temp_coeff;
+					temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
+																			kh, ke, mag_field));
+					coreloss->addCoefficient(attribute, move(temp_coeff));
+				}
+			}
 		}
 	}
 }
@@ -430,7 +490,7 @@ void ConductionEvolver::fluxFunc(const Vector &x, double time, Vector &y)
 	//use constant in time for now
 
 	//assuming centered coordinate system, will offset
-	double th;// = atan(x(1)/x(0));
+	// double th;// = atan(x(1)/x(0));
 
 	if (x(0) > .5)
 	{

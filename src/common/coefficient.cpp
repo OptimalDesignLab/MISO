@@ -151,11 +151,15 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
 double SteinmetzCoefficient::Eval(ElementTransformation &trans,
                                   const IntegrationPoint &ip)
 {
-   Vector b;
-   B->GetVectorValue(trans.ElementNo, ip, b);
-   double bMag = b.Norml2();
-
-   return rho*(kh*freq*pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
+   if (B)
+   {
+      Vector b;
+      B->GetVectorValue(trans.ElementNo, ip, b);
+      double bMag = b.Norml2();
+      return rho*(kh*freq*pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
+   }
+   else
+      return 0.0;
 }
 
 } // namespace mach

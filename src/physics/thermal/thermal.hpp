@@ -34,11 +34,6 @@ public:
    double calcL2Error(double (*u_exact)(const mfem::Vector &),
                       int entry = -1);
 
-   // /// \brief - set the magnetic field grid function
-   // /// \Note - This grid function must have previously been mapped to the
-   // ///         thermal mesh
-   // void setMagField(GridFunType *mapped_mag_field);
-
 private:
    std::ofstream sol_ofs;
 

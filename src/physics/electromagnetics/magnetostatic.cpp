@@ -18,7 +18,6 @@ const double mu_0 = 4e-7*M_PI;
 std::unique_ptr<mfem::Coefficient>
 constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
 {
-	// const double mu_0 = 4e-7*M_PI;
 	std::unique_ptr<mfem::Coefficient> temp_coeff;
 	std::string material = component["material"].get<std::string>();
 	if (!component["linear"].get<bool>())
@@ -297,20 +296,6 @@ void MagnetostaticSolver::constructReluctivity()
 	///    reluctivity coefficient for each
 	for (auto& component : options["components"])
 	{
-		// std::unique_ptr<mfem::Coefficient> temp_coeff;
-		// std::string material = component["material"].get<std::string>();
-		// if (!component["linear"].get<bool>())
-		// {
-		// 	auto b = materials[material]["B"].get<std::vector<double>>();
-		// 	auto h = materials[material]["H"].get<std::vector<double>>();
-		// 	temp_coeff.reset(new ReluctivityCoefficient(b, h));
-		// }
-		// else
-		// {
-		// 	auto mu_r = materials[material]["mu_r"].get<double>();
-		// 	temp_coeff.reset(new ConstantCoefficient(1.0/(mu_r*mu_0)));
-		// 	std::cout << "new coeff with mu_r: " << mu_r << "\n";
-		// }
 		int attr = component.value("attr", -1);
 		if (-1 != attr)
 		{

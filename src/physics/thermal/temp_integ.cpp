@@ -26,7 +26,7 @@ double AggregateIntegrator::GetIEAggregate(GridFunType *temp)
       fes->GetElementDofs(j, dofs);
       eltrans = fes->GetElementTransformation(j);
       const FiniteElement *el = fes->GetFE(j);
-      const int dim = el->GetDim();
+      // const int dim = el->GetDim();
       const int attr = fes->GetAttribute(j);
 
       maxt = temp->Max()/max(attr);
