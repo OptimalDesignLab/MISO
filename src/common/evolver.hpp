@@ -9,6 +9,36 @@
 namespace mach
 {
 
+/// TODO: think about how to handle partial assebmly of mass and stiffness
+///       matrices
+/// TODO: should this take a linear solver pointer during construction?
+class MachEvolver : public mfem::TimeDependentOperator
+{
+public:
+   /// Serves as an abstract class for linear/nonlinear explicit/implicit time
+   /// marching problems
+   /// \param[in] mass - mass matrix pointer (not owned)
+   /// \param[in] res - nonlinear residual operator pointer (not owned)
+   /// \param[in] stiff - stiffness matrix pointer (not owned)
+   /// \param[in] load - load vector pointer (not owned)
+   /// \param[in] out - outstream to use pointer (not owned)
+   /// \param[in] start_time - time to start integration from
+   ///                         (important for time-variant sources)
+   /// \param[in] type - solver type; explicit or implicit
+   MachEvolver(MatrixType *mass, NonlinearFormType *res, MatrixType *stiff,
+               mfem::Vector *load, std::ostream *outstream, double start_time,
+               mfem::TimeDependentOperator::Type type)
+      : mfem::TimeDependentOperator(mass->Height(), start_time, type),
+        mass(mass), res(res), stiff(stiff), load(load), out(outstream) {};
+   
+protected:
+   MatrixType *mass;
+   NonlinearFormType *res;
+   MatrixType *stiff;
+   mfem::Vector *load;
+   std::ostream *out;
+};
+
 /// For explicit time marching of linear problems
 class LinearEvolver : public mfem::TimeDependentOperator
 {
@@ -103,7 +133,7 @@ protected:
    /// input options
    nlohmann::json options;
    /// linear form (time independent)
-   std::unique_ptr<mfem::LinearForm> force;
+   // std::unique_ptr<mfem::LinearForm> force;
    /// linear form (w/ time dependent terms if present)
    std::unique_ptr<mfem::LinearForm> rhs;
 
