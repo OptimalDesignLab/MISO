@@ -123,11 +123,10 @@ void ImplicitLinearEvolver::Mult(const mfem::Vector &x, mfem::Vector &k) const
 void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
 {
    T = NULL;
-   // if (T == NULL)
-   // {
-      T = Add(1.0, mass, dt, stiff);
-      t_solver->SetOperator(*T);
-   //}
+
+   T = Add(1.0, mass, dt, stiff);
+   t_solver->SetOperator(*T);
+
    stiff.Mult(x, z);
    z.Neg();  
    z.Add(-1, *rhs);

@@ -21,10 +21,10 @@ public:
    AggregateIntegrator(const mfem::FiniteElementSpace *fe_space,
                               const double r,
                               const mfem::Vector m,
-                              GridFunType *temp);
+                              mfem::GridFunction *temp);
 
    /// Computes the induced functional estimate for aggregated temperature
-	double GetIEAggregate(GridFunType *temp);
+	double GetIEAggregate(mfem::GridFunction *temp);
 
    /// Computed dJdu, for the adjoint. Must call GetIEAggregate beforehand.
    virtual void AssembleElementVector(const mfem::FiniteElement &el, 
@@ -51,7 +51,7 @@ private:
    double denom_;
 
    // last computed state vector (for dJdu)
-   GridFunType *temp_;
+   mfem::GridFunction *temp_;
 
 #ifndef MFEM_THREAD_SAFE
    /// store the physical location of a node

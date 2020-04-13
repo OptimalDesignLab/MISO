@@ -106,6 +106,8 @@ private:
    /// maximum magnetic flux density aka "amplitude"
    double Bmax;
 
+   double dt_real_;
+
    /// check if initial conditions are set
    bool setInit;
 

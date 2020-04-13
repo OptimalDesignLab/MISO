@@ -223,6 +223,7 @@ void ThermalSolver::solveUnsteady()
     	//     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
     	// }
     	double dt_real = min(dt, t_final - t);
+		dt_real_ = dt_real;
     	//if (ti % 100 == 0)
     	{
         	 cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
@@ -478,6 +479,7 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
     dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
     dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
     solver->Mult(*dJ, *adjoint);
+	adjoint->Set(dt_real_, *adjoint);
 #ifdef MFEM_USE_MPI
     adj->SetFromTrueDofs(*adjoint);
 #endif
@@ -485,6 +487,14 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
     {
        time_end = MPI_Wtime();
        cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+    }
+
+	{
+        ofstream sol_ofs_adj("motor_heat_adj.vtk");
+        sol_ofs_adj.precision(14);
+        mesh->PrintVTK(sol_ofs_adj, options["space-dis"]["degree"].get<int>() + 1);
+        adj->SaveVTK(sol_ofs_adj, "Adjoint", options["space-dis"]["degree"].get<int>() + 1);
+        sol_ofs_adj.close();
     }
 }
 

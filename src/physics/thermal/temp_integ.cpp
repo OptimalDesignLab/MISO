@@ -11,13 +11,13 @@ AggregateIntegrator::AggregateIntegrator(
                               const mfem::FiniteElementSpace *fe_space,
                               const double r,
                               const mfem::Vector m,
-                              GridFunType *temp)       
+                              mfem::GridFunction *temp)       
    : fes(fe_space), rho(r), max(m)
 { 
    GetIEAggregate(temp);
 }
 
-double AggregateIntegrator::GetIEAggregate(GridFunType *temp)
+double AggregateIntegrator::GetIEAggregate(mfem::GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
