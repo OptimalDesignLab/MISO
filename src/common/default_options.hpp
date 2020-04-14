@@ -45,10 +45,13 @@ nlohmann::json default_options
 
    {"lin-solver",
    {
+      {"type", "hypregmres"}, // Default solver
+      {"pctype", "hypreeuclid"}, // Default preconditioner type
       {"printlevel", 0}, // linear solver print level (no printing if zero)
       {"maxiter", 100}, // default to 100 iterations
       {"reltol", 1e-12}, // solver relative tolerance
-      {"abstol", 1e-12} // solver absolute tolerance
+      {"abstol", 1e-12}, // solver absolute tolerance
+      {"kdim", 100} // default restart value
    }},
 
    {"adj-solver",

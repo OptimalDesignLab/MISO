@@ -29,6 +29,8 @@
 namespace mach
 {
 
+class MachEvolver;
+
 /// Serves as a base class for specific PDE solvers
 class AbstractSolver
 {
@@ -207,7 +209,7 @@ protected:
    std::unique_ptr<LinearFormType> load;
 
    /// TimeDependentOperator (TODO: is this the best way?)
-   std::unique_ptr<mfem::TimeDependentOperator> evolver;
+   std::unique_ptr<MachEvolver> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
 
@@ -283,6 +285,17 @@ protected:
    /// Solve for an unsteady adjoint
    /// \param[in] fun - specifies the functional corresponding to the adjoint
    virtual void solveUnsteadyAdjoint(const std::string &fun);
+
+   /// Constuct the linear system solver
+   /// \note solver and preconditioner chosen based on options
+   virtual void constructLinearSolver(nlohmann::json &options);
+
+   /// Constructs the newton solver object
+   virtual void constructNewtonSolver();
+
+   /// Sets convergence options for solver
+   /// \param[in] options - options structure for particular solver to set
+   virtual void setIterSolverOptions(nlohmann::json &options);
 
 };
 

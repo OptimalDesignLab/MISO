@@ -185,28 +185,35 @@ void AbstractSolver::initDerived()
 #endif
 
    /// check to see if the nonlinear residual has any domain integrators added
-   const Array<NonlinearFormIntegrator*> *num_dnfi = res->GetDNFI();
-   bool nonlinear = num_dnfi->Size() > 0 ? true : false;
+   int num_dnfi = res->GetDNFI()->Size();
+   bool nonlinear = num_dnfi > 0 ? true : false;
 
    const string odes = options["time-dis"]["ode-solver"].get<string>();
-   if (odes == "RK1" || odes == "RK4")
-   {
-      if (nonlinear)
-         evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
-      else
-         evolver.reset(new LinearEvolver(*mass_matrix, *stiffness_matrix, *out));
-   }
-   else
-   {
-      if (nonlinear)
-         evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
-      else
-      {
-         /// TODO: revisit this -> evolvers shouldn't need options file
-         std::string opt_file_name = "options";
-         evolver.reset(new ImplicitLinearEvolver(opt_file_name, *mass_matrix, *stiffness_matrix, *load, *out));
-      }
-   }
+   // if (odes == "RK1" || odes == "RK4")
+   // {
+   //    if (nonlinear)
+   //       evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+   //    else
+   //       evolver.reset(new LinearEvolver(*mass_matrix, *stiffness_matrix, *out));
+   // }
+   // else
+   // {
+   //    if (nonlinear)
+   //       evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+   //    else
+   //    {
+   //       /// TODO: revisit this -> evolvers shouldn't need options file
+   //       std::string opt_file_name = "options";
+   //       evolver.reset(new ImplicitLinearEvolver(opt_file_name, *mass_matrix, *stiffness_matrix, *load, *out));
+   //    }
+   // }
+
+   evolver.reset(new MachEvolver(mass.get(), res.get(), stiff.get(),
+                                 load.get(), cout, 0.0,
+                                 TimeDependentOperator::Type::IMPLICIT));
+
+   
+   evolver->SetNewtonSolver(newton_solver.get());
 
    // add the output functional QoIs 
    auto &fun = options["outputs"];
@@ -726,29 +733,32 @@ void AbstractSolver::solveSteady()
 #else
    // Hypre solver section
    *out << "HypreGMRES Solver with euclid preconditioner.\n";
-   prec.reset(new HypreEuclid(fes->GetComm()));
-   double reltol = options["lin-solver"]["reltol"].get<double>();
-   int maxiter = options["lin-solver"]["maxiter"].get<int>();
-   int ptl = options["lin-solver"]["printlevel"].get<int>();
-   solver.reset( new HypreGMRES(fes->GetComm()) );
-   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
-   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
-   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
-   double nabstol = options["newton"]["abstol"].get<double>();
-   double nreltol = options["newton"]["reltol"].get<double>();
-   int nmaxiter = options["newton"]["maxiter"].get<int>();
-   int nptl = options["newton"]["printlevel"].get<int>();
-   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
-   //double eta = 1e-1;
-   //newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
-   newton_solver->iterative_mode = true;
-   newton_solver->SetSolver(*solver);
-   newton_solver->SetOperator(*res);
-   newton_solver->SetPrintLevel(nptl);
-   newton_solver->SetRelTol(nreltol);
-   newton_solver->SetAbsTol(nabstol);
-   newton_solver->SetMaxIter(nmaxiter);
+   // prec.reset(new HypreEuclid(fes->GetComm()));
+   // double reltol = options["lin-solver"]["reltol"].get<double>();
+   // int maxiter = options["lin-solver"]["maxiter"].get<int>();
+   // int ptl = options["lin-solver"]["printlevel"].get<int>();
+   // solver.reset( new HypreGMRES(fes->GetComm()) );
+   // dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
+   // dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
+   // dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
+   // dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
+   // double nabstol = options["newton"]["abstol"].get<double>();
+   // double nreltol = options["newton"]["reltol"].get<double>();
+   // int nmaxiter = options["newton"]["maxiter"].get<int>();
+   // int nptl = options["newton"]["printlevel"].get<int>();
+   // newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   // //double eta = 1e-1;
+   // //newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
+   // newton_solver->iterative_mode = true;
+   // newton_solver->SetSolver(*solver);
+   // newton_solver->SetOperator(*res);
+   // newton_solver->SetPrintLevel(nptl);
+   // newton_solver->SetRelTol(nreltol);
+   // newton_solver->SetAbsTol(nabstol);
+   // newton_solver->SetMaxIter(nmaxiter);
+
+   constructLinearSolver(options["lin-solver"]);
+   constructNewtonSolver();
 
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
@@ -897,16 +907,8 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    *out << "Solving adjoint problem:\n"
         << "\tsolver: HypreGMRES\n"
         << "\tprec. : Euclid ILU" << endl;
-   prec.reset(new HypreEuclid(fes->GetComm()));
-   double tol = options["adj-solver"]["tol"].get<double>();
-   int maxiter = options["adj-solver"]["maxiter"].get<int>();
-   int ptl = options["adj-solver"]["printlevel"].get<int>();
-   solver.reset(new HypreGMRES(fes->GetComm()));
+   constructLinearSolver(options["adj-solver"]);
    solver->SetOperator(jac_trans);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
    solver->Mult(*dJ, *adjoint);
 #ifdef MFEM_USE_MPI
    adj->SetFromTrueDofs(*adjoint);
@@ -915,6 +917,155 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    {
       time_end = MPI_Wtime();
       *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+   }
+}
+
+void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
+{
+   std::string prec_type = _options["pctype"].get<std::string>();
+   std::string solver_type = _options["type"].get<std::string>();
+
+   if (prec_type == "hypreeuclid")
+   {
+#ifdef MFEM_USE_MPI
+      prec.reset(new HypreEuclid(fes->GetComm()));
+#else
+      throw MachException("Hypre preconditioners require building MFEM with "
+               "MPI!\n");
+#endif
+   }
+   else if (prec_type == "hypreams")
+   {
+#ifdef MFEM_USE_MPI
+      prec.reset(new HypreAMS(fes.get()));
+      dynamic_cast<mfem::HypreAMS *>(prec.get())->SetSingularProblem();
+#else
+      throw MachException("Hypre preconditioners require building MFEM with "
+               "MPI!\n");
+#endif
+   }
+   else
+   {
+      throw MachException("Unsupported preconditioner type!\n"
+               "\tavilable options are: HypreEuclid, HypreAMS.\n");
+   }
+
+   if (solver_type == "hypregmres")
+   {
+#ifdef MFEM_USE_MPI
+      solver.reset(new HypreGMRES(fes->GetComm()));
+#else
+      throw MachException("Hypre solvers require building MFEM with MPI!\n");
+#endif
+   }
+   else if (solver_type == "gmressolver")
+   {
+#ifdef MFEM_USE_MPI
+      solver.reset(new GMRESSolver(fes->GetComm()));
+#else
+      solver.reset(new GMRESSolver());
+#endif
+   }
+   else if (solver_type == "hyprepcg")
+   {
+#ifdef MFEM_USE_MPI
+      solver.reset(new HyprePCG(fes->GetComm()));
+#else
+      throw MachException("Hypre solvers require building MFEM with MPI!\n");
+#endif
+   }
+   else if (solver_type == "cgsolver")
+   {
+#ifdef MFEM_USE_MPI
+      solver.reset(new CGSolver(fes->GetComm()));
+#else
+      solver.reset(new CGSolver());
+#endif
+   }
+   else
+   {
+      throw MachException("Unsupported preconditioner type!\n"
+               "\tavilable options are: HypreGMRES, GMRESSolver,\n"
+               "\tHyprePCG, CGSolver");
+   }
+
+   setIterSolverOptions(_options);
+}
+
+
+void AbstractSolver::constructNewtonSolver()
+{
+   double abstol = options["newton"]["abstol"].get<double>();
+   double reltol = options["newton"]["reltol"].get<double>();
+   int maxiter = options["newton"]["maxiter"].get<int>();
+   int ptl = options["newton"]["printlevel"].get<int>();
+
+   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver->iterative_mode = true;
+   newton_solver->SetSolver(*solver);
+   newton_solver->SetOperator(*res);
+   newton_solver->SetPrintLevel(ptl);
+   newton_solver->SetRelTol(reltol);
+   newton_solver->SetAbsTol(abstol);
+   newton_solver->SetMaxIter(maxiter);
+}
+
+void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
+{
+   std::string solver_type = _options["type"].get<std::string>();
+
+   double reltol = _options["reltol"].get<double>();
+   int maxiter = _options["maxiter"].get<int>();
+   int ptl = _options["printlevel"].get<int>();
+
+   if (solver_type == "hypregmres")
+   {
+#ifndef MFEM_USE_MPI
+      throw MachException("Hypre solvers require building MFEM with MPI!\n");
+#endif
+      dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
+      dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
+      dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
+      dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(
+                                    *dynamic_cast<HypreSolver*>(prec.get()));
+
+      /// set GMRES restart value
+      int kdim = _options.value("kdim", -1);
+      if (kdim != -1)
+         dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetKDim(kdim);
+   }
+   else if (solver_type == "gmressolver")
+   {
+      dynamic_cast<mfem::GMRESSolver*> (solver.get())->SetRelTol(reltol);
+      dynamic_cast<mfem::GMRESSolver*> (solver.get())->SetMaxIter(maxiter);
+      dynamic_cast<mfem::GMRESSolver*> (solver.get())->SetPrintLevel(ptl);
+      dynamic_cast<mfem::GMRESSolver*> (solver.get())->SetPreconditioner(
+                                    *dynamic_cast<mfem::Solver*>(prec.get()));
+   }
+   else if (solver_type == "hyprepcg")
+   {
+#ifndef MFEM_USE_MPI
+      throw MachException("Hypre solvers require building MFEM with MPI!\n");
+#endif
+      dynamic_cast<mfem::HyprePCG*> (solver.get())->SetTol(reltol);
+      dynamic_cast<mfem::HyprePCG*> (solver.get())->SetMaxIter(maxiter);
+      dynamic_cast<mfem::HyprePCG*> (solver.get())->SetPrintLevel(ptl);
+      dynamic_cast<mfem::HyprePCG*> (solver.get())->SetPreconditioner(
+                                    *dynamic_cast<HypreSolver*>(prec.get()));
+   }
+   else if (solver_type == "cgsolver")
+   {
+      dynamic_cast<mfem::CGSolver*> (solver.get())->SetRelTol(reltol);
+      dynamic_cast<mfem::CGSolver*> (solver.get())->SetMaxIter(maxiter);
+      dynamic_cast<mfem::CGSolver*> (solver.get())->SetPrintLevel(ptl);
+      dynamic_cast<mfem::CGSolver*> (solver.get())->SetPreconditioner(
+                                    *dynamic_cast<mfem::Solver*>(prec.get()));
+   }
+   else
+   {
+      throw MachException("Unsupported preconditioner type!\n"
+               "\tavilable options are: HypreGMRES, GMRESSolver,\n"
+               "\tHyprePCG, CGSolver");
    }
 }
 
