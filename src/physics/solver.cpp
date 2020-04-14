@@ -325,7 +325,7 @@ void AbstractSolver::constructPumiMesh()
    }
    pumi_mesh->end(it);
 
-   mesh.reset(new MeshType(comm, pumi_mesh));
+   mesh.reset(new ParPumiMesh(comm, pumi_mesh));
 
    it = pumi_mesh->begin(pumi_mesh->getDimension());
    count = 0;
