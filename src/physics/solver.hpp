@@ -226,6 +226,9 @@ protected:
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
 
+   /// Construct PUMI Mesh
+   void constructPumiMesh();
+
    /// Construct various coefficients
    virtual void constructCoefficients() {};
 

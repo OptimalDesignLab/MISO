@@ -226,23 +226,56 @@ AbstractSolver::~AbstractSolver()
 
 void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 {
-#ifndef MFEM_USE_PUMI
-   if (smesh == nullptr)
-   { // read in the serial mesh
-      smesh.reset(new Mesh(options["mesh"]["file"].template get<string>().c_str(), 1, 1));
+   std::string mesh_file = options["mesh"]["file"].template get<string>();
+   std::string mesh_ext;
+   size_t i = mesh_file.rfind('.', mesh_file.length());
+   if (i != string::npos) {
+      mesh_ext = (mesh_file.substr(i+1, mesh_file.length() - i));
    }
-#endif
-
-#ifdef MFEM_USE_MPI
-   comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
-   MPI_Comm_rank(comm, &rank);
-#ifdef MFEM_USE_PUMI // if using pumi mesh
-   if (smesh != nullptr)
+   else
    {
       throw MachException("AbstractSolver::constructMesh(smesh)\n"
-                          "\tdo not provide smesh when using PUMI!");
+                        "\tMesh file has no extension!\n");
    }
-   // problem with using these in loadMdsMesh
+
+   /// native MFEM mesh
+   if (mesh_ext == "mesh")
+   {
+#ifdef MFEM_USE_MPI
+      comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
+      MPI_Comm_rank(comm, &rank);
+      mesh.reset(new MeshType(comm, *smesh));
+#else
+      // read in the serial mesh
+      if (smesh == nullptr)
+      {
+         smesh.reset(new Mesh(mesh_file.c_str(), 1, 1));
+      }
+      else
+         mesh.reset(new MeshType(*smesh));
+#endif
+   }
+   /// PUMI mesh
+   else if (mesh_ext == "smb")
+   {
+      if (smesh != nullptr)
+      {
+         throw MachException("AbstractSolver::constructMesh(smesh)\n"
+                           "\tdo not provide smesh when using PUMI!");
+      }
+      constructPumiMesh();
+   }
+}
+
+void AbstractSolver::constructPumiMesh()
+{
+#ifndef MFEM_USE_PUMI // if using pumi mesh
+      throw MachException("AbstractSolver::constructPumiMesh()\n"
+                          "\nMFEM was not built with PUMI!\n"
+                          "\trecompile MFEM with PUMI\n");
+#else
+   comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
+   MPI_Comm_rank(comm, &rank);   // problem with using these in loadMdsMesh
    *out << options["model-file"].template get<string>().c_str() << std::endl;
    const char *model_file = options["model-file"].template get<string>().c_str();
    const char *mesh_file = options["mesh"]["file"].template get<string>().c_str();
@@ -355,24 +388,22 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // Apply the attributes
    mesh->SetAttributes();
 
-   /// where should we destroy the mesh?
+   /// TODO: where should we destroy the mesh?
    // pumi_mesh->destroyNative();
    // apf::destroyMesh(pumi_mesh);
    
    PCU_Comm_Free();
+
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
    Sim_unregisterAllKeys();
-#endif
+#endif // MFEM_USE_SIMMETRIX
+
 #ifdef MFEM_USE_EGADS
    gmi_egads_stop();
-#endif
-#else
-   mesh.reset(new MeshType(comm, *smesh));
-#endif //MFEM_USE_PUMI
-#else
-   mesh.reset(new MeshType(*smesh));
-#endif //MFEM_USE_MPI
+#endif // MFEM_USE_EGADS
+
+#endif // MFEM_USE_PUMI
 }
 
 void AbstractSolver::setInitialCondition(
