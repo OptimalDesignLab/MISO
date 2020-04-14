@@ -226,6 +226,9 @@ protected:
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
 
+   /// Construct various coefficients
+   virtual void constructCoefficients() {};
+
    /// Add volume integrators to `mass`
    /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
    virtual void addMassVolumeIntegrators();
@@ -296,6 +299,9 @@ protected:
    /// Sets convergence options for solver
    /// \param[in] options - options structure for particular solver to set
    virtual void setIterSolverOptions(nlohmann::json &options);
+
+   /// Constructs the operator that defines ODE evolution 
+   virtual void constructEvolver();
 
 };
 

@@ -130,6 +130,9 @@ void AbstractSolver::initDerived()
 
    double alpha = 1.0;
 
+   /// construct coefficients before nonlinear/bilinear forms
+   constructCoefficients();
+
    // set up the mass matrix
    mass.reset(new BilinearFormType(fes.get()));
    addMassVolumeIntegrators();
@@ -185,10 +188,10 @@ void AbstractSolver::initDerived()
 #endif
 
    /// check to see if the nonlinear residual has any domain integrators added
-   int num_dnfi = res->GetDNFI()->Size();
-   bool nonlinear = num_dnfi > 0 ? true : false;
+   // int num_dnfi = res->GetDNFI()->Size();
+   // bool nonlinear = num_dnfi > 0 ? true : false;
 
-   const string odes = options["time-dis"]["ode-solver"].get<string>();
+   // const string odes = options["time-dis"]["ode-solver"].get<string>();
    // if (odes == "RK1" || odes == "RK4")
    // {
    //    if (nonlinear)
@@ -208,12 +211,7 @@ void AbstractSolver::initDerived()
    //    }
    // }
 
-   evolver.reset(new MachEvolver(mass.get(), res.get(), stiff.get(),
-                                 load.get(), cout, 0.0,
-                                 TimeDependentOperator::Type::IMPLICIT));
-
-   
-   evolver->SetNewtonSolver(newton_solver.get());
+   constructEvolver();
 
    // add the output functional QoIs 
    auto &fun = options["outputs"];
@@ -451,7 +449,7 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
 double AbstractSolver::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
-   calcL2Error(u.get(), u_exact, entry);
+   return calcL2Error(u.get(), u_exact, entry);
 }
 
 double AbstractSolver::calcL2Error(GridFunType *field,
@@ -1069,6 +1067,14 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
    }
 }
 
+void AbstractSolver::constructEvolver()
+{
+   evolver.reset(new MachEvolver(mass.get(), res.get(), stiff.get(),
+                                 load.get(), *out, 0.0,
+                                 TimeDependentOperator::Type::IMPLICIT));
+   evolver->SetNewtonSolver(newton_solver.get());
+}
+
 void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
 {
    throw MachException("AbstractSolver::solveUnsteadyAdjoint(fun)\n"
@@ -1088,6 +1094,7 @@ double AbstractSolver::calcOutput(const std::string &fun)
    catch (const std::out_of_range &exception)
    {
       std::cerr << exception.what() << endl;
+      return -1.0;
    }
 }
 
