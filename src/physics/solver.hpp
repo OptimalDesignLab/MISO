@@ -173,6 +173,8 @@ protected:
    std::ostream *out;
    /// solver options
    nlohmann::json options;
+   /// material Library
+   nlohmann::json materials;
    /// number of state variables at each node
    int num_state = 0;
    /// time step size

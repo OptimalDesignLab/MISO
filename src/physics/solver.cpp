@@ -7,6 +7,7 @@
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
+#include "material_library.hpp"
 
 
 using namespace std;
@@ -55,6 +56,9 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    options_file >> file_options;
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
+
+	materials = material_library;
+
    constructMesh(move(smesh));
    int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
@@ -210,6 +214,9 @@ void AbstractSolver::initDerived()
    //       evolver.reset(new ImplicitLinearEvolver(opt_file_name, *mass_matrix, *stiffness_matrix, *load, *out));
    //    }
    // }
+
+   constructLinearSolver(options["lin-solver"]);
+   constructNewtonSolver();
 
    constructEvolver();
 
@@ -844,7 +851,7 @@ void AbstractSolver::solveUnsteady()
       if (ti % 10 == 0)
       {
          *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-              << " (" << round(10 * t / t_final) << "% complete)" << endl;
+              << " (" << round(100 * t / t_final) << "% complete)" << endl;
       }
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();

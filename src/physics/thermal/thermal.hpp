@@ -44,9 +44,9 @@ private:
    std::unique_ptr<GridFunType> th_exact;
 
    /// TODO: Need these?
-   mfem::HypreParMatrix M;
-   mfem::HypreParMatrix K;
-   mfem::Vector B;
+   // mfem::HypreParMatrix M;
+   // mfem::HypreParMatrix K;
+   // mfem::Vector B;
 
    /// TODO: don't think this should be a unique ptr, nonlinear form will delete
    /// aggregation functional
@@ -85,9 +85,6 @@ private:
    /// TODO: use from abstract class?
    /// time dependent operator
    // std::unique_ptr<ImplicitLinearEvolver> evolver;
-
-   /// material Library
-   nlohmann::json materials;
 
    /// static variables for use in static member functions
    // static double temp_0;

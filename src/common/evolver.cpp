@@ -7,6 +7,81 @@ using namespace std;
 namespace mach
 {
 
+class MachEvolver::SystemOperator : public mfem::Operator
+{
+public:
+   /// Nonlinear operator of the form that combines the mass, res, stiff,
+   /// and load elements for implicit/explicit ODE integration
+   /// \param[in] mass - bilinear form for mass matrix (not owned)
+   /// \param[in] res - nonlinear residual operator (not owned)
+   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
+   /// \param[in] load - load vector (not owned)
+   SystemOperator(BilinearFormType *_mass, NonlinearFormType *_res,
+                  BilinearFormType *_stiff, mfem::Vector *_load)
+      : Operator(_mass->Height()), mass(_mass), res(_res), stiff(_stiff),
+        load(_load), dt(0.0), x(nullptr), work(height) {}
+
+   /// Compute r = M@k + R(x + dt*k,t) + K@(x+dt*k) + l
+   /// (with `@` denoting matrix-vector multiplication)
+   /// \param[in] k - dx/dt 
+   /// \param[out] r - the residual
+   /// \note the signs on each operator must be accounted for elsewhere
+   void Mult(const mfem::Vector &k, mfem::Vector &r) const override
+   {
+      /// work = x+dt*k = x+dt*dx/dt = x+dx
+      add(*x, dt, k, work);
+      if (res)
+         res->Mult(work, r);
+      if (stiff)
+         stiff->AddMult(work, r);
+      mass->AddMult(k, r);
+      if (load)
+         r += *load;
+   }
+
+   /// Compute J = M + dt * grad(R(x + dt*k, t)) + dt * K
+   /// \param[in] k - dx/dt 
+   mfem::Operator &GetGradient(const mfem::Vector &k) const override
+   {
+      MatrixType *jac;
+#ifdef MFEM_USE_MPI
+      jac = mass->ParallelAssemble();
+      if (stiff)
+         jac->Add(dt, *(stiff->ParallelAssemble()));
+#else
+      jac = mass->SpMat();
+      if (stiff)
+         jac->Add(dt, *(stiff->SpMat()));
+#endif
+      if (res)
+      {
+         /// work = x+dt*k = x+dt*dx/dt = x+dx
+         add(*x, dt, k, work);
+         jac->Add(dt, *dynamic_cast<MatrixType*>(&res->GetGradient(work)));
+      } 
+      return *jac;
+   }
+
+   /// Set current dt and x values - needed to compute action and Jacobian.
+   void setParameters(double _dt, const mfem::Vector *_x)
+   {
+      dt = _dt;
+      x = _x;
+   };
+
+   ~SystemOperator() = default;
+
+private:
+   BilinearFormType *mass;
+   NonlinearFormType *res;
+   BilinearFormType *stiff;
+   mfem::Vector *load;
+
+   double dt;
+   const mfem::Vector *x;
+   mutable mfem::Vector work;
+};
+
 MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
                          BilinearFormType *_stiff, Vector *_load,
                          std::ostream &outstream, double start_time,
@@ -21,14 +96,14 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
    assem = _mass->GetAssemblyLevel();
    if (assem == AssemblyLevel::PARTIAL)
    {
-      mass->Reset(_mass, false);
+      mass.Reset(_mass, false);
       mass_prec.reset(new OperatorJacobiSmoother(*_mass, ess_tdof_list));
    }
    else if (assem == AssemblyLevel::FULL)
    {
 #ifdef MFEM_USE_MPI
-      mass->Reset(_mass->ParallelAssemble(), true);
-      mass_prec.reset(new HypreSmoother(*mass->As<HypreParMatrix>(),
+      mass.Reset(_mass->ParallelAssemble(), true);
+      mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
                                         HypreSmoother::Jacobi));
 #else
       mass->reset(_mass->SpMat(), true);
@@ -43,12 +118,17 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
 #else
    mass_solver = CGSolver();
 #endif
-   mass_solver.SetOperator(**mass);
+   mass_solver.SetOperator(*mass);
    mass_solver.SetPreconditioner(*mass_prec);
-   mass_solver.SetRelTol(1e-12);
-   mass_solver.SetMaxIter(1000);
-   mass_solver.SetPrintLevel(1);
+   mass_solver.SetRelTol(1e-9);
+   mass_solver.SetAbsTol(0.0);
+   mass_solver.SetMaxIter(100);
+   mass_solver.SetPrintLevel(0);
+
+   combined_oper.reset(new SystemOperator(_mass, _res, _stiff, _load));
 }
+
+MachEvolver::~MachEvolver() = default;
 
 void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
@@ -59,21 +139,28 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
    if (load)
       work += *load;
    mass_solver.Mult(work, y);
+   y *= -1.0;
 }
 
 void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
                                 Vector &k)
 {
-   combined_oper->SetParameters(dt, &x);
+   setOperParameters(dt, &x);
+   // combined_oper->setParameters(dt, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
    newton->Mult(zero, k);
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 
-void MachEvolver::SetNewtonSolver(const NewtonSolver *_newton)
+void MachEvolver::SetNewtonSolver(NewtonSolver *_newton)
 {
-   *newton = *_newton;
+   newton = _newton;
    newton->SetOperator(*combined_oper);
+}
+
+void MachEvolver::setOperParameters(double dt, const mfem::Vector *x)
+{
+   combined_oper->setParameters(dt, x);
 }
 
 // ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(NewtonSolver *_newton,

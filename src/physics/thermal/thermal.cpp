@@ -2,7 +2,6 @@
 
 #include "thermal.hpp"
 #include "evolver.hpp"
-#include "material_library.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -45,6 +44,7 @@ ThermalSolver::ThermalSolver(
 	 GridFunType *B)
 	: AbstractSolver(opt_file_name, move(smesh)), mag_field(B)
 {
+   AbstractSolver::initDerived();
 	setInit = false;
 
 	mesh->ReorientTetMesh();
@@ -70,8 +70,6 @@ ThermalSolver::ThermalSolver(
 	// 	std::cerr << "Could not open materials library file!" << std::endl;
 	// material_file >> materials;
 
-	materials = material_library;
-
 	*out << "Constructing Material Coefficients..." << std::endl;
 	
 	// constructDensityCoeff();
@@ -86,12 +84,12 @@ ThermalSolver::ThermalSolver(
 
 	// constructCore();
 
-	std::cout << "Defining Finite Element Spaces..." << std::endl;
-	/// set essential BCs (none)
-	Array<int> ess_tdof_list;
-	mfem::Array<int> ess_bdr(mesh->bdr_attributes.Max());
-	ess_bdr = 0;
-   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+	// std::cout << "Defining Finite Element Spaces..." << std::endl;
+	// /// set essential BCs (none)
+	// Array<int> ess_tdof_list;
+	// mfem::Array<int> ess_bdr(mesh->bdr_attributes.Max());
+	// ess_bdr = 0;
+   // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
 	/// set up the bilinear forms
 	// m.reset(new BilinearFormType(fes.get()));
@@ -463,9 +461,9 @@ double ThermalSolver::calcL2Error(
 
 void ThermalSolver::constructCoefficients()
 {
-   constructDensityCoeff();
-   constructHeatCoeff();
+   // constructDensityCoeff();
    constructMassCoeff();
+   constructHeatCoeff();
    constructConductivity();
    constructJoule();
    constructCore();
@@ -544,7 +542,8 @@ void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,
 {
 	flux_coeff->SetTime(t);
 	dynamic_cast<LinearFormType*>(load)->Assemble();
-   combined_oper->SetParameters(dt, &x);
+   setOperParameters(dt, &x);
+   // combined_oper->SetParameters(dt, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
    newton->Mult(zero, k);
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");

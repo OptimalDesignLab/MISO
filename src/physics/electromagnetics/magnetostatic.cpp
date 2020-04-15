@@ -5,7 +5,6 @@
 #include "magnetostatic.hpp"
 #include "solver.hpp"
 #include "electromag_integ.hpp"
-#include "material_library.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -89,7 +88,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 	// 	throw MachException("Could not open materials library file!");
 	// material_file >> materials;
 	/// using hpp file instead of json
-	materials = material_library;
+	// materials = material_library;
 
 	/// read options file to set the proper values of static member variables
 	setStaticMembers();

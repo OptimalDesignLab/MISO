@@ -10,79 +10,6 @@
 namespace
 {
 
-class SystemOperator : public mfem::Operator
-{
-public:
-   /// Nonlinear operator of the form that combines the mass, res, stiff,
-   /// and load elements for implicit/explicit ODE integration
-   /// \param[in] mass - bilinear form for mass matrix (not owned)
-   /// \param[in] res - nonlinear residual operator (not owned)
-   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
-   /// \param[in] load - load vector (not owned)
-   SystemOperator(BilinearFormType *_mass, NonlinearFormType *_res,
-                  BilinearFormType *_stiff, mfem::Vector *_load)
-      : Operator(_mass->Height()), mass(_mass), res(_res), stiff(_stiff),
-        load(_load), dt(0.0), x(nullptr), work(height) {}
-
-   /// Compute r = M@k + R(x + dt*k,t) + K@(x+dt*k) + l
-   /// (with `@` denoting matrix-vector multiplication)
-   /// \param[in] k - dx/dt 
-   /// \param[out] r - the residual
-   /// \note the signs on each operator must be accounted for elsewhere
-   void Mult(const mfem::Vector &k, mfem::Vector &r) const override
-   {
-      /// work = x+dt*k = x+dt*dx/dt = x+dx
-      add(*x, dt, k, work);
-      if (res)
-         res->Mult(work, r);
-      if (stiff)
-         stiff->AddMult(work, r);
-      mass->AddMult(k, r);
-      if (load)
-         r += *load;
-   }
-
-   /// Compute J = M + dt * grad(R(x + dt*k, t)) + dt * K
-   /// \param[in] k - dx/dt 
-   mfem::Operator &GetGradient(const mfem::Vector &k) const override
-   {
-      MatrixType *jac;
-#ifdef MFEM_USE_MPI
-      jac = mass->ParallelAssemble();
-      if (stiff)
-         jac->Add(dt, *(stiff->ParallelAssemble()));
-#else
-      jac = mass->SpMat();
-      if (stiff)
-         jac->Add(dt, *(stiff->SpMat()));
-#endif
-      if (res)
-      {
-         /// work = x+dt*k = x+dt*dx/dt = x+dx
-         add(*x, dt, k, work);
-         jac->Add(dt, *dynamic_cast<MatrixType*>(&res->GetGradient(work)));
-      } 
-      return *jac;
-   }
-
-   /// Set current dt and x values - needed to compute action and Jacobian.
-   void SetParameters(double _dt, const mfem::Vector *_x)
-   {
-      dt = _dt;
-      x = _x;
-   };
-
-private:
-   BilinearFormType *mass;
-   NonlinearFormType *res;
-   BilinearFormType *stiff;
-   mfem::Vector *load;
-
-   double dt;
-   const mfem::Vector *x;
-   mutable mfem::Vector work;
-};
-
 }
 
 namespace mach
@@ -124,20 +51,24 @@ public:
    
    /// Set the newton solver to be used for implicit methods
    /// \param[in] newton - pointer to configured newton solver (not owned)
-   void SetNewtonSolver(const mfem::NewtonSolver *newton);
+   void SetNewtonSolver(mfem::NewtonSolver *newton);
 
-   virtual ~MachEvolver() {}
+   virtual ~MachEvolver();
    
 protected:
    /// pointer to mass bilinear form (not owned)
-   mfem::OperatorHandle *mass;
+   mfem::OperatorHandle mass;
    /// pointer to nonlinear form
    NonlinearFormType *res;
    BilinearFormType *stiff;
    mfem::Vector *load;
    std::ostream &out;
 
-   SystemOperator *combined_oper;
+   /// pointer-to-implementation idiom
+   /// Hides implementation details of this operator, and because it's private
+   /// it doesn't pollute the mach namespace
+   class SystemOperator;
+   std::unique_ptr<SystemOperator> combined_oper;
 
    mfem::CGSolver mass_solver;
    std::unique_ptr<mfem::Solver> mass_prec;
@@ -145,6 +76,9 @@ protected:
    mutable mfem::Vector work;
 
    mfem::NewtonSolver *newton;
+
+   void setOperParameters(double dt, const mfem::Vector *x);
+
 };
 
 /// For explicit time marching of nonlinear problems
