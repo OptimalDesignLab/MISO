@@ -92,6 +92,8 @@ private:
    /// maximum magnetic flux density aka "amplitude"
    // double Bmax;
 
+   double dt_real_;
+
    /// check if initial conditions are set
    bool setInit;
 
@@ -134,6 +136,12 @@ private:
 
    /// Return the number of state variables
    int getNumState() override { return 1; }
+
+   /// implementation of solveUnsteadyAdjoint, call only after solveForState
+   virtual void solveUnsteadyAdjoint(const std::string &fun);
+
+   /// implementation of addOutputs
+   virtual void addOutputs();
 
    /// aggregation parameter
    double rhoa;

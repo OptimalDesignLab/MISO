@@ -7,8 +7,17 @@ using namespace std;
 namespace mach
 {
 
+AggregateIntegrator::AggregateIntegrator(
+                              const mfem::FiniteElementSpace *fe_space,
+                              const double r,
+                              const mfem::Vector m,
+                              mfem::GridFunction *temp)       
+   : fes(fe_space), rho(r), max(m)
+{ 
+   GetIEAggregate(temp);
+}
 
-double AggregateIntegrator::GetIEAggregate(GridFunType *temp)
+double AggregateIntegrator::GetIEAggregate(mfem::GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
@@ -16,8 +25,6 @@ double AggregateIntegrator::GetIEAggregate(GridFunType *temp)
 
    double numer = 0;
    double denom = 0;
-
-   
 
    // loop through elements
    // TODO: USE MULTIPLE MAXIMA, ONE FOR EACH MESH ATTRIBUTE)
@@ -45,7 +52,34 @@ double AggregateIntegrator::GetIEAggregate(GridFunType *temp)
    }
    //std::cout << "max temp: " << max << endl;
 
-   return numer/denom;
+   J_ = numer/denom;
+   denom_ = denom;
+   temp_ = temp;
+
+   return J_;
+}
+
+void AggregateIntegrator::AssembleElementVector(const mfem::FiniteElement &el, 
+               mfem::ElementTransformation &Trans,
+               const mfem::Vector &elfun, mfem::Vector &elvect)
+{
+   int dof = el.GetDof(), dim = el.GetDim();
+   elvect.SetSize(dof);
+
+   const int attr = Trans.Attribute;
+   maxt = temp_->Max()/max(attr);
+
+   for (int i = 0; i < el.GetDof(); ++i)
+   {
+      const IntegrationPoint &ip = el.GetNodes().IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      double val = elfun(i)/max(attr);
+      
+      double vexp = exp(rho*(val-maxt));
+      double dnumer = Trans.Weight()*(1 + rho*val - J_*rho)*vexp;
+
+      elvect(i) = dnumer/(denom_*max(attr));
+   }
 }
 
 

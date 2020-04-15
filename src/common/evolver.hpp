@@ -47,6 +47,9 @@ public:
    /// \param[in] newton - pointer to configured newton solver (not owned)
    void SetNewtonSolver(mfem::NewtonSolver *newton);
 
+   /// Return a reference to the Jacobian of the combined operator
+   mfem::Operator &GetGradient(const mfem::Vector &x) const override;
+
    virtual ~MachEvolver();
    
 protected:
@@ -73,6 +76,38 @@ protected:
 
    void setOperParameters(double dt, const mfem::Vector *x);
 
+//    /// Class destructor
+//    virtual ~ImplicitLinearEvolver() { }
+
+//    /// Get the last time step's operator
+//    mfem::HypreParMatrix* GetOperator() {return T;}
+// protected:
+//    /// input options
+//    nlohmann::json options;
+//    /// linear form (time independent)
+//    std::unique_ptr<mfem::LinearForm> force;
+//    /// linear form (w/ time dependent terms if present)
+//    std::unique_ptr<mfem::LinearForm> rhs;
+
+// private:
+//    /// used to print information
+//    std::ostream &out;
+//    /// mass matrix represented as a matrix
+//    MatrixType &mass;
+//    /// stiffness matrix represented as a sparse matrix
+//    MatrixType &stiff;
+//    /// time operator represented as a matrix
+//    mfem::HypreParMatrix *T;
+//    /// preconditioner for implicit system
+//    std::unique_ptr<SmootherType> t_prec;
+//    /// solver for the implicit system
+//    std::unique_ptr<mfem::CGSolver> t_solver;
+//    /// preconditioner for explicit system
+//    std::unique_ptr<SmootherType> m_prec;
+//    /// solver for the explicit system
+//    std::unique_ptr<mfem::CGSolver> m_solver;
+//    /// a work vector
+//    mutable mfem::Vector z;
 };
 
 /// For explicit time marching of nonlinear problems

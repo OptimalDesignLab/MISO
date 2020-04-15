@@ -91,6 +91,18 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
 {
 
    Array<int> ess_tdof_list;
+// void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
+// {
+//    T = NULL;
+
+//    T = Add(1.0, mass, dt, stiff);
+//    t_solver->SetOperator(*T);
+
+//    stiff.Mult(x, z);
+//    z.Neg();  
+//    z.Add(-1, *rhs);
+//    t_solver->Mult(z, k);    
+// }
 
    AssemblyLevel assem;
    assem = _mass->GetAssemblyLevel();
@@ -168,10 +180,17 @@ void MachEvolver::SetNewtonSolver(NewtonSolver *_newton)
    newton->SetOperator(*combined_oper);
 }
 
+mfem::Operator& MachEvolver::GetGradient(const mfem::Vector &x) const
+{
+   return combined_oper->GetGradient(x);
+}
+
+
 void MachEvolver::setOperParameters(double dt, const mfem::Vector *x)
 {
    combined_oper->setParameters(dt, x);
 }
+
 
 // ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(NewtonSolver *_newton,
 //                                                    BilinearFormType *mass,

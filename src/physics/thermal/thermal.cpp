@@ -160,6 +160,38 @@ ThermalSolver::ThermalSolver(
 
 	/// pass through aggregation parameters for functional
 	func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	// /// pass through aggregation parameters for functional
+	// does not include dJdu calculation, need AddOutputs for that
+	// func.reset(new AggregateIntsegrator(h_grad_space.get(), rhoa, max));
+
+}
+
+void ThermalSolver::addOutputs()
+{
+	auto &fun = options["outputs"];
+    int idx = 0;
+    if (fun.find("temp-agg") != fun.end())
+    {
+		rhoa = options["rho-agg"].template get<double>();
+		//double max = options["max-temp"].template get<double>();
+		output.emplace("temp-agg", fes.get());
+		/// assemble max temp array
+		max.SetSize(fes->GetMesh()->attributes.Size()+1);
+		for (auto& component : options["components"])
+		{
+			double mat_max = component["max-temp"].template get<double>();
+			int attrib = component["attr"].template get<int>();
+			max(attrib) = mat_max;
+		}
+		
+		// call the second constructor of the aggregate integrator
+		output.at("temp-agg").AddDomainIntegrator(
+        	new AggregateIntegrator(fes.get(), rhoa, max, u.get()));
+
+//		func.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));
+
+      	idx++; 
+	}
 }
 
 void ThermalSolver::solveUnsteady()
@@ -211,6 +243,7 @@ void ThermalSolver::solveUnsteady()
     	//     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
     	// }
     	double dt_real = min(dt, t_final - t);
+		dt_real_ = dt_real;
     	//if (ti % 100 == 0)
     	{
 			cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
@@ -457,6 +490,82 @@ double ThermalSolver::calcL2Error(
 	// sol_ofs.close();
 
 	return u->ComputeL2Error(exsol);
+}
+
+void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
+{
+	// only solve for state at end time
+    double time_beg, time_end;
+    if (0==rank)
+    {
+       time_beg = MPI_Wtime();
+    }
+
+	// add the dJdu output, do this now to precompute max temperature and 
+	// certain values for the functional so that we don't need it at every call
+	addOutputs();
+
+    // Step 0: allocate the adjoint variable
+    adj.reset(new GridFunType(fes.get()));
+
+	// Step 1: get the right-hand side vector, dJdu, and make an appropriate
+    // alias to it, the state, and the adjoint
+    std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+#ifdef MFEM_USE_MPI
+    HypreParVector *state = u->GetTrueDofs();
+    HypreParVector *dJ = dJdu->GetTrueDofs();
+    HypreParVector *adjoint = adj->GetTrueDofs();
+#else
+    GridFunType *state = u.get();
+    GridFunType *dJ = dJdu.get();
+    GridFunType *adjoint = adj.get();
+#endif
+	//mfem::Array<mfem::NonlinearFormIntegrator*>* arr = output.at(fun).GetDNFI();
+	//double unused = arr[0]->GetElementEnergy(theta.get());
+    
+	output.at(fun).Mult(*state, *dJ);
+
+	// // Step 2: get the last time step's Jacobian
+	// HypreParMatrix *jac = evolver->GetOperator();
+	// //TransposeOperator jac_trans = TransposeOperator(jac);
+	// HypreParMatrix *jac_trans = jac->Transpose();
+
+	// Step 2: get the last time step's Jacobian and transpose it
+   Operator *jac = &evolver->GetGradient(*state);
+   TransposeOperator jac_trans = TransposeOperator(jac);
+
+	// Step 3: Solve the adjoint problem
+    *out << "Solving adjoint problem:\n"
+         << "\tsolver: HypreGMRES\n"
+         << "\tprec. : Euclid ILU" << endl;
+    prec.reset(new HypreEuclid(fes->GetComm()));
+    double tol = options["adj-solver"]["rel-tol"].get<double>();
+    int maxiter = options["adj-solver"]["max-iter"].get<int>();
+    int ptl = options["adj-solver"]["print-lvl"].get<int>();
+    solver.reset(new HypreGMRES(fes->GetComm()));
+    solver->SetOperator(jac_trans);
+    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
+    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
+    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
+    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
+    solver->Mult(*dJ, *adjoint);
+	adjoint->Set(dt_real_, *adjoint);
+#ifdef MFEM_USE_MPI
+    adj->SetFromTrueDofs(*adjoint);
+#endif
+    if (0==rank)
+    {
+       time_end = MPI_Wtime();
+       cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+    }
+
+	{
+        ofstream sol_ofs_adj("motor_heat_adj.vtk");
+        sol_ofs_adj.precision(14);
+        mesh->PrintVTK(sol_ofs_adj, options["space-dis"]["degree"].get<int>() + 1);
+        adj->SaveVTK(sol_ofs_adj, "Adjoint", options["space-dis"]["degree"].get<int>() + 1);
+        sol_ofs_adj.close();
+    }
 }
 
 void ThermalSolver::constructCoefficients()
