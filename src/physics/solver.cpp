@@ -90,7 +90,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 
    int fe_order = options["space-dis"]["degree"].template get<int>();
    std::string basis_type = options["space-dis"]["basis-type"].template get<string>();
-   bool galerkin_diff = options["space-dis"]["GD"].get<bool>();
+   bool galerkin_diff = options["space-dis"].value("GD", false);
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
@@ -241,18 +241,18 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    /// native MFEM mesh
    if (mesh_ext == "mesh")
    {
-#ifdef MFEM_USE_MPI
-      comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
-      MPI_Comm_rank(comm, &rank);
-      mesh.reset(new MeshType(comm, *smesh));
-#else
       // read in the serial mesh
       if (smesh == nullptr)
       {
          smesh.reset(new Mesh(mesh_file.c_str(), 1, 1));
       }
-      else
-         mesh.reset(new MeshType(*smesh));
+
+#ifdef MFEM_USE_MPI
+      comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
+      MPI_Comm_rank(comm, &rank);
+      mesh.reset(new MeshType(comm, *smesh));
+#else
+      mesh.reset(new MeshType(*smesh));
 #endif
    }
    /// PUMI mesh
