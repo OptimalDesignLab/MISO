@@ -1,0 +1,46 @@
+{
+   "mesh": {
+      "file": "wire.smb",
+      "out-file": "wire_mesh"
+   },
+   "model-file": "wire.egads",
+   "space-dis": {
+      "basis-type": "nedelec",
+      "degree": 1
+   },
+   "steady": true,
+   "time-dis": {
+   },
+   "lin-solver": {
+      "printlevel": 2,
+      "maxiter": 500
+   },
+   "newton": {
+      "printlevel": 1,
+      "reltol": 1e-8,
+      "abstol": 1e-8
+   },
+   "components": {
+      "wire": {
+         "material": "copper",
+         "linear": true,
+         "attr": 1,
+         "fill-factor": 1.0,
+         "current-density": 1.0
+      },
+      "farfields": {
+         "material": "air",
+         "linear": true,
+         "attrs": 2
+      }
+   },
+   "magnets": {
+      "north": [6, 8, 10, 12],
+      "south": [7, 9, 11, 13]
+   },
+   "phases": {
+      "A": [14, 17, 20, 23],
+      "B": [15, 18, 21, 24],
+      "C": [1]
+   }
+}

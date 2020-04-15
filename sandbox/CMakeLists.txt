@@ -14,10 +14,14 @@ endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
    steady_vortex
+   steady_vortex_adjoint
    unsteady_vortex
    viscous_shock
    airfoil_chaotic
    thermal_square
+   magnetostatic_box
+   magnetostatic_motor
+   magnetostatic_wire
 )
 
 create_sandbox("${SANDBOX_SRCS}")
