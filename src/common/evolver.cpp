@@ -105,6 +105,8 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
       mass.Reset(_mass->ParallelAssemble(), true);
       mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
                                         HypreSmoother::Jacobi));
+      // mass_prec = HypreSmoother();
+      // mass_prec.SetType(HypreSmoother::Jacobi);
 #else
       mass->reset(_mass->SpMat(), true);
 #endif
@@ -118,8 +120,8 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
 #else
    mass_solver = CGSolver();
 #endif
-   mass_solver.SetOperator(*mass);
    mass_solver.SetPreconditioner(*mass_prec);
+   mass_solver.SetOperator(*mass);
    mass_solver.SetRelTol(1e-9);
    mass_solver.SetAbsTol(0.0);
    mass_solver.SetMaxIter(100);

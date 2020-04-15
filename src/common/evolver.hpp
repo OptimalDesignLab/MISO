@@ -6,12 +6,6 @@
 #include "mach_types.hpp"
 #include "inexact_newton.hpp"
 
-/// anonymous namespace
-namespace
-{
-
-}
-
 namespace mach
 {
 

@@ -140,17 +140,24 @@ void AbstractSolver::initDerived()
    // set up the mass matrix
    mass.reset(new BilinearFormType(fes.get()));
    addMassVolumeIntegrators();
+   mass->Assemble();
+   mass->Finalize();
 
+   /// TODO: look at partial assembly
    stiff.reset(new BilinearFormType(fes.get()));
    addStiffVolumeIntegrators(alpha);
    addStiffBoundaryIntegrators(alpha);
    addStiffInterfaceIntegrators(alpha);
+   stiff->Assemble();
+   stiff->Finalize();
 
    load.reset(new LinearFormType(fes.get()));
    addLoadVolumeIntegrators(alpha);
    addLoadBoundaryIntegrators(alpha);
    addLoadInterfaceIntegrators(alpha);
+   load->Assemble();
 
+   /// TODO: look at partial assembly
    // set up the spatial semi-linear form
    res.reset(new NonlinearFormType(fes.get()));
    // Add integrators; this can be simplified if we template the entire class
@@ -159,13 +166,6 @@ void AbstractSolver::initDerived()
    bndry_marker.resize(bcs.size()); // need to set this before next method
    addBoundaryIntegrators(alpha);
    addInterfaceIntegrators(alpha);
-
-   /// TODO: look at partial assembly
-   mass->Assemble();
-   mass->Finalize();
-   stiff->Assemble();
-   stiff->Finalize();
-   load->Assemble();
 
    // This just lists the boundary markers for debugging purposes
    if (0 == rank)
@@ -245,14 +245,25 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
                         "\tMesh file has no extension!\n");
    }
 
-   /// native MFEM mesh
-   if (mesh_ext == "mesh")
+   /// if serial mesh passed in, use that
+   if (smesh != nullptr)
    {
-      // read in the serial mesh
-      if (smesh == nullptr)
-      {
+#ifdef MFEM_USE_MPI
+      comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
+      MPI_Comm_rank(comm, &rank);
+      mesh.reset(new MeshType(comm, *smesh));
+#else
+      mesh.reset(new MeshType(*smesh));
+#endif
+   }
+   /// native MFEM mesh
+   else if (mesh_ext == "mesh")
+   {
+      // // read in the serial mesh
+      // if (smesh == nullptr)
+      // {
          smesh.reset(new Mesh(mesh_file.c_str(), 1, 1));
-      }
+      // }
 
 #ifdef MFEM_USE_MPI
       comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
@@ -265,11 +276,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    /// PUMI mesh
    else if (mesh_ext == "smb")
    {
-      if (smesh != nullptr)
-      {
-         throw MachException("AbstractSolver::constructMesh(smesh)\n"
-                           "\tdo not provide smesh when using PUMI!");
-      }
       constructPumiMesh();
    }
 }
@@ -713,6 +719,8 @@ void AbstractSolver::addMassVolumeIntegrators()
    const char* name = fes->FEColl()->Name();
    if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
    {
+      *out << "Adding SBP mass integrator...\n";
+      // *out << "num states: " << num_state << "\n";
       mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
    }
    else

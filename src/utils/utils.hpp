@@ -236,11 +236,10 @@ void buildLSInterpolation(int dim, int degree,
                           mfem::DenseMatrix &interp);
 #endif
 
-#ifdef MFEM_USE_GSLIB
 /// \brief transfer GridFunction from one mesh to another
+/// \note requires MFEM to be built with GSLIB
 void transferSolution(const MeshType &old_mesh, const MeshType &new_mesh,
                       const GridFunType &in, GridFunType &out);
-#endif
 
 } // namespace mach
 

@@ -116,6 +116,7 @@ AdvectionSolver<dim>::AdvectionSolver(
 
    /// This should overwrite the evolver defined in base class constructor
    evolver.reset(
+      //   new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out))); 
        new LinearEvolver(mass.get(), stiff.get(), nullptr, *(out)));
 
 }

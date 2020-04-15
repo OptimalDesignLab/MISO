@@ -240,31 +240,31 @@ protected:
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addVolumeIntegrators(double alpha = 1.0) {};
+   virtual void addVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addBoundaryIntegrators(double alpha = 1.0) {};
+   virtual void addBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addInterfaceIntegrators(double alpha = 1.0) {};
+   virtual void addInterfaceIntegrators(double alpha) {};
 
    /// Add volume integrators to `stiff`
    /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
-   virtual void addStiffVolumeIntegrators(double alpha = 1.0) {};
+   virtual void addStiffVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `stiff`
    /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
-   virtual void addStiffBoundaryIntegrators(double alpha = 1.0) {};
+   virtual void addStiffBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `stiff`
    /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
-   virtual void addStiffInterfaceIntegrators(double alpha = 1.0) {};
+   virtual void addStiffInterfaceIntegrators(double alpha) {};
 
    /// Add volume integrators to 'load'
    /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
-   virtual void addLoadVolumeIntegrators(double alpha = 1.0) {};
+   virtual void addLoadVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `load'
    /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
