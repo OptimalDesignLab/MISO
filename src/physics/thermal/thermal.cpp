@@ -159,7 +159,7 @@ ThermalSolver::ThermalSolver(
 	}
 
 	/// pass through aggregation parameters for functional
-	func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	// func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
 	// /// pass through aggregation parameters for functional
 	// does not include dJdu calculation, need AddOutputs for that
 	// func.reset(new AggregateIntsegrator(h_grad_space.get(), rhoa, max));
@@ -197,7 +197,7 @@ void ThermalSolver::addOutputs()
 void ThermalSolver::solveUnsteady()
 {
 	double t = 0.0;
-	double agg;
+	// double agg;
 	double gerror = 0;
 	evolver->SetTime(t);
 	ode_solver->Init(*evolver);
@@ -226,15 +226,15 @@ void ThermalSolver::solveUnsteady()
 	double dt = options["time-dis"]["dt"].get<double>();
 
 	// compute functional for first step, testing purposes
-	if (rhoa != 0)
-	{
-		agg = func->GetIEAggregate(u.get());
-		cout << "aggregated temp constraint = " << agg << endl;
+	// if (rhoa != 0)
+	// {
+	// 	agg = func->GetIEAggregate(u.get());
+	// 	cout << "aggregated temp constraint = " << agg << endl;
 
-		//compare to actual max, ASSUMING UNIFORM CONSTRAINT
-		gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
+	// 	compare to actual max, ASSUMING UNIFORM CONSTRAINT
+	// 	gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
 		
-	}
+	// }
 
 	for (int ti = 0; !done;)
 	{
@@ -257,13 +257,13 @@ void ThermalSolver::solveUnsteady()
 		ode_solver->Step(*u, t, dt_real);
 #endif
 
-		// compute functional
-		if (rhoa != 0)
-		{
-			agg = func->GetIEAggregate(u.get());
-			cout << "aggregated temp constraint = " << agg << endl;
+		// // compute functional
+		// if (rhoa != 0)
+		// {
+		// 	agg = func->GetIEAggregate(u.get());
+		// 	cout << "aggregated temp constraint = " << agg << endl;
 
-		}
+		// }
 
 		// evolver->updateParameters();
 
@@ -477,20 +477,20 @@ void ThermalSolver::constructCore()
 	}
 }
 
-double ThermalSolver::calcL2Error(
-    double (*u_exact)(const Vector &), int entry)
-{
-	// TODO: need to generalize to parallel
-	FunctionCoefficient exsol(u_exact);
-	th_exact->ProjectCoefficient(exsol);
+// double ThermalSolver::calcL2Error(
+//     double (*u_exact)(const Vector &), int entry)
+// {
+// 	// TODO: need to generalize to parallel
+// 	FunctionCoefficient exsol(u_exact);
+// 	th_exact->ProjectCoefficient(exsol);
 
 	
-	// sol_ofs.precision(14);
-	// th_exact->SaveVTK(sol_ofs, "Analytic", options["space-dis"]["degree"].get<int>() + 1);
-	// sol_ofs.close();
+// 	// sol_ofs.precision(14);
+// 	// th_exact->SaveVTK(sol_ofs, "Analytic", options["space-dis"]["degree"].get<int>() + 1);
+// 	// sol_ofs.close();
 
-	return u->ComputeL2Error(exsol);
-}
+// 	return u->ComputeL2Error(exsol);
+// }
 
 void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 {
@@ -570,7 +570,7 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 
 void ThermalSolver::constructCoefficients()
 {
-   // constructDensityCoeff();
+   constructDensityCoeff();
    constructMassCoeff();
    constructHeatCoeff();
    constructConductivity();
@@ -644,6 +644,7 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 	stiff->Mult(x, work);
 	work += *load;
    mass_solver.Mult(work, y);
+	y *= alpha;
 }
 
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,

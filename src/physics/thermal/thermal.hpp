@@ -26,13 +26,13 @@ public:
 							  int dim = 3,
                        GridFunType *B = nullptr);
    
-   /// Returns the L2 error between the state `u` and given exact solution.
-   /// Overload for scalar quantities
-   /// \param[in] u_exact - function that defines the exact solution
-   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
-   double calcL2Error(double (*u_exact)(const mfem::Vector &),
-                      int entry = -1);
+   // /// Returns the L2 error between the state `u` and given exact solution.
+   // /// Overload for scalar quantities
+   // /// \param[in] u_exact - function that defines the exact solution
+   // /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   // /// \returns L2 error
+   // double calcL2Error(double (*u_exact)(const mfem::Vector &),
+   //                    int entry = -1);
 
 private:
    // std::ofstream sol_ofs;
@@ -50,7 +50,7 @@ private:
 
    /// TODO: don't think this should be a unique ptr, nonlinear form will delete
    /// aggregation functional
-   std::unique_ptr<AggregateIntegrator> func;
+   // std::unique_ptr<AggregateIntegrator> func;
 
    /// mesh dependent density coefficient
    std::unique_ptr<MeshDependentCoefficient> rho;
@@ -138,10 +138,10 @@ private:
    int getNumState() override { return 1; }
 
    /// implementation of solveUnsteadyAdjoint, call only after solveForState
-   virtual void solveUnsteadyAdjoint(const std::string &fun);
+   virtual void solveUnsteadyAdjoint(const std::string &fun) override;
 
    /// implementation of addOutputs
-   virtual void addOutputs();
+   virtual void addOutputs() override;
 
    /// aggregation parameter
    double rhoa;

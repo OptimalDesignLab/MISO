@@ -135,7 +135,7 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
    mass_solver.SetMaxIter(100);
    mass_solver.SetPrintLevel(0);
 
-   combined_oper.reset(new SystemOperator(_mass, _res, _stiff, _load, alpha));
+   combined_oper.reset(new SystemOperator(_mass, _res, _stiff, _load, a));
 }
 
 MachEvolver::~MachEvolver() = default;

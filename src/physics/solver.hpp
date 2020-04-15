@@ -78,7 +78,23 @@ public:
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
    /// \returns L2 error
+   double calcL2Error(double (*u_exact)(const mfem::Vector &),
+                      int entry = -1);
+
+   /// Returns the L2 error between the state `u` and given exact solution.
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \returns L2 error
    double calcL2Error(void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+                      int entry = -1);
+
+   /// Returns the L2 error of a field and given exact solution.
+   /// \param[in] field - grid function to compute L2 error for
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \returns L2 error
+   double calcL2Error(GridFunType *field,
+                      double (*u_exact)(const mfem::Vector &),
                       int entry = -1);
    
    /// Returns the L2 error of a field and given exact solution.

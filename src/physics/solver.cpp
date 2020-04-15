@@ -490,10 +490,84 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
    return prod;
 }
 
+double AbstractSolver::calcL2Error(double (*u_exact)(const Vector &),
+                                   int entry)
+{
+   return calcL2Error(u.get(), u_exact, entry);
+}
+
 double AbstractSolver::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
    return calcL2Error(u.get(), u_exact, entry);
+}
+
+double AbstractSolver::calcL2Error(GridFunType *field,
+    double (*u_exact)(const Vector &), int entry)
+{
+   // TODO: need to generalize to parallel
+   FunctionCoefficient exsol(u_exact);
+   FiniteElementSpace *fe_space = field->FESpace();
+
+   const char* name = fe_space->FEColl()->Name();
+
+   double loc_norm = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   Vector shape;
+   Array<int> vdofs;
+
+   // sum up the L2 error over all states
+   for (int i = 0; i < fe_space->GetNE(); i++)
+   {
+      const IntegrationRule *ir;
+      if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+      {        
+         ir = &(fe->GetNodes());
+      }
+      else
+      {
+         int intorder = 2*fe->GetOrder() + 1;
+         ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+      }
+      fe = fe_space->GetFE(i);
+      int fdof = fe->GetDof();
+      T = fe_space->GetElementTransformation(i);
+      shape.SetSize(fdof);
+      fes->GetElementVDofs(i, vdofs);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         fe->CalcShape(ip, shape);
+
+
+         double a = 0;
+         for (int k = 0; k < fdof; k++)
+            if (vdofs[k] >= 0)
+            {
+               a += (*field)(vdofs[k]) * shape(k);
+            }
+            else
+            {
+               a -= (*field)(-1-vdofs[k]) * shape(k);
+            }
+         T->SetIntPoint(&ip);
+         a -= exsol.Eval(*T, ip);
+         loc_norm += ip.weight * T->Weight() * a * a;
+      }
+   }
+
+   double norm;
+#ifdef MFEM_USE_MPI
+   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   norm = loc_norm;
+#endif
+   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
 }
 
 double AbstractSolver::calcL2Error(GridFunType *field,
