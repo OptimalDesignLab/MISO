@@ -133,11 +133,19 @@ MachEvolver::~MachEvolver() = default;
 void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
    if (res)
+   {
       res->Mult(x, work);
+   }
    if (stiff)
+   {
+      // out << "have stiff\n";
       stiff->AddMult(x, work);
+   }
    if (load)
+   {
+      // out << "have load\n";
       work += *load;
+   }
    mass_solver.Mult(work, y);
    y *= -1.0;
 }
