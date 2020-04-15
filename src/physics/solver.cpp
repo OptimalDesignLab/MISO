@@ -90,7 +90,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 
    int fe_order = options["space-dis"]["degree"].template get<int>();
    std::string basis_type = options["space-dis"]["basis-type"].template get<string>();
-   bool galerkin_diff = options["space-dis"]["GD"].get<bool>();
+   bool galerkin_diff = options["space-dis"].value("GD", false);
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
@@ -400,7 +400,7 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
 double AbstractSolver::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
-   calcL2Error(u.get(), u_exact, entry);
+   return calcL2Error(u.get(), u_exact, entry);
 }
 
 double AbstractSolver::calcL2Error(GridFunType *field,
