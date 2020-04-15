@@ -1115,31 +1115,31 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
 
 void AbstractSolver::constructEvolver()
 {
-   // /// check to see if the nonlinear residual has any domain integrators added
-   // int num_dnfi = res->GetDNFI()->Size();
-   // bool nonlinear = num_dnfi > 0 ? true : false;
+   /// check to see if the nonlinear residual has any domain integrators added
+   int num_dnfi = res->GetDNFI()->Size();
+   bool nonlinear = num_dnfi > 0 ? true : false;
 
-   // const string odes = options["time-dis"]["ode-solver"].get<string>();
-   // if (odes == "RK1" || odes == "RK4")
-   // {
-   //    if (nonlinear)
-   //       evolver.reset(new NonlinearEvolver(mass.get(), res.get()));
-   //    else
-   //       evolver.reset(new LinearEvolver(mass.get(), stiff.get()));
-   // }
-   // else
-   // {
-   //    if (nonlinear)
-   //       evolver.reset(new ImplicitNonlinearEvolver(mass.get(), res.get()));
-   //    else
-   //    {
-   //       evolver.reset(new ImplicitLinearEvolver(mass.get(), stiff.get()));
-   //    }
-   // }
+   const string odes = options["time-dis"]["ode-solver"].get<string>();
+   if (odes == "RK1" || odes == "RK4")
+   {
+      if (nonlinear)
+         evolver.reset(new NonlinearEvolver(mass.get(), res.get()));
+      else
+         evolver.reset(new LinearEvolver(mass.get(), stiff.get()));
+   }
+   else
+   {
+      if (nonlinear)
+         evolver.reset(new ImplicitNonlinearEvolver(mass.get(), res.get()));
+      else
+      {
+         evolver.reset(new ImplicitLinearEvolver(mass.get(), stiff.get()));
+      }
+   }
 
-   evolver.reset(new MachEvolver(mass.get(), res.get(), stiff.get(),
-                                 load.get(), *out, 0.0,
-                                 TimeDependentOperator::Type::IMPLICIT));
+   // evolver.reset(new MachEvolver(mass.get(), res.get(), stiff.get(),
+   //                               load.get(), *out, 0.0,
+   //                               TimeDependentOperator::Type::IMPLICIT));
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

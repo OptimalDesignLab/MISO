@@ -634,7 +634,7 @@ ThermalEvolver::ThermalEvolver(BilinearFormType *mass,
 										 std::ostream &outstream,
                   				 double start_time,
 										 mfem::VectorCoefficient *_flux_coeff)
-	: ImplicitLinearEvolver(mass, stiff, load, outstream, start_time),
+	: ImplicitLinearEvolver(mass, stiff, -1.0, load, outstream, start_time),
 	  flux_coeff(_flux_coeff) {};
 
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const

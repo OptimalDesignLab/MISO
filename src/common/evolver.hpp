@@ -29,7 +29,7 @@ public:
    /// \note supports partial assembly of mass matrix
    MachEvolver(BilinearFormType *mass, NonlinearFormType *res,
                BilinearFormType *stiff, mfem::Vector *load,
-               std::ostream &outstream, double start_time,
+               double alpha, std::ostream &outstream, double start_time,
                mfem::TimeDependentOperator::Type type);
 
    /// Perform the action of the operator: y = k = f(x, t), where k solves
@@ -48,6 +48,7 @@ public:
    void SetNewtonSolver(mfem::NewtonSolver *newton);
 
    /// Return a reference to the Jacobian of the combined operator
+   /// \param[in] x - the current state
    mfem::Operator &GetGradient(const mfem::Vector &x) const override;
 
    virtual ~MachEvolver();
@@ -55,59 +56,39 @@ public:
 protected:
    /// pointer to mass bilinear form (not owned)
    mfem::OperatorHandle mass;
-   /// pointer to nonlinear form
+   /// pointer to nonlinear form (not owned)
    NonlinearFormType *res;
+   /// pointer to stiffness bilinear form (not owned)
    BilinearFormType *stiff;
+   ///pointer to load vector (not owned)
    mfem::Vector *load;
+   /// used to move the spatial residual to the right-hand-side, if necessary
+   double alpha;
+   /// outstream for printing
    std::ostream &out;
-
-   /// pointer-to-implementation idiom
-   /// Hides implementation details of this operator, and because it's private
-   /// it doesn't pollute the mach namespace
-   class SystemOperator;
-   std::unique_ptr<SystemOperator> combined_oper;
-
+   /// solver for inverting mass matrix for explicit solves
+   /// \note supports partially assembled mass bilinear form
    mfem::CGSolver mass_solver;
+   /// preconditioner for inverting mass matrix
    std::unique_ptr<mfem::Solver> mass_prec;
-
-   mutable mfem::Vector work;
-
+   /// Newton solver for implicit problems (not owned)
    mfem::NewtonSolver *newton;
 
+   /// pointer-to-implementation idiom
+   /// Hides implementation details of this operator, and because it's private,
+   /// it doesn't pollute the mach namespace
+   class SystemOperator;
+   /// Operator that combines the linear/nonlinear spatial discretization with
+   /// the load vector into one operator used for implicit solves
+   std::unique_ptr<SystemOperator> combined_oper;
+
+   /// work vector
+   mutable mfem::Vector work;
+
+   /// sets the state and dt for the combined operator
+   /// \param[in] dt - time increment
+   /// \param[in] x - the current state
    void setOperParameters(double dt, const mfem::Vector *x);
-
-//    /// Class destructor
-//    virtual ~ImplicitLinearEvolver() { }
-
-//    /// Get the last time step's operator
-//    mfem::HypreParMatrix* GetOperator() {return T;}
-// protected:
-//    /// input options
-//    nlohmann::json options;
-//    /// linear form (time independent)
-//    std::unique_ptr<mfem::LinearForm> force;
-//    /// linear form (w/ time dependent terms if present)
-//    std::unique_ptr<mfem::LinearForm> rhs;
-
-// private:
-//    /// used to print information
-//    std::ostream &out;
-//    /// mass matrix represented as a matrix
-//    MatrixType &mass;
-//    /// stiffness matrix represented as a sparse matrix
-//    MatrixType &stiff;
-//    /// time operator represented as a matrix
-//    mfem::HypreParMatrix *T;
-//    /// preconditioner for implicit system
-//    std::unique_ptr<SmootherType> t_prec;
-//    /// solver for the implicit system
-//    std::unique_ptr<mfem::CGSolver> t_solver;
-//    /// preconditioner for explicit system
-//    std::unique_ptr<SmootherType> m_prec;
-//    /// solver for the explicit system
-//    std::unique_ptr<mfem::CGSolver> m_solver;
-//    /// a work vector
-//    mutable mfem::Vector z;
 };
 
 /// For explicit time marching of nonlinear problems
@@ -126,11 +107,12 @@ public:
    /// \param[in] type - solver type; explicit or implicit
    /// \note supports partial assembly of mass matrix
    NonlinearEvolver(BilinearFormType *mass, NonlinearFormType *res,
+                    double alpha = -1.0,
                     BilinearFormType *stiff = nullptr,
                     mfem::Vector *load = nullptr,
                     std::ostream &outstream = std::cout,
                    double start_time = 0.0)
-      : MachEvolver(mass, res, stiff, load, outstream, start_time,
+      : MachEvolver(mass, res, stiff, load, alpha, outstream, start_time,
                     EXPLICIT) {};
 };
 
@@ -150,11 +132,12 @@ public:
    /// \param[in] type - solver type; explicit or implicit
    /// \note supports partial assembly of mass matrix
    ImplicitNonlinearEvolver(BilinearFormType *mass, NonlinearFormType *res,
+                            double alpha = -1.0,
                             BilinearFormType *stiff = nullptr,
                             mfem::Vector *load = nullptr,
                             std::ostream &outstream = std::cout,
                             double start_time = 0.0)
-      : MachEvolver(mass, res, stiff, load, outstream, start_time,
+      : MachEvolver(mass, res, stiff, load, alpha, outstream, start_time,
                     IMPLICIT) {};
 };
 
@@ -174,10 +157,11 @@ public:
    /// \note supports partial assembly of mass matrix
    LinearEvolver(BilinearFormType *mass,
                  BilinearFormType *stiff,
+                 double alpha = -1.0,
                  mfem::Vector *load = nullptr,
                  std::ostream &outstream = std::cout,
                  double start_time = 0.0)
-      : MachEvolver(mass, nullptr, stiff, load, outstream, start_time,
+      : MachEvolver(mass, nullptr, stiff, load, alpha, outstream, start_time,
                     EXPLICIT) {};
 };
 
@@ -197,10 +181,11 @@ public:
    /// \note supports partial assembly of mass matrix
    ImplicitLinearEvolver(BilinearFormType *mass,
                          BilinearFormType *stiff,
+                         double alpha = -1.0,
                          mfem::Vector *load = nullptr,
                          std::ostream &outstream = std::cout,
                          double start_time = 0.0)
-      : MachEvolver(mass, nullptr, stiff, load, outstream, start_time,
+      : MachEvolver(mass, nullptr, stiff, load, alpha, outstream, start_time,
                     IMPLICIT) {};
 };
 

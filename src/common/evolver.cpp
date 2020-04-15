@@ -16,10 +16,11 @@ public:
    /// \param[in] res - nonlinear residual operator (not owned)
    /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
    /// \param[in] load - load vector (not owned)
+   /// \param[in] a - used to move the spatial residual to the rhs
    SystemOperator(BilinearFormType *_mass, NonlinearFormType *_res,
-                  BilinearFormType *_stiff, mfem::Vector *_load)
+                  BilinearFormType *_stiff, mfem::Vector *_load, double a)
       : Operator(_mass->Height()), mass(_mass), res(_res), stiff(_stiff),
-        load(_load), dt(0.0), x(nullptr), work(height) {}
+        load(_load), alpha(a), dt(0.0), x(nullptr), work(height) {}
 
    /// Compute r = M@k + R(x + dt*k,t) + K@(x+dt*k) + l
    /// (with `@` denoting matrix-vector multiplication)
@@ -34,9 +35,9 @@ public:
          res->Mult(work, r);
       if (stiff)
          stiff->AddMult(work, r);
-      mass->AddMult(k, r);
       if (load)
          r += *load;
+      mass->AddMult(k, r, -alpha);
    }
 
    /// Compute J = M + dt * grad(R(x + dt*k, t)) + dt * K
@@ -46,6 +47,7 @@ public:
       MatrixType *jac;
 #ifdef MFEM_USE_MPI
       jac = mass->ParallelAssemble();
+      *jac *= -alpha;
       if (stiff)
          jac->Add(dt, *(stiff->ParallelAssemble()));
 #else
@@ -57,7 +59,13 @@ public:
       {
          /// work = x+dt*k = x+dt*dx/dt = x+dx
          add(*x, dt, k, work);
-         jac->Add(dt, *dynamic_cast<MatrixType*>(&res->GetGradient(work)));
+         MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
+         *resjac *= dt;
+#ifdef MFEM_USE_MPI
+         jac = ParAdd(jac, resjac);
+#else
+         jac = Add(*jac, *resjac);
+#endif
       } 
       return *jac;
    }
@@ -76,33 +84,21 @@ private:
    NonlinearFormType *res;
    BilinearFormType *stiff;
    mfem::Vector *load;
-
+   double alpha;
    double dt;
    const mfem::Vector *x;
    mutable mfem::Vector work;
 };
 
 MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
-                         BilinearFormType *_stiff, Vector *_load,
+                         BilinearFormType *_stiff, Vector *_load, double a,
                          std::ostream &outstream, double start_time,
                          TimeDependentOperator::Type type)
    : TimeDependentOperator(_mass->Height(), start_time, type),
-     res(_res), stiff(_stiff), load(_load), out(outstream)
+     res(_res), stiff(_stiff), load(_load), alpha(a), out(outstream)
 {
 
    Array<int> ess_tdof_list;
-// void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
-// {
-//    T = NULL;
-
-//    T = Add(1.0, mass, dt, stiff);
-//    t_solver->SetOperator(*T);
-
-//    stiff.Mult(x, z);
-//    z.Neg();  
-//    z.Add(-1, *rhs);
-//    t_solver->Mult(z, k);    
-// }
 
    AssemblyLevel assem;
    assem = _mass->GetAssemblyLevel();
@@ -139,7 +135,7 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
    mass_solver.SetMaxIter(100);
    mass_solver.SetPrintLevel(0);
 
-   combined_oper.reset(new SystemOperator(_mass, _res, _stiff, _load));
+   combined_oper.reset(new SystemOperator(_mass, _res, _stiff, _load, alpha));
 }
 
 MachEvolver::~MachEvolver() = default;
@@ -161,7 +157,7 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
       work += *load;
    }
    mass_solver.Mult(work, y);
-   y *= -1.0;
+   y *= alpha;
 }
 
 void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
