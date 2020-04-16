@@ -490,10 +490,9 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
    return prod;
 }
 
-double AbstractSolver::calcL2Error(double (*u_exact)(const Vector &),
-                                   int entry)
+double AbstractSolver::calcL2Error(double (*u_exact)(const Vector &))
 {
-   return calcL2Error(u.get(), u_exact, entry);
+   return calcL2Error(u.get(), u_exact);
 }
 
 double AbstractSolver::calcL2Error(
@@ -503,7 +502,7 @@ double AbstractSolver::calcL2Error(
 }
 
 double AbstractSolver::calcL2Error(GridFunType *field,
-    double (*u_exact)(const Vector &), int entry)
+    double (*u_exact)(const Vector &))
 {
    // TODO: need to generalize to parallel
    FunctionCoefficient exsol(u_exact);
@@ -520,6 +519,7 @@ double AbstractSolver::calcL2Error(GridFunType *field,
    // sum up the L2 error over all states
    for (int i = 0; i < fe_space->GetNE(); i++)
    {
+      fe = fe_space->GetFE(i);
       const IntegrationRule *ir;
       if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
       {        
@@ -530,7 +530,6 @@ double AbstractSolver::calcL2Error(GridFunType *field,
          int intorder = 2*fe->GetOrder() + 1;
          ir = &(IntRules.Get(fe->GetGeomType(), intorder));
       }
-      fe = fe_space->GetFE(i);
       int fdof = fe->GetDof();
       T = fe_space->GetElementTransformation(i);
       shape.SetSize(fdof);
@@ -1062,10 +1061,20 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
                "MPI!\n");
 #endif
    }
+   else if (prec_type == "hypreboomeramg")
+   {
+#ifdef MFEM_USE_MPI
+      prec.reset(new HypreBoomerAMG());
+      dynamic_cast<mfem::HypreBoomerAMG *>(prec.get())->SetPrintLevel(0);
+#else
+      throw MachException("Hypre preconditioners require building MFEM with "
+               "MPI!\n");
+#endif
+   }
    else
    {
       throw MachException("Unsupported preconditioner type!\n"
-               "\tavilable options are: HypreEuclid, HypreAMS.\n");
+         "\tavilable options are: HypreEuclid, HypreAMS, HypreBoomerAMG.\n");
    }
 
    if (solver_type == "hypregmres")

@@ -34,7 +34,12 @@ public:
       if (res)
          res->Mult(work, r);
       if (stiff)
-         stiff->AddMult(work, r);
+      {
+         // stiff->AddMult(work, r); /// <--- Cannot do AddMult with ParBilinearForm
+         work2.SetSize(work.Size());
+         stiff->Mult(work, work2);
+         add(r, work2, r);
+      }
       if (load)
          r += *load;
       mass->AddMult(k, r, -alpha);
@@ -87,7 +92,7 @@ private:
    double alpha;
    double dt;
    const mfem::Vector *x;
-   mutable mfem::Vector work;
+   mutable mfem::Vector work, work2;
 };
 
 MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
@@ -95,19 +100,19 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
                          std::ostream &outstream, double start_time,
                          TimeDependentOperator::Type type)
    : TimeDependentOperator(_mass->Height(), start_time, type),
-     res(_res), stiff(_stiff), load(_load), alpha(a), out(outstream)
+     res(_res), load(_load), alpha(a), out(outstream)
 {
 
    Array<int> ess_tdof_list;
 
-   AssemblyLevel assem;
-   assem = _mass->GetAssemblyLevel();
-   if (assem == AssemblyLevel::PARTIAL)
+   AssemblyLevel mass_assem;
+   mass_assem = _mass->GetAssemblyLevel();
+   if (mass_assem == AssemblyLevel::PARTIAL)
    {
       mass.Reset(_mass, false);
       mass_prec.reset(new OperatorJacobiSmoother(*_mass, ess_tdof_list));
    }
-   else if (assem == AssemblyLevel::FULL)
+   else if (mass_assem == AssemblyLevel::FULL)
    {
 #ifdef MFEM_USE_MPI
       mass.Reset(_mass->ParallelAssemble(), true);
@@ -135,6 +140,28 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
    mass_solver.SetMaxIter(100);
    mass_solver.SetPrintLevel(0);
 
+   if (_stiff != nullptr)
+   {
+      AssemblyLevel stiff_assem;
+      stiff_assem = _stiff->GetAssemblyLevel();
+      if (stiff_assem == AssemblyLevel::PARTIAL)
+      {
+         stiff.Reset(_stiff, false);
+      }
+      else if (stiff_assem == AssemblyLevel::FULL)
+      {
+   #ifdef MFEM_USE_MPI
+         stiff.Reset(_stiff->ParallelAssemble(), true);
+   #else
+         stiff->reset(_stiff->SpMat(), true);
+   #endif
+      }
+      else
+      {
+         throw MachException("Unsupported assembly level for stiffness matrix!");
+      }
+   }
+
    combined_oper.reset(new SystemOperator(_mass, _res, _stiff, _load, a));
 }
 
@@ -144,16 +171,18 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
    if (res)
    {
+      work.SetSize(x.Size());
       res->Mult(x, work);
    }
-   if (stiff)
+   if (stiff.Ptr())
    {
-      // out << "have stiff\n";
-      stiff->AddMult(x, work);
+      // stiff->AddMult(x, work); /// <--- Cannot do AddMult with ParBilinearForm
+      work2.SetSize(x.Size());
+      stiff->Mult(x, work2);
+      add(work, work2, work);
    }
    if (load)
    {
-      // out << "have load\n";
       work += *load;
    }
    mass_solver.Mult(work, y);

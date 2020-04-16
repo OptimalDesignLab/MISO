@@ -26,7 +26,8 @@ public:
    /// \param[in] start_time - time to start integration from
    ///                         (important for time-variant sources)
    /// \param[in] type - solver type; explicit or implicit
-   /// \note supports partial assembly of mass matrix
+   /// \note supports partial assembly of mass and stiffness matrices for
+   ///       explicit time marching
    MachEvolver(BilinearFormType *mass, NonlinearFormType *res,
                BilinearFormType *stiff, mfem::Vector *load,
                double alpha, std::ostream &outstream, double start_time,
@@ -59,7 +60,7 @@ protected:
    /// pointer to nonlinear form (not owned)
    NonlinearFormType *res;
    /// pointer to stiffness bilinear form (not owned)
-   BilinearFormType *stiff;
+   mfem::OperatorHandle stiff;
    ///pointer to load vector (not owned)
    mfem::Vector *load;
    /// used to move the spatial residual to the right-hand-side, if necessary
@@ -83,7 +84,7 @@ protected:
    std::unique_ptr<SystemOperator> combined_oper;
 
    /// work vector
-   mutable mfem::Vector work;
+   mutable mfem::Vector work, work2;
 
    /// sets the state and dt for the combined operator
    /// \param[in] dt - time increment
