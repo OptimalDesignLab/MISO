@@ -55,7 +55,7 @@ template <int dim>
 void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
 {
    auto &bcs = options["bcs"];
-   int idx = 0;
+   int idx = 1;
    if (bcs.find("vortex") != bcs.end())
    { // isentropic vortex BC
       if (dim != 2)

@@ -137,10 +137,14 @@ void AbstractSolver::initDerived()
    /// construct coefficients before nonlinear/bilinear forms
    constructCoefficients();
 
+   // need to set this before adding boundary integrators
+   auto &bcs = options["bcs"];
+   bndry_marker.resize(bcs.size());
+
    // set up the mass matrix
    mass.reset(new BilinearFormType(fes.get()));
    addMassVolumeIntegrators();
-   mass->Assemble();
+   mass->Assemble(0);
    mass->Finalize();
 
    /// TODO: look at partial assembly
@@ -148,7 +152,7 @@ void AbstractSolver::initDerived()
    addStiffVolumeIntegrators(alpha);
    addStiffBoundaryIntegrators(alpha);
    addStiffInterfaceIntegrators(alpha);
-   stiff->Assemble();
+   stiff->Assemble(0);
    stiff->Finalize();
 
    load.reset(new LinearFormType(fes.get()));
@@ -162,8 +166,6 @@ void AbstractSolver::initDerived()
    res.reset(new NonlinearFormType(fes.get()));
    // Add integrators; this can be simplified if we template the entire class
    addVolumeIntegrators(alpha);
-   auto &bcs = options["bcs"];
-   bndry_marker.resize(bcs.size()); // need to set this before next method
    addBoundaryIntegrators(alpha);
    addInterfaceIntegrators(alpha);
 
@@ -1199,30 +1201,50 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
 void AbstractSolver::constructEvolver()
 {
    /// check to see if the nonlinear residual has any domain integrators added
-   int num_dnfi = res->GetDNFI()->Size();
-   bool nonlinear = num_dnfi > 0 ? true : false;
+   // int num_dnfi = res->GetDNFI()->Size();
+   // bool nonlinear = num_dnfi > 0 ? true : false;
 
-   const string odes = options["time-dis"]["ode-solver"].get<string>();
-   if (odes == "RK1" || odes == "RK4")
+   // const string odes = options["time-dis"]["ode-solver"].get<string>();
+   // if (odes == "RK1" || odes == "RK4")
+   // {
+   //    if (nonlinear)
+   //       evolver.reset(new NonlinearEvolver(mass.get(), res.get()));
+   //    else
+   //       evolver.reset(new LinearEvolver(mass.get(), stiff.get()));
+   // }
+   // else
+   // {
+   //    if (nonlinear)
+   //       evolver.reset(new ImplicitNonlinearEvolver(mass.get(), res.get()));
+   //    else
+   //    {
+   //       evolver.reset(new ImplicitLinearEvolver(mass.get(), stiff.get()));
+   //    }
+   // }
+
+   
+   Array<int> ess_bdr;
+   auto &bcs = options["bcs"];
+   /// if any boundaries are marked as essential in the options file use that
+   if (bcs.find("essential") != bcs.end())
    {
-      if (nonlinear)
-         evolver.reset(new NonlinearEvolver(mass.get(), res.get()));
-      else
-         evolver.reset(new LinearEvolver(mass.get(), stiff.get()));
+      auto tmp = bcs["essential"].get<vector<int>>();
+      ess_bdr.SetSize(tmp.size(), 0);
+      ess_bdr.Assign(tmp.data());
    }
+   /// otherwise mark all attributes as nonessential
    else
    {
-      if (nonlinear)
-         evolver.reset(new ImplicitNonlinearEvolver(mass.get(), res.get()));
-      else
+      if (mesh->bdr_attributes)
       {
-         evolver.reset(new ImplicitLinearEvolver(mass.get(), stiff.get()));
+         ess_bdr.SetSize(mesh->bdr_attributes.Max());
+         ess_bdr = 0;
       }
    }
 
-   // evolver.reset(new MachEvolver(mass.get(), res.get(), stiff.get(),
-   //                               load.get(), *out, 0.0,
-   //                               TimeDependentOperator::Type::IMPLICIT));
+   evolver.reset(new MachEvolver(ess_bdr, mass.get(), res.get(), stiff.get(),
+                                 load.get(), -1.0, *out, 0.0,
+                                 TimeDependentOperator::Type::IMPLICIT));
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

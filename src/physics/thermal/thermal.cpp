@@ -6,33 +6,33 @@
 using namespace std;
 using namespace mfem;
 
-namespace
-{
+// namespace
+// {
 
-void fluxFunc(const Vector &x, double time, Vector &y)
-{
-	y.SetSize(3);
-	//use constant in time for now
+// void fluxFunc(const Vector &x, double time, Vector &y)
+// {
+// 	y.SetSize(3);
+// 	//use constant in time for now
 
-	//assuming centered coordinate system, will offset
-	// double th;// = atan(x(1)/x(0));
+// 	//assuming centered coordinate system, will offset
+// 	// double th;// = atan(x(1)/x(0));
 
-	if (x(0) > .5)
-	{
-		y(0) = 1;
-	}
-	else
-	{
-		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
-		//cout << "outflux val = " << y(0) << std::endl;
-	}
+// 	if (x(0) > .5)
+// 	{
+// 		y(0) = 1;
+// 	}
+// 	else
+// 	{
+// 		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
+// 		//cout << "outflux val = " << y(0) << std::endl;
+// 	}
 
-	y(1) = 0;
-	y(2) = 0;
+// 	y(1) = 0;
+// 	y(2) = 0;
 	
-}
+// }
 
-} // anonymous namespace
+// } // anonymous namespace
 
 namespace mach
 {
@@ -43,8 +43,12 @@ ThermalSolver::ThermalSolver(
 	 int dim,
 	 GridFunType *B)
 	: AbstractSolver(opt_file_name, move(smesh)), mag_field(B)
+{ }
+
+void ThermalSolver::initDerived()
 {
-   AbstractSolver::initDerived();
+	AbstractSolver::initDerived();
+   // AbstractSolver::initDerived();
 	setInit = false;
 
 	mesh->ReorientTetMesh();
@@ -573,9 +577,9 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 
 void ThermalSolver::constructCoefficients()
 {
-   constructDensityCoeff();
+   // constructDensityCoeff();
    constructMassCoeff();
-   constructHeatCoeff();
+   // constructHeatCoeff();
    constructConductivity();
    constructJoule();
    constructCore();
@@ -618,11 +622,50 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 
 void ThermalSolver::constructEvolver()
 {
-   evolver.reset(new ThermalEvolver(mass.get(), stiff.get(), load.get(), *out,
+	Array<int> ess_bdr;
+   auto &bcs = options["bcs"];
+   /// if any boundaries are marked as essential in the options file use that
+   if (bcs.find("essential") != bcs.end())
+   {
+      auto tmp = bcs["essential"].get<vector<int>>();
+      ess_bdr.SetSize(tmp.size(), 0);
+      ess_bdr.Assign(tmp.data());
+   }
+   /// otherwise mark all attributes as nonessential
+   else
+   {
+      ess_bdr.SetSize(mesh->bdr_attributes.Max());
+      ess_bdr = 0;
+   }
+
+   evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), stiff.get(), load.get(), *out,
 												0.0, flux_coeff.get()));
+	evolver->SetLinearSolver(solver.get());
    evolver->SetNewtonSolver(newton_solver.get());
 }
 
+void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
+{
+	y.SetSize(3);
+	//use constant in time for now
+
+	//assuming centered coordinate system, will offset
+	// double th;// = atan(x(1)/x(0));
+
+	if (x(0) > .5)
+	{
+		y(0) = 1;
+	}
+	else
+	{
+		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
+		//cout << "outflux val = " << y(0) << std::endl;
+	}
+
+	y(1) = 0;
+	y(2) = 0;
+	
+}
 
 // double ThermalSolver::initialTemperature(const Vector &x)
 // {
@@ -631,19 +674,33 @@ void ThermalSolver::constructEvolver()
 
 // double ThermalSolver::temp_0 = 0.0;
 
-ThermalEvolver::ThermalEvolver(BilinearFormType *mass,
+ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
 										 BilinearFormType *stiff,
-                  				 mfem::Vector *load,
+                  				 LinearFormType *load,
 										 std::ostream &outstream,
                   				 double start_time,
 										 mfem::VectorCoefficient *_flux_coeff)
-	: ImplicitLinearEvolver(mass, stiff, -1.0, load, outstream, start_time),
-	  flux_coeff(_flux_coeff) {};
+	: ImplicitLinearEvolver(ess_bdr, mass, stiff, 1.0, load, outstream, start_time),
+	  flux_coeff(_flux_coeff), work(height)
+{
+#ifdef MFEM_USE_MPI
+      mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+#else
+      mass->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+#endif
+
+	mass->FormSystemMatrix(ess_tdof_list, mMat);
+   stiff->FormSystemMatrix(ess_tdof_list, kMat);
+};
 
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
 	flux_coeff->SetTime(t);
-	dynamic_cast<LinearFormType*>(load)->Assemble();
+	LinearFormType *load_lf = dynamic_cast<LinearFormType*>(load);
+	if (load_lf)
+		load_lf->Assemble();
+	else
+		throw MachException("Couldn't cast load to LinearFormType!\n");
 	work.SetSize(x.Size());
 	stiff->Mult(x, work);
 	work += *load;
@@ -654,12 +711,32 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,
                                    Vector &k)
 {
-	flux_coeff->SetTime(t);
-	dynamic_cast<LinearFormType*>(load)->Assemble();
-   setOperParameters(dt, &x);
-   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   newton->Mult(zero, k);
-   MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+   auto *T = Add(1.0, mMat, dt, kMat);
+
+   // t_solver->SetOperator(*T);
+	linsolver->SetOperator(*T);
+
+   kMat.Mult(x, work);
+   work.Neg();  
+   work.Add(-1, *load);
+   linsolver->Mult(work, k);
+
+
+
+	//// I thought setting this to false would help, it zeros out K each time
+	//// Still see the behavior where execution changes with each run
+	// newton->iterative_mode = false;
+	// flux_coeff->SetTime(t);
+	// // dynamic_cast<LinearFormType*>(load)->Assemble();
+	// LinearFormType *load_lf = dynamic_cast<LinearFormType*>(load);
+	// if (load_lf)
+	// 	load_lf->Assemble();
+	// else
+	// 	throw MachException("Couldn't cast load to LinearFormType!\n");
+   // setOperParameters(dt, x);
+   // Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   // newton->Mult(zero, k);
+   // MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 	  
 // ThermalEvolver::ThermalEvolver(const std::string &opt_file_name, 

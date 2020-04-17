@@ -113,11 +113,12 @@ AdvectionSolver<dim>::AdvectionSolver(
 #else
    stiff_matrix.reset(new MatrixType(stiff->SpMat()));
 #endif
-
+   Array<int> ess_bdr(mesh->bdr_attributes.Max());
+   ess_bdr = 0;
    /// This should overwrite the evolver defined in base class constructor
    evolver.reset(
       //   new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out))); 
-       new LinearEvolver(mass.get(), stiff.get(), 1.0, nullptr, *(out)));
+       new LinearEvolver(ess_bdr, mass.get(), stiff.get(), 1.0, nullptr, *(out)));
 
 }
 

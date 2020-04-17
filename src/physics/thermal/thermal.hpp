@@ -26,6 +26,8 @@ public:
 							  int dim = 3,
                        GridFunType *B = nullptr);
    
+   void initDerived();
+
    // /// Returns the L2 error between the state `u` and given exact solution.
    // /// Overload for scalar quantities
    // /// \param[in] u_exact - function that defines the exact solution
@@ -42,15 +44,6 @@ private:
 
    /// Use for exact solution
    std::unique_ptr<GridFunType> th_exact;
-
-   /// TODO: Need these?
-   // mfem::HypreParMatrix M;
-   // mfem::HypreParMatrix K;
-   // mfem::Vector B;
-
-   /// TODO: don't think this should be a unique ptr, nonlinear form will delete
-   /// aggregation functional
-   // std::unique_ptr<AggregateIntegrator> func;
 
    /// mesh dependent density coefficient
    std::unique_ptr<MeshDependentCoefficient> rho;
@@ -73,24 +66,8 @@ private:
    /// essential boundary condition marker array (not using )
    std::unique_ptr<mfem::Coefficient> bc_coef;
 
-   /// the bilinear forms, mass m, stiffness k
-   // std::unique_ptr<BilinearFormType> m;
-   // std::unique_ptr<BilinearFormType> k;
-   /// the source term linear form
-   // std::unique_ptr<mfem::LinearForm> bs;
-
-   /// time marching method
-   // std::unique_ptr<mfem::ODESolver> ode_solver;
-
-   /// TODO: use from abstract class?
-   /// time dependent operator
-   // std::unique_ptr<ImplicitLinearEvolver> evolver;
-
    /// static variables for use in static member functions
    // static double temp_0;
-
-   /// maximum magnetic flux density aka "amplitude"
-   // double Bmax;
 
    double dt_real_;
 
@@ -122,11 +99,9 @@ private:
    void addLoadBoundaryIntegrators(double alpha) override;
    void constructEvolver() override;
 
-   // /// for calls of mult
-   // void Mult(const mfem::Vector &X, mfem::Vector &dXdt);
-
    /// compute outward flux at boundary
    // static void FluxFunc(const mfem::Vector &x, mfem::Vector &y );
+   static void fluxFunc(const mfem::Vector &x, double time, mfem::Vector &y);
 
    /// initial temperature
    // static double initialTemperature(const mfem::Vector &x);
@@ -156,8 +131,8 @@ private:
 class ThermalEvolver : public ImplicitLinearEvolver
 {
 public:
-   ThermalEvolver(BilinearFormType *mass, BilinearFormType *stiff,
-                  mfem::Vector *load, std::ostream &outstream,
+   ThermalEvolver(mfem::Array<int> ess_bdr, BilinearFormType *mass, BilinearFormType *stiff,
+                  LinearFormType *load, std::ostream &outstream,
                   double start_time, mfem::VectorCoefficient *flux_coeff);
 
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
@@ -175,6 +150,14 @@ private:
    /// static variables for use in static member functions
    static double outflux;
    mfem::VectorCoefficient *flux_coeff;
+
+   mfem::Array<int> ess_tdof_list;
+
+   mutable mfem::Vector work; // auxiliary vector
+
+   MatrixType mMat;
+   MatrixType kMat;
+
    
 };
 

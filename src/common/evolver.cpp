@@ -17,10 +17,19 @@ public:
    /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
    /// \param[in] load - load vector (not owned)
    /// \param[in] a - used to move the spatial residual to the rhs
-   SystemOperator(BilinearFormType *_mass, NonlinearFormType *_res,
-                  BilinearFormType *_stiff, mfem::Vector *_load, double a)
+   SystemOperator(Array<int> &ess_bdr, BilinearFormType *_mass,
+                  NonlinearFormType *_res, BilinearFormType *_stiff,
+                  mfem::Vector *_load, double a)
       : Operator(_mass->Height()), mass(_mass), res(_res), stiff(_stiff),
-        load(_load), alpha(a), dt(0.0), x(nullptr), work(height) {}
+        load(_load), Jacobian(NULL), alpha(a), dt(0.0), x(height) // , work(height)
+   {
+#ifdef MFEM_USE_MPI
+      _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+#else
+      _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+#endif
+      x = 0.0;
+   }
 
    /// Compute r = M@k + R(x + dt*k,t) + K@(x+dt*k) + l
    /// (with `@` denoting matrix-vector multiplication)
@@ -30,74 +39,135 @@ public:
    void Mult(const mfem::Vector &k, mfem::Vector &r) const override
    {
       /// work = x+dt*k = x+dt*dx/dt = x+dx
-      add(*x, dt, k, work);
+      // add(*x, dt, k, work);
+      Vector work(x);
+      Vector work2(x.Size());
+      Vector work3(x.Size());
+      work2 = work3 = 0.0;
+
+      work.Add(dt, k);  // work = x + dt * k
       if (res)
+      {
          res->Mult(work, r);
+      }
       if (stiff)
       {
-         // stiff->AddMult(work, r); /// <--- Cannot do AddMult with ParBilinearForm
-         work2.SetSize(work.Size());
-         stiff->Mult(work, work2);
-         add(r, work2, r);
+#ifdef MFEM_USE_MPI
+         stiff->TrueAddMult(work, work2);
+         r += work2;
+#else
+         stiff->AddMult(work, r);
+#endif
       }
       if (load)
+      {
          r += *load;
+      }
+#ifdef MFEM_USE_MPI
+      mass->TrueAddMult(k, work3, -alpha);
+      r += work3;
+      r.SetSubVector(ess_tdof_list, 0.0);
+#else
       mass->AddMult(k, r, -alpha);
+#endif
+
    }
 
    /// Compute J = M + dt * grad(R(x + dt*k, t)) + dt * K
    /// \param[in] k - dx/dt 
    mfem::Operator &GetGradient(const mfem::Vector &k) const override
    {
-      MatrixType *jac;
-#ifdef MFEM_USE_MPI
-      jac = mass->ParallelAssemble();
-      *jac *= -alpha;
+      delete Jacobian;
+      SparseMatrix *localJ;
       if (stiff)
-         jac->Add(dt, *(stiff->ParallelAssemble()));
-#else
-      jac = mass->SpMat();
-      if (stiff)
-         jac->Add(dt, *(stiff->SpMat()));
-#endif
+      {
+         localJ = Add(-alpha, mass->SpMat(), dt, stiff->SpMat());
+      }
+      else
+      {
+         localJ = new SparseMatrix(mass->SpMat()); //, dt, S->SpMat());
+         *localJ *= -alpha;
+      }
+
       if (res)
       {
          /// work = x+dt*k = x+dt*dx/dt = x+dx
-         add(*x, dt, k, work);
-         MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
-         *resjac *= dt;
+         // add(x, dt, k, work);
+         Vector work(x);
+         work.Add(dt, k);  // work = x + dt * k
 #ifdef MFEM_USE_MPI
-         jac = ParAdd(jac, resjac);
+         localJ->Add(dt, res->GetLocalGradient(work));
 #else
-         jac = Add(*jac, *resjac);
+         SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&res->GetGradient(work));
+         localJ->Add(dt, *grad_H);
 #endif
-      } 
-      return *jac;
+      }
+
+#ifdef MFEM_USE_MPI
+      Jacobian = mass->ParallelAssemble(localJ);
+      delete localJ;
+      HypreParMatrix *Je = Jacobian->EliminateRowsCols(ess_tdof_list);
+      delete Je;
+#else
+      Jacobian = localJ;
+#endif
+      return *Jacobian;
+   
+
+//       MatrixType *jac;
+// #ifdef MFEM_USE_MPI
+//       jac = mass->ParallelAssemble();
+//       *jac *= -alpha;
+//       if (stiff)
+//          jac->Add(dt, *(stiff->ParallelAssemble()));
+// #else
+//       jac = mass->SpMat();
+//       if (stiff)
+//          jac->Add(dt, *(stiff->SpMat()));
+// #endif
+//       if (res)
+//       {
+//          /// work = x+dt*k = x+dt*dx/dt = x+dx
+//          add(*x, dt, k, work);
+//          MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
+//          *resjac *= dt;
+// #ifdef MFEM_USE_MPI
+//          jac = ParAdd(jac, resjac);
+// #else
+//          jac = Add(*jac, *resjac);
+// #endif
+//       } 
+//       return *jac;
    }
 
    /// Set current dt and x values - needed to compute action and Jacobian.
-   void setParameters(double _dt, const mfem::Vector *_x)
+   void setParameters(double _dt, const mfem::Vector &_x)
    {
       dt = _dt;
       x = _x;
    };
 
-   ~SystemOperator() = default;
+   ~SystemOperator() {delete Jacobian;};
 
 private:
    BilinearFormType *mass;
    NonlinearFormType *res;
    BilinearFormType *stiff;
    mfem::Vector *load;
+   mutable MatrixType *Jacobian;
    double alpha;
    double dt;
-   const mfem::Vector *x;
-   mutable mfem::Vector work, work2;
+   mfem::Vector x;
+
+   // mutable mfem::Vector work, work2;
+
+   Array<int> ess_tdof_list;
 };
 
-MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
-                         BilinearFormType *_stiff, Vector *_load, double a,
-                         std::ostream &outstream, double start_time,
+MachEvolver::MachEvolver(Array<int> &ess_bdr, BilinearFormType *_mass, 
+                         NonlinearFormType *_res, BilinearFormType *_stiff,
+                         Vector *_load, double a, std::ostream &outstream,
+                         double start_time,
                          TimeDependentOperator::Type type)
    : TimeDependentOperator(_mass->Height(), start_time, type),
      res(_res), load(_load), alpha(a), out(outstream)
@@ -162,18 +232,23 @@ MachEvolver::MachEvolver(BilinearFormType *_mass, NonlinearFormType *_res,
       }
    }
 
-   combined_oper.reset(new SystemOperator(_mass, _res, _stiff, _load, a));
+   combined_oper.reset(new SystemOperator(ess_bdr, _mass, _res, _stiff, _load, a));
 }
 
 MachEvolver::~MachEvolver() = default;
 
 void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
+   work.SetSize(x.Size());
+   work2.SetSize(x.Size());
+   work = work2 = 0.0;
+
    if (res)
    {
       work.SetSize(x.Size());
       res->Mult(x, work);
    }
+
    if (stiff.Ptr())
    {
       // stiff->AddMult(x, work); /// <--- Cannot do AddMult with ParBilinearForm
@@ -192,11 +267,16 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
                                 Vector &k)
 {
-   setOperParameters(dt, &x);
+   setOperParameters(dt, x);
    // combined_oper->setParameters(dt, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
    newton->Mult(zero, k);
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+}
+
+void MachEvolver::SetLinearSolver(Solver *_linsolver)
+{
+   linsolver = _linsolver;
 }
 
 void MachEvolver::SetNewtonSolver(NewtonSolver *_newton)
@@ -211,7 +291,7 @@ mfem::Operator& MachEvolver::GetGradient(const mfem::Vector &x) const
 }
 
 
-void MachEvolver::setOperParameters(double dt, const mfem::Vector *x)
+void MachEvolver::setOperParameters(double dt, const mfem::Vector &x)
 {
    combined_oper->setParameters(dt, x);
 }

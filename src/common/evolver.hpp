@@ -18,6 +18,7 @@ class MachEvolver : public mfem::TimeDependentOperator
 public:
    /// Serves as an base class for linear/nonlinear explicit/implicit time
    /// marching problems
+   /// \param[in] ess_bdr - flags for essential boundary
    /// \param[in] mass - bilinear form for mass matrix (not owned)
    /// \param[in] res - nonlinear residual operator (not owned)
    /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
@@ -28,9 +29,10 @@ public:
    /// \param[in] type - solver type; explicit or implicit
    /// \note supports partial assembly of mass and stiffness matrices for
    ///       explicit time marching
-   MachEvolver(BilinearFormType *mass, NonlinearFormType *res,
-               BilinearFormType *stiff, mfem::Vector *load,
-               double alpha, std::ostream &outstream, double start_time,
+   MachEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+               NonlinearFormType *res, BilinearFormType *stiff,
+               mfem::Vector *load, double alpha, std::ostream &outstream,
+               double start_time,
                mfem::TimeDependentOperator::Type type);
 
    /// Perform the action of the operator: y = k = f(x, t), where k solves
@@ -44,6 +46,10 @@ public:
    void ImplicitSolve(const double dt, const mfem::Vector &x,
                       mfem::Vector &k) override;
    
+   /// Set the linear solver to be used for implicit methods
+   /// \param[in] linsolver - pointer to configured linear solver (not owned)
+   void SetLinearSolver(mfem::Solver *linsolver);
+
    /// Set the newton solver to be used for implicit methods
    /// \param[in] newton - pointer to configured newton solver (not owned)
    void SetNewtonSolver(mfem::NewtonSolver *newton);
@@ -72,6 +78,8 @@ protected:
    mfem::CGSolver mass_solver;
    /// preconditioner for inverting mass matrix
    std::unique_ptr<mfem::Solver> mass_prec;
+   /// Linear solver for implicit problems (not owned)
+   mfem::Solver *linsolver;
    /// Newton solver for implicit problems (not owned)
    mfem::NewtonSolver *newton;
 
@@ -89,7 +97,7 @@ protected:
    /// sets the state and dt for the combined operator
    /// \param[in] dt - time increment
    /// \param[in] x - the current state
-   void setOperParameters(double dt, const mfem::Vector *x);
+   void setOperParameters(double dt, const mfem::Vector &x);
 };
 
 /// For explicit time marching of nonlinear problems
@@ -107,14 +115,14 @@ public:
    ///                         (important for time-variant sources)
    /// \param[in] type - solver type; explicit or implicit
    /// \note supports partial assembly of mass matrix
-   NonlinearEvolver(BilinearFormType *mass, NonlinearFormType *res,
-                    double alpha = -1.0,
+   NonlinearEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+                    NonlinearFormType *res, double alpha = -1.0,
                     BilinearFormType *stiff = nullptr,
                     mfem::Vector *load = nullptr,
                     std::ostream &outstream = std::cout,
                    double start_time = 0.0)
-      : MachEvolver(mass, res, stiff, load, alpha, outstream, start_time,
-                    EXPLICIT) {};
+      : MachEvolver(ess_bdr, mass, res, stiff, load, alpha, outstream,
+                    start_time, EXPLICIT) {};
 };
 
 /// For implicit time marching of nonlinear problems
@@ -132,14 +140,14 @@ public:
    ///                         (important for time-variant sources)
    /// \param[in] type - solver type; explicit or implicit
    /// \note supports partial assembly of mass matrix
-   ImplicitNonlinearEvolver(BilinearFormType *mass, NonlinearFormType *res,
-                            double alpha = -1.0,
+   ImplicitNonlinearEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+                            NonlinearFormType *res, double alpha = -1.0,
                             BilinearFormType *stiff = nullptr,
                             mfem::Vector *load = nullptr,
                             std::ostream &outstream = std::cout,
                             double start_time = 0.0)
-      : MachEvolver(mass, res, stiff, load, alpha, outstream, start_time,
-                    IMPLICIT) {};
+      : MachEvolver(ess_bdr, mass, res, stiff, load, alpha, outstream,
+                    start_time, IMPLICIT) {};
 };
 
 /// For explicit time marching of linear problems
@@ -156,14 +164,14 @@ public:
    ///                         (important for time-variant sources)
    /// \param[in] type - solver type; explicit or implicit
    /// \note supports partial assembly of mass matrix
-   LinearEvolver(BilinearFormType *mass,
+   LinearEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
                  BilinearFormType *stiff,
                  double alpha = -1.0,
                  mfem::Vector *load = nullptr,
                  std::ostream &outstream = std::cout,
                  double start_time = 0.0)
-      : MachEvolver(mass, nullptr, stiff, load, alpha, outstream, start_time,
-                    EXPLICIT) {};
+      : MachEvolver(ess_bdr, mass, nullptr, stiff, load, alpha, outstream,
+                    start_time, EXPLICIT) {};
 };
 
 /// For implicit time marching of linear problems
@@ -180,14 +188,14 @@ public:
    ///                         (important for time-variant sources)
    /// \param[in] type - solver type; explicit or implicit
    /// \note supports partial assembly of mass matrix
-   ImplicitLinearEvolver(BilinearFormType *mass,
+   ImplicitLinearEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
                          BilinearFormType *stiff,
                          double alpha = -1.0,
                          mfem::Vector *load = nullptr,
                          std::ostream &outstream = std::cout,
                          double start_time = 0.0)
-      : MachEvolver(mass, nullptr, stiff, load, alpha, outstream, start_time,
-                    IMPLICIT) {};
+      : MachEvolver(ess_bdr, mass, nullptr, stiff, load, alpha, outstream,
+                    start_time, IMPLICIT) {};
 };
 
 } // namespace mach
