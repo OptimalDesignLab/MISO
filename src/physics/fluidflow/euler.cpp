@@ -11,8 +11,8 @@ using namespace std;
 namespace mach
 {
 
-template <int dim>
-EulerSolver<dim>::EulerSolver(const string &opt_file_name,
+template <int dim, bool entvar>
+EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
                               unique_ptr<mfem::Mesh> smesh)
     : AbstractSolver(opt_file_name, move(smesh))
 {
@@ -35,24 +35,24 @@ EulerSolver<dim>::EulerSolver(const string &opt_file_name,
    }
 }
 
-template <int dim>
-void EulerSolver<dim>::addVolumeIntegrators(double alpha)
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addVolumeIntegrators(double alpha)
 {
    // TODO: if statement when using entropy variables as state variables
 
    // TODO: should decide between one-point and two-point fluxes using options
    res->AddDomainIntegrator(
-       new IsmailRoeIntegrator<dim, false>(diff_stack, alpha));
+       new IsmailRoeIntegrator<dim, entvar>(diff_stack, alpha));
    //res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
 
    // add the LPS stabilization
    double lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    res->AddDomainIntegrator(
-       new EntStableLPSIntegrator<dim, false>(diff_stack, alpha, lps_coeff));
+       new EntStableLPSIntegrator<dim, entvar>(diff_stack, alpha, lps_coeff));
 }
 
-template <int dim>
-void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
 {
    auto &bcs = options["bcs"];
    int idx = 0;
@@ -67,7 +67,7 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-          new IsentropicVortexBC<dim, false>(diff_stack, fec.get(), alpha),
+          new IsentropicVortexBC<dim, entvar>(diff_stack, fec.get(), alpha),
           bndry_marker[idx]);
       idx++;
    }
@@ -77,7 +77,7 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-             new SlipWallBC<dim, false>(diff_stack, fec.get(), alpha),
+             new SlipWallBC<dim, entvar>(diff_stack, fec.get(), alpha),
              bndry_marker[idx]);
       idx++;
    }
@@ -90,25 +90,25 @@ void EulerSolver<dim>::addBoundaryIntegrators(double alpha)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-          new FarFieldBC<dim, false>(diff_stack, fec.get(), qfar, alpha),
+          new FarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
           bndry_marker[idx]);
       idx++;
    }
 }
 
-template <int dim>
-void EulerSolver<dim>::addInterfaceIntegrators(double alpha)
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addInterfaceIntegrators(double alpha)
 {
    // add the integrators based on if discretization is continuous or discrete
    if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
    {
       res->AddInteriorFaceIntegrator(
-          new InterfaceIntegrator<dim, false>(diff_stack, fec.get(), alpha));
+          new InterfaceIntegrator<dim, entvar>(diff_stack, fec.get(), alpha));
    }
 }
 
-template <int dim>
-void EulerSolver<dim>::addOutputs()
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addOutputs()
 {
    auto &fun = options["outputs"];
    int idx = 0;
@@ -160,8 +160,8 @@ void EulerSolver<dim>::addOutputs()
    }
 }
 
-template <int dim>
-double EulerSolver<dim>::calcStepSize(double cfl) const
+template <int dim, bool entvar>
+double EulerSolver<dim, entvar>::calcStepSize(double cfl) const
 {
    double (*calcSpect)(const double *dir, const double *q);
    calcSpect = calcSpectralRadius<double, dim>;
@@ -204,8 +204,8 @@ double EulerSolver<dim>::calcStepSize(double cfl) const
    return dt_min;
 }
 
-template <int dim>
-void EulerSolver<dim>::getFreeStreamState(mfem::Vector &q_ref) 
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref) 
 {
    q_ref = 0.0;
    q_ref(0) = 1.0;
@@ -222,8 +222,11 @@ void EulerSolver<dim>::getFreeStreamState(mfem::Vector &q_ref)
 }
 
 // explicit instantiation
-template class EulerSolver<1>;
-template class EulerSolver<2>;
-template class EulerSolver<3>;
+template class EulerSolver<1, true>;
+template class EulerSolver<1, false>;
+template class EulerSolver<2, true>;
+template class EulerSolver<2, false>;
+template class EulerSolver<3, true>;
+template class EulerSolver<3, false>;
 
 } // namespace mach
