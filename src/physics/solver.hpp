@@ -149,6 +149,11 @@ public:
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
 
+   /// Compute partial derivative dL/dX = dJ/dX + \psi^T dR/dX for given output
+   /// \param[in] fun - specifies the desired functional
+   /// \post the member dLdX is updated to hold the sensitivity
+   void calcLagrangianMeshPartial(const std::string &fun);
+
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
@@ -180,8 +185,12 @@ protected:
    std::unique_ptr<GridFunType> u;
    /// adjoint variable 
    std::unique_ptr<GridFunType> adj;
+   /// derivative of L = J + psi^T res, with respect to mesh nodes
+   std::unique_ptr<GridFunType> dLdX;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
+   /// derivative of psi^T res w.r.t the mesh nodes
+   std::unique_ptr<NonlinearFormType> res_mesh_sens;
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
