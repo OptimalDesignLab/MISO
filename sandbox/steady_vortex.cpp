@@ -102,8 +102,7 @@ int main(int argc, char *argv[])
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
-      solver->setperturb(pert);
-      solver->jacobianCheck();
+      solver->checkJacobian(pert);
       solver->solveForState();
       solver->printSolution("final",degree+1);
       l_error = solver->calcL2Error(uexact, 0);

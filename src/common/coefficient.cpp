@@ -16,11 +16,11 @@ double MeshDependentCoefficient::Eval(ElementTransformation &trans,
    if (it != material_map.end())
    {
       coeff = it->second.get();
-      value = Eval(coeff, trans, ip);
+      value = coeff->Eval(trans, ip);
    }
    else if (default_coeff)
    {
-      value = Eval(default_coeff.get(), trans, ip);
+      value = default_coeff->Eval(trans, ip);
    }
    else // if attribute not found and no default set, evaluate to zero
    {

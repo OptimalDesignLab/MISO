@@ -17,6 +17,9 @@
 #include <apfConvert.h>
 #include <gmi_mesh.h>
 #include <crv.h>
+#ifdef MFEM_USE_EGADS
+#include <gmi_egads.h>
+#endif
 #endif
 
 #include "mach_types.hpp"
@@ -59,11 +62,26 @@ public:
    /// \param[in] u_init - vector that defines the initial condition
    void setInitialCondition(const mfem::Vector &uic); 
 
+   /// Returns the integral inner product between two grid functions
+   /// \param[in] x - grid function 
+   /// \param[in] y - grid function 
+   /// \returns integral inner product between `x` and `y`
+   double calcInnerProduct(const GridFunType &x, const GridFunType &y);
+
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
    /// \returns L2 error
    double calcL2Error(void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+                      int entry = -1);
+   
+   /// Returns the L2 error of a field and given exact solution.
+   /// \param[in] field - grid function to compute L2 error for
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \returns L2 error
+   double calcL2Error(GridFunType *field,
+                      void (*u_exact)(const mfem::Vector &, mfem::Vector &),
                       int entry = -1);
 
    /// Find the gobal step size for the given CFL number
@@ -79,6 +97,14 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printSolution(const std::string &file_name, int refine = -1);
 
+   /// Write the mesh and adjoint to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \todo make this work for parallel!
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printAdjoint(const std::string &file_name, int refine = -1);
+
    /// Write the mesh and residual to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] refine - if >=0, indicates the number of refinements to make
@@ -87,6 +113,20 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printResidual(const std::string &file_name, int refine = -1);
 
+   /// TODO: make this work for parallel!
+   /// Write the mesh and an initializer list to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] fields - list of grid functions to print, passed as an
+   ///                     initializer list
+   /// \param[in] names - list of names to use for each grid function printed
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printFields(const std::string &file_name,
+                      std::vector<GridFunType*> fields,
+                      std::vector<std::string> names,
+                      int refine = -1);
+
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
    
@@ -94,14 +134,11 @@ public:
    /// \param[in] fun - specifies the functional corresponding to the adjoint
    void solveForAdjoint(const std::string &fun);
 
-   /// Check the jacobian accuracy
-   /// Compare the results jac_v = jac * pert_v w.r.t jac_v calculated from
-   /// finite difference method 
-   void jacobianCheck();
-
-   /// set the perturbation function that used for check jacobian
-   void setperturb(void (*fun)(const mfem::Vector &, mfem::Vector &))
-   {  perturb_fun = fun; }
+   /// Check the Jacobian using a finite-difference directional derivative
+   /// \param[in] pert - function that defines the perturbation direction
+   /// \note Compare the results of the project Jac*pert using the Jacobian
+   /// directly versus a finite-difference based product.  
+   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
    
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
@@ -168,9 +205,6 @@ protected:
    std::map<std::string, NonlinearFormType> output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
-   
-   /// perturbation function that used for 
-   void (*perturb_fun)(const mfem::Vector &x, mfem::Vector& u);
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
