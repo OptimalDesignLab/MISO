@@ -97,7 +97,7 @@ protected:
    /// sets the state and dt for the combined operator
    /// \param[in] dt - time increment
    /// \param[in] x - the current state
-   void setOperParameters(double dt, const mfem::Vector &x);
+   void setOperParameters(double dt, const mfem::Vector *x);
 };
 
 /// For explicit time marching of nonlinear problems

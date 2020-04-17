@@ -21,14 +21,14 @@ public:
                   NonlinearFormType *_res, BilinearFormType *_stiff,
                   mfem::Vector *_load, double a)
       : Operator(_mass->Height()), mass(_mass), res(_res), stiff(_stiff),
-        load(_load), Jacobian(NULL), alpha(a), dt(0.0), x(height) // , work(height)
+        load(_load), Jacobian(NULL), alpha(a), dt(0.0), x(NULL), work(height)
    {
 #ifdef MFEM_USE_MPI
       _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 #else
       _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 #endif
-      x = 0.0;
+      // x = 0.0;
    }
 
    /// Compute r = M@k + R(x + dt*k,t) + K@(x+dt*k) + l
@@ -39,22 +39,26 @@ public:
    void Mult(const mfem::Vector &k, mfem::Vector &r) const override
    {
       /// work = x+dt*k = x+dt*dx/dt = x+dx
-      // add(*x, dt, k, work);
-      Vector work(x);
-      Vector work2(x.Size());
-      Vector work3(x.Size());
-      work2 = work3 = 0.0;
+      add(1.0, *x, dt, k, work);
+      // Vector work(x);
+      // Vector work2(x.Size());
+      // Vector work3(x.Size());
+      // work2 = work3 = 0.0;
 
-      work.Add(dt, k);  // work = x + dt * k
+      // work.Add(dt, k);  // work = x + dt * k
       if (res)
       {
          res->Mult(work, r);
       }
+      else
+      {
+         r = 0.0;
+      }
       if (stiff)
       {
 #ifdef MFEM_USE_MPI
-         stiff->TrueAddMult(work, work2);
-         r += work2;
+         stiff->TrueAddMult(work, r);
+         // r += work2;
 #else
          stiff->AddMult(work, r);
 #endif
@@ -64,8 +68,8 @@ public:
          r += *load;
       }
 #ifdef MFEM_USE_MPI
-      mass->TrueAddMult(k, work3, -alpha);
-      r += work3;
+      mass->TrueAddMult(k, r, -alpha);
+      // r += work3;
       r.SetSubVector(ess_tdof_list, 0.0);
 #else
       mass->AddMult(k, r, -alpha);
@@ -77,71 +81,71 @@ public:
    /// \param[in] k - dx/dt 
    mfem::Operator &GetGradient(const mfem::Vector &k) const override
    {
-      delete Jacobian;
-      SparseMatrix *localJ;
-      if (stiff)
-      {
-         localJ = Add(-alpha, mass->SpMat(), dt, stiff->SpMat());
-      }
-      else
-      {
-         localJ = new SparseMatrix(mass->SpMat()); //, dt, S->SpMat());
-         *localJ *= -alpha;
-      }
-
-      if (res)
-      {
-         /// work = x+dt*k = x+dt*dx/dt = x+dx
-         // add(x, dt, k, work);
-         Vector work(x);
-         work.Add(dt, k);  // work = x + dt * k
-#ifdef MFEM_USE_MPI
-         localJ->Add(dt, res->GetLocalGradient(work));
-#else
-         SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&res->GetGradient(work));
-         localJ->Add(dt, *grad_H);
-#endif
-      }
-
-#ifdef MFEM_USE_MPI
-      Jacobian = mass->ParallelAssemble(localJ);
-      delete localJ;
-      HypreParMatrix *Je = Jacobian->EliminateRowsCols(ess_tdof_list);
-      delete Je;
-#else
-      Jacobian = localJ;
-#endif
-      return *Jacobian;
-   
-
-//       MatrixType *jac;
-// #ifdef MFEM_USE_MPI
-//       jac = mass->ParallelAssemble();
-//       *jac *= -alpha;
+//       delete Jacobian;
+//       SparseMatrix *localJ;
 //       if (stiff)
-//          jac->Add(dt, *(stiff->ParallelAssemble()));
-// #else
-//       jac = mass->SpMat();
-//       if (stiff)
-//          jac->Add(dt, *(stiff->SpMat()));
-// #endif
+//       {
+//          localJ = Add(-alpha, mass->SpMat(), dt, stiff->SpMat());
+//       }
+//       else
+//       {
+//          localJ = new SparseMatrix(mass->SpMat()); //, dt, S->SpMat());
+//          *localJ *= -alpha;
+//       }
+
 //       if (res)
 //       {
 //          /// work = x+dt*k = x+dt*dx/dt = x+dx
-//          add(*x, dt, k, work);
-//          MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
-//          *resjac *= dt;
+//          add(1.0, *x, dt, k, work);
+//          // Vector work(x);
+//          work.Add(dt, k);  // work = x + dt * k
 // #ifdef MFEM_USE_MPI
-//          jac = ParAdd(jac, resjac);
+//          localJ->Add(dt, res->GetLocalGradient(work));
 // #else
-//          jac = Add(*jac, *resjac);
+//          SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&res->GetGradient(work));
+//          localJ->Add(dt, *grad_H);
 // #endif
-//       } 
-//       return *jac;
+//       }
+
+// #ifdef MFEM_USE_MPI
+//       Jacobian = mass->ParallelAssemble(localJ);
+//       delete localJ;
+//       HypreParMatrix *Je = Jacobian->EliminateRowsCols(ess_tdof_list);
+//       delete Je;
+// #else
+//       Jacobian = localJ;
+// #endif
+//       return *Jacobian;
+   
+
+      MatrixType *jac;
+#ifdef MFEM_USE_MPI
+      jac = mass->ParallelAssemble();
+      *jac *= -alpha;
+      if (stiff)
+         jac->Add(dt, *(stiff->ParallelAssemble()));
+#else
+      jac = mass->SpMat();
+      if (stiff)
+         jac->Add(dt, *(stiff->SpMat()));
+#endif
+      if (res)
+      {
+         /// work = x+dt*k = x+dt*dx/dt = x+dx
+         add(1.0, *x, dt, k, work);
+         MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
+         *resjac *= dt;
+#ifdef MFEM_USE_MPI
+         jac = ParAdd(jac, resjac);
+#else
+         jac = Add(*jac, *resjac);
+#endif
+      } 
+      return *jac;
    }
 
    /// Set current dt and x values - needed to compute action and Jacobian.
-   void setParameters(double _dt, const mfem::Vector &_x)
+   void setParameters(double _dt, const mfem::Vector *_x)
    {
       dt = _dt;
       x = _x;
@@ -157,9 +161,9 @@ private:
    mutable MatrixType *Jacobian;
    double alpha;
    double dt;
-   mfem::Vector x;
+   const mfem::Vector *x;
 
-   // mutable mfem::Vector work, work2;
+   mutable mfem::Vector work, work2;
 
    Array<int> ess_tdof_list;
 };
@@ -170,7 +174,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr, BilinearFormType *_mass,
                          double start_time,
                          TimeDependentOperator::Type type)
    : TimeDependentOperator(_mass->Height(), start_time, type),
-     res(_res), load(_load), alpha(a), out(outstream)
+     res(_res), load(_load), alpha(a), out(outstream), work(height), work2(height)
 {
 
    Array<int> ess_tdof_list;
@@ -191,7 +195,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr, BilinearFormType *_mass,
       // mass_prec = HypreSmoother();
       // mass_prec.SetType(HypreSmoother::Jacobi);
 #else
-      mass->reset(_mass->SpMat(), true);
+      mass.reset(_mass->SpMat(), true);
 #endif
    }
    else
@@ -223,36 +227,32 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr, BilinearFormType *_mass,
    #ifdef MFEM_USE_MPI
          stiff.Reset(_stiff->ParallelAssemble(), true);
    #else
-         stiff->reset(_stiff->SpMat(), true);
+         stiff.reset(_stiff->SpMat(), true);
    #endif
       }
       else
       {
-         throw MachException("Unsupported assembly level for stiffness matrix!");
+         throw MachException("Unsupported assembly level"
+                                                      "for stiffness matrix!");
       }
    }
 
-   combined_oper.reset(new SystemOperator(ess_bdr, _mass, _res, _stiff, _load, a));
+   combined_oper.reset(new SystemOperator(ess_bdr, _mass, _res,
+                                          _stiff, _load, a));
 }
 
 MachEvolver::~MachEvolver() = default;
 
 void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
-   work.SetSize(x.Size());
-   work2.SetSize(x.Size());
-   work = work2 = 0.0;
-
    if (res)
    {
-      work.SetSize(x.Size());
       res->Mult(x, work);
    }
 
    if (stiff.Ptr())
    {
-      // stiff->AddMult(x, work); /// <--- Cannot do AddMult with ParBilinearForm
-      work2.SetSize(x.Size());
+      // stiff->AddMult(x, work); // <-- Cannot do AddMult with ParBilinearForm
       stiff->Mult(x, work2);
       add(work, work2, work);
    }
@@ -267,8 +267,7 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
                                 Vector &k)
 {
-   setOperParameters(dt, x);
-   // combined_oper->setParameters(dt, &x);
+   setOperParameters(dt, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
    newton->Mult(zero, k);
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
@@ -291,7 +290,7 @@ mfem::Operator& MachEvolver::GetGradient(const mfem::Vector &x) const
 }
 
 
-void MachEvolver::setOperParameters(double dt, const mfem::Vector &x)
+void MachEvolver::setOperParameters(double dt, const mfem::Vector *x)
 {
    combined_oper->setParameters(dt, x);
 }

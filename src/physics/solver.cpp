@@ -1235,7 +1235,7 @@ void AbstractSolver::constructEvolver()
    /// otherwise mark all attributes as nonessential
    else
    {
-      if (mesh->bdr_attributes)
+      if (mesh->bdr_attributes) // some meshes may not have boundary attributes
       {
          ess_bdr.SetSize(mesh->bdr_attributes.Max());
          ess_bdr = 0;

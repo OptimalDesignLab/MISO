@@ -680,7 +680,7 @@ ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
 										 std::ostream &outstream,
                   				 double start_time,
 										 mfem::VectorCoefficient *_flux_coeff)
-	: ImplicitLinearEvolver(ess_bdr, mass, stiff, 1.0, load, outstream, start_time),
+	: ImplicitLinearEvolver(ess_bdr, mass, stiff, -1.0, load, outstream, start_time),
 	  flux_coeff(_flux_coeff), work(height)
 {
 #ifdef MFEM_USE_MPI
@@ -689,8 +689,8 @@ ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
       mass->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 #endif
 
-	mass->FormSystemMatrix(ess_tdof_list, mMat);
-   stiff->FormSystemMatrix(ess_tdof_list, kMat);
+	// mass->FormSystemMatrix(ess_tdof_list, mMat);
+   // stiff->FormSystemMatrix(ess_tdof_list, kMat);
 };
 
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
@@ -711,32 +711,32 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,
                                    Vector &k)
 {
-   auto *T = Add(1.0, mMat, dt, kMat);
+   // auto *T = Add(1.0, mMat, dt, kMat);
 
-   // t_solver->SetOperator(*T);
-	linsolver->SetOperator(*T);
+   // // t_solver->SetOperator(*T);
+	// linsolver->SetOperator(*T);
 
-   kMat.Mult(x, work);
-   work.Neg();  
-   work.Add(-1, *load);
-   linsolver->Mult(work, k);
+   // kMat.Mult(x, work);
+   // work.Neg();  
+   // work.Add(-1, *load);
+   // linsolver->Mult(work, k);
 
 
 
-	//// I thought setting this to false would help, it zeros out K each time
-	//// Still see the behavior where execution changes with each run
-	// newton->iterative_mode = false;
-	// flux_coeff->SetTime(t);
-	// // dynamic_cast<LinearFormType*>(load)->Assemble();
-	// LinearFormType *load_lf = dynamic_cast<LinearFormType*>(load);
-	// if (load_lf)
-	// 	load_lf->Assemble();
-	// else
-	// 	throw MachException("Couldn't cast load to LinearFormType!\n");
-   // setOperParameters(dt, x);
-   // Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   // newton->Mult(zero, k);
-   // MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+	// I thought setting this to false would help, it zeros out K each time
+	// Still see the behavior where execution changes with each run
+	newton->iterative_mode = false;
+	flux_coeff->SetTime(t);
+	// dynamic_cast<LinearFormType*>(load)->Assemble();
+	LinearFormType *load_lf = dynamic_cast<LinearFormType*>(load);
+	if (load_lf)
+		load_lf->Assemble();
+	else
+		throw MachException("Couldn't cast load to LinearFormType!\n");
+   setOperParameters(dt, &x);
+   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   newton->Mult(zero, k);
+   MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 	  
 // ThermalEvolver::ThermalEvolver(const std::string &opt_file_name, 
