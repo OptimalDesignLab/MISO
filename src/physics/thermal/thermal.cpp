@@ -138,7 +138,15 @@ ThermalSolver::ThermalSolver(
 
 	// /// pass through aggregation parameters for functional
 	// does not include dJdu calculation, need AddOutputs for that
-	func.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));
+	if(rhoa != 0)
+	{
+		funca.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));
+	}
+	else
+	{
+		funct.reset(new TempIntegrator(h_grad_space.get()));
+	}
+	
 
 }
 
@@ -161,11 +169,28 @@ void ThermalSolver::addOutputs()
 		}
 		
 		// call the second constructor of the aggregate integrator
-		output.at("temp-agg").AddDomainIntegrator(
+		if(rhoa != 0)
+		{
+			output.at("temp-agg").AddDomainIntegrator(
         	new AggregateIntegrator(h_grad_space.get(), rhoa, max, theta.get()));
-
-//		func.reset(new AggregateIntegrator(h_grad_space.get(), rhoa, max));
-
+		}
+		else
+		{
+			auto &bcs = options["bcs"];
+			int idx = 0;
+			bndry_marker.resize(bcs.size());
+			if (bcs.find("outflux") != bcs.end())
+			{ // outward flux bc
+        		vector<int> tmp = bcs["outflux"].get<vector<int>>();
+        		bndry_marker[idx].SetSize(tmp.size(), 0);
+        		bndry_marker[idx].Assign(tmp.data());
+        		output.at("temp-agg").AddBdrFaceIntegrator(
+					new TempIntegrator(h_grad_space.get(), theta.get()), bndry_marker[idx]);
+        		idx++;
+    		}
+			//output.at("temp-agg").AddDomainIntegrator(
+			//new TempIntegrator(h_grad_space.get(), theta.get()));
+		}
       	idx++; 
 	}
 }
@@ -208,12 +233,17 @@ void ThermalSolver::solveUnsteady()
 	// compute functional for first step, testing purposes
 	if (rhoa != 0)
 	{
-		agg = func->GetIEAggregate(theta.get());
+		agg = funca->GetIEAggregate(theta.get());
+
 		cout << "aggregated temp constraint = " << agg << endl;
 
 		//compare to actual max, ASSUMING UNIFORM CONSTRAINT
 		gerror = (theta->Max()/max(1) - agg)/(theta->Max()/max(1));
 		
+	}
+	else
+	{
+		agg = funct->GetTemp(theta.get());
 	}
 
 	for (int ti = 0; !done;)
@@ -240,9 +270,12 @@ void ThermalSolver::solveUnsteady()
 		// compute functional
 		if (rhoa != 0)
 		{
-			agg = func->GetIEAggregate(theta.get());
+			agg = funca->GetIEAggregate(theta.get());
 			cout << "aggregated temp constraint = " << agg << endl;
-
+		}
+		else
+		{
+			agg = funct->GetTemp(theta.get());
 		}
 
 		evolver->updateParameters();
@@ -492,8 +525,8 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 	{
         ofstream sol_ofs_adj("motor_heat_adj.vtk");
         sol_ofs_adj.precision(14);
-        mesh->PrintVTK(sol_ofs_adj, options["space-dis"]["degree"].get<int>() + 1);
-        adj->SaveVTK(sol_ofs_adj, "Adjoint", options["space-dis"]["degree"].get<int>() + 1);
+        mesh->PrintVTK(sol_ofs_adj, options["space-dis"]["degree"].get<int>());
+        adj->SaveVTK(sol_ofs_adj, "Adjoint", options["space-dis"]["degree"].get<int>());
         sol_ofs_adj.close();
     }
 }

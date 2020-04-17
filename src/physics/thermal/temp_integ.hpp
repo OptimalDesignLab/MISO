@@ -26,7 +26,7 @@ public:
    /// Computes the induced functional estimate for aggregated temperature
 	double GetIEAggregate(mfem::GridFunction *temp);
 
-   /// Computed dJdu, for the adjoint. Must call GetIEAggregate beforehand.
+   /// Computes dJdu, for the adjoint. Must call GetIEAggregate beforehand.
    virtual void AssembleElementVector(const mfem::FiniteElement &el, 
                mfem::ElementTransformation &Trans,
                const mfem::Vector &elfun, mfem::Vector &elvect);
@@ -43,6 +43,51 @@ private:
 
    /// maximum temperature value
    double maxt;
+
+   // last computed output (for dJdU)
+   double J_;
+
+   // last computed denom (for dJdU)
+   double denom_;
+
+   // last computed state vector (for dJdu)
+   mfem::GridFunction *temp_;
+
+#ifndef MFEM_THREAD_SAFE
+   /// store the physical location of a node
+   mfem::Vector x;
+#endif
+};
+
+/// Class that integrates over temperature
+class TempIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// Constructs a domain integrator that computes the integral over temperature
+   TempIntegrator(const mfem::FiniteElementSpace *fe_space)
+       : fes(fe_space) { }
+
+   /// Overloaded, precomputes for use in adjoint
+   TempIntegrator(const mfem::FiniteElementSpace *fe_space,
+                              mfem::GridFunction *temp);
+
+   /// Computes the induced functional estimate for aggregated temperature
+	double GetTemp(mfem::GridFunction *temp);
+
+   /// Computes dJdu, for the adjoint
+   virtual void AssembleElementVector(const mfem::FiniteElement &el, 
+               mfem::ElementTransformation &Trans,
+               const mfem::Vector &elfun, mfem::Vector &elvect);
+
+   /// Computes dJdu for the adjoint on the boundary
+   virtual void AssembleFaceVector(const mfem::FiniteElement &el1, 
+               const mfem::FiniteElement &el2, 
+               mfem::FaceElementTransformations  &Trans,
+               const mfem::Vector &elfun, mfem::Vector &elvect);
+private: 
+
+   /// used to integrate over appropriate elements
+   const mfem::FiniteElementSpace *fes;
 
    // last computed output (for dJdU)
    double J_;

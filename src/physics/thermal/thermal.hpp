@@ -58,8 +58,9 @@ private:
    mfem::HypreParMatrix K;
    mfem::Vector B;
 
-   /// aggregation functional
-   std::unique_ptr<AggregateIntegrator> func;
+   /// aggregation functional (aggregation or temp)
+   std::unique_ptr<AggregateIntegrator> funca;
+   std::unique_ptr<TempIntegrator> funct;
 
    /// mesh dependent density coefficient
    std::unique_ptr<MeshDependentCoefficient> rho;
