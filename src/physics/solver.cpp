@@ -171,41 +171,45 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
    MPI_Comm_rank(comm, &rank);
 #ifdef MFEM_USE_PUMI // if using pumi mesh
-//    if (smesh != nullptr)
-//    {
-//       throw MachException("AbstractSolver::constructMesh(smesh)\n"
-//                           "\tdo not provide smesh when using PUMI!");                   
-//    }
-//    // problem with using these in loadMdsMesh
-//    std::cout << options["model-file"].get<string>().c_str() << std::endl;
-//    const char *model_file = options["model-file"].get<string>().c_str();
-//    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
-//    PCU_Comm_Init();
-// #ifdef MFEM_USE_SIMMETRIX
-//    Sim_readLicenseFile(0);
-//    gmi_sim_start();
-//    gmi_register_sim();
-// #endif
-//    gmi_register_mesh();
-//    pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
-//                                 options["mesh"]["file"].get<string>().c_str());
-//    int mesh_dim = pumi_mesh->getDimension();
-//    int nEle = pumi_mesh->count(mesh_dim);
-//    int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
-//    // Perform Uniform refinement
-//    // if (ref_levels > 1)
-//    // {
-//    //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
-//    //    ma::adapt(uniInput);
-//    // }
-//    pumi_mesh->verify();
-//    mesh.reset(new MeshType(comm, pumi_mesh));
-//    PCU_Comm_Free();
-// #ifdef MFEM_USE_SIMMETRIX
-//    gmi_sim_stop();
-//    Sim_unregisterAllKeys();
-// #endif
-// #else
+   if (smesh != nullptr)
+   {
+      throw MachException("AbstractSolver::constructMesh(smesh)\n"
+                          "\tdo not provide smesh when using PUMI!"); 
+      mesh.reset(new MeshType(comm, *smesh));                  
+   }
+   else
+   {
+      // problem with using these in loadMdsMesh
+      std::cout << options["model-file"].get<string>().c_str() << std::endl;
+      const char *model_file = options["model-file"].get<string>().c_str();
+      const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
+      PCU_Comm_Init();
+#ifdef MFEM_USE_SIMMETRIX
+      Sim_readLicenseFile(0);
+      gmi_sim_start();
+      gmi_register_sim();
+#endif
+      gmi_register_mesh();
+      pumi_mesh = apf::loadMdsMesh(options["model-file"].get<string>().c_str(),
+                                options["mesh"]["file"].get<string>().c_str());
+      int mesh_dim = pumi_mesh->getDimension();
+      int nEle = pumi_mesh->count(mesh_dim);
+      int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
+      // Perform Uniform refinement
+      // if (ref_levels > 1)
+      // {
+      //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
+      //    ma::adapt(uniInput);
+      // }
+      pumi_mesh->verify();
+      mesh.reset(new MeshType(comm, pumi_mesh));
+      PCU_Comm_Free();
+#ifdef MFEM_USE_SIMMETRIX
+      gmi_sim_stop();
+      Sim_unregisterAllKeys();
+#endif
+   }
+#else
    mesh.reset(new MeshType(comm, *smesh));
 #endif //MFEM_USE_PUMI
 #else
