@@ -198,20 +198,17 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    if (smesh != nullptr)
    {
       throw MachException("AbstractSolver::constructMesh(smesh)\n"
-                          "\tdo not provide smesh when using PUMI!"); 
-      mesh.reset(new MeshType(comm, *smesh));                  
+                          "\tdo not provide smesh when using PUMI!");
    }
-   else
-   {
-      // problem with using these in loadMdsMesh
-      std::cout << options["model-file"].get<string>().c_str() << std::endl;
-      const char *model_file = options["model-file"].get<string>().c_str();
-      const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
-      PCU_Comm_Init();
+   // problem with using these in loadMdsMesh
+   *out << options["model-file"].template get<string>().c_str() << std::endl;
+   const char *model_file = options["model-file"].template get<string>().c_str();
+   const char *mesh_file = options["mesh"]["file"].template get<string>().c_str();
+   PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
-      Sim_readLicenseFile(0);
-      gmi_sim_start();
-      gmi_register_sim();
+   Sim_readLicenseFile(0);
+   gmi_sim_start();
+   gmi_register_sim();
 #endif
 #ifdef MFEM_USE_EGADS
    gmi_egads_start();
@@ -322,8 +319,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    
    PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
-      gmi_sim_stop();
-      Sim_unregisterAllKeys();
+   gmi_sim_stop();
+   Sim_unregisterAllKeys();
 #endif
 #ifdef MFEM_USE_EGADS
    gmi_egads_stop();
