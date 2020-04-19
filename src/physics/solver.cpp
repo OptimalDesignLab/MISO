@@ -322,9 +322,9 @@ void AbstractSolver::constructPumiMesh()
 #else
    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
    MPI_Comm_rank(comm, &rank);   // problem with using these in loadMdsMesh
-   *out << options["model-file"].template get<string>().c_str() << std::endl;
-   const char *model_file = options["model-file"].template get<string>().c_str();
-   const char *mesh_file = options["mesh"]["file"].template get<string>().c_str();
+   *out << options["mesh"]["model-file"].template get<string>().c_str() << std::endl;
+   const char *model_file = options["mesh"]["model-file"].get<string>().c_str();
+   const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
    PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
@@ -336,8 +336,7 @@ void AbstractSolver::constructPumiMesh()
    gmi_register_egads();
 #endif
    gmi_register_mesh();
-   pumi_mesh = apf::loadMdsMesh(options["model-file"].template get<string>().c_str(),
-                                options["mesh"]["file"].template get<string>().c_str());
+   pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
    int mesh_dim = pumi_mesh->getDimension();
    int nEle = pumi_mesh->count(mesh_dim);
    int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
