@@ -3,7 +3,6 @@
 
 #include "mfem.hpp"
 #include "mach.hpp"
-// #include "joule.hpp"
 
 // using namespace std;
 // using namespace mfem;
@@ -21,9 +20,9 @@ int main(int argc, char *argv[])
    MPI_Init(&argc, &argv);
    int rank;
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   out = getOutStream(rank); 
+   out = mach::getOutStream(rank); 
 #else
-   out = getOutStream(0);
+   out = mach::getOutStream(0);
 #endif
 
    // Parse command-line options

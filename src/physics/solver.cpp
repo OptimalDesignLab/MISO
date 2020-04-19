@@ -1,3 +1,5 @@
+#include "solver.hpp"
+
 #include <fstream>
 #include <iostream>
 
@@ -5,7 +7,7 @@
 
 #include "apfMDS.h"
 #include "PCU.h"
-#include "apfConverth"
+#include "apfConvert.h"
 #include "crv.h"
 #include "gmi_mesh.h"
 #include "gmi_null.h"
@@ -336,14 +338,10 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 
 void AbstractSolver::constructPumiMesh()
 {
-#ifndef MFEM_USE_PUMI // if using pumi mesh
-      throw MachException("AbstractSolver::constructPumiMesh()\n"
-                          "\nMFEM was not built with PUMI!\n"
-                          "\trecompile MFEM with PUMI\n");
-#else
+#ifdef MFEM_USE_PUMI // if using pumi mesh
    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
    MPI_Comm_rank(comm, &rank);   // problem with using these in loadMdsMesh
-   *out << options["mesh"]["model-file"].template get<string>().c_str() << std::endl;
+   *out << options["mesh"]["model-file"].get<string>().c_str() << std::endl;
    const char *model_file = options["mesh"]["model-file"].get<string>().c_str();
    const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
    PCU_Comm_Init();
@@ -469,6 +467,10 @@ void AbstractSolver::constructPumiMesh()
    gmi_egads_stop();
 #endif // MFEM_USE_EGADS
 
+#else
+   throw MachException("AbstractSolver::constructPumiMesh()\n"
+                       "\nMFEM was not built with PUMI!\n"
+                       "\trecompile MFEM with PUMI\n");
 #endif // MFEM_USE_PUMI
 }
 

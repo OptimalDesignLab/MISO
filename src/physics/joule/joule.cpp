@@ -20,7 +20,7 @@ JouleSolver::JouleSolver(
    nlohmann::json thermal_opts = options["thermal-opts"];
 
    auto mesh_file = options["mesh"]["file"].get<std::string>();
-   auto model_file = options["mesh"]["file"].get<std::string>();
+   auto model_file = options["mesh"]["model-file"].get<std::string>();
    auto mesh_out_file = options["mesh"]["out-file"].get<std::string>();
 
    /// get mesh file name and extension 

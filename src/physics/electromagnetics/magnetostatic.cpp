@@ -275,12 +275,15 @@ std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
 
 void MagnetostaticSolver::setStaticMembers()
 {
-	auto material = options["components"]["magnets"]
-							["material"].get<std::string>();
-	remnant_flux = materials[material]["B_r"].get<double>();
-	mag_mu_r = materials[material]["mu_r"].get<double>();
-	fill_factor = options["components"]["windings"]["fill-factor"].get<double>();
-	current_density = options["components"]["windings"]["current-density"].get<double>();
+	if (options["components"].contains("magnets"))
+	{
+		auto magnets = options["components"]["magnets"];
+		std::string material = magnets["material"].get<std::string>();
+		remnant_flux = materials[material]["B_r"].get<double>();
+		mag_mu_r = materials[material]["mu_r"].get<double>();
+	}
+	double fill_factor = options["problem-opts"].value("fill-factor", 1.0);
+	double current_density = options["problem-opts"].value("current-density", 1.0);
 }
 
 void MagnetostaticSolver::constructReluctivity()
@@ -344,26 +347,38 @@ void MagnetostaticSolver::constructCurrent()
 {
 	current_coeff.reset(new VectorMeshDependentCoefficient());
 
-	auto phase_a_attr = options["phases"]["A"].get<std::vector<int>>();
-	auto phase_b_attr = options["phases"]["B"].get<std::vector<int>>();
-	auto phase_c_attr = options["phases"]["C"].get<std::vector<int>>();
-	for (auto& attr : phase_a_attr)
+	if (options.contains("phases"))
 	{
-		std::unique_ptr<mfem::VectorCoefficient> phase_a_coeff(
-			new VectorFunctionCoefficient(dim, phase_a_source));
-		current_coeff->addCoefficient(attr, move(phase_a_coeff));
-	}
-	for (auto& attr : phase_b_attr)
-	{
-		std::unique_ptr<mfem::VectorCoefficient> phase_b_coeff(
-			new VectorFunctionCoefficient(dim, phase_b_source));
-		current_coeff->addCoefficient(attr, move(phase_b_coeff));
-	}
-	for (auto& attr : phase_c_attr)
-	{
-		std::unique_ptr<mfem::VectorCoefficient> phase_c_coeff(
-			new VectorFunctionCoefficient(dim, phase_c_source));
-		current_coeff->addCoefficient(attr, move(phase_c_coeff));
+		if (options["phases"].contains("A"))
+		{
+			auto phase_a_attr = options["phases"]["A"].get<std::vector<int>>();
+			for (auto& attr : phase_a_attr)
+			{
+				std::unique_ptr<mfem::VectorCoefficient> phase_a_coeff(
+					new VectorFunctionCoefficient(dim, phase_a_source));
+				current_coeff->addCoefficient(attr, move(phase_a_coeff));
+			}
+		}
+                if (options["phases"].contains("B"))
+                {
+                        auto phase_b_attr = options["phases"]["B"].get<std::vector<int>>();
+                        for (auto& attr : phase_b_attr)
+                        {
+                                std::unique_ptr<mfem::VectorCoefficient> phase_b_coeff(
+                                        new VectorFunctionCoefficient(dim, phase_b_source));
+                                current_coeff->addCoefficient(attr, move(phase_b_coeff));
+                        }
+                }
+                if (options["phases"].contains("C"))
+                {
+                        auto phase_c_attr = options["phases"]["C"].get<std::vector<int>>();
+                        for (auto& attr : phase_c_attr)
+                        {
+                                std::unique_ptr<mfem::VectorCoefficient> phase_c_coeff(
+                                        new VectorFunctionCoefficient(dim, phase_c_source));
+                                current_coeff->addCoefficient(attr, move(phase_c_coeff));
+                        }
+                }
 	}
 }
 
