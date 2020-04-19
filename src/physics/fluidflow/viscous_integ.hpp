@@ -4,7 +4,7 @@
 #include "mfem.hpp"
 
 #include "sbp_fe.hpp" // needed in viscous_integ_def.hpp
-#include "solver.hpp"
+#include "utils.hpp"
 
 namespace mach
 {

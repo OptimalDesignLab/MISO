@@ -5,26 +5,10 @@
 #include <iostream>
 
 #include "adept.h"
+#include "json.hpp"
 #include "mfem.hpp"
-#ifdef MFEM_USE_SIMMETRIX
-#include <SimUtil.h>
-#include <gmi_sim.h>
-#endif
-#ifdef MFEM_USE_PUMI
-#include <apfMDS.h>
-#include <gmi_null.h>
-#include <PCU.h>
-#include <apfConvert.h>
-#include <gmi_mesh.h>
-#include <crv.h>
-#ifdef MFEM_USE_EGADS
-#include <gmi_egads.h>
-#endif
-#endif
 
 #include "mach_types.hpp"
-#include "utils.hpp"
-#include "json.hpp"
 
 namespace mach
 {
