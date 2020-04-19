@@ -10,6 +10,13 @@
 
 #include "mach_types.hpp"
 
+#ifdef MFEM_USE_PUMI
+namespace apf
+{
+class Mesh2;
+} // namespace apf
+#endif
+
 namespace mach
 {
 
