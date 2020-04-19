@@ -52,6 +52,26 @@ AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
    initBase(file_options, move(smesh));
 }
 
+AbstractSolver::AbstractSolver(const string &opt_file_name)
+{
+   nlohmann::json file_options;
+   ifstream options_file(opt_file_name);
+   options_file >> file_options;
+
+   // Set the options; the defaults are overwritten by the values in the file
+   // using the merge_patch method
+#ifdef MFEM_USE_MPI
+   comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
+   MPI_Comm_rank(comm, &rank);
+#else
+   rank = 0; // serial case
+#endif
+   out = getOutStream(rank);
+   options = default_options;
+   options.merge_patch(file_options);
+   *out << setw(3) << options << endl;
+}
+
 void AbstractSolver::initBase(const nlohmann::json &file_options,
                               std::unique_ptr<Mesh> smesh)
 {

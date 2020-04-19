@@ -22,7 +22,8 @@ public:
    /// \param[in] B - pointer to magnetic field grid function from EM solver
    ThermalSolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr,
-                       GridFunType *B = nullptr) {};
+                       GridFunType *B = nullptr)
+   : AbstractSolver(opt_file_name, move(smesh)) {};
    
    /// Class constructor.
    /// \param[in] options - pre-loaded JSON options object

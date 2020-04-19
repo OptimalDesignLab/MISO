@@ -14,7 +14,7 @@ JouleSolver::JouleSolver(
 	const std::string &opt_file_name,
    std::unique_ptr<mfem::Mesh> smesh)
 	// : AbstractSolver(opt_file_name, move(smesh))
-   : AbstractSolver()
+   : AbstractSolver(opt_file_name)
 {
    nlohmann::json em_opts = options["em-opts"];
    nlohmann::json thermal_opts = options["thermal-opts"];
@@ -39,8 +39,8 @@ JouleSolver::JouleSolver(
       }
    }
 
-   em_opts["mesh"]["file"] = mesh_name + "_em" + mesh_ext;
-   thermal_opts["mesh"]["file"] = mesh_name + "_thermal" + mesh_ext;
+   em_opts["mesh"]["file"] = mesh_name + "_em." + mesh_ext;
+   thermal_opts["mesh"]["file"] = mesh_name + "_thermal." + mesh_ext;
 
    /// get model file name and extension 
    std::string model_name;
@@ -58,8 +58,8 @@ JouleSolver::JouleSolver(
       }
    }
 
-   em_opts["mesh"]["model-file"] = model_name + "_em" + model_ext;
-   thermal_opts["mesh"]["model-file"] = model_name + "_thermal" + model_ext;
+   em_opts["mesh"]["model-file"] = model_name + "_em." + model_ext;
+   thermal_opts["mesh"]["model-file"] = model_name + "_thermal." + model_ext;
 
    em_opts["mesh"]["out-file"] = mesh_out_file + "_em";
    thermal_opts["mesh"]["out-file"] = mesh_out_file + "_thermal";
@@ -70,11 +70,19 @@ JouleSolver::JouleSolver(
    em_opts["problem-opts"] = options["problem-opts"];
    thermal_opts["problem-opts"] = options["problem-opts"];
 
+   /// TODO: need to do this until Magnetostatic solver is updated to support
+   /// newer abstract solver construction model
+   std::string em_opt_filename = "em_opt_file.json";
+   {
+      std::ofstream em_opt_file(em_opt_filename, std::ios::trunc);
+      em_opt_file << em_opts;
+      em_opt_file.close();
+   }
 
-   std::string em_opt_file = "1";
-   std::string thermal_opt_file = "1";
+   *out << "EM options:\n";
+   *out << setw(3) << em_opts << endl;
 
-   em_solver.reset(new MagnetostaticSolver(em_opt_file, nullptr));
+   em_solver.reset(new MagnetostaticSolver(em_opt_filename, nullptr));
    /// TODO: this should be moved to an init derived when a factory is made
    em_solver->initDerived();
    em_fields = em_solver->getFields();
@@ -92,6 +100,11 @@ JouleSolver::JouleSolver(
    thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr,
                                           mapped_mag_field.get()));
    // thermal_solver->initDerived();
+}
+
+JouleSolver::~JouleSolver()
+{
+   *out << "Deleting Joule Solver..." << endl;
 }
 
 /// TODO: Change this in AbstractSolver to mark a flag so that unsteady solutions can be saved
@@ -118,7 +131,5 @@ void JouleSolver::solveForState()
    thermal_fields = thermal_solver->getFields();
    thermal_solver->solveForState();
 }
-
-JouleSolver::~JouleSolver() = default;
 
 } // namespace mach
