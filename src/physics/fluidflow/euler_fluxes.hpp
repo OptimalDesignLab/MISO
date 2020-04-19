@@ -712,7 +712,7 @@ void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
    stack.jacobian(flux_jac.GetData());
 }
 
-/// Ismail-Roe entropy conservative flux function in direction `dir` with dissipation
+/// Ismail-Roe flux function in direction `dir` with Lax-Friedichs dissipation
 /// \param[in] dir - vector direction in which flux is wanted
 /// \param[in] qL - conservative variables at "left" state
 /// \param[in] qR - conservative variables at "right" state
@@ -721,7 +721,7 @@ void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
 void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir, const xdouble *qL,
-                           const xdouble *qR, xdouble *flux)
+                                   const xdouble *qR, xdouble *flux)
 {
    xdouble pL = pressure<xdouble, dim>(qL);
    xdouble pR = pressure<xdouble, dim>(qR);
@@ -782,8 +782,7 @@ void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir, const xdouble *qL,
    }
 }
 
-/// Ismail-Roe entropy conservative flux function in direction `dir`
-/// with dissipation 
+/// Ismail-Roe flux function in direction `dir` with Lax-Friedichs dissipation
 /// \param[in] dir - vector direction in which flux is wanted
 /// \param[in] qL - entropy variables at "left" state
 /// \param[in] qR - entropy variables at "right" state
