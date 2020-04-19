@@ -46,13 +46,6 @@ private:
 
    std::vector<GridFunType*> em_fields;
    std::vector<GridFunType*> thermal_fields;
-
-   /// Raviart-Thomas finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
-   /// H(Div) finite element space
-   std::unique_ptr<SpaceType> h_div_space;
-   /// magnetic field mapped onto thermal solver's mesh
-   std::unique_ptr<GridFunType> mapped_mag_field;
 };
 
 } // namespace mach

@@ -85,20 +85,13 @@ JouleSolver::JouleSolver(
    em_solver.reset(new MagnetostaticSolver(em_opt_filename, nullptr));
    /// TODO: this should be moved to an init derived when a factory is made
    // em_solver->initDerived();
-   em_fields = em_solver->getFields();
-   int dim = em_solver->getMesh()->Dimension();
-   int order = em_opts["space-dis"]["degree"].get<int>();
-   /// Create the H(Div) finite element collection for the representation the
-   /// magnetic flux density field in the thermal solver
-   h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create magnetic flux grid function
-   mapped_mag_field.reset(new GridFunType(h_div_space.get()));
 
-   thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr,
-                                          mapped_mag_field.get()));
+   thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr));
    // thermal_solver->initDerived();
+
+   em_fields = em_solver->getFields();
+   thermal_fields = thermal_solver->getFields();
+
 }
 
 JouleSolver::~JouleSolver()
@@ -125,7 +118,7 @@ void JouleSolver::solveForState()
    em_solver->solveForState();
 
    transferSolution(*em_solver->getMesh(), *thermal_solver->getMesh(),
-                    *em_fields[1], *mapped_mag_field);
+                    *em_fields[1], *thermal_fields[1]);
    thermal_solver->initDerived();
    thermal_fields = thermal_solver->getFields();
    thermal_solver->solveForState();

@@ -37,12 +37,38 @@ using namespace mfem;
 namespace mach
 {
 
-// ThermalSolver::ThermalSolver(
-// 	 const std::string &opt_file_name,
-//     std::unique_ptr<mfem::Mesh> smesh,
-// 	 GridFunType *B)
-// 	: AbstractSolver(opt_file_name, move(smesh)), mag_field(B)
-// { }
+ThermalSolver::ThermalSolver(
+	 const std::string &opt_file_name,
+    std::unique_ptr<mfem::Mesh> smesh)
+	: AbstractSolver(opt_file_name, move(smesh))
+{
+   int dim = getMesh()->Dimension();
+   int order = options["space-dis"]["degree"].get<int>();
+
+   /// Create the H(Div) finite element collection for the representation the
+   /// magnetic flux density field in the thermal solver
+   h_div_coll.reset(new RT_FECollection(order, dim));
+   /// Create the H(Div) finite element space
+   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
+   /// Create magnetic flux grid function
+   mag_field.reset(new GridFunType(h_div_space.get()));
+}
+
+ThermalSolver::ThermalSolver(nlohmann::json &options,
+                             std::unique_ptr<mfem::Mesh> smesh)
+	: AbstractSolver(options, move(smesh))
+{
+   int dim = getMesh()->Dimension();
+   int order = options["space-dis"]["degree"].get<int>();
+
+   /// Create the H(Div) finite element collection for the representation the
+   /// magnetic flux density field in the thermal solver
+   h_div_coll.reset(new RT_FECollection(order, dim));
+   /// Create the H(Div) finite element space
+   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
+   /// Create magnetic flux grid function
+   mag_field.reset(new GridFunType(h_div_space.get()));
+}
 
 void ThermalSolver::initDerived()
 {
@@ -74,7 +100,17 @@ void ThermalSolver::initDerived()
 	// material_file >> materials;
 
 	*out << "Constructing Material Coefficients..." << std::endl;
-	mag_field = nullptr;
+
+   int dim = getMesh()->Dimension();
+   int order = options["space-dis"]["degree"].get<int>();
+
+   /// Create the H(Div) finite element collection for the representation the
+   /// magnetic flux density field in the thermal solver
+   h_div_coll.reset(new RT_FECollection(order, dim));
+   /// Create the H(Div) finite element space
+   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
+   /// Create magnetic flux grid function
+   mag_field.reset(new GridFunType(h_div_space.get()));
 	
 	// constructDensityCoeff();
 
@@ -169,6 +205,12 @@ void ThermalSolver::initDerived()
 	// func.reset(new AggregateIntsegrator(h_grad_space.get(), rhoa, max));
 
 }
+
+std::vector<GridFunType*> ThermalSolver::getFields(void)
+{
+   return {u.get(), mag_field.get()};
+}
+
 
 void ThermalSolver::addOutputs()
 {

@@ -21,18 +21,16 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] B - pointer to magnetic field grid function from EM solver
    ThermalSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
-                       GridFunType *B = nullptr)
-   : AbstractSolver(opt_file_name, move(smesh)) {};
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+   : AbstractSolver(opt_file_name, move(smesh));
    
    /// Class constructor.
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] B - pointer to magnetic field grid function from EM solver
    ThermalSolver(nlohmann::json &options,
-                 std::unique_ptr<mfem::Mesh> smesh,
-                 GridFunType *B = nullptr)
-	: AbstractSolver(options, move(smesh)), mag_field(B) {};
+                 std::unique_ptr<mfem::Mesh> smesh)
+	: AbstractSolver(options, move(smesh));
    
    void initDerived();
 
@@ -44,11 +42,19 @@ public:
    // double calcL2Error(double (*u_exact)(const mfem::Vector &),
    //                    int entry = -1);
 
-private:
-   // std::ofstream sol_ofs;
+   /// \brief Returns a vector of pointers to grid functions that define fields
+   /// returns {theta, B}
+   std::vector<GridFunType*> getFields() override;
 
+private:
+   /// Raviart-Thomas finite element collection
+   std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
+   /// H(Div) finite element space
+   std::unique_ptr<SpaceType> h_div_space;
    /// Magnetic flux density B grid function;
-   GridFunType *mag_field;
+   /// (mapped from EM solver onto thermal solver's mesh)
+   std::unique_ptr<GridFunType> mag_field;
+
 
    /// Use for exact solution
    std::unique_ptr<GridFunType> th_exact;
