@@ -30,6 +30,10 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printSolution(const std::string &file_name, int refine = -1) override;
 
+   /// Initializes the state variable to a given function.
+   /// \param[in] u_init - function that defines the initial condition
+   void setInitialCondition(double (*u_init)(const mfem::Vector &)) override;
+
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {T, A, B}
    std::vector<GridFunType*> getFields() override;

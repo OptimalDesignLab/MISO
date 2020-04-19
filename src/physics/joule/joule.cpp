@@ -108,6 +108,11 @@ void JouleSolver::printSolution(const std::string &filename, int refine)
    thermal_solver->printSolution(thermal_filename, refine);
 }
 
+void JouleSolver::setInitialCondition(double (*u_init)(const mfem::Vector &))
+{
+   thermal_solver->setInitialCondition(u_init);
+}
+
 std::vector<GridFunType*> JouleSolver::getFields(void)
 {
 	return {thermal_fields[0], em_fields[0], em_fields[1]};

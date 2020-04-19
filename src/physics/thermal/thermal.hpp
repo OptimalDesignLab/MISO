@@ -21,16 +21,14 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] B - pointer to magnetic field grid function from EM solver
    ThermalSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
-   : AbstractSolver(opt_file_name, move(smesh));
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr);
    
    /// Class constructor.
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] B - pointer to magnetic field grid function from EM solver
    ThermalSolver(nlohmann::json &options,
-                 std::unique_ptr<mfem::Mesh> smesh)
-	: AbstractSolver(options, move(smesh));
+                 std::unique_ptr<mfem::Mesh> smesh);
    
    void initDerived();
 

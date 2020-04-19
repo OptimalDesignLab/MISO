@@ -54,16 +54,16 @@ public:
    /// \param[in] u_init - function that defines the initial condition
    /// \note The second argument in the function `u_init` is the initial condition
    /// value.  This may be a vector of length 1 for scalar.
-   void setInitialCondition(void (*u_init)(const mfem::Vector &,
+   virtual void setInitialCondition(void (*u_init)(const mfem::Vector &,
                                            mfem::Vector &));
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
-   void setInitialCondition(double (*u_init)(const mfem::Vector &));
+   virtual void setInitialCondition(double (*u_init)(const mfem::Vector &));
 
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - vector that defines the initial condition
-   void setInitialCondition(const mfem::Vector &uic); 
+   virtual void setInitialCondition(const mfem::Vector &uic); 
 
    /// TODO move to protected?
    /// Returns the integral inner product between two grid functions

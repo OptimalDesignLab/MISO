@@ -342,8 +342,8 @@ void AbstractSolver::constructPumiMesh()
    comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
    MPI_Comm_rank(comm, &rank);   // problem with using these in loadMdsMesh
    *out << options["mesh"]["model-file"].get<string>().c_str() << std::endl;
-   const char *model_file = options["mesh"]["model-file"].get<string>().c_str();
-   const char *mesh_file = options["mesh"]["file"].get<string>().c_str();
+   std::string model_file = options["mesh"]["model-file"].get<string>();
+   std::string mesh_file = options["mesh"]["file"].get<string>();
    PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
@@ -355,7 +355,7 @@ void AbstractSolver::constructPumiMesh()
    gmi_register_egads();
 #endif
    gmi_register_mesh();
-   pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
+   pumi_mesh = apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str());
    // int mesh_dim = pumi_mesh->getDimension();
    // int nEle = pumi_mesh->count(mesh_dim);
    // int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
@@ -500,7 +500,7 @@ void AbstractSolver::setInitialCondition(
     double (*u_init)(const Vector &))
 {
    FunctionCoefficient u0(u_init);
-	u->ProjectCoefficient(u0);
+   u->ProjectCoefficient(u0);
 }
 
 void AbstractSolver::setInitialCondition(const Vector &uic)
