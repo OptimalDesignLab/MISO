@@ -17,7 +17,8 @@ std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
-void uexact(const Vector &x, Vector& u);
+template<bool entvar = false>
+void uexact(const Vector &x, Vector& q);
 
 /// \brief Defines the random function for the jabocian check
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -88,14 +89,13 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
 
-      unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
-      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
+      unique_ptr<AbstractSolver> solver(new EulerSolver<2, true>(opt_file_name, move(smesh)));
       solver->initDerived();
 
-      solver->setInitialCondition(uexact);
+      solver->setInitialCondition(uexact<true>);
       solver->printSolution("euler_init", 0);
 
-      double l_error = solver->calcL2Error(uexact, 0);
+      double l_error = solver->calcL2Error(uexact<true>, 0);
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
       solver->checkJacobian(pert);
       solver->solveForState();
       solver->printSolution("euler_final",0);
-      l_error = solver->calcL2Error(uexact, 0);
+      l_error = solver->calcL2Error(uexact<true>, 0);
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
@@ -147,9 +147,11 @@ void pert(const Vector &x, Vector& p)
 // Exact solution; note that I reversed the flow direction to be clockwise, so
 // the problem and mesh are consistent with the LPS paper (that is, because the
 // triangles are subdivided from the quads using the opposite diagonal)
-void uexact(const Vector &x, Vector& u)
+template <bool entvar>
+void uexact(const Vector &x, Vector& q)
 {
-   u.SetSize(4);
+   q.SetSize(4);
+   Vector u(4);
    double ri = 1.0;
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
@@ -176,7 +178,18 @@ void uexact(const Vector &x, Vector& u)
    u(1) = rho*a*Ma*sin(theta);
    u(2) = -rho*a*Ma*cos(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+
+   if (entvar == false)
+   {
+      q = u;
+   }
+   else
+   {
+      calcEntropyVars<double, 2>(u.GetData(), q.GetData());
+   }
 }
+template void uexact<true>(const Vector &x, Vector& u);
+template void uexact<false>(const Vector &x, Vector& u);
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {
