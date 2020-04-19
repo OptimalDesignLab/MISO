@@ -50,6 +50,8 @@ private:
 
    std::vector<GridFunType*> em_fields;
    std::vector<GridFunType*> thermal_fields;
+
+   double (*thermal_init)(const mfem::Vector &);
 };
 
 } // namespace mach
