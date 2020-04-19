@@ -261,6 +261,184 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
    }
 }
 
+TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian", "[Ismail-face]",
+                       ((int dim), dim), 2)
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   mfem::Vector qL(dim + 2);
+   mfem::Vector qR(dim + 2);
+   mfem::Vector flux(dim + 2);
+   mfem::Vector flux_plus(dim + 2);
+   mfem::Vector flux_minus(dim + 2);
+   mfem::Vector v(dim + 2);
+   mfem::Vector jac_v(dim + 2);
+   mfem::Vector nrm(dim);
+   mfem::DenseMatrix jacL(dim + 2, 2 * (dim + 2));
+   mfem::DenseMatrix jacR(dim + 2, 2 * (dim + 2));
+   double delta = 1e-5;
+   qL(0) = rho;
+   qL(dim + 1) = rhoe;
+   qR(0) = rho2;
+   qR(dim + 1) = rhoe2;
+   for (int di = 0; di < dim; ++di)
+   {
+      nrm(di) = dir[di];
+      qL(di + 1) = rhou[di];
+      qR(di + 1) = rhou2[di];
+   }
+   // create perturbation vector
+   for (int di = 0; di < dim + 2; ++di)
+   {
+      v(di) = vec_pert[di];
+   }
+   // perturbed vectors
+   mfem::Vector qL_plus(qL), qL_minus(qL);
+   mfem::Vector qR_plus(qR), qR_minus(qR);
+   adept::Stack diff_stack;
+   std::unique_ptr<mfem::FiniteElementCollection> fec(new mfem::SBPCollection(1, dim));
+   mach::InterfaceIntegrator<dim,false> ismailfaceinteg(diff_stack, fec.get());
+   // +ve perturbation
+   qL_plus.Add(delta, v);
+   qR_plus.Add(delta, v);
+   // -ve perturbation
+   qL_minus.Add(-delta, v);
+   qR_minus.Add(-delta, v);
+   
+   for (int di = 0; di < dim; ++di)
+   {
+      DYNAMIC_SECTION("Ismail-Roe face flux Jacobian is correct w.r.t left state ")
+      {
+         // get perturbed states flux vector
+         ismailfaceinteg.calcFlux(nrm, qL_plus, qR, flux_plus);
+         ismailfaceinteg.calcFlux(nrm, qL_minus, qR, flux_minus);
+         // compute the jacobian
+         ismailfaceinteg.calcFluxJacState(nrm, qL, qR, jacL, jacR);
+         jacL.Mult(v, jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0 * delta;
+         // compare each component of the matrix-vector products
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-12));
+            std::cout << "jacL*v[" << i << "] = " << jac_v[i] << std::endl;
+            std::cout << "jacL*v fd = " << jac_v_fd[i] << std::endl;
+         }
+      }
+      DYNAMIC_SECTION("Ismail-Roe face flux Jacobian is correct w.r.t right state ")
+      {
+         // get perturbed states flux vector
+         ismailfaceinteg.calcFlux(nrm, qL, qR_plus, flux_plus);
+         ismailfaceinteg.calcFlux(nrm, qL, qR_minus, flux_minus);
+         // compute the jacobian
+         ismailfaceinteg.calcFluxJacState(nrm, qL, qR, jacL, jacR);
+         jacR.Mult(v, jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0 * delta;
+         // compare each component of the matrix-vector products
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-12));
+            std::cout << "jacR*v[" << i << "] = " << jac_v[i] << std::endl;
+            std::cout << "jacR*v fd = " << jac_v_fd[i] << std::endl;
+         }
+      }
+   }
+}
+
+TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian based on entropy variables", "[Ismail-face-ent]",
+                       ((int dim), dim), 2)
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   mfem::Vector qL(dim + 2);
+   mfem::Vector qR(dim + 2);
+   mfem::Vector wL(dim + 2);
+   mfem::Vector wR(dim + 2);
+   mfem::Vector flux(dim + 2);
+   mfem::Vector flux_plus(dim + 2);
+   mfem::Vector flux_minus(dim + 2);
+   mfem::Vector v(dim + 2);
+   mfem::Vector jac_v(dim + 2);
+   mfem::Vector nrm(dim);
+   mfem::DenseMatrix jacL(dim + 2, 2 * (dim + 2));
+   mfem::DenseMatrix jacR(dim + 2, 2 * (dim + 2));
+   double delta = 1e-5;
+   qL(0) = rho;
+   qL(dim + 1) = rhoe;
+   qR(0) = rho2;
+   qR(dim + 1) = rhoe2;
+   for (int di = 0; di < dim; ++di)
+   {
+      nrm(di) = dir[di];
+      qL(di + 1) = rhou[di];
+      qR(di + 1) = rhou2[di];
+   }
+   mach::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
+   mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+   // create perturbation vector
+   for (int di = 0; di < dim + 2; ++di)
+   {
+      v(di) = vec_pert[di];
+   }
+   // perturbed vectors
+   mfem::Vector wL_plus(wL), wL_minus(wL);
+   mfem::Vector wR_plus(wR), wR_minus(wR);
+   adept::Stack diff_stack;
+   std::unique_ptr<mfem::FiniteElementCollection> fec(new mfem::SBPCollection(1, dim));
+   mach::InterfaceIntegrator<dim,true> ismailfaceinteg(diff_stack, fec.get());
+   // +ve perturbation
+   wL_plus.Add(delta, v);
+   wR_plus.Add(delta, v);
+   // -ve perturbation
+   wL_minus.Add(-delta, v);
+   wR_minus.Add(-delta, v);
+   
+   for (int di = 0; di < dim; ++di)
+   {
+      DYNAMIC_SECTION("Ismail-Roe face flux Jacobian is correct w.r.t left state ")
+      {
+         // get perturbed states flux vector
+         ismailfaceinteg.calcFlux(nrm, wL_plus, wR, flux_plus);
+         ismailfaceinteg.calcFlux(nrm, wL_minus, wR, flux_minus);
+         // compute the jacobian
+         ismailfaceinteg.calcFluxJacState(nrm, wL, wR, jacL, jacR);
+         jacL.Mult(v, jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0 * delta;
+         // compare each component of the matrix-vector products
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-12));
+         }
+      }
+      DYNAMIC_SECTION("Ismail-Roe face flux Jacobian is correct w.r.t right state ")
+      {
+         // get perturbed states flux vector
+         ismailfaceinteg.calcFlux(nrm, wL, wR_plus, flux_plus);
+         ismailfaceinteg.calcFlux(nrm, wL, wR_minus, flux_minus);
+         // compute the jacobian
+         ismailfaceinteg.calcFluxJacState(nrm, wL, wR, jacL, jacR);
+         jacR.Mult(v, jac_v);
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(flux_plus);
+         jac_v_fd -= flux_minus;
+         jac_v_fd /= 2.0 * delta;
+         // compare each component of the matrix-vector products
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-12));
+         }
+      }
+   }
+}
+
 TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
                        ((int dim), dim), 1, 2, 3)
 {
@@ -413,8 +591,6 @@ TEST_CASE("Isentropic BC flux", "[IsentropricVortexBC]")
    const int max_degree = 4;
    for (int p = 1; p <= max_degree; p++)
    {
-      
-
       DYNAMIC_SECTION("Jacobian of Isentropic Vortex BC flux w.r.t state is correct")
       {
          fec.reset(new mfem::SBPCollection(1, dim));
@@ -1525,12 +1701,13 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad using entvar",
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddInteriorFaceIntegrator(new mach::InterfaceIntegrator<dim, entvar>(diff_stack, fec.get()));
+         res.AddInteriorFaceIntegrator(
+            new mach::InterfaceIntegrator<dim, entvar>(diff_stack, fec.get()));
 
          // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
+         GridFunction w(fes.get());
          VectorFunctionCoefficient pert(num_state, randBaselinePert<dim, entvar>);
-         q.ProjectCoefficient(pert);
+         w.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
@@ -1538,22 +1715,24 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad using entvar",
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
-         Operator &Jac = res.GetGradient(q);
+         Operator &Jac = res.GetGradient(w);
          GridFunction jac_v(fes.get());
          Jac.Mult(v, jac_v);
 
          // now compute the finite-difference approximation...
-         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
-         q_pert.Add(-delta, v);
-         res.Mult(q_pert, r);
-         q_pert.Add(2 * delta, v);
-         res.Mult(q_pert, jac_v_fd);
+         GridFunction w_pert(w), r(fes.get()), jac_v_fd(fes.get());
+         w_pert.Add(-delta, v);
+         res.Mult(w_pert, r);
+         w_pert.Add(2 * delta, v);
+         res.Mult(w_pert, jac_v_fd);
          jac_v_fd -= r;
          jac_v_fd /= (2 * delta);
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
             REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            //std::cout << "jac_v(" << i << ") = " << jac_v(i) << std::endl;
+            //std::cout << "jac_v_fd = " << jac_v_fd(i) << std::endl;
          }
       }
    } // loop different order of elements

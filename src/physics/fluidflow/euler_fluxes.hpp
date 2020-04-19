@@ -254,7 +254,7 @@ void calcIsmailRoeFaceFluxUsingEntVars(const xdouble *dir, const xdouble *wL,
    zR[dim + 1] = pow(-exp(-sR)/wR[dim+1], 1.0/euler::gami)/zR[0];
 
    xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
-   xdouble U;
+   xdouble U = 0.0;
    for (int i = 0; i < dim; ++i)
    {
       U += (zL[i + 1] + zR[i + 1]) * dir[i] /(zL[0] + zR[0]);
@@ -813,7 +813,7 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    zR[dim + 1] = pow(-exp(-sR)/wR[dim+1], 1.0/euler::gami)/zR[0];
 
    xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
-   xdouble U;
+   xdouble U = 0.0;
    for (int i = 0; i < dim; ++i)
    {
       U += (zL[i + 1] + zR[i + 1]) * dir[i] /(zL[0] + zR[0]);

@@ -117,7 +117,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       // get flux from function
       mach::calcIsmailRoeFaceFluxWithDiss<double, dim>(nrm.GetData(), q.GetData(),
-                                               qR.GetData(), flux.GetData());
+                                                       qR.GetData(), flux.GetData());
       // evaluate the dissipation externally (since we cannot use fluxIR_check
       // data here directly)
       mfem::Vector wL(dim+2), wR(dim+2);
