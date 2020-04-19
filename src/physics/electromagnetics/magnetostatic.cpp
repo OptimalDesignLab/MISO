@@ -165,7 +165,7 @@ MagnetostaticSolver::MagnetostaticSolver(
 
    solver.reset(new HypreGMRES(h_curl_space->GetComm()));
    std::cout << "set tol\n";
-   solver->SetTol(options["lin-solver"]["tol"].get<double>());
+   solver->SetTol(options["lin-solver"]["reltol"].get<double>());
    std::cout << "set tol\n";
    std::cout << "set iter\n";
    solver->SetMaxIter(options["lin-solver"]["maxiter"].get<int>());
@@ -282,8 +282,8 @@ void MagnetostaticSolver::setStaticMembers()
       remnant_flux = materials[material]["B_r"].get<double>();
       mag_mu_r = materials[material]["mu_r"].get<double>();
    }
-   double fill_factor = options["problem-opts"].value("fill-factor", 1.0);
-   double current_density = options["problem-opts"].value("current-density", 1.0);
+   fill_factor = options["problem-opts"].value("fill-factor", 1.0);
+   current_density = options["problem-opts"].value("current-density", 1.0);
 }
 
 void MagnetostaticSolver::constructReluctivity()

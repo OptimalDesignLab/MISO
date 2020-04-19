@@ -61,7 +61,7 @@
       "farfields": {
          "material": "air",
          "linear": true,
-         "attrs": 2
+         "attr": 2
       }
    },
    "problem-opts" : {

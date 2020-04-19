@@ -96,7 +96,7 @@ private:
    mfem::NewtonSolver newton_solver;
 
    /// Material Library
-   nlohmann::json materials;
+   // nlohmann::json materials;
 
    int dim;
 
