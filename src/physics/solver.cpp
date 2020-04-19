@@ -2,19 +2,23 @@
 #include <iostream>
 
 #ifdef MFEM_USE_PUMI
+
 #include <apfMDS.h>
 #include <gmi_null.h>
 #include <PCU.h>
 #include <apfConvert.h>
 #include <gmi_mesh.h>
 #include <crv.h>
+
 #ifdef MFEM_USE_SIMMETRIX
 #include <SimUtil.h>
 #include <gmi_sim.h>
 #endif // MFEM_USE_SIMMETRIX
+
 #ifdef MFEM_USE_EGADS
 #include <gmi_egads.h>
 #endif // MFEM_USE_EGADS
+
 #endif // MFEM_USE_PUMI
 
 #include "utils.hpp"
@@ -220,7 +224,7 @@ void AbstractSolver::initDerived()
    // This just lists the boundary markers for debugging purposes
    if (0 == rank)
    {
-      for (int k = 0; k < bndry_marker.size(); ++k)
+      for (unsigned k = 0; k < bndry_marker.size(); ++k)
       {
          cout << "boundary_marker[" << k << "]: ";
          for (int i = 0; i < bndry_marker[k].Size(); ++i)
@@ -354,9 +358,9 @@ void AbstractSolver::constructPumiMesh()
 #endif
    gmi_register_mesh();
    pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
-   int mesh_dim = pumi_mesh->getDimension();
-   int nEle = pumi_mesh->count(mesh_dim);
-   int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
+   // int mesh_dim = pumi_mesh->getDimension();
+   // int nEle = pumi_mesh->count(mesh_dim);
+   // int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
    // Perform Uniform refinement
    // if (ref_levels > 1)
    // {
@@ -800,7 +804,7 @@ void AbstractSolver::printFields(const std::string &file_name,
       refine = options["space-dis"]["degree"].get<int>() + 1;
    }
    mesh->PrintVTK(sol_ofs, refine);
-   for (int i = 0; i < fields.size(); ++i)
+   for (unsigned i = 0; i < fields.size(); ++i)
    {
       fields[i]->SaveVTK(sol_ofs, names[i], refine);
    }
