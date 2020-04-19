@@ -38,9 +38,14 @@ public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   AbstractSolver(const std::string &opt_file_name =
-                  std::string("mach_options.json"),
-                  std::unique_ptr<mfem::Mesh> smesh = nullptr);
+   AbstractSolver(const std::string &opt_file_name,
+                  std::unique_ptr<mfem::Mesh> smesh);
+
+   /// Class constructor.
+   /// \param[in] options - pre-loaded JSON options object
+   /// \param[in] smesh - if provided, defines the mesh for the problem
+   AbstractSolver(const nlohmann::json &options,
+                  std::unique_ptr<mfem::Mesh> smesh);
 
    /// Perform set-up of derived classes using virtual functions
    /// \todo Put the constructors and this in a factory
@@ -49,9 +54,10 @@ public:
    /// class destructor
    virtual ~AbstractSolver();
 
+   /// TODO: should this be pretected/private?
    /// Constructs the mesh member based on c preprocesor defs
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   void constructMesh(std::unique_ptr<mfem::Mesh> smesh = nullptr);
+   void constructMesh(std::unique_ptr<mfem::Mesh> smesh);
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
@@ -68,6 +74,7 @@ public:
    /// \param[in] u_init - vector that defines the initial condition
    void setInitialCondition(const mfem::Vector &uic); 
 
+   /// TODO move to protected?
    /// Returns the integral inner product between two grid functions
    /// \param[in] x - grid function 
    /// \param[in] y - grid function 
@@ -321,6 +328,22 @@ protected:
 
    /// Constructs the operator that defines ODE evolution 
    virtual void constructEvolver();
+
+   /// Used by derived classes that themselves construct solver objects that
+   /// don't need all the memory for a fully featured solver, that just need to
+   /// support the AbstractSolver interface (JouleSolver)
+   AbstractSolver() = default;
+
+private:
+   /// explicitly prohibit copy construction
+   AbstractSolver(const AbstractSolver&) = delete;
+   AbstractSolver& operator=(const AbstractSolver&) = delete;
+
+   /// Used to do the bulk of the initialization shared between constructors
+   /// \param[in] options - pre-loaded JSON options object
+   /// \param[in] smesh - if provided, defines the mesh for the problem
+   void initBase(const nlohmann::json &file_options,
+                 std::unique_ptr<mfem::Mesh> smesh);
 
 };
 

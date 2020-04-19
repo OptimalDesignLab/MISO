@@ -48,13 +48,12 @@ void invertElementwise(const Vector &x, Vector &y)
 
 /// Handles print in parallel case
 template<typename _CharT, typename _Traits>
-
 class basic_oblackholestream
     : virtual public std::basic_ostream<_CharT, _Traits>
 {
 public:   
-  /// called when rank is not root, prints nothing 
-    explicit basic_oblackholestream() : std::basic_ostream<_CharT, _Traits>(NULL) {}
+   /// called when rank is not root, prints nothing
+   explicit basic_oblackholestream() : std::basic_ostream<_CharT, _Traits>(NULL) {}
 }; // end class basic_oblackholestream
 
 using oblackholestream = basic_oblackholestream<char,std::char_traits<char> >;
@@ -63,7 +62,7 @@ static oblackholestream obj;
 std::ostream *getOutStream(int rank)
 {
    /// print only on root
-   if (0==rank)
+   if (0 == rank)
    {
       return &std::cout;
    }

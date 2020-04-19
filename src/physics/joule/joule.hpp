@@ -18,8 +18,7 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] dim - number of dimensions
    JouleSolver(const std::string &opt_file_name,
-               std::unique_ptr<mfem::Mesh> smesh = nullptr,
-					int dim = 3);
+               std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Write the solutions of both the EM and thermal problems to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -36,6 +35,8 @@ public:
    std::vector<GridFunType*> getFields() override;
 
    void solveForState() override;
+
+   int getNumState() override {return 0;};
 
 private:
    std::unique_ptr<MagnetostaticSolver> em_solver;

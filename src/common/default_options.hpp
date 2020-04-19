@@ -12,9 +12,7 @@ namespace mach
 /// while it would have been nice to use a raw string here to define the default
 /// options, this would not have permitted comments.
 nlohmann::json default_options
-{
-   {"model-file","mach.dmg"}, // model file name
-    
+{   
    {"flow-param", // options related to flow simulations
    {
       {"mach", 0.5}, // far-field mach number
@@ -82,7 +80,8 @@ nlohmann::json default_options
 
    {"mesh",
    {
-      {"file", "mach.mesh"}, // mesh file name when not using pumi
+      {"file", "mach.mesh"}, // mesh file name
+      {"model-file","mach.dmg"}, // model file name
       {"refine", 0} // recursive uniform refinement; 0 = no refinement
    }},
 };

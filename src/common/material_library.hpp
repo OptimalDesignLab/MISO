@@ -175,7 +175,7 @@ nlohmann::json material_library
 		{"cv", 93},
 		{"kappa", 0.026},
 	}},
-	{"heatsink",
+	{"copper", // this is meant for the heatsink
 	{
 		{"mu_r", 1},
 		{"rho", 5.000},
@@ -184,7 +184,7 @@ nlohmann::json material_library
 		{"kappae", 10},
 		{"sigma", 0.04},
 	}},
-	{"copper",
+	{"copperwire", // meant for windings - should have reduced conductivity
 	{
 		{"mu_r", 1},
 		{"rho", 5.000},

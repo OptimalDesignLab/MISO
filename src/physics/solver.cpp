@@ -41,6 +41,21 @@ adept::Stack AbstractSolver::diff_stack;
 AbstractSolver::AbstractSolver(const string &opt_file_name,
                                     unique_ptr<Mesh> smesh)
 {
+   nlohmann::json file_options;
+   ifstream options_file(opt_file_name);
+   options_file >> file_options;
+   initBase(file_options, move(smesh));
+}
+
+AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
+                               unique_ptr<Mesh> smesh)
+{
+   initBase(file_options, move(smesh));
+}
+
+void AbstractSolver::initBase(const nlohmann::json &file_options,
+                              std::unique_ptr<Mesh> smesh)
+{
 // Set the options; the defaults are overwritten by the values in the file
 // using the merge_patch method
 #ifdef MFEM_USE_MPI
@@ -51,9 +66,6 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 #endif
    out = getOutStream(rank);
    options = default_options;
-   nlohmann::json file_options;
-   ifstream options_file(opt_file_name);
-   options_file >> file_options;
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
 

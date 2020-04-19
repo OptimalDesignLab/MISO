@@ -37,13 +37,12 @@ using namespace mfem;
 namespace mach
 {
 
-ThermalSolver::ThermalSolver(
-	 const std::string &opt_file_name,
-    std::unique_ptr<mfem::Mesh> smesh,
-	 int dim,
-	 GridFunType *B)
-	: AbstractSolver(opt_file_name, move(smesh)), mag_field(B)
-{ }
+// ThermalSolver::ThermalSolver(
+// 	 const std::string &opt_file_name,
+//     std::unique_ptr<mfem::Mesh> smesh,
+// 	 GridFunType *B)
+// 	: AbstractSolver(opt_file_name, move(smesh)), mag_field(B)
+// { }
 
 void ThermalSolver::initDerived()
 {
