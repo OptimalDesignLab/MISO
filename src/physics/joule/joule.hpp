@@ -38,6 +38,8 @@ public:
 
    int getNumState() override {return 0;};
 
+   ~JouleSolver() override;
+
 private:
    std::unique_ptr<MagnetostaticSolver> em_solver;
    std::unique_ptr<ThermalSolver> thermal_solver;

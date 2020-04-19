@@ -238,7 +238,7 @@ void buildLSInterpolation(int dim, int degree,
 
 /// \brief transfer GridFunction from one mesh to another
 /// \note requires MFEM to be built with GSLIB
-void transferSolution(const MeshType &old_mesh, const MeshType &new_mesh,
+void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
                       const GridFunType &in, GridFunType &out);
 
 } // namespace mach

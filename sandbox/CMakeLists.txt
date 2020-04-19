@@ -22,6 +22,7 @@ set(SANDBOX_SRCS
    magnetostatic_motor
    magnetostatic_wire
    thermal_square
+   joule_wire
 )
 
 create_sandbox("${SANDBOX_SRCS}")

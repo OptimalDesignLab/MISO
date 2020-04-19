@@ -119,4 +119,6 @@ void JouleSolver::solveForState()
    thermal_solver->solveForState();
 }
 
+JouleSolver::~JouleSolver() = default;
+
 } // namespace mach
