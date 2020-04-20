@@ -329,7 +329,7 @@ void GalerkinDifference::BuildGDProlongation() const
    //int degree_actual;
    for (int i = 0; i < nEle; i++)
    {
-      cout << "Element " << i << ": ";
+      //cout << "Element " << i << ": ";
       // 1. construct the patch the patch
       // have more elements than required to make it a underdetermined system
       // if( i%32 == 0)
@@ -344,7 +344,7 @@ void GalerkinDifference::BuildGDProlongation() const
       // }
       GetNeighbourSet(i, nelmt, elmt_id);
       // cout << "Elements id(s) in patch: ";
-      elmt_id.Print(cout, elmt_id.Size());
+      //elmt_id.Print(cout, elmt_id.Size());
       
       // 2. build the quadrature and barycenter coordinate matrices
       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);

@@ -138,19 +138,12 @@ void buildInterpolation(int dim, int degree, int output,
    const mfem::DenseMatrix &x_center, const mfem::DenseMatrix &x_quad,
    mfem::DenseMatrix &interp);
 
-void buildLSInterpolation(int dim, int degree,
-                          const mfem::DenseMatrix &x_center,
-                          const mfem::DenseMatrix &x_quad,
-                          mfem::DenseMatrix &interp);
-#endif
-
 /// build the reconstruction matrix that interpolate the GD dofs to quadrature points
 /// \param[in] degree - order of reconstructio operator
 /// \param[in] x_cent - coordinates of barycenters
 /// \param[in] x_quad - coordinates of quadrature points
 /// \param[out] interp - interpolation operator
 /// \note This uses a least-squares reconstruction
-#ifdef MFEM_USE_LAPACK
 void buildLSInterpolation(int dim, int degree,
                           const mfem::DenseMatrix &x_center,
                           const mfem::DenseMatrix &x_quad,

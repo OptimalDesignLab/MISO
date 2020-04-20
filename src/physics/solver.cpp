@@ -41,7 +41,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Construct Mesh
    constructMesh(move(smesh));
    int dim = mesh->Dimension();
-
+   
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
    *out << "ode-solver type = "
@@ -92,9 +92,10 @@ void AbstractSolver::initDerived()
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState(); // <--- this is a virtual fun
    *out << "Num states = " << num_state << endl;
-   if (options["GD"]["degree"].get<int>() >= 0)
+   if (options["space-dis"]["GD"].get<bool>() == true ||
+       options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
-      int gd_degree = options["GD"]["degree"].get<int>();
+      int gd_degree = options["space-dis"]["GD-degree"].get<int>();
       mesh->ElementToElementTable();
       fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
                                        Ordering::byVDIM, gd_degree));
@@ -597,6 +598,11 @@ void AbstractSolver::solveSteady()
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    //u->SetFromTrueDofs(u_true);
 #endif
+   if (0==rank)
+   {
+      t2 = MPI_Wtime();
+      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
 #else
    // serial
    cout << "Solve the gd problem in serial.\n";
@@ -630,11 +636,6 @@ void AbstractSolver::solveSteady()
    cout << "Time for solve the nonlinear prroblem: " << total_t << "s.\n";
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
 #endif
-   if (0==rank)
-   {
-      t2 = MPI_Wtime();
-      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
-   }
 }
 
 void AbstractSolver::solveUnsteady()
@@ -742,7 +743,7 @@ double AbstractSolver::calcOutput(const std::string &fun)
       {
          cout << "Did not find " << fun << " in output map?" << endl;
       }
-      return output.at(fun).GetEnergy(*u);
+      return output.at(fun).GetEnergy(*uc);
    }
    catch (const std::out_of_range &exception)
    {
