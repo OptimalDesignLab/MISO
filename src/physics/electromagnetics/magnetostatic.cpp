@@ -324,27 +324,63 @@ void MagnetostaticSolver::constructMagnetization()
 {
    mag_coeff.reset(new VectorMeshDependentCoefficient(dim));
 
-   if (options.contains("magnets"))
+   if (options["problem-opts"].contains("magnets"))
    {
-      if (options["magnets"].contains("north"))
+      auto magnets = options["problem-opts"]["magnets"];
+      if (magnets.contains("north"))
       {
-         auto north_attr = options["magnets"]["north"].get<std::vector<int>>();
-         for (auto& attr : north_attr)
+         auto attrs = magnets["north"].get<std::vector<int>>();
+         for (auto& attr : attrs)
          {
-            std::unique_ptr<mfem::VectorCoefficient> magnet_coeff_north(
-               new VectorFunctionCoefficient(dim, magnetization_source_north));
-            mag_coeff->addCoefficient(attr, move(magnet_coeff_north));
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim,
+                                                magnetization_source_north));
+            mag_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
-      if (options["magnets"].contains("south"))
+      if (magnets.contains("south"))
       {
-         auto south_attr = options["magnets"]["south"].get<std::vector<int>>();
+         auto attrs = magnets["south"].get<std::vector<int>>();
          
-         for (auto& attr : south_attr)
+         for (auto& attr : attrs)
          {
-            std::unique_ptr<mfem::VectorCoefficient> magnet_coeff_south(
-               new VectorFunctionCoefficient(dim, magnetization_source_south));
-            mag_coeff->addCoefficient(attr, move(magnet_coeff_south));
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim,
+                                                magnetization_source_south));
+            mag_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
+      if (magnets.contains("x"))
+      {
+         auto attrs = magnets["x"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim,
+                                                x_axis_magnetization_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
+      if (magnets.contains("y"))
+      {
+         auto attrs = magnets["y"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim,
+                                                y_axis_magnetization_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
+      if (magnets.contains("z"))
+      {
+         auto attrs = magnets["z"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim,
+                                                z_axis_magnetization_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
    }
@@ -357,37 +393,78 @@ void MagnetostaticSolver::constructCurrent()
 {
    current_coeff.reset(new VectorMeshDependentCoefficient());
 
-   if (options.contains("phases"))
+   if (options["problem-opts"].contains("current"))
    {
-      if (options["phases"].contains("A"))
+      auto current = options["problem-opts"]["current"];
+      if (current.contains("Phase-A"))
       {
-         auto phase_a_attr = options["phases"]["A"].get<std::vector<int>>();
-         for (auto& attr : phase_a_attr)
+         auto attrs = current["Phase-A"].get<std::vector<int>>();
+         for (auto& attr : attrs)
          {
-            std::unique_ptr<mfem::VectorCoefficient> phase_a_coeff(
-               new VectorFunctionCoefficient(dim, phase_a_source));
-            current_coeff->addCoefficient(attr, move(phase_a_coeff));
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim, phase_a_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
-      if (options["phases"].contains("B"))
+      if (current.contains("Phase-B"))
       {
-            auto phase_b_attr = options["phases"]["B"].get<std::vector<int>>();
-            for (auto& attr : phase_b_attr)
-            {
-                     std::unique_ptr<mfem::VectorCoefficient> phase_b_coeff(
-                              new VectorFunctionCoefficient(dim, phase_b_source));
-                     current_coeff->addCoefficient(attr, move(phase_b_coeff));
-            }
+         auto attrs = current["Phase-B"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim, phase_b_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
       }
-      if (options["phases"].contains("C"))
+      if (current.contains("Phase-C"))
       {
-            auto phase_c_attr = options["phases"]["C"].get<std::vector<int>>();
-            for (auto& attr : phase_c_attr)
-            {
-                     std::unique_ptr<mfem::VectorCoefficient> phase_c_coeff(
-                              new VectorFunctionCoefficient(dim, phase_c_source));
-                     current_coeff->addCoefficient(attr, move(phase_c_coeff));
-            }
+         auto attrs = current["Phase-C"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim, phase_c_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
+      if (current.contains("x"))
+      {
+         auto attrs = current["x"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim, x_axis_current_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
+      if (current.contains("y"))
+      {
+         auto attrs = current["y"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim, y_axis_current_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
+      if (current.contains("z"))
+      {
+         auto attrs = current["z"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim, z_axis_current_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
+      if (current.contains("ring"))
+      {
+         auto attrs = current["ring"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                     new VectorFunctionCoefficient(dim, ring_current_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
       }
    }
 }
@@ -639,9 +716,6 @@ void MagnetostaticSolver::phase_c_source(const Vector &x,
 {
    J.SetSize(3);
    J = 0.0;
-
-   // J(2) = current_density;
-
    // Vector r = x;
    // r(2) = 0.0;
    // r /= r.Norml2();
@@ -673,6 +747,67 @@ void MagnetostaticSolver::magnetization_source_south(const Vector &x,
 
    // M = 0.0;
    // M(2) = remnant_flux;
+}
+
+void MagnetostaticSolver::x_axis_current_source(const Vector &x,
+                                                Vector &J)
+{
+   J.SetSize(3);
+   J = 0.0;
+   J(0) = current_density;
+}
+
+void MagnetostaticSolver::y_axis_current_source(const Vector &x,
+                                                Vector &J)
+{
+   J.SetSize(3);
+   J = 0.0;
+   J(1) = current_density;   
+}
+
+void MagnetostaticSolver::z_axis_current_source(const Vector &x,
+                                                Vector &J)
+{
+   J.SetSize(3);
+   J = 0.0;
+   J(2) = current_density;
+}
+
+void MagnetostaticSolver::ring_current_source(const Vector &x,
+                                              Vector &J)
+{
+   J.SetSize(3);
+   J = 0.0;
+   Vector r = x;
+   r(2) = 0.0;
+   r /= r.Norml2();
+   J(0) = -r(1);
+   J(1) = r(0);
+   J *= current_density;
+}
+
+void MagnetostaticSolver::x_axis_magnetization_source(const Vector &x,
+                                                      Vector &M)
+{
+   M.SetSize(3);
+   M = 0.0;
+   M(0) = remnant_flux;
+}
+
+void MagnetostaticSolver::y_axis_magnetization_source(const Vector &x,
+                                                      Vector &M)
+{
+   M.SetSize(3);
+   M = 0.0;
+   M(1) = remnant_flux;
+}
+
+void MagnetostaticSolver::z_axis_magnetization_source(const Vector &x,
+                                                      Vector &M)
+{
+   M.SetSize(3);
+   M = 0.0;
+   M(2) = remnant_flux;
 }
 
 /// TODO: Find a better way to handle solving the simple box problem

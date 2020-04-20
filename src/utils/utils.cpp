@@ -614,12 +614,15 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
 }
 #endif
 
-#ifdef MFEM_USE_GSLIB
+// #ifdef MFEM_USE_GSLIB
 void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
                       const GridFunType &in, GridFunType &out)
 {
    const int dim = old_mesh.Dimension(); 
 
+   old_mesh.EnsureNodes();
+   new_mesh.EnsureNodes();
+   
    Vector vxyz = *(new_mesh.GetNodes());
    const int nodes_cnt = vxyz.Size() / dim;
    FindPointsGSLIB finder;
@@ -642,13 +645,13 @@ void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
       out(n) = interp_vals(n);
    }
 }
-#else
+// #else
 void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
                       const GridFunType &in, GridFunType &out)
 {
    throw MachException("transferSolution requires GSLIB!"
                        "\trecompile MFEM with GSLIB!");
 }
-#endif
+// #endif
 
 } // namespace mach

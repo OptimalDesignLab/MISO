@@ -65,6 +65,9 @@
       }
    },
    "problem-opts" : {
+      "current" : {
+         "z" : [1]
+      },
       "fill-factor" : 1.0,
       "current-density" : 1,
       "frequency": 1500,
