@@ -13,7 +13,7 @@ namespace mach
 
 /// Solver for inviscid flow problems
 /// dim - number of spatial dimensions (1, 2, or 3)
-template <int dim>
+template <int dim, bool entvar = false>
 class EulerSolver : public AbstractSolver
 {
 public:

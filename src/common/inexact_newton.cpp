@@ -97,6 +97,8 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
    MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
    MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
 
+   std::cout << "Beginning of inexact Newton..." << std::endl;
+
    int it;
    double norm0, norm, norm_goal;
    const bool have_b = (b.Size() == Height());
@@ -113,7 +115,6 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
    norm0 = norm = Norm(r);
    norm_goal = std::max(rel_tol*norm, abs_tol);
    prec->iterative_mode = false;
-   static_cast<IterativeSolver*> (prec)->SetRelTol(eta);
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
    {
@@ -143,11 +144,11 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
       }
 
       jac = &oper->GetGradient(x);
-     // std::cout << "Get the jacobian matrix.\n";
+      // std::cout << "Get the jacobian matrix.\n";
       prec->SetOperator(*jac);
       //std::cout << "jac is set as one operator.\n";
       prec->Mult(r, c);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
-     // std::cout << "Solve for the newton step.\n";
+      // std::cout << "Solve for the newton step.\n";
       double c_scale = ComputeStepSize(x, b, norm);
 
       if (c_scale == 0.0)

@@ -461,15 +461,11 @@ void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
 {
    if (entvar)
    {
-      // calcIsmailRoeFaceFluxUsingEntVars<double, dim>(
-      //     dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
       calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
           dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
    }
    else 
    {
-      // calcIsmailRoeFaceFlux<double, dim>(dir.GetData(), qL.GetData(),
-      //                                    qR.GetData(), flux.GetData());
       calcIsmailRoeFaceFluxWithDiss<double, dim>(dir.GetData(), qL.GetData(),
                                          qR.GetData(), flux.GetData());
    }
@@ -537,17 +533,13 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
    std::vector<adouble> flux_a(qL.Size());
    if (entvar)
    {
-      // mach::calcIsmailRoeFaceFluxUsingEntVars<adouble, dim>(
-      //     dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
-      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(dir_a.data(), qL_a.data(),
-                                                qR_a.data(), flux_a.data());
+      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
+          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      // mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
-      //                                           qR_a.data(), flux_a.data());
-      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
-          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(dir_a.data(), qL_a.data(),
+                                                qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());
@@ -556,4 +548,40 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
    this->stack.jacobian(jac_dir.GetData());
 }
 
+template <int dim, bool entvar>
+double PressureForce<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                              const mfem::Vector &dir,
+                                              const mfem::Vector &q)
+{
+   calcSlipWallFlux<double, dim, entvar>(x.GetData(), dir.GetData(),
+                                         q.GetData(), work_vec.GetData());
+   return dot<double, dim>(force_nrm.GetData(), work_vec.GetData() + 1);
+}
 
+template <int dim, bool entvar>
+void PressureForce<dim, entvar>::calcFlux(const mfem::Vector &x,
+                                          const mfem::Vector &dir,
+                                          const mfem::Vector &q,
+                                          mfem::Vector &flux_vec)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> force_nrm_a(force_nrm.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(force_nrm_a.data(), force_nrm.Size(), force_nrm.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcSlipWallFlux<adouble, dim, entvar>(x_a.data(), dir_a.data(),
+                                                q_a.data(), flux_a.data());
+   adouble fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
+   fun_a.set_gradient(1.0);
+   this->stack.compute_adjoint();
+   adept::get_gradients(q_a.data(), q.Size(), flux_vec.GetData());
+}

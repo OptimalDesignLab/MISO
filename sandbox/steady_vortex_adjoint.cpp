@@ -1,4 +1,5 @@
-/// Solve the steady isentropic vortex problem on a quarter annulus
+/// Solve the steady isentropic vortex problem on a quarter annulus, and then
+/// solves the adjoint corresponding to the drag computed over the inner radius
 #include<random>
 #include "adept.h"
 
@@ -17,8 +18,7 @@ std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
-template<bool entvar = false>
-void uexact(const Vector &x, Vector& q);
+void uexact(const Vector &x, Vector& u);
 
 /// \brief Defines the random function for the jabocian check
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -34,44 +34,23 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "steady_vortex_options.json";
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady.petsc";
-   // Get the option file
-   nlohmann::json options;
-   ifstream option_source(options_file);
-   option_source >> options;
-   // Write the petsc option file
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
-
-   petscoptions.close();
-#endif
+   const char *options_file = "steady_vortex_adjoint_options.json";
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-#else
-   int myid = 0;
-#endif
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 #endif
   
    // Parse command-line options
    OptionsParser args(argc, argv);
-   int degree = 2;
+   int map_degree = 2.0;
    int nx = 1;
    int ny = 1;
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
-   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
+   args.AddOption(&map_degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
    args.Parse();
@@ -85,44 +64,42 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      //unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      unique_ptr<Mesh> smesh;
-      smesh.reset(new Mesh("annulus_fine.mesh", 1, 0, 1));
-      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
-      ofstream sol_ofs("steady_vortex_mesh.vtk");
-      ofstream meshsave("steady_vortex_mesh.mesh");
+      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(map_degree, nx, ny);
+      std::cout << "Number of elements " << smesh->GetNE() << std::endl;
+      ofstream sol_ofs("steady_vortex_adjoint_mesh.vtk");
       sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,0);
-      smesh->Print(meshsave);
-      sol_ofs.close();
-      meshsave.close();
+      smesh->PrintVTK(sol_ofs,3);
 
-      unique_ptr<AbstractSolver> solver(new EulerSolver<2, true>(opt_file_name, move(smesh)));
+      unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
       solver->initDerived();
 
-      solver->setInitialCondition(uexact<true>);
-      solver->printSolution("euler_init", 0);
+      solver->setInitialCondition(uexact);
+      solver->printSolution("init", map_degree+1);
 
-      double l_error = solver->calcL2Error(uexact<true>, 0);
+      double l2_error = solver->calcL2Error(uexact, 0);
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
       solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("euler_final",0);
-      l_error = solver->calcL2Error(uexact<true>, 0);
+      solver->printSolution("final", map_degree+1);
+      l2_error = solver->calcL2Error(uexact, 0);
       res_error = solver->calcResidualNorm();
-      //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
       if (0==myid)
       {
          mfem::out << "\nfinal residual norm = " << res_error;
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
-         //mfem::out << "\nDrag error = " << drag << endl;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+         mfem::out << "\nDrag error = " << drag << endl;
       }
+
+      // Solve for and print out the adjoint
+      solver->solveForAdjoint("drag");
+      solver->printAdjoint("adjoint", map_degree+1);
 
    }
    catch (MachException &exception)
@@ -155,11 +132,9 @@ void pert(const Vector &x, Vector& p)
 // Exact solution; note that I reversed the flow direction to be clockwise, so
 // the problem and mesh are consistent with the LPS paper (that is, because the
 // triangles are subdivided from the quads using the opposite diagonal)
-template <bool entvar>
-void uexact(const Vector &x, Vector& q)
+void uexact(const Vector &x, Vector& u)
 {
-   q.SetSize(4);
-   Vector u(4);
+   u.SetSize(4);
    double ri = 1.0;
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
@@ -186,18 +161,7 @@ void uexact(const Vector &x, Vector& q)
    u(1) = rho*a*Ma*sin(theta);
    u(2) = -rho*a*Ma*cos(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
-
-   if (entvar == false)
-   {
-      q = u;
-   }
-   else
-   {
-      calcEntropyVars<double, 2>(u.GetData(), q.GetData());
-   }
 }
-template void uexact<true>(const Vector &x, Vector& u);
-template void uexact<false>(const Vector &x, Vector& u);
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {

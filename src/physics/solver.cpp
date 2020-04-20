@@ -111,10 +111,9 @@ void AbstractSolver::initDerived()
    }
 
 #ifdef MFEM_USE_MPI
-   cout << "Number of finite element unknowns: " << fes->GetTrueVSize() << endl;
-   //fes->GlobalTrueVSize()
+   *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
 #else
-   cout << "Number of finite element unknowns: "
+   *out << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
 
@@ -163,7 +162,6 @@ void AbstractSolver::initDerived()
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #endif
    const string odes = options["time-dis"]["ode-solver"].get<string>();
-   std::cout << "ode solver is " << odes << std::endl;
    if (odes == "RK1" || odes == "RK4")
    {
       //evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
@@ -441,6 +439,21 @@ void AbstractSolver::printSolution(const std::string &file_name,
    sol_ofs.close();
 }
 
+void AbstractSolver::printAdjoint(const std::string &file_name,
+                                  int refine)
+{
+   // TODO: These mfem functions do not appear to be parallelized
+   ofstream adj_ofs(file_name + ".vtk");
+   adj_ofs.precision(14);
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].get<int>() + 1;
+   }
+   mesh->PrintVTK(adj_ofs, refine);
+   adj->SaveVTK(adj_ofs, "Adjoint", refine);
+   adj_ofs.close();
+}
+
 void AbstractSolver::printResidual(const std::string &file_name,
                                    int refine)
 {
@@ -479,6 +492,18 @@ void AbstractSolver::solveForState()
    }
 }
 
+void AbstractSolver::solveForAdjoint(const std::string &fun)
+{
+   if (options["steady"].get<bool>() == true)
+   {
+      solveSteadyAdjoint(fun);
+   }
+   else 
+   {
+      solveUnsteadyAdjoint(fun);
+   }
+}
+
 void AbstractSolver::solveSteady()
 {
 #ifdef MFEM_USE_MPI
@@ -495,18 +520,17 @@ void AbstractSolver::solveSteady()
    double reltol = options["petscsolver"]["reltol"].get<double>();
    int maxiter = options["petscsolver"]["maxiter"].get<int>();
    int ptl = options["petscsolver"]["printlevel"].get<int>();
-   // solver.reset(new GMRESSolver());
-   // prec.reset(new GSSmoother(1,1));
-   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetAbsTol(abstol);
-   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetRelTol(reltol);
-   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetMaxIter(maxiter);
-   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetPrintLevel(ptl);
-   // dynamic_cast<mfem::IterativeSolver *>(solver.get())->SetPreconditioner(*prec);
 
-   //solver.reset(new KLUSolver());
-   solver.reset(new UMFPackSolver());
-   dynamic_cast<UMFPackSolver *>(solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-   dynamic_cast<UMFPackSolver *>(solver.get())->SetPrintLevel(1);
+   solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
+   prec.reset(new mfem::PetscPreconditioner(fes->GetComm(), "prec_"));
+   dynamic_cast<mfem::PetscLinearSolver *>(solver.get())->SetPreconditioner(*prec);
+
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(abstol);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
+   *out << "Petsc Solver set.\n";
+   //Get the newton solver options
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
@@ -520,13 +544,12 @@ void AbstractSolver::solveSteady()
    newton_solver->SetMaxIter(nmaxiter);
    newton_solver->SetPrintLevel(nptl);
    std::cout << "Newton solver is set.\n";
-   clock_t start_t = clock();
    mfem::Vector b;
+   mfem::Vector u_true;
+   u->GetTrueDofs(u_true);
    newton_solver->Mult(b, *uc);
-   clock_t end_t = clock();
-   double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-   cout << "Time for solve the nonlinear prroblem: " << total_t << "s.\n";
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   u->SetFromTrueDofs(u_true);
 
    // // Get the PetscSolver option
    // double abstol = options["petscsolver"]["abstol"].get<double>();
@@ -566,22 +589,25 @@ void AbstractSolver::solveSteady()
    //u->SetFromTrueDofs(u_true);
 #else
    // Hypre solver section
-   cout << "HypreGMRESSolver with HypreEuclid preconditioner.\n";
-   prec.reset(new HypreEuclid(dynamic_cast<GalerkinDifference *>(fes.get())->GetComm()));
-   double tol = options["lin-solver"]["tol"].get<double>();
+   *out << "HypreGMRES Solver with euclid preconditioner.\n";
+   prec.reset(new HypreEuclid(fes->GetComm()));
+   double reltol = options["lin-solver"]["reltol"].get<double>();
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
-   solver.reset(new HypreGMRES(dynamic_cast<GalerkinDifference *>(fes.get())->GetComm()));
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<mfem::HypreSolver *>(prec.get()));
-
+   int fill = options["lin-solver"]["filllevel"].get<int>();
+   HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
+   solver.reset( new HypreGMRES(fes->GetComm()) );
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
+   dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
    double nabstol = options["newton"]["abstol"].get<double>();
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
    int nptl = options["newton"]["printlevel"].get<int>();
-   newton_solver.reset(new mfem::NewtonSolver(dynamic_cast<GalerkinDifference *>(fes.get())->GetComm()));
+   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   //double eta = 1e-1;
+   //newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
    newton_solver->SetOperator(*res);
@@ -592,16 +618,19 @@ void AbstractSolver::solveSteady()
 
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
-   mfem::Vector u_true;
-   u->GetTrueDofs(u_true);
-   newton_solver->Mult(b, *uc);
+   //mfem::Vector u_true;
+   HypreParVector *u_true = u->GetTrueDofs();
+   //HypreParVector b(*u_true);
+   //u->GetTrueDofs(u_true);
+   newton_solver->Mult(b, *u_true);
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    //u->SetFromTrueDofs(u_true);
+   u->SetFromTrueDofs(*u_true);
 #endif
    if (0==rank)
    {
       t2 = MPI_Wtime();
-      cout << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+      *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
    }
 #else
    // serial
@@ -662,7 +691,7 @@ void AbstractSolver::solveUnsteady()
 
    bool done = false;
    double t_final = options["time-dis"]["t-final"].get<double>();
-   std::cout << "t_final is " << t_final << '\n';
+   *out << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
    for (int ti = 0; !done;)
@@ -735,6 +764,66 @@ void AbstractSolver::solveUnsteady()
    // TODO: These mfem functions do not appear to be parallelized
 }
 
+void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
+{
+   double time_beg, time_end;
+   if (0==rank)
+   {
+      time_beg = MPI_Wtime();
+   }
+
+   // Step 0: allocate the adjoint variable
+   adj.reset(new GridFunType(fes.get()));
+
+   // Step 1: get the right-hand side vector, dJdu, and make an appropriate
+   // alias to it, the state, and the adjoint
+   std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+#ifdef MFEM_USE_MPI
+   HypreParVector *state = u->GetTrueDofs();
+   HypreParVector *dJ = dJdu->GetTrueDofs();
+   HypreParVector *adjoint = adj->GetTrueDofs();
+#else
+   GridFunType *state = u.get();
+   GridFunType *dJ = dJdu.get();
+   GridFunType *adjoint = adj.get();
+#endif
+   output.at(fun).Mult(*state, *dJ);
+
+   // Step 2: get the Jacobian and transpose it
+   Operator *jac = &res->GetGradient(*state);
+   TransposeOperator jac_trans = TransposeOperator(jac);
+
+   // Step 3: Solve the adjoint problem
+   *out << "Solving adjoint problem:\n"
+        << "\tsolver: HypreGMRES\n"
+        << "\tprec. : Euclid ILU" << endl;
+   prec.reset(new HypreEuclid(fes->GetComm()));
+   double tol = options["adj-solver"]["tol"].get<double>();
+   int maxiter = options["adj-solver"]["maxiter"].get<int>();
+   int ptl = options["adj-solver"]["printlevel"].get<int>();
+   solver.reset(new HypreGMRES(fes->GetComm()));
+   solver->SetOperator(jac_trans);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
+   solver->Mult(*dJ, *adjoint);
+#ifdef MFEM_USE_MPI
+   adj->SetFromTrueDofs(*adjoint);
+#endif
+   if (0==rank)
+   {
+      time_end = MPI_Wtime();
+      *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+   }
+}
+
+void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
+{
+   throw MachException("AbstractSolver::solveUnsteadyAdjoint(fun)\n"
+                       "\tnot implemented yet!");
+}
+
 double AbstractSolver::calcOutput(const std::string &fun)
 {
    try
@@ -751,46 +840,65 @@ double AbstractSolver::calcOutput(const std::string &fun)
    }
 }
 
-void AbstractSolver::jacobianCheck()
+void AbstractSolver::checkJacobian(
+    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
 {
-   // initialize the variables
+   // initialize some variables
    const double delta = 1e-5;
-   std::unique_ptr<CentGridFunction> u_plus;
-   std::unique_ptr<CentGridFunction> u_minus;
-   std::unique_ptr<CentGridFunction> perturbation_vec;
+   GridFunType u_plus(*u);
+   GridFunType u_minus(*u);
+   GridFunType pert_vec(fes.get());
+   VectorFunctionCoefficient up(num_state, pert_fun);
+   pert_vec.ProjectCoefficient(up);
 
-   perturbation_vec.reset(new CentGridFunction(fes.get()));
-   VectorFunctionCoefficient up(num_state, perturb_fun);
-   perturbation_vec->ProjectCoefficient(up);
-   u_plus.reset(new CentGridFunction(fes.get()));
-   u_minus.reset(new CentGridFunction(fes.get()));
+   // perturb in the positive and negative pert_vec directions
+   u_plus.Add(delta, pert_vec);
+   u_minus.Add(-delta, pert_vec);
 
-   // set uplus and uminus to the current state
-   *u_plus = 0.0;
-   *u_minus = 0.0;
-   u_plus->Add(1.0, *uc);
-   u_minus->Add(1.0, *uc);
-   u_plus->Add(delta, *perturbation_vec);
-   u_minus->Add(-delta, *perturbation_vec);
+   // Get the product using a 2nd-order finite-difference approximation
+   GridFunType res_plus(fes.get());
+   GridFunType res_minus(fes.get());
+#ifdef MFEM_USE_MPI 
+   HypreParVector *u_p = u_plus.GetTrueDofs();
+   HypreParVector *u_m = u_minus.GetTrueDofs();
+   HypreParVector *res_p = res_plus.GetTrueDofs();
+   HypreParVector *res_m = res_minus.GetTrueDofs();
+#else 
+   GridFunType *u_p = &u_plus;
+   GridFunType *u_m = &u_minus;
+   GridFunType *res_p = &res_plus;
+   GridFunType *res_m = &res_minus;
+#endif
+   res->Mult(*u_p, *res_p);
+   res->Mult(*u_m, *res_m);
+#ifdef MFEM_USE_MPI
+   res_plus.SetFromTrueDofs(*res_p);
+   res_minus.SetFromTrueDofs(*res_m);
+#endif
+   // res_plus = 1/(2*delta)*(res_plus - res_minus)
+   subtract(1/(2*delta), res_plus, res_minus, res_plus);
 
-   std::unique_ptr<CentGridFunction> res_plus;
-   std::unique_ptr<CentGridFunction> res_minus;
-   res_plus.reset(new CentGridFunction(fes.get()));
-   res_minus.reset(new CentGridFunction(fes.get()));
+   // Get the product directly using Jacobian from GetGradient
+   GridFunType jac_v(fes.get());
+#ifdef MFEM_USE_MPI
+   HypreParVector *u_true = u->GetTrueDofs();
+   HypreParVector *pert = pert_vec.GetTrueDofs();
+   HypreParVector *prod = jac_v.GetTrueDofs();
+#else
+   GridFunType *u_true = u.get();
+   GridFunType *pert = &pert_vec;
+   GridFunType *prod = &jac_v;
+#endif
+   mfem::Operator &jac = res->GetGradient(*u_true);
+   jac.Mult(*pert, *prod);
+#ifdef MFEM_USE_MPI 
+   jac_v.SetFromTrueDofs(*prod);
+#endif 
 
-   res->Mult(*u_plus, *res_plus);
-   res->Mult(*u_minus, *res_minus);
-
-   res_plus->Add(-1.0, *res_minus);
-   res_plus->Set(1 / (2 * delta), *res_plus);
-   // result from GetGradient(x)
-   std::unique_ptr<CentGridFunction> jac_v;
-   jac_v.reset(new CentGridFunction(fes.get()));
-   mfem::Operator &jac = res->GetGradient(*uc);
-   jac.Mult(*perturbation_vec, *jac_v);
    // check the difference norm
-   jac_v->Add(-1.0, *res_plus);
-   std::cout << "The (jav * v) difference norm is " << jac_v->Norml2() << '\n';
+   jac_v -= res_plus;
+   double error = calcInnerProduct(jac_v, jac_v);
+   *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
 } // namespace mach
