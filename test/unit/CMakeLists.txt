@@ -14,6 +14,7 @@ endfunction(create_tests)
 set(FLUID_TEST_SRCS
    test_euler_fluxes 
    test_euler_integ
+   test_euler_sens_integ
    test_inexact_newton
    test_navier_stokes_fluxes
    test_navier_stokes_integ

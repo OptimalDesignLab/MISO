@@ -128,6 +128,10 @@ public:
    double getSkewEntry(int di, int i, int j, const mfem::DenseMatrix &adjJ_i,
                        const mfem::DenseMatrix &adjJ_j) const;
 
+   void getSkewEntryRevDiff(int di, int i, int j, double Sij_bar,
+                            mfem::DenseMatrix &adjJ_i_bar,
+                            mfem::DenseMatrix &adjJ_j_bar) const;
+
    /// `(i,j)`th entry of matrix \f$ Q_{di} \f$ in physical space
    /// \param[in] di - desired physical space coordinate direction
    /// \param[in] i - row index for \f$ Q_{di} \f$
