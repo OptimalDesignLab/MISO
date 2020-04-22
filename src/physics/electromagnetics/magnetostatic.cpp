@@ -268,6 +268,22 @@ void MagnetostaticSolver::solveSteady()
 
 }
 
+void MagnetostaticSolver::addOutputs()
+{
+   auto &fun = options["outputs"];
+   if (fun.find("energy") != fun.end())
+   { 
+      output.at("energy").AddDomainIntegrator(
+         new MagneticEnergyIntegrator(nu.get()));
+   }
+   if (fun.find("co-energy") != fun.end())
+   { 
+      output.at("co-energy").AddDomainIntegrator(
+         new MagneticCoenergyIntegrator(nu.get()));
+   }
+   /// TODO: implement torque
+}
+
 std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
 {
    return {A.get(), B.get()};
@@ -277,7 +293,7 @@ void MagnetostaticSolver::setStaticMembers()
 {
    if (options["components"].contains("magnets"))
    {
-      auto magnets = options["components"]["magnets"];
+      auto &magnets = options["components"]["magnets"];
       std::string material = magnets["material"].get<std::string>();
       remnant_flux = materials[material]["B_r"].get<double>();
       mag_mu_r = materials[material]["mu_r"].get<double>();
@@ -326,7 +342,7 @@ void MagnetostaticSolver::constructMagnetization()
 
    if (options["problem-opts"].contains("magnets"))
    {
-      auto magnets = options["problem-opts"]["magnets"];
+      auto &magnets = options["problem-opts"]["magnets"];
       if (magnets.contains("north"))
       {
          auto attrs = magnets["north"].get<std::vector<int>>();
@@ -395,7 +411,7 @@ void MagnetostaticSolver::constructCurrent()
 
    if (options["problem-opts"].contains("current"))
    {
-      auto current = options["problem-opts"]["current"];
+      auto &current = options["problem-opts"]["current"];
       if (current.contains("Phase-A"))
       {
          auto attrs = current["Phase-A"].get<std::vector<int>>();

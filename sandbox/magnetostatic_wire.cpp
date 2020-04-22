@@ -40,6 +40,10 @@ int main(int argc, char *argv[])
       MagnetostaticSolver solver(opt_file_name);
       solver.solveForState();
       std::cout << "finish steady solve\n";
+      double energy = solver.calcOutput("energy");
+      std::cout << "Energy = " << energy << std::endl;
+      double coenergy = solver.calcOutput("co-energy");
+      std::cout << "Co-energy = " << coenergy << std::endl;
    }
    catch (MachException &exception)
    {

@@ -32,6 +32,9 @@ public:
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
    void solveSteady() override;
 
+   /// Create `output` based on `options` and add approporiate integrators
+   void addOutputs() override;
+
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {A, B}
    std::vector<GridFunType*> getFields() override;

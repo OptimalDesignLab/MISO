@@ -370,4 +370,177 @@ void MagnetizationIntegrator::AssembleElementGrad(
    */
 }
 
+double MagneticEnergyIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+   /// holds quadrature weight
+   double w;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   Vector b_vec(dimc);
+#else
+   curlshape.SetSize(ndof,dimc);
+   curlshape_dFt.SetSize(ndof,dimc);
+   b_vec.SetSize(dimc);
+#endif
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      b_vec = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+
+      w = ip.weight / trans.Weight();
+
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      double model_val = nu->Eval(trans, ip, b_vec.Norml2());
+      model_val *= w;
+
+      double el_en = b_vec*b_vec;
+      el_en *= 0.5 * model_val;
+
+      fun += el_en;
+   }
+}
+
+double MagneticCoenergyIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+   /// holds quadrature weight
+   double w;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   Vector b_vec(dimc);
+#else
+   curlshape.SetSize(ndof,dimc);
+   curlshape_dFt.SetSize(ndof,dimc);
+   b_vec.SetSize(dimc);
+#endif
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      b_vec = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+
+      w = ip.weight / trans.Weight();
+
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      double model_val = nu->Eval(trans, ip, b_vec.Norml2());
+      model_val *= w;
+
+      double el_en = b_vec*b_vec;
+      el_en *= 0.5 * model_val;
+
+      fun += el_en;
+   }
+}
+
+
+// ForceIntegrator::ForceIntegrator(const int _dir, std::vector<int> _regions,
+//                                  StateCoefficient *_nu, mfem::Coefficient *_M,
+//                                  mfem::Coefficient *_J)
+//    : dir(_dir), regions(_regions), nu(_nu), M(_nu), J(_J)
+// {
+//    /// TODO: Call pumi APIs to get a list of mesh face indices that are on the
+//    ///       boundary of the regions given in regions
+// }
+
+
+// double ForceIntegrator::GetFaceEnergy(const FiniteElement &el1,
+//                                       const FiniteElement &el2,
+//                                       FaceElementTransformations &Tr,
+//                                       const Vector &elfun)
+// {
+
+// }
+
+// double VWTorqueIntegrator::GetElementEnergy(const FiniteElement &el,
+//                                             ElementTransformation &Tr,
+//                                             const Vector &elfun)
+// {
+
+//    return 0.0;
+// }
+
 } // namespace mach
