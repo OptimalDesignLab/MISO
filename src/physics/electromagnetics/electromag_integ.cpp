@@ -441,6 +441,7 @@ double MagneticEnergyIntegrator::GetElementEnergy(
 
       fun += el_en;
    }
+   return fun;
 }
 
 double MagneticCoenergyIntegrator::GetElementEnergy(
@@ -514,6 +515,7 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
 
       fun += el_en;
    }
+   return fun;
 }
 
 
