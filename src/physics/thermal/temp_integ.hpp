@@ -26,6 +26,11 @@ public:
    /// Computes the induced functional estimate for aggregated temperature
 	double GetIEAggregate(mfem::GridFunction *temp);
 
+   /// Computes the induced functional estimate, need to call second constructor first
+   virtual double GetElementEnergy(const mfem::FiniteElement &el, 
+               mfem::ElementTransformation &Trans,
+               const mfem::Vector &elfun);
+
    /// Computes dJdu, for the adjoint. Must call GetIEAggregate beforehand.
    virtual void AssembleElementVector(const mfem::FiniteElement &el, 
                mfem::ElementTransformation &Trans,

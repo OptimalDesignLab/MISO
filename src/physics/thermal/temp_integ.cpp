@@ -62,6 +62,30 @@ double AggregateIntegrator::GetIEAggregate(mfem::GridFunction *temp)
    return J_;
 }
 
+double AggregateIntegrator::GetElementEnergy(const mfem::FiniteElement &el, 
+               mfem::ElementTransformation &Trans,
+               const mfem::Vector &elfun)
+{
+   double Jpart = 0;
+   const int dof = el.GetDof();
+   const int dim = el.GetDim();
+   const int attr = Trans.Attribute;
+   Vector DofVal(elfun.Size());
+   maxt = temp_->Max()/max(attr);
+   const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+   // loop through nodes
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      el.CalcShape(ip, DofVal);
+      double val = (DofVal*elfun)/max(attr);
+      Jpart += ip.weight*Trans.Weight()*val*exp(rho*(val - maxt));
+   }
+
+   return Jpart/denom_;
+}
+
 void AggregateIntegrator::AssembleElementVector(const mfem::FiniteElement &el, 
                mfem::ElementTransformation &Trans,
                const mfem::Vector &elfun, mfem::Vector &elvect)

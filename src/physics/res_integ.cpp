@@ -1,0 +1,242 @@
+#include "res_integ.hpp"
+
+using namespace mfem;
+using namespace std;
+
+namespace mach
+{
+
+void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
+                                       ElementTransformation &Trx,
+                                       const Vector &elfunx, Vector &elvect)
+{   
+    /// get the proper element, transformation, and state vector
+    Array<int> vdofs; Vector elfun; Vector eladj;
+    int element = Trx.ElementNo;
+    const FiniteElement *el = state->FESpace()->GetFE(element);
+    ElementTransformation *Tr = state->FESpace()->GetElementTransformation(element);
+    state->FESpace()->GetElementVDofs(element, vdofs);
+    const IntegrationRule *ir = IntRule;
+    if (ir == NULL)
+    {
+        ir = &IntRules.Get(el->GetGeomType(), oa * el->GetOrder() + ob);
+    }
+    state->GetSubVector(vdofs, elfun); //don't need this one
+    adjoint->GetSubVector(vdofs, eladj);
+
+    const int dof = elx.GetDof();
+    const int dim = el->GetDim();
+    elvect.SetSize(dof*dim);
+    elvect = 0.0;
+
+    // cast the ElementTransformation
+    IsoparametricTransformation &isotrans =
+    dynamic_cast<IsoparametricTransformation&>(*Tr);
+
+    Vector x_q(dim);
+    Vector x_bar(dim);
+    DenseMatrix Jac_q(dim, dim);
+    DenseMatrix Jac_bar(dim, dim);
+    DenseMatrix PointMat_bar(dim, dof);
+
+    
+    // loop through nodes
+    for (int i = 0; i < ir->GetNPoints(); ++i)
+    {
+        const IntegrationPoint &ip = ir->IntPoint(i);
+        Tr->SetIntPoint(&ip);
+        Tr->Transform(ip, x_q);
+
+        //reverse mode differentiation
+        //calcFunctionalRevDiff(Tr->ElementNo,
+        //                        ip, x_q, Tr, Jac_q, x_bar, Jac_bar);
+        PointMat_bar = 0.0;
+        //isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
+        //isotrans.Transform(ip, x_bar, PointMat_bar);
+
+        /// NOTE: Q may or may not have sensitivity to x. Need to tailor to
+        /// different coefficients 
+
+        /// can i skip shape function part?
+        el->CalcShape(ip, shape);
+        double deriv = ip.weight*Q.Eval(*Tr, ip)*(eladj*shape); //dR/dWeight
+        isotrans.WeightRevDiff(PointMat_bar); //dWeight/dX        
+        PointMat_bar.Set(deriv, PointMat_bar);
+
+        for (int j = 0; j < dof ; ++j)
+        {
+            for (int d = 0; d < dim; ++d)
+            {
+                elvect(d* dof + j) += PointMat_bar (d,j);
+            }
+        }
+    }
+}
+
+void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
+                                       ElementTransformation &Trx,
+                                       const Vector &elfunx, Vector &elvect)
+{
+    /// get the proper element, transformation, and state vector
+    Array<int> vdofs; Vector elfun; Vector eladj; 
+    int element = Trx.ElementNo;
+    const FiniteElement *el = state->FESpace()->GetFE(element);
+    ElementTransformation *Tr = state->FESpace()->GetElementTransformation(element);
+    state->FESpace()->GetElementVDofs(element, vdofs);
+    int order = 2*el->GetOrder() + Tr->OrderW();
+    const IntegrationRule *ir = IntRule;
+    if (ir == NULL)
+    {
+        ir = &IntRules.Get(el->GetGeomType(), order);
+    }
+    state->GetSubVector(vdofs, elfun);
+    adjoint->GetSubVector(vdofs, eladj);
+
+    const int dof = elx.GetDof();
+    const int dofu = el->GetDof();
+    const int dim = el->GetDim();
+    elvect.SetSize(dof*dim);
+    elvect = 0.0;
+
+    // cast the ElementTransformation
+    IsoparametricTransformation &isotrans =
+    dynamic_cast<IsoparametricTransformation&>(*Tr);
+
+    DenseMatrix elmat(dofu);
+    DenseMatrix PointMat_bar(dim, dof);
+    
+    // loop through nodes
+    for (int i = 0; i < ir->GetNPoints(); ++i)
+    {
+        const IntegrationPoint &ip = ir->IntPoint(i);
+        Tr->SetIntPoint(&ip);
+
+        PointMat_bar = 0.0;
+
+        /// NOTE: Q may or may not have sensitivity to x. Need to tailor to
+        /// different coefficients 
+        double deriv = ip.weight; //dR/dWeight
+        isotrans.WeightRevDiff(PointMat_bar);        
+        el->CalcShape(ip, shape);
+        if (Q)
+        {
+            deriv *= Q->Eval(*Tr, ip);
+        }
+
+        // perform deriv*(adj*shape)*(shape*elfun)
+        double rw = deriv*(eladj*shape)*(shape*elfun);
+        PointMat_bar.Set(rw, PointMat_bar); //dWeight/dX
+
+        for (int j = 0; j < dof ; ++j)
+        {
+            for (int d = 0; d < dim; ++d)
+            {
+                elvect(d*dof + j) += PointMat_bar(d,j);
+            }
+        }
+    }
+}
+
+#if 0
+double DomainResIntegrator::GetElementEnergy(const FiniteElement &elx,
+                                       ElementTransformation &Trx,
+                                       const Vector &elfunx)
+{
+    double Rpart = 0;
+    
+    /// get the proper element, transformation, and state vector
+    Array<int> vdofs; Vector elfun; Vector eladj;
+    int element = Trx.ElementNo;
+    const FiniteElement *el = state->FESpace()->GetFE(element);
+    ElementTransformation *Tr = state->FESpace()->GetElementTransformation(element);
+    state->FESpace()->GetElementVDofs(element, vdofs);
+    const IntegrationRule *ir = IntRule;
+    if (ir == NULL)
+    {
+        ir = &IntRules.Get(el->GetGeomType(), oa * el->GetOrder() + ob);
+    }
+    state->GetValues(element, *ir, elfun); //don't need this one
+    adjoint->GetValues(element, *ir, eladj);
+
+    const int dof = el->GetDof();
+    const int dim = el->GetDim();
+    
+    Vector x_q(dim);
+    DenseMatrix Jac_q(dim, dim);
+    
+    // loop through nodes
+    for (int i = 0; i < ir->GetNPoints(); ++i)
+    {
+        const IntegrationPoint &ip = ir->IntPoint(i);
+        Tr->SetIntPoint(&ip);
+        Tr->Transform(ip, x_q);
+        Jac_q = Tr->Jacobian();
+        double r_q = Tr->Weight()*Q.Eval(*Tr, ip);
+        //double r_q = calcFunctional(Tr->ElementNo,
+        //                             ip, x_q, Tr, Jac_q);
+        
+        //skipping shape function step
+        Rpart += ip.weight*r_q;
+    }
+
+   return Rpart;
+}
+
+double MassResIntegrator::GetElementEnergy(const FiniteElement &elx,
+                                       ElementTransformation &Trx,
+                                       const Vector &elfunx)
+{
+    double Rpart = 0;
+    
+    /// get the proper element, transformation, and state vector
+    Array<int> vdofs; Vector elfun; Vector eladj;
+    int element = Trx.ElementNo;
+    const FiniteElement *el = state->FESpace()->GetFE(element);
+    ElementTransformation *Tr = state->FESpace()->GetElementTransformation(element);
+    state->FESpace()->GetElementVDofs(element, vdofs);
+    int order = 2*el->GetOrder() + Tr->OrderW();
+    const IntegrationRule *ir = IntRule;
+    if (ir == NULL)
+    {
+        ir = &IntRules.Get(el->GetGeomType(), order);
+    }
+    state->GetValues(element, *ir, elfun); 
+    adjoint->GetValues(element, *ir, eladj);
+
+    Array<int> dofs;
+    const int dof = el->GetDof();
+    const int dim = el->GetDim();
+    
+    Vector x_q(dim);
+    Vector rvect(dof);
+    DenseMatrix Jac_q(dim, dim);
+    DenseMatrix elmat(dof);
+    
+    // assemble the matrix
+    elmat = 0.0;
+    for (int i = 0; i < ir->GetNPoints(); ++i)
+    {
+        const IntegrationPoint &ip = ir->IntPoint(i);
+        el->CalcShape(ip, shape);
+
+        Tr->SetIntPoint (&ip);
+        double w = Tr->Weight() * ip.weight;
+        if (Q)
+        {
+            w *= Q->Eval(*Tr, ip);
+        }
+
+        AddMult_a_VVt(w, shape, elmat);
+    }
+
+    elmat.Mult(elfun, rvect);
+
+    return rvect.Sum();
+}
+
+#endif
+
+}
+
+
+       

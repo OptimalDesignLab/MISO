@@ -21,6 +21,7 @@ set(FLUID_TEST_SRCS
    test_sbp_fe
    test_viscous_integ
    test_thermal_integ
+   test_res_integ
 )
 
 # group EM tests

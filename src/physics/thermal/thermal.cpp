@@ -487,10 +487,9 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
     GridFunType *dJ = dJdu.get();
     GridFunType *adjoint = adj.get();
 #endif
-	//mfem::Array<mfem::NonlinearFormIntegrator*>* arr = output.at(fun).GetDNFI();
-	//double unused = arr[0]->GetElementEnergy(theta.get());
-    
+    double energy = output.at(fun).GetEnergy(*theta);
 	output.at(fun).Mult(*state, *dJ);
+	cout << "Last Functional Output: " << energy << endl;
 
 	// Step 2: get the last time step's operator
 	HypreParMatrix *jac = evolver->GetOperator();
