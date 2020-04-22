@@ -273,16 +273,20 @@ void MagnetostaticSolver::solveSteady()
 void MagnetostaticSolver::addOutputs()
 {
    auto &fun = options["outputs"];
+   std::cout << fun;
    if (fun.find("energy") != fun.end())
    { 
+      std::cout << "adding energy!\n";
       output.at("energy").AddDomainIntegrator(
          new MagneticEnergyIntegrator(nu.get()));
    }
    if (fun.find("co-energy") != fun.end())
-   { 
+   {
+      std::cout << "adding co-energy!\n"; 
       output.at("co-energy").AddDomainIntegrator(
          new MagneticCoenergyIntegrator(nu.get()));
    }
+   std::cout << "done adding outputs!\n";
    /// TODO: implement torque
 }
 

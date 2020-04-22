@@ -625,7 +625,11 @@ void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
 
    Vector vxyz = *(new_mesh.GetNodes());
    const int nodes_cnt = vxyz.Size() / dim;
+#ifdef MFEM_USE_MPI
+   FindPointsGSLIB finder(MPI_COMM_WORLD);
+#else
    FindPointsGSLIB finder;
+#endif
    const double rel_bbox_el = 0.05;
    const double newton_tol  = 1.0e-12;
    const int npts_at_once   = 256;
