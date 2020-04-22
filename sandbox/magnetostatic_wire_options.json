@@ -39,5 +39,9 @@
       "current": {
          "z": [1]
       }
-   }
+   },
+   "outputs": [
+      "energy",
+      "co-energy"
+   ]
 }

@@ -199,6 +199,8 @@ MagnetostaticSolver::MagnetostaticSolver(
    newton_solver.SetAbsTol(options["newton"]["abstol"].get<double>());
    newton_solver.SetMaxIter(options["newton"]["maxiter"].get<int>());
    std::cout << "set newton solver\n";
+
+   addOutputs();
 }
 
 void MagnetostaticSolver::printSolution(const std::string &file_name,
