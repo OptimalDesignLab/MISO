@@ -45,10 +45,7 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
          state.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(pert);
 
-         // get the finite-element space for the mesh nodes, and extract nodes
-         //FiniteElementCollection *mesh_fec = mesh->GetNodes()->OwnFEC();
-         //std::unique_ptr<FiniteElementSpace> mesh_fes(
-         //   new FiniteElementSpace(mesh.get(), mesh_fec, dim));
+         // extract mesh nodes and get their finite-element space
          GridFunction *x_nodes = mesh->GetNodes();
          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
@@ -82,9 +79,7 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
          dfdx_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
 
-         //REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
-         std::cout << "dfdx_v    = " << dfdx_v << std::endl;
-         std::cout << "dfdx_v_fd = " << dfdx_v_fd << std::endl;
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }
    }
 }

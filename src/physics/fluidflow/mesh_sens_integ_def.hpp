@@ -32,7 +32,7 @@ void DyadicMeshSensIntegrator<Derived>::AssembleElementVector(
    adjJ_i_bar.SetSize(dim);
    adjJ_j_bar.SetSize(dim);
 	elvect.SetSize(dim*ndof);
-   PointMat_bar.SetSize(ndof, dim); // PointMat_bar = dfdx
+   PointMat_bar.SetSize(dim, ndof); // PointMat_bar = dfdx
    PointMat_bar = 0.0;
    for (int i = 0; i < num_nodes; ++i)
    {
@@ -75,7 +75,6 @@ void DyadicMeshSensIntegrator<Derived>::AssembleElementVector(
       for (int d = 0; d < dim; ++d)
       {
          elvect(d*ndof + i) = PointMat_bar(d, i);
-         //std::cout << "PointMat_bar(" << d << "," << i << ") = " << PointMat_bar(d, i) << std::endl;
       }
    }
 }
