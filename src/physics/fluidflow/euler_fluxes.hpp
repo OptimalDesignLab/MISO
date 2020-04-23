@@ -836,15 +836,16 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    flux[dim + 1] = rho_hat * h_hat * U;
 
    // add the dissipation
-   xdouble w_ave[dim+2], w_diff[dim+2];
-   xdouble q_ave[dim+2];
+   xdouble qL[dim+2], qR[dim+2], q_ave[dim+2];
+   xdouble w_diff[dim+2];
    xdouble dqdw_vec[dim+2];
+   calcConservativeVars<xdouble, dim>(wL, qL);
+   calcConservativeVars<xdouble, dim>(wR, qR);
    for (int i = 0; i < dim+2; i++)
    {
-      w_ave[i] = 0.5 * (wL[i] + wR[i]);
+      q_ave[i] = 0.5 * (qL[i] + qR[i]);
       w_diff[i] = wL[i] - wR[i];
    }
-   calcConservativeVars<xdouble, dim>(w_ave, q_ave);
    xdouble lambda = calcSpectralRadius<xdouble, dim>(dir, q_ave);
    calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
    for (int i = 0; i < dim+2; i++)
