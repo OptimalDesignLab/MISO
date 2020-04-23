@@ -20,7 +20,7 @@ std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - conservative variables stored as a 4-vector
+/// \param[out] u - state variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
 
 /// \brief Defines the random function for the jabocian check
@@ -156,9 +156,10 @@ void pert(const Vector &x, Vector& p)
 // Exact solution; note that I reversed the flow direction to be clockwise, so
 // the problem and mesh are consistent with the LPS paper (that is, because the
 // triangles are subdivided from the quads using the opposite diagonal)
-void uexact(const Vector &x, Vector& u)
+void uexact(const Vector &x, Vector& q)
 {
-   u.SetSize(4);
+   q.SetSize(4);
+   Vector u(4);
    double ri = 1.0;
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
@@ -181,21 +182,18 @@ void uexact(const Vector &x, Vector& u)
                  (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
    double a = sqrt(euler::gamma*press/rho);
 
-   if (entvar)
+   u(0) = rho;
+   u(1) = rho*a*Ma*sin(theta);
+   u(2) = -rho*a*Ma*cos(theta);
+   u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+
+   if (entvar == false)
    {
-      Vector q(4);
-      q(0) = rho;
-      q(1) = rho*a*Ma*sin(theta);
-      q(2) = -rho*a*Ma*cos(theta);
-      q(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
-      mach::calcEntropyVars<double, 2>(q.GetData(), u.GetData());
+      q = u;
    }
    else
    {
-      u(0) = rho;
-      u(1) = rho*a*Ma*sin(theta);
-      u(2) = -rho*a*Ma*cos(theta);
-      u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+      calcEntropyVars<double, 2>(u.GetData(), q.GetData());
    }
 }
 
