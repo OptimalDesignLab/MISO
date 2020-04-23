@@ -43,9 +43,9 @@ MagnetostaticSolver::MagnetostaticSolver(
    std::unique_ptr<mfem::Mesh> smesh)
    : AbstractSolver(opt_file_name, move(smesh))
 {
-   int dim = getMesh()->Dimension();
+   dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();
-   num_state = dim;
+   // num_state = dim;
 
    mesh->ReorientTetMesh();
    mesh->RemoveInternalBoundaries();
@@ -66,9 +66,6 @@ MagnetostaticSolver::MagnetostaticSolver(
 
    /// Create magnetic flux grid function
    B.reset(new GridFunType(h_div_space.get()));
-
-   current_vec.reset(new GridFunType(fes.get()));
-   div_free_current_vec.reset(new GridFunType(fes.get()));
 }
 
 void MagnetostaticSolver::printSolution(const std::string &file_name,
@@ -146,6 +143,9 @@ std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
 
 void MagnetostaticSolver::constructCoefficients()
 {
+   current_vec.reset(new GridFunType(fes.get()));
+   div_free_current_vec.reset(new GridFunType(fes.get()));
+   
    /// read options file to set the proper values of static member variables
    setStaticMembers();
    /// Construct current source coefficient
