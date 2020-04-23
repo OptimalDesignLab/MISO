@@ -176,7 +176,7 @@ public:
 
 #ifdef MFEM_USE_PUMI
    /// Return a pointer to the underlying PUMI mesh
-   apf::Mesh2* getPumiMesh() {return pumi_mesh};
+   apf::Mesh2* getPumiMesh() {return pumi_mesh;};
 #endif
 
 protected:

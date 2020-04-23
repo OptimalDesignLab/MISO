@@ -284,7 +284,7 @@ void MagnetostaticSolver::addOutputs()
    if (fun.find("co-energy") != fun.end())
    {
       std::cout << "adding co-energy!\n"; 
-      output.emplace("energy", h_curl_space.get());
+      output.emplace("co-energy", h_curl_space.get());
       output.at("co-energy").AddDomainIntegrator(
          new MagneticCoenergyIntegrator(nu.get()));
    }

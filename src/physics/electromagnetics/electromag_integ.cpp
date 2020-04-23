@@ -588,12 +588,12 @@ throw MachException("ForceIntegrator::ForceIntegrator()\n"
          auto search_tet = free_regions.find(r_1_tag);
          if (search_tet != free_regions.end())
          {
-            el_ids.insert(apf::getMDSIndex(pumi_mesh, r_1));
+            el_ids.insert(apf::getMdsIndex(pumi_mesh, r_1));
          }
          else
          {
             auto r_2 = pumi_mesh->getUpward(e,1);
-            el_ids.insert(apf::getMDSIndex(pumi_mesh, r_2));
+            el_ids.insert(apf::getMdsIndex(pumi_mesh, r_2));
          }
       }
    }
