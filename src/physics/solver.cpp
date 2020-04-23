@@ -195,11 +195,14 @@ void AbstractSolver::initDerived()
    auto &bcs = options["bcs"];
    bndry_marker.resize(bcs.size());
 
-   // set up the mass matrix
-   mass.reset(new BilinearFormType(fes.get()));
-   addMassVolumeIntegrators();
-   mass->Assemble(0);
-   mass->Finalize();
+   // set up the mass matrix for unsteady problems
+   if (!options["steady"].get<bool>())
+   {
+      mass.reset(new BilinearFormType(fes.get()));
+      addMassVolumeIntegrators();
+      mass->Assemble(0);
+      mass->Finalize();
+   }
 
    /// TODO: look at partial assembly
    stiff.reset(new BilinearFormType(fes.get()));
@@ -218,7 +221,6 @@ void AbstractSolver::initDerived()
    /// TODO: look at partial assembly
    // set up the spatial semi-linear form
    res.reset(new NonlinearFormType(fes.get()));
-   // Add integrators; this can be simplified if we template the entire class
    addVolumeIntegrators(alpha);
    addBoundaryIntegrators(alpha);
    addInterfaceIntegrators(alpha);
@@ -240,10 +242,12 @@ void AbstractSolver::initDerived()
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
-   mass_matrix.reset(mass->ParallelAssemble());
+   if (!options["steady"].get<bool>())
+      mass_matrix.reset(mass->ParallelAssemble());
    stiffness_matrix.reset(stiff->ParallelAssemble());
 #else
-   mass_matrix.reset(new MatrixType(mass->SpMat()));
+   if (!options["steady"].get<bool>())
+      mass_matrix.reset(new MatrixType(mass->SpMat()));
    stiffness_matrix.reset(new MatrixType(stiff->SpMat()));
 #endif
 
@@ -271,10 +275,11 @@ void AbstractSolver::initDerived()
    //    }
    // }
 
-   constructLinearSolver(options["lin-solver"]);
-   constructNewtonSolver();
+   // constructLinearSolver(options["lin-solver"]);
+   // constructNewtonSolver();
 
-   constructEvolver();
+   if (!options["steady"].get<bool>())
+      constructEvolver();
 
    // add the output functional QoIs 
    auto &fun = options["outputs"];
@@ -1109,6 +1114,7 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
    {
 #ifdef MFEM_USE_MPI
       prec.reset(new HypreAMS(fes.get()));
+      dynamic_cast<mfem::HypreAMS *>(prec.get())->SetPrintLevel(0);
       dynamic_cast<mfem::HypreAMS *>(prec.get())->SetSingularProblem();
 #else
       throw MachException("Hypre preconditioners require building MFEM with "

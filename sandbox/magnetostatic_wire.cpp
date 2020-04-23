@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
       // construct the solver
       string opt_file_name(options_file);
       MagnetostaticSolver solver(opt_file_name);
+      solver.initDerived();
       solver.solveForState();
       std::cout << "finish steady solve\n";
       double energy = solver.calcOutput("energy");
