@@ -69,7 +69,6 @@ MagnetostaticSolver::MagnetostaticSolver(
 
    current_vec.reset(new GridFunType(fes.get()));
    div_free_current_vec.reset(new GridFunType(fes.get()));
-
 }
 
 void MagnetostaticSolver::printSolution(const std::string &file_name,
@@ -90,17 +89,16 @@ void MagnetostaticSolver::setEssentialBoundaries()
    Array<int> ess_tdof_list;
    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    res->SetEssentialTrueDofs(ess_tdof_list);
+   /// set current vector's ess_tdofs to zero
+   current_vec->SetSubVector(ess_tdof_list, 0.0);
 }
 
 void MagnetostaticSolver::solveSteady()
 {
-   /// apply zero tangential boundary condition everywhere
-   ess_bdr.SetSize(mesh->bdr_attributes.Max());
-   ess_bdr = 1;
+   if (newton_solver == nullptr)
+      constructNewtonSolver();
 
-   Array<int> ess_tdof_list;
-   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-   res->SetEssentialTrueDofs(ess_tdof_list);
+   setEssentialBoundaries();
 
    Vector Zero(3);
    Zero = 0.0;
@@ -109,12 +107,6 @@ void MagnetostaticSolver::solveSteady()
 
    *u = 0.0;
    u->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-
-   /// alternative method to set current vector's ess_tdofs to zero
-   current_vec->SetSubVector(ess_tdof_list, 0.0);
-
-   if (newton_solver == nullptr)
-      constructNewtonSolver();
 
    HypreParVector *u_true = u->GetTrueDofs();
    HypreParVector *current_true = current_vec->GetTrueDofs();

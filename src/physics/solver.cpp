@@ -874,6 +874,9 @@ void AbstractSolver::setEssentialBoundaries()
          ess_bdr = 0;
       }
    }
+   Array<int> ess_tdof_list;
+   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   res->SetEssentialTrueDofs(ess_tdof_list);
 }
 
 void AbstractSolver::solveSteady()
