@@ -1,4 +1,8 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
+
+// set this const expression to true in order to use entropy variables for state
+constexpr bool entvar = false;
+
 #include<random>
 #include "adept.h"
 
@@ -88,31 +92,36 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
 
-      unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
+      unique_ptr<AbstractSolver> solver(
+         new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
       //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
       solver->printSolution("euler_init", 0);
 
-      double l_error = solver->calcL2Error(uexact, 0);
+      // get the initial density error
+      double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
       solver->checkJacobian(pert);
       solver->solveForState();
       solver->printSolution("euler_final",0);
-      l_error = solver->calcL2Error(uexact, 0);
+      // get the final density error
+      l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
       if (0==myid)
       {
          mfem::out << "\nfinal residual norm = " << res_error;
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
          mfem::out << "\nDrag error = " << drag << endl;
       }
 
@@ -172,10 +181,22 @@ void uexact(const Vector &x, Vector& u)
                  (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
    double a = sqrt(euler::gamma*press/rho);
 
-   u(0) = rho;
-   u(1) = rho*a*Ma*sin(theta);
-   u(2) = -rho*a*Ma*cos(theta);
-   u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   if (entvar)
+   {
+      Vector q(4);
+      q(0) = rho;
+      q(1) = rho*a*Ma*sin(theta);
+      q(2) = -rho*a*Ma*cos(theta);
+      q(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+      mach::calcEntropyVars<double, 2>(q.GetData(), u.GetData());
+   }
+   else
+   {
+      u(0) = rho;
+      u(1) = rho*a*Ma*sin(theta);
+      u(2) = -rho*a*Ma*cos(theta);
+      u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   }
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)

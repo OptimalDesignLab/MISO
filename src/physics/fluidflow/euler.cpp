@@ -16,6 +16,14 @@ EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
                               unique_ptr<mfem::Mesh> smesh)
     : AbstractSolver(opt_file_name, move(smesh))
 {
+   if (entvar)
+   {
+      *out << "The state variables are the entropy variables." << endl;
+   }
+   else
+   {
+      *out << "The state variables are the conservative variables." << endl;
+   }
    // define free-stream parameters; may or may not be used, depending on case
    mach_fs = options["flow-param"]["mach"].template get<double>();
    aoa_fs = options["flow-param"]["aoa"].template get<double>()*M_PI/180;
@@ -131,7 +139,7 @@ void EulerSolver<dim, entvar>::addOutputs()
          drag_dir(ipitch) = sin(aoa_fs);
       }
       output.at("drag").AddBdrFaceIntegrator(
-          new PressureForce<dim>(diff_stack, fec.get(), drag_dir),
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
           output_bndry_marker[idx]);
       idx++;
    }
@@ -154,7 +162,7 @@ void EulerSolver<dim, entvar>::addOutputs()
          lift_dir(ipitch) = cos(aoa_fs);
       }
       output.at("lift").AddBdrFaceIntegrator(
-          new PressureForce<dim>(diff_stack, fec.get(), lift_dir),
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
           output_bndry_marker[idx]);
       idx++;
    }
@@ -219,6 +227,77 @@ void EulerSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
       q_ref(ipitch+1) = q_ref(0)*mach_fs*sin(aoa_fs);
    }
    q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
+}
+
+template <int dim, bool entvar>
+double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
+   void (*u_exact)(const mfem::Vector &, mfem::Vector &), int entry)
+{
+   // This lambda function computes the error at a node
+   // Beware: this is not particularly efficient, given the conditionals
+   // Also **NOT thread safe!**
+   Vector qdiscrete(dim+2), qexact(dim+2); // define here to avoid reallocation
+   auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
+   {
+      if (entvar)
+      {
+         calcConservativeVars<double, dim>(discrete.GetData(),
+                                           qdiscrete.GetData());
+         calcConservativeVars<double, dim>(exact.GetData(), qexact.GetData());
+      }
+      else
+      {
+         qdiscrete = discrete;
+         qexact = exact;
+      }
+      double err = 0.0;
+      if (entry < 0)
+      {
+         for (int i = 0; i < dim+2; ++i)
+         {
+            double dq = qdiscrete(i) - qexact(i);
+            err += dq*dq;
+         }
+      }
+      else
+      {
+         err = qdiscrete(entry) - qexact(entry);
+         err = err*err;  
+      }
+      return err;
+   };
+
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   DenseMatrix vals, exact_vals;
+   Vector u_j, exsol_j;
+   double loc_norm = 0.0;
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      const FiniteElement *fe = fes->GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *T = fes->GetElementTransformation(i);
+      u->GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         vals.GetColumnReference(j, u_j);
+         exact_vals.GetColumnReference(j, exsol_j);
+         loc_norm += ip.weight * T->Weight() * node_error(u_j, exsol_j);
+      }
+   }
+   double norm;
+#ifdef MFEM_USE_MPI
+   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   norm = loc_norm;
+#endif
+   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
 }
 
 // explicit instantiation
