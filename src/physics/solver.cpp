@@ -209,6 +209,7 @@ void AbstractSolver::initDerived()
    stiff->Assemble(0);
    stiff->Finalize();
 
+   /// TODO: make this work for a grid function as well as a linear form
    load.reset(new LinearFormType(fes.get()));
    addLoadVolumeIntegrators(alpha);
    addLoadBoundaryIntegrators(alpha);

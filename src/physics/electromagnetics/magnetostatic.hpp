@@ -103,7 +103,7 @@ private:
    /// mark which boundaries are essential
    void setEssentialBoundaries() override;
 
-   int getNumState() override {return dim;};
+   int getNumState() override {return 1;};
    
    /// Create `output` based on `options` and add approporiate integrators
    void addOutputs() override;
