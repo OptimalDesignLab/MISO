@@ -847,13 +847,32 @@ void AbstractSolver::addMassVolumeIntegrators()
    const char* name = fes->FEColl()->Name();
    if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
    {
-      *out << "Adding SBP mass integrator...\n";
-      // *out << "num states: " << num_state << "\n";
       mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
    }
    else
    {
       mass->AddDomainIntegrator(new MassIntegrator());
+   }
+}
+
+void AbstractSolver::setEssentialBoundaries()
+{
+   auto &bcs = options["bcs"];
+
+   if (bcs.find("essential") != bcs.end())
+   {
+      auto tmp = bcs["essential"].get<vector<int>>();
+      ess_bdr.SetSize(tmp.size(), 0);
+      ess_bdr.Assign(tmp.data());
+   }
+   /// otherwise mark all attributes as nonessential
+   else
+   {
+      if (mesh->bdr_attributes) // some meshes may not have boundary attributes
+      {
+         ess_bdr.SetSize(mesh->bdr_attributes.Max());
+         ess_bdr = 0;
+      }
    }
 }
 
@@ -905,32 +924,9 @@ void AbstractSolver::solveSteady()
 #else
    // Hypre solver section
    *out << "HypreGMRES Solver with euclid preconditioner.\n";
-   // prec.reset(new HypreEuclid(fes->GetComm()));
-   // double reltol = options["lin-solver"]["reltol"].get<double>();
-   // int maxiter = options["lin-solver"]["maxiter"].get<int>();
-   // int ptl = options["lin-solver"]["printlevel"].get<int>();
-   // solver.reset( new HypreGMRES(fes->GetComm()) );
-   // dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
-   // dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
-   // dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
-   // dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
-   // double nabstol = options["newton"]["abstol"].get<double>();
-   // double nreltol = options["newton"]["reltol"].get<double>();
-   // int nmaxiter = options["newton"]["maxiter"].get<int>();
-   // int nptl = options["newton"]["printlevel"].get<int>();
-   // newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
-   // //double eta = 1e-1;
-   // //newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
-   // newton_solver->iterative_mode = true;
-   // newton_solver->SetSolver(*solver);
-   // newton_solver->SetOperator(*res);
-   // newton_solver->SetPrintLevel(nptl);
-   // newton_solver->SetRelTol(nreltol);
-   // newton_solver->SetAbsTol(nabstol);
-   // newton_solver->SetMaxIter(nmaxiter);
 
-   constructLinearSolver(options["lin-solver"]);
-   constructNewtonSolver();
+   if (newton_solver == nullptr)
+      constructNewtonSolver();
 
    // Solve the nonlinear problem with r.h.s at 0
    mfem::Vector b;
@@ -1177,6 +1173,9 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
 
 void AbstractSolver::constructNewtonSolver()
 {
+   if (solver == nullptr)
+      constructLinearSolver(options["lin-solver"]);
+
    double abstol = options["newton"]["abstol"].get<double>();
    double reltol = options["newton"]["reltol"].get<double>();
    int maxiter = options["newton"]["maxiter"].get<int>();
@@ -1252,52 +1251,13 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
 }
 
 void AbstractSolver::constructEvolver()
-{
-   /// check to see if the nonlinear residual has any domain integrators added
-   // int num_dnfi = res->GetDNFI()->Size();
-   // bool nonlinear = num_dnfi > 0 ? true : false;
-
-   // const string odes = options["time-dis"]["ode-solver"].get<string>();
-   // if (odes == "RK1" || odes == "RK4")
-   // {
-   //    if (nonlinear)
-   //       evolver.reset(new NonlinearEvolver(mass.get(), res.get()));
-   //    else
-   //       evolver.reset(new LinearEvolver(mass.get(), stiff.get()));
-   // }
-   // else
-   // {
-   //    if (nonlinear)
-   //       evolver.reset(new ImplicitNonlinearEvolver(mass.get(), res.get()));
-   //    else
-   //    {
-   //       evolver.reset(new ImplicitLinearEvolver(mass.get(), stiff.get()));
-   //    }
-   // }
-
-   
-   Array<int> ess_bdr;
-   auto &bcs = options["bcs"];
-   /// if any boundaries are marked as essential in the options file use that
-   if (bcs.find("essential") != bcs.end())
-   {
-      auto tmp = bcs["essential"].get<vector<int>>();
-      ess_bdr.SetSize(tmp.size(), 0);
-      ess_bdr.Assign(tmp.data());
-   }
-   /// otherwise mark all attributes as nonessential
-   else
-   {
-      if (mesh->bdr_attributes) // some meshes may not have boundary attributes
-      {
-         ess_bdr.SetSize(mesh->bdr_attributes.Max());
-         ess_bdr = 0;
-      }
-   }
-
+{   
    evolver.reset(new MachEvolver(ess_bdr, mass.get(), res.get(), stiff.get(),
                                  load.get(), -1.0, *out, 0.0,
                                  TimeDependentOperator::Type::IMPLICIT));
+   
+   if (newton_solver == nullptr)
+      constructNewtonSolver();
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

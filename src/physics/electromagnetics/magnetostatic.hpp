@@ -29,19 +29,13 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printSolution(const std::string &file_name, int refine = -1) override;
 
-   /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
-   void solveSteady() override;
-
-   /// Create `output` based on `options` and add approporiate integrators
-   void addOutputs() override;
-
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {A, B}
    std::vector<GridFunType*> getFields() override;
 
 private:
-   /// Nedelec finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
+   // /// Nedelec finite element collection
+   // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
    /// Raviart-Thomas finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
    /// H1 finite element collection
@@ -49,8 +43,8 @@ private:
    ///L2 finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> l2_coll;
 
-   /// H(Curl) finite element space
-   std::unique_ptr<SpaceType> h_curl_space;
+   // /// H(Curl) finite element space
+   // std::unique_ptr<SpaceType> h_curl_space;
    /// H(Div) finite element space
    std::unique_ptr<SpaceType> h_div_space;
    /// H1 finite element space
@@ -58,8 +52,8 @@ private:
    /// L2 finite element space
    std::unique_ptr<SpaceType> l2_space;
 
-   /// Magnetic vector potential A grid function
-   std::unique_ptr<GridFunType> A;
+   // /// Magnetic vector potential A grid function
+   // std::unique_ptr<GridFunType> A;
    /// Magnetic flux density B = curl(A) grid function
    std::unique_ptr<GridFunType> B;
    /// Magnetic flux density B = curl(A) grid function in H(curl) space
@@ -67,17 +61,13 @@ private:
    /// Magnetization grid function
    std::unique_ptr<GridFunType> M;
 
-   /// TODO: delete? defined in abstract solver
-   /// the spatial residual (a semilinear form)
-   std::unique_ptr<NonlinearFormType> res;
+   // /// TODO: delete? defined in abstract solver
+   // /// the spatial residual (a semilinear form)
+   // std::unique_ptr<NonlinearFormType> res;
 
    /// current source vector
    std::unique_ptr<GridFunType> current_vec;
    std::unique_ptr<GridFunType> div_free_current_vec;
-   // /// current source vector with applied BC
-   // std::unique_ptr<GridFunType> current_vec_BC;
-
-   // std::unique_ptr<mfem::Coefficient> neg_one;
 
    /// mesh dependent reluctivity coefficient
    std::unique_ptr<MeshDependentCoefficient> nu;
@@ -90,20 +80,36 @@ private:
    mfem::Array<int> ess_bdr;
    std::unique_ptr<mfem::VectorCoefficient> bc_coef;
 
-   /// linear system solver used in Newton's method
-   std::unique_ptr<mfem::HypreGMRES> solver;
-   /// linear system preconditioner used in Newton's method
-   std::unique_ptr<EMPrecType> prec;
+   // /// linear system solver used in Newton's method
+   // std::unique_ptr<mfem::HypreGMRES> solver;
+   // /// linear system preconditioner used in Newton's method
+   // std::unique_ptr<EMPrecType> prec;
 
-   /// Newton solver
-   mfem::NewtonSolver newton_solver;
+   // /// Newton solver
+   // mfem::NewtonSolver newton_solver;
 
    /// Material Library
    // nlohmann::json materials;
 
    int dim;
 
+   /// Construct various coefficients
+   void constructCoefficients() override;
+
+   /// Add volume integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   void addVolumeIntegrators(double alpha) override;
+
+   /// mark which boundaries are essential
+   void setEssentialBoundaries() override;
+
    int getNumState() override {return dim;};
+   
+   /// Create `output` based on `options` and add approporiate integrators
+   void addOutputs() override;
+
+   /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
+   void solveSteady() override;
 
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source

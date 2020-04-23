@@ -227,7 +227,7 @@ protected:
    /// the load vector linear form
    std::unique_ptr<LinearFormType> load;
 
-   /// TimeDependentOperator (TODO: is this the best way?)
+   /// the operator used for time-marching ODEs 
    std::unique_ptr<MachEvolver> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
@@ -238,6 +238,8 @@ protected:
    std::unique_ptr<mfem::Solver> solver;
    /// linear system preconditioner for solver in newton solver
    std::unique_ptr<mfem::Solver> prec;
+   /// Array that marks boundaries as essential
+   mfem::Array<int> ess_bdr;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
@@ -285,11 +287,14 @@ protected:
 
    /// Add boundary-face integrators to `load'
    /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
-   virtual void addLoadBoundaryIntegrators(double alpha = 1.0) {};
+   virtual void addLoadBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `load'
    /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
-   virtual void addLoadInterfaceIntegrators(double alpha = 1.0) {};
+   virtual void addLoadInterfaceIntegrators(double alpha) {};
+
+   /// mark which boundaries are essential
+   virtual void setEssentialBoundaries();
 
    /// Define the number of states, the finite element space, and state u
    virtual int getNumState() = 0; 
@@ -324,7 +329,6 @@ protected:
 
    /// Constructs the operator that defines ODE evolution 
    virtual void constructEvolver();
-
 
    /// Used by derived classes that themselves construct solver objects that
    /// don't need all the memory for a fully featured solver, that just need to

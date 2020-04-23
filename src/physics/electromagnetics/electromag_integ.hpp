@@ -170,23 +170,27 @@ public:
    /// \note this function will call PUMI APIs to figure out which nodes are
    ///       in free space/on the rotor (fixed/free)
    double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &Tr,
+                           mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
 private:
    /// pointer to abstract solver (used to get PUMI mesh)
-   AbstractSolver *solver;
+   AbstractSolver * const solver;
    /// list of regions to find the resultant force on
    const std::unordered_set<int> regions, free_regions;
    /// material (thus mesh) dependent model describing reluctivity
-   const StateCoefficient *nu;
+   StateCoefficient * const nu;
    /// direction to calculate the force
    const mfem::Vector dir;
-   /// set of model faces that define the interface between moving and fixed
-   /// parts
+   /// model faces that define the interface between moving and fixed regions
    std::unordered_set<int> face_list;
    /// set of element indices to be used to integrate over
    std::unordered_set<int> el_ids;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt, M;
+   mfem::Vector b_vec;
+#endif
 
 };
 
