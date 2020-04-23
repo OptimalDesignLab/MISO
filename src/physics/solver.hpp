@@ -174,6 +174,11 @@ public:
    /// Return a pointer to the solver's mesh
    MeshType* getMesh() {return mesh.get();}
 
+#ifdef MFEM_USE_PUMI
+   /// Return a pointer to the underlying PUMI mesh
+   apf::Mesh2* getPumiMesh() {return pumi_mesh};
+#endif
+
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication

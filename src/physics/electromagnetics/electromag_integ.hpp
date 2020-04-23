@@ -1,13 +1,15 @@
 #ifndef MACH_ELECTROMAG_INTEG
 #define MACH_ELECTROMAG_INTEG
 
-#include "mfem.hpp"
+#include <unordered_set>
 
-#include "coefficient.hpp"
-#include "solver.hpp"
+#include "mfem.hpp"
 
 namespace mach
 {
+
+class AbstractSolver;
+class StateCoefficient;
 
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
 class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator
@@ -145,42 +147,48 @@ private:
 #endif
 };
 
-// /// Integrator for forces due to electromagnetic fields
-// class ForceIntegrator : public mfem::NonlinearFormIntegrator
-// {
-// public:
-//    /// \param[in] dir - direction to calculate the force (x, y, z) -> (0, 1, 2)
-//    /// \param[in] regions - list of regions to find the resultant force on
-//    /// \param[in] nu - model describing reluctivity
-//    /// \param[in] M - model describing permanent magnetization sources
-//    /// \param[in] J - model describing current sources
-//    ForceIntegrator(const int dir, std::vector<int> _regions,
-//                    StateCoefficient *_nu, mfem::Coefficient *M,
-//                    mfem::Coefficient *J);
+/// Integrator for forces due to electromagnetic fields
+/// \note - Requires PUMI
+class ForceIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// \param[in] solver - pointer to solver, used to get PUMI mesh
+   /// \param[in] regions - list of regions to find the resultant force on
+   /// \param[in] free_regions - list of regions of free space that surround
+   ///                           `regions`
+   /// \param[in] nu - model describing reluctivity
+   /// \param[in] dir - direction to find the force in
+   ForceIntegrator(AbstractSolver *solver,
+                   std::unordered_set<int> regions,
+                   std::unordered_set<int> free_regions,
+                   StateCoefficient *nu,
+                   mfem::Vector dir);
 
-//    /// \param[in] el1 - the element on one side of the interface
-//    /// \param[in] el2 - the element on the other side
-//    /// \param[in] Tr - holds geometry and mapping information about the face
-//    /// \param[in] elfun - state vector on the element
-//    /// \note - this function will call PUMI APIs to determine which faces bound
-//    ///         the regions of interest
-//    double GetFaceEnergy(const mfem::FiniteElement &el1,
-//                         const mfem::FiniteElement &el2,
-//                         mfem::FaceElementTransformations &Tr,
-//                         const mfem::Vector &elfun) override;
+   /// \param[in] el - the finite element
+   /// \param[in] Tr - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \note this function will call PUMI APIs to figure out which nodes are
+   ///       in free space/on the rotor (fixed/free)
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &Tr,
+                           const mfem::Vector &elfun) override;
 
-// private:
-//    /// direction to calculate the force (x, y, z) -> (0, 1, 2)
-//    const int dir;
-//    /// list of regions to find the resultant force on
-//    std::vector<int> regions;
-//    /// material (thus mesh) dependent model describing reluctivity
-//    StateCoefficient *nu;
-//    /// material dependent model describing permanent magnetization
-//    mfem::Coefficient *M;
-//    /// material (thus mesh) dependent model describing current sources
-//    mfem::Coefficient *J;
-// };
+private:
+   /// pointer to abstract solver (used to get PUMI mesh)
+   AbstractSolver *solver;
+   /// list of regions to find the resultant force on
+   const std::unordered_set<int> regions, free_regions;
+   /// material (thus mesh) dependent model describing reluctivity
+   const StateCoefficient *nu;
+   /// direction to calculate the force
+   const mfem::Vector dir;
+   /// set of model faces that define the interface between moving and fixed
+   /// parts
+   std::unordered_set<int> face_list;
+   /// set of element indices to be used to integrate over
+   std::unordered_set<int> el_ids;
+
+};
 
 // /// Integrator for torques due to electromagnetic fields
 // class VWTorqueIntegrator : public mfem::NonlinearFormIntegrator

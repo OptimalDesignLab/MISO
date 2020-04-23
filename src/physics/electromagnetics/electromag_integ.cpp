@@ -1,5 +1,17 @@
 #include "electromag_integ.hpp"
 
+#ifdef MFEM_USE_PUMI
+#include "apfMDS.h"
+#include "PCU.h"
+#include "apfConvert.h"
+#include "crv.h"
+#include "gmi.h"
+#endif // MFEM_USE_PUMI
+
+#include "coefficient.hpp"
+#include "solver.hpp"
+
+
 using namespace mfem;
 using namespace std;
 
@@ -518,17 +530,84 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
    return fun;
 }
 
+ForceIntegrator::ForceIntegrator(AbstractSolver *_solver,
+                                 std::unordered_set<int> _regions,
+                                 std::unordered_set<int> _free_regions,
+                                 StateCoefficient *_nu,
+                                 Vector _dir)
+   : solver(_solver), regions(_regions), free_regions(_free_regions), nu(_nu),
+     dir(_dir)
+{
+#ifndef MFEM_USE_PUMI
+throw MachException("ForceIntegrator::ForceIntegrator()\n"
+                     "\tusing ForceIntegrator requires PUMI!\n");
+}
+#else
+   /// TODO: Call pumi APIs to get a list of mesh face indices that are on the
+   ///       boundary of the regions given in regions
 
-// ForceIntegrator::ForceIntegrator(const int _dir, std::vector<int> _regions,
-//                                  StateCoefficient *_nu, mfem::Coefficient *_M,
-//                                  mfem::Coefficient *_J)
-//    : dir(_dir), regions(_regions), nu(_nu), M(_nu), J(_J)
-// {
-//    /// TODO: Call pumi APIs to get a list of mesh face indices that are on the
-//    ///       boundary of the regions given in regions
-// }
+   // std::unordered_set<int> face_list;
 
+   apf::Mesh2 *pumi_mesh = solver->getPumiMesh();
+   /// get the underlying gmi model
+   auto *model = pumi_mesh->getModel();
 
+   /// find the model faces that define the interface between moving and fixed
+   /// parts
+   for (auto &free_region_tag : free_regions)
+   {
+      auto *free_region = gmi_find(model, 3, free_region_tag);
+      auto *adjacent_faces = gmi_adjacent(model, free_region, 2);
+      for (int i = 0; i < adjacent_faces->n; ++i)
+      {
+         auto adjacent_face = adjacent_faces->e[i];
+         for (auto &moving_region_tag : regions)
+         {
+            auto *moving_region = gmi_find(model, 3, moving_region_tag);
+            if (gmi_is_in_closure_of(model, adjacent_face, moving_region))
+            {
+               int face_tag = gmi_tag(model, adjacent_face);
+               face_list.insert(face_tag);
+            }
+         }
+      }
+      gmi_free_set(adjacent_faces);
+   }
+
+   /// loop over all mesh faces
+   apf::MeshEntity *e;
+   apf::MeshIterator* ent_it = pumi_mesh->begin(2);
+   while ((e = pumi_mesh->iterate(ent_it)))
+   {
+      int e_tag = gmi_tag(model, (gmi_ent*)pumi_mesh->toModel(e));
+      auto search = face_list.find(e_tag);
+      if (search != face_list.end())
+      {
+         auto r_1 = pumi_mesh->getUpward(e,0);
+         int r_1_tag = gmi_tag(model, (gmi_ent*)pumi_mesh->toModel(r_1));
+         auto search_tet = free_regions.find(r_1_tag);
+         if (search_tet != free_regions.end())
+         {
+            el_ids.insert(apf::getMDSIndex(pumi_mesh, r_1));
+         }
+         else
+         {
+            auto r_2 = pumi_mesh->getUpward(e,1);
+            el_ids.insert(apf::getMDSIndex(pumi_mesh, r_2));
+         }
+      }
+   }
+   pumi_mesh->end(ent_it);
+}
+
+double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
+                                         ElementTransformation &Tr,
+                                         const Vector &elfun)
+{
+
+}
+
+#endif
 // double ForceIntegrator::GetFaceEnergy(const FiniteElement &el1,
 //                                       const FiniteElement &el2,
 //                                       FaceElementTransformations &Tr,
