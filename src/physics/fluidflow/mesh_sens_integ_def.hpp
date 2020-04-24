@@ -1,8 +1,7 @@
 template <typename Derived>
-void DyadicMeshSensIntegrator<Derived>::AssembleElementVector(
+void DyadicMeshSensIntegrator<Derived>::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
-    const mfem::Vector &elfun,
     mfem::Vector &elvect)
 {
    using namespace mfem;

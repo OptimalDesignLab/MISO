@@ -12,10 +12,13 @@ namespace mach
 /// Integrator for mesh sensitivity of dyadic domain integrators
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
-class DyadicMeshSensIntegrator : public mfem::NonlinearFormIntegrator
+class DyadicMeshSensIntegrator : public mfem::LinearFormIntegrator
 {
 public:
    /// Constructs an integrator for dyadic-integrator mesh sensitivities
+   /// \param[in] state_vec - the state at which to evaluate the senstivity
+   /// \param[in] adjoint_vec - the adjoint that weights the residual
+   /// \param[in] num_state_vars - the number of state variables per node
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    DyadicMeshSensIntegrator(const mfem::GridFunction &state_vec,
                             const mfem::GridFunction &adjoint_vec,
@@ -26,12 +29,10 @@ public:
    /// Construct the element local contribution to dF/dx
    /// \param[in] el - the finite element whose dF/dx contribution we want
    /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - element local state function
-   /// \param[out] elvect - element local residual
-   virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &trans,
-                                      const mfem::Vector &elfun,
-                                      mfem::Vector &elvect);
+   /// \param[out] elvect - element local dF/dx
+   virtual void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                                       mfem::ElementTransformation &trans,
+                                       mfem::Vector &elvect);
 
 protected:
    /// The state vector used to evaluate fluxes
@@ -74,21 +75,24 @@ class BoundaryMeshSensIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Constructs an integrator for boundary-based mesh sensitivities
+   /// \param[in] state_vec - the state at which to evaluate the senstivity
+   /// \param[in] adjoint_vec - the adjoint that weights the residual
    /// \param[in] fe_coll - used to determine the face elements
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   BoundaryMeshSensIntegrator(adept::Stack &diff_stack,
-                               const mfem::FiniteElementCollection *fe_coll,
-                               int num_state_vars = 1, double a = 1.0)
-       : num_states(num_state_vars), alpha(a), stack(diff_stack),
-         fec(fe_coll) {}
+   BoundaryMeshSensIntegrator(const mfem::GridFunction &state_vec,
+                              const mfem::GridFunction &adjoint_vec,
+                              const mfem::FiniteElementCollection *fe_coll,
+                              int num_state_vars = 1, double a = 1.0)
+       : state(state_vec), adjoint(adjoint_vec), num_states(num_state_vars),
+         alpha(a), stack(diff_stack), fec(fe_coll) {}
 
-   /// Construct the contribution to the element local dJdX
-   /// \param[in] el_bnd - the finite element whose dJdX we want to update
+   /// Construct the contribution to the element local dF/dX
+   /// \param[in] el_bnd - the finite element whose dF/dX we want to update
    /// \param[in] el_unused - dummy element that is not used for boundaries
    /// \param[in] trans - holds geometry and mapping information about the face
    /// \param[in] elfun - element local nodes function
-   /// \param[out] elvect - element local dJdX
+   /// \param[out] elvect - element local dF/dX
    virtual void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
                                    const mfem::FiniteElement &el_unused,
                                    mfem::FaceElementTransformations &trans,

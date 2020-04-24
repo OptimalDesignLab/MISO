@@ -49,21 +49,20 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
          GridFunction *x_nodes = mesh->GetNodes();
          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
-         // build the nonlinear form for d(psi^T R)/dx 
-         NonlinearForm dfdx_form(mesh_fes);
-         dfdx_form.AddDomainIntegrator(
+         // build the linear form for d(psi^T R)/dx 
+         LinearForm dfdx(mesh_fes);
+         dfdx.AddDomainIntegrator(
             new mach::IsmailRoeMeshSensIntegrator<2,entvar>(
                state, adjoint, num_state));
+         dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
          VectorFunctionCoefficient v_rand(dim, randState);
          v.ProjectCoefficient(v_rand);
 
-         // evaluate df/dx and contract with v
-         GridFunction dfdx(*x_nodes);
-         dfdx_form.Mult(*x_nodes, dfdx);
-         double dfdx_v = dfdx * v;
+         // contract dfdx with v
+         double dfdx_v = dfdx_form * v;
 
          // now compute the finite-difference approximation...
          GridFunction x_pert(*x_nodes);
