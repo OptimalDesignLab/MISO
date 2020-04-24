@@ -648,6 +648,7 @@ void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
    {
       out(n) = interp_vals(n);
    }
+   finder.FreeData();
 }
 #else
 void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
