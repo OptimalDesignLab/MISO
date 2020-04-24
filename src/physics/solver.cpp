@@ -58,7 +58,7 @@ namespace mach
 {
 /// specifies how to delete a PUMI mesh so that the PUMI mesh can be stored in
 /// a unique_ptr and safely deleted
-struct pumiDeleter
+/*struct pumiDeleter
 {
    void operator()(apf::Mesh2* mesh) const
    {
@@ -75,7 +75,7 @@ struct pumiDeleter
 #endif // MFEM_USE_EGADS
    }
 };
-
+*/
 } // namespace mach
 #endif
 
@@ -407,7 +407,7 @@ void AbstractSolver::constructPumiMesh()
 
    pumi_mesh->verify();
 
-   apf::Numbering* aux_num = apf::createNumbering(pumi_mesh, "aux_numbering",
+   apf::Numbering* aux_num = apf::createNumbering(pumi_mesh.get(), "aux_numbering",
                                                   pumi_mesh->getShape(), 1);
 
    apf::MeshIterator* it = pumi_mesh->begin(0);
@@ -419,7 +419,7 @@ void AbstractSolver::constructPumiMesh()
    }
    pumi_mesh->end(it);
 
-   mesh.reset(new ParPumiMesh(comm, pumi_mesh));
+   mesh.reset(new ParPumiMesh(comm, pumi_mesh.get()));
 
    it = pumi_mesh->begin(pumi_mesh->getDimension());
    count = 0;
@@ -427,7 +427,7 @@ void AbstractSolver::constructPumiMesh()
    {
      if (count > 10) break;
      printf("at element %d =========\n", count);
-     if (isBoundaryTet(pumi_mesh, v))
+     if (isBoundaryTet(pumi_mesh.get(), v))
        printf("tet is connected to the boundary\n");
      else
        printf("tet is NOT connected to the boundary\n");

@@ -15,10 +15,36 @@ namespace apf
 {
 class Mesh2;
 } // namespace apf
+#include "PCU.h"
+#ifdef MFEM_USE_SIMMETRIX
+#include "SimUtil.h"
+#include "gmi_sim.h"
+#endif // MFEM_USE_SIMMETRIX
+
+#ifdef MFEM_USE_EGADS
+#include "gmi_egads.h"
+#endif // MFEM_USE_EGADS
 namespace mach
 {
-struct pumiDeleter;
-} // namespace mach
+struct pumiDeleter
+{
+   void operator()(apf::Mesh2* mesh) const
+   {
+      mesh->destroyNative();
+      apf::destroyMesh(mesh);
+      PCU_Comm_Free();
+#ifdef MFEM_USE_SIMMETRIX
+      gmi_sim_stop();
+      Sim_unregisterAllKeys();
+#endif // MFEM_USE_SIMMETRIX
+
+#ifdef MFEM_USE_EGADS
+      gmi_egads_stop();
+#endif // MFEM_USE_EGADS
+   }
+};
+
+} // namespace mach} // namespace mach
 #endif
 
 namespace mach
