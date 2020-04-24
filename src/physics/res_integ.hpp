@@ -92,6 +92,58 @@ public:
 
 };
 
+/// Class that evaluates the residual part and derivatives
+/// for a DiffusionIntegrator (bilininteg)
+/// NOTE: MatrixCoefficient not implemented
+class DiffusionResIntegrator : public mfem::NonlinearFormIntegrator
+{
+protected:
+    Vector shape; DenseMatrix dshape;
+    Coefficient *Q;
+    GridFunction *state; GridFunction *adjoint;
+public:
+    /// Constructs a domain integrator with a given Coefficient
+    DiffusionResIntegrator(Coefficient &QF, GridFunction *u, GridFunction *adj, 
+                        const IntegrationRule *ir = NULL)
+                        : Q(&QF), state(u), adjoint(adj)
+    { }
+
+    /// Computes the residual contribution
+    // virtual double GetElementEnergy(const FiniteElement &elx,
+    //                                    ElementTransformation &Trx,
+    //                                    const Vector &elfun);
+
+    /// Computes dR/dX, X being mesh node locations
+    virtual void AssembleElementVector(const FiniteElement &elx,
+                                         ElementTransformation &Trx,
+                                         const Vector &elfunx, Vector &elvect);
+
+};
+
+/// Class that evaluates the residual part and derivatives
+/// for a BoundaryNormalLFIntegrator (lininteg)
+class BoundaryNormalResIntegrator : public mfem::NonlinearFormIntegrator
+{
+    Vector shape;
+    VectorCoefficient &Q;
+    int oa, ob;
+    GridFunction *state; GridFunction *adjoint;
+public:
+    /// Constructs a boundary integrator with a given Coefficient
+    BoundaryNormalResIntegrator(VectorCoefficient &QF, GridFunction *u, GridFunction *adj, 
+                        int a = 2, int b = 0)
+                        : Q(QF), state(u), adjoint(adj), oa(a), ob(b)
+    { }
+
+    /// Computes dR/dX, X being mesh node locations
+    virtual void AssembleFaceVector(const FiniteElement &el1x,
+                                    const FiniteElement &el2x,
+                                         FaceElementTransformations &Trx,
+                                         const Vector &elfunx, Vector &elvect);
+
+};
+
+
 }
 
 #endif
