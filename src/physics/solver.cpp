@@ -53,6 +53,30 @@ bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
    return false;
 }
 } // anonymous namespace
+
+namespace mach
+{
+/// specifies how to delete a PUMI mesh so that the PUMI mesh can be stored in
+/// a unique_ptr and safely deleted
+struct pumiDeleter
+{
+   void operator()(apf::Mesh2* mesh) const
+   {
+      mesh->destroyNative();
+      apf::destroyMesh(mesh);
+      PCU_Comm_Free();
+#ifdef MFEM_USE_SIMMETRIX
+      gmi_sim_stop();
+      Sim_unregisterAllKeys();
+#endif // MFEM_USE_SIMMETRIX
+
+#ifdef MFEM_USE_EGADS
+      gmi_egads_stop();
+#endif // MFEM_USE_EGADS
+   }
+};
+
+} // namespace mach
 #endif
 
 namespace mach
@@ -361,7 +385,7 @@ void AbstractSolver::constructPumiMesh()
    gmi_register_egads();
 #endif
    gmi_register_mesh();
-   pumi_mesh = apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str());
+   pumi_mesh.reset(apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str()));
    // int mesh_dim = pumi_mesh->getDimension();
    // int nEle = pumi_mesh->count(mesh_dim);
    // int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
@@ -457,25 +481,9 @@ void AbstractSolver::constructPumiMesh()
    
    // Apply the attributes
    mesh->SetAttributes();
-
-   /// TODO: where should we destroy the mesh?
-   // pumi_mesh->destroyNative();
-   // apf::destroyMesh(pumi_mesh);
-   
-   PCU_Comm_Free();
-
-#ifdef MFEM_USE_SIMMETRIX
-   gmi_sim_stop();
-   Sim_unregisterAllKeys();
-#endif // MFEM_USE_SIMMETRIX
-
-#ifdef MFEM_USE_EGADS
-   gmi_egads_stop();
-#endif // MFEM_USE_EGADS
-
 #else
    throw MachException("AbstractSolver::constructPumiMesh()\n"
-                       "\nMFEM was not built with PUMI!\n"
+                       "\tMFEM was not built with PUMI!\n"
                        "\trecompile MFEM with PUMI\n");
 #endif // MFEM_USE_PUMI
 }

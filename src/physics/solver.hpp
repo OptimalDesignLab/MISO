@@ -15,6 +15,10 @@ namespace apf
 {
 class Mesh2;
 } // namespace apf
+namespace mach
+{
+struct pumiDeleter;
+} // namespace mach
 #endif
 
 namespace mach
@@ -176,7 +180,7 @@ public:
 
 #ifdef MFEM_USE_PUMI
    /// Return a pointer to the underlying PUMI mesh
-   apf::Mesh2* getPumiMesh() {return pumi_mesh;};
+   apf::Mesh2* getPumiMesh() {return pumi_mesh.get();};
 #endif
 
 protected:
@@ -198,9 +202,10 @@ protected:
    double dt;
    /// final time
    double t_final;
-   /// pumi mesh object
 #ifdef MFEM_USE_PUMI
-   apf::Mesh2* pumi_mesh;
+   /// pumi mesh object
+   // apf::Mesh2* pumi_mesh;
+   std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
 #endif
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
