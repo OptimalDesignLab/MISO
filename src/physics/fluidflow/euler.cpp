@@ -222,6 +222,77 @@ void EulerSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
    q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
 }
 
+template <int dim, bool entvar>
+double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
+   void (*u_exact)(const mfem::Vector &, mfem::Vector &), int entry)
+{
+   // This lambda function computes the error at a node
+   // Beware: this is not particularly efficient, given the conditionals
+   // Also **NOT thread safe!**
+   Vector qdiscrete(dim+2), qexact(dim+2); // define here to avoid reallocation
+   auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
+   {
+      if (entvar)
+      {
+         calcConservativeVars<double, dim>(discrete.GetData(),
+                                           qdiscrete.GetData());
+         calcConservativeVars<double, dim>(exact.GetData(), qexact.GetData());
+      }
+      else
+      {
+         qdiscrete = discrete;
+         qexact = exact;
+      }
+      double err = 0.0;
+      if (entry < 0)
+      {
+         for (int i = 0; i < dim+2; ++i)
+         {
+            double dq = qdiscrete(i) - qexact(i);
+            err += dq*dq;
+         }
+      }
+      else
+      {
+         err = qdiscrete(entry) - qexact(entry);
+         err = err*err;  
+      }
+      return err;
+   };
+
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   DenseMatrix vals, exact_vals;
+   Vector u_j, exsol_j;
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
+   double loc_norm = 0.0;
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      const FiniteElement *fe = fes->GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *T = fes->GetElementTransformation(i);
+      u->GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         vals.GetColumnReference(j, u_j);
+         exact_vals.GetColumnReference(j, exsol_j);
+         loc_norm += ip.weight * T->Weight() * node_error(u_j, exsol_j);
+      }
+   }
+   double norm;
+#ifdef MFEM_USE_MPI
+   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   norm = loc_norm;
+#endif
+   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
+}
 // explicit instantiation
 template class EulerSolver<1, true>;
 template class EulerSolver<1, false>;

@@ -321,6 +321,41 @@ void AbstractSolver::printError(const std::string &file_name,
    sol_ofs.close();
 }
 
+double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType &y)
+{
+   double loc_prod = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix x_vals, y_vals;
+   // calculate the L2 inner product for component index `entry`
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fe = fes->GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      T = fes->GetElementTransformation(i);
+      x.GetVectorValues(*T, *ir, x_vals);
+      y.GetVectorValues(*T, *ir, y_vals);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         double node_prod = 0.0;
+         for (int n = 0; n < num_state; ++n)
+         {
+            node_prod += x_vals(n,j)*y_vals(n,j);
+         }
+         loc_prod += ip.weight * T->Weight() * node_prod;
+      }
+   }
+   double prod;
+#ifdef MFEM_USE_MPI
+   MPI_Allreduce(&loc_prod, &prod, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   prod = loc_prod;
+#endif
+   return prod;
+}
+
 double AbstractSolver::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
@@ -766,56 +801,57 @@ void AbstractSolver::solveUnsteady()
 
 void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 {
-   double time_beg, time_end;
-   if (0==rank)
-   {
-      time_beg = MPI_Wtime();
-   }
+// #ifdef MFEM_USE_MPI
+//    double time_beg, time_end;
+//    if (0==rank)
+//    {
+//       time_beg = MPI_Wtime();
+//    }
+// #endif
+//    // Step 0: allocate the adjoint variable
+//    adj.reset(new GridFunType(fes.get()));
 
-   // Step 0: allocate the adjoint variable
-   adj.reset(new GridFunType(fes.get()));
+//    // Step 1: get the right-hand side vector, dJdu, and make an appropriate
+//    // alias to it, the state, and the adjoint
+//    std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+// #ifdef MFEM_USE_MPI
+//    HypreParVector *state = u->GetTrueDofs();
+//    HypreParVector *dJ = dJdu->GetTrueDofs();
+//    HypreParVector *adjoint = adj->GetTrueDofs();
+// #else
+//    GridFunType *state = u.get();
+//    GridFunType *dJ = dJdu.get();
+//    GridFunType *adjoint = adj.get();
+// #endif
+//    output.at(fun).Mult(*state, *dJ);
 
-   // Step 1: get the right-hand side vector, dJdu, and make an appropriate
-   // alias to it, the state, and the adjoint
-   std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
-#ifdef MFEM_USE_MPI
-   HypreParVector *state = u->GetTrueDofs();
-   HypreParVector *dJ = dJdu->GetTrueDofs();
-   HypreParVector *adjoint = adj->GetTrueDofs();
-#else
-   GridFunType *state = u.get();
-   GridFunType *dJ = dJdu.get();
-   GridFunType *adjoint = adj.get();
-#endif
-   output.at(fun).Mult(*state, *dJ);
+//    // Step 2: get the Jacobian and transpose it
+//    Operator *jac = &res->GetGradient(*state);
+//    TransposeOperator jac_trans = TransposeOperator(jac);
 
-   // Step 2: get the Jacobian and transpose it
-   Operator *jac = &res->GetGradient(*state);
-   TransposeOperator jac_trans = TransposeOperator(jac);
-
-   // Step 3: Solve the adjoint problem
-   *out << "Solving adjoint problem:\n"
-        << "\tsolver: HypreGMRES\n"
-        << "\tprec. : Euclid ILU" << endl;
-   prec.reset(new HypreEuclid(fes->GetComm()));
-   double tol = options["adj-solver"]["tol"].get<double>();
-   int maxiter = options["adj-solver"]["maxiter"].get<int>();
-   int ptl = options["adj-solver"]["printlevel"].get<int>();
-   solver.reset(new HypreGMRES(fes->GetComm()));
-   solver->SetOperator(jac_trans);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
-   solver->Mult(*dJ, *adjoint);
-#ifdef MFEM_USE_MPI
-   adj->SetFromTrueDofs(*adjoint);
-#endif
-   if (0==rank)
-   {
-      time_end = MPI_Wtime();
-      *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
-   }
+//    // Step 3: Solve the adjoint problem
+//    *out << "Solving adjoint problem:\n"
+//         << "\tsolver: HypreGMRES\n"
+//         << "\tprec. : Euclid ILU" << endl;
+//    prec.reset(new HypreEuclid(fes->GetComm()));
+//    double tol = options["adj-solver"]["tol"].get<double>();
+//    int maxiter = options["adj-solver"]["maxiter"].get<int>();
+//    int ptl = options["adj-solver"]["printlevel"].get<int>();
+//    solver.reset(new HypreGMRES(fes->GetComm()));
+//    solver->SetOperator(jac_trans);
+//    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
+//    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
+//    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
+//    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
+//    solver->Mult(*dJ, *adjoint);
+// #ifdef MFEM_USE_MPI
+//    adj->SetFromTrueDofs(*adjoint);
+//    if (0==rank)
+//    {
+//       time_end = MPI_Wtime();
+//       *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+//    }
+// #endif
 }
 
 void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
@@ -843,11 +879,13 @@ double AbstractSolver::calcOutput(const std::string &fun)
 void AbstractSolver::checkJacobian(
     void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
 {
+   // this is a specific version for gd_serial_mfem
+   // and dont accept incoming changes
    // initialize some variables
    const double delta = 1e-5;
-   GridFunType u_plus(*u);
-   GridFunType u_minus(*u);
-   GridFunType pert_vec(fes.get());
+   CentGridFunction u_plus(*uc);
+   CentGridFunction u_minus(*uc);
+   CentGridFunction pert_vec(fes.get());
    VectorFunctionCoefficient up(num_state, pert_fun);
    pert_vec.ProjectCoefficient(up);
 
@@ -856,18 +894,18 @@ void AbstractSolver::checkJacobian(
    u_minus.Add(-delta, pert_vec);
 
    // Get the product using a 2nd-order finite-difference approximation
-   GridFunType res_plus(fes.get());
-   GridFunType res_minus(fes.get());
+   CentGridFunction res_plus(fes.get());
+   CentGridFunction res_minus(fes.get());
 #ifdef MFEM_USE_MPI 
    HypreParVector *u_p = u_plus.GetTrueDofs();
    HypreParVector *u_m = u_minus.GetTrueDofs();
    HypreParVector *res_p = res_plus.GetTrueDofs();
    HypreParVector *res_m = res_minus.GetTrueDofs();
 #else 
-   GridFunType *u_p = &u_plus;
-   GridFunType *u_m = &u_minus;
-   GridFunType *res_p = &res_plus;
-   GridFunType *res_m = &res_minus;
+   CentGridFunction *u_p = &u_plus;
+   CentGridFunction *u_m = &u_minus;
+   CentGridFunction *res_p = &res_plus;
+   CentGridFunction *res_m = &res_minus;
 #endif
    res->Mult(*u_p, *res_p);
    res->Mult(*u_m, *res_m);
@@ -879,15 +917,15 @@ void AbstractSolver::checkJacobian(
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
 
    // Get the product directly using Jacobian from GetGradient
-   GridFunType jac_v(fes.get());
+   CentGridFunction jac_v(fes.get());
 #ifdef MFEM_USE_MPI
    HypreParVector *u_true = u->GetTrueDofs();
    HypreParVector *pert = pert_vec.GetTrueDofs();
    HypreParVector *prod = jac_v.GetTrueDofs();
 #else
-   GridFunType *u_true = u.get();
-   GridFunType *pert = &pert_vec;
-   GridFunType *prod = &jac_v;
+   CentGridFunction *u_true = uc.get();
+   CentGridFunction *pert = &pert_vec;
+   CentGridFunction *prod = &jac_v;
 #endif
    mfem::Operator &jac = res->GetGradient(*u_true);
    jac.Mult(*pert, *prod);

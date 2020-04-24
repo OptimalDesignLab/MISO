@@ -41,6 +41,9 @@ int main(int argc, char *argv[])
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+#else
+   int myid = 0;
+   int num_procs = 1;
 #endif
   
    // Parse command-line options

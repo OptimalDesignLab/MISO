@@ -1,4 +1,5 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
+constexpr bool entvar = true;
 #include<random>
 #include "adept.h"
 
@@ -85,9 +86,9 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      //unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      unique_ptr<Mesh> smesh;
-      smesh.reset(new Mesh("annulus_fine.mesh", 1, 0, 1));
+      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      // unique_ptr<Mesh> smesh;
+      // smesh.reset(new Mesh("annulus_fine.mesh", 1, 0, 1));
       std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       ofstream meshsave("steady_vortex_mesh.mesh");
@@ -97,30 +98,32 @@ int main(int argc, char *argv[])
       sol_ofs.close();
       meshsave.close();
 
-      unique_ptr<AbstractSolver> solver(new EulerSolver<2, true>(opt_file_name, move(smesh)));
+      unique_ptr<AbstractSolver> solver(new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
       solver->initDerived();
 
-      solver->setInitialCondition(uexact<true>);
+      solver->setInitialCondition(uexact<entvar>);
       solver->printSolution("euler_init", 0);
 
-      double l_error = solver->calcL2Error(uexact<true>, 0);
+      double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                        .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
       solver->checkJacobian(pert);
       solver->solveForState();
       solver->printSolution("euler_final",0);
-      l_error = solver->calcL2Error(uexact<true>, 0);
+      l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                        .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
       //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
       if (0==myid)
       {
          mfem::out << "\nfinal residual norm = " << res_error;
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
          //mfem::out << "\nDrag error = " << drag << endl;
       }
 
