@@ -67,49 +67,77 @@ protected:
    }
 };
 
-#if 0
 /// Integrator for mesh sensitivity associated with boundary integrators
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
-class BoundaryMeshSensIntegrator : public mfem::NonlinearFormIntegrator
+class BoundaryMeshSensIntegrator : public mfem::LinearFormIntegrator
 {
 public:
    /// Constructs an integrator for boundary-based mesh sensitivities
    /// \param[in] state_vec - the state at which to evaluate the senstivity
    /// \param[in] adjoint_vec - the adjoint that weights the residual
-   /// \param[in] fe_coll - used to determine the face elements
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    BoundaryMeshSensIntegrator(const mfem::GridFunction &state_vec,
                               const mfem::GridFunction &adjoint_vec,
-                              const mfem::FiniteElementCollection *fe_coll,
                               int num_state_vars = 1, double a = 1.0)
        : state(state_vec), adjoint(adjoint_vec), num_states(num_state_vars),
-         alpha(a), stack(diff_stack), fec(fe_coll) {}
+         alpha(a) {}
+
+   /// **Do not use**: only included because it is required by base class
+   virtual void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                                       mfem::ElementTransformation &trans,
+                                       mfem::Vector &elvect);
 
    /// Construct the contribution to the element local dF/dX
    /// \param[in] el_bnd - the finite element whose dF/dX we want to update
-   /// \param[in] el_unused - dummy element that is not used for boundaries
    /// \param[in] trans - holds geometry and mapping information about the face
-   /// \param[in] elfun - element local nodes function
    /// \param[out] elvect - element local dF/dX
-   virtual void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
-                                   const mfem::FiniteElement &el_unused,
-                                   mfem::FaceElementTransformations &trans,
-                                   const mfem::Vector &elfun,
-                                   mfem::Vector &elvect);
+   virtual void AssembleRHSElementVect(const mfem::FiniteElement &el_bnd,
+                                       mfem::FaceElementTransformations &trans,
+                                       mfem::Vector &elvect);
 
-protected: 
+protected:
+   /// The state vector used to evaluate fluxes
+   const mfem::GridFunction &state;
+   /// The adjoint vector that weights the residuals
+   const mfem::GridFunction &adjoint;
+   /// number of states (could extract from state or adjoint)
+   int num_states;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
-   /// used to select the appropriate face element
-   const mfem::FiniteElementCollection *fec;
 #ifndef MFEM_THREAD_SAFE
-
+   /// store the physical location of a node
+   mfem::Vector x;
+   /// the outward pointing (scaled) normal to the boundary at a node
+   mfem::Vector nrm;
+   /// the derivative with respect to the normal derivative
+   mfem::Vector nrm_bar;
+   /// linear transformation from the element Jacobian to the face Jacobian
+   mfem::DenseMatrix Jac_map;
+   /// derivative with respect to the element mapping Jacobian
+   mfem::DenseMatrix Jac_bar;
+   // derivatives with respect to the face mapping Jacobian
+   mfem::DenseMatrix Jac_face_bar;
+   /// stores derivatives w.r.t. mesh nodes
+   mfem::DenseMatrix PointMat_bar;
 #endif
 
+   /// Compute the derivative of flux_bar^T * flux w.r.t. the vector `dir`
+   /// \param[in] x - coordinate location at which the derivative is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] u - state at which to evaluate the flux
+   /// \param[in] flux_bar - flux weighting (e.g. the adjoint)
+   /// \param[out] dir_bar - derivative with respect to `dir`
+   /// \note `x` can be ignored depending on the flux
+   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
+   void fluxBar(const mfem::Vector &x, const mfem::Vector &dir,
+                const mfem::Vector &u, const mfem::Vector &flux_bar,
+                mfem::Vector &dir_bar)
+   {
+      static_cast<Derived*>(this)->calcFluxBar(x, dir, u, flux_bar, dir_bar);
+   }
 };
-#endif
 
 #include "mesh_sens_integ_def.hpp"
 
