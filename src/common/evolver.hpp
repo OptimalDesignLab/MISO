@@ -66,9 +66,11 @@ private:
    /// nonlinear spatial residual
    NonlinearFormType &res;
    /// preconditioner for mass matrix
-   SmootherType mass_prec;
+   //SmootherType mass_prec;
+   std::unique_ptr<mfem::HypreSolver> mass_prec;
    /// solver for the mass matrix
-   std::unique_ptr<mfem::CGSolver> mass_solver;
+   //std::unique_ptr<mfem::CGSolver> mass_solver;
+   std::unique_ptr<mfem::HypreGMRES> mass_solver;
    /// a work vector
    mutable mfem::Vector z;
    /// used to move the spatial residual to the right-hand-side, if necessary

@@ -44,16 +44,20 @@ NonlinearEvolver::NonlinearEvolver(MatrixType &m, NonlinearFormType &r,
    : TimeDependentOperator(m.Height()), mass(m), res(r), z(m.Height()), alpha(a)
 {
 #ifdef MFEM_USE_MPI
-   mass_prec.SetType(HypreSmoother::Jacobi);
-   mass_solver.reset(new CGSolver(mass.GetComm()));
+   // mass_prec.SetType(HypreSmoother::Jacobi);
+   // mass_solver.reset(new CGSolver(mass.GetComm()));
+   mass_prec.reset(new HypreEuclid(mass.GetComm()));
+   //HYPRE_EuclidSetLevel(mass_prec.get()->GetPrec(), 2);
+   mass_solver.reset(new HypreGMRES(mass.GetComm()));
 #else
    mass_solver.reset(new CGSolver());
 #endif
-   mass_solver->SetPreconditioner(mass_prec);
+   mass_solver->SetPreconditioner(*mass_prec);
    mass_solver->SetOperator(mass);
-   mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
-   mass_solver->SetRelTol(1e-9);
-   mass_solver->SetAbsTol(0.0);
+   //mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
+   // mass_solver->SetRelTol(1e-9);
+   // mass_solver->SetAbsTol(0.0);
+   mass_solver->SetTol(1e-9);
    mass_solver->SetMaxIter(100);
    mass_solver->SetPrintLevel(0);
 }

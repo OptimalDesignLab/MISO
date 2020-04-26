@@ -35,10 +35,10 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    options_file >> file_options;
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
+
    constructMesh(move(smesh));
    int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
-
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
    *out << "ode-solver type = "
@@ -374,12 +374,12 @@ void AbstractSolver::printSolution(const std::string &file_name,
    // TODO: These mfem functions do not appear to be parallelized
    ofstream sol_ofs(file_name + ".vtk");
    sol_ofs.precision(14);
-   if (refine == -1)
-   {
-      refine = options["space-dis"]["degree"].get<int>() + 1;
-   }
-   mesh->PrintVTK(sol_ofs, refine);
-   u->SaveVTK(sol_ofs, "Solution", refine);
+   // if (refine == -1)
+   // {
+   //    refine = options["space-dis"]["degree"].get<int>();
+   // }
+   mesh->PrintVTK(sol_ofs, 0);
+   u->SaveVTK(sol_ofs, "Solution", 0);
    sol_ofs.close();
 }
 

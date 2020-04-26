@@ -18,6 +18,7 @@ set(SANDBOX_SRCS
    viscous_shock
    airfoil_chaotic
    steady_vortex_adjoint
+	isentropic
 )
 
 create_sandbox("${SANDBOX_SRCS}")
