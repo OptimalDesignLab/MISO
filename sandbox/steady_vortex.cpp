@@ -1,5 +1,8 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
-constexpr bool entvar = true;
+
+// set this const expression to true in order to use entropy variables for state
+constexpr bool entvar = false;
+
 #include<random>
 #include "adept.h"
 
@@ -17,9 +20,8 @@ std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - conservative variables stored as a 4-vector
-template<bool entvar = false>
-void uexact(const Vector &x, Vector& q);
+/// \param[out] u - state variables stored as a 4-vector
+void uexact(const Vector &x, Vector& u);
 
 /// \brief Defines the random function for the jabocian check
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -98,14 +100,17 @@ int main(int argc, char *argv[])
       sol_ofs.close();
       meshsave.close();
 
-      unique_ptr<AbstractSolver> solver(new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
+      unique_ptr<AbstractSolver> solver(
+         new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
+      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
 
-      solver->setInitialCondition(uexact<entvar>);
-      solver->printSolution("euler_init", 0);
+      solver->setInitialCondition(uexact);
+      solver->printSolution("gd_init", 0);
 
+      // get the initial density error
       double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
-                        .calcConservativeVarsL2Error(uexact, 0));
+                            .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
       if (0==myid)
       {
@@ -114,9 +119,10 @@ int main(int argc, char *argv[])
       }
       solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("euler_final",0);
+      solver->printSolution("gd_final",0);
+      // get the final density error
       l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
-                        .calcConservativeVarsL2Error(uexact, 0));
+                            .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
       //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
@@ -158,7 +164,6 @@ void pert(const Vector &x, Vector& p)
 // Exact solution; note that I reversed the flow direction to be clockwise, so
 // the problem and mesh are consistent with the LPS paper (that is, because the
 // triangles are subdivided from the quads using the opposite diagonal)
-template <bool entvar>
 void uexact(const Vector &x, Vector& q)
 {
    q.SetSize(4);
@@ -199,8 +204,6 @@ void uexact(const Vector &x, Vector& q)
       calcEntropyVars<double, 2>(u.GetData(), q.GetData());
    }
 }
-template void uexact<true>(const Vector &x, Vector& u);
-template void uexact<false>(const Vector &x, Vector& u);
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {

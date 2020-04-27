@@ -175,10 +175,9 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
 
       // evaluate the dissipation externally (since we cannot use fluxIR_check
       // data here directly)
-      mfem::Vector w_avg(dim+2); 
-      add(0.5, wL, 0.5, wR, w_avg);
-      mfem::Vector q_avg(dim+2), dqdw(dim+2);
-      mach::calcConservativeVars<double, dim>(w_avg.GetData(), q_avg.GetData());
+      mfem::Vector q_avg(dim+2);
+      add(0.5, q, 0.5, qR, q_avg);
+      mfem::Vector dqdw(dim+2);
       wL -= wR;
       mach::calcdQdWProduct<double, dim>(q_avg.GetData(), wL.GetData(),
                                          dqdw.GetData());

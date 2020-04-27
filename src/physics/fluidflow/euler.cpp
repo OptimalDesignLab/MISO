@@ -16,6 +16,14 @@ EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
                               unique_ptr<mfem::Mesh> smesh)
     : AbstractSolver(opt_file_name, move(smesh))
 {
+   if (entvar)
+   {
+      *out << "The state variables are the entropy variables." << endl;
+   }
+   else
+   {
+      *out << "The state variables are the conservative variables." << endl;
+   }
    // define free-stream parameters; may or may not be used, depending on case
    mach_fs = options["flow-param"]["mach"].template get<double>();
    aoa_fs = options["flow-param"]["aoa"].template get<double>()*M_PI/180;
@@ -132,7 +140,7 @@ void EulerSolver<dim, entvar>::addOutputs()
          drag_dir(ipitch) = sin(aoa_fs);
       }
       output.at("drag").AddBdrFaceIntegrator(
-          new PressureForce<dim>(diff_stack, fec.get(), drag_dir),
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
           output_bndry_marker[idx]);
       idx++;
    }
@@ -155,7 +163,7 @@ void EulerSolver<dim, entvar>::addOutputs()
          lift_dir(ipitch) = cos(aoa_fs);
       }
       output.at("lift").AddBdrFaceIntegrator(
-          new PressureForce<dim>(diff_stack, fec.get(), lift_dir),
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
           output_bndry_marker[idx]);
       idx++;
    }

@@ -40,8 +40,12 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 
    // Construct Mesh
    constructMesh(move(smesh));
+   for (int l = 0; l < options["mesh"]["refine"].get<int>(); l++)
+   {
+      mesh->UniformRefinement();
+   }
    int dim = mesh->Dimension();
-   
+   cout << "Number of elements: " << mesh->GetNE() << '\n';
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
    *out << "ode-solver type = "
@@ -127,10 +131,10 @@ void AbstractSolver::initDerived()
    double alpha = 1.0;
    cout << "before set res.\n";
    res.reset(new NonlinearFormType(fes.get()));
-
-   std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-   std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
-   std::cout << ". uc size is " << uc->Size() << '\n';
+   cout << "after set res.\n";
+   // std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+   // std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
+   //std::cout << ". uc size is " << uc->Size() << '\n';
 
    // Add integrators; this can be simplified if we template the entire class
    addVolumeIntegrators(alpha);
@@ -164,11 +168,11 @@ void AbstractSolver::initDerived()
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    if (odes == "RK1" || odes == "RK4")
    {
-      //evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+      evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
    }
    else
    {
-      //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
 
    // add the output functional QoIs
@@ -185,6 +189,12 @@ AbstractSolver::~AbstractSolver()
 void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 {
    cout << "In construct Mesh:\n";
+#ifndef MFEM_USE_PUMI
+   if (smesh == nullptr)
+   { // read in the serial mesh
+      smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1));
+   }
+#endif
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PUMI
    if (smesh != nullptr)
