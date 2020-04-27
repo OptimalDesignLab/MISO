@@ -46,6 +46,8 @@ NonlinearEvolver::NonlinearEvolver(MatrixType &m, NonlinearFormType &r,
 #ifdef MFEM_USE_MPI
    mass_prec.SetType(HypreSmoother::Jacobi);
    mass_solver.reset(new CGSolver(mass.GetComm()));
+   // mass_prec.reset(new HypreEuclid(mass.GetComm()));
+   // mass_solver.reset(new HypreGMRES(mass.GetComm()));
 #else
    mass_solver.reset(new CGSolver());
 #endif
