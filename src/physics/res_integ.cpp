@@ -250,10 +250,7 @@ void BoundaryNormalResIntegrator::AssembleRHSElementVect(
             {
                 el_bnd = fec->FiniteElementForGeometry(Geometry::SQUARE);
             } 
-
-        default: throw mach::MachException(
-         "BoundaryNormalResIntegrator::AssembleRHSElementVect())\n"
-         "\tcannot handle given dimension");
+             break;
     }
     ElementTransformation *Tr_bnd = Trx.Face;
     ElementTransformation *Tr = Trx.Elem1;

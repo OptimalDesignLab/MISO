@@ -712,6 +712,10 @@ void ThermalSolver::constructEvolver()
 
    evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), stiff.get(), load.get(), *out,
 												0.0, flux_coeff.get()));
+	if (newton_solver == nullptr)
+	{
+    	constructNewtonSolver();
+	}
 	evolver->SetLinearSolver(solver.get());
    evolver->SetNewtonSolver(newton_solver.get());
 }

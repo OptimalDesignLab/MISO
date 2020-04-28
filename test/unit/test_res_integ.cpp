@@ -248,13 +248,13 @@ TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
    using namespace mfem;
    using namespace euler_data;
 
-   const int dim = 2; // templating is hard here because mesh constructors
+   const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
 
    // generate a 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {

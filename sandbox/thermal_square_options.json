@@ -19,6 +19,8 @@
         "t-final": 0.2
     },
     "lin-solver": {
+       "type": "hypregmres",
+       "pctype": "hypreboomeramg",
        "rel-tol": 1e-8,
        "abs-tol": 0.0,
        "print-lvl": 0,
