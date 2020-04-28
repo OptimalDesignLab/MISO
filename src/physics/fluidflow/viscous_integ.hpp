@@ -1,6 +1,7 @@
 #ifndef MACH_VISCOUS_INTEG
 #define MACH_VISCOUS_INTEG
 
+#include "adept.h"
 #include "mfem.hpp"
 
 #include "sbp_fe.hpp" // needed in viscous_integ_def.hpp
