@@ -3,8 +3,7 @@ target_sources(mach
       coefficient.cpp
       coefficient.hpp
       common.hpp
-      coefficient.cpp
-      coefficient.hpp
+      default_options.cpp
       default_options.hpp
       evolver.cpp
       evolver.hpp

@@ -33,8 +33,7 @@ double AggregateIntegrator::GetIEAggregate(mfem::GridFunction *temp)
       fes->GetElementDofs(j, dofs);
       eltrans = fes->GetElementTransformation(j);
       const FiniteElement *el = fes->GetFE(j);
-      const int dof = el->GetDof();
-      const int dim = el->GetDim();
+      // const int dim = el->GetDim();
       const int attr = fes->GetAttribute(j);
 
       maxt = temp->Max()/max(attr);
@@ -67,8 +66,8 @@ double AggregateIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
                const mfem::Vector &elfun)
 {
    double Jpart = 0;
-   const int dof = el.GetDof();
-   const int dim = el.GetDim();
+   // const int dof = el.GetDof();
+   // const int dim = el.GetDim();
    const int attr = Trans.Attribute;
    Vector DofVal(elfun.Size());
    maxt = temp_->Max()/max(attr);
@@ -90,7 +89,7 @@ void AggregateIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
                mfem::ElementTransformation &Trans,
                const mfem::Vector &elfun, mfem::Vector &elvect)
 {
-   int dof = el.GetDof(), dim = el.GetDim();
+   int dof = el.GetDof(); //, dim = el.GetDim();
    elvect.SetSize(dof);
    elvect = 0.0;
    Vector DofVal(elfun.Size());
@@ -137,8 +136,8 @@ double TempIntegrator::GetTemp(mfem::GridFunction *temp)
       fes->GetElementDofs(j, dofs);
       eltrans = fes->GetElementTransformation(j);
       const FiniteElement *el = fes->GetFE(j);
-      const int dof = el->GetDof();
-      const int dim = el->GetDim();
+      // const int dof = el->GetDof();
+      // const int dim = el->GetDim();
 
       const IntegrationRule *ir = &IntRules.Get(el->GetGeomType(), 2 * el->GetOrder());
 
@@ -167,7 +166,7 @@ void TempIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
                mfem::ElementTransformation &Trans,
                const mfem::Vector &elfun, mfem::Vector &elvect)
 {
-   int dof = el.GetDof(), dim = el.GetDim();
+   int dof = el.GetDof(); //, dim = el.GetDim();
    elvect.SetSize(dof);
    elvect = 0.0;
    Vector DofVal(elfun.Size());
@@ -189,7 +188,7 @@ void TempIntegrator::AssembleFaceVector(const mfem::FiniteElement &el1,
                mfem::FaceElementTransformations &Trans,
                const mfem::Vector &elfun, mfem::Vector &elvect)
 {
-   int dof = el1.GetDof(), dim = el1.GetDim();
+   int dof = el1.GetDof(); //, dim = el1.GetDim();
    elvect.SetSize(dof);
    elvect = 0.0;
    denom_ = 1.0; //area of face, use for testing only
@@ -236,8 +235,8 @@ double AggregateResIntegrator::GetIEAggregate(mfem::GridFunction *temp)
       fes->GetElementDofs(j, dofs);
       eltrans = fes->GetElementTransformation(j);
       const FiniteElement *el = fes->GetFE(j);
-      const int dof = el->GetDof();
-      const int dim = el->GetDim();
+      // const int dof = el->GetDof();
+      // const int dim = el->GetDim();
       const int attr = fes->GetAttribute(j);
 
       maxt = temp->Max()/max(attr);

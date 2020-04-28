@@ -385,6 +385,28 @@ protected:
 	std::map<const int, std::unique_ptr<mfem::VectorCoefficient>> material_map;
 };
 
+class SteinmetzCoefficient : public mfem::Coefficient
+{
+public:
+	/// Define a coefficient to represent the Steinmetz core losses
+	/// \param[in] rho - TODO: material density?
+	/// \param[in] alpha - TODO
+	/// \param[in] f - electrical frequency of excitation
+	/// \param[in] kh - Steinmetz hysteresis coefficient
+	/// \param[in] ke - Steinmetz eddy currnt coefficient
+	/// \param[in] B - magnetic flux density GridFunction 
+	SteinmetzCoefficient(double rho, double alpha, double f, double kh,
+								double ke, GridFunType *B)
+		: rho(rho), alpha(alpha), freq(f), kh(kh), ke(ke), B(B) {}
+
+	/// Evaluate the Steinmetz coefficient
+	double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
+private:
+	double rho, alpha, freq, kh, ke;
+	GridFunType *B;
+};
+
 } // namespace mach
 
 #endif

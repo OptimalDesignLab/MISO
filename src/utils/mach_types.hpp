@@ -16,6 +16,7 @@ namespace mach
    using MeshType = mfem::ParMesh;
 #endif
    using SpaceType = mfem::ParFiniteElementSpace;
+   using LinearFormType = mfem::ParLinearForm;
    using BilinearFormType = mfem::ParBilinearForm;
    using NonlinearFormType = mfem::ParNonlinearForm;
    using GridFunType = mfem::ParGridFunction;
@@ -30,6 +31,7 @@ namespace mach
 #else
    using MeshType = mfem::Mesh;
    using SpaceType = mfem::FiniteElementSpace;
+   using LinearFormType = mfem::LinearForm;
    using BilinearFormType = mfem::BilinearForm;
    using NonlinearFormType = mfem::NonlinearForm;
    using GridFunType = mfem::GridFunction;
