@@ -1085,16 +1085,37 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    output.at(fun).Mult(*state, *dJ);
 
    // Step 2: get the Jacobian and transpose it
+   // TODO: need #define guards to handle serial case
    Operator *jac = &res->GetGradient(*state);
-   TransposeOperator jac_trans = TransposeOperator(jac);
+   //const HypreParMatrix *jac_trans = dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
+   const Operator *jac_trans = dynamic_cast<const HypreParMatrix*>(jac)->Transpose();
+   MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
 
    // Step 3: Solve the adjoint problem
    *out << "Solving adjoint problem:\n"
         << "\tsolver: HypreGMRES\n"
         << "\tprec. : Euclid ILU" << endl;
    constructLinearSolver(options["adj-solver"]);
-   solver->SetOperator(jac_trans);
+   solver->SetOperator(*jac_trans);
    solver->Mult(*dJ, *adjoint);
+
+   // check that adjoint residual is small
+   std::unique_ptr<GridFunType> adj_res(new GridFunType(fes.get()));
+   double res_norm = 0;
+#ifdef MFEM_USE_MPI
+   HypreParVector *adj_res_true = adj_res->GetTrueDofs();
+   jac_trans->Mult(*adjoint, *adj_res_true);
+   *adj_res_true -= *dJ;
+   double loc_norm = (*adj_res_true)*(*adj_res_true);
+   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   jac_trans.Mult(*adjoint, *adj_res);
+   *adj_res -= *dJ;
+   res_norm = (*adj_res)*(*adj_res);
+#endif
+   res_norm = sqrt(res_norm);
+   *out << "Adjoint residual norm = " << res_norm << endl;
+
 #ifdef MFEM_USE_MPI
    adj->SetFromTrueDofs(*adjoint);
 #endif
