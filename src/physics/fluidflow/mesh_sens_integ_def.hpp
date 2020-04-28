@@ -85,6 +85,101 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
 {
    throw MachException("BoundaryMeshSensIntegrator::AssembleRHSElementVect()\n"
                        "\tUse AddBdrFaceIntegrator not AddBoundaryIntegrator");
+
+   // TODO: here I was trying to use GetBdrElementAdjacentElement to
+   // find the element and then its element transformation...the problem is the
+   // member of the face transformation... we don't have this here.   
+
+//    using namespace mfem;
+
+//    // reverse-diff functions we need are only defined for IsoparametricTrans
+//    IsoparametricTransformation &isotrans = 
+//      dynamic_cast<IsoparametricTransformation&>(*trans.Elem1);
+//    // extract the relevant sbp operator for this element
+//    const FiniteElementSpace *fes = state.FESpace(); // Should check that fes match with adjoint
+//    int elem, info;
+//    fes->GetMesh()->GetBdrElementAdjacentElement(trans.ElementNo, elem, info);
+//    const FiniteElement *fe = fes->GetFE(elem);
+//    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(*fe);
+//    ElementTransformation *elem_trans = fes->GetElementTransformation(elem);
+//    // extract the state and adjoint values for this element
+//    const IntegrationRule& ir = sbp.GetNodes();
+//    DenseMatrix u, psi;
+//    state.GetVectorValues(isotrans, ir, u);
+//    adjoint.GetVectorValues(isotrans, ir, psi);
+
+//    int ndof = el.GetDof(); // number mesh dofs != num sbp nodes, in general
+//    int dim = trans.GetDimension();
+//    int space_dim = trans.GetSpaceDim();
+//    Vector u_face, psi_face; // references only, no allocation
+// #ifdef MFEM_THREAD_SAFE
+//    Vector x, nrm, nrm_bar;
+//    DenseMatrix Jac_map, Jac_bar, Jac_face_bar;
+//    DenseMatrix PointMat_bar;
+// #endif
+//    x.SetSize(space_dim);
+//    nrm.SetSize(space_dim);
+//    nrm_bar.SetSize(space_dim);
+// 	elvect.SetSize(space_dim*ndof);
+//    Jac_map.SetSize(space_dim, dim);
+//    Jac_bar.SetSize(space_dim);
+//    Jac_face_bar.SetSize(space_dim, dim);
+//    PointMat_bar.SetSize(space_dim, ndof); // PointMat_bar = dfdx
+//    PointMat_bar = 0.0;
+
+//    const mfem::FiniteElementCollection *fec = fes->FEColl();
+//    const FiniteElement *sbp_face;
+//    switch (space_dim)
+//    {
+//       case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
+//               break;
+//       case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+//               break;
+//       default: throw mach::MachException(
+//          "BoundaryMeshSensIntegrator::AssembleFaceVector())\n"
+//          "\tcannot handle given dimension");
+//    }
+//    IntegrationPoint el_ip;
+//    for (int i = 0; i < sbp_face->GetDof(); ++i)
+//    {
+//       // get the face and element integration points 
+//       const IntegrationPoint &face_ip = sbp_face->GetNodes().IntPoint(i);
+//       //trans.Loc1.Transform(face_ip, el_ip);
+//       trans.SetIntPoint(&face_ip);
+//       //trans.Elem1->SetIntPoint(&el_ip);
+
+//       // Find Jac_map, the linear map from the element to the face Jacobian
+//       //CalcInverse(trans.Elem1->Jacobian(), Jac_bar); // use Jac_bar for inv
+//       //Mult(Jac_bar, trans.Face->Jacobian(), Jac_map);
+
+//       // Get the state and adjoint for this face node
+//       int j = sbp.getIntegrationPointIndex(el_ip);
+//       u.GetColumnReference(j, u_face);
+//       psi.GetColumnReference(j, psi_face);
+
+//       // get the physical coordinate and normal vector
+//       trans.Elem1->Transform(el_ip, x);
+//       CalcOrtho(trans.Face->Jacobian(), nrm);
+
+//       // start reverse sweep
+//       // flux(x, nrm, u_face, flux_face); 
+//       fluxBar(x, nrm, u_face, psi_face, nrm_bar);
+
+//       // flux_face *= face_ip.weight;
+//       nrm_bar *= face_ip.weight*alpha;
+//       // CalcOrtho(trans.Face->Jacobian(), nrm);
+//       CalcOrthoRevDiff(trans.Face->Jacobian(), nrm_bar, Jac_face_bar);
+//       MultABt(Jac_face_bar, Jac_map, Jac_bar);
+//       isotrans.JacobianRevDiff(Jac_bar, PointMat_bar); 
+//    }
+//    // Insert PointMat_bar = dfdx into elvect
+//    for (int i = 0; i < ndof; ++i)
+//    {
+//       for (int d = 0; d < space_dim; ++d)
+//       {
+//          elvect(d*ndof + i) = PointMat_bar(d, i);
+//       }
+//    }
 }
 
 template <typename Derived>
