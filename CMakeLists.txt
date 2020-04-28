@@ -21,10 +21,15 @@ find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 if (MFEM_USE_PUMI)
    # If PUMI_DIR was specified, only link to that directory,
    # i.e. don't link to another installation in /usr/lib by mistake
-   find_package(SCOREC 2.1.0 REQUIRED OPTIONAL_COMPONENTS gmi_sim
+   find_package(SCOREC 2.1.0 REQUIRED OPTIONAL_COMPONENTS gmi_sim gmi_egads
       CONFIG PATHS ${PUMI_DIR} NO_DEFAULT_PATH)
    if (SCOREC_FOUND)
       set(PUMI_FOUND ${SCOREC_FOUND})
+
+      # TODO: when EGADS is in mainline PUMI put this in MFEM CMake
+      # Define a header file with the MFEM_USE_EGADS preprocessor variable
+      set(MFEM_USE_EGADS ${SCOREC_gmi_egads_FOUND})
+
       get_target_property(PUMI_INCLUDE_DIRS
          SCOREC::apf INTERFACE_INCLUDE_DIRECTORIES)
       set(PUMI_LIBRARIES SCOREC::core)
@@ -58,13 +63,6 @@ target_link_libraries(mach
       "${MFEM_LIBRARIES}"
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
 )
-
-# if OpenMP found on system, link to it
-# if(OpenMP_CXX_FOUND)
-#    target_link_libraries(mach
-#       PUBLIC
-#          OpenMP::OpenMP_CXX)
-# endif()
 
 target_include_directories(mach
    PUBLIC
@@ -101,10 +99,13 @@ target_compile_options(mach
       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
 )
 
-target_compile_definitions(mach
-   PUBLIC
-      MFEM_USE_EGADS
-)
+# TODO: When EGADS support is in mainline PUMI move this to MFEM CMake
+if (MFEM_USE_EGADS)
+   target_compile_definitions(mach
+      PUBLIC
+         MFEM_USE_EGADS
+   )
+endif(MFEM_USE_EGADS)
 
 install(TARGETS mach
    EXPORT machTargets

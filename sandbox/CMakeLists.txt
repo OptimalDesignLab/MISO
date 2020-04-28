@@ -6,7 +6,8 @@ function(create_sandbox source_list)
    foreach(X ${source_list})
       add_executable("${X}.bin" "${X}.cpp")
       add_dependencies(sandbox "${X}.bin")
-      target_link_libraries("${X}.bin" mach)
+      target_link_libraries("${X}.bin" PRIVATE mach)
+      target_include_directories("${X}.bin" PRIVATE "${CMAKE_SOURCE_DIR}")
       configure_file("${X}_options.json" "${X}_options.json" COPYONLY)
       configure_file("mach_options.json" "mach_options.json" COPYONLY)
    endforeach()
@@ -21,6 +22,8 @@ set(SANDBOX_SRCS
    magnetostatic_box
    magnetostatic_motor
    magnetostatic_wire
+   thermal_square
+   joule_wire
 )
 
 create_sandbox("${SANDBOX_SRCS}")

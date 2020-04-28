@@ -12,4 +12,3 @@ add_subdirectory(unit)
 #add_custom_target("${REGRESSION_TESTS}")
 add_subdirectory(regression)
 
-message("in test folder")

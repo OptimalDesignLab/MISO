@@ -1,9 +1,11 @@
 // Solve for the flow around a NACA0012 at high angle of attack
 
-#include "mfem.hpp"
-#include "navier_stokes.hpp"
 #include <fstream>
 #include <iostream>
+
+#include "mfem.hpp"
+
+#include "mach.hpp"
 
 using namespace std;
 using namespace mfem;

@@ -3,10 +3,6 @@
 
 #include "mfem.hpp"
 
-#include "solver.hpp"
-
-using namespace mach;
-
 namespace mfem
 {
 /// Inexact Newton's method solving F(x) = b with globalization.
@@ -34,7 +30,7 @@ public:
    InexactNewton(MPI_Comm comm, double eta_init = 1e-4, 
                double eta_maximum = 1e-1, double ared_scale = 1e-4)
       : NewtonSolver(comm), eta(eta_init), eta_max(eta_maximum),
-      t(ared_scale) {}
+        t(ared_scale) {}
 #endif
 
    /// Set the operator that defines the nonlinear system
@@ -71,9 +67,9 @@ private:
    /// \note See Pawlowski et al., doi:10.1137/S0036144504443511 for details
    /// regarding the line search method and its parameters.
    double ComputeStepSize(const mfem::Vector &x, const mfem::Vector &b, 
-                        const double norm);
+                          const double norm);
 };
 
-}
+} // namespace mfem
 
 #endif

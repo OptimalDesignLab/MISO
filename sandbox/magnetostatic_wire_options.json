@@ -1,46 +1,47 @@
 {
    "mesh": {
-      "file": "wire.smb",
-      "out-file": "wire_mesh"
+      "file": "wire_em.smb",
+      "out-file": "wire_em_out",
+      "model-file": "wire_em.egads"
    },
-   "model-file": "wire.egads",
    "space-dis": {
       "basis-type": "nedelec",
-      "degree": 1
+      "degree": 2
    },
    "steady": true,
-   "time-dis": {
-   },
    "lin-solver": {
+      "type": "hypregmres",
+      "pctype": "hypreams",
+      "rel-tol": 1e-10,
+      "abs-tol": 0.0,
       "printlevel": 2,
-      "maxiter": 500
+      "maxiter": 50
    },
    "newton": {
       "printlevel": 1,
-      "reltol": 1e-8,
-      "abstol": 1e-8
+      "reltol": 1e-9
    },
    "components": {
       "wire": {
-         "material": "copper",
+         "material": "copperwire",
          "linear": true,
-         "attr": 1,
-         "fill-factor": 1.0,
-         "current-density": 1.0
+         "attr": 1
       },
       "farfields": {
          "material": "air",
          "linear": true,
-         "attrs": 2
+         "attr": 2
       }
    },
-   "magnets": {
-      "north": [6, 8, 10, 12],
-      "south": [7, 9, 11, 13]
+   "problem-opts": {
+      "fill-factor": 1.0,
+      "current-density": 1.0,
+      "current": {
+         "z": [1]
+      }
    },
-   "phases": {
-      "A": [14, 17, 20, 23],
-      "B": [15, 18, 21, 24],
-      "C": [1]
-   }
+   "outputs": [
+      "energy",
+      "co-energy"
+   ]
 }

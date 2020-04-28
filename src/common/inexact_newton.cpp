@@ -1,7 +1,10 @@
 #include "inexact_newton.hpp"
 
-using namespace mfem;
+#include "utils.hpp"
+
 using namespace std;
+using namespace mfem;
+using namespace mach;
 
 namespace mfem
 {

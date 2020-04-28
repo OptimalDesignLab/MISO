@@ -9,167 +9,194 @@
 namespace mach
 {
 
-/// For explicit time marching of linear problems
-class LinearEvolver : public mfem::TimeDependentOperator
+/// Class that can handle implicit or explicit time marching of linear or
+/// nonlinear ODEs
+/// TODO: think about how to handle partial assebmly of residual jacobian and
+///       stiffness matrices
+class MachEvolver : public mfem::TimeDependentOperator
 {
 public:
-   /// Class constructor.
-   /// \param[in] m - mass matrix
-   /// \param[in] k - stiffness matrix
-   /// \param[in] outstream - for output
-   LinearEvolver(MatrixType &m, MatrixType &k, std::ostream &outstream);
+   /// Serves as an base class for linear/nonlinear explicit/implicit time
+   /// marching problems
+   /// \param[in] ess_bdr - flags for essential boundary
+   /// \param[in] mass - bilinear form for mass matrix (not owned)
+   /// \param[in] res - nonlinear residual operator (not owned)
+   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
+   /// \param[in] load - load vector (not owned)
+   /// \param[in] out - outstream to use pointer (not owned)
+   /// \param[in] start_time - time to start integration from
+   ///                         (important for time-variant sources)
+   /// \param[in] type - solver type; explicit or implicit
+   /// \note supports partial assembly of mass and stiffness matrices for
+   ///       explicit time marching
+   MachEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+               NonlinearFormType *res, BilinearFormType *stiff,
+               mfem::Vector *load, double alpha, std::ostream &outstream,
+               double start_time,
+               mfem::TimeDependentOperator::Type type);
 
-   /// Applies the action of the linear-evolution operator on `x`.
-   /// \param[in] x - `Vector` that is being multiplied by operator
-   /// \param[out] y - resulting `Vector` of the action
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+   /// Perform the action of the operator: y = k = f(x, t), where k solves
+   /// the algebraic equation F(x, k, t) = G(x, t) and t is the current time.
+   /// Compute k = M^-1(R(x,t) + Kx + l)
+   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
-   /// Class destructor.
-   virtual ~LinearEvolver() { }
-
-private:
-   /// used to print information
-   std::ostream &out;
-   /// mass matrix represented as a matrix
-   MatrixType &mass;
-   /// stiffness matrix represented as a sparse matrix
-   MatrixType &stiff;
-   /// preconditioner for mass matrix
-   SmootherType mass_prec;
-   /// solver for the mass matrix
-   std::unique_ptr<mfem::CGSolver> mass_solver;
-   /// a work vector
-   mutable mfem::Vector z;
-};
-
-/// For explicit or implicit time marching of nonlinear problems
-class NonlinearEvolver : public mfem::TimeDependentOperator
-{
-public:
-   /// Class constructor.
-   /// \param[in] m - mass matrix
-   /// \param[in] res - defines the spatial residual
-   /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
-   NonlinearEvolver(MatrixType &m, NonlinearFormType &r, double a = 1.0);
-
-   /// Computes the action of the operator based on `x`.
-   /// \param[in] x - `Vector` at which the operator is computed
-   /// \param[out] y - resulting `Vector` of the action
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
-
-   /// Class destructor.
-   virtual ~NonlinearEvolver() { }
-
-private:
-   /// mass matrix represented as a matrix
-   MatrixType &mass;
-   /// nonlinear spatial residual
-   NonlinearFormType &res;
-   /// preconditioner for mass matrix
-   SmootherType mass_prec;
-   /// solver for the mass matrix
-   std::unique_ptr<mfem::CGSolver> mass_solver;
-   /// a work vector
-   mutable mfem::Vector z;
-   /// used to move the spatial residual to the right-hand-side, if necessary
-   double alpha;
-};
-
-/// Implicit Nonlinear evolver
-class ImplicitNonlinearEvolver : public mfem::TimeDependentOperator
-{
-public:
-   /// class constructor
-   /// \param[in] m - the mass matrix
-   /// \param[in] res - the nonlinear form define the spatial residual
-   /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
-   ImplicitNonlinearEvolver(MatrixType &m, NonlinearFormType &r, double a = 1.0);
-
-   /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
+   /// Solve the implicit equation: k = f(x + dt k, t), for the unknown k at
+   /// the current time t. 
    /// Currently implemented for the implicit midpoit method
-   virtual void ImplicitSolve(const double dt, const mfem::Vector &x,
-                              mfem::Vector &k);
+   void ImplicitSolve(const double dt, const mfem::Vector &x,
+                      mfem::Vector &k) override;
+   
+   /// Set the linear solver to be used for implicit methods
+   /// \param[in] linsolver - pointer to configured linear solver (not owned)
+   void SetLinearSolver(mfem::Solver *linsolver);
 
-   /// Compute y = f(x + dt * k) - M * k, where k = dx/dt
-   /// \param[in] k - dx/dt
-   /// \param[in/out] y - the residual
-   virtual void Mult(const mfem::Vector &k, mfem::Vector &y) const;
+   /// Set the newton solver to be used for implicit methods
+   /// \param[in] newton - pointer to configured newton solver (not owned)
+   void SetNewtonSolver(mfem::NewtonSolver *newton);
 
-   /// Compute the jacobian of implicit evolver: J = dt * f'(x + dt * k) - M
-   /// \param[in] k - dx/dt
-   virtual mfem::Operator &GetGradient(const mfem::Vector &k) const;
+   /// Return a reference to the Jacobian of the combined operator
+   /// \param[in] x - the current state
+   mfem::Operator &GetGradient(const mfem::Vector &x) const override;
 
-   /// Set the parameters
-   /// \param[in] dt_ - time step
-   /// \param[in] x_ - current state variable
-   void SetParameters(const double dt_, const mfem::Vector &x_)
-   { 
-      dt = dt_;
-      x = x_;
-   }
-   /// Class destructor
-   virtual ~ImplicitNonlinearEvolver() { }
-
-private:
-   /// implicit step jacobian
-   //MatrixType *jac;
+   virtual ~MachEvolver();
+   
+protected:
+   /// pointer to mass bilinear form (not owned)
+   mfem::OperatorHandle mass;
+   /// pointer to nonlinear form (not owned)
+   NonlinearFormType *res;
+   /// pointer to stiffness bilinear form (not owned)
+   mfem::OperatorHandle stiff;
+   ///pointer to load vector (not owned)
+   mfem::Vector *load;
    /// used to move the spatial residual to the right-hand-side, if necessary
    double alpha;
-   /// reference to the mass matrix
-   MatrixType &mass;
-   /// referencee to the nonlinear form i.e. rhs
-   NonlinearFormType &res;
-   /// the time step
-   double dt;
-   /// Vector that hould the current state
-   mfem::Vector x;
-   /// Solver for the implicit time marching
-   std::unique_ptr<mfem::NewtonSolver> newton_solver;
-   //std::unique_ptr<mfem::InexactNewton> newton_solver;
-   /// linear solver in the newton solver
-   std::unique_ptr<mfem::Solver> linear_solver;
-   /// linear system preconditioner for solver in newton solver
-   std::unique_ptr<mfem::Solver> prec;
+   /// outstream for printing
+   std::ostream &out;
+   /// solver for inverting mass matrix for explicit solves
+   /// \note supports partially assembled mass bilinear form
+   mfem::CGSolver mass_solver;
+   /// preconditioner for inverting mass matrix
+   std::unique_ptr<mfem::Solver> mass_prec;
+   /// Linear solver for implicit problems (not owned)
+   mfem::Solver *linsolver;
+   /// Newton solver for implicit problems (not owned)
+   mfem::NewtonSolver *newton;
+
+   /// pointer-to-implementation idiom
+   /// Hides implementation details of this operator, and because it's private,
+   /// it doesn't pollute the mach namespace
+   class SystemOperator;
+   /// Operator that combines the linear/nonlinear spatial discretization with
+   /// the load vector into one operator used for implicit solves
+   std::unique_ptr<SystemOperator> combined_oper;
+
+   /// work vector
+   mutable mfem::Vector work, work2;
+
+   /// sets the state and dt for the combined operator
+   /// \param[in] dt - time increment
+   /// \param[in] x - the current state
+   void setOperParameters(double dt, const mfem::Vector *x);
 };
 
-// /// For implicit time marching of nonlinear problems 
-// class ImplicitOperator : public mfem::Operator
-// {
-// public:
-//    /// construction of the Implicit Operator
-//    ImplicitOperator(MatrixType &m, NonlinearFormType &r)
-//    {
-//       mass = m;
-//       res = r;
-//    }
+/// For explicit time marching of nonlinear problems
+class NonlinearEvolver : public MachEvolver
+{
+public:
+   /// Nonlinear evolver that combines the mass, res, stiff, and load elements
+   /// for explicit ODE integration
+   /// \param[in] mass - bilinear form for mass matrix (not owned)
+   /// \param[in] res - nonlinear residual operator (not owned)
+   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
+   /// \param[in] load - load vector (not owned)
+   /// \param[in] out - outstream to use pointer (not owned)
+   /// \param[in] start_time - time to start integration from
+   ///                         (important for time-variant sources)
+   /// \param[in] type - solver type; explicit or implicit
+   /// \note supports partial assembly of mass matrix
+   NonlinearEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+                    NonlinearFormType *res, double alpha = -1.0,
+                    BilinearFormType *stiff = nullptr,
+                    mfem::Vector *load = nullptr,
+                    std::ostream &outstream = std::cout,
+                   double start_time = 0.0)
+      : MachEvolver(ess_bdr, mass, res, stiff, load, alpha, outstream,
+                    start_time, EXPLICIT) {};
+};
 
-//    /// evaluate the F(q) + M dq/dt
-//    virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+/// For implicit time marching of nonlinear problems
+class ImplicitNonlinearEvolver : public MachEvolver
+{
+public:
+   /// Nonlinear evolver that combines the mass, res, stiff, and load elements
+   /// for implicit ODE integration
+   /// \param[in] mass - bilinear form for mass matrix (not owned)
+   /// \param[in] res - nonlinear residual operator (not owned)
+   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
+   /// \param[in] load - load vector (not owned)
+   /// \param[in] out - outstream to use pointer (not owned)
+   /// \param[in] start_time - time to start integration from
+   ///                         (important for time-variant sources)
+   /// \param[in] type - solver type; explicit or implicit
+   /// \note supports partial assembly of mass matrix
+   ImplicitNonlinearEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+                            NonlinearFormType *res, double alpha = -1.0,
+                            BilinearFormType *stiff = nullptr,
+                            mfem::Vector *load = nullptr,
+                            std::ostream &outstream = std::cout,
+                            double start_time = 0.0)
+      : MachEvolver(ess_bdr, mass, res, stiff, load, alpha, outstream,
+                    start_time, IMPLICIT) {};
+};
 
-//    /// Get the jacobian of the implicit operator w.r.t dq/dt
-//    virtual Operator &GetGradient(const mfem::Vector &x) const;
+/// For explicit time marching of linear problems
+class LinearEvolver : public MachEvolver
+{
+public:
+   /// Linear evolver that combines the mass, stiff, and load elements
+   /// for explicit ODE integration
+   /// \param[in] mass - bilinear form for mass matrix (not owned)
+   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
+   /// \param[in] load - load vector (not owned)
+   /// \param[in] out - outstream to use pointer (not owned)
+   /// \param[in] start_time - time to start integration from
+   ///                         (important for time-variant sources)
+   /// \param[in] type - solver type; explicit or implicit
+   /// \note supports partial assembly of mass matrix
+   LinearEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+                 BilinearFormType *stiff,
+                 double alpha = -1.0,
+                 mfem::Vector *load = nullptr,
+                 std::ostream &outstream = std::cout,
+                 double start_time = 0.0)
+      : MachEvolver(ess_bdr, mass, nullptr, stiff, load, alpha, outstream,
+                    start_time, EXPLICIT) {};
+};
 
-//    /// set parameters 
-//    void SetParameters(double dt_, mfem::Vector &x_)
-//    {
-//       dt = dt_;
-//       x = x_;
-//    }
-// private:
-//    /// referece to the mass matrix
-//    MatrixType &mass;
-//    /// referce to the nonlinear form
-//    NonlinearFormType &res
-
-//    /// Jacobian of the implicit midpoint method
-//    MatrixType *jac;
-
-//    /// aux data
-//    double dt;
-//    mfem::Vector &x; // referece to the current state
-
-// };
-
+/// For implicit time marching of linear problems
+class ImplicitLinearEvolver : public MachEvolver
+{
+public:
+   /// Linear evolver that combines the mass, stiff, and load elements
+   /// for implicit ODE integration
+   /// \param[in] mass - bilinear form for mass matrix (not owned)
+   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
+   /// \param[in] load - load vector (not owned)
+   /// \param[in] out - outstream to use pointer (not owned)
+   /// \param[in] start_time - time to start integration from
+   ///                         (important for time-variant sources)
+   /// \param[in] type - solver type; explicit or implicit
+   /// \note supports partial assembly of mass matrix
+   ImplicitLinearEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+                         BilinearFormType *stiff,
+                         double alpha = -1.0,
+                         mfem::Vector *load = nullptr,
+                         std::ostream &outstream = std::cout,
+                         double start_time = 0.0)
+      : MachEvolver(ess_bdr, mass, nullptr, stiff, load, alpha, outstream,
+                    start_time, IMPLICIT) {};
+};
 
 } // namespace mach
 

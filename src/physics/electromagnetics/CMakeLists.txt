@@ -2,6 +2,7 @@ target_sources(mach
    PRIVATE
       electromag_integ.cpp
       electromag_integ.hpp
+      electromagnetics.hpp
       magnetostatic.cpp
       magnetostatic.hpp
 )
