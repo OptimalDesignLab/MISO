@@ -285,7 +285,7 @@ TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
          // build the nonlinear form for d(psi^T R)/dx 
-         NonlinearForm dfdx_form(mesh_fes);
+         LinearForm dfdx_form(mesh_fes);
          dfdx_form.AddBdrFaceIntegrator(
             new mach::BoundaryNormalResIntegrator(*Q,
                &state, &adjoint));
@@ -296,9 +296,10 @@ TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
          v.ProjectCoefficient(v_rand);
 
          // evaluate df/dx and contract with v
-         GridFunction dfdx(*x_nodes);
-         dfdx_form.Mult(*x_nodes, dfdx);
-         double dfdx_v = dfdx * v;
+         //GridFunction dfdx(*x_nodes);
+         //dfdx_form.Mult(*x_nodes, dfdx);
+         dfdx_form.Assemble();
+         double dfdx_v = dfdx_form * v;
 
          // now compute the finite-difference approximation...
          GridFunction x_pert(*x_nodes);
