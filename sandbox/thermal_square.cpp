@@ -52,9 +52,12 @@ int main(int argc, char *argv[])
    t_final = options["time-dis"]["t-final"].get<double>();
 
    // generate a simple tet mesh
-   int num_edge = options["mesh"]["num-edge"].get<int>();
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, 2, 2,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
+   int num_edge_x = options["mesh"]["num-edge-x"].get<int>();
+   int num_edge_y = options["mesh"]["num-edge-y"].get<int>();
+   int num_edge_z = options["mesh"]["num-edge-z"].get<int>();
+
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge_x, num_edge_y, num_edge_z,
+                              Element::HEXAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
 
    mesh->ReorientTetMesh();

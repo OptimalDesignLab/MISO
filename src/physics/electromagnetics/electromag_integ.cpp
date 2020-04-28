@@ -539,8 +539,16 @@ ForceIntegrator::ForceIntegrator(AbstractSolver *_solver,
      dir(_dir)
 {
 #ifndef MFEM_USE_PUMI
-throw MachException("ForceIntegrator::ForceIntegrator()\n"
-                     "\tusing ForceIntegrator requires PUMI!\n");
+   throw MachException("ForceIntegrator::ForceIntegrator()\n"
+                        "\tusing ForceIntegrator requires PUMI!\n");
+}
+
+double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
+                                         ElementTransformation &trans,
+                                         const Vector &elfun)
+{
+   throw MachException("ForceIntegrator::ForceIntegrator()\n"
+                        "\tusing ForceIntegrator requires PUMI!\n");
 }
 #else
    /// TODO: Call pumi APIs to get a list of mesh face indices that are on the

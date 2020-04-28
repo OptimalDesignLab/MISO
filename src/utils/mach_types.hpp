@@ -11,7 +11,7 @@ namespace mach
 // Todo: Should this go in a separate header file (e.g. "mach_types.hpp")?
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PUMI
-   using MeshType = mfem::ParMesh;
+   using MeshType = mfem::ParPumiMesh;
 #else
    using MeshType = mfem::ParMesh;
 #endif

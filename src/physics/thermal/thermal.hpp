@@ -57,6 +57,14 @@ private:
    /// Use for exact solution
    std::unique_ptr<GridFunType> th_exact;
 
+   // mfem::HypreParMatrix M;
+   // mfem::HypreParMatrix K;
+   // mfem::Vector B;
+
+   /// aggregation functional (aggregation or temp)
+   std::unique_ptr<AggregateIntegrator> funca;
+   std::unique_ptr<TempIntegrator> funct;
+
    /// mesh dependent density coefficient
    std::unique_ptr<MeshDependentCoefficient> rho;
    /// mesh dependent specific heat coefficient

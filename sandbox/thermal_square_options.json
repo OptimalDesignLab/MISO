@@ -1,7 +1,9 @@
 {
     "mesh": {
        "file": "initial.mesh",
-       "num-edge": 20
+       "num-edge-x": 20,
+       "num-edge-y": 5,
+       "num-edge-z": 5
     },
     "space-dis": {
        "basis-type": "H1",
@@ -45,7 +47,7 @@
        }
     },
     "bcs": {
-        "outflux": [0, 0, 0, 0, 0, 0],
+        "outflux": [0, 0, 0, 0, 1, 0],
         "const": true,
         "const-val": 1
     },
