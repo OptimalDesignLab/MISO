@@ -132,43 +132,43 @@ private:
    std::unique_ptr<mfem::Solver> prec;
 };
 
-/// For implicit time marching of nonlinear problems 
-class ImplicitOperator : public mfem::Operator
-{
-public:
-   /// construction of the Implicit Operator
-   ImplicitOperator(MatrixType &m, NonlinearFormType &r)
-   {
-      mass = m;
-      res = r;
-   }
+// /// For implicit time marching of nonlinear problems 
+// class ImplicitOperator : public mfem::Operator
+// {
+// public:
+//    /// construction of the Implicit Operator
+//    ImplicitOperator(MatrixType &m, NonlinearFormType &r)
+//    {
+//       mass = m;
+//       res = r;
+//    }
 
-   /// evaluate the F(q) + M dq/dt
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+//    /// evaluate the F(q) + M dq/dt
+//    virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
 
-   /// Get the jacobian of the implicit operator w.r.t dq/dt
-   virtual Operator &GetGradient(const mfem::Vector &x) const;
+//    /// Get the jacobian of the implicit operator w.r.t dq/dt
+//    virtual Operator &GetGradient(const mfem::Vector &x) const;
 
-   /// set parameters 
-   void SetParameters(double dt_, mfem::Vector &x_)
-   {
-      dt = dt_;
-      x = x_;
-   }
-private:
-   /// referece to the mass matrix
-   MatrixType &mass;
-   /// referce to the nonlinear form
-   NonlinearFormType &res;
+//    /// set parameters 
+//    void SetParameters(double dt_, mfem::Vector &x_)
+//    {
+//       dt = dt_;
+//       x = x_;
+//    }
+// private:
+//    /// referece to the mass matrix
+//    MatrixType &mass;
+//    /// referce to the nonlinear form
+//    NonlinearFormType &res;
 
-   /// Jacobian of the implicit midpoint method
-   MatrixType *jac;
+//    /// Jacobian of the implicit midpoint method
+//    MatrixType *jac;
 
-   /// aux data
-   double dt;
-   mfem::Vector &x; // referece to the current state
+//    /// aux data
+//    double dt;
+//    mfem::Vector &x; // referece to the current state
 
-};
+// };
 
 
 } // namespace mach
