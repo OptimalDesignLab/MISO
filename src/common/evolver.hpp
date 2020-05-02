@@ -83,12 +83,12 @@ class ImplicitNonlinearEvolver : public mfem::TimeDependentOperator
 public:
    /// class constructor
    /// \param[in] m - the mass matrix
-   /// \param[in] res - the nonlinear form define the spatial residual
+   /// \param[in] res - nonlinear form that defines the spatial residual
    /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
    ImplicitNonlinearEvolver(MatrixType &m, NonlinearFormType &r, double a = 1.0);
 
    /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
-   /// Currently implemented for the implicit midpoit method
+   /// Currently implemented for the implicit midpoint method
    virtual void ImplicitSolve(const double dt, const mfem::Vector &x,
                               mfem::Vector &k);
 
