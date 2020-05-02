@@ -515,7 +515,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -555,7 +555,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -693,7 +693,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic BC flux using entvar", "[IsentropricVortexBC]
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -733,7 +733,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic BC flux using entvar", "[IsentropricVortexBC]
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -773,7 +773,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic BC flux using entvar", "[IsentropricVortexBC]
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -813,7 +813,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic BC flux using entvar", "[IsentropricVortexBC]
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
@@ -889,7 +889,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux using entvar", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -930,7 +930,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux using entvar", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -971,7 +971,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux using entvar", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
 
@@ -1012,7 +1012,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux using entvar", "[Slip Wall]",
          // compare
          for (int i = 0; i < dim; ++i)
          {
-            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-12));
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }

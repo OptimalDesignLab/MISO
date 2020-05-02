@@ -627,7 +627,7 @@ protected:
    /// vector that multiplies (du/dw), usually the time derivative here
    mfem::Vector k_i;
    /// stores the matrix-vector product (du/dw)*k at node i
-   mfem::Vector Au_i;
+   mfem::Vector Ak_i;
    /// stores the (du/dw) for the Jacobian calculation 
    mfem::DenseMatrix A_i;
    /// stores the derivative of (du/dw)*k with respect to k
