@@ -177,12 +177,14 @@ public:
    /// Construct the nonlinear mass matrix integrator
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] u_old - the state at the previous time step
+   /// \param[in] delta_t - used to define state where mass matrix is evaluated
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    MassIntegrator(adept::Stack &diff_stack, const mfem::GridFunction &u_old,
-                  double a = 1.0)
-       : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(u_old, dim+2, a),
-         stack(diff_stack), q_work(dim+2) {}
-   
+                  double delta_t, double a = 1.0)
+       : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(u_old, delta_t,
+                                                              dim + 2, a),
+         stack(diff_stack), q_work(dim + 2) {}
+
    /// applies symmetric matrix `dq/du` to input `k`
    /// \param[in] u - state at which the symmetric matrix `dq/du` is evaluated
    /// \param[in] k - vector that is being multiplied

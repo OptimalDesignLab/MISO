@@ -583,7 +583,8 @@ TEMPLATE_TEST_CASE_SIG("Mass integrator calcMatVec Jacobians",
    // Create the AD stack and the integrator
    adept::Stack diff_stack;
    mfem::GridFunction state; // not used here
-   mach::MassIntegrator<dim, true> mass_integ(diff_stack, state);
+   double dt = 0.5; // not used here
+   mach::MassIntegrator<dim, true> mass_integ(diff_stack, state, dt);
 
    SECTION("calcMatVec Jacobian w.r.t state is correct")
    {
