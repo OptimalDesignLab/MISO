@@ -45,6 +45,7 @@ ThermalSolver::ThermalSolver(
    int dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();
 
+	mesh->EnsureNodes();
    /// Create the H(Div) finite element collection for the representation the
    /// magnetic flux density field in the thermal solver
    h_div_coll.reset(new RT_FECollection(order, dim));
@@ -61,6 +62,7 @@ ThermalSolver::ThermalSolver(nlohmann::json &options,
    int dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();
 
+	mesh->EnsureNodes();
    /// Create the H(Div) finite element collection for the representation the
    /// magnetic flux density field in the thermal solver
    h_div_coll.reset(new RT_FECollection(order, dim));
@@ -81,6 +83,8 @@ void ThermalSolver::initDerived()
 	/// Create temperature grid function
 	// u.reset(new GridFunType(fes.get()));
 	th_exact.reset(new GridFunType(fes.get()));
+	u_old.reset(new GridFunType(fes.get()));
+
 
 	// /// Set static variables
 	// setStaticMembers();
@@ -223,6 +227,7 @@ void ThermalSolver::addOutputs()
 {
 	auto &fun = options["outputs"];
     int idx = 0;
+	output.clear();
     if (fun.find("temp-agg") != fun.end())
     {
 		rhoa = options["rho-agg"].template get<double>();
@@ -272,6 +277,9 @@ void ThermalSolver::solveUnsteady()
 	evolver->SetTime(t);
 	ode_solver->Init(*evolver);
 
+	// hold on to the initial state
+	*u_old = *u;
+	u_init.reset(new GridFunType(*u));
 	// if (!setInit)
 	// {
 	// 	setInitialCondition(initialTemperature);
@@ -323,7 +331,9 @@ void ThermalSolver::solveUnsteady()
     	{
 			cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      }
+      	}
+
+		u_old.reset(new GridFunType(*u));
 #ifdef MFEM_USE_MPI
 		HypreParVector *TV = u->GetTrueDofs();
 		ode_solver->Step(*TV, t, dt_real);
@@ -361,10 +371,10 @@ void ThermalSolver::solveUnsteady()
 		u->Save(osol);
 	}
 	
-        
-	// sol_ofs.precision(14);
-	// mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-	// u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+    ofstream sol_ofs("motor_heat.vtk");
+	sol_ofs.precision(14);
+	mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+	u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
 }
 
 // void ThermalSolver::setStaticMembers()
@@ -600,18 +610,15 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    GridFunType *dJ = dJdu.get();
    GridFunType *adjoint = adj.get();
 #endif
-   double energy = output.at(fun).GetEnergy(*u);
 	output.at(fun).Mult(*state, *dJ);
-	cout << "Last Functional Output: " << energy << endl;
-
-	// // Step 2: get the last time step's Jacobian
-	// HypreParMatrix *jac = evolver->GetOperator();
-	// //TransposeOperator jac_trans = TransposeOperator(jac);
-	// HypreParMatrix *jac_trans = jac->Transpose();
+	dJ->Set(dt_real_, *dJ);
 
 	// Step 2: get the last time step's Jacobian and transpose it
    Operator *jac = &evolver->GetGradient(*state);
-   TransposeOperator jac_trans = TransposeOperator(jac);
+   // cast the ElementTransformation (for the domain element)
+	 HypreParMatrix &jac_h =
+	dynamic_cast<HypreParMatrix&>(*jac);
+    HypreParMatrix *jac_trans = jac_h.Transpose();
 
 	// Step 3: Solve the adjoint problem
    *out << "Solving adjoint problem:\n"
@@ -622,13 +629,13 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    int maxiter = options["adj-solver"]["max-iter"].get<int>();
    int ptl = options["adj-solver"]["print-lvl"].get<int>();
    solver.reset(new HypreGMRES(fes->GetComm()));
-   solver->SetOperator(jac_trans);
+   solver->SetOperator(*jac_trans);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
    solver->Mult(*dJ, *adjoint);
-   adjoint->Set(dt_real_, *adjoint);
+   //adjoint->Set(dt_real_, *adjoint);
 #ifdef MFEM_USE_MPI
    adj->SetFromTrueDofs(*adjoint);
 #endif
@@ -728,19 +735,146 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 	//assuming centered coordinate system, will offset
 	// double th;// = atan(x(1)/x(0));
 
-	if (x(0) > .5)
+	// if (x(0) > .5)
+	// {
+	// 	y(0) = 1;
+	// }
+	// else
+	// {
+	// 	y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
+	// 	//cout << "outflux val = " << y(0) << std::endl;
+	// }
+
+	y(0) = 1;
+	y(1) = 0.0000;
+	y(2) = 0.0000;
+	
+}
+
+static std::default_random_engine gen(std::random_device{}());
+static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
+
+
+void ThermalSolver::randState(const mfem::Vector &x, mfem::Vector &u)
+{
+    for (int i = 0; i < u.Size(); ++i)
+    {
+        u(i) = 2.0 * uniform_rand(gen) - 1.0;
+		// if (i+1 == u.Size())
+		// {
+		// 	u(i) = x(0)*0.1;
+		// }	
+		// else
+		// {
+		// 	u(i) = x(i+1)*0.1;
+		// }
+	}
+}
+
+Vector* ThermalSolver::getMeshSensitivities()
+{
+	if(options["time-dis"]["ode-solver"].template get<string>() != "MIDPOINT")
 	{
-		y(0) = 1;
+		throw MachException("Only implemented for implicit midpoint!\n");
+	}
+	/// compute the adjoint, if not done already
+	/// TODO: Would cause problems for more than one step. Or set adj to NULL afterward
+	if(adj == NULL)
+	{
+		solveForAdjoint(options["outputs"]["temp-agg"].get<std::string>());
+	}
+
+	/// assign mesh node space to forms
+	GridFunction *x_nodes_s = mesh->GetNodes();
+    FiniteElementSpace *mesh_fes_s = x_nodes_s->FESpace();
+	SpaceType mesh_fes(*mesh_fes_s, *mesh);
+	GridFunType x_nodes(&mesh_fes, x_nodes_s);
+	j_mesh_sens.reset(new NonlinearFormType(&mesh_fes));
+	res_mesh_sens.reset(new NonlinearFormType(&mesh_fes));
+   	res_mesh_sens_l.reset(new LinearFormType(&mesh_fes));
+
+	/// recompute dudt if needed
+	Vector sub(u->Size()); 
+	sub = 0.0;
+	sub.Add(1, *u);
+	sub.Add(-1, *u_old);
+	dudt.reset(new GridFunType(fes.get()));
+	dudt->Set(1.0/dt_real_, sub);
+
+	/// add integrators R = [M + (dt/2)K]dudt + Ku + b = 0
+	/// dJdX = delJdelX + adj^T dR/dX
+	/// delJdelX
+	j_mesh_sens->AddDomainIntegrator(
+		new AggregateResIntegrator(fes.get(), rhoa, max, u.get()));
+	/// adj^T Ku
+	res_mesh_sens->AddDomainIntegrator(
+		new DiffusionResIntegrator(*kappa, u_old.get(), adj.get()));
+	/// adj^T Mdudt
+	res_mesh_sens->AddDomainIntegrator(
+		new MassResIntegrator(*rho_cv, dudt.get(), adj.get()));
+	/// adj^T (dt/2)Kdudt (for implicit midpoint)
+	GridFunType dtdudt(fes.get());
+	dtdudt.Set(dt_real_/2.0, *dudt);
+	res_mesh_sens->AddDomainIntegrator(
+		new DiffusionResIntegrator(*kappa, &dtdudt, adj.get()));
+	/// adj^T load terms
+	res_mesh_sens->AddDomainIntegrator(
+		new DomainResIntegrator(*i2sigmainv, u_old.get(), adj.get()));
+	res_mesh_sens->AddDomainIntegrator(
+		new DomainResIntegrator(*coreloss, u_old.get(), adj.get()));
+
+	// just to be sure, see if this residual goes to 0?
+	GridFunction R(fes.get());
+	R = 0.0;
+	mass->AddMult(*dudt, R);
+	stiff->AddMult(dtdudt, R);
+	stiff->AddMult(*u_old, R);
+	R.Add(1, *load);
+
+	cout << "Residual Norm (?): " << R.Norml2() << endl;
+
+	// outward flux bc
+	auto &bcs = options["bcs"];
+	bndry_marker.resize(bcs.size());
+	int idx = 0;
+	if (bcs.find("outflux") != bcs.end())
+	{ 
+        vector<int> tmp = bcs["outflux"].get<vector<int>>();
+        bndry_marker[idx].SetSize(tmp.size(), 0);
+        bndry_marker[idx].Assign(tmp.data());
+        res_mesh_sens_l->AddBdrFaceIntegrator(
+			new BoundaryNormalResIntegrator(*flux_coeff, u_old.get(), 
+											adj.get()), bndry_marker[idx]);
+        idx++;
+	}
+
+
+	/// Compute the derivatives and store the result
+	std::unique_ptr<GridFunType> dLdX_j;
+	dLdX_j.reset(new GridFunType(x_nodes));
+	dLdX.reset(new GridFunType(x_nodes));
+	res_mesh_sens->Mult(x_nodes, *dLdX);
+	j_mesh_sens->Mult(x_nodes, *dLdX_j);
+	double t_final = options["time-dis"]["t-final"].get<double>();
+	flux_coeff->SetTime(t_final);
+	res_mesh_sens_l->Assemble();
+	dLdX->Neg();
+	dLdX->Add(-1, *res_mesh_sens_l);
+	dLdX->Add(1, *dLdX_j);
+	return dLdX.get();
+}
+
+double ThermalSolver::getOutput()
+{
+	// compute functional
+	if (rhoa != 0)
+	{
+		return funca->GetIEAggregate(u.get());
 	}
 	else
 	{
-		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
-		//cout << "outflux val = " << y(0) << std::endl;
+		return funct->GetTemp(u.get());
 	}
-
-	y(1) = 0;
-	y(2) = 0;
-	
 }
 
 // double ThermalSolver::initialTemperature(const Vector &x)
@@ -749,6 +883,45 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 // }
 
 // double ThermalSolver::temp_0 = 0.0;
+
+void ThermalSolver::verifyMeshSensitivities()
+{
+	std::cout << "Verifying Mesh Sensitivities..." << std::endl;
+	int dim = mesh->SpaceDimension();
+	Vector *dJdX = getMeshSensitivities();
+	double delta = 1e-7;
+    double dJdX_fd = -getOutput()/delta;
+
+    // extract mesh nodes and get their finite-element space
+   
+    GridFunction *x_nodes = mesh->GetNodes();
+    FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+    // initialize the vector that we use to perturb the mesh nodes
+    GridFunction v(mesh_fes);
+    VectorFunctionCoefficient v_rand(dim, randState);
+    v.ProjectCoefficient(v_rand);
+    // contract dJ/dX with v
+    double dJdX_v = (*dJdX) * v;
+
+    // compute finite difference approximation
+
+    GridFunction x_pert(*x_nodes);
+    x_pert.Add(delta, v);
+    mesh->SetNodes(x_pert);
+    std::cout << "Solving Forward Step..." << std::endl;
+	initDerived();
+	constructNewtonSolver();
+	evolver->SetLinearSolver(solver.get());
+    evolver->SetNewtonSolver(newton_solver.get());
+	ConstantCoefficient u0(options["init-temp"].get<double>());
+	u->ProjectCoefficient(u0);
+	funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+    solveForState();
+    std::cout << "Solver Done" << std::endl;
+    dJdX_fd += getOutput()/delta;
+    std::cout << "Finite Difference: " << dJdX_fd << std::endl;
+    std::cout << "Analytic: 		 " << dJdX_v << std::endl;
+}
 
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
 										 BilinearFormType *stiff,

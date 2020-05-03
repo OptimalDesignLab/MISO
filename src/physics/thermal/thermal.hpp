@@ -9,6 +9,10 @@
 #include "coefficient.hpp"
 #include "therm_integ.hpp"
 #include "temp_integ.hpp"
+#include "res_integ.hpp"
+
+#include <limits>
+#include <random>
 
 namespace mach
 {
@@ -43,6 +47,15 @@ public:
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {theta, B}
    std::vector<GridFunType*> getFields() override;
+
+   /// Compute the sensitivity of the aggregate temperature output to the mesh 
+   /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
+   /// the adjoint first.
+   virtual mfem::Vector* getMeshSensitivities();
+
+   double getOutput();
+
+   void verifyMeshSensitivities();
 
 private:
    /// Raviart-Thomas finite element collection
@@ -146,6 +159,9 @@ private:
 
    /// work vector
    mutable mfem::Vector z;
+
+   /// functions for random perturbation
+   static void randState(const mfem::Vector &x, mfem::Vector &u);
 };
 
 class ThermalEvolver : public ImplicitLinearEvolver

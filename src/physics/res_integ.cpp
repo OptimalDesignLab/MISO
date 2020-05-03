@@ -28,6 +28,7 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
     const int dim = el->GetDim();
     elvect.SetSize(dof*dim);
     elvect = 0.0;
+    shape.SetSize(dof);
 
     // cast the ElementTransformation
     IsoparametricTransformation &isotrans =
@@ -90,6 +91,7 @@ void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
     const int dim = el->GetDim();
     elvect.SetSize(dof*dim);
     elvect = 0.0;
+    shape.SetSize(dof);
 
     // cast the ElementTransformation
     IsoparametricTransformation &isotrans =
@@ -167,6 +169,7 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
     DenseMatrix elmat(dofu);
     DenseMatrix PointMat_bar(dim, dof);
     DenseMatrix jac_bar(dim);
+    dshape.SetSize(dof, dim);
 
     // loop through nodes
     for (int i = 0; i < ir->GetNPoints(); ++i)

@@ -58,6 +58,6 @@
     },
     "rho-agg": 10,
     "max-temp": 0.1,
-    "init-temp": 300,
+    "init-temp": 1,
     "material-lib-path": "../../src/material_options.json"
  }

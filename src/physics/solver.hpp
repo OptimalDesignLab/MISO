@@ -201,6 +201,10 @@ public:
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
 
+   /// Compute the sensitivity of an output to the mesh nodes, using appropriate
+   /// mesh sensitivity integrators. Need to compute the adjoint first.
+   virtual mfem::Vector* getMeshSensitivities();
+
    /// Return a pointer to the solver's mesh
    MeshType* getMesh() {return mesh.get();}
 
@@ -241,6 +245,12 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   /// initial state variable
+   std::unique_ptr<GridFunType> u_init;
+   /// prior state variable
+   std::unique_ptr<GridFunType> u_old;
+   /// time derivative at current step
+   std::unique_ptr<GridFunType> dudt;
    /// adjoint variable 
    std::unique_ptr<GridFunType> adj;
    /// derivative of L = J + psi^T res, with respect to mesh nodes
@@ -249,6 +259,9 @@ protected:
    std::unique_ptr<NonlinearFormType> res;
    /// derivative of psi^T res w.r.t the mesh nodes
    std::unique_ptr<NonlinearFormType> res_mesh_sens;
+   std::unique_ptr<NonlinearFormType> j_mesh_sens;
+   /// derivative of psi^T res w.r.t the mesh nodes, if using LinearFormIntegrators
+   std::unique_ptr<LinearFormType> res_mesh_sens_l;
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
