@@ -25,10 +25,11 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
     adjoint->GetSubVector(vdofs, eladj);
 
     const int dof = elx.GetDof();
+    const int dofu = el->GetDof();
     const int dim = el->GetDim();
     elvect.SetSize(dof*dim);
     elvect = 0.0;
-    shape.SetSize(dof);
+    shape.SetSize(dofu);
 
     // cast the ElementTransformation
     IsoparametricTransformation &isotrans =
@@ -91,7 +92,7 @@ void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
     const int dim = el->GetDim();
     elvect.SetSize(dof*dim);
     elvect = 0.0;
-    shape.SetSize(dof);
+    shape.SetSize(dofu);
 
     // cast the ElementTransformation
     IsoparametricTransformation &isotrans =
@@ -169,7 +170,7 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
     DenseMatrix elmat(dofu);
     DenseMatrix PointMat_bar(dim, dof);
     DenseMatrix jac_bar(dim);
-    dshape.SetSize(dof, dim);
+    dshape.SetSize(dofu, dim);
 
     // loop through nodes
     for (int i = 0; i < ir->GetNPoints(); ++i)
@@ -230,9 +231,10 @@ void BoundaryNormalResIntegrator::AssembleRHSElementVect(
     const FiniteElement *el = state->FESpace()->GetFE(element);
 
     const int dof = elx.GetDof();
+    const int dofu = el->GetDof();
     const int dim = Trx.Face->GetDimension();
     int space_dim = Trx.Face->GetSpaceDim();
-    shape.SetSize(dof);
+    shape.SetSize(dofu);
     elvect.SetSize(space_dim*dof);
     elvect = 0.0;
 

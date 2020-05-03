@@ -232,6 +232,10 @@ protected:
    double dt;
    /// final time
    double t_final;
+   /// final time step
+   int ti_final;
+   /// reverse time step index
+   int tr;
 #ifdef MFEM_USE_PUMI
    /// pumi mesh object
    // apf::Mesh2* pumi_mesh;
@@ -253,12 +257,15 @@ protected:
    std::unique_ptr<GridFunType> dudt;
    /// adjoint variable 
    std::unique_ptr<GridFunType> adj;
+   /// prior adjoint variable (forward in time)
+   std::unique_ptr<GridFunType> adj_old;
    /// derivative of L = J + psi^T res, with respect to mesh nodes
    std::unique_ptr<GridFunType> dLdX;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
    /// derivative of psi^T res w.r.t the mesh nodes
    std::unique_ptr<NonlinearFormType> res_mesh_sens;
+   /// partial of J w.r.t the mesh nodes
    std::unique_ptr<NonlinearFormType> j_mesh_sens;
    /// derivative of psi^T res w.r.t the mesh nodes, if using LinearFormIntegrators
    std::unique_ptr<LinearFormType> res_mesh_sens_l;
