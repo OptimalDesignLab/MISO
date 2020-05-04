@@ -631,6 +631,7 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 	{
 		stiff->MultTranspose(*adjoint_old, *dJ);
 		dJ->Set(-dt_real_, *dJ);
+		//technically should also Add(dt_real_, djdu), but it's 0 for this problem
 	}
 
 	// Step 2: get the time step's Jacobian and transpose it
