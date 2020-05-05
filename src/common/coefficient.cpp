@@ -120,6 +120,45 @@ double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
    }
 }
 
+MagneticFluxCoefficient::MagneticFluxCoefficient(std::vector<double> B,
+                                                 std::vector<double> H)
+   : temperature_GF(NULL), b_h_curve()
+{
+   b_h_curve.set_boundary(Spline::second_deriv, 0.0,
+                          Spline::second_deriv, 0.0);
+   b_h_curve.set_points(H, B);
+}
+
+double MagneticFluxCoefficient::Eval(ElementTransformation &trans,
+												 const IntegrationPoint &ip,
+                                     const double state)
+{
+	if (temperature_GF)
+   {
+      throw MachException(
+         "Temperature dependent reluctivity is not currently supported!");
+   }
+   else
+   {
+      return b_h_curve(state);
+   }
+}
+
+double MagneticFluxCoefficient::EvalStateDeriv(ElementTransformation &trans,
+												           const IntegrationPoint &ip,
+                                               const double state)
+{
+   if (temperature_GF)
+   {
+      throw MachException(
+         "Temperature dependent reluctivity is not currently supported!");
+   }
+   else
+   {
+      return b_h_curve.deriv(1, state);
+   }
+}
+
 void VectorMeshDependentCoefficient::Eval(Vector &vec,
                                           ElementTransformation &trans,
                                           const IntegrationPoint &ip)
