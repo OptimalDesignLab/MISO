@@ -17,6 +17,10 @@ set(CMAKE_MODULE_PATH
 find_package(Adept MODULE REQUIRED)
 find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 
+configure_file(
+  "${PROJECT_SOURCE_DIR}/cmake/config.hpp.in"
+  "${PROJECT_BINARY_DIR}/_config.hpp")
+
 # if MFEM was compiled with PUMI, we need to find it so we can 
 if (MFEM_USE_PUMI)
    # If PUMI_DIR was specified, only link to that directory,
@@ -40,6 +44,8 @@ endif (MFEM_USE_PUMI)
 if (MFEM_USE_MPI)
    find_package(MPI REQUIRED)
 endif (MFEM_USE_MPI)
+
+
 
 # Try to find OpenMP (used by Adept)
 # find_package(OpenMP)

@@ -911,6 +911,17 @@ Vector* ThermalSolver::getMeshSensitivities()
 	return dLdX.get();
 }
 
+Vector* ThermalSolver::getSurfaceMeshSensitivities()
+{
+	Vector *dJdXvect = getMeshSensitivities();
+	GridFunction dJdX(mesh->GetNodes()->FESpace(), dJdXvect->GetData());
+
+	MSolver->setSens(&dJdX);
+	string dummy = "placeholder";
+	MSolver->solveForAdjoint(dummy);
+	return MSolver->getAdjoint();
+}
+
 double ThermalSolver::getOutput()
 {
 	// compute functional
@@ -968,6 +979,54 @@ void ThermalSolver::verifyMeshSensitivities()
     dJdX_fd += getOutput()/delta;
     std::cout << "Finite Difference: " << dJdX_fd << std::endl;
     std::cout << "Analytic: 		 " << dJdX_v << std::endl;
+}
+
+void ThermalSolver::verifySurfaceMeshSensitivities()
+{
+#ifdef MFEM_USE_EGADS
+	std::cout << "Verifying Surface Mesh Sensitivities..." << std::endl;
+		
+	int dim = mesh->SpaceDimension();
+	double delta = 1e-7;
+	
+	// extract mesh nodes and get their finite-element space
+    GridFunction *x_nodes = mesh->GetNodes();
+    FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+    // initialize the vector that we use to perturb the mesh nodes
+    GridFunction v(mesh_fes);
+    VectorFunctionCoefficient v_rand(dim, randState);
+    v.ProjectCoefficient(v_rand);
+	GridFunction x_pert(*x_nodes);
+    x_pert.Add(delta, v);
+	
+	// set up the mesh movement solver
+	MSolver.reset(new LEAnalogySolver(
+						options["mesh-move-opts-path"].get<string>(),
+						&x_pert, move(mesh)));
+
+	double dJdXs_fd = -getOutput()/delta;
+	Vector *dJdXs = getSurfaceMeshSensitivities();
+
+    // contract dJ/dXs with v
+    double dJdXs_v = (*dJdXs) * v;
+
+    // compute finite difference approximation
+    //mesh->SetNodes(x_pert);
+	MSolver->solveForState();
+    std::cout << "Solving Forward Step..." << std::endl;
+	initDerived();
+	constructNewtonSolver();
+	evolver->SetLinearSolver(solver.get());
+    evolver->SetNewtonSolver(newton_solver.get());
+	ConstantCoefficient u0(options["init-temp"].get<double>());
+	u->ProjectCoefficient(u0);
+	funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+    solveForState();
+    std::cout << "Solver Done" << std::endl;
+    dJdXs_fd += getOutput()/delta;
+    std::cout << "Finite Difference: " << dJdXs_fd << std::endl;
+    std::cout << "Analytic: 		 " << dJdXs_v << std::endl;
+#endif
 }
 
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,

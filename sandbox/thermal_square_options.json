@@ -1,9 +1,9 @@
 {
     "mesh": {
        "file": "initial.mesh",
-       "num-edge-x": 20,
-       "num-edge-y": 5,
-       "num-edge-z": 5
+       "num-edge-x": 8,
+       "num-edge-y": 8,
+       "num-edge-z": 8
     },
     "space-dis": {
        "basis-type": "H1",
@@ -59,5 +59,7 @@
     "rho-agg": 10,
     "max-temp": 0.1,
     "init-temp": 1,
+    "compute-sens": true,
+    "mesh-move-opts-path": "thermal_mesh_move_options.json",
     "material-lib-path": "../../src/material_options.json"
  }

@@ -31,7 +31,6 @@
 #include "diag_mass_integ.hpp"
 #include "material_library.hpp"
 
-
 using namespace std;
 using namespace mfem;
 

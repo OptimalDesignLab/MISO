@@ -10,6 +10,7 @@
 #include "therm_integ.hpp"
 #include "temp_integ.hpp"
 #include "res_integ.hpp"
+#include "mesh_movement.hpp"
 
 #include <limits>
 #include <random>
@@ -53,9 +54,15 @@ public:
    /// the adjoint first.
    virtual mfem::Vector* getMeshSensitivities();
 
+   mfem::Vector* getSurfaceMeshSensitivities();
+
    double getOutput();
 
+   /// perturb the whole mesh and finite difference
    void verifyMeshSensitivities();
+
+   /// perturb the surface mesh, deform interior points, and finite difference
+   void verifySurfaceMeshSensitivities();
 
 private:
    /// Raviart-Thomas finite element collection
@@ -162,6 +169,9 @@ private:
 
    /// functions for random perturbation
    static void randState(const mfem::Vector &x, mfem::Vector &u);
+
+   /// mesh movement solver object
+   std::unique_ptr<MeshMovementSolver> MSolver;
 };
 
 class ThermalEvolver : public ImplicitLinearEvolver

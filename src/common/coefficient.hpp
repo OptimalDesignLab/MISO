@@ -407,6 +407,47 @@ private:
 	GridFunType *B;
 };
 
+/// ElementFunctionCoefficient
+/// A class that maps coefficients as functions of the element they are in.
+/// Used to set stiffness of elements for mesh movement.
+class ElementFunctionCoefficient : public mfem::Coefficient
+{
+public:
+	/// Construct ElementFunctionCoefficient
+	/// \param [in] dflt - default coefficient to evaluate if element attribute
+	///						  is not found in the map. If not set, will default
+	///						  to zero
+	ElementFunctionCoefficient(double (*f)(const mfem::Vector &, int)) 
+	{
+		Function = f;
+		TDFunction = NULL;
+	}
+
+	// Time Dependent Version
+	ElementFunctionCoefficient(double (*tdf)(const mfem::Vector &, int, double)) 
+	{
+		Function = NULL;
+		TDFunction = tdf;
+	}
+
+	/// \brief Get element number from the transformation and accept as argument
+	/// 		for the given function coefficient.
+	/// \param[in] trans - element transformation relating real element to
+	///					 	  reference element
+	/// \param[in] ip - the integration point to evalaute the coefficient at
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+	virtual double Eval(mfem::ElementTransformation &trans,
+							  const mfem::IntegrationPoint &ip);
+
+protected:
+	double (*Function)(const mfem::Vector &, int);
+	double (*TDFunction)(const mfem::Vector &, int, double);
+private:
+
+};
+
 } // namespace mach
 
 #endif
