@@ -22,12 +22,20 @@ public:
    MagnetostaticSolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
-   /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
-   virtual void solveSteady();
+   /// Write the mesh and solution to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printSolution(const std::string &file_name, int refine = -1) override;
+
+   /// \brief Returns a vector of pointers to grid functions that define fields
+   /// returns {A, B}
+   std::vector<GridFunType*> getFields() override;
 
 private:
-   /// Nedelec finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
+   // /// Nedelec finite element collection
+   // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
    /// Raviart-Thomas finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
    /// H1 finite element collection
@@ -35,8 +43,8 @@ private:
    ///L2 finite element collection
    std::unique_ptr<mfem::FiniteElementCollection> l2_coll;
 
-   /// H(Curl) finite element space
-   std::unique_ptr<SpaceType> h_curl_space;
+   // /// H(Curl) finite element space
+   // std::unique_ptr<SpaceType> h_curl_space;
    /// H(Div) finite element space
    std::unique_ptr<SpaceType> h_div_space;
    /// H1 finite element space
@@ -44,8 +52,8 @@ private:
    /// L2 finite element space
    std::unique_ptr<SpaceType> l2_space;
 
-   /// Magnetic vector potential A grid function
-   std::unique_ptr<GridFunType> A;
+   // /// Magnetic vector potential A grid function
+   // std::unique_ptr<GridFunType> A;
    /// Magnetic flux density B = curl(A) grid function
    std::unique_ptr<GridFunType> B;
    /// Magnetic flux density B = curl(A) grid function in H(curl) space
@@ -53,17 +61,13 @@ private:
    /// Magnetization grid function
    std::unique_ptr<GridFunType> M;
 
-   /// TODO: delete? defined in abstract solver
-   /// the spatial residual (a semilinear form)
-   std::unique_ptr<NonlinearFormType> res;
+   // /// TODO: delete? defined in abstract solver
+   // /// the spatial residual (a semilinear form)
+   // std::unique_ptr<NonlinearFormType> res;
 
    /// current source vector
    std::unique_ptr<GridFunType> current_vec;
    std::unique_ptr<GridFunType> div_free_current_vec;
-   // /// current source vector with applied BC
-   // std::unique_ptr<GridFunType> current_vec_BC;
-
-   // std::unique_ptr<mfem::Coefficient> neg_one;
 
    /// mesh dependent reluctivity coefficient
    std::unique_ptr<MeshDependentCoefficient> nu;
@@ -76,20 +80,36 @@ private:
    mfem::Array<int> ess_bdr;
    std::unique_ptr<mfem::VectorCoefficient> bc_coef;
 
-   /// linear system solver used in Newton's method
-   std::unique_ptr<mfem::HypreGMRES> solver;
-   /// linear system preconditioner used in Newton's method
-   std::unique_ptr<EMPrecType> prec;
+   // /// linear system solver used in Newton's method
+   // std::unique_ptr<mfem::HypreGMRES> solver;
+   // /// linear system preconditioner used in Newton's method
+   // std::unique_ptr<EMPrecType> prec;
 
-   /// Newton solver
-   mfem::NewtonSolver newton_solver;
+   // /// Newton solver
+   // mfem::NewtonSolver newton_solver;
 
    /// Material Library
-   nlohmann::json materials;
+   // nlohmann::json materials;
 
    int dim;
 
-   int getNumState() {return dim;};
+   /// Construct various coefficients
+   void constructCoefficients() override;
+
+   /// Add volume integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   void addVolumeIntegrators(double alpha) override;
+
+   /// mark which boundaries are essential
+   void setEssentialBoundaries() override;
+
+   int getNumState() override {return 1;};
+   
+   /// Create `output` based on `options` and add approporiate integrators
+   void addOutputs() override;
+
+   /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
+   void solveSteady() override;
 
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source
@@ -162,6 +182,48 @@ private:
    ///                 magnets
    static void magnetization_source_south(const mfem::Vector &x,
                                           mfem::Vector &M);
+
+   /// function defining current density aligned with the x axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void x_axis_current_source(const mfem::Vector &x,
+                                     mfem::Vector &J);
+
+   /// function defining current density aligned with the x axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void y_axis_current_source(const mfem::Vector &x,
+                                     mfem::Vector &J);
+
+   /// function defining current density aligned with the x axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void z_axis_current_source(const mfem::Vector &x,
+                                     mfem::Vector &J);
+
+   /// function defining current density aligned in a ring around the z axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void ring_current_source(const mfem::Vector &x,
+                                   mfem::Vector &J);
+
+   /// function defining magnetization aligned with the x axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x
+   static void x_axis_magnetization_source(const mfem::Vector &x,
+                                           mfem::Vector &M);
+
+   /// function defining magnetization aligned with the y axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x
+   static void y_axis_magnetization_source(const mfem::Vector &x,
+                                           mfem::Vector &M);
+
+   /// function defining magnetization aligned with the z axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x
+   static void z_axis_magnetization_source(const mfem::Vector &x,
+                                           mfem::Vector &M);
 
    static void a_exact(const mfem::Vector &x, mfem::Vector &A);
 
