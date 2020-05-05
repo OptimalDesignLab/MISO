@@ -129,7 +129,8 @@ class MagneticCoenergyIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// \param[in] nu - model describing reluctivity
-   MagneticCoenergyIntegrator(StateCoefficient *_nu) : nu(_nu) {};
+   MagneticCoenergyIntegrator(StateCoefficient *_nu)
+      : nu(_nu) {};
 
    /// \param[in] el - the finite element
    /// \param[in] Tr - defines the reference to physical element mapping

@@ -482,6 +482,7 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
 #endif
 
    const IntegrationRule *ir = IntRule;
+   const IntegrationRule *segment_ir = NULL;
    if (ir == NULL)
    {
       int order;
@@ -495,6 +496,21 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
       }
 
       ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   if (segment_ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, order);
    }
 
    double fun = 0.0;
@@ -519,13 +535,19 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
       }
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      double model_val = nu->Eval(trans, ip, b_vec.Norml2());
-      model_val *= w;
+      double nu_val = nu->Eval(trans, ip, b_vec.Norml2());
 
-      double el_en = b_vec*b_vec;
-      el_en *= 0.5 * model_val;
+      double upper_bnd = nu_val * b_vec.Norml2();
+      /// compute int_0^{\nu*B} \frac{H}{\nu} dH
+      double qp_en = 0.0;
+      for (int j = 0; j < segment_ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &segment_ip = segment_ir->IntPoint(j);
+         double xi = segment_ip.x * upper_bnd;
+         qp_en += segment_ip.weight * xi / nu->Eval(trans, ip, xi);
+      }
 
-      fun += el_en;
+      fun += qp_en * w;
    }
    return fun;
 }
