@@ -103,12 +103,9 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector ui, uj, fluxij;
-   DenseMatrix adjJ_i, adjJ_j;
 #endif
 	elvect.SetSize(num_states*num_nodes);
    fluxij.SetSize(num_states);
-   adjJ_i.SetSize(dim);
-   adjJ_j.SetSize(dim);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
@@ -116,12 +113,12 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
    for (int i = 0; i < num_nodes; ++i)
    {
       Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      CalcAdjugate(Trans.Jacobian(), adjJ_i);
+      const DenseMatrix &adjJ_i = Trans.AdjugateJacobian();
       u.GetRow(i,ui);
 		for (int j = i+1; j < num_nodes; ++j)
 		{
          Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
-         CalcAdjugate(Trans.Jacobian(), adjJ_j);
+         const DenseMatrix &adjJ_j = Trans.AdjugateJacobian();
          u.GetRow(j, uj);
 			for (int di = 0; di < dim; ++di)
 			{
@@ -153,12 +150,10 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector ui, uj, dxidx;
-   DenseMatrix adjJ_i, adjJ_j, flux_jaci, flux_jacj;
+   DenseMatrix flux_jaci, flux_jacj;
 #endif
    elmat.SetSize(num_states*num_nodes);
    elmat = 0.0;
-   adjJ_i.SetSize(dim);
-   adjJ_j.SetSize(dim);
    dxidx.SetSize(dim);
    flux_jaci.SetSize(num_states);
    flux_jacj.SetSize(num_states);
@@ -169,7 +164,7 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
       {
          // get the flux Jacobian at node i
          Trans.SetIntPoint(&el.GetNodes().IntPoint(i)); 
-         CalcAdjugate(Trans.Jacobian(), adjJ_i);
+         const DenseMatrix &adjJ_i = Trans.AdjugateJacobian();
          adjJ_i.GetRow(di, dxidx);
          u.GetRow(i, ui);
          // loop over rows j for contribution (Q^T)_{i,j} * Jac_i
@@ -177,7 +172,7 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
          {
             // get the flux Jacobian at node i
             Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
-            CalcAdjugate(Trans.Jacobian(), adjJ_j);
+            const DenseMatrix &adjJ_j = Trans.AdjugateJacobian();
             adjJ_j.GetRow(di, dxidx);
             u.GetRow(j, uj);
             fluxJacStates(di, ui, uj, flux_jaci, flux_jacj);

@@ -243,8 +243,12 @@ protected:
    std::unique_ptr<GridFunType> u;
    /// adjoint variable 
    std::unique_ptr<GridFunType> adj;
+   /// derivative of L = J + psi^T res, with respect to mesh nodes
+   std::unique_ptr<GridFunType> dLdX;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
+   /// derivative of psi^T res w.r.t the mesh nodes
+   std::unique_ptr<NonlinearFormType> res_mesh_sens;
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
@@ -267,7 +271,7 @@ protected:
    std::unique_ptr<mfem::NewtonSolver> newton_solver;
    /// linear system solver used in newton solver
    std::unique_ptr<mfem::Solver> solver;
-   /// linear system preconditioner for solver in newton solver
+   /// linear system preconditioner for solver in newton solver and adjoint
    std::unique_ptr<mfem::Solver> prec;
    /// Array that marks boundaries as essential
    mfem::Array<int> ess_bdr;
