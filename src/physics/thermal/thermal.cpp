@@ -291,13 +291,13 @@ void ThermalSolver::solveUnsteady()
 		osol.precision(precision);
 		u->Save(osol);
 	}
-	// {
-	//     ofstream sol_ofs("motor_heat_init.vtk");
-	//     sol_ofs.precision(14);
-	//     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-	//     u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-	//     sol_ofs.close();
-    // }
+	{
+	    ofstream sol_ofs_init("motor_heat_init.vtk");
+	    sol_ofs_init.precision(14);
+	    mesh->PrintVTK(sol_ofs_init, options["space-dis"]["degree"].get<int>() + 1);
+	    u->SaveVTK(sol_ofs_init, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+	    sol_ofs_init.close();
+    }
 
 	bool done = false;
 	double t_final = options["time-dis"]["t-final"].get<double>();
@@ -997,7 +997,7 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
     VectorFunctionCoefficient v_rand(dim, randState);
     v.ProjectCoefficient(v_rand);
 	GridFunction x_pert(*x_nodes);
-    x_pert.Add(delta, v);
+    x_pert.Set(delta, v);
 	
 	// set up the mesh movement solver (should make this it's own function)
 	MSolver.reset(new LEAnalogySolver(
@@ -1015,6 +1015,8 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
     // compute finite difference approximation
     //mesh->SetNodes(x_pert);
 	MSolver->solveForState();
+	MeshType* moved_mesh = MSolver->getMesh();
+	mesh->SetNodes(*moved_mesh->GetNodes()); //hope this works
     std::cout << "Solving Forward Step..." << std::endl;
 	initDerived();
 	constructNewtonSolver();

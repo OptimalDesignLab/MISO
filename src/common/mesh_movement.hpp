@@ -37,6 +37,11 @@ public:
         mesh.reset(new MeshType(*mmesh));
     }
 
+    MeshType* getMesh()
+    {
+        return mesh.get();
+    }
+
     /// must call before computing adjoint
     void setSens(mfem::GridFunction* sens)
     {

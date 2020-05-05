@@ -45,7 +45,8 @@ void LEAnalogySolver::initDerived()
     fec.reset(new H1_FECollection(fe_order, dim));
 
 	/// Create the H(Grad) finite element space
-	fes.reset(new SpaceType(mesh.get(), fec.get(), dim));
+	//fes.reset(new SpaceType(mesh.get(), fec.get(), dim));
+    fes.reset(new SpaceType(*mesh->GetNodes()->FESpace(), *mesh));
     fes->BuildDofToArrays();
 
     /// Create temperature grid function
@@ -132,6 +133,15 @@ void LEAnalogySolver::initDerived()
         GridFunction u_bnd_g(fes.get(), u_bnd->GetData());
         bc_coef.reset(new VectorGridFunctionCoefficient(&u_bnd_g));
         u->ProjectBdrCoefficient(*bc_coef, ess_bdr);
+
+        //debug
+        {
+	        ofstream sol_ofs_init("moved_init.vtk");
+	        sol_ofs_init.precision(14);
+	        mesh->PrintVTK(sol_ofs_init, options["space-dis"]["degree"].get<int>() + 1);
+	        u->SaveVTK(sol_ofs_init, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+	        sol_ofs_init.close();
+        }
     }
 
     cout << "Number of Surface Nodes: " << disp_list.Size() << endl;
