@@ -30,6 +30,13 @@ protected:
     }
 
 public:
+    virtual void initDerived();
+
+    void setMesh(MeshType* mmesh)
+    {
+        mesh.reset(new MeshType(*mmesh));
+    }
+
     /// must call before computing adjoint
     void setSens(mfem::GridFunction* sens)
     {
@@ -59,7 +66,7 @@ public:
                         int dim = 3);
 
     /// Implement InitDerived
-    void initDerived();
+    virtual void initDerived();
 
 protected:
     /// passed in boundary displacement array
@@ -83,7 +90,7 @@ private:
    /// displacement u grid function
    std::unique_ptr<GridFunType> u;
 
-   mfem::HypreParMatrix K;
+   MatrixType K;
    mfem::Vector B, U;
 
    /// list of boundary displacements

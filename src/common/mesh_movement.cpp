@@ -9,13 +9,18 @@ using namespace mfem;
 namespace mach
 {
 
+void MeshMovementSolver::initDerived()
+{
+    throw MachException("Not Implemented for MeshMovementSolver!\n");
+}
+
 #ifdef MFEM_USE_EGADS
 LEAnalogySolver::LEAnalogySolver(
 	 const std::string &opt_file_name,
     std::unique_ptr<mfem::Mesh> smesh,
 	 int dim)
 	: MeshMovementSolver(opt_file_name, move(smesh))
-{initDerived(); }
+{ }
 
 LEAnalogySolver::LEAnalogySolver(
 	 const std::string &opt_file_name,
@@ -23,7 +28,7 @@ LEAnalogySolver::LEAnalogySolver(
     std::unique_ptr<mfem::Mesh> smesh,
 	 int dim)
 	: MeshMovementSolver(opt_file_name, move(smesh)), u_bnd(u_bound)
-{initDerived(); }
+{ }
 
 void LEAnalogySolver::initDerived()
 {
@@ -41,6 +46,7 @@ void LEAnalogySolver::initDerived()
 
 	/// Create the H(Grad) finite element space
 	fes.reset(new SpaceType(mesh.get(), fec.get(), dim));
+    fes->BuildDofToArrays();
 
     /// Create temperature grid function
 	u.reset(new GridFunType(fes.get()));
@@ -123,8 +129,9 @@ void LEAnalogySolver::initDerived()
     else
     {
         // need to get boundary displacement gridfunction
-        bc_coef.reset(new VectorGridFunctionCoefficient(u_bnd));
-        u->ProjectCoefficient(*bc_coef, ess_tdof_list);
+        GridFunction u_bnd_g(fes.get(), u_bnd->GetData());
+        bc_coef.reset(new VectorGridFunctionCoefficient(&u_bnd_g));
+        u->ProjectBdrCoefficient(*bc_coef, ess_bdr);
     }
 
     cout << "Number of Surface Nodes: " << disp_list.Size() << endl;
@@ -141,13 +148,14 @@ void LEAnalogySolver::initDerived()
     solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
     solver->SetPreconditioner(*prec);
 
-    stiff->FormLinearSystem(ess_tdof_list, *u, *load, *stiffness_matrix, U, B);
+    stiff->FormLinearSystem(ess_tdof_list, *u, *load, K, U, B);
 
-    solver->SetOperator(*stiffness_matrix);
+    solver->SetOperator(K);
 }
 
 void LEAnalogySolver::solveSteady()
 {
+    solver->SetOperator(K);
     solver->Mult(B, U);
 
     stiff->RecoverFEMSolution(U, *load, *u);
@@ -194,7 +202,9 @@ void LEAnalogySolver::solveSteady()
 void LEAnalogySolver::solveSteadyAdjoint(const std::string &fun)
 {
     adj.reset(new GridFunType(fes.get()));
-    solver->MultTranspose(*dLdX, *adj);
+    MatrixType *K_trans = K.Transpose();
+    solver->SetOperator(*K_trans);
+    solver->Mult(*dLdX, *adj);
 }
 
 double LEAnalogySolver::LambdaFunc(const mfem::Vector &x, int ie)

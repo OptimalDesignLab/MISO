@@ -999,10 +999,12 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
 	GridFunction x_pert(*x_nodes);
     x_pert.Add(delta, v);
 	
-	// set up the mesh movement solver
+	// set up the mesh movement solver (should make this it's own function)
 	MSolver.reset(new LEAnalogySolver(
 						options["mesh-move-opts-path"].get<string>(),
-						&x_pert, move(mesh)));
+						&x_pert));
+	MSolver->setMesh(mesh.get());	// give it the mesh pointer
+	MSolver->initDerived();
 
 	double dJdXs_fd = -getOutput()/delta;
 	Vector *dJdXs = getSurfaceMeshSensitivities();
