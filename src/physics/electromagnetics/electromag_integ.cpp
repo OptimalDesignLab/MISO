@@ -537,15 +537,17 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       double nu_val = nu->Eval(trans, ip, b_vec.Norml2());
 
-      double upper_bnd = nu_val * b_vec.Norml2();
+      double lower_bound = 0.0;
+      double upper_bound = nu_val * b_vec.Norml2();
       /// compute int_0^{\nu*B} \frac{H}{\nu} dH
       double qp_en = 0.0;
       for (int j = 0; j < segment_ir->GetNPoints(); j++)
       {
          const IntegrationPoint &segment_ip = segment_ir->IntPoint(j);
-         double xi = segment_ip.x * upper_bnd;
+         double xi = segment_ip.x * (upper_bound - lower_bound);
          qp_en += segment_ip.weight * xi / nu->Eval(trans, ip, xi);
       }
+      qp_en *= (upper_bound - lower_bound);
 
       fun += qp_en * w;
    }
