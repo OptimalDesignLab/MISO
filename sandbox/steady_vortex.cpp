@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
       std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,3);
+      smesh->PrintVTK(sol_ofs,0);
 
       unique_ptr<AbstractSolver> solver(
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));

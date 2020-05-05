@@ -46,7 +46,7 @@ private:
 class NonlinearEvolver : public mfem::TimeDependentOperator
 {
 public:
-   /// Class constructor.
+   /// Class constructor 1.
    /// \param[in] m - mass matrix
    /// \param[in] res - defines the spatial residual
    /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
@@ -134,44 +134,62 @@ private:
    std::unique_ptr<mfem::Solver> prec;
 };
 
-// /// For implicit time marching of nonlinear problems 
-// class ImplicitOperator : public mfem::Operator
-// {
-// public:
-//    /// construction of the Implicit Operator
-//    ImplicitOperator(MatrixType &m, NonlinearFormType &r)
-//    {
-//       mass = m;
-//       res = r;
-//    }
+/// Implicit Nonlinear evolver
+class ImplicitNonlinearMassEvolver : public mfem::TimeDependentOperator
+{
+public:
+   /// class constructor
+   /// \param[in] m - the nonlinearform mass matrix
+   /// \param[in] res - nonlinear form that defines the spatial residual
+   /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
+   ImplicitNonlinearMassEvolver(NonlinearFormType &m, NonlinearFormType &r, double a = 1.0);
 
-//    /// evaluate the F(q) + M dq/dt
-//    virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+   /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
+   /// Currently implemented for the implicit midpoint method
+   virtual void ImplicitSolve(const double dt, const mfem::Vector &x,
+                              mfem::Vector &k);
 
-//    /// Get the jacobian of the implicit operator w.r.t dq/dt
-//    virtual Operator &GetGradient(const mfem::Vector &x) const;
+   /// Compute y = f(x + dt * k) - M * k, where k = dx/dt
+   /// \param[in] k - dx/dt
+   /// \param[in/out] y - the residual
+   virtual void Mult(const mfem::Vector &k, mfem::Vector &y) const;
 
-//    /// set parameters 
-//    void SetParameters(double dt_, mfem::Vector &x_)
-//    {
-//       dt = dt_;
-//       x = x_;
-//    }
-// private:
-//    /// referece to the mass matrix
-//    MatrixType &mass;
-//    /// referce to the nonlinear form
-//    NonlinearFormType &res
+   /// Compute the jacobian of implicit evolver: J = dt * f'(x + dt * k) - M
+   /// \param[in] k - dx/dt
+   virtual mfem::Operator &GetGradient(const mfem::Vector &k) const;
 
-//    /// Jacobian of the implicit midpoint method
-//    MatrixType *jac;
+   /// Set the parameters
+   /// \param[in] dt_ - time step
+   /// \param[in] x_ - current state variable
+   void SetParameters(const double dt_, const mfem::Vector &x_)
+   { 
+      dt = dt_;
+      x = x_;
+   }
+   /// Class destructor
+   virtual ~ImplicitNonlinearMassEvolver() { }
 
-//    /// aux data
-//    double dt;
-//    mfem::Vector &x; // referece to the current state
-
-// };
-
+private:
+   /// implicit step jacobian
+   //MatrixType *jac;
+   /// used to move the spatial residual to the right-hand-side, if necessary
+   double alpha;
+   /// reference to the mass matrix
+   NonlinearFormType &mass;
+   /// referencee to the nonlinear form i.e. rhs
+   NonlinearFormType &res;
+   /// the time step
+   double dt;
+   /// Vector that hould the current state
+   mfem::Vector x;
+   /// Solver for the implicit time marching
+   std::unique_ptr<mfem::NewtonSolver> newton_solver;
+   //std::unique_ptr<mfem::InexactNewton> newton_solver;
+   /// linear solver in the newton solver
+   std::unique_ptr<mfem::Solver> linear_solver;
+   /// linear system preconditioner for solver in newton solver
+   std::unique_ptr<mfem::Solver> prec;
+};
 
 } // namespace mach
 

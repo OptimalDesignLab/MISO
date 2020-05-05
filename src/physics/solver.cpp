@@ -105,6 +105,9 @@ void AbstractSolver::initDerived()
    mass->Assemble();
    mass->Finalize();
 
+   // set nonlinear mass matrix form
+   nonlinear_mass.reset(new NonlinearFormType(fes.get()));
+
    // set up the spatial semi-linear form
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
@@ -598,6 +601,7 @@ void AbstractSolver::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
+      updateNonlinearMass(dt_real, -1.0);
       if (ti % 10 == 0)
       {
          *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real

@@ -8,6 +8,7 @@
 using namespace mfem;
 using namespace std;
 
+
 namespace mach
 {
 
@@ -113,6 +114,14 @@ void EulerSolver<dim, entvar>::addInterfaceIntegrators(double alpha)
       res->AddInteriorFaceIntegrator(
           new InterfaceIntegrator<dim, entvar>(diff_stack, fec.get(), alpha));
    }
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addMassIntegrator(double alpha)
+{
+   double dt = options["time-dis"]["dt"].template get<double>();
+   mass_integ.reset(new MassIntegrator<dim,entvar>(diff_stack, *u, dt, alpha));
+   nonlinear_mass->AddDomainIntegrator(mass_integ.get());
 }
 
 template <int dim, bool entvar>
@@ -298,6 +307,19 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
       return -sqrt(-norm);
    }
    return sqrt(norm);
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::updateMassNonlinear(double dt, double alpha)
+{
+   if (entvar == true)
+   {
+      mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
+   }
+   else
+   {
+      mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
+   }
 }
 
 // explicit instantiation
