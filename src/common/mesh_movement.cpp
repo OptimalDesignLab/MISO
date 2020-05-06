@@ -131,8 +131,14 @@ void LEAnalogySolver::initDerived()
     {
         // need to get boundary displacement gridfunction
         GridFunction u_bnd_g(fes.get(), u_bnd->GetData());
-        bc_coef.reset(new VectorGridFunctionCoefficient(&u_bnd_g));
-        u->ProjectBdrCoefficient(*bc_coef, ess_bdr);
+
+        //bc_coef.reset(new VectorGridFunctionCoefficient(&u_bnd_g));
+        u->ProjectGridFunction(u_bnd_g);
+
+            stringstream pertname;
+			pertname << "u_bnd_g.gf";
+    	    ofstream pert(pertname.str());
+			u->Save(pert);
 
         //debug
         {
@@ -213,7 +219,12 @@ void LEAnalogySolver::solveSteadyAdjoint(const std::string &fun)
 {
     adj.reset(new GridFunType(fes.get()));
     MatrixType *K_trans = K.Transpose();
+    // string ktr_inspect = "ktrans.txt";
+    // string k_inspect = "k.txt";
+    // K.Print(k_inspect.c_str());
+    // K_trans->Print(ktr_inspect.c_str());
     solver->SetOperator(*K_trans);
+    //dLdX->Neg();
     solver->Mult(*dLdX, *adj);
 }
 

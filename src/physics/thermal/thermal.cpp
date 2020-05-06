@@ -997,8 +997,24 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
     VectorFunctionCoefficient v_rand(dim, randState);
     v.ProjectCoefficient(v_rand);
 	GridFunction x_pert(*x_nodes);
-    x_pert.Set(delta, v);
-	
+
+	//(v_bnd, might not need v_bnd though)
+	Array<int> ess_bdr_test(mesh->bdr_attributes.Max()); 
+	ess_bdr_test = 1;
+	Array<int> ess_tdof_list_test;
+	mesh_fes->GetEssentialTrueDofs(ess_bdr_test, ess_tdof_list_test);
+	GridFunction v_bnd(mesh_fes); v_bnd = 0.0;
+	for (int p = 0; p < ess_tdof_list_test.Size(); p++)
+	{
+		int in = ess_tdof_list_test[p];
+		v_bnd(in) = v(in);
+	}
+    x_pert.Set(delta, v_bnd);
+			stringstream pertname;
+			pertname << "x_pert.gf";
+    	    ofstream pert(pertname.str());
+			x_pert.Save(pert);
+
 	// set up the mesh movement solver (should make this it's own function)
 	MSolver.reset(new LEAnalogySolver(
 						options["mesh-move-opts-path"].get<string>(),
@@ -1008,9 +1024,14 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
 
 	double dJdXs_fd = -getOutput()/delta;
 	Vector *dJdXs = getSurfaceMeshSensitivities();
+	GridFunction dJdXs_g(mesh_fes, dJdXs->GetData());
+	stringstream solname;
+	solname << "surfacesens.gf";
+    ofstream ssol(solname.str());
+	dJdXs_g.Save(ssol);
 
-    // contract dJ/dXs with v
-    double dJdXs_v = (*dJdXs) * v;
+    // contract dJ/dXs with v (v_bnd?)
+    double dJdXs_v = (*dJdXs) * v_bnd;
 
     // compute finite difference approximation
     //mesh->SetNodes(x_pert);
@@ -1030,6 +1051,9 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
     dJdXs_fd += getOutput()/delta;
     std::cout << "Finite Difference: " << dJdXs_fd << std::endl;
     std::cout << "Analytic: 		 " << dJdXs_v << std::endl;
+#else
+	///NOTE: Not really, should change this later
+	throw MachException("Need Pumi to use EGADS for this!\n");
 #endif
 }
 
