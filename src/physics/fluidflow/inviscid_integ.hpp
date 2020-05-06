@@ -27,23 +27,31 @@ public:
                       int num_state_vars = 1, double a = 1.0)
       : num_states(num_state_vars), alpha(a), stack(diff_stack) { }
 
+   /// Get the contribution of this element to a functional
+   /// \param[in] el - the finite element whose contribution we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   virtual double GetElementEnergy(const mfem::FiniteElement &el,
+                                   mfem::ElementTransformation &trans,
+                                   const mfem::Vector &elfun);
+
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
-   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
    virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
+                                      mfem::ElementTransformation &trans,
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
    /// Construct the element local Jacobian
    /// \param[in] el - the finite element whose Jacobian we want
-   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &Trans,
+                                    mfem::ElementTransformation &trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
@@ -55,6 +63,8 @@ protected:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
 #ifndef MFEM_THREAD_SAFE
+   /// the coordinates of node i
+   mfem::Vector x_i;
    /// used to reference the states at node i 
    mfem::Vector ui;
    /// used to reference the residual at node i
@@ -72,6 +82,17 @@ protected:
    /// used to store the residual in (num_states, Dof) format
    mfem::DenseMatrix elres;
 #endif
+
+   /// Compute a scalar domain functional
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] u - state at which to evaluate the function
+   /// \returns fun - value of the function
+   /// \note `x` can be ignored depending on the function
+   /// \note This uses the CRTP, so it wraps a call to `calcVolFun` in Derived.
+   double volFun(const mfem::Vector &x, const mfem::Vector &u)
+   {
+      return static_cast<Derived*>(this)->calcVolFun(x, u);
+   }
 
    /// An inviscid flux function
    /// \param[in] dir - desired direction for the flux
@@ -131,7 +152,7 @@ public:
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
    virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
+                                      mfem::ElementTransformation &trans,
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
@@ -141,7 +162,7 @@ public:
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &Trans,
+                                    mfem::ElementTransformation &trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
@@ -226,7 +247,7 @@ public:
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
    virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
+                                      mfem::ElementTransformation &trans,
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
@@ -236,7 +257,7 @@ public:
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &Trans,
+                                    mfem::ElementTransformation &trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 

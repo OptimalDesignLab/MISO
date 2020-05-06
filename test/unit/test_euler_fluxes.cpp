@@ -31,10 +31,24 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       nrm(di) = dir[di];
    }
 
-   SECTION( "Pressure function is correct" )
+   SECTION("Pressure function is correct")
    {
-      REQUIRE( mach::pressure<double,dim>(q.GetData()) == 
-               Approx(press_check[dim-1]) );
+      REQUIRE(mach::pressure<double, dim>(q.GetData()) ==
+              Approx(press_check[dim - 1]));
+   }
+
+   SECTION("Entropy function is correct")
+   {
+      REQUIRE(mach::entropy<double, dim>(q.GetData()) ==
+              Approx(entropy_check[dim - 1]));
+   }
+
+   SECTION("Entropy function is correct when using entropy variables")
+   {
+      mfem::Vector w(dim + 2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      REQUIRE(mach::entropy<double, dim, true>(w.GetData()) ==
+              Approx(entropy_check[dim - 1]));
    }
 
    SECTION( "Spectral radius of flux Jacobian is correct" )

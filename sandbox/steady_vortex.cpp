@@ -123,6 +123,8 @@ int main(int argc, char *argv[])
          mfem::out << "\nfinal residual norm = " << res_error;
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
          mfem::out << "\nDrag error = " << drag << endl;
+         mfem::out << "\nTotal entropy = " << solver->calcOutput("entropy")
+                   << endl;
       }
 
    }
