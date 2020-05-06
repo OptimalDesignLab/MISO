@@ -1,0 +1,32 @@
+{
+   "mesh": {
+      "file": "../../sandbox/box_and_cyl.smb",
+      "moved-file": "../../sandbox/box_and_cyl_2.smb"
+   },
+   "model-file": "../../sandbox/box_and_cyl.egads",
+   "model-file-new": "../../sandbox/box_and_cyl_moved.egads",
+   "tess-file-old": "../../sandbox/box_and_cyl.eto",
+   "space-dis": {
+      "basis-type": "H1",
+      "degree": 1
+   },
+   "steady": true,
+   "lin-solver": {
+      "rel-tol": 1e-8,
+      "abs-tol": 0.0,
+      "print-lvl": 0,
+      "max-iter": 500
+   },
+   "uniform-stiff": {
+     "on": false,
+     "lambda": 1,
+     "mu": 1
+   },
+   "time-dis": {
+       "const-cfl": true,
+       "cfl": 1.0,
+       "dt": 0.0001,
+       "t-final": 0.2
+   },
+   "test-removed-bound": false
+}

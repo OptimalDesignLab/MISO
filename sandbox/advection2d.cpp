@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "mach_options.json";
+   const char *options_file = "../../sandbox/mach_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();

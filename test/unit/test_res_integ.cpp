@@ -12,13 +12,13 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
    using namespace mfem;
    using namespace euler_data;
 
-   const int dim = 2; // templating is hard here because mesh constructors
+   const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
 
    // generate a 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -88,13 +88,13 @@ TEMPLATE_TEST_CASE_SIG("MassResIntegrator::AssembleElementVector",
    using namespace mfem;
    using namespace euler_data;
 
-   const int dim = 2; // templating is hard here because mesh constructors
+   const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
 
    // generate a 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -168,13 +168,13 @@ TEMPLATE_TEST_CASE_SIG("DiffusionResIntegrator::AssembleElementVector",
    using namespace mfem;
    using namespace euler_data;
 
-   const int dim = 2; // templating is hard here because mesh constructors
+   const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
 
    // generate a 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -248,13 +248,13 @@ TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
    using namespace mfem;
    using namespace euler_data;
 
-   const int dim = 2; // templating is hard here because mesh constructors
+   const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
 
    // generate a 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -267,12 +267,14 @@ TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
              mesh.get(), fec.get()));
 
          // we use res for finite-difference approximation
-         Vector V(dim);
+         Vector V(dim); Array<int> attr;
+         attr.SetSize(mesh->bdr_attributes.Size(), 0);
+         attr[0] = 1;
          V = 1.0;
          std::unique_ptr<VectorCoefficient> Q(new VectorConstantCoefficient(V));
          LinearForm res(fes.get());
          res.AddBoundaryIntegrator(
-            new BoundaryNormalLFIntegrator(*Q));
+            new BoundaryNormalLFIntegrator(*Q), attr);
 
          // initialize state and adjoint; here we randomly perturb a constant state
          GridFunction state(fes.get()), adjoint(fes.get());
@@ -285,10 +287,10 @@ TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
          // build the nonlinear form for d(psi^T R)/dx 
-         NonlinearForm dfdx_form(mesh_fes);
+         LinearForm dfdx_form(mesh_fes);
          dfdx_form.AddBdrFaceIntegrator(
             new mach::BoundaryNormalResIntegrator(*Q,
-               &state, &adjoint));
+               &state, &adjoint), attr);
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
@@ -296,9 +298,10 @@ TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
          v.ProjectCoefficient(v_rand);
 
          // evaluate df/dx and contract with v
-         GridFunction dfdx(*x_nodes);
-         dfdx_form.Mult(*x_nodes, dfdx);
-         double dfdx_v = dfdx * v;
+         //GridFunction dfdx(*x_nodes);
+         //dfdx_form.Mult(*x_nodes, dfdx);
+         dfdx_form.Assemble();
+         double dfdx_v = dfdx_form * v;
 
          // now compute the finite-difference approximation...
          GridFunction x_pert(*x_nodes);
