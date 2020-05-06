@@ -3,11 +3,11 @@
 
 #include "mfem.hpp"
 #include "adept.h"
-#include "egads.h"
 #include "../../build/_config.hpp"
 
 #ifdef MFEM_USE_EGADS
 #include "mach_egads.hpp"
+#include "egads.h"
 #endif
 
 #include "solver.hpp"

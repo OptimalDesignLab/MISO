@@ -16,7 +16,7 @@
         "const-cfl": true,
         "cfl": 1.0,
         "dt": 0.01,
-        "t-final": 0.2
+        "t-final": 0.05
     },
     "lin-solver": {
        "type": "hypregmres",
@@ -49,7 +49,7 @@
        }
     },
     "bcs": {
-        "outflux": [0, 0, 0, 0, 1, 0],
+        "outflux": [0, 0, 0, 1, 1, 0],
         "const": true,
         "const-val": 1
     },
@@ -62,4 +62,4 @@
     "compute-sens": true,
     "mesh-move-opts-path": "thermal_mesh_move_options.json",
     "material-lib-path": "../../src/material_options.json"
- }
+ 
