@@ -25,8 +25,10 @@ set(SANDBOX_SRCS
    magnetostatic_wire
    thermal_square
    joule_wire
-   mesh_move
-   mesh_move_2
+   # mesh_move
+   # mesh_move_2
+   spline_test
+   integration_test
 )
 
 create_sandbox("${SANDBOX_SRCS}")

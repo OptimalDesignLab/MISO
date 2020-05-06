@@ -191,6 +191,41 @@ private:
 #endif
 };
 
+/// Integrator to compute the magnetic co-energy
+class nuBNormIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// \param[in] nu - model describing reluctivity
+   nuBNormIntegrator(StateCoefficient *_nu)
+      : nu(_nu) {};
+
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the magnetic co-energy calculated over an element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \brief - Computes dJdu, for solving for the adjoint
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \param[out] elvect - \partial J \partial u for this functional
+   void AssembleElementVector(const mfem::FiniteElement &el, 
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
+
+private:
+   /// material (thus mesh) dependent model describing reluctivity
+   StateCoefficient *nu;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt, M;
+   mfem::Vector b_vec, temp_vec;
+#endif
+};
+
 // /// Integrator for forces due to electromagnetic fields
 // /// \note - Requires PUMI
 // class ForceIntegrator : public mfem::NonlinearFormIntegrator

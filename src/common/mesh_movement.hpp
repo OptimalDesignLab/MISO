@@ -3,10 +3,10 @@
 
 #include "mfem.hpp"
 #include "adept.h"
-#include "egads.h"
 #include "../../build/_config.hpp"
 
 #ifdef MFEM_USE_EGADS
+#include "egads.h"
 #include "mach_egads.hpp"
 #endif
 

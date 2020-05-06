@@ -510,7 +510,8 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
          order = 2*el.GetOrder();
       }
 
-      segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, order);
+      // segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 2*(order+1));
+      segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 12);
    }
 
    double fun = 0.0;
@@ -622,11 +623,14 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       double b_mag = b_vec.Norml2();
       double nu_val = nu->Eval(trans, ip, b_mag);
+      double dnu_dB = nu->EvalStateDeriv(trans, ip, b_mag);
 
       /// temp_vec = curl(N_i) dot curl(A)
       temp_vec = 0.0;
       curlshape_dFt.Mult(b_vec, temp_vec);
-      temp_vec *= (b_mag * nu->EvalStateDeriv(trans, ip, b_mag)) + nu_val;
+      // temp_vec *= (nu->EvalStateDeriv(trans, ip, b_mag) + nu_val / b_mag);
+      // temp_vec *= nu_val;
+      temp_vec *= b_mag * (dnu_dB + nu_val/b_mag);
       temp_vec *= w;
       elvect += temp_vec;
    }
@@ -772,6 +776,153 @@ void BNormIntegrator::AssembleElementVector(
       temp_vec = 0.0;
       curlshape_dFt.Mult(b_vec, temp_vec);
       temp_vec /= b_mag;
+      temp_vec *= w;
+      elvect += temp_vec;
+   }
+}
+
+double nuBNormIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+   /// holds quadrature weight
+   double w;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   Vector b_vec(dimc);
+#else
+   curlshape.SetSize(ndof,dimc);
+   curlshape_dFt.SetSize(ndof,dimc);
+   b_vec.SetSize(dimc);
+#endif
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      b_vec = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+
+      w = ip.weight / trans.Weight();
+
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      fun += nu->Eval(trans, ip, b_vec.Norml2())*b_vec.Norml2() * w;
+   }
+   return fun;
+}
+
+void nuBNormIntegrator::AssembleElementVector(
+   const mfem::FiniteElement &el,
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun,
+   mfem::Vector &elvect)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   elvect.SetSize(ndof);
+   elvect = 0.0;
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+   /// holds quadrature weight
+   double w;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   Vector b_vec(dimc), temp_vec(ndof);
+#else
+   curlshape.SetSize(ndof,dimc);
+   curlshape_dFt.SetSize(ndof,dimc);
+   b_vec.SetSize(dimc);
+   temp_vec.SetSize(ndof);
+#endif
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      b_vec = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+
+      w = ip.weight / trans.Weight();
+
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      double b_mag = b_vec.Norml2();
+
+      /// temp_vec = curl(N_i) dot curl(A)
+      temp_vec = 0.0;
+      curlshape_dFt.Mult(b_vec, temp_vec);
+      double nu_val = nu->Eval(trans, ip, b_mag);
+      double dnu_dB = nu->EvalStateDeriv(trans, ip, b_mag);
+      temp_vec *= (dnu_dB + nu_val/b_mag);
       temp_vec *= w;
       elvect += temp_vec;
    }
