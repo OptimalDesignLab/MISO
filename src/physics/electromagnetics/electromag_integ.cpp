@@ -626,7 +626,7 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
       /// temp_vec = curl(N_i) dot curl(A)
       temp_vec = 0.0;
       curlshape_dFt.Mult(b_vec, temp_vec);
-      temp_vec *= b_mag * nu->EvalStateDeriv(trans, ip, b_mag) + nu_val;
+      temp_vec *= (b_mag * nu->EvalStateDeriv(trans, ip, b_mag)) + nu_val;
       temp_vec *= w;
       elvect += temp_vec;
    }

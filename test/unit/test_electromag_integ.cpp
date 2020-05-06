@@ -217,10 +217,8 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector", "[MagneticCoenerg
             mesh.get(), fec.get()));
 
          NonlinearForm functional(fes.get());
-         // std::unique_ptr<mach::MagneticCoenergyIntegrator> func;
 
          const double scale = 0.01;
-
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -228,12 +226,10 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector", "[MagneticCoenerg
          q.ProjectCoefficient(pert);
 
          std::unique_ptr<mach::StateCoefficient> nu(
-            new NonLinearCoefficient());
+            new LinearCoefficient());
 
          functional.AddDomainIntegrator(
             new mach::MagneticCoenergyIntegrator(nu.get()));
-
-         // func.reset(new mach::MagneticCoenergyIntegrator(nu.get()));
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
@@ -281,10 +277,8 @@ TEST_CASE("BNormIntegrator::AssembleElementVector", "[BNormIntegrator]")
             mesh.get(), fec.get()));
 
          NonlinearForm functional(fes.get());
-         // std::unique_ptr<mach::BNormIntegrator> func;
 
          const double scale = 0.01;
-
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
