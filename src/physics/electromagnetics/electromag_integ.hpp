@@ -101,7 +101,7 @@ private:
 #endif
 };
 
-/// Integrator for to compute the magnetic energy
+/// Integrator to compute the magnetic energy
 class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
@@ -109,10 +109,10 @@ public:
    MagneticEnergyIntegrator(StateCoefficient *_nu) : nu(_nu) {};
 
    /// \param[in] el - the finite element
-   /// \param[in] Tr - defines the reference to physical element mapping
+   /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
    double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &Tr,
+                           mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
 private:
@@ -124,7 +124,7 @@ private:
 #endif
 };
 
-/// Integrator for to compute the magnetic co-energy
+/// Integrator to compute the magnetic co-energy
 class MagneticCoenergyIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
@@ -133,18 +133,29 @@ public:
       : nu(_nu) {};
 
    /// \param[in] el - the finite element
-   /// \param[in] Tr - defines the reference to physical element mapping
+   /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
+   /// \returns the magnetic co-energy calculated over an element
    double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &Tr,
+                           mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
+
+   /// \brief - Computes dJdu, for solving for the adjoint
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \param[out] elvect - \partial J \partial u for this functional
+   void AssembleElementVector(const mfem::FiniteElement &el, 
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
 private:
    /// material (thus mesh) dependent model describing reluctivity
    StateCoefficient *nu;
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
-   mfem::Vector b_vec;
+   mfem::Vector b_vec, temp_vec;
 #endif
 };
 
