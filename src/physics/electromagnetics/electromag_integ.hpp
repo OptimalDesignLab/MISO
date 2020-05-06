@@ -159,52 +159,84 @@ private:
 #endif
 };
 
-/// Integrator for forces due to electromagnetic fields
-/// \note - Requires PUMI
-class ForceIntegrator : public mfem::NonlinearFormIntegrator
+/// Integrator to compute the magnetic co-energy
+class BNormIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// \param[in] solver - pointer to solver, used to get PUMI mesh
-   /// \param[in] regions - list of regions to find the resultant force on
-   /// \param[in] free_regions - list of regions of free space that surround
-   ///                           `regions`
    /// \param[in] nu - model describing reluctivity
-   /// \param[in] dir - direction to find the force in
-   ForceIntegrator(AbstractSolver *solver,
-                   std::unordered_set<int> regions,
-                   std::unordered_set<int> free_regions,
-                   StateCoefficient *nu,
-                   mfem::Vector dir);
+   BNormIntegrator() {};
 
    /// \param[in] el - the finite element
-   /// \param[in] Tr - defines the reference to physical element mapping
+   /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
-   /// \note this function will call PUMI APIs to figure out which nodes are
-   ///       in free space/on the rotor (fixed/free)
+   /// \returns the magnetic co-energy calculated over an element
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
-private:
-   /// pointer to abstract solver (used to get PUMI mesh)
-   AbstractSolver * const solver;
-   /// list of regions to find the resultant force on
-   const std::unordered_set<int> regions, free_regions;
-   /// material (thus mesh) dependent model describing reluctivity
-   StateCoefficient * const nu;
-   /// direction to calculate the force
-   const mfem::Vector dir;
-   /// model faces that define the interface between moving and fixed regions
-   std::unordered_set<int> face_list;
-   /// set of element indices to be used to integrate over
-   std::unordered_set<int> el_ids;
+   /// \brief - Computes dJdu, for solving for the adjoint
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \param[out] elvect - \partial J \partial u for this functional
+   void AssembleElementVector(const mfem::FiniteElement &el, 
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
+private:
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
-   mfem::Vector b_vec;
+   mfem::Vector b_vec, temp_vec;
 #endif
-
 };
+
+// /// Integrator for forces due to electromagnetic fields
+// /// \note - Requires PUMI
+// class ForceIntegrator : public mfem::NonlinearFormIntegrator
+// {
+// public:
+//    /// \param[in] solver - pointer to solver, used to get PUMI mesh
+//    /// \param[in] regions - list of regions to find the resultant force on
+//    /// \param[in] free_regions - list of regions of free space that surround
+//    ///                           `regions`
+//    /// \param[in] nu - model describing reluctivity
+//    /// \param[in] dir - direction to find the force in
+//    ForceIntegrator(AbstractSolver *solver,
+//                    std::unordered_set<int> regions,
+//                    std::unordered_set<int> free_regions,
+//                    StateCoefficient *nu,
+//                    mfem::Vector dir);
+
+//    /// \param[in] el - the finite element
+//    /// \param[in] Tr - defines the reference to physical element mapping
+//    /// \param[in] elfun - state vector of the element
+//    /// \note this function will call PUMI APIs to figure out which nodes are
+//    ///       in free space/on the rotor (fixed/free)
+//    double GetElementEnergy(const mfem::FiniteElement &el,
+//                            mfem::ElementTransformation &trans,
+//                            const mfem::Vector &elfun) override;
+
+// private:
+//    /// pointer to abstract solver (used to get PUMI mesh)
+//    AbstractSolver * const solver;
+//    /// list of regions to find the resultant force on
+//    const std::unordered_set<int> regions, free_regions;
+//    /// material (thus mesh) dependent model describing reluctivity
+//    StateCoefficient * const nu;
+//    /// direction to calculate the force
+//    const mfem::Vector dir;
+//    /// model faces that define the interface between moving and fixed regions
+//    std::unordered_set<int> face_list;
+//    /// set of element indices to be used to integrate over
+//    std::unordered_set<int> el_ids;
+
+// #ifndef MFEM_THREAD_SAFE
+//    mfem::DenseMatrix curlshape, curlshape_dFt, M;
+//    mfem::Vector b_vec;
+// #endif
+
+// };
 
 // /// Integrator for torques due to electromagnetic fields
 // class VWTorqueIntegrator : public mfem::NonlinearFormIntegrator

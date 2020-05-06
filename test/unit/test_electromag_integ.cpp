@@ -195,6 +195,129 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear", "[CurlCurlNL
    }
 }
 
+TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector", "[MagneticCoenergyIntegrator]")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new ND_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get()));
+
+         NonlinearForm functional(fes.get());
+         // std::unique_ptr<mach::MagneticCoenergyIntegrator> func;
+
+         const double scale = 0.01;
+
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(3, randState);
+         q.ProjectCoefficient(pert);
+
+         std::unique_ptr<mach::StateCoefficient> nu(
+            new NonLinearCoefficient());
+
+         functional.AddDomainIntegrator(
+            new mach::MagneticCoenergyIntegrator(nu.get()));
+
+         // func.reset(new mach::MagneticCoenergyIntegrator(nu.get()));
+
+         // initialize the vector that dJdu multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(3, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(fes.get());
+         functional.Mult(q, dJdu);
+         double dJdu_dot_v = InnerProduct(dJdu, v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q);
+         q_pert.Add(-delta, v);
+         double dJdu_dot_v_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, v);
+         dJdu_dot_v_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_v_fd /= (2 * delta);
+         std::cout << "dJdu_dot_v = " << dJdu_dot_v << std::endl;
+         std::cout << "dJdu_dot_v_fd = " << dJdu_dot_v_fd << std::endl;
+         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
+      }
+   }
+}
+
+TEST_CASE("BNormIntegrator::AssembleElementVector", "[BNormIntegrator]")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new ND_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get()));
+
+         NonlinearForm functional(fes.get());
+         // std::unique_ptr<mach::BNormIntegrator> func;
+
+         const double scale = 0.01;
+
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(3, randState);
+         q.ProjectCoefficient(pert);
+
+         functional.AddDomainIntegrator(
+            new mach::BNormIntegrator());
+
+         // initialize the vector that dJdu multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(3, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(fes.get());
+         functional.Mult(q, dJdu);
+         double dJdu_dot_v = InnerProduct(dJdu, v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q);
+         q_pert.Add(-delta, v);
+         double dJdu_dot_v_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, v);
+         dJdu_dot_v_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_v_fd /= (2 * delta);
+         std::cout << "dJdu_dot_v = " << dJdu_dot_v << std::endl;
+         std::cout << "dJdu_dot_v_fd = " << dJdu_dot_v_fd << std::endl;
+         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
+      }
+   }
+}
+
 /// commenting out because I removed support for nonlinear magnets for now
 // TEST_CASE("MagnetizationIntegrator::AssembleElementGrad - Nonlinear", "[MagnetizationIntegrator]")
 // {
