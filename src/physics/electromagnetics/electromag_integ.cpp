@@ -763,7 +763,6 @@ void MagneticCoenergydJdx::AssembleRHSElementVect(
    IsoparametricTransformation &isotrans =
    dynamic_cast<IsoparametricTransformation&>(*trans);
 
-   const int attr = mesh_trans.Attribute;
    for (int i = 0; i < ir->GetNPoints(); ++i)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
@@ -938,10 +937,20 @@ void BNormdJdx::AssembleRHSElementVect(
    const FiniteElement *el = state.FESpace()->GetFE(element);
    ElementTransformation *trans = state.FESpace()->GetElementTransformation(element);
    state.FESpace()->GetElementVDofs(element, vdofs);
-   int order = 2*el->GetOrder() + trans->OrderW();
+
    const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
+      int order;
+      if (el->Space() == FunctionSpace::Pk)
+      {
+         order = 2*el->GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el->GetOrder();
+      }
+
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
    state.GetSubVector(vdofs, elfun);
@@ -963,7 +972,7 @@ void BNormdJdx::AssembleRHSElementVect(
    DenseMatrix PointMat_bar(dimc, ndof);
    // DenseMatrix PointMat_bar_1(dimc, ndof);
    // DenseMatrix PointMat_bar_2(dimc, ndof);
-   Vector DofVal(elfun.Size());
+   // Vector DofVal(elfun.Size());
 
    Vector b_hat(dimc);
    
