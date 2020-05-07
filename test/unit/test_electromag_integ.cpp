@@ -226,6 +226,7 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector", "[MagneticCoenerg
          q.ProjectCoefficient(pert);
 
          std::unique_ptr<mach::StateCoefficient> nu(
+            // new LinearCoefficient());
             new NonLinearCoefficient());
 
          functional.AddDomainIntegrator(
@@ -248,8 +249,8 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector", "[MagneticCoenerg
          q_pert.Add(2 * delta, v);
          dJdu_dot_v_fd += functional.GetEnergy(q_pert);
          dJdu_dot_v_fd /= (2 * delta);
-         std::cout << "dJdu_dot_v = " << dJdu_dot_v << std::endl;
-         std::cout << "dJdu_dot_v_fd = " << dJdu_dot_v_fd << std::endl;
+         // std::cout << "dJdu_dot_v = " << dJdu_dot_v << std::endl;
+         // std::cout << "dJdu_dot_v_fd = " << dJdu_dot_v_fd << std::endl;
          REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
       }
    }

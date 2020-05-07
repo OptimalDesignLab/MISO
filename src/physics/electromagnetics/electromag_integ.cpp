@@ -541,14 +541,23 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
       double lower_bound = 0.0;
       double upper_bound = nu_val * b_vec.Norml2();
       /// compute int_0^{\nu*B} \frac{H}{\nu} dH
-      double qp_en = 0.0;
-      for (int j = 0; j < segment_ir->GetNPoints(); j++)
-      {
-         const IntegrationPoint &segment_ip = segment_ir->IntPoint(j);
-         double xi = segment_ip.x * (upper_bound - lower_bound);
-         qp_en += segment_ip.weight * xi / nu->Eval(trans, ip, xi);
-      }
-      qp_en *= (upper_bound - lower_bound);
+      // double qp_en = 0.0;
+      // for (int j = 0; j < segment_ir->GetNPoints(); j++)
+      // {
+      //    const IntegrationPoint &segment_ip = segment_ir->IntPoint(j);
+      //    double xi = segment_ip.x * (upper_bound - lower_bound);
+      //    qp_en += segment_ip.weight * xi / nu->Eval(trans, ip, xi);
+      // }
+      // qp_en *= (upper_bound - lower_bound);
+      double qp_en = integrateBH(segment_ir, trans, ip,
+                                 lower_bound, upper_bound);
+
+      // double fd_int = FDintegrateBH(segment_ir, trans, ip, lower_bound, upper_bound);
+      // double ad_int = RevADintegrateBH(segment_ir, trans, ip, lower_bound, upper_bound);
+      // double b_mag = b_vec.Norml2();
+      // std::cout << "Finite differenced integral: " << fd_int << "\n";
+      // std::cout << "AD integral: " << ad_int << "\n";
+      // std::cout << "B mag: " << b_mag << "\n";
 
       fun += qp_en * w;
    }
@@ -586,6 +595,7 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
 #endif
 
    const IntegrationRule *ir = IntRule;
+   const IntegrationRule *segment_ir = NULL;
    if (ir == NULL)
    {
       int order;
@@ -599,6 +609,21 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
       }
 
       ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+   if (segment_ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      // segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 2*(order+1));
+      segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 12);
    }
 
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -630,10 +655,82 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
       curlshape_dFt.Mult(b_vec, temp_vec);
       // temp_vec *= (nu->EvalStateDeriv(trans, ip, b_mag) + nu_val / b_mag);
       // temp_vec *= nu_val;
-      temp_vec *= b_mag * (dnu_dB + nu_val/b_mag);
+      double dwp_dh = RevADintegrateBH(segment_ir, trans, ip,
+                                       0, nu_val * b_mag);
+      temp_vec *= dwp_dh*(dnu_dB + nu_val/b_mag); // (dnu_dB + nu_val/b_mag)
       temp_vec *= w;
       elvect += temp_vec;
    }
+}
+
+double MagneticCoenergyIntegrator::integrateBH(
+   const IntegrationRule *ir,
+   ElementTransformation &trans,
+   const IntegrationPoint &old_ip,
+   double lower_bound,
+   double upper_bound)
+{
+   /// compute int_0^{\nu*B} \frac{H}{\nu} dH
+   double qp_en = 0.0;
+   for (int j = 0; j < ir->GetNPoints(); j++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(j);
+      double xi = ip.x * (upper_bound - lower_bound);
+      qp_en += ip.weight * xi / nu->Eval(trans, old_ip, xi);
+   }
+   qp_en *= (upper_bound - lower_bound);
+   return qp_en;
+}
+
+double MagneticCoenergyIntegrator::FDintegrateBH(
+   const IntegrationRule *ir,
+   ElementTransformation &trans,
+   const IntegrationPoint &old_ip,
+   double lower_bound,
+   double upper_bound)
+{
+   double delta = 1e-5;
+
+   double fd_val;
+   fd_val = integrateBH(ir, trans, old_ip, lower_bound, upper_bound + delta);
+   fd_val -= integrateBH(ir, trans, old_ip, lower_bound, upper_bound - delta);
+   return fd_val / (2*delta);
+}
+
+double MagneticCoenergyIntegrator::RevADintegrateBH(
+   const IntegrationRule *ir,
+   ElementTransformation &trans,
+   const IntegrationPoint &old_ip,
+   double lower_bound,
+   double upper_bound)
+{   
+   /// compute int_0^{\nu*B} \frac{H}{\nu} dH
+   double qp_en = 0.0;
+   for (int j = 0; j < ir->GetNPoints(); j++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(j);
+      double xi = ip.x * (upper_bound - lower_bound);
+      qp_en += ip.weight * xi / nu->Eval(trans, old_ip, xi);
+   }
+
+   /// insert forward code here to compute qp_en, but not the last part
+   /// where you multiply by (upper_bound - lower_bound)
+   /// start reverse mode for int_0^{\nu*B} \frac{H}{\nu} dH
+   // return qp_en*(upper_bound - lower_bound);
+   double upper_bound_bar = qp_en;
+   double qp_en_bar = (upper_bound - lower_bound);
+   for (int j = 0; j < ir->GetNPoints(); j++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(j);
+      double xi = ip.x * (upper_bound - lower_bound);
+      // qp_en += ip.weight * xi / nu->Eval(trans, old_ip, xi);
+      double xi_bar = qp_en_bar * ip.weight / nu->Eval(trans, old_ip, xi);
+      xi_bar -= (qp_en_bar * ip.weight * xi * nu->EvalStateDeriv(trans, old_ip, xi) / 
+                 pow(nu->Eval(trans, old_ip, xi), 2.0));
+      // double xi = ip.x * (upper_bound - lower_bound);
+      upper_bound_bar += ip.x*xi_bar;
+   }
+   return upper_bound_bar;
 }
 
 double BNormIntegrator::GetElementEnergy(

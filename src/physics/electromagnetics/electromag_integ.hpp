@@ -157,6 +157,24 @@ private:
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
    mfem::Vector b_vec, temp_vec;
 #endif
+
+   double integrateBH(const mfem::IntegrationRule *ir,
+                      mfem::ElementTransformation &trans,
+                      const mfem::IntegrationPoint &old_ip,
+                      double lower_bound,
+                      double upper_bound);
+
+   double FDintegrateBH(const mfem::IntegrationRule *ir,
+                        mfem::ElementTransformation &trans,
+                        const mfem::IntegrationPoint &old_ip,
+                        double lower_bound,
+                        double upper_bound);
+
+   double RevADintegrateBH(const mfem::IntegrationRule *ir,
+                        mfem::ElementTransformation &trans,
+                        const mfem::IntegrationPoint &old_ip,
+                        double lower_bound,
+                        double upper_bound);
 };
 
 /// Integrator to compute the magnetic co-energy
