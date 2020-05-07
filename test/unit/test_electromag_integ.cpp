@@ -313,7 +313,7 @@ TEST_CASE("BNormIntegrator::AssembleElementVector", "[BNormIntegrator]")
    }
 }
 
-TEST_CASE("BNormIntegrator::AssembleRHSElementVect", "[BNormIntegrator]")
+TEST_CASE("BNormdJdX::AssembleRHSElementVect", "[BNormIntegrator]")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -351,7 +351,7 @@ TEST_CASE("BNormIntegrator::AssembleRHSElementVect", "[BNormIntegrator]")
          v.ProjectCoefficient(v_rand);
 
          // evaluate dJdx and compute its product with v
-         GridFunction dJdx(*x_nodes);
+         // GridFunction dJdx(*x_nodes);
          LinearForm dJdx(mesh_fes);
          dJdx.AddDomainIntegrator(
             new mach::BNormdJdx(q));
