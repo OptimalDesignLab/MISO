@@ -5,6 +5,8 @@
 
 #include "mfem.hpp"
 
+#include "mach_types.hpp"
+
 namespace mach
 {
 
@@ -177,6 +179,31 @@ private:
                         double upper_bound);
 };
 
+class MagneticCoenergydJdx : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - linear form integrator to assemble the vector
+   ///          \frac{\partial J}{\partial X}
+   /// \param[in] state - the current state (A)
+   /// \note the finite element space used to by the linear form that assembles
+   ///       this integrator will use the mesh's nodal finite element space
+   MagneticCoenergydJdx(GridFunType &_state)
+      : LinearFormIntegrator(), state(_state) {}
+
+
+   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial X}
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+private:
+   /// the current state to use when evaluating \frac{\partial J}{\partial X}
+   GridFunType &state;
+};
+
 /// Integrator to compute the magnetic co-energy
 class BNormIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -203,6 +230,35 @@ public:
                               mfem::Vector &elvect) override;
 
 private:
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt, M;
+   mfem::Vector b_vec, temp_vec;
+#endif
+};
+
+class BNormdJdx : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - linear form integrator to assemble the vector
+   ///          \frac{\partial J}{\partial X}
+   /// \param[in] state - the current state (A)
+   /// \note the finite element space used to by the linear form that assembles
+   ///       this integrator will use the mesh's nodal finite element space
+   BNormdJdx(mfem::GridFunction &_state)
+      : LinearFormIntegrator(), state(_state) {}
+
+
+   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial X}
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+private:
+   /// the current state to use when evaluating \frac{\partial J}{\partial X}
+   mfem::GridFunction &state;
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
    mfem::Vector b_vec, temp_vec;

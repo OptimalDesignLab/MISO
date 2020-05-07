@@ -733,6 +733,55 @@ double MagneticCoenergyIntegrator::RevADintegrateBH(
    return upper_bound_bar;
 }
 
+void MagneticCoenergydJdx::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   /// get the proper element, transformation, and state vector
+   Array<int> vdofs; Vector elfun; 
+   int element = mesh_trans.ElementNo;
+   const FiniteElement *el = state.FESpace()->GetFE(element);
+   ElementTransformation *trans = state.FESpace()->GetElementTransformation(element);
+   state.FESpace()->GetElementVDofs(element, vdofs);
+   int order = 2*el->GetOrder() + trans->OrderW();
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      ir = &IntRules.Get(el->GetGeomType(), order);
+   }
+   state.GetSubVector(vdofs, elfun);
+
+   int dof = mesh_el.GetDof(), dim = el->GetDim();
+   elvect.SetSize(dof*dim);
+   elvect = 0.0;
+   DenseMatrix PointMat_bar(dim, dof);
+   DenseMatrix vshape(dof, dim);
+   Vector DofVal(elfun.Size());
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(*trans);
+
+   const int attr = mesh_trans.Attribute;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans->SetIntPoint(&ip);
+      el->CalcVShape(ip, vshape);
+
+      isotrans.WeightRevDiff(PointMat_bar);
+      for (int j = 0; j < dof ; ++j)
+      {
+         for (int d = 0; d < dim; ++d)
+         {
+            elvect(d*dof + j) += PointMat_bar(d,j);
+         }
+      }
+   }
+}
+
 double BNormIntegrator::GetElementEnergy(
    const FiniteElement &el,
    ElementTransformation &trans,
@@ -875,6 +924,76 @@ void BNormIntegrator::AssembleElementVector(
       temp_vec /= b_mag;
       temp_vec *= w;
       elvect += temp_vec;
+   }
+}
+
+void BNormdJdx::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   /// get the proper element, transformation, and state vector
+   Array<int> vdofs; Vector elfun; 
+   int element = mesh_trans.ElementNo;
+   const FiniteElement *el = state.FESpace()->GetFE(element);
+   ElementTransformation *trans = state.FESpace()->GetElementTransformation(element);
+   state.FESpace()->GetElementVDofs(element, vdofs);
+   int order = 2*el->GetOrder() + trans->OrderW();
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      ir = &IntRules.Get(el->GetGeomType(), order);
+   }
+   state.GetSubVector(vdofs, elfun);
+
+   int ndof = mesh_el.GetDof();
+   int el_ndof = el->GetDof();
+   int dim = el->GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+   elvect.SetSize(ndof*dimc);
+   elvect = 0.0;
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   Vector b_vec(dimc);
+#else
+   curlshape.SetSize(el_ndof,dimc);
+   curlshape_dFt.SetSize(el_ndof,dimc);
+   b_vec.SetSize(dimc);
+#endif
+   DenseMatrix PointMat_bar(dimc, ndof);
+   Vector DofVal(elfun.Size());
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(*trans);
+
+   const int attr = mesh_trans.Attribute;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      b_vec = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans->SetIntPoint(&ip);
+      if ( dim == 3 )
+      {
+         el->CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans->Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el->CalcCurlShape(ip, curlshape_dFt);
+      }
+      isotrans.WeightRevDiff(PointMat_bar);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            elvect(d*ndof + j) += PointMat_bar(d,j);
+         }
+      }
+      elvect *= b_vec.Norml2() * ip.weight;
    }
 }
 
