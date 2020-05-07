@@ -27,8 +27,8 @@ LEAnalogySolver::LEAnalogySolver(
      GridFunction *u_bound,
     std::unique_ptr<mfem::Mesh> smesh,
 	 int dim)
-	: MeshMovementSolver(opt_file_name, move(smesh)), u_bnd(u_bound)
-{ }
+	: MeshMovementSolver(opt_file_name, move(smesh))
+{u_bnd = u_bound; }
 
 void LEAnalogySolver::initDerived()
 {

@@ -250,20 +250,20 @@ void ThermalSolver::addOutputs()
 		}
 		else
 		{
-			auto &bcs = options["bcs"];
-			int idx = 0;
-			bndry_marker.resize(bcs.size());
-			if (bcs.find("outflux") != bcs.end())
-			{ // outward flux bc
-        		vector<int> tmp = bcs["outflux"].get<vector<int>>();
-        		bndry_marker[idx].SetSize(tmp.size(), 0);
-        		bndry_marker[idx].Assign(tmp.data());
-        		output.at("temp-agg").AddBdrFaceIntegrator(
-					new TempIntegrator(fes.get(), u.get()), bndry_marker[idx]);
-        		idx++;
-    		}
-			//output.at("temp-agg").AddDomainIntegrator(
-			//new TempIntegrator(fes.get(), u.get()));
+			// auto &bcs = options["bcs"];
+			// int idx = 0;
+			// bndry_marker.resize(bcs.size());
+			// if (bcs.find("outflux") != bcs.end())
+			// { // outward flux bc
+        	// 	vector<int> tmp = bcs["outflux"].get<vector<int>>();
+        	// 	bndry_marker[idx].SetSize(tmp.size(), 0);
+        	// 	bndry_marker[idx].Assign(tmp.data());
+        	// 	output.at("temp-agg").AddBdrFaceIntegrator(
+			// 		new TempIntegrator(fes.get(), u.get()), bndry_marker[idx]);
+        	// 	idx++;
+    		// }
+			output.at("temp-agg").AddDomainIntegrator(
+			new TempIntegrator(fes.get(), u.get()));
 		}
       	idx++; 
 	}
@@ -767,16 +767,16 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 
 	if (x(0) > .5)
 	{
-		y(0) = 1;
+		y(0) = 1.0;
 	}
 	else
 	{
-		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
+		y(0) = -1.0;//(M_PI/2)*exp(-M_PI*M_PI*time/4);
 		//cout << "outflux val = " << y(0) << std::endl;
 	}
 
 	//y(0) = 1;
-	y(1) = 1;
+	y(1) = 1.0;
 	y(2) = 0.0000;
 	
 }
@@ -784,9 +784,10 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 static std::default_random_engine gen(std::random_device{}());
 static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
 
-
+static double thing = 1.0;
 void ThermalSolver::randState(const mfem::Vector &x, mfem::Vector &u)
 {
+	thing = thing * -1.0;
     for (int i = 0; i < u.Size(); ++i)
     {
         u(i) = 2.0 * uniform_rand(gen) - 1.0;
@@ -798,6 +799,7 @@ void ThermalSolver::randState(const mfem::Vector &x, mfem::Vector &u)
 		// {
 		// 	u(i) = x(i+1)*0.1;
 		// }
+		//u(i) = thing;
 	}
 }
 
@@ -819,8 +821,16 @@ Vector* ThermalSolver::getMeshSensitivities()
 	// start by adding/computing the output partial
 	/// NOTE: Should eventually support different outputs
 	/// delJdelX
-	j_mesh_sens->AddDomainIntegrator(
-	new AggregateResIntegrator(fes.get(), rhoa, max, u.get()));
+	if (rhoa != 0)
+	{
+		j_mesh_sens->AddDomainIntegrator(
+			new AggregateResIntegrator(fes.get(), rhoa, max, u.get()));
+	}
+	else
+	{
+		j_mesh_sens->AddDomainIntegrator(
+			new TempResIntegrator(fes.get(), u.get()));
+	}
 	std::unique_ptr<GridFunType> dLdX_w; //work vector
 	dLdX.reset(new GridFunType(x_nodes));
 	dLdX_w.reset(new GridFunType(x_nodes));
@@ -962,7 +972,6 @@ void ThermalSolver::verifyMeshSensitivities()
     double dJdX_v = (*dJdX) * v;
 
     // compute finite difference approximation
-
     GridFunction x_pert(*x_nodes);
     x_pert.Add(delta, v);
     mesh->SetNodes(x_pert);
@@ -973,12 +982,68 @@ void ThermalSolver::verifyMeshSensitivities()
     evolver->SetNewtonSolver(newton_solver.get());
 	ConstantCoefficient u0(options["init-temp"].get<double>());
 	u->ProjectCoefficient(u0);
-	funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	if(rhoa != 0)
+	{
+		funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	}
+	else
+	{
+		funct.reset(new TempIntegrator(fes.get()));
+	}
     solveForState();
     std::cout << "Solver Done" << std::endl;
     dJdX_fd += getOutput()/delta;
-    std::cout << "Finite Difference: " << dJdX_fd << std::endl;
-    std::cout << "Analytic: 		 " << dJdX_v << std::endl;
+
+	// central difference approximation
+	double delta_cd = 1e-5;
+	std::cout << "Solving CD Backward Step..." << std::endl;
+	x_pert = *x_nodes; x_pert.Add(-delta_cd, v);
+	mesh->SetNodes(x_pert);
+	initDerived();
+	constructNewtonSolver();
+	evolver->SetLinearSolver(solver.get());
+    evolver->SetNewtonSolver(newton_solver.get());
+	u->ProjectCoefficient(u0);
+	if(rhoa != 0)
+	{
+		funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	}
+	else
+	{
+		funct.reset(new TempIntegrator(fes.get()));
+	}
+    solveForState();
+    std::cout << "Solver Done" << std::endl;
+    double dJdX_cd = -getOutput()/(2*delta_cd);
+
+	std::cout << "Solving CD Forward Step..." << std::endl;
+	x_pert.Add(2*delta_cd, v);
+	mesh->SetNodes(x_pert);
+	initDerived();
+	constructNewtonSolver();
+	evolver->SetLinearSolver(solver.get());
+    evolver->SetNewtonSolver(newton_solver.get());
+	u->ProjectCoefficient(u0);
+	if(rhoa != 0)
+	{
+		funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	}
+	else
+	{
+		funct.reset(new TempIntegrator(fes.get()));
+	}
+    solveForState();
+    std::cout << "Solver Done" << std::endl;
+    dJdX_cd += getOutput()/(2*delta_cd);
+
+
+    std::cout << "Finite Difference:  " << dJdX_fd << std::endl;
+	std::cout << "Central Difference: " << dJdX_cd << std::endl;
+    std::cout << "Analytic: 		  " << dJdX_v << std::endl;
+	std::cout << "FD Relative: 		  " << (dJdX_v-dJdX_fd)/dJdX_v << std::endl;
+    std::cout << "FD Absolute: 		  " << dJdX_v - dJdX_fd << std::endl;
+	std::cout << "CD Relative: 		  " << (dJdX_v-dJdX_cd)/dJdX_v << std::endl;
+    std::cout << "CD Absolute: 		  " << dJdX_v - dJdX_cd << std::endl;
 }
 
 void ThermalSolver::verifySurfaceMeshSensitivities()
@@ -1045,12 +1110,79 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
     evolver->SetNewtonSolver(newton_solver.get());
 	ConstantCoefficient u0(options["init-temp"].get<double>());
 	u->ProjectCoefficient(u0);
-	funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	if(rhoa != 0)
+	{
+		funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	}
+	else
+	{
+		funct.reset(new TempIntegrator(fes.get()));
+	}
     solveForState();
     std::cout << "Solver Done" << std::endl;
     dJdXs_fd += getOutput()/delta;
-    std::cout << "Finite Difference: " << dJdXs_fd << std::endl;
-    std::cout << "Analytic: 		 " << dJdXs_v << std::endl;
+
+	// now try central difference
+	double delta_cd = 1e-5;
+	mesh->SetNodes(*x_nodes);
+    x_pert = 0.0;
+	x_pert.Add(-delta_cd, v_bnd);
+	MSolver->setPert(&x_pert);
+	MSolver->setMesh(mesh.get());	// give it the mesh pointer
+	MSolver->initDerived();
+	MSolver->solveForState();
+	moved_mesh = MSolver->getMesh();
+	mesh->SetNodes(*moved_mesh->GetNodes());
+	std::cout << "Solving CD Backward Step..." << std::endl;
+	initDerived();
+	constructNewtonSolver();
+	evolver->SetLinearSolver(solver.get());
+    evolver->SetNewtonSolver(newton_solver.get());
+	u->ProjectCoefficient(u0);
+	if(rhoa != 0)
+	{
+		funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	}
+	else
+	{
+		funct.reset(new TempIntegrator(fes.get()));
+	}
+    solveForState();
+	double dJdXs_cd = -getOutput()/(delta_cd);
+	
+	x_pert.Add(2*delta_cd, v_bnd);
+	MSolver->setPert(&x_pert);
+	MSolver->setMesh(mesh.get());	// give it the mesh pointer
+	MSolver->initDerived();
+	MSolver->solveForState();
+	moved_mesh = MSolver->getMesh();
+	mesh->SetNodes(*moved_mesh->GetNodes());
+	std::cout << "Solving CD Forward Step..." << std::endl;
+	initDerived();
+	constructNewtonSolver();
+	evolver->SetLinearSolver(solver.get());
+    evolver->SetNewtonSolver(newton_solver.get());
+	u->ProjectCoefficient(u0);
+	if(rhoa != 0)
+	{
+		funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+	}
+	else
+	{
+		funct.reset(new TempIntegrator(fes.get()));
+	}
+    solveForState();
+	dJdXs_cd += getOutput()/(delta_cd);
+
+
+    std::cout << "Finite Difference:  " << dJdXs_fd << std::endl;
+	std::cout << "Central Difference: " << dJdXs_cd << std::endl;
+    std::cout << "Analytic: 		  " << dJdXs_v << std::endl;
+	std::cout << "FD Relative: 		  " << (dJdXs_v-dJdXs_fd)/dJdXs_v << std::endl;
+    std::cout << "FD Absolute: 		  " << dJdXs_v - dJdXs_fd << std::endl;
+	std::cout << "CD Relative: 		  " << (dJdXs_v-dJdXs_cd)/dJdXs_v << std::endl;
+    std::cout << "CD Absolute: 		  " << dJdXs_v - dJdXs_cd << std::endl;
+
 #else
 	///NOTE: Not really, should change this later
 	throw MachException("Need Pumi to use EGADS for this!\n");

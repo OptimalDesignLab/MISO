@@ -16,18 +16,18 @@
         "const-cfl": true,
         "cfl": 1.0,
         "dt": 0.01,
-        "t-final": 0.05
+        "t-final": 0.02
     },
     "lin-solver": {
        "type": "hypregmres",
        "pctype": "hypreboomeramg",
-       "rel-tol": 1e-8,
+       "rel-tol": 1e-14,
        "abs-tol": 0.0,
        "print-lvl": 0,
        "max-iter": 500
     },
     "adj-solver":{
-       "rel-tol": 1e-8,
+       "rel-tol": 1e-14,
        "abs-tol": 0.0,
        "print-lvl": 0,
        "max-iter": 500
@@ -62,4 +62,4 @@
     "compute-sens": true,
     "mesh-move-opts-path": "thermal_mesh_move_options.json",
     "material-lib-path": "../../src/material_options.json"
- 
+ }
