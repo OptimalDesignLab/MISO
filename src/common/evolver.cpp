@@ -150,7 +150,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetAbsTol(1e-10);
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-2);
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(2);
+   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(0);
 #else
    //using hypre solver instead
    linear_solver.reset(new mfem::HypreGMRES(mass.ParFESpcace()->GetComm()));
@@ -170,7 +170,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    // set paramters for the newton solver
    newton_solver->SetRelTol(1e-10);
    newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(1);
+   newton_solver->SetPrintLevel(-1);
    newton_solver->SetMaxIter(30);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);

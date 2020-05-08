@@ -602,17 +602,19 @@ void AbstractSolver::solveUnsteady()
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
    for (int ti = 0; !done;)
    {
-      if (calc_dt)p
+      if (calc_dt)
       {
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
       updateNonlinearMass(ti, dt_real, 1.0);
-      if (ti % 10 == 0)
-      {
-         *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+      // if (ti % 10 == 0)
+      // {
+      //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+      //         << " (" << round(100 * t / t_final) << "% complete)" << endl;
+      // }
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      }
       // ofstream c_write("u_"+std::to_string(ti)+".txt");
       // u->Print(c_write);
       // c_write.close();
