@@ -45,6 +45,8 @@ int main(int argc, char *argv[])
       std::cout << "Energy = " << energy << std::endl;
       double coenergy = solver.calcOutput("co-energy");
       std::cout << "Co-energy = " << coenergy << std::endl;
+      solver.solveForAdjoint("co-energy");
+      solver.printSolution("wire_out");
    }
    catch (MachException &exception)
    {

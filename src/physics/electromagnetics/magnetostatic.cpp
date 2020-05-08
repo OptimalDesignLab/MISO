@@ -73,7 +73,7 @@ void MagnetostaticSolver::printSolution(const std::string &file_name,
 {
    printFields(file_name,
                {u.get(), B.get()},
-               {"MVP", "Magnetic Flux Density"},
+               {"MVP", "Magnetic_Flux_Density"},
                refine);
 }
 
