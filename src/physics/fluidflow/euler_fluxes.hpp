@@ -35,6 +35,27 @@ inline xdouble pressure(const xdouble *q)
    return euler::gami * (q[dim + 1] - 0.5 * dot<xdouble, dim>(q + 1, q + 1) / q[0]);
 }
 
+/// Mathematical entropy function rho*s/(gamma-1), where s = ln(p/rho^gamma)
+/// \param[in] q - state variables (either conservative or entropy variables)
+/// \tparam xdouble - either double or adouble
+/// \tparam dim - number of physical dimensions
+/// \tparam entvar - if true q = conservative vars, if false q = entropy vars
+template <typename xdouble, int dim, bool entvar = false>
+inline xdouble entropy(const xdouble *q)
+{
+   if (entvar)
+   {
+      double Vel2 = dot<xdouble, dim>(q + 1, q + 1); // Vel2*rho^2/p^2
+      double s = -euler::gamma + euler::gami*(q[0] - 0.5*Vel2/q[dim+1]); // -s
+      double rho = pow(-exp(s)/q[dim+1], 1.0/euler::gami);
+      return rho*s/euler::gami;
+   }
+   else
+   {
+      return -q[0]*log(pressure<xdouble,dim>(q)/pow(q[0],euler::gamma))/euler::gami;
+   }
+}
+
 /// Euler flux function in a given (scaled) direction
 /// \param[in] dir - direction in which the flux is desired
 /// \param[in] q - conservative variables

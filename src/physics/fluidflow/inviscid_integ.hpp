@@ -27,23 +27,31 @@ public:
                       int num_state_vars = 1, double a = 1.0)
       : num_states(num_state_vars), alpha(a), stack(diff_stack) { }
 
+   /// Get the contribution of this element to a functional
+   /// \param[in] el - the finite element whose contribution we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   virtual double GetElementEnergy(const mfem::FiniteElement &el,
+                                   mfem::ElementTransformation &trans,
+                                   const mfem::Vector &elfun);
+
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
-   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
    virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
+                                      mfem::ElementTransformation &trans,
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
    /// Construct the element local Jacobian
    /// \param[in] el - the finite element whose Jacobian we want
-   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &Trans,
+                                    mfem::ElementTransformation &trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
@@ -55,6 +63,8 @@ protected:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
 #ifndef MFEM_THREAD_SAFE
+   /// the coordinates of node i
+   mfem::Vector x_i;
    /// used to reference the states at node i 
    mfem::Vector ui;
    /// used to reference the residual at node i
@@ -72,6 +82,17 @@ protected:
    /// used to store the residual in (num_states, Dof) format
    mfem::DenseMatrix elres;
 #endif
+
+   /// Compute a scalar domain functional
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] u - state at which to evaluate the function
+   /// \returns fun - value of the function
+   /// \note `x` can be ignored depending on the function
+   /// \note This uses the CRTP, so it wraps a call to `calcVolFun` in Derived.
+   double volFun(const mfem::Vector &x, const mfem::Vector &u)
+   {
+      return static_cast<Derived*>(this)->calcVolFun(x, u);
+   }
 
    /// An inviscid flux function
    /// \param[in] dir - desired direction for the flux
@@ -131,7 +152,7 @@ public:
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
    virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
+                                      mfem::ElementTransformation &trans,
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
@@ -141,7 +162,7 @@ public:
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &Trans,
+                                    mfem::ElementTransformation &trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
@@ -226,7 +247,7 @@ public:
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
    virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
+                                      mfem::ElementTransformation &trans,
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
@@ -236,7 +257,7 @@ public:
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
    virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &Trans,
+                                    mfem::ElementTransformation &trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
@@ -569,6 +590,102 @@ protected:
                                                   flux_dir);
    }
 
+};
+
+/// Integrator for nonlinear mass matrix
+/// \tparam Derived - a class Derived from this one (needed for CRTP)
+///
+/// This integrator is for forms that include the entropy function inverse
+/// Hessian du/dw; the resulting mass matrix is still symmetric positive 
+/// definite, but it is nonlinear in this case.
+template <typename Derived>
+class NonlinearMassIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// Construct an integrator for nonlinear mass matrices that include du/dw
+   /// \param[in] state_old - state solution at previous time step
+   /// \param[in] delta_t - used to define state where mass matrix is evaluated
+   /// \param[in] num_state_vars - the number of state variables (redundant)
+   /// \param[in] a - factor, usually used to move terms to rhs
+   /// \warning For GD or non-conforming schemes in general, state_old must have
+   /// **already** been prolonged to the SBP degrees of freedom.
+   NonlinearMassIntegrator(const mfem::GridFunction &state_old, double delta_t,
+                           int num_state_vars = 1, double a = 1.0)
+       : state(state_old), dt(delta_t), num_states(num_state_vars), alpha(a) {}
+
+   /// Construct the element local residual
+   /// \param[in] el - the finite element whose residual we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elvect - element local residual
+   virtual void AssembleElementVector(const mfem::FiniteElement &el,
+                                      mfem::ElementTransformation &trans,
+                                      const mfem::Vector &elfun,
+                                      mfem::Vector &elvect);
+
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elmat - element local Jacobian
+   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+                                    mfem::ElementTransformation &trans,
+                                    const mfem::Vector &elfun,
+                                    mfem::DenseMatrix &elmat);
+
+   /// Update the delta t
+   void updateDeltat(double dt_) { dt = dt_; }
+protected:
+   /// The state solution at the previous time step
+   const mfem::GridFunction &state;
+   /// time step that helps define where `du/dw` is evaluated, `u + dt*k`
+   double dt;
+   /// number of states
+   int num_states;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+#ifndef MFEM_THREAD_SAFE
+   /// state at which the matrix (du/dw) is evaluated 
+   mfem::Vector u_i;
+   /// vector that multiplies (du/dw), usually the time derivative here
+   mfem::Vector k_i;
+   /// stores the matrix-vector product (du/dw)*k at node i
+   mfem::Vector Ak_i;
+   /// stores the (du/dw) for the Jacobian calculation 
+   mfem::DenseMatrix A_i;
+   /// stores the derivative of (du/dw)*k with respect to k
+   mfem::DenseMatrix jac_node;
+#endif
+
+   /// applies symmetric matrix `du/dw` to input `k`
+   /// \param[in] u - state at which the symmetric matrix `du/dw` is evaluated
+   /// \param[in] k - vector that is being multiplied
+   /// \param[out] Ak - product of the multiplication
+   /// \note This uses the CRTP, so it wraps call to `calcMatVec` in Derived.
+   void matVec(const mfem::Vector &u, const mfem::Vector &k, mfem::Vector &Ak)
+   {
+      static_cast<Derived*>(this)->calcMatVec(u, k, Ak);
+   }
+
+   /// Compute the Jacobian of function `matVec` w.r.t. `u`
+   /// \param[in] u - state at which to evaluate the Jacobian
+   /// \param[in] k - vector that is being multiplied by `A = du/dw`
+   /// \param[out] jac - Jacobian of the product w.r.t. `u`
+   /// \note This uses the CRTP, so it wraps a call to `calcMatVecJacState`.
+   void matVecJacState(const mfem::Vector &u, const mfem::Vector &k,
+                       mfem::DenseMatrix &jac)
+   {
+      static_cast<Derived*>(this)->calcMatVecJacState(u, k, jac);
+   }
+
+   /// Computes the matrix (du/dw)
+   /// \param[in] u - state at which to evaluate the entropy inverse Hessian
+   /// \param[out] jac - stores the entropy inverse Hessian
+   /// \note This uses the CRTP, so it wraps a call to `calcMatVecJacK`.
+   void matVecJacK(const mfem::Vector &u, mfem::DenseMatrix &jac)
+   {
+      static_cast<Derived*>(this)->calcMatVecJacK(u, jac);
+   }
 };
 
 #include "inviscid_integ_def.hpp"

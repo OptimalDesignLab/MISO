@@ -45,7 +45,8 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
       mesh->UniformRefinement();
    }
    int dim = mesh->Dimension();
-   cout << "Number of elements: " << mesh->GetNE() << '\n';
+   *out << "Number of elements: " << mesh->GetNE() << '\n';
+   *out << "problem space dimension = " << dim << endl;
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
    *out << "ode-solver type = "
@@ -127,6 +128,9 @@ void AbstractSolver::initDerived()
    mass->Assemble();
    mass->Finalize();
 
+   // set nonlinear mass matrix form
+   nonlinear_mass.reset(new NonlinearFormType(fes.get()));
+
    // set up the spatial semi-linear form
    double alpha = 1.0;
    cout << "before set res.\n";
@@ -172,12 +176,18 @@ void AbstractSolver::initDerived()
    }
    else
    {
-      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
+      //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
 
    // add the output functional QoIs
    auto &fun = options["outputs"];
-   output_bndry_marker.resize(fun.size());
+   using json_iter = nlohmann::json::iterator;
+   int num_bndry_outputs = 0;
+   for (json_iter it = fun.begin(); it != fun.end(); ++it) {
+      if (it->is_array()) ++num_bndry_outputs;
+   }
+   output_bndry_marker.resize(num_bndry_outputs);
    addOutputs(); // virtual function
 }
 
@@ -640,7 +650,7 @@ void AbstractSolver::solveSteady()
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
    int fill = options["lin-solver"]["filllevel"].get<int>();
-   HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
+   //HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
    solver.reset( new HypreGMRES(fes->GetComm()) );
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
@@ -746,11 +756,17 @@ void AbstractSolver::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
-      if (ti % 10 == 0)
-      {
-         *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-              << " (" << round(10 * t / t_final) << "% complete)" << endl;
-      }
+      updateNonlinearMass(ti, dt_real, 1.0);
+      // if (ti % 10 == 0)
+      // {
+      //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+      //         << " (" << round(100 * t / t_final) << "% complete)" << endl;
+      // }
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+              << " (" << round(100 * t / t_final) << "% complete)" << endl;
+      // ofstream c_write("u_"+std::to_string(ti)+".txt");
+      // u->Print(c_write);
+      // c_write.close();
 #ifdef MFEM_USE_MPI
       // HypreParVector *U = u->GetTrueDofs();
       // ode_solver->Step(*U, t, dt_real);

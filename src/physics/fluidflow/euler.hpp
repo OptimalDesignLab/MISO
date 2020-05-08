@@ -57,6 +57,8 @@ protected:
    int iroll;
    /// index of "vertical" dimension in body frame
    int ipitch;
+   /// The nonlinaer integrator that computs the nonlinear form mass matrix
+   std::unique_ptr<mfem::NonlinearFormIntegrator> mass_integ;
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
@@ -75,6 +77,14 @@ protected:
 
    /// Return the number of state variables
    virtual int getNumState() {return dim+2; }
+
+   /// Add Domain Integrator to the nonlinear form mass matrix
+   /// \param[in] alpha - scales the data; used to ove terems to rhs or lhs
+   virtual void addMassIntegrator(double alpha);
+
+   /// Update the mass integrator
+   /// \param[in] dt - the numerical time step
+   virtual void updateNonlinearMass(int ti, double dt, double alpha);
 };
 
 } // namespace mach
