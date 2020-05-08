@@ -116,8 +116,8 @@ int main(int argc, char *argv[])
       std::cout.precision(17);
       // std::cout << "\n|| rho_h - rho ||_{L^2} = " 
       //           << solver.calcL2Error(ExactSolution) << '\n' << endl;
-      solver.verifyMeshSensitivities();
-      //solver.verifySurfaceMeshSensitivities();
+      //solver.verifyMeshSensitivities();
+      solver.verifySurfaceMeshSensitivities();
    }
    catch (MachException &exception)
    {

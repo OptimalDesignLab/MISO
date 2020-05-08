@@ -1,9 +1,9 @@
 {
     "mesh": {
        "file": "initial.mesh",
-       "num-edge-x": 8,
-       "num-edge-y": 8,
-       "num-edge-z": 8
+       "num-edge-x": 2,
+       "num-edge-y": 2,
+       "num-edge-z": 2
     },
     "space-dis": {
        "basis-type": "H1",
@@ -27,6 +27,8 @@
        "max-iter": 500
     },
     "adj-solver":{
+       "type": "hypregmres",
+       "pctype": "hypreboomeramg",
        "rel-tol": 1e-14,
        "abs-tol": 0.0,
        "print-lvl": 0,
@@ -60,6 +62,8 @@
     "max-temp": 0.1,
     "init-temp": 1,
     "compute-sens": true,
+    "verify-full": false,
+    "verify-cd": true,
     "mesh-move-opts-path": "thermal_mesh_move_options.json",
     "material-lib-path": "../../src/material_options.json"
  }

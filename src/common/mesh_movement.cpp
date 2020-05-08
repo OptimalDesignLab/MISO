@@ -224,7 +224,6 @@ void LEAnalogySolver::solveSteadyAdjoint(const std::string &fun)
     // K.Print(k_inspect.c_str());
     // K_trans->Print(ktr_inspect.c_str());
     solver->SetOperator(*K_trans);
-    //dLdX->Neg();
     solver->Mult(*dLdX, *adj);
 }
 
