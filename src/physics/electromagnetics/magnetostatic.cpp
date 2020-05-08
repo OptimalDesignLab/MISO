@@ -130,7 +130,7 @@ void MagnetostaticSolver::addOutputs()
       std::cout << "adding co-energy!\n"; 
       output.emplace("co-energy", fes.get());
       output.at("co-energy").AddDomainIntegrator(
-         new MagneticCoenergyIntegrator(nu.get()));
+         new MagneticCoenergyIntegrator(*u, nu.get()));
    }
    std::cout << "done adding outputs!\n";
    /// TODO: implement torque

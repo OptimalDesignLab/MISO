@@ -127,12 +127,14 @@ private:
 };
 
 /// Integrator to compute the magnetic co-energy
-class MagneticCoenergyIntegrator : public mfem::NonlinearFormIntegrator
+class MagneticCoenergyIntegrator : public mfem::NonlinearFormIntegrator,
+                                   public mfem::LinearFormIntegrator
 {
 public:
+   /// \param[in] state - the current state (A)
    /// \param[in] nu - model describing reluctivity
-   MagneticCoenergyIntegrator(StateCoefficient *_nu)
-      : nu(_nu) {};
+   MagneticCoenergyIntegrator(mfem::GridFunction &_state, StateCoefficient *_nu)
+      : state(_state), nu(_nu) {};
 
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
@@ -142,7 +144,8 @@ public:
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
-   /// \brief - Computes dJdu, for solving for the adjoint
+   /// \brief - assemble an element's contribution to
+   ///          \frac{\partial J}{\partial u}, needed to solve for the adjoint
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
@@ -152,7 +155,22 @@ public:
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
 
+   /// \brief - assemble an element's contribution to
+   ///          \frac{\partial J}{\partial X}, needed for finding the total
+   ///          derivative of the functional with respect to the mesh nodes
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   /// \note this is the `LinearFormIntegrator` component, the LinearForm that
+   ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
+   ///       nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
 private:
+   /// the current state to use when evaluating \frac{\partial J}{\partial X}
+   mfem::GridFunction &state;
    /// material (thus mesh) dependent model describing reluctivity
    StateCoefficient *nu;
 #ifndef MFEM_THREAD_SAFE
@@ -177,31 +195,6 @@ private:
                         const mfem::IntegrationPoint &old_ip,
                         double lower_bound,
                         double upper_bound);
-};
-
-class MagneticCoenergydJdx : public mfem::LinearFormIntegrator
-{
-public:
-   /// \brief - linear form integrator to assemble the vector
-   ///          \frac{\partial J}{\partial X}
-   /// \param[in] state - the current state (A)
-   /// \note the finite element space used to by the linear form that assembles
-   ///       this integrator will use the mesh's nodal finite element space
-   MagneticCoenergydJdx(GridFunType &_state)
-      : LinearFormIntegrator(), state(_state) {}
-
-
-   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial X}
-   /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
-   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
-   void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                               mfem::ElementTransformation &trans,
-                               mfem::Vector &elvect) override;
-
-private:
-   /// the current state to use when evaluating \frac{\partial J}{\partial X}
-   GridFunType &state;
 };
 
 /// Integrator to compute the magnetic co-energy
