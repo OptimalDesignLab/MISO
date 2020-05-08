@@ -652,8 +652,6 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
       /// temp_vec = curl(N_i) dot curl(A)
       temp_vec = 0.0;
       curlshape_dFt.Mult(b_vec, temp_vec);
-      // temp_vec *= (nu->EvalStateDeriv(trans, ip, b_mag) + nu_val / b_mag);
-      // temp_vec *= nu_val;
       double dwp_dh = RevADintegrateBH(segment_ir, trans, ip,
                                        0, nu_val * b_mag);
       temp_vec *= dwp_dh*(dnu_dB + nu_val/b_mag); // (dnu_dB + nu_val/b_mag)
@@ -771,7 +769,6 @@ void MagneticCoenergyIntegrator::AssembleRHSElementVect(
          order = 2*el->GetOrder();
       }
 
-      // segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 2*(order+1));
       segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 12);
    }
    state.GetSubVector(vdofs, elfun);
@@ -791,6 +788,7 @@ void MagneticCoenergyIntegrator::AssembleRHSElementVect(
    b_vec.SetSize(dimc);
 #endif
    // DenseMatrix PointMat_bar(dimc, ndof);
+   DenseMatrix PointMat_bar(dimc, ndof);
    DenseMatrix PointMat_bar_1(dimc, ndof);
    DenseMatrix PointMat_bar_2(dimc, ndof);
    DenseMatrix PointMat_bar_3(dimc, ndof);
@@ -802,16 +800,58 @@ void MagneticCoenergyIntegrator::AssembleRHSElementVect(
    IsoparametricTransformation &isotrans =
    dynamic_cast<IsoparametricTransformation&>(*trans);
 
-   for (int i = 0; i < ir->GetNPoints(); ++i)
-   {
-      PointMat_bar_1 = 0.0;
-      PointMat_bar_2 = 0.0;
-      PointMat_bar_3 = 0.0;
-      b_vec = 0.0;
-      b_hat = 0.0;
-      const IntegrationPoint &ip = ir->IntPoint(i);
+   // for (int i = 0; i < ir->GetNPoints(); ++i)
+   // {
+   //    PointMat_bar_1 = 0.0;
+   //    PointMat_bar_2 = 0.0;
+   //    PointMat_bar_3 = 0.0;
+   //    b_vec = 0.0;
+   //    b_hat = 0.0;
+   //    const IntegrationPoint &ip = ir->IntPoint(i);
 
+   //    trans->SetIntPoint(&ip);
+   //    if ( dim == 3 )
+   //    {
+   //       el->CalcCurlShape(ip, curlshape);
+   //       MultABt(curlshape, trans->Jacobian(), curlshape_dFt);
+   //    }
+   //    else
+   //    {
+   //       el->CalcCurlShape(ip, curlshape_dFt);
+   //    }
+   //    curlshape.AddMultTranspose(elfun, b_hat);
+   //    curlshape_dFt.AddMultTranspose(elfun, b_vec);
+
+   //    double b_mag = b_vec.Norml2();
+   //    double nu_val = nu->Eval(*trans, ip, b_mag);
+   //    double nu_deriv = nu->EvalStateDeriv(*trans, ip, b_mag);
+
+   //    double lower_bound = 0.0;
+   //    double upper_bound = nu_val * b_mag;
+   //    double wp = integrateBH(segment_ir, *trans, ip,
+   //                               lower_bound, upper_bound);
+   //    double dwp_dh = RevADintegrateBH(segment_ir, *trans, ip,
+   //                               0, nu_val * b_mag);
+
+   //    Vector dNormBdB(b_vec);
+   //    // dNormBdB /= b_vec.Norml2();
+   //    DenseMatrix dBdJ(b_hat.Size(), b_vec.Size());
+   //    MultVWt(dNormBdB, b_hat, dBdJ);
+   //    dBdJ *= dwp_dh * (nu_deriv + nu_val / b_mag) / isotrans.Weight();
+   //    isotrans.JacobianRevDiff(dBdJ, PointMat_bar_1);
+
+   //    isotrans.WeightRevDiff(PointMat_bar_2);
+   //    PointMat_bar_2 *= - nu_val * wp * b_vec.Norml2() / pow(isotrans.Weight(),2);
+      
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      PointMat_bar = 0.0;
+      b_hat = 0.0;
+      b_vec = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
       trans->SetIntPoint(&ip);
+      // double w = ip.weight / trans->Weight();
       if ( dim == 3 )
       {
          el->CalcCurlShape(ip, curlshape);
@@ -826,71 +866,50 @@ void MagneticCoenergyIntegrator::AssembleRHSElementVect(
 
       double b_mag = b_vec.Norml2();
       double nu_val = nu->Eval(*trans, ip, b_mag);
-      double nu_deriv = nu->EvalStateDeriv(*trans, ip, b_mag);
+      double dnu_dB = nu->EvalStateDeriv(*trans, ip, b_mag);
 
-      double lower_bound = 0.0;
-      double upper_bound = nu_val * b_mag;
       double wp = integrateBH(segment_ir, *trans, ip,
-                                 lower_bound, upper_bound);
+                              0.0, nu_val * b_mag);
+
+      // start reverse sweep
       double dwp_dh = RevADintegrateBH(segment_ir, *trans, ip,
-                                 0, nu_val * b_mag);
+                                       0, nu_val * b_mag);
 
-      Vector dNormBdB(b_vec);
-      // dNormBdB /= b_vec.Norml2();
-      DenseMatrix dBdJ(b_hat.Size(), b_vec.Size());
-      MultVWt(dNormBdB, b_hat, dBdJ);
-      dBdJ *= dwp_dh * (nu_deriv + nu_val / b_mag) / isotrans.Weight();
-      isotrans.JacobianRevDiff(dBdJ, PointMat_bar_1);
+      DenseMatrix BB_hatT(3);
+      MultVWt(b_vec, b_hat, BB_hatT);
+      BB_hatT *= dwp_dh*(dnu_dB + nu_val/b_mag) / trans->Weight();
 
-      isotrans.WeightRevDiff(PointMat_bar_2);
-      PointMat_bar_2 *= - nu_val * wp * b_vec.Norml2() / pow(isotrans.Weight(),2);
-      
+      isotrans.WeightRevDiff(PointMat_bar);
+      PointMat_bar *= -wp / pow(trans->Weight(), 2.0);
+      isotrans.JacobianRevDiff(BB_hatT, PointMat_bar);
 
-   // for (int i = 0; i < ir->GetNPoints(); i++)
-   // {
-   //    b_vec = 0.0;
-   //    const IntegrationPoint &ip = ir->IntPoint(i);
-   //    trans->SetIntPoint(&ip);
-   //    double w = ip.weight / trans->Weight();
-   //    if ( dim == 3 )
-   //    {
-   //       el->CalcCurlShape(ip, curlshape);
-   //       MultABt(curlshape, trans->Jacobian(), curlshape_dFt);
-   //    }
-   //    else
-   //    {
-   //       el->CalcCurlShape(ip, curlshape_dFt);
-   //    }
-   //    curlshape_dFt.AddMultTranspose(elfun, b_vec);
-   //    // start reverse sweep
-
-   //    PointMat_bar = 0.0;
-   //    // fun += b_vec.Norml2() * w;
-   //    Vector b_vec_bar(b_vec);
-   //    b_vec_bar *= w / b_vec.Norml2();
-   //    double w_bar = b_vec.Norml2();
-   //    // curlshape_dFt.AddMultTranspose(elfun, b_vec);
-   //    DenseMatrix curlshape_dFt_bar(elfun.Size(), b_vec_bar.Size());
-   //    MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
-   //    // MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-   //    DenseMatrix Jac_bar(3);
-   //    MultAtB(curlshape_dFt_bar, curlshape, Jac_bar);
-   //    // w = ip.weight / trans.Weight();
-   //    double weight_bar = -w_bar*ip.weight/pow(trans->Weight(), 2.0);
-   //    isotrans.WeightRevDiff(PointMat_bar);
-   //    PointMat_bar *= weight_bar;
-   //    // This is out of order because WeightRevDiff needs to scale PointMat_bar first
-   //    isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
-   //    // code to insert PointMat_bar into elvect;
-
+      // PointMat_bar = 0.0;
+      // // fun += qp_en * w;
+      // // fun += b_vec.Norml2() * w;
+      // Vector b_vec_bar(b_vec);
+      // b_vec_bar *= w / b_vec.Norml2();
+      // double w_bar = b_vec.Norml2();
+      // // curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      // DenseMatrix curlshape_dFt_bar(elfun.Size(), b_vec_bar.Size());
+      // MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
+      // // MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      // DenseMatrix Jac_bar(3);
+      // MultAtB(curlshape_dFt_bar, curlshape, Jac_bar);
+      // // w = ip.weight / trans.Weight();
+      // double weight_bar = -w_bar*ip.weight/pow(trans->Weight(), 2.0);
+      // isotrans.WeightRevDiff(PointMat_bar);
+      // PointMat_bar *= weight_bar;
+      // // This is out of order because WeightRevDiff needs to scale PointMat_bar first
+      // isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
+      // // code to insert PointMat_bar into elvect;
 
       for (int j = 0; j < ndof ; ++j)
       {
          for (int d = 0; d < dimc; ++d)
          {
-            elvect(d*ndof + j) += ip.weight * (PointMat_bar_1(d,j)
-                                             + PointMat_bar_2(d,j));
-            // elvect(d*ndof + j) += PointMat_bar(d,j);
+            // elvect(d*ndof + j) += ip.weight * (PointMat_bar_1(d,j)
+            //                                  + PointMat_bar_2(d,j));
+            elvect(d*ndof + j) += ip.weight * PointMat_bar(d,j);
          }
       }
    }
