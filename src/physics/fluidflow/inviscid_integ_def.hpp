@@ -741,7 +741,7 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
       matVec(u_i, k_i, Ak_i);
       for (int n = 0; n < num_states; ++n)
       {
-         res(i, n) += Ak_i(n);
+         res(i, n) += weight*Ak_i(n);
       }
    }
    res *= alpha;
@@ -787,7 +787,7 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
       {
          for (int m = 0; m < num_states; ++m)
          {
-            elmat(n * num_nodes + i, m * num_nodes + i) += jac_node(n, m);
+            elmat(n * num_nodes + i, m * num_nodes + i) += weight*jac_node(n, m);
          }
       }
    }
