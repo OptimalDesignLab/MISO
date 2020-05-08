@@ -1206,6 +1206,151 @@ void nuBNormIntegrator::AssembleElementVector(
    }
 }
 
+void nuBNormdJdx::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   /// get the proper element, transformation, and state vector
+   Array<int> vdofs; Vector elfun; 
+   int element = mesh_trans.ElementNo;
+   const FiniteElement *el = state.FESpace()->GetFE(element);
+   ElementTransformation *trans = state.FESpace()->GetElementTransformation(element);
+   state.FESpace()->GetElementVDofs(element, vdofs);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el->Space() == FunctionSpace::Pk)
+      {
+         order = 2*el->GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el->GetOrder();
+      }
+
+      ir = &IntRules.Get(el->GetGeomType(), order);
+   }
+   state.GetSubVector(vdofs, elfun);
+
+   int ndof = mesh_el.GetDof();
+   int el_ndof = el->GetDof();
+   int dim = el->GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+   elvect.SetSize(ndof*dimc);
+   elvect = 0.0;
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   Vector b_vec(dimc);
+#else
+   curlshape.SetSize(el_ndof,dimc);
+   curlshape_dFt.SetSize(el_ndof,dimc);
+   b_vec.SetSize(dimc);
+#endif
+   // DenseMatrix PointMat_bar(dimc, ndof);
+   DenseMatrix PointMat_bar_1(dimc, ndof);
+   DenseMatrix PointMat_bar_2(dimc, ndof);
+   DenseMatrix PointMat_bar_3(dimc, ndof);
+   // Vector DofVal(elfun.Size());
+
+   Vector b_hat(dimc);
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(*trans);
+
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      PointMat_bar_1 = 0.0;
+      PointMat_bar_2 = 0.0;
+      PointMat_bar_3 = 0.0;
+      b_vec = 0.0;
+      b_hat = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans->SetIntPoint(&ip);
+      if ( dim == 3 )
+      {
+         el->CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans->Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el->CalcCurlShape(ip, curlshape_dFt);
+      }
+      curlshape.AddMultTranspose(elfun, b_hat);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+
+      double nu_val = nu->Eval(*trans, ip, b_vec.Norml2());
+      double nu_deriv = nu->EvalStateDeriv(*trans, ip, b_vec.Norml2());
+
+      Vector dNormBdB(b_vec);
+      dNormBdB /= b_vec.Norml2();
+      DenseMatrix dBdJ(b_hat.Size(), b_vec.Size());
+      MultVWt(dNormBdB, b_hat, dBdJ);
+      isotrans.JacobianRevDiff(dBdJ, PointMat_bar_1);
+      PointMat_bar_1 *= nu_val / isotrans.Weight();
+
+      isotrans.WeightRevDiff(PointMat_bar_2);
+      PointMat_bar_2 *= - nu_val * b_vec.Norml2() / pow(isotrans.Weight(),2);
+
+
+
+      isotrans.JacobianRevDiff(dBdJ, PointMat_bar_3);
+      PointMat_bar_3 *= b_vec.Norml2() * nu_deriv / isotrans.Weight();
+   // for (int i = 0; i < ir->GetNPoints(); i++)
+   // {
+   //    b_vec = 0.0;
+   //    const IntegrationPoint &ip = ir->IntPoint(i);
+   //    trans->SetIntPoint(&ip);
+   //    double w = ip.weight / trans->Weight();
+   //    if ( dim == 3 )
+   //    {
+   //       el->CalcCurlShape(ip, curlshape);
+   //       MultABt(curlshape, trans->Jacobian(), curlshape_dFt);
+   //    }
+   //    else
+   //    {
+   //       el->CalcCurlShape(ip, curlshape_dFt);
+   //    }
+   //    curlshape_dFt.AddMultTranspose(elfun, b_vec);
+   //    // start reverse sweep
+
+   //    PointMat_bar = 0.0;
+   //    // fun += b_vec.Norml2() * w;
+   //    Vector b_vec_bar(b_vec);
+   //    b_vec_bar *= w / b_vec.Norml2();
+   //    double w_bar = b_vec.Norml2();
+   //    // curlshape_dFt.AddMultTranspose(elfun, b_vec);
+   //    DenseMatrix curlshape_dFt_bar(elfun.Size(), b_vec_bar.Size());
+   //    MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
+   //    // MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+   //    DenseMatrix Jac_bar(3);
+   //    MultAtB(curlshape_dFt_bar, curlshape, Jac_bar);
+   //    // w = ip.weight / trans.Weight();
+   //    double weight_bar = -w_bar*ip.weight/pow(trans->Weight(), 2.0);
+   //    isotrans.WeightRevDiff(PointMat_bar);
+   //    PointMat_bar *= weight_bar;
+   //    // This is out of order because WeightRevDiff needs to scale PointMat_bar first
+   //    isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
+   //    // code to insert PointMat_bar into elvect;
+
+
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            elvect(d*ndof + j) += ip.weight * (PointMat_bar_1(d,j)
+                                             + PointMat_bar_2(d,j)
+                                             + PointMat_bar_3(d,j));
+            // elvect(d*ndof + j) += PointMat_bar(d,j);
+         }
+      }
+   }
+}
+
 // ForceIntegrator::ForceIntegrator(AbstractSolver *_solver,
 //                                  std::unordered_set<int> _regions,
 //                                  std::unordered_set<int> _free_regions,
