@@ -152,7 +152,12 @@ void AbstractSolver::initDerived()
 
    // add the output functional QoIs 
    auto &fun = options["outputs"];
-   output_bndry_marker.resize(fun.size());
+   using json_iter = nlohmann::json::iterator;
+   int num_bndry_outputs = 0;
+   for (json_iter it = fun.begin(); it != fun.end(); ++it) {
+      if (it->is_array()) ++num_bndry_outputs;
+   }
+   output_bndry_marker.resize(num_bndry_outputs);
    addOutputs(); // virtual function
 }
 
@@ -503,7 +508,7 @@ void AbstractSolver::solveSteady()
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
    int fill = options["lin-solver"]["filllevel"].get<int>();
-   HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
+   //HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
    solver.reset( new HypreGMRES(fes->GetComm()) );
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);

@@ -18,15 +18,18 @@ using namespace mach;
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 
-/// \brief Defines the exact solution for the steady isentropic vortex
-/// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - state variables stored as a 4-vector
-void uexact(const Vector &x, Vector& u);
-
 /// \brief Defines the random function for the jabocian check
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void pert(const Vector &x, Vector& p);
+
+/// \brief Returns the value of the integrated math entropy over the domain
+double calcEntropyTotalExact();
+
+/// \brief Defines the exact solution for the steady isentropic vortex
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - state variables stored as a 4-vector
+void uexact(const Vector &x, Vector& u);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -117,12 +120,16 @@ int main(int argc, char *argv[])
                             .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      double entropy = solver->calcOutput("entropy");
 
       if (0==myid)
       {
          mfem::out << "\nfinal residual norm = " << res_error;
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
          mfem::out << "\nDrag error = " << drag << endl;
+         mfem::out << "\nTotal entropy = " << entropy;
+         mfem::out << "\nEntropy error = "
+                   << fabs(entropy - calcEntropyTotalExact()) << endl;
       }
 
    }
@@ -151,6 +158,17 @@ void pert(const Vector &x, Vector& p)
    {
       p(i) = normal_rand(gen);
    }
+}
+
+// Returns the exact total entropy value over the quarter annulus
+// Note: the number 8.74655... that appears below is the integral of r*rho over the radii
+// from 1 to 3.  It was approixmated using a degree 51 Gaussian quadrature.
+double calcEntropyTotalExact()
+{
+   double rhoi = 2.0;
+   double prsi = 1.0/euler::gamma;
+   double si = log(prsi/pow(rhoi, euler::gamma));
+   return -si*8.746553803443305*M_PI*0.5/0.4;
 }
 
 // Exact solution; note that I reversed the flow direction to be clockwise, so

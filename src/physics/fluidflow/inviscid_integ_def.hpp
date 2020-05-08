@@ -1,4 +1,32 @@
 template <typename Derived>
+double InviscidIntegrator<Derived>::GetElementEnergy(
+   const mfem::FiniteElement &el, mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim(); // not used at present
+#ifdef MFEM_THREAD_SAFE
+   Vector x_i, ui;
+#endif
+   x_i.SetSize(dim);
+   ui.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   
+   double fun = 0.0;
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+      trans.Transform(el.GetNodes().IntPoint(i), x_i);
+      u.GetRow(i, ui);
+      // get node contribution; might need to include mapping Jacobian/adjugate 
+      fun += volFun(x_i, ui)*trans.Weight()*sbp.getDiagNormEntry(i);
+   }
+   return fun*alpha;
+}
+
+template <typename Derived>
 void InviscidIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
     const mfem::Vector &elfun, mfem::Vector &elvect)

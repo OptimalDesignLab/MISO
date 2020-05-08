@@ -628,8 +628,8 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
 
 template <int dim, bool entvar>
 double PressureForce<dim, entvar>::calcBndryFun(const mfem::Vector &x,
-                                              const mfem::Vector &dir,
-                                              const mfem::Vector &q)
+                                                const mfem::Vector &dir,
+                                                const mfem::Vector &q)
 {
    calcSlipWallFlux<double, dim, entvar>(x.GetData(), dir.GetData(),
                                          q.GetData(), work_vec.GetData());
@@ -662,4 +662,11 @@ void PressureForce<dim, entvar>::calcFlux(const mfem::Vector &x,
    fun_a.set_gradient(1.0);
    this->stack.compute_adjoint();
    adept::get_gradients(q_a.data(), q.Size(), flux_vec.GetData());
+}
+
+template <int dim, bool entvar>
+double EntropyIntegrator<dim, entvar>::calcVolFun(const mfem::Vector &x,
+                                                  const mfem::Vector &u)
+{
+   return entropy<double, dim, entvar>(u.GetData());
 }

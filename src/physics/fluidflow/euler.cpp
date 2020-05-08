@@ -175,6 +175,13 @@ void EulerSolver<dim, entvar>::addOutputs()
           output_bndry_marker[idx]);
       idx++;
    }
+   if (fun.find("entropy") != fun.end())
+   {
+      // integral of entropy over the entire volume domain
+      output.emplace("entropy", fes.get());
+      output.at("entropy").AddDomainIntegrator(
+         new EntropyIntegrator<dim, entvar>(diff_stack));
+   }
 }
 
 template <int dim, bool entvar>
