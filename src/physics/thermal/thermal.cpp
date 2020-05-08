@@ -45,6 +45,7 @@ ThermalSolver::ThermalSolver(
    int dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();
 
+	mesh->EnsureNodes();
    /// Create the H(Div) finite element collection for the representation the
    /// magnetic flux density field in the thermal solver
    h_div_coll.reset(new RT_FECollection(order, dim));
@@ -61,6 +62,7 @@ ThermalSolver::ThermalSolver(nlohmann::json &options,
    int dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();
 
+	mesh->EnsureNodes();
    /// Create the H(Div) finite element collection for the representation the
    /// magnetic flux density field in the thermal solver
    h_div_coll.reset(new RT_FECollection(order, dim));
@@ -81,6 +83,8 @@ void ThermalSolver::initDerived()
 	/// Create temperature grid function
 	// u.reset(new GridFunType(fes.get()));
 	th_exact.reset(new GridFunType(fes.get()));
+	u_old.reset(new GridFunType(fes.get()));
+
 
 	// /// Set static variables
 	// setStaticMembers();
@@ -223,6 +227,7 @@ void ThermalSolver::addOutputs()
 {
 	auto &fun = options["outputs"];
     int idx = 0;
+	output.clear();
     if (fun.find("temp-agg") != fun.end())
     {
 		rhoa = options["rho-agg"].template get<double>();
@@ -272,6 +277,9 @@ void ThermalSolver::solveUnsteady()
 	evolver->SetTime(t);
 	ode_solver->Init(*evolver);
 
+	// hold on to the initial state
+	*u_old = *u;
+	u_init.reset(new GridFunType(*u));
 	// if (!setInit)
 	// {
 	// 	setInitialCondition(initialTemperature);
@@ -283,13 +291,13 @@ void ThermalSolver::solveUnsteady()
 		osol.precision(precision);
 		u->Save(osol);
 	}
-	// {
-	//     ofstream sol_ofs("motor_heat_init.vtk");
-	//     sol_ofs.precision(14);
-	//     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-	//     u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-	//     sol_ofs.close();
-    // }
+	{
+	    ofstream sol_ofs_init("motor_heat_init.vtk");
+	    sol_ofs_init.precision(14);
+	    mesh->PrintVTK(sol_ofs_init, options["space-dis"]["degree"].get<int>() + 1);
+	    u->SaveVTK(sol_ofs_init, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+	    sol_ofs_init.close();
+    }
 
 	bool done = false;
 	double t_final = options["time-dis"]["t-final"].get<double>();
@@ -313,17 +321,24 @@ void ThermalSolver::solveUnsteady()
 
 	for (int ti = 0; !done;)
 	{
-		// if (options["time-dis"]["const-cfl"].get<bool>())
-    	// {
-    	//     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
-    	// }
+		//save the state, if computing mesh sensitivities
+		if (options["compute-sens"].get<bool>())
+    	{
+			stringstream solname;
+			solname << "state"<<ti<<".gf";
+    	    ofstream ssol(solname.str());
+			u->Save(ssol);
+    	}
+
     	double dt_real = min(dt, t_final - t);
 		dt_real_ = dt_real;
     	//if (ti % 100 == 0)
     	{
 			cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      }
+      	}
+
+		u_old.reset(new GridFunType(*u));
 #ifdef MFEM_USE_MPI
 		HypreParVector *TV = u->GetTrueDofs();
 		ode_solver->Step(*TV, t, dt_real);
@@ -347,6 +362,7 @@ void ThermalSolver::solveUnsteady()
 
 		ti++;
 
+		ti_final = ti;
 		done = (t >= t_final - 1e-8 * dt);
 	}
 
@@ -355,16 +371,17 @@ void ThermalSolver::solveUnsteady()
 		cout << "aggregated constraint error at initial state = " << gerror << endl;
 	}
 
-	{
-		ofstream osol("motor_heat.gf");
-		osol.precision(precision);
-		u->Save(osol);
-	}
+	// Save the final solution
+	stringstream solname;
+	solname << "state"<<ti_final<<".gf";
+    ofstream ssol(solname.str());
+	u->Save(ssol);
+
 	
-        
-	// sol_ofs.precision(14);
-	// mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-	// u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+    ofstream sol_ofs("motor_heat.vtk");
+	sol_ofs.precision(14);
+	mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+	u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
 }
 
 // void ThermalSolver::setStaticMembers()
@@ -574,16 +591,19 @@ void ThermalSolver::constructCore()
 
 void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 {
-	// only solve for state at end time
     double time_beg, time_end;
     if (0==rank)
     {
        time_beg = MPI_Wtime();
     }
 
-	// add the dJdu output, do this now to precompute max temperature and 
-	// certain values for the functional so that we don't need it at every call
-	addOutputs();
+	// we only need dJdu at the last state
+	if(tr == ti_final)
+	{
+		// add the dJdu output, do this now to precompute max temperature and 
+		// certain values for the functional so that we don't need it at every call
+		addOutputs();
+	}
 
     // Step 0: allocate the adjoint variable
     adj.reset(new GridFunType(fes.get()));
@@ -595,23 +615,31 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    HypreParVector *state = u->GetTrueDofs();
    HypreParVector *dJ = dJdu->GetTrueDofs();
    HypreParVector *adjoint = adj->GetTrueDofs();
+	HypreParVector *adjoint_old = adj_old->GetTrueDofs();
 #else
    GridFunType *state = u.get();
    GridFunType *dJ = dJdu.get();
    GridFunType *adjoint = adj.get();
+   	GridFunType *adjoint_old = adj_old.get();
 #endif
-   double energy = output.at(fun).GetEnergy(*u);
-	output.at(fun).Mult(*state, *dJ);
-	cout << "Last Functional Output: " << energy << endl;
+	if(tr == ti_final)
+	{
+		output.at(fun).Mult(*state, *dJ);
+		dJ->Set(dt_real_, *dJ);
+	}
+	else //subsequent solves have K^T psi_old as rhs
+	{
+		stiff->MultTranspose(*adjoint_old, *dJ);
+		dJ->Set(-dt_real_, *dJ);
+		//technically should also Add(dt_real_, djdu), but it's 0 for this problem
+	}
 
-	// // Step 2: get the last time step's Jacobian
-	// HypreParMatrix *jac = evolver->GetOperator();
-	// //TransposeOperator jac_trans = TransposeOperator(jac);
-	// HypreParMatrix *jac_trans = jac->Transpose();
-
-	// Step 2: get the last time step's Jacobian and transpose it
+	// Step 2: get the time step's Jacobian and transpose it
    Operator *jac = &evolver->GetGradient(*state);
-   TransposeOperator jac_trans = TransposeOperator(jac);
+   // cast the ElementTransformation (for the domain element)
+	 HypreParMatrix &jac_h =
+	dynamic_cast<HypreParMatrix&>(*jac);
+    HypreParMatrix *jac_trans = jac_h.Transpose();
 
 	// Step 3: Solve the adjoint problem
    *out << "Solving adjoint problem:\n"
@@ -622,13 +650,19 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    int maxiter = options["adj-solver"]["max-iter"].get<int>();
    int ptl = options["adj-solver"]["print-lvl"].get<int>();
    solver.reset(new HypreGMRES(fes->GetComm()));
-   solver->SetOperator(jac_trans);
+   solver->SetOperator(*jac_trans);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
    solver->Mult(*dJ, *adjoint);
-   adjoint->Set(dt_real_, *adjoint);
+   //adjoint->Set(dt_real_, *adjoint);
+
+	if(tr != ti_final)
+	{
+		adjoint->Add(1, *adjoint_old);
+	}
+
 #ifdef MFEM_USE_MPI
    adj->SetFromTrueDofs(*adjoint);
 #endif
@@ -638,13 +672,16 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
       cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
    }
 
-	{
-        ofstream sol_ofs_adj("motor_heat_adj.vtk");
-        sol_ofs_adj.precision(14);
-        mesh->PrintVTK(sol_ofs_adj, options["space-dis"]["degree"].get<int>());
-        adj->SaveVTK(sol_ofs_adj, "Adjoint", options["space-dis"]["degree"].get<int>());
-        sol_ofs_adj.close();
-    }
+	// store previous adjoint (forward in time)
+	
+	adj_old.reset(new GridFunType(*adj));
+	// {
+    //     ofstream sol_ofs_adj("motor_heat_adj.vtk");
+    //     sol_ofs_adj.precision(14);
+    //     mesh->PrintVTK(sol_ofs_adj, options["space-dis"]["degree"].get<int>());
+    //     adj->SaveVTK(sol_ofs_adj, "Adjoint", options["space-dis"]["degree"].get<int>());
+    //     sol_ofs_adj.close();
+    // }
 }
 
 void ThermalSolver::constructCoefficients()
@@ -712,6 +749,10 @@ void ThermalSolver::constructEvolver()
 
    evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), stiff.get(), load.get(), *out,
 												0.0, flux_coeff.get()));
+	if (newton_solver == nullptr)
+	{
+    	constructNewtonSolver();
+	}
 	evolver->SetLinearSolver(solver.get());
    evolver->SetNewtonSolver(newton_solver.get());
 }
@@ -734,9 +775,164 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 		//cout << "outflux val = " << y(0) << std::endl;
 	}
 
-	y(1) = 0;
-	y(2) = 0;
+	//y(0) = 1;
+	y(1) = 1;
+	y(2) = 0.0000;
 	
+}
+
+static std::default_random_engine gen(std::random_device{}());
+static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
+
+
+void ThermalSolver::randState(const mfem::Vector &x, mfem::Vector &u)
+{
+    for (int i = 0; i < u.Size(); ++i)
+    {
+        u(i) = 2.0 * uniform_rand(gen) - 1.0;
+		// if (i+1 == u.Size())
+		// {
+		// 	u(i) = x(0)*0.1;
+		// }	
+		// else
+		// {
+		// 	u(i) = x(i+1)*0.1;
+		// }
+	}
+}
+
+Vector* ThermalSolver::getMeshSensitivities()
+{
+	/// NOTE: Get the method's step from the ode solver
+	if(options["time-dis"]["ode-solver"].template get<string>() != "MIDPOINT")
+	{
+		throw MachException("Only implemented for implicit midpoint!\n");
+	}
+	
+	/// assign mesh node space to forms
+	GridFunction *x_nodes_s = mesh->GetNodes();
+    FiniteElementSpace *mesh_fes_s = x_nodes_s->FESpace();
+	SpaceType mesh_fes(*mesh_fes_s, *mesh);
+	GridFunType x_nodes(&mesh_fes, x_nodes_s);
+	j_mesh_sens.reset(new NonlinearFormType(&mesh_fes));
+
+	// start by adding/computing the output partial
+	/// NOTE: Should eventually support different outputs
+	/// delJdelX
+	j_mesh_sens->AddDomainIntegrator(
+	new AggregateResIntegrator(fes.get(), rhoa, max, u.get()));
+	std::unique_ptr<GridFunType> dLdX_w; //work vector
+	dLdX.reset(new GridFunType(x_nodes));
+	dLdX_w.reset(new GridFunType(x_nodes));
+	j_mesh_sens->Mult(x_nodes, *dLdX_w);
+	*dLdX = 0.0;
+	dLdX->Add(1, *dLdX_w);
+	adj_old.reset(new GridFunType(*u)); //placeholder
+
+	// loop over time steps in reverse
+	for(tr = ti_final; tr > 0; tr--)
+	{
+		res_mesh_sens.reset(new NonlinearFormType(&mesh_fes));
+   		res_mesh_sens_l.reset(new LinearFormType(&mesh_fes));
+
+		/// read the current and previous state from file
+		//cout << "Reverse time step: " << tr<< endl;
+		stringstream solname; stringstream solname_old;
+		solname << "state"<<tr<<".gf"; solname_old << "state"<<tr-1<<".gf";
+		std::ifstream sol(solname.str()); std::ifstream sol_old(solname_old.str()); 
+		u.reset(new GridFunType(mesh.get(), sol));
+		u_old.reset(new GridFunType(mesh.get(), sol_old));
+
+		/// compute the adjoint at the current time step
+		adj = NULL;
+		solveForAdjoint(options["outputs"]["temp-agg"].get<std::string>());
+	
+		/// recompute dudt if needed
+		Vector sub(u->Size()); 
+		sub = 0.0;
+		sub.Add(1, *u);
+		sub.Add(-1, *u_old);
+		dudt.reset(new GridFunType(fes.get()));
+		dudt->Set(1.0/dt_real_, sub);
+	
+		/// add integrators R = [M + (dt/2)K]dudt + Ku + b = 0
+		/// dJdX = delJdelX + adj^T dR/dX
+		/// adj^T Ku
+		res_mesh_sens->AddDomainIntegrator(
+			new DiffusionResIntegrator(*kappa, u_old.get(), adj.get()));
+		/// adj^T Mdudt
+		res_mesh_sens->AddDomainIntegrator(
+			new MassResIntegrator(*rho_cv, dudt.get(), adj.get()));
+		/// adj^T (dt/2)Kdudt (for implicit midpoint)
+		GridFunType dtdudt(fes.get());
+		dtdudt.Set(dt_real_/2.0, *dudt);
+		res_mesh_sens->AddDomainIntegrator(
+			new DiffusionResIntegrator(*kappa, &dtdudt, adj.get()));
+		/// adj^T load terms
+		res_mesh_sens->AddDomainIntegrator(
+			new DomainResIntegrator(*i2sigmainv, u_old.get(), adj.get()));
+		res_mesh_sens->AddDomainIntegrator(
+			new DomainResIntegrator(*coreloss, u_old.get(), adj.get()));
+
+		// just to be sure, see if this residual goes to 0?
+		// GridFunction R(fes.get());
+		// R = 0.0;
+		// mass->AddMult(*dudt, R);
+		// stiff->AddMult(dtdudt, R);
+		// stiff->AddMult(*u_old, R);
+		// R.Add(1, *load);
+
+		// cout << "Residual Norm (?): " << R.Norml2() << endl;
+
+		// outward flux bc
+		auto &bcs = options["bcs"];
+		bndry_marker.resize(bcs.size());
+		int idx = 0;
+		if (bcs.find("outflux") != bcs.end())
+		{ 
+    	    vector<int> tmp = bcs["outflux"].get<vector<int>>();
+    	    bndry_marker[idx].SetSize(tmp.size(), 0);
+    	    bndry_marker[idx].Assign(tmp.data());
+    	    res_mesh_sens_l->AddBdrFaceIntegrator(
+				new BoundaryNormalResIntegrator(*flux_coeff, u_old.get(), 
+												adj.get()), bndry_marker[idx]);
+    	    idx++;
+		}
+
+		/// Compute the derivatives and accumulate the result
+		res_mesh_sens->Mult(x_nodes, *dLdX_w);
+		//double t_final = options["time-dis"]["t-final"].get<double>();
+		flux_coeff->SetTime(tr*dt_real_);
+		res_mesh_sens_l->Assemble();
+		dLdX->Add(-1, *dLdX_w);
+		dLdX->Add(-1, *res_mesh_sens_l);
+	}
+
+	return dLdX.get();
+}
+
+Vector* ThermalSolver::getSurfaceMeshSensitivities()
+{
+	Vector *dJdXvect = getMeshSensitivities();
+	GridFunction dJdX(mesh->GetNodes()->FESpace(), dJdXvect->GetData());
+
+	MSolver->setSens(&dJdX);
+	string dummy = "placeholder";
+	MSolver->solveForAdjoint(dummy);
+	return MSolver->getAdjoint();
+}
+
+double ThermalSolver::getOutput()
+{
+	// compute functional
+	if (rhoa != 0)
+	{
+		return funca->GetIEAggregate(u.get());
+	}
+	else
+	{
+		return funct->GetTemp(u.get());
+	}
 }
 
 // double ThermalSolver::initialTemperature(const Vector &x)
@@ -745,6 +941,121 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 // }
 
 // double ThermalSolver::temp_0 = 0.0;
+
+void ThermalSolver::verifyMeshSensitivities()
+{
+	std::cout << "Verifying Mesh Sensitivities..." << std::endl;
+	int dim = mesh->SpaceDimension();
+	double delta = 1e-7;
+	double dJdX_fd = -getOutput()/delta;
+	Vector *dJdX = getMeshSensitivities();
+
+    // extract mesh nodes and get their finite-element space
+   
+    GridFunction *x_nodes = mesh->GetNodes();
+    FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+    // initialize the vector that we use to perturb the mesh nodes
+    GridFunction v(mesh_fes);
+    VectorFunctionCoefficient v_rand(dim, randState);
+    v.ProjectCoefficient(v_rand);
+    // contract dJ/dX with v
+    double dJdX_v = (*dJdX) * v;
+
+    // compute finite difference approximation
+
+    GridFunction x_pert(*x_nodes);
+    x_pert.Add(delta, v);
+    mesh->SetNodes(x_pert);
+    std::cout << "Solving Forward Step..." << std::endl;
+	initDerived();
+	constructNewtonSolver();
+	evolver->SetLinearSolver(solver.get());
+    evolver->SetNewtonSolver(newton_solver.get());
+	ConstantCoefficient u0(options["init-temp"].get<double>());
+	u->ProjectCoefficient(u0);
+	funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+    solveForState();
+    std::cout << "Solver Done" << std::endl;
+    dJdX_fd += getOutput()/delta;
+    std::cout << "Finite Difference: " << dJdX_fd << std::endl;
+    std::cout << "Analytic: 		 " << dJdX_v << std::endl;
+}
+
+void ThermalSolver::verifySurfaceMeshSensitivities()
+{
+#ifdef MFEM_USE_EGADS
+	std::cout << "Verifying Surface Mesh Sensitivities..." << std::endl;
+		
+	int dim = mesh->SpaceDimension();
+	double delta = 1e-7;
+	
+	// extract mesh nodes and get their finite-element space
+    GridFunction *x_nodes = mesh->GetNodes();
+    FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+    // initialize the vector that we use to perturb the mesh nodes
+    GridFunction v(mesh_fes);
+    VectorFunctionCoefficient v_rand(dim, randState);
+    v.ProjectCoefficient(v_rand);
+	GridFunction x_pert(*x_nodes);
+
+	//(v_bnd, might not need v_bnd though)
+	Array<int> ess_bdr_test(mesh->bdr_attributes.Max()); 
+	ess_bdr_test = 1;
+	Array<int> ess_tdof_list_test;
+	mesh_fes->GetEssentialTrueDofs(ess_bdr_test, ess_tdof_list_test);
+	GridFunction v_bnd(mesh_fes); v_bnd = 0.0;
+	for (int p = 0; p < ess_tdof_list_test.Size(); p++)
+	{
+		int in = ess_tdof_list_test[p];
+		v_bnd(in) = v(in);
+	}
+    x_pert.Set(delta, v_bnd);
+			stringstream pertname;
+			pertname << "x_pert.gf";
+    	    ofstream pert(pertname.str());
+			x_pert.Save(pert);
+
+	// set up the mesh movement solver (should make this it's own function)
+	MSolver.reset(new LEAnalogySolver(
+						options["mesh-move-opts-path"].get<string>(),
+						&x_pert));
+	MSolver->setMesh(mesh.get());	// give it the mesh pointer
+	MSolver->initDerived();
+
+	double dJdXs_fd = -getOutput()/delta;
+	Vector *dJdXs = getSurfaceMeshSensitivities();
+	GridFunction dJdXs_g(mesh_fes, dJdXs->GetData());
+	stringstream solname;
+	solname << "surfacesens.gf";
+    ofstream ssol(solname.str());
+	dJdXs_g.Save(ssol);
+
+    // contract dJ/dXs with v (v_bnd?)
+    double dJdXs_v = (*dJdXs) * v_bnd;
+
+    // compute finite difference approximation
+    //mesh->SetNodes(x_pert);
+	MSolver->solveForState();
+	MeshType* moved_mesh = MSolver->getMesh();
+	mesh->SetNodes(*moved_mesh->GetNodes()); //hope this works
+    std::cout << "Solving Forward Step..." << std::endl;
+	initDerived();
+	constructNewtonSolver();
+	evolver->SetLinearSolver(solver.get());
+    evolver->SetNewtonSolver(newton_solver.get());
+	ConstantCoefficient u0(options["init-temp"].get<double>());
+	u->ProjectCoefficient(u0);
+	funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+    solveForState();
+    std::cout << "Solver Done" << std::endl;
+    dJdXs_fd += getOutput()/delta;
+    std::cout << "Finite Difference: " << dJdXs_fd << std::endl;
+    std::cout << "Analytic: 		 " << dJdXs_v << std::endl;
+#else
+	///NOTE: Not really, should change this later
+	throw MachException("Need Pumi to use EGADS for this!\n");
+#endif
+}
 
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
 										 BilinearFormType *stiff,

@@ -1,9 +1,11 @@
 // Using this to test different ideas
-
-#include "mfem.hpp"
-#include "advection.hpp"
 #include <fstream>
 #include <iostream>
+
+#include "mfem.hpp"
+
+#include "mach.hpp"
+// #include "advection.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -34,7 +36,7 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "mach_options.json";
+   const char *options_file = "../../sandbox/mach_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();

@@ -31,7 +31,6 @@
 #include "diag_mass_integ.hpp"
 #include "material_library.hpp"
 
-
 using namespace std;
 using namespace mfem;
 
@@ -1382,6 +1381,12 @@ void AbstractSolver::checkJacobian(
    jac_v -= res_plus;
    double error = calcInnerProduct(jac_v, jac_v);
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+}
+
+mfem::Vector* AbstractSolver::getMeshSensitivities()
+{
+   throw MachException("AbstractSolver::getMeshSensitivities\n"
+                       "\tnot implemented yet!");
 }
 
 } // namespace mach

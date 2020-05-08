@@ -74,7 +74,8 @@ public:
 		// mfem::Vector state;
 		// stateGF->GetVectorValue(trans.ElementNo, ip, state);
 		// double state_mag = state.Norml2();
-		return pow(state, 3.0);
+		// return pow(state, 3.0);
+		return 0.5*pow(state+1, -0.5);
 	}
 
 	double EvalStateDeriv(mfem::ElementTransformation &trans,
@@ -84,7 +85,8 @@ public:
 		// mfem::Vector state;
 		// stateGF->GetVectorValue(trans.ElementNo, ip, state);
 		// double state_mag = state.Norml2();
-		return 3.0*pow(state, 2.0);
+		// return 3.0*pow(state, 2.0);
+		return -0.25*pow(state+1, -1.5);
 	}
 };
 
