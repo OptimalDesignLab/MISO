@@ -122,7 +122,7 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
-
+   
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
@@ -160,6 +160,8 @@ protected:
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the mass matrix bilinear form
    std::unique_ptr<BilinearFormType> mass;
+   /// the nonlinear form evaluate the mass matrix
+   std::unique_ptr<NonlinearFormType> nonlinear_mass;
    /// mass matrix
    std::unique_ptr<MatrixType> mass_matrix;
    /// TimeDependentOperator (TODO: is this the best way?)
@@ -183,6 +185,10 @@ protected:
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addVolumeIntegrators(double alpha) {};
+
+   /// Add mass integrators to `nonlinear_mass` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addMassIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
@@ -211,6 +217,9 @@ protected:
    /// Solve for an unsteady adjoint
    /// \param[in] fun - specifies the functional corresponding to the adjoint
    virtual void solveUnsteadyAdjoint(const std::string &fun);
+
+   /// Defined in deerived class that update the nonlinear form mass matrix
+   virtual void updateNonlinearMass(int ti, double dt, double alpha) {};
 
 };
 

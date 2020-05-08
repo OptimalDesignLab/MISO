@@ -272,6 +272,84 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacV(
 }
 
 template <int dim, bool entvar>
+void MassIntegrator<dim, entvar>::calcMatVec(const mfem::Vector &u,
+                                             const mfem::Vector &k,
+                                             mfem::Vector &Ak)
+{
+   if (entvar)
+   {
+      calcConservativeVars<double, dim>(u.GetData(), q_work.GetData());
+      calcdQdWProduct<double, dim>(q_work.GetData(), k.GetData(), Ak.GetData());
+   }
+   else
+   {
+      // If the state is the conservative variables, then dq/du = I
+      Ak = k;
+   }
+}
+
+template <int dim, bool entvar>
+void MassIntegrator<dim, entvar>::calcMatVecJacState(const mfem::Vector &u,
+                                                     const mfem::Vector &k,
+                                                     mfem::DenseMatrix &jac)
+{
+   if (!entvar)
+   {
+      // The matrix is the identity, so its derivative is zero
+      jac = 0.0;
+      return;
+   }
+   // declare vectors of active input variables
+   std::vector<adouble> u_a(u.Size());
+   std::vector<adouble> q_work_a(q_work.Size());
+   std::vector<adouble> k_a(k.Size());
+   // copy data from mfem::Vector
+   adept::set_values(u_a.data(), u.Size(), u.GetData());
+   adept::set_values(k_a.data(), k.Size(), k.GetData());
+   // start recording
+   this->stack.new_recording();
+   // the dependent variable must be declared after the recording
+   std::vector<adouble> jac_a(u.Size());
+   calcConservativeVars<adouble, dim>(u_a.data(), q_work_a.data());
+   calcdQdWProduct<adouble, dim>(q_work_a.data(), k_a.data(), jac_a.data());
+   // set the independent and dependent variable
+   this->stack.independent(u_a.data(), u.Size());
+   this->stack.dependent(jac_a.data(), u.Size());
+   // Calculate the jabobian
+   this->stack.jacobian(jac.GetData());
+}
+
+template <int dim, bool entvar>
+void MassIntegrator<dim, entvar>::calcMatVecJacK(const mfem::Vector &u,
+                                                 mfem::DenseMatrix &jac)
+{
+   if (!entvar)
+   {
+      jac = 0.0;
+      for (int i = 0; i < dim+2; ++i)
+      {
+         jac(i,i) = 1.0;
+      }
+      return;
+   }
+   // vector of active input variables
+   std::vector<adouble> u_a(u.Size());
+   // initialize adouble inputs
+   adept::set_values(u_a.data(), u.Size(), u.GetData());
+   // start recording
+   this->stack.new_recording();
+   // create vector of active output variables
+   std::vector<adouble> q_work_a(q_work.Size());
+   // run algorithm
+   calcConservativeVars<adouble, dim>(u_a.data(), q_work_a.data());
+   // identify independent and dependent variables
+   this->stack.independent(u_a.data(), u.Size());
+   this->stack.dependent(q_work_a.data(), q_work.Size());
+   // compute and store jacobian in dwdu
+   this->stack.jacobian(jac.GetData());
+}
+
+template <int dim, bool entvar>
 void IsentropicVortexBC<dim, entvar>::calcFlux(
     const mfem::Vector &x, const mfem::Vector &dir,
     const mfem::Vector &q, mfem::Vector &flux_vec)
@@ -550,8 +628,8 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
 
 template <int dim, bool entvar>
 double PressureForce<dim, entvar>::calcBndryFun(const mfem::Vector &x,
-                                              const mfem::Vector &dir,
-                                              const mfem::Vector &q)
+                                                const mfem::Vector &dir,
+                                                const mfem::Vector &q)
 {
    calcSlipWallFlux<double, dim, entvar>(x.GetData(), dir.GetData(),
                                          q.GetData(), work_vec.GetData());
@@ -584,4 +662,11 @@ void PressureForce<dim, entvar>::calcFlux(const mfem::Vector &x,
    fun_a.set_gradient(1.0);
    this->stack.compute_adjoint();
    adept::get_gradients(q_a.data(), q.Size(), flux_vec.GetData());
+}
+
+template <int dim, bool entvar>
+double EntropyIntegrator<dim, entvar>::calcVolFun(const mfem::Vector &x,
+                                                  const mfem::Vector &u)
+{
+   return entropy<double, dim, entvar>(u.GetData());
 }

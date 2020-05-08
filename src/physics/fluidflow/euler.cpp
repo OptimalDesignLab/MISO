@@ -8,6 +8,7 @@
 using namespace mfem;
 using namespace std;
 
+
 namespace mach
 {
 
@@ -116,6 +117,14 @@ void EulerSolver<dim, entvar>::addInterfaceIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addMassIntegrator(double alpha)
+{
+   double dt = options["time-dis"]["dt"].template get<double>();
+   mass_integ.reset(new MassIntegrator<dim,entvar>(diff_stack, *u, dt, alpha));
+   nonlinear_mass->AddDomainIntegrator(mass_integ.get());
+}
+
+template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addOutputs()
 {
    auto &fun = options["outputs"];
@@ -165,6 +174,13 @@ void EulerSolver<dim, entvar>::addOutputs()
           new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
           output_bndry_marker[idx]);
       idx++;
+   }
+   if (fun.find("entropy") != fun.end())
+   {
+      // integral of entropy over the entire volume domain
+      output.emplace("entropy", fes.get());
+      output.at("entropy").AddDomainIntegrator(
+         new EntropyIntegrator<dim, entvar>(diff_stack));
    }
 }
 
@@ -298,6 +314,20 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
       return -sqrt(-norm);
    }
    return sqrt(norm);
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alpha)
+{
+
+   if(0 == ti)
+   {
+      mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
+      nonlinear_mass->AddDomainIntegrator(mass_integ.get()); 
+   }
+   dynamic_cast<mach::NonlinearMassIntegrator<MassIntegrator<dim,entvar>>*>
+               (mass_integ.get())->updateDeltat(dt);
+   
 }
 
 // explicit instantiation
