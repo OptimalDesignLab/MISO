@@ -219,7 +219,7 @@ protected:
    virtual void solveUnsteadyAdjoint(const std::string &fun);
 
    /// Defined in deerived class that update the nonlinear form mass matrix
-   virtual void updateNonlinearMass(double dt, double alpha) {};
+   virtual void updateNonlinearMass(int ti, double dt, double alpha) {};
 
 };
 

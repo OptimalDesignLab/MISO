@@ -310,16 +310,17 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::updateMassNonlinear(double dt, double alpha)
+void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alpha)
 {
-   if (entvar == true)
+
+   if(0 == ti)
    {
       mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
+      nonlinear_mass->AddDomainIntegrator(mass_integ.get()); 
    }
-   else
-   {
-      mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
-   }
+   dynamic_cast<mach::NonlinearMassIntegrator<MassIntegrator<dim,entvar>>*>
+               (mass_integ.get())->updateDeltat(dt);
+   
 }
 
 // explicit instantiation

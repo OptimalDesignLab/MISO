@@ -148,7 +148,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    prec.reset(new mfem::PetscPreconditioner(mass.ParFESpace()->GetComm(), "prec_"));
    dynamic_cast<mfem::PetscLinearSolver *>(linear_solver.get())->SetPreconditioner(*prec);
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetAbsTol(1e-10);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-10);
+   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-2);
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetMaxIter(100);
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(2);
 #else
@@ -156,7 +156,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    linear_solver.reset(new mfem::HypreGMRES(mass.ParFESpcace()->GetComm()));
    prec.reset(new HypreEuclid(mass.ParFESpace()->GetComm()));
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(1);
+   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(0);
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
    dynamic_cast<mfem::HypreGMRES*> (linear_solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
 #endif
@@ -184,8 +184,8 @@ void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const
    Vector vec2(x.Size());
    vec1.Add(dt, k);  // vec1 = x + dt * k
    res.Mult(vec1, y); // y = f(vec1)
-   mass.Mult(k, vec2);  // vec2 = M * k
-   y += vec2;  // y = f(x + dt * k) - M * k
+   mass.Mult(k, vec2);
+   y += vec2;  // y = f(x + dt * k) + M(k)
 }
 
 Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
@@ -194,8 +194,8 @@ Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
    Vector vec1(x);
    vec1.Add(dt, k);
    jac1 = dynamic_cast<MatrixType*>(&res.GetGradient(vec1));
-   jac1->Add( dt-1.0, *jac1); // jac1 = dt * f'(x + dt * k) 
-   jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(vec1));
+   *jac1 *= dt; // jac1 = dt * f'(x + dt * k) 
+   jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(k)); // jac2 = M'(k);
    jac1->Add(1.0, *jac2);
    return *jac1;
 }

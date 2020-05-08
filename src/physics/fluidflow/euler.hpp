@@ -84,7 +84,7 @@ protected:
 
    /// Update the mass integrator
    /// \param[in] dt - the numerical time step
-   virtual void updateMassNonlinear(double dt, double alpha);
+   virtual void updateNonlinearMass(int ti, double dt, double alpha);
 };
 
 } // namespace mach

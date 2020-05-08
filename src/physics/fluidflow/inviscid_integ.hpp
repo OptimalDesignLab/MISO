@@ -612,6 +612,8 @@ public:
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
+   /// Update the delta t
+   void updateDeltat(double dt_) { dt = dt_; }
 protected:
    /// The state solution at the previous time step
    const mfem::GridFunction &state;
