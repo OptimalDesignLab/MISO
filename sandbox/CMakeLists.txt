@@ -27,8 +27,8 @@ set(SANDBOX_SRCS
    joule_wire
    # mesh_move
    # mesh_move_2
-   spline_test
-   integration_test
+   # spline_test
+   # integration_test
 )
 
 create_sandbox("${SANDBOX_SRCS}")
