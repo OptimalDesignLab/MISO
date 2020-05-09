@@ -142,6 +142,7 @@ private:
 
 class VectorFECurldJdXIntegerator : public mfem::LinearFormIntegrator
 {
+public:
    /// Construct a curl curl nonlinear form integrator for Nedelec elements
    /// \param[in] nu - coefficient describing reluctivity
    /// \param[in] state - the state to use when evaluating

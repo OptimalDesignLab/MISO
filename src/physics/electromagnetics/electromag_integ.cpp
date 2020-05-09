@@ -588,7 +588,6 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
 
    /// get the RT elements used for V shape
    const FiniteElement &rt_el = *state->FESpace()->GetFE(element);
-   ElementTransformation &rt_trans = *state->FESpace()->GetElementTransformation(element);
 
    adjoint->FESpace()->GetElementVDofs(element, adj_vdofs);
    state->FESpace()->GetElementVDofs(element, state_vdofs);
@@ -634,6 +633,8 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       PointMat_bar = 0.0;
+      m_vec = 0.0;
+      m_hat = 0.0;
       curl_psi_hat = 0.0;
       curl_psi = 0.0;
 
