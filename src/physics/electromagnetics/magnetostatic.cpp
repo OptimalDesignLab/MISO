@@ -420,8 +420,6 @@ void MagnetostaticSolver::assembleCurrentSource()
 
 void MagnetostaticSolver::assembleMagnetizationSource(void)
 {
-   /// set up default reluctivity to be that of free space
-
    M.reset(new GridFunType(h_div_space.get()));
 
    auto weakCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), fes.get());

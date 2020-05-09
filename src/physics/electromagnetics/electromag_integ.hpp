@@ -353,6 +353,61 @@ private:
 #endif
 };
 
+/// Integrator to compute the functional `\nu` over the domain
+class nuFuncIntegrator : public mfem::NonlinearFormIntegrator,
+                         public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] nu - model describing reluctivity
+   nuFuncIntegrator(StateCoefficient *_nu)
+      : state(NULL), nu(_nu) {};
+
+   /// \brief - linear form integrator to assemble the vector
+   ///          \frac{\partial J}{\partial X}
+   /// \param[in] state - the current state (A)
+   /// \note the finite element space used to by the linear form that assembles
+   ///       this integrator will use the mesh's nodal finite element space
+   nuFuncIntegrator(mfem::GridFunction *_state, StateCoefficient *_nu)
+      : state(_state), nu(_nu) {};
+
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the magnetic co-energy calculated over an element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \brief - Computes dJdu, for solving for the adjoint
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \param[out] elvect - \partial J \partial u for this functional
+   /// \note - not implemented
+   // void AssembleElementVector(const mfem::FiniteElement &el, 
+   //                            mfem::ElementTransformation &trans,
+   //                            const mfem::Vector &elfun,
+   //                            mfem::Vector &elvect) override;
+
+   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial X}
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+private:
+   /// the current state to use when evaluating \frac{\partial J}{\partial X}
+   mfem::GridFunction *state;
+   /// material (thus mesh) dependent model describing reluctivity
+   StateCoefficient *nu;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt, M;
+   mfem::Vector b_vec, temp_vec;
+#endif
+};
+
 // /// Integrator for forces due to electromagnetic fields
 // /// \note - Requires PUMI
 // class ForceIntegrator : public mfem::NonlinearFormIntegrator
