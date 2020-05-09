@@ -19,16 +19,16 @@ namespace mach
 {
 
 void CurlCurlNLFIntegrator::AssembleElementVector(
-    const FiniteElement &el,
-    ElementTransformation &trans,
-    const Vector &elfun, Vector &elvect)
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun, Vector &elvect)
 {
-	/// number of degrees of freedom
-	int ndof = el.GetDof();
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	/// I believe this takes advantage of a 2D problem not having
-	/// a properly defined curl? Need more investigation
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
    /// holds quadrature weight
@@ -43,9 +43,9 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
    b_vec.SetSize(dimc);
 #endif
 
-	elvect.SetSize(ndof);
+   elvect.SetSize(ndof);
 
-	const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = NULL;
    {
       int order;
       if (el.Space() == FunctionSpace::Pk)
@@ -92,17 +92,17 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
 }
 
 void CurlCurlNLFIntegrator::AssembleElementGrad(
-    const mfem::FiniteElement &el,
-    mfem::ElementTransformation &trans,
-    const mfem::Vector &elfun,
-    mfem::DenseMatrix &elmat)
+   const mfem::FiniteElement &el,
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun,
+   mfem::DenseMatrix &elmat)
 {
    /// number of degrees of freedom
-	int ndof = el.GetDof();
+   int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	/// I believe this takes advantage of a 2D problem not having
-	/// a properly defined curl? Need more investigation
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
    /// holds quadrature weight
@@ -118,9 +118,9 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    temp_vec.SetSize(ndof);
 #endif
 
-	elmat.SetSize(ndof);
+   elmat.SetSize(ndof);
 
-	const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = NULL;
    {
       int order;
       if (el.Space() == FunctionSpace::Pk)
@@ -136,7 +136,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    }
 
    elmat = 0.0;
-	for (int i = 0; i < ir->GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
 
@@ -312,17 +312,17 @@ void CurlCurlNLFIntegrator::AssembleRHSElementVect(
 }
 
 void MagnetizationIntegrator::AssembleElementVector(
-    const FiniteElement &el,
-    ElementTransformation &trans,
-    const Vector &elfun, Vector &elvect)
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun, Vector &elvect)
 {
    // std::cout << "mag integ\n";
-	/// number of degrees of freedom
-	int ndof = el.GetDof();
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	/// I believe this takes advantage of a 2D problem not having
-	/// a properly defined curl? Need more investigation
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
    /// holds quadrature weight
@@ -338,9 +338,9 @@ void MagnetizationIntegrator::AssembleElementVector(
    mag_vec.SetSize(dimc);
 #endif
 
-	elvect.SetSize(ndof);
+   elvect.SetSize(ndof);
 
-	const IntegrationRule *ir = IntRule;
+   const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
       int order;
@@ -357,7 +357,7 @@ void MagnetizationIntegrator::AssembleElementVector(
 
    elvect = 0.0;
 
-	for (int i = 0; i < ir->GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
 
@@ -390,19 +390,19 @@ void MagnetizationIntegrator::AssembleElementVector(
 }
 
 void MagnetizationIntegrator::AssembleElementGrad(
-    const mfem::FiniteElement &el,
-    mfem::ElementTransformation &trans,
-    const mfem::Vector &elfun,
-    mfem::DenseMatrix &elmat)
+   const mfem::FiniteElement &el,
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun,
+   mfem::DenseMatrix &elmat)
 {
    elmat = 0.0;
    /*
    /// number of degrees of freedom
-	int ndof = el.GetDof();
+   int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	/// I believe this takes advantage of a 2D problem not having
-	/// a properly defined curl? Need more investigation
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
    /// holds quadrature weight
@@ -420,9 +420,9 @@ void MagnetizationIntegrator::AssembleElementGrad(
    temp_vec2.SetSize(ndof);
 #endif
 
-	elmat.SetSize(ndof);
+   elmat.SetSize(ndof);
 
-	const IntegrationRule *ir = IntRule;
+   const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
       int order;
@@ -439,7 +439,7 @@ void MagnetizationIntegrator::AssembleElementGrad(
    }
 
    elmat = 0.0;
-	for (int i = 0; i < ir->GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
 
@@ -818,7 +818,7 @@ double MagneticCoenergyIntegrator::RevADintegrateBH(
       // qp_en += ip.weight * xi / nu->Eval(trans, old_ip, xi);
       double xi_bar = qp_en_bar * ip.weight / nu->Eval(trans, old_ip, xi);
       xi_bar -= (qp_en_bar * ip.weight * xi * nu->EvalStateDeriv(trans, old_ip, xi) / 
-                 pow(nu->Eval(trans, old_ip, xi), 2.0));
+               pow(nu->Eval(trans, old_ip, xi), 2.0));
       // double xi = ip.x * (upper_bound - lower_bound);
       upper_bound_bar += ip.x*xi_bar;
    }
