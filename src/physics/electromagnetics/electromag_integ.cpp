@@ -19,16 +19,16 @@ namespace mach
 {
 
 void CurlCurlNLFIntegrator::AssembleElementVector(
-    const FiniteElement &el,
-    ElementTransformation &trans,
-    const Vector &elfun, Vector &elvect)
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun, Vector &elvect)
 {
-	/// number of degrees of freedom
-	int ndof = el.GetDof();
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	/// I believe this takes advantage of a 2D problem not having
-	/// a properly defined curl? Need more investigation
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
    /// holds quadrature weight
@@ -43,10 +43,9 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
    b_vec.SetSize(dimc);
 #endif
 
-	elvect.SetSize(ndof);
+   elvect.SetSize(ndof);
 
-	const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   const IntegrationRule *ir = NULL;
    {
       int order;
       if (el.Space() == FunctionSpace::Pk)
@@ -63,7 +62,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
 
    elvect = 0.0;
 
-	for (int i = 0; i < ir->GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       b_vec = 0.0;
       const IntegrationPoint &ip = ir->IntPoint(i);
@@ -88,24 +87,22 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       model_val *= w;
       b_vec *= model_val;
 
-      // std::cout << "above curl curl add mult\n";
       curlshape_dFt.AddMult(b_vec, elvect);
-      // std::cout << "below curl curl add mult\n";
    }
 }
 
 void CurlCurlNLFIntegrator::AssembleElementGrad(
-    const mfem::FiniteElement &el,
-    mfem::ElementTransformation &trans,
-    const mfem::Vector &elfun,
-    mfem::DenseMatrix &elmat)
+   const mfem::FiniteElement &el,
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun,
+   mfem::DenseMatrix &elmat)
 {
    /// number of degrees of freedom
-	int ndof = el.GetDof();
+   int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	/// I believe this takes advantage of a 2D problem not having
-	/// a properly defined curl? Need more investigation
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
    /// holds quadrature weight
@@ -121,10 +118,9 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    temp_vec.SetSize(ndof);
 #endif
 
-	elmat.SetSize(ndof);
+   elmat.SetSize(ndof);
 
-	const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   const IntegrationRule *ir = NULL;
    {
       int order;
       if (el.Space() == FunctionSpace::Pk)
@@ -140,7 +136,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    }
 
    elmat = 0.0;
-	for (int i = 0; i < ir->GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
 
@@ -201,18 +197,132 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    }
 }
 
+void CurlCurlNLFIntegrator::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   /// get the proper element, transformation, and state vector
+   Array<int> vdofs;
+   Vector elfun, psi; 
+   int element = mesh_trans.ElementNo;
+   const FiniteElement *el = state->FESpace()->GetFE(element);
+   ElementTransformation *trans = state->FESpace()->GetElementTransformation(element);
+   state->FESpace()->GetElementVDofs(element, vdofs);
+
+   const IntegrationRule *ir = NULL;
+   {
+      int order;
+      if (el->Space() == FunctionSpace::Pk)
+      {
+         order = 2*el->GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el->GetOrder();
+      }
+
+      ir = &IntRules.Get(el->GetGeomType(), order);
+   }
+
+   state->GetSubVector(vdofs, elfun);
+   adjoint->GetSubVector(vdofs, psi);
+
+   int ndof = mesh_el.GetDof();
+   int el_ndof = el->GetDof();
+   int dim = el->GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+   elvect.SetSize(ndof*dimc);
+   elvect = 0.0;
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   Vector b_vec(dimc), b_hat(dimc), curl_psi(dimc), curl_psi_hat(dimc);
+#else
+   curlshape.SetSize(el_ndof,dimc);
+   curlshape_dFt.SetSize(el_ndof,dimc);
+   b_vec.SetSize(dimc);
+   b_hat.SetSize(dimc);
+   curl_psi.SetSize(dimc);
+   curl_psi_hat.SetSize(dimc);
+#endif
+   DenseMatrix PointMat_bar(dimc, ndof);
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(*trans);
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      PointMat_bar = 0.0;
+      b_hat = 0.0;
+      b_vec = 0.0;
+      curl_psi_hat = 0.0;
+      curl_psi = 0.0;
+
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      isotrans.SetIntPoint(&ip);
+
+      if ( dim == 3 )
+      {
+         el->CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, isotrans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el->CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      curlshape.AddMultTranspose(elfun, b_hat);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      curlshape.AddMultTranspose(psi, curl_psi_hat);
+      curlshape_dFt.AddMultTranspose(psi, curl_psi);
+
+      double b_mag = b_vec.Norml2();
+      double model_val = model->Eval(isotrans, ip, b_mag);
+      double model_deriv = model->EvalStateDeriv(isotrans, ip, b_mag);
+
+      double curl_psi_dot_b = curl_psi * b_vec;
+
+      // nu * (\partial a^T b / \partial J) / |J|
+      DenseMatrix Jac_bar(3);
+      MultVWt(curl_psi_hat, b_vec, Jac_bar);
+      AddMultVWt(curl_psi, b_hat, Jac_bar);
+      Jac_bar *= model_val / isotrans.Weight();
+
+      // (\partial nu / \partial J) * a^T b / |J|
+      // (\partial nu / \partial ||B||) * B / ||B|| * B_hat
+      AddMult_a_VWt(model_deriv * curl_psi_dot_b / (b_mag * isotrans.Weight()),
+                    b_vec, b_hat, Jac_bar);
+
+      // (- nu * a^T b / |J|^2)  * \partial |J| / \partial X
+      isotrans.WeightRevDiff(PointMat_bar);
+      PointMat_bar *= -model_val * curl_psi_dot_b / pow(trans->Weight(), 2.0);
+
+      isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
+
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            elvect(d*ndof + j) += ip.weight * PointMat_bar(d,j);
+         }
+      }
+   }
+}
+
 void MagnetizationIntegrator::AssembleElementVector(
-    const FiniteElement &el,
-    ElementTransformation &trans,
-    const Vector &elfun, Vector &elvect)
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun, Vector &elvect)
 {
    // std::cout << "mag integ\n";
-	/// number of degrees of freedom
-	int ndof = el.GetDof();
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	/// I believe this takes advantage of a 2D problem not having
-	/// a properly defined curl? Need more investigation
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
    /// holds quadrature weight
@@ -228,9 +338,9 @@ void MagnetizationIntegrator::AssembleElementVector(
    mag_vec.SetSize(dimc);
 #endif
 
-	elvect.SetSize(ndof);
+   elvect.SetSize(ndof);
 
-	const IntegrationRule *ir = IntRule;
+   const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
       int order;
@@ -247,7 +357,7 @@ void MagnetizationIntegrator::AssembleElementVector(
 
    elvect = 0.0;
 
-	for (int i = 0; i < ir->GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
 
@@ -280,19 +390,19 @@ void MagnetizationIntegrator::AssembleElementVector(
 }
 
 void MagnetizationIntegrator::AssembleElementGrad(
-    const mfem::FiniteElement &el,
-    mfem::ElementTransformation &trans,
-    const mfem::Vector &elfun,
-    mfem::DenseMatrix &elmat)
+   const mfem::FiniteElement &el,
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun,
+   mfem::DenseMatrix &elmat)
 {
    elmat = 0.0;
    /*
    /// number of degrees of freedom
-	int ndof = el.GetDof();
+   int ndof = el.GetDof();
    int dim = el.GetDim();
 
-	/// I believe this takes advantage of a 2D problem not having
-	/// a properly defined curl? Need more investigation
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
    /// holds quadrature weight
@@ -310,9 +420,9 @@ void MagnetizationIntegrator::AssembleElementGrad(
    temp_vec2.SetSize(ndof);
 #endif
 
-	elmat.SetSize(ndof);
+   elmat.SetSize(ndof);
 
-	const IntegrationRule *ir = IntRule;
+   const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
       int order;
@@ -329,7 +439,7 @@ void MagnetizationIntegrator::AssembleElementGrad(
    }
 
    elmat = 0.0;
-	for (int i = 0; i < ir->GetNPoints(); i++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
 
@@ -500,15 +610,15 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
 
    if (segment_ir == NULL)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
-      {
-         order = 2*el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2*el.GetOrder();
-      }
+      // int order;
+      // if (el.Space() == FunctionSpace::Pk)
+      // {
+      //    order = 2*el.GetOrder() - 2;
+      // }
+      // else
+      // {
+      //    order = 2*el.GetOrder();
+      // }
 
       // segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 2*(order+1));
       segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 12);
@@ -540,24 +650,9 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
 
       double lower_bound = 0.0;
       double upper_bound = nu_val * b_vec.Norml2();
-      /// compute int_0^{\nu*B} \frac{H}{\nu} dH
-      // double qp_en = 0.0;
-      // for (int j = 0; j < segment_ir->GetNPoints(); j++)
-      // {
-      //    const IntegrationPoint &segment_ip = segment_ir->IntPoint(j);
-      //    double xi = segment_ip.x * (upper_bound - lower_bound);
-      //    qp_en += segment_ip.weight * xi / nu->Eval(trans, ip, xi);
-      // }
-      // qp_en *= (upper_bound - lower_bound);
+
       double qp_en = integrateBH(segment_ir, trans, ip,
                                  lower_bound, upper_bound);
-
-      // double fd_int = FDintegrateBH(segment_ir, trans, ip, lower_bound, upper_bound);
-      // double ad_int = RevADintegrateBH(segment_ir, trans, ip, lower_bound, upper_bound);
-      // double b_mag = b_vec.Norml2();
-      // std::cout << "Finite differenced integral: " << fd_int << "\n";
-      // std::cout << "AD integral: " << ad_int << "\n";
-      // std::cout << "B mag: " << b_mag << "\n";
 
       fun += qp_en * w;
    }
@@ -611,15 +706,15 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
    }
    /// TODO make segment's integration much higher than elements
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
-      {
-         order = 2*el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2*el.GetOrder();
-      }
+      // int order;
+      // if (el.Space() == FunctionSpace::Pk)
+      // {
+      //    order = 2*el.GetOrder() - 2;
+      // }
+      // else
+      // {
+      //    order = 2*el.GetOrder();
+      // }
 
       // segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 2*(order+1));
       segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 12);
@@ -654,7 +749,7 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
       curlshape_dFt.Mult(b_vec, temp_vec);
       double dwp_dh = RevADintegrateBH(segment_ir, trans, ip,
                                        0, nu_val * b_mag);
-      temp_vec *= dwp_dh*(dnu_dB + nu_val/b_mag); // (dnu_dB + nu_val/b_mag)
+      temp_vec *= dwp_dh*(dnu_dB + nu_val/b_mag);
       temp_vec *= w;
       elvect += temp_vec;
    }
@@ -723,7 +818,7 @@ double MagneticCoenergyIntegrator::RevADintegrateBH(
       // qp_en += ip.weight * xi / nu->Eval(trans, old_ip, xi);
       double xi_bar = qp_en_bar * ip.weight / nu->Eval(trans, old_ip, xi);
       xi_bar -= (qp_en_bar * ip.weight * xi * nu->EvalStateDeriv(trans, old_ip, xi) / 
-                 pow(nu->Eval(trans, old_ip, xi), 2.0));
+               pow(nu->Eval(trans, old_ip, xi), 2.0));
       // double xi = ip.x * (upper_bound - lower_bound);
       upper_bound_bar += ip.x*xi_bar;
    }
