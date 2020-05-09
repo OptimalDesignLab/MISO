@@ -56,6 +56,14 @@ public:
                             const mfem::Vector &elfun,
                             mfem::DenseMatrix &elmat) override;
 
+   /// \brief calculate the functional \psi^T R(u)
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
    /// \brief - assemble an element's contribution to
    ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
    ///          derivative of a functional with respect to the mesh nodes

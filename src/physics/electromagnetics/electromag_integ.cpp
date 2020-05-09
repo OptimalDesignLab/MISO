@@ -197,6 +197,86 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    }
 }
 
+double CurlCurlNLFIntegrator::GetElementEnergy(
+   const mfem::FiniteElement &el,
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun)
+{
+   /// get the proper element, transformation, and state vector
+   Array<int> vdofs;
+   Vector psi; 
+   int element = trans.ElementNo;
+   state->FESpace()->GetElementVDofs(element, vdofs);
+
+   const IntegrationRule *ir = NULL;
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   adjoint->GetSubVector(vdofs, psi);
+
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(el_ndof,dimc);
+   Vector b_vec(dimc), curl_psi(dimc);
+#else
+   curlshape.SetSize(ndof,dimc);
+   curlshape_dFt.SetSize(ndof,dimc);
+   b_vec.SetSize(dimc);
+   curl_psi.SetSize(dimc);
+#endif
+
+   /// holds quadrature weight
+   double w;
+
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      b_vec = 0.0;
+      curl_psi = 0.0;
+
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+
+      w = ip.weight / trans.Weight();
+      w *= alpha;
+
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      curlshape_dFt.AddMultTranspose(psi, curl_psi);
+
+      double b_mag = b_vec.Norml2();
+      double model_val = model->Eval(trans, ip, b_mag);
+
+      fun += model_val * (curl_psi * b_vec) * w;
+      // fun += (curl_psi * b_vec) * ip.weight;
+   }
+   return fun;
+}
+
 void CurlCurlNLFIntegrator::AssembleRHSElementVect(
    const FiniteElement &mesh_el,
    ElementTransformation &mesh_trans,
@@ -286,12 +366,12 @@ void CurlCurlNLFIntegrator::AssembleRHSElementVect(
 
       // nu * (\partial a^T b / \partial J) / |J|
       DenseMatrix Jac_bar(3);
-      MultVWt(curl_psi_hat, b_vec, Jac_bar);
+      MultVWt(b_vec, curl_psi_hat, Jac_bar);
       AddMultVWt(curl_psi, b_hat, Jac_bar);
       Jac_bar *= model_val / isotrans.Weight();
 
       // (\partial nu / \partial J) * a^T b / |J|
-      // (\partial nu / \partial ||B||) * B / ||B|| * B_hat
+      // (\partial nu / \partial ||B||) * B / ||B|| * B_hat * a^T b
       AddMult_a_VWt(model_deriv * curl_psi_dot_b / (b_mag * isotrans.Weight()),
                     b_vec, b_hat, Jac_bar);
 

@@ -225,18 +225,17 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleRHSElementVect",
             mesh.get(), fec.get()));
 
          std::unique_ptr<mach::StateCoefficient> nu(
-            new LinearCoefficient());
-
-         // we use res for finite-difference approximation
-         NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
-
+            new NonLinearCoefficient());
 
          // initialize state and adjoint; here we randomly perturb a constant state
          GridFunction state(fes.get()), adjoint(fes.get());
          VectorFunctionCoefficient pert(3, randState);
          state.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(pert);
+
+         // we use res for finite-difference approximation
+         NonlinearForm res(fes.get());
+         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get(), &state, &adjoint));
 
          // extract mesh nodes and get their finite-element space
          GridFunction *x_nodes = mesh->GetNodes();
@@ -264,15 +263,21 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleRHSElementVect",
          mesh->SetNodes(x_pert);
          fes->Update();
          res.Mult(state, r);
+         // double dfdx_v_fd = res.GetEnergy(state);
          double dfdx_v_fd = adjoint * r;
          x_pert.Add(-2 * delta, v);
          mesh->SetNodes(x_pert);
          fes->Update();
          res.Mult(state, r);
+         // dfdx_v_fd -= res.GetEnergy(state);
          dfdx_v_fd -= adjoint * r;
          dfdx_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
          fes->Update();
+
+         // std::cout << "Order: " << p << "\n";
+         // std::cout << "dfdx_v = " << dfdx_v << "\n";
+         // std::cout << "dfdx_v_fd = " << dfdx_v_fd << "\n";
 
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }
