@@ -203,14 +203,14 @@ void CurlCurlNLFIntegrator::AssembleRHSElementVect(
    Vector &elvect)
 {
    /// get the proper element, transformation, and state vector
-   Array<int> vdofs; Vector elfun, psi; 
+   Array<int> vdofs;
+   Vector elfun, psi; 
    int element = mesh_trans.ElementNo;
    const FiniteElement *el = state->FESpace()->GetFE(element);
    ElementTransformation *trans = state->FESpace()->GetElementTransformation(element);
    state->FESpace()->GetElementVDofs(element, vdofs);
 
    const IntegrationRule *ir = NULL;
-   const IntegrationRule *segment_ir = NULL;
    {
       int order;
       if (el->Space() == FunctionSpace::Pk)
@@ -224,20 +224,7 @@ void CurlCurlNLFIntegrator::AssembleRHSElementVect(
 
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
-   /// TODO make segment's integration much higher than elements
-   {
-      int order;
-      if (el->Space() == FunctionSpace::Pk)
-      {
-         order = 2*el->GetOrder() - 2;
-      }
-      else
-      {
-         order = 2*el->GetOrder();
-      }
 
-      segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 12);
-   }
    state->GetSubVector(vdofs, elfun);
    adjoint->GetSubVector(vdofs, psi);
 
@@ -293,34 +280,26 @@ void CurlCurlNLFIntegrator::AssembleRHSElementVect(
 
       double b_mag = b_vec.Norml2();
       double model_val = model->Eval(isotrans, ip, b_mag);
-      double model_deriv = model->Eval(isotrans, ip, b_mag);
-
-      // curlshape_dFt.AddMult(b_vec, elvect);
-      // start reverse sweep
-
-      DenseMatrix BB_hatT(3);
-      MultVWt(b_vec, b_hat, BB_hatT);
-      BB_hatT *= model_deriv / b_mag;
+      double model_deriv = model->EvalStateDeriv(isotrans, ip, b_mag);
 
       double curl_psi_dot_b = curl_psi * b_vec;
-      BB_hatT *= curl_psi_dot_b / isotrans.Weight();
 
-      DenseMatrix curl_psi_hatBT(3);
-      MultVWt(curl_psi_hat, b_vec, curl_psi_hatBT);
-      curl_psi_hatBT *= model_val / isotrans.Weight();
+      // nu * (\partial a^T b / \partial J) / |J|
+      DenseMatrix Jac_bar(3);
+      MultVWt(curl_psi_hat, b_vec, Jac_bar);
+      AddMultVWt(curl_psi, b_hat, Jac_bar);
+      Jac_bar *= model_val / isotrans.Weight();
 
-      DenseMatrix curl_psiB_hatT(3);
-      MultVWt(curl_psi, b_hat, curl_psiB_hatT);
-      curl_psiB_hatT *= model_val / isotrans.Weight();
+      // (\partial nu / \partial J) * a^T b / |J|
+      // (\partial nu / \partial ||B||) * B / ||B|| * B_hat
+      AddMult_a_VWt(model_deriv * curl_psi_dot_b / (b_mag * isotrans.Weight()),
+                    b_vec, b_hat, Jac_bar);
 
+      // (- nu * a^T b / |J|^2)  * \partial |J| / \partial X
       isotrans.WeightRevDiff(PointMat_bar);
       PointMat_bar *= -model_val * curl_psi_dot_b / pow(trans->Weight(), 2.0);
 
-      DenseMatrix dFdx_bar(BB_hatT);
-      dFdx_bar += curl_psi_hatBT;
-      dFdx_bar += curl_psiB_hatT;
-
-      isotrans.JacobianRevDiff(dFdx_bar, PointMat_bar);
+      isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
 
       for (int j = 0; j < ndof ; ++j)
       {

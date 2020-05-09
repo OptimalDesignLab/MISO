@@ -251,29 +251,11 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleRHSElementVect",
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
-         VectorFunctionCoefficient v_rand(dim, randState);
+         VectorFunctionCoefficient v_rand(3, randState);
          v.ProjectCoefficient(v_rand);
 
          // contract dfdx with v
          double dfdx_v = dfdx * v;
-
-         // // now compute the finite-difference approximation...
-         // Vector resid(res.Size());
-         // GridFunction x_pert(*x_nodes);
-         // GridFunction r(fes.get());
-         // x_pert.Add(delta, v);
-         // mesh->SetNodes(x_pert);
-         // res.Assemble();
-         // res.Mult(state, resid);
-         // double dfdx_v_fd = adjoint * resid;
-         // x_pert.Add(-2*delta, v);
-         // mesh->SetNodes(x_pert);
-         // res.Update();
-         // res.Assemble();
-         // res.Mult(state, resid);
-         // dfdx_v_fd -= adjoint * resid;
-         // dfdx_v_fd /= (2*delta);
-         // mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
 
          // now compute the finite-difference approximation...
          GridFunction x_pert(*x_nodes);

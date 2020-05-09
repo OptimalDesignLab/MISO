@@ -29,7 +29,7 @@ public:
    /// \param[in] m - model describing nonlinear material parameter
    /// \param[in] state - the state to use when evaluating
    ///                    \frac{\partial psi^T R}{\partial X}
-   /// \param[in] adjoint - the state to use when evaluating
+   /// \param[in] adjoint - the adjoint to use when evaluating
    ///                      \frac{\partial psi^T R}{\partial X}
    /// \param[in] a - used to move to lhs or rhs
    CurlCurlNLFIntegrator(StateCoefficient *m, mfem::GridFunction *_state,
