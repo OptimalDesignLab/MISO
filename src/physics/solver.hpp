@@ -154,6 +154,7 @@ protected:
    std::unique_ptr<MeshType> mesh;
    /// discrete function space
    std::unique_ptr<SpaceType> fes;
+   std::unique_ptr<SpaceType> fes_normal; 
    /// state variable
    std::unique_ptr<GridFunType> u;
    std::unique_ptr<mfem::CentGridFunction> uc;

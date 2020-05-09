@@ -1,6 +1,6 @@
 #include "evolver.hpp"
 #include "utils.hpp"
-
+#include <iostream>
 using namespace mfem;
 using namespace std;
 
@@ -150,7 +150,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetAbsTol(1e-10);
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-2);
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(0);
+   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(1);
 #else
    //using hypre solver instead
    linear_solver.reset(new mfem::HypreGMRES(mass.ParFESpcace()->GetComm()));
@@ -170,8 +170,8 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    // set paramters for the newton solver
    newton_solver->SetRelTol(1e-10);
    newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(-1);
-   newton_solver->SetMaxIter(30);
+   newton_solver->SetPrintLevel(0);
+   newton_solver->SetMaxIter(100);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
    newton_solver->SetOperator(*this);
@@ -182,8 +182,12 @@ void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const
 {
    Vector vec1(x);
    Vector vec2(x.Size());
+   //cout << "vec1&2 size is " << vec1.Size()<< '\n';
    vec1.Add(dt, k);  // vec1 = x + dt * k
    res.Mult(vec1, y); // y = f(vec1)
+   //cout << "residual(vec1) size is " << y.Size() << '\n';
+   //cout << "k size is " << k.Size() << '\n';
+   //cout << "mass matrix size is " << mass.Width() << '\n';
    mass.Mult(k, vec2);
    y += vec2;  // y = f(x + dt * k) + M(k)
 }

@@ -104,9 +104,10 @@ void AbstractSolver::initDerived()
       mesh->ElementToElementTable();
       fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
                                        Ordering::byVDIM, gd_degree));
+      // fes_normal.reset(new SpaceType(mesh.get(), fec.get(), num_state,
+      //                         Ordering::byVDIM));
       uc.reset(new CentGridFunction(fes.get()));
       u.reset(new GridFunType(fes.get()));
-      cout << "GD space is set, uc size is " << uc->Size() << ", u size is " << u->Size() << '\n';
    }
    else
    {
@@ -133,12 +134,10 @@ void AbstractSolver::initDerived()
 
    // set up the spatial semi-linear form
    double alpha = 1.0;
-   cout << "before set res.\n";
    res.reset(new NonlinearFormType(fes.get()));
-   cout << "after set res.\n";
-   // std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
-   // std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
-   //std::cout << ". uc size is " << uc->Size() << '\n';
+   std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
+   std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
+   std::cout << ". uc size is " << uc->Size() << '\n';
 
    // Add integrators; this can be simplified if we template the entire class
    addVolumeIntegrators(alpha);
@@ -250,19 +249,27 @@ void AbstractSolver::setInitialCondition(
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
+
+   ofstream initial("initial_condition.vtk");
+   initial.precision(14);
+   mesh->PrintVTK(initial, 0);
+   u->SaveVTK(initial, "initial", 0);
+   initial.close();
+   
    uc->ProjectCoefficient(u0);
-
-   // cout << "\nCheck exact solution:\n";
-   // u->Print(cout, num_state);
-   // cout << "\n\nCheck center values:\n";
-   // uc->Print(cout, num_state);
-
    GridFunType u_test(fes.get());
    fes->GetProlongationMatrix()->Mult(*uc, u_test);
+   ofstream projection("initial_projection.vtk");
+   projection.precision(14);
+   mesh->PrintVTK(projection, 0);
+   u_test.SaveVTK(projection, "projection", 0);
+   projection.close();
+
+
+   
    u_test -= *u;
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
-
-   ofstream sol_ofs("p_error.vtk");
+   ofstream sol_ofs("projection_error.vtk");
    sol_ofs.precision(14);
    mesh->PrintVTK(sol_ofs, 0);
    u_test.SaveVTK(sol_ofs, "project_error", 0);
@@ -488,9 +495,9 @@ void AbstractSolver::printSolution(const std::string &file_name,
    {
       refine = options["space-dis"]["degree"].get<int>() + 1;
    }
-   mesh->PrintVTK(sol_ofs, refine);
+   mesh->PrintVTK(sol_ofs, 0);
    fes->GetProlongationMatrix()->Mult(*uc, *u);
-   u->SaveVTK(sol_ofs, "Solution", refine);
+   u->SaveVTK(sol_ofs, "Solution", 0);
    sol_ofs.close();
 }
 
@@ -733,16 +740,14 @@ void AbstractSolver::solveUnsteady()
    // output the mesh and initial condition
    // TODO: need to swtich to vtk for SBP
    int precision = 8;
-   {
-      ofstream omesh("initial.mesh");
-      omesh.precision(precision);
-      mesh->Print(omesh);
-      ofstream osol("initial-sol.gf");
-      osol.precision(precision);
-      u->Save(osol);
-   }
-
-   printSolution("init");
+   // {
+   //    ofstream omesh("initial.mesh");
+   //    omesh.precision(precision);
+   //    mesh->Print(omesh);
+   //    ofstream osol("initial-sol.gf");
+   //    osol.precision(precision);
+   //    u->Save(osol);
+   // }
 
    bool done = false;
    double t_final = options["time-dis"]["t-final"].get<double>();
@@ -773,7 +778,7 @@ void AbstractSolver::solveUnsteady()
       // *u = *U;
       ode_solver->Step(*u, t, dt_real);
 #else
-      ode_solver->Step(*u, t, dt_real);
+      ode_solver->Step(*uc, t, dt_real);
 #endif
       ti++;
       done = (t >= t_final - 1e-8 * dt);
@@ -795,33 +800,34 @@ void AbstractSolver::solveUnsteady()
          }
       } */
    }
+   printSolution("final_solution");
 
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
-   {
-      ofstream osol("final.gf");
-      osol.precision(precision);
-      u->Save(osol);
-   }
-   // write the solution to vtk file
-   if (options["space-dis"]["basis-type"].get<string>() == "csbp")
-   {
-      ofstream sol_ofs("final_cg.vtk");
-      sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-      sol_ofs.close();
-      printSolution("final");
-   }
-   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
-   {
-      ofstream sol_ofs("final_dg.vtk");
-      sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-      sol_ofs.close();
-      printSolution("final");
-   }
+   // {
+   //    ofstream osol("final.gf");
+   //    osol.precision(precision);
+   //    u->Save(osol);
+   // }
+   // // write the solution to vtk file
+   // if (options["space-dis"]["basis-type"].get<string>() == "csbp")
+   // {
+   //    ofstream sol_ofs("final_cg.vtk");
+   //    sol_ofs.precision(14);
+   //    mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+   //    u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+   //    sol_ofs.close();
+   //    printSolution("final");
+   // }
+   // else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   // {
+   //    ofstream sol_ofs("final_dg.vtk");
+   //    sol_ofs.precision(14);
+   //    mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+   //    u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+   //    sol_ofs.close();
+   //    printSolution("final");
+   // }
    // TODO: These mfem functions do not appear to be parallelized
 }
 
