@@ -235,7 +235,7 @@ void CurlCurlNLFIntegrator::AssembleRHSElementVect(
    elvect.SetSize(ndof*dimc);
    elvect = 0.0;
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   DenseMatrix curlshape(el_ndof,dimc), curlshape_dFt(el_ndof,dimc);
    Vector b_vec(dimc), b_hat(dimc), curl_psi(dimc), curl_psi_hat(dimc);
 #else
    curlshape.SetSize(el_ndof,dimc);
