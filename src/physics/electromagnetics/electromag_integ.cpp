@@ -572,6 +572,119 @@ void MagnetizationIntegrator::AssembleElementGrad(
    */
 }
 
+void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   /// get the proper element, transformation, and adjoint and m vector
+   Array<int> adj_vdofs, state_vdofs;
+   Vector elfun, psi; 
+   int element = mesh_trans.ElementNo;
+
+   /// get the ND elements used for curl shape
+   const FiniteElement &nd_el = *adjoint->FESpace()->GetFE(element);
+   ElementTransformation &nd_trans = *adjoint->FESpace()->GetElementTransformation(element);
+
+   /// get the RT elements used for V shape
+   const FiniteElement &rt_el = *state->FESpace()->GetFE(element);
+   ElementTransformation &rt_trans = *state->FESpace()->GetElementTransformation(element);
+
+   adjoint->FESpace()->GetElementVDofs(element, adj_vdofs);
+   state->FESpace()->GetElementVDofs(element, state_vdofs);
+
+
+
+   const IntegrationRule *ir = NULL;
+   {
+      int order = rt_el.GetOrder() + nd_el.GetOrder() - 1; // <--
+      ir = &IntRules.Get(rt_el.GetGeomType(), order);
+   }
+
+   state->GetSubVector(state_vdofs, elfun);
+   adjoint->GetSubVector(adj_vdofs, psi);
+
+   int ndof = mesh_el.GetDof();
+   int nd_ndof = nd_el.GetDof();
+   int rt_ndof = rt_el.GetDof();
+   int dim = nd_el.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+   elvect.SetSize(ndof*dimc);
+   elvect = 0.0;
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(nd_ndof,dimc), curlshape_dFt(nd_ndof,dimc);
+   DenseMatrix vshape(rt_ndof, dimc), vshape_dFt(rt_ndof, dimc);
+   Vector m_vec(dimc), m_hat(dimc), curl_psi(dimc), curl_psi_hat(dimc);
+#else
+   curlshape.SetSize(nd_ndof,dimc);
+   curlshape_dFt.SetSize(nd_ndof,dimc);
+   vshape.SetSize(rt_ndof, dimc);
+   vshape_dFt.SetSize(rt_ndof, dimc);
+   m_vec.SetSize(dimc);
+   m_hat.SetSize(dimc);
+   curl_psi.SetSize(dimc);
+   curl_psi_hat.SetSize(dimc);
+#endif
+   DenseMatrix PointMat_bar(dimc, ndof);
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(nd_trans);
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      PointMat_bar = 0.0;
+      curl_psi_hat = 0.0;
+      curl_psi = 0.0;
+
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      isotrans.SetIntPoint(&ip);
+
+      if ( dim == 3 )
+      {
+         nd_el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, isotrans.Jacobian(), curlshape_dFt);
+
+         rt_el.CalcVShape(ip, vshape);
+         MultABt(vshape, isotrans.Jacobian(), vshape_dFt);
+      }
+      else
+      {
+         nd_el.CalcCurlShape(ip, curlshape_dFt);
+         rt_el.CalcVShape(ip, vshape_dFt);
+      }
+      curlshape.AddMultTranspose(psi, curl_psi_hat);
+      curlshape_dFt.AddMultTranspose(psi, curl_psi);
+      vshape.AddMultTranspose(elfun, m_hat);
+      vshape_dFt.AddMultTranspose(elfun, m_vec);
+
+      double nu_val = nu->Eval(isotrans, ip);
+
+      double curl_psi_dot_m = curl_psi * m_vec;
+
+      // nu * (\partial a^T b / \partial J) / |J|
+      DenseMatrix Jac_bar(3);
+      MultVWt(m_vec, curl_psi_hat, Jac_bar);
+      AddMultVWt(curl_psi, m_hat, Jac_bar);
+      Jac_bar *= nu_val / isotrans.Weight();
+
+      // (- nu * a^T b / |J|^2)  * \partial |J| / \partial X
+      isotrans.WeightRevDiff(PointMat_bar);
+      PointMat_bar *= -nu_val * curl_psi_dot_m / pow(isotrans.Weight(), 2.0);
+
+      isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
+
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            elvect(d*ndof + j) += ip.weight * PointMat_bar(d,j);
+         }
+      }
+   }  
+}
+
 double MagneticEnergyIntegrator::GetElementEnergy(
    const FiniteElement &el,
    ElementTransformation &trans,
