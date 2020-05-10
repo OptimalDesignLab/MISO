@@ -295,10 +295,11 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
+   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -378,16 +379,14 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          res2.Finalize();
          r2 = 0.0;
          res2.AddMult(M, r2);
-         Vector diff(r);
-         diff -= r2;
-         std::cout << diff.Norml2();
          dfdx_v_fd -= adjoint * r2;
-         dfdx_v_fd /= (1 * delta);
+         dfdx_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
 
          std::cout << "Order: " << p << "\n";
          std::cout << "dfdx_v = " << dfdx_v << "\n";
          std::cout << "dfdx_v_fd = " << dfdx_v_fd << "\n";
+         std::cout << dfdx_v_fd / dfdx_v << "\n";
 
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }
