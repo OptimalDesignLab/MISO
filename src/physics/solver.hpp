@@ -123,7 +123,10 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
-
+   void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &))
+   {
+      pert = p;
+   }
    void printError(const std::string &file_name, int refine,
                      void (*u_exact)(const mfem::Vector &, mfem::Vector &));
 
@@ -227,6 +230,7 @@ protected:
    /// Defined in deerived class that update the nonlinear form mass matrix
    virtual void updateNonlinearMass(int ti, double dt, double alpha) {};
 
+   void (*pert)(const mfem::Vector &, mfem::Vector &);
 };
 
 } // namespace mach

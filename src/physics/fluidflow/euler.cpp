@@ -321,10 +321,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alpha)
 {
-   if (entvar)
-   {
-      fes->GetProlongationMatrix()->Mult(*uc, *u);
-   }
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
    if(0 == ti)
    {
       mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));

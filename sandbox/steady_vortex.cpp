@@ -1,7 +1,7 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
 
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = false;
+constexpr bool entvar = true;
 
 #include<random>
 #include "adept.h"

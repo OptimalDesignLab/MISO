@@ -736,6 +736,7 @@ void AbstractSolver::solveUnsteady()
    double t = 0.0;
    evolver->SetTime(t);
    ode_solver->Init(*evolver);
+   dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->checkJacobian(pert, *uc);
 
    // output the mesh and initial condition
    // TODO: need to swtich to vtk for SBP
@@ -773,10 +774,9 @@ void AbstractSolver::solveUnsteady()
       // u->Print(c_write);
       // c_write.close();
 #ifdef MFEM_USE_MPI
-      // HypreParVector *U = u->GetTrueDofs();
-      // ode_solver->Step(*U, t, dt_real);
-      // *u = *U;
-      ode_solver->Step(*u, t, dt_real);
+      HypreParVector *U = u->GetTrueDofs();
+      ode_solver->Step(*U, t, dt_real);
+      *u = *U;
 #else
       ode_solver->Step(*uc, t, dt_real);
 #endif
