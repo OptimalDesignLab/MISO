@@ -314,7 +314,7 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          std::unique_ptr<FiniteElementCollection> rt_fec(
             new RT_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> rt_fes(new FiniteElementSpace(
-            mesh.get(), nd_fec.get()));
+            mesh.get(), rt_fec.get()));
 
          /// We use a linear coefficient since the magnets are linear
          std::unique_ptr<mach::StateCoefficient> nu(
