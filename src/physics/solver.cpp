@@ -736,7 +736,6 @@ void AbstractSolver::solveUnsteady()
    double t = 0.0;
    evolver->SetTime(t);
    ode_solver->Init(*evolver);
-   dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->checkJacobian(pert, *uc);
 
    // output the mesh and initial condition
    // TODO: need to swtich to vtk for SBP
@@ -762,6 +761,8 @@ void AbstractSolver::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
+      // dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->SetParameters(dt_real, *uc);
+      // dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->checkJacobian(pert, *uc);
       updateNonlinearMass(ti, dt_real, 1.0);
       // if (ti % 10 == 0)
       // {
