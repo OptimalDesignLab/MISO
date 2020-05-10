@@ -1,6 +1,6 @@
 /// Solve the unsteady isentropic vortex problem
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = true;
+constexpr bool entvar = false;
 #include<random>
 #include "mfem.hpp"
 #include "euler.hpp"
@@ -14,6 +14,11 @@ using namespace mach;
 
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+
+/// \brief Defines the random function for the jabocian check
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void pert(const Vector &x, Vector& p);
 
 /// \brief Defines the initial condition for the unsteady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed

@@ -180,6 +180,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
 
 void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const
 {
+   cout << "evolver::mult is called.";
    Vector vec1(x);
    Vector vec2(x.Size());
    //cout << "vec1&2 size is " << vec1.Size()<< '\n';
@@ -216,28 +217,38 @@ void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &
 void ImplicitNonlinearMassEvolver::checkJacobian(
     void (*pert_fun)(const mfem::Vector &, mfem::Vector &), const Vector uc)
 {
+   cout << "evolver check jac is called.\n";
    // this is a specific version for gd_serial_mfem
    // dont accept incoming changes
    // initialize some variables
    const double delta = 1e-5;
-   CentGridFunction u_plus(uc);
-   CentGridFunction u_minus(uc);
+   Vector u_plus(uc);
+   Vector u_minus(uc);
    CentGridFunction pert_vec(mass.FESpace());
+   cout << "up um size is " << u_plus.Size() << '\n';
+   cout << "pert size is " << pert_vec.Size() << '\n';
    VectorFunctionCoefficient up(4, pert_fun);
    pert_vec.ProjectCoefficient(up);
 
    // perturb in the positive and negative pert_vec directions
    u_plus.Add(delta, pert_vec);
    u_minus.Add(-delta, pert_vec);
+   cout << "up um size is " << u_plus.Size() << '\n';
+   cout << "up um size is " << u_minus.Size() << '\n';
 
    // Get the product using a 2nd-order finite-difference approximation
    CentGridFunction res_plus(mass.FESpace());
    CentGridFunction res_minus(mass.FESpace());
+   cout << "res_plus size is " << res_plus.Size() << '\n';
+   cout << "res_minus size is " << res_minus.Size() << '\n';
+   cout << "evolver size is " << Width() << ' ' << Height() << '\n';
    Mult(u_plus, res_plus);
+   cout << "res_plus size is " << res_minus.Size() << '\n';
    Mult(u_minus, res_minus);
+   cout << "res_minus size is " << res_minus.Size() << '\n';
    // res_plus = 1/(2*delta)*(res_plus - res_minus)
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
-
+   cout << "res_plus size is " << res_plus.Size() << '\n';
    // Get the product directly using Jacobian from GetGradient
    CentGridFunction jac_v(mass.FESpace());
 
@@ -245,6 +256,7 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    CentGridFunction *prod = &jac_v;
 
    mfem::Operator &jac = GetGradient(uc);
+   cout << "jac size is " << jac.Height() << ' ' << jac.Width();
    jac.Mult(*pert, *prod);
 
    // check the difference norm

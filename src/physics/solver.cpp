@@ -730,7 +730,7 @@ void AbstractSolver::solveSteady()
 }
 
 void AbstractSolver::solveUnsteady()
-{
+{  
    // TODO: This is not general enough.
 
    double t = 0.0;
@@ -740,7 +740,7 @@ void AbstractSolver::solveUnsteady()
 
    // output the mesh and initial condition
    // TODO: need to swtich to vtk for SBP
-   int precision = 8;
+   int precision = 14;
    // {
    //    ofstream omesh("initial.mesh");
    //    omesh.precision(precision);
