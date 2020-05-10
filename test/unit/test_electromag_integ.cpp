@@ -328,11 +328,8 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          adjoint.ProjectCoefficient(pert);
 
          // we use res for finite-difference approximation
-         // MixedBilinearForm res(rt_fes.get(), nd_fes.get());
-         // res.AddDomainIntegrator(new VectorFECurlIntegrator(*nu));
-
-         // res.Assemble();
-         // res.Finalize();
+         MixedBilinearForm res(rt_fes.get(), nd_fes.get());
+         res.AddDomainIntegrator(new VectorFECurlIntegrator(*nu));
 
          // extract mesh nodes and get their finite-element space
          GridFunction *x_nodes = mesh->GetNodes();
@@ -355,38 +352,26 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          // now compute the finite-difference approximation...
          GridFunction x_pert(*x_nodes);
          GridFunction r(nd_fes.get());
-         GridFunction r2(nd_fes.get());
-         r = 0.0;
          x_pert.Add(delta, v);
          mesh->SetNodes(x_pert);
          rt_fes->Update();
          nd_fes->Update();
-         MixedBilinearForm res1(rt_fes.get(), nd_fes.get());
-         res1.AddDomainIntegrator(new VectorFECurlIntegrator(*nu));
-         res1.Update();
-         res1.Assemble();
-         res1.Finalize();
-         res1.AddMult(M, r);
+         res.Update();
+         res.Assemble();
+         res.Finalize();
+         res.Mult(M, r);
          double dfdx_v_fd = adjoint * r;
          x_pert.Add(-2 * delta, v);
          mesh->SetNodes(x_pert);
          rt_fes->Update();
          nd_fes->Update();
-         MixedBilinearForm res2(rt_fes.get(), nd_fes.get());
-         res2.AddDomainIntegrator(new VectorFECurlIntegrator(*nu));
-         res2.Update();
-         res2.Assemble();
-         res2.Finalize();
-         r2 = 0.0;
-         res2.AddMult(M, r2);
-         dfdx_v_fd -= adjoint * r2;
+         res.Update();
+         res.Assemble();
+         res.Finalize();
+         res.Mult(M, r);
+         dfdx_v_fd -= adjoint * r;
          dfdx_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
-
-         std::cout << "Order: " << p << "\n";
-         std::cout << "dfdx_v = " << dfdx_v << "\n";
-         std::cout << "dfdx_v_fd = " << dfdx_v_fd << "\n";
-         std::cout << dfdx_v_fd / dfdx_v << "\n";
 
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }
