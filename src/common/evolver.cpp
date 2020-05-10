@@ -211,15 +211,15 @@ void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &
 }
 
 void ImplicitNonlinearMassEvolver::checkJacobian(
-    void (*pert_fun)(const mfem::Vector &, mfem::Vector &), const Vector uc)
+    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
 {
    cout << "evolver check jac is called.\n";
    // this is a specific version for gd_serial_mfem
    // dont accept incoming changes
    // initialize some variables
    const double delta = 1e-5;
-   Vector u_plus(uc);
-   Vector u_minus(uc);
+   Vector u_plus(x);
+   Vector u_minus(x);
    CentGridFunction pert_vec(mass.FESpace());
    VectorFunctionCoefficient up(4, pert_fun);
    pert_vec.ProjectCoefficient(up);
@@ -241,7 +241,7 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    CentGridFunction *pert = &pert_vec;
    CentGridFunction *prod = &jac_v;
 
-   mfem::Operator &jac = this->GetGradient(uc);
+   mfem::Operator &jac = this->GetGradient(x);
    jac.Mult(*pert, *prod);
 
    // check the difference norm
