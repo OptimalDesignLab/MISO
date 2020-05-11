@@ -109,6 +109,8 @@ public:
       dt = dt_;
       x = x_;
    }
+   /// check evolver jacobian
+   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
    /// Class destructor
    virtual ~ImplicitNonlinearEvolver() { }
 

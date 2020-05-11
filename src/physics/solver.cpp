@@ -175,8 +175,8 @@ void AbstractSolver::initDerived()
    }
    else
    {
-      evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
-      //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      //evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
 
    // add the output functional QoIs
