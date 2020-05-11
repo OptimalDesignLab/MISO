@@ -217,7 +217,7 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    const double delta = 1e-5;
    GridFunType u_plus(x);
    GridFunType u_minus(x);
-   GridFunType pert_vec(mass.FESpace());
+   GridFunType pert_vec(mass.ParFESpace());
    VectorFunctionCoefficient up(4, pert_fun);
    pert_vec.ProjectCoefficient(up);
 
@@ -226,8 +226,8 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    u_minus.Add(-delta, pert_vec);
 
    // Get the product using a 2nd-order finite-difference approximation
-   GridFunType res_plus(mass.FESpace());
-   GridFunType res_minus(mass.FESpace());
+   GridFunType res_plus(mass.ParFESpace());
+   GridFunType res_minus(mass.ParFESpace());
 #ifdef MFEM_USE_MPI 
    HypreParVector *u_p = u_plus.GetTrueDofs();
    HypreParVector *u_m = u_minus.GetTrueDofs();
@@ -249,7 +249,7 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
 
    // Get the product directly using Jacobian from GetGradient
-   GridFunType jac_v(mass.FESpace());
+   GridFunType jac_v(mass.ParFESpace());
 #ifdef MFEM_USE_MPI
    HypreParVector *u_true = u->GetTrueDofs();
    HypreParVector *pert = pert_vec.GetTrueDofs();
@@ -267,7 +267,7 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
 
    // check the difference norm
    jac_v -= res_plus;
-   double error = calcInnerProduct(jac_v, jac_v);
+   double error = AbstractSolver::calcInnerProduct(jac_v, jac_v);
    cout << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
