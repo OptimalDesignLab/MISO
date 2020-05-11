@@ -1,6 +1,7 @@
 /// Solve the unsteady isentropic vortex problem
 // set this const expression to true in order to use entropy variables for state
 constexpr bool entvar = false;
+#include<random>
 #include "mfem.hpp"
 #include "euler.hpp"
 #include "euler_fluxes.hpp"
@@ -10,6 +11,13 @@ constexpr bool entvar = false;
 using namespace std;
 using namespace mfem;
 using namespace mach;
+
+std::default_random_engine gen(std::random_device{}());
+std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+/// \brief Defines the random function for the jabocian check
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void pert(const Vector &x, Vector& p);
 
 /// \brief Defines the initial condition for the unsteady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -61,6 +69,7 @@ int main(int argc, char *argv[])
          new EulerSolver<2, entvar>(opt_file_name, nullptr));
       solver->initDerived();
       solver->setInitialCondition(u0_function);
+      solver->checkJacobian(pert);
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;      
       solver->solveForState();
@@ -120,5 +129,15 @@ void u0_function(const Vector &x, Vector& q)
    else
    {
       calcEntropyVars<double, 2>(u0.GetData(), q.GetData());
+   }
+}
+
+// perturbation function used to check the jacobian in each iteration
+void pert(const Vector &x, Vector& p)
+{
+   p.SetSize(4);
+   for (int i = 0; i < 4; i++)
+   {
+      p(i) = normal_rand(gen);
    }
 }
