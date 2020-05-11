@@ -185,6 +185,46 @@ private:
 
 };
 
+class VectorFEMassdJdXIntegerator : public mfem::LinearFormIntegrator
+{
+public:
+   /// Construct a curl curl nonlinear form integrator for Nedelec elements
+   /// \param[in] state - the state to use when evaluating
+   ///                    \frac{\partial psi^T R}{\partial X}
+   /// \param[in] adjoint - the adjoint to use when evaluating
+   ///                      \frac{\partial psi^T R}{\partial X}
+   /// \note it is assumed that both `state` and `adjoint` are in an H(curl)
+   ///       finite element space and
+   VectorFEMassdJdXIntegerator(mfem::GridFunction *_state,
+                               mfem::GridFunction *_adjoint)
+      : state(_state), adjoint(_adjoint) {};
+
+   /// \brief - assemble an element's contribution to
+   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
+   ///          derivative of a functional with respect to the mesh nodes
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   /// \note this is the `LinearFormIntegrator` component, the LinearForm that
+   ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
+   ///       nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+   
+private:
+   /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
+   mfem::GridFunction *state;
+   /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
+   mfem::GridFunction *adjoint;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix vshape, vshape_dFt;
+   mfem::Vector v_j_hat, v_j_vec, v_psi_hat, v_psi_vec;
+#endif
+
+};
+
 /// Integrator to compute the magnetic energy
 class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
 {
