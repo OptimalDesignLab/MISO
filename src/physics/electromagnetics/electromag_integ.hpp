@@ -194,7 +194,7 @@ public:
    /// \param[in] adjoint - the adjoint to use when evaluating
    ///                      \frac{\partial psi^T R}{\partial X}
    /// \note it is assumed that both `state` and `adjoint` are in an H(curl)
-   ///       finite element space and
+   ///       finite element space
    VectorFEMassdJdXIntegerator(mfem::GridFunction *_state,
                                mfem::GridFunction *_adjoint)
       : state(_state), adjoint(_adjoint) {};

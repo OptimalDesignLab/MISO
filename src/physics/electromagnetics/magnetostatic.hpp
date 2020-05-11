@@ -9,6 +9,8 @@
 namespace mach
 {
 
+class MeshMovementSolver;
+
 /// Solver for magnetostatic electromagnetic problems
 /// dim - number of spatial dimensions (only 3 supported)
 class MagnetostaticSolver : public AbstractSolver
@@ -32,6 +34,11 @@ public:
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {A, B}
    std::vector<GridFunType*> getFields() override;
+
+   /// Compute the sensitivity of the aggregate temperature output to the mesh 
+   /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
+   /// the adjoint first.
+   mfem::Vector* getMeshSensitivities() override;
 
 private:
    // /// Nedelec finite element collection
@@ -80,16 +87,8 @@ private:
    mfem::Array<int> ess_bdr;
    std::unique_ptr<mfem::VectorCoefficient> bc_coef;
 
-   // /// linear system solver used in Newton's method
-   // std::unique_ptr<mfem::HypreGMRES> solver;
-   // /// linear system preconditioner used in Newton's method
-   // std::unique_ptr<EMPrecType> prec;
-
-   // /// Newton solver
-   // mfem::NewtonSolver newton_solver;
-
-   /// Material Library
-   // nlohmann::json materials;
+   /// mesh movement solver object
+   std::unique_ptr<MeshMovementSolver> MSolver;
 
    int dim;
 

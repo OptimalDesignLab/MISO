@@ -5,6 +5,7 @@
 #include "magnetostatic.hpp"
 #include "solver.hpp"
 #include "electromag_integ.hpp"
+#include "mesh_movement.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -139,6 +140,52 @@ void MagnetostaticSolver::addOutputs()
 std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
 {
    return {u.get(), B.get()};
+}
+
+Vector* MagnetostaticSolver::getMeshSensitivities()
+{	
+   /// assign mesh node space to forms
+   mesh->EnsureNodes();
+   GridFunction *x_nodes_s = mesh->GetNodes();
+   FiniteElementSpace *mesh_fes_s = x_nodes_s->FESpace();
+   SpaceType mesh_fes(*mesh_fes_s, *mesh);
+   GridFunType x_nodes(&mesh_fes, x_nodes_s);
+
+   dLdX.reset(new GridFunType(x_nodes));
+   *dLdX = 0.0;
+
+   /// Add mesh sensitivities of functional 
+   LinearFormType dJdX(&mesh_fes);
+   dJdX.AddDomainIntegrator(
+      new MagneticCoenergyIntegrator(*u, nu.get()));
+   dJdX.Assemble();
+
+   /// TODO I don't know if this works in parallel / when we need to use tdof vectors
+   *dLdX += dJdX;
+
+   res_mesh_sens_l.reset(new LinearFormType(&mesh_fes));
+
+   /// compute \psi_A
+   solveForAdjoint(options["outputs"]["co-energy"].get<std::string>());
+
+   /// add integrators R = CurlCurl(A) + Cm + Mj = 0
+   /// \psi^T CurlCurl(A)
+   res_mesh_sens_l->AddDomainIntegrator(
+      new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
+   /// \psi^T C m 
+   res_mesh_sens_l->AddDomainIntegrator(
+      new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get()));
+   /// \psi^T M j
+   res_mesh_sens_l->AddDomainIntegrator(
+      new VectorFEMassdJdXIntegerator(div_free_current_vec.get(), adj.get()));
+
+   /// Compute the derivatives and accumulate the result
+   res_mesh_sens_l->Assemble();
+
+   /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
+   dLdX->Add(-1, *res_mesh_sens_l);
+
+   return dLdX.get();
 }
 
 void MagnetostaticSolver::constructCoefficients()
