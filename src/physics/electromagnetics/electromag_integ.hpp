@@ -229,15 +229,13 @@ class VectorFEWeakDivergencedJdXIntegrator : public mfem::LinearFormIntegrator
 {
 public:
    /// Construct a curl curl nonlinear form integrator for Nedelec elements
-   /// \param[in] nu - coefficient describing reluctivity
    /// \param[in] state - the state to use when evaluating
    ///                    \frac{\partial psi^T R}{\partial X}
    /// \param[in] adjoint - the adjoint to use when evaluating
    ///                      \frac{\partial psi^T R}{\partial X}
-   /// \note it is assumed that `state` is an a H(div) finite element space and
-   ///       that adjoint is in a H(curl) finite element space
-   VectorFEWeakDivergencedJdXIntegrator(mfem::Coefficient *_nu,
-                                        mfem::GridFunction *_state,
+   /// \note it is assumed that `state` is an a H(curl) finite element space and
+   ///       that adjoint is in a H1 finite element space
+   VectorFEWeakDivergencedJdXIntegrator(mfem::GridFunction *_state,
                                         mfem::GridFunction *_adjoint)
       : state(_state), adjoint(_adjoint) {};
 

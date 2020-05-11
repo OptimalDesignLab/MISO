@@ -22,6 +22,11 @@ void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
    }
 }
 
+double randState(const mfem::Vector &x)
+{
+    return 2.0 * uniform_rand(gen) - 1.0;
+}
+
 void randState(const mfem::Vector &x, mfem::Vector &u)
 {
 	// std::cout << "u size: " << u.Size() << std::endl;

@@ -460,8 +460,8 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
    }
 }
 
-TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
-          "[VectorFECurldJdXIntegerator]")
+TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
+          "[VectorFEWeakDivergencedJdXIntegrator]")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -483,13 +483,13 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
       {
          // get the finite-element space for the current grid function
          std::unique_ptr<FiniteElementCollection> nd_fec(
-            new RT_FECollection(p, dim));
+            new ND_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> nd_fes(new FiniteElementSpace(
             mesh.get(), nd_fec.get()));
             
          // get the finite-element space for the adjoint
          std::unique_ptr<FiniteElementCollection> h1_fec(
-            new ND_FECollection(p, dim));
+            new H1_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> h1_fes(new FiniteElementSpace(
             mesh.get(), h1_fec.get()));
 
@@ -498,8 +498,9 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          // initialize magnetization source and adjoint; here we randomly perturb a constant state
          GridFunction c(nd_fes.get()), adjoint(h1_fes.get());
          VectorFunctionCoefficient pert(3, randState);
+         FunctionCoefficient adj_pert(randState);
          c.ProjectCoefficient(pert);
-         adjoint.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(adj_pert);
 
          // we use res for finite-difference approximation
          MixedBilinearForm res(nd_fes.get(), h1_fes.get());
@@ -512,7 +513,7 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::VectorFEWeakDivergencedJdXIntegerator(&c, &adjoint));
+            new mach::VectorFEWeakDivergencedJdXIntegrator(&c, &adjoint));
          dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes

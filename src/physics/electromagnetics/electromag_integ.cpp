@@ -861,7 +861,7 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
       if ( dim == 3 )
       {
          nd_el.CalcVShape(ip, vshape);
-         MultABt(vshape, isotrans.AdjugateJacobian(), vshape_dFt);
+         Mult(vshape, isotrans.AdjugateJacobian(), vshape_dFt);
       }
       else
       {
@@ -870,7 +870,6 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
       h1_el.CalcDShape(ip, dshape);
       Mult(dshape, isotrans.AdjugateJacobian(), dshape_dFt);
 
-
       dshape.AddMultTranspose(psi, d_psi_hat);
       dshape_dFt.AddMultTranspose(psi, d_psi);
       vshape.AddMultTranspose(elfun, v_hat);
@@ -878,13 +877,13 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
 
       double d_psi_dot_v = d_psi * v_vec;
 
-      // nu * (\partial a^T b / \partial J) / |J|
+      // (\partial a^T b / \partial J) / |J|
       DenseMatrix Jac_bar(3);
-      MultVWt(v_vec, d_psi_hat, Jac_bar);
-      AddMultVWt(d_psi, v_hat, Jac_bar);
+      MultVWt(d_psi_hat, v_vec, Jac_bar);
+      AddMultVWt(v_hat, d_psi, Jac_bar);
       Jac_bar *= 1 / isotrans.Weight();
 
-      // (- nu * a^T b / |J|^2)  * \partial |J| / \partial X
+      // (- a^T b / |J|^2)  * \partial |J| / \partial X
       isotrans.WeightRevDiff(PointMat_bar);
       PointMat_bar *= -d_psi_dot_v / pow(isotrans.Weight(), 2.0);
 
