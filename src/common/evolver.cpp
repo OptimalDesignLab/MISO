@@ -137,7 +137,7 @@ void ImplicitNonlinearEvolver::ImplicitSolve(const double dt, const Vector &x,
    MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
 }
 
-void ImplicitNonlinearMassEvolver::checkJacobian(
+void ImplicitNonlinearEvolver::checkJacobian(
     void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
 {
    cout << "evolver check jac is called.\n";
@@ -147,7 +147,7 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    const double delta = 1e-5;
    Vector u_plus(x);
    Vector u_minus(x);
-   CentGridFunction pert_vec(mass.FESpace());
+   CentGridFunction pert_vec(res.FESpace());
    VectorFunctionCoefficient up(4, pert_fun);
    pert_vec.ProjectCoefficient(up);
 
@@ -156,14 +156,14 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    u_minus.Add(-delta, pert_vec);
 
    // Get the product using a 2nd-order finite-difference approximation
-   CentGridFunction res_plus(mass.FESpace());
-   CentGridFunction res_minus(mass.FESpace());
+   CentGridFunction res_plus(res.FESpace());
+   CentGridFunction res_minus(res.FESpace());
    this->Mult(u_plus, res_plus);
    this->Mult(u_minus, res_minus);
    // res_plus = 1/(2*delta)*(res_plus - res_minus)
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
    // Get the product directly using Jacobian from GetGradient
-   CentGridFunction jac_v(mass.FESpace());
+   CentGridFunction jac_v(res.FESpace());
 
    CentGridFunction *pert = &pert_vec;
    CentGridFunction *prod = &jac_v;
