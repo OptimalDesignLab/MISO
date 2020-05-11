@@ -215,8 +215,8 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    cout << "evolver check jac is called.\n";
    // initialize some variables
    const double delta = 1e-5;
-   GridFunType u_plus(x);
-   GridFunType u_minus(x);
+   Vector u_plus(x);
+   Vector u_minus(x);
    GridFunType pert_vec(mass.ParFESpace());
    VectorFunctionCoefficient up(4, pert_fun);
    pert_vec.ProjectCoefficient(up);
@@ -226,32 +226,33 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    u_minus.Add(-delta, pert_vec);
 
    // Get the product using a 2nd-order finite-difference approximation
-   GridFunType res_plus(mass.ParFESpace());
-   GridFunType res_minus(mass.ParFESpace());
-#ifdef MFEM_USE_MPI 
-   HypreParVector *u_p = u_plus.GetTrueDofs();
-   HypreParVector *u_m = u_minus.GetTrueDofs();
-   HypreParVector *res_p = res_plus.GetTrueDofs();
-   HypreParVector *res_m = res_minus.GetTrueDofs();
-#else 
-   GridFunType *u_p = &u_plus;
-   GridFunType *u_m = &u_minus;
-   GridFunType *res_p = &res_plus;
-   GridFunType *res_m = &res_minus;
-#endif
-   this->Mult(*u_p, *res_p);
-   this->Mult(*u_m, *res_m);
-#ifdef MFEM_USE_MPI
-   res_plus.SetFromTrueDofs(*res_p);
-   res_minus.SetFromTrueDofs(*res_m);
-#endif
+   Vector res_plus(x.Size());
+   Vector res_minus(x.Size());
+// #ifdef MFEM_USE_MPI 
+//    HypreParVector *u_p = u_plus.GetTrueDofs();
+//    HypreParVector *u_m = u_minus.GetTrueDofs();
+//    HypreParVector *res_p = res_plus.GetTrueDofs();
+//    HypreParVector *res_m = res_minus.GetTrueDofs();
+// #else 
+//    GridFunType *u_p = &u_plus;
+//    GridFunType *u_m = &u_minus;
+//    GridFunType *res_p = &res_plus;
+//    GridFunType *res_m = &res_minus;
+// #endif
+   this->Mult(u_plus, res_plus);
+   this->Mult(u_minus, res_minus);
+// #ifdef MFEM_USE_MPI
+//    res_plus.SetFromTrueDofs(*res_p);
+//    res_minus.SetFromTrueDofs(*res_m);
+// #endif
    // res_plus = 1/(2*delta)*(res_plus - res_minus)
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
 
    // Get the product directly using Jacobian from GetGradient
-   GridFunType jac_v(mass.ParFESpace());
+   Vector jac_v(x.Size());
+   Vector prod(x.Size());
 #ifdef MFEM_USE_MPI
-   HypreParVector *u_true = u->GetTrueDofs();
+   HypreParVector *u_true = x.GetTrueDofs();
    HypreParVector *pert = pert_vec.GetTrueDofs();
    HypreParVector *prod = jac_v.GetTrueDofs();
 #else
@@ -259,15 +260,16 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    GridFunType *pert = &pert_vec;
    GridFunType *prod = &jac_v;
 #endif
-   mfem::Operator &jac = this->GetGradient(*u_true);
-   jac.Mult(*pert, *prod);
+   mfem::Operator &jac = this->GetGradient(x);
+   jac.Mult(pert, prod);
 #ifdef MFEM_USE_MPI 
    jac_v.SetFromTrueDofs(*prod);
 #endif 
 
    // check the difference norm
    jac_v -= res_plus;
-   double error = AbstractSolver::calcInnerProduct(jac_v, jac_v);
+   //double error = AbstractSolver::calcInnerProduct(jac_v, jac_v);
+   double error = jac_v * jac_v;
    cout << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 

@@ -161,7 +161,7 @@ public:
    /// Set the parameters
    /// \param[in] dt_ - time step
    /// \param[in] x_ - current state variable
-   void SetParameters(const double dt_, const GridFunType x_)
+   void SetParameters(const double dt_, const Vector x_)
    { 
       x = x_;
       dt = dt_;
@@ -183,7 +183,7 @@ private:
    /// the time step
    double dt;
    /// Vector that hould the current state
-   GridFunType x;
+   mfem::Vector x;
    /// Solver for the implicit time marching
    std::unique_ptr<mfem::NewtonSolver> newton_solver;
    //std::unique_ptr<mfem::InexactNewton> newton_solver;
