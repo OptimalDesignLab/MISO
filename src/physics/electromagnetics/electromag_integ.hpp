@@ -225,6 +225,49 @@ private:
 
 };
 
+class VectorFEWeakDivergencedJdXIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   /// Construct a curl curl nonlinear form integrator for Nedelec elements
+   /// \param[in] nu - coefficient describing reluctivity
+   /// \param[in] state - the state to use when evaluating
+   ///                    \frac{\partial psi^T R}{\partial X}
+   /// \param[in] adjoint - the adjoint to use when evaluating
+   ///                      \frac{\partial psi^T R}{\partial X}
+   /// \note it is assumed that `state` is an a H(div) finite element space and
+   ///       that adjoint is in a H(curl) finite element space
+   VectorFEWeakDivergencedJdXIntegrator(mfem::Coefficient *_nu,
+                                        mfem::GridFunction *_state,
+                                        mfem::GridFunction *_adjoint)
+      : state(_state), adjoint(_adjoint) {};
+
+   /// \brief - assemble an element's contribution to
+   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
+   ///          derivative of a functional with respect to the mesh nodes
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   /// \note this is the `LinearFormIntegrator` component, the LinearForm that
+   ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
+   ///       nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+   
+private:
+   /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
+   mfem::GridFunction *state;
+   /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
+   mfem::GridFunction *adjoint;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape, dshape_dFt;
+   mfem::DenseMatrix vshape, vshape_dFt;
+   mfem::Vector v_vec, v_hat, d_psi, d_psi_hat;
+#endif
+
+};
+
 /// Integrator to compute the magnetic energy
 class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
 {
