@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
          new EulerSolver<2, entvar>(opt_file_name, nullptr));
       solver->initDerived();
       solver->setInitialCondition(u0_function);
-      solver->checkJacobian(pert);
+      solver->feedpert(pert);
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;      
       solver->solveForState();

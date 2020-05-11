@@ -209,4 +209,66 @@ void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &
    MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
 }
 
+void ImplicitNonlinearMassEvolver::checkJacobian(
+    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
+{
+   cout << "evolver check jac is called.\n";
+   // initialize some variables
+   const double delta = 1e-5;
+   GridFunType u_plus(*u);
+   GridFunType u_minus(*u);
+   GridFunType pert_vec(fes.get());
+   VectorFunctionCoefficient up(num_state, pert_fun);
+   pert_vec.ProjectCoefficient(up);
+
+   // perturb in the positive and negative pert_vec directions
+   u_plus.Add(delta, pert_vec);
+   u_minus.Add(-delta, pert_vec);
+
+   // Get the product using a 2nd-order finite-difference approximation
+   GridFunType res_plus(fes.get());
+   GridFunType res_minus(fes.get());
+#ifdef MFEM_USE_MPI 
+   HypreParVector *u_p = u_plus.GetTrueDofs();
+   HypreParVector *u_m = u_minus.GetTrueDofs();
+   HypreParVector *res_p = res_plus.GetTrueDofs();
+   HypreParVector *res_m = res_minus.GetTrueDofs();
+#else 
+   GridFunType *u_p = &u_plus;
+   GridFunType *u_m = &u_minus;
+   GridFunType *res_p = &res_plus;
+   GridFunType *res_m = &res_minus;
+#endif
+   this->Mult(*u_p, *res_p);
+   this->Mult(*u_m, *res_m);
+#ifdef MFEM_USE_MPI
+   res_plus.SetFromTrueDofs(*res_p);
+   res_minus.SetFromTrueDofs(*res_m);
+#endif
+   // res_plus = 1/(2*delta)*(res_plus - res_minus)
+   subtract(1/(2*delta), res_plus, res_minus, res_plus);
+
+   // Get the product directly using Jacobian from GetGradient
+   GridFunType jac_v(fes.get());
+#ifdef MFEM_USE_MPI
+   HypreParVector *u_true = u->GetTrueDofs();
+   HypreParVector *pert = pert_vec.GetTrueDofs();
+   HypreParVector *prod = jac_v.GetTrueDofs();
+#else
+   GridFunType *u_true = u.get();
+   GridFunType *pert = &pert_vec;
+   GridFunType *prod = &jac_v;
+#endif
+   mfem::Operator &jac = this->GetGradient(*u_true);
+   jac.Mult(*pert, *prod);
+#ifdef MFEM_USE_MPI 
+   jac_v.SetFromTrueDofs(*prod);
+#endif 
+
+   // check the difference norm
+   jac_v -= res_plus;
+   double error = calcInnerProduct(jac_v, jac_v);
+   cout << "The Jacobian product error norm is " << sqrt(error) << endl;
+}
+
 } // end of mach namespace
