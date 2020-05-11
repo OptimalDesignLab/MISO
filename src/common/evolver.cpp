@@ -137,6 +137,47 @@ void ImplicitNonlinearEvolver::ImplicitSolve(const double dt, const Vector &x,
    MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
 }
 
+void ImplicitNonlinearMassEvolver::checkJacobian(
+    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
+{
+   cout << "evolver check jac is called.\n";
+   // this is a specific version for gd_serial_mfem
+   // dont accept incoming changes
+   // initialize some variables
+   const double delta = 1e-5;
+   Vector u_plus(x);
+   Vector u_minus(x);
+   CentGridFunction pert_vec(mass.FESpace());
+   VectorFunctionCoefficient up(4, pert_fun);
+   pert_vec.ProjectCoefficient(up);
+
+   // perturb in the positive and negative pert_vec directions
+   u_plus.Add(delta, pert_vec);
+   u_minus.Add(-delta, pert_vec);
+
+   // Get the product using a 2nd-order finite-difference approximation
+   CentGridFunction res_plus(mass.FESpace());
+   CentGridFunction res_minus(mass.FESpace());
+   this->Mult(u_plus, res_plus);
+   this->Mult(u_minus, res_minus);
+   // res_plus = 1/(2*delta)*(res_plus - res_minus)
+   subtract(1/(2*delta), res_plus, res_minus, res_plus);
+   // Get the product directly using Jacobian from GetGradient
+   CentGridFunction jac_v(mass.FESpace());
+
+   CentGridFunction *pert = &pert_vec;
+   CentGridFunction *prod = &jac_v;
+
+   mfem::Operator &jac = this->GetGradient(x);
+   jac.Mult(*pert, *prod);
+
+   // check the difference norm
+   jac_v -= res_plus;
+   //double error = calcInnerProduct(jac_v, jac_v);
+   double error = jac_v * jac_v;
+   std::cout << "The Jacobian product error norm is " << sqrt(error) << endl;
+}
+
 ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm,
                                  NonlinearFormType &r, double a)
    : TimeDependentOperator(nm.Height()), mass(nm), res(r), alpha(a)
