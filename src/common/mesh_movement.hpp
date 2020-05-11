@@ -8,6 +8,7 @@
 #ifdef MFEM_USE_EGADS
 #include "egads.h"
 #include "mach_egads.hpp"
+#include "egads.h"
 #endif
 
 #include "solver.hpp"
@@ -28,9 +29,17 @@ protected:
         /// Fill as would be useful
         fes = NULL; 
     }
+    
+    /// passed in boundary displacement array
+    mfem::GridFunction *u_bnd;
 
 public:
     virtual void initDerived();
+
+    void setPert(mfem::GridFunction* pert)
+    {
+        u_bnd = pert;
+    }
 
     void setMesh(MeshType* mmesh)
     {
@@ -72,10 +81,6 @@ public:
 
     /// Implement InitDerived
     virtual void initDerived();
-
-protected:
-    /// passed in boundary displacement array
-    mfem::GridFunction *u_bnd;
 
 private:
     /// Moved mesh

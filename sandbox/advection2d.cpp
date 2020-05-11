@@ -23,6 +23,7 @@ void u0_function(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
 {
+#if 0
    ostream *out;
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
@@ -69,6 +70,7 @@ int main(int argc, char *argv[])
    }
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
+#endif
 #endif
 }
 

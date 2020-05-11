@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 
    int dim = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge_x, num_edge_y, num_edge_z,
-                              Element::HEXAHEDRON, true /* gen. edges */, 1.0,
+                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
    mesh->EnsureNodes();
    mesh->ReorientTetMesh();

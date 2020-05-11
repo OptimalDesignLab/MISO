@@ -27,8 +27,8 @@ LEAnalogySolver::LEAnalogySolver(
      GridFunction *u_bound,
     std::unique_ptr<mfem::Mesh> smesh,
 	 int dim)
-	: MeshMovementSolver(opt_file_name, move(smesh)), u_bnd(u_bound)
-{ }
+	: MeshMovementSolver(opt_file_name, move(smesh))
+{u_bnd = u_bound; }
 
 void LEAnalogySolver::initDerived()
 {
@@ -224,7 +224,6 @@ void LEAnalogySolver::solveSteadyAdjoint(const std::string &fun)
     // K.Print(k_inspect.c_str());
     // K_trans->Print(ktr_inspect.c_str());
     solver->SetOperator(*K_trans);
-    //dLdX->Neg();
     solver->Mult(*dLdX, *adj);
 }
 
