@@ -215,10 +215,10 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    cout << "evolver check jac is called.\n";
    // initialize some variables
    const double delta = 1e-5;
-   GridFunType u_plus(*u);
-   GridFunType u_minus(*u);
-   GridFunType pert_vec(fes.get());
-   VectorFunctionCoefficient up(num_state, pert_fun);
+   GridFunType u_plus(x);
+   GridFunType u_minus(x);
+   GridFunType pert_vec(mass.FESpace());
+   VectorFunctionCoefficient up(4, pert_fun);
    pert_vec.ProjectCoefficient(up);
 
    // perturb in the positive and negative pert_vec directions
@@ -226,8 +226,8 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    u_minus.Add(-delta, pert_vec);
 
    // Get the product using a 2nd-order finite-difference approximation
-   GridFunType res_plus(fes.get());
-   GridFunType res_minus(fes.get());
+   GridFunType res_plus(mass.FESpace());
+   GridFunType res_minus(mass.FESpace());
 #ifdef MFEM_USE_MPI 
    HypreParVector *u_p = u_plus.GetTrueDofs();
    HypreParVector *u_m = u_minus.GetTrueDofs();
@@ -249,7 +249,7 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
 
    // Get the product directly using Jacobian from GetGradient
-   GridFunType jac_v(fes.get());
+   GridFunType jac_v(mass.FESpace());
 #ifdef MFEM_USE_MPI
    HypreParVector *u_true = u->GetTrueDofs();
    HypreParVector *pert = pert_vec.GetTrueDofs();
