@@ -170,7 +170,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    // set paramters for the newton solver
    newton_solver->SetRelTol(1e-10);
    newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(-1);
+   newton_solver->SetPrintLevel(1);
    newton_solver->SetMaxIter(30);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
