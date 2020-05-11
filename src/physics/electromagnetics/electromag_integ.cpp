@@ -893,7 +893,9 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
       {
          for (int d = 0; d < dimc; ++d)
          {
-            elvect(d*ndof + j) += ip.weight * PointMat_bar(d,j);
+            /// NOTE: this is -= instead of += since the weight is negated in
+            /// the original integrator (line 1312 in bilininteg.cpp)
+            elvect(d*ndof + j) -= ip.weight * PointMat_bar(d,j);
          }
       }
    }  
