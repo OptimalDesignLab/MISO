@@ -7,6 +7,7 @@
 #include "solver.hpp"
 #include "electromag_integ.hpp"
 #include "mesh_movement.hpp"
+#include "res_integ.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -249,8 +250,83 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    /// Compute the derivatives and accumulate the result
    res_mesh_sens_l->Assemble();
 
+   /// compuite mesh sensitivitiy of divergence free projection
+   /// compute \psi_j
+   BilinearFormType h_curl_mass(fes.get());
+   h_curl_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
+   // assemble mass matrix
+   h_curl_mass.Assemble();
+   h_curl_mass.Finalize();
+   GridFunType psi_j(fes.get());
+   psi_j = 0.0;
+   h_curl_mass.MultTranspose(*adj, psi_j);
+
+   /// compute \psi_k
+   mfem::common::ParDiscreteGradOperator grad(h1_space.get(), fes.get());
+   grad.Assemble();
+   grad.Finalize();
+
+   GridFunType GTpsi_j(h1_space.get());
+   GTpsi_j = 0.0;
+
+   grad.MultTranspose(psi_j, GTpsi_j);
+
+   ParBilinearForm D(h1_space.get());
+   D.AddDomainIntegrator(new DiffusionIntegrator);
+   D.Assemble();
+   D.Finalize();
+
+   auto *Dmat = D.ParallelAssemble();
+
+   GridFunType psi_k(h1_space.get());
+   psi_k = 0.0;
+
+   HypreBoomerAMG amg(*Dmat);
+   amg.SetPrintLevel(0);
+   HypreGMRES gmres(*Dmat);
+   gmres.SetTol(1e-14);
+   gmres.SetMaxIter(200);
+   gmres.SetPrintLevel(0);
+   gmres.SetPreconditioner(amg);
+   gmres.Mult(GTpsi_j, psi_k);
+
+   /// compute k
+   ParMixedBilinearForm weakDiv(fes.get(), h1_space.get());
+   weakDiv.AddDomainIntegrator(new VectorFEWeakDivergenceIntegrator);
+   weakDiv.Assemble();
+   weakDiv.Finalize();
+
+   GridFunType Wj(h1_space.get());
+   Wj = 0.0;
+   GridFunType j(fes.get());
+   j.ProjectCoefficient(*current_coeff);
+
+   weakDiv.Mult(j, Wj);
+
+   GridFunType k(h1_space.get());
+   k = 0.0;
+   gmres.Mult(Wj, k);
+
+   LinearFormType div_free_proj_mesh_sens(mesh_fes);
+
+
+   /// add integrators R = Dk - Wj = 0
+   /// \psi_k^T Dk
+   ConstantCoefficient one(1.0);
+   div_free_proj_mesh_sens.AddDomainIntegrator(
+      new DiffusionResIntegrator(one, &k, &psi_k));
+   /// -\psi_k^T W j 
+   div_free_proj_mesh_sens.AddDomainIntegrator(
+      new VectorFEWeakDivergencedJdXIntegrator(&j, &psi_k, -1.0));
+
+   div_free_proj_mesh_sens.Assemble();
+
+   delete Dmat;
+
+
    /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
    dLdX->Add(-1, *res_mesh_sens_l);
+   dLdX->Add(-1, div_free_proj_mesh_sens);
 
    return dLdX.get();
 }
@@ -673,7 +749,7 @@ void MagnetostaticSolver::assembleCurrentSource()
    GridFunType j = GridFunType(fes.get());
    j.ProjectCoefficient(*current_coeff);
 
-   GridFunType j_div_free = GridFunType(fes.get());
+   // GridFunType j_div_free = GridFunType(fes.get());
    // Compute the discretely divergence-free portion of j
    // div_free_proj.Mult(j, j_div_free);
    *div_free_current_vec = 0.0;
@@ -724,15 +800,15 @@ void MagnetostaticSolver::computeSecondaryFields()
    curl.Mult(*u, *B);
    // std::cout << "secondary quantities computed\n";
 
-	VectorFunctionCoefficient B_exact(3, b_exact);
-	GridFunType B_ex(h_div_space.get());
-	B_ex.ProjectCoefficient(B_exact);
+	// VectorFunctionCoefficient B_exact(3, b_exact);
+	// GridFunType B_ex(h_div_space.get());
+	// B_ex.ProjectCoefficient(B_exact);
 
-   GridFunType b_err(B_ex);
-   b_err -= *B;
+   // GridFunType b_err(B_ex);
+   // b_err -= *B;
 
-   printFields("B_exact", {&B_ex}, {"B_exact"});
-   std::cout << "B field error " << b_err.Norml2() << "\n";
+   // printFields("B_exact", {&B_ex}, {"B_exact"});
+   // std::cout << "B field error " << b_err.Norml2() << "\n";
 }
 
 /// TODO: Find a better way to handle solving the simple box problem

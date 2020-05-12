@@ -244,8 +244,9 @@ public:
    /// \note it is assumed that `state` is an a H(curl) finite element space and
    ///       that adjoint is in a H1 finite element space
    VectorFEWeakDivergencedJdXIntegrator(mfem::GridFunction *_state,
-                                        mfem::GridFunction *_adjoint)
-      : state(_state), adjoint(_adjoint) {};
+                                        mfem::GridFunction *_adjoint,
+                                        double _alpha = 1.0)
+      : state(_state), adjoint(_adjoint), alpha(_alpha) {};
 
    /// \brief - assemble an element's contribution to
    ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
@@ -265,6 +266,8 @@ private:
    mfem::GridFunction *state;
    /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
    mfem::GridFunction *adjoint;
+   /// used to move terms to LHS or RHS
+   double alpha;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshape, dshape_dFt;
