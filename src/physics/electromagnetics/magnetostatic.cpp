@@ -69,6 +69,8 @@ MagnetostaticSolver::MagnetostaticSolver(
    B.reset(new GridFunType(h_div_space.get()));
 }
 
+MagnetostaticSolver::~MagnetostaticSolver() = default;
+
 void MagnetostaticSolver::printSolution(const std::string &file_name,
                                        int refine)
 {

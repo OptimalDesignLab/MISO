@@ -24,6 +24,8 @@ public:
    MagnetostaticSolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
+   ~MagnetostaticSolver();
+
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] refine - if >=0, indicates the number of refinements to make
