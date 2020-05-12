@@ -240,10 +240,11 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
       new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
    /// \psi^T C m 
    res_mesh_sens_l->AddDomainIntegrator(
-      new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get()));
+      new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(), -1.0));
    /// \psi^T M j
    res_mesh_sens_l->AddDomainIntegrator(
-      new VectorFEMassdJdXIntegerator(div_free_current_vec.get(), adj.get()));
+      new VectorFEMassdJdXIntegerator(div_free_current_vec.get(),
+                                      adj.get(), -1.0));
 
    /// Compute the derivatives and accumulate the result
    res_mesh_sens_l->Assemble();
@@ -730,7 +731,8 @@ void MagnetostaticSolver::computeSecondaryFields()
    GridFunType b_err(B_ex);
    b_err -= *B;
 
-   // std::cout << "B field error " << b_err.Norml2() << "\n";
+   printFields("B_exact", {&B_ex}, {"B_exact"});
+   std::cout << "B field error " << b_err.Norml2() << "\n";
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -971,11 +973,12 @@ void MagnetostaticSolver::box1_current_source(const Vector &x,
    // {
       // J(2) = -6*y*(1/(M_PI*4e-7)); // for real scaled problem
       J(2) = -6*y;
+      // J(2) = -2;
    // }
    // if ( x(1) > .5)
    // {
    //    // J(2) = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   //    J(2) = 6*y;
+      // J(2) = 6*y;
    // }
 }
 
@@ -994,6 +997,7 @@ void MagnetostaticSolver::box2_current_source(const Vector &x,
    // {
       // J(2) = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
       J(2) = 6*y;
+      // J(2) = 2;
    // }
 }
 
@@ -1005,10 +1009,12 @@ void MagnetostaticSolver::a_exact(const Vector &x, Vector &A)
    if ( x(1) <= .5)
    {
       A(2) = y*y*y; 
+      // A(2) = y*y; 
    }
    else 
    {
       A(2) = -y*y*y;
+      // A(2) = -y*y;
    }
 }
 
@@ -1020,10 +1026,12 @@ void MagnetostaticSolver::b_exact(const Vector &x, Vector &B)
    if ( x(1) <= .5)
    {
       B(0) = 3*y*y; 
+      // B(0) = 2*y; 
    }
    else 
    {
       B(0) = -3*y*y;
+      // B(0) = -2*y;
    }	
 }
 

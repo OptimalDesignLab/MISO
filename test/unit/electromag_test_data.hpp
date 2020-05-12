@@ -100,6 +100,7 @@ public:
 nlohmann::json getBoxOptions(int order)
 {
    nlohmann::json box_options = {
+      {"silent", true},
       {"space-dis", {
          {"basis-type", "nedelec"},
          {"degree", order}

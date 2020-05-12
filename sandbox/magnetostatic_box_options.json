@@ -1,5 +1,6 @@
 {
    "mesh": {
+      "refine": 0,
       "out-file": "box_mesh"
    },
    "space-dis": {

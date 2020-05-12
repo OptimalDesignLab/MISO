@@ -59,17 +59,22 @@ public:
 using oblackholestream = basic_oblackholestream<char,std::char_traits<char> >;
 static oblackholestream obj;
 
-std::ostream *getOutStream(int rank)
+std::ostream *getOutStream(int rank, bool silent)
 {
-   /// print only on root
-   if (0 == rank)
+   if (!silent)
    {
-      return &std::cout;
+      /// print only on root
+      if (0 == rank)
+      {
+         return &std::cout;
+      }
+      else
+      {
+         return &obj;
+      }
    }
    else
-   {
       return &obj;
-   }
 }
 
 /// performs quadratic interpolation given x0, y0, dy0/dx0, x1, and y1.

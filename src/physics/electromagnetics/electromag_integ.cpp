@@ -680,7 +680,7 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
       {
          for (int d = 0; d < dimc; ++d)
          {
-            elvect(d*ndof + j) += ip.weight * PointMat_bar(d,j);
+            elvect(d*ndof + j) += alpha * ip.weight * PointMat_bar(d,j);
          }
       }
    }  
@@ -781,7 +781,7 @@ void VectorFEMassdJdXIntegerator::AssembleRHSElementVect(
       {
          for (int d = 0; d < dimc; ++d)
          {
-            elvect(d*ndof + j) += ip.weight * PointMat_bar(d,j);
+            elvect(d*ndof + j) += alpha * ip.weight * PointMat_bar(d,j);
          }
       }
    }  

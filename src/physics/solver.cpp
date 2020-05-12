@@ -112,9 +112,11 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
 #else
    rank = 0; // serial case
 #endif
-   out = getOutStream(rank);
    options = default_options;
    options.merge_patch(file_options);
+   
+   bool silent = options.value("silent", false);
+   out = getOutStream(rank, silent);
    *out << setw(3) << options << endl;
 }
 
@@ -129,9 +131,11 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
 #else
    rank = 0; // serial case
 #endif
-   out = getOutStream(rank);
    options = default_options;
    options.merge_patch(file_options);
+
+   bool silent = options.value("silent", false);
+   out = getOutStream(rank, silent);
    *out << setw(3) << options << endl;
 
 	materials = material_library;
