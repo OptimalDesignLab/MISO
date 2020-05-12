@@ -173,6 +173,7 @@ protected:
    std::unique_ptr<NonlinearFormType> nonlinear_mass;
    /// mass matrix
    std::unique_ptr<MatrixType> mass_matrix;
+   std::unique_ptr<MatrixType> mass_matrix_gd;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)

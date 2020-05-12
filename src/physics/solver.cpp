@@ -104,8 +104,8 @@ void AbstractSolver::initDerived()
       mesh->ElementToElementTable();
       fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
                                        Ordering::byVDIM, gd_degree));
-      // fes_normal.reset(new SpaceType(mesh.get(), fec.get(), num_state,
-      //                         Ordering::byVDIM));
+      fes_normal.reset(new SpaceType(mesh.get(), fec.get(), num_state,
+                              Ordering::byVDIM));
       uc.reset(new CentGridFunction(fes.get()));
       u.reset(new GridFunType(fes.get()));
    }
@@ -124,7 +124,7 @@ void AbstractSolver::initDerived()
 #endif
 
    // set up the mass matrix
-   mass.reset(new BilinearFormType(fes.get()));
+   mass.reset(new BilinearFormType(fes_normal.get()));
    mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
    mass->Assemble();
    mass->Finalize();
@@ -167,6 +167,8 @@ void AbstractSolver::initDerived()
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
+   mass_matrix_gd.reset(new RAP(fes->GetProlongationMatrix(), mass_matrix.get(),
+                        fes->GetProlongationMatrix()));
 #endif
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    if (odes == "RK1" || odes == "RK4")
@@ -176,7 +178,8 @@ void AbstractSolver::initDerived()
    else
    {
       //evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
-      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix_gd, *res, -1.0));
    }
 
    // add the output functional QoIs
