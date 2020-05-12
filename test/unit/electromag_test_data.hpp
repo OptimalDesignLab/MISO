@@ -3,7 +3,9 @@
 
 #include <limits>
 #include <random>
+
 #include "mfem.hpp"
+#include "json.hpp"
 
 #include "coefficient.hpp"
 
@@ -94,6 +96,107 @@ public:
       return -0.25*pow(state+1, -1.5);
    }
 };
+
+nlohmann::json getBoxOptions(int order)
+{
+   nlohmann::json box_options = {
+      {"space-dis", {
+         {"basis-type", "nedelec"},
+         {"degree", order}
+      }},
+      {"steady", true},
+      {"lin-solver", {
+         {"type", "hypregmres"},
+         {"pctype", "hypreams"},
+         {"printlevel", -1},
+         {"maxiter", 100},
+         {"abstol", 1e-10},
+         {"reltol", 1e-14}
+      }},
+      {"adj-solver", {
+         {"type", "hypregmres"},
+         {"pctype", "hypreams"},
+         {"printlevel", -1},
+         {"maxiter", 100},
+         {"abstol", 1e-10},
+         {"reltol", 1e-14}
+      }},
+      {"newton", {
+         {"printlevel", -1},
+         {"reltol", 1e-10},
+         {"abstol", 0.0}
+      }},
+      {"components", {
+         {"attr1", {
+            {"material", "box1"},
+            {"attr", 1},
+            {"linear", true}
+         }},
+         {"attr2", {
+            {"material", "box2"},
+            {"attr", 2},
+            {"linear", true}
+         }}
+      }},
+      {"problem-opts", {
+         {"fill-factor", 1.0},
+         {"current-density", 1.0},
+         {"current", {
+            {"box1", {1}},
+            {"box2", {2}}
+         }},
+         {"box", true}
+      }},
+      {"outputs", {
+         {"co-energy", {}}
+      }}
+   };
+   return box_options;
+}
+
+std::unique_ptr<mfem::Mesh> getMesh(int nxy = 2, int nz = 2)
+{
+   using namespace mfem;
+   // generate a simple tet mesh
+   std::unique_ptr<Mesh> mesh(new Mesh(nxy, nxy, nz,
+                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
+                              1.0, (double)nz / (double)nxy, true));
+
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
+   // assign attributes to top and bottom sides
+   for (int i = 0; i < mesh->GetNE(); ++i)
+   {
+      Element *elem = mesh->GetElement(i);
+
+      Array<int> verts;
+      elem->GetVertices(verts);
+
+      bool below = true;
+      for (int i = 0; i < 4; ++i)
+      {
+         auto vtx = mesh->GetVertex(verts[i]);
+         if (vtx[1] <= 0.5)
+         {
+            below = below & true;
+         }
+         else
+         {
+            below = below & false;
+         }
+      }
+      if (below)
+      {
+         elem->SetAttribute(1);
+      }
+      else
+      {
+         elem->SetAttribute(2);
+      }
+   }
+   return mesh;
+}
 
 } // namespace electromag_data
 

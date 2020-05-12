@@ -1068,6 +1068,7 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 
    // Step 0: allocate the adjoint variable
    adj.reset(new GridFunType(fes.get()));
+   *adj = 0.0;
 
    // Step 1: get the right-hand side vector, dJdu, and make an appropriate
    // alias to it, the state, and the adjoint

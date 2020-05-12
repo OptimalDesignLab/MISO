@@ -31,7 +31,7 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
    {
       auto mu_r = materials[material]["mu_r"].get<double>();
       temp_coeff.reset(new mfem::ConstantCoefficient(1.0/(mu_r*mu_0)));
-      std::cout << "new coeff with mu_r: " << mu_r << "\n";
+      // std::cout << "new coeff with mu_r: " << mu_r << "\n";
    }
    return temp_coeff;
 }
@@ -81,6 +81,36 @@ MagnetostaticSolver::MagnetostaticSolver(
    const std::string &opt_file_name,
    std::unique_ptr<mfem::Mesh> smesh)
    : AbstractSolver(opt_file_name, move(smesh))
+{
+   dim = getMesh()->Dimension();
+   int order = options["space-dis"]["degree"].get<int>();
+   // num_state = dim;
+
+   mesh->ReorientTetMesh();
+   mesh->RemoveInternalBoundaries();
+
+   /// Create the H(Div) finite element collection
+   h_div_coll.reset(new RT_FECollection(order, dim));
+   /// Create the H1 finite element collection
+   h1_coll.reset(new H1_FECollection(order, dim));
+   /// Create the L2 finite element collection
+   l2_coll.reset(new L2_FECollection(order, dim));
+
+   /// Create the H(Div) finite element space
+   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
+   /// Create the H1 finite element space
+   h1_space.reset(new SpaceType(mesh.get(), h1_coll.get()));
+   /// Create the L2 finite element space
+   l2_space.reset(new SpaceType(mesh.get(), l2_coll.get()));
+
+   /// Create magnetic flux grid function
+   B.reset(new GridFunType(h_div_space.get()));
+}
+
+MagnetostaticSolver::MagnetostaticSolver(
+   const nlohmann::json &_options,
+   std::unique_ptr<mfem::Mesh> smesh)
+   : AbstractSolver(_options, move(smesh))
 {
    dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();
@@ -181,20 +211,17 @@ std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
    return {u.get(), B.get()};
 }
 
-Vector* MagnetostaticSolver::getMeshSensitivities()
+GridFunction* MagnetostaticSolver::getMeshSensitivities()
 {	
    /// assign mesh node space to forms
    mesh->EnsureNodes();
-   GridFunction *x_nodes_s = mesh->GetNodes();
-   FiniteElementSpace *mesh_fes_s = x_nodes_s->FESpace();
-   SpaceType mesh_fes(*mesh_fes_s, *mesh);
-   GridFunType x_nodes(&mesh_fes, x_nodes_s);
+   SpaceType *mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
 
-   dLdX.reset(new GridFunType(x_nodes));
+   dLdX.reset(new GridFunType(mesh_fes));
    *dLdX = 0.0;
 
    /// Add mesh sensitivities of functional 
-   LinearFormType dJdX(&mesh_fes);
+   LinearFormType dJdX(mesh_fes);
    dJdX.AddDomainIntegrator(
       new MagneticCoenergyIntegrator(*u, nu.get()));
    dJdX.Assemble();
@@ -202,7 +229,7 @@ Vector* MagnetostaticSolver::getMeshSensitivities()
    /// TODO I don't know if this works in parallel / when we need to use tdof vectors
    *dLdX += dJdX;
 
-   res_mesh_sens_l.reset(new LinearFormType(&mesh_fes));
+   res_mesh_sens_l.reset(new LinearFormType(mesh_fes));
 
    /// compute \psi_A
    solveForAdjoint("co-energy");
@@ -593,13 +620,23 @@ void MagnetostaticSolver::constructCurrent()
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
-      if (current.contains("box"))
+      if (current.contains("box1"))
       {
-         auto attrs = current["box"].get<std::vector<int>>();
+         auto attrs = current["box1"].get<std::vector<int>>();
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                     new VectorFunctionCoefficient(dim, box_current_source));
+                     new VectorFunctionCoefficient(dim, box1_current_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
+      if (current.contains("box2"))
+      {
+         auto attrs = current["box2"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                     new VectorFunctionCoefficient(dim, box2_current_source));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -654,7 +691,7 @@ void MagnetostaticSolver::assembleCurrentSource()
 
    *current_vec = 0.0;
    h_curl_mass->AddMult(*div_free_current_vec, *current_vec);
-   std::cout << "below h_curl add mult\n";
+   // std::cout << "below h_curl add mult\n";
    // I had strange errors when not using pointer versions of these
    delete h_curl_mass;
    delete grad;
@@ -678,13 +715,13 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
 
 void MagnetostaticSolver::computeSecondaryFields()
 {
-   std::cout << "before curl constructed\n";
+   // std::cout << "before curl constructed\n";
    DiscreteCurlOperator curl(fes.get(), h_div_space.get());
-   std::cout << "curl constructed\n";
+   // std::cout << "curl constructed\n";
    curl.Assemble();
    curl.Finalize();
    curl.Mult(*u, *B);
-   std::cout << "secondary quantities computed\n";
+   // std::cout << "secondary quantities computed\n";
 
 	VectorFunctionCoefficient B_exact(3, b_exact);
 	GridFunType B_ex(h_div_space.get());
@@ -693,7 +730,7 @@ void MagnetostaticSolver::computeSecondaryFields()
    GridFunType b_err(B_ex);
    b_err -= *B;
 
-   std::cout << "B field error " << b_err.Norml2() << "\n";
+   // std::cout << "B field error " << b_err.Norml2() << "\n";
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -924,22 +961,40 @@ void MagnetostaticSolver::z_axis_magnetization_source(const Vector &x,
    M(2) = remnant_flux;
 }
 
-void MagnetostaticSolver::box_current_source(const Vector &x,
+void MagnetostaticSolver::box1_current_source(const Vector &x,
                                              Vector &J)
 {
    J.SetSize(3);
    J = 0.0;
 	double y = x(1) - .5;
-   if ( x(1) <= .5)
-   {
+   // if ( x(1) <= .5)
+   // {
       // J(2) = -6*y*(1/(M_PI*4e-7)); // for real scaled problem
       J(2) = -6*y;
-   }
-   if ( x(1) > .5)
-   {
+   // }
+   // if ( x(1) > .5)
+   // {
+   //    // J(2) = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   //    J(2) = 6*y;
+   // }
+}
+
+void MagnetostaticSolver::box2_current_source(const Vector &x,
+                                             Vector &J)
+{
+   J.SetSize(3);
+   J = 0.0;
+	double y = x(1) - .5;
+   // if ( x(1) <= .5)
+   // {
+   //    // J(2) = -6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   //    J(2) = -6*y;
+   // }
+   // if ( x(1) > .5)
+   // {
       // J(2) = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
       J(2) = 6*y;
-   }
+   // }
 }
 
 void MagnetostaticSolver::a_exact(const Vector &x, Vector &A)

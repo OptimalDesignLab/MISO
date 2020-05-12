@@ -44,12 +44,13 @@
       "fill-factor": 1.0,
       "current-density": 1.0,
       "current": {
-         "box": [1, 2]
+         "box1": [1],
+         "box2": [2]
       },
       "box": true
    },
    "outputs": {
       "co-energy": {}
    },
-   "verify-full": true
+   "verify-full": false
 }

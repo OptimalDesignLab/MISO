@@ -16,13 +16,17 @@ class MeshMovementSolver;
 class MagnetostaticSolver : public AbstractSolver
 {
 public:
-	/// Class constructor.
+   /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
-   /// \todo Can we infer dim some other way without using a template param?
    MagnetostaticSolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr);
+
+   /// Class constructor.
+   /// \param[in] options - pre-loaded JSON options object
+   /// \param[in] smesh - if provided, defines the mesh for the problem
+   MagnetostaticSolver(const nlohmann::json &options,
+                       std::unique_ptr<mfem::Mesh> smesh);
 
    ~MagnetostaticSolver();
 
@@ -37,10 +41,11 @@ public:
    /// returns {A, B}
    std::vector<GridFunType*> getFields() override;
 
-   /// Compute the sensitivity of the aggregate temperature output to the mesh 
-   /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
-   /// the adjoint first.
-   mfem::Vector* getMeshSensitivities() override;
+   /// TODO: have this accept a string input chosing the functional
+   /// Compute the sensitivity of the functional to the mesh volume
+   /// nodes, using appropriate mesh sensitivity integrators. This function will
+   /// compute the adjoint.
+   mfem::GridFunction* getMeshSensitivities() override;
 
    /// perturb the whole mesh and finite difference
    void verifyMeshSensitivities();
@@ -216,8 +221,14 @@ private:
    /// function defining current density for simple box problem
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
-   static void box_current_source(const mfem::Vector &x,
-                                  mfem::Vector &J);
+   static void box1_current_source(const mfem::Vector &x,
+                                   mfem::Vector &J);
+
+   /// function defining current density for simple box problem
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void box2_current_source(const mfem::Vector &x,
+                                   mfem::Vector &J);
 
    /// function defining magnetization aligned with the x axis
    /// \param[in] x - position x in space of evaluation
