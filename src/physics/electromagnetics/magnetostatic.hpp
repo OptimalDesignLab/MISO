@@ -42,6 +42,9 @@ public:
    /// the adjoint first.
    mfem::Vector* getMeshSensitivities() override;
 
+   /// perturb the whole mesh and finite difference
+   void verifyMeshSensitivities();
+
 private:
    // /// Nedelec finite element collection
    // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;

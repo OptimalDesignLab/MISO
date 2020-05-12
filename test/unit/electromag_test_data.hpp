@@ -24,75 +24,75 @@ void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
 
 double randState(const mfem::Vector &x)
 {
-    return 2.0 * uniform_rand(gen) - 1.0;
+   return 2.0 * uniform_rand(gen) - 1.0;
 }
 
 void randState(const mfem::Vector &x, mfem::Vector &u)
 {
-	// std::cout << "u size: " << u.Size() << std::endl;
+   // std::cout << "u size: " << u.Size() << std::endl;
    for (int i = 0; i < u.Size(); ++i)
    {
-		// std::cout << i << std::endl;
+      // std::cout << i << std::endl;
       u(i) = uniform_rand(gen);
    }
 }
 
 void mag_func(const mfem::Vector &x, mfem::Vector &y)
 {
-	y = 1.0;
+   y = 1.0;
 }
 
 /// Simple linear coefficient for testing CurlCurlNLFIntegrator
 class LinearCoefficient : public mach::StateCoefficient
 {
 public:
-	LinearCoefficient(double val = 1.0) : value(val) {}
+   LinearCoefficient(double val = 1.0) : value(val) {}
 
-	double Eval(mfem::ElementTransformation &trans,
-					const mfem::IntegrationPoint &ip,
-					const double state) override
-	{
-		return value;
-	}
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      return value;
+   }
 
-	double EvalStateDeriv(mfem::ElementTransformation &trans,
-								 const mfem::IntegrationPoint &ip,
-								 const double state) override
-	{
-		return 0.0;
-	}
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                        const mfem::IntegrationPoint &ip,
+                        const double state) override
+   {
+      return 0.0;
+   }
 
 private:
-	double value;
+   double value;
 };
 
 /// Simple nonlinear coefficient for testing CurlCurlNLFIntegrator
 class NonLinearCoefficient : public mach::StateCoefficient
 {
 public:
-	NonLinearCoefficient() {};
+   NonLinearCoefficient() {};
 
-	double Eval(mfem::ElementTransformation &trans,
-					const mfem::IntegrationPoint &ip,
-					const double state) override
-	{
-		// mfem::Vector state;
-		// stateGF->GetVectorValue(trans.ElementNo, ip, state);
-		// double state_mag = state.Norml2();
-		// return pow(state, 3.0);
-		return 0.5*pow(state+1, -0.5);
-	}
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      // mfem::Vector state;
+      // stateGF->GetVectorValue(trans.ElementNo, ip, state);
+      // double state_mag = state.Norml2();
+      // return pow(state, 3.0);
+      return 0.5*pow(state+1, -0.5);
+   }
 
-	double EvalStateDeriv(mfem::ElementTransformation &trans,
-								 const mfem::IntegrationPoint &ip,
-								 const double state) override
-	{
-		// mfem::Vector state;
-		// stateGF->GetVectorValue(trans.ElementNo, ip, state);
-		// double state_mag = state.Norml2();
-		// return 3.0*pow(state, 2.0);
-		return -0.25*pow(state+1, -1.5);
-	}
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                        const mfem::IntegrationPoint &ip,
+                        const double state) override
+   {
+      // mfem::Vector state;
+      // stateGF->GetVectorValue(trans.ElementNo, ip, state);
+      // double state_mag = state.Norml2();
+      // return 3.0*pow(state, 2.0);
+      return -0.25*pow(state+1, -1.5);
+   }
 };
 
 } // namespace electromag_data
