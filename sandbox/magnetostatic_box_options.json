@@ -10,7 +10,7 @@
    "lin-solver": {
       "type": "hypregmres",
       "pctype": "hypreams",
-      "printlevel": 2,
+      "printlevel": 0,
       "maxiter": 100,
       "abstol": 1e-10,
       "reltol": 1e-14

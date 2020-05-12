@@ -213,6 +213,9 @@ public:
    apf::Mesh2* getPumiMesh() {return pumi_mesh.get();};
 #endif
 
+   /// Tell the underling forms that the mesh has changed;
+   virtual void Update() {fes->Update();};
+
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication

@@ -14,11 +14,13 @@ nlohmann::json material_library
 {
 	{"box1",
 	{
-		{"mu_r", 1.0}
+		// {"mu_r", 1.0} // for real scaled problem
+		{"mu_r", 1/(4 * M_PI * 1e-7)} // for unit scaled problem
 	}},
 	{"box2",
 	{
-		{"mu_r", 1.0}
+		// {"mu_r", 1.0} // for real scaled problem
+		{"mu_r", 1/(4 * M_PI * 1e-7)} // for unit scaled problem
 	}},
 	{"testmat",
 	{

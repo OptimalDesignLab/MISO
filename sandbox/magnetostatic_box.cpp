@@ -77,25 +77,6 @@ int main(int argc, char *argv[])
       }
    }
 
-
-   // std::unique_ptr<mfem::Mesh> mesh(new Mesh("periodic_cube.mesh", 1, 1));
-   // std::cout << "loaded mesh\n";
-   // mesh->RemoveUnusedVertices();
-   // std::cout << "removed unused\n";
-   // mesh->RemoveInternalBoundaries();
-   // std::cout << "removed internal boundaries\n";
-
-   // ofstream mesh_ofs("periodic_cube_2.mesh");
-   // mesh_ofs.precision(8);
-   // mesh->Print(mesh_ofs);
-   // mesh_ofs.close();
-
-   // ofstream vtk_ofs("periodic_cube_2.vtk");
-   // vtk_ofs.precision(8);
-   // mesh->PrintVTK(vtk_ofs);
-   // vtk_ofs.close();
-
-
    try
    {
       string opt_file_name(options_file);

@@ -141,7 +141,7 @@ void MagnetostaticSolver::solveSteady()
    Vector Zero(3);
    Zero = 0.0;
    bool box_prob = options["problem-opts"].value("box", false);
-   
+
    if (!box_prob)
       bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
    else
@@ -257,25 +257,21 @@ void MagnetostaticSolver::verifyMeshSensitivities()
          GridFunction x_pert(*x_nodes);
          x_pert(k) += delta; mesh->SetNodes(x_pert);
          std::cout << "Solving Forward Step..." << std::endl;
-         initDerived();
-         constructLinearSolver(options["lin-solver"]);
-         constructNewtonSolver();
+         Update();
          solveForState();
          std::cout << "Solver Done" << std::endl;
          dJdX_fd(k) = calcOutput("co-energy")/delta + dJdX_fd_v;
          x_pert(k) -= delta; mesh->SetNodes(x_pert);
 
       }
-      //central difference
+      // central difference
       for(int k = 0; k < x_nodes->Size(); k++)
       {
          //forward
          GridFunction x_pert(*x_nodes);
          x_pert(k) += delta_cd; mesh->SetNodes(x_pert);
          std::cout << "Solving Forward Step..." << std::endl;
-         initDerived();
-         constructLinearSolver(options["lin-solver"]);
-         constructNewtonSolver();
+         Update();
          solveForState();
          std::cout << "Solver Done" << std::endl;
          dJdX_cd(k) = calcOutput("co-energy")/(2*delta_cd);
@@ -283,9 +279,7 @@ void MagnetostaticSolver::verifyMeshSensitivities()
          //backward
          x_pert(k) -= 2*delta_cd; mesh->SetNodes(x_pert);
          std::cout << "Solving Backward Step..." << std::endl;
-         initDerived();
-         constructLinearSolver(options["lin-solver"]);
-         constructNewtonSolver();
+         Update();
          solveForState();
          std::cout << "Solver Done" << std::endl;
          dJdX_cd(k) -= calcOutput("co-energy")/(2*delta_cd);
@@ -325,9 +319,7 @@ void MagnetostaticSolver::verifyMeshSensitivities()
       x_pert.Add(delta, v);
       mesh->SetNodes(x_pert);
       std::cout << "Solving Forward Step..." << std::endl;
-      initDerived();
-      constructLinearSolver(options["lin-solver"]);
-      constructNewtonSolver();
+      Update();
       solveForState();
       std::cout << "Solver Done" << std::endl;
       dJdX_fd_v += calcOutput("co-energy")/delta;
@@ -336,9 +328,7 @@ void MagnetostaticSolver::verifyMeshSensitivities()
       std::cout << "Solving CD Backward Step..." << std::endl;
       x_pert = *x_nodes; x_pert.Add(-delta_cd, v);
       mesh->SetNodes(x_pert);
-      initDerived();
-      constructLinearSolver(options["lin-solver"]);
-      constructNewtonSolver();
+      Update();
       solveForState();
       std::cout << "Solver Done" << std::endl;
       dJdX_cd_v = -calcOutput("co-energy")/(2*delta_cd);
@@ -346,9 +336,7 @@ void MagnetostaticSolver::verifyMeshSensitivities()
       std::cout << "Solving CD Forward Step..." << std::endl;
       x_pert.Add(2*delta_cd, v);
       mesh->SetNodes(x_pert);
-      initDerived();
-      constructLinearSolver(options["lin-solver"]);
-      constructNewtonSolver();
+      Update();
       solveForState();
       std::cout << "Solver Done" << std::endl;
       dJdX_cd_v += calcOutput("co-energy")/(2*delta_cd);
@@ -362,6 +350,27 @@ void MagnetostaticSolver::verifyMeshSensitivities()
    std::cout << "FD Absolute:                " << dJdX_v - dJdX_fd_v << std::endl;
    std::cout << "CD Relative:                " << (dJdX_v-dJdX_cd_v)/dJdX_v << std::endl;
    std::cout << "CD Absolute:                " << dJdX_v - dJdX_cd_v << std::endl;
+}
+
+void MagnetostaticSolver::Update()
+{
+   fes->Update();
+   h_div_space->Update();
+   h1_space->Update();
+
+   u->Update();
+   adj->Update();
+   B->Update();
+   M->Update();
+   current_vec->Update();
+   div_free_current_vec->Update();
+
+   res->Update();
+   assembleCurrentSource();
+   assembleMagnetizationSource();
+
+   constructLinearSolver(options["lin-solver"]);
+   constructNewtonSolver();
 }
 
 void MagnetostaticSolver::constructCoefficients()
@@ -923,11 +932,13 @@ void MagnetostaticSolver::box_current_source(const Vector &x,
 	double y = x(1) - .5;
    if ( x(1) <= .5)
    {
-      J(2) = -6*y*(1/(M_PI*4e-7));
+      // J(2) = -6*y*(1/(M_PI*4e-7)); // for real scaled problem
+      J(2) = -6*y;
    }
    if ( x(1) > .5)
    {
-      J(2) = 6*y*(1/(M_PI*4e-7));
+      // J(2) = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
+      J(2) = 6*y;
    }
 }
 

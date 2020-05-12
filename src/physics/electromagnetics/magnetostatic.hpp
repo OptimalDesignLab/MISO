@@ -45,6 +45,8 @@ public:
    /// perturb the whole mesh and finite difference
    void verifyMeshSensitivities();
 
+   void Update() override;
+
 private:
    // /// Nedelec finite element collection
    // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
