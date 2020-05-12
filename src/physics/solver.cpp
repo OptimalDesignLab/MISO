@@ -167,8 +167,9 @@ void AbstractSolver::initDerived()
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
-   mass_matrix_gd.reset(new RAP(fes->GetProlongationMatrix(), mass_matrix.get(),
-                        fes->GetProlongationMatrix()));
+   MatrixType *cp = dynamic_cast<GalerkinDifference*>(fes.get())->GetCP();
+   MatrixType *p = RAP(*cp, *mass_matrix, *cp);
+   mass_matrix_gd.reset(new MatrixType(*p));
 #endif
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    if (odes == "RK1" || odes == "RK4")
@@ -765,8 +766,8 @@ void AbstractSolver::solveUnsteady()
       }
       double dt_real = min(dt, t_final - t);
       updateNonlinearMass(ti, dt_real, 1.0);
-      dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->SetParameters(dt_real, *uc);
-      dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->checkJacobian(pert);
+      //dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->SetParameters(dt_real, *uc);
+      //dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->checkJacobian(pert);
       // if (ti % 10 == 0)
       // {
       //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real

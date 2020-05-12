@@ -99,7 +99,7 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
    // set paramters for the newton solver
    newton_solver->SetRelTol(1e-10);
    newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(1);
+   newton_solver->SetPrintLevel(0);
    newton_solver->SetMaxIter(30);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
@@ -113,8 +113,8 @@ void ImplicitNonlinearEvolver::Mult(const Vector &k, Vector &y) const
    Vector vec2(x.Size());
    vec1.Add(dt, k);  // vec1 = x + dt * k
    res.Mult(vec1, y); // y = f(vec1)
-   mass.Mult(k, vec2);  // vec2 = M * k
-   y += vec2;  // y = f(x + dt * k) - M * k
+   //mass.Mult(k, vec2);  // vec2 = M * k
+   //y += vec2;  // y = f(x + dt * k) - M * k
 }
 
 Operator &ImplicitNonlinearEvolver::GetGradient(const mfem::Vector &k) const
@@ -123,8 +123,9 @@ Operator &ImplicitNonlinearEvolver::GetGradient(const mfem::Vector &k) const
    Vector vec1(x);
    vec1.Add(dt, k);
    jac = dynamic_cast<MatrixType*>(&res.GetGradient(vec1)); 
-   jac->Add( dt-1.0, *jac );
-   jac->Add(1.0, mass);
+   //jac->Add( dt-1.0, *jac );
+   *jac *= dt;
+   //jac->Add(1.0, mass);
    return *jac;
 }
 

@@ -50,9 +50,9 @@ public:
    /// \param[in]  id - the id of the element for which we need barycenter
    /// \param[out] cent - the vector of coordinates of center of an element
    void GetElementCenter(int id, mfem::Vector &cent) const;
+   
 
    SparseMatrix *GetCP() { return cP; }
-
    /// Get the prolongation matrix in GD method
    virtual const Operator *GetProlongationMatrix() const
    { 
