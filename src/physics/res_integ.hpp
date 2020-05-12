@@ -95,7 +95,8 @@ public:
 /// Class that evaluates the residual part and derivatives
 /// for a DiffusionIntegrator (bilininteg)
 /// NOTE: MatrixCoefficient not implemented
-class DiffusionResIntegrator : public mfem::NonlinearFormIntegrator
+class DiffusionResIntegrator : public mfem::NonlinearFormIntegrator,
+                               public mfem::LinearFormIntegrator
 {
 protected:
     Vector shape; DenseMatrix dshape;
@@ -114,9 +115,16 @@ public:
     //                                    const Vector &elfun);
 
     /// Computes dR/dX, X being mesh node locations
-    virtual void AssembleElementVector(const FiniteElement &elx,
-                                         ElementTransformation &Trx,
-                                         const Vector &elfunx, Vector &elvect);
+    void AssembleElementVector(const FiniteElement &elx,
+                               ElementTransformation &Trx,
+                               const Vector &elfunx,
+                               Vector &elvect) override;
+
+
+    /// Computes dR/dX, X being mesh node locations
+    void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                                mfem::ElementTransformation &trans,
+                                mfem::Vector &elvect) override;
 
 };
 
