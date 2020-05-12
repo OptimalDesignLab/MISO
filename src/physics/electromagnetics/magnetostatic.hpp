@@ -211,6 +211,12 @@ private:
    static void ring_current_source(const mfem::Vector &x,
                                    mfem::Vector &J);
 
+   /// function defining current density for simple box problem
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void box_current_source(const mfem::Vector &x,
+                                  mfem::Vector &J);
+
    /// function defining magnetization aligned with the x axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x

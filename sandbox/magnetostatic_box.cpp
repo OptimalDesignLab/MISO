@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "mag_box_options.json";
+   const char *options_file = "magnetostatic_box_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    int nxy = 2, nz = 2;
@@ -98,14 +98,18 @@ int main(int argc, char *argv[])
 
    try
    {
-      // construct the solver
       string opt_file_name(options_file);
+      // construct the solver
       MagnetostaticSolver solver(opt_file_name, move(mesh));
-      // unique_ptr<MagnetostaticSolver> solver(
-      //    new MagnetostaticSolver(opt_file_name, nullptr));
+      solver.initDerived();
       solver.solveForState();
-      // solver->solveForState();
+      solver.printSolution("box_out");
       std::cout << "finish steady solve\n";
+      double coenergy = solver.calcOutput("co-energy");
+      std::cout << "Co-energy = " << coenergy << std::endl;
+      solver.solveForAdjoint("co-energy");
+      solver.printAdjoint("co-energy-adjoint");
+      solver.verifyMeshSensitivities();
    }
    catch (MachException &exception)
    {

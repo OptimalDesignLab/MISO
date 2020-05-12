@@ -140,8 +140,12 @@ void MagnetostaticSolver::solveSteady()
 
    Vector Zero(3);
    Zero = 0.0;
-   bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
-   // bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
+   bool box_prob = options["problem-opts"].value("box", false);
+   
+   if (!box_prob)
+      bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
+   else
+      bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
 
    *u = 0.0;
    u->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
@@ -158,23 +162,18 @@ void MagnetostaticSolver::solveSteady()
 void MagnetostaticSolver::addOutputs()
 {
    auto &fun = options["outputs"];
-   std::cout << fun;
    if (fun.find("energy") != fun.end())
    { 
-      std::cout << "adding energy!\n";
       output.emplace("energy", fes.get());
       output.at("energy").AddDomainIntegrator(
          new MagneticEnergyIntegrator(nu.get()));
    }
    if (fun.find("co-energy") != fun.end())
    {
-      std::cout << "adding co-energy!\n"; 
       output.emplace("co-energy", fes.get());
       output.at("co-energy").AddDomainIntegrator(
          new MagneticCoenergyIntegrator(*u, nu.get()));
    }
-   std::cout << "done adding outputs!\n";
-   /// TODO: implement torque
 }
 
 std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
@@ -585,6 +584,16 @@ void MagnetostaticSolver::constructCurrent()
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
+      if (current.contains("box"))
+      {
+         auto attrs = current["box"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                     new VectorFunctionCoefficient(dim, box_current_source));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
    }
 }
 
@@ -667,6 +676,15 @@ void MagnetostaticSolver::computeSecondaryFields()
    curl.Finalize();
    curl.Mult(*u, *B);
    std::cout << "secondary quantities computed\n";
+
+	VectorFunctionCoefficient B_exact(3, b_exact);
+	GridFunType B_ex(h_div_space.get());
+	B_ex.ProjectCoefficient(B_exact);
+
+   GridFunType b_err(B_ex);
+   b_err -= *B;
+
+   std::cout << "B field error " << b_err.Norml2() << "\n";
 }
 
 /// TODO: Find a better way to handle solving the simple box problem
@@ -897,7 +915,22 @@ void MagnetostaticSolver::z_axis_magnetization_source(const Vector &x,
    M(2) = remnant_flux;
 }
 
-/// TODO: Find a better way to handle solving the simple box problem
+void MagnetostaticSolver::box_current_source(const Vector &x,
+                                             Vector &J)
+{
+   J.SetSize(3);
+   J = 0.0;
+	double y = x(1) - .5;
+   if ( x(1) <= .5)
+   {
+      J(2) = -6*y*(1/(M_PI*4e-7));
+   }
+   if ( x(1) > .5)
+   {
+      J(2) = 6*y*(1/(M_PI*4e-7));
+   }
+}
+
 void MagnetostaticSolver::a_exact(const Vector &x, Vector &A)
 {
    A.SetSize(3);

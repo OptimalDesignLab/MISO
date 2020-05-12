@@ -52,7 +52,7 @@ public:
    /// Compute the sensitivity of the aggregate temperature output to the mesh 
    /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
    /// the adjoint first.
-   virtual mfem::Vector* getMeshSensitivities();
+   mfem::Vector* getMeshSensitivities() override;
 
    mfem::Vector* getSurfaceMeshSensitivities();
 

@@ -1,24 +1,32 @@
 {
-   "problem": "box",
    "mesh": {
-      "file": "motor_fix.mesh",
       "out-file": "box_mesh"
    },
    "space-dis": {
       "basis-type": "nedelec",
-      "degree": 1
+      "degree": 4
    },
    "steady": true,
-   "time-dis": {
-   },
    "lin-solver": {
-      "print-lvl": 2,
-      "max-iter": 500
+      "type": "hypregmres",
+      "pctype": "hypreams",
+      "printlevel": 2,
+      "maxiter": 100,
+      "abstol": 1e-10,
+      "reltol": 1e-14
+   },
+   "adj-solver": {
+      "type": "hypregmres",
+      "pctype": "hypreams",
+      "printlevel": 0,
+      "maxiter": 100,
+      "abstol": 1e-10,
+      "reltol": 1e-14
    },
    "newton": {
-      "print-lvl": 1,
-      "rel-tol": 1e-8,
-      "abs-tol": 1e-8
+      "printlvl": 1,
+      "reltol": 1e-10,
+      "abstol": 0.0
    },
    "components": {
       "attr1": {
@@ -32,5 +40,16 @@
          "linear": true
       }
    },
-   "material-lib-path": "../src/material_library.json"
+   "problem-opts": {
+      "fill-factor": 1.0,
+      "current-density": 1.0,
+      "current": {
+         "box": [1, 2]
+      },
+      "box": true
+   },
+   "outputs": {
+      "co-energy": {}
+   },
+   "verify-full": true
 }
