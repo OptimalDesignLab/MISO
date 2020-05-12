@@ -92,7 +92,9 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
    newton_solver.reset(new mfem::NewtonSolver(mass.GetComm()));
    //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
 #else
-   linear_solver.reset(new mfem::GMRESSolver());
+   linear_solver.reset(new UMFPackSolver());
+   dynamic_cast<UMFPackSolver *>(linear_solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   dynamic_cast<UMFPackSolver *>(linear_solver.get())->SetPrintLevel(1);
    newton_solver.reset(new mfem::NewtonSolver());
 #endif
 
@@ -205,7 +207,9 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    newton_solver.reset(new mfem::NewtonSolver(mass.ParFESpace()->GetComm()));
    //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
 #else
-   linear_solver.reset(new mfem::GMRESSolver());
+   linear_solver.reset(new UMFPackSolver());
+   dynamic_cast<UMFPackSolver *>(linear_solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+   dynamic_cast<UMFPackSolver *>(linear_solver.get())->SetPrintLevel(1);
    newton_solver.reset(new mfem::NewtonSolver());
 #endif
 
