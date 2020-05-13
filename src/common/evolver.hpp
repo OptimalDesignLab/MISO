@@ -161,7 +161,7 @@ public:
    /// Set the parameters
    /// \param[in] dt_ - time step
    /// \param[in] x_ - current state variable
-   void SetParameters(const double dt_, const Vector x_)
+   void SetParameters(const double dt_, const mfem::Vector x_)
    { 
       x = x_;
       dt = dt_;

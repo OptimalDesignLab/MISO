@@ -153,7 +153,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(0);
 #else
    //using hypre solver instead
-   linear_solver.reset(new mfem::HypreGMRES(mass.ParFESpcace()->GetComm()));
+   linear_solver.reset(new mfem::HypreGMRES(mass.ParFESpace()->GetComm()));
    prec.reset(new HypreEuclid(mass.ParFESpace()->GetComm()));
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(0);
@@ -251,20 +251,20 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    // Get the product directly using Jacobian from GetGradient
    Vector jac_v(x.Size());
    Vector prod(x.Size());
-#ifdef MFEM_USE_MPI
-   HypreParVector *u_true = x.GetTrueDofs();
-   HypreParVector *pert = pert_vec.GetTrueDofs();
-   HypreParVector *prod = jac_v.GetTrueDofs();
-#else
-   GridFunType *u_true = u.get();
-   GridFunType *pert = &pert_vec;
-   GridFunType *prod = &jac_v;
-#endif
+//#ifdef MFEM_USE_MPI
+//   HypreParVector *u_true = x.GetTrueDofs();
+//   HypreParVector *pert = pert_vec.GetTrueDofs();
+//   HypreParVector *prod = jac_v.GetTrueDofs();
+//#else
+//   GridFunType *u_true = u.get();
+//   GridFunType *pert = &pert_vec;
+//   GridFunType *prod = &jac_v;
+//#endif
    mfem::Operator &jac = this->GetGradient(x);
-   jac.Mult(pert, prod);
-#ifdef MFEM_USE_MPI 
-   jac_v.SetFromTrueDofs(*prod);
-#endif 
+   jac.Mult(pert_vec, prod);
+//#ifdef MFEM_USE_MPI 
+//   jac_v.SetFromTrueDofs(*prod);
+//#endif 
 
    // check the difference norm
    jac_v -= res_plus;
