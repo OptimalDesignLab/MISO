@@ -35,7 +35,9 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
    for (int i = 0; i < u.Size(); ++i)
    {
       // std::cout << i << std::endl;
-      u(i) = uniform_rand(gen);
+      // u(i) = uniform_rand(gen);
+      // u(i) = 1/sqrt(3);
+      u(i) = 1.0;
    }
 }
 

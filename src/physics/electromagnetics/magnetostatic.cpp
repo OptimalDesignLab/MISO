@@ -1,6 +1,7 @@
 #include <fstream>
 #include <random>
 
+#include "adept.h"
 #include "pfem_extras.hpp"
 
 #include "magnetostatic.hpp"
@@ -11,6 +12,8 @@
 
 using namespace std;
 using namespace mfem;
+
+using adept::adouble;
 
 namespace
 {
@@ -41,24 +44,6 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
-// static double thing = 1.0;
-// void randState(const mfem::Vector &x, mfem::Vector &u)
-// {
-// 	thing = thing * -1.0;
-//     for (int i = 0; i < u.Size(); ++i)
-//     {
-//         //u(i) = 2.0 * uniform_rand(gen) - 1.0;
-// 		// if (i+1 == u.Size())
-// 		// {
-// 		// 	u(i) = x(0)*0.1;
-// 		// }	
-// 		// else
-// 		// {
-// 		// 	u(i) = x(i+1)*0.1;
-// 		// }
-// 		u(i) = thing;
-// 	}
-// }
 double randState(const mfem::Vector &x)
 {
    return 2.0 * uniform_rand(gen) - 1.0;
@@ -73,6 +58,38 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
       u(i) = uniform_rand(gen);
    }
 }
+
+template <typename xdouble = double>
+void box1_current(const xdouble *x,
+                  xdouble *J)
+{
+   for (int i = 0; i < 3; ++i)
+   {
+      J[i] = 0.0;
+   }
+
+	xdouble y = x[1] - .5;
+
+   // J[2] = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   J[2] = -6*y;
+
+}
+
+template <typename xdouble = double>
+void box2_current(const xdouble *x,
+                  xdouble *J)
+{
+   for (int i = 0; i < 3; ++i)
+   {
+      J[i] = 0.0;
+   }
+
+	xdouble y = x[1] - .5;
+
+   // J[2] = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   J[2] = 6*y;
+}
+
 } // anonymous namespace
 
 namespace mach
@@ -703,7 +720,7 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                     new VectorFunctionCoefficient(dim, box1_current_source));
+                     new VectorFunctionCoefficient(dim, box1CurrentSource));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -713,7 +730,7 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                     new VectorFunctionCoefficient(dim, box2_current_source));
+                     new VectorFunctionCoefficient(dim, box2CurrentSource));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -1039,42 +1056,54 @@ void MagnetostaticSolver::z_axis_magnetization_source(const Vector &x,
    M(2) = remnant_flux;
 }
 
-void MagnetostaticSolver::box1_current_source(const Vector &x,
-                                             Vector &J)
+void MagnetostaticSolver::box1CurrentSource(const Vector &x,
+                                            Vector &J)
 {
-   J.SetSize(3);
-   J = 0.0;
-	double y = x(1) - .5;
-   // if ( x(1) <= .5)
-   // {
-      // J(2) = -6*y*(1/(M_PI*4e-7)); // for real scaled problem
-      J(2) = -6*y;
-      // J(2) = -2;
-   // }
-   // if ( x(1) > .5)
-   // {
-   //    // J(2) = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
-      // J(2) = 6*y;
-   // }
+   box1_current(x.GetData(), J.GetData());
 }
 
-void MagnetostaticSolver::box2_current_source(const Vector &x,
-                                             Vector &J)
+void MagnetostaticSolver::box1CurrentSourceJac(const Vector &x,
+                                               DenseMatrix &source_jac)
 {
-   J.SetSize(3);
-   J = 0.0;
-	double y = x(1) - .5;
-   // if ( x(1) <= .5)
-   // {
-   //    // J(2) = -6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   //    J(2) = -6*y;
-   // }
-   // if ( x(1) > .5)
-   // {
-      // J(2) = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
-      J(2) = 6*y;
-      // J(2) = 2;
-   // }
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   box1_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+}
+
+void MagnetostaticSolver::box2CurrentSource(const Vector &x,
+                                      Vector &J)
+{
+   box2_current(x.GetData(), J.GetData());
+}
+
+void MagnetostaticSolver::box2CurrentSourceJac(const Vector &x,
+                                               DenseMatrix &source_jac)
+{
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   box2_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
 }
 
 void MagnetostaticSolver::a_exact(const Vector &x, Vector &A)
