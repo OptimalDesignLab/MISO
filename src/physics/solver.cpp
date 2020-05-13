@@ -1,7 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <time.h>
-
+#include <iomanip>
 #include "default_options.hpp"
 #include "solver.hpp"
 #include "centgridfunc.hpp"
@@ -760,7 +760,9 @@ void AbstractSolver::solveUnsteady()
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
    double entropy;
    ofstream entropylog;
-   entropylog.open("entropylog.txt", fstream::app | fstream::trunc);
+   entropylog.open("entropylog.txt", fstream::app);
+   entropylog << setprecision(14);
+   clock_t start_t = clock();
    for (int ti = 0; !done;)
    {
       if (calc_dt)
@@ -810,6 +812,10 @@ void AbstractSolver::solveUnsteady()
          }
       } */
    }
+   clock_t end_t = clock();
+   double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+   cout << "Wall time for solving unsteady vortex problem: " << total_t << '\n';
+   entropylog.close();
    printSolution("final_solution");
 
    // Save the final solution. This output can be viewed later using GLVis:
