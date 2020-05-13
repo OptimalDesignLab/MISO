@@ -242,6 +242,4 @@ double LEAnalogySolver::MuFunc(const mfem::Vector &x, int ie)
 
 mfem::Mesh* LEAnalogySolver::mesh_copy = 0;
 
-#endif
-
 } //namespace mach

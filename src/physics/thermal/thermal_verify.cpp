@@ -18,7 +18,7 @@ void ThermalSolver::randState(const mfem::Vector &x, mfem::Vector &u)
 	thing = thing * -1.0;
     for (int i = 0; i < u.Size(); ++i)
     {
-        //u(i) = 2.0 * uniform_rand(gen) - 1.0;
+        u(i) = 2.0 * uniform_rand(gen) - 1.0;
 		// if (i+1 == u.Size())
 		// {
 		// 	u(i) = x(0)*0.1;
@@ -27,7 +27,7 @@ void ThermalSolver::randState(const mfem::Vector &x, mfem::Vector &u)
 		// {
 		// 	u(i) = x(i+1)*0.1;
 		// }
-		u(i) = thing;
+		//u(i) = thing;
 	}
 }
 
