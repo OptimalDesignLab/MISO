@@ -758,6 +758,9 @@ void AbstractSolver::solveUnsteady()
    *out << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
+   double entropy;
+   ofstream entropylog;
+   entropylog.open("entropylog.txt", fstream::app);
    for (int ti = 0; !done;)
    {
       if (calc_dt)
@@ -785,6 +788,8 @@ void AbstractSolver::solveUnsteady()
 #else
       ode_solver->Step(*uc, t, dt_real);
 #endif
+      entropy = calcOutput("entropy");
+      entropylog << t << ' ' << entropy << '\n';
       ti++;
       done = (t >= t_final - 1e-8 * dt);
       //std::cout << "t_final is " << t_final << ", done is " << done << std::endl;
