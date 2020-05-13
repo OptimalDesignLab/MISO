@@ -1,6 +1,6 @@
 {
    "mesh": {
-      "file": "periodic_triangle2.mesh",
+      "file": "periodic_triangle1.mesh",
       "refine": 0
    },
    "space-dis": {
@@ -8,6 +8,7 @@
 	   "GD-degree": 1,
       "degree": 1,
       "lps-coeff": 1.0,
+      "iface-coeff": 1.0,
       "basis-type": "csbp"
    },
    "petscsolver": {

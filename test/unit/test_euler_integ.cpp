@@ -296,8 +296,11 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian", "[Ismail-face]",
    mfem::Vector qL_plus(qL), qL_minus(qL);
    mfem::Vector qR_plus(qR), qR_minus(qR);
    adept::Stack diff_stack;
-   std::unique_ptr<mfem::FiniteElementCollection> fec(new mfem::SBPCollection(1, dim));
-   mach::InterfaceIntegrator<dim,false> ismailfaceinteg(diff_stack, fec.get());
+   double diss_coeff = 1.0;
+   std::unique_ptr<mfem::FiniteElementCollection> fec(
+       new mfem::SBPCollection(1, dim));
+   mach::InterfaceIntegrator<dim, false> ismailfaceinteg(diff_stack, diss_coeff,
+                                                         fec.get());
    // +ve perturbation
    qL_plus.Add(delta, v);
    qR_plus.Add(delta, v);
@@ -385,8 +388,11 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian based on entropy variables
    mfem::Vector wL_plus(wL), wL_minus(wL);
    mfem::Vector wR_plus(wR), wR_minus(wR);
    adept::Stack diff_stack;
-   std::unique_ptr<mfem::FiniteElementCollection> fec(new mfem::SBPCollection(1, dim));
-   mach::InterfaceIntegrator<dim,true> ismailfaceinteg(diff_stack, fec.get());
+   double diss_coeff = 1.0;
+   std::unique_ptr<mfem::FiniteElementCollection> fec(
+       new mfem::SBPCollection(1, dim));
+   mach::InterfaceIntegrator<dim, true> ismailfaceinteg(diff_stack, diss_coeff,
+                                                        fec.get());
    // +ve perturbation
    wL_plus.Add(delta, v);
    wR_plus.Add(delta, v);

@@ -532,6 +532,18 @@ void FarFieldBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
 }
 
 template <int dim, bool entvar>
+InterfaceIntegrator<dim, entvar>::InterfaceIntegrator(
+    adept::Stack &diff_stack, double coeff,
+    const mfem::FiniteElementCollection *fe_coll, double a)
+    : InviscidFaceIntegrator<InterfaceIntegrator<dim, entvar>>(
+          diff_stack, fe_coll, dim + 2, a)
+{
+   MFEM_ASSERT(coeff >= 0.0, "InterfaceIntegrator: "
+               "dissipation coefficient must be >= 0.0");
+   diss_coeff = coeff;
+}
+
+template <int dim, bool entvar>
 void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
                                                 const mfem::Vector &qL,
                                                 const mfem::Vector &qR,
@@ -540,12 +552,14 @@ void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
    if (entvar)
    {
       calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
-          dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
+          dir.GetData(), diss_coeff, qL.GetData(), qR.GetData(),
+          flux.GetData());
    }
-   else 
+   else
    {
-      calcIsmailRoeFaceFluxWithDiss<double, dim>(dir.GetData(), qL.GetData(),
-                                         qR.GetData(), flux.GetData());
+      calcIsmailRoeFaceFluxWithDiss<double, dim>(dir.GetData(), diss_coeff,
+                                                 qL.GetData(), qR.GetData(),
+                                                 flux.GetData());
    }
 }
 
@@ -562,7 +576,8 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacState(const mfem::Vector &dir,
    std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> qR_a(qR.Size());
    std::vector<adouble> qL_a(qL.Size());
-   // initialize the value
+   // initialize the values
+   adouble diss_coeff_a = diss_coeff;
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(qL_a.data(), qL.Size(), qL.GetData());
    adept::set_values(qR_a.data(), qR.Size(), qR.GetData());
@@ -573,12 +588,12 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacState(const mfem::Vector &dir,
    if (entvar)
    {
       mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
-          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+          dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(dir_a.data(), qL_a.data(),
-                                                qR_a.data(), flux_a.data());
+      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(
+         dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(qL_a.data(), qL.Size());
@@ -601,7 +616,8 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
    std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> qR_a(qR.Size());
    std::vector<adouble> qL_a(qL.Size());
-   // initialize the value
+   // initialize the values
+   adouble diss_coeff_a = diss_coeff;
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(qL_a.data(), qL.Size(), qL.GetData());
    adept::set_values(qR_a.data(), qR.Size(), qR.GetData());
@@ -612,12 +628,12 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
    if (entvar)
    {
       mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
-          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+          dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(dir_a.data(), qL_a.data(),
-                                                qR_a.data(), flux_a.data());
+      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(
+         dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());

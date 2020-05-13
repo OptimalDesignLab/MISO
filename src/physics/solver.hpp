@@ -123,13 +123,20 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
+<<<<<<< HEAD
+=======
+   
+>>>>>>> euler
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &))
    {
       pert = p;
    }
+<<<<<<< HEAD
    void printError(const std::string &file_name, int refine,
                      void (*u_exact)(const mfem::Vector &, mfem::Vector &));
 
+=======
+>>>>>>> euler
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
@@ -230,7 +237,10 @@ protected:
 
    /// Defined in deerived class that update the nonlinear form mass matrix
    virtual void updateNonlinearMass(int ti, double dt, double alpha) {};
+<<<<<<< HEAD
 
+=======
+>>>>>>> euler
    void (*pert)(const mfem::Vector &, mfem::Vector &);
 };
 

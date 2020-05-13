@@ -112,8 +112,10 @@ void EulerSolver<dim, entvar>::addInterfaceIntegrators(double alpha)
    // add the integrators based on if discretization is continuous or discrete
    if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
    {
+      double diss_coeff = options["space-dis"]["iface-coeff"].template get<double>();
       res->AddInteriorFaceIntegrator(
-          new InterfaceIntegrator<dim, entvar>(diff_stack, fec.get(), alpha));
+          new InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
+                                               fec.get(), alpha));
    }
 }
 
