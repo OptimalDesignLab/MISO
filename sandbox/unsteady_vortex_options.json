@@ -18,7 +18,10 @@
       "maxiter": 100,
       "printlevel": 2
    },
-   "steady": false, 
+   "steady": false,
+   "outputs":{
+      "entropy": true
+   },
    "time-dis": {
       "ode-solver": "RK4",
       "const-cfl": true,
