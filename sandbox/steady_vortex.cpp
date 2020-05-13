@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
                   "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
-   args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
+   args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
    args.Parse();
    if (!args.Good())
    {
@@ -89,10 +89,8 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      //unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      unique_ptr<Mesh> smesh;
-      smesh.reset(new Mesh("annulus_fine.mesh", 1, 0, 1));
-      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
+      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,0);

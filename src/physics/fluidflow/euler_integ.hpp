@@ -374,13 +374,12 @@ class InterfaceIntegrator : public InviscidFaceIntegrator<
 public:
    /// Construct an integrator for the Euler flux over elements
    /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] coeff - scales the dissipation (must be non-negative!)
    /// \param[in] fe_coll - pointer to a finite element collection
    /// \param[in] a - factor, usually used to move terms to rhs
-   InterfaceIntegrator(adept::Stack &diff_stack,
+   InterfaceIntegrator(adept::Stack &diff_stack, double coeff, 
                        const mfem::FiniteElementCollection *fe_coll,
-                       double a = 1.0)
-       : InviscidFaceIntegrator<InterfaceIntegrator<dim, entvar>>(
-             diff_stack, fe_coll, dim + 2, a) {}
+                       double a = 1.0);
 
    /// Compute the interface function at a given (scaled) direction
    /// \param[in] dir - vector normal to the interface
@@ -410,6 +409,10 @@ public:
    /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
    void calcFluxJacDir(const mfem::Vector &dir, const mfem::Vector &qL,
                        const mfem::Vector &qR, mfem::DenseMatrix &jac_dir);
+
+protected:
+   /// Scalar that controls the amount of dissipation
+   double diss_coeff;
 };
 
 /// Integrator for forces due to pressure
