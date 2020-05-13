@@ -760,7 +760,7 @@ void AbstractSolver::solveUnsteady()
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
    double entropy;
    ofstream entropylog;
-   entropylog.open("entropylog.txt", fstream::app);
+   entropylog.open("entropylog.txt", fstream::app | fstream::trunc);
    for (int ti = 0; !done;)
    {
       if (calc_dt)
