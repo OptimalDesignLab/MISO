@@ -105,6 +105,9 @@ void AbstractSolver::initDerived()
    mass->Assemble();
    mass->Finalize();
 
+   // set nonlinear mass matrix form
+   nonlinear_mass.reset(new NonlinearFormType(fes.get()));
+
    // set up the spatial semi-linear form
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
@@ -143,7 +146,8 @@ void AbstractSolver::initDerived()
    }
    else
    {
-      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
+      //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
    }
 
    // add the output functional QoIs 
@@ -603,11 +607,17 @@ void AbstractSolver::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
-      if (ti % 10 == 0)
-      {
-         *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-              << " (" << round(10 * t / t_final) << "% complete)" << endl;
-      }
+      updateNonlinearMass(ti, dt_real, 1.0);
+      // if (ti % 10 == 0)
+      // {
+      //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+      //         << " (" << round(100 * t / t_final) << "% complete)" << endl;
+      // }
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+              << " (" << round(100 * t / t_final) << "% complete)" << endl;
+      // ofstream c_write("u_"+std::to_string(ti)+".txt");
+      // u->Print(c_write);
+      // c_write.close();
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);

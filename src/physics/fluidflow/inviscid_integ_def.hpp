@@ -729,7 +729,6 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
    DenseMatrix k(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
    elvect = 0.0;
-   // loop over the SBP nodes/integration points
    for (int i = 0; i < num_nodes; ++i)
    {
       const IntegrationPoint &ip = el.GetNodes().IntPoint(i);
