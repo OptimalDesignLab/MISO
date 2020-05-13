@@ -76,7 +76,8 @@ int main(int argc, char *argv[])
       solver->solveForState();
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;
-
+      double entropy = solver->calcOutput("entropy");
+      mfem::out << "entropy is " << entropy << '\n';
    }
    catch (MachException &exception)
    {
