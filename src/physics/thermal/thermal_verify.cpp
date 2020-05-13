@@ -237,7 +237,6 @@ void ThermalSolver::verifyMeshSensitivities()
 
 void ThermalSolver::verifySurfaceMeshSensitivities()
 {
-#ifdef MFEM_USE_EGADS
 	std::cout << "Verifying Surface Mesh Sensitivities..." << std::endl;
 		
 	int dim = mesh->SpaceDimension();
@@ -508,9 +507,5 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
 	std::cout << "CD Relative: 		  " << (dJdXs_v-dJdXs_cd_v)/dJdXs_v << std::endl;
     std::cout << "CD Absolute: 		  " << dJdXs_v - dJdXs_cd_v << std::endl;
 
-#else
-	///NOTE: Not really, should change this later
-	throw MachException("Need Pumi to use EGADS for this!\n");
-#endif
 }
 }

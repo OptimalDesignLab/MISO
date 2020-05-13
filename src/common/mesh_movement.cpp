@@ -14,7 +14,6 @@ void MeshMovementSolver::initDerived()
     throw MachException("Not Implemented for MeshMovementSolver!\n");
 }
 
-#ifdef MFEM_USE_EGADS
 LEAnalogySolver::LEAnalogySolver(
 	 const std::string &opt_file_name,
     std::unique_ptr<mfem::Mesh> smesh,
@@ -91,6 +90,7 @@ void LEAnalogySolver::initDerived()
     
     if(options["use-pumi"].get<bool>())
     {
+#ifdef MFEM_USE_EGADS
         /// for loading model files
         string model_file_old = options["model-file"].template get<string>();
         string model_file_new = options["model-file-new"].template get<string>();
@@ -126,6 +126,9 @@ void LEAnalogySolver::initDerived()
                (*u)(vdof) = val(vd);
             }
         }
+#else
+        throw MachException("Pumi Does Not Use EGADS!\n");
+#endif
     }
     else
     {

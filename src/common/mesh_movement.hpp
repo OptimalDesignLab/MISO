@@ -64,8 +64,7 @@ public:
     }
 };
 
-#ifdef MFEM_USE_PUMI
-#ifdef MFEM_USE_EGADS
+
 class LEAnalogySolver : public MeshMovementSolver
 {
 public:
@@ -84,8 +83,9 @@ public:
 
 private:
     /// Moved mesh
+#ifdef MFEM_USE_PUMI
     apf::Mesh2 *moved_mesh;
-
+#endif
     // static copy of the original mesh
     static mfem::Mesh *mesh_copy;
 
@@ -158,8 +158,6 @@ private:
     static double MuFunc(const mfem::Vector &x, int ie);
 };
 
-#endif
-#endif
 
 } //namespace mach
 
