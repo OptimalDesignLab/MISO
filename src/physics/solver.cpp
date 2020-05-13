@@ -608,8 +608,6 @@ void AbstractSolver::solveUnsteady()
       }
       double dt_real = min(dt, t_final - t);
       updateNonlinearMass(ti, dt_real, 1.0);
-      dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->SetParameters(dt_real, *u);
-      dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->checkJacobian(pert);
       // if (ti % 10 == 0)
       // {
       //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
