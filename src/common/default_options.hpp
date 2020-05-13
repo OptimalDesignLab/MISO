@@ -30,6 +30,7 @@ nlohmann::json default_options
    {
       {"degree", 1}, // default operator degree
       {"lps-coeff", 1.0}, // scaling coefficient for local-proj stabilization
+      {"iface-coeff", 1.0}, // scaling coefficient for interface dissipation
       {"basis-type", "csbp"} // csbp & dsbp for continuous & discrete SBP discretization resp. 
    }},
 

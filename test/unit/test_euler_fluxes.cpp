@@ -130,8 +130,9 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    SECTION( "Ismail-Roe face flux with dissipation is correct in given direction" )
    {
       // get flux from function
-      mach::calcIsmailRoeFaceFluxWithDiss<double, dim>(nrm.GetData(), q.GetData(),
-                                                       qR.GetData(), flux.GetData());
+      double diss_coeff = 1.0;
+      mach::calcIsmailRoeFaceFluxWithDiss<double, dim>(
+          nrm.GetData(), diss_coeff, q.GetData(), qR.GetData(), flux.GetData());
       // evaluate the dissipation externally (since we cannot use fluxIR_check
       // data here directly)
       mfem::Vector wL(dim+2), wR(dim+2);
@@ -184,8 +185,9 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       mfem::Vector wL(dim+2), wR(dim+2);
       mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
       mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+      double diss_coeff = 1.0;
       mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
-          nrm.GetData(), wL.GetData(), wR.GetData(), flux.GetData());
+          nrm.GetData(), diss_coeff, wL.GetData(), wR.GetData(), flux.GetData());
 
       // evaluate the dissipation externally (since we cannot use fluxIR_check
       // data here directly)
