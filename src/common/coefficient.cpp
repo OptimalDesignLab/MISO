@@ -187,6 +187,29 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
    // vec.Print();
 }
 
+void VectorMeshDependentCoefficient::EvalRevDiff(
+   const Vector &V_bar,
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   DenseMatrix &PointMat_bar)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   VectorCoefficient *coeff;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      coeff = it->second.get();
+      coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+   }
+   else if (default_coeff)
+   {
+      default_coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+   }
+   // if attribute not found and no default set, don't change PointMat_bar
+   return;
+}
+
 double SteinmetzCoefficient::Eval(ElementTransformation &trans,
                                   const IntegrationPoint &ip)
 {

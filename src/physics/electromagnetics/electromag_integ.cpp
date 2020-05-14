@@ -676,6 +676,11 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
 
       isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
 
+      // sensitivity with respect to the projection of the coefficient
+      Vector P_bar(rt_ndof);
+      vshape_dFt.Mult(curl_psi, P_bar);
+      rt_el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+
       for (int j = 0; j < ndof ; ++j)
       {
          for (int d = 0; d < dimc; ++d)
@@ -888,6 +893,11 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
       PointMat_bar *= -d_psi_dot_v / pow(isotrans.Weight(), 2.0);
 
       isotrans.AdjugateJacobianRevDiff(Jac_bar, PointMat_bar);
+
+      // sensitivity with respect to the projection of the coefficient
+      Vector P_bar(nd_ndof);
+      vshape_dFt.Mult(d_psi, P_bar);
+      nd_el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
 
       for (int j = 0; j < ndof ; ++j)
       {

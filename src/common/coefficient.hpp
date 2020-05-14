@@ -413,6 +413,22 @@ public:
 				 mfem::ElementTransformation &trans,
 			    const mfem::IntegrationPoint &ip);
 
+   /// \brief Search the map of coefficients and evaluate the one whose key is
+   ///        the same as the element's `Attribute` at the point defined by
+   ///        `ip`.
+   /// \param[in] V_bar - derivative of functional with respect to `V`
+   /// \param[in] trans - element transformation relating real element to
+   ///                    reference element
+   /// \param[in] ip - defines location in reference space
+   /// \param[out] PointMat_bar - derivative of function w.r.t. mesh nodes
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   virtual void EvalRevDiff(const mfem::Vector &V_bar,
+                            mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            mfem::DenseMatrix &PointMat_bar);
+
 	// /// TODO - implement expression SFINAE when iterating over map
 	// /// TODO - Consider different model for coefficient's dependent upon multiple
 	// ///		  GridFunctions

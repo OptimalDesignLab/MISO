@@ -258,7 +258,7 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
       new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
    /// \psi^T C m 
    res_mesh_sens_l->AddDomainIntegrator(
-      new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(), -1.0));
+      new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(), mag_coeff.get(), -1.0));
    /// \psi^T M j
    res_mesh_sens_l->AddDomainIntegrator(
       new VectorFEMassdJdXIntegerator(div_free_current_vec.get(),
@@ -334,7 +334,7 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
       new DiffusionResIntegrator(one, &k, &psi_k));
    /// -\psi_k^T W j 
    div_free_proj_mesh_sens.AddDomainIntegrator(
-      new VectorFEWeakDivergencedJdXIntegrator(&j, &psi_k, -1.0));
+      new VectorFEWeakDivergencedJdXIntegrator(&j, &psi_k, current_coeff.get(), -1.0));
 
    div_free_proj_mesh_sens.Assemble();
 
@@ -720,7 +720,8 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                     new VectorFunctionCoefficient(dim, box1CurrentSource));
+                     new VectorFunctionCoefficient(dim, box1CurrentSource,
+                                                   box1CurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -730,7 +731,8 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                     new VectorFunctionCoefficient(dim, box2CurrentSource));
+                     new VectorFunctionCoefficient(dim, box2CurrentSource,
+                                                   box2CurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -1062,9 +1064,12 @@ void MagnetostaticSolver::box1CurrentSource(const Vector &x,
    box1_current(x.GetData(), J.GetData());
 }
 
-void MagnetostaticSolver::box1CurrentSourceJac(const Vector &x,
-                                               DenseMatrix &source_jac)
+void MagnetostaticSolver::box1CurrentSourceRevDiff(
+   const Vector &x,
+   const Vector &V_bar,
+   Vector &x_bar)
 {
+   DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -1079,6 +1084,7 @@ void MagnetostaticSolver::box1CurrentSourceJac(const Vector &x,
    diff_stack.dependent(J_a.data(), x.Size());
    // calculate the jacobian w.r.t state vaiables
    diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
 }
 
 void MagnetostaticSolver::box2CurrentSource(const Vector &x,
@@ -1087,9 +1093,12 @@ void MagnetostaticSolver::box2CurrentSource(const Vector &x,
    box2_current(x.GetData(), J.GetData());
 }
 
-void MagnetostaticSolver::box2CurrentSourceJac(const Vector &x,
-                                               DenseMatrix &source_jac)
+void MagnetostaticSolver::box2CurrentSourceRevDiff(
+   const Vector &x,
+   const Vector &V_bar,
+   Vector &x_bar)
 {
+   DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -1104,6 +1113,7 @@ void MagnetostaticSolver::box2CurrentSourceJac(const Vector &x,
    diff_stack.dependent(J_a.data(), x.Size());
    // calculate the jacobian w.r.t state vaiables
    diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
 }
 
 void MagnetostaticSolver::a_exact(const Vector &x, Vector &A)
