@@ -155,8 +155,10 @@ public:
    VectorFECurldJdXIntegerator(mfem::Coefficient *_nu,
                                mfem::GridFunction *_state,
                                mfem::GridFunction *_adjoint,
+                               mfem::VectorCoefficient *_vec_coeff = nullptr,
                                double _alpha = 1.0)
-      : nu(_nu), state(_state), adjoint(_adjoint), alpha(_alpha) {};
+      : nu(_nu), state(_state), adjoint(_adjoint), vec_coeff(_vec_coeff),
+        alpha(_alpha) {};
 
    /// \brief - assemble an element's contribution to
    ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
@@ -178,6 +180,8 @@ private:
    mfem::GridFunction *state;
    /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
    mfem::GridFunction *adjoint;
+   /// the coefficient that was projected to the GridFunction that is state
+   mfem::VectorCoefficient *vec_coeff;
    /// to move the terms to the LHS or RHS
    double alpha;
 
@@ -241,12 +245,13 @@ public:
    ///                    \frac{\partial psi^T R}{\partial X}
    /// \param[in] adjoint - the adjoint to use when evaluating
    ///                      \frac{\partial psi^T R}{\partial X}
-   /// \note it is assumed that `state` is an a H(curl) finite element space and
-   ///       that adjoint is in a H1 finite element space
+   /// \note it is assumed that `state` is an a H(curl) finite element space
+   ///       and that adjoint is in a H1 finite element space
    VectorFEWeakDivergencedJdXIntegrator(mfem::GridFunction *_state,
                                         mfem::GridFunction *_adjoint,
+                                        mfem::VectorCoefficient *_vec_coeff = nullptr,
                                         double _alpha = 1.0)
-      : state(_state), adjoint(_adjoint), alpha(_alpha) {};
+      : state(_state), adjoint(_adjoint), vec_coeff(_vec_coeff), alpha(_alpha) {};
 
    /// \brief - assemble an element's contribution to
    ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
@@ -266,6 +271,8 @@ private:
    mfem::GridFunction *state;
    /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
    mfem::GridFunction *adjoint;
+   /// the coefficient that was projected to the GridFunction that is state
+   mfem::VectorCoefficient *vec_coeff;
    /// used to move terms to LHS or RHS
    double alpha;
 

@@ -224,8 +224,9 @@ private:
    static void box1CurrentSource(const mfem::Vector &x,
                                    mfem::Vector &J);
 
-   static void box1CurrentSourceJac(const mfem::Vector &x,
-                              mfem::DenseMatrix &source_jac);
+   static void box1CurrentSourceRevDiff(const mfem::Vector &x,
+                                        const mfem::Vector &V_bar,
+                                        mfem::Vector &x_bar);
 
    /// function defining current density for simple box problem
    /// \param[in] x - position x in space of evaluation
@@ -233,8 +234,9 @@ private:
    static void box2CurrentSource(const mfem::Vector &x,
                                  mfem::Vector &J);
 
-   static void box2CurrentSourceJac(const mfem::Vector &x,
-                                    mfem::DenseMatrix &source_jac);
+   static void box2CurrentSourceRevDiff(const mfem::Vector &x,
+                                        const mfem::Vector &V_bar,
+                                        mfem::Vector &x_bar);
 
    /// function defining magnetization aligned with the x axis
    /// \param[in] x - position x in space of evaluation
