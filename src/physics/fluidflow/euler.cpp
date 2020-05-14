@@ -190,8 +190,19 @@ void EulerSolver<dim, entvar>::addOutputs()
 template <int dim, bool entvar>
 double EulerSolver<dim, entvar>::calcStepSize(double cfl) const
 {
-   double (*calcSpect)(const double *dir, const double *q);
-   calcSpect = calcSpectralRadius<double, dim>;
+   Vector q(dim+2);
+   auto calcSpect = [&q](const double* dir, const double* u)
+   {
+      if (entvar)
+      {
+         calcConservativeVars<double, dim>(u, q);
+         return calcSpectralRadius<double, dim>(dir, q);
+      }
+      else
+      {
+         return calcSpectralRadius<double, dim>(dir, u);
+      }   
+   };
    double dt_local = 1e100;
    Vector xi(dim);
    Vector dxij(dim);
