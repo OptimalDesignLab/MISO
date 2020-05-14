@@ -813,6 +813,8 @@ void AbstractSolver::solveUnsteady()
          }
       } */
    }
+   entropy = calcOutput("entropy");
+   entropylog << t << ' ' << entropy << '\n';
    clock_t end_t = clock();
    double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
    cout << "Wall time for solving unsteady vortex problem: " << total_t << '\n';
