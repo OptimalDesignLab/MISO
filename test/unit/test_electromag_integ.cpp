@@ -324,7 +324,9 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          // initialize magnetization source and adjoint; here we randomly perturb a constant state
          GridFunction M(rt_fes.get()), adjoint(nd_fes.get());
          VectorFunctionCoefficient pert(3, randState);
-         M.ProjectCoefficient(pert);
+         VectorFunctionCoefficient mag(3, func, funcRevDiff);
+         M.ProjectCoefficient(mag);
+         // M.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(pert);
 
          // we use res for finite-difference approximation
@@ -338,7 +340,7 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::VectorFECurldJdXIntegerator(nu.get(), &M, &adjoint));
+            new mach::VectorFECurldJdXIntegerator(nu.get(), &M, &adjoint, &mag));
          dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -356,6 +358,8 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          mesh->SetNodes(x_pert);
          rt_fes->Update();
          nd_fes->Update();
+         M.Update();
+         M.ProjectCoefficient(mag);
          res.Update();
          res.Assemble();
          res.Finalize();
@@ -365,6 +369,8 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          mesh->SetNodes(x_pert);
          rt_fes->Update();
          nd_fes->Update();
+         M.Update();
+         M.ProjectCoefficient(mag);
          res.Update();
          res.Assemble();
          res.Finalize();
@@ -372,6 +378,9 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          dfdx_v_fd -= adjoint * r;
          dfdx_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
+
+         // std::cout << "dfdx_v " << dfdx_v << "\n";
+         // std::cout << "dfdx_v_fd " << dfdx_v_fd << "\n";
 
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }
@@ -495,11 +504,14 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
 
 
 
-         // initialize magnetization source and adjoint; here we randomly perturb a constant state
+         // initialize current source and adjoint
+         // here we randomly perturb a constant state
          GridFunction c(nd_fes.get()), adjoint(h1_fes.get());
          VectorFunctionCoefficient pert(3, randState);
          FunctionCoefficient adj_pert(randState);
-         c.ProjectCoefficient(pert);
+         VectorFunctionCoefficient current(3, func, funcRevDiff);
+         c.ProjectCoefficient(current);
+         // c.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(adj_pert);
 
          // we use res for finite-difference approximation
@@ -513,7 +525,7 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::VectorFEWeakDivergencedJdXIntegrator(&c, &adjoint));
+            new mach::VectorFEWeakDivergencedJdXIntegrator(&c, &adjoint, &current));
          dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -531,6 +543,8 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
          mesh->SetNodes(x_pert);
          nd_fes->Update();
          h1_fes->Update();
+         c.Update();
+         c.ProjectCoefficient(current);
          res.Update();
          res.Assemble();
          res.Finalize();
@@ -540,6 +554,8 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
          mesh->SetNodes(x_pert);
          nd_fes->Update();
          h1_fes->Update();
+         c.Update();
+         c.ProjectCoefficient(current);
          res.Update();
          res.Assemble();
          res.Finalize();
