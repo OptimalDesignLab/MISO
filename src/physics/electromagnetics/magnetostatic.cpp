@@ -245,7 +245,7 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    dJdX.Assemble();
 
    /// TODO I don't know if this works in parallel / when we need to use tdof vectors
-   *dLdX += dJdX;
+   *dLdX -= dJdX;
 
    res_mesh_sens_l.reset(new LinearFormType(mesh_fes));
 
@@ -258,35 +258,33 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
       new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
    /// \psi^T C m 
    res_mesh_sens_l->AddDomainIntegrator(
-      new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(), mag_coeff.get(), -1.0));
-   /// \psi^T M j
-   res_mesh_sens_l->AddDomainIntegrator(
-      new VectorFEMassdJdXIntegerator(div_free_current_vec.get(),
-                                      adj.get(), -1.0));
+      new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(),
+                                      mag_coeff.get(), -1.0));
 
    /// Compute the derivatives and accumulate the result
    res_mesh_sens_l->Assemble();
 
-   /// compuite mesh sensitivitiy of divergence free projection
-   /// compute \psi_j
+
+   /// compute \psi_k
+   /// D \psi_k = G^T M^T \psi_j (\psi_j = -\psi_A)
    BilinearFormType h_curl_mass(fes.get());
    h_curl_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
    // assemble mass matrix
    h_curl_mass.Assemble();
    h_curl_mass.Finalize();
-   GridFunType psi_j(fes.get());
-   psi_j = 0.0;
-   h_curl_mass.MultTranspose(*adj, psi_j);
 
-   /// compute \psi_k
+   GridFunType MTpsi_j(fes.get());
+   MTpsi_j = 0.0;
+   h_curl_mass.MultTranspose(*adj, MTpsi_j);
+   MTpsi_j *= -1.0; // (\psi_j = -\psi_A)
+
    mfem::common::ParDiscreteGradOperator grad(h1_space.get(), fes.get());
    grad.Assemble();
    grad.Finalize();
 
-   GridFunType GTpsi_j(h1_space.get());
-   GTpsi_j = 0.0;
-
-   grad.MultTranspose(psi_j, GTpsi_j);
+   GridFunType GTMTpsi_j(h1_space.get());
+   GTMTpsi_j = 0.0;
+   grad.MultTranspose(MTpsi_j, GTMTpsi_j);
 
    ParBilinearForm D(h1_space.get());
    D.AddDomainIntegrator(new DiffusionIntegrator);
@@ -294,18 +292,19 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    D.Finalize();
 
    auto *Dmat = D.ParallelAssemble();
+   auto *DmatT = Dmat->Transpose();
 
    GridFunType psi_k(h1_space.get());
    psi_k = 0.0;
 
-   HypreBoomerAMG amg(*Dmat);
+   HypreBoomerAMG amg(*DmatT);
    amg.SetPrintLevel(0);
-   HypreGMRES gmres(*Dmat);
+   HypreGMRES gmres(*DmatT);
    gmres.SetTol(1e-14);
    gmres.SetMaxIter(200);
-   gmres.SetPrintLevel(0);
+   gmres.SetPrintLevel(-1);
    gmres.SetPreconditioner(amg);
-   gmres.Mult(GTpsi_j, psi_k);
+   gmres.Mult(GTMTpsi_j, psi_k);
 
    /// compute k
    ParMixedBilinearForm weakDiv(fes.get(), h1_space.get());
@@ -313,37 +312,51 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    weakDiv.Assemble();
    weakDiv.Finalize();
 
-   GridFunType Wj(h1_space.get());
-   Wj = 0.0;
    GridFunType j(fes.get());
    j.ProjectCoefficient(*current_coeff);
 
+   GridFunType Wj(h1_space.get());
+   Wj = 0.0;
    weakDiv.Mult(j, Wj);
 
    GridFunType k(h1_space.get());
    k = 0.0;
+   gmres.SetOperator(*Dmat);
    gmres.Mult(Wj, k);
 
-   LinearFormType div_free_proj_mesh_sens(mesh_fes);
-
-
-   /// add integrators R = Dk - Wj = 0
+   LinearFormType Rk_mesh_sens(mesh_fes);
+   /// add integrators R_k = Dk - Wj = 0
    /// \psi_k^T Dk
    ConstantCoefficient one(1.0);
-   div_free_proj_mesh_sens.AddDomainIntegrator(
+   Rk_mesh_sens.AddDomainIntegrator(
       new DiffusionResIntegrator(one, &k, &psi_k));
    /// -\psi_k^T W j 
-   div_free_proj_mesh_sens.AddDomainIntegrator(
+   Rk_mesh_sens.AddDomainIntegrator(
       new VectorFEWeakDivergencedJdXIntegrator(&j, &psi_k, current_coeff.get(), -1.0));
+   Rk_mesh_sens.Assemble();
 
-   div_free_proj_mesh_sens.Assemble();
+   LinearFormType Rj_mesh_sens(mesh_fes);
+   /// Add integrators R_{\hat{j}} = \hat{j} - MGk - Mj = 0
+   GridFunType Gk(fes.get());
+   Gk = 0.0;
+   grad.Mult(k, Gk);
+
+   /// NOTE: Not using -1.0 here even though there are - signs in the residual
+   /// because we're using adj, not psi_j, which would be -adj
+   Rj_mesh_sens.AddDomainIntegrator(
+      new VectorFEMassdJdXIntegerator(&Gk, adj.get()));
+   Rj_mesh_sens.AddDomainIntegrator(
+      new VectorFEMassdJdXIntegerator(&j, adj.get(), current_coeff.get()));
+   Rj_mesh_sens.Assemble();
 
    delete Dmat;
+   delete DmatT;
 
 
    /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
    dLdX->Add(-1, *res_mesh_sens_l);
-   dLdX->Add(-1, div_free_proj_mesh_sens);
+   dLdX->Add(-1, Rk_mesh_sens);
+   dLdX->Add(-1, Rj_mesh_sens);
 
    return dLdX.get();
 }

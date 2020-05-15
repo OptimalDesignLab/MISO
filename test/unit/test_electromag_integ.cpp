@@ -417,7 +417,8 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
          // initialize magnetization source and adjoint; here we randomly perturb a constant state
          GridFunction J(fes.get()), adjoint(fes.get());
          VectorFunctionCoefficient pert(3, randState);
-         J.ProjectCoefficient(pert);
+         VectorFunctionCoefficient current(3, func, funcRevDiff);
+         J.ProjectCoefficient(current);
          adjoint.ProjectCoefficient(pert);
 
          // we use res for finite-difference approximation
@@ -431,7 +432,7 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::VectorFEMassdJdXIntegerator(&J, &adjoint));
+            new mach::VectorFEMassdJdXIntegerator(&J, &adjoint, &current));
          dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -448,6 +449,8 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
          x_pert.Add(delta, v);
          mesh->SetNodes(x_pert);
          fes->Update();
+         J.Update();
+         J.ProjectCoefficient(current);
          res.Update();
          res.Assemble();
          res.Finalize();
@@ -456,6 +459,8 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
          x_pert.Add(-2 * delta, v);
          mesh->SetNodes(x_pert);
          fes->Update();
+         J.Update();
+         J.ProjectCoefficient(current);
          res.Update();
          res.Assemble();
          res.Finalize();
@@ -568,6 +573,88 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
       }
    }
 }
+
+// TEST_CASE("GridFuncMeshSensIntegrator::AssembleRHSElementVect",
+//           "[GridFuncMeshSensIntegrator]")
+// {
+//    using namespace mfem;
+//    using namespace electromag_data;
+
+//    const int dim = 3;  // templating is hard here because mesh constructors
+//    // static adept::Stack diff_stack;
+//    double delta = 1e-5;
+
+//    // generate a 6 element mesh
+//    int num_edge = 2;
+//    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
+//                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
+//                               1.0, 1.0, true));
+//    mesh->ReorientTetMesh();
+//    mesh->EnsureNodes();
+//    for (int p = 1; p <= 4; ++p)
+//    {
+//       DYNAMIC_SECTION("...for degree p = " << p)
+//       {
+//          // get the finite-element space for the current grid function
+//          std::unique_ptr<FiniteElementCollection> nd_fec(
+//             new ND_FECollection(p, dim));
+//          std::unique_ptr<FiniteElementSpace> nd_fes(new FiniteElementSpace(
+//             mesh.get(), nd_fec.get()));
+
+
+//          // initialize current source and adjoint
+//          // here we randomly perturb a constant state
+//          GridFunction c(nd_fes.get()), adjoint(nd_fes.get());
+//          VectorFunctionCoefficient pert(3, randState);
+//          VectorFunctionCoefficient current(3, func, funcRevDiff);
+//          adjoint.ProjectCoefficient(pert);
+
+//          // extract mesh nodes and get their finite-element space
+//          GridFunction *x_nodes = mesh->GetNodes();
+//          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+
+//          // build the linear form for d(psi^T R)/dx 
+//          LinearForm dfdx(mesh_fes);
+//          dfdx.AddDomainIntegrator(
+//             new mach::GridFuncMeshSensIntegrator(&adjoint, &current));
+//          dfdx.Assemble();
+
+//          GridFunction dFdX_gf(mesh_fes);
+//          dFdX_gf.ProjectCoefficientRevDiff(adjoint, current);
+
+//          // initialize the vector that we use to perturb the mesh nodes
+//          GridFunction v(mesh_fes);
+//          VectorFunctionCoefficient v_rand(3, randState);
+//          v.ProjectCoefficient(v_rand);
+
+//          // contract dfdx with v
+//          double dfdx_v = dfdx * v;
+
+//          double dFdX_gf_v = dFdX_gf * v;
+//          std::cout << "dFdX_gf_v " << dFdX_gf_v << "\n";
+
+
+//          // now compute the finite-difference approximation...
+//          GridFunction x_pert(*x_nodes);
+//          x_pert.Add(delta, v);
+//          mesh->SetNodes(x_pert);
+//          nd_fes->Update();
+//          c.Update();
+//          c.ProjectCoefficient(current);
+//          double dfdx_v_fd = adjoint * c;
+//          x_pert.Add(-2 * delta, v);
+//          mesh->SetNodes(x_pert);
+//          nd_fes->Update();
+//          c.Update();
+//          c.ProjectCoefficient(current);
+//          dfdx_v_fd -= adjoint * c;
+//          dfdx_v_fd /= (2 * delta);
+//          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
+
+//          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+//       }
+//    }
+// }
 
 TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
           "[MagneticCoenergyIntegrator]")
