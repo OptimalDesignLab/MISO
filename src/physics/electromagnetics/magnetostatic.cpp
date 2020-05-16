@@ -60,7 +60,8 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
 }
 
 template <typename xdouble = double>
-void box1_current(const xdouble *x,
+void box1_current(const xdouble &current_density,
+                  const xdouble *x,
                   xdouble *J)
 {
    for (int i = 0; i < 3; ++i)
@@ -70,13 +71,14 @@ void box1_current(const xdouble *x,
 
 	xdouble y = x[1] - .5;
 
-   // J[2] = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   J[2] = -6*y;
+   // J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   J[2] = -current_density*6*y;
 
 }
 
 template <typename xdouble = double>
-void box2_current(const xdouble *x,
+void box2_current(const xdouble &current_density,
+                  const xdouble *x,
                   xdouble *J)
 {
    for (int i = 0; i < 3; ++i)
@@ -86,8 +88,23 @@ void box2_current(const xdouble *x,
 
 	xdouble y = x[1] - .5;
 
-   // J[2] = 6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   J[2] = 6*y;
+   // J[2] = current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   J[2] = current_density*6*y;
+}
+
+void func(const mfem::Vector &x, mfem::Vector &y)
+{
+   y.SetSize(3);
+   y(0) = x(0)*x(0) - x(1);
+   y(1) = x(0) * exp(x(1));
+   y(2) = x(2)*x(0) - x(1);
+}
+
+void funcRevDiff(const mfem::Vector &x, const mfem::Vector &v_bar, mfem::Vector &x_bar)
+{
+   x_bar(0) = v_bar(0) * 2*x(0) + v_bar(1) * exp(x(1)) + v_bar(2)*x(2);
+   x_bar(1) = -v_bar(0) + v_bar(1) * x(0) * exp(x(1)) - v_bar(2); 
+   x_bar(2) = v_bar(2) * x(0); 
 }
 
 } // anonymous namespace
@@ -264,99 +281,15 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    /// Compute the derivatives and accumulate the result
    res_mesh_sens_l->Assemble();
 
-
-   /// compute \psi_k
-   /// D \psi_k = G^T M^T \psi_j (\psi_j = -\psi_A)
-   BilinearFormType h_curl_mass(fes.get());
-   h_curl_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
-   // assemble mass matrix
-   h_curl_mass.Assemble();
-   h_curl_mass.Finalize();
-
-   GridFunType MTpsi_j(fes.get());
-   MTpsi_j = 0.0;
-   h_curl_mass.MultTranspose(*adj, MTpsi_j);
-   MTpsi_j *= -1.0; // (\psi_j = -\psi_A)
-
-   mfem::common::ParDiscreteGradOperator grad(h1_space.get(), fes.get());
-   grad.Assemble();
-   grad.Finalize();
-
-   GridFunType GTMTpsi_j(h1_space.get());
-   GTMTpsi_j = 0.0;
-   grad.MultTranspose(MTpsi_j, GTMTpsi_j);
-
-   ParBilinearForm D(h1_space.get());
-   D.AddDomainIntegrator(new DiffusionIntegrator);
-   D.Assemble();
-   D.Finalize();
-
-   auto *Dmat = D.ParallelAssemble();
-   auto *DmatT = Dmat->Transpose();
-
-   GridFunType psi_k(h1_space.get());
-   psi_k = 0.0;
-
-   HypreBoomerAMG amg(*DmatT);
-   amg.SetPrintLevel(0);
-   HypreGMRES gmres(*DmatT);
-   gmres.SetTol(1e-14);
-   gmres.SetMaxIter(200);
-   gmres.SetPrintLevel(-1);
-   gmres.SetPreconditioner(amg);
-   gmres.Mult(GTMTpsi_j, psi_k);
-
-   /// compute k
-   ParMixedBilinearForm weakDiv(fes.get(), h1_space.get());
-   weakDiv.AddDomainIntegrator(new VectorFEWeakDivergenceIntegrator);
-   weakDiv.Assemble();
-   weakDiv.Finalize();
-
-   GridFunType j(fes.get());
-   j.ProjectCoefficient(*current_coeff);
-
-   GridFunType Wj(h1_space.get());
-   Wj = 0.0;
-   weakDiv.Mult(j, Wj);
-
-   GridFunType k(h1_space.get());
-   k = 0.0;
-   gmres.SetOperator(*Dmat);
-   gmres.Mult(Wj, k);
-
-   LinearFormType Rk_mesh_sens(mesh_fes);
-   /// add integrators R_k = Dk - Wj = 0
-   /// \psi_k^T Dk
-   ConstantCoefficient one(1.0);
-   Rk_mesh_sens.AddDomainIntegrator(
-      new DiffusionResIntegrator(one, &k, &psi_k));
-   /// -\psi_k^T W j 
-   Rk_mesh_sens.AddDomainIntegrator(
-      new VectorFEWeakDivergencedJdXIntegrator(&j, &psi_k, current_coeff.get(), -1.0));
-   Rk_mesh_sens.Assemble();
-
-   LinearFormType Rj_mesh_sens(mesh_fes);
-   /// Add integrators R_{\hat{j}} = \hat{j} - MGk - Mj = 0
-   GridFunType Gk(fes.get());
-   Gk = 0.0;
-   grad.Mult(k, Gk);
-
-   /// NOTE: Not using -1.0 here even though there are - signs in the residual
-   /// because we're using adj, not psi_j, which would be -adj
-   Rj_mesh_sens.AddDomainIntegrator(
-      new VectorFEMassdJdXIntegerator(&Gk, adj.get()));
-   Rj_mesh_sens.AddDomainIntegrator(
-      new VectorFEMassdJdXIntegerator(&j, adj.get(), current_coeff.get()));
-   Rj_mesh_sens.Assemble();
-
-   delete Dmat;
-   delete DmatT;
-
+   
+   ParGridFunction j_mesh_sens(mesh_fes);
+   j_mesh_sens = 0.0;
+   auto *j_mesh_sens_true = j_mesh_sens.GetTrueDofs();
+   getCurrentSourceMeshSens(*adj, *j_mesh_sens_true);
 
    /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
-   dLdX->Add(-1, *res_mesh_sens_l);
-   dLdX->Add(-1, Rk_mesh_sens);
-   dLdX->Add(-1, Rj_mesh_sens);
+   dLdX->Add(1, *res_mesh_sens_l);
+   dLdX->Add(-1, *j_mesh_sens_true);
 
    return dLdX.get();
 }
@@ -647,9 +580,6 @@ void MagnetostaticSolver::constructMagnetization()
    }
 }
 
-/// TODO - use options to select which winding belongs to which phase, need to
-///        finalize mesh reading before I finish this, as the mesh will decide
-///        how to do this (each winding getting its own attribute or not)
 void MagnetostaticSolver::constructCurrent()
 {
    current_coeff.reset(new VectorMeshDependentCoefficient());
@@ -733,6 +663,8 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                     // new VectorFunctionCoefficient(dim, func,
+                     //                               funcRevDiff));
                      new VectorFunctionCoefficient(dim, box1CurrentSource,
                                                    box1CurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
@@ -744,6 +676,8 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                     // new VectorFunctionCoefficient(dim, func,
+                     //                               funcRevDiff));
                      new VectorFunctionCoefficient(dim, box2CurrentSource,
                                                    box2CurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
@@ -756,12 +690,6 @@ void MagnetostaticSolver::assembleCurrentSource()
 {
    int fe_order = options["space-dis"]["degree"].get<int>();
 
-   /// Create the H1 finite element collection and space, only used by the
-   /// divergence free projectors so we define them here and then throw them
-   /// away
-   // auto h1_coll = H1_FECollection(fe_order, dim);
-   // auto h1_space = SpaceType(mesh.get(), &h1_coll);
-
    /// get int rule (approach followed my MFEM Tesla Miniapp)
    int irOrder = h1_space->GetElementTransformation(0)->OrderW()
                + 2 * fe_order;
@@ -769,41 +697,168 @@ void MagnetostaticSolver::assembleCurrentSource()
    const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
 
    /// compute the divergence free current source
-   auto *grad = new mfem::common::ParDiscreteGradOperator(h1_space.get(), fes.get());
-
-   // assemble gradient form
-   grad->Assemble();
-   grad->Finalize();
-
    auto div_free_proj = mfem::common::DivergenceFreeProjector(*h1_space, *fes,
-                                             irOrder, NULL, NULL, grad);
+                                             irOrder, NULL, NULL, NULL);
 
    GridFunType j = GridFunType(fes.get());
    j.ProjectCoefficient(*current_coeff);
 
-   // GridFunType j_div_free = GridFunType(fes.get());
    // Compute the discretely divergence-free portion of j
-   // div_free_proj.Mult(j, j_div_free);
    *div_free_current_vec = 0.0;
    div_free_proj.Mult(j, *div_free_current_vec);
+
    /// create current linear form vector by multiplying mass matrix by
    /// divergence free current source grid function
-   // ConstantCoefficient one(1.0);
    BilinearFormIntegrator *h_curl_mass_integ = new VectorFEMassIntegrator;
    h_curl_mass_integ->SetIntRule(ir);
-   BilinearFormType *h_curl_mass = new BilinearFormType(fes.get());
-   h_curl_mass->AddDomainIntegrator(h_curl_mass_integ);
-
+   BilinearFormType h_curl_mass(fes.get());
+   h_curl_mass.AddDomainIntegrator(h_curl_mass_integ);
    // assemble mass matrix
-   h_curl_mass->Assemble();
-   h_curl_mass->Finalize();
+   h_curl_mass.Assemble();
+   h_curl_mass.Finalize();
 
    *current_vec = 0.0;
-   h_curl_mass->AddMult(*div_free_current_vec, *current_vec);
-   // std::cout << "below h_curl add mult\n";
-   // I had strange errors when not using pointer versions of these
-   delete h_curl_mass;
-   delete grad;
+   h_curl_mass.AddMult(*div_free_current_vec, *current_vec);
+}
+
+void MagnetostaticSolver::getCurrentSourceMeshSens(
+   const mfem::GridFunction &psi_a,
+   mfem::Vector &mesh_sens)
+{
+   Array<int> ess_bdr, ess_bdr_tdofs;
+   ess_bdr.SetSize(h1_space->GetParMesh()->bdr_attributes.Max());
+   ess_bdr = 1;
+   h1_space->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
+
+   /// compute \psi_k
+   /// D \psi_k = G^T M^T \psi_j (\psi_j = -\psi_A)
+   ParBilinearForm h_curl_mass(fes.get());
+   h_curl_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
+   // assemble mass matrix
+   h_curl_mass.Assemble();
+   h_curl_mass.Finalize();
+
+   ParGridFunction MTpsi_j(fes.get());
+   MTpsi_j = 0.0;
+   h_curl_mass.MultTranspose(psi_a, MTpsi_j);
+   MTpsi_j *= -1.0; // (\psi_j = -\psi_A)
+
+   mfem::common::ParDiscreteGradOperator grad(h1_space.get(), fes.get());
+   grad.Assemble();
+   grad.Finalize();
+
+   ParGridFunction GTMTpsi_j(h1_space.get());
+   GTMTpsi_j = 0.0;
+   grad.MultTranspose(MTpsi_j, GTMTpsi_j);
+
+   ParBilinearForm D(h1_space.get());
+   D.AddDomainIntegrator(new DiffusionIntegrator);
+   D.Assemble();
+   D.Finalize();
+   
+   auto *Dmat = new HypreParMatrix;
+
+   ParGridFunction psi_k(h1_space.get());
+   psi_k = 0.0;
+   {
+      Vector PSIK;
+      Vector RHS;
+      D.FormLinearSystem(ess_bdr_tdofs, psi_k, GTMTpsi_j, *Dmat, PSIK, RHS);
+      /// Diffusion matrix is symmetric, no need to transpose
+      // auto *DmatT = Dmat->Transpose();
+      HypreBoomerAMG amg(*Dmat);
+      amg.SetPrintLevel(0);
+      HypreGMRES gmres(*Dmat);
+      gmres.SetTol(1e-14);
+      gmres.SetMaxIter(200);
+      gmres.SetPrintLevel(-1);
+      gmres.SetPreconditioner(amg);
+      gmres.Mult(RHS, PSIK);
+
+      D.RecoverFEMSolution(PSIK, GTMTpsi_j, psi_k);
+   }
+
+   /// compute k
+   ParMixedBilinearForm weakDiv(fes.get(), h1_space.get());
+   weakDiv.AddDomainIntegrator(new VectorFEWeakDivergenceIntegrator);
+   weakDiv.Assemble();
+   weakDiv.Finalize();
+
+   ParGridFunction j(fes.get());
+   j.ProjectCoefficient(*current_coeff);
+
+   ParGridFunction Wj(h1_space.get());
+   Wj = 0.0;
+   weakDiv.Mult(j, Wj);
+
+   ParGridFunction k(h1_space.get());
+   k = 0.0;
+   {
+      Vector K;
+      Vector RHS;
+      D.FormLinearSystem(ess_bdr_tdofs, k, Wj, *Dmat, K, RHS);
+
+      HypreBoomerAMG amg(*Dmat);
+      amg.SetPrintLevel(0);
+      HypreGMRES gmres(*Dmat);
+      gmres.SetTol(1e-14);
+      gmres.SetMaxIter(200);
+      gmres.SetPrintLevel(-1);
+      gmres.SetPreconditioner(amg);
+      gmres.Mult(RHS, K);
+
+      D.RecoverFEMSolution(K, Wj, k);
+   }
+
+   SpaceType *mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
+
+   ParLinearForm Rk_mesh_sens(mesh_fes);
+   /// add integrators R_k = Dk - Wj = 0
+   /// \psi_k^T Dk
+   ConstantCoefficient one(1.0);
+   Rk_mesh_sens.AddDomainIntegrator(
+      new DiffusionResIntegrator(one, &k, &psi_k));
+   /// -\psi_k^T W j 
+   Rk_mesh_sens.AddDomainIntegrator(
+      new VectorFEWeakDivergencedJdXIntegrator(&j, &psi_k,
+                                               current_coeff.get(), -1.0));
+   Rk_mesh_sens.Assemble();
+
+   ParLinearForm Rj_mesh_sens(mesh_fes);
+   /// Add integrators R_{\hat{j}} = \hat{j} - MGk - Mj = 0
+   ParGridFunction Gk(fes.get());
+   Gk = 0.0;
+   grad.Mult(k, Gk);
+
+   /// NOTE: Not using -1.0 here even though there are - signs in the residual
+   /// because we're using adj, not psi_j, which would be -adj
+   Rj_mesh_sens.AddDomainIntegrator(
+      new VectorFEMassdJdXIntegerator(&Gk, &psi_a));
+   Rj_mesh_sens.AddDomainIntegrator(
+      new VectorFEMassdJdXIntegerator(&j, &psi_a, current_coeff.get()));
+   Rj_mesh_sens.Assemble();
+
+   mesh_sens.Add(1.0, *Rk_mesh_sens.ParallelAssemble());
+   mesh_sens.Add(1.0, *Rj_mesh_sens.ParallelAssemble());   
+}
+
+double MagnetostaticSolver::getFunctionalCurrentDensitySensitivity(const std::string &fun)
+{
+   solveForAdjoint(fun);
+
+   current_density = 1.0;
+   constructCurrent();
+   assembleCurrentSource();
+   *current_vec *= -1.0;
+   double derivative = *adj * *current_vec;
+
+   setStaticMembers();
+   constructCurrent();
+   constructMagnetization();
+   assembleCurrentSource();
+   assembleMagnetizationSource();
+
+   return derivative;
 }
 
 void MagnetostaticSolver::assembleMagnetizationSource(void)
@@ -1074,7 +1129,7 @@ void MagnetostaticSolver::z_axis_magnetization_source(const Vector &x,
 void MagnetostaticSolver::box1CurrentSource(const Vector &x,
                                             Vector &J)
 {
-   box1_current(x.GetData(), J.GetData());
+   box1_current(current_density, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::box1CurrentSourceRevDiff(
@@ -1091,7 +1146,7 @@ void MagnetostaticSolver::box1CurrentSourceRevDiff(
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   box1_current<adouble>(x_a.data(), J_a.data());
+   box1_current<adouble>(current_density, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -1103,7 +1158,7 @@ void MagnetostaticSolver::box1CurrentSourceRevDiff(
 void MagnetostaticSolver::box2CurrentSource(const Vector &x,
                                       Vector &J)
 {
-   box2_current(x.GetData(), J.GetData());
+   box2_current(current_density, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::box2CurrentSourceRevDiff(
@@ -1120,7 +1175,7 @@ void MagnetostaticSolver::box2CurrentSourceRevDiff(
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   box2_current<adouble>(x_a.data(), J_a.data());
+   box2_current<adouble>(current_density, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());

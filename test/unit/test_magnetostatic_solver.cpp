@@ -30,10 +30,10 @@ void getDivFreeCurrentMeshSens(mfem::ParFiniteElementSpace *mesh_fes,
    ess_bdr = 1;
    h1_fes->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
 
-   int irOrder = h1_fes->GetElementTransformation(0)->OrderW()
-                  + 2 * p;
-   int geom = h1_fes->GetFE(0)->GetGeomType();
-   const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
+   // int irOrder = h1_fes->GetElementTransformation(0)->OrderW()
+   //                + 2 * p;
+   // int geom = h1_fes->GetFE(0)->GetGeomType();
+   // const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
 
    /// compute \psi_k
    /// D \psi_k = G^T M^T \psi_j (\psi_j = -\psi_A)
@@ -61,10 +61,8 @@ void getDivFreeCurrentMeshSens(mfem::ParFiniteElementSpace *mesh_fes,
    D.Assemble();
    D.Finalize();
    
-
    // auto *Dmat = D.ParallelAssemble();
    auto *Dmat = new HypreParMatrix;
-
 
    ParGridFunction psi_k(h1_fes);
    psi_k = 0.0;
@@ -72,13 +70,14 @@ void getDivFreeCurrentMeshSens(mfem::ParFiniteElementSpace *mesh_fes,
       Vector PSIK;
       Vector RHS;
       D.FormLinearSystem(ess_bdr_tdofs, psi_k, GTMTpsi_j, *Dmat, PSIK, RHS);
-      auto *DmatT = Dmat->Transpose();
-      HypreBoomerAMG amg(*DmatT);
+      /// Diffusion matrix is symmetric, no need to transpose
+      // auto *DmatT = Dmat->Transpose();
+      HypreBoomerAMG amg(*Dmat);
       amg.SetPrintLevel(0);
-      HypreGMRES gmres(*DmatT);
+      HypreGMRES gmres(*Dmat);
       gmres.SetTol(1e-14);
       gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(2);
+      gmres.SetPrintLevel(-1);
       gmres.SetPreconditioner(amg);
       gmres.Mult(RHS, PSIK);
 
@@ -110,7 +109,7 @@ void getDivFreeCurrentMeshSens(mfem::ParFiniteElementSpace *mesh_fes,
       HypreGMRES gmres(*Dmat);
       gmres.SetTol(1e-14);
       gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(2);
+      gmres.SetPrintLevel(-1);
       gmres.SetPreconditioner(amg);
       gmres.Mult(RHS, K);
 
@@ -160,7 +159,7 @@ TEST_CASE("Divergence free projection mesh sensitivities")
 
    int mesh_el = 8;
 
-   for (int p = 2; p <= 2; ++p)
+   for (int p = 1; p <= 2; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -284,10 +283,172 @@ TEST_CASE("Divergence free projection mesh sensitivities")
          }
          dJdX_v_cd /= (2*delta);
 
+         // std::cout << "dJdX_v: " << dJdX_v << "\n";
+         // std::cout << "dJdX_v_cd: " << dJdX_v_cd << "\n";
+         REQUIRE(dJdX_v == Approx(dJdX_v_cd).margin(1e-10));
+
+      }
+   }
+}
+
+TEST_CASE("Divergence free projection mesh sensitivities - Solver Version")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+   using namespace mach;
+
+   const int dim = 3;
+   const double delta = 1e-5;
+
+   int mesh_el = 8;
+
+   for (int p = 1; p <= 2; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         // generate initial tet mesh
+         auto init_mesh = getMesh(mesh_el,2);
+         init_mesh->EnsureNodes();
+         init_mesh->RemoveInternalBoundaries();
+
+         nlohmann::json options = getBoxOptions(p);
+         // generate initial tet mesh
+         mach::MagnetostaticSolver solver(options, move(init_mesh));
+         solver.initDerived();
+
+         auto *mesh = solver.getMesh();
+
+         // extract mesh nodes and get their finite-element space
+         // GridFunction *x_nodes = mesh->GetNodes();
+         // FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+         auto *mesh_fes = static_cast<ParFiniteElementSpace*>(
+                                                   mesh->GetNodes()->FESpace());
+
+
+
+         // get the finite-element space for the current grid function
+         std::unique_ptr<FiniteElementCollection> nd_fec(
+            new ND_FECollection(p, dim));
+         std::unique_ptr<ParFiniteElementSpace> nd_fes(
+            new ParFiniteElementSpace(mesh, nd_fec.get()));
+         
+         ParGridFunction adj(nd_fes.get());
+         VectorFunctionCoefficient v_rand(dim, randState);
+         adj.ProjectCoefficient(v_rand);
+
+         ParGridFunction mesh_sens(mesh_fes);
+         mesh_sens = 0.0;
+         solver.getCurrentSourceMeshSens(adj, mesh_sens);
+
+         ParGridFunction v(mesh_fes);
+         v.ProjectCoefficient(v_rand);
+
+         double dJdX_v = mesh_sens * v;
+
+         /// now compute centered difference difference
+         double dJdX_v_cd = 0.0;
+         // back step
+         {
+            auto back_mesh = getMesh(mesh_el,2);
+            mach::MagnetostaticSolver back_solver(options, move(back_mesh));
+            auto *b_mesh = back_solver.getMesh();
+            auto *back_pert(static_cast<ParGridFunction*>(b_mesh->GetNodes()));
+            back_pert->Add(-delta, v);
+            b_mesh->SetNodes(*back_pert);
+
+            back_solver.initDerived();
+            back_solver.assembleCurrentSource();
+            dJdX_v_cd -= adj * *back_solver.current_vec;
+         }
+
+         // forward step
+         {
+            auto forward_mesh = getMesh(mesh_el,2);
+
+            mach::MagnetostaticSolver forward_solver(options, move(forward_mesh));
+
+            auto *f_mesh = forward_solver.getMesh();
+            auto *forward_pert(static_cast<ParGridFunction*>(f_mesh->GetNodes()));
+            forward_pert->Add(delta, v);
+            f_mesh->SetNodes(*forward_pert);
+
+            forward_solver.initDerived();
+            forward_solver.assembleCurrentSource();
+            dJdX_v_cd += adj * *forward_solver.current_vec;
+         }
+         dJdX_v_cd /= (2*delta);
+
          std::cout << "dJdX_v: " << dJdX_v << "\n";
          std::cout << "dJdX_v_cd: " << dJdX_v_cd << "\n";
          REQUIRE(dJdX_v == Approx(dJdX_v_cd).margin(1e-10));
+      }
+   }
+}
 
+TEST_CASE("Magnetostatic Adjoint solved correctly")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+   using namespace mach;
+
+   const int dim = 3;
+   const double delta = 1e-5;
+
+   int mesh_el = 8;
+
+   for (int p = 1; p <= 2; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         // generate initial tet mesh
+         auto init_mesh = getMesh(mesh_el,2);
+         init_mesh->EnsureNodes();
+         init_mesh->RemoveInternalBoundaries();
+
+         nlohmann::json options = getBoxOptions(p);
+         // generate initial tet mesh
+         mach::MagnetostaticSolver solver(options, move(init_mesh));
+         solver.initDerived();
+         solver.solveForState();
+
+         double dWdJ = solver.getFunctionalCurrentDensitySensitivity("co-energy");
+
+         /// now compute centered difference difference
+         double dWdJ_cd = 0.0;
+         // back step
+         {
+            auto mesh = getMesh(mesh_el,2);
+            nlohmann::json back_options = getBoxOptions(p);
+            double J = back_options["problem-opts"]["current-density"].get<double>();
+            J -= delta;
+            back_options["problem-opts"]["current-density"] = J;
+
+            mach::MagnetostaticSolver back_solver(back_options, move(mesh));
+            back_solver.initDerived();
+            back_solver.solveForState();
+            dWdJ_cd -= back_solver.calcOutput("co-energy");
+
+         }
+
+         // forward step
+         {
+            auto forward_mesh = getMesh(mesh_el,2);
+            nlohmann::json forward_options = getBoxOptions(p);
+            double J = forward_options["problem-opts"]["current-density"].get<double>();
+            J += delta;
+            forward_options["problem-opts"]["current-density"] = J;
+
+            mach::MagnetostaticSolver forward_solver(forward_options, move(forward_mesh));
+            forward_solver.initDerived();
+            forward_solver.solveForState();
+            dWdJ_cd += forward_solver.calcOutput("co-energy");
+
+         }
+         dWdJ_cd /= (2*delta);
+
+         std::cout << "dWdJ: " << dWdJ << "\n";
+         std::cout << "dWdJ_cd: " << dWdJ_cd << "\n";
+         REQUIRE(dWdJ == Approx(dWdJ_cd).margin(1e-10));
       }
    }
 }
@@ -651,8 +812,7 @@ TEST_CASE("Discrete Gradient Operator - Should have no spatial dependence")
    }
 }
 
-/**
-TEST_CASE("MagnetostaticSolver::getMeshSensitivities",
+TEST_CASE("MagnetostaticSolver::getMeshSensitivities - interior only",
           "[MagnetostaticSolver]")
 {
    using namespace mfem;
@@ -669,12 +829,26 @@ TEST_CASE("MagnetostaticSolver::getMeshSensitivities",
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
          // generate initial tet mesh
-         auto init_mesh = getMesh(mesh_el,1);
+         auto init_mesh = getMesh(mesh_el,2);
+         init_mesh->EnsureNodes();
+         init_mesh->RemoveInternalBoundaries();
+
+         // extract mesh nodes and get their finite-element space
+         GridFunction *x_nodes = init_mesh->GetNodes();
+         FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+
+         Array<int> ess_bdr, ess_bdr_tdofs;
+         ess_bdr.SetSize(mesh_fes->GetMesh()->bdr_attributes.Max());
+         ess_bdr = 1;
+         mesh_fes->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
+
+
          nlohmann::json options = getBoxOptions(p);
 
          mach::MagnetostaticSolver solver(options, move(init_mesh));
          solver.initDerived();
          solver.solveForState();
+         solver.printSolution("state", 0);
          double energy = solver.calcOutput("co-energy");
          GridFunction *dJdX = solver.getMeshSensitivities();
 
@@ -686,13 +860,18 @@ TEST_CASE("MagnetostaticSolver::getMeshSensitivities",
          VectorFunctionCoefficient v_rand(dim, randState);
          v.ProjectCoefficient(v_rand);
 
+         for (int i = 0; i < ess_bdr_tdofs.Size(); ++i)
+         {
+            v(ess_bdr_tdofs[i]) = 0.0;
+         }
+
          double dJdX_v = (*dJdX) * v;
 
          /// now compute centered difference difference
          double dJdX_v_cd = 0.0;
          // back step
          {
-            auto back_mesh = getMesh(mesh_el,1);
+            auto back_mesh = getMesh(mesh_el,2);
 
             mach::GridFunType back_pert(*static_cast<mach::GridFunType*>(back_mesh->GetNodes()));
             back_pert.Add(-delta, v);
@@ -705,7 +884,7 @@ TEST_CASE("MagnetostaticSolver::getMeshSensitivities",
 
          // forward step
          {
-            auto forward_mesh = getMesh(mesh_el,1);
+            auto forward_mesh = getMesh(mesh_el,2);
 
             GridFunction forward_pert(*forward_mesh->GetNodes());
             forward_pert.Add(delta, v);
@@ -722,7 +901,7 @@ TEST_CASE("MagnetostaticSolver::getMeshSensitivities",
          double dJdX_v_fd = -energy;
          // forward step
          {
-            auto forward_mesh = getMesh(mesh_el,1);
+            auto forward_mesh = getMesh(mesh_el,2);
 
             GridFunction forward_pert(*forward_mesh->GetNodes());
             forward_pert.Add(fd_delta, v);
@@ -743,4 +922,3 @@ TEST_CASE("MagnetostaticSolver::getMeshSensitivities",
       }
    }
 }
-*/
