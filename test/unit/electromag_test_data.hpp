@@ -61,6 +61,21 @@ void funcRevDiff(const mfem::Vector &x, const mfem::Vector &v_bar, mfem::Vector 
    x_bar(2) = v_bar(2) * x(0); 
 }
 
+void func2(const mfem::Vector &x, mfem::Vector &y)
+{
+   y.SetSize(3);
+   y(0) = sin(x(0))*x(2)*x(2);
+   y(1) = x(1) - x(0)*x(2);
+   y(2) = sin(x(1))*exp(x(2));
+}
+
+void func2RevDiff(const mfem::Vector &x, const mfem::Vector &v_bar, mfem::Vector &x_bar)
+{
+   x_bar(0) = cos(x(0))*x(2)*x(2)*v_bar(0) - x(2)*v_bar(1);
+   x_bar(1) = v_bar(1) + cos(x(1))*exp(x(2))*v_bar(2); 
+   x_bar(2) = 2*sin(x(0))*x(2)*v_bar(0) - x(0)*v_bar(1) + sin(x(1))*exp(x(2))*v_bar(2);
+}
+
 /// Simple linear coefficient for testing CurlCurlNLFIntegrator
 class LinearCoefficient : public mach::StateCoefficient
 {
