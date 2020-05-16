@@ -90,6 +90,54 @@ double bisection(std::function<double(double)> func, double xl, double xr,
    return xm;
 }
 
+double secant(std::function<double(double)> func, double x1, double x2,
+              double ftol, double xtol, int maxiter)
+{
+   double f1 = func(x1); 
+   double f2 = func(x2);
+   double x, f;
+   if (fabs(f1) < fabs(f2))
+   {
+      // swap x1 and x2 if the latter gives a smaller value
+      x = x2;
+      f = f2;
+      x2 = x1;
+      f2 = f1;
+      x1 = x;
+      f1 = f;
+   }
+   x = x2;
+   f = f2;
+   int iter = 0;
+   while ( (fabs(f) > ftol) && (iter < maxiter) )
+   {
+      ++iter;
+      try
+      {
+         double dx = f2*(x2 - x1)/(f2 - f1);
+         x -= dx;
+         f = func(x);
+         if (fabs(dx) < xtol)
+         {
+            break;
+         }
+         x1 = x2;
+         f1 = f2;
+         x2 = x;
+         f2 = f;
+      }
+      catch(std::exception &exception)
+      {
+         cerr << "secant: " << exception.what() << endl;
+      }
+   }
+   if (iter > maxiter)
+   {
+      throw MachException("secant: maximum number of iterations exceeded");
+   }
+   return x;
+}
+
 #ifndef MFEM_USE_LAPACK
 void dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
         double *, int *, double *, int *, int *);
