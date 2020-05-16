@@ -40,7 +40,7 @@ void func2RevDiff(const Vector &x, const Vector &v_bar, Vector &x_bar)
 {
    x_bar(0) = cos(x(0))*x(2)*x(2)*v_bar(0) - x(2)*v_bar(1);
    x_bar(1) = v_bar(1) + cos(x(1))*exp(x(2))*v_bar(2); 
-   x_bar(2) = 2*sin(x(0))*x(2)*v_bar(0) - x(0)*v_bar(0) + sin(x(1))*exp(x(2))*v_bar(2);
+   x_bar(2) = 2*sin(x(0))*x(2)*v_bar(0) - x(0)*v_bar(1) + sin(x(1))*exp(x(2))*v_bar(2);
 }
 
 std::string one_tet_mesh_str = 
@@ -129,7 +129,7 @@ TEST_CASE("MeshDependentVectorCoefficient::EvalRevDiff",
    coeff.addCoefficient(1, move(coeff1));
    coeff.addCoefficient(2, move(coeff2));
 
-   for (int p = 1; p <= 4; p++)
+   for (int p = 1; p <= 1; p++)
    {
       /// construct elements
       ND_FECollection fec(p, dim);
