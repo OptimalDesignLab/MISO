@@ -1,7 +1,7 @@
 /// Solve the unsteady isentropic vortex problem
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = false;
-#include<random>
+constexpr bool entvar = true;
+#include <random>
 #include "mfem.hpp"
 #include "euler.hpp"
 #include "euler_fluxes.hpp"

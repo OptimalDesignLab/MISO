@@ -752,6 +752,11 @@ void AbstractSolver::solveUnsteady()
    //    osol.precision(precision);
    //    u->Save(osol);
    // }
+   cout << "Check the inner product.\n";
+   mfem::Vector test(uc->Size());
+   res->Mult(*uc, test);
+   double inner = (*uc) * test;
+   cout << "The inner product is " << inner << '\n'; 
 
    bool done = false;
    double t_final = options["time-dis"]["t-final"].get<double>();
