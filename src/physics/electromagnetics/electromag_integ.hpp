@@ -153,10 +153,10 @@ public:
    /// \note it is assumed that `state` is an a H(div) finite element space and
    ///       that adjoint is in a H(curl) finite element space
    VectorFECurldJdXIntegerator(mfem::Coefficient *_nu,
-                               mfem::GridFunction *_state,
-                               mfem::GridFunction *_adjoint,
+                               const mfem::GridFunction *_state,
+                               const mfem::GridFunction *_adjoint,
                                mfem::VectorCoefficient *_vec_coeff = nullptr,
-                               double _alpha = 1.0)
+                               const double _alpha = 1.0)
       : nu(_nu), state(_state), adjoint(_adjoint), vec_coeff(_vec_coeff),
         alpha(_alpha) {};
 
@@ -177,13 +177,13 @@ private:
 	/// material (thus mesh) dependent model describing electromagnetic behavior
 	mfem::Coefficient *nu;
    /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
-   mfem::GridFunction *state;
+   const mfem::GridFunction *state;
    /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
-   mfem::GridFunction *adjoint;
+   const mfem::GridFunction *adjoint;
    /// the coefficient that was projected to the GridFunction that is state
    mfem::VectorCoefficient *vec_coeff;
    /// to move the terms to the LHS or RHS
-   double alpha;
+   const double alpha;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt;
@@ -204,10 +204,11 @@ public:
    /// \param[in] alpha - used to move the terms to the LHS/RHS
    /// \note it is assumed that both `state` and `adjoint` are in an H(curl)
    ///       finite element space
-   VectorFEMassdJdXIntegerator(mfem::GridFunction *_state,
-                               mfem::GridFunction *_adjoint,
-                               double _alpha = 1.0)
-      : state(_state), adjoint(_adjoint), alpha(_alpha) {};
+   VectorFEMassdJdXIntegerator(const mfem::GridFunction *_state,
+                               const mfem::GridFunction *_adjoint,
+                               mfem::VectorCoefficient *_vec_coeff = nullptr,
+                               const double _alpha = 1.0)
+      : state(_state), adjoint(_adjoint), vec_coeff(_vec_coeff), alpha(_alpha) {};
 
    /// \brief - assemble an element's contribution to
    ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
@@ -224,11 +225,13 @@ public:
    
 private:
    /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
-   mfem::GridFunction *state;
+   const mfem::GridFunction *state;
    /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
-   mfem::GridFunction *adjoint;
+   const mfem::GridFunction *adjoint;
+   /// the coefficient that was projected to the GridFunction that is state
+   mfem::VectorCoefficient *vec_coeff;
    /// to move the terms to the LHS or RHS
-   double alpha;
+   const double alpha;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix vshape, vshape_dFt;
@@ -247,10 +250,10 @@ public:
    ///                      \frac{\partial psi^T R}{\partial X}
    /// \note it is assumed that `state` is an a H(curl) finite element space
    ///       and that adjoint is in a H1 finite element space
-   VectorFEWeakDivergencedJdXIntegrator(mfem::GridFunction *_state,
-                                        mfem::GridFunction *_adjoint,
+   VectorFEWeakDivergencedJdXIntegrator(const mfem::GridFunction *_state,
+                                        const mfem::GridFunction *_adjoint,
                                         mfem::VectorCoefficient *_vec_coeff = nullptr,
-                                        double _alpha = 1.0)
+                                        const double _alpha = 1.0)
       : state(_state), adjoint(_adjoint), vec_coeff(_vec_coeff), alpha(_alpha) {};
 
    /// \brief - assemble an element's contribution to
@@ -268,7 +271,50 @@ public:
    
 private:
    /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
-   mfem::GridFunction *state;
+   const mfem::GridFunction *state;
+   /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
+   const mfem::GridFunction *adjoint;
+   /// the coefficient that was projected to the GridFunction that is state
+   mfem::VectorCoefficient *vec_coeff;
+   /// used to move terms to LHS or RHS
+   const double alpha;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape, dshape_dFt;
+   mfem::DenseMatrix vshape, vshape_dFt;
+   mfem::Vector v_vec, v_hat, d_psi, d_psi_hat;
+#endif
+
+};
+
+/// TODO: Move this somewhere else to a common integrators spot
+class GridFuncMeshSensIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   /// An integrator to compute the mesh sensitivity of \psi^T GF
+   /// \param[in] adjoint - the adjoint to use when evaluating
+   ///                      \frac{\partial \psi^T GF}{\partial X}
+   /// \note it is assumed that the adjoint and grid function are in the same
+   /// finite element space
+   GridFuncMeshSensIntegrator(mfem::GridFunction *_adjoint,
+                              mfem::VectorCoefficient *_vec_coeff,
+                              double _alpha = 1.0)
+      : adjoint(_adjoint), vec_coeff(_vec_coeff), alpha(_alpha) {};
+
+   /// \brief - assemble an element's contribution to
+   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
+   ///          derivative of a functional with respect to the mesh nodes
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   /// \note this is the `LinearFormIntegrator` component, the LinearForm that
+   ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
+   ///       nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+   
+private:
    /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
    mfem::GridFunction *adjoint;
    /// the coefficient that was projected to the GridFunction that is state

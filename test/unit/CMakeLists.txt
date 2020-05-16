@@ -39,6 +39,7 @@ set(FLUID_TEST_SRCS
 # group EM tests
 set(EM_TEST_SRCS
    test_electromag_integ
+   test_coefficient
 )
 
 # group EM MPI tests

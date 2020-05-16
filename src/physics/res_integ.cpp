@@ -318,7 +318,7 @@ void BoundaryNormalResIntegrator::AssembleRHSElementVect(
 
     const int dof = elx.GetDof();
     const int dofu = el->GetDof();
-    const int dim = Trx.Face->GetDimension();
+    // const int dim = Trx.Face->GetDimension();
     int space_dim = Trx.Face->GetSpaceDim();
     shape.SetSize(dofu);
     elvect.SetSize(space_dim*dof);

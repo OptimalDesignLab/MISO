@@ -677,9 +677,13 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
       isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
 
       // sensitivity with respect to the projection of the coefficient
-      Vector P_bar(rt_ndof);
-      vshape_dFt.Mult(curl_psi, P_bar);
-      rt_el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+      if (vec_coeff)
+      {
+         Vector P_bar(rt_ndof);
+         vshape_dFt.Mult(curl_psi, P_bar);
+         P_bar *= 1 / isotrans.Weight();
+         rt_el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+      }
 
       for (int j = 0; j < ndof ; ++j)
       {
@@ -781,6 +785,15 @@ void VectorFEMassdJdXIntegerator::AssembleRHSElementVect(
       PointMat_bar *= -v_psi_dot_v_j / pow(isotrans.Weight(), 2.0);
 
       isotrans.AdjugateJacobianRevDiff(Jac_bar, PointMat_bar);
+
+      // sensitivity with respect to the projection of the coefficient
+      if (vec_coeff)
+      {
+         Vector P_bar(el_ndof);
+         vshape_dFt.Mult(v_psi_vec, P_bar);
+         P_bar *= 1 / isotrans.Weight();
+         el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+      }
 
       for (int j = 0; j < ndof ; ++j)
       {
@@ -895,9 +908,13 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
       isotrans.AdjugateJacobianRevDiff(Jac_bar, PointMat_bar);
 
       // sensitivity with respect to the projection of the coefficient
-      Vector P_bar(nd_ndof);
-      vshape_dFt.Mult(d_psi, P_bar);
-      nd_el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+      if (vec_coeff)
+      {
+         Vector P_bar(nd_ndof);
+         vshape_dFt.Mult(d_psi, P_bar);
+         P_bar *= 1 / isotrans.Weight();
+         nd_el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+      }
 
       for (int j = 0; j < ndof ; ++j)
       {
@@ -907,6 +924,48 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
             /// the original integrator (line 1312 in bilininteg.cpp)
             elvect(d*ndof + j) -= alpha * ip.weight * PointMat_bar(d,j);
          }
+      }
+   }  
+}
+
+void GridFuncMeshSensIntegrator::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   /// get the proper element, transformation, and adjoint and m vector
+   Array<int> adj_vdofs;
+   Vector psi; 
+   int element = mesh_trans.ElementNo;
+
+   /// get the elements used the adjoint dofs
+   const FiniteElement &el = *adjoint->FESpace()->GetFE(element);
+   ElementTransformation &trans = *adjoint->FESpace()->GetElementTransformation(element);
+
+   adjoint->FESpace()->GetElementVDofs(element, adj_vdofs);
+   adjoint->GetSubVector(adj_vdofs, psi);
+
+   int ndof = mesh_el.GetDof();
+   int dim = el.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+
+   elvect.SetSize(ndof*dimc);
+   elvect = 0.0;
+
+   DenseMatrix PointMat_bar(dimc, ndof);
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(trans);
+
+   PointMat_bar = 0.0;
+   el.Project_RevDiff(psi, *vec_coeff, isotrans, PointMat_bar);
+
+   for (int j = 0; j < ndof ; ++j)
+   {
+      for (int d = 0; d < dimc; ++d)
+      {
+         elvect(d*ndof + j) += alpha * PointMat_bar(d,j);
       }
    }  
 }

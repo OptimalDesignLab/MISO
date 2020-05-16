@@ -20,7 +20,7 @@ public:
     /// Constructs a domain integrator with a given Coefficient
     DomainResIntegrator(Coefficient &QF, GridFunction *u, GridFunction *adj, 
                         int a = 2, int b = 0)
-                        : Q(QF), state(u), adjoint(adj), oa(a), ob(b)
+                        : Q(QF), oa(a), ob(b), state(u), adjoint(adj)
     { }
 
     /// Constructs a domain integrator with a given Coefficient
@@ -141,7 +141,7 @@ public:
     /// Constructs a boundary integrator with a given Coefficient
     BoundaryNormalResIntegrator(VectorCoefficient &QF, GridFunction *u, GridFunction *adj, 
                         int a = 2, int b = 0)
-                        : Q(QF), state(u), adjoint(adj), oa(a), ob(b)
+                        : Q(QF), oa(a), ob(b), state(u), adjoint(adj)
     { }
 
     /// Computes dR/dX, X being mesh node locations (DO NOT USE)

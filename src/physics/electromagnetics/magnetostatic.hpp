@@ -85,7 +85,9 @@ private:
    // std::unique_ptr<NonlinearFormType> res;
 
    /// current source vector
+public:
    std::unique_ptr<GridFunType> current_vec;
+private:
    std::unique_ptr<GridFunType> div_free_current_vec;
 
    /// mesh dependent reluctivity coefficient
@@ -145,18 +147,32 @@ private:
    /// \param[in] alpha - used to move to lhs or rhs
    void constructCurrent();
 
+public:
    /// TODO: throw MachException if constructCurrent not called first
    ///       introdue some current constructed flag?
    /// assemble vector associated with current source
    /// \note - constructCurrent must be called before calling this
    void assembleCurrentSource();
 
+   /// Assemble mesh sensitivities of current source vector
+   /// \param[in] psi_a - Adjoint vector
+   /// \param[out] mesh_sens - mesh sensitivitites
+   /// \note this method will not initialize mesh_sens, but will add to it
+   void getCurrentSourceMeshSens(const mfem::GridFunction &psi_a,
+                                 mfem::Vector &mesh_sens);
+
+   /// Get the total derivative of a functional with respect to the current
+   /// density
+   /// \param[in] fun - which functional to get sensitivity with respect to
+   double getFunctionalCurrentDensitySensitivity(const std::string &fun);
+
+private:
    /// TODO: throw MachException if constructMagnetization or
    ///       assembleCurrentSource not called first
    /// \brief assemble magnetization source terms into rhs vector and add them
    ///        with the current source terms
    /// \note - constructMagnetization must be called before calling this
-   void assembleMagnetizationSource(void);
+   void assembleMagnetizationSource();
 
    /// Function to compute seconday fields
    /// For magnetostatics, computes the magnetic flux density
