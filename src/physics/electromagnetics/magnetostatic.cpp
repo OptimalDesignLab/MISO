@@ -44,10 +44,10 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
-double randState(const mfem::Vector &x)
-{
-   return 2.0 * uniform_rand(gen) - 1.0;
-}
+// double randState(const mfem::Vector &x)
+// {
+//    return 2.0 * uniform_rand(gen) - 1.0;
+// }
 
 void randState(const mfem::Vector &x, mfem::Vector &u)
 {
@@ -57,6 +57,260 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
       // std::cout << i << std::endl;
       u(i) = uniform_rand(gen);
    }
+}
+
+template <typename xdouble = double>
+void phase_a_current(const xdouble &current_density,
+                     const xdouble &fill_factor,
+                     const xdouble *x,
+                     xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = 0.0;
+   J[2] = 0.0;
+
+   // example of needed geometric parameters, this should be all you need
+   xdouble n_s = 12; // number of slots
+   xdouble zb = 0.0; // bottom of stator
+   xdouble zt = 0.25; // top of stator
+
+   // compute theta from x and y
+   xdouble tha = atan2(x[1], x[0]);
+   xdouble thw = 2 * M_PI / n_s; //total angle of slot
+
+   // check which winding we're in
+   xdouble w = round(tha/thw); // current slot
+   xdouble th = tha - w*thw;
+
+   // check if we're in the stator body
+   if (x[2] >= zb && x[2] <= zt)
+   {
+      // check if we're in left or right half
+      if (th > 0)
+      {
+         J[2] = -1; // set to 1 for now, and direction depends on current direction
+      }
+      if (th < 0)
+      {
+         J[2] = 1;	
+      }
+   }
+   else  // outside of the stator body, check if above or below
+   {
+      // 'subtract' z position to 0 depending on if above or below
+      xdouble rx[] = {x[0], x[1], x[2]};
+      if (x[2] > zt) 
+      {
+         rx[2] -= zt; 
+      }
+      if (x[2] < zb) 
+      {
+         rx[2] -= zb; 
+      }
+
+      // draw top rotation axis
+      xdouble ax[] = {0.0, 0.0, 0.0};
+      ax[0] = cos(w * thw);
+      ax[1] = sin(w * thw);
+
+      // take x cross ax, normalize
+      J[0] = rx[1]*ax[2] - rx[2]*ax[1];
+      J[1] = rx[2]*ax[0] - rx[0]*ax[2];
+      J[2] = rx[0]*ax[1] - rx[1]*ax[0];
+      xdouble norm_J = sqrt(J[0]*J[0] + J[1]*J[1] + J[2]*J[2]);
+      J[0] /= norm_J;
+      J[1] /= norm_J;
+      J[2] /= norm_J;
+   }
+   J[0] *= current_density * fill_factor;
+   J[1] *= current_density * fill_factor;
+   J[2] *= current_density * fill_factor;
+}
+
+template <typename xdouble = double>
+void phase_b_current(const xdouble &current_density,
+                     const xdouble &fill_factor,
+                     const xdouble *x,
+                     xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = 0.0;
+   J[2] = 0.0;
+
+   // example of needed geometric parameters, this should be all you need
+   xdouble n_s = 12; // number of slots
+   xdouble zb = 0.0; // bottom of stator
+   xdouble zt = 0.25; // top of stator
+
+   // compute theta from x and y
+   xdouble tha = atan2(x[1], x[0]);
+   xdouble thw = 2 * M_PI / n_s; // total angle of slot
+
+   // check which winding we're in
+   xdouble w = round(tha/thw); // current slot
+   xdouble th = tha - w*thw;
+
+   // check if we're in the stator body
+   if (x[2] >= zb && x[2] <= zt)
+   {
+      // check if we're in left or right half
+      if (th > 0)
+      {
+         J[2] = -1; // set to 1 for now, and direction depends on current direction
+      }
+      if (th < 0)
+      {
+         J[2] = 1;	
+      }
+   }
+   else  // outside of the stator body, check if above or below
+   {
+      // 'subtract' z position to 0 depending on if above or below
+      xdouble rx[] = {x[0], x[1], x[2]};
+      if (x[2] > zt) 
+      {
+         rx[2] -= zt; 
+      }
+      if (x[2] < zb) 
+      {
+         rx[2] -= zb; 
+      }
+
+      // draw top rotation axis
+      xdouble ax[] = {0.0, 0.0, 0.0};
+      ax[0] = cos(w * thw);
+      ax[1] = sin(w * thw);
+
+      // take x cross ax, normalize
+      J[0] = rx[1]*ax[2] - rx[2]*ax[1];
+      J[1] = rx[2]*ax[0] - rx[0]*ax[2];
+      J[2] = rx[0]*ax[1] - rx[1]*ax[0];
+      xdouble norm_J = sqrt(J[0]*J[0] + J[1]*J[1] + J[2]*J[2]);
+      J[0] /= norm_J;
+      J[1] /= norm_J;
+      J[2] /= norm_J;
+   }
+   J[0] *= -current_density * fill_factor;
+   J[1] *= -current_density * fill_factor;
+   J[2] *= -current_density * fill_factor;
+}
+
+template <typename xdouble = double>
+void phase_c_current(const xdouble &current_density,
+                     const xdouble &fill_factor,
+                     const xdouble *x,
+                     xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = 0.0;
+   J[2] = 0.0;
+}
+
+template <typename xdouble = double>
+void north_magnetization(const xdouble& remnant_flux,
+                         const xdouble *x,
+                         xdouble *M)
+{
+   xdouble r[] = {0.0, 0.0, 0.0};
+   r[0] = x[0];
+   r[1] = x[1];
+   xdouble norm_r = sqrt(r[0]*r[0] + r[1]*r[1]);
+   M[0] = r[0] * remnant_flux / norm_r;
+   M[1] = r[1] * remnant_flux / norm_r;
+   M[2] = 0.0;
+}
+
+template <typename xdouble = double>
+void south_magnetization(const xdouble& remnant_flux,
+                         const xdouble *x,
+                         xdouble *M)
+{
+   xdouble r[] = {0.0, 0.0, 0.0};
+   r[0] = x[0];
+   r[1] = x[1];
+   xdouble norm_r = sqrt(r[0]*r[0] + r[1]*r[1]);
+   M[0] = -r[0] * remnant_flux / norm_r;
+   M[1] = -r[1] * remnant_flux / norm_r;
+   M[2] = 0.0;
+}
+
+template <typename xdouble = double>
+void x_axis_current(const xdouble &current_density,
+                    const xdouble *x,
+                    xdouble *J)
+{
+   J[0] = current_density;
+   J[1] = 0.0;
+   J[2] = 0.0;
+}
+
+template <typename xdouble = double>
+void y_axis_current(const xdouble &current_density,
+                    const xdouble *x,
+                    xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = current_density;
+   J[2] = 0.0;
+}
+
+template <typename xdouble = double>
+void z_axis_current(const xdouble &current_density,
+                    const xdouble *x,
+                    xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = 0.0;
+   J[2] = current_density;
+}
+
+template <typename xdouble = double>
+void ring_current(const xdouble &current_density,
+                  const xdouble *x,
+                  xdouble *J)
+{
+   for (int i = 0; i < 3; ++i)
+   {
+      J[i] = 0.0;
+   }
+   xdouble r[] = {0.0, 0.0, 0.0};
+   r[0] = x[0];
+   r[1] = x[1];
+   xdouble norm_r = sqrt(r[0]*r[0] + r[1]*r[1]);
+   r[0] /= norm_r;
+   r[1] /= norm_r;
+   J[0] = -r[1] * current_density;
+   J[1] = r[0] * current_density;
+}
+
+template <typename xdouble = double>
+void x_axis_magnetization(const xdouble& remnant_flux,
+                          const xdouble *x,
+                          xdouble *M)
+{
+   M[0] = remnant_flux;
+   M[1] = 0.0;
+   M[2] = 0.0;
+}
+
+template <typename xdouble = double>
+void y_axis_magnetization(const xdouble& remnant_flux,
+                          const xdouble *x,
+                          xdouble *M)
+{
+   M[0] = 0.0;
+   M[1] = remnant_flux;
+   M[2] = 0.0;
+}
+
+template <typename xdouble = double>
+void z_axis_magnetization(const xdouble& remnant_flux,
+                          const xdouble *x,
+                          xdouble *M)
+{
+   M[0] = 0.0;
+   M[1] = 0.0;
+   M[2] = remnant_flux;
 }
 
 template <typename xdouble = double>
@@ -72,7 +326,7 @@ void box1_current(const xdouble &current_density,
 	xdouble y = x[1] - .5;
 
    J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   // J[2] = current_density*6*y;
+   // J[2] = -current_density*6*y;
 
 }
 
@@ -92,20 +346,20 @@ void box2_current(const xdouble &current_density,
    // J[2] = current_density*6*y;
 }
 
-void func(const mfem::Vector &x, mfem::Vector &y)
-{
-   y.SetSize(3);
-   y(0) = x(0)*x(0) - x(1);
-   y(1) = x(0) * exp(x(1));
-   y(2) = x(2)*x(0) - x(1);
-}
+// void func(const mfem::Vector &x, mfem::Vector &y)
+// {
+//    y.SetSize(3);
+//    y(0) = x(0)*x(0) - x(1);
+//    y(1) = x(0) * exp(x(1));
+//    y(2) = x(2)*x(0) - x(1);
+// }
 
-void funcRevDiff(const mfem::Vector &x, const mfem::Vector &v_bar, mfem::Vector &x_bar)
-{
-   x_bar(0) = v_bar(0) * 2*x(0) + v_bar(1) * exp(x(1)) + v_bar(2)*x(2);
-   x_bar(1) = -v_bar(0) + v_bar(1) * x(0) * exp(x(1)) - v_bar(2); 
-   x_bar(2) = v_bar(2) * x(0); 
-}
+// void funcRevDiff(const mfem::Vector &x, const mfem::Vector &v_bar, mfem::Vector &x_bar)
+// {
+//    x_bar(0) = v_bar(0) * 2*x(0) + v_bar(1) * exp(x(1)) + v_bar(2)*x(2);
+//    x_bar(1) = -v_bar(0) + v_bar(1) * x(0) * exp(x(1)) - v_bar(2); 
+//    x_bar(2) = v_bar(2) * x(0); 
+// }
 
 } // anonymous namespace
 
@@ -528,7 +782,8 @@ void MagnetostaticSolver::constructMagnetization()
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
                   new VectorFunctionCoefficient(dim,
-                                                magnetization_source_north));
+                                                northMagnetizationSource,
+                                                northMagnetizationSourceRevDiff));
             mag_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -540,7 +795,8 @@ void MagnetostaticSolver::constructMagnetization()
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
                   new VectorFunctionCoefficient(dim,
-                                                magnetization_source_south));
+                                                southMagnetizationSource,
+                                                southMagnetizationSourceRevDiff));
             mag_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -551,8 +807,9 @@ void MagnetostaticSolver::constructMagnetization()
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
                   new VectorFunctionCoefficient(dim,
-                                                x_axis_magnetization_source));
-            current_coeff->addCoefficient(attr, move(temp_coeff));
+                                                xAxisMagnetizationSource,
+                                                xAxisMagnetizationSourceRevDiff));
+            mag_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
       if (magnets.contains("y"))
@@ -562,8 +819,9 @@ void MagnetostaticSolver::constructMagnetization()
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
                   new VectorFunctionCoefficient(dim,
-                                                y_axis_magnetization_source));
-            current_coeff->addCoefficient(attr, move(temp_coeff));
+                                                yAxisMagnetizationSource,
+                                                yAxisMagnetizationSourceRevDiff));
+            mag_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
       if (magnets.contains("z"))
@@ -573,8 +831,9 @@ void MagnetostaticSolver::constructMagnetization()
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
                   new VectorFunctionCoefficient(dim,
-                                                z_axis_magnetization_source));
-            current_coeff->addCoefficient(attr, move(temp_coeff));
+                                                zAxisMagnetizationSource,
+                                                zAxisMagnetizationSourceRevDiff));
+            mag_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
    }
@@ -593,7 +852,9 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                  new VectorFunctionCoefficient(dim, phase_a_source));
+                  new VectorFunctionCoefficient(dim,
+                                                phaseACurrentSource,
+                                                phaseACurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -603,7 +864,9 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                  new VectorFunctionCoefficient(dim, phase_b_source));
+                  new VectorFunctionCoefficient(dim,
+                                                phaseBCurrentSource,
+                                                phaseBCurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -613,7 +876,9 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                  new VectorFunctionCoefficient(dim, phase_c_source));
+                  new VectorFunctionCoefficient(dim,
+                                                phaseCCurrentSource,
+                                                phaseCCurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -623,7 +888,9 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                  new VectorFunctionCoefficient(dim, x_axis_current_source));
+                  new VectorFunctionCoefficient(dim,
+                                                xAxisCurrentSource,
+                                                xAxisCurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -633,7 +900,9 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                  new VectorFunctionCoefficient(dim, y_axis_current_source));
+                  new VectorFunctionCoefficient(dim,
+                                                yAxisCurrentSource,
+                                                yAxisCurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -643,7 +912,9 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                  new VectorFunctionCoefficient(dim, z_axis_current_source));
+                  new VectorFunctionCoefficient(dim,
+                                                zAxisCurrentSource,
+                                                zAxisCurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -653,7 +924,9 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                     new VectorFunctionCoefficient(dim, ring_current_source));
+                  new VectorFunctionCoefficient(dim,
+                                                ringCurrentSource,
+                                                ringCurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -663,9 +936,8 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                     // new VectorFunctionCoefficient(dim, func,
-                     //                               funcRevDiff));
-                     new VectorFunctionCoefficient(dim, box1CurrentSource,
+                     new VectorFunctionCoefficient(dim,
+                                                   box1CurrentSource,
                                                    box1CurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
@@ -676,9 +948,8 @@ void MagnetostaticSolver::constructCurrent()
          for (auto& attr : attrs)
          {
             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-                     // new VectorFunctionCoefficient(dim, func,
-                     //                               funcRevDiff));
-                     new VectorFunctionCoefficient(dim, box2CurrentSource,
+                     new VectorFunctionCoefficient(dim,
+                                                   box2CurrentSource,
                                                    box2CurrentSourceRevDiff));
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
@@ -926,232 +1197,568 @@ void MagnetostaticSolver::computeSecondaryFields()
    // std::cout << "B field error " << b_err.Norml2() << "\n";
 }
 
-/// TODO: Find a better way to handle solving the simple box problem
-void MagnetostaticSolver::phase_a_source(const Vector &x,
-                                       Vector &J)
+// /// TODO: Find a better way to handle solving the simple box problem
+// void MagnetostaticSolver::phase_a_source(const Vector &x,
+//                                        Vector &J)
+// {
+//    // example of needed geometric parameters, this should be all you need
+//    int n_s = 12; //number of slots
+//    double zb = 0.0; //bottom of stator
+//    double zt = 0.25; //top of stator
+
+
+//    // compute r and theta from x and y
+//    // double r = sqrt(x(0)*x(0) + x(1)*x(1)); (r not needed)
+//    double tha = atan2(x(1), x(0));
+//    double th;
+
+//    double thw = 2*M_PI/n_s; //total angle of slot
+//    int w; //current slot
+//    J = 0.0;
+
+//    // check which winding we're in
+//    th = remquo(tha, thw, &w);
+
+//    // check if we're in the stator body
+//    if(x(2) >= zb && x(2) <= zt)
+//    {
+//       // check if we're in left or right half
+//       if(th > 0)
+//       {
+//          J(2) = -1; // set to 1 for now, and direction depends on current direction
+//       }
+//       if(th < 0)
+//       {
+//          J(2) = 1;	
+//       }
+//    }
+//    else  // outside of the stator body, check if above or below
+//    {
+//       // 'subtract' z position to 0 depending on if above or below
+//       mfem::Vector rx(x);
+//       if(x(2) > zt) 
+//       {
+//          rx(2) -= zt; 
+//       }
+//       if(x(2) < zb) 
+//       {
+//          rx(2) -= zb; 
+//       }
+
+//       // draw top rotation axis
+//       mfem::Vector ax(3);
+//       mfem::Vector Jr(3);
+//       ax = 0.0;
+//       ax(0) = cos(w*thw);
+//       ax(1) = sin(w*thw);
+
+//       // take x cross ax, normalize
+//       Jr(0) = rx(1)*ax(2) - rx(2)*ax(1);
+//       Jr(1) = rx(2)*ax(0) - rx(0)*ax(2);
+//       Jr(2) = rx(0)*ax(1) - rx(1)*ax(0);
+//       Jr /= Jr.Norml2();
+//       J = Jr;
+//    }
+//    J *= current_density * fill_factor;
+// }
+
+// void MagnetostaticSolver::phase_b_source(const Vector &x,
+//                                        Vector &J)
+// {
+//    // example of needed geometric parameters, this should be all you need
+//    int n_s = 12; //number of slots
+//    double zb = 0.0; //bottom of stator
+//    double zt = 0.25; //top of stator
+
+
+//    // compute r and theta from x and y
+//    // double r = sqrt(x(0)*x(0) + x(1)*x(1)); (r not needed)
+//    double tha = atan2(x(1), x(0));
+//    double th;
+
+//    double thw = 2*M_PI/n_s; //total angle of slot
+//    int w; //current slot
+//    J = 0.0;
+
+//    // check which winding we're in
+//    th = remquo(tha, thw, &w);
+
+//    // check if we're in the stator body
+//    if(x(2) >= zb && x(2) <= zt)
+//    {
+//       // check if we're in left or right half
+//       if(th > 0)
+//       {
+//          J(2) = -1; // set to 1 for now, and direction depends on current direction
+//       }
+//       if(th < 0)
+//       {
+//          J(2) = 1;	
+//       }
+//    }
+//    else  // outside of the stator body, check if above or below
+//    {
+//       // 'subtract' z position to 0 depending on if above or below
+//       mfem::Vector rx(x);
+//       if(x(2) > zt) 
+//       {
+//          rx(2) -= zt; 
+//       }
+//       if(x(2) < zb) 
+//       {
+//          rx(2) -= zb; 
+//       }
+
+//       // draw top rotation axis
+//       mfem::Vector ax(3);
+//       mfem::Vector Jr(3);
+//       ax = 0.0;
+//       ax(0) = cos(w*thw);
+//       ax(1) = sin(w*thw);
+
+//       // take x cross ax, normalize
+//       Jr(0) = rx(1)*ax(2) - rx(2)*ax(1);
+//       Jr(1) = rx(2)*ax(0) - rx(0)*ax(2);
+//       Jr(2) = rx(0)*ax(1) - rx(1)*ax(0);
+//       Jr /= Jr.Norml2();
+//       J = Jr;
+//    }
+//    J *= -current_density * fill_factor;
+// }
+
+// void MagnetostaticSolver::phase_c_source(const Vector &x,
+//                                        Vector &J)
+// {
+//    J.SetSize(3);
+//    J = 0.0;
+//    // Vector r = x;
+//    // r(2) = 0.0;
+//    // r /= r.Norml2();
+//    // J(0) = -r(1);
+//    // J(1) = r(0);
+//    // J *= current_density;
+// }
+
+// /// TODO: Find a better way to handle solving the simple box problem
+// /// TODO: implement other kinds of sources
+// void MagnetostaticSolver::magnetization_source_north(const Vector &x,
+//                                                    Vector &M)
+// {
+//    Vector plane_vec = x;
+//    plane_vec(2) = 0;
+//    M = plane_vec;
+//    M /= M.Norml2();
+//    M *= remnant_flux;
+// }
+
+// void MagnetostaticSolver::magnetization_source_south(const Vector &x,
+//                                                    Vector &M)
+// {
+//    Vector plane_vec = x;
+//    plane_vec(2) = 0;
+//    M = plane_vec;
+//    M /= M.Norml2();
+//    M *= -remnant_flux;
+
+//    // M = 0.0;
+//    // M(2) = remnant_flux;
+// }
+
+// void MagnetostaticSolver::x_axis_current_source(const Vector &x,
+//                                                 Vector &J)
+// {
+//    J.SetSize(3);
+//    J = 0.0;
+//    J(0) = current_density;
+// }
+
+// void MagnetostaticSolver::y_axis_current_source(const Vector &x,
+//                                                 Vector &J)
+// {
+//    J.SetSize(3);
+//    J = 0.0;
+//    J(1) = current_density;   
+// }
+
+// void MagnetostaticSolver::z_axis_current_source(const Vector &x,
+//                                                 Vector &J)
+// {
+//    J.SetSize(3);
+//    J = 0.0;
+//    J(2) = current_density;
+// }
+
+// void MagnetostaticSolver::ring_current_source(const Vector &x,
+//                                               Vector &J)
+// {
+//    J.SetSize(3);
+//    J = 0.0;
+//    Vector r = x;
+//    r(2) = 0.0;
+//    r /= r.Norml2();
+//    J(0) = -r(1);
+//    J(1) = r(0);
+//    J *= current_density;
+// }
+
+// void MagnetostaticSolver::x_axis_magnetization_source(const Vector &x,
+//                                                       Vector &M)
+// {
+//    M.SetSize(3);
+//    M = 0.0;
+//    M(0) = remnant_flux;
+// }
+
+// void MagnetostaticSolver::y_axis_magnetization_source(const Vector &x,
+//                                                       Vector &M)
+// {
+//    M.SetSize(3);
+//    M = 0.0;
+//    M(1) = remnant_flux;
+// }
+
+// void MagnetostaticSolver::z_axis_magnetization_source(const Vector &x,
+//                                                       Vector &M)
+// {
+//    M.SetSize(3);
+//    M = 0.0;
+//    M(2) = remnant_flux;
+// }
+
+void MagnetostaticSolver::phaseACurrentSource(const Vector &x,
+                                             Vector &J)
 {
-   // example of needed geometric parameters, this should be all you need
-   int n_s = 12; //number of slots
-   double zb = 0.0; //bottom of stator
-   double zt = 0.25; //top of stator
-
-
-   // compute r and theta from x and y
-   // double r = sqrt(x(0)*x(0) + x(1)*x(1)); (r not needed)
-   double tha = atan2(x(1), x(0));
-   double th;
-
-   double thw = 2*M_PI/n_s; //total angle of slot
-   int w; //current slot
-   J = 0.0;
-
-   // check which winding we're in
-   th = remquo(tha, thw, &w);
-
-   // check if we're in the stator body
-   if(x(2) >= zb && x(2) <= zt)
-   {
-      // check if we're in left or right half
-      if(th > 0)
-      {
-         J(2) = -1; // set to 1 for now, and direction depends on current direction
-      }
-      if(th < 0)
-      {
-         J(2) = 1;	
-      }
-   }
-   else  // outside of the stator body, check if above or below
-   {
-      // 'subtract' z position to 0 depending on if above or below
-      mfem::Vector rx(x);
-      if(x(2) > zt) 
-      {
-         rx(2) -= zt; 
-      }
-      if(x(2) < zb) 
-      {
-         rx(2) -= zb; 
-      }
-
-      // draw top rotation axis
-      mfem::Vector ax(3);
-      mfem::Vector Jr(3);
-      ax = 0.0;
-      ax(0) = cos(w*thw);
-      ax(1) = sin(w*thw);
-
-      // take x cross ax, normalize
-      Jr(0) = rx(1)*ax(2) - rx(2)*ax(1);
-      Jr(1) = rx(2)*ax(0) - rx(0)*ax(2);
-      Jr(2) = rx(0)*ax(1) - rx(1)*ax(0);
-      Jr /= Jr.Norml2();
-      J = Jr;
-   }
-   J *= current_density * fill_factor;
+   phase_a_current(remnant_flux, fill_factor, x.GetData(), J.GetData());
 }
 
-void MagnetostaticSolver::phase_b_source(const Vector &x,
-                                       Vector &J)
+void MagnetostaticSolver::phaseACurrentSourceRevDiff(const Vector &x,
+                                                     const Vector &V_bar,
+                                                     Vector &x_bar)
 {
-   // example of needed geometric parameters, this should be all you need
-   int n_s = 12; //number of slots
-   double zb = 0.0; //bottom of stator
-   double zt = 0.25; //top of stator
-
-
-   // compute r and theta from x and y
-   // double r = sqrt(x(0)*x(0) + x(1)*x(1)); (r not needed)
-   double tha = atan2(x(1), x(0));
-   double th;
-
-   double thw = 2*M_PI/n_s; //total angle of slot
-   int w; //current slot
-   J = 0.0;
-
-   // check which winding we're in
-   th = remquo(tha, thw, &w);
-
-   // check if we're in the stator body
-   if(x(2) >= zb && x(2) <= zt)
-   {
-      // check if we're in left or right half
-      if(th > 0)
-      {
-         J(2) = -1; // set to 1 for now, and direction depends on current direction
-      }
-      if(th < 0)
-      {
-         J(2) = 1;	
-      }
-   }
-   else  // outside of the stator body, check if above or below
-   {
-      // 'subtract' z position to 0 depending on if above or below
-      mfem::Vector rx(x);
-      if(x(2) > zt) 
-      {
-         rx(2) -= zt; 
-      }
-      if(x(2) < zb) 
-      {
-         rx(2) -= zb; 
-      }
-
-      // draw top rotation axis
-      mfem::Vector ax(3);
-      mfem::Vector Jr(3);
-      ax = 0.0;
-      ax(0) = cos(w*thw);
-      ax(1) = sin(w*thw);
-
-      // take x cross ax, normalize
-      Jr(0) = rx(1)*ax(2) - rx(2)*ax(1);
-      Jr(1) = rx(2)*ax(0) - rx(0)*ax(2);
-      Jr(2) = rx(0)*ax(1) - rx(1)*ax(0);
-      Jr /= Jr.Norml2();
-      J = Jr;
-   }
-   J *= -current_density * fill_factor;
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   phase_a_current<adouble>(remnant_flux, fill_factor, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t position
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
 }
 
-void MagnetostaticSolver::phase_c_source(const Vector &x,
-                                       Vector &J)
+void MagnetostaticSolver::phaseBCurrentSource(const Vector &x,
+                                             Vector &J)
 {
-   J.SetSize(3);
-   J = 0.0;
-   // Vector r = x;
-   // r(2) = 0.0;
-   // r /= r.Norml2();
-   // J(0) = -r(1);
-   // J(1) = r(0);
-   // J *= current_density;
+   phase_b_current(remnant_flux, fill_factor, x.GetData(), J.GetData());
 }
 
-/// TODO: Find a better way to handle solving the simple box problem
-/// TODO: implement other kinds of sources
-void MagnetostaticSolver::magnetization_source_north(const Vector &x,
+void MagnetostaticSolver::phaseBCurrentSourceRevDiff(const Vector &x,
+                                                     const Vector &V_bar,
+                                                     Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   phase_b_current<adouble>(remnant_flux, fill_factor, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t position
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::phaseCCurrentSource(const Vector &x,
+                                             Vector &J)
+{
+   phase_c_current(remnant_flux, fill_factor, x.GetData(), J.GetData());
+}
+
+void MagnetostaticSolver::phaseCCurrentSourceRevDiff(const Vector &x,
+                                                     const Vector &V_bar,
+                                                     Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   phase_c_current<adouble>(remnant_flux, fill_factor, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t position
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::northMagnetizationSource(const Vector &x,
                                                    Vector &M)
 {
-   Vector plane_vec = x;
-   plane_vec(2) = 0;
-   M = plane_vec;
-   M /= M.Norml2();
-   M *= remnant_flux;
+   north_magnetization(remnant_flux, x.GetData(), M.GetData());
 }
 
-void MagnetostaticSolver::magnetization_source_south(const Vector &x,
+void MagnetostaticSolver::northMagnetizationSourceRevDiff(const Vector &x,
+                                                          const Vector &V_bar,
+                                                          Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> M_a(x.Size());
+   north_magnetization<adouble>(remnant_flux, x_a.data(), M_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(M_a.data(), x.Size());
+   // calculate the jacobian w.r.t position
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::southMagnetizationSource(const Vector &x,
                                                    Vector &M)
 {
-   Vector plane_vec = x;
-   plane_vec(2) = 0;
-   M = plane_vec;
-   M /= M.Norml2();
-   M *= -remnant_flux;
-
-   // M = 0.0;
-   // M(2) = remnant_flux;
+   south_magnetization(remnant_flux, x.GetData(), M.GetData());
 }
 
-void MagnetostaticSolver::x_axis_current_source(const Vector &x,
-                                                Vector &J)
+void MagnetostaticSolver::southMagnetizationSourceRevDiff(const Vector &x,
+                                                          const Vector &V_bar,
+                                                          Vector &x_bar)
 {
-   J.SetSize(3);
-   J = 0.0;
-   J(0) = current_density;
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> M_a(x.Size());
+   south_magnetization<adouble>(remnant_flux, x_a.data(), M_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(M_a.data(), x.Size());
+   // calculate the jacobian w.r.t position
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
 }
 
-void MagnetostaticSolver::y_axis_current_source(const Vector &x,
-                                                Vector &J)
+void MagnetostaticSolver::xAxisCurrentSource(const Vector &x,
+                                             Vector &J)
 {
-   J.SetSize(3);
-   J = 0.0;
-   J(1) = current_density;   
+   x_axis_current(remnant_flux, x.GetData(), J.GetData());
 }
 
-void MagnetostaticSolver::z_axis_current_source(const Vector &x,
-                                                Vector &J)
+void MagnetostaticSolver::xAxisCurrentSourceRevDiff(const Vector &x,
+                                                    const Vector &V_bar,
+                                                    Vector &x_bar)
 {
-   J.SetSize(3);
-   J = 0.0;
-   J(2) = current_density;
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   x_axis_current<adouble>(remnant_flux, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
 }
 
-void MagnetostaticSolver::ring_current_source(const Vector &x,
-                                              Vector &J)
+void MagnetostaticSolver::yAxisCurrentSource(const Vector &x,
+                                             Vector &J)
 {
-   J.SetSize(3);
-   J = 0.0;
-   Vector r = x;
-   r(2) = 0.0;
-   r /= r.Norml2();
-   J(0) = -r(1);
-   J(1) = r(0);
-   J *= current_density;
+   y_axis_current(remnant_flux, x.GetData(), J.GetData());
 }
 
-void MagnetostaticSolver::x_axis_magnetization_source(const Vector &x,
-                                                      Vector &M)
+void MagnetostaticSolver::yAxisCurrentSourceRevDiff(const Vector &x,
+                                                    const Vector &V_bar,
+                                                    Vector &x_bar)
 {
-   M.SetSize(3);
-   M = 0.0;
-   M(0) = remnant_flux;
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   y_axis_current<adouble>(remnant_flux, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
 }
 
-void MagnetostaticSolver::y_axis_magnetization_source(const Vector &x,
-                                                      Vector &M)
+void MagnetostaticSolver::zAxisCurrentSource(const Vector &x,
+                                             Vector &J)
 {
-   M.SetSize(3);
-   M = 0.0;
-   M(1) = remnant_flux;
+   z_axis_current(remnant_flux, x.GetData(), J.GetData());
 }
 
-void MagnetostaticSolver::z_axis_magnetization_source(const Vector &x,
-                                                      Vector &M)
+void MagnetostaticSolver::zAxisCurrentSourceRevDiff(const Vector &x,
+                                                    const Vector &V_bar,
+                                                    Vector &x_bar)
 {
-   M.SetSize(3);
-   M = 0.0;
-   M(2) = remnant_flux;
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   z_axis_current<adouble>(remnant_flux, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::ringCurrentSource(const Vector &x,
+                                            Vector &J)
+{
+   ring_current(remnant_flux, x.GetData(), J.GetData());
+}
+
+void MagnetostaticSolver::ringCurrentSourceRevDiff(const Vector &x,
+                                                   const Vector &V_bar,
+                                                   Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   ring_current<adouble>(remnant_flux, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::xAxisMagnetizationSource(const Vector &x,
+                                                   Vector &M)
+{
+   x_axis_magnetization(remnant_flux, x.GetData(), M.GetData());
+}
+
+void MagnetostaticSolver::xAxisMagnetizationSourceRevDiff(const Vector &x,
+                                                          const Vector &V_bar,
+                                                          Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> M_a(x.Size());
+   x_axis_magnetization<adouble>(remnant_flux, x_a.data(), M_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(M_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::yAxisMagnetizationSource(const Vector &x,
+                                                   Vector &M)
+{
+   y_axis_magnetization(remnant_flux, x.GetData(), M.GetData());
+}
+
+void MagnetostaticSolver::yAxisMagnetizationSourceRevDiff(const Vector &x,
+                                                          const Vector &V_bar,
+                                                          Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> M_a(x.Size());
+   y_axis_magnetization<adouble>(remnant_flux, x_a.data(), M_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(M_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::zAxisMagnetizationSource(const Vector &x,
+                                                   Vector &M)
+{
+   z_axis_magnetization(remnant_flux, x.GetData(), M.GetData());
+}
+
+void MagnetostaticSolver::zAxisMagnetizationSourceRevDiff(const Vector &x,
+                                                          const Vector &V_bar,
+                                                          Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> M_a(x.Size());
+   z_axis_magnetization<adouble>(remnant_flux, x_a.data(), M_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(M_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
 }
 
 void MagnetostaticSolver::box1CurrentSource(const Vector &x,

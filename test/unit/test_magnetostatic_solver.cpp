@@ -157,7 +157,7 @@ TEST_CASE("Divergence free projection mesh sensitivities")
    const double delta = 1e-5;
    const double fd_delta = 1e-7;
 
-   int mesh_el = 8;
+   int mesh_el = 3;
 
    for (int p = 1; p <= 2; ++p)
    {
@@ -300,9 +300,9 @@ TEST_CASE("Divergence free projection mesh sensitivities - Solver Version")
    const int dim = 3;
    const double delta = 1e-5;
 
-   int mesh_el = 8;
+   int mesh_el = 3;
 
-   for (int p = 1; p <= 2; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -394,9 +394,9 @@ TEST_CASE("Residual sensitivity to current density")
    const int dim = 3;
    const double delta = 1e-5;
 
-   int mesh_el = 8;
+   int mesh_el = 3;
 
-   for (int p = 1; p <= 2; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -442,13 +442,8 @@ TEST_CASE("Residual sensitivity to current density")
 
          *dRdJ_cd /= (2*delta);
 
-         // std::cout << "dWdJ: " << dWdJ << "\n";
-         // std::cout << "dWdJ_cd: " << dWdJ_cd << "\n";
          for (int i = 0; i < dRdJ->Size(); i++)
          {
-            // std::cout << "dRdJ: " << (*dRdJ)(i) << "\n";
-            // std::cout << "dRdJ_cd: " << (*dRdJ_cd)(i) << "\n";
-
             REQUIRE((*dRdJ)(i) == Approx((*dRdJ_cd)(i)).margin(1e-6));
          }
       }
@@ -464,7 +459,7 @@ TEST_CASE("Magnetostatic Adjoint solved correctly")
    const int dim = 3;
    const double delta = 1e-5;
 
-   int mesh_el = 8;
+   int mesh_el = 3;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -726,7 +721,7 @@ TEST_CASE("Discrete Gradient Operator - Should have no spatial dependence")
    const double delta = 1e-5;
    const double fd_delta = 1e-7;
 
-   int mesh_el = 4;
+   int mesh_el = 3;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -823,7 +818,6 @@ TEST_CASE("Discrete Gradient Operator - Should have no spatial dependence")
    }
 }
 
-/**
 TEST_CASE("MagnetostaticSolver::getMeshSensitivities - interior only",
           "[MagnetostaticSolver]")
 {
@@ -834,9 +828,9 @@ TEST_CASE("MagnetostaticSolver::getMeshSensitivities - interior only",
    const double delta = 1e-5;
    const double fd_delta = 1e-7;
 
-   int mesh_el = 8;
+   int mesh_el = 3;
 
-   for (int p = 2; p <= 2; ++p)
+   for (int p = 1; p <= 3; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -934,4 +928,3 @@ TEST_CASE("MagnetostaticSolver::getMeshSensitivities - interior only",
       }
    }
 }
-*/
