@@ -181,7 +181,7 @@ nlohmann::json getBoxOptions(int order)
          {"box", true}
       }},
       {"outputs", {
-         {"co-energy", {}}
+         {"co-energy", {""}}
       }}
    };
    return box_options;
@@ -235,7 +235,7 @@ std::unique_ptr<mfem::Mesh> getMesh(int nxy = 2, int nz = 2)
 nlohmann::json getWireOptions(int order)
 {
    nlohmann::json wire_options = {
-      {"silent", true},
+      {"silent", false},
       {"mesh", {
          {"file", "cut_wire.smb"},
          {"model-file", "cut_wire.egads"}
@@ -287,7 +287,7 @@ nlohmann::json getWireOptions(int order)
          {"box", true}
       }},
       {"outputs", {
-         {"co-energy", {}}
+         {"co-energy", {""}}
       }}
    };
    return wire_options;

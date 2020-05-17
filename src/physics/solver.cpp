@@ -137,8 +137,8 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    bool silent = options.value("silent", false);
    out = getOutStream(rank, silent);
    *out << setw(3) << options << endl;
-
-	materials = material_library;
+ 
+   materials = material_library;
 
    constructMesh(move(smesh));
    int dim = mesh->Dimension();
@@ -367,6 +367,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    {
       constructPumiMesh();
    }
+   mesh->EnsureNodes();
 }
 
 void AbstractSolver::constructPumiMesh()
@@ -377,7 +378,8 @@ void AbstractSolver::constructPumiMesh()
    *out << options["mesh"]["model-file"].get<string>().c_str() << std::endl;
    std::string model_file = options["mesh"]["model-file"].get<string>();
    std::string mesh_file = options["mesh"]["file"].get<string>();
-   PCU_Comm_Init();
+   if (!PCU_Comm_Initialized())
+      PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
    gmi_sim_start();

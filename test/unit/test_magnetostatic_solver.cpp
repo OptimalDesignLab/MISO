@@ -947,7 +947,7 @@ TEST_CASE("Divergence free projection mesh sensitivities [PUMI] - Solver Version
       {
          nlohmann::json options = getWireOptions(p);
          // generate initial tet mesh
-         mach::MagnetostaticSolver solver(options);
+         mach::MagnetostaticSolver solver(options, nullptr);
          solver.initDerived();
 
          auto *mesh = solver.getMesh();
@@ -988,8 +988,8 @@ TEST_CASE("Divergence free projection mesh sensitivities [PUMI] - Solver Version
          /// now compute centered difference difference
          double dJdX_v_cd = 0.0;
          // back step
-         {
-            mach::MagnetostaticSolver back_solver(options);
+
+            mach::MagnetostaticSolver back_solver(options, nullptr);
             auto *b_mesh = back_solver.getMesh();
             auto *back_pert(static_cast<ParGridFunction*>(b_mesh->GetNodes()));
             back_pert->Add(-delta, v);
@@ -998,11 +998,11 @@ TEST_CASE("Divergence free projection mesh sensitivities [PUMI] - Solver Version
             back_solver.initDerived();
             back_solver.assembleCurrentSource();
             dJdX_v_cd -= adj * *back_solver.current_vec;
-         }
+ 
 
          // forward step
-         {
-            mach::MagnetostaticSolver forward_solver(options);
+
+            mach::MagnetostaticSolver forward_solver(options, nullptr);
             auto *f_mesh = forward_solver.getMesh();
             auto *forward_pert(static_cast<ParGridFunction*>(f_mesh->GetNodes()));
             forward_pert->Add(delta, v);
@@ -1011,7 +1011,7 @@ TEST_CASE("Divergence free projection mesh sensitivities [PUMI] - Solver Version
             forward_solver.initDerived();
             forward_solver.assembleCurrentSource();
             dJdX_v_cd += adj * *forward_solver.current_vec;
-         }
+
          dJdX_v_cd /= (2*delta);
 
          std::cout << "dJdX_v: " << dJdX_v << "\n";
