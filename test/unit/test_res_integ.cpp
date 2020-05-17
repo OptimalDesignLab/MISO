@@ -2,8 +2,10 @@
 
 #include "catch.hpp"
 #include "mfem.hpp"
+#include "coefficient.hpp"
 #include "res_integ.hpp"
 #include "euler_test_data.hpp"
+#include "electromag_test_data.hpp"
 
 TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
                        "[DomainResIntegrator]",
@@ -17,8 +19,9 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
 
    // generate a 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
+                              //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                              //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -31,7 +34,12 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
              mesh.get(), fec.get()));
 
          // we use res for finite-difference approximation
-         std::unique_ptr<Coefficient> Q(new ConstantCoefficient(1));
+         std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
+         std::unique_ptr<Coefficient> q2(new ConstantCoefficient(2));
+         std::unique_ptr<mach::MeshDependentCoefficient> Q;
+         Q.reset(new mach::MeshDependentCoefficient());
+         Q->addCoefficient(1, move(q1)); 
+         Q->addCoefficient(2, move(q2));
          LinearForm res(fes.get());
          res.AddDomainIntegrator(
             new DomainLFIntegrator(*Q));
@@ -173,8 +181,9 @@ TEMPLATE_TEST_CASE_SIG("DiffusionResIntegrator::AssembleElementVector",
 
    // generate a 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
+                                       //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       //true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -187,7 +196,12 @@ TEMPLATE_TEST_CASE_SIG("DiffusionResIntegrator::AssembleElementVector",
              mesh.get(), fec.get()));
 
          // we use res for finite-difference approximation
-         std::unique_ptr<Coefficient> Q(new ConstantCoefficient(1));
+         std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
+         std::unique_ptr<Coefficient> q2(new ConstantCoefficient(2));
+         std::unique_ptr<mach::MeshDependentCoefficient> Q;
+         Q.reset(new mach::MeshDependentCoefficient());
+         Q->addCoefficient(1, move(q1)); 
+         Q->addCoefficient(2, move(q2));
          BilinearForm res(fes.get());
          res.AddDomainIntegrator(
             new DiffusionIntegrator(*Q));
