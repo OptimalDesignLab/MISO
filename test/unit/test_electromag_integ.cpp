@@ -296,9 +296,7 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
+   auto mesh = getMesh(num_edge, num_edge);
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
@@ -409,9 +407,7 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
+   auto mesh = getMesh(num_edge, num_edge);
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
@@ -499,15 +495,12 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
    using namespace mfem;
    using namespace electromag_data;
 
-   const int dim = 3;  // templating is hard here because mesh constructors
-   // static adept::Stack diff_stack;
+   const int dim = 3;
    double delta = 1e-5;
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
+   auto mesh = getMesh(num_edge, num_edge);
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
@@ -525,8 +518,6 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
             new H1_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> h1_fes(new FiniteElementSpace(
             mesh.get(), h1_fec.get()));
-
-
 
          // initialize current source and adjoint
          // here we randomly perturb a constant state

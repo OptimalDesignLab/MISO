@@ -496,7 +496,14 @@ TEST_CASE("Rk = Dk - Wj Mesh Sensitivity")
          ParGridFunction v(mesh_fes);
          v.ProjectCoefficient(v_rand);
 
-         VectorFunctionCoefficient current(3, func, funcRevDiff);
+         /// Costruct coefficient
+         mach::VectorMeshDependentCoefficient current(dim);
+         std::unique_ptr<mfem::VectorCoefficient> coeff1(
+            new VectorFunctionCoefficient(dim, func, funcRevDiff));
+         std::unique_ptr<mfem::VectorCoefficient> coeff2(
+            new VectorFunctionCoefficient(dim, func2, func2RevDiff));
+         current.addCoefficient(1, move(coeff1));
+         current.addCoefficient(2, move(coeff2));
 
          ParGridFunction j(nd_fes.get());
          j = 0.0;
@@ -515,34 +522,6 @@ TEST_CASE("Rk = Dk - Wj Mesh Sensitivity")
          ParGridFunction k(h1_fes.get());
          k = 0.0;
          k.ProjectCoefficient(rand);
-         // {
-         //    Array<int> ess_bdr, ess_bdr_tdofs;
-         //    ess_bdr.SetSize(h1_fes->GetParMesh()->bdr_attributes.Max());
-         //    ess_bdr = 1;
-         //    h1_fes->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
-
-         //    ParBilinearForm D(h1_fes.get());
-         //    D.AddDomainIntegrator(new DiffusionIntegrator);
-         //    D.Assemble();
-         //    D.Finalize();
-
-         //    auto *Dmat = new HypreParMatrix;
-
-         //    Vector K;
-         //    Vector RHS;
-         //    D.FormLinearSystem(ess_bdr_tdofs, k, Wj, *Dmat, K, RHS);
-
-         //    HypreBoomerAMG amg(*Dmat);
-         //    amg.SetPrintLevel(0);
-         //    HypreGMRES gmres(*Dmat);
-         //    gmres.SetTol(1e-14);
-         //    gmres.SetMaxIter(200);
-         //    gmres.SetPrintLevel(2);
-         //    gmres.SetPreconditioner(amg);
-         //    gmres.Mult(RHS, K);
-
-         //    D.RecoverFEMSolution(K, Wj, k);
-         // }
 
          ParLinearForm Rk_mesh_sens(mesh_fes);
          /// add integrators R_k = Dk - Wj = 0
@@ -601,25 +580,6 @@ TEST_CASE("Rk = Dk - Wj Mesh Sensitivity")
                D.Assemble();
                D.Finalize();
 
-               // auto *Dmat = new HypreParMatrix;
-
-               // Vector K;
-               // Vector RHS;
-               // D.FormLinearSystem(ess_bdr_tdofs, k, Wj, *Dmat, K, RHS);
-
-               // HypreBoomerAMG amg(*Dmat);
-               // amg.SetPrintLevel(0);
-               // HypreGMRES gmres(*Dmat);
-               // gmres.SetTol(1e-14);
-               // gmres.SetMaxIter(200);
-               // gmres.SetPrintLevel(2);
-               // gmres.SetPreconditioner(amg);
-               // gmres.Mult(RHS, K);
-
-               // D.RecoverFEMSolution(K, Wj, k);
-
-               // D.Assemble();
-               // D.Finalize();
                D.Mult(k, Dk);
             }
             ParGridFunction Rk(b_h1_fes.get());
@@ -671,25 +631,6 @@ TEST_CASE("Rk = Dk - Wj Mesh Sensitivity")
                D.Assemble();
                D.Finalize();
 
-               // auto *Dmat = new HypreParMatrix;
-
-               // Vector K;
-               // Vector RHS;
-               // D.FormLinearSystem(ess_bdr_tdofs, k, Wj, *Dmat, K, RHS);
-
-               // HypreBoomerAMG amg(*Dmat);
-               // amg.SetPrintLevel(0);
-               // HypreGMRES gmres(*Dmat);
-               // gmres.SetTol(1e-14);
-               // gmres.SetMaxIter(200);
-               // gmres.SetPrintLevel(2);
-               // gmres.SetPreconditioner(amg);
-               // gmres.Mult(RHS, K);
-
-               // D.RecoverFEMSolution(K, Wj, k);
-
-               // D.Assemble();
-               // D.Finalize();
                D.Mult(k, Dk);
             }
             ParGridFunction Rk(f_h1_fes.get());
@@ -715,14 +656,14 @@ TEST_CASE("Discrete Gradient Operator - Should have no spatial dependence")
    const double delta = 1e-5;
    const double fd_delta = 1e-7;
 
-   int mesh_el = 8;
+   int mesh_el = 4;
 
-   for (int p = 2; p <= 2; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
          // generate initial tet mesh
-         auto init_mesh = getMesh(mesh_el,1);
+         auto init_mesh = getMesh(mesh_el,2);
          ParMesh mesh(MPI_COMM_WORLD, *init_mesh);
          mesh.EnsureNodes();
          auto *mesh_fes = static_cast<ParFiniteElementSpace*>(
@@ -757,7 +698,7 @@ TEST_CASE("Discrete Gradient Operator - Should have no spatial dependence")
          double dJdX_v_cd = 0.0;
          // back step
          {
-            auto back_mesh = getMesh(mesh_el,1);
+            auto back_mesh = getMesh(mesh_el,2);
             ParMesh b_mesh(MPI_COMM_WORLD, *back_mesh);
             b_mesh.EnsureNodes();
             auto *b_mesh_nodes = static_cast<ParGridFunction*>(b_mesh.GetNodes());
@@ -783,7 +724,7 @@ TEST_CASE("Discrete Gradient Operator - Should have no spatial dependence")
 
          // forward step
          {
-            auto for_mesh = getMesh(mesh_el,1);
+            auto for_mesh = getMesh(mesh_el,2);
             ParMesh f_mesh(MPI_COMM_WORLD, *for_mesh);
             f_mesh.EnsureNodes();
             auto *f_mesh_nodes = static_cast<ParGridFunction*>(f_mesh.GetNodes());
@@ -812,6 +753,7 @@ TEST_CASE("Discrete Gradient Operator - Should have no spatial dependence")
    }
 }
 
+/**
 TEST_CASE("MagnetostaticSolver::getMeshSensitivities - interior only",
           "[MagnetostaticSolver]")
 {
@@ -922,3 +864,4 @@ TEST_CASE("MagnetostaticSolver::getMeshSensitivities - interior only",
       }
    }
 }
+*/

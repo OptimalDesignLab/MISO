@@ -72,7 +72,7 @@ void box1_current(const xdouble &current_density,
 	xdouble y = x[1] - .5;
 
    // J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   J[2] = -current_density*6*y;
+   J[2] = current_density*6*y;
 
 }
 
@@ -771,7 +771,7 @@ void MagnetostaticSolver::getCurrentSourceMeshSens(
       HypreGMRES gmres(*Dmat);
       gmres.SetTol(1e-14);
       gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(-1);
+      gmres.SetPrintLevel(2);
       gmres.SetPreconditioner(amg);
       gmres.Mult(RHS, PSIK);
 
@@ -803,7 +803,7 @@ void MagnetostaticSolver::getCurrentSourceMeshSens(
       HypreGMRES gmres(*Dmat);
       gmres.SetTol(1e-14);
       gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(-1);
+      gmres.SetPrintLevel(2);
       gmres.SetPreconditioner(amg);
       gmres.Mult(RHS, K);
 
