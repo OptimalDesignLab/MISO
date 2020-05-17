@@ -239,7 +239,7 @@ nlohmann::json getWireOptions(int order)
       {"mesh", {
          {"file", "cut_wire.smb"},
          {"model-file", "cut_wire.egads"}
-      }}
+      }},
       {"space-dis", {
          {"basis-type", "nedelec"},
          {"degree", order}
