@@ -161,6 +161,13 @@ public:
    void getCurrentSourceMeshSens(const mfem::GridFunction &psi_a,
                                  mfem::Vector &mesh_sens);
 
+   std::unique_ptr<GridFunType> residual;
+   /// return the residual as a vector
+   mfem::Vector* getResidual();
+
+   /// Get the derivative of the residual with respect to the current density
+   mfem::Vector* getResidualCurrentDensitySensitivity();
+
    /// Get the total derivative of a functional with respect to the current
    /// density
    /// \param[in] fun - which functional to get sensitivity with respect to

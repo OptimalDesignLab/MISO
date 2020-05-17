@@ -1087,7 +1087,7 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    GridFunType *adjoint = adj.get();
 #endif
    output.at(fun).Mult(*state, *dJ);
-
+   *dJ *= -1.0;
    // Step 2: get the Jacobian and transpose it
    // TODO: need #define guards to handle serial case
    Operator *jac = &res->GetGradient(*state);

@@ -385,7 +385,7 @@ TEST_CASE("Divergence free projection mesh sensitivities - Solver Version")
    }
 }
 
-TEST_CASE("Magnetostatic Adjoint solved correctly")
+TEST_CASE("Residual sensitivity to current density")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -397,6 +397,76 @@ TEST_CASE("Magnetostatic Adjoint solved correctly")
    int mesh_el = 8;
 
    for (int p = 1; p <= 2; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         // generate initial tet mesh
+         auto init_mesh = getMesh(mesh_el,2);
+         init_mesh->EnsureNodes();
+         init_mesh->RemoveInternalBoundaries();
+
+         nlohmann::json options = getBoxOptions(p);
+         // generate initial tet mesh
+         mach::MagnetostaticSolver solver(options, move(init_mesh));
+         solver.initDerived();
+         solver.solveForState();
+
+         auto dRdJ = solver.getResidualCurrentDensitySensitivity();
+
+         /// now compute centered difference difference
+         Vector *dRdJ_cd;
+         // back step
+         auto mesh = getMesh(mesh_el,2);
+         nlohmann::json back_options = getBoxOptions(p);
+         double J = back_options["problem-opts"]["current-density"].get<double>();
+         J -= delta;
+         back_options["problem-opts"]["current-density"] = J;
+
+         mach::MagnetostaticSolver back_solver(back_options, move(mesh));
+         back_solver.initDerived();
+         back_solver.solveForState();
+         dRdJ_cd = back_solver.getResidual();
+         *dRdJ_cd *= -1.0;
+
+
+         // forward step
+         auto forward_mesh = getMesh(mesh_el,2);
+         nlohmann::json forward_options = getBoxOptions(p);
+         J += 2*delta;
+         forward_options["problem-opts"]["current-density"] = J;
+
+         mach::MagnetostaticSolver forward_solver(forward_options, move(forward_mesh));
+         forward_solver.initDerived();
+         forward_solver.solveForState();
+         *dRdJ_cd += *(forward_solver.getResidual());
+
+         *dRdJ_cd /= (2*delta);
+
+         // std::cout << "dWdJ: " << dWdJ << "\n";
+         // std::cout << "dWdJ_cd: " << dWdJ_cd << "\n";
+         for (int i = 0; i < dRdJ->Size(); i++)
+         {
+            // std::cout << "dRdJ: " << (*dRdJ)(i) << "\n";
+            // std::cout << "dRdJ_cd: " << (*dRdJ_cd)(i) << "\n";
+
+            REQUIRE((*dRdJ)(i) == Approx((*dRdJ_cd)(i)).margin(1e-6));
+         }
+      }
+   }
+}
+
+TEST_CASE("Magnetostatic Adjoint solved correctly")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+   using namespace mach;
+
+   const int dim = 3;
+   const double delta = 1e-5;
+
+   int mesh_el = 8;
+
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -427,7 +497,6 @@ TEST_CASE("Magnetostatic Adjoint solved correctly")
             back_solver.initDerived();
             back_solver.solveForState();
             dWdJ_cd -= back_solver.calcOutput("co-energy");
-
          }
 
          // forward step
@@ -442,17 +511,17 @@ TEST_CASE("Magnetostatic Adjoint solved correctly")
             forward_solver.initDerived();
             forward_solver.solveForState();
             dWdJ_cd += forward_solver.calcOutput("co-energy");
-
          }
          dWdJ_cd /= (2*delta);
 
-         std::cout << "dWdJ: " << dWdJ << "\n";
-         std::cout << "dWdJ_cd: " << dWdJ_cd << "\n";
+         // std::cout << "dWdJ: " << dWdJ << "\n";
+         // std::cout << "dWdJ_cd: " << dWdJ_cd << "\n";
          REQUIRE(dWdJ == Approx(dWdJ_cd).margin(1e-10));
       }
    }
 }
 
+/**
 TEST_CASE("Rk = Dk - Wj Mesh Sensitivity")
 {
    using namespace mfem;
@@ -645,6 +714,7 @@ TEST_CASE("Rk = Dk - Wj Mesh Sensitivity")
       }
    }
 }
+*/
 
 TEST_CASE("Discrete Gradient Operator - Should have no spatial dependence")
 {

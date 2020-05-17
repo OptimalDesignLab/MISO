@@ -71,8 +71,8 @@ void box1_current(const xdouble &current_density,
 
 	xdouble y = x[1] - .5;
 
-   // J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   J[2] = current_density*6*y;
+   J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   // J[2] = current_density*6*y;
 
 }
 
@@ -88,8 +88,8 @@ void box2_current(const xdouble &current_density,
 
 	xdouble y = x[1] - .5;
 
-   // J[2] = current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   J[2] = current_density*6*y;
+   J[2] = current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   // J[2] = current_density*6*y;
 }
 
 void func(const mfem::Vector &x, mfem::Vector &y)
@@ -771,7 +771,7 @@ void MagnetostaticSolver::getCurrentSourceMeshSens(
       HypreGMRES gmres(*Dmat);
       gmres.SetTol(1e-14);
       gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(2);
+      gmres.SetPrintLevel(-1);
       gmres.SetPreconditioner(amg);
       gmres.Mult(RHS, PSIK);
 
@@ -803,7 +803,7 @@ void MagnetostaticSolver::getCurrentSourceMeshSens(
       HypreGMRES gmres(*Dmat);
       gmres.SetTol(1e-14);
       gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(2);
+      gmres.SetPrintLevel(-1);
       gmres.SetPreconditioner(amg);
       gmres.Mult(RHS, K);
 
@@ -842,15 +842,43 @@ void MagnetostaticSolver::getCurrentSourceMeshSens(
    mesh_sens.Add(1.0, *Rj_mesh_sens.ParallelAssemble());   
 }
 
-double MagnetostaticSolver::getFunctionalCurrentDensitySensitivity(const std::string &fun)
+Vector* MagnetostaticSolver::getResidual()
 {
-   solveForAdjoint(fun);
+   residual.reset(new GridFunType(fes.get()));
+   *residual = 0.0;
+   /// state needs to be the same as the current density changes, zero is arbitrary
+   *u = 0.0;
+   res->Mult(*u, *residual);
+   *residual -= *current_vec;
+   return residual.get();
+}
 
+Vector* MagnetostaticSolver::getResidualCurrentDensitySensitivity()
+{
    current_density = 1.0;
+   *current_vec = 0.0;
    constructCurrent();
    assembleCurrentSource();
    *current_vec *= -1.0;
-   double derivative = *adj * *current_vec;
+
+   Array<int> ess_bdr(mesh->bdr_attributes.Size());
+   Array<int> ess_tdof_list;
+   ess_bdr = 1;
+   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   /// set current vector's ess_tdofs to zero
+   current_vec->SetSubVector(ess_tdof_list, 0.0);
+
+   return current_vec.get();
+}
+
+double MagnetostaticSolver::getFunctionalCurrentDensitySensitivity(const std::string &fun)
+{
+   Array<int> ess_bdr(mesh->bdr_attributes.Size());
+   ess_bdr = 1;
+   res->SetEssentialBC(ess_bdr);
+   solveForAdjoint(fun);
+
+   double derivative = *adj * *getResidualCurrentDensitySensitivity();
 
    setStaticMembers();
    constructCurrent();
