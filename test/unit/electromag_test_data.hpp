@@ -269,7 +269,7 @@ nlohmann::json getWireOptions(int order)
       {"components", {
          {"wire", {
             {"material", "copperwire"},
-            {"attrs", {1, 3, 4, 5},
+            {"attrs", {1, 3, 4, 5}},
             {"linear", true}
          }},
          {"farfields", {
