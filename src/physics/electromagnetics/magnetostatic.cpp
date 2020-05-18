@@ -522,7 +522,7 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    dJdX.Assemble();
    std::cout << "dJdX norm: " << dJdX.Norml2() << "\n";
    /// TODO I don't know if this works in parallel / when we need to use tdof vectors
-   *dLdX -= dJdX;
+   //*dLdX -= dJdX;
 
    res_mesh_sens_l.reset(new LinearFormType(mesh_fes));
 
@@ -546,10 +546,11 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    j_mesh_sens = 0.0;
    auto *j_mesh_sens_true = j_mesh_sens.GetTrueDofs();
    getCurrentSourceMeshSens(*adj, *j_mesh_sens_true);
+   std::cout << "residual dJdX norm: " << res_mesh_sens_l->Norml2() << "\n";
    std::cout << "current source dJdX norm: " << j_mesh_sens_true->Norml2() << "\n";
    /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
    dLdX->Add(1, *res_mesh_sens_l);
-   dLdX->Add(-1, *j_mesh_sens_true);
+   //dLdX->Add(-1, *j_mesh_sens_true);
 
    return dLdX.get();
 }
