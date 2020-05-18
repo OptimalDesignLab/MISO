@@ -9,6 +9,40 @@
 namespace mach
 {
 
+/// For systems that are equipped with a non-increasing entropy function
+class EntropyConstrainedOperator : public mfem::TimeDependentOperator
+{
+public:
+   /// Default constructor
+   EntropyConstrainedOperator(int n) : TimeDependentOperator(n) {}
+
+   /// Evaluate the entropy functional at the given state
+   /// \param[in] state - the state at which to evaluate the entropy
+   /// \returns the entropy functional
+   virtual double Entropy(const mfem::Vector &state) = 0;
+
+   /// Evaluate the residual weighted by the entropy variables
+   /// \praam[in] dt - evaluate residual at t+dt
+   /// \param[in] state - previous time step state
+   /// \param[in] k - the approximate time derivative, `du/dt`
+   /// \returns the product `w^T res`
+   /// \note `w` and `res` are evaluated at `state + dt*k` and time `t+dt`.
+   virtual double EntropyChange(double dt, const mfem::Vector &state, 
+                                const mfem::Vector &k) = 0;
+};
+
+/// Relaxation version of implicit midpoint method
+class RRKImplicitMidpointSolver : public mfem::ODESolver
+{
+protected:
+   mfem::Vector k;
+
+public:
+   virtual void Init(mfem::TimeDependentOperator &_f);
+
+   virtual void Step(mfem::Vector &x, double &t, double &dt);
+};
+
 /// For explicit time marching of linear problems
 class LinearEvolver : public mfem::TimeDependentOperator
 {
@@ -166,6 +200,8 @@ public:
       x = x_;
       dt = dt_;
    }
+   /// check evolver jacobian
+   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));   
    /// Class destructor
    virtual ~ImplicitNonlinearMassEvolver() { }
 

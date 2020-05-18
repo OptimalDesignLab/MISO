@@ -1,7 +1,7 @@
 /// Solve the unsteady isentropic vortex problem
 // set this const expression to true in order to use entropy variables for state
 constexpr bool entvar = false;
-#include<random>
+#include <random>
 #include "mfem.hpp"
 #include "euler.hpp"
 #include "euler_fluxes.hpp"
@@ -14,7 +14,6 @@ using namespace mach;
 
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
-
 /// \brief Defines the random function for the jabocian check
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
@@ -70,7 +69,7 @@ int main(int argc, char *argv[])
          new EulerSolver<2, entvar>(opt_file_name, nullptr));
       solver->initDerived();
       solver->setInitialCondition(u0_function);
-      solver->checkJacobian(pert);
+      solver->feedpert(pert);
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;      
       solver->solveForState();

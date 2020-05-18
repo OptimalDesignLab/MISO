@@ -400,65 +400,68 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
    }
 }
 
+// JEH: This is redundant, as far as I can tell.
 // TODO: add dim = 1, 3 once 3d sbp operators implemented
-TEST_CASE("InviscidFaceIntegrator::AssembleFaceGrad", "[InterfaceIntegrator]")
-{
-   using namespace euler_data;
-   using namespace mfem;
-   const int dim = 2;
-   double delta = 1e-5;
-   int num_state = dim + 2;
-   adept::Stack diff_stack;
+// TEST_CASE("InviscidFaceIntegrator::AssembleFaceGrad", "[InterfaceIntegrator]")
+// {
+//    using namespace euler_data;
+//    using namespace mfem;
+//    const int dim = 2;
+//    double delta = 1e-5;
+//    int num_state = dim + 2;
+//    adept::Stack diff_stack;
+//    double diss_coeff = 1.0;
 
-   // generate a 2 element mesh
-   int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+//    // generate a 2 element mesh
+//    int num_edge = 2;
+//    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
+//                                        true /* gen. edges */, 1.0, 1.0, true));
 
-   const int max_degree = 4;
-   for (int p = 0; p <= max_degree; p++)
-   {
-      DYNAMIC_SECTION("Jacobian of Interface flux w.r.t state is correct (DSBP)" << p)
-      {
-         std::unique_ptr<FiniteElementCollection> fec(
-             new DSBPCollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+//    const int max_degree = 4;
+//    for (int p = 0; p <= max_degree; p++)
+//    {
+//       DYNAMIC_SECTION("Jacobian of Interface flux w.r.t state is correct (DSBP)" << p)
+//       {
+//          std::unique_ptr<FiniteElementCollection> fec(
+//              new DSBPCollection(p, dim));
+//          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+//              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
-         NonlinearForm res(fes.get());
-         res.AddInteriorFaceIntegrator(new mach::InterfaceIntegrator<dim>(diff_stack, fec.get()));
+//          NonlinearForm res(fes.get());
+//          res.AddInteriorFaceIntegrator(new mach::InterfaceIntegrator<dim>(
+//              diff_stack, diss_coeff, fec.get()));
 
-         // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
-         q.ProjectCoefficient(pert);
+//          // initialize state; here we randomly perturb a constant state
+//          GridFunction q(fes.get());
+//          VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+//          q.ProjectCoefficient(pert);
 
-         // initialize the vector that the Jacobian multiplies
-         GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
-         v.ProjectCoefficient(v_rand);
+//          // initialize the vector that the Jacobian multiplies
+//          GridFunction v(fes.get());
+//          VectorFunctionCoefficient v_rand(num_state, randState);
+//          v.ProjectCoefficient(v_rand);
 
-         // evaluate the Jacobian and compute its product with v
-         Operator &Jac = res.GetGradient(q);
-         GridFunction jac_v(fes.get());
-         Jac.Mult(v, jac_v);
+//          // evaluate the Jacobian and compute its product with v
+//          Operator &Jac = res.GetGradient(q);
+//          GridFunction jac_v(fes.get());
+//          Jac.Mult(v, jac_v);
 
-         // now compute the finite-difference approximation...
-         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
-         q_pert.Add(-delta, v);
-         res.Mult(q_pert, r);
-         q_pert.Add(2 * delta, v);
-         res.Mult(q_pert, jac_v_fd);
-         jac_v_fd -= r;
-         jac_v_fd /= (2 * delta);
+//          // now compute the finite-difference approximation...
+//          GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+//          q_pert.Add(-delta, v);
+//          res.Mult(q_pert, r);
+//          q_pert.Add(2 * delta, v);
+//          res.Mult(q_pert, jac_v_fd);
+//          jac_v_fd -= r;
+//          jac_v_fd /= (2 * delta);
 
-         for (int i = 0; i < jac_v.Size(); ++i)
-         {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
-         }
-      }
-   } // loop different order of elements
-}
+//          for (int i = 0; i < jac_v.Size(); ++i)
+//          {
+//             REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+//          }
+//       }
+//    } // loop different order of elements
+// }
 
 TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar",
                        "[LPSIntegrator]",
@@ -667,7 +670,7 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
 }
 
 // TODO: add dim = 1, 3 once 3d sbp operators implemented
-TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad using entvar", 
+TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad", 
                         "[InterfaceIntegrator]",
                        ((bool entvar), entvar), false, true)
 {
@@ -677,6 +680,7 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad using entvar",
    double delta = 1e-5;
    int num_state = dim + 2;
    adept::Stack diff_stack;
+   double diss_coeff = 1.0;
 
    // generate a 2 element mesh
    int num_edge = 2;
@@ -695,7 +699,8 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad using entvar",
 
          NonlinearForm res(fes.get());
          res.AddInteriorFaceIntegrator(
-            new mach::InterfaceIntegrator<dim, entvar>(diff_stack, fec.get()));
+             new mach::InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
+                                                        fec.get()));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction w(fes.get());

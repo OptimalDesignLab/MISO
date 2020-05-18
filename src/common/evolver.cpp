@@ -7,6 +7,39 @@ using namespace std;
 namespace mach
 {
 
+void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
+{
+   ODESolver::Init(_f);
+   k.SetSize(f->Width(), mem_type);
+}
+
+void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
+{
+   f->SetTime(t + dt/2);
+   f->ImplicitSolve(dt/2, x, k);
+
+   // Set-up and solve the scalar nonlinear problem for the relaxation gamma
+   EntropyConstrainedOperator *f_ode =
+       dynamic_cast<EntropyConstrainedOperator *>(f);
+   double entropy_old = f_ode->Entropy(x);
+   double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
+   mfem::Vector x_new(x.Size());
+   auto entropyFun = [&](double gamma)
+   {
+      add(x, gamma*dt, k, x_new);
+      double entropy = f_ode->Entropy(x_new);
+      return entropy - entropy_old + gamma*dt*delta_entropy;
+   };
+   // TODO: tolerances and maxiter should be provided in some other way
+   const double ftol = 1e-12;
+   const double xtol = 1e-12;
+   const int maxiter = 30;
+   double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
+   // cout << "\tgamma = " << gamma << endl;
+   x.Add(gamma*dt, k);
+   t += gamma*dt;
+}
+
 LinearEvolver::LinearEvolver(MatrixType &m, MatrixType &k, ostream &outstream)
    : out(outstream), TimeDependentOperator(m.Height()), mass(m), stiff(k), z(m.Height())
 {
@@ -153,7 +186,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(0);
 #else
    //using hypre solver instead
-   linear_solver.reset(new mfem::HypreGMRES(mass.ParFESpcace()->GetComm()));
+   linear_solver.reset(new mfem::HypreGMRES(mass.ParFESpace()->GetComm()));
    prec.reset(new HypreEuclid(mass.ParFESpace()->GetComm()));
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(0);
@@ -170,7 +203,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    // set paramters for the newton solver
    newton_solver->SetRelTol(1e-10);
    newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(-1);
+   newton_solver->SetPrintLevel(1);
    newton_solver->SetMaxIter(30);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
@@ -207,6 +240,70 @@ void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &
    mfem::Vector zero;
    newton_solver->Mult(zero, k);
    MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
+}
+
+void ImplicitNonlinearMassEvolver::checkJacobian(
+    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
+{
+   cout << "evolver check jac is called.\n";
+   // initialize some variables
+   const double delta = 1e-5;
+   Vector u_plus(x);
+   Vector u_minus(x);
+   GridFunType pert_vec(mass.ParFESpace());
+   VectorFunctionCoefficient up(4, pert_fun);
+   pert_vec.ProjectCoefficient(up);
+
+   // perturb in the positive and negative pert_vec directions
+   u_plus.Add(delta, pert_vec);
+   u_minus.Add(-delta, pert_vec);
+
+   // Get the product using a 2nd-order finite-difference approximation
+   Vector res_plus(x.Size());
+   Vector res_minus(x.Size());
+// #ifdef MFEM_USE_MPI 
+//    HypreParVector *u_p = u_plus.GetTrueDofs();
+//    HypreParVector *u_m = u_minus.GetTrueDofs();
+//    HypreParVector *res_p = res_plus.GetTrueDofs();
+//    HypreParVector *res_m = res_minus.GetTrueDofs();
+// #else 
+//    GridFunType *u_p = &u_plus;
+//    GridFunType *u_m = &u_minus;
+//    GridFunType *res_p = &res_plus;
+//    GridFunType *res_m = &res_minus;
+// #endif
+   this->Mult(u_plus, res_plus);
+   this->Mult(u_minus, res_minus);
+// #ifdef MFEM_USE_MPI
+//    res_plus.SetFromTrueDofs(*res_p);
+//    res_minus.SetFromTrueDofs(*res_m);
+// #endif
+   // res_plus = 1/(2*delta)*(res_plus - res_minus)
+   subtract(1/(2*delta), res_plus, res_minus, res_plus);
+
+   // Get the product directly using Jacobian from GetGradient
+   Vector jac_v(x.Size());
+   Vector prod(x.Size());
+// #ifdef MFEM_USE_MPI
+//    HypreParVector *u_true = x.GetTrueDofs();
+//    HypreParVector *pert = pert_vec.GetTrueDofs();
+//    HypreParVector *prod = jac_v.GetTrueDofs();
+// #else
+//    GridFunType *u_true = u.get();
+//    GridFunType *pert = &pert_vec;
+//    GridFunType *prod = &jac_v;
+// #endif
+   mfem::Operator &jac = this->GetGradient(x);
+   jac.Mult(pert_vec, prod);
+//#ifdef MFEM_USE_MPI 
+//   jac_v.SetFromTrueDofs(*prod);
+//#endif 
+
+   // check the difference norm
+   jac_v -= res_plus;
+   //double error = AbstractSolver::calcInnerProduct(jac_v, jac_v);
+   double error = jac_v * jac_v;
+   cout << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
 } // end of mach namespace

@@ -123,6 +123,10 @@ public:
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm();
    
+   void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &))
+   {
+      pert = p;
+   }
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
@@ -220,7 +224,7 @@ protected:
 
    /// Defined in deerived class that update the nonlinear form mass matrix
    virtual void updateNonlinearMass(int ti, double dt, double alpha) {};
-
+   void (*pert)(const mfem::Vector &, mfem::Vector &);
 };
 
 } // namespace mach

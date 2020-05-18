@@ -1,12 +1,13 @@
 {
    "mesh": {
-      "file": "periodic_triangle2.mesh",
+      "file": "periodic_triangle1.mesh",
       "refine": 0
    },
    "space-dis": {
       "GD": false,
-      "degree": 2,
+      "degree": 1,
       "lps-coeff": 1.0,
+      "iface-coeff": 1.0,
       "basis-type": "csbp"
    },
    "petscsolver": {
@@ -19,7 +20,7 @@
    },
    "steady": false, 
    "time-dis": {
-      "ode_solver": "RK4",
+      "ode-solver": "RK4",
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.002,

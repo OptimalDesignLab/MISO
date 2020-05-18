@@ -735,14 +735,16 @@ void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
 
 /// Ismail-Roe flux function in direction `dir` with Lax-Friedichs dissipation
 /// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] diss_coeff - scales the dissipation (must be non-negative!)
 /// \param[in] qL - conservative variables at "left" state
 /// \param[in] qR - conservative variables at "right" state
 /// \param[out] flux - fluxes in the direction `dir`
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
-void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir, const xdouble *qL,
-                                   const xdouble *qR, xdouble *flux)
+void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir, xdouble diss_coeff,
+                                   const xdouble *qL, const xdouble *qR,
+                                   xdouble *flux)
 {
    xdouble pL = pressure<xdouble, dim>(qL);
    xdouble pR = pressure<xdouble, dim>(qR);
@@ -794,7 +796,7 @@ void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir, const xdouble *qL,
       q_ave[i] = 0.5 * (qL[i] + qR[i]);
       w_diff[i] = wL[i] - wR[i];
    }
-   xdouble lambda  = calcSpectralRadius<xdouble, dim>(dir, q_ave);
+   xdouble lambda  = diss_coeff*calcSpectralRadius<xdouble, dim>(dir, q_ave);
 
    calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
    for (int i = 0; i < dim+2; i++)
@@ -805,15 +807,16 @@ void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir, const xdouble *qL,
 
 /// Ismail-Roe flux function in direction `dir` with Lax-Friedichs dissipation
 /// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] diss_coeff - scales the dissipation (must be non-negative!)
 /// \param[in] qL - entropy variables at "left" state
 /// \param[in] qR - entropy variables at "right" state
 /// \param[out] flux - fluxes in the direction `dir`
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
-void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
-                                               const xdouble *wL,
-                                               const xdouble *wR, xdouble *flux)
+void calcIsmailRoeFaceFluxWithDissUsingEntVars(
+    const xdouble *dir, xdouble diss_coeff, const xdouble *wL,
+    const xdouble *wR, xdouble *flux)
 {
    xdouble zL[dim + 2];
    xdouble zR[dim + 2];
@@ -867,7 +870,7 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
       q_ave[i] = 0.5 * (qL[i] + qR[i]);
       w_diff[i] = wL[i] - wR[i];
    }
-   xdouble lambda = calcSpectralRadius<xdouble, dim>(dir, q_ave);
+   xdouble lambda = diss_coeff*calcSpectralRadius<xdouble, dim>(dir, q_ave);
    calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
    for (int i = 0; i < dim+2; i++)
    {
