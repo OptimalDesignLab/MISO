@@ -55,6 +55,10 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    {
       ode_solver.reset(new ImplicitMidpointSolver);
    }
+   else if (options["time-dis"]["ode-solver"].get<string>() == "RRK")
+   {
+      ode_solver.reset(new RRKImplicitMidpointSolver);
+   }
    else
    {
       throw MachException("Unknown ODE solver type " +
@@ -144,10 +148,14 @@ void AbstractSolver::initDerived()
    {
       evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
    }
-   else
+   else if (odes == "MIDPOINT")
    {
-      evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
-      //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
+      //evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, this, -1.0));
+   }
+   else if (odes == "RRK")
+   {
+      evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, this, -1.0));
    }
 
    // add the output functional QoIs 
@@ -600,6 +608,8 @@ void AbstractSolver::solveUnsteady()
    *out << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
+   double entropy = calcOutput("entropy");
+   cout << "before iteration, entropy is "<< entropy << '\n';
    for (int ti = 0; !done;)
    {
       if (calc_dt)

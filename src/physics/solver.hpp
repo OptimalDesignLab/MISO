@@ -127,6 +127,12 @@ public:
    {
       pert = p;
    }
+
+   /// Return the out put map
+   std::map<std::string, NonlinearFormType> GetOutput() const
+   {
+      return output;
+   }
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication

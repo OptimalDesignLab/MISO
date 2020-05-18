@@ -3,6 +3,7 @@
 
 using namespace mfem;
 using namespace std;
+using namespace mach;
 
 namespace mach
 {
@@ -17,17 +18,22 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
 {
    f->SetTime(t + dt/2);
    f->ImplicitSolve(dt/2, x, k);
-
+   cout << "equation solved using regular midpont solver\n";
    // Set-up and solve the scalar nonlinear problem for the relaxation gamma
    EntropyConstrainedOperator *f_ode =
        dynamic_cast<EntropyConstrainedOperator *>(f);
+   cout << "x size is " << x.Size() << '\n'; 
    double entropy_old = f_ode->Entropy(x);
+   cout << "old entropy is " << entropy_old << '\n';
    double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
+   cout << "delta_entropy is " << delta_entropy << '\n';
    mfem::Vector x_new(x.Size());
    auto entropyFun = [&](double gamma)
    {
+      cout <<"In lambda function: "; 
       add(x, gamma*dt, k, x_new);
       double entropy = f_ode->Entropy(x_new);
+      cout << "new entropy is " << entropy << '\n';
       return entropy - entropy_old + gamma*dt*delta_entropy;
    };
    // TODO: tolerances and maxiter should be provided in some other way
@@ -35,7 +41,7 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    const double xtol = 1e-12;
    const int maxiter = 30;
    double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
-   // cout << "\tgamma = " << gamma << endl;
+   cout << "\tgamma = " << gamma << endl;
    x.Add(gamma*dt, k);
    t += gamma*dt;
 }
@@ -102,8 +108,10 @@ void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
 
 ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
                                             NonlinearFormType &r,
+                                            AbstractSolver *abs,
                                             double a)
-   : TimeDependentOperator(m.Height()), mass(m), res(r), alpha(a)
+   : EntropyConstrainedOperator(m.Height()), 
+     mass(m), res(r), abs_solver(abs), alpha(a)
 {
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PETSC
@@ -170,9 +178,31 @@ void ImplicitNonlinearEvolver::ImplicitSolve(const double dt, const Vector &x,
    MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
 }
 
+double ImplicitNonlinearEvolver::Entropy(const mfem::Vector &state)
+{
+   return abs_solver->GetOutput().at("entropy").GetEnergy(state);
+}
+
+double ImplicitNonlinearEvolver::EntropyChange(double dt, const Vector &state,
+                                               const Vector &k)
+{
+   Vector vec1(state), vec2(k.Size());
+   vec1.Add(dt, k);
+   if (1) // using entvar
+   {
+      res.Mult(vec1, vec2);
+      return vec1 * vec2;
+   }
+   else // not using entvar
+   {
+      
+   }
+}
+
 ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm,
-                                 NonlinearFormType &r, double a)
-   : TimeDependentOperator(nm.Height()), mass(nm), res(r), alpha(a)
+                                 NonlinearFormType &r, AbstractSolver *abs, double a)
+   : EntropyConstrainedOperator(nm.Height()), 
+     mass(nm), res(r), abs_solver(abs), alpha(a)
 {
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PETSC
@@ -231,6 +261,27 @@ Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
    jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(k)); // jac2 = M'(k);
    jac1->Add(1.0, *jac2);
    return *jac1;
+}
+
+double ImplicitNonlinearMassEvolver::Entropy(const mfem::Vector &state)
+{
+   return abs_solver->GetOutput().at("entropy").GetEnergy(state);
+}
+
+double ImplicitNonlinearMassEvolver::EntropyChange(double dt, const Vector &state,
+                                               const Vector &k)
+{
+   Vector vec1(state), vec2(k.Size());
+   vec1.Add(dt, k);
+   if (1) // using entvar
+   {
+      res.Mult(vec1, vec2);
+      return vec1 * vec2;
+   }
+   else // not using entvar
+   {
+      
+   }
 }
 
 void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &x,

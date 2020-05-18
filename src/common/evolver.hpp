@@ -112,14 +112,15 @@ private:
 };
 
 /// Implicit Nonlinear evolver
-class ImplicitNonlinearEvolver : public mfem::TimeDependentOperator
+class ImplicitNonlinearEvolver : public mach::EntropyConstrainedOperator
 {
 public:
    /// class constructor
    /// \param[in] m - the mass matrix
    /// \param[in] res - nonlinear form that defines the spatial residual
    /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
-   ImplicitNonlinearEvolver(MatrixType &m, NonlinearFormType &r, double a = 1.0);
+   ImplicitNonlinearEvolver(MatrixType &m, NonlinearFormType &r, 
+                            AbstractSolver *abs, double a = 1.0);
 
    /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
    /// Currently implemented for the implicit midpoint method
@@ -143,12 +144,27 @@ public:
       dt = dt_;
       x = x_;
    }
+
+   /// Evaluate the entropy functional at the given state
+   /// \param[in] state - the state at which to evaluate the entropy
+   /// \returns the entropy functional
+   virtual double Entropy(const mfem::Vector &state);
+
+   /// Evaluate the residual weighted by the entropy variables
+   /// \praam[in] dt - evaluate residual at t+dt
+   /// \param[in] state - previous time step state
+   /// \param[in] k - the approximate time derivative, `du/dt`
+   /// \returns the product `w^T res`
+   /// \note `w` and `res` are evaluated at `state + dt*k` and time `t+dt`.
+   virtual double EntropyChange(double dt, const mfem::Vector &state, 
+                                const mfem::Vector &k);
+
    /// Class destructor
    virtual ~ImplicitNonlinearEvolver() { }
 
 private:
    /// implicit step jacobian
-   //MatrixType *jac;
+   mach::AbstractSolver *abs_solver;
    /// used to move the spatial residual to the right-hand-side, if necessary
    double alpha;
    /// reference to the mass matrix
@@ -169,14 +185,15 @@ private:
 };
 
 /// Implicit Nonlinear evolver
-class ImplicitNonlinearMassEvolver : public mfem::TimeDependentOperator
+class ImplicitNonlinearMassEvolver : public mach::EntropyConstrainedOperator
 {
 public:
    /// class constructor
    /// \param[in] m - the nonlinearform mass matrix
    /// \param[in] res - nonlinear form that defines the spatial residual
    /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
-   ImplicitNonlinearMassEvolver(NonlinearFormType &m, NonlinearFormType &r, double a = 1.0);
+   ImplicitNonlinearMassEvolver(NonlinearFormType &m, NonlinearFormType &r,
+                                mach::AbstractSolver *abs, double a = 1.0);
 
    /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
    /// Currently implemented for the implicit midpoint method
@@ -191,6 +208,20 @@ public:
    /// Compute the jacobian of implicit evolver: J = dt * f'(x + dt * k) - M
    /// \param[in] k - dx/dt
    virtual mfem::Operator &GetGradient(const mfem::Vector &k) const;
+
+   /// Evaluate the entropy functional at the given state
+   /// \param[in] state - the state at which to evaluate the entropy
+   /// \returns the entropy functional
+   virtual double Entropy(const mfem::Vector &state);
+
+   /// Evaluate the residual weighted by the entropy variables
+   /// \praam[in] dt - evaluate residual at t+dt
+   /// \param[in] state - previous time step state
+   /// \param[in] k - the approximate time derivative, `du/dt`
+   /// \returns the product `w^T res`
+   /// \note `w` and `res` are evaluated at `state + dt*k` and time `t+dt`.
+   virtual double EntropyChange(double dt, const mfem::Vector &state, 
+                                const mfem::Vector &k);
 
    /// Set the parameters
    /// \param[in] dt_ - time step
@@ -207,7 +238,7 @@ public:
 
 private:
    /// implicit step jacobian
-   //MatrixType *jac;
+   mach::AbstractSolver *abs_solver;
    /// used to move the spatial residual to the right-hand-side, if necessary
    double alpha;
    /// reference to the mass matrix
