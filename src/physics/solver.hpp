@@ -132,6 +132,18 @@ public:
    void printError(const std::string &file_name, int refine,
                      void (*u_exact)(const mfem::Vector &, mfem::Vector &));
 
+   /// return the out put map
+   std::map<std::string, NonlinearFormType> GetOutput()
+   {
+      return output;
+   }
+   
+   virtual bool isEntvar() { return false;}
+
+   /// A virtual function convert the conservative variable to entropy variables
+   /// defined in EulerSolver
+   /// \param[in/out] state - state vector
+   virtual void convertToEntvar(mfem::Vector &state) = 0;
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication

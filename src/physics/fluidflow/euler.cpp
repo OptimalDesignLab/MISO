@@ -19,10 +19,12 @@ EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
 {
    if (entvar)
    {
+      using_entvar = true;
       *out << "The state variables are the entropy variables." << endl;
    }
    else
    {
+      using_entvar = false;
       *out << "The state variables are the conservative variables." << endl;
    }
    // define free-stream parameters; may or may not be used, depending on case
@@ -343,6 +345,15 @@ void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alp
    dynamic_cast<mach::NonlinearMassIntegrator<MassIntegrator<dim,entvar>>*>
                (mass_integ.get())->updateDeltat(dt);
    
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::convertToEntvar(Vector &state)
+{
+   if (entvar == false)
+   {
+      
+   }
 }
 
 // explicit instantiation

@@ -3,6 +3,7 @@
 #include <iostream>
 using namespace mfem;
 using namespace std;
+using namespace mach;
 
 namespace mach
 {
@@ -22,12 +23,17 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    EntropyConstrainedOperator *f_ode =
        dynamic_cast<EntropyConstrainedOperator *>(f);
    double entropy_old = f_ode->Entropy(x);
+   cout << "entropy old is " << entropy_old << '\n';
    double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
+   cout << "entropy delta is " << delta_entropy << '\n';
    mfem::Vector x_new(x.Size());
    auto entropyFun = [&](double gamma)
    {
+      cout << "In entropyfunction: ";
       add(x, gamma*dt, k, x_new);
+      cout << "in delta function: ";
       double entropy = f_ode->Entropy(x_new);
+      cout << "entropy is " << entropy << '\n';
       return entropy - entropy_old + gamma*dt*delta_entropy;
    };
    // TODO: tolerances and maxiter should be provided in some other way
@@ -35,7 +41,7 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    const double xtol = 1e-12;
    const int maxiter = 30;
    double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
-   // cout << "\tgamma = " << gamma << endl;
+   cout << "\tgamma = " << gamma << endl;
    x.Add(gamma*dt, k);
    t += gamma*dt;
 }
@@ -102,8 +108,10 @@ void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
 
 ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
                                             NonlinearFormType &r,
+                                            AbstractSolver *abs,
                                             double a)
-   : TimeDependentOperator(m.Height()), mass(m), res(r), alpha(a)
+   : EntropyConstrainedOperator(m.Height()), mass(m), res(r), alpha(a), 
+     abs_solver(abs)
 {
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PETSC
@@ -140,6 +148,32 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
    newton_solver->SetSolver(*linear_solver);
    newton_solver->SetOperator(*this);
    newton_solver->iterative_mode = false;
+}
+
+double ImplicitNonlinearEvolver::Entropy(const Vector &state)
+{
+   return abs_solver->GetOutput().at("entropy").GetEnergy(state);
+}
+
+double ImplicitNonlinearEvolver::EntropyChange(double dt, const Vector &state,
+                                               const Vector &k)
+{
+   //bool entvar = dynamic_cast<EulerSolver*>(abs_solver)->isEntvar();
+   Vector vec1(state), vec2(k.Size());
+   vec1.Add(dt, k);
+   if (1)
+   {
+      res.Mult(vec1, vec2);
+      return vec1 * vec2;
+   }
+   else
+   {
+      Vector vec3(k.Size());
+      abs_solver->convertToEntvar(vec1);
+      add(state,dt, k, vec2);
+      res.Mult(vec2, vec3);
+      return vec1 * vec3;
+   }
 }
 
 void ImplicitNonlinearEvolver::Mult(const Vector &k, Vector &y) const
@@ -215,8 +249,11 @@ void ImplicitNonlinearEvolver::checkJacobian(
 }
 
 ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm,
-                                 NonlinearFormType &r, double a)
-   : TimeDependentOperator(nm.Height()), mass(nm), res(r), alpha(a)
+                                                           NonlinearFormType &r, 
+                                                           AbstractSolver *abs,
+                                                           double a)
+   : EntropyConstrainedOperator(nm.Height()), mass(nm), res(r), abs_solver(abs),
+     alpha(a)
 {
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PETSC
@@ -255,6 +292,31 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    newton_solver->SetSolver(*linear_solver);
    newton_solver->SetOperator(*this);
    newton_solver->iterative_mode = false;
+}
+
+double ImplicitNonlinearMassEvolver::Entropy(const Vector &state)
+{
+   return abs_solver->GetOutput().at("entropy").GetEnergy(state);
+}
+
+double ImplicitNonlinearMassEvolver::EntropyChange(double dt, const Vector &state,
+                                               const Vector &k)
+{
+   Vector vec1(state), vec2(k.Size());
+   vec1.Add(dt, k);
+   if (1)
+   {
+      res.Mult(vec1, vec2);
+      return vec1 * vec2;
+   }
+   else
+   {
+      Vector vec3(k.Size());
+      abs_solver->convertToEntvar(vec1);
+      add(state,dt, k, vec2);
+      res.Mult(vec2, vec3);
+      return vec1 * vec3;
+   }
 }
 
 void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const

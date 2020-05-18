@@ -63,6 +63,10 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    {
       ode_solver.reset(new ImplicitMidpointSolver);
    }
+   else if (options["time-dis"]["ode-solver"].get<string>() == "RRK")
+   {
+      ode_solver.reset(new RRKImplicitMidpointSolver);
+   }
    else
    {
       throw MachException("Unknown ODE solver type " +
@@ -176,11 +180,15 @@ void AbstractSolver::initDerived()
    {
       evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
    }
-   else
+   else if (odes == "MIDPOINT")
    {
-      evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
+      //evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
       //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
-      //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix_gd, *res, -1.0));
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix_gd, *res, this, -1.0));
+   }
+   else if (odes == "RRK")
+   {
+      evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, this, -1.0));
    }
 
    // add the output functional QoIs
@@ -771,14 +779,18 @@ void AbstractSolver::solveUnsteady()
    clock_t start_t = clock();
    for (int ti = 0; !done;)
    {
+      cout << "before calc entropy.\n";
       entropy = calcOutput("entropy");
       entropylog << t << ' ' << entropy << '\n';
+      cout << "entropy is written.\n";
       if (calc_dt)
       {
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
+      cout << "dt is " << dt << '\n';
       updateNonlinearMass(ti, dt_real, 1.0);
+      cout << "nonlinear mass is updated.\n";
       //dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->SetParameters(dt_real, *uc);
       //dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->checkJacobian(pert);
       // if (ti % 10 == 0)
