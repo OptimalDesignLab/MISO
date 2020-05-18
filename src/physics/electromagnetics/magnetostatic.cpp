@@ -453,7 +453,7 @@ void MagnetostaticSolver::setEssentialBoundaries()
    current_vec->SetSubVector(ess_tdof_list, 0.0);
 
    /// set current vector to zero on any model surface
-   current_vec->SetSubVector(surface_dofs, 0.0);
+   current_vec->SetSubVector(fes_surface_dofs, 0.0);
 }
 
 void MagnetostaticSolver::solveSteady()
@@ -575,15 +575,10 @@ void MagnetostaticSolver::verifyMeshSensitivities()
    VectorFunctionCoefficient v_rand(dim, randState);
    v.ProjectCoefficient(v_rand);
 
-   /// only perturb the inside
-   Array<int> ess_bdr, ess_bdr_tdofs;
-   ess_bdr.SetSize(mesh_fes->GetMesh()->bdr_attributes.Max());
-   ess_bdr = 1;
-   mesh_fes->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
-
-   for (int i = 0; i < ess_bdr_tdofs.Size(); ++i)
+   /// only perturb the inside dofs not on model faces
+   for (int i = 0; i < mesh_fes_surface_dofs.Size(); ++i)
    {
-      v(ess_bdr_tdofs[i]) = 0.0;
+      v(mesh_fes_surface_dofs[i]) = 0.0;
    }
 
    // contract dJ/dX with v

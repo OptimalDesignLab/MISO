@@ -141,6 +141,14 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    materials = material_library;
 
    constructMesh(move(smesh));
+   mesh->EnsureNodes();
+   mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
+   /// before internal boundaries are removed
+   ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   /// get all dofs on model surfaces
+   mesh_fes->GetEssentialTrueDofs(ess_bdr, mesh_fes_surface_dofs);
+
    int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
 
@@ -216,7 +224,7 @@ void AbstractSolver::initDerived()
    ess_bdr.SetSize(mesh->bdr_attributes.Max());
    ess_bdr = 1;
    /// get all dofs on model surfaces
-   fes->GetEssentialTrueDofs(ess_bdr, surface_dofs);
+   fes->GetEssentialTrueDofs(ess_bdr, fes_surface_dofs);
 
    double alpha = 1.0;
 
