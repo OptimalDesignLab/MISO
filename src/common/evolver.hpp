@@ -120,7 +120,7 @@ public:
    /// \param[in] res - nonlinear form that defines the spatial residual
    /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
    ImplicitNonlinearEvolver(MatrixType &m, NonlinearFormType &r, 
-                            AbstractSolver *abs, double a = 1.0);
+                            mach::AbstractSolver *abs, double a = 1.0);
 
    /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
    /// Currently implemented for the implicit midpoint method
@@ -151,7 +151,7 @@ public:
    virtual double Entropy(const mfem::Vector &state);
 
    /// Evaluate the residual weighted by the entropy variables
-   /// \praam[in] dt - evaluate residual at t+dt
+   /// \param[in] dt - evaluate residual at t+dt
    /// \param[in] state - previous time step state
    /// \param[in] k - the approximate time derivative, `du/dt`
    /// \returns the product `w^T res`
@@ -215,7 +215,7 @@ public:
    virtual double Entropy(const mfem::Vector &state);
 
    /// Evaluate the residual weighted by the entropy variables
-   /// \praam[in] dt - evaluate residual at t+dt
+   /// \param[in] dt - evaluate residual at t+dt
    /// \param[in] state - previous time step state
    /// \param[in] k - the approximate time derivative, `du/dt`
    /// \returns the product `w^T res`

@@ -1,6 +1,6 @@
 #include "evolver.hpp"
 #include "utils.hpp"
-
+#include <iostream>
 using namespace mfem;
 using namespace std;
 using namespace mach;
@@ -164,7 +164,7 @@ Operator &ImplicitNonlinearEvolver::GetGradient(const mfem::Vector &k) const
    Vector vec1(x);
    vec1.Add(dt, k);
    jac = dynamic_cast<MatrixType*>(&res.GetGradient(vec1)); 
-   jac->Add( dt-1.0, *jac );
+   *jac *= dt;
    jac->Add(1.0, mass);
    return *jac;
 }
