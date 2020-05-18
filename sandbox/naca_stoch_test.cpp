@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
       solver->printSolution("naca_init", degree+1);
-      solver->checkJacobian(pert);
+      //solver->checkJacobian(pert);
       solver->solveForState();
       res_error = solver->calcResidualNorm();
       solver->printSolution("naca_final",degree+1);
