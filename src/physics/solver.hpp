@@ -298,6 +298,8 @@ protected:
    std::unique_ptr<mfem::Solver> prec;
    /// Array that marks boundaries as essential
    mfem::Array<int> ess_bdr;
+   /// Array that holds degrees of freedom on model surfaces
+   mfem::Array<int> surface_dofs;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals

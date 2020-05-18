@@ -212,6 +212,11 @@ void AbstractSolver::initDerived()
    *out << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
+   /// before internal boundaries are removed
+   ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   /// get all dofs on model surfaces
+   fes->GetEssentialTrueDofs(ess_bdr, surface_dofs);
 
    double alpha = 1.0;
 

@@ -376,6 +376,9 @@ MagnetostaticSolver::MagnetostaticSolver(
    // num_state = dim;
 
    mesh->ReorientTetMesh();
+
+
+
    mesh->RemoveInternalBoundaries();
 
    /// Create the H(Div) finite element collection
@@ -448,6 +451,9 @@ void MagnetostaticSolver::setEssentialBoundaries()
    res->SetEssentialTrueDofs(ess_tdof_list);
    /// set current vector's ess_tdofs to zero
    current_vec->SetSubVector(ess_tdof_list, 0.0);
+
+   /// set current vector to zero on any model surface
+   current_vec->SetSubVector(surface_dofs, 0.0);
 }
 
 void MagnetostaticSolver::solveSteady()
