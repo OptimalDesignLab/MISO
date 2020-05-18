@@ -16,12 +16,18 @@ void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
 
 void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
 {
+   EntropyConstrainedOperator *f_ode =
+       dynamic_cast<EntropyConstrainedOperator *>(f);
+   cout << "x size is " << x.Size() << '\n';
+   cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
+   double entropy_test = f_ode->Entropy(x);
+   cout << "old entropy is " << entropy_test << '\n';
    f->SetTime(t + dt/2);
    f->ImplicitSolve(dt/2, x, k);
    cout << "equation solved using regular midpont solver\n";
    // Set-up and solve the scalar nonlinear problem for the relaxation gamma
-   EntropyConstrainedOperator *f_ode =
-       dynamic_cast<EntropyConstrainedOperator *>(f);
+   // EntropyConstrainedOperator *f_ode =
+   //     dynamic_cast<EntropyConstrainedOperator *>(f);
    cout << "x size is " << x.Size() << '\n'; 
    double entropy_old = f_ode->Entropy(x);
    cout << "old entropy is " << entropy_old << '\n';
@@ -265,6 +271,7 @@ Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
 
 double ImplicitNonlinearMassEvolver::Entropy(const mfem::Vector &state)
 {
+   cout << "impliciteNonlinearMASSEvolver::entropy is called.\n";
    return abs_solver->GetOutput().at("entropy").GetEnergy(state);
 }
 

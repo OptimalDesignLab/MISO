@@ -610,6 +610,7 @@ void AbstractSolver::solveUnsteady()
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
    double entropy = calcOutput("entropy");
    cout << "before iteration, entropy is "<< entropy << '\n';
+   //cout << "recalculate: " << output.at("entropy").GetEnergy(*u) << '\n';
    for (int ti = 0; !done;)
    {
       if (calc_dt)
@@ -625,9 +626,6 @@ void AbstractSolver::solveUnsteady()
       // }
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      // ofstream c_write("u_"+std::to_string(ti)+".txt");
-      // u->Print(c_write);
-      // c_write.close();
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);
