@@ -520,7 +520,7 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    dJdX.AddDomainIntegrator(
       new MagneticCoenergyIntegrator(*u, nu.get()));
    dJdX.Assemble();
-
+   std::cout << "dJdX norm: " << dJdX.Norml2() << "\n";
    /// TODO I don't know if this works in parallel / when we need to use tdof vectors
    *dLdX -= dJdX;
 
@@ -546,7 +546,7 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
    j_mesh_sens = 0.0;
    auto *j_mesh_sens_true = j_mesh_sens.GetTrueDofs();
    getCurrentSourceMeshSens(*adj, *j_mesh_sens_true);
-
+   std::cout << "current source dJdX norm: " << j_mesh_sens_true->Norml2() << "\n";
    /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
    dLdX->Add(1, *res_mesh_sens_l);
    dLdX->Add(-1, *j_mesh_sens_true);
@@ -574,6 +574,18 @@ void MagnetostaticSolver::verifyMeshSensitivities()
    GridFunction v(mesh_fes);
    VectorFunctionCoefficient v_rand(dim, randState);
    v.ProjectCoefficient(v_rand);
+
+   /// only perturb the inside
+   Array<int> ess_bdr, ess_bdr_tdofs;
+   ess_bdr.SetSize(mesh_fes->GetMesh()->bdr_attributes.Max());
+   ess_bdr = 1;
+   mesh_fes->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
+
+   for (int i = 0; i < ess_bdr_tdofs.Size(); ++i)
+   {
+      v(ess_bdr_tdofs[i]) = 0.0;
+   }
+
    // contract dJ/dX with v
    double dJdX_v = (dJdX) * v;
 
@@ -1434,7 +1446,7 @@ void MagnetostaticSolver::computeSecondaryFields()
 void MagnetostaticSolver::phaseACurrentSource(const Vector &x,
                                              Vector &J)
 {
-   phase_a_current(remnant_flux, fill_factor, x.GetData(), J.GetData());
+   phase_a_current(current_density, fill_factor, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::phaseACurrentSourceRevDiff(const Vector &x,
@@ -1462,7 +1474,7 @@ void MagnetostaticSolver::phaseACurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::phaseBCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   phase_b_current(remnant_flux, fill_factor, x.GetData(), J.GetData());
+   phase_b_current(current_density, fill_factor, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::phaseBCurrentSourceRevDiff(const Vector &x,
@@ -1490,7 +1502,7 @@ void MagnetostaticSolver::phaseBCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::phaseCCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   phase_c_current(remnant_flux, fill_factor, x.GetData(), J.GetData());
+   phase_c_current(current_density, fill_factor, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::phaseCCurrentSourceRevDiff(const Vector &x,
@@ -1574,7 +1586,7 @@ void MagnetostaticSolver::southMagnetizationSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::xAxisCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   x_axis_current(remnant_flux, x.GetData(), J.GetData());
+   x_axis_current(current_density, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::xAxisCurrentSourceRevDiff(const Vector &x,
@@ -1602,7 +1614,7 @@ void MagnetostaticSolver::xAxisCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::yAxisCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   y_axis_current(remnant_flux, x.GetData(), J.GetData());
+   y_axis_current(current_density, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::yAxisCurrentSourceRevDiff(const Vector &x,
@@ -1630,7 +1642,7 @@ void MagnetostaticSolver::yAxisCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::zAxisCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   z_axis_current(remnant_flux, x.GetData(), J.GetData());
+   z_axis_current(current_density, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::zAxisCurrentSourceRevDiff(const Vector &x,
@@ -1658,7 +1670,7 @@ void MagnetostaticSolver::zAxisCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::ringCurrentSource(const Vector &x,
                                             Vector &J)
 {
-   ring_current(remnant_flux, x.GetData(), J.GetData());
+   ring_current(current_density, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::ringCurrentSourceRevDiff(const Vector &x,

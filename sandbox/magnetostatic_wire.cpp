@@ -41,13 +41,12 @@ int main(int argc, char *argv[])
       solver.initDerived();
       solver.solveForState();
       std::cout << "finish steady solve\n";
-      double energy = solver.calcOutput("energy");
-      std::cout << "Energy = " << energy << std::endl;
       double coenergy = solver.calcOutput("co-energy");
       std::cout << "Co-energy = " << coenergy << std::endl;
       solver.solveForAdjoint("co-energy");
       solver.printAdjoint("co-energy-adjoint");
       solver.printSolution("wire_out");
+      solver.verifyMeshSensitivities();
    }
    catch (MachException &exception)
    {
