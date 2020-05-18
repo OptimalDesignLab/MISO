@@ -50,17 +50,17 @@ public:
    /// Solve the nonlinear system with right-hand side b
    /// \param[in] b - the right-hand side vector (can be zero)
    /// \param[in] x - intial "guess" for solution
-   virtual void Mult(const mfem::Vector &b, mfem::Vector &x);
+   virtual void Mult(const mfem::Vector &b, mfem::Vector &x) const;
 
    mfem::Solver *GetSolver(){return prec;}
 
 protected:
    /// Jacobian of the nonlinear operator; needed by ComputeStepSize();
-   Operator *jac;
+   mutable Operator *jac;
    /// member vector saves the new x position.
    mutable mfem::Vector x_new;
    /// Parameters for inexact newton method.
-   double theta, eta, eta_max, t;
+   mutable double theta, eta, eta_max, t;
    const double theta_min = 0.1;
    const double theta_max = 0.5;
 
@@ -75,7 +75,7 @@ private:
    /// \note See Pawlowski et al., doi:10.1137/S0036144504443511 for details
    /// regarding the line search method and its parameters.
    double ComputeStepSize(const mfem::Vector &x, const mfem::Vector &b, 
-                        const double norm);
+                        const double norm) const;
 
    /// Inexact newton method parameters set up, called in other constructors
    /// \param[in] eta_init - initial value of eta, the forcing parameter

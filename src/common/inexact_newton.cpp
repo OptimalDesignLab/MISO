@@ -15,7 +15,7 @@ void InexactNewton::init(double eta_init, double eta_maximum,
 }
    
 double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
-                                       const double norm)
+                                       const double norm) const
 {
    double s = 1.0;
    // p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
@@ -92,7 +92,7 @@ void InexactNewton::SetOperator(const Operator &op)
 }
 
 
-void InexactNewton::Mult(const Vector &b, Vector &x)
+void InexactNewton::Mult(const Vector &b, Vector &x) const
 {
    MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
    MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");

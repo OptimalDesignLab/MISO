@@ -55,6 +55,10 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    {
       ode_solver.reset(new ImplicitMidpointSolver);
    }
+   else if (options["time-dis"]["ode-solver"].get<string>() == "BACKWARD")
+   {
+      ode_solver.reset(new BackwardEulerSolver);
+   }
    else
    {
       throw MachException("Unknown ODE solver type " +
@@ -508,7 +512,7 @@ void AbstractSolver::solveSteady()
    int maxiter = options["lin-solver"]["maxiter"].get<int>();
    int ptl = options["lin-solver"]["printlevel"].get<int>();
    int fill = options["lin-solver"]["filllevel"].get<int>();
-   //HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
+   HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
    solver.reset( new HypreGMRES(fes->GetComm()) );
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
    dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
@@ -518,9 +522,15 @@ void AbstractSolver::solveSteady()
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
    int nptl = options["newton"]["printlevel"].get<int>();
-   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
-   //double eta = 1e-1;
-   //newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
+   if(options["newton"]["inexact"].get<bool>())
+   {
+      double eta = 1e-1;
+      newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
+   }
+   else
+   {
+      newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   }
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
    newton_solver->SetOperator(*res);

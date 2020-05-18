@@ -1,0 +1,68 @@
+{
+    "mesh": {
+       "file": "../../sandbox/naca0012.mesh"
+    },
+    "space-dis": {
+       "basis-type": "csbp",
+       "degree": 1,
+       "GD": false
+    },
+    "steady": true,
+    "time-dis": {
+        "ode-solver": "MIDPOINT",
+        "const-cfl": true,
+        "cfl": 1.0,
+        "dt": 0.01,
+        "t-final": 0.02
+    },
+    "petscsolver": {
+      "ksptype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-15,
+      "reltol": 1e-15,
+      "maxiter": 100,
+      "printlevel": 0
+   },
+    "lin-solver": {
+       "type": "hypregmres",
+       "pctype": "hypreeuclid",
+       "filllevel": 3,
+       "reltol": 1e-14,
+       "abstol": 0.0,
+       "printlevel": 0,
+       "maxiter": 500
+    },
+    "adj-solver":{
+       "type": "hypregmres",
+       "pctype": "hypreeuclid",
+       "reltol": 1e-14,
+       "abstol": 0.0,
+       "printlevel": 0,
+       "maxiter": 500
+    },
+    "flow-param" : {
+       "mach": 1,
+       "aoa": 0,
+       "roll-axis": 0,
+       "pitch-axis": 1
+    },
+   "newton": {
+      "inexact": false,
+      "printlevel": 1,
+      "maxiter": 50,
+      "reltol": 1e-14,
+      "abstol": 1e-14
+   },
+    "bcs": {
+      "far-field": [1,1,0,0],
+      "slip-wall": [0,0,1,1]
+    },
+    "outputs": {
+        "temp-agg": "temp-agg"
+    },
+    "compute-sens": true,
+    "verify-full": false,
+    "verify-cd": true,
+    "mesh-move-opts-path": "thermal_mesh_move_options.json",
+    "material-lib-path": "../../src/material_options.json"
+ }
