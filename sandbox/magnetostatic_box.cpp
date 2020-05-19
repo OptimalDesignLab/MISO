@@ -84,10 +84,10 @@ int main(int argc, char *argv[])
       MagnetostaticSolver solver(opt_file_name, move(mesh));
       solver.initDerived();
       solver.solveForState();
-      solver.printSolution("box_out");
+      // solver.printSolution("box_out");
       std::cout << "finish steady solve\n";
-      double coenergy = solver.calcOutput("co-energy");
-      std::cout << "Co-energy = " << coenergy << std::endl;
+      // double coenergy = solver.calcOutput("co-energy");
+      // std::cout << "Co-energy = " << coenergy << std::endl;
       // solver.solveForAdjoint("co-energy");
       // solver.printAdjoint("co-energy-adjoint");
       solver.verifyMeshSensitivities();
