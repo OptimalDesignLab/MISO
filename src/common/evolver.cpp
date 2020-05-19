@@ -19,31 +19,39 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
 {
    f->SetTime(t + dt/2);
    f->ImplicitSolve(dt/2, x, k);
-   cout << "equation solved using regular midpont solver\n";
+   //f->ImplicitSolve(dt, x, k);
+   //cout << "equation solved using regular midpont solver\n";
    // Set-up and solve the scalar nonlinear problem for the relaxation gamma
    EntropyConstrainedOperator *f_ode =
        dynamic_cast<EntropyConstrainedOperator *>(f);
-   cout << "x size is " << x.Size() << '\n';
-   cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
-   double entropy_old = f_ode->Entropy(x);
-   cout << "old entropy is " << entropy_old << '\n';
+   //cout << "x size is " << x.Size() << '\n';
+   //cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
    double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
-   cout << "delta_entropy is " << delta_entropy << '\n';
+   //double delta_entropy = f_ode->EntropyChange(dt, x, k);
+   //cout << "delta_entropy is " << delta_entropy << '\n';
+   double entropy_old = f_ode->Entropy(x);
+   //cout << "old entropy is " << entropy_old << '\n';
    mfem::Vector x_new(x.Size());
-   cout << "x_new size is " << x_new.Size() << '\n';
+   //cout << "x_new size is " << x_new.Size() << '\n';
    auto entropyFun = [&](double gamma)
    {
-      cout <<"In lambda function: "; 
+      cout << "In lambda function: " << std::setprecision(14); 
       add(x, gamma*dt, k, x_new);
+      // x_new = k;
+      // x_new *= (gamma*dt);
+      // x_new += x;
       double entropy = f_ode->Entropy(x_new);
-      cout << "new entropy is " << entropy << '\n';
+      cout << "gamma = " << gamma << ": ";
+      cout << "residual = " << entropy - entropy_old + gamma*dt*delta_entropy << endl;
+      //cout << "new entropy is " << entropy << '\n';
       return entropy - entropy_old + gamma*dt*delta_entropy;
    };
    // TODO: tolerances and maxiter should be provided in some other way
    const double ftol = 1e-12;
    const double xtol = 1e-12;
    const int maxiter = 30;
-   double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
+   //double gamma = bisection(entropyFun, 0.50, 1.5, ftol, xtol, maxiter);
+   double gamma = secant(entropyFun, 1.9, 2.1, ftol, xtol, maxiter);
    cout << "\tgamma = " << gamma << endl;
    x.Add(gamma*dt, k);
    t += gamma*dt;
@@ -193,15 +201,15 @@ double ImplicitNonlinearEvolver::EntropyChange(double dt, const Vector &state,
    vec1.Add(dt, k);
    // if using conservative variables, need to convert
    // if using entropy variables, do nothing
-   abs_solver->convertToEntvar(vec1);
+   //abs_solver->convertToEntvar(vec1);
    res.Mult(vec1, vec2);
    return vec1 * vec2;
 }
 
-ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm,
-                                 NonlinearFormType &r, AbstractSolver *abs, double a)
-   : EntropyConstrainedOperator(nm.Height()), 
-     mass(nm), res(r), abs_solver(abs), alpha(a)
+ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(
+    NonlinearFormType &nm, NonlinearFormType &r, NonlinearFormType &e, double a)
+    : EntropyConstrainedOperator(nm.Height()), mass(nm), res(r), ent(e),
+      alpha(a)
 {
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PETSC
@@ -264,17 +272,17 @@ Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
 
 double ImplicitNonlinearMassEvolver::Entropy(const Vector &state)
 {
-   return abs_solver->GetOutput().at("entropy").GetEnergy(state);
+   return ent.GetEnergy(state);
 }
 
 double ImplicitNonlinearMassEvolver::EntropyChange(double dt, const Vector &state,
-                                               const Vector &k)
+                                                   const Vector &k)
 {
    Vector vec1(state), vec2(k.Size());
    vec1.Add(dt, k);
    // if using conservative variables, need to convert
    // if using entropy variables, do nothing
-   abs_solver->convertToEntvar(vec1);
+   //abs_solver->convertToEntvar(vec1);
    res.Mult(vec1, vec2);
    return vec1 * vec2;
 }
