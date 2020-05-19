@@ -322,16 +322,16 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          // initialize magnetization source and adjoint; here we randomly perturb a constant state
          GridFunction M(rt_fes.get()), adjoint(nd_fes.get());
          VectorFunctionCoefficient pert(3, randState);
-         // VectorFunctionCoefficient mag(3, func, funcRevDiff);
+         VectorFunctionCoefficient mag(3, func, funcRevDiff);
 
-         /// Costruct coefficient
-         mach::VectorMeshDependentCoefficient mag(dim);
-         std::unique_ptr<mfem::VectorCoefficient> coeff1(
-            new VectorFunctionCoefficient(dim, func, funcRevDiff));
-         std::unique_ptr<mfem::VectorCoefficient> coeff2(
-            new VectorFunctionCoefficient(dim, func2, func2RevDiff));
-         mag.addCoefficient(1, move(coeff1));
-         mag.addCoefficient(2, move(coeff2));
+         // /// Costruct coefficient
+         // mach::VectorMeshDependentCoefficient mag(dim);
+         // std::unique_ptr<mfem::VectorCoefficient> coeff1(
+         //    new VectorFunctionCoefficient(dim, func, funcRevDiff));
+         // std::unique_ptr<mfem::VectorCoefficient> coeff2(
+         //    new VectorFunctionCoefficient(dim, func2, func2RevDiff));
+         // mag.addCoefficient(1, move(coeff1));
+         // mag.addCoefficient(2, move(coeff2));
 
          M.ProjectCoefficient(mag);
          // M.ProjectCoefficient(pert);
@@ -423,17 +423,19 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
          // initialize magnetization source and adjoint; here we randomly perturb a constant state
          GridFunction J(fes.get()), adjoint(fes.get());
          VectorFunctionCoefficient pert(3, randState);
+         VectorFunctionCoefficient current(3, func, funcRevDiff);
 
          /// Costruct coefficient
-         mach::VectorMeshDependentCoefficient current(dim);
-         std::unique_ptr<mfem::VectorCoefficient> coeff1(
-            new VectorFunctionCoefficient(dim, func, funcRevDiff));
-         std::unique_ptr<mfem::VectorCoefficient> coeff2(
-            new VectorFunctionCoefficient(dim, func2, func2RevDiff));
-         current.addCoefficient(1, move(coeff1));
-         current.addCoefficient(2, move(coeff2));
+         // mach::VectorMeshDependentCoefficient current(dim);
+         // std::unique_ptr<mfem::VectorCoefficient> coeff1(
+         //    new VectorFunctionCoefficient(dim, func, funcRevDiff));
+         // std::unique_ptr<mfem::VectorCoefficient> coeff2(
+         //    new VectorFunctionCoefficient(dim, func2, func2RevDiff));
+         // current.addCoefficient(1, move(coeff1));
+         // current.addCoefficient(2, move(coeff2));
 
          J.ProjectCoefficient(current);
+         // J.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(pert);
 
          // we use res for finite-difference approximation
@@ -524,16 +526,16 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
          GridFunction c(nd_fes.get()), adjoint(h1_fes.get());
          VectorFunctionCoefficient pert(3, randState);
          FunctionCoefficient adj_pert(randState);
-         // VectorFunctionCoefficient current(3, func, funcRevDiff);
+         VectorFunctionCoefficient current(3, func, funcRevDiff);
 
          /// Costruct coefficient
-         mach::VectorMeshDependentCoefficient current(dim);
-         std::unique_ptr<mfem::VectorCoefficient> coeff1(
-            new VectorFunctionCoefficient(dim, func, funcRevDiff));
-         std::unique_ptr<mfem::VectorCoefficient> coeff2(
-            new VectorFunctionCoefficient(dim, func2, func2RevDiff));
-         current.addCoefficient(1, move(coeff1));
-         current.addCoefficient(2, move(coeff2));
+         // mach::VectorMeshDependentCoefficient current(dim);
+         // std::unique_ptr<mfem::VectorCoefficient> coeff1(
+         //    new VectorFunctionCoefficient(dim, func, funcRevDiff));
+         // std::unique_ptr<mfem::VectorCoefficient> coeff2(
+         //    new VectorFunctionCoefficient(dim, func2, func2RevDiff));
+         // current.addCoefficient(1, move(coeff1));
+         // current.addCoefficient(2, move(coeff2));
 
          c.ProjectCoefficient(current);
          // c.ProjectCoefficient(pert);
@@ -631,9 +633,6 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
             new VectorFunctionCoefficient(dim, func2, func2RevDiff));
          current.addCoefficient(1, move(coeff1));
          current.addCoefficient(2, move(coeff2));
-         // Vector one(3);
-         // one = 1.0;
-         // VectorConstantCoefficient current(one);
 
          adjoint.ProjectCoefficient(pert);
 
