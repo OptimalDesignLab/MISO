@@ -8,6 +8,7 @@ using namespace mach;
 namespace mach
 {
 
+
 void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
@@ -35,10 +36,10 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    auto entropyFun = [&](double gamma)
    {
       cout << "In lambda function: " << std::setprecision(14); 
-      //add(x, gamma*dt, k, x_new);
-      x_new = k;
-      x_new *= (gamma*dt);
-      x_new += x;
+      add(x, gamma*dt, k, x_new);
+      // x_new = k;
+      // x_new *= (gamma*dt);
+      // x_new += x;
       double entropy = f_ode->Entropy(x_new);
       cout << "gamma = " << gamma << ": ";
       cout << "residual = " << entropy - entropy_old + gamma*dt*delta_entropy << endl;
@@ -200,7 +201,7 @@ double ImplicitNonlinearEvolver::EntropyChange(double dt, const Vector &state,
    vec1.Add(dt, k);
    // if using conservative variables, need to convert
    // if using entropy variables, do nothing
-   abs_solver->convertToEntvar(vec1);
+   //abs_solver->convertToEntvar(vec1);
    res.Mult(vec1, vec2);
    return vec1 * vec2;
 }
@@ -279,15 +280,11 @@ double ImplicitNonlinearMassEvolver::EntropyChange(double dt, const Vector &stat
 {
    Vector vec1(state), vec2(k.Size());
    vec1.Add(dt, k);
-   if (1) // using entvar
-   {
-      res.Mult(vec1, vec2);
-      return vec1 * vec2;
-   }
-   else // not using entvar
-   {
-      
-   }
+   // if using conservative variables, need to convert
+   // if using entropy variables, do nothing
+   //abs_solver->convertToEntvar(vec1);
+   res.Mult(vec1, vec2);
+   return vec1 * vec2;
 }
 
 void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &x,
