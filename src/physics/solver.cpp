@@ -789,11 +789,8 @@ void AbstractSolver::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
-      cout << "dt is " << dt << '\n';
-      updateNonlinearMass(ti, dt_real, 1.0);
-      cout << "nonlinear mass is updated.\n";
-      //dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->SetParameters(dt_real, *uc);
-      //dynamic_cast<mach::ImplicitNonlinearMassEvolver*>(evolver.get())->checkJacobian(pert);
+      // TODO: !!!!! The following does not generalize beyond midpoint !!!!!
+      updateNonlinearMass(ti, 0.5*dt_real, 1.0);
       // if (ti % 10 == 0)
       // {
       //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
