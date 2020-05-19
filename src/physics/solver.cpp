@@ -782,7 +782,6 @@ void AbstractSolver::solveUnsteady()
       cout << "before calc entropy.\n";
       entropy = calcOutput("entropy");
       entropylog << t << ' ' << entropy << '\n';
-      cout << "entropy is written.\n";
       if (calc_dt)
       {
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());

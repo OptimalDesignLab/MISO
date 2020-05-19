@@ -18,20 +18,24 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
 {
    f->SetTime(t + dt/2);
    f->ImplicitSolve(dt/2, x, k);
-
+   cout << "equation is solved using regular midpoint method.\n";
    // Set-up and solve the scalar nonlinear problem for the relaxation gamma
    EntropyConstrainedOperator *f_ode =
        dynamic_cast<EntropyConstrainedOperator *>(f);
+   cout << "x size is " << x.Size() << '\n';
+   cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
    double entropy_old = f_ode->Entropy(x);
    cout << "entropy old is " << entropy_old << '\n';
    double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
    cout << "entropy delta is " << delta_entropy << '\n';
    mfem::Vector x_new(x.Size());
+   cout << "x_new size is " << x_new.Size() << '\n';
    auto entropyFun = [&](double gamma)
    {
-      cout << "In entropyfunction: ";
+      cout << "In lambda entropyfunction: ";
       add(x, gamma*dt, k, x_new);
-      cout << "in delta function: ";
+      cout << "x_new is: ";
+      x_new.Print(cout, x_new.Size()); 
       double entropy = f_ode->Entropy(x_new);
       cout << "entropy is " << entropy << '\n';
       return entropy - entropy_old + gamma*dt*delta_entropy;
