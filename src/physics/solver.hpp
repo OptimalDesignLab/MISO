@@ -137,8 +137,6 @@ public:
    {
       return output;
    }
-   
-   virtual bool isEntvar() { return false;}
 
    /// A virtual function convert the conservative variable to entropy variables
    /// defined in EulerSolver

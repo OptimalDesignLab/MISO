@@ -47,14 +47,10 @@ public:
    double calcConservativeVarsL2Error(void (*u_exact)(const mfem::Vector &,
                                                       mfem::Vector &),
                                       int entry = -1);
-   
-   virtual bool isEntvar() { return using_entvar; }
-
    /// A virtual function convert the conservative variable to entropy variables
    /// \param[in/out] state - state vector
    virtual void convertToEntvar(mfem::Vector &state);
 protected:
-   bool using_entvar;
    /// free-stream Mach number
    double mach_fs;
    /// free-stream angle of attack

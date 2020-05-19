@@ -799,9 +799,6 @@ void AbstractSolver::solveUnsteady()
       // }
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      // ofstream c_write("u_"+std::to_string(ti)+".txt");
-      // u->Print(c_write);
-      // c_write.close();
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);

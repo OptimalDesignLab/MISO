@@ -16,6 +16,7 @@ set(SANDBOX_SRCS
    steady_vortex
    unsteady_vortex
    viscous_shock
+   airfoil_steady
    airfoil_chaotic
 	galerkin_difference
    steady_vortex_adjoint

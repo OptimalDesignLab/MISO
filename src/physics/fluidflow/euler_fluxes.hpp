@@ -35,6 +35,55 @@ inline xdouble pressure(const xdouble *q)
    return euler::gami * (q[dim + 1] - 0.5 * dot<xdouble, dim>(q + 1, q + 1) / q[0]);
 }
 
+/// Convert conservative variables `q` to entropy variables `w`
+/// \param[in] q - conservative variables that we want to convert from
+/// \param[out] w - entropy variables we want to convert to
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcEntropyVars(const xdouble *q, xdouble *w)
+{
+   xdouble u[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = q[i + 1] / q[0];
+   }
+   xdouble p = pressure<xdouble, dim>(q);
+   xdouble s = log(p / pow(q[0], euler::gamma));
+   xdouble fac = 1.0 / p;
+   w[0] = (euler::gamma - s) / euler::gami - 0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
+   for (int i = 0; i < dim; ++i)
+   {
+      w[i + 1] = q[i + 1] * fac;
+   }
+   w[dim + 1] = -q[0] * fac;
+}
+
+/// Convert entropy variables `w` to conservative variables `q`
+/// \param[in] w - entropy variables we want to convert from
+/// \param[out] q - conservative variables that we want to convert to
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcConservativeVars(const xdouble *w, xdouble *q)
+{
+   xdouble u[dim];
+   xdouble Vel2 = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = -w[i + 1] / w[dim + 1];
+      Vel2 += u[i]*u[i];
+   }
+   xdouble s = euler::gamma + euler::gami*(0.5*Vel2*w[dim+1] - w[0]);
+   q[0] = pow(-exp(-s)/w[dim+1], 1.0/euler::gami);
+   for (int i = 0; i < dim; ++i)
+   {
+      q[i + 1] = q[0]*u[i];
+   }
+   xdouble p = -q[0]/w[dim+1];
+   q[dim+1] = p/euler::gami + 0.5*q[0]*Vel2;  
+}
+
 /// Mathematical entropy function rho*s/(gamma-1), where s = ln(p/rho^gamma)
 /// \param[in] q - state variables (either conservative or entropy variables)
 /// \tparam xdouble - either double or adouble
@@ -298,70 +347,34 @@ void calcIsmailRoeFaceFluxUsingEntVars(const xdouble *dir, const xdouble *wL,
    flux[dim + 1] = rho_hat * h_hat * U;
 }
 
-/// The spectral radius of the flux Jacobian in the direction `dir`
+/// The spectral radius of flux Jacobian in direction `dir` w.r.t. conservative
 /// \param[in] dir - desired direction of flux Jacobian
-/// \param[in] q - conservative variables used to evaluate Jacobian
+/// \param[in] u - state variables used to evaluate Jacobian
 /// \returns absolute value of the largest eigenvalue of the Jacobian
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
-xdouble calcSpectralRadius(const xdouble *dir, const xdouble *q)
+/// \tparam entvar - if true u = conservative vars, if false u = entropy vars
+template <typename xdouble, int dim, bool entvar = false>
+xdouble calcSpectralRadius(const xdouble *dir, const xdouble *u)
 {
+   xdouble q[dim+2];
+   if (entvar)
+   {
+      calcConservativeVars<xdouble, dim>(u, q);
+   }
+   else
+   {
+      for (int i = 0; i < dim+2; ++i)
+      {
+         q[i] = u[i];
+      }
+   }
    xdouble press = pressure<xdouble, dim>(q);
    xdouble sndsp = sqrt(euler::gamma * press / q[0]);
    // U = u*dir[0] + v*dir[1] + ...
    xdouble U = dot<xdouble, dim>(q + 1, dir) / q[0];
    xdouble dir_norm = sqrt(dot<xdouble, dim>(dir, dir));
    return fabs(U) + sndsp * dir_norm;
-}
-
-/// Convert conservative variables `q` to entropy variables `w`
-/// \param[in] q - conservative variables that we want to convert from
-/// \param[out] w - entropy variables we want to convert to
-/// \tparam xdouble - typically `double` or `adept::adouble`
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
-void calcEntropyVars(const xdouble *q, xdouble *w)
-{
-   xdouble u[dim];
-   for (int i = 0; i < dim; ++i)
-   {
-      u[i] = q[i + 1] / q[0];
-   }
-   xdouble p = pressure<xdouble, dim>(q);
-   xdouble s = log(p / pow(q[0], euler::gamma));
-   xdouble fac = 1.0 / p;
-   w[0] = (euler::gamma - s) / euler::gami - 0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
-   for (int i = 0; i < dim; ++i)
-   {
-      w[i + 1] = q[i + 1] * fac;
-   }
-   w[dim + 1] = -q[0] * fac;
-}
-
-/// Convert entropy variables `w` to conservative variables `q`
-/// \param[in] w - entropy variables we want to convert from
-/// \param[out] q - conservative variables that we want to convert to
-/// \tparam xdouble - typically `double` or `adept::adouble`
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
-void calcConservativeVars(const xdouble *w, xdouble *q)
-{
-   xdouble u[dim];
-   xdouble Vel2 = 0.0;
-   for (int i = 0; i < dim; ++i)
-   {
-      u[i] = -w[i + 1] / w[dim + 1];
-      Vel2 += u[i]*u[i];
-   }
-   xdouble s = euler::gamma + euler::gami*(0.5*Vel2*w[dim+1] - w[0]);
-   q[0] = pow(-exp(-s)/w[dim+1], 1.0/euler::gami);
-   for (int i = 0; i < dim; ++i)
-   {
-      q[i + 1] = q[0]*u[i];
-   }
-   xdouble p = -q[0]/w[dim+1];
-   q[dim+1] = p/euler::gami + 0.5*q[0]*Vel2;  
 }
 
 // TODO: How should we return matrices, particularly when they will be differentiated?
@@ -535,7 +548,7 @@ void calcFarFieldFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
 {
    if (entvar)
    {
-      xdouble qcons[dim+1];
+      xdouble qcons[dim+2];
       calcConservativeVars<xdouble, dim>(q, qcons);
       calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
    }

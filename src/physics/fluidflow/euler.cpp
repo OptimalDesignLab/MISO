@@ -19,12 +19,10 @@ EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
 {
    if (entvar)
    {
-      using_entvar = true;
       *out << "The state variables are the entropy variables." << endl;
    }
    else
    {
-      using_entvar = false;
       *out << "The state variables are the conservative variables." << endl;
    }
    // define free-stream parameters; may or may not be used, depending on case
@@ -347,12 +345,35 @@ void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alp
    
 }
 
-template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::convertToEntvar(Vector &state)
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
 {
-   if (entvar == false)
+   if (entvar)
    {
-      
+      return ;
+   }
+   else
+   {
+      int num_nodes, offset;
+      Array<int> vdofs(num_state);
+      Vector el_con, el_ent;
+      const FiniteElement *fe;
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         num_nodes = fe->GetDof();
+         for (int j = 0; j < num_nodes; j++)
+         {
+            offset = i * num_nodes * num_state + j * num_state;
+            for (int k = 0; k < num_state; k++)
+            {
+               vdofs[k] = offset + k;
+            }
+            u->GetSubVector(vdofs, el_con);
+            calcEntropyVars<double, dim>(el_con.GetData(), el_ent.GetData());
+            state.SetSubVector(vdofs, el_ent);
+         }
+      }
    }
 }
 
