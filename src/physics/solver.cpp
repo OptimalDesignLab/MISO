@@ -610,9 +610,14 @@ void AbstractSolver::solveUnsteady()
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
    double entropy = calcOutput("entropy");
    cout << "before iteration, entropy is "<< entropy << '\n';
-   //cout << "recalculate: " << output.at("entropy").GetEnergy(*u) << '\n';
+   remove("entropylog.txt");
+   ofstream entropylog;
+   entropylog.open("entropylog.txt", fstream::app);
+   entropylog << setprecision(14);
    for (int ti = 0; !done;)
    {
+      entropy = calcOutput("entropy");
+      entropylog << t << ' ' << entropy << '\n';
       if (calc_dt)
       {
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
@@ -653,6 +658,9 @@ void AbstractSolver::solveUnsteady()
          }
       } */
    }
+   entropy = calcOutput("entropy");
+   entropylog << t << ' ' << entropy << '\n';
+   entropylog.close();
 
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
