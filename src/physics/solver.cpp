@@ -626,7 +626,8 @@ void AbstractSolver::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
       }
       double dt_real = min(dt, t_final - t);
-      updateNonlinearMass(ti, dt_real, 1.0);
+      // TODO: !!!!! The following does not generalize beyond midpoint !!!!!
+      updateNonlinearMass(ti, 0.5*dt_real, 1.0);
       // if (ti % 10 == 0)
       // {
       //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
