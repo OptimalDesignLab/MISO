@@ -13,6 +13,7 @@ function(create_sandbox source_list)
 endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
+   naca_stoch_test
    steady_vortex
    unsteady_vortex
    viscous_shock

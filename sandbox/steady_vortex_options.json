@@ -24,6 +24,7 @@
       "slip-wall": [0, 0, 0, 1]
    },
    "newton": {
+      "inexact": false,
       "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-14,
