@@ -594,6 +594,93 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
    }
 }
 
+TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
+          "[VectorFEDomainLFMeshSensInteg]")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3;  // templating is hard here because mesh constructors
+   // static adept::Stack diff_stack;
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = getMesh(num_edge, num_edge);
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // get the finite-element space for the adjoint
+         std::unique_ptr<FiniteElementCollection> fec(
+            new ND_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get()));
+
+         // initialize adjoint; here we randomly perturb a constant state
+         GridFunction adjoint(fes.get());
+         VectorFunctionCoefficient pert(3, randState);
+
+         /// Costruct coefficient
+         mach::VectorMeshDependentCoefficient current(dim);
+         std::unique_ptr<mfem::VectorCoefficient> coeff1(
+            new VectorFunctionCoefficient(dim, func, funcRevDiff));
+         std::unique_ptr<mfem::VectorCoefficient> coeff2(
+            new VectorFunctionCoefficient(dim, func2, func2RevDiff));
+         current.addCoefficient(1, move(coeff1));
+         current.addCoefficient(2, move(coeff2));
+         // Vector one(3);
+         // one = 1.0;
+         // VectorConstantCoefficient current(one);
+
+         adjoint.ProjectCoefficient(pert);
+
+         // we use res for finite-difference approximation
+         LinearForm res(fes.get());
+         res.AddDomainIntegrator(new VectorFEDomainLFIntegrator(current));
+
+         // extract mesh nodes and get their finite-element space
+         GridFunction *x_nodes = mesh->GetNodes();
+         FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+
+         // build the nonlinear form for d(psi^T R)/dx 
+         LinearForm dfdx(mesh_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::VectorFEDomainLFMeshSensInteg(&adjoint, current));
+         dfdx.Assemble();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(mesh_fes);
+         VectorFunctionCoefficient v_rand(3, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // contract dfdx with v
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(*x_nodes);
+         x_pert.Add(delta, v);
+         mesh->SetNodes(x_pert);
+         fes->Update();
+         res.Update();
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+         x_pert.Add(-2 * delta, v);
+         mesh->SetNodes(x_pert);
+         fes->Update();
+         res.Update();
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+         mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+      }
+   }
+}
+
 // TEST_CASE("GridFuncMeshSensIntegrator::AssembleRHSElementVect",
 //           "[GridFuncMeshSensIntegrator]")
 // {

@@ -287,6 +287,39 @@ private:
 
 };
 
+class VectorFEDomainLFMeshSensInteg : public mfem::LinearFormIntegrator
+{
+public:
+   VectorFEDomainLFMeshSensInteg(const mfem::GridFunction *_adjoint,
+                                 mfem::VectorCoefficient &vc,
+                                 double _alpha = 1.0)
+   : adjoint(_adjoint), vec_coeff(vc), alpha(_alpha) {}
+
+   /// \brief - assemble an element's contribution to
+   ///          \frac{\partial psi^T LF}{\partial X}, needed for finding the
+   ///          total derivative of a functional with respect to the mesh nodes
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] elvect - \frac{\partial psi^T LF}{\partial X} for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+private:
+   /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
+   const mfem::GridFunction *adjoint;
+   /// the coefficient that was used for the linear form
+   mfem::VectorCoefficient &vec_coeff;
+   /// to move the terms to the LHS or RHS
+   const double alpha;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix vshape, vshape_dFt;
+   mfem::Vector v_psi_vec, v_psi_hat;
+#endif
+
+};
+
 /// TODO: Move this somewhere else to a common integrators spot
 class GridFuncMeshSensIntegrator : public mfem::LinearFormIntegrator
 {

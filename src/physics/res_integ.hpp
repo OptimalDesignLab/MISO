@@ -156,7 +156,6 @@ public:
 
 };
 
-
-}
+} // namespace mach
 
 #endif

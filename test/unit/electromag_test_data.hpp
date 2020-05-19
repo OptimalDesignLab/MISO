@@ -225,7 +225,7 @@ std::unique_ptr<mfem::Mesh> getMesh(int nxy = 2, int nz = 2)
       }
       else
       {
-         elem->SetAttribute(2);
+         elem->SetAttribute(1);
       }
    }
    return mesh;

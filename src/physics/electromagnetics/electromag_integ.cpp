@@ -936,6 +936,97 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
    }  
 }
 
+void VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   /// get the proper element, transformation, and adjoint and m vector
+   Array<int> adj_vdofs, state_vdofs;
+   Vector elfun, psi; 
+   int element = mesh_trans.ElementNo;
+
+   /// get the ND elements used for adjoint and J
+   const FiniteElement &el = *adjoint->FESpace()->GetFE(element);
+   ElementTransformation &trans = *adjoint->FESpace()->GetElementTransformation(element);
+
+   adjoint->FESpace()->GetElementVDofs(element, adj_vdofs);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      // int order = 2 * el.GetOrder();
+      int order = trans.OrderW() + 2 * el.GetOrder();
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   adjoint->GetSubVector(adj_vdofs, psi);
+
+   int ndof = mesh_el.GetDof();
+   int el_ndof = el.GetDof();
+   int dim = el.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+   elvect.SetSize(ndof*dimc);
+   elvect = 0.0;
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix vshape(el_ndof, dimc), vshape_dFt(el_ndof, dimc);
+   Vector v_psi_vec(dimc);
+#else
+   vshape.SetSize(el_ndof, dimc);
+   vshape_dFt.SetSize(el_ndof, dimc);
+   v_psi_vec.SetSize(dimc);
+   v_psi_hat.SetSize(dimc);
+#endif
+   DenseMatrix PointMat_bar(dimc, ndof);
+   Vector vec(dimc);
+   vec = 0.0;
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(trans);
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      PointMat_bar = 0.0;
+      v_psi_vec = 0.0;
+      v_psi_hat = 0.0;
+
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      isotrans.SetIntPoint(&ip);
+
+      vec_coeff.Eval(vec, isotrans, ip);
+
+      if ( dim == 3 )
+      {
+         el.CalcVShape(ip, vshape);
+         Mult(vshape, isotrans.AdjugateJacobian(), vshape_dFt);
+      }
+      else
+      {
+         el.CalcVShape(ip, vshape_dFt);
+      }
+      vshape.AddMultTranspose(psi, v_psi_hat);
+      vshape_dFt.AddMultTranspose(psi, v_psi_vec);
+
+      // \partial a^T b / \partial K
+      DenseMatrix Jac_bar(3);
+      MultVWt(v_psi_hat, vec, Jac_bar);
+      isotrans.AdjugateJacobianRevDiff(Jac_bar, PointMat_bar);
+
+      // sensitivity with respect to the projection of the coefficient
+      vec_coeff.EvalRevDiff(v_psi_vec, isotrans, ip, PointMat_bar);
+
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            elvect(d*ndof + j) += alpha * ip.weight * PointMat_bar(d,j);
+         }
+      }
+   }  
+}
+
 void GridFuncMeshSensIntegrator::AssembleRHSElementVect(
    const FiniteElement &mesh_el,
    ElementTransformation &mesh_trans,
