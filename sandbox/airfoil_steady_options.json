@@ -12,16 +12,16 @@
       "lps-coeff": 1.0,
       "basis-type": "csbp"
    },
-   "steady": false,
+   "steady": true,
    "time-dis": {
       "const-cfl": true,
-      "ode-solver": "MIDPOINT",
+      "ode-solver": "BACKWARD",
       "t-final": 100,
       "dt": 0.1,
       "cfl": 1.0
    },
    "mesh": {
-	   "file": "airfoil_steady.mesh",
+	   "file": "../../sandbox/airfoil_steady.mesh",
       "refine": 0
    },
    "bcs": {
@@ -29,6 +29,7 @@
       "far-field": [1, 1, 0, 0]
    },
    "newton": {
+      "inexact": false,
       "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-14,
@@ -46,7 +47,7 @@
       "printlevel": 0,
       "filllevel": 3,
       "maxiter": 100,
-      "reltol": 1e-2,
+      "reltol": 1e-12,
       "abstol": 1e-12
    },
    "saveresults":false,

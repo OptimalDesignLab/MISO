@@ -1,4 +1,4 @@
-constexpr bool entvar = true;
+constexpr bool entvar = false;
 
 #include<random>
 

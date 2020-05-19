@@ -1,7 +1,7 @@
 // Solve for the steady flow around a NACA0012
 
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = true;
+constexpr bool entvar = false;
 
 #include<random>
 #include <fstream>
@@ -41,18 +41,31 @@ int main(int argc, char *argv[])
       return 1;
    }
 
+   string opt_file_name(options_file);
+   nlohmann::json options;
+   nlohmann::json file_options;
+   ifstream opts(opt_file_name);
+   opts >> file_options;
+   options.merge_patch(file_options);
+
    try
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
+      std::unique_ptr<mfem::Mesh> smesh;
+      smesh.reset(new mfem::Mesh(options["mesh"]["file"].get<string>().c_str()));
+
       unique_ptr<AbstractSolver> solver(
-         new EulerSolver<2, entvar>(opt_file_name, nullptr));
+         new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
       solver->initDerived();
       Vector qfar(4);
       static_cast<EulerSolver<2, entvar>*>(solver.get())->getFreeStreamState(qfar);
       Vector wfar(4);
       // TODO: I do not like that we have to perform this conversion outside the solver...
-      calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
+      if(entvar)
+         calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
+      else
+         wfar = qfar;
       solver->setInitialCondition(wfar);
       solver->printSolution("airfoil-steady-init");
       solver->checkJacobian(pert);

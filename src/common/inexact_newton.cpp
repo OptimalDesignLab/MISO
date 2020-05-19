@@ -24,22 +24,39 @@ double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
    double p0, p1, p0p;
    // A temporary vector for calculating p0p.
    Vector temp(r.Size());
-
-   p0 = 0.5 * norm * norm;
-   // temp=F'(x_i)*r(x_i)
-   jac->Mult(r,temp);
-   // c is the negative inexact newton step size.
-   p0p = -Dot(c,temp);
-   //Calculate the new norm.
-
-   add(x,-1.0,c,x_new);
-   oper->Mult(x_new,r);
+   
+   int tries = 0;
+   bool nanstate = true;
+   double err_new;
    const bool have_b = (b.Size()==Height());
-   if (have_b)
+
+   while(nanstate)
    {
-      r -= b;
+      p0 = 0.5 * norm * norm;
+      // temp=F'(x_i)*r(x_i)
+      jac->Mult(r,temp);
+      // c is the negative inexact newton step size.
+      p0p = -Dot(c,temp);
+      //Calculate the new norm.
+
+      add(x,-1.0/pow(10,tries),c,x_new);
+      oper->Mult(x_new,r);
+      if (have_b)
+      {
+         r -= b;
+      }
+      err_new = Norm(r);
+      nanstate = false;
+
+      if (isnan(err_new))
+      {
+         nanstate = true;
+         cout << "Residual is bad, reducing step size try:"<<tries<<endl;
+      }
+      s = 1.0/pow(10,tries);
+      tries++;
    }
-   double err_new = Norm(r);
+   
 
    // Globalization start from here.
    int itt=0;
@@ -164,6 +181,7 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
          r -= b;
       }
       norm = Norm(r);
+      HYPRE_ClearAllErrors();
    }
 
    final_iter = it;

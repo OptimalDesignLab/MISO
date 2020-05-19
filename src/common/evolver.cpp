@@ -133,7 +133,7 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
    newton_solver->SetRelTol(1e-10);
    newton_solver->SetAbsTol(1e-10);
    newton_solver->SetPrintLevel(1);
-   newton_solver->SetMaxIter(30);
+   newton_solver->SetMaxIter(500);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
    newton_solver->SetOperator(*this);
@@ -193,8 +193,8 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
    dynamic_cast<mfem::HypreGMRES*> (linear_solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
 #endif
-   newton_solver.reset(new mfem::NewtonSolver(mass.ParFESpace()->GetComm()));
-   //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
+   //newton_solver.reset(new mfem::NewtonSolver(mass.ParFESpace()->GetComm()));
+   newton_solver.reset(new mfem::InexactNewton(mass.ParFESpace()->GetComm(), 1e-4, 1e-1, 1e-4));
 #else
    linear_solver.reset(new mfem::GMRESSolver());
    newton_solver.reset(new mfem::NewtonSolver());
@@ -204,7 +204,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(NonlinearFormType &nm
    newton_solver->SetRelTol(1e-10);
    newton_solver->SetAbsTol(1e-10);
    newton_solver->SetPrintLevel(1);
-   newton_solver->SetMaxIter(30);
+   newton_solver->SetMaxIter(500);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
    newton_solver->SetOperator(*this);
