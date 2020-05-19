@@ -3,6 +3,7 @@
 
 #include "mfem.hpp"
 
+#include "adept.h"
 #include "mach_types.hpp"
 #include "inexact_newton.hpp"
 
@@ -195,7 +196,7 @@ public:
    /// \param[in] res - nonlinear form that defines the spatial residual
    /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
    ImplicitNonlinearMassEvolver(NonlinearFormType &m, NonlinearFormType &r,
-                                mach::AbstractSolver *abs, double a = 1.0);
+                                NonlinearFormType &e, double a = 1.0);
 
    /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
    /// Currently implemented for the implicit midpoint method
@@ -240,14 +241,14 @@ public:
    virtual ~ImplicitNonlinearMassEvolver() { }
 
 private:
-   /// the pointer to the abstract solver
-   mach::AbstractSolver *abs_solver;
    /// used to move the spatial residual to the right-hand-side, if necessary
    double alpha;
    /// reference to the mass matrix
    NonlinearFormType &mass;
    /// referencee to the nonlinear form i.e. rhs
    NonlinearFormType &res;
+   /// reference to a form for computing the entropy 
+   NonlinearFormType &ent;
    /// the time step
    double dt;
    /// Vector that hould the current state

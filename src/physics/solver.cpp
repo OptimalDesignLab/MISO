@@ -164,6 +164,16 @@ void AbstractSolver::initDerived()
       }
    }
 
+   // add the output functional QoIs 
+   auto &fun = options["outputs"];
+   using json_iter = nlohmann::json::iterator;
+   int num_bndry_outputs = 0;
+   for (json_iter it = fun.begin(); it != fun.end(); ++it) {
+      if (it->is_array()) ++num_bndry_outputs;
+   }
+   output_bndry_marker.resize(num_bndry_outputs);
+   addOutputs(); // virtual function
+
    // define the time-dependent operator
 #ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
@@ -188,18 +198,10 @@ void AbstractSolver::initDerived()
    }
    else if (odes == "RRK")
    {
-      evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, this, -1.0));
+      evolver.reset(
+          new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res,
+                                           output.at("entropy"), -1.0));
    }
-
-   // add the output functional QoIs
-   auto &fun = options["outputs"];
-   using json_iter = nlohmann::json::iterator;
-   int num_bndry_outputs = 0;
-   for (json_iter it = fun.begin(); it != fun.end(); ++it) {
-      if (it->is_array()) ++num_bndry_outputs;
-   }
-   output_bndry_marker.resize(num_bndry_outputs);
-   addOutputs(); // virtual function
 }
 
 AbstractSolver::~AbstractSolver()

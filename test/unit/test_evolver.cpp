@@ -121,7 +121,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
       }
       solver->Step(u, t, dt_real);
       ti++;
-      done = (t >= t_final - 1e-8 * dt);
+      done = (t >= t_final - 1e-16);
    }
 
    // Check that solution is reasonable accurate
