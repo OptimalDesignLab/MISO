@@ -3,6 +3,7 @@
 
 #include "mfem.hpp"
 
+#include "adept.h"
 #include "mach_types.hpp"
 #include "inexact_newton.hpp"
 

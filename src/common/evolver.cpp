@@ -8,6 +8,7 @@ using namespace mach;
 namespace mach
 {
 
+
 void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
@@ -24,10 +25,10 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
        dynamic_cast<EntropyConstrainedOperator *>(f);
    cout << "x size is " << x.Size() << '\n';
    cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
-   double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
-   cout << "delta_entropy is " << delta_entropy << '\n';
    double entropy_old = f_ode->Entropy(x);
    cout << "old entropy is " << entropy_old << '\n';
+   double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
+   cout << "delta_entropy is " << delta_entropy << '\n';
    mfem::Vector x_new(x.Size());
    cout << "x_new size is " << x_new.Size() << '\n';
    auto entropyFun = [&](double gamma)
@@ -271,15 +272,11 @@ double ImplicitNonlinearMassEvolver::EntropyChange(double dt, const Vector &stat
 {
    Vector vec1(state), vec2(k.Size());
    vec1.Add(dt, k);
-   if (1) // using entvar
-   {
-      res.Mult(vec1, vec2);
-      return vec1 * vec2;
-   }
-   else // not using entvar
-   {
-      
-   }
+   // if using conservative variables, need to convert
+   // if using entropy variables, do nothing
+   abs_solver->convertToEntvar(vec1);
+   res.Mult(vec1, vec2);
+   return vec1 * vec2;
 }
 
 void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &x,
