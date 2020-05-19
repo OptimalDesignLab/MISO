@@ -343,6 +343,38 @@ void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alp
    
 }
 
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
+{
+   if (entvar)
+   {
+      return ;
+   }
+   else
+   {
+      int num_nodes, offset;
+      Array<int> vdofs(num_state);
+      Vector el_con, el_ent;
+      const FiniteElement *fe;
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         num_nodes = fe->GetDof();
+         for (int j = 0; j < num_nodes; j++)
+         {
+            offset = i * num_nodes * num_state + j * num_state;
+            for (int k = 0; k < num_state; k++)
+            {
+               vdofs[k] = offset + k;
+            }
+            u->GetSubVector(vdofs, el_con);
+            calcEntropyVars<double, dim>(el_con.GetData(), el_ent.GetData());
+            state.SetSubVector(vdofs, el_ent);
+         }
+      }
+   }
+}
+
 // explicit instantiation
 template class EulerSolver<1, true>;
 template class EulerSolver<1, false>;

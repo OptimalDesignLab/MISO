@@ -133,6 +133,10 @@ public:
    {
       return output;
    }
+
+   /// convert conservative variables to entropy variables
+   /// \param[in/out] state - the conservative/entropy variables
+   virtual void convertToEntvar(mfem::Vector &state) = 0;
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication

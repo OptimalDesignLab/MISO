@@ -47,7 +47,9 @@ public:
    double calcConservativeVarsL2Error(void (*u_exact)(const mfem::Vector &,
                                                       mfem::Vector &),
                                       int entry = -1);
-
+   /// convert conservative variables to entropy variables
+   /// \param[in/out] state - the conservative/entropy variables
+   virtual void convertToEntvar(mfem::Vector &state);
 protected:
    /// free-stream Mach number
    double mach_fs;
