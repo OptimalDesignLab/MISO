@@ -119,7 +119,7 @@ public:
    /// \param[in] m - the mass matrix
    /// \param[in] res - nonlinear form that defines the spatial residual
    /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
-   ImplicitNonlinearEvolver(MatrixType &m, NonlinearFormType &r,
+   ImplicitNonlinearEvolver(MatrixType &m, NonlinearFormType &r, 
                             mach::AbstractSolver *abs, double a = 1.0);
 
    /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
@@ -161,26 +161,10 @@ public:
    /// check evolver jacobian
    void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
 
-   /// Evaluate the entropy functional at the given state
-   /// \param[in] state - the state at which to evaluate the entropy
-   /// \returns the entropy functional
-   virtual double Entropy(const mfem::Vector &state);
-
-   /// Evaluate the residual weighted by the entropy variables
-   /// \param[in] dt - evaluate residual at t+dt
-   /// \param[in] state - previous time step state
-   /// \param[in] k - the approximate time derivative, `du/dt`
-   /// \returns the product `w^T res`
-   /// \note `w` and `res` are evaluated at `state + dt*k` and time `t+dt`.
-   virtual double EntropyChange(double dt, const mfem::Vector &state, 
-                                const mfem::Vector &k);
-
    /// Class destructor
    virtual ~ImplicitNonlinearEvolver() { }
 
 private:
-   /// implicit step jacobian
-   mach::AbstractSolver *abs_solver;
    /// used to move the spatial residual to the right-hand-side, if necessary
    double alpha;
    /// reference to the mass matrix

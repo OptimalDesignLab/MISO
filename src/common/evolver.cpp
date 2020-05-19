@@ -34,8 +34,6 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    {
       cout << "In lambda entropyfunction: ";
       add(x, gamma*dt, k, x_new);
-      cout << "x_new is: ";
-      x_new.Print(cout, x_new.Size()); 
       double entropy = f_ode->Entropy(x_new);
       cout << "new entropy is " << entropy << '\n';
       return entropy - entropy_old + gamma*dt*delta_entropy;
@@ -297,19 +295,11 @@ double ImplicitNonlinearMassEvolver::EntropyChange(double dt, const Vector &stat
 {
    Vector vec1(state), vec2(k.Size());
    vec1.Add(dt, k);
-   if (1)
-   {
-      res.Mult(vec1, vec2);
-      return vec1 * vec2;
-   }
-   else
-   {
-      Vector vec3(k.Size());
-      abs_solver->convertToEntvar(vec1);
-      add(state,dt, k, vec2);
-      res.Mult(vec2, vec3);
-      return vec1 * vec3;
-   }
+   // if using conservative variables, need to convert
+   // if using entropy variables, do nothing
+   abs_solver->convertToEntvar(vec1);
+   res.Mult(vec1, vec2);
+   return vec1 * vec2;
 }
 
 void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const
@@ -333,23 +323,6 @@ Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
    jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(k)); // jac2 = M'(k);
    jac1->Add(1.0, *jac2);
    return *jac1;
-}
-
-double ImplicitNonlinearMassEvolver::Entropy(const Vector &state)
-{
-   return abs_solver->GetOutput().at("entropy").GetEnergy(state);
-}
-
-double ImplicitNonlinearMassEvolver::EntropyChange(double dt, const Vector &state,
-                                               const Vector &k)
-{
-   Vector vec1(state), vec2(k.Size());
-   vec1.Add(dt, k);
-   // if using conservative variables, need to convert
-   // if using entropy variables, do nothing
-   abs_solver->convertToEntvar(vec1);
-   res.Mult(vec1, vec2);
-   return vec1 * vec2;
 }
 
 void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &x,
