@@ -248,6 +248,8 @@ protected:
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// object defining the computational mesh
    std::unique_ptr<MeshType> mesh;
+   /// pointer to mesh's underlying finite element space
+   SpaceType *mesh_fes;
    /// discrete function space
    std::unique_ptr<SpaceType> fes;
    /// state variable
@@ -298,6 +300,10 @@ protected:
    std::unique_ptr<mfem::Solver> prec;
    /// Array that marks boundaries as essential
    mfem::Array<int> ess_bdr;
+   /// Array that hold mesh fes degrees of freedom on model surfaces
+   mfem::Array<int> mesh_fes_surface_dofs;
+   /// Array that holds fes degrees of freedom on model surfaces
+   mfem::Array<int> fes_surface_dofs;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals

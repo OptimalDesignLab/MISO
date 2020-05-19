@@ -181,7 +181,7 @@ nlohmann::json getBoxOptions(int order)
          {"box", true}
       }},
       {"outputs", {
-         {"co-energy", {}}
+         {"co-energy", {""}}
       }}
    };
    return box_options;
@@ -230,6 +230,69 @@ std::unique_ptr<mfem::Mesh> getMesh(int nxy = 2, int nz = 2)
    }
    return mesh;
 }
+
+#ifdef MFEM_USE_PUMI
+nlohmann::json getWireOptions(int order)
+{
+   nlohmann::json wire_options = {
+      {"silent", false},
+      {"mesh", {
+         {"file", "cut_wire.smb"},
+         {"model-file", "cut_wire.egads"}
+      }},
+      {"space-dis", {
+         {"basis-type", "nedelec"},
+         {"degree", order}
+      }},
+      {"steady", true},
+      {"lin-solver", {
+         {"type", "hypregmres"},
+         {"pctype", "hypreams"},
+         {"printlevel", -1},
+         {"maxiter", 100},
+         {"abstol", 1e-10},
+         {"reltol", 1e-14}
+      }},
+      {"adj-solver", {
+         {"type", "hypregmres"},
+         {"pctype", "hypreams"},
+         {"printlevel", -1},
+         {"maxiter", 100},
+         {"abstol", 1e-10},
+         {"reltol", 1e-14}
+      }},
+      {"newton", {
+         {"printlevel", -1},
+         {"reltol", 1e-10},
+         {"abstol", 0.0}
+      }},
+      {"components", {
+         {"wire", {
+            {"material", "copperwire"},
+            {"attrs", {1, 3, 4, 5}},
+            {"linear", true}
+         }},
+         {"farfields", {
+            {"material", "air"},
+            {"attrs", {2, 6, 7, 8}},
+            {"linear", true}
+         }}
+      }},
+      {"problem-opts", {
+         {"fill-factor", 1.0},
+         {"current-density", 10000.0},
+         {"current", {
+            {"z", {1, 3, 4, 5}},
+         }},
+         {"box", true}
+      }},
+      {"outputs", {
+         {"co-energy", {""}}
+      }}
+   };
+   return wire_options;
+}
+#endif
 
 } // namespace electromag_data
 

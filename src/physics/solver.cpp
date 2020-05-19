@@ -137,10 +137,18 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    bool silent = options.value("silent", false);
    out = getOutStream(rank, silent);
    *out << setw(3) << options << endl;
-
-	materials = material_library;
+ 
+   materials = material_library;
 
    constructMesh(move(smesh));
+   mesh->EnsureNodes();
+   mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
+   /// before internal boundaries are removed
+   ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   /// get all dofs on model surfaces
+   mesh_fes->GetEssentialTrueDofs(ess_bdr, mesh_fes_surface_dofs);
+
    int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
 
@@ -212,6 +220,11 @@ void AbstractSolver::initDerived()
    *out << "Number of finite element unknowns: "
         << fes->GetTrueVSize() << endl;
 #endif
+   /// before internal boundaries are removed
+   ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   /// get all dofs on model surfaces
+   fes->GetEssentialTrueDofs(ess_bdr, fes_surface_dofs);
 
    double alpha = 1.0;
 
@@ -367,6 +380,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    {
       constructPumiMesh();
    }
+   mesh->EnsureNodes();
 }
 
 void AbstractSolver::constructPumiMesh()
@@ -377,7 +391,8 @@ void AbstractSolver::constructPumiMesh()
    *out << options["mesh"]["model-file"].get<string>().c_str() << std::endl;
    std::string model_file = options["mesh"]["model-file"].get<string>();
    std::string mesh_file = options["mesh"]["file"].get<string>();
-   PCU_Comm_Init();
+   if (!PCU_Comm_Initialized())
+      PCU_Comm_Init();
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
    gmi_sim_start();
@@ -1087,7 +1102,7 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    GridFunType *adjoint = adj.get();
 #endif
    output.at(fun).Mult(*state, *dJ);
-
+   *dJ *= -1.0;
    // Step 2: get the Jacobian and transpose it
    // TODO: need #define guards to handle serial case
    Operator *jac = &res->GetGradient(*state);

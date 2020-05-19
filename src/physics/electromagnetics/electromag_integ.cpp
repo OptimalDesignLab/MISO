@@ -580,6 +580,7 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
    /// get the proper element, transformation, and adjoint and m vector
    Array<int> adj_vdofs, state_vdofs;
    Vector elfun, psi; 
+   Vector elfun_proj;
    int element = mesh_trans.ElementNo;
 
    /// get the ND elements used for curl shape
@@ -588,6 +589,7 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
 
    /// get the RT elements used for V shape
    const FiniteElement &rt_el = *state->FESpace()->GetFE(element);
+   ElementTransformation &rt_trans = *state->FESpace()->GetElementTransformation(element);
 
    adjoint->FESpace()->GetElementVDofs(element, adj_vdofs);
    state->FESpace()->GetElementVDofs(element, state_vdofs);
@@ -600,8 +602,14 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
       ir = &IntRules.Get(rt_el.GetGeomType(), order);
    }
 
+   elfun_proj.SetSize(state_vdofs.Size());
+   rt_el.Project(*vec_coeff, rt_trans, elfun_proj);
+
    state->GetSubVector(state_vdofs, elfun);
    adjoint->GetSubVector(adj_vdofs, psi);
+
+   Vector diff(elfun);
+   diff -= elfun_proj;
 
    int ndof = mesh_el.GetDof();
    int nd_ndof = nd_el.GetDof();
