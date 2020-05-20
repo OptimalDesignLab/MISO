@@ -54,6 +54,7 @@ ThermalSolver::ThermalSolver(nlohmann::json &options,
 
 void ThermalSolver::initDerived()
 {
+	mesh->RemoveInternalBoundaries();
 	AbstractSolver::initDerived();
    // AbstractSolver::initDerived();
 	setInit = false;
@@ -162,14 +163,15 @@ void ThermalSolver::initDerived()
 										// K, move(bs), *out));
 
 	/// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
-	rhoa = options["rho-agg"].get<double>();
+	rhoa = options["problem-opts"]["rho-agg"].get<double>();
 	//double max = options["max-temp"].get<double>();
 
 	/// assemble max temp array
 	max.SetSize(fes->GetMesh()->attributes.Size()+1);
 	for (auto& component : options["components"])
 	{
-		double mat_max = component["max-temp"].get<double>();
+		auto  material = component["material"].get<std::string>();
+		double mat_max = materials[material]["max-temp"].get<double>();
 		int attrib = component["attr"].get<int>();
 		max(attrib) = mat_max;
 	}
@@ -202,7 +204,7 @@ void ThermalSolver::addOutputs()
 	output.clear();
     if (fun.find("temp-agg") != fun.end())
     {
-		rhoa = options["rho-agg"].template get<double>();
+		rhoa = options["problem-opts"]["rho-agg"].template get<double>();
 		//double max = options["max-temp"].template get<double>();
 		output.emplace("temp-agg", fes.get());
 		/// assemble max temp array
@@ -468,7 +470,7 @@ void ThermalSolver::constructJoule()
 		std::string material = component["material"].get<std::string>();
 
 		/// todo use grid function?
-		auto current = options["motor-opts"]["current"].get<double>();
+		auto current_density = options["problem-opts"]["current-density"].get<double>();
 
 		double sigma = materials[material].value("sigma", 0.0);
 
@@ -477,7 +479,7 @@ void ThermalSolver::constructJoule()
 			if (sigma > 1e-12)
 			{
 				std::unique_ptr<mfem::Coefficient> temp_coeff;
-				temp_coeff.reset(new ConstantCoefficient(current*current/sigma));
+				temp_coeff.reset(new ConstantCoefficient(current_density*current_density/sigma));
 				i2sigmainv->addCoefficient(attr, move(temp_coeff));
 			}
 		}
@@ -489,7 +491,7 @@ void ThermalSolver::constructJoule()
 				if (sigma > 1e-12)
 				{
 					std::unique_ptr<mfem::Coefficient> temp_coeff;
-					temp_coeff.reset(new ConstantCoefficient(current*current/sigma));
+					temp_coeff.reset(new ConstantCoefficient(current_density*current_density/sigma));
 					i2sigmainv->addCoefficient(attribute, move(temp_coeff));
 				}
 			}
@@ -509,7 +511,7 @@ void ThermalSolver::constructCore()
 		/// the value of zero
 		double rho_val = materials[material].value("rho", 0.0);
 		double alpha = materials[material].value("alpha", 0.0);
-		double freq = options["motor-opts"].value("frequency", 0.0);
+		double freq = options["problem-opts"].value("frequency", 0.0);
 		double kh = materials[material].value("kh", 0.0);
 		double ke = materials[material].value("ke", 0.0);
 

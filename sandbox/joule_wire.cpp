@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
    {
       // construct the solver
       mach::JouleSolver solver(opt_file_name);
+      solver.initDerived();
       solver.setInitialCondition(initialTemperature);
       *out << "Solving..." << std::endl;
       solver.solveForState();

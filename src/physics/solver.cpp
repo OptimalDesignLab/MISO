@@ -148,7 +148,6 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    ess_bdr = 1;
    /// get all dofs on model surfaces
    mesh_fes->GetEssentialTrueDofs(ess_bdr, mesh_fes_surface_dofs);
-
    int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
 
