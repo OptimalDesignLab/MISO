@@ -188,6 +188,7 @@ nlohmann::json material_library
 		{"rho", 1.225},
 		{"cv", 93},
 		{"kappa", 0.026},
+		{"max-temp", 500}
 	}},
 	{"copper", // this is meant for the heatsink
 	{
@@ -206,6 +207,7 @@ nlohmann::json material_library
 		{"kappa", 23},
 		{"kappae", 10},
 		{"sigma", 0.04},
+		{"max-temp", 500}
 	}}
 };
 
