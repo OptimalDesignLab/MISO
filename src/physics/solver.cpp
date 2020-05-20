@@ -781,7 +781,6 @@ void AbstractSolver::solveUnsteady()
    clock_t start_t = clock();
    for (int ti = 0; !done;)
    {
-      cout << "before calc entropy.\n";
       entropy = calcOutput("entropy");
       entropylog << t << ' ' << entropy << '\n';
       if (calc_dt)

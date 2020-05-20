@@ -93,10 +93,8 @@ double bisection(std::function<double(double)> func, double xl, double xr,
 double secant(std::function<double(double)> func, double x1, double x2,
               double ftol, double xtol, int maxiter)
 {
-   cout << "in secant function.\n";
    double f1 = func(x1); 
    double f2 = func(x2);
-   cout << "f1 is "<< f1 << ' ' << ", f2 is " << f2 << '\n';
    double x, f;
    if (fabs(f1) < fabs(f2))
    {
@@ -114,7 +112,6 @@ double secant(std::function<double(double)> func, double x1, double x2,
    while ( (fabs(f) > ftol) && (iter < maxiter) )
    {
       ++iter;
-      std::cout << iter<<'\n';
       try
       {
          double dx = f2*(x2 - x1)/(f2 - f1);
