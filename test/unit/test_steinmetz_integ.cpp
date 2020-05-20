@@ -100,3 +100,95 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
       }
    }
 }
+
+TEMPLATE_TEST_CASE_SIG("ThermalSensIntegrator::AssembleElementVector",
+                       "[ThermalSensIntegrator]",
+                       ((bool entvar), entvar), false, true)
+{
+   using namespace mfem;
+   using namespace euler_data;
+    using namespace mach;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
+                              //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                              //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+    std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
+   pmesh->EnsureNodes();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // get the finite-element space for the state and adjoint
+         std::unique_ptr<FiniteElementCollection> fec(
+             new H1_FECollection(p, dim));
+         std::unique_ptr<FiniteElementCollection> feca(
+             new ND_FECollection(p, dim));
+         std::unique_ptr<SpaceType> fes(new SpaceType(
+             pmesh.get(), fec.get()));
+         std::unique_ptr<SpaceType> fesa(new SpaceType(
+             pmesh.get(), feca.get()));
+
+         // we use res for finite-difference approximation
+         GridFunType A(fesa.get());
+         VectorFunctionCoefficient perta(dim, electromag_data::randState);
+         A.ProjectCoefficient(perta);
+         std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
+         std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
+                        1, 2, 4, 0.5, 0.6, &A));
+         std::unique_ptr<mach::MeshDependentCoefficient> Q;
+         Q.reset(new mach::MeshDependentCoefficient());
+         Q->addCoefficient(1, move(q1)); 
+         //Q->addCoefficient(2, move(q2));
+         std::unique_ptr<VectorCoefficient> QV(new SteinmetzVectorDiffCoefficient(
+               1, 2, 4, 0.5, 0.6, &A));
+         LinearForm res(fes.get());
+         res.AddDomainIntegrator(
+            new DomainLFIntegrator(*q2));
+
+         // initialize state and adjoint; here we randomly perturb a constant state
+         GridFunType state(fes.get()), adjoint(fes.get());
+         FunctionCoefficient pert(electromag_data::randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         // extract mesh nodes and get their finite-element space
+         GridFunction *x_nodes = pmesh->GetNodes();
+         FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+
+         // build the nonlinear form for d(psi^T R)/dx 
+         LinearForm dfdx_form(mesh_fes);
+         dfdx_form.AddDomainIntegrator(
+            new mach::ThermalSensIntegrator(*QV,
+                &state, &adjoint));
+
+         // initialize the vector that we use to perturb the vector potential
+         GridFunction v(fesa.get());
+         VectorFunctionCoefficient v_rand(dim, electromag_data::randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate df/dx and contract with v
+         //GridFunction dfdx(*x_nodes);
+         dfdx_form.Assemble();
+         double dfdx_v = dfdx_form * v;
+
+         // now compute the finite-difference approximation...
+         //GridFunction a_pert(A);
+         A.Add(delta, v);
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+         A.Add(-2 * delta, v);
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+         A.Add(delta, v);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+      }
+   }
+}
