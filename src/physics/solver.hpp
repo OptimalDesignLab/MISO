@@ -184,7 +184,10 @@ public:
    
    /// Solve for the adjoint based on current mesh, solver, etc.
    /// \param[in] fun - specifies the functional corresponding to the adjoint
-   void solveForAdjoint(const std::string &fun);
+   virtual void solveForAdjoint(const std::string &fun);
+
+   /// Solve for the adjoint with a given right hand side (instead of )
+   virtual void solveForAdjoint(const mfem::Vector& rhs) {};
 
    /// Check the Jacobian using a finite-difference directional derivative
    /// \param[in] pert - function that defines the perturbation direction

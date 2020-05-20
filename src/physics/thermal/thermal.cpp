@@ -42,34 +42,14 @@ ThermalSolver::ThermalSolver(
     std::unique_ptr<mfem::Mesh> smesh)
 	: AbstractSolver(opt_file_name, move(smesh))
 {
-   int dim = getMesh()->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
-
 	mesh->EnsureNodes();
-   /// Create the H(Div) finite element collection for the representation the
-   /// magnetic flux density field in the thermal solver
-   h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create magnetic flux grid function
-   mag_field.reset(new GridFunType(h_div_space.get()));
 }
 
 ThermalSolver::ThermalSolver(nlohmann::json &options,
                              std::unique_ptr<mfem::Mesh> smesh)
 	: AbstractSolver(options, move(smesh))
 {
-   int dim = getMesh()->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
-
 	mesh->EnsureNodes();
-   /// Create the H(Div) finite element collection for the representation the
-   /// magnetic flux density field in the thermal solver
-   h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create magnetic flux grid function
-   mag_field.reset(new GridFunType(h_div_space.get()));
 }
 
 void ThermalSolver::initDerived()
@@ -105,16 +85,8 @@ void ThermalSolver::initDerived()
 
 	*out << "Constructing Material Coefficients..." << std::endl;
 
-   int dim = getMesh()->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
-
-   /// Create the H(Div) finite element collection for the representation the
-   /// magnetic flux density field in the thermal solver
-   h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create magnetic flux grid function
-   mag_field.reset(new GridFunType(h_div_space.get()));
+   // int dim = getMesh()->Dimension();
+   // int order = options["space-dis"]["degree"].get<int>();
 	
 	// constructDensityCoeff();
 
@@ -219,7 +191,7 @@ void ThermalSolver::initDerived()
 
 std::vector<GridFunType*> ThermalSolver::getFields(void)
 {
-   return {u.get(), mag_field.get()};
+   return {u.get()};
 }
 
 

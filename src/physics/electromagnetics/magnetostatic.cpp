@@ -531,15 +531,12 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
 
    /// add integrators R = CurlCurl(A) + Cm + Mj = 0
    /// \psi^T CurlCurl(A)
-   // res_mesh_sens_l->AddDomainIntegrator(
-   //    new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
+   res_mesh_sens_l->AddDomainIntegrator(
+      new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
    /// \psi^T C m 
    res_mesh_sens_l->AddDomainIntegrator(
       new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(),
                                       mag_coeff.get(), -1.0));
-   // res_mesh_sens_l->AddDomainIntegrator(
-   //    new VectorFEMassdJdXIntegerator(current_vec.get(), adj.get(),
-   //                                    nullptr, -1.0));
 
    /// Compute the derivatives and accumulate the result
    res_mesh_sens_l->Assemble();
@@ -573,12 +570,12 @@ void MagnetostaticSolver::verifyMeshSensitivities()
    // state.ProjectCoefficient(v_rand);
    // adjoint.ProjectCoefficient(v_rand);
 
-   // ess_bdr.SetSize(mesh->bdr_attributes.Max());
-   // ess_bdr = 0;
+   ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   ess_bdr = 0;
 
-   // Array<int> ess_tdof_list;
-   // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-   // res->SetEssentialTrueDofs(ess_tdof_list);
+   Array<int> ess_tdof_list;
+   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   res->SetEssentialTrueDofs(ess_tdof_list);
 
 
    Vector *dJdX_vect = getMeshSensitivities();
@@ -688,7 +685,7 @@ void MagnetostaticSolver::verifyMeshSensitivities()
       Update();
       residual.reset(new GridFunType(fes.get()));
       *residual = 0.0;
-      // res->Mult(*u, *residual);
+      res->Mult(*u, *residual);
       *residual -= *current_vec;
       dJdX_cd_v -= (*residual * *adj )/(2*delta_cd);
 
@@ -702,7 +699,7 @@ void MagnetostaticSolver::verifyMeshSensitivities()
       Update();
       residual.reset(new GridFunType(fes.get()));
       *residual = 0.0;
-      // res->Mult(*u, *residual);
+      res->Mult(*u, *residual);
       *residual -= *current_vec;
       dJdX_cd_v += (*residual * *adj )/(2*delta_cd);
 
@@ -1032,11 +1029,6 @@ void MagnetostaticSolver::assembleCurrentSource()
    // j = 0.0;
    j.ProjectCoefficient(*current_coeff);
    {
-      // Array<int> ess_bdr, ess_bdr_tdofs;
-      // ess_bdr.SetSize(fes->GetParMesh()->bdr_attributes.Max());
-      // ess_bdr = 1;
-      // fes->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
-
       auto *M = new HypreParMatrix;
       Vector X, RHS;
       Array<int> ess_tdof_list;

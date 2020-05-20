@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
       *out << "Solving..." << std::endl;
       solver.solveForState();
       *out << "Solving done." << std::endl;
+      solver.printSolution("joule_out");
    }
    catch (mach::MachException &exception)
    {
