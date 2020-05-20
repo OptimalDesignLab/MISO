@@ -59,11 +59,8 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
         PointMat_bar.Set(deriv, PointMat_bar);
 
         /// Implement Q sensitivity
-        if(dcoeff)
-        {
-            double derivQ = ip.weight*Tr->Weight()*(eladj*shape); //dR/dQ
-            Q.EvalRevDiff(derivQ, *Tr, ip, PointMat_bar);
-        }
+        double Q_bar = ip.weight*Tr->Weight()*(eladj*shape); //dR/dQ
+        Q.EvalRevDiff(Q_bar, *Tr, ip, PointMat_bar);
 
         for (int j = 0; j < dof ; ++j)
         {

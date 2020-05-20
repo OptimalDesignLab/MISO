@@ -7,9 +7,8 @@
 #include "euler_test_data.hpp"
 #include "electromag_test_data.hpp"
 
-TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
-                       "[DomainResIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("DomainResIntegrator::AssembleElementVector",
+          "[DomainResIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;

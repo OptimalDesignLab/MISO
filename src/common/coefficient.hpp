@@ -117,10 +117,10 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-	virtual void EvalRevDiff(const double &Q_bar,
-    						mfem::ElementTransformation &trans,
-    						const mfem::IntegrationPoint &ip,
-    						mfem::DenseMatrix &PointMat_bar);
+   virtual void EvalRevDiff(const double &Q_bar,
+                            mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            mfem::DenseMatrix &PointMat_bar);
 
 protected:
 	/// \brief Method to be called if a coefficient matching the element's
@@ -486,10 +486,10 @@ public:
                const mfem::IntegrationPoint &ip) override;
 
 	/// Evaluate the derivative of the Steinmetz coefficient with respect to x
-	virtual void EvalRevDiff(const double &Q_bar,
-    						mfem::ElementTransformation &trans,
-    						const mfem::IntegrationPoint &ip,
-    						mfem::DenseMatrix &PointMat_bar) override;
+	void EvalRevDiff(const double &Q_bar,
+    					  mfem::ElementTransformation &trans,
+    					  const mfem::IntegrationPoint &ip,
+    					  mfem::DenseMatrix &PointMat_bar) override;
 
 private:
 	double rho, alpha, freq, kh, ke;

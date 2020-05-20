@@ -311,8 +311,8 @@ void SteinmetzCoefficient::EvalRevDiff(const double &Q_bar,
 }
 
 void SteinmetzVectorDiffCoefficient::Eval(Vector &V, 
-                                             ElementTransformation &T,
-                                             const IntegrationPoint &ip)
+                                          ElementTransformation &T,
+                                          const IntegrationPoint &ip)
 {
    if (A)
    {
