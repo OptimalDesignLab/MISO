@@ -238,21 +238,26 @@ double SteinmetzCoefficient::Eval(ElementTransformation &trans,
 {
    if (A)
    {
-      Array<int> vdofs; Vector a(trans.GetSpaceDim()); 
+      int dim = trans.GetSpaceDim();
+      Array<int> vdofs; Vector a;
+      Vector b(dim); Vector bh(dim); 
       const FiniteElement *el = A->FESpace()->GetFE(trans.ElementNo);
-      A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-      DenseMatrix J = trans.Jacobian(); //Element Jacobian
-      DenseMatrix C(a.Size(), J.Width()); //Curl Shape Functions
-      el->CalcCurlShape(ip, C);
-      A->GetSubVector(vdofs, a);
+      ElementTransformation *Tr = A->FESpace()->GetElementTransformation(trans.ElementNo);
+      //A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+      Tr->SetIntPoint(&ip);
+      // DenseMatrix J = Tr->Jacobian(); //Element Jacobian
+      // DenseMatrix C; //Curl Shape Functions
+      // el->CalcCurlShape(ip, C);
+      // // A->GetSubVector(vdofs, a);
       
-      //Compute Magnetic Field
-      Vector b(a.Size()); Vector bh(a.Size());
-      C.MultTranspose(a, bh); //C^T a
-      J.Mult(bh, b); //J C^T a
+      // //Compute Magnetic Field
+      // C.MultTranspose(a, bh); //C^T a
+      // J.Mult(bh, b); //J C^T a
+      // b /= Tr->Weight();
+      A->GetCurl(*Tr, b);
 
       double bMag = b.Norml2();
-      return rho*(kh*freq*pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
+      return rho*(kh*freq*std::pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
    }
    else
       return 0.0;
@@ -265,32 +270,41 @@ void SteinmetzCoefficient::EvalRevDiff(const double &Q_bar,
 {
    if (A)
    {
-      Array<int> vdofs; Vector a(trans.GetSpaceDim()); 
+      int dim = trans.GetSpaceDim();
+      Array<int> vdofs; Vector a; 
       const FiniteElement *el = A->FESpace()->GetFE(trans.ElementNo);
       ElementTransformation *Tr = A->FESpace()->GetElementTransformation(trans.ElementNo);
       Tr->SetIntPoint(&ip);
       A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-      DenseMatrix J = Tr->Jacobian(); //Element Jacobian
-      DenseMatrix C(a.Size(), J.Width()); //Curl Shape Functions
+      // DenseMatrix J = Tr->Jacobian(); //Element Jacobian
+      DenseMatrix C; //Curl Shape Functions
       el->CalcCurlShape(ip, C);
       A->GetSubVector(vdofs, a);
       DenseMatrix jac_bar(trans.GetSpaceDim()); jac_bar = 0.0;
       
       //Compute Magnetic Field
-      Vector b(a.Size()); Vector bh(a.Size());
+      Vector b(dim); Vector bh(dim);
       C.MultTranspose(a, bh); //C^T a
-      J.Mult(bh, b); //J C^T a
+      // J.Mult(bh, b); //J C^T a
+      // b /= Tr->Weight();
+      A->GetCurl(*Tr, b);
 
       double bMag = b.Norml2();
-      //rho*(kh*freq*pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
-      double dS = rho*(alpha*kh*freq*pow(bMag, alpha-2) + 2*ke*freq*freq); //dS/dBmag * 1/Bmag
-      AddMult_a_VWt(dS, b, bh, jac_bar); // B*Bh^T
+      //rho*(kh*freq*std::pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
+      double dS = rho*(alpha*kh*freq*std::pow(bMag, alpha-2) + 2*ke*freq*freq); //dS/dBmag * 1/Bmag
+      AddMult_a_VWt(dS*Q_bar, b, bh, jac_bar); // B*Bh^T
 
       // cast the ElementTransformation
       IsoparametricTransformation &isotrans =
          dynamic_cast<IsoparametricTransformation&>(*Tr);
 
       isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+
+      // jacobian weight derivative
+      DenseMatrix PointMat_bar_w = PointMat_bar; PointMat_bar_w = 0.0;
+      double dSW = -dS*(b*b)/Tr->Weight();
+      isotrans.WeightRevDiff(PointMat_bar_w);
+      PointMat_bar.Add(dSW*Q_bar, PointMat_bar_w);
    }
    else
       return;
@@ -302,25 +316,27 @@ void SteinmetzVectorDiffCoefficient::Eval(Vector &V,
 {
    if (A)
    {
-      Array<int> vdofs; Vector a(T.GetSpaceDim()); 
+      int dim = T.GetSpaceDim();
+      Array<int> vdofs; Vector a; 
       const FiniteElement *el = A->FESpace()->GetFE(T.ElementNo);
       A->FESpace()->GetElementVDofs(T.ElementNo, vdofs);
       DenseMatrix J = T.Jacobian(); //Element Jacobian
-      DenseMatrix C(a.Size(), J.Width()); //Curl Shape Functions
+      DenseMatrix C; //Curl Shape Functions
       el->CalcCurlShape(ip, C);
       A->GetSubVector(vdofs, a);
       
       //Compute Magnetic Field
-      Vector b(a.Size()); Vector bh(a.Size());
+      Vector b(dim); Vector bh(dim);
       C.MultTranspose(a, bh); //C^T a
       J.Mult(bh, b); //J C^T a
+      b /= T.Weight();
 
       //Compute Derivative w.r.t. a
       Vector zw(b.Size()); Vector z(b.Size());
       J.MultTranspose(b, zw);
       C.Mult(zw, z);
       double bMag = b.Norml2();
-      double dS = rho*(alpha*kh*freq*pow(bMag, alpha-2) + 2*ke*freq*freq); //dS/dBmag * 1/Bmag
+      double dS = rho*(alpha*kh*freq*std::pow(bMag, alpha-2) + 2*ke*freq*freq); //dS/dBmag * 1/Bmag
       V.Set(dS, z);
    }
    else
