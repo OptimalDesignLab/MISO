@@ -606,6 +606,35 @@ private:
 #endif
 };
 
+/// Integrator to compute the sensitivity of the thermal residual to the vector potential
+class ThermalSensIntegrator : public mfem::NonlinearFormIntegrator,
+                              public mfem::LinearFormIntegrator
+{
+    mfem::Vector shape;
+    mfem::VectorCoefficient &Q;
+    int oa, ob;
+    // referring to electromagnetic state and thermal adjoint
+    mfem::GridFunction *A; mfem::GridFunction *adjoint;
+public:
+    /// Constructor, expected coefficient is SteinmetzVectorDiffCoefficient
+    ThermalSensIntegrator(mfem::VectorCoefficient &QF, mfem::GridFunction *A, 
+                        mfem::GridFunction *adj, 
+                        int a = 2, int b = 0)
+                        : Q(QF), oa(a), ob(b), A(A), adjoint(adj)
+    { }
+
+    /// Computes the residual contribution
+    // virtual double GetElementEnergy(const FiniteElement &elx,
+    //                                    ElementTransformation &Trx,
+    //                                    const Vector &elfunx);
+
+    /// Computes dR/dX, X being mesh node locations
+    virtual void AssembleRHSElementVect(const mfem::FiniteElement &ela,
+                                         mfem::ElementTransformation &Transa,
+                                         mfem::Vector &elvect) override;
+
+};
+
 // /// Integrator for forces due to electromagnetic fields
 // /// \note - Requires PUMI
 // class ForceIntegrator : public mfem::NonlinearFormIntegrator

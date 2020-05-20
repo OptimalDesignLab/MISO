@@ -106,6 +106,22 @@ public:
 											const mfem::IntegrationPoint &ip,
 											const double state);
 
+	/// \brief Search the map of coefficients and evaluate the one whose key is
+   ///        the same as the element's `Attribute` at the point defined by
+   ///        `ip`.
+   /// \param[in] Q_bar - derivative of functional with respect to `Q`
+   /// \param[in] trans - element transformation relating real element to
+   ///                    reference element
+   /// \param[in] ip - defines location in reference space
+   /// \param[out] PointMat_bar - derivative of function w.r.t. mesh nodes
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+	virtual void EvalRevDiff(const double &Q_bar,
+    						mfem::ElementTransformation &trans,
+    						const mfem::IntegrationPoint &ip,
+    						mfem::DenseMatrix &PointMat_bar);
+
 protected:
 	/// \brief Method to be called if a coefficient matching the element's
 	/// 		  attribute is a subclass of `StateCoefficient and
@@ -460,17 +476,49 @@ public:
 	/// \param[in] f - electrical frequency of excitation
 	/// \param[in] kh - Steinmetz hysteresis coefficient
 	/// \param[in] ke - Steinmetz eddy currnt coefficient
-	/// \param[in] B - magnetic flux density GridFunction 
+	/// \param[in] A - magnetic vector potential GridFunction 
 	SteinmetzCoefficient(double rho, double alpha, double f, double kh,
-								double ke, GridFunType *B)
-		: rho(rho), alpha(alpha), freq(f), kh(kh), ke(ke), B(B) {}
+								double ke, GridFunType *A)
+		: rho(rho), alpha(alpha), freq(f), kh(kh), ke(ke), A(A) {}
 
 	/// Evaluate the Steinmetz coefficient
 	double Eval(mfem::ElementTransformation &trans,
                const mfem::IntegrationPoint &ip) override;
+
+	/// Evaluate the derivative of the Steinmetz coefficient with respect to x
+	virtual void EvalRevDiff(const double &Q_bar,
+    						mfem::ElementTransformation &trans,
+    						const mfem::IntegrationPoint &ip,
+    						mfem::DenseMatrix &PointMat_bar) override;
+
 private:
 	double rho, alpha, freq, kh, ke;
-	GridFunType *B;
+	GridFunType *A;
+};
+
+class SteinmetzVectorDiffCoefficient : public mfem::VectorCoefficient
+{
+public:
+	/// Define a coefficient to represent the Steinmetz core losses differentiated
+	/// with respect to the magnetic vector potential
+	/// \param[in] rho - TODO: material density?
+	/// \param[in] alpha - TODO
+	/// \param[in] f - electrical frequency of excitation
+	/// \param[in] kh - Steinmetz hysteresis coefficient
+	/// \param[in] ke - Steinmetz eddy currnt coefficient
+	/// \param[in] A - magnetic vector potential GridFunction 
+	SteinmetzVectorDiffCoefficient(double rho, double alpha, double f, double kh,
+								double ke, GridFunType *A)
+		:  VectorCoefficient(A->FESpace()->GetVDim()), rho(rho), alpha(alpha), 
+			freq(f), kh(kh), ke(ke), A(A) {}
+
+	/// Evaluate the Steinmetz coefficient
+	void Eval(mfem::Vector &V, mfem::ElementTransformation &T,
+                     const mfem::IntegrationPoint &ip) override;
+
+private:
+	double rho, alpha, freq, kh, ke;
+	GridFunType *A;
 };
 
 /// ElementFunctionCoefficient

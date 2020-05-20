@@ -2154,6 +2154,51 @@ void nuFuncIntegrator::AssembleRHSElementVect(
    }
 }
 
+void ThermalSensIntegrator::AssembleRHSElementVect(const FiniteElement &ela,
+                                         ElementTransformation &Transa,
+                                         Vector &elvect)
+{
+   /// get the proper element, transformation, and state vector
+   Array<int> vdofs; Vector eladj; double cf;
+   int element = Transa.ElementNo;
+   const FiniteElement *el = adjoint->FESpace()->GetFE(element);
+   ElementTransformation *Tr = adjoint->FESpace()->GetElementTransformation(element);
+   adjoint->FESpace()->GetElementVDofs(element, vdofs);
+   const IntegrationRule *ir = &IntRules.Get(
+            el->GetGeomType(), oa * el->GetOrder() + ob);
+   adjoint->GetSubVector(vdofs, eladj);
+
+   const int vdim = Q.GetVDim();
+   const int dof = ela.GetDof();
+   const int dofu = el->GetDof();
+   const int dim = el->GetDim();
+   elvect.SetSize(dof*dim);
+   elvect = 0.0;
+   shape.SetSize(dofu);
+   Vector shapea(dof);
+   Vector V(dim);
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      Tr->SetIntPoint (&ip);
+      el->CalcShape(ip, shape);
+      ela.CalcShape(ip, shapea);
+
+      double dval = ip.weight*Tr->Weight()*(eladj*shape);//d(adj^T R)/dQ
+      Q.Eval(V, Transa, ip); //evaluate derivative of steinmetz coeff
+
+      for (int k = 0; k < vdim; k++)
+      {
+         cf = dval * V(k);
+         for (int s = 0; s < dof; s++)
+         {
+            elvect(dof*k+s) += cf*shapea(s);
+         }
+      }
+   }
+}
+
 // ForceIntegrator::ForceIntegrator(AbstractSolver *_solver,
 //                                  std::unordered_set<int> _regions,
 //                                  std::unordered_set<int> _free_regions,

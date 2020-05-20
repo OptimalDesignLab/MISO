@@ -206,7 +206,7 @@ void LEAnalogySolver::solveSteady()
        mesh->PrintVTK(mesh_ofs_2, options["space-dis"]["degree"].get<int>());
        //nodes->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>()); 
 
-
+#ifdef MFEM_USE_PUMI
         if(options["use-pumi"].get<bool>())
         {
             //update pumi mesh and write to file
@@ -215,6 +215,7 @@ void LEAnalogySolver::solveSteady()
             moved_mesh = getNewMesh(model_file_new, 
                     mesh_file_new, mesh.get(), pumi_mesh.get());
         }
+#endif
     }
 }
 

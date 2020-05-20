@@ -58,6 +58,10 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
         isotrans.WeightRevDiff(PointMat_bar); //dWeight/dX        
         PointMat_bar.Set(deriv, PointMat_bar);
 
+        /// Implement Q sensitivity
+        double derivQ = ip.weight*Tr->Weight()*(eladj*shape); //dR/dQ
+        Q.EvalRevDiff(derivQ, *Tr, ip, PointMat_bar);
+
         for (int j = 0; j < dof ; ++j)
         {
             for (int d = 0; d < dim; ++d)
