@@ -197,4 +197,82 @@ TEST_CASE("MeshDependentVectorCoefficient::EvalRevDiff",
    }
 }
 
+TEST_CASE("SteinmetzCoefficient::EvalRevDiff",
+          "[SteinmetzCoefficient]")
+{
+   using namespace mfem;
+   // using namespace electromag_data;
+   using namespace mach;
+
+   constexpr double eps_fd = 1e-5;
+   constexpr int dim = 3;
+
+   std::stringstream meshStr;
+   meshStr << two_tet_mesh_str;
+   Mesh mesh(meshStr);
+
+   /// Costruct coefficient
+   for (int p = 1; p <= 1; p++)
+   {
+      /// construct elements
+      ND_FECollection fec(p, dim);
+      FiniteElementSpace fes(&mesh, &fec);
+
+
+      GridFunction A(&fes);
+      VectorFunctionCoefficient pert(dim, func);
+      A.ProjectCoefficient(pert);
+      mach::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, &A);
+      for (int j = 0; j < fes.GetNE(); j++)
+      {
+
+         const FiniteElement &el = *fes.GetFE(j);
+
+         IsoparametricTransformation trans;
+         mesh.GetElementTransformation(j, &trans);
+
+         const IntegrationRule *ir = NULL;
+         {
+            int order = trans.OrderW() + 2 * el.GetOrder();
+            ir = &IntRules.Get(el.GetGeomType(), order);
+         }
+
+         DenseMatrix &coords = trans.GetPointMat();
+         DenseMatrix coords_bar(coords.Height(), coords.Width());
+
+         for (int i = 0; i < ir->GetNPoints(); i++)
+         {
+            // Q_bar is the number multiplied by the derivative of the
+            // projection, the values are not important
+            double Q_bar = uniform(gener);
+            const IntegrationPoint &ip = ir->IntPoint(i);
+
+            trans.SetIntPoint(&ip);
+
+            // reverse-mode differentiation of eval
+            coords_bar = 0.0;
+            coeff.EvalRevDiff(Q_bar, trans, ip, coords_bar);
+
+            // get the weighted derivatives using finite difference method
+            for (int n = 0; n < coords.Width(); ++n)
+            {
+               for (int di = 0; di < coords.Height(); ++di)
+               {
+                  coords(di, n) += eps_fd;
+                  double vf = coeff.Eval(trans, ip);
+                  coords(di, n) -= 2.0*eps_fd;
+                  vf -= coeff.Eval(trans, ip);
+
+                  vf *= 1.0/(2.0*eps_fd);
+                  coords(di, n) += eps_fd;
+                  double q_bar_fd = Q_bar * vf;
+
+                  REQUIRE(coords_bar(di, n) == Approx(q_bar_fd));
+               }
+            }
+         }
+      }
+   }
+}
+
 

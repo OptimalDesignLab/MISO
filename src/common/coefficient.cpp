@@ -239,25 +239,29 @@ double SteinmetzCoefficient::Eval(ElementTransformation &trans,
    if (A)
    {
       int dim = trans.GetSpaceDim();
-      Array<int> vdofs; Vector a;
-      Vector b(dim); Vector bh(dim); 
-      const FiniteElement *el = A->FESpace()->GetFE(trans.ElementNo);
-      ElementTransformation *Tr = A->FESpace()->GetElementTransformation(trans.ElementNo);
-      //A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-      Tr->SetIntPoint(&ip);
-      // DenseMatrix J = Tr->Jacobian(); //Element Jacobian
-      // DenseMatrix C; //Curl Shape Functions
-      // el->CalcCurlShape(ip, C);
-      // // A->GetSubVector(vdofs, a);
-      
-      // //Compute Magnetic Field
-      // C.MultTranspose(a, bh); //C^T a
-      // J.Mult(bh, b); //J C^T a
-      // b /= Tr->Weight();
-      A->GetCurl(*Tr, b);
+      Array<int> vdofs;
+      Vector elfun;
+      A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+      A->GetSubVector(vdofs, elfun);
 
-      double bMag = b.Norml2();
-      return rho*(kh*freq*std::pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
+      auto &el = *A->FESpace()->GetFE(trans.ElementNo);
+      int ndof = el.GetDof();
+
+      DenseMatrix curlshape(ndof,dim);
+      DenseMatrix curlshape_dFt(ndof,dim);
+      Vector b_vec(dim);
+      b_vec = 0.0;
+
+      trans.SetIntPoint(&ip);
+
+      el.CalcCurlShape(ip, curlshape);
+      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+
+      double b_mag = b_vec.Norml2();
+
+      double S = rho*(kh*freq*std::pow(b_mag, alpha) + ke*freq*freq*b_mag*b_mag);
+      return S / trans.Weight();
    }
    else
       return 0.0;
@@ -271,40 +275,49 @@ void SteinmetzCoefficient::EvalRevDiff(const double &Q_bar,
    if (A)
    {
       int dim = trans.GetSpaceDim();
-      Array<int> vdofs; Vector a; 
-      const FiniteElement *el = A->FESpace()->GetFE(trans.ElementNo);
-      ElementTransformation *Tr = A->FESpace()->GetElementTransformation(trans.ElementNo);
-      Tr->SetIntPoint(&ip);
+      Array<int> vdofs;
+      Vector elfun;
       A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-      // DenseMatrix J = Tr->Jacobian(); //Element Jacobian
-      DenseMatrix C; //Curl Shape Functions
-      el->CalcCurlShape(ip, C);
-      A->GetSubVector(vdofs, a);
-      DenseMatrix jac_bar(trans.GetSpaceDim()); jac_bar = 0.0;
-      
-      //Compute Magnetic Field
-      Vector b(dim); Vector bh(dim);
-      C.MultTranspose(a, bh); //C^T a
-      // J.Mult(bh, b); //J C^T a
-      // b /= Tr->Weight();
-      A->GetCurl(*Tr, b);
+      A->GetSubVector(vdofs, elfun);
 
-      double bMag = b.Norml2();
-      //rho*(kh*freq*std::pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
-      double dS = rho*(alpha*kh*freq*std::pow(bMag, alpha-2) + 2*ke*freq*freq); //dS/dBmag * 1/Bmag
-      AddMult_a_VWt(dS*Q_bar, b, bh, jac_bar); // B*Bh^T
+      auto &el = *A->FESpace()->GetFE(trans.ElementNo);
+      int ndof = el.GetDof();
+
+      DenseMatrix curlshape(ndof,dim);
+      DenseMatrix curlshape_dFt(ndof,dim);
+      Vector b_vec(dim);
+      Vector b_hat(dim);
+      b_vec = 0.0;
+      b_hat = 0.0;
+
+      trans.SetIntPoint(&ip);
+
+      el.CalcCurlShape(ip, curlshape);
+      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      curlshape.AddMultTranspose(elfun, b_hat);
+
+      double b_mag = b_vec.Norml2();
+      double S = rho*(kh*freq*std::pow(b_mag, alpha) + ke*freq*freq*b_mag*b_mag);
+      double dS = rho*(alpha*kh*freq*std::pow(b_mag, alpha-2) + 2*ke*freq*freq);
+
+      DenseMatrix Jac_bar(3);
+      MultVWt(b_vec, b_hat, Jac_bar);
+      Jac_bar *= dS;
 
       // cast the ElementTransformation
       IsoparametricTransformation &isotrans =
-         dynamic_cast<IsoparametricTransformation&>(*Tr);
+         dynamic_cast<IsoparametricTransformation&>(trans);
 
-      isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+      DenseMatrix loc_PointMat_bar(PointMat_bar.Height(), PointMat_bar.Width());
+      loc_PointMat_bar = 0.0;
+      isotrans.WeightRevDiff(loc_PointMat_bar);
+      loc_PointMat_bar *= -S / pow(trans.Weight(), 2);
 
-      // jacobian weight derivative
-      DenseMatrix PointMat_bar_w = PointMat_bar; PointMat_bar_w = 0.0;
-      double dSW = -dS*(b*b)/Tr->Weight();
-      isotrans.WeightRevDiff(PointMat_bar_w);
-      PointMat_bar.Add(dSW*Q_bar, PointMat_bar_w);
+      isotrans.JacobianRevDiff(Jac_bar, loc_PointMat_bar);
+
+      PointMat_bar.Add(Q_bar, loc_PointMat_bar);
+
    }
    else
       return;

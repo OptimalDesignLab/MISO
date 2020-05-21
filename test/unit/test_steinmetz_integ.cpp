@@ -8,13 +8,12 @@
 #include "euler_test_data.hpp"
 #include "electromag_test_data.hpp"
 
-TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
-                       "[DomainResIntegrator for Steinmetz]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("DomainResIntegrator::AssembleElementVector",
+          "[DomainResIntegrator for Steinmetz]")
 {
    using namespace mfem;
    using namespace euler_data;
-    using namespace mach;
+   using namespace mach;
 
    const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
@@ -24,7 +23,7 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
    std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
                               //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                               //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-    std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
+   std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
    pmesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -48,10 +47,10 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
          std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
          std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
                         1, 2, 4, 0.5, 0.6, &A));
-         std::unique_ptr<mach::MeshDependentCoefficient> Q;
-         Q.reset(new mach::MeshDependentCoefficient());
-         Q->addCoefficient(1, move(q1)); 
-         //Q->addCoefficient(2, move(q2));
+         // std::unique_ptr<mach::MeshDependentCoefficient> Q;
+         // Q.reset(new mach::MeshDependentCoefficient());
+         // Q->addCoefficient(1, move(q1)); 
+         // Q->addCoefficient(2, move(q2));
          LinearForm res(fes.get());
          res.AddDomainIntegrator(
             new DomainLFIntegrator(*q2));
@@ -70,7 +69,7 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
          NonlinearForm dfdx_form(mesh_fes);
          dfdx_form.AddDomainIntegrator(
             new mach::DomainResIntegrator(*q2,
-               &state, &adjoint, true));
+               &state, &adjoint));
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
@@ -101,13 +100,12 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
    }
 }
 
-TEMPLATE_TEST_CASE_SIG("ThermalSensIntegrator::AssembleElementVector",
-                       "[ThermalSensIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
+          "[ThermalSensIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;
-    using namespace mach;
+   using namespace mach;
 
    const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
@@ -117,7 +115,7 @@ TEMPLATE_TEST_CASE_SIG("ThermalSensIntegrator::AssembleElementVector",
    std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
                               //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                               //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-    std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
+   std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
    pmesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)

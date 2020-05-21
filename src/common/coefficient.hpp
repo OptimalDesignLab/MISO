@@ -478,7 +478,7 @@ public:
 	/// \param[in] ke - Steinmetz eddy currnt coefficient
 	/// \param[in] A - magnetic vector potential GridFunction 
 	SteinmetzCoefficient(double rho, double alpha, double f, double kh,
-								double ke, GridFunType *A)
+								double ke, mfem::GridFunction *A)
 		: rho(rho), alpha(alpha), freq(f), kh(kh), ke(ke), A(A) {}
 
 	/// Evaluate the Steinmetz coefficient
@@ -493,7 +493,7 @@ public:
 
 private:
 	double rho, alpha, freq, kh, ke;
-	GridFunType *A;
+	mfem::GridFunction *A;
 };
 
 class SteinmetzVectorDiffCoefficient : public mfem::VectorCoefficient
