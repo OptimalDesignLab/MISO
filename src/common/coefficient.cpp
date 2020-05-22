@@ -324,33 +324,40 @@ void SteinmetzCoefficient::EvalRevDiff(const double &Q_bar,
 }
 
 void SteinmetzVectorDiffCoefficient::Eval(Vector &V, 
-                                          ElementTransformation &T,
+                                          ElementTransformation &trans,
                                           const IntegrationPoint &ip)
 {
    if (A)
    {
-      int dim = T.GetSpaceDim();
-      Array<int> vdofs; Vector a; 
-      const FiniteElement *el = A->FESpace()->GetFE(T.ElementNo);
-      A->FESpace()->GetElementVDofs(T.ElementNo, vdofs);
-      DenseMatrix J = T.Jacobian(); //Element Jacobian
-      DenseMatrix C; //Curl Shape Functions
-      el->CalcCurlShape(ip, C);
-      A->GetSubVector(vdofs, a);
-      
-      //Compute Magnetic Field
-      Vector b(dim); Vector bh(dim);
-      C.MultTranspose(a, bh); //C^T a
-      J.Mult(bh, b); //J C^T a
-      b /= T.Weight();
+      int dim = trans.GetSpaceDim();
+      Array<int> vdofs;
+      Vector elfun;
+      A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+      A->GetSubVector(vdofs, elfun);
 
-      //Compute Derivative w.r.t. a
-      Vector zw(b.Size()); Vector z(b.Size());
-      J.MultTranspose(b, zw);
-      C.Mult(zw, z);
-      double bMag = b.Norml2();
-      double dS = rho*(alpha*kh*freq*std::pow(bMag, alpha-2) + 2*ke*freq*freq); //dS/dBmag * 1/Bmag
-      V.Set(dS, z);
+      auto &el = *A->FESpace()->GetFE(trans.ElementNo);
+      int ndof = el.GetDof();
+
+      DenseMatrix curlshape(ndof,dim);
+      DenseMatrix curlshape_dFt(ndof,dim);
+      Vector b_vec(dim);
+      Vector temp_vec(ndof);
+      b_vec = 0.0;
+      temp_vec = 0.0;
+
+      trans.SetIntPoint(&ip);
+
+      el.CalcCurlShape(ip, curlshape);
+      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      double b_mag = b_vec.Norml2();
+
+      V = 0.0;
+      curlshape_dFt.Mult(b_vec, temp_vec);
+      V = temp_vec;
+      double dS = rho*(alpha*kh*freq*std::pow(b_mag, alpha-2) + 2*ke*freq*freq);
+
+      V *= dS / trans.Weight();
    }
    else
       V =  0.0;

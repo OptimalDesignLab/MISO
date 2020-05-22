@@ -507,18 +507,19 @@ public:
 	/// \param[in] kh - Steinmetz hysteresis coefficient
 	/// \param[in] ke - Steinmetz eddy currnt coefficient
 	/// \param[in] A - magnetic vector potential GridFunction 
-	SteinmetzVectorDiffCoefficient(double rho, double alpha, double f, double kh,
-								double ke, GridFunType *A)
-		:  VectorCoefficient(A->FESpace()->GetVDim()), rho(rho), alpha(alpha), 
-			freq(f), kh(kh), ke(ke), A(A) {}
+	/// \note this coefficient only works on meshes with only one element type
+	SteinmetzVectorDiffCoefficient(double rho, double alpha, double f,
+											 double kh, double ke, mfem::GridFunction *A)
+		: VectorCoefficient(A->FESpace()->GetFE(0)->GetDof()), rho(rho),
+		  alpha(alpha), freq(f), kh(kh), ke(ke), A(A) {}
 
-	/// Evaluate the Steinmetz coefficient
+	/// Evaluate the derivative of the Steinmetz coefficient with respect to A
 	void Eval(mfem::Vector &V, mfem::ElementTransformation &T,
-                     const mfem::IntegrationPoint &ip) override;
+             const mfem::IntegrationPoint &ip) override;
 
 private:
 	double rho, alpha, freq, kh, ke;
-	GridFunType *A;
+	mfem::GridFunction *A;
 };
 
 /// ElementFunctionCoefficient
