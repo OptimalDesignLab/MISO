@@ -23,7 +23,7 @@
    },
    "steady": false, 
    "time-dis": {
-      "ode-solver": "RK4",
+      "ode-solver": "RRK",
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.002,

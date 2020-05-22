@@ -255,7 +255,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
    }

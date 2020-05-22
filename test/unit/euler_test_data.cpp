@@ -104,4 +104,15 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
     }
 }
 
+double randBaselinePert(const mfem::Vector &x)
+{
+    const double scale = 0.01;
+    return 1.0 + scale * uniform_rand(gen);
+}
+
+double randState(const mfem::Vector &x)
+{
+    return 2.0 * uniform_rand(gen) - 1.0;
+}
+
 } // namespace euler_data

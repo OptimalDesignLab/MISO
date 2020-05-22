@@ -15,7 +15,9 @@ class EntropyConstrainedOperator : public mfem::TimeDependentOperator
 {
 public:
    /// Default constructor
-   EntropyConstrainedOperator(int n) : TimeDependentOperator(n) {}
+   EntropyConstrainedOperator(int n, double start_time,
+                              mfem::TimeDependentOperator::Type type)
+       : TimeDependentOperator(n, start_time, type) {}
 
    /// Evaluate the entropy functional at the given state
    /// \param[in] state - the state at which to evaluate the entropy
@@ -32,231 +34,115 @@ public:
                                 const mfem::Vector &k) = 0;
 };
 
-/// Relaxation version of implicit midpoint method
-class RRKImplicitMidpointSolver : public mfem::ODESolver
+/// Class that can handle implicit or explicit time marching of linear or
+/// nonlinear ODEs
+/// TODO: think about how to handle partial assebmly of residual jacobian and
+///       stiffness matrices
+class MachEvolver : public EntropyConstrainedOperator
 {
+public:
+   /// Serves as an base class for linear/nonlinear explicit/implicit time
+   /// marching problems
+   /// \param[in] ess_bdr - flags for essential boundary
+   /// \param[in] nonlinear_mass - nonlinear mass operator (not owned)
+   /// \param[in] mass - bilinear form for mass matrix (not owned)
+   /// \param[in] res - nonlinear residual operator (not owned)
+   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
+   /// \param[in] load - load vector (not owned)
+   /// \param[in] out - outstream to use pointer (not owned)
+   /// \param[in] start_time - time to start integration from
+   ///                         (important for time-variant sources)
+   /// \param[in] type - solver type; explicit or implicit
+   /// \note supports partial assembly of mass and stiffness matrices for
+   ///       explicit time marching
+   MachEvolver(mfem::Array<int> &ess_bdr,
+               NonlinearFormType *nonlinear_mass, BilinearFormType *mass,
+               NonlinearFormType *res, BilinearFormType *stiff,
+               mfem::Vector *load, std::ostream &outstream,
+               double start_time,
+               mfem::TimeDependentOperator::Type type = EXPLICIT);
+
+   /// Perform the action of the operator: y = k = f(x, t), where k solves
+   /// the algebraic equation F(x, k, t) = G(x, t) and t is the current time.
+   /// Compute k = M^-1(R(x,t) + Kx + l)
+   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
+
+   /// Solve the implicit equation: k = f(x + dt k, t), for the unknown k at
+   /// the current time t. 
+   /// Currently implemented for the implicit midpoit method
+   void ImplicitSolve(const double dt, const mfem::Vector &x,
+                      mfem::Vector &k) override;
+   
+   /// Set the linear solver to be used for implicit methods
+   /// \param[in] linsolver - pointer to configured linear solver (not owned)
+   void SetLinearSolver(mfem::Solver *linsolver);
+
+   /// Set the newton solver to be used for implicit methods
+   /// \param[in] newton - pointer to configured newton solver (not owned)
+   void SetNewtonSolver(mfem::NewtonSolver *newton);
+
+   /// Return a reference to the Jacobian of the combined operator
+   /// \param[in] x - the current state
+   mfem::Operator &GetGradient(const mfem::Vector &x) const override;
+
+   /// Evaluate the entropy functional at the given state
+   /// \param[in] x - the state at which to evaluate the entropy
+   /// \returns the entropy functional
+   /// \note optional, but must be implemented for relaxation RK
+   virtual double Entropy(const mfem::Vector &x);
+
+   /// Evaluate the residual weighted by the entropy variables
+   /// \praam[in] dt - evaluate residual at t+dt
+   /// \param[in] x - previous time step state
+   /// \param[in] k - the approximate time derivative, `du/dt`
+   /// \returns the product `w^T res`
+   /// \note `w` and `res` are evaluated at `x + dt*k` and time `t+dt`
+   /// \note optional, but must be implemented for relaxation RK
+   virtual double EntropyChange(double dt, const mfem::Vector &x, 
+                                const mfem::Vector &k);
+
+   virtual ~MachEvolver();
+   
 protected:
-   mfem::Vector k;
-
-public:
-   virtual void Init(mfem::TimeDependentOperator &_f);
-
-   virtual void Step(mfem::Vector &x, double &t, double &dt);
-};
-
-/// For explicit time marching of linear problems
-class LinearEvolver : public mfem::TimeDependentOperator
-{
-public:
-   /// Class constructor.
-   /// \param[in] m - mass matrix
-   /// \param[in] k - stiffness matrix
-   /// \param[in] outstream - for output
-   LinearEvolver(MatrixType &m, MatrixType &k, std::ostream &outstream);
-
-   /// Applies the action of the linear-evolution operator on `x`.
-   /// \param[in] x - `Vector` that is being multiplied by operator
-   /// \param[out] y - resulting `Vector` of the action
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
-
-   /// Class destructor.
-   virtual ~LinearEvolver() { }
-
-private:
-   /// used to print information
+   /// pointer to nonlinear mass bilinear form (not owned)
+   NonlinearFormType *nonlinear_mass;
+   /// pointer to mass bilinear form (not owned)
+   mfem::OperatorHandle mass;
+   /// pointer to nonlinear form (not owned)
+   NonlinearFormType *res;
+   /// pointer to stiffness bilinear form (not owned)
+   mfem::OperatorHandle stiff;
+   ///pointer to load vector (not owned)
+   mfem::Vector *load;
+   /// pointer to a form for computing the entropy  (not owned)
+   NonlinearFormType *ent;
+   /// outstream for printing
    std::ostream &out;
-   /// mass matrix represented as a matrix
-   MatrixType &mass;
-   /// stiffness matrix represented as a sparse matrix
-   MatrixType &stiff;
-   /// preconditioner for mass matrix
-   SmootherType mass_prec;
-   /// solver for the mass matrix
-   std::unique_ptr<mfem::CGSolver> mass_solver;
-   /// a work vector
-   mutable mfem::Vector z;
-};
+   /// solver for inverting mass matrix for explicit solves
+   /// \note supports partially assembled mass bilinear form
+   mfem::CGSolver mass_solver;
+   /// preconditioner for inverting mass matrix
+   std::unique_ptr<mfem::Solver> mass_prec;
+   /// Linear solver for implicit problems (not owned)
+   mfem::Solver *linsolver;
+   /// Newton solver for implicit problems (not owned)
+   mfem::NewtonSolver *newton;
 
-/// For explicit or implicit time marching of nonlinear problems
-class NonlinearEvolver : public mfem::TimeDependentOperator
-{
-public:
-   /// Class constructor 1.
-   /// \param[in] m - mass matrix
-   /// \param[in] res - defines the spatial residual
-   /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
-   NonlinearEvolver(MatrixType &m, NonlinearFormType &r, double a = 1.0);
+   /// pointer-to-implementation idiom
+   /// Hides implementation details of this operator, and because it's private,
+   /// it doesn't pollute the mach namespace
+   class SystemOperator;
+   /// Operator that combines the linear/nonlinear spatial discretization with
+   /// the load vector into one operator used for implicit solves
+   std::unique_ptr<SystemOperator> combined_oper;
 
-   /// Computes the action of the operator based on `x`.
-   /// \param[in] x - `Vector` at which the operator is computed
-   /// \param[out] y - resulting `Vector` of the action
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+   /// work vectors
+   mutable mfem::Vector work, work2;
 
-   /// Class destructor.
-   virtual ~NonlinearEvolver() { }
-
-private:
-   /// mass matrix represented as a matrix
-   MatrixType &mass;
-   /// nonlinear spatial residual
-   NonlinearFormType &res;
-   /// preconditioner for mass matrix
-   SmootherType mass_prec;
-   //std::unique_ptr<mfem::HypreSolver> mass_prec;
-   /// solver for the mass matrix
-   std::unique_ptr<mfem::CGSolver> mass_solver;
-   //std::unique_ptr<mfem::HypreGMRES> mass_solver;
-   /// a work vector
-   mutable mfem::Vector z;
-   /// used to move the spatial residual to the right-hand-side, if necessary
-   double alpha;
-};
-
-/// Implicit Nonlinear evolver
-class ImplicitNonlinearEvolver : public mach::EntropyConstrainedOperator
-{
-public:
-   /// class constructor
-   /// \param[in] m - the mass matrix
-   /// \param[in] res - nonlinear form that defines the spatial residual
-   /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
-   ImplicitNonlinearEvolver(MatrixType &m, NonlinearFormType &r, 
-                            mach::AbstractSolver *abs, double a = 1.0);
-
-   /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
-   /// Currently implemented for the implicit midpoint method
-   virtual void ImplicitSolve(const double dt, const mfem::Vector &x,
-                              mfem::Vector &k);
-
-   /// Compute y = f(x + dt * k) - M * k, where k = dx/dt
-   /// \param[in] k - dx/dt
-   /// \param[in/out] y - the residual
-   virtual void Mult(const mfem::Vector &k, mfem::Vector &y) const;
-
-   /// Compute the jacobian of implicit evolver: J = dt * f'(x + dt * k) - M
-   /// \param[in] k - dx/dt
-   virtual mfem::Operator &GetGradient(const mfem::Vector &k) const;
-
-   /// Set the parameters
-   /// \param[in] dt_ - time step
-   /// \param[in] x_ - current state variable
-   void SetParameters(const double dt_, const mfem::Vector &x_)
-   { 
-      dt = dt_;
-      x = x_;
-   }
-
-   /// Evaluate the entropy functional at the given state
-   /// \param[in] state - the state at which to evaluate the entropy
-   /// \returns the entropy functional
-   virtual double Entropy(const mfem::Vector &state);
-
-   /// Evaluate the residual weighted by the entropy variables
-   /// \param[in] dt - evaluate residual at t+dt
-   /// \param[in] state - previous time step state
-   /// \param[in] k - the approximate time derivative, `du/dt`
-   /// \returns the product `w^T res`
-   /// \note `w` and `res` are evaluated at `state + dt*k` and time `t+dt`.
-   virtual double EntropyChange(double dt, const mfem::Vector &state, 
-                                const mfem::Vector &k);
-
-   /// Class destructor
-   virtual ~ImplicitNonlinearEvolver() { }
-
-private:
-   /// implicit step jacobian
-   mach::AbstractSolver *abs_solver;
-   /// used to move the spatial residual to the right-hand-side, if necessary
-   double alpha;
-   /// reference to the mass matrix
-   MatrixType &mass;
-   /// referencee to the nonlinear form i.e. rhs
-   NonlinearFormType &res;
-   /// the time step
-   double dt;
-   /// Vector that hould the current state
-   mfem::Vector x;
-   /// Solver for the implicit time marching
-   std::unique_ptr<mfem::NewtonSolver> newton_solver;
-   //std::unique_ptr<mfem::InexactNewton> newton_solver;
-   /// linear solver in the newton solver
-   std::unique_ptr<mfem::Solver> linear_solver;
-   /// linear system preconditioner for solver in newton solver
-   std::unique_ptr<mfem::Solver> prec;
-};
-
-/// Implicit Nonlinear evolver
-class ImplicitNonlinearMassEvolver : public mach::EntropyConstrainedOperator
-{
-public:
-   /// class constructor
-   /// \param[in] m - the nonlinearform mass matrix
-   /// \param[in] res - nonlinear form that defines the spatial residual
-   /// \param[in] a - set to -1.0 if the spatial residual is on the "wrong" side
-   ImplicitNonlinearMassEvolver(NonlinearFormType &m, NonlinearFormType &r,
-                                NonlinearFormType &e, double a = 1.0);
-
-   /// Implicit solve k = f(q + k * dt, t + dt), where k = dq/dt
-   /// Currently implemented for the implicit midpoint method
-   virtual void ImplicitSolve(const double dt, const mfem::Vector &x,
-                              mfem::Vector &k);
-
-   /// Compute y = f(x + dt * k) - M * k, where k = dx/dt
-   /// \param[in] k - dx/dt
-   /// \param[in/out] y - the residual
-   virtual void Mult(const mfem::Vector &k, mfem::Vector &y) const;
-
-   /// Compute the jacobian of implicit evolver: J = dt * f'(x + dt * k) - M
-   /// \param[in] k - dx/dt
-   virtual mfem::Operator &GetGradient(const mfem::Vector &k) const;
-
-   /// Evaluate the entropy functional at the given state
-   /// \param[in] state - the state at which to evaluate the entropy
-   /// \returns the entropy functional
-   virtual double Entropy(const mfem::Vector &state);
-
-   /// Evaluate the residual weighted by the entropy variables
-   /// \param[in] dt - evaluate residual at t+dt
-   /// \param[in] state - previous time step state
-   /// \param[in] k - the approximate time derivative, `du/dt`
-   /// \returns the product `w^T res`
-   /// \note `w` and `res` are evaluated at `state + dt*k` and time `t+dt`.
-   virtual double EntropyChange(double dt, const mfem::Vector &state, 
-                                const mfem::Vector &k);
-
-   /// Set the parameters
-   /// \param[in] dt_ - time step
-   /// \param[in] x_ - current state variable
-   void SetParameters(const double dt_, const mfem::Vector x_)
-   { 
-      x = x_;
-      dt = dt_;
-   }
-   /// check evolver jacobian
-   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));   
-   /// Class destructor
-   virtual ~ImplicitNonlinearMassEvolver() { }
-
-private:
-   /// used to move the spatial residual to the right-hand-side, if necessary
-   double alpha;
-   /// reference to the mass matrix
-   NonlinearFormType &mass;
-   /// referencee to the nonlinear form i.e. rhs
-   NonlinearFormType &res;
-   /// reference to a form for computing the entropy 
-   NonlinearFormType &ent;
-   /// the time step
-   double dt;
-   /// Vector that hould the current state
-   mfem::Vector x;
-   /// Solver for the implicit time marching
-   std::unique_ptr<mfem::NewtonSolver> newton_solver;
-   //std::unique_ptr<mfem::InexactNewton> newton_solver;
-   /// linear solver in the newton solver
-   std::unique_ptr<mfem::Solver> linear_solver;
-   /// linear system preconditioner for solver in newton solver
-   std::unique_ptr<mfem::Solver> prec;
+   /// sets the state and dt for the combined operator
+   /// \param[in] dt - time increment
+   /// \param[in] x - the current state
+   void setOperParameters(double dt, const mfem::Vector *x);
 };
 
 } // namespace mach

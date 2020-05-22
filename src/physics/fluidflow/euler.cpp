@@ -149,6 +149,7 @@ void EulerSolver<dim, entvar>::addOutputs()
          drag_dir(iroll) = cos(aoa_fs);
          drag_dir(ipitch) = sin(aoa_fs);
       }
+      drag_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cd
       output.at("drag").AddBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
           output_bndry_marker[idx]);
@@ -172,6 +173,7 @@ void EulerSolver<dim, entvar>::addOutputs()
          lift_dir(iroll) = -sin(aoa_fs);
          lift_dir(ipitch) = cos(aoa_fs);
       }
+      lift_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cl
       output.at("lift").AddBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
           output_bndry_marker[idx]);

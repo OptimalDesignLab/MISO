@@ -4,7 +4,7 @@
 #include "mfem.hpp"
 
 #include "sbp_fe.hpp" // needed in inviscid_integ_def.hpp 
-#include "solver.hpp"
+#include "utils.hpp"
 
 namespace mach
 {
@@ -183,10 +183,6 @@ protected:
    mfem::Vector uj;
    /// stores the result of calling the flux function
    mfem::Vector fluxij;
-   /// used to store the adjugate of the mapping Jacobian at node i
-   mfem::DenseMatrix adjJ_i;
-   /// used to store the adjugate of the mapping Jacobian at node j
-   mfem::DenseMatrix adjJ_j;
    /// stores a row of the adjugate of the mapping Jacobian
    mfem::Vector dxidx;
    /// stores the jacobian w.r.t left state
