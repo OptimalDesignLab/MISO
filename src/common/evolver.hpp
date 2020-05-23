@@ -49,6 +49,7 @@ public:
    /// \param[in] res - nonlinear residual operator (not owned)
    /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
    /// \param[in] load - load vector (not owned)
+   /// \param[in] ent - nonlinear form for entropy/energy (not owned)
    /// \param[in] out - outstream to use pointer (not owned)
    /// \param[in] start_time - time to start integration from
    ///                         (important for time-variant sources)
@@ -58,8 +59,8 @@ public:
    MachEvolver(mfem::Array<int> &ess_bdr,
                NonlinearFormType *nonlinear_mass, BilinearFormType *mass,
                NonlinearFormType *res, BilinearFormType *stiff,
-               mfem::Vector *load, std::ostream &outstream,
-               double start_time,
+               mfem::Vector *load, NonlinearFormType *ent,
+               std::ostream &outstream, double start_time,
                mfem::TimeDependentOperator::Type type = EXPLICIT);
 
    /// Perform the action of the operator: y = k = f(x, t), where k solves

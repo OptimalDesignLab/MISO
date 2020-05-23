@@ -116,10 +116,11 @@ AdvectionSolver<dim>::AdvectionSolver(
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 0;
    /// This should overwrite the evolver defined in base class constructor
+   /// TODO: This should not be necessary?
    evolver.reset(
       //   new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out))); 
        new MachEvolver(ess_bdr, nullptr, mass.get(), nullptr, stiff.get(),
-                       nullptr, *(out), 0.0));
+                       nullptr, nullptr, *(out), 0.0));
 
 }
 

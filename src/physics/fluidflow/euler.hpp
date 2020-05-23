@@ -79,6 +79,8 @@ protected:
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addResInterfaceIntegrators(double alpha) override;
 
+   virtual void addEntVolumeIntegrators() override;
+
    /// Create `output` based on `options` and add approporiate integrators
    virtual void addOutputs() override;
 

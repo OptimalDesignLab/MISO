@@ -226,10 +226,10 @@ private:
 MachEvolver::MachEvolver(
     Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
     BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
-    Vector *_load, std::ostream &outstream, double start_time,
-    TimeDependentOperator::Type type)
+    Vector *_load, NonlinearFormType *_ent, std::ostream &outstream,
+    double start_time, TimeDependentOperator::Type type)
     : EntropyConstrainedOperator(_res->Height(), start_time, type),
-      nonlinear_mass(_nonlinear_mass), res(_res), load(_load),
+      nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
       out(outstream), work(height), work2(height)
 {
    outstream << "MachEvolver constructor" << endl;

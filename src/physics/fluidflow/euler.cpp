@@ -58,6 +58,7 @@ void EulerSolver<dim, entvar>::constructForms()
       mass.reset(new BilinearFormType(fes.get()));
       nonlinear_mass.reset();
    }
+   ent.reset(new NonlinearFormType(fes.get()));
 }
 
 template <int dim, bool entvar>
@@ -139,6 +140,12 @@ void EulerSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
           new InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
                                                fec.get(), alpha));
    }
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addEntVolumeIntegrators()
+{
+   ent->AddDomainIntegrator(new EntropyIntegrator<dim, entvar>(diff_stack));
 }
 
 template <int dim, bool entvar>

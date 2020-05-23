@@ -275,6 +275,8 @@ protected:
    std::unique_ptr<BilinearFormType> stiff;
    /// the load vector linear form
    std::unique_ptr<LinearFormType> load;
+   /// entropy/energy that is needed for RRK methods
+   std::unique_ptr<NonlinearFormType> ent;
 
    /// derivative of psi^T res w.r.t the mesh nodes
    std::unique_ptr<NonlinearFormType> res_mesh_sens;
@@ -366,6 +368,9 @@ protected:
    /// Add interior-face integrators to `load'
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadInterfaceIntegrators(double alpha) {};
+
+   /// Add volume integrators for `ent`
+   virtual void addEntVolumeIntegrators() {};
 
    /// mark which boundaries are essential
    virtual void setEssentialBoundaries();

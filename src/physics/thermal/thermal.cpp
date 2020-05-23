@@ -748,12 +748,13 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
 										 BilinearFormType *stiff,
-                  				 LinearFormType *load,
+										 LinearFormType *load,
 										 std::ostream &outstream,
-                  				 double start_time,
+										 double start_time,
 										 mfem::VectorCoefficient *_flux_coeff)
-	: MachEvolver(ess_bdr, nullptr, mass, nullptr, stiff, load, outstream, start_time),
-	  flux_coeff(_flux_coeff), work(height)
+	 : MachEvolver(ess_bdr, nullptr, mass, nullptr, stiff, load, nullptr,
+						outstream, start_time),
+		flux_coeff(_flux_coeff), work(height)
 {
 #ifdef MFEM_USE_MPI
    mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);

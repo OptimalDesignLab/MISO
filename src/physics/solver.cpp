@@ -266,6 +266,11 @@ void AbstractSolver::initDerived()
       load->Assemble();
    }
 
+   if (ent)
+   {
+      addEntVolumeIntegrators();
+   }
+
    // This just lists the boundary markers for debugging purposes
    if (0 == rank)
    {
@@ -1320,7 +1325,8 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
 void AbstractSolver::constructEvolver()
 {
    evolver.reset(new MachEvolver(ess_bdr, nonlinear_mass.get(), mass.get(),
-                                 res.get(), stiff.get(), load.get(), *out, 0.0,
+                                 res.get(), stiff.get(), load.get(), ent.get(),
+                                 *out, 0.0,
                                  TimeDependentOperator::Type::IMPLICIT));
    if (newton_solver == nullptr)
       constructNewtonSolver();
