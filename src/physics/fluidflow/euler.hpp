@@ -59,34 +59,31 @@ protected:
    int iroll;
    /// index of "vertical" dimension in body frame
    int ipitch;
-   /// The nonlinaer integrator that computs the nonlinear form mass matrix
-   std::unique_ptr<mfem::NonlinearFormIntegrator> mass_integ;
+
+   /// Initialize `res` and either `mass` or `nonlinear_mass`
+   virtual void constructForms() override;
+
+   /// Add Domain Integrator to the mass operators
+   /// \param[in] alpha - scales the data; used to ove terems to rhs or lhs
+   virtual void addNonlinearMassIntegrators(double alpha) override;
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addVolumeIntegrators(double alpha);
+   virtual void addResVolumeIntegrators(double alpha) override;
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addBoundaryIntegrators(double alpha);
+   virtual void addResBoundaryIntegrators(double alpha) override;
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addInterfaceIntegrators(double alpha);
+   virtual void addResInterfaceIntegrators(double alpha) override;
 
    /// Create `output` based on `options` and add approporiate integrators
-   virtual void addOutputs();
+   virtual void addOutputs() override;
 
    /// Return the number of state variables
-   virtual int getNumState() {return dim+2; }
-
-   /// Add Domain Integrator to the nonlinear form mass matrix
-   /// \param[in] alpha - scales the data; used to ove terems to rhs or lhs
-   virtual void addMassIntegrator(double alpha);
-
-   /// Update the mass integrator
-   /// \param[in] dt - the numerical time step
-   virtual void updateNonlinearMass(int ti, double dt, double alpha);
+   virtual int getNumState() override {return dim+2; }
 };
 
 } // namespace mach

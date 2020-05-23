@@ -113,7 +113,7 @@ private:
    /// Construct all coefficients for thermal solver
    void constructCoefficients() override;
 
-   void addMassVolumeIntegrators() override;
+   void addMassIntegrators(double alpha) override;
    void addStiffVolumeIntegrators(double alpha) override;
    void addLoadVolumeIntegrators(double alpha) override;
    void addLoadBoundaryIntegrators(double alpha) override;

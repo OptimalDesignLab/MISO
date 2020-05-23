@@ -179,33 +179,21 @@ class MassIntegrator : public NonlinearMassIntegrator<
 public:
    /// Construct the nonlinear mass matrix integrator
    /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] u_old - the state at the previous time step
-   /// \param[in] delta_t - used to define state where mass matrix is evaluated
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   MassIntegrator(adept::Stack &diff_stack, const mfem::GridFunction &u_old,
-                  double delta_t, double a = 1.0)
-       : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(u_old, delta_t,
-                                                              dim + 2, a),
+   MassIntegrator(adept::Stack &diff_stack, double a = 1.0)
+       : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(dim + 2, a),
          stack(diff_stack), q_work(dim + 2) {}
 
-   /// applies symmetric matrix `dq/du` to input `k`
-   /// \param[in] u - state at which the symmetric matrix `dq/du` is evaluated
-   /// \param[in] k - vector that is being multiplied
-   /// \param[out] Ak - product of the multiplication
-   void calcMatVec(const mfem::Vector &u, const mfem::Vector &k,
-                   mfem::Vector &Ak);
+   /// converts state variables to conservative variables, if necessary
+   /// \param[in] u - state variables that are to be converted
+   /// \param[out] q - conservative variables corresponding to `u`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &u, mfem::Vector &q);
 
-   /// Compute the Jacobian of function `matVec` w.r.t. `u`
-   /// \param[in] u - state at which to evaluate the Jacobian
-   /// \param[in] k - vector that is being multiplied by `A = dq/du`
-   /// \param[out] jac - Jacobian of the product w.r.t. `u`
-   void calcMatVecJacState(const mfem::Vector &u, const mfem::Vector &k,
-                           mfem::DenseMatrix &jac);
-
-   /// Computes the matrix (dq/du)
-   /// \param[in] u - state at which to evaluate the entropy inverse Hessian
-   /// \param[out] jac - stores the entropy inverse Hessian
-   void calcMatVecJacK(const mfem::Vector &u, mfem::DenseMatrix &jac);
+   /// Compute the Jacobian of the mapping `convertVars` w.r.t. `u`
+   /// \param[in] u - state variables that are to be converted
+   /// \param[out] dqdu - Jacobian of conservative variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &u, mfem::DenseMatrix &dqdu);
 
 protected:
    /// stack used for algorithmic differentiation

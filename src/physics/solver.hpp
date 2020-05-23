@@ -9,6 +9,7 @@
 #include "mfem.hpp"
 
 #include "mach_types.hpp"
+#include "utils.hpp"
 
 #ifdef MFEM_USE_PUMI
 namespace apf
@@ -238,16 +239,22 @@ protected:
    double dt;
    /// final time
    double t_final;
+   
+   //--------------------------------------------------------------------------
+   // Members associated with the mesh
+   /// object defining the mfem computational mesh
+   std::unique_ptr<MeshType> mesh;
 #ifdef MFEM_USE_PUMI
    /// pumi mesh object
    // apf::Mesh2* pumi_mesh;
    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
 #endif
+
+   //--------------------------------------------------------------------------
+   // Members associated with fields
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
-   /// object defining the computational mesh
-   std::unique_ptr<MeshType> mesh;
-   /// discrete function space
+   /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
@@ -255,29 +262,32 @@ protected:
    std::unique_ptr<GridFunType> adj;
    /// derivative of L = J + psi^T res, with respect to mesh nodes
    std::unique_ptr<GridFunType> dLdX;
-   /// the spatial residual (a semilinear form)
-   std::unique_ptr<NonlinearFormType> res;
-   /// derivative of psi^T res w.r.t the mesh nodes
-   std::unique_ptr<NonlinearFormType> res_mesh_sens;
-   /// time-marching method (might be NULL)
-   std::unique_ptr<mfem::ODESolver> ode_solver;
-   /// the mass matrix bilinear form
-   std::unique_ptr<BilinearFormType> mass;
+
+   //--------------------------------------------------------------------------
+   // Members associated with forms
    /// the nonlinear form evaluate the mass matrix
    std::unique_ptr<NonlinearFormType> nonlinear_mass;
-   /// mass matrix
-   std::unique_ptr<MatrixType> mass_matrix;
+   /// the mass matrix bilinear form
+   std::unique_ptr<BilinearFormType> mass;
+   /// the spatial residual (a semilinear form)
+   std::unique_ptr<NonlinearFormType> res;
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
-   /// the stiffness matrix (linear components of the total jacobian)
-   std::unique_ptr<MatrixType> stiffness_matrix;
    /// the load vector linear form
    std::unique_ptr<LinearFormType> load;
 
-   /// the operator used for time-marching ODEs 
-   std::unique_ptr<MachEvolver> evolver;
+   /// derivative of psi^T res w.r.t the mesh nodes
+   std::unique_ptr<NonlinearFormType> res_mesh_sens;
+
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
+
+   //--------------------------------------------------------------------------
+   // Members associated with time marching (and Newton's method)
+   /// time-marching method (might be NULL)
+   std::unique_ptr<mfem::ODESolver> ode_solver;
+   /// the operator used for time-marching ODEs 
+   std::unique_ptr<MachEvolver> evolver;
 
    /// newton solver for the steady problem
    std::unique_ptr<mfem::NewtonSolver> newton_solver;
@@ -285,6 +295,9 @@ protected:
    std::unique_ptr<mfem::Solver> solver;
    /// linear system preconditioner for solver in newton solver and adjoint
    std::unique_ptr<mfem::Solver> prec;
+
+   //--------------------------------------------------------------------------
+   // Members associated with boundary conditions and outputs
    /// Array that marks boundaries as essential
    mfem::Array<int> ess_bdr;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
@@ -294,54 +307,64 @@ protected:
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
 
+   //--------------------------------------------------------------------------
+
    /// Construct PUMI Mesh
    void constructPumiMesh();
 
    /// Construct various coefficients
    virtual void constructCoefficients() {};
 
-   /// Add volume integrators to `mass`
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
-   virtual void addMassVolumeIntegrators();
+   /// Initialize all forms needed by the derived class
+   /// \note Derived classes must allocate the forms they need to use.  Only
+   /// allocated forms will have integrators added to them.
+   virtual void constructForms()
+   {
+      throw MachException("constructForms() not defined by derived class!");
+   };
+
+   /// Add volumne integrators to `mass`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addMassIntegrators(double alpha);
+
+   /// Add volumne integrators to `nonlinear_mass`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addNonlinearMassIntegrators(double alpha) {};
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addVolumeIntegrators(double alpha) {};
-
-   /// Add mass integrators to `nonlinear_mass` based on `options`
-   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addMassIntegrators(double alpha) {};
+   virtual void addResVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addBoundaryIntegrators(double alpha) {};
+   virtual void addResBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addInterfaceIntegrators(double alpha) {};
+   virtual void addResInterfaceIntegrators(double alpha) {};
 
    /// Add volume integrators to `stiff`
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addStiffVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `stiff`
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addStiffBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `stiff`
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addStiffInterfaceIntegrators(double alpha) {};
 
    /// Add volume integrators to 'load'
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `load'
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `load'
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadInterfaceIntegrators(double alpha) {};
 
    /// mark which boundaries are essential
@@ -366,9 +389,6 @@ protected:
    /// Solve for an unsteady adjoint
    /// \param[in] fun - specifies the functional corresponding to the adjoint
    virtual void solveUnsteadyAdjoint(const std::string &fun);
-
-   /// Defined in derived class that need to update a nonlinear mass matrix
-   virtual void updateNonlinearMass(int ti, double dt, double alpha) {};
 
    /// TODO: What is this doing here?
    void (*pert)(const mfem::Vector &, mfem::Vector &);

@@ -98,7 +98,7 @@ private:
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   void addVolumeIntegrators(double alpha) override;
+   void addResVolumeIntegrators(double alpha) override;
 
    /// mark which boundaries are essential
    void setEssentialBoundaries() override;

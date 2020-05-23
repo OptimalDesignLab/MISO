@@ -21,7 +21,7 @@ public:
    SystemOperator(Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
                   BilinearFormType *_mass, NonlinearFormType *_res,
                   BilinearFormType *_stiff, mfem::Vector *_load)
-      : Operator(_mass->Height()), nonlinear_mass(_nonlinear_mass), mass(_mass),
+      : Operator(_res->Height()), nonlinear_mass(_nonlinear_mass), mass(_mass),
         res(_res), stiff(_stiff), load(_load), Jacobian(NULL),
         dt(0.0), x(NULL), work(height), work2(height)
    {
@@ -54,17 +54,21 @@ public:
       r = 0.0;
       if (nonlinear_mass)
       {
+         cout << "adding nonlinear_mass" << endl;
          nonlinear_mass->Mult(work, r);
          nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed!
          r -= work2;
+         r *= (1/dt);
       }
       if (res)
       {
+         cout << "adding nonlinear res" << endl;
          res->Mult(work, work2);
          r += work2;
       }
       if (stiff)
       {
+         cout << "adding stiff" << endl;
 #ifdef MFEM_USE_MPI
          stiff->TrueAddMult(work, r);
          // r += work2;
@@ -74,10 +78,12 @@ public:
       }
       if (load)
       {
+         cout << "adding load" << endl;
          r += *load;
       }
       if (mass)
       {
+         cout << "adding mass" << endl;
 #ifdef MFEM_USE_MPI
          mass->TrueAddMult(k, r);
          // r += work3;
@@ -172,7 +178,6 @@ public:
       {
          MatrixType* massjac = dynamic_cast<MatrixType*>(
             &nonlinear_mass->GetGradient(work));
-         *massjac *= dt;
 #ifdef MFEM_USE_MPI
          jac = ParAdd(jac, massjac);
 #else
@@ -182,7 +187,6 @@ public:
 
       if (res)
       {
-         
          MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
          *resjac *= dt;
 #ifdef MFEM_USE_MPI
@@ -224,10 +228,12 @@ MachEvolver::MachEvolver(
     BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
     Vector *_load, std::ostream &outstream, double start_time,
     TimeDependentOperator::Type type)
-    : EntropyConstrainedOperator(_mass->Height(), start_time, type),
+    : EntropyConstrainedOperator(_res->Height(), start_time, type),
       nonlinear_mass(_nonlinear_mass), res(_res), load(_load),
       out(outstream), work(height), work2(height)
 {
+   outstream << "MachEvolver constructor" << endl;
+   outstream.flush();
    if ( (_mass != nullptr) && (_nonlinear_mass != nullptr) )
    {
       throw MachException("Cannot use a linear and nonlinear mass operator "
@@ -297,8 +303,10 @@ MachEvolver::MachEvolver(
       }
    }
 
+   outstream << "MachEvolver constructor before combined_oper" << endl;
    combined_oper.reset(new SystemOperator(ess_bdr, _nonlinear_mass, _mass, _res,
                                           _stiff, _load));
+   outstream << "MachEvolver constructor after combined_oper" << endl;
 }
 
 MachEvolver::~MachEvolver() = default;
@@ -326,6 +334,7 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
       work += *load;
    }
    mass_solver.Mult(work, y);
+   y *= -1.0;
 }
 
 void MachEvolver::ImplicitSolve(const double dt, const Vector &x,

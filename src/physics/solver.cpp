@@ -216,46 +216,55 @@ void AbstractSolver::initDerived()
 
    double alpha = 1.0;
 
-   /// construct coefficients before nonlinear/bilinear forms
+   // construct coefficients before nonlinear/bilinear forms
    constructCoefficients();
-
-   // set nonlinear mass matrix form
-   nonlinear_mass.reset(new NonlinearFormType(fes.get()));
 
    // need to set this before adding boundary integrators
    auto &bcs = options["bcs"];
    bndry_marker.resize(bcs.size());
 
-   // set up the mass matrix for unsteady problems
-   if (!options["steady"].get<bool>())
+   // construct/initialize the forms needed by derived class
+   constructForms();
+
+   if (nonlinear_mass)
    {
-      mass.reset(new BilinearFormType(fes.get()));
-      addMassVolumeIntegrators();
+      addNonlinearMassIntegrators(alpha);
+   }
+
+   if (mass)
+   {
+      addMassIntegrators(alpha);
       mass->Assemble(0);
       mass->Finalize();
    }
 
-   /// TODO: look at partial assembly
-   stiff.reset(new BilinearFormType(fes.get()));
-   addStiffVolumeIntegrators(alpha);
-   addStiffBoundaryIntegrators(alpha);
-   addStiffInterfaceIntegrators(alpha);
-   stiff->Assemble(0);
-   stiff->Finalize();
+   if (res)
+   {
+      /// TODO: look at partial assembly
+      addResVolumeIntegrators(alpha);
+      addResBoundaryIntegrators(alpha);
+      addResInterfaceIntegrators(alpha);
+   }
 
-   /// TODO: make this work for a grid function as well as a linear form
-   load.reset(new LinearFormType(fes.get()));
-   addLoadVolumeIntegrators(alpha);
-   addLoadBoundaryIntegrators(alpha);
-   addLoadInterfaceIntegrators(alpha);
-   load->Assemble();
+   if (stiff)
+   {
+      /// TODO: look at partial assembly
+      addStiffVolumeIntegrators(alpha);
+      addStiffBoundaryIntegrators(alpha);
+      addStiffInterfaceIntegrators(alpha);
+      stiff->Assemble(0);
+      stiff->Finalize();
+   }
 
-   /// TODO: look at partial assembly
-   // set up the spatial semi-linear form
-   res.reset(new NonlinearFormType(fes.get()));
-   addVolumeIntegrators(alpha);
-   addBoundaryIntegrators(alpha);
-   addInterfaceIntegrators(alpha);
+   if (load)
+   {
+      /// TODO: make this work for a grid function as well as a linear form
+      //load.reset(new LinearFormType(fes.get()));
+      addLoadVolumeIntegrators(alpha);
+      addLoadBoundaryIntegrators(alpha);
+      addLoadInterfaceIntegrators(alpha);
+      load->Assemble();
+   }
 
    // This just lists the boundary markers for debugging purposes
    if (0 == rank)
@@ -281,67 +290,8 @@ void AbstractSolver::initDerived()
    output_bndry_marker.resize(num_bndry_outputs);
    addOutputs(); // virtual function
 
-   // define the time-dependent operator
-#ifdef MFEM_USE_MPI
-   // The parallel bilinear forms return a pointer that this solver owns
-   if (!options["steady"].get<bool>())
-      mass_matrix.reset(mass->ParallelAssemble());
-   stiffness_matrix.reset(stiff->ParallelAssemble());
-#else
-   if (!options["steady"].get<bool>())
-      mass_matrix.reset(new MatrixType(mass->SpMat()));
-   stiffness_matrix.reset(new MatrixType(stiff->SpMat()));
-#endif
-
-   // !!!!!!!!!!!!!!!!!!!!!!!!!!!
-   // TODO: This needs to be addressed in constructEvolver
-   // const string odes = options["time-dis"]["ode-solver"].get<string>();
-   // if (odes == "RK1" || odes == "RK4")
-   // {
-   //    evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
-   // }
-   // else if (odes == "MIDPOINT")
-   // {
-   //    //evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
-   //    evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, this, -1.0));
-   // }
-   // else if (odes == "RRK")
-   // {
-   //    evolver.reset(
-   //        new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res,
-   //                                         output.at("entropy"), -1.0));
-   // }
-
-   /// check to see if the nonlinear residual has any domain integrators added
-   // int num_dnfi = res->GetDNFI()->Size();
-   // bool nonlinear = num_dnfi > 0 ? true : false;
-
-   // const string odes = options["time-dis"]["ode-solver"].get<string>();
-   // if (odes == "RK1" || odes == "RK4")
-   // {
-   //    if (nonlinear)
-   //       evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
-   //    else
-   //       evolver.reset(new LinearEvolver(*mass_matrix, *stiffness_matrix, *out));
-   // }
-   // else
-   // {
-   //    if (nonlinear)
-   //       evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
-   //    else
-   //    {
-   //       /// TODO: revisit this -> evolvers shouldn't need options file
-   //       std::string opt_file_name = "options";
-   //       evolver.reset(new ImplicitLinearEvolver(opt_file_name, *mass_matrix, *stiffness_matrix, *load, *out));
-   //    }
-   // }
-
-   // constructLinearSolver(options["lin-solver"]);
-   // constructNewtonSolver();
-
    if (!options["steady"].get<bool>())
       constructEvolver();
-
 }
 
 AbstractSolver::~AbstractSolver()
@@ -888,7 +838,7 @@ void AbstractSolver::solveForAdjoint(const std::string &fun)
    }
 }
 
-void AbstractSolver::addMassVolumeIntegrators()
+void AbstractSolver::addMassIntegrators(double alpha)
 {
    const char* name = fes->FEColl()->Name();
    if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
@@ -1064,8 +1014,6 @@ void AbstractSolver::solveUnsteady()
          dt = calcStepSize(options["time-dis"]["cfl"].template get<double>());
       }
       double dt_real = min(dt, t_final - t);
-      // TODO: !!!!! The following does not generalize beyond midpoint !!!!!
-      updateNonlinearMass(ti, 0.5*dt_real, 1.0);
       // if (ti % 10 == 0)
       // {
       //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
@@ -1370,14 +1318,14 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
 }
 
 void AbstractSolver::constructEvolver()
-{   
+{
    evolver.reset(new MachEvolver(ess_bdr, nonlinear_mass.get(), mass.get(),
                                  res.get(), stiff.get(), load.get(), *out, 0.0,
                                  TimeDependentOperator::Type::IMPLICIT));
-   
    if (newton_solver == nullptr)
       constructNewtonSolver();
    evolver->SetNewtonSolver(newton_solver.get());
+   *out << "End of constructEvolver" << endl;
 }
 
 void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)

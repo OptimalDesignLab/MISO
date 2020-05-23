@@ -272,81 +272,50 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacV(
 }
 
 template <int dim, bool entvar>
-void MassIntegrator<dim, entvar>::calcMatVec(const mfem::Vector &u,
-                                             const mfem::Vector &k,
-                                             mfem::Vector &Ak)
+void MassIntegrator<dim, entvar>::convertVars(const mfem::Vector &u,
+                                              mfem::Vector &q)
 {
+   // This conditional should have no overhead, if the compiler is good
    if (entvar)
    {
-      calcConservativeVars<double, dim>(u.GetData(), q_work.GetData());
-      calcdQdWProduct<double, dim>(q_work.GetData(), k.GetData(), Ak.GetData());
+      calcConservativeVars<double, dim>(u.GetData(), q.GetData());
    }
    else
    {
-      // If the state is the conservative variables, then dq/du = I
-      Ak = k;
+      q = u;
    }
 }
 
 template <int dim, bool entvar>
-void MassIntegrator<dim, entvar>::calcMatVecJacState(const mfem::Vector &u,
-                                                     const mfem::Vector &k,
-                                                     mfem::DenseMatrix &jac)
+void MassIntegrator<dim, entvar>::convertVarsJacState(const mfem::Vector &u,
+                                                      mfem::DenseMatrix &dqdu)
 {
-   if (!entvar)
+   if (entvar)
    {
-      // The matrix is the identity, so its derivative is zero
-      jac = 0.0;
-      return;
+      // vector of active input variables
+      std::vector<adouble> u_a(u.Size());
+      // initialize adouble inputs
+      adept::set_values(u_a.data(), u.Size(), u.GetData());
+      // start recording
+      this->stack.new_recording();
+      // create vector of active output variables
+      std::vector<adouble> q_a(u.Size());
+      // run algorithm
+      calcConservativeVars<adouble, dim>(u_a.data(), q_a.data());
+      // identify independent and dependent variables
+      this->stack.independent(u_a.data(), u.Size());
+      this->stack.dependent(q_a.data(), u.Size());
+      // compute and store jacobian in dwdu
+      this->stack.jacobian(dqdu.GetData());
    }
-   // declare vectors of active input variables
-   std::vector<adouble> u_a(u.Size());
-   std::vector<adouble> q_work_a(q_work.Size());
-   std::vector<adouble> k_a(k.Size());
-   // copy data from mfem::Vector
-   adept::set_values(u_a.data(), u.Size(), u.GetData());
-   adept::set_values(k_a.data(), k.Size(), k.GetData());
-   // start recording
-   this->stack.new_recording();
-   // the dependent variable must be declared after the recording
-   std::vector<adouble> jac_a(u.Size());
-   calcConservativeVars<adouble, dim>(u_a.data(), q_work_a.data());
-   calcdQdWProduct<adouble, dim>(q_work_a.data(), k_a.data(), jac_a.data());
-   // set the independent and dependent variable
-   this->stack.independent(u_a.data(), u.Size());
-   this->stack.dependent(jac_a.data(), u.Size());
-   // Calculate the jabobian
-   this->stack.jacobian(jac.GetData());
-}
-
-template <int dim, bool entvar>
-void MassIntegrator<dim, entvar>::calcMatVecJacK(const mfem::Vector &u,
-                                                 mfem::DenseMatrix &jac)
-{
-   if (!entvar)
+   else
    {
-      jac = 0.0;
+      dqdu = 0.0;
       for (int i = 0; i < dim+2; ++i)
       {
-         jac(i,i) = 1.0;
+         dqdu(i,i) = 1.0;
       }
-      return;
    }
-   // vector of active input variables
-   std::vector<adouble> u_a(u.Size());
-   // initialize adouble inputs
-   adept::set_values(u_a.data(), u.Size(), u.GetData());
-   // start recording
-   this->stack.new_recording();
-   // create vector of active output variables
-   std::vector<adouble> q_work_a(q_work.Size());
-   // run algorithm
-   calcConservativeVars<adouble, dim>(u_a.data(), q_work_a.data());
-   // identify independent and dependent variables
-   this->stack.independent(u_a.data(), u.Size());
-   this->stack.dependent(q_work_a.data(), q_work.Size());
-   // compute and store jacobian in dwdu
-   this->stack.jacobian(jac.GetData());
 }
 
 template <int dim, bool entvar>

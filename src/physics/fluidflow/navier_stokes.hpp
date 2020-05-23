@@ -30,17 +30,17 @@ protected:
    /// Add volume/domain integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addVolumeIntegrators() first
-   virtual void addVolumeIntegrators(double alpha);
+   virtual void addResVolumeIntegrators(double alpha);
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addBoundaryIntegrators() first
-   virtual void addBoundaryIntegrators(double alpha);
+   virtual void addResBoundaryIntegrators(double alpha);
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addInterfaceIntegrators() first
-   virtual void addInterfaceIntegrators(double alpha);
+   virtual void addResInterfaceIntegrators(double alpha);
 
    /// Set the state corresponding to the inflow boundary
    /// \param[in] q_in - state corresponding to the inflow

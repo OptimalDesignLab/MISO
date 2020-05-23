@@ -27,10 +27,10 @@ NavierStokesSolver<dim>::NavierStokesSolver(const string &opt_file_name,
 }
 
 template <int dim>
-void NavierStokesSolver<dim>::addVolumeIntegrators(double alpha)
+void NavierStokesSolver<dim>::addResVolumeIntegrators(double alpha)
 {
    // add base class integrators
-   EulerSolver<dim>::addVolumeIntegrators(alpha);
+   EulerSolver<dim>::addResVolumeIntegrators(alpha);
    cout << "Inside NS add volume integrators" << endl;
    // now add NS integrators
    double mu = this->options["flow-param"]["mu"].template get<double>();
@@ -39,7 +39,7 @@ void NavierStokesSolver<dim>::addVolumeIntegrators(double alpha)
 }
 
 template <int dim>
-void NavierStokesSolver<dim>::addBoundaryIntegrators(double alpha)
+void NavierStokesSolver<dim>::addResBoundaryIntegrators(double alpha)
 {
    // add base class integrators
    auto &bcs = this->options["bcs"];
@@ -130,8 +130,10 @@ void NavierStokesSolver<dim>::addBoundaryIntegrators(double alpha)
 }
 
 template <int dim>
-void NavierStokesSolver<dim>::addInterfaceIntegrators(double alpha)
+void NavierStokesSolver<dim>::addResInterfaceIntegrators(double alpha)
 {
+   // add base class integrators
+   EulerSolver<dim>::addResInterfaceIntegrators(alpha);
 }
 
 template <int dim>

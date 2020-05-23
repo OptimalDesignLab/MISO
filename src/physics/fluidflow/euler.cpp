@@ -45,7 +45,30 @@ EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addVolumeIntegrators(double alpha)
+void EulerSolver<dim, entvar>::constructForms()
+{
+   res.reset(new NonlinearFormType(fes.get()));
+   if (entvar)
+   {
+      nonlinear_mass.reset(new NonlinearFormType(fes.get()));
+      mass.reset();
+   }
+   else
+   {
+      mass.reset(new BilinearFormType(fes.get()));
+      nonlinear_mass.reset();
+   }
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
+{
+   nonlinear_mass->AddDomainIntegrator(
+       new MassIntegrator<dim, entvar>(diff_stack, alpha));
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // TODO: if statement when using entropy variables as state variables
 
@@ -61,7 +84,7 @@ void EulerSolver<dim, entvar>::addVolumeIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
+void EulerSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
 {
    auto &bcs = options["bcs"];
    int idx = 0;
@@ -106,7 +129,7 @@ void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addInterfaceIntegrators(double alpha)
+void EulerSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 {
    // add the integrators based on if discretization is continuous or discrete
    if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
@@ -116,14 +139,6 @@ void EulerSolver<dim, entvar>::addInterfaceIntegrators(double alpha)
           new InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
                                                fec.get(), alpha));
    }
-}
-
-template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addMassIntegrator(double alpha)
-{
-   double dt = options["time-dis"]["dt"].template get<double>();
-   mass_integ.reset(new MassIntegrator<dim,entvar>(diff_stack, *u, dt, alpha));
-   nonlinear_mass->AddDomainIntegrator(mass_integ.get());
 }
 
 template <int dim, bool entvar>
@@ -329,20 +344,6 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
       return -sqrt(-norm);
    }
    return sqrt(norm);
-}
-
-template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alpha)
-{
-
-   if(0 == ti)
-   {
-      mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
-      nonlinear_mass->AddDomainIntegrator(mass_integ.get()); 
-   }
-   dynamic_cast<mach::NonlinearMassIntegrator<MassIntegrator<dim,entvar>>*>
-               (mass_integ.get())->updateDeltat(dt);
-   
 }
 
 template<int dim, bool entvar>

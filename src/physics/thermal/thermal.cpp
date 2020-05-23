@@ -657,7 +657,7 @@ void ThermalSolver::constructCoefficients()
    constructCore();
 }
 
-void ThermalSolver::addMassVolumeIntegrators()
+void ThermalSolver::addMassIntegrators(double alpha)
 {
 	mass->AddDomainIntegrator(new MassIntegrator(*rho_cv));
 }
