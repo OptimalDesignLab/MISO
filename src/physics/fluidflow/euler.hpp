@@ -27,13 +27,14 @@ public:
    EulerSolver(const std::string &opt_file_name,
                std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
-   /// Find the gobal step size for the given CFL number
-   /// \param[in] cfl - target CFL number for the domain
-   /// \returns dt_min - the largest step size for the given CFL
-   /// This uses the average spectral radius to estimate the largest wave speed,
-   /// and uses the minimum distance between nodes for the length in the CFL
-   /// number.
-   virtual double calcStepSize(double cfl) const;
+   /// Find the global time step size
+   /// \returns dt - appropriate step size
+   /// \note If "const-cfl" option is invoked, this uses the average spectral
+   /// radius to estimate the largest wave speed, and uses the minimum distance
+   /// between nodes for the length in the CFL number.
+   /// \note If "steady" option is involved, the time step will increase based
+   /// on the baseline value of "dt" and the inverse residual norm.
+   virtual double calcStepSize() const override;
 
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);

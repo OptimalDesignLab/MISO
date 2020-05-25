@@ -27,9 +27,10 @@ const nlohmann::json default_options
       {"basis-type", "csbp"} // csbp & dsbp for continuous & discrete SBP discretization resp. 
    }},
 
-   {"steady", false}, // if true, solve a steady problem
+   {"steady", false}, // deprecated; now included in "time-dis"
    {"time-dis", // options related to unsteady time-marching
    {
+      {"steady", false}, // if true, solve a steady problem
       {"ode-solver", "RK4"}, // type of ODE solver to use 
       {"const-cfl", false}, // if true, adapt dt to keep cfl constant
       {"t-final", 1.0}, // final time to simulate to

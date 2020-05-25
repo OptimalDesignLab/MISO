@@ -237,8 +237,19 @@ void EulerSolver<dim, entvar>::addOutputs()
 }
 
 template <int dim, bool entvar>
-double EulerSolver<dim, entvar>::calcStepSize(double cfl) const
+double EulerSolver<dim, entvar>::calcStepSize() const
 {
+   if (options["time-dis"]["steady"].get<bool>())
+   {
+      // ramp up time step for pseudo-transient continuation
+      throw MachException("calcStepSize: PTC not implemented yet!");
+      return -1.0;
+   }
+   if (!options["time-dis"]["const-cfl"].get<bool>())
+   {
+      return options["time-dis"]["dt"].get<double>();
+   }
+   // Otherwise, use a constant CFL condition
    Vector q(dim+2);
    auto calcSpect = [&q](const double* dir, const double* u)
    {
