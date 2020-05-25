@@ -1,6 +1,8 @@
 #ifndef MACH_EULER
 #define MACH_EULER
 
+//#include <fstream>
+
 #include "mfem.hpp"
 
 #include "solver.hpp"
@@ -59,6 +61,8 @@ protected:
    int iroll;
    /// index of "vertical" dimension in body frame
    int ipitch;
+   /// used to record the entropy
+   std::ofstream entropylog;
 
    /// Initialize `res` and either `mass` or `nonlinear_mass`
    virtual void constructForms() override;
@@ -86,6 +90,20 @@ protected:
 
    /// Return the number of state variables
    virtual int getNumState() override {return dim+2; }
+
+   /// For code that should be executed before the time stepping begins
+   virtual void initialHook() override;
+
+   /// For code that should be executed before `ode_solver->Step`
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   virtual void iterationHook(int iter, double t, double dt) override;
+
+   /// For code that should be executed after the time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   virtual void terminalHook(int iter, double t_final) override;
 };
 
 } // namespace mach

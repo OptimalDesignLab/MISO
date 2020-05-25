@@ -387,6 +387,20 @@ protected:
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady();
    
+   /// For code that should be executed before the time stepping begins
+   virtual void initialHook() {};
+
+   /// For code that should be executed before `ode_solver->Step`
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   virtual void iterationHook(int iter, double t, double dt) {};
+
+   /// For code that should be executed after the time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   virtual void terminalHook(int iter, double t_final) {};
+      
    /// Solve for a steady adjoint
    /// \param[in] fun - specifies the functional corresponding to the adjoint
    virtual void solveSteadyAdjoint(const std::string &fun);

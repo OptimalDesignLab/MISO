@@ -30,9 +30,9 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    //cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
    double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
    //double delta_entropy = f_ode->EntropyChange(dt, x, k);
-   //cout << "delta_entropy is " << delta_entropy << '\n';
+   cout << "delta_entropy is " << delta_entropy << '\n';
    double entropy_old = f_ode->Entropy(x);
-   //cout << "old entropy is " << entropy_old << '\n';
+   cout << "old entropy is " << entropy_old << '\n';
    mfem::Vector x_new(x.Size());
    //cout << "x_new size is " << x_new.Size() << '\n';
    auto entropyFun = [&](double gamma)

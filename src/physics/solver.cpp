@@ -999,21 +999,16 @@ void AbstractSolver::solveUnsteady()
 
    printSolution("init");
 
-   bool done = false;
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
-   double entropy = calcOutput("entropy");
-   cout << "before iteration, entropy is "<< entropy << '\n';
-   remove("entropylog.txt");
-   ofstream entropylog;
-   entropylog.open("entropylog.txt", fstream::app);
-   entropylog << setprecision(14);
-   for (int ti = 0; !done;)
+
+   int ti = 0;
+   bool done = false;
+   initialHook();
+   while (!done)
    {
-      entropy = calcOutput("entropy");
-      entropylog << t << ' ' << entropy << '\n';
       if (calc_dt)
       {
          dt = calcStepSize(options["time-dis"]["cfl"].template get<double>());
@@ -1026,6 +1021,7 @@ void AbstractSolver::solveUnsteady()
       // }
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
+      iterationHook(ti, t, dt_real);
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);
@@ -1053,9 +1049,7 @@ void AbstractSolver::solveUnsteady()
          }
       } */
    }
-   entropy = calcOutput("entropy");
-   entropylog << t << ' ' << entropy << '\n';
-   entropylog.close();
+   terminalHook(ti, t);
 
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".

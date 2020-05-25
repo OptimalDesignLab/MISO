@@ -54,21 +54,24 @@ public:
       r = 0.0;
       if (nonlinear_mass)
       {
-         cout << "adding nonlinear_mass" << endl;
-         nonlinear_mass->Mult(work, r);
-         nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed!
+         add(1.0, *x, 2.0*dt, k, work2);
+         nonlinear_mass->Mult(work2, r);
+         nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed
          r -= work2;
-         r *= (1/dt);
+         r *= (0.5/dt);
+
+         //nonlinear_mass->Mult(work, r);
+         //nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed
+         //r -= work2;
+         //r *= (1/dt);
       }
       if (res)
       {
-         cout << "adding nonlinear res" << endl;
          res->Mult(work, work2);
          r += work2;
       }
       if (stiff)
       {
-         cout << "adding stiff" << endl;
 #ifdef MFEM_USE_MPI
          stiff->TrueAddMult(work, r);
          // r += work2;
@@ -78,12 +81,10 @@ public:
       }
       if (load)
       {
-         cout << "adding load" << endl;
          r += *load;
       }
       if (mass)
       {
-         cout << "adding mass" << endl;
 #ifdef MFEM_USE_MPI
          mass->TrueAddMult(k, r);
          // r += work3;
@@ -176,26 +177,44 @@ public:
 
       if (nonlinear_mass)
       {
+         add(*x, 2.0*dt, k, work2);
          MatrixType* massjac = dynamic_cast<MatrixType*>(
-            &nonlinear_mass->GetGradient(work));
+            &nonlinear_mass->GetGradient(work2));
+
+         //MatrixType* massjac = dynamic_cast<MatrixType*>(
+         //   &nonlinear_mass->GetGradient(work));
+
+         if (jac == nullptr)
+         {
+            jac = massjac;
+         }
+         else
+         {
 #ifdef MFEM_USE_MPI
-         jac = ParAdd(jac, massjac);
+            jac = ParAdd(jac, massjac);
 #else
-         jac = Add(*jac, *massjac);
+            jac = Add(*jac, *massjac);
 #endif
+         }
       }
 
       if (res)
       {
          MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
          *resjac *= dt;
+         if (jac == nullptr)
+         { 
+            jac == resjac;
+         }
+         else
+         {
 #ifdef MFEM_USE_MPI
-         jac = ParAdd(jac, resjac);
+            jac = ParAdd(jac, resjac);
 #else
-         jac = Add(*jac, *resjac);
+            jac = Add(*jac, *resjac);
 #endif
+         }
       }
-
       return *jac;
    }
 
@@ -342,6 +361,7 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
 {
    setOperParameters(dt, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   k = 0.0; // In case iterative mode is set to true
    newton->Mult(zero, k);
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }

@@ -1,7 +1,7 @@
 {
    "mesh": {
       "file": "periodic_triangle1.mesh",
-      "refine": 0
+      "refine": 2
    },
    "space-dis": {
       "GD": false,
@@ -9,6 +9,21 @@
       "lps-coeff": 1.0,
       "iface-coeff": 1.0,
       "basis-type": "csbp"
+   },
+   "newton": {
+      "printlevel": 1,
+      "maxiter": 100,
+      "reltol": 1e-10,
+      "abstol": 1e-10
+   },
+   "lin-solver": {
+      "type": "hypregmres",
+      "pctype": "hypreeuclid",
+      "printlevel": 0,
+      "maxiter": 100,
+      "reltol": 1e-10,
+      "abstol": 1e-10,
+      "kdim": 100
    },
    "petscsolver": {
       "ksptype": "gmres",

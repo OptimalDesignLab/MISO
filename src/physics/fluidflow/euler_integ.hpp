@@ -182,7 +182,7 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    MassIntegrator(adept::Stack &diff_stack, double a = 1.0)
        : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(dim + 2, a),
-         stack(diff_stack), q_work(dim + 2) {}
+         stack(diff_stack) {}
 
    /// converts state variables to conservative variables, if necessary
    /// \param[in] u - state variables that are to be converted
@@ -198,8 +198,6 @@ public:
 protected:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
-   /// work vector used to store conservative variables
-   mfem::Vector q_work;
 };
 
 /// Integrator for the steady isentropic-vortex boundary condition

@@ -149,6 +149,32 @@ void EulerSolver<dim, entvar>::addEntVolumeIntegrators()
 }
 
 template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::initialHook() 
+{
+   // TODO: this should only be output if necessary
+   double entropy = ent->GetEnergy(*u);
+   cout << "before time stepping, entropy is "<< entropy << endl;
+   remove("entropylog.txt");
+   entropylog.open("entropylog.txt", fstream::app);
+   entropylog << setprecision(14);
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::iterationHook(int iter, double t, double dt)
+{
+   double entropy = ent->GetEnergy(*u);
+   entropylog << t << ' ' << entropy << endl;
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final)
+{
+   double entropy = ent->GetEnergy(*u);
+   entropylog << t_final << ' ' << entropy << endl;
+   entropylog.close();
+}
+
+template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addOutputs()
 {
    auto &fun = options["outputs"];
