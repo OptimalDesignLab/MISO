@@ -133,10 +133,16 @@ public:
                       void (*u_exact)(const mfem::Vector &, mfem::Vector &),
                       int entry = -1);
 
-   /// Find the gobal step size for the given CFL number
-   /// \param[in] cfl - target CFL number for the domain
-   /// \returns dt_min - the largest step size for the given CFL
-   virtual double calcStepSize(double cfl) const;
+   /// Find the step size based on the options
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt_old - the step size that was just taken
+   /// \returns dt - the step size appropriate to the problem
+   /// This base method simply returns the option in ["time-dis"]["dt"],
+   /// truncated as necessary such that `t + dt = t_final`.
+   virtual double calcStepSize(int iter, double t, double t_final,
+                               double dt_old) const;
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -200,7 +206,7 @@ public:
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
-   double calcResidualNorm();
+   double calcResidualNorm() const;
    
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
@@ -325,11 +331,11 @@ protected:
       throw MachException("constructForms() not defined by derived class!");
    };
 
-   /// Add volumne integrators to `mass`
+   /// Add domain integrators to `mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addMassIntegrators(double alpha);
 
-   /// Add volumne integrators to `nonlinear_mass`
+   /// Add domain integrators to `nonlinear_mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addNonlinearMassIntegrators(double alpha) {};
 
@@ -395,6 +401,13 @@ protected:
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
    virtual void iterationHook(int iter, double t, double dt) {};
+
+   /// Determines when to exit the time stepping loop
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (after the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt - the step size that was just taken
+   virtual bool iterationExit(int iter, double t, double t_final, double dt);
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration

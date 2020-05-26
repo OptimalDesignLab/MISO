@@ -8,8 +8,9 @@
    },
    "steady": true,
    "time-dis": {
+      "steady": true,
       "const-cfl": true,
-      "ode-solver": "MIDPOINT",
+      "ode-solver": "PTC",
       "t-final": 100,
       "dt": 0.1,
       "cfl": 1.0

@@ -31,18 +31,21 @@ const nlohmann::json default_options
    {"time-dis", // options related to unsteady time-marching
    {
       {"steady", false}, // if true, solve a steady problem
+      {"steady-abstol", 1e-12}, // absolute convergence tolerance for steady
+      {"steady-reltol", 1e-10}, // relative convergence tolerance for steady
       {"ode-solver", "RK4"}, // type of ODE solver to use 
       {"const-cfl", false}, // if true, adapt dt to keep cfl constant
       {"t-final", 1.0}, // final time to simulate to
       {"dt", 0.01}, // time-step size when `const-cfl` is false
-      {"cfl", 1.0} // target CFL number
+      {"cfl", 1.0}, // target CFL number
+      {"max-iter", 10000} // safe-guard upper bound on number of iterations
    }},
 
    {"lin-solver",
    {
       {"type", "hypregmres"}, // Default solver
       {"pctype", "hypreeuclid"}, // Default preconditioner type
-      {"printlevel", 0}, // linear solver print level (no printing if zero)
+      {"printlevel", 1}, // linear solver print level (no printing if zero)
       {"maxiter", 100}, // default to 100 iterations
       {"reltol", 1e-12}, // solver relative tolerance
       {"abstol", 1e-12}, // solver absolute tolerance

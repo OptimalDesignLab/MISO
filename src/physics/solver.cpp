@@ -161,6 +161,10 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    {
       ode_solver.reset(new RRKImplicitMidpointSolver);
    }
+   else if (options["time-dis"]["ode-solver"].template get<string>() == "PTC")
+   {
+      ode_solver.reset(new PseudoTransientSolver);
+   }
    else
    {
       throw MachException("Unknown ODE solver type " +
@@ -712,14 +716,14 @@ double AbstractSolver::calcL2Error(GridFunType *field,
    return sqrt(norm);
 }
 
-double AbstractSolver::calcResidualNorm()
+double AbstractSolver::calcResidualNorm() const
 {
    GridFunType r(fes.get());
    double res_norm;
 #ifdef MFEM_USE_MPI
    HypreParVector *U = u->GetTrueDofs();
    HypreParVector *R = r.GetTrueDofs();
-   res->Mult(*U, *R);   
+   res->Mult(*U, *R); 
    double loc_norm = (*R)*(*R);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 #else
@@ -730,9 +734,19 @@ double AbstractSolver::calcResidualNorm()
    return res_norm;
 }
 
-double AbstractSolver::calcStepSize(double cfl) const
+double AbstractSolver::calcStepSize(int iter, double t, double t_final,
+                                    double dt_old) const
 {
-   return options["time-dis"]["dt"].get<double>();
+   double dt = options["time-dis"]["dt"].get<double>();
+   dt = min(dt, t_final - t);
+   return dt;
+}
+
+bool AbstractSolver::iterationExit(int iter, double t, double t_final,
+                                   double dt)
+{
+   if (t >= t_final - 1e-14 * dt) return true;
+   return false;
 }
 
 void AbstractSolver::printSolution(const std::string &file_name,
@@ -819,76 +833,14 @@ std::vector<GridFunType*> AbstractSolver::getFields()
 
 void AbstractSolver::solveForState()
 {
-   double t = 0.0;
-   evolver->SetTime(t);
-   ode_solver->Init(*evolver);
-
-   // output the mesh and initial condition
-   // TODO: need to swtich to vtk for SBP
-   int precision = 8;
+   if (options["steady"].get<bool>() == true)
    {
-      ofstream omesh("initial.mesh");
-      omesh.precision(precision);
-      mesh->Print(omesh);
-      ofstream osol("initial-sol.gf");
-      osol.precision(precision);
-      u->Save(osol);
+      solveSteady();
    }
-
-   printSolution("init");
-
-   double t_final = options["time-dis"]["t-final"].template get<double>();
-   *out << "t_final is " << t_final << '\n';
-
-   int ti = 0;
-   bool done = false;
-   initialHook();
-   while (!done)
+   else 
    {
-      dt = calcStepSize();
-      dt = min(dt, t_final - t);
-      *out << "iter " << ti << ": time = " << t << ": dt = " << dt
-              << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      iterationHook(ti, t, dt);
-#ifdef MFEM_USE_MPI
-      HypreParVector *U = u->GetTrueDofs();
-      ode_solver->Step(*U, t, dt);
-      *u = *U;
-#else
-      ode_solver->Step(*u, t, dt);
-#endif
-      ti++;
-      done = (t >= t_final - 1e-14 * dt);
+      solveUnsteady();
    }
-   terminalHook(ti, t);
-
-   // Save the final solution. This output can be viewed later using GLVis:
-   // glvis -m unitGridTestMesh.msh -g adv-final.gf".
-   {
-      ofstream osol("final.gf");
-      osol.precision(precision);
-      u->Save(osol);
-   }
-   // write the solution to vtk file
-   if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
-   {
-      ofstream sol_ofs("final_cg.vtk");
-      sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
-      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
-      sol_ofs.close();
-      printSolution("final");
-   }
-   else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
-   {
-      ofstream sol_ofs("final_dg.vtk");
-      sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
-      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
-      sol_ofs.close();
-      printSolution("final");
-   }
-   // TODO: These mfem functions do not appear to be parallelized
 }
 
 void AbstractSolver::solveForAdjoint(const std::string &fun)
@@ -929,8 +881,10 @@ void AbstractSolver::setEssentialBoundaries()
    /// otherwise mark all attributes as nonessential
    else
    {
+      cout << "No essential BCs" << endl;
       if (mesh->bdr_attributes) // some meshes may not have boundary attributes
       {
+         cout << "mesh with boundary attributes" << endl;
          ess_bdr.SetSize(mesh->bdr_attributes.Max());
          ess_bdr = 0;
       }
@@ -940,8 +894,12 @@ void AbstractSolver::setEssentialBoundaries()
    res->SetEssentialTrueDofs(ess_tdof_list);
 }
 
-// void AbstractSolver::solveSteady()
-// {
+void AbstractSolver::solveSteady()
+{
+   cout << "AbstractSolver::solveSteady() is deprecated!!!!!!!!!!!!!!!!" << endl;
+   cout << "calling AbstractSolver::solveUnsteady() instead" << endl;
+   solveUnsteady();
+   return;
 
 // #ifdef MFEM_USE_MPI
 //    double t1, t2;
@@ -989,7 +947,6 @@ void AbstractSolver::setEssentialBoundaries()
 //    u->SetFromTrueDofs(u_true);
 // #else
 //    // Hypre solver section
-//    *out << "HypreGMRES Solver with euclid preconditioner.\n";
 //    if (newton_solver == nullptr)
 //       constructNewtonSolver();
 
@@ -1035,108 +992,82 @@ void AbstractSolver::setEssentialBoundaries()
 //    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
 //    u->SetFromTrueDofs(u_true);
 // #endif // MFEM_USE_MPI
-// }
+}
 
-// void AbstractSolver::solveUnsteady()
-// {
-//    double t = 0.0;
-//    evolver->SetTime(t);
-//    ode_solver->Init(*evolver);
+void AbstractSolver::solveUnsteady()
+{
+   double t = 0.0;
+   evolver->SetTime(t);
+   ode_solver->Init(*evolver);
 
-//    // output the mesh and initial condition
-//    // TODO: need to swtich to vtk for SBP
-//    int precision = 8;
-//    {
-//       ofstream omesh("initial.mesh");
-//       omesh.precision(precision);
-//       mesh->Print(omesh);
-//       ofstream osol("initial-sol.gf");
-//       osol.precision(precision);
-//       u->Save(osol);
-//    }
+   // output the mesh and initial condition
+   // TODO: need to swtich to vtk for SBP
+   int precision = 8;
+   {
+      ofstream omesh("initial.mesh");
+      omesh.precision(precision);
+      mesh->Print(omesh);
+      ofstream osol("initial-sol.gf");
+      osol.precision(precision);
+      u->Save(osol);
+   }
 
-//    printSolution("init");
+   printSolution("init");
 
-//    double t_final = options["time-dis"]["t-final"].template get<double>();
-//    *out << "t_final is " << t_final << '\n';
-//    double dt = options["time-dis"]["dt"].get<double>();
-//    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
+   double t_final = options["time-dis"]["t-final"].template get<double>();
+   *out << "t_final is " << t_final << '\n';
 
-//    int ti = 0;
-//    bool done = false;
-//    initialHook();
-//    while (!done)
-//    {
-//       if (calc_dt)
-//       {
-//          dt = calcStepSize(options["time-dis"]["cfl"].template get<double>());
-//       }
-//       double dt_real = min(dt, t_final - t);
-//       // if (ti % 10 == 0)
-//       // {
-//       //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-//       //         << " (" << round(100 * t / t_final) << "% complete)" << endl;
-//       // }
-//       *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-//               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-//       iterationHook(ti, t, dt_real);
-// #ifdef MFEM_USE_MPI
-//       HypreParVector *U = u->GetTrueDofs();
-//       ode_solver->Step(*U, t, dt_real);
-//       *u = *U;
-// #else
-//       ode_solver->Step(*u, t, dt_real);
-// #endif
-//       ti++;
-//       done = (t >= t_final - 1e-8 * dt);
-//       //std::cout << "t_final is " << t_final << ", done is " << done << std::endl;
-//       /*       if (done || ti % vis_steps == 0)
-//       {
-//          cout << "time step: " << ti << ", time: " << t << endl;
+   int ti;
+   bool done = false;
+   double dt = 0.0;
+   initialHook();
+   for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
+   {
+      dt = calcStepSize(ti, t, t_final, dt);
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
+      if (!options["time-dis"]["steady"].get<bool>())
+         *out << " (" << round(100 * t / t_final) << "% complete)";
+      *out << endl;
+      iterationHook(ti, t, dt);
+#ifdef MFEM_USE_MPI
+      HypreParVector *U = u->GetTrueDofs();
+      ode_solver->Step(*U, t, dt);
+      *u = *U;
+#else
+      ode_solver->Step(*u, t, dt);
+#endif
+      if (iterationExit(ti, t, t_final, dt)) break;
+   }
+   terminalHook(ti, t);
 
-//          if (visualization)
-//          {
-//             sout << "solution\n" << mesh << u << flush;
-//          }
-
-//          if (visit)
-//          {
-//             dc->SetCycle(ti);
-//             dc->SetTime(t);
-//             dc->Save();
-//          }
-//       } */
-//    }
-//    terminalHook(ti, t);
-
-//    // Save the final solution. This output can be viewed later using GLVis:
-//    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
-//    {
-//       ofstream osol("final.gf");
-//       osol.precision(precision);
-//       u->Save(osol);
-//    }
-//    // write the solution to vtk file
-//    if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
-//    {
-//       ofstream sol_ofs("final_cg.vtk");
-//       sol_ofs.precision(14);
-//       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
-//       u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
-//       sol_ofs.close();
-//       printSolution("final");
-//    }
-//    else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
-//    {
-//       ofstream sol_ofs("final_dg.vtk");
-//       sol_ofs.precision(14);
-//       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
-//       u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
-//       sol_ofs.close();
-//       printSolution("final");
-//    }
-//    // TODO: These mfem functions do not appear to be parallelized
-// }
+   // Save the final solution. This output can be viewed later using GLVis:
+   // glvis -m unitGridTestMesh.msh -g adv-final.gf".
+   {
+      ofstream osol("final.gf");
+      osol.precision(precision);
+      u->Save(osol);
+   }
+   // write the solution to vtk file
+   if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
+   {
+      ofstream sol_ofs("final_cg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      printSolution("final");
+   }
+   else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
+   {
+      ofstream sol_ofs("final_dg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      printSolution("final");
+   }
+   // TODO: These mfem functions do not appear to be parallelized
+}
 
 void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 {
@@ -1293,7 +1224,6 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
    setIterSolverOptions(_options);
 }
 
-
 void AbstractSolver::constructNewtonSolver()
 {
    if (solver == nullptr)
@@ -1383,7 +1313,6 @@ void AbstractSolver::constructEvolver()
    if (newton_solver == nullptr)
       constructNewtonSolver();
    evolver->SetNewtonSolver(newton_solver.get());
-   *out << "End of constructEvolver" << endl;
 }
 
 void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)

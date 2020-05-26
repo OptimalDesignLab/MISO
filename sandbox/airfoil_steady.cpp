@@ -1,7 +1,7 @@
 // Solve for the steady flow around a NACA0012
 
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = true;
+constexpr bool entvar = false;
 
 #include<random>
 #include <fstream>
@@ -50,10 +50,10 @@ int main(int argc, char *argv[])
       solver->initDerived();
       Vector qfar(4);
       static_cast<EulerSolver<2, entvar>*>(solver.get())->getFreeStreamState(qfar);
-      Vector wfar(4);
+      //Vector wfar(4);
       // TODO: I do not like that we have to perform this conversion outside the solver...
-      calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      solver->setInitialCondition(wfar);
+      //calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
+      solver->setInitialCondition(qfar);
       solver->printSolution("airfoil-steady-init");
       solver->checkJacobian(pert);
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()

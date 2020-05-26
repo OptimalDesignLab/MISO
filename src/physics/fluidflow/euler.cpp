@@ -2,8 +2,8 @@
 
 #include "sbp_fe.hpp"
 #include "euler.hpp"
-//#include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
+#include "diag_mass_integ.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -48,7 +48,7 @@ template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::constructForms()
 {
    res.reset(new NonlinearFormType(fes.get()));
-   if (entvar)
+   if ( (entvar) && (!options["time-dis"]["steady"].get<bool>()) )
    {
       nonlinear_mass.reset(new NonlinearFormType(fes.get()));
       mass.reset();
@@ -59,6 +59,18 @@ void EulerSolver<dim, entvar>::constructForms()
       nonlinear_mass.reset();
    }
    ent.reset(new NonlinearFormType(fes.get()));
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addMassIntegrators(double alpha)
+{
+   if (options["time-dis"]["steady"].get<bool>()) {
+      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state, true));
+      //AbstractSolver::addMassIntegrators(alpha);
+   }
+   else {
+      AbstractSolver::addMassIntegrators(alpha);
+   }
 }
 
 template <int dim, bool entvar>
@@ -151,6 +163,11 @@ void EulerSolver<dim, entvar>::addEntVolumeIntegrators()
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::initialHook() 
 {
+   if (options["time-dis"]["steady"].get<bool>())
+   {
+      // res_norm0 is used to compute the time step in PTC
+      res_norm0 = calcResidualNorm();
+   }
    // TODO: this should only be output if necessary
    double entropy = ent->GetEnergy(*u);
    cout << "before time stepping, entropy is "<< entropy << endl;
@@ -164,6 +181,27 @@ void EulerSolver<dim, entvar>::iterationHook(int iter, double t, double dt)
 {
    double entropy = ent->GetEnergy(*u);
    entropylog << t << ' ' << entropy << endl;
+}
+
+template <int dim, bool entvar>
+bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
+                                             double dt)
+{
+   if (options["time-dis"]["steady"].get<bool>())
+   {
+      // use tolerance options for Newton's method
+      double norm = calcResidualNorm();
+      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
+         return true;
+      if (norm <= res_norm0 *
+                      options["time-dis"]["steady-reltol"].get<double>())
+         return true;
+      return false;
+   }
+   else
+   {
+      return AbstractSolver::iterationExit(iter, t, t_final, dt);
+   }
 }
 
 template <int dim, bool entvar>
@@ -237,19 +275,26 @@ void EulerSolver<dim, entvar>::addOutputs()
 }
 
 template <int dim, bool entvar>
-double EulerSolver<dim, entvar>::calcStepSize() const
+double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
+                                              double t_final,
+                                              double dt_old) const
 {
    if (options["time-dis"]["steady"].get<bool>())
    {
       // ramp up time step for pseudo-transient continuation
-      throw MachException("calcStepSize: PTC not implemented yet!");
-      return -1.0;
+      // TODO: the l2 norm of the weak residual is probably not ideal here
+      // A better choice might be the l1 norm
+      double res_norm = calcResidualNorm();
+      double dt = options["time-dis"]["dt"].get<double>() *
+                  pow(res_norm0 / res_norm, 2.0);
+      return max(dt, dt_old);
    }
    if (!options["time-dis"]["const-cfl"].get<bool>())
    {
       return options["time-dis"]["dt"].get<double>();
    }
    // Otherwise, use a constant CFL condition
+   double cfl = options["time-dis"]["cfl"].get<double>();
    Vector q(dim+2);
    auto calcSpect = [&q](const double* dir, const double* u)
    {

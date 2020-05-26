@@ -11,6 +11,20 @@ using namespace mach;
 namespace mach
 {
 
+void PseudoTransientSolver::Init(TimeDependentOperator &_f)
+{
+   ODESolver::Init(_f);
+   k.SetSize(f->Width(), mem_type);
+}
+
+void PseudoTransientSolver::Step(Vector &x, double &t, double &dt)
+{
+   f->SetTime(t + dt);
+   f->ImplicitSolve(dt, x, k);
+   x.Add(dt, k);
+   t += dt;
+}
+
 void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);

@@ -28,13 +28,18 @@ public:
                std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Find the global time step size
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt_old - the step size that was just taken
    /// \returns dt - appropriate step size
    /// \note If "const-cfl" option is invoked, this uses the average spectral
    /// radius to estimate the largest wave speed, and uses the minimum distance
    /// between nodes for the length in the CFL number.
    /// \note If "steady" option is involved, the time step will increase based
    /// on the baseline value of "dt" and the inverse residual norm.
-   virtual double calcStepSize() const override;
+   virtual double calcStepSize(int iter, double t, double t_final,
+                               double dt_old) const override;
 
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);
@@ -64,11 +69,17 @@ protected:
    int ipitch;
    /// used to record the entropy
    std::ofstream entropylog;
+   /// used to store the initial residual norm for PTC and convergence checks
+   double res_norm0 = -1.0;
 
    /// Initialize `res` and either `mass` or `nonlinear_mass`
    virtual void constructForms() override;
 
-   /// Add Domain Integrator to the mass operators
+   /// Add domain integrators to `mass`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addMassIntegrators(double alpha) override;
+
+   /// Add domain integrator to the nonlinear mass operator
    /// \param[in] alpha - scales the data; used to ove terems to rhs or lhs
    virtual void addNonlinearMassIntegrators(double alpha) override;
 
@@ -100,6 +111,14 @@ protected:
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
    virtual void iterationHook(int iter, double t, double dt) override;
+
+   /// Determines when to exit the time stepping loop
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (after the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt - the step size that was just taken
+   virtual bool iterationExit(int iter, double t, double t_final, 
+                              double dt) override;
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration

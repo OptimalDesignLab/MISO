@@ -5,6 +5,7 @@ using namespace std;
 
 namespace mach
 {
+
 void DiagMassIntegrator::AssembleElementMatrix(
     const FiniteElement &el, ElementTransformation &Trans,
     DenseMatrix &elmat)
@@ -25,7 +26,7 @@ void DiagMassIntegrator::AssembleElementMatrix(
       norm = node.weight * Trans.Weight();
       if (space_vary_dt)
       {
-         norm *= pow(Trans.Weight(), 1.0/dim);
+         norm /= pow(Trans.Weight(), 1.0/dim);
       }
       for (int k = 0; k < num_state; k++)
       {
@@ -35,4 +36,5 @@ void DiagMassIntegrator::AssembleElementMatrix(
       }
    }
 }
+
 }
