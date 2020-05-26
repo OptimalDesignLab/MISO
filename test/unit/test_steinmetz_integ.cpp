@@ -168,15 +168,11 @@ TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
          state.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(pert);
 
-         // extract mesh nodes and get their finite-element space
-         GridFunction *x_nodes = pmesh->GetNodes();
-         FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
          // build the nonlinear form for d(psi^T R)/dx 
-         LinearForm dfdx_form(mesh_fes);
+         LinearForm dfdx_form(fesa.get());
          dfdx_form.AddDomainIntegrator(
-            new mach::ThermalSensIntegrator(*QV,
-                &state, &adjoint));
+            new mach::ThermalSensIntegrator(*QV, &adjoint));
 
          // initialize the vector that we use to perturb the vector potential
          GridFunction v(fesa.get());

@@ -2154,48 +2154,41 @@ void nuFuncIntegrator::AssembleRHSElementVect(
    }
 }
 
-void ThermalSensIntegrator::AssembleRHSElementVect(const FiniteElement &ela,
-                                         ElementTransformation &Transa,
-                                         Vector &elvect)
+void ThermalSensIntegrator::AssembleRHSElementVect(
+   const FiniteElement &nd_el,
+   ElementTransformation &nd_trans,
+   Vector &elvect)
 {
-   /// get the proper element, transformation, and state vector
-   Array<int> vdofs; Vector eladj; double cf;
-   int element = Transa.ElementNo;
-   const FiniteElement *el = adjoint->FESpace()->GetFE(element);
-   ElementTransformation *Tr = adjoint->FESpace()->GetElementTransformation(element);
+   /// get the proper element, transformation, and adjoint vector
+   int element = nd_trans.ElementNo;
+   const auto &el = *adjoint->FESpace()->GetFE(element);
+   auto &trans = *adjoint->FESpace()->GetElementTransformation(element);
+   
+   Array<int> vdofs;
    adjoint->FESpace()->GetElementVDofs(element, vdofs);
-   const IntegrationRule *ir = &IntRules.Get(
-            el->GetGeomType(), oa * el->GetOrder() + ob);
-   adjoint->GetSubVector(vdofs, eladj);
+   Vector psi;
+   adjoint->GetSubVector(vdofs, psi);
 
-   const int vdim = Q.GetVDim();
-   const int dof = ela.GetDof();
-   const int dofu = el->GetDof();
-   const int dim = el->GetDim();
-   elvect.SetSize(dof*dim);
+   const IntegrationRule *ir = &IntRules.Get(
+            el.GetGeomType(), oa * el.GetOrder() + ob);
+
+   int h1_dof = el.GetDof();
+   shape.SetSize(h1_dof);
+   int nd_dof = nd_el.GetDof();
+   elvect.SetSize(nd_dof);
    elvect = 0.0;
-   shape.SetSize(dofu);
-   Vector shapea(dof);
-   Vector V(dim);
+
+   Vector V(nd_dof);
 
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
-      Tr->SetIntPoint (&ip);
-      el->CalcShape(ip, shape);
-      ela.CalcShape(ip, shapea);
+      trans.SetIntPoint(&ip);
+      el.CalcShape(ip, shape);
 
-      double dval = ip.weight*Tr->Weight()*(eladj*shape);//d(adj^T R)/dQ
-      Q.Eval(V, Transa, ip); //evaluate derivative of steinmetz coeff
-
-      for (int k = 0; k < vdim; k++)
-      {
-         cf = dval * V(k);
-         for (int s = 0; s < dof; s++)
-         {
-            elvect(dof*k+s) += cf*shapea(s);
-         }
-      }
+      double Q_bar = trans.Weight() * (psi * shape); // d(psi^T R)/dQ
+      Q.Eval(V, trans, ip); // evaluate dQ/dA
+      add(elvect, ip.weight * Q_bar, V, elvect);
    }
 }
 
