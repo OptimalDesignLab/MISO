@@ -6,23 +6,93 @@ using namespace std;
 namespace mach
 {
 
+double TestLFIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   const IntegrationRule *ir = NULL;
+   {
+      ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+   }
+
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+                     dynamic_cast<IsoparametricTransformation&>(trans);
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      isotrans.SetIntPoint(&ip);
+
+      fun += ip.weight * Q.Eval(isotrans, ip);
+   }
+   return fun;
+}
+
+void TestLFMeshSensIntegrator::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   const IntegrationRule *ir = NULL;
+   {
+      ir = &IntRules.Get(mesh_el.GetGeomType(), 8);
+   }
+
+   int ndof = mesh_el.GetDof();
+   int dim = mesh_el.GetDim();
+   elvect.SetSize(ndof*dim);
+   elvect = 0.0;
+
+   DenseMatrix PointMat_bar(dim, ndof);
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+                     dynamic_cast<IsoparametricTransformation&>(mesh_trans);
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      PointMat_bar = 0.0;
+
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      isotrans.SetIntPoint(&ip);
+
+      double Q_bar = 1.0;
+      Q.EvalRevDiff(Q_bar, isotrans, ip, PointMat_bar);
+
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dim; ++d)
+         {
+            elvect(d * ndof + j) += ip.weight * PointMat_bar(d,j);
+         }
+      }
+   }
+}
+
 void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
                                        ElementTransformation &Trx,
                                        const Vector &elfunx, Vector &elvect)
 {   
-    /// get the proper element, transformation, and adjoint vector
-    Array<int> vdofs;
-    Vector psi;
-    int element = Trx.ElementNo;
-    const FiniteElement *el = adjoint->FESpace()->GetFE(element);
-    ElementTransformation *Tr = adjoint->FESpace()->GetElementTransformation(element);
-    adjoint->FESpace()->GetElementVDofs(element, vdofs);
-    const IntegrationRule *ir = IntRule;
-    if (ir == NULL)
-    {
-        ir = &IntRules.Get(el->GetGeomType(), oa * el->GetOrder() + ob);
-    }
-    adjoint->GetSubVector(vdofs, psi);
+   /// get the proper element, transformation, and adjoint vector
+   Array<int> vdofs;
+   Vector psi;
+   int element = Trx.ElementNo;
+   const FiniteElement *el = adjoint->FESpace()->GetFE(element);
+   ElementTransformation *Tr = adjoint->FESpace()->GetElementTransformation(element);
+   adjoint->FESpace()->GetElementVDofs(element, vdofs);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = oa * el->GetOrder() + ob;
+      ir = &IntRules.Get(el->GetGeomType(), order);
+   }
+   adjoint->GetSubVector(vdofs, psi);
 
     const int dof = elx.GetDof();
     const int dofu = el->GetDof();

@@ -261,7 +261,7 @@ double SteinmetzCoefficient::Eval(ElementTransformation &trans,
       double b_mag = b_vec.Norml2();
 
       double S = rho*(kh*freq*std::pow(b_mag, alpha) + ke*freq*freq*b_mag*b_mag);
-      return S / trans.Weight();
+      return S;
    }
    else
       return 0.0;
@@ -298,7 +298,7 @@ void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
       curlshape.AddMultTranspose(elfun, b_hat);
 
       double b_mag = b_vec.Norml2();
-      double S = rho*(kh*freq*std::pow(b_mag, alpha) + ke*freq*freq*b_mag*b_mag);
+      // double S = rho*(kh*freq*std::pow(b_mag, alpha) + ke*freq*freq*b_mag*b_mag);
       double dS = rho*(alpha*kh*freq*std::pow(b_mag, alpha-2) + 2*ke*freq*freq);
 
       DenseMatrix Jac_bar(3);
@@ -311,8 +311,6 @@ void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
 
       DenseMatrix loc_PointMat_bar(PointMat_bar.Height(), PointMat_bar.Width());
       loc_PointMat_bar = 0.0;
-      isotrans.WeightRevDiff(loc_PointMat_bar);
-      loc_PointMat_bar *= -S / pow(trans.Weight(), 2);
 
       isotrans.JacobianRevDiff(Jac_bar, loc_PointMat_bar);
 
@@ -357,7 +355,7 @@ void SteinmetzVectorDiffCoefficient::Eval(Vector &V,
       V = temp_vec;
       double dS = rho*(alpha*kh*freq*std::pow(b_mag, alpha-2) + 2*ke*freq*freq);
 
-      V *= dS / trans.Weight();
+      V *= dS;
    }
    else
       V =  0.0;

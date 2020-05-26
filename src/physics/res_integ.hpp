@@ -8,6 +8,35 @@ using namespace mfem;
 
 namespace mach
 {
+
+class TestLFIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   TestLFIntegrator(mfem::Coefficient &_Q)
+   : Q(_Q) {}
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                         mfem::ElementTransformation &trans,
+                         const mfem::Vector &elfun) override;
+
+private:
+   mfem::Coefficient &Q;
+};
+
+class TestLFMeshSensIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   TestLFMeshSensIntegrator(mfem::Coefficient &_Q)
+   : Q(_Q) {}
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+private:
+   mfem::Coefficient &Q;
+};
+
 /// Class that evaluates the residual part and derivatives
 /// for a DomainLFIntegrator (lininteg)
 class DomainResIntegrator : public mfem::NonlinearFormIntegrator

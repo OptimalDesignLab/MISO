@@ -37,11 +37,12 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
    double delta = 1e-5;
 
    // generate a 8 element mesh
-   int num_edge = 2;
-   std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh = electromag_data::getMesh(2, 1);
                               //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                               //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
    // std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
+   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -58,9 +59,9 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
          GridFunction A(&fesa);
          VectorFunctionCoefficient perta(dim, electromag_data::randState);
          A.ProjectCoefficient(perta);
-         std::unique_ptr<Coefficient> q2(new FunctionCoefficient(func, funcRevDiff));
-         // std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
-         //                1, 2, 4, 0.5, 0.6, &A));
+         // std::unique_ptr<Coefficient> q2(new FunctionCoefficient(func, funcRevDiff));
+         std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
+                        1, 2, 4, 0.5, 0.6, &A));
          // std::unique_ptr<mach::MeshDependentCoefficient> Q;
          // Q.reset(new mach::MeshDependentCoefficient());
          // Q->addCoefficient(1, move(q1)); 

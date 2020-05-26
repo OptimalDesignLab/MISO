@@ -297,9 +297,12 @@ TEST_CASE("SteinmetzCoefficient::EvalRevDiff",
    constexpr double eps_fd = 1e-5;
    constexpr int dim = 3;
 
-   std::stringstream meshStr;
-   meshStr << two_tet_mesh_str;
-   Mesh mesh(meshStr);
+   // std::stringstream meshStr;
+   // meshStr << two_tet_mesh_str;
+   // Mesh mesh(meshStr);
+
+   Mesh mesh(1, 2, 2, Element::TETRAHEDRON,
+             true /* gen. edges */, 1.0, 1.0, 1.0, true);
 
    /// Costruct coefficient
    for (int p = 1; p <= 1; p++)
