@@ -82,7 +82,7 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
 }
 
 void MeshDependentCoefficient::EvalRevDiff(
-   const double &Q_bar,
+   const double Q_bar,
    ElementTransformation &trans,
    const IntegrationPoint &ip,
    DenseMatrix &PointMat_bar)
@@ -267,7 +267,7 @@ double SteinmetzCoefficient::Eval(ElementTransformation &trans,
       return 0.0;
 }
 
-void SteinmetzCoefficient::EvalRevDiff(const double &Q_bar,
+void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
     						                  ElementTransformation &trans,
     						                  const IntegrationPoint &ip,
     						                  DenseMatrix &PointMat_bar)

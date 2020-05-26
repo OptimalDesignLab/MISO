@@ -8,6 +8,24 @@
 #include "euler_test_data.hpp"
 #include "electromag_test_data.hpp"
 
+namespace
+{
+
+using namespace mfem;
+
+double func(const Vector &x)
+{
+  return (x(0) + x(1) + x(2));
+}
+
+void funcRevDiff(const Vector &x, const double Q_bar, Vector &x_bar)
+{
+   x_bar.SetSize(3);
+   x_bar = Q_bar;
+}
+
+} // namespace
+
 TEST_CASE("DomainResIntegrator::AssembleElementVector",
           "[DomainResIntegrator for Steinmetz]")
 {
@@ -23,53 +41,47 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
    std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
                               //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                               //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
-   pmesh->EnsureNodes();
+   // std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
+   mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
          // get the finite-element space for the state and adjoint
-         std::unique_ptr<FiniteElementCollection> fec(
-             new H1_FECollection(p, dim));
-         std::unique_ptr<FiniteElementCollection> feca(
-             new ND_FECollection(p, dim));
-         std::unique_ptr<SpaceType> fes(new SpaceType(
-             pmesh.get(), fec.get()));
-         std::unique_ptr<SpaceType> fesa(new SpaceType(
-             pmesh.get(), feca.get()));
+         H1_FECollection fec(p, dim);
+         ND_FECollection feca(p, dim);
+         FiniteElementSpace fes(mesh.get(), &fec);
+         FiniteElementSpace fesa(mesh.get(), &feca);
 
          // we use res for finite-difference approximation
-         GridFunType A(fesa.get());
+         GridFunction A(&fesa);
          VectorFunctionCoefficient perta(dim, electromag_data::randState);
          A.ProjectCoefficient(perta);
-         std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
-         std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
-                        1, 2, 4, 0.5, 0.6, &A));
+         std::unique_ptr<Coefficient> q2(new FunctionCoefficient(func, funcRevDiff));
+         // std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
+         //                1, 2, 4, 0.5, 0.6, &A));
          // std::unique_ptr<mach::MeshDependentCoefficient> Q;
          // Q.reset(new mach::MeshDependentCoefficient());
          // Q->addCoefficient(1, move(q1)); 
          // Q->addCoefficient(2, move(q2));
-         LinearForm res(fes.get());
+         LinearForm res(&fes);
          res.AddDomainIntegrator(
             new DomainLFIntegrator(*q2));
 
          // initialize state and adjoint; here we randomly perturb a constant state
-         GridFunType state(fes.get()), adjoint(fes.get());
+         GridFunction adjoint(&fes);
          FunctionCoefficient pert(electromag_data::randState);
-         state.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(pert);
 
          // extract mesh nodes and get their finite-element space
-         GridFunction *x_nodes = pmesh->GetNodes();
+         GridFunction *x_nodes = mesh->GetNodes();
          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
          // build the nonlinear form for d(psi^T R)/dx 
          NonlinearForm dfdx_form(mesh_fes);
          dfdx_form.AddDomainIntegrator(
-            new mach::DomainResIntegrator(*q2,
-               &state, &adjoint));
+            new mach::DomainResIntegrator(*q2, &adjoint));
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
@@ -83,17 +95,17 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
 
          // now compute the finite-difference approximation...
          GridFunction x_pert(*x_nodes);
-         GridFunction r(fes.get());
+         GridFunction r(&fes);
          x_pert.Add(delta, v);
-         pmesh->SetNodes(x_pert);
+         mesh->SetNodes(x_pert);
          res.Assemble();
          double dfdx_v_fd = adjoint * res;
          x_pert.Add(-2 * delta, v);
-         pmesh->SetNodes(x_pert);
+         mesh->SetNodes(x_pert);
          res.Assemble();
          dfdx_v_fd -= adjoint * res;
          dfdx_v_fd /= (2 * delta);
-         pmesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
+         mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
 
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }

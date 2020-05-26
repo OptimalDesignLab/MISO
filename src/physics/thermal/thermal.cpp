@@ -859,9 +859,9 @@ Vector* ThermalSolver::getMeshSensitivities()
 			new DiffusionResIntegrator(*kappa, &dtdudt, adj.get()));
 		/// adj^T load terms
 		res_mesh_sens->AddDomainIntegrator(
-			new DomainResIntegrator(*i2sigmainv, u_old.get(), adj.get()));
+			new DomainResIntegrator(*i2sigmainv, adj.get()));
 		res_mesh_sens->AddDomainIntegrator(
-			new DomainResIntegrator(*coreloss, u_old.get(), adj.get()));
+			new DomainResIntegrator(*coreloss, adj.get()));
 
 		// just to be sure, see if this residual goes to 0?
 		// GridFunction R(fes.get());

@@ -15,18 +15,18 @@ class DomainResIntegrator : public mfem::NonlinearFormIntegrator
     Vector shape;
     Coefficient &Q;
     int oa, ob;
-    GridFunction *state; GridFunction *adjoint;
+    GridFunction *adjoint;
 public:
     /// Constructs a domain integrator with a given Coefficient
-    DomainResIntegrator(Coefficient &QF, GridFunction *u, GridFunction *adj, 
+    DomainResIntegrator(Coefficient &QF, GridFunction *adj, 
                         int a = 2, int b = 0)
-                        : Q(QF), oa(a), ob(b), state(u), adjoint(adj)
+                        : Q(QF), oa(a), ob(b), adjoint(adj)
     { }
 
     /// Constructs a domain integrator with a given Coefficient
-    DomainResIntegrator(Coefficient &QF, GridFunction *u, GridFunction *adj, 
+    DomainResIntegrator(Coefficient &QF, GridFunction *adj, 
                         const IntegrationRule *ir)
-                        : Q(QF), state(u), adjoint(adj)
+                        : Q(QF), oa(1), ob(1), adjoint(adj)
     { }
 
     /// Computes the residual contribution
