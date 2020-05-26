@@ -33,6 +33,7 @@ const nlohmann::json default_options
       {"steady", false}, // if true, solve a steady problem
       {"steady-abstol", 1e-12}, // absolute convergence tolerance for steady
       {"steady-reltol", 1e-10}, // relative convergence tolerance for steady
+      {"res-exp", 2.0}, // for steady problems, controls the step-size growth
       {"ode-solver", "RK4"}, // type of ODE solver to use 
       {"const-cfl", false}, // if true, adapt dt to keep cfl constant
       {"t-final", 1.0}, // final time to simulate to
