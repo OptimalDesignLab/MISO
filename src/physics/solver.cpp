@@ -1238,8 +1238,11 @@ void AbstractSolver::constructNewtonSolver()
    int nmaxiter = options["newton"]["maxiter"].get<int>();
    int nptl = options["newton"]["printlevel"].get<int>();
    newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
-   //double eta = 1e-1;
-   //newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
+   if(options["newton"]["inexact"])
+   { 
+      double eta = 1e-1;
+      newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
+   }
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
    newton_solver->SetOperator(*res);
