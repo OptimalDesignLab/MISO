@@ -16,7 +16,6 @@
       "steady": true,
       "steady-abstol": 1e-12,
       "steady-reltol": 1e-10,
-      "max-iter": 100,
       "const-cfl": true,
       "ode-solver": "PTC",
       "t-final": 100,
@@ -35,8 +34,8 @@
       "inexact": false,
       "printlevel": 1,
       "maxiter": 50,
-      "reltol": 1e-14,
-      "abstol": 1e-14
+      "reltol": 1e-1,
+      "abstol": 1e-12
    },
    "petscsolver": {
       "ksptype": "gmres",

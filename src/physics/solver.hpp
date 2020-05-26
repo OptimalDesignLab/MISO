@@ -331,11 +331,11 @@ protected:
       throw MachException("constructForms() not defined by derived class!");
    };
 
-   /// Add volumne integrators to `mass`
+   /// Add domain integrators to `mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addMassIntegrators(double alpha);
 
-   /// Add volumne integrators to `nonlinear_mass`
+   /// Add domain integrators to `nonlinear_mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addNonlinearMassIntegrators(double alpha) {};
 

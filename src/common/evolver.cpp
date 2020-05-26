@@ -251,8 +251,6 @@ MachEvolver::MachEvolver(
       nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
       out(outstream), work(height), work2(height)
 {
-   outstream << "MachEvolver constructor" << endl;
-   outstream.flush();
    if ( (_mass != nullptr) && (_nonlinear_mass != nullptr) )
    {
       throw MachException("Cannot use a linear and nonlinear mass operator "
@@ -321,11 +319,8 @@ MachEvolver::MachEvolver(
                                                       "for stiffness matrix!");
       }
    }
-
-   outstream << "MachEvolver constructor before combined_oper" << endl;
    combined_oper.reset(new SystemOperator(ess_bdr, _nonlinear_mass, _mass, _res,
                                           _stiff, _load));
-   outstream << "MachEvolver constructor after combined_oper" << endl;
 }
 
 MachEvolver::~MachEvolver() = default;

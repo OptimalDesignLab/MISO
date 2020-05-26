@@ -727,7 +727,7 @@ double AbstractSolver::calcResidualNorm() const
 #ifdef MFEM_USE_MPI
    HypreParVector *U = u->GetTrueDofs();
    HypreParVector *R = r.GetTrueDofs();
-   res->Mult(*U, *R);   
+   res->Mult(*U, *R); 
    double loc_norm = (*R)*(*R);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
 #else
@@ -885,8 +885,10 @@ void AbstractSolver::setEssentialBoundaries()
    /// otherwise mark all attributes as nonessential
    else
    {
+      cout << "No essential BCs" << endl;
       if (mesh->bdr_attributes) // some meshes may not have boundary attributes
       {
+         cout << "mesh with boundary attributes" << endl;
          ess_bdr.SetSize(mesh->bdr_attributes.Max());
          ess_bdr = 0;
       }
@@ -949,7 +951,6 @@ void AbstractSolver::solveSteady()
 //    u->SetFromTrueDofs(u_true);
 // #else
 //    // Hypre solver section
-//    *out << "HypreGMRES Solver with euclid preconditioner.\n";
 //    if (newton_solver == nullptr)
 //       constructNewtonSolver();
 
@@ -1019,11 +1020,10 @@ void AbstractSolver::solveUnsteady()
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
-   double dt = options["time-dis"]["dt"].get<double>();
-   bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
 
-   int ti = 0;
+   int ti;
    bool done = false;
+   double dt = 0.0;
    initialHook();
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
@@ -1228,7 +1228,6 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
    setIterSolverOptions(_options);
 }
 
-
 void AbstractSolver::constructNewtonSolver()
 {
    if (solver == nullptr)
@@ -1318,7 +1317,6 @@ void AbstractSolver::constructEvolver()
    if (newton_solver == nullptr)
       constructNewtonSolver();
    evolver->SetNewtonSolver(newton_solver.get());
-   *out << "End of constructEvolver" << endl;
 }
 
 void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)

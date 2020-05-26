@@ -79,7 +79,7 @@ protected:
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addMassIntegrators(double alpha) override;
 
-   /// Add Domain Integrator to the mass operators
+   /// Add domain integrator to the nonlinear mass operator
    /// \param[in] alpha - scales the data; used to ove terems to rhs or lhs
    virtual void addNonlinearMassIntegrators(double alpha) override;
 

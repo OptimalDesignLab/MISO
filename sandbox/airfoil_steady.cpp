@@ -62,12 +62,16 @@ int main(int argc, char *argv[])
       solver->initDerived();
       Vector qfar(4);
       static_cast<EulerSolver<2, entvar>*>(solver.get())->getFreeStreamState(qfar);
-      Vector wfar(4);
+      //Vector wfar(4);
       // TODO: I do not like that we have to perform this conversion outside the solver...
+<<<<<<< HEAD
       if(entvar)
          calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
       else
          wfar = qfar;
+=======
+      //calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
+>>>>>>> euler
       solver->setInitialCondition(qfar);
       solver->printSolution("airfoil-steady-init");
       solver->checkJacobian(pert);

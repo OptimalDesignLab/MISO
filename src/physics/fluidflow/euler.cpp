@@ -48,7 +48,7 @@ template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::constructForms()
 {
    res.reset(new NonlinearFormType(fes.get()));
-   if (entvar)
+   if ( (entvar) && (!options["time-dis"]["steady"].get<bool>()) )
    {
       nonlinear_mass.reset(new NonlinearFormType(fes.get()));
       mass.reset();

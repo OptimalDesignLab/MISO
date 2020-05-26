@@ -1,7 +1,7 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
 
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = false;
+constexpr bool entvar = true;
 
 #include<random>
 #include "adept.h"
@@ -99,7 +99,6 @@ int main(int argc, char *argv[])
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
       //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
-
       solver->setInitialCondition(uexact);
       solver->printSolution("euler_init", 0);
 
