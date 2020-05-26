@@ -23,7 +23,7 @@
       "cfl": 1.0
    },
    "mesh": {
-	   "file": "airfoil_steady.mesh",
+	   "file": "../../sandbox/airfoil_steady.mesh",
       "refine": 0
    },
    "bcs": {
