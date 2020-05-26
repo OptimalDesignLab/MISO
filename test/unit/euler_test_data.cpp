@@ -113,4 +113,15 @@ void FreeStreamState2D(mfem::Vector &q_ref, double mach_fs, double aoa_fs)
    q_ref(3) = 1/(1.4*0.4) + 0.5*mach_fs*mach_fs;
 }
 
+double randBaselinePert(const mfem::Vector &x)
+{
+    const double scale = 0.01;
+    return 1.0 + scale * uniform_rand(gen);
+}
+
+double randState(const mfem::Vector &x)
+{
+    return 2.0 * uniform_rand(gen) - 1.0;
+}
+
 } // namespace euler_data

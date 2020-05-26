@@ -4,7 +4,7 @@
 #include "mfem.hpp"
 
 #include "sbp_fe.hpp" // needed in inviscid_integ_def.hpp 
-#include "solver.hpp"
+#include "utils.hpp"
 
 namespace mach
 {
@@ -183,10 +183,6 @@ protected:
    mfem::Vector uj;
    /// stores the result of calling the flux function
    mfem::Vector fluxij;
-   /// used to store the adjugate of the mapping Jacobian at node i
-   mfem::DenseMatrix adjJ_i;
-   /// used to store the adjugate of the mapping Jacobian at node j
-   mfem::DenseMatrix adjJ_j;
    /// stores a row of the adjugate of the mapping Jacobian
    mfem::Vector dxidx;
    /// stores the jacobian w.r.t left state
@@ -592,26 +588,17 @@ protected:
 
 };
 
-/// Integrator for nonlinear mass matrix
+/// Integrator for nonlinear temporal terms
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
-///
-/// This integrator is for forms that include the entropy function inverse
-/// Hessian du/dw; the resulting mass matrix is still symmetric positive 
-/// definite, but it is nonlinear in this case.
 template <typename Derived>
 class NonlinearMassIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// Construct an integrator for nonlinear mass matrices that include du/dw
-   /// \param[in] state_old - state solution at previous time step
-   /// \param[in] delta_t - used to define state where mass matrix is evaluated
+   /// Construct an integrator for nonlinear mass matrices
    /// \param[in] num_state_vars - the number of state variables (redundant)
    /// \param[in] a - factor, usually used to move terms to rhs
-   /// \warning For GD or non-conforming schemes in general, state_old must have
-   /// **already** been prolonged to the SBP degrees of freedom.
-   NonlinearMassIntegrator(const mfem::GridFunction &state_old, double delta_t,
-                           int num_state_vars = 1, double a = 1.0)
-       : state(state_old), dt(delta_t), num_states(num_state_vars), alpha(a) {}
+   NonlinearMassIntegrator(int num_state_vars = 1, double a = 1.0)
+       : num_states(num_state_vars), alpha(a) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -633,58 +620,36 @@ public:
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
-   /// Update the delta t
-   void updateDeltat(double dt_) { dt = dt_; }
 protected:
-   /// The state solution at the previous time step
-   const mfem::GridFunction &state;
-   /// time step that helps define where `du/dw` is evaluated, `u + dt*k`
-   double dt;
    /// number of states
    int num_states;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
 #ifndef MFEM_THREAD_SAFE
-   /// state at which the matrix (du/dw) is evaluated 
+   /// state at which conservative variables are to evaluated
    mfem::Vector u_i;
-   /// vector that multiplies (du/dw), usually the time derivative here
-   mfem::Vector k_i;
-   /// stores the matrix-vector product (du/dw)*k at node i
-   mfem::Vector Ak_i;
-   /// stores the (du/dw) for the Jacobian calculation 
+   /// holds the conservative variables at node i
+   mfem::Vector q_i;
+   /// stores the (dq/du) matrix for the Jacobian calculation 
    mfem::DenseMatrix A_i;
-   /// stores the derivative of (du/dw)*k with respect to k
-   mfem::DenseMatrix jac_node;
 #endif
 
-   /// applies symmetric matrix `du/dw` to input `k`
-   /// \param[in] u - state at which the symmetric matrix `du/dw` is evaluated
-   /// \param[in] k - vector that is being multiplied
-   /// \param[out] Ak - product of the multiplication
-   /// \note This uses the CRTP, so it wraps call to `calcMatVec` in Derived.
-   void matVec(const mfem::Vector &u, const mfem::Vector &k, mfem::Vector &Ak)
+   /// converts working variables to conservative variables
+   /// \param[in] u - working states that are to be converted
+   /// \param[out] q - conservative variables
+   /// \note This uses the CRTP, so it wraps a call to `convertVars` in Derived.
+   void convert(const mfem::Vector &u, mfem::Vector &q)
    {
-      static_cast<Derived*>(this)->calcMatVec(u, k, Ak);
+      static_cast<Derived*>(this)->convertVars(u, q);
    }
 
-   /// Compute the Jacobian of function `matVec` w.r.t. `u`
-   /// \param[in] u - state at which to evaluate the Jacobian
-   /// \param[in] k - vector that is being multiplied by `A = du/dw`
-   /// \param[out] jac - Jacobian of the product w.r.t. `u`
-   /// \note This uses the CRTP, so it wraps a call to `calcMatVecJacState`.
-   void matVecJacState(const mfem::Vector &u, const mfem::Vector &k,
-                       mfem::DenseMatrix &jac)
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] u - working states that are to be converted
+   /// \param[out] dqdu - Jacobian of transformed variables w.r.t. `u`
+   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
+   void convertJacState(const mfem::Vector &u, mfem::DenseMatrix &dqdu)
    {
-      static_cast<Derived*>(this)->calcMatVecJacState(u, k, jac);
-   }
-
-   /// Computes the matrix (du/dw)
-   /// \param[in] u - state at which to evaluate the entropy inverse Hessian
-   /// \param[out] jac - stores the entropy inverse Hessian
-   /// \note This uses the CRTP, so it wraps a call to `calcMatVecJacK`.
-   void matVecJacK(const mfem::Vector &u, mfem::DenseMatrix &jac)
-   {
-      static_cast<Derived*>(this)->calcMatVecJacK(u, jac);
+      static_cast<Derived*>(this)->convertVarsJacState(u, dqdu);
    }
 };
 

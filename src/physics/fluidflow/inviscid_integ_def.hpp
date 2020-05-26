@@ -131,12 +131,9 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector ui, uj, fluxij;
-   DenseMatrix adjJ_i, adjJ_j;
 #endif
 	elvect.SetSize(num_states*num_nodes);
    fluxij.SetSize(num_states);
-   adjJ_i.SetSize(dim);
-   adjJ_j.SetSize(dim);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
@@ -144,12 +141,12 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
    for (int i = 0; i < num_nodes; ++i)
    {
       Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      CalcAdjugate(Trans.Jacobian(), adjJ_i);
+      const DenseMatrix &adjJ_i = Trans.AdjugateJacobian();
       u.GetRow(i,ui);
 		for (int j = i+1; j < num_nodes; ++j)
 		{
          Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
-         CalcAdjugate(Trans.Jacobian(), adjJ_j);
+         const DenseMatrix &adjJ_j = Trans.AdjugateJacobian();
          u.GetRow(j, uj);
 			for (int di = 0; di < dim; ++di)
 			{
@@ -181,12 +178,10 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector ui, uj, dxidx;
-   DenseMatrix adjJ_i, adjJ_j, flux_jaci, flux_jacj;
+   DenseMatrix flux_jaci, flux_jacj;
 #endif
    elmat.SetSize(num_states*num_nodes);
    elmat = 0.0;
-   adjJ_i.SetSize(dim);
-   adjJ_j.SetSize(dim);
    dxidx.SetSize(dim);
    flux_jaci.SetSize(num_states);
    flux_jacj.SetSize(num_states);
@@ -197,7 +192,7 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
       {
          // get the flux Jacobian at node i
          Trans.SetIntPoint(&el.GetNodes().IntPoint(i)); 
-         CalcAdjugate(Trans.Jacobian(), adjJ_i);
+         const DenseMatrix &adjJ_i = Trans.AdjugateJacobian();
          adjJ_i.GetRow(di, dxidx);
          u.GetRow(i, ui);
          // loop over rows j for contribution (Q^T)_{i,j} * Jac_i
@@ -205,7 +200,7 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
          {
             // get the flux Jacobian at node i
             Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
-            CalcAdjugate(Trans.Jacobian(), adjJ_j);
+            const DenseMatrix &adjJ_j = Trans.AdjugateJacobian();
             adjJ_j.GetRow(di, dxidx);
             u.GetRow(j, uj);
             fluxJacStates(di, ui, uj, flux_jaci, flux_jacj);
@@ -715,18 +710,15 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    const IntegrationRule& ir = sbp.GetNodes();
-   DenseMatrix u_old;
-   state.GetVectorValues(trans, ir, u_old);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   Vector u_i, k_i, Ak_i;
+   Vector u_i, q_i;
 #endif
 	elvect.SetSize(num_states*num_nodes);
    u_i.SetSize(num_states);
-   k_i.SetSize(num_states);
-   Ak_i.SetSize(num_states);
-   DenseMatrix k(elfun.GetData(), num_nodes, num_states);
+   q_i.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
    elvect = 0.0;
    for (int i = 0; i < num_nodes; ++i)
@@ -734,13 +726,11 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
       const IntegrationPoint &ip = el.GetNodes().IntPoint(i);
       trans.SetIntPoint(&ip);
       double weight = trans.Weight()*ip.weight;
-      u_old.GetColumn(i, u_i);
-      k.GetRow(i, k_i);
-      u_i.Add(dt, k_i);
-      matVec(u_i, k_i, Ak_i);
+      u.GetRow(i, u_i);
+      convert(u_i, q_i);
       for (int n = 0; n < num_states; ++n)
       {
-         res(i, n) += weight*Ak_i(n);
+         res(i, n) += weight*q_i(n);
       }
    }
    res *= alpha;
@@ -754,20 +744,16 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    const IntegrationRule& ir = sbp.GetNodes();
-   DenseMatrix u_old;
-   state.GetVectorValues(trans, ir, u_old);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   Vector u_i, k_i;
-   DenseMatrix A_i, jac_node;
+   Vector u_i;
+   DenseMatrix A_i;
 #endif
    elmat.SetSize(num_states*num_nodes);
    u_i.SetSize(num_states);
-   k_i.SetSize(num_states);
    A_i.SetSize(num_states);
-   jac_node.SetSize(num_states);
-   DenseMatrix k(elfun.GetData(), num_nodes, num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    elmat = 0.0;
    // loop over the SBP nodes/integration points
    for (int i = 0; i < num_nodes; ++i)
@@ -775,18 +761,13 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
       const IntegrationPoint &ip = el.GetNodes().IntPoint(i);
       trans.SetIntPoint(&ip);
       double weight = trans.Weight()*ip.weight;
-      u_old.GetColumn(i, u_i);
-      k.GetRow(i, k_i);
-      u_i.Add(dt, k_i);
-      //matVec(u_i, k_i, Ak_i);
-      matVecJacK(u_i, A_i);
-      matVecJacState(u_i, k_i, jac_node);
-      Add(A_i, jac_node, dt, jac_node);
+      u.GetRow(i, u_i);
+      convertJacState(u_i, A_i);
       for (int n = 0; n < num_states; ++n)
       {
          for (int m = 0; m < num_states; ++m)
          {
-            elmat(n * num_nodes + i, m * num_nodes + i) += weight*jac_node(n, m);
+            elmat(n * num_nodes + i, m * num_nodes + i) += weight*A_i(n, m);
          }
       }
    }

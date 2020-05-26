@@ -3,10 +3,6 @@
 
 #include "mfem.hpp"
 
-#include "solver.hpp"
-
-using namespace mach;
-
 namespace mfem
 {
 /// Inexact Newton's method solving F(x) = b with globalization.
@@ -19,12 +15,9 @@ public:
    /// \param[in] ared_scale - defines target actual reduction in the residual 
    /// \note this only defines the inexact Newton parameters; the actual
    /// problem is defined by the operator `oper`
-   /// \note parameters is set up in function `init`
-   InexactNewton(double eta_init = 1e-4, double eta_maximum = 1e-1,
-                 double ared_scale = 1e-4)
-   {
-      init(eta_init, eta_maximum, ared_scale);
-   }
+   InexactNewton(double eta_init = 1e-4,double eta_maximum = 1e-1,
+                  double ared_scale=1e-4)
+      : eta(eta_init), eta_max(eta_maximum), t(ared_scale) {}
 
 #ifdef MFEM_USE_MPI
    /// Constructor for Inexact Newton Solver
@@ -34,13 +27,10 @@ public:
    /// \param[in] ared_scale - defines target actual reduction in the residual
    /// \note this only defines the inexact Newton parameters; the actual
    /// problem is defined by the operator `oper`
-   /// \note parameters is set up in function `init`
    InexactNewton(MPI_Comm comm, double eta_init = 1e-4, 
                double eta_maximum = 1e-1, double ared_scale = 1e-4)
-      :NewtonSolver(comm)
-   {
-      init(eta_init, eta_maximum, ared_scale);
-   }
+      : NewtonSolver(comm), eta(eta_init), eta_max(eta_maximum),
+        t(ared_scale) {}
 #endif
 
    /// Set the operator that defines the nonlinear system
@@ -60,11 +50,13 @@ protected:
    /// member vector saves the new x position.
    mutable mfem::Vector x_new;
    /// Parameters for inexact newton method.
-   mutable double theta, eta, eta_max, t;
+   mutable double eta, eta_max, t;
    const double theta_min = 0.1;
    const double theta_max = 0.5;
 
 private:
+   /// Explicitly hide NewtonSolver's const qualified Mult method
+   using NewtonSolver::Mult;
 
    /// Back tracking globalization
    /// \param[in] x - current solution
@@ -75,15 +67,9 @@ private:
    /// \note See Pawlowski et al., doi:10.1137/S0036144504443511 for details
    /// regarding the line search method and its parameters.
    double ComputeStepSize(const mfem::Vector &x, const mfem::Vector &b, 
-                        const double norm) const;
-
-   /// Inexact newton method parameters set up, called in other constructors
-   /// \param[in] eta_init - initial value of eta, the forcing parameter
-   /// \param[in] eta_maximum - maximum value of eta
-   /// \param[in] ared_scale - defines target actual reduction in the residual 
-   void init(double eta_init, double eta_maximum, double ared_scale);
+                          const double norm) const;
 };
 
-}
+} // namespace mfem
 
 #endif

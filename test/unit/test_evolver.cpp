@@ -1,6 +1,7 @@
 #include <random>
 
 #include "catch.hpp"
+#include "mfem_extensions.hpp"
 #include "evolver.hpp"
 
 TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
@@ -28,10 +29,11 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    };
 
    // Operator for exponential-entropy ODE, Eq. (3.1) in Ranocha et al. 2020
-   class ExponentialODE : public EntropyConstrainedOperator
+   class ExponentialODE : public mach::EntropyConstrainedOperator
    {
    public:
-      ExponentialODE() : EntropyConstrainedOperator(2), dt(0.0), x(2)
+      ExponentialODE() : EntropyConstrainedOperator(
+         2, 0.0, TimeDependentOperator::Type::EXPLICIT), dt(0.0), x(2)
       {
          Jac.reset(new DenseMatrix(2));
          linear_solver.reset(new DenseMatrixSolver());
@@ -98,7 +100,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    };
 
    std::unique_ptr<TimeDependentOperator> ode(new ExponentialODE());
-   std::unique_ptr<ODESolver> solver(new RRKImplicitMidpointSolver());
+   std::unique_ptr<ODESolver> solver(new mach::RRKImplicitMidpointSolver());
    solver->Init(*ode);
 
    double t_final = 5.0;
@@ -121,7 +123,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
       }
       solver->Step(u, t, dt_real);
       ti++;
-      done = (t >= t_final - 1e-8 * dt);
+      done = (t >= t_final - 1e-16);
    }
 
    // Check that solution is reasonable accurate

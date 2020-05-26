@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
          calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
       else
          wfar = qfar;
-      solver->setInitialCondition(uinit);
+      solver->setInitialCondition(qfar);
       solver->printSolution("airfoil-steady-init");
       solver->checkJacobian(pert);
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()

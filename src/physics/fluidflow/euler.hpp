@@ -1,6 +1,8 @@
 #ifndef MACH_EULER
 #define MACH_EULER
 
+//#include <fstream>
+
 #include "mfem.hpp"
 
 #include "solver.hpp"
@@ -25,13 +27,19 @@ public:
    EulerSolver(const std::string &opt_file_name,
                std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
-   /// Find the gobal step size for the given CFL number
-   /// \param[in] cfl - target CFL number for the domain
-   /// \returns dt_min - the largest step size for the given CFL
-   /// This uses the average spectral radius to estimate the largest wave speed,
-   /// and uses the minimum distance between nodes for the length in the CFL
-   /// number.
-   virtual double calcStepSize(double cfl) const;
+   /// Find the global time step size
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt_old - the step size that was just taken
+   /// \returns dt - appropriate step size
+   /// \note If "const-cfl" option is invoked, this uses the average spectral
+   /// radius to estimate the largest wave speed, and uses the minimum distance
+   /// between nodes for the length in the CFL number.
+   /// \note If "steady" option is involved, the time step will increase based
+   /// on the baseline value of "dt" and the inverse residual norm.
+   virtual double calcStepSize(int iter, double t, double t_final,
+                               double dt_old) const override;
 
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);
@@ -47,7 +55,9 @@ public:
    double calcConservativeVarsL2Error(void (*u_exact)(const mfem::Vector &,
                                                       mfem::Vector &),
                                       int entry = -1);
-
+   /// convert conservative variables to entropy variables
+   /// \param[in/out] state - the conservative/entropy variables
+   virtual void convertToEntvar(mfem::Vector &state);
 protected:
    /// free-stream Mach number
    double mach_fs;
@@ -57,34 +67,63 @@ protected:
    int iroll;
    /// index of "vertical" dimension in body frame
    int ipitch;
-   /// The nonlinaer integrator that computs the nonlinear form mass matrix
-   std::unique_ptr<mfem::NonlinearFormIntegrator> mass_integ;
+   /// used to record the entropy
+   std::ofstream entropylog;
+   /// used to store the initial residual norm for PTC and convergence checks
+   double res_norm0 = -1.0;
+
+   /// Initialize `res` and either `mass` or `nonlinear_mass`
+   virtual void constructForms() override;
+
+   /// Add domain integrators to `mass`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addMassIntegrators(double alpha) override;
+
+   /// Add Domain Integrator to the mass operators
+   /// \param[in] alpha - scales the data; used to ove terems to rhs or lhs
+   virtual void addNonlinearMassIntegrators(double alpha) override;
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addVolumeIntegrators(double alpha);
+   virtual void addResVolumeIntegrators(double alpha) override;
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addBoundaryIntegrators(double alpha);
+   virtual void addResBoundaryIntegrators(double alpha) override;
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addInterfaceIntegrators(double alpha);
+   virtual void addResInterfaceIntegrators(double alpha) override;
+
+   virtual void addEntVolumeIntegrators() override;
 
    /// Create `output` based on `options` and add approporiate integrators
-   virtual void addOutputs();
+   virtual void addOutputs() override;
 
    /// Return the number of state variables
-   virtual int getNumState() {return dim+2; }
+   virtual int getNumState() override {return dim+2; }
 
-   /// Add Domain Integrator to the nonlinear form mass matrix
-   /// \param[in] alpha - scales the data; used to ove terems to rhs or lhs
-   virtual void addMassIntegrator(double alpha);
+   /// For code that should be executed before the time stepping begins
+   virtual void initialHook() override;
 
-   /// Update the mass integrator
-   /// \param[in] dt - the numerical time step
-   virtual void updateNonlinearMass(int ti, double dt, double alpha);
+   /// For code that should be executed before `ode_solver->Step`
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   virtual void iterationHook(int iter, double t, double dt) override;
+
+   /// Determines when to exit the time stepping loop
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (after the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt - the step size that was just taken
+   virtual bool iterationExit(int iter, double t, double t_final, 
+                              double dt) override;
+
+   /// For code that should be executed after the time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   virtual void terminalHook(int iter, double t_final) override;
 };
 
 } // namespace mach

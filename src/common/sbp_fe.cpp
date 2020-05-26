@@ -130,6 +130,18 @@ double SBPFiniteElement::getSkewEntry(int di, int i, int j,
    return Sij; 
 }
 
+void SBPFiniteElement::getSkewEntryRevDiff(int di, int i, int j, double Sij_bar,
+                                           mfem::DenseMatrix &adjJ_i_bar,
+                                           mfem::DenseMatrix &adjJ_j_bar) const
+{
+   for (int k = 0; k < GetDim(); ++k)
+   {
+      // Sij += adjJ_i(k,di)*Q[k](j,i) - adjJ_j(k,di)*Q[k](i,j);
+      adjJ_i_bar(k,di) += Sij_bar*Q[k](j,i);
+      adjJ_j_bar(k,di) -= Sij_bar*Q[k](i,j);
+   }
+}
+
 double SBPFiniteElement::getSymEntry(int di, int i,
                                      const mfem::DenseMatrix &adjJ_i) const
 {
