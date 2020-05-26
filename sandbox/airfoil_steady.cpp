@@ -23,6 +23,8 @@ std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 /// \param[out] u - conservative variables stored as a 4-vector
 void pert(const Vector &x, Vector& p);
 
+void uinit(const mfem::Vector &x, mfem::Vector &u);
+
 int main(int argc, char *argv[])
 {
    const char *options_file = "airfoil_steady_options.json";
@@ -66,7 +68,7 @@ int main(int argc, char *argv[])
          calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
       else
          wfar = qfar;
-      solver->setInitialCondition(wfar);
+      solver->setInitialCondition(uinit);
       solver->printSolution("airfoil-steady-init");
       solver->checkJacobian(pert);
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
@@ -97,5 +99,36 @@ void pert(const Vector &x, Vector& p)
    for (int i = 0; i < 4; i++)
    {
       p(i) = normal_rand(gen);
+   }
+}
+
+/// Start with 0 velocity
+void uinit(const mfem::Vector &x, mfem::Vector &q)
+{
+   Vector u;
+   u.SetSize(x.Size()+2);
+   q.SetSize(x.Size()+2);
+
+   double rho = 1.0;
+
+   u(0) = rho;
+   if (x.Size() == 1)
+   {
+      u(1) = 0; // ignore angle of attack
+   }
+   else
+   {
+      u(1) = 0;
+      u(2) = 0;
+   }
+   u(x.Size()+1) = 1/(euler::gamma*euler::gami);
+
+   if (entvar == true)
+   {
+      calcEntropyVars<double, 2>(u.GetData(), q.GetData());
+   }
+   else
+   {
+      q = u;
    }
 }

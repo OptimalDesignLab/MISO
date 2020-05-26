@@ -558,6 +558,231 @@ void calcFarFieldFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
    }
 }
 
+/// Computes the derivative of the far field state with respect to mach number
+template <typename xdouble, int dim, bool entvar = false>
+void calcFarFieldMachDiff(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
+                           xdouble *work, xdouble *flux, xdouble mach_fs, xdouble aoa_fs)
+{
+   xdouble qcons[dim+2];
+   if (entvar)
+   {
+      calcConservativeVars<xdouble, dim>(q, qcons);
+   }
+   else
+   {
+      qcons[0] = q[0];
+      for (int i = 0; i < dim; ++i)
+      {
+         qcons[i+1] = q[i+1]; /// qb1,2 contribution
+      }
+      qcons[dim+1] = q[dim+1];
+   }
+
+   using adept::max;
+   using std::max;
+
+   // free stream state derivatives w.r.t. mach number
+   xdouble ddM[dim+2];
+   ddM[0] = 0;
+   if(dim == 1)
+      ddM[1] = 1;
+   else
+   {
+      ddM[1] = cos(aoa_fs);
+      ddM[2] = sin(aoa_fs);
+   }
+   ddM[3] = mach_fs;
+
+   // Define some constants //can't use these for differentiation
+   const xdouble sat_Vn = 0.0; // 0.025
+   const xdouble sat_Vl = 0.0; // 0.025
+
+   // Define some constants used to construct the "Jacobian"
+   const xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
+   const xdouble fac = 1.0 / qbnd[0]; const xdouble dfac = -fac*fac;
+   const xdouble phi = 0.5 * dot<xdouble, dim>(qbnd + 1, qbnd + 1) * fac * fac;
+   const xdouble dpdr  = -dot<xdouble, dim>(qbnd + 1, qbnd + 1)* fac * fac * fac;
+   xdouble dpdx[dim]; xdouble dHdx[dim]; xdouble dUndx[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      dpdx[i] = qbnd[i+1]*fac*fac;
+   }
+   const xdouble H = euler::gamma * qbnd[dim + 1] * fac - euler::gami * phi;
+   const xdouble dHdr = euler::gamma*qbnd[dim + 1] * dfac  - euler::gami * dpdr; 
+   const xdouble dHde = euler::gamma * fac; 
+   for (int i = 0; i < dim; ++i)
+   {
+      dHdx[i] =  - euler::gami * dpdx[i];
+   }
+   const xdouble a = sqrt(euler::gami * (H - phi));
+   const xdouble dadH = 0.5 * euler::gami / a; const xdouble dadp = - dadH;
+   const xdouble Un = dot<xdouble, dim>(qbnd + 1, dir) * fac;
+   const xdouble dUndr = dot<xdouble, dim>(qbnd + 1, dir) * dfac;
+   for (int i = 0; i < dim; ++i)
+   {
+      dUndx[i] =  dir[i]*fac;
+   }
+   xdouble lambda1 = Un + dA * a;
+   xdouble lambda2 = Un - dA * a;
+   xdouble lambda3 = Un;
+   const xdouble rhoA = fabs(Un) + dA * a;
+   //can't use these for differentiation
+   lambda1 = 0.5 * (max(fabs(lambda1), sat_Vn * rhoA) - lambda1);
+   lambda2 = 0.5 * (max(fabs(lambda2), sat_Vn * rhoA) - lambda2);
+   lambda3 = 0.5 * (max(fabs(lambda3), sat_Vl * rhoA) - lambda3);
+
+   xdouble *dq = work; xdouble ddq[dim+2];
+   for (int i = 0; i < dim + 2; ++i)
+   {
+      dq[i] = q[i] - qbnd[i];
+      ddq[i] = -1;
+   }
+   //calcEulerFlux<xdouble, dim>(dir, q, flux);
+
+   // density
+   flux[0] = (lambda3 * ddq[0] + dUndr * dq[0]) * ddM[0]; /// qb0 contribution
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[0] += (dUndx[i]*dq[0]) * ddM[i+1]; /// qb1,2 contribution
+   }
+   flux[0] += (0) * ddM[dim+1];/// qb3 contribution
+   // momentum
+   for (int j = 0; j < dim; ++j)
+   {
+      flux[j+1] = (dUndr * dq[j+1]) * ddM[0]; /// qb0 contribution
+      for (int i = 0; i < dim; ++i)
+      {
+         flux[j+1] += (dUndx[i]*dq[j+1]) * ddM[i+1]; /// qb1,2 contribution
+         if (i == j)
+            flux[j+1] += Un*ddq[j+1]*ddM[i+1];
+      }
+      flux[j+1] += (0) * ddM[dim+1];/// qb3 contribution
+   }
+   // energy
+   flux[dim+1] = (dUndr * dq[dim+1]) * ddM[0]; /// qb0 contribution
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[dim+1] += (dUndx[i]*dq[dim+1]) * ddM[i+1]; /// qb1,2 contribution
+   }
+   flux[dim+1] += Un * ddq[dim+1] * ddM[dim+1];/// qb3 contribution
+
+
+   // some scalars needed for E1*dq, E2*dq, E3*dq, and E4*dq
+   xdouble tmp1 = 0.5 * (lambda1 + lambda2) - lambda3; //it's just Un
+   xdouble E1dq_fac = tmp1 * euler::gami / (a * a);
+   xdouble dE1dUn = euler::gami / (a * a); xdouble dE1da = (-2.0/a)*E1dq_fac;
+   xdouble dE1dr = (dE1dUn*dUndr + dE1da*(dadH*dHdr + dadp*dpdr));
+   xdouble dE1dx[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      dE1dx[i] = (dE1dUn*dUndx[i] + dE1da*(dadH*dHdx[i] + dadp*dpdx[i]));
+   }
+   xdouble dE1de = (dE1da*(dadH*dHde));
+   xdouble E2dq_fac = tmp1 / (dA * dA); xdouble dE2dUn = 1.0/ (a * a);
+   xdouble dE2dr = (dE2dUn*dUndr);
+   xdouble dE2dx[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      dE2dx[i] = (dE2dUn*dUndx[i]);
+   }
+   xdouble dE2de = 0.0;
+   xdouble E34dq_fac = 0.5 * (lambda1 - lambda2) / (dA * a); //it's just 1
+
+   // get E1*dq + E4*dq and add to flux
+   xdouble Edq = phi * dq[0] + dq[dim + 1] - dot<xdouble, dim>(qbnd + 1, dq + 1) * fac;
+   xdouble dEdr = dpdr * dq[0] - phi - dot<xdouble, dim>(qbnd + 1, dq + 1) * dfac;
+   xdouble dEdx[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      dEdx[i] = dpdx[i]*dq[0] - dq[i+1]*fac - qbnd[i+1]*fac;
+   }
+   xdouble dEde = 1.0;
+
+   // flux[0] += E1dq_fac * Edq;
+   flux[0] += (E1dq_fac*dEdr + Edq*dE1dr) * ddM[0]; /// qb0 contribution
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[0] += (E1dq_fac*dEdx[i] + Edq*(dE1dUn*dUndx[i] + 
+                     dE1da*(dadH*dHdx[i] + dadp*dpdx[i]))) * ddM[i+1]; /// qb1,2 contribution
+   }
+   flux[0] += (E1dq_fac*dEde + Edq*(dE1da*(dadH*dHde))) * ddM[dim+1];/// qb3 contribution
+
+   // for (int i = 0; i < dim; ++i)
+   // {
+   //    flux[i + 1] += Edq * (E1dq_fac * qbnd[i + 1] * fac + euler::gami * E34dq_fac * dir[i]);
+   // }
+   for (int j = 0; j < dim; ++j)
+   {
+      flux[j+1] = ((E1dq_fac*qbnd[j + 1]*fac + euler::gami*dir[j])*dEdr + 
+                     Edq*(dE1dr*qbnd[j + 1]*fac + E1dq_fac*qbnd[j + 1]*dfac)) * ddM[0]; /// qb0 contribution
+      for (int i = 0; i < dim; ++i)
+      {
+         flux[j+1] += ((E1dq_fac*qbnd[j + 1]*fac + euler::gami*dir[j])*dEdx[i] + 
+                     Edq*(dE1dx[i]*qbnd[j + 1]*fac)) * ddM[i+1]; /// qb1,2 contribution
+         if (i == j)
+            flux[j+1] += Edq*E1dq_fac*fac*ddM[i+1];
+      }
+      flux[j+1] += ((E1dq_fac*qbnd[j + 1]*fac + euler::gami*dir[j])*dEde + 
+                     Edq*(dE1de*qbnd[j + 1]*fac)) * ddM[dim+1];/// qb3 contribution
+   }
+
+   // flux[dim + 1] += Edq * (E1dq_fac * H + euler::gami * E34dq_fac * Un);
+   flux[dim+1] += ((E1dq_fac*H + euler::gami*Un)*dEdr + 
+                     Edq*(dE1dr*H + dHdr*E1dq_fac + euler::gami*dUndr)) * ddM[0]; /// qb0 contribution
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[dim+1] += ((E1dq_fac*H + euler::gami*Un)*dEdx[i] + 
+                     Edq*(dE1dx[i]*H + dHdx[i]*E1dq_fac + euler::gami*dUndx[i])) * ddM[i+1]; /// qb1,2 contribution
+   }
+   flux[dim+1] += ((E1dq_fac*H + euler::gami*Un)*dEde + 
+                     Edq*(dE1de*H + dHde*E1dq_fac)) * ddM[dim+1];/// qb3 contribution
+
+   // get E2*dq + E3*dq and add to flux
+   Edq = -Un * dq[0] + dot<xdouble, dim>(dir, dq + 1);
+   dEdr = -dUndr * dq[0] + Un;
+   for (int i = 0; i < dim; ++i)
+   {
+      dEdx[i] = dUndx[i]*dq[0] + dir[i+1];
+   }
+   dEde = 0.0;
+   
+   // flux[0] += E34dq_fac * Edq;
+   flux[0] += (dEdr) * ddM[0]; /// qb0 contribution
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[0] += (dEdx[i]) * ddM[i+1]; /// qb1,2 contribution
+   }
+   flux[0] += (dEde) * ddM[dim+1];/// qb3 contribution
+
+   // for (int i = 0; i < dim; ++i)
+   // {
+   //    flux[i + 1] += Edq * (E2dq_fac * dir[i] + E34dq_fac * qbnd[i + 1] * fac);
+   // }
+   for (int j = 0; j < dim; ++j)
+   {
+      flux[j+1] += ((E2dq_fac * dir[j] + qbnd[j + 1] * fac)*dEdr + 
+                     Edq*(dE2dr*dir[j] + qbnd[j + 1]*dfac)) * ddM[0]; /// qb0 contribution
+      for (int i = 0; i < dim; ++i)
+      {
+         flux[j+1] += ((E2dq_fac * dir[j] + qbnd[j + 1] * fac)*dEdx[i] + 
+                     Edq*(dE2dx[i]*dir[j])) * ddM[i+1]; /// qb1,2 contribution
+         if (i == j)
+            flux[j+1] += Edq*fac*ddM[i+1];
+      }
+      flux[j+1] += ((E2dq_fac * dir[j] + qbnd[j + 1] * fac)) * ddM[dim+1];/// qb3 contribution
+   }
+   // flux[dim + 1] += Edq * (E2dq_fac * Un + E34dq_fac * H);
+   flux[dim+1] += ((E2dq_fac * Un + H)*dEdr + 
+                     Edq*(dE2dr* Un + dUndr*E2dq_fac + dHdr)) * ddM[0]; /// qb0 contribution
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[dim+1] += ((E2dq_fac * Un + H)*dEdx[i] + 
+                     Edq*(dE2dx[i]*H + dHdx[i]*E2dq_fac + dHdx[i])) * ddM[i+1]; /// qb1,2 contribution
+   }
+   flux[dim+1] += ((E2dq_fac * Un + H)*dEde + 
+                     Edq*(dHde)) * ddM[dim+1];/// qb3 contribution
+}
+
 /// Isentropic vortex exact state as a function of position
 /// \param[in] x - location at which the exact state is desired
 /// \param[out] qbnd - vortex conservative variable at `x`

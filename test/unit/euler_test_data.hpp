@@ -76,6 +76,8 @@ void randBaselinePert(const mfem::Vector &x, mfem::Vector &u);
 /// \param[out] u - rand state variable
 void randState(const mfem::Vector &x, mfem::Vector &u);
 
+void FreeStreamState2D(mfem::Vector &q_ref, double mach_fs, double aoa_fs);
+
 } // euler_data namespace
 
 #endif

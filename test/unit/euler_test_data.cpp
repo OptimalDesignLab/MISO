@@ -104,4 +104,13 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
     }
 }
 
+void FreeStreamState2D(mfem::Vector &q_ref, double mach_fs, double aoa_fs) 
+{
+   q_ref = 0.0;
+   q_ref(0) = 1.0;
+   q_ref(1) = q_ref(0)*mach_fs*cos(aoa_fs);
+   q_ref(2) = q_ref(0)*mach_fs*sin(aoa_fs);
+   q_ref(3) = 1/(1.4*0.4) + 0.5*mach_fs*mach_fs;
+}
+
 } // namespace euler_data

@@ -15,6 +15,7 @@ set(FLUID_TEST_SRCS
    test_euler_fluxes 
    test_euler_integ
    test_euler_assemble
+   test_euler_diff
    test_evolver
    test_inexact_newton
    test_navier_stokes_fluxes
