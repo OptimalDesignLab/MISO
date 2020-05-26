@@ -1152,8 +1152,8 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
       // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
       *out << "!!!!!!! Euclid Fill level is not set "
            << "(see AbstractSolver::constructLinearSolver() for details)" << endl;
-      //int fill = options["lin-solver"]["filllevel"].get<int>();
-      //HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
+      int fill = options["lin-solver"]["filllevel"].get<int>();
+      HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
 #else
       throw MachException("Hypre preconditioners require building MFEM with "
                "MPI!\n");
