@@ -285,8 +285,9 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm();
+      double exponent = options["time-dis"]["res-exp"];
       double dt = options["time-dis"]["dt"].get<double>() *
-                  pow(res_norm0 / res_norm, 2.0);
+                  pow(res_norm0 / res_norm, exponent);
       return max(dt, dt_old);
    }
    if (!options["time-dis"]["const-cfl"].get<bool>())
