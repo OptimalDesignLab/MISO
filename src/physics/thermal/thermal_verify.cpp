@@ -18,7 +18,7 @@ void ThermalSolver::randState(const mfem::Vector &x, mfem::Vector &u)
 	thing = thing * -1.0;
     for (int i = 0; i < u.Size(); ++i)
     {
-        //u(i) = 2.0 * uniform_rand(gen) - 1.0;
+        u(i) = 2.0 * uniform_rand(gen) - 1.0;
 		// if (i+1 == u.Size())
 		// {
 		// 	u(i) = x(0)*0.1;
@@ -27,7 +27,7 @@ void ThermalSolver::randState(const mfem::Vector &x, mfem::Vector &u)
 		// {
 		// 	u(i) = x(i+1)*0.1;
 		// }
-		u(i) = thing;
+		//u(i) = thing;
 	}
 }
 
@@ -237,7 +237,6 @@ void ThermalSolver::verifyMeshSensitivities()
 
 void ThermalSolver::verifySurfaceMeshSensitivities()
 {
-#ifdef MFEM_USE_EGADS
 	std::cout << "Verifying Surface Mesh Sensitivities..." << std::endl;
 		
 	int dim = mesh->SpaceDimension();
@@ -508,9 +507,5 @@ void ThermalSolver::verifySurfaceMeshSensitivities()
 	std::cout << "CD Relative: 		  " << (dJdXs_v-dJdXs_cd_v)/dJdXs_v << std::endl;
     std::cout << "CD Absolute: 		  " << dJdXs_v - dJdXs_cd_v << std::endl;
 
-#else
-	///NOTE: Not really, should change this later
-	throw MachException("Need Pumi to use EGADS for this!\n");
-#endif
 }
 }

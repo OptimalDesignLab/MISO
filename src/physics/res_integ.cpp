@@ -6,23 +6,93 @@ using namespace std;
 namespace mach
 {
 
+double TestLFIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   const IntegrationRule *ir = NULL;
+   {
+      ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+   }
+
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+                     dynamic_cast<IsoparametricTransformation&>(trans);
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      isotrans.SetIntPoint(&ip);
+
+      fun += ip.weight * Q.Eval(isotrans, ip);
+   }
+   return fun;
+}
+
+void TestLFMeshSensIntegrator::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &elvect)
+{
+   const IntegrationRule *ir = NULL;
+   {
+      ir = &IntRules.Get(mesh_el.GetGeomType(), 8);
+   }
+
+   int ndof = mesh_el.GetDof();
+   int dim = mesh_el.GetDim();
+   elvect.SetSize(ndof*dim);
+   elvect = 0.0;
+
+   DenseMatrix PointMat_bar(dim, ndof);
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+                     dynamic_cast<IsoparametricTransformation&>(mesh_trans);
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      PointMat_bar = 0.0;
+
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      isotrans.SetIntPoint(&ip);
+
+      double Q_bar = 1.0;
+      Q.EvalRevDiff(Q_bar, isotrans, ip, PointMat_bar);
+
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dim; ++d)
+         {
+            elvect(d * ndof + j) += ip.weight * PointMat_bar(d,j);
+         }
+      }
+   }
+}
+
 void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
                                        ElementTransformation &Trx,
                                        const Vector &elfunx, Vector &elvect)
 {   
-    /// get the proper element, transformation, and state vector
-    Array<int> vdofs; Vector elfun; Vector eladj;
-    int element = Trx.ElementNo;
-    const FiniteElement *el = state->FESpace()->GetFE(element);
-    ElementTransformation *Tr = state->FESpace()->GetElementTransformation(element);
-    state->FESpace()->GetElementVDofs(element, vdofs);
-    const IntegrationRule *ir = IntRule;
-    if (ir == NULL)
-    {
-        ir = &IntRules.Get(el->GetGeomType(), oa * el->GetOrder() + ob);
-    }
-    state->GetSubVector(vdofs, elfun); //don't need this one
-    adjoint->GetSubVector(vdofs, eladj);
+   /// get the proper element, transformation, and adjoint vector
+   Array<int> vdofs;
+   Vector psi;
+   int element = Trx.ElementNo;
+   const FiniteElement *el = adjoint->FESpace()->GetFE(element);
+   ElementTransformation *Tr = adjoint->FESpace()->GetElementTransformation(element);
+   adjoint->FESpace()->GetElementVDofs(element, vdofs);
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = oa * el->GetOrder() + ob;
+      ir = &IntRules.Get(el->GetGeomType(), order);
+   }
+   adjoint->GetSubVector(vdofs, psi);
 
     const int dof = elx.GetDof();
     const int dofu = el->GetDof();
@@ -35,34 +105,29 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
     IsoparametricTransformation &isotrans =
     dynamic_cast<IsoparametricTransformation&>(*Tr);
 
-    Vector x_q(dim);
-    Vector x_bar(dim);
-    DenseMatrix Jac_q(dim, dim);
-    DenseMatrix Jac_bar(dim, dim);
     DenseMatrix PointMat_bar(dim, dof);
-
     
     // loop through nodes
     for (int i = 0; i < ir->GetNPoints(); ++i)
     {
+        PointMat_bar = 0.0;
         const IntegrationPoint &ip = ir->IntPoint(i);
         Tr->SetIntPoint(&ip);
-        Tr->Transform(ip, x_q);
 
-        PointMat_bar = 0.0;
-
-        /// NOTE: Q may or may not have sensitivity to x. Need to tailor to
-        /// different coefficients 
         el->CalcShape(ip, shape);
-        double deriv = ip.weight*Q.Eval(*Tr, ip)*(eladj*shape); //dR/dWeight
-        isotrans.WeightRevDiff(PointMat_bar); //dWeight/dX        
-        PointMat_bar.Set(deriv, PointMat_bar);
+        double Weight_bar = Q.Eval(isotrans, ip) * (psi*shape); // dR/dWeight
+        isotrans.WeightRevDiff(PointMat_bar); // dWeight/dX        
+        PointMat_bar *= Weight_bar;
+
+        /// Implement Q sensitivity
+        double Q_bar = isotrans.Weight() * (psi * shape); //dR/dQ
+        Q.EvalRevDiff(Q_bar, isotrans, ip, PointMat_bar);
 
         for (int j = 0; j < dof ; ++j)
         {
             for (int d = 0; d < dim; ++d)
             {
-                elvect(d* dof + j) += PointMat_bar (d,j);
+                elvect(d * dof + j) += ip.weight * PointMat_bar(d,j);
             }
         }
     }

@@ -2245,6 +2245,44 @@ void nuFuncIntegrator::AssembleRHSElementVect(
    }
 }
 
+void ThermalSensIntegrator::AssembleRHSElementVect(
+   const FiniteElement &nd_el,
+   ElementTransformation &nd_trans,
+   Vector &elvect)
+{
+   /// get the proper element, transformation, and adjoint vector
+   int element = nd_trans.ElementNo;
+   const auto &el = *adjoint->FESpace()->GetFE(element);
+   auto &trans = *adjoint->FESpace()->GetElementTransformation(element);
+   
+   Array<int> vdofs;
+   adjoint->FESpace()->GetElementVDofs(element, vdofs);
+   Vector psi;
+   adjoint->GetSubVector(vdofs, psi);
+
+   const IntegrationRule *ir = &IntRules.Get(
+            el.GetGeomType(), oa * el.GetOrder() + ob);
+
+   int h1_dof = el.GetDof();
+   shape.SetSize(h1_dof);
+   int nd_dof = nd_el.GetDof();
+   elvect.SetSize(nd_dof);
+   elvect = 0.0;
+
+   Vector V(nd_dof);
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      el.CalcShape(ip, shape);
+
+      double Q_bar = trans.Weight() * (psi * shape); // d(psi^T R)/dQ
+      Q.Eval(V, trans, ip); // evaluate dQ/dA
+      add(elvect, ip.weight * Q_bar, V, elvect);
+   }
+}
+
 // ForceIntegrator::ForceIntegrator(AbstractSolver *_solver,
 //                                  std::unordered_set<int> _regions,
 //                                  std::unordered_set<int> _free_regions,

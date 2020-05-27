@@ -639,6 +639,38 @@ private:
 #endif
 };
 
+/// Integrator to compute the sensitivity of the thermal residual to the vector potential
+class ThermalSensIntegrator : public mfem::NonlinearFormIntegrator,
+                              public mfem::LinearFormIntegrator
+{
+public:
+   /// Constructor, expected coefficient is SteinmetzVectorDiffCoefficient
+   ThermalSensIntegrator(mfem::VectorCoefficient &_Q, 
+                         mfem::GridFunction *_adjoint, 
+                         int a = 2, int b = 0)
+   : Q(_Q), oa(a), ob(b), adjoint(_adjoint) {}
+
+   /// \brief - assemble an element's contribution to
+   ///          \frac{\partial psi^T R}{\partial A}
+   /// \param[in] el - the finite element that describes the Nedelec element
+   /// \param[in] trans - the transformation between reference and physical
+   /// \param[out] elvect - \frac{\partial psi^T R}{\partial A} for the element
+   /// \note LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the magnetic vector potential's finite element space
+   virtual void AssembleRHSElementVect(const mfem::FiniteElement &ela,
+                                       mfem::ElementTransformation &Transa,
+                                       mfem::Vector &elvect) override;
+private:
+   /// vector coefficient that evaluates dQ/dA
+   mfem::VectorCoefficient &Q;
+   int oa, ob;
+   // thermal adjoint
+   mfem::GridFunction *adjoint;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+};
+
 // /// Integrator for forces due to electromagnetic fields
 // /// \note - Requires PUMI
 // class ForceIntegrator : public mfem::NonlinearFormIntegrator

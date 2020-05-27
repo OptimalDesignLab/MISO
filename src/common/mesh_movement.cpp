@@ -14,7 +14,6 @@ void MeshMovementSolver::initDerived()
     throw MachException("Not Implemented for MeshMovementSolver!\n");
 }
 
-#ifdef MFEM_USE_EGADS
 LEAnalogySolver::LEAnalogySolver(
 	 const std::string &opt_file_name,
     std::unique_ptr<mfem::Mesh> smesh,
@@ -91,6 +90,7 @@ void LEAnalogySolver::initDerived()
     
     if(options["use-pumi"].get<bool>())
     {
+#ifdef MFEM_USE_EGADS
         /// for loading model files
         string model_file_old = options["model-file"].template get<string>();
         string model_file_new = options["model-file-new"].template get<string>();
@@ -126,6 +126,9 @@ void LEAnalogySolver::initDerived()
                (*u)(vdof) = val(vd);
             }
         }
+#else
+        throw MachException("Pumi Does Not Use EGADS!\n");
+#endif
     }
     else
     {
@@ -203,7 +206,7 @@ void LEAnalogySolver::solveSteady()
        mesh->PrintVTK(mesh_ofs_2, options["space-dis"]["degree"].get<int>());
        //nodes->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>()); 
 
-
+#ifdef MFEM_USE_PUMI
         if(options["use-pumi"].get<bool>())
         {
             //update pumi mesh and write to file
@@ -212,6 +215,7 @@ void LEAnalogySolver::solveSteady()
             moved_mesh = getNewMesh(model_file_new, 
                     mesh_file_new, mesh.get(), pumi_mesh.get());
         }
+#endif
     }
 }
 
@@ -238,7 +242,5 @@ double LEAnalogySolver::MuFunc(const mfem::Vector &x, int ie)
 }
 
 mfem::Mesh* LEAnalogySolver::mesh_copy = 0;
-
-#endif
 
 } //namespace mach

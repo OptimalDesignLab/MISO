@@ -45,6 +45,7 @@ set(EM_TEST_SRCS
 # group EM MPI tests
 set(EM_MPI_TEST_SRCS
    test_magnetostatic_solver
+   test_steinmetz_integ
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
