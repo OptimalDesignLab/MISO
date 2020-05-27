@@ -188,9 +188,8 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
    }
 }
 
-TEMPLATE_TEST_CASE_SIG("MassResIntegrator::AssembleElementVector",
-                       "[MassResIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("MassResIntegrator::AssembleElementVector",
+          "[MassResIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;
@@ -268,9 +267,8 @@ TEMPLATE_TEST_CASE_SIG("MassResIntegrator::AssembleElementVector",
    }
 }
 
-TEMPLATE_TEST_CASE_SIG("DiffusionResIntegrator::AssembleElementVector",
-                       "[DiffusionResIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("DiffusionResIntegrator::AssembleElementVector",
+          "[DiffusionResIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;
@@ -281,8 +279,8 @@ TEMPLATE_TEST_CASE_SIG("DiffusionResIntegrator::AssembleElementVector",
    // generate a 8 element mesh
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
-                                       //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       //true /* gen. edges */, 1.0, 1.0, 1.0, true));
+                                 //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                 //true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -432,9 +430,8 @@ TEST_CASE("DiffusionResIntegrator::AssembleRHSElementVect",
    }
 }
 
-TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
-                       "[BoundaryNormalResIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("BoundaryNormalResIntegrator::AssembleFaceVector",
+          "[BoundaryNormalResIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;
