@@ -135,7 +135,7 @@ protected:
                 const mfem::Vector &u, const mfem::Vector &flux_bar,
                 mfem::Vector &dir_bar)
    {
-      static_cast<Derived*>(this)->calcFluxBar(x, dir, u, flux_bar, dir_bar);
+      //static_cast<Derived*>(this)->calcFluxBar(x, dir, u, flux_bar, dir_bar);
    }
 };
 

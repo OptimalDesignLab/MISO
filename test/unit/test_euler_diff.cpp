@@ -4,11 +4,11 @@
 #include "adept.h"
 #include "mfem.hpp"
 #include "euler_integ.hpp"
-#include "euler_diff_integ.hpp"
+#include "euler_sens_integ.hpp"
 #include "euler_test_data.hpp"
 #include "euler_fluxes.hpp"
 
-TEMPLATE_TEST_CASE_SIG("FarFieldBCDiff::GetFaceEnergy",
+TEMPLATE_TEST_CASE_SIG("FarFieldBCDiff::AssembleRHSElementVect",
                        "[FarFieldBCDiff]",
                        ((bool entvar), entvar), false, true)
 {
@@ -59,13 +59,14 @@ TEMPLATE_TEST_CASE_SIG("FarFieldBCDiff::GetFaceEnergy",
          adjoint.ProjectCoefficient(pert);
 
          // build the nonlinear form for d(psi^T R)/dx 
-         NonlinearForm dfdx_form(fes.get());
+         LinearForm dfdx_form(fes.get());
          dfdx_form.AddBdrFaceIntegrator(
-            new mach::FarFieldBCDiff<dim, entvar>(diff_stack, &adjoint, fec.get(), 
+            new mach::FarFieldBCDiff<dim, entvar>(diff_stack, state, adjoint,
                         q_far, mach, aoa));
 
          // evaluate d(psi^T R)/dmach
-         double dfdx = dfdx_form.GetEnergy(state);
+         dfdx_form.Assemble();
+         double dfdx = adjoint*dfdx_form;
 
          // now compute the finite-difference approximation...
          GridFunction dfdx_vect(fes.get());
