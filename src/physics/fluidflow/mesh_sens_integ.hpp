@@ -70,7 +70,8 @@ protected:
 /// Integrator for mesh sensitivity associated with boundary integrators
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
-class BoundaryMeshSensIntegrator : public mfem::LinearFormIntegrator
+class BoundaryMeshSensIntegrator : public mfem::LinearFormIntegrator,
+                                   public mfem::NonlinearFormIntegrator
 {
 public:
    /// Constructs an integrator for boundary-based mesh sensitivities

@@ -3,8 +3,6 @@ target_sources(mach
       advection.cpp
       advection.hpp
       euler_fluxes.hpp
-      euler_diff_integ_def.hpp
-      euler_diff_integ.hpp
       euler_integ_def.hpp
       euler_integ.hpp
       euler_sens_integ.hpp

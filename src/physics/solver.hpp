@@ -286,6 +286,10 @@ protected:
 
    /// derivative of psi^T res w.r.t the mesh nodes
    std::unique_ptr<NonlinearFormType> res_mesh_sens;
+   /// derivative of psi^T res w.r.t the mesh nodes
+   std::unique_ptr<LinearFormType> res_mesh_sens_l;
+   /// derivative of psi^T res w.r.t the mesh nodes
+   std::unique_ptr<NonlinearFormType> j_mesh_sens;
 
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;

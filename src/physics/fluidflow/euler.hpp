@@ -58,6 +58,13 @@ public:
    /// convert conservative variables to entropy variables
    /// \param[in/out] state - the conservative/entropy variables
    virtual void convertToEntvar(mfem::Vector &state);
+
+   /// get sensitivity of output quantity with respect to a scalar flow parameter
+   /// TODO: Need to generalize this
+   double getParamSens();
+
+   /// verify parameter sensitivity using a finite difference approximation
+   void verifyParamSens();
 protected:
    /// free-stream Mach number
    double mach_fs;

@@ -218,3 +218,17 @@ void FarFieldBCDiff<dim, entvar>::calcFlux(const mfem::Vector &x,
    mfem::DenseMatrix Jac(flux_jac.data(), dim+2, dim+2);
    Jac.Mult(ddM, flux_vec);
 }
+
+template <int dim, bool entvar>
+double PressureForceDiff<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                                const mfem::Vector &dir,
+                                                const mfem::Vector &q)
+{
+   calcSlipWallFlux<double, dim, entvar>(x.GetData(), dir.GetData(),
+                                         q.GetData(), work_vec.GetData());
+   /// derivative of force_nrm w.r.t. mach
+   mfem::Vector dndM(dim);
+   dndM = force_nrm;
+   dndM *= -2.0/mach_fs;
+   return dot<double, dim>(dndM.GetData(), work_vec.GetData() + 1);
+}

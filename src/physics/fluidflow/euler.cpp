@@ -4,6 +4,7 @@
 #include "euler.hpp"
 #include "euler_integ.hpp"
 #include "diag_mass_integ.hpp"
+#include "euler_sens_integ.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -215,6 +216,7 @@ void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final)
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addOutputs()
 {
+   output.clear();
    auto &fun = options["outputs"];
    int idx = 0;
    if (fun.find("drag") != fun.end())
@@ -466,6 +468,170 @@ void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
          }
       }
    }
+}
+
+template<int dim, bool entvar>
+double EulerSolver<dim, entvar>::getParamSens()
+{
+   double sens = 0;
+
+   // compute the adjoint 
+	adj = NULL;
+   string drags = "drag";
+	solveForAdjoint(drags);
+	
+   j_mesh_sens.reset(new NonlinearFormType(fes.get()));
+
+	// start by adding/computing the output partial
+	/// NOTE: Should eventually support different outputs
+	auto &fun = options["outputs"];
+   int idx = 0;
+   if (fun.find("drag") != fun.end())
+   { 
+      // drag on the specified boundaries
+      vector<int> tmp = fun["drag"].template get<vector<int>>();
+      output_bndry_marker[idx].SetSize(tmp.size(), 0);
+      output_bndry_marker[idx].Assign(tmp.data());
+      mfem::Vector drag_dir(dim);
+      drag_dir = 0.0;
+      if (dim == 1)
+      {
+         drag_dir(0) = 1.0;
+      }
+      else 
+      {
+         drag_dir(iroll) = cos(aoa_fs);
+         drag_dir(ipitch) = sin(aoa_fs);
+      }
+      drag_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cd
+      j_mesh_sens->AddBdrFaceIntegrator(
+          new PressureForceDiff<dim, entvar>(diff_stack, *u, *adj,
+                        drag_dir, mach_fs, aoa_fs), output_bndry_marker[idx]);
+      idx++;
+   }
+   // if (fun.find("lift") != fun.end())
+   // { 
+   //    // lift on the specified boundaries
+   //    vector<int> tmp = fun["lift"].template get<vector<int>>();
+   //    output_bndry_marker[idx].SetSize(tmp.size(), 0);
+   //    output_bndry_marker[idx].Assign(tmp.data());
+   //    mfem::Vector lift_dir(dim);
+   //    lift_dir = 0.0;
+   //    if (dim == 1)
+   //    {
+   //       lift_dir(0) = 0.0;
+   //    }
+   //    else
+   //    {
+   //       lift_dir(iroll) = -sin(aoa_fs);
+   //       lift_dir(ipitch) = cos(aoa_fs);
+   //    }
+   //    lift_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cl
+   //    j_mesh_sens.AddBdrFaceIntegrator(
+   //        new mach::PressureForceDiff<dim, entvar>(diff_stack, u, adj,
+   //                      lift_dir, mach_fs, aoa_fs), output_bndry_marker[idx]);
+   //    idx++;
+   // }
+	sens += j_mesh_sens->GetEnergy(*u);
+
+	// get residual sensitivities
+	res_mesh_sens.reset(new NonlinearFormType(fes.get()));
+   res_mesh_sens_l.reset(new LinearFormType(fes.get()));
+
+	/// add integrators R = [M + (dt/2)K]dudt + Ku + b = 0 (only need FarFieldBC)
+	auto &bcs = options["bcs"];
+	bndry_marker.resize(bcs.size());
+	idx = 0;
+   mfem::Vector qfar(dim+2); //mfem::Vector w_far(4);
+   getFreeStreamState(qfar);
+	if (bcs.find("far-field") != bcs.end())
+	{ 
+ 	    vector<int> tmp = bcs["far-field"].get<vector<int>>();
+ 	    bndry_marker[idx].SetSize(tmp.size(), 0);
+ 	    bndry_marker[idx].Assign(tmp.data());
+ 	    res_mesh_sens_l->AddBdrFaceIntegrator(
+			new FarFieldBCDiff<dim, entvar>(diff_stack, *u, *adj,
+                        qfar, mach_fs, aoa_fs), bndry_marker[idx]);
+ 	    idx++;
+	}
+	/// Compute the derivatives and accumulate the result
+	res_mesh_sens_l->Assemble();
+	sens -= *adj * *res_mesh_sens_l;
+
+	return sens;
+}
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::verifyParamSens()
+{
+	std::cout << "Verifying Drag Sensitivity to Mach Number..." << std::endl;
+	double delta = 1e-7;
+	double delta_cd = 1e-5;
+   string drags = "drag";
+	double dJdX_fd_v = -calcOutput(drags)/delta;
+	double dJdX_cd_v;
+	double dJdX_a = getParamSens();
+    // extract mesh nodes and get their finite-element space
+
+   // compute finite difference approximation
+   mach_fs += delta;
+   std::cout << "Solving Forward Step..." << std::endl;
+   constructMesh(nullptr);
+	initDerived();
+   constructLinearSolver(options["lin-solver"]);
+	constructNewtonSolver();
+	constructEvolver();
+   HYPRE_ClearAllErrors();
+   Vector qfar(4);
+   getFreeStreamState(qfar);
+	setInitialCondition(qfar);
+   solveForState();
+   std::cout << "Solver Done" << std::endl;
+   dJdX_fd_v += calcOutput(drags)/delta;
+
+   std::cout << "Mach Number Sensitivity (FD Only):  " << std::endl;
+    std::cout << "Finite Difference:  " << dJdX_fd_v << std::endl;
+    std::cout << "Analytic: 		  " << dJdX_a << std::endl;
+	std::cout << "FD Relative: 		  " << (dJdX_a-dJdX_fd_v)/dJdX_a << std::endl;
+    std::cout << "FD Absolute: 		  " << dJdX_a - dJdX_fd_v << std::endl;
+
+	//central difference approximation
+	std::cout << "Solving CD Backward Step..." << std::endl;
+	mach_fs -= delta; mach_fs -= delta_cd;
+	constructMesh(nullptr);
+	initDerived();
+   constructLinearSolver(options["lin-solver"]);
+	constructNewtonSolver();
+	constructEvolver();
+   HYPRE_ClearAllErrors();
+   getFreeStreamState(qfar);
+	setInitialCondition(qfar);
+   solveForState();
+   std::cout << "Solver Done" << std::endl;
+   dJdX_cd_v = -calcOutput(drags)/(2*delta_cd);
+
+	std::cout << "Solving CD Forward Step..." << std::endl;
+   mach_fs += 2*delta_cd;
+	constructMesh(nullptr);
+	initDerived();
+   constructLinearSolver(options["lin-solver"]);
+	constructNewtonSolver();
+	constructEvolver();
+   HYPRE_ClearAllErrors();
+   getFreeStreamState(qfar);
+	setInitialCondition(qfar);
+   solveForState();
+   std::cout << "Solver Done" << std::endl;
+   dJdX_cd_v += calcOutput(drags)/(2*delta_cd);
+
+	std::cout << "Mach Number Sensitivity:  " << std::endl;
+    std::cout << "Finite Difference:  " << dJdX_fd_v << std::endl;
+	std::cout << "Central Difference: " << dJdX_cd_v << std::endl;
+    std::cout << "Analytic: 		  " << dJdX_a << std::endl;
+	std::cout << "FD Relative: 		  " << (dJdX_a-dJdX_fd_v)/dJdX_a << std::endl;
+    std::cout << "FD Absolute: 		  " << dJdX_a - dJdX_fd_v << std::endl;
+	std::cout << "CD Relative: 		  " << (dJdX_a-dJdX_cd_v)/dJdX_a << std::endl;
+    std::cout << "CD Absolute: 		  " << dJdX_a - dJdX_cd_v << std::endl;
 }
 
 // explicit instantiation

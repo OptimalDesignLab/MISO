@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
       solver->printSolution("airfoil-steady-final");
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
+      static_cast<EulerSolver<2, entvar>*>(solver.get())->verifyParamSens();
    }
    catch (MachException &exception)
    {
