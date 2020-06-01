@@ -5,6 +5,7 @@
 #include "euler_integ.hpp"
 #include "diag_mass_integ.hpp"
 #include "euler_sens_integ.hpp"
+#include "gauss_hermite.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -632,6 +633,135 @@ void EulerSolver<dim, entvar>::verifyParamSens()
     std::cout << "FD Absolute: 		  " << dJdX_a - dJdX_fd_v << std::endl;
 	std::cout << "CD Relative: 		  " << (dJdX_a-dJdX_cd_v)/dJdX_a << std::endl;
     std::cout << "CD Absolute: 		  " << dJdX_a - dJdX_cd_v << std::endl;
+}
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::calcStatistics()
+{
+   std::string type = options["statistics"]["type"].get<std::string>();
+  
+   //get uncertain parameters
+   auto &params = options["statistics"]["param"];
+   auto &outputs = options["outputs"];
+   double pmean; double pstdv;
+   double mean; double stdev; int order;
+   if (params.find("mach") != params.end())
+   {
+      auto tmp = params["mach"].get<vector<double>>();
+      pmean = tmp[0]; pstdv = tmp[1];
+   }
+   Vector qfar(dim+2);
+
+   //get scheme
+   if (type == "collocation")
+   {
+      order = options["statistics"]["order"].get<int>();
+      Vector abs(order); Vector wt(order); Vector pts(order); Vector eval(order); Vector meansq(order);
+      switch (order)
+      {
+         case 1:
+            abs = gho1_x; wt = gho1_w;
+            break;
+         case 2:
+            abs = gho2_x; wt = gho2_w;
+            break;
+         case 3:
+            abs = gho3_x; wt = gho3_w;
+            break;
+         case 4:
+            abs = gho4_x; wt = gho4_w;
+            break;
+         case 5:
+            abs = gho5_x; wt = gho5_w;
+            break;
+         case 6:
+            abs = gho6_x; wt = gho6_w;
+            break;
+         default:
+            mfem_error("Gauss-Hermite collocation is currently only supported for 1 <= order <= 6");
+            break;
+      }
+
+      //compute realizations (1D)
+      for(int i = 0; i < order; i++)
+      {
+         if (params.find("mach") != params.end())
+         {
+            mach_fs = pmean + sqrt(2.0)*pstdv*abs(i);
+         }
+
+	      initDerived();
+         constructLinearSolver(options["lin-solver"]);
+	      constructNewtonSolver();
+	      constructEvolver();
+         HYPRE_ClearAllErrors();
+         getFreeStreamState(qfar);
+	      setInitialCondition(qfar);
+         solveForState();
+         std::cout << "Solver Done" << std::endl;
+         if (outputs.find("drag") != outputs.end())
+         {
+            string drags = "drag";
+            eval(i) = calcOutput(drags);
+         }
+         meansq(i) = eval(i)*eval(i);
+      }
+
+      //print realizations
+      stringstream evalname;
+      evalname << "realization_outs_"<<pmean<<"_"<<pstdv<<"_o"<<order<<".txt";
+      std::ofstream evalfile(evalname.str());
+      evalfile.precision(18);
+      eval.Print(evalfile);
+
+      mean = eval*wt;
+      stdev = sqrt(meansq*wt - mean*mean);
+
+      cout << "Stochastic Collocation Order "<<order<<endl;
+   }
+   else if (type == "MM1")
+   {
+      //compute realization at param mean
+      if (params.find("mach") != params.end())
+      {
+         mach_fs = pmean;
+      }
+	   initDerived();
+      constructLinearSolver(options["lin-solver"]);
+	   constructNewtonSolver();
+	   constructEvolver();
+      HYPRE_ClearAllErrors();
+      getFreeStreamState(qfar);
+	   setInitialCondition(qfar);
+      solveForState();
+      std::cout << "Solver Done" << std::endl;
+      double d1 = getParamSens();
+
+      //compute mean
+      if (outputs.find("drag") != outputs.end())
+      {
+         string drags = "drag";
+         mean = calcOutput(drags);
+      }
+
+      //compute standard deviation
+      stdev = pstdv*d1; //sqrt(pstdv*d1);?
+
+      cout << "Moment Method Order 1"<<endl;
+   }
+
+   cout << "Mean: "<<mean<<endl;
+   cout << "Standard Deviation: "<<stdev<<endl;
+
+   //write to file
+   stringstream statname;
+   statname << "euler_stats_"<<type<<"_"<<pmean<<"_"<<pstdv;
+   if(type == "collocation")
+      statname << "_o"<<order;
+   statname <<".txt";
+   std::ofstream statfile(statname.str());
+   statfile.precision(18);
+   statfile << mean << "\n" << stdev;
 }
 
 // explicit instantiation

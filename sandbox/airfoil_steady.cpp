@@ -59,22 +59,23 @@ int main(int argc, char *argv[])
 
       unique_ptr<AbstractSolver> solver(
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
-      solver->initDerived();
-      Vector qfar(4);
-      static_cast<EulerSolver<2, entvar>*>(solver.get())->getFreeStreamState(qfar);
-      //Vector wfar(4);
-      // TODO: I do not like that we have to perform this conversion outside the solver...
-      //calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      solver->setInitialCondition(qfar);
-      solver->printSolution("airfoil-steady-init");
-      solver->checkJacobian(pert);
-      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-                << endl;
-      solver->solveForState();
-      solver->printSolution("airfoil-steady-final");
-      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-                << endl;
-      static_cast<EulerSolver<2, entvar>*>(solver.get())->verifyParamSens();
+      // solver->initDerived();
+      // Vector qfar(4);
+      // static_cast<EulerSolver<2, entvar>*>(solver.get())->getFreeStreamState(qfar);
+      // //Vector wfar(4);
+      // // TODO: I do not like that we have to perform this conversion outside the solver...
+      // //calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
+      // solver->setInitialCondition(qfar);
+      // solver->printSolution("airfoil-steady-init");
+      // solver->checkJacobian(pert);
+      // mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
+      //           << endl;
+      // solver->solveForState();
+      // solver->printSolution("airfoil-steady-final");
+      // mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
+      //           << endl;
+      //static_cast<EulerSolver<2, entvar>*>(solver.get())->verifyParamSens();
+      solver->calcStatistics();
    }
    catch (MachException &exception)
    {

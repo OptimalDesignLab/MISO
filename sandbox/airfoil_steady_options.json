@@ -62,6 +62,13 @@
       "reltol": 1e-12,
       "abstol": 1e-12
    },
+   "statistics": {
+      "type": "MM1",
+      "order": 4,
+      "param": {
+         "mach": [0.6, 0.08]
+      }
+   },
    "saveresults":false,
    "outputs":
    {

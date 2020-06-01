@@ -65,6 +65,9 @@ public:
 
    /// verify parameter sensitivity using a finite difference approximation
    void verifyParamSens();
+
+   /// compute mean and stdev of the output w.r.t. uncertain mach number
+   virtual void calcStatistics() override;
 protected:
    /// free-stream Mach number
    double mach_fs;

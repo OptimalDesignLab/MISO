@@ -207,6 +207,10 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm() const;
+
+   /// Compute statistics according to user options, currently 1D
+   /// TODO: Need to generalize this
+   virtual void calcStatistics() {};
    
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
