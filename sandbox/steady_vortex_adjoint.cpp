@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
   
    try
    {
-      // construct the solver, set the initial condition, and solve
+      // construct the mesh 
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(map_degree, nx, ny);
       std::cout << "Number of elements " << smesh->GetNE() << std::endl;
@@ -70,9 +70,8 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,3);
 
-      unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
-      solver->initDerived();
-
+      // construct the solver and set initial conditions
+      auto solver = createSolver<EulerSolver<2> >(opt_file_name, move(smesh));
       solver->setInitialCondition(uexact);
       solver->printSolution("init", map_degree+1);
 

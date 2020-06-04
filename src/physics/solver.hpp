@@ -457,6 +457,22 @@ private:
 
 };
 
+using SolverPtr = std::unique_ptr<AbstractSolver>;
+
+/// Creates a new `DerivedSolver` and initializes it
+/// \param[in] opt_file_name - file where options are stored
+/// \param[in] smesh - if provided, defines the mesh for the problem
+/// \tparam DerivedSolver - a derived class of `AbstractSolver`
+template <class DerivedSolver>
+SolverPtr createSolver(const std::string &opt_file_name,
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+{
+   //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
+   SolverPtr solver(new DerivedSolver(opt_file_name, move(smesh)));
+   solver->initDerived();
+   return solver;
+}
+
 } // namespace mach
 
 #endif 

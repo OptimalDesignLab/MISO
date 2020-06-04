@@ -65,9 +65,7 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<AbstractSolver> solver(
-         new EulerSolver<2, entvar>(opt_file_name, nullptr));
-      solver->initDerived();
+      auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name);
       solver->setInitialCondition(u0_function);
       solver->feedpert(pert);
       mfem::out << "\n|| u_h - u ||_{L^2} = " 

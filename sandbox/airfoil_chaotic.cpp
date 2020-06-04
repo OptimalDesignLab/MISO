@@ -56,16 +56,13 @@ int main(int argc, char *argv[])
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
 #if 1
-      unique_ptr<NavierStokesSolver<2>> solver(
-         new NavierStokesSolver<2>(opt_file_name, nullptr));
+      auto solver = createSolver<NavierStokesSolver<2>>(opt_file_name);
 #endif
 #if 0
-      unique_ptr<EulerSolver<2>> solver(
-         new EulerSolver<2>(opt_file_name, nullptr));
+      auto solver = createSolver<EulerSolver<2>>(opt_file_name);
 #endif
-      solver->initDerived();
       Vector qfar(4);
-      solver->getFreeStreamState(qfar);
+      dynamic_cast<EulerSolver<2>*>(solver.get())->getFreeStreamState(qfar);
 
       // TEMP?
       qfar(1) = 0.0;

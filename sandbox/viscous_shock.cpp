@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 
    try
    {
-      // construct the solver, set the initial condition, and solve
+      // construct the mesh
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh = buildCurvilinearMesh(degree, nx, ny);
       std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
@@ -70,11 +70,9 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs, 3);
 
-      unique_ptr<AbstractSolver> solver(
-         new NavierStokesSolver<2>(opt_file_name, move(smesh)));
-      solver->initDerived();
-
-      // Define the initial condition function
+      // construct the solver and set the initial condition
+      auto solver = createSolver<NavierStokesSolver<2>>(opt_file_name,
+                                                        move(smesh));
       solver->setInitialCondition(shockExact);
       solver->printSolution("init", degree+1);
       solver->printResidual("init-res", degree+1);
