@@ -1578,7 +1578,7 @@ void MagnetostaticSolver::phaseACurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   phase_a_current<adouble>(remnant_flux, fill_factor, x_a.data(), J_a.data());
+   phase_a_current<adouble>(current_density, fill_factor, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -1606,7 +1606,7 @@ void MagnetostaticSolver::phaseBCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   phase_b_current<adouble>(remnant_flux, fill_factor, x_a.data(), J_a.data());
+   phase_b_current<adouble>(current_density, fill_factor, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -1634,7 +1634,7 @@ void MagnetostaticSolver::phaseCCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   phase_c_current<adouble>(remnant_flux, fill_factor, x_a.data(), J_a.data());
+   phase_c_current<adouble>(current_density, fill_factor, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -1718,7 +1718,7 @@ void MagnetostaticSolver::xAxisCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   x_axis_current<adouble>(remnant_flux, x_a.data(), J_a.data());
+   x_axis_current<adouble>(current_density, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -1746,7 +1746,7 @@ void MagnetostaticSolver::yAxisCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   y_axis_current<adouble>(remnant_flux, x_a.data(), J_a.data());
+   y_axis_current<adouble>(current_density, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -1774,7 +1774,7 @@ void MagnetostaticSolver::zAxisCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   z_axis_current<adouble>(remnant_flux, x_a.data(), J_a.data());
+   z_axis_current<adouble>(current_density, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -1802,7 +1802,7 @@ void MagnetostaticSolver::ringCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   ring_current<adouble>(remnant_flux, x_a.data(), J_a.data());
+   ring_current<adouble>(current_density, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
