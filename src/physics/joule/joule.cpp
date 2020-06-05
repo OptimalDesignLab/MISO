@@ -82,11 +82,34 @@ JouleSolver::JouleSolver(
    *out << "EM options:\n";
    *out << setw(3) << em_opts << endl;
 
-   em_solver.reset(new MagnetostaticSolver(em_opt_filename, nullptr));
+   *out << "Thermal options:\n";
+   *out << setw(3) << thermal_opts << endl;
+
+   *out << "Thermal bcs options:\n";
+   *out << setw(3) << options["thermal-opts"] << endl;
+
+   std::unique_ptr<mfem::Mesh> em_smesh = nullptr;
+   std::unique_ptr<mfem::Mesh> thermal_smesh = nullptr;
+   if (smesh != nullptr)
+   {
+      std::ofstream smesh_out("joule_smesh_out.mesh");
+      smesh->Print(smesh_out);
+      smesh_out.close();
+
+      std::ifstream em_smesh_in("joule_smesh_out.mesh");
+      em_smesh.reset(new Mesh(em_smesh_in));
+      em_smesh_in.close();
+
+      std::ifstream thermal_smesh_in("joule_smesh_out.mesh");
+      thermal_smesh.reset(new Mesh(thermal_smesh_in));
+      thermal_smesh_in.close();
+   }
+
+   em_solver.reset(new MagnetostaticSolver(em_opt_filename, move(em_smesh)));
    /// TODO: this should be moved to an init derived when a factory is made
    // em_solver->initDerived();
 
-   thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr));
+   thermal_solver.reset(new ThermalSolver(thermal_opts, move(thermal_smesh)));
    // thermal_solver->initDerived();
 
 }

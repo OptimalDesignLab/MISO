@@ -60,6 +60,7 @@
          "material": "box2",
          "attr": 2,
          "linear": true
+      }
    },
    "problem-opts" : {
       "current": {

@@ -271,7 +271,19 @@ void ThermalSolver::solveUnsteady()
 	    mesh->PrintVTK(sol_ofs_init, options["space-dis"]["degree"].get<int>() + 1);
 	    u->SaveVTK(sol_ofs_init, "Solution", options["space-dis"]["degree"].get<int>() + 1);
 	    sol_ofs_init.close();
-    }
+   }
+	ParaViewDataCollection *pd = NULL;
+   {
+      pd = new ParaViewDataCollection("joule_box_time_hist", mesh.get());
+      pd->SetPrefixPath("ParaView");
+      pd->RegisterField("solution", u.get());
+      pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>()+1);
+      pd->SetDataFormat(VTKFormat::BINARY);
+      pd->SetHighOrderOutput(true);
+      pd->SetCycle(0);
+      pd->SetTime(0.0);
+      pd->Save();
+   }
 
 	bool done = false;
 	double t_final = options["time-dis"]["t-final"].get<double>();
@@ -296,7 +308,7 @@ void ThermalSolver::solveUnsteady()
 	for (int ti = 0; !done;)
 	{
 		//save the state, if computing mesh sensitivities
-		if (options["compute-sens"].get<bool>())
+		if (options.value("compute-sens", false))
     	{
 			stringstream solname;
 			solname << "state"<<ti<<".gf";
@@ -310,7 +322,7 @@ void ThermalSolver::solveUnsteady()
     	{
 			cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      	}
+      }
 
 		u_old.reset(new GridFunType(*u));
 #ifdef MFEM_USE_MPI
@@ -331,6 +343,9 @@ void ThermalSolver::solveUnsteady()
 		{
 			agg = funct->GetTemp(u.get());
 		}
+		pd->SetCycle(ti);
+		pd->SetTime(t);
+		pd->Save();
 
 		// evolver->updateParameters();
 
@@ -348,11 +363,11 @@ void ThermalSolver::solveUnsteady()
 	// Save the final solution
 	stringstream solname;
 	solname << "state"<<ti_final<<".gf";
-    ofstream ssol(solname.str()); ssol.precision(30);
+   ofstream ssol(solname.str()); ssol.precision(30);
 	u->Save(ssol);
 
 	
-    ofstream sol_ofs("motor_heat.vtk");
+   ofstream sol_ofs("motor_heat.vtk");
 	sol_ofs.precision(14);
 	mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
 	u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
