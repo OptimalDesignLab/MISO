@@ -7,7 +7,7 @@
    "em-opts": {
       "space-dis": {
          "basis-type": "nedelec",
-         "degree": 2
+         "degree": 1
       },
       "steady": true,
       "lin-solver": {
@@ -26,7 +26,7 @@
    "thermal-opts": {
       "space-dis": {
          "basis-type": "H1",
-         "degree": 2
+         "degree": 1
       },
       "steady": false,
       "time-dis": {
@@ -34,7 +34,7 @@
           "const-cfl": true,
           "cfl": 1.0,
           "dt": 0.01,
-          "t-final": 1.0
+          "t-final": 0.1
       },
       "lin-solver": {
          "type": "hypregmres",
@@ -49,7 +49,7 @@
          "reltol": 1e-9
       },
       "bcs": {
-         "outflux": [0, 0, 1, 1]
+         "poutflux": [0, 0, 0, 0, 0, 0, 1, 1]
       }
    },
    "components": {
