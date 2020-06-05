@@ -494,7 +494,7 @@ void ThermalSolver::constructJoule()
 			if (sigma > 1e-12)
 			{
 				std::unique_ptr<mfem::Coefficient> temp_coeff;
-				temp_coeff.reset(new ConstantCoefficient(-current_density*current_density/sigma));
+				temp_coeff.reset(new ConstantCoefficient(current_density*current_density/sigma));
 				i2sigmainv->addCoefficient(attr, move(temp_coeff));
 			}
 		}
@@ -506,7 +506,7 @@ void ThermalSolver::constructJoule()
 				if (sigma > 1e-12)
 				{
 					std::unique_ptr<mfem::Coefficient> temp_coeff;
-					temp_coeff.reset(new ConstantCoefficient(-current_density*current_density/sigma));
+					temp_coeff.reset(new ConstantCoefficient(current_density*current_density/sigma));
 					i2sigmainv->addCoefficient(attribute, move(temp_coeff));
 				}
 			}
@@ -539,9 +539,9 @@ void ThermalSolver::constructCore()
 			if (params > 1e-12)
 			{
 				std::unique_ptr<mfem::Coefficient> temp_coeff;
-				// temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
-				// 														kh, ke, a_field));
-				temp_coeff.reset(new ConstantCoefficient(0.0));
+				temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
+																		kh, ke, a_field));
+				// temp_coeff.reset(new ConstantCoefficient(0.0));
 				coreloss->addCoefficient(attr, move(temp_coeff));		
 			}
 		}
@@ -553,9 +553,9 @@ void ThermalSolver::constructCore()
 				if (params > 1e-12)
 				{
 					std::unique_ptr<mfem::Coefficient> temp_coeff;
-					// temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
-					// 														kh, ke, a_field));
-					temp_coeff.reset(new ConstantCoefficient(0.0));
+					temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
+																			kh, ke, a_field));
+					// temp_coeff.reset(new ConstantCoefficient(0.0));
 					coreloss->addCoefficient(attribute, move(temp_coeff));
 				}
 			}
