@@ -5,7 +5,6 @@
 #include "euler_integ.hpp"
 #include "diag_mass_integ.hpp"
 #include "euler_sens_integ.hpp"
-#include "gauss_hermite.hpp"
 
 using namespace mfem;
 using namespace std;
