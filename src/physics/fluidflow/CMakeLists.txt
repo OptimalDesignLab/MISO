@@ -7,6 +7,8 @@ target_sources(mach
       euler_integ.hpp
       euler_sens_integ.hpp
       euler_sens_integ_def.hpp
+      euler_stat.cpp
+      euler_verify.cpp
       euler.cpp
       euler.hpp
       fluidflow.hpp
