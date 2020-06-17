@@ -202,7 +202,7 @@ void ThermalSolver::initDerived()
 	// func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
 	// /// pass through aggregation parameters for functional
 	// does not include dJdu calculation, need AddOutputs for that
-	if(rhoa != 0)
+	if (rhoa != 0)
 	{
 		funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
 	}
@@ -657,6 +657,13 @@ void ThermalSolver::constructCoefficients()
    constructCore();
 }
 
+void ThermalSolver::constructForms()
+{
+	mass.reset(new BilinearFormType(fes.get()));
+	stiff.reset(new BilinearFormType(fes.get()));
+	load.reset(new LinearFormType(fes.get()));
+}
+
 void ThermalSolver::addMassIntegrators(double alpha)
 {
 	mass->AddDomainIntegrator(new MassIntegrator(*rho_cv));
@@ -713,6 +720,8 @@ void ThermalSolver::constructEvolver()
    evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), stiff.get(), load.get(), *out,
 												0.0, flux_coeff.get()));
 	evolver->SetLinearSolver(solver.get());
+   if (newton_solver == nullptr)
+      constructNewtonSolver();
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

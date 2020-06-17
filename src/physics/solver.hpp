@@ -71,7 +71,7 @@ public:
 
    /// Perform set-up of derived classes using virtual functions
    /// \todo Put the constructors and this in a factory
-   void initDerived();
+   virtual void initDerived();
 
    /// class destructor
    virtual ~AbstractSolver();

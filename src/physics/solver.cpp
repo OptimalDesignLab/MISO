@@ -1238,7 +1238,7 @@ void AbstractSolver::constructNewtonSolver()
    //newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
-   newton_solver->SetOperator(*res);
+   // newton_solver->SetOperator(*res);
    newton_solver->SetPrintLevel(nptl);
    newton_solver->SetRelTol(nreltol);
    newton_solver->SetAbsTol(nabstol);
