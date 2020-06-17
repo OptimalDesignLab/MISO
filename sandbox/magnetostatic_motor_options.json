@@ -1,9 +1,9 @@
 {
    "mesh": {
       "file": "motor.smb",
-      "out-file": "motor_mesh"
+      "out-file": "motor_mesh",
+      "model-file": "motor.egads"
    },
-   "model-file": "motor.egads",
    "space-dis": {
       "basis-type": "nedelec",
       "degree": 1
@@ -12,6 +12,10 @@
    "time-dis": {
    },
    "lin-solver": {
+      "type": "hypregmres",
+      "pctype": "hypreams",
+      "rel-tol": 1e-10,
+      "abs-tol": 0.0,
       "printlevel": 2,
       "maxiter": 500
    },
@@ -43,7 +47,7 @@
       },
       "heatsink": {
          "attr": 5,
-         "material": "heatsink",
+         "material": "copper",
          "linear": true
       },
       "magnets": {
@@ -52,11 +56,9 @@
          "attrs": [6, 7, 8, 9, 10, 11, 12, 13]
       },
       "windings": {
-         "material": "copper",
+         "material": "copperwire",
          "linear": true,
-         "attrs": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
-         "fill-factor": 0.5,
-         "current-density": 100000
+         "attrs": [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
       },
       "farfields": {
          "material": "air",
@@ -64,13 +66,17 @@
          "attrs": [26, 27]
       }
    },
-   "magnets": {
-      "north": [6, 8, 10, 12],
-      "south": [7, 9, 11, 13]
-   },
-   "phases": {
-      "A": [14, 17, 20, 23],
-      "B": [15, 18, 21, 24],
-      "C": [16, 19, 22, 25]
+   "problem-opts" : {
+      "current" : {
+         "A": [14, 17, 20, 23],
+         "B": [15, 18, 21, 24],
+         "C": [16, 19, 22, 25]
+      },
+      "magnets": {
+         "north": [6, 8, 10, 12],
+         "south": [7, 9, 11, 13]
+      },
+      "fill-factor": 0.5,
+      "current-density": 100000
    }
 }
