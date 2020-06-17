@@ -52,6 +52,10 @@ private:
    std::vector<GridFunType*> thermal_fields;
 
    double (*thermal_init)(const mfem::Vector &);
+
+   friend SolverPtr createSolver<JouleSolver>(
+       const std::string &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
 } // namespace mach

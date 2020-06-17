@@ -103,20 +103,21 @@ int main(int argc, char *argv[])
       // construct the solver
 
       
-      ThermalSolver solver(opt_file_name, move(mesh));
-      solver.initDerived();
-      solver.setInitialCondition(InitialTemperature);
+      // ThermalSolver solver(opt_file_name, move(mesh));
+      // solver.initDerived();
+      auto solver = createSolver<ThermalSolver>(opt_file_name, move(mesh));
+      solver->setInitialCondition(InitialTemperature);
       // unique_ptr<MagnetostaticSolver<3>> solver(
       //    new MagnetostaticSolver<3>(opt_file_name, nullptr));
       std::cout << "Solving..." << std::endl;
-      solver.solveForState();
+      solver->solveForState();
       // std::cout << "Solving Adjoint..." << std::endl;
       // solver->solveForState();
       // solver.solveForAdjoint(options["outputs"]["temp-agg"].get<std::string>());
       std::cout << "Solver Done" << std::endl;
       std::cout.precision(17);
       std::cout << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver.calcL2Error(ExactSolution) << '\n' << endl;
+                << solver->calcL2Error(ExactSolution) << '\n' << endl;
    }
    catch (MachException &exception)
    {

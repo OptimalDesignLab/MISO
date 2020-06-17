@@ -228,6 +228,10 @@ private:
    static void a_exact(const mfem::Vector &x, mfem::Vector &A);
 
    static void b_exact(const mfem::Vector &x, mfem::Vector &B);
+
+   friend SolverPtr createSolver<MagnetostaticSolver>(
+       const std::string &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
 } // namespace mach

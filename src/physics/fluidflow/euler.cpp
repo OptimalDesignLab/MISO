@@ -48,7 +48,7 @@ template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::constructForms()
 {
    res.reset(new NonlinearFormType(fes.get()));
-   if ( (entvar) && (!options["time-dis"]["steady"].get<bool>()) )
+   if ( (entvar) && (!options["time-dis"]["steady"].template get<bool>()) )
    {
       nonlinear_mass.reset(new NonlinearFormType(fes.get()));
       mass.reset();
@@ -64,7 +64,7 @@ void EulerSolver<dim, entvar>::constructForms()
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addMassIntegrators(double alpha)
 {
-   if (options["time-dis"]["steady"].get<bool>()) {
+   if (options["time-dis"]["steady"].template get<bool>()) {
       mass->AddDomainIntegrator(new DiagMassIntegrator(num_state, true));
       //AbstractSolver::addMassIntegrators(alpha);
    }
@@ -163,7 +163,7 @@ void EulerSolver<dim, entvar>::addEntVolumeIntegrators()
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::initialHook() 
 {
-   if (options["time-dis"]["steady"].get<bool>())
+   if (options["time-dis"]["steady"].template get<bool>())
    {
       // res_norm0 is used to compute the time step in PTC
       res_norm0 = calcResidualNorm();
@@ -187,14 +187,14 @@ template <int dim, bool entvar>
 bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
                                              double dt)
 {
-   if (options["time-dis"]["steady"].get<bool>())
+   if (options["time-dis"]["steady"].template get<bool>())
    {
       // use tolerance options for Newton's method
       double norm = calcResidualNorm();
-      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
+      if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
          return true;
       if (norm <= res_norm0 *
-                      options["time-dis"]["steady-reltol"].get<double>())
+                      options["time-dis"]["steady-reltol"].template get<double>())
          return true;
       return false;
    }
@@ -279,23 +279,23 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
                                               double t_final,
                                               double dt_old) const
 {
-   if (options["time-dis"]["steady"].get<bool>())
+   if (options["time-dis"]["steady"].template get<bool>())
    {
       // ramp up time step for pseudo-transient continuation
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm();
       double exponent = options["time-dis"]["res-exp"];
-      double dt = options["time-dis"]["dt"].get<double>() *
+      double dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
       return max(dt, dt_old);
    }
-   if (!options["time-dis"]["const-cfl"].get<bool>())
+   if (!options["time-dis"]["const-cfl"].template get<bool>())
    {
-      return options["time-dis"]["dt"].get<double>();
+      return options["time-dis"]["dt"].template get<double>();
    }
    // Otherwise, use a constant CFL condition
-   double cfl = options["time-dis"]["cfl"].get<double>();
+   double cfl = options["time-dis"]["cfl"].template get<double>();
    Vector q(dim+2);
    auto calcSpect = [&q](const double* dir, const double* u)
    {

@@ -100,10 +100,11 @@ int main(int argc, char *argv[])
    {
       // construct the solver
       string opt_file_name(options_file);
-      MagnetostaticSolver solver(opt_file_name, move(mesh));
+      // MagnetostaticSolver solver(opt_file_name, move(mesh));
+      auto solver = createSolver<MagnetostaticSolver>(opt_file_name, move(mesh));
       // unique_ptr<MagnetostaticSolver> solver(
       //    new MagnetostaticSolver(opt_file_name, nullptr));
-      solver.solveForState();
+      solver->solveForState();
       // solver->solveForState();
       std::cout << "finish steady solve\n";
    }

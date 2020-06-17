@@ -146,6 +146,10 @@ private:
 
    /// work vector
    mutable mfem::Vector z;
+
+   friend SolverPtr createSolver<ThermalSolver>(
+       const std::string &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
 class ThermalEvolver : public MachEvolver

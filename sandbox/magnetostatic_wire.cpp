@@ -37,13 +37,12 @@ int main(int argc, char *argv[])
    {
       // construct the solver
       string opt_file_name(options_file);
-      MagnetostaticSolver solver(opt_file_name);
-      solver.initDerived();
-      solver.solveForState();
+
+      auto solver = createSolver<MagnetostaticSolver>(opt_file_name);
+      solver->solveForState();
       std::cout << "finish steady solve\n";
-      double energy = solver.calcOutput("energy");
-      std::cout << "Energy = " << energy << std::endl;
-      double coenergy = solver.calcOutput("co-energy");
+      
+      double coenergy = solver->calcOutput("co-energy");
       std::cout << "Co-energy = " << coenergy << std::endl;
    }
    catch (MachException &exception)

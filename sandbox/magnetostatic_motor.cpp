@@ -38,8 +38,8 @@ int main(int argc, char *argv[])
    {
       // construct the solver
       string opt_file_name(options_file);
-      MagnetostaticSolver solver(opt_file_name);
-      solver.solveForState();
+      auto solver = createSolver<MagnetostaticSolver>(opt_file_name);
+      solver->solveForState();
       std::cout << "finish steady solve\n";
    }
    catch (MachException &exception)
