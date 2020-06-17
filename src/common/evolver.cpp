@@ -21,7 +21,9 @@ public:
    SystemOperator(Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
                   BilinearFormType *_mass, NonlinearFormType *_res,
                   BilinearFormType *_stiff, mfem::Vector *_load)
-      : Operator(_res->Height()), nonlinear_mass(_nonlinear_mass), mass(_mass),
+      : Operator((_nonlinear_mass != nullptr) ? _nonlinear_mass->Height()
+                  : _mass->Height()),
+        nonlinear_mass(_nonlinear_mass), mass(_mass),
         res(_res), stiff(_stiff), load(_load), Jacobian(NULL),
         dt(0.0), x(NULL), work(height), work2(height)
    {
@@ -247,7 +249,8 @@ MachEvolver::MachEvolver(
     BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
     Vector *_load, NonlinearFormType *_ent, std::ostream &outstream,
     double start_time, TimeDependentOperator::Type type)
-    : EntropyConstrainedOperator(_res->Height(), start_time, type),
+    : EntropyConstrainedOperator((_nonlinear_mass != nullptr) 
+         ? _nonlinear_mass->Height() : _mass->Height(), start_time, type),
       nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
       out(outstream), work(height), work2(height)
 {

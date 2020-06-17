@@ -90,7 +90,7 @@ public:
    /// \param[in] x - the state at which to evaluate the entropy
    /// \returns the entropy functional
    /// \note optional, but must be implemented for relaxation RK
-   virtual double Entropy(const mfem::Vector &x);
+   double Entropy(const mfem::Vector &x) override;
 
    /// Evaluate the residual weighted by the entropy variables
    /// \praam[in] dt - evaluate residual at t+dt
@@ -99,8 +99,8 @@ public:
    /// \returns the product `w^T res`
    /// \note `w` and `res` are evaluated at `x + dt*k` and time `t+dt`
    /// \note optional, but must be implemented for relaxation RK
-   virtual double EntropyChange(double dt, const mfem::Vector &x, 
-                                const mfem::Vector &k);
+   double EntropyChange(double dt, const mfem::Vector &x, 
+                                const mfem::Vector &k) override;
 
    virtual ~MachEvolver();
    
