@@ -227,10 +227,8 @@ public:
 #endif
 
 protected:
-#ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
    MPI_Comm comm;
-#endif
    /// process rank
    int rank;
    /// print object

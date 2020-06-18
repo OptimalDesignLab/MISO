@@ -57,13 +57,14 @@ int main(int argc, char *argv[])
 
    petscoptions.close();
 #endif
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
-   int num_procs, myid;
+
+   // Initialize MPI
+   int num_procs, rank;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-#endif
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   ostream *out = getOutStream(rank);
+
 #ifdef MFEM_USE_PETSC
    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 #endif
@@ -81,7 +82,7 @@ int main(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      args.PrintUsage(*out);
       return 1;
    }
   
@@ -90,7 +91,7 @@ int main(int argc, char *argv[])
       // construct the mesh
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      std::cout << "Number of elements " << smesh->GetNE() <<'\n';
+      *out << "Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,0);
@@ -105,11 +106,8 @@ int main(int argc, char *argv[])
       double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
-      if (0==myid)
-      {
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
-         mfem::out << "\ninitial residual norm = " << res_error << endl;
-      }
+      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
+      *out << "\ninitial residual norm = " << res_error << endl;
       solver->checkJacobian(pert);
       solver->solveForState();
       solver->printSolution("euler_final",0);
@@ -120,16 +118,12 @@ int main(int argc, char *argv[])
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
       double entropy = solver->calcOutput("entropy");
 
-      if (0==myid)
-      {
-         mfem::out << "\nfinal residual norm = " << res_error;
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-         mfem::out << "\nDrag error = " << drag << endl;
-         mfem::out << "\nTotal entropy = " << entropy;
-         mfem::out << "\nEntropy error = "
-                   << fabs(entropy - calcEntropyTotalExact()) << endl;
-      }
-
+      *out << "\nfinal residual norm = " << res_error;
+      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      *out << "\nDrag error = " << drag << endl;
+      *out << "\nTotal entropy = " << entropy;
+      *out << "\nEntropy error = "
+           << fabs(entropy - calcEntropyTotalExact()) << endl;
    }
    catch (MachException &exception)
    {
@@ -143,9 +137,8 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
 #endif
-#ifdef MFEM_USE_MPI
+
    MPI_Finalize();
-#endif
 }
 
 // perturbation function used to check the jacobian in each iteration

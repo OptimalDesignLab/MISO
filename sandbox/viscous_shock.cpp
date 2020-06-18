@@ -34,10 +34,13 @@ int main(int argc, char *argv[])
    petscoptions.close();
 #endif
 
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
+   int num_procs, rank;
    MPI_Init(&argc, &argv);
-#endif
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   ostream *out = getOutStream(rank);
+
    // Parse command-line options
    OptionsParser args(argc, argv);
 
@@ -52,7 +55,7 @@ int main(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      args.PrintUsage(*out);
       return 1;
    }
 
@@ -65,7 +68,7 @@ int main(int argc, char *argv[])
       // construct the mesh
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh = buildCurvilinearMesh(degree, nx, ny);
-      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
+      *out << "Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("viscous_shock_mesh.vtk");
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs, 3);
@@ -77,18 +80,16 @@ int main(int argc, char *argv[])
       solver->printSolution("init", degree+1);
       solver->printResidual("init-res", degree+1);
 
-      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+      *out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver->calcL2Error(shockExact, 0) << '\n' << endl;
-      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-                << endl;
+      *out << "\ninitial residual norm = " << solver->calcResidualNorm() << endl;
 
       solver->solveForState();
       solver->printSolution("final", degree+1);
 
-      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
+      *out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver->calcL2Error(shockExact, 0) << '\n' << endl;
-      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-                << endl;
+      *out << "\nfinal residual norm = " << solver->calcResidualNorm() << endl;
 
    }
    catch (MachException &exception)
@@ -99,9 +100,8 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-#ifdef MFEM_USE_MPI
+
    MPI_Finalize();
-#endif
 }
 
 std::unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y)

@@ -131,11 +131,7 @@ IrrotationalProjector
      ownsGrad_(grad == NULL)
 {
    /// not sure if theres a better way to handle this
-#ifdef MFEM_USE_MPI
    ess_bdr_.SetSize(H1FESpace_->GetParMesh()->bdr_attributes.Max());
-#else
-   ess_bdr_.SetSize(H1FESpace_->GetMesh()->bdr_attributes.Max());
-#endif
    ess_bdr_ = 1;
    H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
 
@@ -176,14 +172,9 @@ IrrotationalProjector::~IrrotationalProjector()
 {
    delete psi_;
    delete xDiv_;
-
-#ifdef MFEM_USE_MPI
    delete amg_;
    delete pcg_;
-#endif
-
    delete S0_;
-
    delete s0_;
    delete weakDiv_;
 }
@@ -195,7 +186,6 @@ IrrotationalProjector::InitSolver() const
    delete pcg_;
    delete amg_;
 
-#ifdef MFEM_USE_MPI
    amg_ = new HypreBoomerAMG(*S0_);
    amg_->SetPrintLevel(0);
    pcg_ = new HyprePCG(*S0_);
@@ -203,18 +193,6 @@ IrrotationalProjector::InitSolver() const
    pcg_->SetMaxIter(200);
    pcg_->SetPrintLevel(0);
    pcg_->SetPreconditioner(*amg_);
-#else
-   amg_ = new EMPrecType((SparseMatrix&)(*S0_));
-
-   // CGSolver pcg_;
-   pcg_ = new CGSolver();
-   pcg_->SetPrintLevel(1);
-   pcg_->SetMaxIter(400);
-   pcg_->SetRelTol(1e-14);
-   pcg_->SetAbsTol(1e-14);
-   pcg_->SetPreconditioner(*amg_);
-   pcg_->SetOperator(*S0_);
-#endif
 }
 
 void
@@ -673,11 +651,7 @@ void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
 
    Vector vxyz = *(new_mesh.GetNodes());
    const int nodes_cnt = vxyz.Size() / dim;
-#ifdef MFEM_USE_MPI
    FindPointsGSLIB finder(MPI_COMM_WORLD);
-#else
-   FindPointsGSLIB finder;
-#endif
    const double rel_bbox_el = 0.05;
    const double newton_tol  = 1.0e-12;
    const int npts_at_once   = 256;

@@ -85,13 +85,8 @@ void ThermalSolver::initDerived()
 	// /// Set static variables
 	// setStaticMembers();
 
-#ifdef MFEM_USE_MPI
    *out << "Number of finite element unknowns: "
        << fes->GlobalTrueVSize() << endl;
-#else
-   *out << "Number of finite element unknowns: "
-        << fes->GetNDofs() << endl;
-#endif
 
    //  ifstream material_file(options["material-lib-path"].get<string>());
 	// /// TODO: replace with mach exception
@@ -324,13 +319,9 @@ void ThermalSolver::solveUnsteady()
 			cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
       }
-#ifdef MFEM_USE_MPI
 		HypreParVector *TV = u->GetTrueDofs();
 		ode_solver->Step(*TV, t, dt_real);
 		*u = *TV;
-#else
-		ode_solver->Step(*u, t, dt_real);
-#endif
 
 		// compute functional
 		if (rhoa != 0)
@@ -591,15 +582,9 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 	// Step 1: get the right-hand side vector, dJdu, and make an appropriate
    // alias to it, the state, and the adjoint
    std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
-#ifdef MFEM_USE_MPI
    HypreParVector *state = u->GetTrueDofs();
    HypreParVector *dJ = dJdu->GetTrueDofs();
    HypreParVector *adjoint = adj->GetTrueDofs();
-#else
-   GridFunType *state = u.get();
-   GridFunType *dJ = dJdu.get();
-   GridFunType *adjoint = adj.get();
-#endif
    double energy = output.at(fun).GetEnergy(*u);
 	output.at(fun).Mult(*state, *dJ);
 	cout << "Last Functional Output: " << energy << endl;
@@ -629,9 +614,7 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
    solver->Mult(*dJ, *adjoint);
    adjoint->Set(dt_real_, *adjoint);
-#ifdef MFEM_USE_MPI
    adj->SetFromTrueDofs(*adjoint);
-#endif
    if (0==rank)
    {
       time_end = MPI_Wtime();
@@ -765,12 +748,7 @@ ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
 						outstream, start_time),
 		flux_coeff(_flux_coeff), work(height)
 {
-#ifdef MFEM_USE_MPI
    mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-#else
-   mass->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-#endif
-
 	// mass->FormSystemMatrix(ess_tdof_list, mMat);
    // stiff->FormSystemMatrix(ess_tdof_list, kMat);
 };

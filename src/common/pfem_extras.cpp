@@ -11,8 +11,6 @@
 
 #include "pfem_extras.hpp"
 
-#ifdef MFEM_USE_MPI
-
 using namespace std;
 
 namespace mfem
@@ -362,5 +360,3 @@ void VisualizeField(socketstream &sock, const char *vishost, int visport,
 } // namespace common
 
 } // namespace mfem
-
-#endif

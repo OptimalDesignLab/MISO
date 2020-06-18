@@ -33,10 +33,9 @@ int main(int argc, char *argv[])
    petscoptions << "-pc_factor_reuse_ordering" << endl;
    petscoptions.close();
 #endif
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
    MPI_Init(&argc, &argv);
-#endif
+
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options",
@@ -94,9 +93,7 @@ int main(int argc, char *argv[])
    MFEMFinalizePetsc();
 #endif
 
-#ifdef MFEM_USE_MPI
    MPI_Finalize();
-#endif
 }
 
 void uinit(const Vector &x, Vector& u0)

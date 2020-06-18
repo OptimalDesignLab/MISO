@@ -11,16 +11,11 @@ using namespace mach;
 
 int main(int argc, char *argv[])
 {
-   ostream *out;
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
    MPI_Init(&argc, &argv);
    int rank;
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   out = getOutStream(rank); 
-#else
-   out = getOutStream(0);
-#endif
+   ostream *out = getOutStream(rank);
 
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -50,8 +45,7 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-#ifdef MFEM_USE_MPI
+   
    MPI_Finalize();
-#endif
 }
 

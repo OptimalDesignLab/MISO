@@ -15,15 +15,11 @@ static double initialTemperature(const mfem::Vector &x);
 int main(int argc, char *argv[])
 {
    std::ostream *out;
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
    MPI_Init(&argc, &argv);
    int rank;
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    out = mach::getOutStream(rank); 
-#else
-   out = mach::getOutStream(0);
-#endif
 
    // Parse command-line options
    mfem::OptionsParser args(argc, argv);
@@ -62,9 +58,8 @@ int main(int argc, char *argv[])
    {
       std::cerr << exception.what() << std::endl;
    }
-#ifdef MFEM_USE_MPI
+
    MPI_Finalize();
-#endif
 }
 
 double initialTemperature(const mfem::Vector &x)

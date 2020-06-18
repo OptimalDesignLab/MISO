@@ -107,12 +107,9 @@ AdvectionSolver<dim>::AdvectionSolver(
    stiff->Assemble(skip_zeros);
    stiff->Finalize(skip_zeros);
 
-#ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
    stiff_matrix.reset(stiff->ParallelAssemble());
-#else
-   stiff_matrix.reset(new MatrixType(stiff->SpMat()));
-#endif
+
    Array<int> ess_bdr(mesh->bdr_attributes.Max());
    ess_bdr = 0;
    /// This should overwrite the evolver defined in base class constructor

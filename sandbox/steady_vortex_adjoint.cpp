@@ -35,13 +35,12 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 int main(int argc, char *argv[])
 {
    const char *options_file = "steady_vortex_adjoint_options.json";
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+
+   // Initialize MPI
    int num_procs, myid;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-#endif
   
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -113,9 +112,8 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
 #endif
-#ifdef MFEM_USE_MPI
+
    MPI_Finalize();
-#endif
 }
 
 // perturbation function used to check the jacobian in each iteration
