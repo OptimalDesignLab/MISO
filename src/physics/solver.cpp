@@ -276,17 +276,14 @@ void AbstractSolver::initDerived()
    }
 
    // This just lists the boundary markers for debugging purposes
-   if (0 == rank)
+   for (unsigned k = 0; k < bndry_marker.size(); ++k)
    {
-      for (unsigned k = 0; k < bndry_marker.size(); ++k)
+      *out << "boundary_marker[" << k << "]: ";
+      for (int i = 0; i < bndry_marker[k].Size(); ++i)
       {
-         cout << "boundary_marker[" << k << "]: ";
-         for (int i = 0; i < bndry_marker[k].Size(); ++i)
-         {
-            cout << bndry_marker[k][i] << " ";
-         }
-         cout << endl;
+         *out << bndry_marker[k][i] << " ";
       }
+      *out << endl;
    }
 
    // add the output functional QoIs 
@@ -881,10 +878,10 @@ void AbstractSolver::setEssentialBoundaries()
    /// otherwise mark all attributes as nonessential
    else
    {
-      cout << "No essential BCs" << endl;
+      *out << "No essential BCs" << endl;
       if (mesh->bdr_attributes) // some meshes may not have boundary attributes
       {
-         cout << "mesh with boundary attributes" << endl;
+         *out << "mesh with boundary attributes" << endl;
          ess_bdr.SetSize(mesh->bdr_attributes.Max());
          ess_bdr = 0;
       }
@@ -896,8 +893,8 @@ void AbstractSolver::setEssentialBoundaries()
 
 void AbstractSolver::solveSteady()
 {
-   cout << "AbstractSolver::solveSteady() is deprecated!!!!!!!!!!!!!!!!" << endl;
-   cout << "calling AbstractSolver::solveUnsteady() instead" << endl;
+   *out << "AbstractSolver::solveSteady() is deprecated!!!!!!!!!!!!!!" << endl;
+   *out << "calling AbstractSolver::solveUnsteady() instead" << endl;
    solveUnsteady();
    return;
 
@@ -1327,7 +1324,7 @@ double AbstractSolver::calcOutput(const std::string &fun)
    {
       if (output.find(fun) == output.end())
       {
-         cout << "Did not find " << fun << " in output map?" << endl;
+         *out << "Did not find " << fun << " in output map?" << endl;
       }
       return output.at(fun).GetEnergy(*u);
    }

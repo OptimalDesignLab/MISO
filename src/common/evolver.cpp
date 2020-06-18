@@ -206,7 +206,7 @@ public:
          *resjac *= dt;
          if (jac == nullptr)
          { 
-            jac == resjac;
+            jac = resjac;
          }
          else
          {
