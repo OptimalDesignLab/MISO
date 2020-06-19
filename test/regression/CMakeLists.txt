@@ -19,9 +19,9 @@ set(FLUID_TEST_SRCS
 
 # group together all thermal related tests
 set(THERMAL_TEST_SRCS
-    test_thermal_solver
+    test_thermal_cube
 )
 
 
 create_tests("${FLUID_TEST_SRCS}" regression_data.cpp)
-create_tests("${EM_TEST_SRCS}" regression_data.cpp)
+create_tests("${THERMAL_TEST_SRCS}" regression_data.cpp)

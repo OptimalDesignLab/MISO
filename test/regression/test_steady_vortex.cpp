@@ -53,8 +53,8 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
     unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
     std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
 
-    unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
-    //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
+   auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
+                                                         move(smesh));    //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
     solver->initDerived();
 
     solver->setInitialCondition(uexact);
@@ -69,7 +69,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
     //res_error = solver->calcResidualNorm();
     //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
-    REQUIRE(l_error == 0.0);
+    REQUIRE(l_error == Approx(0.0700178854).margin(1e-10));
 
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
