@@ -19,7 +19,6 @@ public:
                   double ared_scale=1e-4)
       : eta(eta_init), eta_max(eta_maximum), t(ared_scale) {}
 
-#ifdef MFEM_USE_MPI
    /// Constructor for Inexact Newton Solver
    /// \param[in] comm - a MPI communicator
    /// \param[in] eta_init - initial value of eta, the forcing parameter
@@ -30,8 +29,7 @@ public:
    InexactNewton(MPI_Comm comm, double eta_init = 1e-4, 
                double eta_maximum = 1e-1, double ared_scale = 1e-4)
       : NewtonSolver(comm), eta(eta_init), eta_max(eta_maximum),
-        t(ared_scale) { std::cout << "Constructed InexactNewton object" << std::endl; }
-#endif
+        t(ared_scale) {}
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`

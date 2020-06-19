@@ -30,7 +30,7 @@ public:
    ThermalSolver(nlohmann::json &options,
                  std::unique_ptr<mfem::Mesh> smesh);
    
-   void initDerived();
+   void initDerived() override;
 
    // /// Returns the L2 error between the state `u` and given exact solution.
    // /// Overload for scalar quantities
@@ -113,6 +113,8 @@ private:
    /// Construct all coefficients for thermal solver
    void constructCoefficients() override;
 
+   void constructForms() override;
+
    void addMassIntegrators(double alpha) override;
    void addStiffVolumeIntegrators(double alpha) override;
    void addLoadVolumeIntegrators(double alpha) override;
@@ -146,6 +148,10 @@ private:
 
    /// work vector
    mutable mfem::Vector z;
+
+   friend SolverPtr createSolver<ThermalSolver>(
+       const std::string &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
 class ThermalEvolver : public MachEvolver

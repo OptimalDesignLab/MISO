@@ -170,7 +170,7 @@ void EulerSolver<dim, entvar>::initialHook()
    }
    // TODO: this should only be output if necessary
    double entropy = ent->GetEnergy(*u);
-   cout << "before time stepping, entropy is "<< entropy << endl;
+   *out << "before time stepping, entropy is "<< entropy << endl;
    remove("entropylog.txt");
    entropylog.open("entropylog.txt", fstream::app);
    entropylog << setprecision(14);
@@ -340,11 +340,7 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
       }
    }
    double dt_min;
-#ifdef MFEM_USE_MPI
    MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
-#else
-   dt_min = dt_local;
-#endif
    return dt_min;
 }
 
@@ -424,11 +420,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
       }
    }
    double norm;
-#ifdef MFEM_USE_MPI
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   norm = loc_norm;
-#endif
    if (norm < 0.0) // This was copied from mfem...should not happen for us
    {
       return -sqrt(-norm);

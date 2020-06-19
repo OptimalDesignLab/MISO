@@ -15,18 +15,11 @@ namespace mach
 
 /// Solver for inviscid flow problems
 /// dim - number of spatial dimensions (1, 2, or 3)
+/// entvar - if true, the entropy variables are used in the integrators
 template <int dim, bool entvar = false>
 class EulerSolver : public AbstractSolver
 {
 public:
-   /// Class constructor.
-   /// \param[in] opt_file_name - file where options are stored
-   /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
-   /// \todo Can we infer dim some other way without using a template param?
-   EulerSolver(const std::string &opt_file_name,
-               std::unique_ptr<mfem::Mesh> smesh = nullptr);
-
    /// Find the global time step size
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
@@ -71,6 +64,14 @@ protected:
    std::ofstream entropylog;
    /// used to store the initial residual norm for PTC and convergence checks
    double res_norm0 = -1.0;
+
+   /// Class constructor (protected to prevent misuse)
+   /// \param[in] opt_file_name - file where options are stored
+   /// \param[in] smesh - if provided, defines the mesh for the problem
+   /// \param[in] dim - number of dimensions
+   /// \todo Can we infer dim some other way without using a template param?
+   EulerSolver(const std::string &opt_file_name,
+               std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Initialize `res` and either `mass` or `nonlinear_mass`
    virtual void constructForms() override;
@@ -124,6 +125,10 @@ protected:
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
    virtual void terminalHook(int iter, double t_final) override;
+
+   friend SolverPtr createSolver<EulerSolver<dim, entvar>>(
+       const std::string &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
 } // namespace mach

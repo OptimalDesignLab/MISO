@@ -166,11 +166,7 @@ private:
    mutable mfem::Vector RHS_;
 
    mutable EMPrecType2 *amg_;
-#ifdef MFEM_USE_MPI
    mutable mfem::HyprePCG *pcg_;
-#else
-   mutable CGType *pcg_;
-#endif
 
    mfem::Array<int> ess_bdr_, ess_bdr_tdofs_;
 

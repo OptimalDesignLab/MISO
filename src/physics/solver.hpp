@@ -71,7 +71,7 @@ public:
 
    /// Perform set-up of derived classes using virtual functions
    /// \todo Put the constructors and this in a factory
-   void initDerived();
+   virtual void initDerived();
 
    /// class destructor
    virtual ~AbstractSolver();
@@ -227,10 +227,8 @@ public:
 #endif
 
 protected:
-#ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
    MPI_Comm comm;
-#endif
    /// process rank
    int rank;
    /// print object
@@ -456,6 +454,22 @@ private:
                  std::unique_ptr<mfem::Mesh> smesh);
 
 };
+
+using SolverPtr = std::unique_ptr<AbstractSolver>;
+
+/// Creates a new `DerivedSolver` and initializes it
+/// \param[in] opt_file_name - file where options are stored
+/// \param[in] smesh - if provided, defines the mesh for the problem
+/// \tparam DerivedSolver - a derived class of `AbstractSolver`
+template <class DerivedSolver>
+SolverPtr createSolver(const std::string &opt_file_name,
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+{
+   //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
+   SolverPtr solver(new DerivedSolver(opt_file_name, move(smesh)));
+   solver->initDerived();
+   return solver;
+}
 
 } // namespace mach
 

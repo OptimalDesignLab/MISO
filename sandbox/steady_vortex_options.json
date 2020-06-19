@@ -1,4 +1,8 @@
 {
+   "flow-param": {
+      "mach": 1.0,
+      "aoa": 0.0
+   },
    "space-dis": {
       "GD": false,
       "GD-degree": 1,
@@ -50,6 +54,7 @@
    "saveresults":false,
    "outputs":
    {
+      "entropy": true, 
       "drag": [0, 0, 0, 1]
    }
 }

@@ -9,10 +9,10 @@ using namespace std;
 namespace mach
 {
 
-template <int dim>
-NavierStokesSolver<dim>::NavierStokesSolver(const string &opt_file_name,
+template <int dim, bool entvar>
+NavierStokesSolver<dim, entvar>::NavierStokesSolver(const string &opt_file_name,
                                             unique_ptr<mfem::Mesh> smesh)
-    : EulerSolver<dim>(opt_file_name, move(smesh))
+    : EulerSolver<dim, entvar>(opt_file_name, move(smesh))
 {
    // define NS-related parameters; may or may not be used, depending on case
    re_fs = this->options["flow-param"]["Re"].template get<double>();
@@ -26,11 +26,11 @@ NavierStokesSolver<dim>::NavierStokesSolver(const string &opt_file_name,
    //addOutputs(dim);
 }
 
-template <int dim>
-void NavierStokesSolver<dim>::addResVolumeIntegrators(double alpha)
+template <int dim, bool entvar>
+void NavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // add base class integrators
-   EulerSolver<dim>::addResVolumeIntegrators(alpha);
+   EulerSolver<dim, entvar>::addResVolumeIntegrators(alpha);
    cout << "Inside NS add volume integrators" << endl;
    // now add NS integrators
    double mu = this->options["flow-param"]["mu"].template get<double>();
@@ -38,8 +38,8 @@ void NavierStokesSolver<dim>::addResVolumeIntegrators(double alpha)
        this->diff_stack, re_fs, pr_fs, mu, alpha));
 }
 
-template <int dim>
-void NavierStokesSolver<dim>::addResBoundaryIntegrators(double alpha)
+template <int dim, bool entvar>
+void NavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
 {
    // add base class integrators
    auto &bcs = this->options["bcs"];
@@ -66,8 +66,8 @@ void NavierStokesSolver<dim>::addResBoundaryIntegrators(double alpha)
       this->getFreeStreamState(q_ref);
       // Add the adiabatic flux BC
       this->res->AddBdrFaceIntegrator(
-          new NoSlipAdiabaticWallBC<dim>(this->diff_stack, this->fec.get(),
-                                         re_fs, pr_fs, q_ref, mu, alpha),
+          new NoSlipAdiabaticWallBC<dim>(
+              this->diff_stack, this->fec.get(), re_fs, pr_fs, q_ref, mu, alpha),
           this->bndry_marker[idx]);
       idx++;
    }
@@ -110,7 +110,7 @@ void NavierStokesSolver<dim>::addResBoundaryIntegrators(double alpha)
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       this->res->AddBdrFaceIntegrator(
-          new FarFieldBC<dim>(this->diff_stack, this->fec.get(), qfar,
+          new FarFieldBC<dim, entvar>(this->diff_stack, this->fec.get(), qfar,
                               alpha),
           this->bndry_marker[idx]);
       idx++;
@@ -122,22 +122,22 @@ void NavierStokesSolver<dim>::addResBoundaryIntegrators(double alpha)
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       this->res->AddBdrFaceIntegrator(
-          new ViscousExactBC<dim>(this->diff_stack, this->fec.get(), re_fs,
-                                  pr_fs, shockExact, mu, alpha),
+          new ViscousExactBC<dim>(this->diff_stack, this->fec.get(),
+                                  re_fs, pr_fs, shockExact, mu, alpha),
           this->bndry_marker[idx]);
       idx++;
    }
 }
 
-template <int dim>
-void NavierStokesSolver<dim>::addResInterfaceIntegrators(double alpha)
+template <int dim, bool entvar>
+void NavierStokesSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 {
    // add base class integrators
-   EulerSolver<dim>::addResInterfaceIntegrators(alpha);
+   EulerSolver<dim, entvar>::addResInterfaceIntegrators(alpha);
 }
 
-template <int dim>
-void NavierStokesSolver<dim>::getViscousInflowState(Vector &q_in)
+template <int dim, bool entvar>
+void NavierStokesSolver<dim, entvar>::getViscousInflowState(Vector &q_in)
 {
    vector<double> tmp = this->options["flow-param"]
                                      ["inflow-state"]
@@ -153,8 +153,8 @@ void NavierStokesSolver<dim>::getViscousInflowState(Vector &q_in)
    }
 }
 
-template <int dim>
-void NavierStokesSolver<dim>::getViscousOutflowState(Vector &q_out)
+template <int dim, bool entvar>
+void NavierStokesSolver<dim, entvar>::getViscousOutflowState(Vector &q_out)
 {
    vector<double> tmp = this->options["flow-param"]
                                      ["outflow-state"]
@@ -171,9 +171,9 @@ void NavierStokesSolver<dim>::getViscousOutflowState(Vector &q_out)
 }
 
 // explicit instantiation
-//template class NavierStokesSolver<1>;
+template class NavierStokesSolver<1>;
 template class NavierStokesSolver<2>;
-//template class NavierStokesSolver<3>;
+template class NavierStokesSolver<3>;
 
 double shockEquation(double Re, double Ma, double v)
 {

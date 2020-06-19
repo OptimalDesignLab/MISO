@@ -42,10 +42,14 @@ int main(int argc, char *argv[])
    //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
    petscoptions.close();
 #endif
-#ifdef MFEM_USE_MPI
+
    // Initialize MPI if parallel
+   int num_procs, rank;
    MPI_Init(&argc, &argv);
-#endif
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   ostream *out = getOutStream(rank);
+
 #ifdef MFEM_USE_PETSC
    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 #endif
@@ -57,7 +61,7 @@ int main(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      args.PrintUsage(*out);
       return 1;
    }
 
@@ -65,15 +69,13 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<AbstractSolver> solver(
-         new EulerSolver<2, entvar>(opt_file_name, nullptr));
-      solver->initDerived();
+      auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name);
       solver->setInitialCondition(u0_function);
       solver->feedpert(pert);
-      mfem::out << "\n|| u_h - u ||_{L^2} = " 
+      *out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;      
       solver->solveForState();
-      mfem::out << "\n|| u_h - u ||_{L^2} = " 
+      *out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;
 
    }
@@ -88,9 +90,8 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
 #endif
-#ifdef MFEM_USE_MPI
+
    MPI_Finalize();
-#endif
 }
 
 // Initial condition; see Crean et al. 2018 for the notation

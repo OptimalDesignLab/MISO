@@ -100,37 +100,35 @@ AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
    initBase(file_options, move(smesh));
 }
 
+// Note: the following constructor is protected
 AbstractSolver::AbstractSolver(const string &opt_file_name)
 {
-   nlohmann::json file_options;
-   ifstream options_file(opt_file_name);
-   options_file >> file_options;
+   // Some of the following code would normally happen in initBase, but this is 
+   // a parred down version of the AbstractSolver that does not need most of 
+   // the functionality (e.g. multiphysics code)
+   // TODO: Do we need a separate super class for this case?
 
    // Set the options; the defaults are overwritten by the values in the file
    // using the merge_patch method
-#ifdef MFEM_USE_MPI
-   comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
-   MPI_Comm_rank(comm, &rank);
-#else
-   rank = 0; // serial case
-#endif
-   out = getOutStream(rank);
+   nlohmann::json file_options;
+   ifstream options_file(opt_file_name);
+   options_file >> file_options;
    options = default_options;
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
+
+   comm = MPI_COMM_WORLD;
+   MPI_Comm_rank(comm, &rank);
+   out = getOutStream(rank);
 }
 
 void AbstractSolver::initBase(const nlohmann::json &file_options,
                               std::unique_ptr<Mesh> smesh)
 {
-// Set the options; the defaults are overwritten by the values in the file
-// using the merge_patch method
-#ifdef MFEM_USE_MPI
+   // Set the options; the defaults are overwritten by the values in the file
+   // using the merge_patch method
    comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
    MPI_Comm_rank(comm, &rank);
-#else
-   rank = 0; // serial case
-#endif
    out = getOutStream(rank);
    options = default_options;
    options.merge_patch(file_options);
@@ -211,12 +209,7 @@ void AbstractSolver::initDerived()
    fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                    Ordering::byVDIM));
    u.reset(new GridFunType(fes.get()));
-#ifdef MFEM_USE_MPI
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
-#else
-   *out << "Number of finite element unknowns: "
-        << fes->GetTrueVSize() << endl;
-#endif
 
    double alpha = 1.0;
 
@@ -276,17 +269,14 @@ void AbstractSolver::initDerived()
    }
 
    // This just lists the boundary markers for debugging purposes
-   if (0 == rank)
+   for (unsigned k = 0; k < bndry_marker.size(); ++k)
    {
-      for (unsigned k = 0; k < bndry_marker.size(); ++k)
+      *out << "boundary_marker[" << k << "]: ";
+      for (int i = 0; i < bndry_marker[k].Size(); ++i)
       {
-         cout << "boundary_marker[" << k << "]: ";
-         for (int i = 0; i < bndry_marker[k].Size(); ++i)
-         {
-            cout << bndry_marker[k][i] << " ";
-         }
-         cout << endl;
+         *out << bndry_marker[k][i] << " ";
       }
+      *out << endl;
    }
 
    // add the output functional QoIs 
@@ -321,35 +311,19 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
                         "\tMesh file has no extension!\n");
    }
 
-   /// if serial mesh passed in, use that
+   // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
-#ifdef MFEM_USE_MPI
-      comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
-      MPI_Comm_rank(comm, &rank);
       mesh.reset(new MeshType(comm, *smesh));
-#else
-      mesh.reset(new MeshType(*smesh));
-#endif
    }
-   /// native MFEM mesh
+   // native MFEM mesh
    else if (mesh_ext == "mesh")
    {
-      // // read in the serial mesh
-      // if (smesh == nullptr)
-      // {
-         smesh.reset(new Mesh(mesh_file.c_str(), 1, 1));
-      // }
-
-#ifdef MFEM_USE_MPI
-      comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
-      MPI_Comm_rank(comm, &rank);
+      // read in the serial mesh
+      smesh.reset(new Mesh(mesh_file.c_str(), 1, 1));
       mesh.reset(new MeshType(comm, *smesh));
-#else
-      mesh.reset(new MeshType(*smesh));
-#endif
    }
-   /// PUMI mesh
+   // PUMI mesh
    else if (mesh_ext == "smb")
    {
       constructPumiMesh();
@@ -359,8 +333,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 void AbstractSolver::constructPumiMesh()
 {
 #ifdef MFEM_USE_PUMI // if using pumi mesh
-   comm = MPI_COMM_WORLD; // TODO: how to pass communicator as an argument?
-   MPI_Comm_rank(comm, &rank);   // problem with using these in loadMdsMesh
    *out << options["mesh"]["model-file"].get<string>().c_str() << std::endl;
    std::string model_file = options["mesh"]["model-file"].get<string>();
    std::string mesh_file = options["mesh"]["file"].get<string>();
@@ -541,11 +513,7 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
       }
    }
    double prod;
-#ifdef MFEM_USE_MPI
    MPI_Allreduce(&loc_prod, &prod, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   prod = loc_prod;
-#endif
    return prod;
 }
 
@@ -616,11 +584,7 @@ double AbstractSolver::calcL2Error(GridFunType *field,
    }
 
    double norm;
-#ifdef MFEM_USE_MPI
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   norm = loc_norm;
-#endif
    if (norm < 0.0) // This was copied from mfem...should not happen for us
    {
       return -sqrt(-norm);
@@ -704,11 +668,7 @@ double AbstractSolver::calcL2Error(GridFunType *field,
       }
    }
    double norm;
-#ifdef MFEM_USE_MPI
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   norm = loc_norm;
-#endif
    if (norm < 0.0) // This was copied from mfem...should not happen for us
    {
       return -sqrt(-norm);
@@ -720,16 +680,11 @@ double AbstractSolver::calcResidualNorm() const
 {
    GridFunType r(fes.get());
    double res_norm;
-#ifdef MFEM_USE_MPI
-   HypreParVector *U = u->GetTrueDofs();
-   HypreParVector *R = r.GetTrueDofs();
-   res->Mult(*U, *R); 
-   double loc_norm = (*R)*(*R);
+   HypreParVector *u_true = u->GetTrueDofs();
+   HypreParVector *r_true = r.GetTrueDofs();
+   res->Mult(*u_true, *r_true); 
+   double loc_norm = (*r_true)*(*r_true);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   res->Mult(*u, r);
-   res_norm = r*r;
-#endif
    res_norm = sqrt(res_norm);
    return res_norm;
 }
@@ -783,12 +738,8 @@ void AbstractSolver::printResidual(const std::string &file_name,
                                         int refine)
 {
    GridFunType r(fes.get());
-#ifdef MFEM_USE_MPI
-   HypreParVector *U = u->GetTrueDofs();
-   res->Mult(*U, r);
-#else
-   res->Mult(*u, r);
-#endif
+   HypreParVector *u_true = u->GetTrueDofs();
+   res->Mult(*u_true, r);
    // TODO: These mfem functions do not appear to be parallelized
    ofstream res_ofs(file_name + ".vtk");
    res_ofs.precision(14);
@@ -881,10 +832,10 @@ void AbstractSolver::setEssentialBoundaries()
    /// otherwise mark all attributes as nonessential
    else
    {
-      cout << "No essential BCs" << endl;
+      *out << "No essential BCs" << endl;
       if (mesh->bdr_attributes) // some meshes may not have boundary attributes
       {
-         cout << "mesh with boundary attributes" << endl;
+         *out << "mesh with boundary attributes" << endl;
          ess_bdr.SetSize(mesh->bdr_attributes.Max());
          ess_bdr = 0;
       }
@@ -896,8 +847,8 @@ void AbstractSolver::setEssentialBoundaries()
 
 void AbstractSolver::solveSteady()
 {
-   cout << "AbstractSolver::solveSteady() is deprecated!!!!!!!!!!!!!!!!" << endl;
-   cout << "calling AbstractSolver::solveUnsteady() instead" << endl;
+   *out << "AbstractSolver::solveSteady() is deprecated!!!!!!!!!!!!!!" << endl;
+   *out << "calling AbstractSolver::solveUnsteady() instead" << endl;
    solveUnsteady();
    return;
 
@@ -915,8 +866,8 @@ void AbstractSolver::solveSteady()
 //    int maxiter = options["petscsolver"]["maxiter"].get<int>();
 //    int ptl = options["petscsolver"]["printlevel"].get<int>();
 
-//    solver.reset(new mfem::PetscLinearSolver(fes->GetComm(), "solver_", 0));
-//    prec.reset(new mfem::PetscPreconditioner(fes->GetComm(), "prec_"));
+//    solver.reset(new mfem::PetscLinearSolver(comm, "solver_", 0));
+//    prec.reset(new mfem::PetscPreconditioner(comm, "prec_"));
 //    dynamic_cast<mfem::PetscLinearSolver *>(solver.get())->SetPreconditioner(*prec);
 
 //    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(abstol);
@@ -929,7 +880,7 @@ void AbstractSolver::solveSteady()
 //    double nreltol = options["newton"]["reltol"].get<double>();
 //    int nmaxiter = options["newton"]["maxiter"].get<int>();
 //    int nptl = options["newton"]["printlevel"].get<int>();
-//    newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+//    newton_solver.reset(new mfem::NewtonSolver(comm));
 //    newton_solver->iterative_mode = true;
 //    newton_solver->SetSolver(*solver);
 //    newton_solver->SetOperator(*res);
@@ -1029,13 +980,9 @@ void AbstractSolver::solveUnsteady()
          *out << " (" << round(100 * t / t_final) << "% complete)";
       *out << endl;
       iterationHook(ti, t, dt);
-#ifdef MFEM_USE_MPI
-      HypreParVector *U = u->GetTrueDofs();
-      ode_solver->Step(*U, t, dt);
-      *u = *U;
-#else
-      ode_solver->Step(*u, t, dt);
-#endif
+      HypreParVector *u_true = u->GetTrueDofs();
+      ode_solver->Step(*u_true, t, dt);
+      *u = *u_true;
       if (iterationExit(ti, t, t_final, dt)) break;
    }
    terminalHook(ti, t);
@@ -1072,10 +1019,7 @@ void AbstractSolver::solveUnsteady()
 void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 {
    double time_beg, time_end;
-   if (0==rank)
-   {
-      time_beg = MPI_Wtime();
-   }
+   time_beg = MPI_Wtime();
 
    // Step 0: allocate the adjoint variable
    adj.reset(new GridFunType(fes.get()));
@@ -1083,22 +1027,16 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    // Step 1: get the right-hand side vector, dJdu, and make an appropriate
    // alias to it, the state, and the adjoint
    std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
-#ifdef MFEM_USE_MPI
-   HypreParVector *state = u->GetTrueDofs();
-   HypreParVector *dJ = dJdu->GetTrueDofs();
-   HypreParVector *adjoint = adj->GetTrueDofs();
-#else
-   GridFunType *state = u.get();
-   GridFunType *dJ = dJdu.get();
-   GridFunType *adjoint = adj.get();
-#endif
-   output.at(fun).Mult(*state, *dJ);
+
+   HypreParVector *u_true = u->GetTrueDofs();
+   HypreParVector *dJdu_true = dJdu->GetTrueDofs();
+   HypreParVector *adj_true = adj->GetTrueDofs();
+   output.at(fun).Mult(*u_true, *dJdu_true);
 
    // Step 2: get the Jacobian and transpose it
-   // TODO: need #define guards to handle serial case
-   Operator *jac = &res->GetGradient(*state);
-   //const HypreParMatrix *jac_trans = dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
-   const Operator *jac_trans = dynamic_cast<const HypreParMatrix*>(jac)->Transpose();
+   Operator *jac = &res->GetGradient(*u_true);
+   const Operator *jac_trans =
+       dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
    MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
 
    // Step 3: Solve the adjoint problem
@@ -1107,33 +1045,22 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
         << "\tprec. : Euclid ILU" << endl;
    constructLinearSolver(options["adj-solver"]);
    solver->SetOperator(*jac_trans);
-   solver->Mult(*dJ, *adjoint);
+   solver->Mult(*dJdu_true, *adj_true);
 
    // check that adjoint residual is small
    std::unique_ptr<GridFunType> adj_res(new GridFunType(fes.get()));
    double res_norm = 0;
-#ifdef MFEM_USE_MPI
    HypreParVector *adj_res_true = adj_res->GetTrueDofs();
-   jac_trans->Mult(*adjoint, *adj_res_true);
-   *adj_res_true -= *dJ;
+   jac_trans->Mult(*adj_true, *adj_res_true);
+   *adj_res_true -= *dJdu_true;
    double loc_norm = (*adj_res_true)*(*adj_res_true);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   jac_trans.Mult(*adjoint, *adj_res);
-   *adj_res -= *dJ;
-   res_norm = (*adj_res)*(*adj_res);
-#endif
    res_norm = sqrt(res_norm);
    *out << "Adjoint residual norm = " << res_norm << endl;
-
-#ifdef MFEM_USE_MPI
-   adj->SetFromTrueDofs(*adjoint);
-#endif
-   if (0==rank)
-   {
-      time_end = MPI_Wtime();
-      *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
-   }
+   adj->SetFromTrueDofs(*adj_true);
+ 
+   time_end = MPI_Wtime();
+   *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
 }
 
 void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
@@ -1143,38 +1070,23 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
 
    if (prec_type == "hypreeuclid")
    {
-#ifdef MFEM_USE_MPI
-      prec.reset(new HypreEuclid(fes->GetComm()));
+      prec.reset(new HypreEuclid(comm));
       // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
       *out << "!!!!!!! Euclid Fill level is not set "
            << "(see AbstractSolver::constructLinearSolver() for details)" << endl;
       //int fill = options["lin-solver"]["filllevel"].get<int>();
       //HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
-#else
-      throw MachException("Hypre preconditioners require building MFEM with "
-               "MPI!\n");
-#endif
    }
    else if (prec_type == "hypreams")
    {
-#ifdef MFEM_USE_MPI
       prec.reset(new HypreAMS(fes.get()));
       dynamic_cast<mfem::HypreAMS *>(prec.get())->SetPrintLevel(0);
       dynamic_cast<mfem::HypreAMS *>(prec.get())->SetSingularProblem();
-#else
-      throw MachException("Hypre preconditioners require building MFEM with "
-               "MPI!\n");
-#endif
    }
    else if (prec_type == "hypreboomeramg")
    {
-#ifdef MFEM_USE_MPI
       prec.reset(new HypreBoomerAMG());
       dynamic_cast<mfem::HypreBoomerAMG *>(prec.get())->SetPrintLevel(0);
-#else
-      throw MachException("Hypre preconditioners require building MFEM with "
-               "MPI!\n");
-#endif
    }
    else
    {
@@ -1184,35 +1096,19 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
 
    if (solver_type == "hypregmres")
    {
-#ifdef MFEM_USE_MPI
-      solver.reset(new HypreGMRES(fes->GetComm()));
-#else
-      throw MachException("Hypre solvers require building MFEM with MPI!\n");
-#endif
+      solver.reset(new HypreGMRES(comm));
    }
    else if (solver_type == "gmressolver")
    {
-#ifdef MFEM_USE_MPI
-      solver.reset(new GMRESSolver(fes->GetComm()));
-#else
-      solver.reset(new GMRESSolver());
-#endif
+      solver.reset(new GMRESSolver(comm));
    }
    else if (solver_type == "hyprepcg")
    {
-#ifdef MFEM_USE_MPI
-      solver.reset(new HyprePCG(fes->GetComm()));
-#else
-      throw MachException("Hypre solvers require building MFEM with MPI!\n");
-#endif
+      solver.reset(new HyprePCG(comm));
    }
    else if (solver_type == "cgsolver")
    {
-#ifdef MFEM_USE_MPI
-      solver.reset(new CGSolver(fes->GetComm()));
-#else
-      solver.reset(new CGSolver());
-#endif
+      solver.reset(new CGSolver(comm));
    }
    else
    {
@@ -1233,12 +1129,12 @@ void AbstractSolver::constructNewtonSolver()
    double nreltol = options["newton"]["reltol"].get<double>();
    int nmaxiter = options["newton"]["maxiter"].get<int>();
    int nptl = options["newton"]["printlevel"].get<int>();
-   newton_solver.reset(new mfem::NewtonSolver(fes->GetComm()));
+   newton_solver.reset(new mfem::NewtonSolver(comm));
    //double eta = 1e-1;
-   //newton_solver.reset(new InexactNewton(fes->GetComm(), eta));
+   //newton_solver.reset(new InexactNewton(comm, eta));
    newton_solver->iterative_mode = true;
    newton_solver->SetSolver(*solver);
-   newton_solver->SetOperator(*res);
+   // newton_solver->SetOperator(*res);
    newton_solver->SetPrintLevel(nptl);
    newton_solver->SetRelTol(nreltol);
    newton_solver->SetAbsTol(nabstol);
@@ -1255,9 +1151,6 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
 
    if (solver_type == "hypregmres")
    {
-#ifndef MFEM_USE_MPI
-      throw MachException("Hypre solvers require building MFEM with MPI!\n");
-#endif
       dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetTol(reltol);
       dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetMaxIter(maxiter);
       dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
@@ -1279,9 +1172,6 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
    }
    else if (solver_type == "hyprepcg")
    {
-#ifndef MFEM_USE_MPI
-      throw MachException("Hypre solvers require building MFEM with MPI!\n");
-#endif
       dynamic_cast<mfem::HyprePCG*> (solver.get())->SetTol(reltol);
       dynamic_cast<mfem::HyprePCG*> (solver.get())->SetMaxIter(maxiter);
       dynamic_cast<mfem::HyprePCG*> (solver.get())->SetPrintLevel(ptl);
@@ -1327,7 +1217,7 @@ double AbstractSolver::calcOutput(const std::string &fun)
    {
       if (output.find(fun) == output.end())
       {
-         cout << "Did not find " << fun << " in output map?" << endl;
+         *out << "Did not find " << fun << " in output map?" << endl;
       }
       return output.at(fun).GetEnergy(*u);
    }
@@ -1356,42 +1246,25 @@ void AbstractSolver::checkJacobian(
    // Get the product using a 2nd-order finite-difference approximation
    GridFunType res_plus(fes.get());
    GridFunType res_minus(fes.get());
-#ifdef MFEM_USE_MPI 
    HypreParVector *u_p = u_plus.GetTrueDofs();
    HypreParVector *u_m = u_minus.GetTrueDofs();
    HypreParVector *res_p = res_plus.GetTrueDofs();
    HypreParVector *res_m = res_minus.GetTrueDofs();
-#else 
-   GridFunType *u_p = &u_plus;
-   GridFunType *u_m = &u_minus;
-   GridFunType *res_p = &res_plus;
-   GridFunType *res_m = &res_minus;
-#endif
    res->Mult(*u_p, *res_p);
    res->Mult(*u_m, *res_m);
-#ifdef MFEM_USE_MPI
    res_plus.SetFromTrueDofs(*res_p);
    res_minus.SetFromTrueDofs(*res_m);
-#endif
    // res_plus = 1/(2*delta)*(res_plus - res_minus)
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
 
    // Get the product directly using Jacobian from GetGradient
    GridFunType jac_v(fes.get());
-#ifdef MFEM_USE_MPI
    HypreParVector *u_true = u->GetTrueDofs();
    HypreParVector *pert = pert_vec.GetTrueDofs();
    HypreParVector *prod = jac_v.GetTrueDofs();
-#else
-   GridFunType *u_true = u.get();
-   GridFunType *pert = &pert_vec;
-   GridFunType *prod = &jac_v;
-#endif
    mfem::Operator &jac = res->GetGradient(*u_true);
    jac.Mult(*pert, *prod);
-#ifdef MFEM_USE_MPI 
    jac_v.SetFromTrueDofs(*prod);
-#endif 
 
    // check the difference norm
    jac_v -= res_plus;

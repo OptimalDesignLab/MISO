@@ -18,20 +18,22 @@ public:
    /// \param[in] res - nonlinear residual operator (not owned)
    /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
    /// \param[in] load - load vector (not owned)
+   /// \note The mfem::NewtonSolver class requires the operator's width and
+   /// height to be the same; here we use `GetTrueVSize()` to find the process
+   /// local height=width
    SystemOperator(Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
                   BilinearFormType *_mass, NonlinearFormType *_res,
                   BilinearFormType *_stiff, mfem::Vector *_load)
-      : Operator(_res->Height()), nonlinear_mass(_nonlinear_mass), mass(_mass),
-        res(_res), stiff(_stiff), load(_load), Jacobian(NULL),
-        dt(0.0), x(NULL), work(height), work2(height)
+       : Operator(((_nonlinear_mass != nullptr)
+                       ? _nonlinear_mass->FESpace()->GetTrueVSize()
+                       : _mass->FESpace()->GetTrueVSize())),
+         nonlinear_mass(_nonlinear_mass), mass(_mass),
+         res(_res), stiff(_stiff), load(_load), Jacobian(NULL),
+         dt(0.0), x(NULL), x_work(width), r_work(height)
    {
-      if ( (_mass) && (ess_bdr) )
+      if ((_mass) && (ess_bdr))
       {
-#ifdef MFEM_USE_MPI
          _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-#else
-         _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-#endif
       }
       // x = 0.0;
    }
@@ -44,40 +46,29 @@ public:
    void Mult(const mfem::Vector &k, mfem::Vector &r) const override
    {
       /// work = x+dt*k = x+dt*dx/dt = x+dx
-      add(1.0, *x, dt, k, work);
-      // Vector work(x);
-      // Vector work2(x.Size());
-      // Vector work3(x.Size());
-      // work2 = work3 = 0.0;
+      add(1.0, *x, dt, k, x_work);
 
-      // work.Add(dt, k);  // work = x + dt * k
       r = 0.0;
       if (nonlinear_mass)
       {
+         cout << "This needs to be fixed" << endl;
+         throw(-1);
+#if 0
          add(1.0, *x, 2.0*dt, k, work2);
          nonlinear_mass->Mult(work2, r);
          nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed
          r -= work2;
          r *= (0.5/dt);
-
-         //nonlinear_mass->Mult(work, r);
-         //nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed
-         //r -= work2;
-         //r *= (1/dt);
+#endif
       }
       if (res)
       {
-         res->Mult(work, work2);
-         r += work2;
+         res->Mult(x_work, r_work);
+         r += r_work;
       }
       if (stiff)
       {
-#ifdef MFEM_USE_MPI
-         stiff->TrueAddMult(work, r);
-         // r += work2;
-#else
-         stiff->AddMult(work, r);
-#endif
+         stiff->TrueAddMult(x_work, r);
       }
       if (load)
       {
@@ -85,13 +76,8 @@ public:
       }
       if (mass)
       {
-#ifdef MFEM_USE_MPI
          mass->TrueAddMult(k, r);
-         // r += work3;
          r.SetSubVector(ess_tdof_list, 0.0);
-#else
-         mass->AddMult(k, r);
-#endif
       }
    }
 
@@ -134,10 +120,8 @@ public:
 //       Jacobian = localJ;
 // #endif
 //       return *Jacobian;
-   
 
       MatrixType *jac = nullptr;
-#ifdef MFEM_USE_MPI
       if (mass)
          jac = mass->ParallelAssemble();
       if (stiff)
@@ -152,31 +136,18 @@ public:
             *jac *= dt;
          }
       }
-#else
-      if (mass)
-         jac = mass->SpMat();
-      if (stiff)
-      {
-         if (jac != nullptr)
-         {
-            jac->Add(dt, *(stiff->SpMat()));
-         }
-         else
-         {
-            jac = stiff->SpMat();
-            *jac *= dt;
-         }
-      }
-#endif
  
       if ( (nonlinear_mass) || (res) )
       {
          /// work = x+dt*k = x+dt*dx/dt = x+dx
-         add(1.0, *x, dt, k, work);
+         add(1.0, *x, dt, k, x_work);
       }
 
       if (nonlinear_mass)
       {
+         cout << "This needs to be fixed" << endl;
+         throw(-1);
+#if 0
          add(*x, 2.0*dt, k, work2);
          MatrixType* massjac = dynamic_cast<MatrixType*>(
             &nonlinear_mass->GetGradient(work2));
@@ -190,29 +161,24 @@ public:
          }
          else
          {
-#ifdef MFEM_USE_MPI
             jac = ParAdd(jac, massjac);
-#else
-            jac = Add(*jac, *massjac);
-#endif
          }
+#endif
+
       }
 
       if (res)
       {
-         MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
+         MatrixType *resjac =
+             dynamic_cast<MatrixType *>(&res->GetGradient(x_work));
          *resjac *= dt;
          if (jac == nullptr)
          { 
-            jac == resjac;
+            jac = resjac;
          }
          else
          {
-#ifdef MFEM_USE_MPI
             jac = ParAdd(jac, resjac);
-#else
-            jac = Add(*jac, *resjac);
-#endif
          }
       }
       return *jac;
@@ -237,7 +203,8 @@ private:
    double dt;
    const mfem::Vector *x;
 
-   mutable mfem::Vector work, work2;
+   mutable mfem::Vector x_work;
+   mutable mfem::Vector r_work;
 
    Array<int> ess_tdof_list;
 };
@@ -247,9 +214,12 @@ MachEvolver::MachEvolver(
     BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
     Vector *_load, NonlinearFormType *_ent, std::ostream &outstream,
     double start_time, TimeDependentOperator::Type type)
-    : EntropyConstrainedOperator(_res->Height(), start_time, type),
+    : EntropyConstrainedOperator((_nonlinear_mass != nullptr)
+                                     ? _nonlinear_mass->FESpace()->GetTrueVSize()
+                                     : _mass->FESpace()->GetTrueVSize(),
+                                 start_time, type),
       nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
-      out(outstream), work(height), work2(height)
+      out(outstream), x_work(width), r_work1(height), r_work2(height)
 {
    if ( (_mass != nullptr) && (_nonlinear_mass != nullptr) )
    {
@@ -270,25 +240,15 @@ MachEvolver::MachEvolver(
       }
       else if (mass_assem == AssemblyLevel::FULL)
       {
-#ifdef MFEM_USE_MPI
          mass.Reset(_mass->ParallelAssemble(), true);
          mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
                                            HypreSmoother::Jacobi));
-         // mass_prec = HypreSmoother();
-         // mass_prec.SetType(HypreSmoother::Jacobi);
-#else
-         mass.reset(_mass->SpMat(), true);
-#endif
       }
       else
       {
          throw MachException("Unsupported assembly level for mass matrix!");
       }
-#ifdef MFEM_USE_MPI
       mass_solver = CGSolver(_mass->ParFESpace()->GetComm());
-#else
-      mass_solver = CGSolver();
-#endif
       mass_solver.SetPreconditioner(*mass_prec);
       mass_solver.SetOperator(*mass);
       mass_solver.SetRelTol(1e-9);
@@ -307,11 +267,7 @@ MachEvolver::MachEvolver(
       }
       else if (stiff_assem == AssemblyLevel::FULL)
       {
-   #ifdef MFEM_USE_MPI
          stiff.Reset(_stiff->ParallelAssemble(), true);
-   #else
-         stiff.reset(_stiff->SpMat(), true);
-   #endif
       }
       else
       {
@@ -334,20 +290,20 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 
    if (res)
    {
-      res->Mult(x, work);
+      res->Mult(x, r_work1);
    }
 
    if (stiff.Ptr())
    {
       // stiff->AddMult(x, work); // <-- Cannot do AddMult with ParBilinearForm
-      stiff->Mult(x, work2);
-      add(work, work2, work);
+      stiff->Mult(x, r_work2);
+      add(r_work1, r_work2, r_work1);
    }
    if (load)
    {
-      work += *load;
+      r_work1 += *load;
    }
-   mass_solver.Mult(work, y);
+   mass_solver.Mult(r_work1, y);
    y *= -1.0;
 }
 
@@ -393,252 +349,17 @@ double MachEvolver::EntropyChange(double dt, const mfem::Vector &x,
    {
       throw MachException("MachEvolver::EntropyChange(): ent not defined!");
    }
-   add(x, dt, k, work);
+   add(x, dt, k, x_work);
    // TODO: if using conservative variables, need to convert
    // if using entropy variables, do nothing
    //abs_solver->convertToEntvar(vec1);
-   res->Mult(work, work2);
-   return work * work2;
+   res->Mult(x_work, r_work1);
+   return x_work * r_work1;
 }
 
 void MachEvolver::setOperParameters(double dt, const mfem::Vector *x)
 {
    combined_oper->setParameters(dt, x);
 }
-
-// ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(NewtonSolver *_newton,
-//                                                    BilinearFormType *mass,
-//                                                    NonlinearFormType *res,
-//                                                    BilinearFormType *stiff,
-//                                                    mfem::Vector *load,
-//                                                    std::ostream &outstream,
-//                                                    double start_time)
-//    : MachEvolver(mass, res, stiff, load, outstream, start_time, IMPLICIT),
-//      newton(_newton)
-// {
-
-// }
-
-// void ImplicitNonlinearEvolver::Mult(const Vector &k, Vector &y) const
-// {
-//    Vector vec1(x);
-//    Vector vec2(x.Size());
-//    vec1.Add(dt, k);  // vec1 = x + dt * k
-//    res.Mult(vec1, y); // y = f(vec1)
-//    mass.Mult(k, vec2);  // vec2 = M * k
-//    y += vec2;  // y = f(x + dt * k) - M * k
-// }
-
-// Operator &ImplicitNonlinearEvolver::GetGradient(const mfem::Vector &k) const
-// {
-//    MatrixType *jac;
-//    Vector vec1(x);
-//    vec1.Add(dt, k);
-//    jac = dynamic_cast<MatrixType*>(&res.GetGradient(vec1)); 
-//    jac->Add( dt-1.0, *jac );
-//    jac->Add(1.0, mass);
-//    return *jac;
-// }
-
-// void ImplicitNonlinearEvolver::ImplicitSolve(const double dt, const Vector &x,
-//                                              Vector &k)
-// {
-//    SetParameters(dt, x);
-//    mfem::Vector zero;
-//    newton_solver->Mult(zero, k);
-//    MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
-// }
-
-// LinearEvolver::LinearEvolver(MatrixType &m, MatrixType &k, ostream &outstream)
-//    : TimeDependentOperator(m.Height(), 0.0, EXPLICIT), out(outstream), mass(m),
-//      stiff(k), z(m.Height())
-// {
-//     // Here we extract the diagonal from the mass matrix and invert it
-//     //M.GetDiag(z);
-//     //cout << "minimum of z = " << z.Min() << endl;
-//     //cout << "maximum of z = " << z.Max() << endl;
-//     //ElementInv(z, Minv);
-// #ifdef MFEM_USE_MPI
-//    mass_prec.SetType(HypreSmoother::Jacobi);
-//    mass_solver.reset(new CGSolver(mass.GetComm()));
-// #else
-//    mass_solver.reset(new CGSolver());
-// #endif
-//    mass_solver->SetPreconditioner(mass_prec);
-//    mass_solver->SetOperator(mass);
-//    mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
-//    mass_solver->SetRelTol(1e-9);
-//    mass_solver->SetAbsTol(0.0);
-//    mass_solver->SetMaxIter(100);
-//    mass_solver->SetPrintLevel(0);
-// }
-
-// void LinearEvolver::Mult(const Vector &x, Vector &y) const
-// {
-//    // y = M^{-1} (K x)
-//    //HadamardProd(Minv, x, y);
-//    stiff.Mult(x, z);
-//    mass_solver->Mult(z, y);
-//    //HadamardProd(Minv, z, y);
-// }
-
-// NonlinearEvolver::NonlinearEvolver(MatrixType &m, NonlinearFormType &r,
-//                                    double a)
-//    : TimeDependentOperator(m.Height(), 0.0, EXPLICIT), mass(m), res(r),
-//      z(m.Height()), alpha(a)
-// {
-// #ifdef MFEM_USE_MPI
-//    mass_prec.SetType(HypreSmoother::Jacobi);
-//    mass_solver.reset(new CGSolver(mass.GetComm()));
-// #else
-//    mass_solver.reset(new CGSolver());
-// #endif
-//    mass_solver->SetPreconditioner(mass_prec);
-//    mass_solver->SetOperator(mass);
-//    mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
-//    mass_solver->SetRelTol(1e-9);
-//    mass_solver->SetAbsTol(0.0);
-//    mass_solver->SetMaxIter(100);
-//    mass_solver->SetPrintLevel(0);
-// }
-
-// void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
-// {
-//    res.Mult(x, z);
-//    mass_solver->Mult(z, y);
-//    y *= alpha;
-// }
-
-// // /// TODO: rewrite this
-// // ImplicitLinearEvolver::ImplicitLinearEvolver(const std::string &opt_file_name,
-// //                                              MatrixType &m,
-// //                                              MatrixType &k, 
-// //                                              Vector b,
-// //                                              std::ostream &outstream)
-// //    : TimeDependentOperator(m.Height(), 0.0, IMPLICIT), out(outstream),
-// //      force(move(b)), mass(m), stiff(k), z(m.Height())
-// // {
-// //    // t = m + dt*k
-
-// //    // get options
-// //    nlohmann::json file_options;
-// //    ifstream opts(opt_file_name);
-// //    opts >> file_options;
-// //    options.merge_patch(file_options);
-
-// // 	std::cout << "Setting Up Linear Solver..." << std::endl;
-// //    t_prec.reset(new HypreSmoother());
-// //    m_prec.reset(new HypreSmoother());
-// // #ifdef MFEM_USE_MPI
-// //    t_prec->SetType(HypreSmoother::Jacobi);
-// //    t_solver.reset(new CGSolver(stiff.GetComm()));
-// //    m_prec->SetType(HypreSmoother::Jacobi);
-// //    m_solver.reset(new CGSolver(stiff.GetComm()));
-// // #else
-// //    t_solver.reset(new CGSolver());
-// //    m_solver.reset(new CGSolver());
-// // #endif
-// //    // set parameters for the linear solver
-
-
-// //    t_solver->iterative_mode = false;
-// //    t_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
-// //    t_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
-// //    t_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
-// //    t_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-// //    t_solver->SetPreconditioner(*t_prec);
-
-// //    m_solver->iterative_mode = false;
-// //    m_solver->SetRelTol(options["lin-solver"]["rel-tol"].get<double>());
-// //    m_solver->SetAbsTol(options["lin-solver"]["abs-tol"].get<double>());
-// //    m_solver->SetMaxIter(options["lin-solver"]["max-iter"].get<int>());
-// //    m_solver->SetPrintLevel(options["lin-solver"]["print-lvl"].get<int>());
-// //    m_solver->SetPreconditioner(*m_prec);
-// //    m_solver->SetOperator(mass);
-// // }
-
-// // void ImplicitLinearEvolver::Mult(const mfem::Vector &x, mfem::Vector &k) const
-// // {
-// //    stiff.Mult(x, z);
-// //    z.Neg();  
-// //    z.Add(-1, *rhs);
-// //    m_solver->Mult(z, k);
-// // }
-
-// // void ImplicitLinearEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
-// // {
-// //    // if (T == NULL)
-// //    // {
-// //    T = Add(1.0, mass, dt, stiff);
-// //    t_solver->SetOperator(*T);
-// //    //}
-// //    stiff.Mult(x, z);
-// //    z.Neg();  
-// //    z.Add(-1, *rhs);
-// //    t_solver->Mult(z, k); 
-// //    T = NULL;
-// // }
-
-// // ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
-// //                                             NonlinearFormType &r,
-// //                                             double a)
-// //    : TimeDependentOperator(m.Height(), 0.0, IMPLICIT), alpha(a), mass(m),
-// //      res(r)
-// // {
-// // #ifdef MFEM_USE_MPI
-// // #ifdef MFEM_USE_PETSC
-// //    // using petsc gmres solver
-// //    linear_solver.reset(new mfem::PetscLinearSolver(mass.GetComm(), "solver_", 0));
-// //    prec.reset(new mfem::PetscPreconditioner(mass.GetComm(), "prec_"));
-// //    dynamic_cast<mfem::PetscLinearSolver *>(linear_solver.get())->SetPreconditioner(*prec);
-// //    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetAbsTol(1e-10);
-// //    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-10);
-// //    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetMaxIter(100);
-// //    dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(2);
-// // #else
-// //    //using hypre solver instead
-// //    linear_solver.reset(new mfem::HypreGMRES(mass.GetComm()));
-// //    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
-// //    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(1);
-// //    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
-// // #endif
-// //    newton_solver.reset(new mfem::NewtonSolver(mass.GetComm()));
-// //    //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
-// // #else
-// //    linear_solver.reset(new mfem::GMRESSolver());
-// //    newton_solver.reset(new mfem::NewtonSolver());
-// // #endif
-
-// //    // set paramters for the newton solver
-// //    newton_solver->SetRelTol(1e-10);
-// //    newton_solver->SetAbsTol(1e-10);
-// //    newton_solver->SetPrintLevel(1);
-// //    newton_solver->SetMaxIter(30);
-// //    // set linear solver and operator
-// //    newton_solver->SetSolver(*linear_solver);
-// //    newton_solver->SetOperator(*this);
-// //    newton_solver->iterative_mode = false;
-// // }
-
-
-// // Operator &ImplicitNonlinearEvolver::GetGradient(const mfem::Vector &k) const
-// // {
-// //    MatrixType *jac;
-// //    Vector vec1(x);
-// //    vec1.Add(dt, k);
-// //    jac = dynamic_cast<MatrixType*>(&res.GetGradient(vec1)); 
-// //    jac->Add( dt-1.0, *jac );
-// //    jac->Add(1.0, mass);
-// //    return *jac;
-// // }
-
-// // void ImplicitNonlinearEvolver::ImplicitSolve(const double dt, const Vector &x,
-// //                                              Vector &k)
-// // {
-// //    SetParameters(dt, x);
-// //    mfem::Vector zero;
-// //    newton_solver->Mult(zero, k);
-// //    MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
-// // }
 
 } // namespace mach
