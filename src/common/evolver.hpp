@@ -138,7 +138,7 @@ protected:
    std::unique_ptr<SystemOperator> combined_oper;
 
    /// work vectors
-   mutable mfem::Vector work, work2;
+   mutable mfem::Vector x_work, r_work1, r_work2;
 
    /// sets the state and dt for the combined operator
    /// \param[in] dt - time increment

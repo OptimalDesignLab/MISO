@@ -18,16 +18,20 @@ public:
    /// \param[in] res - nonlinear residual operator (not owned)
    /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
    /// \param[in] load - load vector (not owned)
+   /// \note The mfem::NewtonSolver class requires the operator's width and
+   /// height to be the same; here we use `GetTrueVSize()` to find the process
+   /// local height=width
    SystemOperator(Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
                   BilinearFormType *_mass, NonlinearFormType *_res,
                   BilinearFormType *_stiff, mfem::Vector *_load)
-      : Operator((_nonlinear_mass != nullptr) ? _nonlinear_mass->Height()
-                  : _mass->Height()),
-        nonlinear_mass(_nonlinear_mass), mass(_mass),
-        res(_res), stiff(_stiff), load(_load), Jacobian(NULL),
-        dt(0.0), x(NULL), work(height), work2(height)
+       : Operator(((_nonlinear_mass != nullptr)
+                       ? _nonlinear_mass->FESpace()->GetTrueVSize()
+                       : _mass->FESpace()->GetTrueVSize())),
+         nonlinear_mass(_nonlinear_mass), mass(_mass),
+         res(_res), stiff(_stiff), load(_load), Jacobian(NULL),
+         dt(0.0), x(NULL), x_work(width), r_work(height)
    {
-      if ( (_mass) && (ess_bdr) )
+      if ((_mass) && (ess_bdr))
       {
          _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       }
@@ -42,36 +46,29 @@ public:
    void Mult(const mfem::Vector &k, mfem::Vector &r) const override
    {
       /// work = x+dt*k = x+dt*dx/dt = x+dx
-      add(1.0, *x, dt, k, work);
-      // Vector work(x);
-      // Vector work2(x.Size());
-      // Vector work3(x.Size());
-      // work2 = work3 = 0.0;
+      add(1.0, *x, dt, k, x_work);
 
-      // work.Add(dt, k);  // work = x + dt * k
       r = 0.0;
       if (nonlinear_mass)
       {
+         cout << "This needs to be fixed" << endl;
+         throw(-1);
+#if 0
          add(1.0, *x, 2.0*dt, k, work2);
          nonlinear_mass->Mult(work2, r);
          nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed
          r -= work2;
          r *= (0.5/dt);
-
-         //nonlinear_mass->Mult(work, r);
-         //nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed
-         //r -= work2;
-         //r *= (1/dt);
+#endif
       }
       if (res)
       {
-         res->Mult(work, work2);
-         r += work2;
+         res->Mult(x_work, r_work);
+         r += r_work;
       }
       if (stiff)
       {
-         stiff->TrueAddMult(work, r);
-         // r += work2;
+         stiff->TrueAddMult(x_work, r);
       }
       if (load)
       {
@@ -80,7 +77,6 @@ public:
       if (mass)
       {
          mass->TrueAddMult(k, r);
-         // r += work3;
          r.SetSubVector(ess_tdof_list, 0.0);
       }
    }
@@ -144,11 +140,14 @@ public:
       if ( (nonlinear_mass) || (res) )
       {
          /// work = x+dt*k = x+dt*dx/dt = x+dx
-         add(1.0, *x, dt, k, work);
+         add(1.0, *x, dt, k, x_work);
       }
 
       if (nonlinear_mass)
       {
+         cout << "This needs to be fixed" << endl;
+         throw(-1);
+#if 0
          add(*x, 2.0*dt, k, work2);
          MatrixType* massjac = dynamic_cast<MatrixType*>(
             &nonlinear_mass->GetGradient(work2));
@@ -164,11 +163,14 @@ public:
          {
             jac = ParAdd(jac, massjac);
          }
+#endif
+
       }
 
       if (res)
       {
-         MatrixType* resjac = dynamic_cast<MatrixType*>(&res->GetGradient(work));
+         MatrixType *resjac =
+             dynamic_cast<MatrixType *>(&res->GetGradient(x_work));
          *resjac *= dt;
          if (jac == nullptr)
          { 
@@ -201,7 +203,8 @@ private:
    double dt;
    const mfem::Vector *x;
 
-   mutable mfem::Vector work, work2;
+   mutable mfem::Vector x_work;
+   mutable mfem::Vector r_work;
 
    Array<int> ess_tdof_list;
 };
@@ -211,10 +214,12 @@ MachEvolver::MachEvolver(
     BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
     Vector *_load, NonlinearFormType *_ent, std::ostream &outstream,
     double start_time, TimeDependentOperator::Type type)
-    : EntropyConstrainedOperator((_nonlinear_mass != nullptr) 
-         ? _nonlinear_mass->Height() : _mass->Height(), start_time, type),
+    : EntropyConstrainedOperator((_nonlinear_mass != nullptr)
+                                     ? _nonlinear_mass->FESpace()->GetTrueVSize()
+                                     : _mass->FESpace()->GetTrueVSize(),
+                                 start_time, type),
       nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
-      out(outstream), work(height), work2(height)
+      out(outstream), x_work(width), r_work1(height), r_work2(height)
 {
    if ( (_mass != nullptr) && (_nonlinear_mass != nullptr) )
    {
@@ -285,20 +290,20 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 
    if (res)
    {
-      res->Mult(x, work);
+      res->Mult(x, r_work1);
    }
 
    if (stiff.Ptr())
    {
       // stiff->AddMult(x, work); // <-- Cannot do AddMult with ParBilinearForm
-      stiff->Mult(x, work2);
-      add(work, work2, work);
+      stiff->Mult(x, r_work2);
+      add(r_work1, r_work2, r_work1);
    }
    if (load)
    {
-      work += *load;
+      r_work1 += *load;
    }
-   mass_solver.Mult(work, y);
+   mass_solver.Mult(r_work1, y);
    y *= -1.0;
 }
 
@@ -344,12 +349,12 @@ double MachEvolver::EntropyChange(double dt, const mfem::Vector &x,
    {
       throw MachException("MachEvolver::EntropyChange(): ent not defined!");
    }
-   add(x, dt, k, work);
+   add(x, dt, k, x_work);
    // TODO: if using conservative variables, need to convert
    // if using entropy variables, do nothing
    //abs_solver->convertToEntvar(vec1);
-   res->Mult(work, work2);
-   return work * work2;
+   res->Mult(x_work, r_work1);
+   return x_work * r_work1;
 }
 
 void MachEvolver::setOperParameters(double dt, const mfem::Vector *x)

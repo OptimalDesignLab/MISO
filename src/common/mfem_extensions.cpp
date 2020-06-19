@@ -14,12 +14,12 @@ namespace mach
 void PseudoTransientSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   k.SetSize(f->Width(), mem_type);
 }
 
 void PseudoTransientSolver::Step(Vector &x, double &t, double &dt)
 {
    f->SetTime(t + dt);
+   k.SetSize(x.Size(), mem_type); 
    f->ImplicitSolve(dt, x, k);
    x.Add(dt, k);
    t += dt;
@@ -28,12 +28,12 @@ void PseudoTransientSolver::Step(Vector &x, double &t, double &dt)
 void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);
-   k.SetSize(f->Width(), mem_type);
 }
 
 void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
 {
    f->SetTime(t + dt/2);
+   k.SetSize(x.Size(), mem_type);
    f->ImplicitSolve(dt/2, x, k);
    //f->ImplicitSolve(dt, x, k);
    //cout << "equation solved using regular midpont solver\n";

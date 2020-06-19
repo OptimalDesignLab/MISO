@@ -170,7 +170,7 @@ void EulerSolver<dim, entvar>::initialHook()
    }
    // TODO: this should only be output if necessary
    double entropy = ent->GetEnergy(*u);
-   cout << "before time stepping, entropy is "<< entropy << endl;
+   *out << "before time stepping, entropy is "<< entropy << endl;
    remove("entropylog.txt");
    entropylog.open("entropylog.txt", fstream::app);
    entropylog << setprecision(14);
