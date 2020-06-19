@@ -1,7 +1,9 @@
 {
    "flow-param": {
-      "mach": 1.0,
-      "aoa": 0.0
+      "mach": 0.5,
+      "aoa": 3.0,
+      "roll-axis": 0,
+      "pitch-axis": 1
    },
    "space-dis": {
       "GD": false,
@@ -10,25 +12,24 @@
       "lps-coeff": 1.0,
       "basis-type": "csbp"
    },
-   "steady": true,
    "time-dis": {
       "steady": true,
       "steady-abstol": 1e-12,
-      "steady-restol": 1e-10,
+      "steady-reltol": 1e-10,
+      "res-exp": 2.0,
       "const-cfl": true,
       "ode-solver": "PTC",
       "t-final": 100,
       "dt": 0.1,
       "cfl": 1.0
    },
-	"model-file": "annulus.dmg",
    "mesh": {
-	   "file":"annulus.smb",
+	   "file": "airfoil_steady.mesh",
       "refine": 0
    },
    "bcs": {
-      "vortex": [1, 1, 1, 0],
-      "slip-wall": [0, 0, 0, 1]
+      "slip-wall": [0, 0, 1, 1],
+      "far-field": [1, 1, 0, 0]
    },
    "newton": {
       "printlevel": 1,
@@ -54,7 +55,6 @@
    "saveresults":false,
    "outputs":
    {
-      "entropy": true, 
-      "drag": [0, 0, 0, 1]
+      "drag": [0, 0, 1, 1]
    }
 }

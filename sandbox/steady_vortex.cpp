@@ -1,4 +1,8 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
+
+// set this const expression to true in order to use entropy variables for state
+constexpr bool entvar = true;
+
 #include<random>
 #include "adept.h"
 
@@ -14,15 +18,18 @@ using namespace mach;
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
 
-/// \brief Defines the exact solution for the steady isentropic vortex
-/// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - conservative variables stored as a 4-vector
-void uexact(const Vector &x, Vector& u);
-
 /// \brief Defines the random function for the jabocian check
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void pert(const Vector &x, Vector& p);
+
+/// \brief Returns the value of the integrated math entropy over the domain
+double calcEntropyTotalExact();
+
+/// \brief Defines the exact solution for the steady isentropic vortex
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - state variables stored as a 4-vector
+void uexact(const Vector &x, Vector& u);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -50,13 +57,14 @@ int main(int argc, char *argv[])
 
    petscoptions.close();
 #endif
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
-   int num_procs, myid;
+
+   // Initialize MPI
+   int num_procs, rank;
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-#endif
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   ostream *out = getOutStream(rank);
+
 #ifdef MFEM_USE_PETSC
    MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 #endif
@@ -70,52 +78,52 @@ int main(int argc, char *argv[])
                   "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
-   args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
+   args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
    args.Parse();
    if (!args.Good())
    {
-      args.PrintUsage(cout);
+      args.PrintUsage(*out);
       return 1;
    }
   
    try
    {
-      // construct the solver, set the initial condition, and solve
+      // construct the mesh
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
+      *out << "Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,3);
+      smesh->PrintVTK(sol_ofs,0);
 
-      unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, move(smesh)));
-      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
-      solver->initDerived();
-
+      // construct the solver and set initial conditions
+      auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
+                                                         move(smesh));
       solver->setInitialCondition(uexact);
-      solver->printSolution("init", degree+1);
+      solver->printSolution("euler_init", 0);
 
-      double l_error = solver->calcL2Error(uexact, 0);
+      // get the initial density error
+      double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
-      if (0==myid)
-      {
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error;
-         mfem::out << "\ninitial residual norm = " << res_error << endl;
-      }
+      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
+      *out << "\ninitial residual norm = " << res_error << endl;
       solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("final",degree+1);
-      l_error = solver->calcL2Error(uexact, 0);
+      solver->printSolution("euler_final",0);
+      // get the final density error
+      l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      double entropy = solver->calcOutput("entropy");
 
-      if (0==myid)
-      {
-         mfem::out << "\nfinal residual norm = " << res_error;
-         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l_error << endl;
-         mfem::out << "\nDrag error = " << drag << endl;
-      }
-
+      *out << "\nfinal residual norm = " << res_error;
+      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      *out << "\nDrag error = " << drag << endl;
+      *out << "\nTotal entropy = " << entropy;
+      *out << "\nEntropy error = "
+           << fabs(entropy - calcEntropyTotalExact()) << endl;
    }
    catch (MachException &exception)
    {
@@ -129,9 +137,8 @@ int main(int argc, char *argv[])
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
 #endif
-#ifdef MFEM_USE_MPI
+
    MPI_Finalize();
-#endif
 }
 
 // perturbation function used to check the jacobian in each iteration
@@ -144,12 +151,24 @@ void pert(const Vector &x, Vector& p)
    }
 }
 
+// Returns the exact total entropy value over the quarter annulus
+// Note: the number 8.74655... that appears below is the integral of r*rho over the radii
+// from 1 to 3.  It was approixmated using a degree 51 Gaussian quadrature.
+double calcEntropyTotalExact()
+{
+   double rhoi = 2.0;
+   double prsi = 1.0/euler::gamma;
+   double si = log(prsi/pow(rhoi, euler::gamma));
+   return -si*8.746553803443305*M_PI*0.5/0.4;
+}
+
 // Exact solution; note that I reversed the flow direction to be clockwise, so
 // the problem and mesh are consistent with the LPS paper (that is, because the
 // triangles are subdivided from the quads using the opposite diagonal)
-void uexact(const Vector &x, Vector& u)
+void uexact(const Vector &x, Vector& q)
 {
-   u.SetSize(4);
+   q.SetSize(4);
+   Vector u(4);
    double ri = 1.0;
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
@@ -176,6 +195,15 @@ void uexact(const Vector &x, Vector& u)
    u(1) = rho*a*Ma*sin(theta);
    u(2) = -rho*a*Ma*cos(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+
+   if (entvar == false)
+   {
+      q = u;
+   }
+   else
+   {
+      calcEntropyVars<double, 2>(u.GetData(), q.GetData());
+   }
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)

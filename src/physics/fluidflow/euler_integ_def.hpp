@@ -272,6 +272,53 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacV(
 }
 
 template <int dim, bool entvar>
+void MassIntegrator<dim, entvar>::convertVars(const mfem::Vector &u,
+                                              mfem::Vector &q)
+{
+   // This conditional should have no overhead, if the compiler is good
+   if (entvar)
+   {
+      calcConservativeVars<double, dim>(u.GetData(), q.GetData());
+   }
+   else
+   {
+      q = u;
+   }
+}
+
+template <int dim, bool entvar>
+void MassIntegrator<dim, entvar>::convertVarsJacState(const mfem::Vector &u,
+                                                      mfem::DenseMatrix &dqdu)
+{
+   if (entvar)
+   {
+      // vector of active input variables
+      std::vector<adouble> u_a(u.Size());
+      // initialize adouble inputs
+      adept::set_values(u_a.data(), u.Size(), u.GetData());
+      // start recording
+      this->stack.new_recording();
+      // create vector of active output variables
+      std::vector<adouble> q_a(u.Size());
+      // run algorithm
+      calcConservativeVars<adouble, dim>(u_a.data(), q_a.data());
+      // identify independent and dependent variables
+      this->stack.independent(u_a.data(), u.Size());
+      this->stack.dependent(q_a.data(), u.Size());
+      // compute and store jacobian in dwdu
+      this->stack.jacobian(dqdu.GetData());
+   }
+   else
+   {
+      dqdu = 0.0;
+      for (int i = 0; i < dim+2; ++i)
+      {
+         dqdu(i,i) = 1.0;
+      }
+   }
+}
+
+template <int dim, bool entvar>
 void IsentropicVortexBC<dim, entvar>::calcFlux(
     const mfem::Vector &x, const mfem::Vector &dir,
     const mfem::Vector &q, mfem::Vector &flux_vec)
@@ -454,6 +501,18 @@ void FarFieldBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
 }
 
 template <int dim, bool entvar>
+InterfaceIntegrator<dim, entvar>::InterfaceIntegrator(
+    adept::Stack &diff_stack, double coeff,
+    const mfem::FiniteElementCollection *fe_coll, double a)
+    : InviscidFaceIntegrator<InterfaceIntegrator<dim, entvar>>(
+          diff_stack, fe_coll, dim + 2, a)
+{
+   MFEM_ASSERT(coeff >= 0.0, "InterfaceIntegrator: "
+               "dissipation coefficient must be >= 0.0");
+   diss_coeff = coeff;
+}
+
+template <int dim, bool entvar>
 void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
                                                 const mfem::Vector &qL,
                                                 const mfem::Vector &qR,
@@ -461,13 +520,15 @@ void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
 {
    if (entvar)
    {
-      calcIsmailRoeFaceFluxUsingEntVars<double, dim>(
-          dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
+      calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
+          dir.GetData(), diss_coeff, qL.GetData(), qR.GetData(),
+          flux.GetData());
    }
-   else 
+   else
    {
-      calcIsmailRoeFaceFlux<double, dim>(dir.GetData(), qL.GetData(),
-                                         qR.GetData(), flux.GetData());
+      calcIsmailRoeFaceFluxWithDiss<double, dim>(dir.GetData(), diss_coeff,
+                                                 qL.GetData(), qR.GetData(),
+                                                 flux.GetData());
    }
 }
 
@@ -484,7 +545,8 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacState(const mfem::Vector &dir,
    std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> qR_a(qR.Size());
    std::vector<adouble> qL_a(qL.Size());
-   // initialize the value
+   // initialize the values
+   adouble diss_coeff_a = diss_coeff;
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(qL_a.data(), qL.Size(), qL.GetData());
    adept::set_values(qR_a.data(), qR.Size(), qR.GetData());
@@ -494,13 +556,13 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacState(const mfem::Vector &dir,
    std::vector<adouble> flux_a(qL.Size());
    if (entvar)
    {
-      mach::calcIsmailRoeFaceFluxUsingEntVars<adouble, dim>(
-          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
+          dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
-                                                qR_a.data(), flux_a.data());
+      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(
+         dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(qL_a.data(), qL.Size());
@@ -523,7 +585,8 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
    std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> qR_a(qR.Size());
    std::vector<adouble> qL_a(qL.Size());
-   // initialize the value
+   // initialize the values
+   adouble diss_coeff_a = diss_coeff;
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
    adept::set_values(qL_a.data(), qL.Size(), qL.GetData());
    adept::set_values(qR_a.data(), qR.Size(), qR.GetData());
@@ -533,13 +596,13 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
    std::vector<adouble> flux_a(qL.Size());
    if (entvar)
    {
-      mach::calcIsmailRoeFaceFluxUsingEntVars<adouble, dim>(
-          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
+          dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFaceFlux<adouble, dim>(dir_a.data(), qL_a.data(),
-                                                qR_a.data(), flux_a.data());
+      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(
+         dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());
@@ -550,8 +613,8 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(const mfem::Vector &dir,
 
 template <int dim, bool entvar>
 double PressureForce<dim, entvar>::calcBndryFun(const mfem::Vector &x,
-                                              const mfem::Vector &dir,
-                                              const mfem::Vector &q)
+                                                const mfem::Vector &dir,
+                                                const mfem::Vector &q)
 {
    calcSlipWallFlux<double, dim, entvar>(x.GetData(), dir.GetData(),
                                          q.GetData(), work_vec.GetData());
@@ -584,4 +647,11 @@ void PressureForce<dim, entvar>::calcFlux(const mfem::Vector &x,
    fun_a.set_gradient(1.0);
    this->stack.compute_adjoint();
    adept::get_gradients(q_a.data(), q.Size(), flux_vec.GetData());
+}
+
+template <int dim, bool entvar>
+double EntropyIntegrator<dim, entvar>::calcVolFun(const mfem::Vector &x,
+                                                  const mfem::Vector &u)
+{
+   return entropy<double, dim, entvar>(u.GetData());
 }

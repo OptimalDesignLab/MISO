@@ -10,16 +10,11 @@ using namespace mach;
 
 int main(int argc, char *argv[])
 {
-   ostream *out;
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
    MPI_Init(&argc, &argv);
    int rank;
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   out = getOutStream(rank); 
-#else
-   out = getOutStream(0);
-#endif
+   ostream *out = getOutStream(rank);
 
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -37,13 +32,12 @@ int main(int argc, char *argv[])
    {
       // construct the solver
       string opt_file_name(options_file);
-      MagnetostaticSolver solver(opt_file_name);
-      solver.initDerived();
-      solver.solveForState();
+
+      auto solver = createSolver<MagnetostaticSolver>(opt_file_name);
+      solver->solveForState();
       std::cout << "finish steady solve\n";
-      double energy = solver.calcOutput("energy");
-      std::cout << "Energy = " << energy << std::endl;
-      double coenergy = solver.calcOutput("co-energy");
+      
+      double coenergy = solver->calcOutput("co-energy");
       std::cout << "Co-energy = " << coenergy << std::endl;
    }
    catch (MachException &exception)
@@ -54,8 +48,7 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-#ifdef MFEM_USE_MPI
+
    MPI_Finalize();
-#endif
 }
 

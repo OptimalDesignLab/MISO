@@ -166,11 +166,7 @@ private:
    mutable mfem::Vector RHS_;
 
    mutable EMPrecType2 *amg_;
-#ifdef MFEM_USE_MPI
    mutable mfem::HyprePCG *pcg_;
-#else
-   mutable CGType *pcg_;
-#endif
 
    mfem::Array<int> ess_bdr_, ess_bdr_tdofs_;
 
@@ -211,6 +207,18 @@ public:
 /// \param[in] maxiter - maximum number of iterations
 double bisection(std::function<double(double)> func, double xl, double xr,
                  double ftol, double xtol, int maxiter);
+
+/// Returns the root of `func(x) = 0` using the secant method.
+/// \param[in] func - function to find root of 
+/// \param[in] x1 - first approximation of the root
+/// \param[in] x2 - second approximation fo the root (x2 != x1)
+/// \param[in] ftol - absolute tolerance for root function
+/// \param[in] xtol - absolute tolerance for root value
+/// \param[in] maxiter - maximum number of iterations
+/// \note Considered converged when either `abs(func(x)) < ftol` or
+/// `abs(dx) < dxtol`, where `dx` is the increment to the variable.
+double secant(std::function<double(double)> func, double x1, double x2,
+              double ftol, double xtol, int maxiter);
 
 /// build the reconstruction matrix that interpolate the GD dofs to quadrature points
 /// \param[in] degree - order of reconstructio operator

@@ -3,6 +3,10 @@
 namespace mach
 {
 
+/// This is placed in its own file because options are likely to grow large.
+/// Also, while it would have been nice to use a raw string here to define the
+/// default options, this would not have permitted comments.
+
 const nlohmann::json default_options
 {   
    {"flow-param", // options related to flow simulations
@@ -23,21 +27,26 @@ const nlohmann::json default_options
       {"basis-type", "csbp"} // csbp & dsbp for continuous & discrete SBP discretization resp. 
    }},
 
-   {"steady", false}, // if true, solve a steady problem
+   {"steady", false}, // deprecated; now included in "time-dis"
    {"time-dis", // options related to unsteady time-marching
    {
+      {"steady", false}, // if true, solve a steady problem
+      {"steady-abstol", 1e-12}, // absolute convergence tolerance for steady
+      {"steady-reltol", 1e-10}, // relative convergence tolerance for steady
+      {"res-exp", 2.0}, // for steady problems, controls the step-size growth
       {"ode-solver", "RK4"}, // type of ODE solver to use 
       {"const-cfl", false}, // if true, adapt dt to keep cfl constant
       {"t-final", 1.0}, // final time to simulate to
       {"dt", 0.01}, // time-step size when `const-cfl` is false
-      {"cfl", 1.0} // target CFL number
+      {"cfl", 1.0}, // target CFL number
+      {"max-iter", 10000} // safe-guard upper bound on number of iterations
    }},
 
    {"lin-solver",
    {
       {"type", "hypregmres"}, // Default solver
       {"pctype", "hypreeuclid"}, // Default preconditioner type
-      {"printlevel", 0}, // linear solver print level (no printing if zero)
+      {"printlevel", 1}, // linear solver print level (no printing if zero)
       {"maxiter", 100}, // default to 100 iterations
       {"reltol", 1e-12}, // solver relative tolerance
       {"abstol", 1e-12}, // solver absolute tolerance

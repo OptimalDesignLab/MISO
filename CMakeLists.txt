@@ -36,10 +36,8 @@ if (MFEM_USE_PUMI)
    endif (SCOREC_FOUND)
 endif (MFEM_USE_PUMI)
 
-# If MFEM uses MPI find the MPI compilers
-if (MFEM_USE_MPI)
-   find_package(MPI REQUIRED)
-endif (MFEM_USE_MPI)
+# find the MPI compilers used by MFEM
+find_package(MPI REQUIRED)
 
 # Try to find OpenMP (used by Adept)
 # find_package(OpenMP)

@@ -160,7 +160,7 @@ void MagnetostaticSolver::constructCoefficients()
    constructReluctivity();
 }
 
-void MagnetostaticSolver::addVolumeIntegrators(double alpha)
+void MagnetostaticSolver::addResVolumeIntegrators(double alpha)
 {
    /// TODO: Add a check in `CurlCurlNLFIntegrator` to check if |B| is close to
    ///       zero, and if so set the second term of the Jacobian to be zero.

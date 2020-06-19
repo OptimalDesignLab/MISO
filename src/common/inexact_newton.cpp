@@ -10,7 +10,7 @@ namespace mfem
 {
    
 double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
-                                       const double norm)
+                                       const double norm) const
 {
    double theta = 0.0;
    double s = 1.0;
@@ -88,12 +88,13 @@ void InexactNewton::SetOperator(const Operator &op)
 }
 
 
-void InexactNewton::Mult(const Vector &b, Vector &x)
+void InexactNewton::Mult(const Vector &b, Vector &x) const
 {
    MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
    MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
 
    std::cout << "Beginning of inexact Newton..." << std::endl;
+   std::cout.flush();
 
    int it;
    double norm0, norm, norm_goal;
@@ -105,8 +106,12 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
    oper->Mult(x, r);
    if (have_b)
    {
+      std::cout << "What is going on!" << endl;
       r -= b;
    }
+   std::cout << "Just before inexact Newton iterations" << std::endl;
+   std::cout << "Norm(r) = " << Norm(r) << endl;
+   std::cout.flush();
 
    norm0 = norm = Norm(r);
    norm_goal = std::max(rel_tol*norm, abs_tol);

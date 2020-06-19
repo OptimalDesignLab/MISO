@@ -98,7 +98,7 @@ private:
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   void addVolumeIntegrators(double alpha) override;
+   void addResVolumeIntegrators(double alpha) override;
 
    /// mark which boundaries are essential
    void setEssentialBoundaries() override;
@@ -228,6 +228,10 @@ private:
    static void a_exact(const mfem::Vector &x, mfem::Vector &A);
 
    static void b_exact(const mfem::Vector &x, mfem::Vector &B);
+
+   friend SolverPtr createSolver<MagnetostaticSolver>(
+       const std::string &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
 } // namespace mach
