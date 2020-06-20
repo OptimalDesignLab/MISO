@@ -46,6 +46,36 @@ void EulerIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
 }
 
 template <int dim, bool entvar>
+double IsmailRoeIntegrator<dim, entvar>::GetElementEnergy(
+   const mfem::FiniteElement &el, mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun)
+{
+   int num_states = this->num_states;
+   int num_nodes = el.GetDof();
+   mfem::Vector u_i(num_states), w_i(num_states), res_i(num_states);
+   mfem::Vector elres;
+   this->AssembleElementVector(el, trans, elfun, elres);
+   mfem::DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   mfem::DenseMatrix res(elres.GetData(), num_nodes, num_states);
+   double ent_change = 0.0;
+   for (int i = 0; i < el.GetDof(); ++i)
+   {
+      u.GetRow(i, u_i);
+      res.GetRow(i, res_i);
+      if (entvar)
+      {
+        w_i = u_i;
+      }
+      else
+      {
+         calcEntropyVars<double, dim>(u_i.GetData(), w_i.GetData());
+      }
+      ent_change += w_i * res_i;
+   }
+   return ent_change;
+}
+
+template <int dim, bool entvar>
 void IsmailRoeIntegrator<dim, entvar>::calcFlux(int di, const mfem::Vector &qL,
                                                 const mfem::Vector &qR,
                                                 mfem::Vector &flux)
@@ -101,6 +131,36 @@ void IsmailRoeIntegrator<dim, entvar>::calcFluxJacStates(
    jacL.CopyCols(jac, 0, dim + 1);
    // retrieve the jacobian w.r.t right state
    jacR.CopyCols(jac, dim + 2, 2 * (dim + 2) - 1);
+}
+
+template <int dim, bool entvar>
+double EntStableLPSIntegrator<dim, entvar>::GetElementEnergy(
+   const mfem::FiniteElement &el, mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun)
+{
+   int num_states = this->num_states;
+   int num_nodes = el.GetDof();
+   mfem::Vector u_i(num_states), w_i(num_states), res_i(num_states);
+   mfem::Vector elres;
+   this->AssembleElementVector(el, trans, elfun, elres);
+   mfem::DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   mfem::DenseMatrix res(elres.GetData(), num_nodes, num_states);
+   double ent_change = 0.0;
+   for (int i = 0; i < el.GetDof(); ++i)
+   {
+      u.GetRow(i, u_i);
+      res.GetRow(i, res_i);
+      if (entvar)
+      {
+        w_i = u_i;
+      }
+      else
+      {
+         calcEntropyVars<double, dim>(u_i.GetData(), w_i.GetData());
+      }
+      ent_change += w_i * res_i;
+   }
+   return ent_change;
 }
 
 template <int dim, bool entvar>
@@ -319,6 +379,25 @@ void MassIntegrator<dim, entvar>::convertVarsJacState(const mfem::Vector &u,
 }
 
 template <int dim, bool entvar>
+double IsentropicVortexBC<dim, entvar>::calcBndryFun(
+   const mfem::Vector &x, const mfem::Vector &dir,
+   const mfem::Vector &q)
+{
+   mfem::Vector flux_vec(q.Size());
+   calcFlux(x, dir, q, flux_vec);
+   mfem::Vector w(q.Size());
+   if (entvar)
+   {
+      w = q;
+   }
+   else
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   }
+   return w * flux_vec;
+}
+
+template <int dim, bool entvar>
 void IsentropicVortexBC<dim, entvar>::calcFlux(
     const mfem::Vector &x, const mfem::Vector &dir,
     const mfem::Vector &q, mfem::Vector &flux_vec)
@@ -373,6 +452,25 @@ void IsentropicVortexBC<dim, entvar>::calcFluxJacDir(
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
+double SlipWallBC<dim, entvar>::calcBndryFun(
+   const mfem::Vector &x, const mfem::Vector &dir,
+   const mfem::Vector &q)
+{
+   mfem::Vector flux_vec(q.Size());
+   calcFlux(x, dir, q, flux_vec);
+   mfem::Vector w(q.Size());
+   if (entvar)
+   {
+      w = q;
+   }
+   else
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   }
+   return w * flux_vec;
 }
 
 template <int dim, bool entvar>
@@ -433,6 +531,25 @@ void SlipWallBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
+double FarFieldBC<dim, entvar>::calcBndryFun(
+   const mfem::Vector &x, const mfem::Vector &dir,
+   const mfem::Vector &q)
+{
+   mfem::Vector flux_vec(q.Size());
+   calcFlux(x, dir, q, flux_vec);
+   mfem::Vector w(q.Size());
+   if (entvar)
+   {
+      w = q;
+   }
+   else
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   }
+   return w * flux_vec;
 }
 
 template <int dim, bool entvar>
@@ -510,6 +627,27 @@ InterfaceIntegrator<dim, entvar>::InterfaceIntegrator(
    MFEM_ASSERT(coeff >= 0.0, "InterfaceIntegrator: "
                "dissipation coefficient must be >= 0.0");
    diss_coeff = coeff;
+}
+
+template <int dim, bool entvar>
+double InterfaceIntegrator<dim, entvar>::calcIFaceFun(
+   const mfem::Vector &dir, const mfem::Vector &qL, const mfem::Vector &qR)
+{
+   mfem::Vector flux(qL.Size());
+   calcFlux(dir, qL, qR, flux);
+   mfem::Vector wL(qL.Size()), wR(qR.Size());
+   if (entvar)
+   {
+      wL = qL;
+      wR = qR;
+   }
+   else
+   {
+      calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
+      calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+   }
+   wL -= wR;
+   return wL * flux;
 }
 
 template <int dim, bool entvar>

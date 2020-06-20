@@ -38,29 +38,24 @@ public:
       // x = 0.0;
    }
 
-   /// Compute r = N(x + dt*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) + K@(x+dt*k) + l
+   /// Compute r = N(x + dt_stage*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) + K@(x+dt*k) + l
    /// (with `@` denoting matrix-vector multiplication)
    /// \param[in] k - dx/dt 
    /// \param[out] r - the residual
    /// \note the signs on each operator must be accounted for elsewhere
    void Mult(const mfem::Vector &k, mfem::Vector &r) const override
    {
-      /// work = x+dt*k = x+dt*dx/dt = x+dx
-      add(1.0, *x, dt, k, x_work);
-
       r = 0.0;
       if (nonlinear_mass)
       {
-         cout << "This needs to be fixed" << endl;
-         throw(-1);
-#if 0
-         add(1.0, *x, 2.0*dt, k, work2);
-         nonlinear_mass->Mult(work2, r);
-         nonlinear_mass->Mult(*x, work2); // TODO: This could be precomputed
-         r -= work2;
-         r *= (0.5/dt);
-#endif
+         add(1.0, *x, dt_stage, k, x_work);
+         nonlinear_mass->Mult(x_work, r);
+         nonlinear_mass->Mult(*x, r_work); // TODO: This could be precomputed
+         r -= r_work;
+         r *= 1/dt_stage;
       }
+      // x_work = x + dt*k = x + dt*dx/dt = x + dx
+      add(1.0, *x, dt, k, x_work);
       if (res)
       {
          res->Mult(x_work, r_work);
@@ -81,46 +76,10 @@ public:
       }
    }
 
-   /// Compute J = grad(N(k,x + dt*k)) + M + dt * grad(R(x + dt*k, t)) + dt * K
+   /// Compute J = grad(N(x + dt_stage*k)) + M + dt * grad(R(x + dt*k, t)) + dt * K
    /// \param[in] k - dx/dt 
    mfem::Operator &GetGradient(const mfem::Vector &k) const override
    {
-//       delete Jacobian;
-//       SparseMatrix *localJ;
-//       if (stiff)
-//       {
-//          localJ = Add(-alpha, mass->SpMat(), dt, stiff->SpMat());
-//       }
-//       else
-//       {
-//          localJ = new SparseMatrix(mass->SpMat()); //, dt, S->SpMat());
-//          *localJ *= -alpha;
-//       }
-
-//       if (res)
-//       {
-//          /// work = x+dt*k = x+dt*dx/dt = x+dx
-//          add(1.0, *x, dt, k, work);
-//          // Vector work(x);
-//          work.Add(dt, k);  // work = x + dt * k
-// #ifdef MFEM_USE_MPI
-//          localJ->Add(dt, res->GetLocalGradient(work));
-// #else
-//          SparseMatrix *grad_H = dynamic_cast<SparseMatrix *>(&res->GetGradient(work));
-//          localJ->Add(dt, *grad_H);
-// #endif
-//       }
-
-// #ifdef MFEM_USE_MPI
-//       Jacobian = mass->ParallelAssemble(localJ);
-//       delete localJ;
-//       HypreParMatrix *Je = Jacobian->EliminateRowsCols(ess_tdof_list);
-//       delete Je;
-// #else
-//       Jacobian = localJ;
-// #endif
-//       return *Jacobian;
-
       MatrixType *jac = nullptr;
       if (mass)
          jac = mass->ParallelAssemble();
@@ -136,59 +95,36 @@ public:
             *jac *= dt;
          }
       }
- 
-      if ( (nonlinear_mass) || (res) )
-      {
-         /// work = x+dt*k = x+dt*dx/dt = x+dx
-         add(1.0, *x, dt, k, x_work);
-      }
-
       if (nonlinear_mass)
       {
-         cout << "This needs to be fixed" << endl;
-         throw(-1);
-#if 0
-         add(*x, 2.0*dt, k, work2);
+         add(*x, dt_stage, k, x_work);
          MatrixType* massjac = dynamic_cast<MatrixType*>(
-            &nonlinear_mass->GetGradient(work2));
-
-         //MatrixType* massjac = dynamic_cast<MatrixType*>(
-         //   &nonlinear_mass->GetGradient(work));
-
-         if (jac == nullptr)
-         {
-            jac = massjac;
-         }
-         else
-         {
-            jac = ParAdd(jac, massjac);
-         }
-#endif
-
+            &nonlinear_mass->GetGradient(x_work));
+         jac == nullptr ? jac = massjac : jac = ParAdd(jac, massjac);
       }
-
       if (res)
       {
+         // x_work = x + dt*k = x + dt*dx/dt = x + dx
+         add(1.0, *x, dt, k, x_work);
          MatrixType *resjac =
              dynamic_cast<MatrixType *>(&res->GetGradient(x_work));
          *resjac *= dt;
-         if (jac == nullptr)
-         { 
-            jac = resjac;
-         }
-         else
-         {
-            jac = ParAdd(jac, resjac);
-         }
+         jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
       }
       return *jac;
    }
 
    /// Set current dt and x values - needed to compute action and Jacobian.
-   void setParameters(double _dt, const mfem::Vector *_x)
+   /// \param[in] _dt - the step used to define where RHS is evaluated
+   /// \praam[in] _x - current state
+   /// \param[in] _dt_stage - the step for this entire stage/step
+   /// \note `_dt` is the step usually assumed in mfem.  `_dt_stage` is needed
+   /// by the nonlinear mass form and can be ignored if not needed.
+   void setParameters(double _dt, const mfem::Vector *_x, double _dt_stage = -1.0)
    {
       dt = _dt;
       x = _x;
+      dt_stage = _dt_stage;
    };
 
    ~SystemOperator() { delete Jacobian; };
@@ -201,6 +137,7 @@ private:
    mfem::Vector *load;
    mutable MatrixType *Jacobian;
    double dt;
+   double dt_stage;
    const mfem::Vector *x;
 
    mutable mfem::Vector x_work;
@@ -317,6 +254,16 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 
+void MachEvolver::ImplicitSolve(const double dt_stage, const double dt,
+                                const Vector &x, Vector &k)
+{
+   setOperParameters(dt, &x, dt_stage);
+   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   k = 0.0; // In case iterative mode is set to true
+   newton->Mult(zero, k);
+   MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+}
+
 void MachEvolver::SetLinearSolver(Solver *_linsolver)
 {
    linsolver = _linsolver;
@@ -350,16 +297,13 @@ double MachEvolver::EntropyChange(double dt, const mfem::Vector &x,
       throw MachException("MachEvolver::EntropyChange(): ent not defined!");
    }
    add(x, dt, k, x_work);
-   // TODO: if using conservative variables, need to convert
-   // if using entropy variables, do nothing
-   //abs_solver->convertToEntvar(vec1);
-   res->Mult(x_work, r_work1);
-   return x_work * r_work1;
+   return res->GetEnergy(x_work);
 }
 
-void MachEvolver::setOperParameters(double dt, const mfem::Vector *x)
+void MachEvolver::setOperParameters(double dt, const mfem::Vector *x,
+                                    double dt_stage)
 {
-   combined_oper->setParameters(dt, x);
+   combined_oper->setParameters(dt, x, dt_stage);
 }
 
 } // namespace mach

@@ -157,11 +157,11 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    }
    else if (options["time-dis"]["ode-solver"].get<string>() == "RRK")
    {
-      ode_solver.reset(new RRKImplicitMidpointSolver);
+      ode_solver.reset(new RRKImplicitMidpointSolver(out));
    }
    else if (options["time-dis"]["ode-solver"].template get<string>() == "PTC")
    {
-      ode_solver.reset(new PseudoTransientSolver);
+      ode_solver.reset(new PseudoTransientSolver(out));
    }
    else
    {
@@ -565,8 +565,6 @@ double AbstractSolver::calcL2Error(GridFunType *field,
       {
          const IntegrationPoint &ip = ir->IntPoint(j);
          fe->CalcShape(ip, shape);
-
-
          double a = 0;
          for (int k = 0; k < fdof; k++)
             if (vdofs[k] >= 0)

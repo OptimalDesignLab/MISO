@@ -502,6 +502,16 @@ public:
        : num_states(num_state_vars), alpha(a), stack(diff_stack),
          fec(fe_coll) {}
 
+   /// Get the contribution from the interface to a functional
+   /// \param[in] el_left - "left" element for functional contribution
+   /// \param[in] el_right - "right" element for functional contribution
+   /// \param[in] trans - holds geometry and mapping information about the face
+   /// \param[in] elfun - holds the solution on the adjacent elements
+   virtual double GetFaceEnergy(const mfem::FiniteElement &el_left,
+                                const mfem::FiniteElement &el_right,
+                                mfem::FaceElementTransformations &trans,
+                                const mfem::Vector &elfun);
+
    /// Construct the contribution to the element local residuals
    /// \param[in] el_left - "left" element whose residual we want to update
    /// \param[in] el_right - "right" element whose residual we want to update
@@ -549,6 +559,19 @@ protected:
    /// stores the jacobian of the flux with respect to the right state
    mfem::DenseMatrix flux_jac_right;
 #endif
+
+   /// Compute a scalar interface function
+   /// \param[in] dir - vector normal to the face
+   /// \param[in] u_left - "left" state at which to evaluate the function
+   /// \param[in] u_right - "right" state at which to evaluate the function
+   /// \returns fun - value of the function
+   /// \note This uses the CRTP, so it wraps a call to `calcIFaceFun` in
+   /// Derived.
+   double iFaceFun(const mfem::Vector &dir, const mfem::Vector &u_left,
+                   const mfem::Vector &u_right)
+   {
+      return static_cast<Derived *>(this)->calcIFaceFun(dir, u_left, u_right);
+   }
 
    /// Compute an interface flux function
    /// \param[in] dir - vector normal to the face

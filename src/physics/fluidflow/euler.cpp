@@ -83,8 +83,6 @@ void EulerSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
-   // TODO: if statement when using entropy variables as state variables
-
    // TODO: should decide between one-point and two-point fluxes using options
    res->AddDomainIntegrator(
        new IsmailRoeIntegrator<dim, entvar>(diff_stack, alpha));
