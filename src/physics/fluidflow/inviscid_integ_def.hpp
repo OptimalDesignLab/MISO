@@ -556,6 +556,59 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
 }
 
 template <typename Derived>
+double InviscidFaceIntegrator<Derived>::GetFaceEnergy(
+   const mfem::FiniteElement &el_left, const mfem::FiniteElement &el_right,
+   mfem::FaceElementTransformations &trans, const mfem::Vector &elfun)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_left);
+   const int num_nodes_left = el_left.GetDof();
+   const int num_nodes_right = el_right.GetDof();
+   const int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face_left, u_face_right, nrm;
+#endif
+   u_face_left.SetSize(num_states);
+   u_face_right.SetSize(num_states);
+   nrm.SetSize(dim);
+   DenseMatrix u_left(elfun.GetData(), num_nodes_left, num_states);
+   DenseMatrix u_right(elfun.GetData() + num_nodes_left*num_states,
+                       num_nodes_right, num_states);
+
+   const FiniteElement *sbp_face;
+   switch (dim)
+   {
+      case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
+              break;
+      case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+              break;
+      default: throw mach::MachException(
+         "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
+         "\tcannot handle given dimension");
+   }
+   IntegrationPoint ip_left, ip_right;
+   double fun = 0.0;
+   for (int i = 0; i < sbp_face->GetDof(); ++i)
+   {
+      const IntegrationPoint &ip_face = sbp_face->GetNodes().IntPoint(i);
+      trans.Loc1.Transform(ip_face, ip_left);
+      trans.Loc2.Transform(ip_face, ip_right);
+
+      int i_left = sbp.getIntegrationPointIndex(ip_left);
+      u_left.GetRow(i_left, u_face_left);
+      int i_right = sbp.getIntegrationPointIndex(ip_right);
+      u_right.GetRow(i_right, u_face_right); 
+
+      // get the contribution to the function on the face
+      trans.Face->SetIntPoint(&ip_face);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      nrm *= ip_face.weight;
+      fun += iFaceFun(nrm, u_face_left, u_face_right);
+   }
+   return fun;
+}
+
+template <typename Derived>
 void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
    const mfem::FiniteElement &el_left,
    const mfem::FiniteElement &el_right,
