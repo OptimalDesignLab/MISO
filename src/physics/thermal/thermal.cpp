@@ -667,7 +667,15 @@ void ThermalSolver::addLoadVolumeIntegrators(double alpha)
 
 void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 {
-	flux_coeff.reset(new VectorFunctionCoefficient(3, fluxFunc));
+
+	//determine type of flux function
+	if(options["outflux-type"].template get<string>() == "test")
+	{
+		flux_coeff.reset(new VectorFunctionCoefficient(3, testFluxFunc));
+	}
+	else
+		throw MachException("Specified flux function not supported!\n");
+
 	auto &bcs = options["bcs"];
 	bndry_marker.resize(bcs.size());
 	int idx = 0;
@@ -708,7 +716,7 @@ void ThermalSolver::constructEvolver()
    evolver->SetNewtonSolver(newton_solver.get());
 }
 
-void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
+void ThermalSolver::testFluxFunc(const Vector &x, double time, Vector &y)
 {
 	y.SetSize(3);
 	//use constant in time for now
@@ -718,7 +726,7 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 
 	if (x(0) > .5)
 	{
-		y(0) = 1;
+		y(0) = -1;
 	}
 	else
 	{

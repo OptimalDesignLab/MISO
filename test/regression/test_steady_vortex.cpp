@@ -12,11 +12,12 @@ using namespace mfem;
 using namespace mach;
 
 /// NOTE: Not sure how I'll iterate over order, etc.
+bool entvarg;
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
-void uexact(const Vector &x, Vector& u);
+void uexact(const Vector &x, Vector& q);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -28,6 +29,8 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
                        "[euler]", ((bool entvar), entvar), false, true)
 {
+   entvarg = entvar;   
+
    const char *options_file = "test_steady_vortex_options.json";
   
     // Parse command-line options
@@ -47,30 +50,49 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
        args.PrintUsage(cout);
     }
   
+   for (int h = 1; h <= 4; ++h)
+   {
+      DYNAMIC_SECTION("...for mesh sizing h = " << h)
+      {
+         nx = h; ny = h;
+          // construct the solver, set the initial condition, and solve
+          string opt_file_name(options_file);
+          unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+          std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
 
-    // construct the solver, set the initial condition, and solve
-    string opt_file_name(options_file);
-    unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-    std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
+         auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
+                                                               move(smesh));    //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
+          solver->initDerived();
 
-   auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
-                                                         move(smesh));    //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
-    solver->initDerived();
+          solver->setInitialCondition(uexact);
 
-    solver->setInitialCondition(uexact);
-    solver->printSolution("init", degree+1);
+          double l_error = solver->calcL2Error(uexact, 0);
+          double res_error = solver->calcResidualNorm();
 
-    double l_error = solver->calcL2Error(uexact, 0);
-    double res_error = solver->calcResidualNorm();
+          solver->solveForState();
+          l_error = solver->calcL2Error(uexact, 0);
+          //res_error = solver->calcResidualNorm();
+          //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
 
-    solver->solveForState();
-    solver->printSolution("final",degree+1);
-    l_error = solver->calcL2Error(uexact, 0);
-    //res_error = solver->calcResidualNorm();
-    //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
-
-    REQUIRE(l_error == Approx(0.0700178854).margin(1e-10));
-
+         double target;
+         switch(h)
+         {
+            case 1: 
+               target = !entvarg ? 0.0700148195 :  0.0690131081;
+               break;
+            case 2: 
+               target = !entvarg ? 0.0260625842 :  0.0224304871;
+               break;
+            case 3: 
+               target = !entvarg ? 0.0129909277 :  0.0107753424;
+               break;
+            case 4: 
+               target = !entvarg ? 0.0079317615 :  0.0064387612;
+               break;
+         }
+         REQUIRE(l_error == Approx(target).margin(1e-10));
+      }
+   }
 #ifdef MFEM_USE_PETSC
    MFEMFinalizePetsc();
 #endif
@@ -79,9 +101,10 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
 // Exact solution; note that I reversed the flow direction to be clockwise, so
 // the problem and mesh are consistent with the LPS paper (that is, because the
 // triangles are subdivided from the quads using the opposite diagonal)
-void uexact(const Vector &x, Vector& u)
+void uexact(const Vector &x, Vector& q)
 {
-   u.SetSize(4);
+   q.SetSize(4);
+   Vector u(4);
    double ri = 1.0;
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
@@ -108,6 +131,15 @@ void uexact(const Vector &x, Vector& u)
    u(1) = rho*a*Ma*sin(theta);
    u(2) = -rho*a*Ma*cos(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+
+   if (entvarg == false)
+   {
+      q = u;
+   }
+   else
+   {
+      calcEntropyVars<double, 2>(u.GetData(), q.GetData());
+   }
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)

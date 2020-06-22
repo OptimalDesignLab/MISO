@@ -123,7 +123,7 @@ private:
 
    /// compute outward flux at boundary
    // static void FluxFunc(const mfem::Vector &x, mfem::Vector &y );
-   static void fluxFunc(const mfem::Vector &x, double time, mfem::Vector &y);
+   static void testFluxFunc(const mfem::Vector &x, double time, mfem::Vector &y);
 
    /// initial temperature
    // static double initialTemperature(const mfem::Vector &x);

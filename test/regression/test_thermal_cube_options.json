@@ -1,4 +1,5 @@
 {
+   "print-options": false,
     "mesh": {
        "file": "initial.mesh",
        "num-edge-x": 20,
@@ -19,16 +20,19 @@
         "t-final": 0.2
     },
     "lin-solver": {
-       "rel-tol": 1e-8,
-       "abs-tol": 0.0,
-       "print-lvl": 0,
-       "max-iter": 500
+       "reltol": 1e-8,
+       "abstol": 0.0,
+       "printlevel": 0,
+       "maxiter": 500
     },
     "adj-solver":{
-       "rel-tol": 1e-8,
-       "abs-tol": 0.0,
-       "print-lvl": 0,
-       "max-iter": 500
+       "reltol": 1e-8,
+       "abstol": 0.0,
+       "printlevel": 0,
+       "maxiter": 500
+    },
+    "newton":{
+       "printlevel": 0
     },
     "motor-opts" : {
        "current": 1,
@@ -36,21 +40,20 @@
     },
     "components": {
        "stator": {
-          "material": "testmat",
+          "material": "regtestmat1",
           "attr": 1,
           "max-temp": 0.5
        },
        "rotor": {
-          "material": "testmat",
+          "material": "regtestmat2",
           "attr": 2,
           "max-temp": 0.5
        }
     },
     "bcs": {
-        "outflux": [0, 0, 0, 0, 1, 0],
-        "const": true,
-        "const-val": 1
+        "outflux": [0, 0, 1, 0, 1, 0]
     },
+    "outflux-type": "test",
     "outputs": {
         "temp-agg": "temp-agg"
     },
