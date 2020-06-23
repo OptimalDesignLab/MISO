@@ -98,16 +98,16 @@ TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
           switch(h)
           {
              case 1: 
-                target = 0.086553829;
+                target = 0.0548041517;
                 break;
              case 2: 
-                target = 0.1066054519;
+                target = 0.0137142199;
                 break;
              case 3: 
-                target = 0.1105436195;
+                target = 0.0060951886;
                 break;
              case 4: 
-                target = 0.1119338084;
+                target = 0.0034275387;
                 break;
           }
           REQUIRE(lerror == Approx(target).margin(1e-10));
@@ -117,24 +117,26 @@ TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
 
 double InitialTemperature(const Vector &x)
 {
-   if (x(0) <= .5)
-   {
-      return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
-   }
-   else
-   {
-      return sin(M_PI*x(0)/2) + x(0)*x(0)/2 - 1.0/4.0;
-   }
+   return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
+   // if (x(0) <= .5)
+   // {
+   //    return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
+   // }
+   // else
+   // {
+   //    return sin(M_PI*x(0)/2) + x(0)*x(0)/2 - 1.0/4.0;
+   // }
 }
 
 double ExactSolution(const Vector &x)
 {
-   if (x(0) <= .5)
-   {
-      return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
-   }
-   else
-   {
-      return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) + x(0)*x(0)/2 - 1.0/4.0;
-   }
+   return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2 - 0.2;
+   // if (x(0) <= .5)
+   // {
+   //    return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
+   // }
+   // else
+   // {
+   //    return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) + x(0)*x(0)/2 - 1.0/4.0;
+   // }
 }

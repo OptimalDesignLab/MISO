@@ -726,12 +726,11 @@ void ThermalSolver::testFluxFunc(const Vector &x, double time, Vector &y)
 
 	if (x(0) > .5)
 	{
-		y(0) = -1;
+		y(0) = 1;
 	}
 	else
 	{
 		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
-		//cout << "outflux val = " << y(0) << std::endl;
 	}
 
 	y(1) = 0;

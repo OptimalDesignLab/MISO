@@ -45,7 +45,7 @@
           "max-temp": 0.5
        },
        "rotor": {
-          "material": "regtestmat2",
+          "material": "regtestmat1",
           "attr": 2,
           "max-temp": 0.5
        }
