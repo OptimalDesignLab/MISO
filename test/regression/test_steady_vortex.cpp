@@ -30,49 +30,28 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
                        "[euler]", ((bool entvar), entvar), false, true)
 {
    entvarg = entvar;   
-
    const char *options_file = "test_steady_vortex_options.json";
-  
-    // Parse command-line options
-    int argc; char ** argv;
-    OptionsParser args(argc, argv);
-    int degree = 2.0;
-    int nx = 1;
-    int ny = 1;
-    args.AddOption(&options_file, "-o", "--options",
-                  "Options file to use.");
-    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
-    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
-    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
-    args.Parse();
-    if (!args.Good())
-    {
-       args.PrintUsage(cout);
-    }
-  
+   int degree = 2.0;
+   int nx = 1;
+   int ny = 1;
+
    for (int h = 1; h <= 4; ++h)
    {
       DYNAMIC_SECTION("...for mesh sizing h = " << h)
       {
          nx = h; ny = h;
-          // construct the solver, set the initial condition, and solve
-          string opt_file_name(options_file);
-          unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-          std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
+         // construct the solver, set the initial condition, and solve
+         string opt_file_name(options_file);
+         unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+         std::cout <<"Number of elements " << smesh->GetNE() <<'\n';
 
          auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
                                                                move(smesh));    //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
-          solver->initDerived();
+         solver->initDerived();
 
-          solver->setInitialCondition(uexact);
-
-          double l_error = solver->calcL2Error(uexact, 0);
-          double res_error = solver->calcResidualNorm();
-
-          solver->solveForState();
-          l_error = solver->calcL2Error(uexact, 0);
-          //res_error = solver->calcResidualNorm();
-          //double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+         solver->setInitialCondition(uexact);
+         solver->solveForState();
+         l_error = solver->calcL2Error(uexact, 0);
 
          double target;
          switch(h)

@@ -19,17 +19,7 @@ static double ExactSolution(const Vector &x);
 
 TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
 {
-    // Parse command-line options
-    int argc; char ** argv;
-    OptionsParser args(argc, argv);
-    const char *options_file = "test_thermal_cube_options.json";
-    args.AddOption(&options_file, "-o", "--options",
-                  "Options file to use.");
-   args.Parse();
-   if (!args.Good())
-   {
-      args.PrintUsage(cout);
-   }
+   const char *options_file = "test_thermal_cube_options.json";
 
    string opt_file_name(options_file);
    nlohmann::json options;
@@ -88,29 +78,29 @@ TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
          }
          mesh->SetAttributes();
 
-          auto solver = createSolver<ThermalSolver>(opt_file_name, move(mesh));
-          solver->setInitialCondition(InitialTemperature);
-          solver->solveForState();
-          solver->printSolution("thermal_final", 0);
-          double lerror = solver->calcL2Error(ExactSolution);
+         auto solver = createSolver<ThermalSolver>(opt_file_name, move(mesh));
+         solver->setInitialCondition(InitialTemperature);
+         solver->solveForState();
+         solver->printSolution("thermal_final", 0);
+         double l2_error = solver->calcL2Error(ExactSolution);
 
-          double target;
-          switch(h)
-          {
-             case 1: 
-                target = 0.0548041517;
-                break;
-             case 2: 
-                target = 0.0137142199;
-                break;
-             case 3: 
-                target = 0.0060951886;
-                break;
-             case 4: 
-                target = 0.0034275387;
-                break;
-          }
-          REQUIRE(lerror == Approx(target).margin(1e-10));
+         double target;
+         switch(h)
+         {
+            case 1: 
+               target = 0.0548041517;
+               break;
+            case 2: 
+               target = 0.0137142199;
+               break;
+            case 3: 
+               target = 0.0060951886;
+               break;
+            case 4: 
+               target = 0.0034275387;
+               break;
+         }
+         REQUIRE(l2_error == Approx(target).margin(1e-10));
       }
    }
 }
@@ -118,25 +108,9 @@ TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
 double InitialTemperature(const Vector &x)
 {
    return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
-   // if (x(0) <= .5)
-   // {
-   //    return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
-   // }
-   // else
-   // {
-   //    return sin(M_PI*x(0)/2) + x(0)*x(0)/2 - 1.0/4.0;
-   // }
 }
 
 double ExactSolution(const Vector &x)
 {
    return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2 - 0.2;
-   // if (x(0) <= .5)
-   // {
-   //    return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
-   // }
-   // else
-   // {
-   //    return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) + x(0)*x(0)/2 - 1.0/4.0;
-   // }
 }
