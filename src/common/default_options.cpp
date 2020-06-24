@@ -9,6 +9,7 @@ namespace mach
 
 const nlohmann::json default_options
 {   
+   {"print-options", true}, //print out options when solver is constructed
    {"flow-param", // options related to flow simulations
    {
       {"mach", 0.5}, // far-field mach number

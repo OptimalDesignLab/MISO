@@ -1,4 +1,5 @@
 {
+   "print-options": false,
     "mesh": {
        "file": "initial.mesh",
        "num-edge-x": 20,
@@ -30,24 +31,27 @@
        "printlevel": 0,
        "maxiter": 500
     },
+    "newton":{
+       "printlevel": 0
+    },
     "motor-opts" : {
        "current": 1,
        "frequency": 1500
     },
     "components": {
        "stator": {
-          "material": "testmat",
+          "material": "regtestmat1",
           "attr": 1,
           "max-temp": 0.5
        },
        "rotor": {
-          "material": "testmat",
+          "material": "regtestmat1",
           "attr": 2,
           "max-temp": 0.5
        }
     },
     "bcs": {
-        "outflux": [0, 0, 0, 0, 1, 0]
+        "outflux": [0, 0, 1, 0, 1, 0]
     },
     "outflux-type": "test",
     "outputs": {

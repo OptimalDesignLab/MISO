@@ -132,7 +132,10 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    out = getOutStream(rank);
    options = default_options;
    options.merge_patch(file_options);
-   *out << setw(3) << options << endl;
+   if(options["print-options"])
+   {
+      *out << setw(3) << options << endl;
+   }
 
 	materials = material_library;
 
