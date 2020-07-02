@@ -617,6 +617,11 @@ void AbstractSolver::solveUnsteady()
    ofstream entropylog;
    entropylog.open("entropylog.txt", fstream::app);
    entropylog << setprecision(14);
+   double t1, t2;
+   if (0==rank)
+   {
+      t1 = MPI_Wtime();
+   }
    for (int ti = 0; !done;)
    {
       entropy = calcOutput("entropy");
@@ -661,6 +666,11 @@ void AbstractSolver::solveUnsteady()
             dc->Save();
          }
       } */
+   }
+   if (0==rank)
+   {
+      t2 = MPI_Wtime();
+      *out << "Time for solving adjoint is " << (t2 - t1) << endl;
    }
    entropy = calcOutput("entropy");
    entropylog << t << ' ' << entropy << '\n';
