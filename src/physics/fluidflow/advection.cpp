@@ -91,7 +91,7 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
 template <int dim>
 AdvectionSolver<dim>::AdvectionSolver(
     const string &opt_file_name, void (*vel_field)(const Vector &, Vector &))
-    : AbstractSolver(opt_file_name)
+    : AbstractSolver(opt_file_name, nullptr)
 {
    // set up the stiffness matrix
    velocity.reset(
@@ -107,16 +107,18 @@ AdvectionSolver<dim>::AdvectionSolver(
    stiff->Assemble(skip_zeros);
    stiff->Finalize(skip_zeros);
 
-#ifdef MFEM_USE_MPI
    // The parallel bilinear forms return a pointer that this solver owns
    stiff_matrix.reset(stiff->ParallelAssemble());
-#else
-   stiff_matrix.reset(new MatrixType(stiff->SpMat()));
-#endif
 
+   Array<int> ess_bdr(mesh->bdr_attributes.Max());
+   ess_bdr = 0;
    /// This should overwrite the evolver defined in base class constructor
+   /// TODO: This should not be necessary?
    evolver.reset(
-       new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out)));
+      //   new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out))); 
+       new MachEvolver(ess_bdr, nullptr, mass.get(), nullptr, stiff.get(),
+                       nullptr, nullptr, *(out), 0.0));
+
 }
 
 // explicit instantiation

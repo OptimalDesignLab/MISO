@@ -5,12 +5,14 @@ using namespace std;
 
 namespace mach
 {
+
 void DiagMassIntegrator::AssembleElementMatrix(
     const FiniteElement &el, ElementTransformation &Trans,
     DenseMatrix &elmat)
 {   
    const IntegrationRule &ir = el.GetNodes();
    int num_nodes = ir.GetNPoints();
+   int dim = el.GetDim();
    elmat.SetSize(num_nodes*num_state);
    elmat = 0.0;
    double norm;
@@ -22,6 +24,10 @@ void DiagMassIntegrator::AssembleElementMatrix(
       const IntegrationPoint &node = ir.IntPoint(i);
       Trans.SetIntPoint(&node);
       norm = node.weight * Trans.Weight();
+      if (space_vary_dt)
+      {
+         norm /= pow(Trans.Weight(), 1.0/dim);
+      }
       for (int k = 0; k < num_state; k++)
       {
          // Insert diagonal entries for each state 
@@ -30,4 +36,5 @@ void DiagMassIntegrator::AssembleElementMatrix(
       }
    }
 }
+
 }

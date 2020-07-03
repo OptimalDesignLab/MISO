@@ -17,10 +17,8 @@ void checkNeighbour(const std::string &, int);
 
 int main(int argc, char *argv[])
 {
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
    MPI_Init(&argc, &argv);
-#endif
 
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -43,10 +41,9 @@ int main(int argc, char *argv[])
      checkNeighbour(opt_file_name, degree[i]);
    }
    
-#ifdef MFEM_USE_MPI
    MPI_Finalize();
-#endif
 }
+
 // this takes in options file name and degree
 void checkNeighbour(const std::string &opt_file_name, int degree)
 {

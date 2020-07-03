@@ -588,11 +588,10 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
-         // initialize state and k = du/dt; here we randomly perturb a constant state
-         GridFunction q(fes.get()), k(fes.get());
+         // initialize state; we randomly perturb a constant state
+         GridFunction u(fes.get());
          VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
-         q.ProjectCoefficient(pert);
-         k.ProjectCoefficient(pert);
+         u.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
@@ -600,21 +599,20 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
          v.ProjectCoefficient(v_rand);
 
          NonlinearForm res(fes.get());
-         double dt = 0.5; // dt is chosen arbitraily here
          res.AddDomainIntegrator(
-             new mach::MassIntegrator<2, entvar>(diff_stack, q, dt));
+             new mach::MassIntegrator<2, entvar>(diff_stack));
 
          // evaluate the Jacobian and compute its product with v
-         Operator &Jac = res.GetGradient(k);
+         Operator &Jac = res.GetGradient(u);
          GridFunction jac_v(fes.get());
          Jac.Mult(v, jac_v);
 
          // now compute the finite-difference approximation...
-         GridFunction k_pert(k), r(fes.get()), jac_v_fd(fes.get());
-         k_pert.Add(-delta, v);
-         res.Mult(k_pert, r);
-         k_pert.Add(2 * delta, v);
-         res.Mult(k_pert, jac_v_fd);
+         GridFunction u_pert(u), r(fes.get()), jac_v_fd(fes.get());
+         u_pert.Add(-delta, v);
+         res.Mult(u_pert, r);
+         u_pert.Add(2 * delta, v);
+         res.Mult(u_pert, jac_v_fd);
          jac_v_fd -= r;
          jac_v_fd /= (2 * delta);
 
@@ -632,10 +630,9 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
          // initialize state and k = du/dt; here we randomly perturb a constant state
-         GridFunction q(fes.get()), k(fes.get());
+         GridFunction u(fes.get());
          VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
-         q.ProjectCoefficient(pert);
-         k.ProjectCoefficient(pert);
+         u.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
@@ -643,21 +640,20 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
          v.ProjectCoefficient(v_rand);
 
          NonlinearForm res(fes.get());
-         double dt = 0.5; // dt is chosen arbitraily here
          res.AddDomainIntegrator(
-             new mach::MassIntegrator<2, entvar>(diff_stack, q, dt));
+             new mach::MassIntegrator<2, entvar>(diff_stack));
 
          // evaluate the Jacobian and compute its product with v
-         Operator &Jac = res.GetGradient(k);
+         Operator &Jac = res.GetGradient(u);
          GridFunction jac_v(fes.get());
          Jac.Mult(v, jac_v);
 
          // now compute the finite-difference approximation...
-         GridFunction k_pert(k), r(fes.get()), jac_v_fd(fes.get());
-         k_pert.Add(-delta, v);
-         res.Mult(k_pert, r);
-         k_pert.Add(2 * delta, v);
-         res.Mult(k_pert, jac_v_fd);
+         GridFunction u_pert(u), r(fes.get()), jac_v_fd(fes.get());
+         u_pert.Add(-delta, v);
+         res.Mult(u_pert, r);
+         u_pert.Add(2 * delta, v);
+         res.Mult(u_pert, jac_v_fd);
          jac_v_fd -= r;
          jac_v_fd /= (2 * delta);
 

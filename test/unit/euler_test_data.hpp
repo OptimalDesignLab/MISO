@@ -76,6 +76,14 @@ void randBaselinePert(const mfem::Vector &x, mfem::Vector &u);
 /// \param[out] u - rand state variable
 void randState(const mfem::Vector &x, mfem::Vector &u);
 
+/// Returns a perturbed version of the baseline temperature state
+/// \param[in] x - coordinates (not used)
+double randBaselinePert(const mfem::Vector &x);
+
+/// Returns a random state with entries uniformly distributed in [-1,1]
+/// \param[in] x - coordinates (not used)
+double randState(const mfem::Vector &x);
+
 } // euler_data namespace
 
 #endif

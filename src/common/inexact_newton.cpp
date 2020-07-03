@@ -1,22 +1,18 @@
 #include "inexact_newton.hpp"
 
-using namespace mfem;
+#include "utils.hpp"
+
 using namespace std;
+using namespace mfem;
+using namespace mach;
 
 namespace mfem
 {
-
-void InexactNewton::init(double eta_init, double eta_maximum,
-                             double ared_scale)
-{
-   eta = eta_init;
-   eta_max = eta_maximum;
-   t = ared_scale;
-}
    
 double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
-                                       const double norm)
+                                       const double norm) const
 {
+   double theta = 0.0;
    double s = 1.0;
    // p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
    // p0 is the value of p(0), p0p is the derivative p'(0), and 
@@ -92,12 +88,13 @@ void InexactNewton::SetOperator(const Operator &op)
 }
 
 
-void InexactNewton::Mult(const Vector &b, Vector &x)
+void InexactNewton::Mult(const Vector &b, Vector &x) const
 {
    MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
    MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
 
    std::cout << "Beginning of inexact Newton..." << std::endl;
+   std::cout.flush();
 
    int it;
    double norm0, norm, norm_goal;
@@ -109,8 +106,12 @@ void InexactNewton::Mult(const Vector &b, Vector &x)
    oper->Mult(x, r);
    if (have_b)
    {
+      std::cout << "What is going on!" << endl;
       r -= b;
    }
+   std::cout << "Just before inexact Newton iterations" << std::endl;
+   std::cout << "Norm(r) = " << Norm(r) << endl;
+   std::cout.flush();
 
    norm0 = norm = Norm(r);
    norm_goal = std::max(rel_tol*norm, abs_tol);

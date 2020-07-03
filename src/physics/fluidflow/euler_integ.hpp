@@ -71,6 +71,14 @@ public:
        : DyadicFluxIntegrator<IsmailRoeIntegrator<dim, entvar>>(
              diff_stack, dim + 2, a) {}
 
+   /// Get the contribution of this element to the change in entropy
+   /// \param[in] el - the finite element whose contribution we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   virtual double GetElementEnergy(const mfem::FiniteElement &el,
+                                   mfem::ElementTransformation &trans,
+                                   const mfem::Vector &elfun) override;
+
    /// Ismail-Roe two-point (dyadic) entropy conservative flux function
    /// \param[in] di - physical coordinate direction in which flux is wanted
    /// \param[in] qL - state variables at "left" state
@@ -109,6 +117,14 @@ public:
                           double coeff = 1.0)
        : LPSIntegrator<EntStableLPSIntegrator<dim,entvar>>(
              diff_stack, dim + 2, a, coeff) {}
+
+   /// Get the contribution of this element to the change in entropy
+   /// \param[in] el - the finite element whose contribution we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   virtual double GetElementEnergy(const mfem::FiniteElement &el,
+                                   mfem::ElementTransformation &trans,
+                                   const mfem::Vector &elfun) override;
 
    /// converts state variables to entropy variables, if necessary
    /// \param[in] q - state variables that are to be converted
@@ -179,39 +195,25 @@ class MassIntegrator : public NonlinearMassIntegrator<
 public:
    /// Construct the nonlinear mass matrix integrator
    /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] u_old - the state at the previous time step
-   /// \param[in] delta_t - used to define state where mass matrix is evaluated
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   MassIntegrator(adept::Stack &diff_stack, const mfem::GridFunction &u_old,
-                  double delta_t, double a = 1.0)
-       : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(u_old, delta_t,
-                                                              dim + 2, a),
-         stack(diff_stack), q_work(dim + 2) {}
+   MassIntegrator(adept::Stack &diff_stack, double a = 1.0)
+       : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(dim + 2, a),
+         stack(diff_stack) {}
 
-   /// applies symmetric matrix `dq/du` to input `k`
-   /// \param[in] u - state at which the symmetric matrix `dq/du` is evaluated
-   /// \param[in] k - vector that is being multiplied
-   /// \param[out] Ak - product of the multiplication
-   void calcMatVec(const mfem::Vector &u, const mfem::Vector &k,
-                   mfem::Vector &Ak);
+   /// converts state variables to conservative variables, if necessary
+   /// \param[in] u - state variables that are to be converted
+   /// \param[out] q - conservative variables corresponding to `u`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &u, mfem::Vector &q);
 
-   /// Compute the Jacobian of function `matVec` w.r.t. `u`
-   /// \param[in] u - state at which to evaluate the Jacobian
-   /// \param[in] k - vector that is being multiplied by `A = dq/du`
-   /// \param[out] jac - Jacobian of the product w.r.t. `u`
-   void calcMatVecJacState(const mfem::Vector &u, const mfem::Vector &k,
-                           mfem::DenseMatrix &jac);
-
-   /// Computes the matrix (dq/du)
-   /// \param[in] u - state at which to evaluate the entropy inverse Hessian
-   /// \param[out] jac - stores the entropy inverse Hessian
-   void calcMatVecJacK(const mfem::Vector &u, mfem::DenseMatrix &jac);
+   /// Compute the Jacobian of the mapping `convertVars` w.r.t. `u`
+   /// \param[in] u - state variables that are to be converted
+   /// \param[out] dqdu - Jacobian of conservative variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &u, mfem::DenseMatrix &dqdu);
 
 protected:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
-   /// work vector used to store conservative variables
-   mfem::Vector q_work;
 };
 
 /// Integrator for the steady isentropic-vortex boundary condition
@@ -233,14 +235,17 @@ public:
        : InviscidBoundaryIntegrator<IsentropicVortexBC<dim, entvar>>(
              diff_stack, fe_coll, 4, a) {}
 
-   /// Not used (or, rather, *do not use*!)
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variable at which to evaluate the flux
    double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
-                       const mfem::Vector &q) { return 0.0; }
+                       const mfem::Vector &q);
 
    /// Compute a characteristic boundary flux for the isentropic vortex
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] q - state variable at which to evaluate the flux
    /// \param[out] flux_vec - value of the flux
    void calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
                  const mfem::Vector &q, mfem::Vector &flux_vec);
@@ -248,7 +253,7 @@ public:
    /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `q`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] q - state variable at which to evaluate the flux
    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
                          const mfem::Vector &q, mfem::DenseMatrix &flux_jac);
@@ -256,7 +261,7 @@ public:
    /// Compute the Jacobian of the isentropic vortex boundary flux w.r.t. `dir`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] q - state variable at which to evaluate the flux
    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
    void calcFluxJacDir(const mfem::Vector &x, const mfem::Vector &dir,
                        const mfem::Vector &q, mfem::DenseMatrix &flux_jac);
@@ -280,9 +285,12 @@ public:
        : InviscidBoundaryIntegrator<SlipWallBC<dim, entvar>>(
              diff_stack, fe_coll, dim+2, a) {}
 
-   /// Not used (or, rather, *do not use*!)
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variable at which to evaluate the flux
    double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
-                       const mfem::Vector &q) { return 0.0; }
+                       const mfem::Vector &q);
 
    /// Compute an adjoint-consistent slip-wall boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
@@ -329,9 +337,12 @@ public:
        : InviscidBoundaryIntegrator<FarFieldBC<dim, entvar>>(
              diff_stack, fe_coll, dim+2, a), qfs(q_far), work_vec(dim+2) {}
 
-   /// Not used (or, rather, *do not use*!)
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variable at which to evaluate the flux
    double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
-                       const mfem::Vector &q) { return 0.0; }
+                       const mfem::Vector &q);
 
    /// Compute an adjoint-consistent slip-wall boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
@@ -381,10 +392,17 @@ public:
                        const mfem::FiniteElementCollection *fe_coll,
                        double a = 1.0);
 
+   /// Contracts flux with the entropy variables
+   /// \param[in] dir - vector normal to the interface
+   /// \param[in] qL - "left" state at which to evaluate the flux
+   /// \param[in] qR - "right" state at which to evaluate the flux
+   double calcIFaceFun(const mfem::Vector &dir, const mfem::Vector &qL,
+                       const mfem::Vector &qR);
+
    /// Compute the interface function at a given (scaled) direction
    /// \param[in] dir - vector normal to the interface
    /// \param[in] qL - "left" state at which to evaluate the flux
-   /// \param[in] qR - "right" state at which to evaluate the flu 
+   /// \param[in] qR - "right" state at which to evaluate the flux 
    /// \param[out] flux - value of the flux
    /// \note wrapper for the relevant function in `euler_fluxes.hpp`
    void calcFlux(const mfem::Vector &dir, const mfem::Vector &qL,

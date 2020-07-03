@@ -1,9 +1,11 @@
 // Solve for the flow around a NACA0012 at high angle of attack
 
-#include "mfem.hpp"
-#include "navier_stokes.hpp"
 #include <fstream>
 #include <iostream>
+
+#include "mfem.hpp"
+
+#include "mach.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -31,10 +33,9 @@ int main(int argc, char *argv[])
    petscoptions << "-pc_factor_reuse_ordering" << endl;
    petscoptions.close();
 #endif
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
    MPI_Init(&argc, &argv);
-#endif
+
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options",
@@ -54,16 +55,13 @@ int main(int argc, char *argv[])
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
 #if 1
-      unique_ptr<NavierStokesSolver<2>> solver(
-         new NavierStokesSolver<2>(opt_file_name, nullptr));
+      auto solver = createSolver<NavierStokesSolver<2>>(opt_file_name);
 #endif
 #if 0
-      unique_ptr<EulerSolver<2>> solver(
-         new EulerSolver<2>(opt_file_name, nullptr));
+      auto solver = createSolver<EulerSolver<2>>(opt_file_name);
 #endif
-      solver->initDerived();
       Vector qfar(4);
-      solver->getFreeStreamState(qfar);
+      dynamic_cast<EulerSolver<2>*>(solver.get())->getFreeStreamState(qfar);
 
       // TEMP?
       qfar(1) = 0.0;
@@ -95,9 +93,7 @@ int main(int argc, char *argv[])
    MFEMFinalizePetsc();
 #endif
 
-#ifdef MFEM_USE_MPI
    MPI_Finalize();
-#endif
 }
 
 void uinit(const Vector &x, Vector& u0)

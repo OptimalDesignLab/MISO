@@ -255,7 +255,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
          // compare each component of the matrix-vector products
          for (int i = 0; i < dim + 2; ++i)
          {
-            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]));
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
          }
       }
    }
@@ -588,74 +588,37 @@ TEMPLATE_TEST_CASE_SIG("Mass integrator calcMatVec Jacobians",
 
    // Create the AD stack and the integrator
    adept::Stack diff_stack;
-   mfem::GridFunction state; // not used here
-   double dt = 0.5; // not used here
-   mach::MassIntegrator<dim, true> mass_integ(diff_stack, state, dt);
+   mach::MassIntegrator<dim, true> mass_integ(diff_stack);
 
-   SECTION("calcMatVec Jacobian w.r.t state is correct")
+   SECTION("convertVarsJacState Jacobian w.r.t state is correct")
    {
       // random vector used in scaling product
       mfem::Vector vec(vec_pert, num_states);
 
       // calculate the jacobian w.r.t w
-      mfem::DenseMatrix mat_vec_jac(num_states);
-      mfem::Vector mat_vec_jac_v(num_states);
-      mass_integ.calcMatVecJacState(w, vec, mat_vec_jac);
+      mfem::DenseMatrix jac(num_states);
+      mass_integ.convertVarsJacState(w, jac);
 
       // loop over each state variable and check column of mat_vec_jac...
       for (int i = 0; i < num_states; i++)
       {
          mfem::Vector w_plus(w), w_minus(w);
-         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+         mfem::Vector q_plus(num_states), q_minus(num_states);
          w_plus(i) += delta;
          w_minus(i) -= delta;
 
          // get finite-difference approximation of ith column
-         mass_integ.calcMatVec(w_plus, vec, mat_vec_plus);
-         mass_integ.calcMatVec(w_minus, vec, mat_vec_minus);
-         mfem::Vector mat_vec_fd(num_states);
-         mat_vec_fd = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
-         mat_vec_fd /= 2.0 * delta;
+         mass_integ.convertVars(w_plus, q_plus);
+         mass_integ.convertVars(w_minus, q_minus);
+         mfem::Vector jac_fd(num_states);
+         jac_fd = 0.0;
+         subtract(q_plus, q_minus, jac_fd);
+         jac_fd /= 2.0 * delta;
 
          // compare with explicit Jacobian
          for (int j = 0; j < num_states; j++)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)).margin(1e-10));
-         }
-      }
-   }
-
-   SECTION("calcMatVec Jacobian w.r.t vec is correct")
-   {
-      // random vector used in scaling product
-      mfem::Vector vec(vec_pert, num_states);
-
-      // calculate the jacobian w.r.t q
-      mfem::DenseMatrix mat_vec_jac(num_states);
-      mfem::Vector mat_vec_jac_v(num_states);
-      mass_integ.calcMatVecJacK(w, mat_vec_jac);
-
-      // loop over each state variable and check column of mat_vec_jac...
-      for (int i = 0; i < num_states; i++)
-      {
-         mfem::Vector vec_plus(vec), vec_minus(vec);
-         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
-         vec_plus(i) += delta;
-         vec_minus(i) -= delta;
-
-         // get finite-difference approximation of ith column
-         mass_integ.calcMatVec(w, vec_plus, mat_vec_plus);
-         mass_integ.calcMatVec(w, vec_minus, mat_vec_minus);
-         mfem::Vector mat_vec_fd(num_states);
-         mat_vec_fd = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
-         mat_vec_fd /= 2.0 * delta;
-
-         // compare with explicit Jacobian
-         for (int j = 0; j < num_states; j++)
-         {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)).margin(1e-10));
+            REQUIRE(jac(j, i) == Approx(jac_fd(j)).margin(1e-10));
          }
       }
    }

@@ -9,10 +9,17 @@ namespace mach
 {
 
 /// Solver for Navier-Stokes flows
-template <int dim>
-class NavierStokesSolver : public EulerSolver<dim>
+/// dim - number of spatial dimensions (1, 2, or 3)
+/// entvar - if true, the entropy variables are used in the integrators
+template <int dim, bool entvar = false>
+class NavierStokesSolver : public EulerSolver<dim, entvar>
 {
-public:
+protected:
+   /// free-stream Reynolds number
+   double re_fs;
+   /// Prandtl number
+   double pr_fs;
+
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
@@ -21,26 +28,20 @@ public:
    NavierStokesSolver(const std::string &opt_file_name,
                       std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
-protected:
-   /// free-stream Reynolds number
-   double re_fs;
-   /// Prandtl number
-   double pr_fs;
-
    /// Add volume/domain integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addVolumeIntegrators() first
-   virtual void addVolumeIntegrators(double alpha);
+   virtual void addResVolumeIntegrators(double alpha);
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addBoundaryIntegrators() first
-   virtual void addBoundaryIntegrators(double alpha);
+   virtual void addResBoundaryIntegrators(double alpha);
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addInterfaceIntegrators() first
-   virtual void addInterfaceIntegrators(double alpha);
+   virtual void addResInterfaceIntegrators(double alpha);
 
    /// Set the state corresponding to the inflow boundary
    /// \param[in] q_in - state corresponding to the inflow
@@ -52,6 +53,10 @@ protected:
 
    /// Create `output` based on `options` and add approporiate integrators
    ///void addOutputs();
+
+   friend SolverPtr createSolver<NavierStokesSolver<dim, entvar>>(
+       const std::string &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
 /// Defines the right-hand side of Equation (7.5) in "Entropy stable spectral

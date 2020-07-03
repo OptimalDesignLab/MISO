@@ -8,356 +8,302 @@ using namespace mach;
 namespace mach
 {
 
-
-void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
+class MachEvolver::SystemOperator : public mfem::Operator
 {
-   ODESolver::Init(_f);
-   k.SetSize(f->Width(), mem_type);
-}
-
-void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
-{
-   f->SetTime(t + dt/2);
-   f->ImplicitSolve(dt/2, x, k);
-   //f->ImplicitSolve(dt, x, k);
-   //cout << "equation solved using regular midpont solver\n";
-   // Set-up and solve the scalar nonlinear problem for the relaxation gamma
-   EntropyConstrainedOperator *f_ode =
-       dynamic_cast<EntropyConstrainedOperator *>(f);
-   //cout << "x size is " << x.Size() << '\n';
-   //cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
-   double delta_entropy = f_ode->EntropyChange(dt/2, x, k);
-   //double delta_entropy = f_ode->EntropyChange(dt, x, k);
-   //cout << "delta_entropy is " << delta_entropy << '\n';
-   double entropy_old = f_ode->Entropy(x);
-   //cout << "old entropy is " << entropy_old << '\n';
-   mfem::Vector x_new(x.Size());
-   //cout << "x_new size is " << x_new.Size() << '\n';
-   auto entropyFun = [&](double gamma)
+public:
+   /// Nonlinear operator of the form that combines the mass, res, stiff,
+   /// and load elements for implicit/explicit ODE integration
+   /// \param[in] nonlinear_mass - nonlinear mass matrix operator (not owned)
+   /// \param[in] mass - bilinear form for mass matrix (not owned)
+   /// \param[in] res - nonlinear residual operator (not owned)
+   /// \param[in] stiff - bilinear form for stiffness matrix (not owned)
+   /// \param[in] load - load vector (not owned)
+   /// \note The mfem::NewtonSolver class requires the operator's width and
+   /// height to be the same; here we use `GetTrueVSize()` to find the process
+   /// local height=width
+   SystemOperator(Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
+                  BilinearFormType *_mass, NonlinearFormType *_res,
+                  BilinearFormType *_stiff, mfem::Vector *_load)
+       : Operator(((_nonlinear_mass != nullptr)
+                       ? _nonlinear_mass->FESpace()->GetTrueVSize()
+                       : _mass->FESpace()->GetTrueVSize())),
+         nonlinear_mass(_nonlinear_mass), mass(_mass),
+         res(_res), stiff(_stiff), load(_load), Jacobian(NULL),
+         dt(0.0), x(NULL), x_work(width), r_work(height)
    {
-      //cout << "In lambda function: " << std::setprecision(14); 
-      add(x, gamma*dt, k, x_new);
-      // x_new = k;
-      // x_new *= (gamma*dt);
-      // x_new += x;
-      double entropy = f_ode->Entropy(x_new);
-      // cout << "gamma = " << gamma << ": ";
-      // cout << "residual = " << entropy - entropy_old + gamma*dt*delta_entropy << endl;
-      //cout << "new entropy is " << entropy << '\n';
-      return entropy - entropy_old + gamma*dt*delta_entropy;
+      if ((_mass) && (ess_bdr))
+      {
+         _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      }
+      // x = 0.0;
+   }
+
+   /// Compute r = N(x + dt_stage*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) + K@(x+dt*k) + l
+   /// (with `@` denoting matrix-vector multiplication)
+   /// \param[in] k - dx/dt 
+   /// \param[out] r - the residual
+   /// \note the signs on each operator must be accounted for elsewhere
+   void Mult(const mfem::Vector &k, mfem::Vector &r) const override
+   {
+      r = 0.0;
+      if (nonlinear_mass)
+      {
+         add(1.0, *x, dt_stage, k, x_work);
+         nonlinear_mass->Mult(x_work, r);
+         nonlinear_mass->Mult(*x, r_work); // TODO: This could be precomputed
+         r -= r_work;
+         r *= 1/dt_stage;
+      }
+      // x_work = x + dt*k = x + dt*dx/dt = x + dx
+      add(1.0, *x, dt, k, x_work);
+      if (res)
+      {
+         res->Mult(x_work, r_work);
+         r += r_work;
+      }
+      if (stiff)
+      {
+         stiff->TrueAddMult(x_work, r);
+      }
+      if (load)
+      {
+         r += *load;
+      }
+      if (mass)
+      {
+         mass->TrueAddMult(k, r);
+         r.SetSubVector(ess_tdof_list, 0.0);
+      }
+   }
+
+   /// Compute J = grad(N(x + dt_stage*k)) + M + dt * grad(R(x + dt*k, t)) + dt * K
+   /// \param[in] k - dx/dt 
+   mfem::Operator &GetGradient(const mfem::Vector &k) const override
+   {
+      MatrixType *jac = nullptr;
+      if (mass)
+         jac = mass->ParallelAssemble();
+      if (stiff)
+      {
+         if (jac != nullptr)
+         {
+            jac->Add(dt, *(stiff->ParallelAssemble()));
+         }
+         else
+         {
+            jac = stiff->ParallelAssemble();
+            *jac *= dt;
+         }
+      }
+      if (nonlinear_mass)
+      {
+         add(*x, dt_stage, k, x_work);
+         MatrixType* massjac = dynamic_cast<MatrixType*>(
+            &nonlinear_mass->GetGradient(x_work));
+         jac == nullptr ? jac = massjac : jac = ParAdd(jac, massjac);
+      }
+      if (res)
+      {
+         // x_work = x + dt*k = x + dt*dx/dt = x + dx
+         add(1.0, *x, dt, k, x_work);
+         MatrixType *resjac =
+             dynamic_cast<MatrixType *>(&res->GetGradient(x_work));
+         *resjac *= dt;
+         jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
+      }
+      return *jac;
+   }
+
+   /// Set current dt and x values - needed to compute action and Jacobian.
+   /// \param[in] _dt - the step used to define where RHS is evaluated
+   /// \praam[in] _x - current state
+   /// \param[in] _dt_stage - the step for this entire stage/step
+   /// \note `_dt` is the step usually assumed in mfem.  `_dt_stage` is needed
+   /// by the nonlinear mass form and can be ignored if not needed.
+   void setParameters(double _dt, const mfem::Vector *_x, double _dt_stage = -1.0)
+   {
+      dt = _dt;
+      x = _x;
+      dt_stage = _dt_stage;
    };
-   // TODO: tolerances and maxiter should be provided in some other way
-   const double ftol = 1e-12;
-   const double xtol = 1e-12;
-   const int maxiter = 30;
-   //double gamma = bisection(entropyFun, 0.50, 1.5, ftol, xtol, maxiter);
-   double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
-   //cout << "\tgamma = " << gamma << endl;
-   x.Add(gamma*dt, k);
-   t += gamma*dt;
-}
 
-LinearEvolver::LinearEvolver(MatrixType &m, MatrixType &k, ostream &outstream)
-   : out(outstream), TimeDependentOperator(m.Height()), mass(m), stiff(k), z(m.Height())
+   ~SystemOperator() { delete Jacobian; };
+
+private:
+   NonlinearFormType *nonlinear_mass;
+   BilinearFormType *mass;
+   NonlinearFormType *res;
+   BilinearFormType *stiff;
+   mfem::Vector *load;
+   mutable MatrixType *Jacobian;
+   double dt;
+   double dt_stage;
+   const mfem::Vector *x;
+
+   mutable mfem::Vector x_work;
+   mutable mfem::Vector r_work;
+
+   Array<int> ess_tdof_list;
+};
+
+MachEvolver::MachEvolver(
+    Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
+    BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
+    Vector *_load, NonlinearFormType *_ent, std::ostream &outstream,
+    double start_time, TimeDependentOperator::Type type)
+    : EntropyConstrainedOperator((_nonlinear_mass != nullptr)
+                                     ? _nonlinear_mass->FESpace()->GetTrueVSize()
+                                     : _mass->FESpace()->GetTrueVSize(),
+                                 start_time, type),
+      nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
+      out(outstream), x_work(width), r_work1(height), r_work2(height)
 {
-    // Here we extract the diagonal from the mass matrix and invert it
-    //M.GetDiag(z);
-    //cout << "minimum of z = " << z.Min() << endl;
-    //cout << "maximum of z = " << z.Max() << endl;
-    //ElementInv(z, Minv);
-#ifdef MFEM_USE_MPI
-   mass_prec.SetType(HypreSmoother::Jacobi);
-   mass_solver.reset(new CGSolver(mass.GetComm()));
-#else
-   mass_solver.reset(new CGSolver());
-#endif
-   mass_solver->SetPreconditioner(mass_prec);
-   mass_solver->SetOperator(mass);
-   mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
-   mass_solver->SetRelTol(1e-9);
-   mass_solver->SetAbsTol(0.0);
-   mass_solver->SetMaxIter(100);
-   mass_solver->SetPrintLevel(0);
+   if ( (_mass != nullptr) && (_nonlinear_mass != nullptr) )
+   {
+      throw MachException("Cannot use a linear and nonlinear mass operator "
+                          "simultaneously");
+   }
+
+   if (_mass != nullptr)
+   {
+      Array<int> ess_tdof_list;
+
+      AssemblyLevel mass_assem;
+      mass_assem = _mass->GetAssemblyLevel();
+      if (mass_assem == AssemblyLevel::PARTIAL)
+      {
+         mass.Reset(_mass, false);
+         mass_prec.reset(new OperatorJacobiSmoother(*_mass, ess_tdof_list));
+      }
+      else if (mass_assem == AssemblyLevel::FULL)
+      {
+         mass.Reset(_mass->ParallelAssemble(), true);
+         mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
+                                           HypreSmoother::Jacobi));
+      }
+      else
+      {
+         throw MachException("Unsupported assembly level for mass matrix!");
+      }
+      mass_solver = CGSolver(_mass->ParFESpace()->GetComm());
+      mass_solver.SetPreconditioner(*mass_prec);
+      mass_solver.SetOperator(*mass);
+      mass_solver.SetRelTol(1e-9);
+      mass_solver.SetAbsTol(0.0);
+      mass_solver.SetMaxIter(100);
+      mass_solver.SetPrintLevel(0);
+   }
+
+   if (_stiff != nullptr)
+   {
+      AssemblyLevel stiff_assem;
+      stiff_assem = _stiff->GetAssemblyLevel();
+      if (stiff_assem == AssemblyLevel::PARTIAL)
+      {
+         stiff.Reset(_stiff, false);
+      }
+      else if (stiff_assem == AssemblyLevel::FULL)
+      {
+         stiff.Reset(_stiff->ParallelAssemble(), true);
+      }
+      else
+      {
+         throw MachException("Unsupported assembly level"
+                                                      "for stiffness matrix!");
+      }
+   }
+   combined_oper.reset(new SystemOperator(ess_bdr, _nonlinear_mass, _mass, _res,
+                                          _stiff, _load));
 }
 
-void LinearEvolver::Mult(const Vector &x, Vector &y) const
+MachEvolver::~MachEvolver() = default;
+
+void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
-   // y = M^{-1} (K x)
-   //HadamardProd(Minv, x, y);
-   stiff.Mult(x, z);
-   mass_solver->Mult(z, y);
-   //HadamardProd(Minv, z, y);
+   if (nonlinear_mass != nullptr)
+   {
+      throw MachException("Cannot use MachEvolver::Mult with nonlinear mass");
+   }
+
+   if (res)
+   {
+      res->Mult(x, r_work1);
+   }
+
+   if (stiff.Ptr())
+   {
+      // stiff->AddMult(x, work); // <-- Cannot do AddMult with ParBilinearForm
+      stiff->Mult(x, r_work2);
+      add(r_work1, r_work2, r_work1);
+   }
+   if (load)
+   {
+      r_work1 += *load;
+   }
+   mass_solver.Mult(r_work1, y);
+   y *= -1.0;
 }
 
-NonlinearEvolver::NonlinearEvolver(MatrixType &m, NonlinearFormType &r,
-                                   double a)
-   : TimeDependentOperator(m.Height()), mass(m), res(r), z(m.Height()), alpha(a)
+void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
+                                Vector &k)
 {
-#ifdef MFEM_USE_MPI
-   mass_prec.SetType(HypreSmoother::Jacobi);
-   mass_solver.reset(new CGSolver(mass.GetComm()));
-   // mass_prec.reset(new HypreEuclid(mass.GetComm()));
-   // mass_solver.reset(new HypreGMRES(mass.GetComm()));
-#else
-   mass_solver.reset(new CGSolver());
-#endif
-   mass_solver->SetPreconditioner(mass_prec);
-   mass_solver->SetOperator(mass);
-   mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
-   mass_solver->SetRelTol(1e-9);
-   mass_solver->SetAbsTol(0.0);
-   mass_solver->SetMaxIter(100);
-   mass_solver->SetPrintLevel(0);
+   setOperParameters(dt, &x);
+   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   k = 0.0; // In case iterative mode is set to true
+   newton->Mult(zero, k);
+   MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 
-void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
+void MachEvolver::ImplicitSolve(const double dt_stage, const double dt,
+                                const Vector &x, Vector &k)
 {
-   res.Mult(x, z);
-   mass_solver->Mult(z, y);
-   y *= alpha;
+   setOperParameters(dt, &x, dt_stage);
+   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   k = 0.0; // In case iterative mode is set to true
+   newton->Mult(zero, k);
+   MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 
-ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
-                                            NonlinearFormType &r,
-                                            AbstractSolver *abs,
-                                            double a)
-   : EntropyConstrainedOperator(m.Height()), 
-     mass(m), res(r), abs_solver(abs), alpha(a)
+void MachEvolver::SetLinearSolver(Solver *_linsolver)
 {
-#ifdef MFEM_USE_MPI
-#ifdef MFEM_USE_PETSC
-   // using petsc gmres solver
-   linear_solver.reset(new mfem::PetscLinearSolver(mass.GetComm(), "solver_", 0));
-   prec.reset(new mfem::PetscPreconditioner(mass.GetComm(), "prec_"));
-   dynamic_cast<mfem::PetscLinearSolver *>(linear_solver.get())->SetPreconditioner(*prec);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetAbsTol(1e-10);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-10);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(2);
-#else
-   //using hypre solver instead
-   linear_solver.reset(new mfem::HypreGMRES(mass.GetComm()));
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(1);
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
-#endif
-   newton_solver.reset(new mfem::NewtonSolver(mass.GetComm()));
-   //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
-#else
-   linear_solver.reset(new mfem::GMRESSolver());
-   newton_solver.reset(new mfem::NewtonSolver());
-#endif
-
-   // set paramters for the newton solver
-   newton_solver->SetRelTol(1e-10);
-   newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(1);
-   newton_solver->SetMaxIter(30);
-   // set linear solver and operator
-   newton_solver->SetSolver(*linear_solver);
-   newton_solver->SetOperator(*this);
-   newton_solver->iterative_mode = false;
+   linsolver = _linsolver;
 }
 
-void ImplicitNonlinearEvolver::Mult(const Vector &k, Vector &y) const
+void MachEvolver::SetNewtonSolver(NewtonSolver *_newton)
 {
-   Vector vec1(x);
-   Vector vec2(x.Size());
-   vec1.Add(dt, k);  // vec1 = x + dt * k
-   res.Mult(vec1, y); // y = f(vec1)
-   mass.Mult(k, vec2);  // vec2 = M * k
-   y += vec2;  // y = f(x + dt * k) - M * k
+   newton = _newton;
+   newton->SetOperator(*combined_oper);
 }
 
-Operator &ImplicitNonlinearEvolver::GetGradient(const mfem::Vector &k) const
+mfem::Operator& MachEvolver::GetGradient(const mfem::Vector &x) const
 {
-   MatrixType *jac;
-   Vector vec1(x);
-   vec1.Add(dt, k);
-   jac = dynamic_cast<MatrixType*>(&res.GetGradient(vec1)); 
-   *jac *= dt;
-   jac->Add(1.0, mass);
-   return *jac;
+   return combined_oper->GetGradient(x);
 }
 
-void ImplicitNonlinearEvolver::ImplicitSolve(const double dt, const Vector &x,
-                                             Vector &k)
+double MachEvolver::Entropy(const mfem::Vector &x)
 {
-   SetParameters(dt, x);
-   mfem::Vector zero;
-   newton_solver->Mult(zero, k);
-   MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
+   if (!ent)
+   {
+      throw MachException("MachEvolver::Entropy(): ent member not defined!");
+   }
+   return ent->GetEnergy(x);
 }
 
-double ImplicitNonlinearEvolver::Entropy(const mfem::Vector &state)
+double MachEvolver::EntropyChange(double dt, const mfem::Vector &x,
+                                  const mfem::Vector &k)
 {
-   return abs_solver->GetOutput().at("entropy").GetEnergy(state);
+   if (!ent) // even though it is not used here, ent should be defined
+   {
+      throw MachException("MachEvolver::EntropyChange(): ent not defined!");
+   }
+   add(x, dt, k, x_work);
+   return res->GetEnergy(x_work);
 }
 
-double ImplicitNonlinearEvolver::EntropyChange(double dt, const Vector &state,
-                                               const Vector &k)
+void MachEvolver::setOperParameters(double dt, const mfem::Vector *x,
+                                    double dt_stage)
 {
-   Vector vec1(state), vec2(k.Size());
-   vec1.Add(dt, k);
-   // if using conservative variables, need to convert
-   // if using entropy variables, do nothing
-   //abs_solver->convertToEntvar(vec1);
-   res.Mult(vec1, vec2);
-   return vec1 * vec2;
+   combined_oper->setParameters(dt, x, dt_stage);
 }
 
-ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(
-    NonlinearFormType &nm, NonlinearFormType &r, NonlinearFormType &e, double a)
-    : EntropyConstrainedOperator(nm.Height()), mass(nm), res(r), ent(e),
-      alpha(a)
-{
-#ifdef MFEM_USE_MPI
-#ifdef MFEM_USE_PETSC
-   // using petsc gmres solver
-   linear_solver.reset(new mfem::PetscLinearSolver(mass.ParFESpace()->GetComm(), "solver_", 0));
-   prec.reset(new mfem::PetscPreconditioner(mass.ParFESpace()->GetComm(), "prec_"));
-   dynamic_cast<mfem::PetscLinearSolver *>(linear_solver.get())->SetPreconditioner(*prec);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetAbsTol(1e-10);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-2);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(0);
-#else
-   //using hypre solver instead
-   linear_solver.reset(new mfem::HypreGMRES(mass.ParFESpace()->GetComm()));
-   prec.reset(new HypreEuclid(mass.ParFESpace()->GetComm()));
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(0);
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::HypreGMRES*> (linear_solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
-#endif
-   newton_solver.reset(new mfem::NewtonSolver(mass.ParFESpace()->GetComm()));
-   //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
-#else
-   linear_solver.reset(new mfem::GMRESSolver());
-   newton_solver.reset(new mfem::NewtonSolver());
-#endif
-
-   // set paramters for the newton solver
-   newton_solver->SetRelTol(1e-10);
-   newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(1);
-   newton_solver->SetMaxIter(30);
-   // set linear solver and operator
-   newton_solver->SetSolver(*linear_solver);
-   newton_solver->SetOperator(*this);
-   newton_solver->iterative_mode = false;
-}
-
-void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const
-{
-   Vector vec1(x);
-   Vector vec2(x.Size());
-   vec1.Add(dt, k);  // vec1 = x + dt * k
-   res.Mult(vec1, y); // y = f(vec1)
-   mass.Mult(k, vec2);
-   y += vec2;  // y = f(x + dt * k) + M(k)
-}
-
-Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
-{
-   MatrixType *jac1, *jac2; 
-   Vector vec1(x);
-   vec1.Add(dt, k);
-   jac1 = dynamic_cast<MatrixType*>(&res.GetGradient(vec1));
-   *jac1 *= dt; // jac1 = dt * f'(x + dt * k) 
-   jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(k)); // jac2 = M'(k);
-   jac1->Add(1.0, *jac2);
-   return *jac1;
-}
-
-double ImplicitNonlinearMassEvolver::Entropy(const Vector &state)
-{
-   return ent.GetEnergy(state);
-}
-
-double ImplicitNonlinearMassEvolver::EntropyChange(double dt, const Vector &state,
-                                                   const Vector &k)
-{
-   Vector vec1(state), vec2(k.Size());
-   vec1.Add(dt, k);
-   // if using conservative variables, need to convert
-   // if using entropy variables, do nothing
-   //abs_solver->convertToEntvar(vec1);
-   res.Mult(vec1, vec2);
-   return vec1 * vec2;
-}
-
-void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &x,
-                                             Vector &k)
-{
-   SetParameters(dt, x);
-   mfem::Vector zero;
-   newton_solver->Mult(zero, k);
-   MFEM_ASSERT(newton_solver->GetConverged()==1, "Fail to solve dq/dx implicitly.\n");
-}
-
-void ImplicitNonlinearMassEvolver::checkJacobian(
-    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
-{
-   cout << "evolver check jac is called.\n";
-   // initialize some variables
-   const double delta = 1e-5;
-   Vector u_plus(x);
-   Vector u_minus(x);
-   GridFunType pert_vec(mass.ParFESpace());
-   VectorFunctionCoefficient up(4, pert_fun);
-   pert_vec.ProjectCoefficient(up);
-
-   // perturb in the positive and negative pert_vec directions
-   u_plus.Add(delta, pert_vec);
-   u_minus.Add(-delta, pert_vec);
-
-   // Get the product using a 2nd-order finite-difference approximation
-   Vector res_plus(x.Size());
-   Vector res_minus(x.Size());
-// #ifdef MFEM_USE_MPI 
-//    HypreParVector *u_p = u_plus.GetTrueDofs();
-//    HypreParVector *u_m = u_minus.GetTrueDofs();
-//    HypreParVector *res_p = res_plus.GetTrueDofs();
-//    HypreParVector *res_m = res_minus.GetTrueDofs();
-// #else 
-//    GridFunType *u_p = &u_plus;
-//    GridFunType *u_m = &u_minus;
-//    GridFunType *res_p = &res_plus;
-//    GridFunType *res_m = &res_minus;
-// #endif
-   this->Mult(u_plus, res_plus);
-   this->Mult(u_minus, res_minus);
-// #ifdef MFEM_USE_MPI
-//    res_plus.SetFromTrueDofs(*res_p);
-//    res_minus.SetFromTrueDofs(*res_m);
-// #endif
-   // res_plus = 1/(2*delta)*(res_plus - res_minus)
-   subtract(1/(2*delta), res_plus, res_minus, res_plus);
-
-   // Get the product directly using Jacobian from GetGradient
-   Vector jac_v(x.Size());
-   Vector prod(x.Size());
-// #ifdef MFEM_USE_MPI
-//    HypreParVector *u_true = x.GetTrueDofs();
-//    HypreParVector *pert = pert_vec.GetTrueDofs();
-//    HypreParVector *prod = jac_v.GetTrueDofs();
-// #else
-//    GridFunType *u_true = u.get();
-//    GridFunType *pert = &pert_vec;
-//    GridFunType *prod = &jac_v;
-// #endif
-   mfem::Operator &jac = this->GetGradient(x);
-   jac.Mult(pert_vec, prod);
-//#ifdef MFEM_USE_MPI 
-//   jac_v.SetFromTrueDofs(*prod);
-//#endif 
-
-   // check the difference norm
-   jac_v -= res_plus;
-   //double error = AbstractSolver::calcInnerProduct(jac_v, jac_v);
-   double error = jac_v * jac_v;
-   cout << "The Jacobian product error norm is " << sqrt(error) << endl;
-}
-
-} // end of mach namespace
+} // namespace mach

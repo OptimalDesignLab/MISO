@@ -1,11 +1,15 @@
 #include <random>
 
 #include "catch.hpp"
+
+#include "mfem_extensions.hpp"
 #include "evolver.hpp"
+#include "utils.hpp"
 
 TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
 {
    const bool verbose = false; // set to true for some output 
+   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
    using namespace mfem;
 
    // For solving dense matrix systems
@@ -28,10 +32,11 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    };
 
    // Operator for exponential-entropy ODE, Eq. (3.1) in Ranocha et al. 2020
-   class ExponentialODE : public EntropyConstrainedOperator
+   class ExponentialODE : public mach::EntropyConstrainedOperator
    {
    public:
-      ExponentialODE() : EntropyConstrainedOperator(2), dt(0.0), x(2)
+      ExponentialODE() : EntropyConstrainedOperator(
+         2, 0.0, TimeDependentOperator::Type::EXPLICIT), dt(0.0), x(2)
       {
          Jac.reset(new DenseMatrix(2));
          linear_solver.reset(new DenseMatrixSolver());
@@ -80,8 +85,10 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
          return *Jac;
       }
 
-      void ImplicitSolve(const double dt_, const Vector &x_, Vector &k_)
+      void ImplicitSolve(const double dt_stage_, const double dt_, 
+                         const Vector &x_, Vector &k_)
       {
+         // NOTE:: dt_stage is not required by this ODE
          dt = dt_;
          x = x_;
          Vector zero;
@@ -98,7 +105,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    };
 
    std::unique_ptr<TimeDependentOperator> ode(new ExponentialODE());
-   std::unique_ptr<ODESolver> solver(new RRKImplicitMidpointSolver());
+   std::unique_ptr<ODESolver> solver(new mach::RRKImplicitMidpointSolver(out));
    solver->Init(*ode);
 
    double t_final = 5.0;
@@ -113,12 +120,10 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    for (int ti = 0; !done;)
    {
       double dt_real = std::min(dt, t_final - t);
-      if (verbose)
-      {
-         std::cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-                 << " (" << round(100*t/t_final) << "% complete)" << std::endl;
-         std::cout << "\tentropy = " << dynamic_cast<ExponentialODE&>(*ode).Entropy(u) << std::endl;
-      }
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+           << " (" << round(100 * t / t_final) << "% complete)" << std::endl;
+      *out << "\tentropy = " << dynamic_cast<ExponentialODE &>(*ode).Entropy(u)
+           << std::endl;
       solver->Step(u, t, dt_real);
       ti++;
       done = (t >= t_final - 1e-16);

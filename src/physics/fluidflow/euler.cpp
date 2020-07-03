@@ -2,8 +2,8 @@
 
 #include "sbp_fe.hpp"
 #include "euler.hpp"
-//#include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
+#include "diag_mass_integ.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -45,10 +45,44 @@ EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addVolumeIntegrators(double alpha)
+void EulerSolver<dim, entvar>::constructForms()
 {
-   // TODO: if statement when using entropy variables as state variables
+   res.reset(new NonlinearFormType(fes.get()));
+   if ( (entvar) && (!options["time-dis"]["steady"].template get<bool>()) )
+   {
+      nonlinear_mass.reset(new NonlinearFormType(fes.get()));
+      mass.reset();
+   }
+   else
+   {
+      mass.reset(new BilinearFormType(fes.get()));
+      nonlinear_mass.reset();
+   }
+   ent.reset(new NonlinearFormType(fes.get()));
+}
 
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addMassIntegrators(double alpha)
+{
+   if (options["time-dis"]["steady"].template get<bool>()) {
+      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state, true));
+      //AbstractSolver::addMassIntegrators(alpha);
+   }
+   else {
+      AbstractSolver::addMassIntegrators(alpha);
+   }
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
+{
+   nonlinear_mass->AddDomainIntegrator(
+       new MassIntegrator<dim, entvar>(diff_stack, alpha));
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
+{
    // TODO: should decide between one-point and two-point fluxes using options
    res->AddDomainIntegrator(
        new IsmailRoeIntegrator<dim, entvar>(diff_stack, alpha));
@@ -61,7 +95,7 @@ void EulerSolver<dim, entvar>::addVolumeIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
+void EulerSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
 {
    auto &bcs = options["bcs"];
    int idx = 0;
@@ -106,7 +140,7 @@ void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addInterfaceIntegrators(double alpha)
+void EulerSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 {
    // add the integrators based on if discretization is continuous or discrete
    if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
@@ -119,11 +153,61 @@ void EulerSolver<dim, entvar>::addInterfaceIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addMassIntegrator(double alpha)
+void EulerSolver<dim, entvar>::addEntVolumeIntegrators()
 {
-   double dt = options["time-dis"]["dt"].template get<double>();
-   mass_integ.reset(new MassIntegrator<dim,entvar>(diff_stack, *u, dt, alpha));
-   nonlinear_mass->AddDomainIntegrator(mass_integ.get());
+   ent->AddDomainIntegrator(new EntropyIntegrator<dim, entvar>(diff_stack));
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::initialHook() 
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // res_norm0 is used to compute the time step in PTC
+      res_norm0 = calcResidualNorm();
+   }
+   // TODO: this should only be output if necessary
+   double entropy = ent->GetEnergy(*u);
+   *out << "before time stepping, entropy is "<< entropy << endl;
+   remove("entropylog.txt");
+   entropylog.open("entropylog.txt", fstream::app);
+   entropylog << setprecision(14);
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::iterationHook(int iter, double t, double dt)
+{
+   double entropy = ent->GetEnergy(*u);
+   entropylog << t << ' ' << entropy << endl;
+}
+
+template <int dim, bool entvar>
+bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
+                                             double dt)
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // use tolerance options for Newton's method
+      double norm = calcResidualNorm();
+      if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
+         return true;
+      if (norm <= res_norm0 *
+                      options["time-dis"]["steady-reltol"].template get<double>())
+         return true;
+      return false;
+   }
+   else
+   {
+      return AbstractSolver::iterationExit(iter, t, t_final, dt);
+   }
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final)
+{
+   double entropy = ent->GetEnergy(*u);
+   entropylog << t_final << ' ' << entropy << endl;
+   entropylog.close();
 }
 
 template <int dim, bool entvar>
@@ -149,6 +233,7 @@ void EulerSolver<dim, entvar>::addOutputs()
          drag_dir(iroll) = cos(aoa_fs);
          drag_dir(ipitch) = sin(aoa_fs);
       }
+      drag_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cd
       output.at("drag").AddBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
           output_bndry_marker[idx]);
@@ -172,6 +257,7 @@ void EulerSolver<dim, entvar>::addOutputs()
          lift_dir(iroll) = -sin(aoa_fs);
          lift_dir(ipitch) = cos(aoa_fs);
       }
+      lift_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cl
       output.at("lift").AddBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
           output_bndry_marker[idx]);
@@ -187,8 +273,27 @@ void EulerSolver<dim, entvar>::addOutputs()
 }
 
 template <int dim, bool entvar>
-double EulerSolver<dim, entvar>::calcStepSize(double cfl) const
+double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
+                                              double t_final,
+                                              double dt_old) const
 {
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // ramp up time step for pseudo-transient continuation
+      // TODO: the l2 norm of the weak residual is probably not ideal here
+      // A better choice might be the l1 norm
+      double res_norm = calcResidualNorm();
+      double exponent = options["time-dis"]["res-exp"];
+      double dt = options["time-dis"]["dt"].template get<double>() *
+                  pow(res_norm0 / res_norm, exponent);
+      return max(dt, dt_old);
+   }
+   if (!options["time-dis"]["const-cfl"].template get<bool>())
+   {
+      return options["time-dis"]["dt"].template get<double>();
+   }
+   // Otherwise, use a constant CFL condition
+   double cfl = options["time-dis"]["cfl"].template get<double>();
    Vector q(dim+2);
    auto calcSpect = [&q](const double* dir, const double* u)
    {
@@ -233,11 +338,7 @@ double EulerSolver<dim, entvar>::calcStepSize(double cfl) const
       }
    }
    double dt_min;
-#ifdef MFEM_USE_MPI
    MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
-#else
-   dt_min = dt_local;
-#endif
    return dt_min;
 }
 
@@ -317,30 +418,12 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
       }
    }
    double norm;
-#ifdef MFEM_USE_MPI
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   norm = loc_norm;
-#endif
    if (norm < 0.0) // This was copied from mfem...should not happen for us
    {
       return -sqrt(-norm);
    }
    return sqrt(norm);
-}
-
-template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alpha)
-{
-
-   if(0 == ti)
-   {
-      mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
-      nonlinear_mass->AddDomainIntegrator(mass_integ.get()); 
-   }
-   dynamic_cast<mach::NonlinearMassIntegrator<MassIntegrator<dim,entvar>>*>
-               (mass_integ.get())->updateDeltat(dt);
-   
 }
 
 template<int dim, bool entvar>
