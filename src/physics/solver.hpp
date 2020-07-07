@@ -94,7 +94,7 @@ public:
 
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - vector that defines the initial condition
-   virtual void setInitialCondition(const mfem::Vector &uic); 
+   virtual void setInitialCondition(const mfem::Vector &uic);
 
    /// TODO move to protected?
    /// Returns the integral inner product between two grid functions

@@ -48,9 +48,17 @@ public:
    double calcConservativeVarsL2Error(void (*u_exact)(const mfem::Vector &,
                                                       mfem::Vector &),
                                       int entry = -1);
+
    /// convert conservative variables to entropy variables
    /// \param[in/out] state - the conservative/entropy variables
    virtual void convertToEntvar(mfem::Vector &state);
+
+   /// Sets `u` to the difference between it and a given exact solution
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \note The second argument in the function `u_exact` is the field value.
+   /// \warning This overwrites the solution in `u`!!!
+   void setSolutionError(void (*u_exact)(const mfem::Vector &, mfem::Vector &));
+
 protected:
    /// free-stream Mach number
    double mach_fs;

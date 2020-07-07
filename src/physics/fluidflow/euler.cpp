@@ -458,6 +458,20 @@ void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
    }
 }
 
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::setSolutionError(
+    void (*u_exact)(const mfem::Vector &, mfem::Vector &))
+{
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   GridFunType ue(fes.get());
+   ue.ProjectCoefficient(exsol);
+   // TODO: are true DOFs necessary here?
+   HypreParVector *u_true = u->GetTrueDofs();
+   HypreParVector *ue_true = ue.GetTrueDofs();
+   *u_true -= *ue_true;
+   u->SetFromTrueDofs(*u_true);
+}
+
 // explicit instantiation
 template class EulerSolver<1, true>;
 template class EulerSolver<1, false>;

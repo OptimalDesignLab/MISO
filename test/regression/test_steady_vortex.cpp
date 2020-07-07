@@ -1,11 +1,12 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
-#include "adept.h"
-
-#include "catch.hpp"
-#include "mfem.hpp"
-#include "euler.hpp"
 #include <fstream>
 #include <iostream>
+
+#include "adept.h"
+#include "catch.hpp"
+#include "mfem.hpp"
+
+#include "euler.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -51,7 +52,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
 
          solver->setInitialCondition(uexact);
          solver->solveForState();
-         l_error = solver->calcL2Error(uexact, 0);
+         double l2_error = solver->calcL2Error(uexact, 0);
 
          double target;
          switch(h)
@@ -69,7 +70,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
                target = !entvarg ? 0.0079317615 :  0.0064387612;
                break;
          }
-         REQUIRE(l_error == Approx(target).margin(1e-10));
+         REQUIRE(l2_error == Approx(target).margin(1e-10));
       }
    }
 #ifdef MFEM_USE_PETSC

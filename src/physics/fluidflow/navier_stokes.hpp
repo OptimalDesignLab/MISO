@@ -43,6 +43,9 @@ protected:
    /// \note This function calls EulerSolver::addInterfaceIntegrators() first
    virtual void addResInterfaceIntegrators(double alpha);
 
+   /// Create `output` based on `options` and add approporiate integrators
+   virtual void addOutputs() override;
+
    /// Set the state corresponding to the inflow boundary
    /// \param[in] q_in - state corresponding to the inflow
    void getViscousInflowState(mfem::Vector &q_in);
@@ -50,9 +53,6 @@ protected:
    /// Set the state corresponding to the outflow boundary
    /// \param[in] q_out - state corresponding to the outflow
    void getViscousOutflowState(mfem::Vector &q_out);
-
-   /// Create `output` based on `options` and add approporiate integrators
-   ///void addOutputs();
 
    friend SolverPtr createSolver<NavierStokesSolver<dim, entvar>>(
        const std::string &opt_file_name,
@@ -73,6 +73,11 @@ double shockEquation(double Re, double Ma, double v);
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void shockExact(const mfem::Vector &x, mfem::Vector& u);
+
+/// Defines the exact solution for the viscous MMS verification
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void viscousMMSExact(const mfem::Vector &x, mfem::Vector& u);
 
 } // namespace mach
 

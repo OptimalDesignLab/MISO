@@ -711,12 +711,12 @@ void AbstractSolver::printSolution(const std::string &file_name,
    // TODO: These mfem functions do not appear to be parallelized
    ofstream sol_ofs(file_name + ".vtk");
    sol_ofs.precision(14);
-   // if (refine == -1)
-   // {
-   //    refine = options["space-dis"]["degree"].get<int>();
-   // }
-   mesh->PrintVTK(sol_ofs, 0);
-   u->SaveVTK(sol_ofs, "Solution", 0);
+   if (refine == -1)
+   {
+      refine = options["space-dis"]["degree"].get<int>() + 1;
+   }
+   mesh->PrintVTK(sol_ofs, refine);
+   u->SaveVTK(sol_ofs, "Solution", refine);
    sol_ofs.close();
 }
 
@@ -736,7 +736,7 @@ void AbstractSolver::printAdjoint(const std::string &file_name,
 }
 
 void AbstractSolver::printResidual(const std::string &file_name,
-                                        int refine)
+                                   int refine)
 {
    GridFunType r(fes.get());
    HypreParVector *u_true = u->GetTrueDofs();
@@ -1088,6 +1088,10 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
    {
       prec.reset(new HypreBoomerAMG());
       dynamic_cast<mfem::HypreBoomerAMG *>(prec.get())->SetPrintLevel(0);
+   }
+   else if (prec_type == "blockilu")
+   {
+      prec.reset(new BlockILU(getNumState()));
    }
    else
    {

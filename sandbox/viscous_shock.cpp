@@ -19,21 +19,6 @@ int main(int argc, char *argv[])
 {
    const char *options_file = "viscous_shock_options.json";
 
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady.petsc";
-   //Get the option files
-   nlohmann::json options;
-   ifstream option_source(options_file);
-   option_source >> options;
-   // write the petsc linear solver options from options
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   petscoptions.close();
-#endif
-
    // Initialize MPI
    int num_procs, rank;
    MPI_Init(&argc, &argv);
@@ -58,10 +43,6 @@ int main(int argc, char *argv[])
       args.PrintUsage(*out);
       return 1;
    }
-
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
 
    try
    {
@@ -124,8 +105,8 @@ std::unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y)
    {
       double len_x = 3.0;
       double len_y = 0.3;
-      x(0) = xi(0); // + (1.0/40.0)*sin(2.0*M_PI*xi(0))*sin(2.0*M_PI*xi(1));
-      x(1) = xi(1); // + (1.0/40.0)*sin(2.0*M_PI*xi(1))*sin(2.0*M_PI*xi(0));
+      x(0) = xi(0) + (1.0/40.0)*sin(2.0*M_PI*xi(0))*sin(2.0*M_PI*xi(1));
+      x(1) = xi(1) + (1.0/40.0)*sin(2.0*M_PI*xi(1))*sin(2.0*M_PI*xi(0));
       x(0) = len_x*x(0) - 0.5*len_x;
       x(1) = len_y*x(1) - 0.5*len_y;
    };
