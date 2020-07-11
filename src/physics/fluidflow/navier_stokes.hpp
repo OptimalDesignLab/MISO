@@ -21,11 +21,9 @@ protected:
    double pr_fs;
 
    /// Class constructor.
-   /// \param[in] opt_file_name - file where options are stored
+   /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
-   /// \todo Can we infer dim some other way without using a template param?
-   NavierStokesSolver(const std::string &opt_file_name,
+   NavierStokesSolver(const nlohmann::json &json_options,
                       std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Add volume/domain integrators to `res` based on `options`
@@ -55,8 +53,8 @@ protected:
    void getViscousOutflowState(mfem::Vector &q_out);
 
    friend SolverPtr createSolver<NavierStokesSolver<dim, entvar>>(
-       const std::string &opt_file_name,
-       std::unique_ptr<mfem::Mesh> smesh);
+       const nlohmann::json &json_options,
+       std::unique_ptr<mfem::Mesh> smesh);    
 };
 
 /// Defines the right-hand side of Equation (7.5) in "Entropy stable spectral

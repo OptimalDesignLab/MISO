@@ -37,24 +37,7 @@ using namespace mfem;
 namespace mach
 {
 
-ThermalSolver::ThermalSolver(
-	 const std::string &opt_file_name,
-    std::unique_ptr<mfem::Mesh> smesh)
-	: AbstractSolver(opt_file_name, move(smesh))
-{
-   int dim = getMesh()->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
-
-   /// Create the H(Div) finite element collection for the representation the
-   /// magnetic flux density field in the thermal solver
-   h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create magnetic flux grid function
-   mag_field.reset(new GridFunType(h_div_space.get()));
-}
-
-ThermalSolver::ThermalSolver(nlohmann::json &options,
+ThermalSolver::ThermalSolver(const nlohmann::json &options,
                              std::unique_ptr<mfem::Mesh> smesh)
 	: AbstractSolver(options, move(smesh))
 {

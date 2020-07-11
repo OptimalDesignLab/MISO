@@ -57,10 +57,13 @@ const nlohmann::json default_options
 
    {"adj-solver",
    {
+      {"type", "hypregmres"}, // Default solver
+      {"pctype", "hypreeuclid"}, // Default preconditioner type
       {"printlevel", 0}, // adjoint solver print level (no printing if zero)
       {"maxiter", 100}, // maximum number of solver iterations 
       {"reltol", 1e-8}, // adjoint solver relative tolerance
-      {"abstol", 1e-10} // adjoint solver absolute tolerance
+      {"abstol", 1e-10}, // adjoint solver absolute tolerance
+      {"kdim", 100} // default restart value
    }},
 
    {"petscsolver",

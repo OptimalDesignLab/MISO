@@ -13,9 +13,9 @@ namespace mach
 {
 
 template <int dim, bool entvar>
-EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
+EulerSolver<dim, entvar>::EulerSolver(const nlohmann::json &json_options,
                               unique_ptr<mfem::Mesh> smesh)
-    : AbstractSolver(opt_file_name, move(smesh))
+    : AbstractSolver(json_options, move(smesh))
 {
    if (entvar)
    {

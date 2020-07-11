@@ -199,6 +199,39 @@ TEMPLATE_TEST_CASE_SIG("Noslip Jacobian", "[NoSlipAdiabaticWallBC]",
          }
       }
    }
+   SECTION("jacobian of no slip dual flux w.r.t state is correct")
+   {
+      std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
+      for (int d = 0; d < dim; ++d)
+      {
+         mat_vec_jac[d].SetSize(num_states);
+      }
+      noslipadiabatic.calcFluxDvJacState(x, nrm, q, mat_vec_jac);
+      //mat_vec_jac.Print();
+      // loop over each state variable and check column of mat_vec_jac...
+      for (int i = 0; i < num_states; ++i)
+      {
+         mfem::Vector q_plus(q), q_minus(q);
+         mfem::DenseMatrix flux_mat_plus(num_states, dim);
+         mfem::DenseMatrix flux_mat_minus(num_states, dim);
+         q_plus(i) += delta;
+         q_minus(i) -= delta;
+         noslipadiabatic.calcFluxDv(x, nrm, q_plus, flux_mat_plus);
+         noslipadiabatic.calcFluxDv(x, nrm, q_minus, flux_mat_minus);
+         mfem::DenseMatrix flux_mat_fd(num_states, dim);
+         flux_mat_fd = 0.0;
+         mfem::Add(flux_mat_plus, flux_mat_minus, -1.0, flux_mat_fd);
+         flux_mat_fd *= 1.0/(2.0 * delta);
+         // compare with explicit Jacobian
+         for (int d = 0; d < dim; ++d)
+         {
+            for (int j = 0; j < num_states; j++)
+            {
+               REQUIRE(mat_vec_jac[d](j, i) == Approx(flux_mat_fd(j, d)));
+            }
+         }
+      }
+   }
 }
 
 TEMPLATE_TEST_CASE_SIG("Noslip Jacobian w.r.t Dw", "[NoSlipAdiabaticWallBC]",

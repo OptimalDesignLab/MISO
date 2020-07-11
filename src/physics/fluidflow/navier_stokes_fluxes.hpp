@@ -153,18 +153,27 @@ void calcAdiabaticWallFlux(const xdouble *dir, xdouble mu, double Pr,
    {
       flux[k] = 0.0;
    }
+   // Determine the unit normal and find the component of the gradient of w[end]
+   // in the direction nrm; this is used to project out the normal component
+   xdouble nrm[dim];
+   xdouble fac = 1.0 / sqrt(dot<xdouble, dim>(dir, dir));
+   xdouble Dw_nrm = 0.0;
+   int num_state = dim + 2;
+   for (int d = 0; d < dim; ++d)
+   {
+      nrm[d] = dir[d] * fac;
+      Dw_nrm += Dw[d*num_state + dim+1]*nrm[d];
+   }
+   // Apply C_ij matrices to the boundary values of Dw
    xdouble Dw_bnd[dim+2];
    for (int d = 0; d < dim; ++d)
    {
       for (int d2 = 0; d2 < dim; ++d2)
       {
          for (int k = 0; k < dim+2; ++k)
-         {
             Dw_bnd[k] = Dw[d2*(dim+2) + k];
-         }
-         if (d2 == d) {
-            Dw_bnd[dim+1] = 0.0; // set flux to zero
-         }
+         // find the corrected component for Dw[end]
+         Dw_bnd[dim+1] -= Dw_nrm*nrm[d2];
          // we "sneak" dir[d] into the computation via mu
          applyCijMatrix<xdouble, dim>(d, d2, mu*dir[d], Pr, q, Dw_bnd, flux);
       }
@@ -206,10 +215,65 @@ void calcNoSlipPenaltyFlux(const xdouble *dir, const xdouble Jac,
    }
    // scale the penalty
    xdouble fac = sqrt(dot<xdouble,dim>(dir, dir))/Jac;
-   for (int k = 0; k < dim+2; ++k)
+   for (int k = 1; k < dim+1; ++k)
    {
       flux[k] *= fac;
    }
+   // zero out the last entry; first entry should be zeroed already
+   flux[dim+1] = 0.0;
+}
+
+/// Computes the dual-consistent term for the no-slip wall penalty 
+/// \param[in] dir - desired (scaled) normal vector to the wall
+/// \param[in] mu - nondimensionalized dynamic viscosity 
+/// \param[in] Pr - Prandtl number
+/// \param[in] q - state at the wall location
+/// \param[out] fluxes - fluxes to be scaled by Dw (column major) 
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcNoSlipDualFlux(const xdouble *dir, xdouble mu, double Pr,
+                        const xdouble *q, xdouble *fluxes)
+{
+   int num_state = dim + 2;
+   // zero out the fluxes, since applyCijMatrix accummulates 
+   for (int i = 0; i < num_state*dim; ++i)
+      fluxes[i] = 0.0;
+   // evaluate the difference w - w_bc, where w_bc = [w[0], 0, 0, ...,w[dim+1]]
+   xdouble dw[num_state];
+   dw[0] = 0.0;
+   dw[dim+1] = 0.0;
+   xdouble p = pressure<xdouble,dim>(q);
+   for (int d = 0; d < dim; ++d)
+   {
+      dw[d+1] = q[d+1]/p;
+   }
+   // loop over the normal components
+   for (int d = 0; d < dim; ++d)
+   {
+      // loop over the derivative directions
+      for (int d2 = 0; d2 < dim; ++d2)
+      {
+         // we "sneak" dir[d] into the computation via mu
+         // !!!! we also sneak the sign into the computation here
+         applyCijMatrix<xdouble, dim>(d2, d, -mu * dir[d], Pr, q, dw,
+                                      fluxes + (d2 * num_state));
+      }
+   }
+#if 1
+   // The following appears to be redundant (as far as the error goes)
+   // Project out the normal component from the last variable
+   xdouble nrm[dim];
+   xdouble fac = 1.0 / sqrt(dot<xdouble, dim>(dir, dir));
+   xdouble flux_nrm = 0.0;
+   for (int d = 0; d < dim; ++d)
+   {
+      nrm[d] = dir[d] * fac;
+      flux_nrm += fluxes[d*num_state + dim+1]*nrm[d];
+   }
+   for (int d = 0; d < dim; ++d)
+      fluxes[d*num_state + dim+1] -= flux_nrm*nrm[d];
+#endif
 }
 
 /// MMS source term for a particular Navier-Stokes verification

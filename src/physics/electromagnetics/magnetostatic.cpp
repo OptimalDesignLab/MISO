@@ -39,9 +39,9 @@ namespace mach
 {
 
 MagnetostaticSolver::MagnetostaticSolver(
-   const std::string &opt_file_name,
+   const nlohmann::json &json_options,
    std::unique_ptr<mfem::Mesh> smesh)
-   : AbstractSolver(opt_file_name, move(smesh))
+   : AbstractSolver(json_options, move(smesh))
 {
    dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();

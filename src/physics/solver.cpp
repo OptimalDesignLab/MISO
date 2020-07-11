@@ -85,15 +85,6 @@ namespace mach
 
 adept::Stack AbstractSolver::diff_stack;
 
-AbstractSolver::AbstractSolver(const string &opt_file_name,
-                                    unique_ptr<Mesh> smesh)
-{
-   nlohmann::json file_options;
-   ifstream options_file(opt_file_name);
-   options_file >> file_options;
-   initBase(file_options, move(smesh));
-}
-
 AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
                                unique_ptr<Mesh> smesh)
 {

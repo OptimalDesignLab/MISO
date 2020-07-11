@@ -74,11 +74,9 @@ protected:
    double res_norm0 = -1.0;
 
    /// Class constructor (protected to prevent misuse)
-   /// \param[in] opt_file_name - file where options are stored
+   /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
-   /// \todo Can we infer dim some other way without using a template param?
-   EulerSolver(const std::string &opt_file_name,
+   EulerSolver(const nlohmann::json &json_options,
                std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Initialize `res` and either `mass` or `nonlinear_mass`
@@ -135,7 +133,7 @@ protected:
    virtual void terminalHook(int iter, double t_final) override;
 
    friend SolverPtr createSolver<EulerSolver<dim, entvar>>(
-       const std::string &opt_file_name,
+       const nlohmann::json &json_options,
        std::unique_ptr<mfem::Mesh> smesh);
 };
 

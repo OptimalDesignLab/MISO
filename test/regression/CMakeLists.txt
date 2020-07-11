@@ -15,6 +15,7 @@ endfunction(create_tests)
 # group together all fluids related tests
 set(FLUID_TEST_SRCS
     test_steady_vortex
+    test_navier_stokes_mms
 )
 
 # group together all thermal related tests
