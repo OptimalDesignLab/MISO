@@ -5,7 +5,7 @@ function(create_tests source_list data_files)
       target_link_libraries("${X}.bin" PRIVATE mach Catch)
       target_include_directories("${X}.bin" PRIVATE "${CMAKE_SOURCE_DIR}")
       add_test(NAME "${X}" COMMAND "${X}.bin") 
-      configure_file("${X}_options.json" "${X}_options.json" COPYONLY)
+      # configure_file("${X}_options.json" "${X}_options.json" COPYONLY)
    endforeach()
 endfunction(create_tests)
 

@@ -9,6 +9,74 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
+// Provide the options explicitly for regression tests
+auto options = R"(
+{
+   "print-options": false,
+    "mesh": {
+       "file": "initial.mesh",
+       "num-edge-x": 20,
+       "num-edge-y": 5,
+       "num-edge-z": 5
+    },
+    "space-dis": {
+       "basis-type": "H1",
+       "degree": 1,
+       "GD": false
+    },
+    "steady": false,
+    "time-dis": {
+        "ode-solver": "MIDPOINT",
+        "const-cfl": true,
+        "cfl": 1.0,
+        "dt": 0.01,
+        "t-final": 0.2
+    },
+    "lin-solver": {
+       "reltol": 1e-8,
+       "abstol": 0.0,
+       "printlevel": 0,
+       "maxiter": 500
+    },
+    "adj-solver":{
+       "reltol": 1e-8,
+       "abstol": 0.0,
+       "printlevel": 0,
+       "maxiter": 500
+    },
+    "newton":{
+       "printlevel": 0
+    },
+    "motor-opts" : {
+       "current": 1,
+       "frequency": 1500
+    },
+    "components": {
+       "stator": {
+          "material": "regtestmat1",
+          "attr": 1,
+          "max-temp": 0.5
+       },
+       "rotor": {
+          "material": "regtestmat1",
+          "attr": 2,
+          "max-temp": 0.5
+       }
+    },
+    "bcs": {
+        "outflux": [0, 0, 1, 0, 1, 0]
+    },
+    "outflux-type": "test",
+    "outputs": {
+        "temp-agg": "temp-agg"
+    },
+    "rho-agg": 10,
+    "max-temp": 0.1,
+    "init-temp": 300,
+    "material-lib-path": "../../src/material_options.json"
+})"_json;
+
+
 static double temp_0;
 
 static double t_final;
@@ -19,17 +87,11 @@ static double ExactSolution(const Vector &x);
 
 TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
 {
-   const char *options_file = "test_thermal_cube_options.json";
-
-   string opt_file_name(options_file);
-   nlohmann::json options;
-   nlohmann::json file_options;
-   ifstream opts(opt_file_name);
-   opts >> file_options;
-   options.merge_patch(file_options);
-
    temp_0 = options["init-temp"].get<double>();
    t_final = options["time-dis"]["t-final"].get<double>();
+   double target_error[4] {
+      0.0548041517, 0.0137142199, 0.0060951886, 0.0034275387
+   };
 
    for (int h = 1; h <= 4; ++h)
    {
@@ -78,29 +140,12 @@ TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
          }
          mesh->SetAttributes();
 
-         auto solver = createSolver<ThermalSolver>(opt_file_name, move(mesh));
+         auto solver = createSolver<ThermalSolver>(options, move(mesh));
          solver->setInitialCondition(InitialTemperature);
          solver->solveForState();
          solver->printSolution("thermal_final", 0);
          double l2_error = solver->calcL2Error(ExactSolution);
-
-         double target;
-         switch(h)
-         {
-            case 1: 
-               target = 0.0548041517;
-               break;
-            case 2: 
-               target = 0.0137142199;
-               break;
-            case 3: 
-               target = 0.0060951886;
-               break;
-            case 4: 
-               target = 0.0034275387;
-               break;
-         }
-         REQUIRE(l2_error == Approx(target).margin(1e-10));
+         REQUIRE(l2_error == Approx(target_error[h-1]).margin(1e-10));
       }
    }
 }
