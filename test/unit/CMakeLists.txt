@@ -27,6 +27,7 @@ set(FLUID_TEST_SRCS
    test_utils
    test_thermal_integ
    test_res_integ
+   test_rans_integ
 )
 
 # group EM tests

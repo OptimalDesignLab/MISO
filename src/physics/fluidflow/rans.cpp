@@ -5,7 +5,7 @@
 
 using namespace mfem;
 using namespace std;
-
+#if 0
 namespace mach
 {
 
@@ -129,3 +129,5 @@ template class RANavierStokesSolver<2>;
 template class RANavierStokesSolver<3>;
 
 }//namespace mach
+
+#endif

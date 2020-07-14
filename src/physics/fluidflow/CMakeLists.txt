@@ -21,6 +21,11 @@ target_sources(mach
       navier_stokes.hpp
       viscous_integ_def.hpp
       viscous_integ.hpp
+      rans_fluxes.hpp
+      rans_integ.hpp
+      rans_integ_def.hpp
+      rans.cpp
+      rans.hpp
 )
 
 target_include_directories(mach

@@ -177,6 +177,8 @@ xdouble calcSADestruction(const xdouble *q,
     xdouble kappa = sacs[3];
     xdouble chi_d = q[dim+3]/d;
     xdouble cw1 = cb1/(kappa*kappa) + (1+cb2)/sigma;
+    xdouble fw = calcSADestructionCoefficient(q, mu, d, S, sacs);
+    xdouble ft2 = calcSALaminarSuppression(q, mu, sacs);
     xdouble D = (cw1*fw - (cb1/(kappa*kappa))*ft2)*chi_d*chi_d;
     return D;
 }
@@ -252,7 +254,7 @@ xdouble calcSASource(const xdouble *q, const xdouble *dir,
 {
     xdouble cb2 = sacs[1];
     xdouble sigma = sacs[2];
-    xdouble Sr = (cb2/sigma)*dot<xdouble, dim>(dir, dir));
+    xdouble Sr = (cb2/sigma)*dot<xdouble, dim>(dir, dir);
     return Sr;
 }
 

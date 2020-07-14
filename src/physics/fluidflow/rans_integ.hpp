@@ -1,3 +1,6 @@
+#ifndef MACH_RANS_INTEG
+#define MACH_RANS_INTEG
+
 #include "adept.h"
 #include "mfem.hpp"
 
@@ -16,7 +19,7 @@ namespace mach
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \note This derived class uses the CRTP
 template <int dim>
-class ESViscousSAIntegrator : public ESViscousIntegrator <ESViscousSAIntegrator<dim>>
+class ESViscousSAIntegrator : public ESViscousIntegrator <dim>
 {
 public:
    /// Construct an entropy-stable viscous integrator
@@ -27,9 +30,46 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    ESViscousSAIntegrator(adept::Stack &diff_stack, double Re_num, double Pr_num,
                        double vis = -1.0, double a = 1.0)
-       : ESViscousIntegrator <ESViscousSAIntegrator<dim>>(
+       : ESViscousIntegrator <dim>(
              diff_stack, Re_num, Pr_num, vis, a) {}
 
+private:
+
+};
+
+/// Volume integrator for inviscid terms, including SA variable
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class SAInviscidIntegrator : public IsmailRoeIntegrator <dim, entvar>
+{
+public:
+   /// Construct an inviscid integrator with SA terms
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   SAInviscidIntegrator(adept::Stack &diff_stack, double a = 1.0)
+       : IsmailRoeIntegrator <dim, entvar>(diff_stack, a) {}
+
+
+   /// Ismail-Roe two-point (dyadic) flux function with additional variable
+   /// \param[in] di - physical coordinate direction in which flux is wanted
+   /// \param[in] qL - state variables at "left" state
+   /// \param[in] qR - state variables at "right" state
+   /// \param[out] flux - fluxes in the direction `di`
+   /// \note This is simply a wrapper for the function in `euler_fluxes.hpp`
+   void calcFlux(int di, const mfem::Vector &qL,
+                 const mfem::Vector &qR, mfem::Vector &flux);
+
+   /// Compute the Jacobians of `flux` with respect to `u_left` and `u_right`
+   /// \param[in] di - desired coordinate direction for flux
+   /// \param[in] qL - the "left" state
+   /// \param[in] qR - the "right" state
+   /// \param[out] jacL - Jacobian of `flux` w.r.t. `qL`
+   /// \param[out] jacR - Jacobian of `flux` w.r.t. `qR`
+   void calcFluxJacStates(int di, const mfem::Vector &qL,
+                          const mfem::Vector &qR,
+                          mfem::DenseMatrix &jacL,
+                          mfem::DenseMatrix &jacR);
 private:
 
 };
@@ -70,9 +110,38 @@ public:
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
+   // Compute vorticity on an SBP element, needed for SA model terms
+   /// \param[in] q - the state over the element
+   /// \param[in] sbp - the sbp element whose shape functions we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[out] curl - the curl of the velocity field at each node/int point
+   void calcVorticitySBP(const mfem::DenseMatrix &q, 
+                         const SBPFiniteElement &sbp, 
+                         const mfem::ElementTransformation &Trans, 
+                         mfem::DenseMatrix curl);
+
+   // Compute gradient for the turbulence variable on an SBP element, 
+   // needed for SA model terms
+   /// \param[in] q - the state over the element
+   /// \param[in] sbp - the sbp element whose shape functions we want
+   /// \param[in] Trans - defines the reference to physical element mapping
+   /// \param[out] grad - the gradient of the turbulence variable at each node
+   void calcGradSBP(const mfem::DenseMatrix &q, 
+                    const SBPFiniteElement &sbp, 
+                    const mfem::ElementTransformation &Trans, 
+                    mfem::DenseMatrix grad);
+
 private:
    /// nondimensional dynamic viscosity
    double mu;
+   /// nu gradient on element
+   mfem::DenseMatrix grad;
+   /// nu gradient on node
+   mfem::Vector grad_i;
+   /// velocity curl on element
+   mfem::DenseMatrix curl;
+   /// velocity curl on node
+   mfem::Vector curl_i;
 protected:
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
