@@ -104,6 +104,34 @@ void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
           bndry_marker[idx]);
       idx++;
    }
+   if (bcs.find("sod-shock-left") != bcs.end())
+   {
+      // 1d sod-shock boundary conditions
+      vector<int> tmp = bcs["sod-shock"].template get<vector<int>>();
+      mfem::Vector qfar(dim+2);
+      qfar(0) = 1.0; qfar(1) = 0.0; 
+      qfar(2) = 1.0/euler::gami + 0.5/qfar(0) * qfar(1) * qfar(1);
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new FarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
+   if (bcs.find("sod-shock-right") != bcs.end())
+   {
+      // 1d sod-shock boundary conditions
+      vector<int> tmp = bcs["sod-shock"].template get<vector<int>>();
+      mfem::Vector qfar(dim+2);
+      qfar(0) = 1.0/8.0; qfar(1) = 0.0; 
+      qfar(2) = 0.1/euler::gami + 0.5/qfar(0) * qfar(1) * qfar(1);
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new FarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
 }
 
 template <int dim, bool entvar>

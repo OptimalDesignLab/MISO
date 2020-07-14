@@ -36,6 +36,9 @@ public:
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);
 
+   /// Sets `q_ref` to the boundar condition for the sod-shock problem
+   //void getSodShockBC(mfem::Vector &q_ref);
+
    /// Returns the L2 error between the discrete and exact conservative vars.
    /// \param[in] u_exact - function that defines the exact **state** 
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
