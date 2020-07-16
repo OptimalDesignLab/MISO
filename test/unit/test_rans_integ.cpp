@@ -32,12 +32,14 @@ TEMPLATE_TEST_CASE_SIG("SA Inviscid Test", "[sa_inviscid_test]",
     SECTION("Check if SA integrator matches the output for the conservative variables")
     {
         // calculate the flux 
-        irinteg.calcFlux(nrm, qL, qR, flux);
-        sainteg.calcFlux(nrm, qL, qR, flux);
+        irinteg.calcFlux(0, qL, qR, flux1);
+        sainteg.calcFlux(0, qL, qR, flux2);
 
         // check if euler variables are the same as before
         for(int n = 0; n < dim+2; n++)
         {
+            std::cout << "Ismail-Roe " << n << " Flux: " << flux1(n) << std::endl; 
+            std::cout << "Spalart-Allmaras " << n << " Flux: " << flux2(n) << std::endl; 
             REQUIRE(flux1(n) - flux2(n) == Approx(0.0));
         }
     }

@@ -41,14 +41,16 @@ private:
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \note This derived class uses the CRTP
 template <int dim, bool entvar = false>
-class SAInviscidIntegrator : public IsmailRoeIntegrator <dim, entvar>
+class SAInviscidIntegrator : public DyadicFluxIntegrator<
+                                 SAInviscidIntegrator<dim, entvar>>
 {
 public:
    /// Construct an inviscid integrator with SA terms
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    SAInviscidIntegrator(adept::Stack &diff_stack, double a = 1.0)
-       : IsmailRoeIntegrator <dim, entvar>(diff_stack, a) {}
+       : DyadicFluxIntegrator<SAInviscidIntegrator<dim, entvar>>(
+            diff_stack, dim+3, a) {}
 
 
    /// Ismail-Roe two-point (dyadic) flux function with additional variable
@@ -87,25 +89,25 @@ public:
    /// \param[in] vis - nondimensional dynamic viscosity (use Sutherland if neg)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    SASourceIntegrator(adept::Stack &diff_stack, mfem::GridFunction dist,
-                          mfem::Vector sacs, double vis = -1.0, double a = 1.0)
-       : alpha(a), mu(vis), stack(diff_stack) {}
+                          mfem::Vector sa_params, double vis = -1.0, double a = 1.0)
+       : alpha(a), mu(vis), stack(diff_stack), num_states(dim+3), sacs(sa_params) {}
 
    /// Construct the element local residual
-   /// \param[in] el - the finite element whose residual we want
+   /// \param[in] fe - the finite element whose residual we want
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
-   virtual void AssembleElementVector(const mfem::FiniteElement &el,
+   virtual void AssembleElementVector(const mfem::FiniteElement &fe,
                                       mfem::ElementTransformation &Trans,
                                       const mfem::Vector &elfun,
                                       mfem::Vector &elvect);
 
    /// Construct the element local Jacobian
-   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] fe - the finite element whose Jacobian we want
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
-   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
+   virtual void AssembleElementGrad(const mfem::FiniteElement &fe,
                                     mfem::ElementTransformation &Trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
@@ -116,8 +118,8 @@ public:
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[out] curl - the curl of the velocity field at each node/int point
    void calcVorticitySBP(const mfem::DenseMatrix &q, 
-                         const SBPFiniteElement &sbp, 
-                         const mfem::ElementTransformation &Trans, 
+                         const mfem::FiniteElement &fe, 
+                         mfem::ElementTransformation &Trans, 
                          mfem::DenseMatrix curl);
 
    // Compute gradient for the turbulence variable on an SBP element, 
@@ -127,26 +129,45 @@ public:
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[out] grad - the gradient of the turbulence variable at each node
    void calcGradSBP(const mfem::DenseMatrix &q, 
-                    const SBPFiniteElement &sbp, 
-                    const mfem::ElementTransformation &Trans, 
+                    const mfem::FiniteElement &fe, 
+                    mfem::ElementTransformation &Trans, 
                     mfem::DenseMatrix grad);
 
 private:
+
+protected:
    /// nondimensional dynamic viscosity
    double mu;
-   /// nu gradient on element
-   mfem::DenseMatrix grad;
-   /// nu gradient on node
-   mfem::Vector grad_i;
-   /// velocity curl on element
-   mfem::DenseMatrix curl;
-   /// velocity curl on node
-   mfem::Vector curl_i;
-protected:
+   /// number of states
+   int num_states;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
+   /// vector of SA model parameters
+   mfem::Vector sacs;
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
+#ifndef MFEM_THREAD_SAFE
+   /// the coordinates of node i
+   mfem::Vector xi;
+   /// used to reference the states at node i 
+   mfem::Vector ui;
+   /// used to reference the gradient at node i
+   mfem::Vector grad_i;
+   /// used to reference the curl at node i
+   mfem::Vector curl_i;
+   /// stores the result of calling the flux function
+   mfem::Vector fluxi;
+   /// used to store the gradient on the element
+   mfem::DenseMatrix grad;
+   /// used to store the gradient on the element
+   mfem::DenseMatrix curl;
+   /// used to store the flux Jacobian at node i
+   mfem::DenseMatrix flux_jaci;
+   /// used to store the flux at each node
+   mfem::DenseMatrix elflux;
+   /// used to store the residual in (num_states, Dof) format
+   mfem::DenseMatrix elres;
+#endif
 };
 
 #if 0
