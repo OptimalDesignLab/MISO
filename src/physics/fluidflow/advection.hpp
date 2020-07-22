@@ -95,10 +95,12 @@ class AdvectionSolver : public AbstractSolver
 {
 public:
    /// Class constructor.
-   /// \param[in] opt_file_name - file where options are stored
+   /// \param[in] json_options - json object containing the options
    /// \param[in] vel_field - function that defines the velocity field
-   AdvectionSolver(const std::string &opt_file_name,
-                   void (*vel_field)(const mfem::Vector &, mfem::Vector &));
+   /// \param[in] comm - MPI communicator for parallel operations
+   AdvectionSolver(const nlohmann::json &json_options,
+                   void (*vel_field)(const mfem::Vector &, mfem::Vector &),
+                   MPI_Comm comm);
 
 protected:
    /// the velocity field

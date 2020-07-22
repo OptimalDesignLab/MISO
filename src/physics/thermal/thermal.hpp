@@ -21,7 +21,8 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] B - pointer to magnetic field grid function from EM solver
    ThermalSolver(const nlohmann::json &options,
-                 std::unique_ptr<mfem::Mesh> smesh = nullptr);
+                 std::unique_ptr<mfem::Mesh> smesh,
+                 MPI_Comm comm);
    
    void initDerived() override;
 
@@ -144,7 +145,8 @@ private:
 
    friend SolverPtr createSolver<ThermalSolver>(
        const nlohmann::json &opt_file_name,
-       std::unique_ptr<mfem::Mesh> smesh);
+       std::unique_ptr<mfem::Mesh> smesh,
+       MPI_Comm comm);
 };
 
 class ThermalEvolver : public MachEvolver

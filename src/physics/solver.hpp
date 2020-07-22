@@ -60,14 +60,16 @@ public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   AbstractSolver(const std::string &opt_file_name,
-                  std::unique_ptr<mfem::Mesh> smesh);
+   // AbstractSolver(const std::string &opt_file_name,
+   //                std::unique_ptr<mfem::Mesh> smesh);
 
    /// Class constructor.
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem
+   /// \param[in] comm - MPI communicator for parallel operations
    AbstractSolver(const nlohmann::json &options,
-                  std::unique_ptr<mfem::Mesh> smesh);
+                  std::unique_ptr<mfem::Mesh> smesh,
+                  MPI_Comm comm);
 
    /// Perform set-up of derived classes using virtual functions
    /// \todo Put the constructors and this in a factory
@@ -220,6 +222,20 @@ public:
 
    /// Return a pointer to the solver's mesh
    MeshType* getMesh() {return mesh.get();}
+
+   /// return a reference to the mesh's coordinate field
+   mfem::Vector& getMeshNodalCoordinates() {return *mesh->GetNodes();}
+
+   /// \brief function to update the mesh's nodal coordinate field
+   /// \param[in] coords - Vector containing mesh's nodal coordinate field
+   /// \note the size of `coords` is assumed to be the size returned from the
+   /// mesh finite element space's vdof size
+   /// \note After calling this method the mesh will own the GridFunction
+   /// defining the coordinate field, but the GridFunction will not own the 
+   /// underlying data (TODO? Look at cost of copying?)
+   void setMeshNodalCoordinates(mfem::Vector &coords);
+
+   inline int getMeshSize() {return mesh->GetNodes()->FESpace()->GetVSize();}
 
 #ifdef MFEM_USE_PUMI
    /// Return a pointer to the underlying PUMI mesh
@@ -440,7 +456,8 @@ protected:
    /// Used by derived classes that themselves construct solver objects that
    /// don't need all the memory for a fully featured solver, that just need to
    /// support the AbstractSolver interface (JouleSolver)
-   AbstractSolver(const std::string &opt_file_name);
+   AbstractSolver(const std::string &opt_file_name,
+                  MPI_Comm comm = MPI_COMM_WORLD);
 
 private:
    /// explicitly prohibit copy construction
@@ -450,8 +467,10 @@ private:
    /// Used to do the bulk of the initialization shared between constructors
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem
+   /// \param[in] comm - MPI communicator to use for parallel operations
    void initBase(const nlohmann::json &file_options,
-                 std::unique_ptr<mfem::Mesh> smesh);
+                 std::unique_ptr<mfem::Mesh> smesh,
+                 MPI_Comm comm);
 
 };
 
@@ -460,13 +479,15 @@ using SolverPtr = std::unique_ptr<AbstractSolver>;
 /// Creates a new `DerivedSolver` and initializes it
 /// \param[in] json_options - json object that stores options
 /// \param[in] smesh - if provided, defines the mesh for the problem
+/// \param[in] comm - MPI communicator for parallel operations
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr createSolver(const nlohmann::json &json_options,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                       MPI_Comm comm = MPI_COMM_WORLD)
 {
    //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
-   SolverPtr solver(new DerivedSolver(json_options, move(smesh)));
+   SolverPtr solver(new DerivedSolver(json_options, move(smesh), comm));
    solver->initDerived();
    return solver;
 }
@@ -474,15 +495,17 @@ SolverPtr createSolver(const nlohmann::json &json_options,
 /// Creates a new `DerivedSolver` and initializes it
 /// \param[in] opt_file_name - file where options are stored
 /// \param[in] smesh - if provided, defines the mesh for the problem
+/// \param[in] comm - MPI communicator for parallel operations
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr createSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                       MPI_Comm comm = MPI_COMM_WORLD)
 {
    nlohmann::json json_options;
    std::ifstream options_file(opt_file_name);
    options_file >> json_options;
-   return createSolver<DerivedSolver>(json_options, move(smesh));
+   return createSolver<DerivedSolver>(json_options, move(smesh), comm);
 }
 
 } // namespace mach

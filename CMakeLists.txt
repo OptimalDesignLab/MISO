@@ -106,17 +106,20 @@ if (MFEM_USE_EGADS)
 endif(MFEM_USE_EGADS)
 
 install(TARGETS mach
+   OPTIONAL
    EXPORT machTargets
    LIBRARY DESTINATION lib
    INCLUDES DESTINATION include
 )
 
 install(DIRECTORY src
+   OPTIONAL
    DESTINATION include
    FILES_MATCHING PATTERN "*.h*"
 )
 
 install(FILES mach.hpp
+   OPTIONAL
    DESTINATION include
 )
 
@@ -146,4 +149,50 @@ add_subdirectory(sandbox EXCLUDE_FROM_ALL)
 # add documentation subdirectory
 # creates custom target `doc' to build the doxygen documentation
 add_subdirectory(doc)
+
+option(BUILD_PYTHON_WRAPPER
+      "Build a python wrapper for mach that allows constructing solvers and
+      running problems through a Python interface"
+      NO)
+
+if (BUILD_PYTHON_WRAPPER)
+   # # this setting allows installing 
+   # set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
+
+   # TODO: maybe don't do this? Use c++14/17 features if they're available on the compiler?
+   set(PYBIND11_CPP_STANDARD -std=c++11)
+
+   include(FetchContent)
+
+   FetchContent_Declare(pybind11
+      GIT_REPOSITORY "https://github.com/pybind/pybind11"
+   )
+
+   FetchContent_MakeAvailable(pybind11)
+
+   pybind11_add_module(_pyMach "")
+
+   add_subdirectory(mach)
+
+   target_link_libraries(_pyMach
+      PUBLIC
+         mach
+   )
+
+   # find the mpi4py c interface include directories and include them
+   execute_process(COMMAND
+      python3 -c "import mpi4py; print(mpi4py.get_include(), end ='')"
+      OUTPUT_VARIABLE MPI4PY_INCLUDE_DIRS
+   )
+   
+   target_include_directories(_pyMach
+      PRIVATE
+         "${MPI4PY_INCLUDE_DIRS}"
+   )
+
+   install(TARGETS _pyMach
+      LIBRARY DESTINATION "${CMAKE_SOURCE_DIR}/mach"
+   )
+
+endif (BUILD_PYTHON_WRAPPER)
 

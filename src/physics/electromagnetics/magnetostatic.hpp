@@ -1,7 +1,10 @@
 #ifndef MACH_MAGNETOSTATIC
 #define MACH_MAGNETOSTATIC
 
+#include <mpi.h>
+
 #include "mfem.hpp"
+#include "json.hpp"
 
 #include "solver.hpp"
 #include "coefficient.hpp"
@@ -17,8 +20,10 @@ public:
 	/// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
+   /// \param[in] comm - MPI communicator for parallel operations
    MagnetostaticSolver(const nlohmann::json &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr);
+                       std::unique_ptr<mfem::Mesh> smesh,
+                       MPI_Comm comm);
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -229,7 +234,8 @@ private:
 
    friend SolverPtr createSolver<MagnetostaticSolver>(
        const nlohmann::json &opt_file_name,
-       std::unique_ptr<mfem::Mesh> smesh);
+       std::unique_ptr<mfem::Mesh> smesh,
+       MPI_Comm comm);
 };
 
 } // namespace mach

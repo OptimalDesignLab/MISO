@@ -24,7 +24,8 @@ protected:
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem
    NavierStokesSolver(const nlohmann::json &json_options,
-                      std::unique_ptr<mfem::Mesh> smesh = nullptr);
+                      std::unique_ptr<mfem::Mesh> smesh,
+                      MPI_Comm comm);
 
    /// Add volume/domain integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
@@ -54,7 +55,8 @@ protected:
 
    friend SolverPtr createSolver<NavierStokesSolver<dim, entvar>>(
        const nlohmann::json &json_options,
-       std::unique_ptr<mfem::Mesh> smesh);    
+       std::unique_ptr<mfem::Mesh> smesh,
+       MPI_Comm comm);    
 };
 
 /// Defines the right-hand side of Equation (7.5) in "Entropy stable spectral

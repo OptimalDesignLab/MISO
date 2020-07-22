@@ -38,8 +38,9 @@ namespace mach
 {
 
 ThermalSolver::ThermalSolver(const nlohmann::json &options,
-                             std::unique_ptr<mfem::Mesh> smesh)
-	: AbstractSolver(options, move(smesh))
+                             std::unique_ptr<mfem::Mesh> smesh,
+                             MPI_Comm comm)
+	: AbstractSolver(options, move(smesh), comm)
 {
    int dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();

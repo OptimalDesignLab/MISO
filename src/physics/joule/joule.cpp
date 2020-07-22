@@ -12,9 +12,10 @@ namespace mach
 /// TODO: read options file and construct options files for EM and 
 JouleSolver::JouleSolver(
 	const std::string &opt_file_name,
-   std::unique_ptr<mfem::Mesh> smesh)
+   std::unique_ptr<mfem::Mesh> smesh,
+   MPI_Comm comm)
 	// : AbstractSolver(opt_file_name, move(smesh))
-   : AbstractSolver(opt_file_name)
+   : AbstractSolver(opt_file_name, comm)
 {
    nlohmann::json em_opts = options["em-opts"];
    nlohmann::json thermal_opts = options["thermal-opts"];
@@ -82,11 +83,11 @@ JouleSolver::JouleSolver(
    *out << "EM options:\n";
    *out << setw(3) << em_opts << endl;
 
-   em_solver.reset(new MagnetostaticSolver(em_opt_filename, nullptr));
+   em_solver.reset(new MagnetostaticSolver(em_opt_filename, nullptr, comm));
    /// TODO: this should be moved to an init derived when a factory is made
    // em_solver->initDerived();
 
-   thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr));
+   thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr, comm));
    // thermal_solver->initDerived();
 
    em_fields = em_solver->getFields();

@@ -77,7 +77,8 @@ protected:
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem
    EulerSolver(const nlohmann::json &json_options,
-               std::unique_ptr<mfem::Mesh> smesh = nullptr);
+               std::unique_ptr<mfem::Mesh> smesh,
+               MPI_Comm comm);
 
    /// Initialize `res` and either `mass` or `nonlinear_mass`
    virtual void constructForms() override;
@@ -134,7 +135,8 @@ protected:
 
    friend SolverPtr createSolver<EulerSolver<dim, entvar>>(
        const nlohmann::json &json_options,
-       std::unique_ptr<mfem::Mesh> smesh);
+       std::unique_ptr<mfem::Mesh> smesh,
+       MPI_Comm comm);
 };
 
 } // namespace mach

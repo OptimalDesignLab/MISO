@@ -86,13 +86,15 @@ namespace mach
 adept::Stack AbstractSolver::diff_stack;
 
 AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
-                               unique_ptr<Mesh> smesh)
+                               unique_ptr<Mesh> smesh,
+                               MPI_Comm comm)
 {
-   initBase(file_options, move(smesh));
+   initBase(file_options, move(smesh), comm);
 }
 
 // Note: the following constructor is protected
-AbstractSolver::AbstractSolver(const string &opt_file_name)
+AbstractSolver::AbstractSolver(const string &opt_file_name,
+                               MPI_Comm _comm)
 {
    // Some of the following code would normally happen in initBase, but this is 
    // a parred down version of the AbstractSolver that does not need most of 
@@ -108,17 +110,18 @@ AbstractSolver::AbstractSolver(const string &opt_file_name)
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
 
-   comm = MPI_COMM_WORLD;
+   comm = _comm;
    MPI_Comm_rank(comm, &rank);
    out = getOutStream(rank);
 }
 
 void AbstractSolver::initBase(const nlohmann::json &file_options,
-                              std::unique_ptr<Mesh> smesh)
+                              std::unique_ptr<Mesh> smesh,
+                              MPI_Comm _comm)
 {
    // Set the options; the defaults are overwritten by the values in the file
    // using the merge_patch method
-   comm = MPI_COMM_WORLD; // TODO: how to pass as an argument?
+   comm = _comm;
    MPI_Comm_rank(comm, &rank);
    out = getOutStream(rank);
    options = default_options;
@@ -322,6 +325,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    {
       constructPumiMesh();
    }
+   mesh->EnsureNodes();
 }
 
 void AbstractSolver::constructPumiMesh()
@@ -796,6 +800,21 @@ void AbstractSolver::solveForAdjoint(const std::string &fun)
    {
       solveUnsteadyAdjoint(fun);
    }
+}
+
+void AbstractSolver::setMeshNodalCoordinates(mfem::Vector &coords)
+{
+   /// Added `EnsureNodes` to `constructMesh`
+   // if (mesh->GetNodes() == nullptr)
+   // {
+   //    // TODO: this approach will have the mesh allocate a `Nodes`
+   //    // gridfunction that we immediately replace (wasteful)
+   //    mesh->EnsureNodes();
+   // }
+   // auto mesh_gf = static_cast<ParGridFunction*>(mesh->GetNodes());
+   auto mesh_gf = mesh->GetNodes();
+   // mesh_gf->MakeRef(coords, 0);
+   mesh_gf->MakeRef(coords, 0);
 }
 
 void AbstractSolver::addMassIntegrators(double alpha)

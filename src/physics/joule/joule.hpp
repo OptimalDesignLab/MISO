@@ -16,9 +16,10 @@ public:
 	/// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
+   /// \param[in] comm - MPI communicator for parallel operations
    JouleSolver(const std::string &opt_file_name,
-               std::unique_ptr<mfem::Mesh> smesh = nullptr);
+               std::unique_ptr<mfem::Mesh> smesh,
+               MPI_Comm comm);
 
    /// Write the solutions of both the EM and thermal problems to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -55,7 +56,8 @@ private:
 
    friend SolverPtr createSolver<JouleSolver>(
        const std::string &opt_file_name,
-       std::unique_ptr<mfem::Mesh> smesh);
+       std::unique_ptr<mfem::Mesh> smesh,
+       MPI_Comm comm);
 };
 
 } // namespace mach
