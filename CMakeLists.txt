@@ -78,6 +78,9 @@ set_target_properties(mach
    PROPERTIES 
       CXX_EXTENSIONS OFF
       POSITION_INDEPENDENT_CODE ON
+      # CXX_VISIBILITY_PRESET hidden
+      # # VISIBILITY_INLINES_HIDDEN True
+      # # INTERPROCEDURAL_OPTIMIZATION True
 )
 
 set(DEBUG_OPTIONS
@@ -156,11 +159,9 @@ option(BUILD_PYTHON_WRAPPER
       NO)
 
 if (BUILD_PYTHON_WRAPPER)
-   # # this setting allows installing 
-   # set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
    # TODO: maybe don't do this? Use c++14/17 features if they're available on the compiler?
-   set(PYBIND11_CPP_STANDARD -std=c++11)
+   # set(PYBIND11_CPP_STANDARD -std=c++11)
 
    include(FetchContent)
 
@@ -177,6 +178,7 @@ if (BUILD_PYTHON_WRAPPER)
    target_link_libraries(_pyMach
       PUBLIC
          mach
+         # "${MFEM_LIBRARIES}"
    )
 
    # find the mpi4py c interface include directories and include them
@@ -189,6 +191,20 @@ if (BUILD_PYTHON_WRAPPER)
       PRIVATE
          "${MPI4PY_INCLUDE_DIRS}"
    )
+
+   # target_compile_options(_pyMach
+   #    PRIVATE 
+   #       "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
+   #       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
+   # )
+   # set_target_properties(_pyMach
+   #    PROPERTIES 
+   #       CXX_EXTENSIONS OFF
+   #       POSITION_INDEPENDENT_CODE ON
+   #       CXX_VISIBILITY_PRESET default
+   #       VISIBILITY_INLINES_HIDDEN True
+   #       INTERPROCEDURAL_OPTIMIZATION OFF
+   # )
 
    install(TARGETS _pyMach
       LIBRARY DESTINATION "${CMAKE_SOURCE_DIR}/mach"

@@ -1,5 +1,5 @@
 target_sources(_pyMach
-   PRIVATE
+   PUBLIC
       "pyMach.cpp"
       "machSolver.cpp"
       "vector.cpp"

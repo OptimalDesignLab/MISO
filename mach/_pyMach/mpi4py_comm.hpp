@@ -1,3 +1,6 @@
+#ifndef MPI4PY_COMM
+#define MPI4PY_COMM
+
 #include <pybind11/pybind11.h>
 #include <mpi.h>
 #include <mpi4py/mpi4py.h>
@@ -13,11 +16,11 @@ namespace py = pybind11;
 struct mpi4py_comm
 {
 public:
-  mpi4py_comm() = default;
-  mpi4py_comm(MPI_Comm value) : value(value) {}
-  inline operator MPI_Comm () { return value; }
+   mpi4py_comm() = default;
+   mpi4py_comm(MPI_Comm value) : value(value) {}
+   inline operator MPI_Comm () { return value; }
 
-  MPI_Comm value;
+   MPI_Comm value;
 };
 
 
@@ -53,8 +56,8 @@ public:
 
    // C++ -> Python
    static handle cast(mpi4py_comm src,
-                        return_value_policy /* policy */,
-                        handle /* parent */)
+                      return_value_policy /* policy */,
+                      handle /* parent */)
    {
       // Create an mpi4py handle
       return PyMPIComm_New(src.value);
@@ -64,3 +67,5 @@ public:
 } // namespace pybind11::detail
 
 } // namespace pybind11
+
+#endif

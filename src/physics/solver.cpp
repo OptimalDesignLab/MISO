@@ -94,7 +94,7 @@ AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
 
 // Note: the following constructor is protected
 AbstractSolver::AbstractSolver(const string &opt_file_name,
-                               MPI_Comm _comm)
+                               MPI_Comm incomm)
 {
    // Some of the following code would normally happen in initBase, but this is 
    // a parred down version of the AbstractSolver that does not need most of 
@@ -110,18 +110,20 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    options.merge_patch(file_options);
    *out << setw(3) << options << endl;
 
-   comm = _comm;
+   // comm = incomm;
+   MPI_Comm_dup(incomm, &comm);
    MPI_Comm_rank(comm, &rank);
    out = getOutStream(rank);
 }
 
 void AbstractSolver::initBase(const nlohmann::json &file_options,
                               std::unique_ptr<Mesh> smesh,
-                              MPI_Comm _comm)
+                              MPI_Comm incomm)
 {
    // Set the options; the defaults are overwritten by the values in the file
    // using the merge_patch method
-   comm = _comm;
+   // comm = incomm;
+   MPI_Comm_dup(incomm, &comm);
    MPI_Comm_rank(comm, &rank);
    out = getOutStream(rank);
    options = default_options;
@@ -291,6 +293,7 @@ void AbstractSolver::initDerived()
 
 AbstractSolver::~AbstractSolver()
 {
+   MPI_Comm_free(&comm);
    *out << "Deleting Abstract Solver..." << endl;
 }
 
