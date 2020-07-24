@@ -383,7 +383,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
       double err = 0.0;
       if (entry < 0)
       {
-         for (int i = 0; i < dim+2; ++i)
+         for (int i = 0; i < num_state; ++i)
          {
             double dq = qdiscrete(i) - qexact(i);
             err += dq*dq;

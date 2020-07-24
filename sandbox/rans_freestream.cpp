@@ -33,6 +33,11 @@ void pert(const Vector &x, Vector& p);
 /// \param[out] u - conservative + SA variables stored as a 5-vector
 void uexact(const Vector &x, Vector& u);
 
+/// \brief Defines a perturbed solution for the rans freestream problem
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative + SA variables stored as a 5-vector
+void uinit_pert(const Vector &x, Vector& u);
+
 int main(int argc, char *argv[])
 {
    const char *options_file = "rans_freestream_options.json";
@@ -82,25 +87,25 @@ int main(int argc, char *argv[])
       // construct the solver and set initial conditions
       auto solver = createSolver<RANavierStokesSolver<2, entvar>>(opt_file_name,
                                                          move(smesh));
-      solver->setInitialCondition(uexact);
+      solver->setInitialCondition(uinit_pert);
       solver->printSolution("rans_init", 0);
 
       // get the initial density error
-      //double l2_error = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
-      //                      .calcConservativeVarsL2Error(uexact, 0));
+      double l2_error_init = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
-      //*out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->checkJacobian(pert);
       solver->solveForState();
       solver->printSolution("rans_final",0);
       // get the final density error
-      //l2_error = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
-      //                      .calcConservativeVarsL2Error(uexact, 0));
+      double l2_error_final = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
 
       *out << "\nfinal residual norm = " << res_error;
-      //*out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      *out << "\n|| rho_h - rho ||_{L^2} init  = " << l2_error_init << endl;
+      *out << "\n|| rho_h - rho ||_{L^2} final = " << l2_error_final << endl;
    }
    catch (MachException &exception)
    {
@@ -151,3 +156,18 @@ void uexact(const Vector &x, Vector& q)
    }
 }
 
+// initial guess perturbed from exact
+void uinit_pert(const Vector &x, Vector& q)
+{
+   q.SetSize(5);
+   Vector u(5);
+   
+   u = 0.0;
+   u(0) = 1.1*1.0;
+   u(1) = 1.1*u(0)*mach_fs*cos(aoa_fs);
+   u(2) = 1.1*u(0)*mach_fs*sin(aoa_fs);
+   u(3) = 1.1*1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
+   u(4) = 1.1*chi_fs*(mu/u(0));
+
+   q = u;
+}

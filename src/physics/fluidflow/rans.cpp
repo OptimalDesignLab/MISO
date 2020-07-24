@@ -24,6 +24,7 @@ RANavierStokesSolver<dim, entvar>::RANavierStokesSolver(const string &opt_file_n
    mu = this->options["flow-param"]["mu"].template get<double>();
    vector<double> sa = this->options["flow-param"]["sa-consts"].template get<vector<double>>();
    sacs.SetData(sa.data());
+
 }
 
 template <int dim, bool entvar>

@@ -26,10 +26,18 @@
       "cfl": 1.0
    },
    "newtonsolver":{
-      "printlevel": 1,
+      "printlevel": 0,
       "maxiter": 50,
       "reltol": 1e-1,
       "abstol": 1e-12
+   },
+   "lin-solver": {
+      "type": "hypregmres",
+      "pctype": "hypreboomeramg",
+      "reltol": 1e-10,
+      "abstol": 0.0,
+      "printlevel": 0,
+      "maxiter": 50
    },
    "petscsolver":{
       "ksptype": "gmres",
