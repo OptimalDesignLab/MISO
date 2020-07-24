@@ -16,8 +16,13 @@ template <int dim, bool entvar = false>
 class RANavierStokesSolver : public  NavierStokesSolver<dim, entvar>
 {
 public:
+    /// Sets `q_in` to the inflow conservative + SA variables
+    void getRANSInflowState(mfem::Vector &q_in);
 
-    /// Sets `q_ref` to the free-stream conservative variables
+    /// Sets `q_out` to the outflow conservative + SA variables
+    void getRANSOutflowState(mfem::Vector &q_out);
+
+    /// Sets `q_ref` to the free-stream conservative + SA variables
     void getFreeStreamState(mfem::Vector &q_ref);
 
     /// convert conservative variables to entropy variables
@@ -45,14 +50,6 @@ protected:
     /// \note This function calls EulerSolver::addBoundaryIntegrators() first
     virtual void addResBoundaryIntegrators(double alpha);
 
-    /// Add interior-face integrators to `res` based on `options`
-    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-    /// \note This function calls NavierStokes::addInterfaceIntegrators() first
-    virtual void addResInterfaceIntegrators(double alpha) 
-    { 
-        throw MachException("dsbp not implemented!!!");
-    }
-
     /// Return the number of state variables
     virtual int getNumState() override {return dim+3; }
 
@@ -60,6 +57,8 @@ protected:
        const std::string &opt_file_name,
        std::unique_ptr<mfem::Mesh> smesh);
 
+    /// SA constants vector
+    mfem::Vector sacs;
     /// free-stream SA viscosity ratio (nu_tilde/nu_material)
     double chi_fs;
     /// material dynamic viscosity
