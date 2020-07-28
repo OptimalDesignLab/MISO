@@ -475,7 +475,14 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
 
       // get the normal vector and the flux on the face
       trans.Face->SetIntPoint(&face_ip);
-      CalcOrtho(trans.Face->Jacobian(), nrm);
+      if (1 == dim)
+      {
+         nrm(0) = (fabs(x(0)) <= 1e-14) ? -1.0 : 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Face->Jacobian(), nrm);
+      }
       flux(x, nrm, u_face, flux_face);
       flux_face *= face_ip.weight;
 
@@ -536,7 +543,14 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
 
       // get the normal vector and the flux Jacobian on the face
       trans.Face->SetIntPoint(&face_ip);
-      CalcOrtho(trans.Face->Jacobian(), nrm);
+      if (1 == dim)
+      {
+         nrm(0) = (fabs(x(0)) <= 1e-14) ? -1.0 : 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Face->Jacobian(), nrm);
+      }
       // flux(x, nrm, u_face, flux_face);
       fluxJacState(x, nrm, u_face, flux_jac_face);
 
@@ -663,7 +677,14 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
 
       // get the normal vector and the flux on the face
       trans.Face->SetIntPoint(&ip_face);
-      CalcOrtho(trans.Face->Jacobian(), nrm);
+      if (1 == dim)
+      {
+         nrm(0) = 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Face->Jacobian(), nrm);
+      }
       nrm *= ip_face.weight;
       flux(nrm, u_face_left, u_face_right, flux_face);
 
@@ -730,7 +751,14 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
 
       // get the normal vector and the flux Jacobians on the face
       trans.Face->SetIntPoint(&ip_face);
-      CalcOrtho(trans.Face->Jacobian(), nrm);
+      if (1 == dim)
+      {
+         nrm(0) = 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Face->Jacobian(), nrm);
+      }
       nrm *= alpha*ip_face.weight;
       //flux(nrm, u_face_left, u_face_right, flux_face);
       fluxJacStates(nrm, u_face_left, u_face_right, flux_jac_left,

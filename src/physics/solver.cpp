@@ -470,6 +470,45 @@ void AbstractSolver::setInitialCondition(
    //       cout << "uj = " << uj(0) << ", " << uj(1) << ", " << uj(2) << ", " << uj(3) << endl;
    //    }
    // }
+   // Print the quadrature points and value in txt format
+}
+
+void AbstractSolver::PrintSodShock(const std::string &file_name)
+{
+   ofstream write_value(file_name+"_u.txt");
+   write_value.precision(14);
+   ofstream write_coord(file_name+"_coord.txt");
+   write_coord.precision(14);
+   //u->Print(write_value, 3);
+   mfem::Vector quad_coord(1);
+   mfem::Array<int> vdofs;
+   ElementTransformation *eltransf;
+   const FiniteElement *fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+   const int num_dofs = fe->GetDof();
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      eltransf = mesh->GetElementTransformation(i);
+      fes->GetElementVDofs(i, vdofs);
+      // for (int s = 0; s < vdofs.Size(); s++)
+      // {
+      //    std::cout << vdofs[s] << ' ';
+      // }
+      // std::cout << std::endl;
+      for(int j = 0; j < num_dofs; j++)
+      {
+         eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
+         write_coord << quad_coord(0) << std::endl;
+
+         for(int k = 0; k < num_state; k++)
+         {
+            write_value << (*u)(vdofs[k*num_dofs + j]) << ' ';
+         }
+         write_value << std::endl;
+      }
+   }
+
+   write_coord.close();
+   write_value.close();
 }
 
 void AbstractSolver::setInitialCondition(

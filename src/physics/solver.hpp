@@ -218,6 +218,8 @@ public:
    /// \param[in/out] state - the conservative/entropy variables
    //virtual void convertToEntvar(mfem::Vector &state) { };
 
+   /// A temporal funtion that print the 2d sod_shock problem
+   virtual void PrintSodShock(const std::string &file_name);
    /// Return a pointer to the solver's mesh
    MeshType* getMesh() {return mesh.get();}
 
