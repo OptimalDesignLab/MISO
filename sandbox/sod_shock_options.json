@@ -10,6 +10,10 @@
       "iface-coeff": 1.0,
       "basis-type": "dsbp"
    },
+   "bcs": {
+      "sod-shock-left": [1, 0],
+      "sod-shock-right": [0, 1]
+   },
    "newton": {
       "printlevel": 1,
       "maxiter": 100,

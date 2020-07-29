@@ -137,6 +137,32 @@ void EulerSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           bndry_marker[idx]);
       idx++;
    }
+   if (bcs.find("sod-shock-left") != bcs.end())
+   {
+      // the left boundary condition for sod shock problem
+      vector<int> tmp = bcs["sod-shock-left"].template get<vector<int>>();
+      mfem::Vector qfar(3);
+      qfar(0) = 1.0; qfar(1) = 0.0; qfar(2) = 1.0;
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new FarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
+   if (bcs.find("sod-shock-right") != bcs.end())
+   {
+      // the left boundary condition for sod shock problem
+      vector<int> tmp = bcs["sod-shock-left"].template get<vector<int>>();
+      mfem::Vector qfar(3);
+      qfar(0) = 0.125; qfar(1) = 0.0; qfar(2) = 0.1;
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new FarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
 }
 
 template <int dim, bool entvar>
