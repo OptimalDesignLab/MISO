@@ -53,6 +53,8 @@ protected:
     /// Return the number of state variables
     virtual int getNumState() override {return dim+3; }
 
+    virtual void iterationHook(int iter, double t, double dt) override;
+
     friend SolverPtr createSolver<RANavierStokesSolver<dim, entvar>>(
        const std::string &opt_file_name,
        std::unique_ptr<mfem::Mesh> smesh);

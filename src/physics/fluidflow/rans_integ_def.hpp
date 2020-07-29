@@ -312,9 +312,29 @@ void SAFarFieldBC<dim>::calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
 {
    calcBoundaryFlux<double, dim>(dir.GetData(), qfs.GetData(), q.GetData(),
                                     work_vec.GetData(), flux_vec.GetData());
+
+#if 0   
+   // Part 2: evaluate the adiabatic flux
+   double mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
+   mu_Re /= Re;
+
+   for (int d = 0; d < dim; ++d)
+   {
+      work_vec = 0.0;
+      applyViscousScaling<double, dim>(d, mu_Re, Pr, q.GetData(), Dw.GetData(),
+                                       work_vec.GetData());
+      work_vec *= dir[d];
+      flux_vec -= work_vec;      
+   }
+#endif    
+
    //flux_vec(dim+2) = 0;
    // handle SA variable
-   double Unrm = dot<double, dim>(dir.GetData(), q.GetData()+1); 
+   double Unrm = dot<double, dim>(dir.GetData(), qfs.GetData()+1); 
    if (Unrm > 0.0)
    {
       flux_vec(dim+2) = Unrm*q(dim+2)/q(0);
@@ -333,24 +353,73 @@ void SAFarFieldBC<dim>::calcFluxJacState(
     mfem::DenseMatrix &flux_jac)
 {
    flux_jac = 0.0;
-   mach::calcFluxJacState<dim>(x, dir, jac, q, Dw, qfs, work_vec, this->stack, flux_jac);
+//   mach::calcFluxJacState<dim>(x, dir, jac, q, Dw, qfs, work_vec, this->stack, flux_jac);
+   
+   int Dw_size = Dw.Height() * Dw.Width();
+   // create containers for active double objects for each input
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> Dw_a(Dw_size);
+   std::vector<adouble> qfs_a(q.Size());
+   std::vector<adouble> work_vec_a(work_vec.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(Dw_a.data(), Dw_size, Dw.GetData());
+   adept::set_values(qfs_a.data(), qfs.Size(), qfs.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   // Part 1: apply the inviscid inflow boundary condition
+   mach::calcBoundaryFlux<adouble, dim>(dir_a.data(), qfs_a.data(), q_a.data(),
+                                        work_vec_a.data(), flux_a.data());
+#if 0
+   adouble mu_Re = mu;
+   if (mu < 0.0)
+   {
+      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
+   mu_Re /= Re;
+   for (int d = 0; d < dim; ++d)
+   {
+      for (int i = 0; i < work_vec_a.size(); ++i)
+      {
+         work_vec_a[i] = 0.0;
+      }
+      applyViscousScaling<adouble, dim>(d, mu_Re, Pr, q_a.data(), Dw_a.data(),
+                                       work_vec_a.data());
+      for (int i = 0; i < flux_a.size(); ++i)
+      {
+         work_vec_a[i] *= dir_a[d];
+         flux_a[i] -= work_vec_a[i]; // note the minus sign!!!
+      }
+   }
+#endif
+
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());   
+   
    // handle SA variable
-   double Unrm = dot<double, dim>(dir.GetData(), q.GetData()+1); 
+   double Unrm = dot<double, dim>(dir.GetData(), qfs.GetData()+1); 
    if (Unrm > 0.0)
    {
       flux_jac(dim+2, 0) = -Unrm*q(dim+2)/(q(0)*q(0));
-      for(int di = 0; di < dim; di++)
-      {
-         flux_jac(dim+2, di+1) = dir(di)*q(dim+2)/q(0);
-      }
+      // for(int di = 0; di < dim; di++)
+      // {
+      //    flux_jac(dim+2, di+1) = dir(di)*q(dim+2)/q(0);
+      // }
       flux_jac(dim+2, dim+2) = Unrm/q(0);
    }
    else
    {
-      for(int di = 0; di < dim; di++)
-      {
-         flux_jac(dim+2, di+1) = dir(di)*qfs(dim+2)/qfs(0);
-      }
+      // for(int di = 0; di < dim; di++)
+      // {
+      //    flux_jac(dim+2, di+1) = dir(di)*qfs(dim+2)/qfs(0);
+      // }
    }
 }
 
@@ -365,4 +434,156 @@ void SAFarFieldBC<dim>::calcFluxJacDw(
    {
       flux_jac[i] = 0.0;
    }
+}
+
+//====================================================================================
+//SA LPS Integrator Methods
+
+template <int dim, bool entvar>
+void SALPSIntegrator<dim, entvar>::convertVars(
+    const mfem::Vector &q, mfem::Vector &w)
+{
+   // This conditional should have no overhead, if the compiler is good
+   if (entvar)
+   {
+      w = q;
+   }
+   else
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      // SA variable copy
+      w(dim+2) = q(dim+2);
+   }
+}
+
+template <int dim, bool entvar>
+void SALPSIntegrator<dim, entvar>::convertVarsJacState(
+   const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+{
+   if (entvar)
+   {
+      dwdu = 0.0;
+      for (int i = 0; i < dim+3; ++i)
+      {
+         dwdu(i,i) = 1.0;
+      }
+   }
+   else
+   {
+      dwdu = 0.0;
+      // vector of active input variables
+      std::vector<adouble> q_a(q.Size());
+      // initialize adouble inputs
+      adept::set_values(q_a.data(), q.Size(), q.GetData());
+      // start recording
+      this->stack.new_recording();
+      // create vector of active output variables
+      std::vector<adouble> w_a(q.Size());
+      // run algorithm
+      calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+      // identify independent and dependent variables
+      this->stack.independent(q_a.data(), q.Size());
+      this->stack.dependent(w_a.data(), q.Size());
+      // compute and store jacobian in dwdu
+      this->stack.jacobian(dwdu.GetData());
+      // SA Variable Derivative
+      dwdu(dim+2, dim+2) = 1.0;
+   }
+}
+
+template <int dim, bool entvar>
+void SALPSIntegrator<dim, entvar>::applyScaling(
+   const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
+   const mfem::Vector &vec, mfem::Vector &mat_vec)
+{
+   if (entvar)
+   {
+      applyLPSScalingUsingEntVars<double, dim>(adjJ.GetData(), q.GetData(),
+                                               vec.GetData(), mat_vec.GetData());
+      throw MachException("Entropy variables not yet supported");
+   }
+   else
+   {
+      applyLPSScaling<double,dim>(adjJ.GetData(), q.GetData(), vec.GetData(),
+                                  mat_vec.GetData());
+      // SA Variable
+      double U = sqrt(dot<double, dim>(q.GetData()+1, q.GetData()+1))/q(0);
+      mat_vec(dim+2) = U*vec(dim+2);
+   }
+}
+
+template <int dim, bool entvar>
+void SALPSIntegrator<dim, entvar>::applyScalingJacState(
+    const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
+    const mfem::Vector &vec, mfem::DenseMatrix &mat_vec_jac)
+{
+   // declare vectors of active input variables
+   int adjJ_a_size = adjJ.Height() * adjJ.Width();
+   std::vector<adouble> adjJ_a(adjJ_a_size);
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> vec_a(vec.Size());
+   // copy data from mfem::Vector
+   adept::set_values(adjJ_a.data(), adjJ_a_size, adjJ.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(vec_a.data(), vec.Size(), vec.GetData());
+   // start recording
+   this->stack.new_recording();
+   // the dependent variable must be declared after the recording
+   std::vector<adouble> mat_vec_a(q.Size());
+   if (entvar)
+   {
+      applyLPSScalingUsingEntVars<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                                vec_a.data(), mat_vec_a.data());
+   }
+   else
+   {
+      applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                    vec_a.data(), mat_vec_a.data());
+      adouble U = sqrt(dot<adouble, dim>(q_a.data()+1, q_a.data()+1))/q_a[0];
+      mat_vec_a[dim+2] = U*vec_a[dim+2];   
+   }
+   // set the independent and dependent variable
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(mat_vec_a.data(), q.Size());
+   // Calculate the jabobian
+   this->stack.jacobian(mat_vec_jac.GetData());
+}
+
+template <int dim, bool entvar>
+void SALPSIntegrator<dim, entvar>::applyScalingJacV(
+    const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
+    mfem::DenseMatrix &mat_vec_jac)
+{
+   // declare vectors of active input variables
+   int adjJ_a_size = adjJ.Height() * adjJ.Width();
+   std::vector<adouble> adjJ_a(adjJ_a_size);
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> vec_a(q.Size());
+   // copy data from mfem::Vector
+   adept::set_values(adjJ_a.data(), adjJ_a_size, adjJ.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // dependence on vec is linear, so any value is ok; use q
+   adept::set_values(vec_a.data(), q.Size(), q.GetData());
+   // start recording
+   this->stack.new_recording();
+   // the dependent variable must be declared after the recording
+   std::vector<adouble> mat_vec_a(q.Size());
+   if (entvar)
+   {
+      // applyLPSScalingUsingEntVars<adouble, dim>(adjJ_a.data(), q_a.data(),
+      //                                           vec_a.data(), mat_vec_a.data());
+      throw MachException("Entropy variables not yet supported");
+   }
+   else
+   {
+      applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                    vec_a.data(), mat_vec_a.data());
+      adouble U = sqrt(dot<adouble, dim>(q_a.data()+1, q_a.data()+1))/q_a[0];
+      mat_vec_a[dim+2] = U*vec_a[dim+2];                              
+   }
+   // set the independent and dependent variable
+   this->stack.independent(vec_a.data(), q.Size());
+   this->stack.dependent(mat_vec_a.data(), q.Size());
+   // Calculate the jabobian
+   this->stack.jacobian(mat_vec_jac.GetData());
 }

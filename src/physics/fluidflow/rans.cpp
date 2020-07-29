@@ -1,4 +1,5 @@
 #include <memory>
+#include <random>
 
 #include "rans.hpp"
 #include "rans_integ.hpp"
@@ -40,9 +41,9 @@ void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    // this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
    //     this->diff_stack, sacs, mu, alpha));
    // add LPS stabilization
-   // double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
-   // this->res->AddDomainIntegrator(new EntStableLPSIntegrator<dim, entvar>(
-   //     this->diff_stack, alpha, lps_coeff));
+   double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
+   this->res->AddDomainIntegrator(new SALPSIntegrator<dim, entvar>(
+       this->diff_stack, alpha, lps_coeff));
 
 }
 
@@ -122,8 +123,8 @@ void RANavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       this->res->AddBdrFaceIntegrator(
-          new SAFarFieldBC<dim>(this->diff_stack, this->fec.get(), qfar,
-                              alpha),
+          new SAFarFieldBC<dim>(this->diff_stack, this->fec.get(), 
+                              this->re_fs, this->pr_fs, qfar, alpha),
           this->bndry_marker[idx]);
       idx++;
    }
@@ -185,7 +186,29 @@ void RANavierStokesSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
       q_ref(this->ipitch+1) = q_ref(0)*this->mach_fs*sin(this->aoa_fs);
    }
    q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*this->mach_fs*this->mach_fs;
-   q_ref(dim+2) = this->chi_fs*(mu/q_ref(0));
+   q_ref(dim+2) = this->chi_fs*mu/q_ref(0);
+}
+
+static void pert(const Vector &x, Vector& p);
+
+template <int dim, bool entvar>
+void RANavierStokesSolver<dim, entvar>::iterationHook(int iter, 
+                                                      double t, double dt) 
+{
+   this->checkJacobian(pert);
+}
+
+std::default_random_engine gen(std::random_device{}());
+std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+
+// perturbation function used to check the jacobian in each iteration
+void pert(const Vector &x, Vector& p)
+{
+   p.SetSize(5);
+   for (int i = 0; i < 5; i++)
+   {
+      p(i) = normal_rand(gen);
+   }
 }
 
 // explicit instantiation

@@ -188,11 +188,12 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    SAFarFieldBC(adept::Stack &diff_stack,
                      const mfem::FiniteElementCollection *fe_coll,
+                     double Re_num, double Pr_num,
                      const mfem::Vector &q_far, double vis = -1.0,
                      double a = 1.0)
        : ViscousBoundaryIntegrator<SAFarFieldBC<dim>>(
              diff_stack, fe_coll, dim + 3, a),
-         qfs(q_far), mu(vis), work_vec(dim + 2) {}
+         Re(Re_num), Pr(Pr_num), qfs(q_far), mu(vis), work_vec(dim + 2) {}
 
    /// converts conservative variables to entropy variables
    /// \param[in] q - conservative variables that are to be converted
@@ -447,6 +448,70 @@ private:
    mfem::Vector q_out;
    /// work space for flux computations
    mfem::Vector work_vec;
+};
+
+/// Integrator for local-projection stabilization with SA variable
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, the state variables are the entropy variables
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class SALPSIntegrator : public LPSIntegrator<
+                                   SALPSIntegrator<dim, entvar>>
+{
+public:
+   /// Construct an LPS integrator with the SA variable
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   /// \param[in] coeff - the LPS coefficient
+   SALPSIntegrator(adept::Stack &diff_stack, double a = 1.0,
+                          double coeff = 1.0)
+       : LPSIntegrator<SALPSIntegrator<dim,entvar>>(
+             diff_stack, dim + 3, a, coeff) {}
+
+   /// converts state variables to entropy variables, if necessary
+   /// \param[in] q - state variables that are to be converted
+   /// \param[out] w - entropy variables corresponding to `q`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &q, mfem::Vector &w);
+
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu);
+
+   /// Applies the matrix `dQ/dW` to `vec`, and scales by the avg. spectral radius
+   /// \param[in] adjJ - the adjugate of the mapping Jacobian
+   /// \param[in] q - the state at which `dQ/dW` and radius are to be evaluated
+   /// \param[in] vec - the vector being multiplied
+   /// \param[out] mat_vec - the result of the operation
+   /// \warning adjJ must be supplied transposed from its `mfem` storage format,
+   /// so we can use pointer arithmetic to access its rows.
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void applyScaling(const mfem::DenseMatrix &adjJ, const mfem::Vector &q,
+                     const mfem::Vector &vec, mfem::Vector &mat_vec);
+
+   /// Computes the Jacobian of the product `A(adjJ,q)*v` w.r.t. `q`
+   /// \param[in] adjJ - adjugate of the mapping Jacobian
+   /// \param[in] q - state at which `dQ/dW` and radius are evaluated
+   /// \param[in] vec - vector that is being multiplied
+   /// \param[out] mat_vec_jac - Jacobian of product w.r.t. `q`
+   /// \warning adjJ must be supplied transposed from its `mfem` storage format,
+   /// so we can use pointer arithmetic to access its rows.
+   void applyScalingJacState(const mfem::DenseMatrix &adjJ,
+                             const mfem::Vector &q,
+                             const mfem::Vector &vec,
+                             mfem::DenseMatrix &mat_vec_jac);
+
+   /// Computes the Jacobian of the product `A(adjJ,u)*v` w.r.t. `vec`
+   /// \param[in] adjJ - adjugate of the mapping Jacobian
+   /// \param[in] q - state at which the symmetric matrix `A` is evaluated
+   /// \param[out] mat_vec_jac - Jacobian of product w.r.t. `vec`
+   /// \note `mat_vec_jac` stores derivatives treating `adjJ` is a 1d array.
+   /// \note The size of `mat_vec_jac` must be set before calling this function
+   void applyScalingJacV(const mfem::DenseMatrix &adjJ,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &mat_vec_jac);
+
 };
 
 #include "rans_integ_def.hpp"
