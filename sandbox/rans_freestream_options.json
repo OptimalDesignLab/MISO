@@ -22,35 +22,20 @@
       "const-cfl": true,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 0.1,
+      "dt": 1e6,
       "cfl": 1.0
    },
    "newton":{
-      "printlevel": 0,
+      "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-1,
       "abstol": 1e-12
    },
    "lin-solver": {
-      "type": "hypregmres",
-      "pctype": "hypreboomeramg",
-      "reltol": 1e-10,
-      "abstol": 0.0,
+      "reltol": 1e-2,
+      "abstol": 1e-12,
       "printlevel": 0,
-      "maxiter": 50
-   },
-   "petscsolver":{
-      "ksptype": "gmres",
-      "pctype": "lu",
-      "abstol": 1e-10,
-      "reltol": 1e-10,
-      "maxiter": 100,
-      "printlevel": 2
-   },
-   "hypresolver":{
-      "tol": 1e-10,
-      "maxiter": 100,
-      "printlevel": 0
+      "maxiter": 100
    },
    "bcs": {
       "far-field": [1, 1, 1, 1]
