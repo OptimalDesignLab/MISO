@@ -25,6 +25,7 @@ set(SANDBOX_SRCS
    magnetostatic_wire
    thermal_square
    joule_wire
+   rans_freestream
 )
 
 create_sandbox("${SANDBOX_SRCS}")
