@@ -66,13 +66,9 @@ int main(int argc, char *argv[])
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
       auto solver = createSolver<EulerSolver<1, entvar>>(opt_file_name, nullptr);
-      solver->feedpert(pert);
-      solver->initDerived();
       solver->setInitialCondition(u0_function);
       solver->PrintSodShock("sod_shock_init");
       mfem::out << "Initial condition is set.\n";
-      solver->feedpert(pert);
-      mfem::out << "pert is set.\n";
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;      
       solver->solveForState();
@@ -112,9 +108,12 @@ void u0_function(const Vector &x, Vector& q)
    }
    else
    {
-      u0(0) = 1.0/8.0;
+      // u0(0) = 1.0/8.0;
+      // u0(1) = 0.0;
+      // u0(2) = 0.1/euler::gami + 0.5/u0(0) * u0(1) * u0(1);
+      u0(0) = 1.0;
       u0(1) = 0.0;
-      u0(2) = 0.1/euler::gami + 0.5/u0(0) * u0(1) * u0(1);
+      u0(2) = 1.0/euler::gami + 0.5/u0(0) * u0(1) * u0(1);
    }
 
    if (entvar == false)

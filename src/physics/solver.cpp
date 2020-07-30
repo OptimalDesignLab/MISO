@@ -138,7 +138,11 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
 
    constructMesh(move(smesh));
    int dim = mesh->Dimension();
-   *out << "problem space dimension = " << dim << endl;
+   *out << "---------- Mesh Information ----------\n";
+   *out << "Problem space dimenstion: " << dim << endl;
+   *out << "# of element: " << mesh->GetNE() << endl;
+   *out << "# of bdr element: " << mesh->GetNBE() << endl;
+   *out << "--------------------------------------\n";
    // Define the ODE solver used for time integration (possibly not used)
    ode_solver = NULL;
    *out << "ode-solver type = "
@@ -1012,6 +1016,7 @@ void AbstractSolver::solveUnsteady()
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
       dt = calcStepSize(ti, t, t_final, dt);
+      dt = 1e-3;
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
          *out << " (" << round(100 * t / t_final) << "% complete)";

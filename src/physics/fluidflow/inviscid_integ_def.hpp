@@ -477,7 +477,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
       trans.Face->SetIntPoint(&face_ip);
       if (1 == dim)
       {
-         nrm(0) = (fabs(x(0)) <= 1e-14) ? -1.0 : 1.0;
+         nrm(0) = 2 *  el_ip.x - 1.0;
       }
       else
       {
@@ -545,7 +545,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
       trans.Face->SetIntPoint(&face_ip);
       if (1 == dim)
       {
-         nrm(0) = (fabs(x(0)) <= 1e-14) ? -1.0 : 1.0;
+         nrm(0) = 2 * el_ip.x - 1.0;
       }
       else
       {
@@ -679,7 +679,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
       trans.Face->SetIntPoint(&ip_face);
       if (1 == dim)
       {
-         nrm(0) = 1.0;
+         nrm(0) = 2 * ip_left.x - 1.0;
       }
       else
       {
@@ -753,7 +753,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
       trans.Face->SetIntPoint(&ip_face);
       if (1 == dim)
       {
-         nrm(0) = 1.0;
+         nrm(0) = 2 * ip_left.x - 1.0;
       }
       else
       {
