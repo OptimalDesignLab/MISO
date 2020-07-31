@@ -1,4 +1,32 @@
 template <typename Derived>
+double InviscidIntegrator<Derived>::GetElementEnergy(
+   const mfem::FiniteElement &el, mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim(); // not used at present
+#ifdef MFEM_THREAD_SAFE
+   Vector x_i, ui;
+#endif
+   x_i.SetSize(dim);
+   ui.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   
+   double fun = 0.0;
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+      trans.Transform(el.GetNodes().IntPoint(i), x_i);
+      u.GetRow(i, ui);
+      // get node contribution; might need to include mapping Jacobian/adjugate 
+      fun += volFun(x_i, ui)*trans.Weight()*sbp.getDiagNormEntry(i);
+   }
+   return fun*alpha;
+}
+
+template <typename Derived>
 void InviscidIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
     const mfem::Vector &elfun, mfem::Vector &elvect)
@@ -103,9 +131,12 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector ui, uj, fluxij;
+   DenseMatrix adjJ_i, adjJ_j;
 #endif
 	elvect.SetSize(num_states*num_nodes);
    fluxij.SetSize(num_states);
+   adjJ_i.SetSize(dim);
+   adjJ_j.SetSize(dim);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
@@ -113,12 +144,12 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
    for (int i = 0; i < num_nodes; ++i)
    {
       Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      const DenseMatrix &adjJ_i = Trans.AdjugateJacobian();
+      adjJ_i = Trans.AdjugateJacobian();
       u.GetRow(i,ui);
 		for (int j = i+1; j < num_nodes; ++j)
 		{
          Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
-         const DenseMatrix &adjJ_j = Trans.AdjugateJacobian();
+         adjJ_j = Trans.AdjugateJacobian();
          u.GetRow(j, uj);
 			for (int di = 0; di < dim; ++di)
 			{
@@ -149,12 +180,13 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   Vector ui, uj, dxidx;
-   DenseMatrix flux_jaci, flux_jacj;
+   Vector ui, uj;
+   DenseMatrix adjJ_i, adjJ_j, flux_jaci, flux_jacj;
 #endif
    elmat.SetSize(num_states*num_nodes);
    elmat = 0.0;
-   dxidx.SetSize(dim);
+   adjJ_i.SetSize(dim);
+   adjJ_j.SetSize(dim);
    flux_jaci.SetSize(num_states);
    flux_jacj.SetSize(num_states);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
@@ -164,16 +196,14 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
       {
          // get the flux Jacobian at node i
          Trans.SetIntPoint(&el.GetNodes().IntPoint(i)); 
-         const DenseMatrix &adjJ_i = Trans.AdjugateJacobian();
-         adjJ_i.GetRow(di, dxidx);
+         adjJ_i = Trans.AdjugateJacobian();
          u.GetRow(i, ui);
          // loop over rows j for contribution (Q^T)_{i,j} * Jac_i
          for (int j = i+1; j < num_nodes; ++j)
          {
             // get the flux Jacobian at node i
             Trans.SetIntPoint(&el.GetNodes().IntPoint(j));
-            const DenseMatrix &adjJ_j = Trans.AdjugateJacobian();
-            adjJ_j.GetRow(di, dxidx);
+            adjJ_j = Trans.AdjugateJacobian();
             u.GetRow(j, uj);
             fluxJacStates(di, ui, uj, flux_jaci, flux_jacj);
             double Sij = sbp.getSkewEntry(di, i, j, adjJ_i, adjJ_j);
@@ -526,6 +556,59 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
 }
 
 template <typename Derived>
+double InviscidFaceIntegrator<Derived>::GetFaceEnergy(
+   const mfem::FiniteElement &el_left, const mfem::FiniteElement &el_right,
+   mfem::FaceElementTransformations &trans, const mfem::Vector &elfun)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_left);
+   const int num_nodes_left = el_left.GetDof();
+   const int num_nodes_right = el_right.GetDof();
+   const int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face_left, u_face_right, nrm;
+#endif
+   u_face_left.SetSize(num_states);
+   u_face_right.SetSize(num_states);
+   nrm.SetSize(dim);
+   DenseMatrix u_left(elfun.GetData(), num_nodes_left, num_states);
+   DenseMatrix u_right(elfun.GetData() + num_nodes_left*num_states,
+                       num_nodes_right, num_states);
+
+   const FiniteElement *sbp_face;
+   switch (dim)
+   {
+      case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
+              break;
+      case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+              break;
+      default: throw mach::MachException(
+         "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
+         "\tcannot handle given dimension");
+   }
+   IntegrationPoint ip_left, ip_right;
+   double fun = 0.0;
+   for (int i = 0; i < sbp_face->GetDof(); ++i)
+   {
+      const IntegrationPoint &ip_face = sbp_face->GetNodes().IntPoint(i);
+      trans.Loc1.Transform(ip_face, ip_left);
+      trans.Loc2.Transform(ip_face, ip_right);
+
+      int i_left = sbp.getIntegrationPointIndex(ip_left);
+      u_left.GetRow(i_left, u_face_left);
+      int i_right = sbp.getIntegrationPointIndex(ip_right);
+      u_right.GetRow(i_right, u_face_right); 
+
+      // get the contribution to the function on the face
+      trans.Face->SetIntPoint(&ip_face);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      nrm *= ip_face.weight;
+      fun += iFaceFun(nrm, u_face_left, u_face_right);
+   }
+   return fun;
+}
+
+template <typename Derived>
 void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
    const mfem::FiniteElement &el_left,
    const mfem::FiniteElement &el_right,
@@ -674,3 +757,74 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
    }
 }
 
+template <typename Derived>
+void NonlinearMassIntegrator<Derived>::AssembleElementVector(
+    const mfem::FiniteElement &el, mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun, mfem::Vector &elvect)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+   const IntegrationRule& ir = sbp.GetNodes();
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_i, q_i;
+#endif
+	elvect.SetSize(num_states*num_nodes);
+   u_i.SetSize(num_states);
+   q_i.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+   elvect = 0.0;
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      const IntegrationPoint &ip = el.GetNodes().IntPoint(i);
+      trans.SetIntPoint(&ip);
+      double weight = trans.Weight()*ip.weight;
+      u.GetRow(i, u_i);
+      convert(u_i, q_i);
+      for (int n = 0; n < num_states; ++n)
+      {
+         res(i, n) += weight*q_i(n);
+      }
+   }
+   res *= alpha;
+}
+
+template <typename Derived>
+void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
+    const mfem::FiniteElement &el, mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+   const IntegrationRule& ir = sbp.GetNodes();
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_i;
+   DenseMatrix A_i;
+#endif
+   elmat.SetSize(num_states*num_nodes);
+   u_i.SetSize(num_states);
+   A_i.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   elmat = 0.0;
+   // loop over the SBP nodes/integration points
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      const IntegrationPoint &ip = el.GetNodes().IntPoint(i);
+      trans.SetIntPoint(&ip);
+      double weight = trans.Weight()*ip.weight;
+      u.GetRow(i, u_i);
+      convertJacState(u_i, A_i);
+      for (int n = 0; n < num_states; ++n)
+      {
+         for (int m = 0; m < num_states; ++m)
+         {
+            elmat(n * num_nodes + i, m * num_nodes + i) += weight*A_i(n, m);
+         }
+      }
+   }
+   elmat *= alpha;
+}

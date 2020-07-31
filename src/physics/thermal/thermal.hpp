@@ -16,21 +16,14 @@ namespace mach
 class ThermalSolver : public AbstractSolver
 {
 public:
-	/// Class constructor.
-   /// \param[in] opt_file_name - file where options are stored
-   /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] B - pointer to magnetic field grid function from EM solver
-   ThermalSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr);
-   
    /// Class constructor.
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] B - pointer to magnetic field grid function from EM solver
-   ThermalSolver(nlohmann::json &options,
-                 std::unique_ptr<mfem::Mesh> smesh);
+   ThermalSolver(const nlohmann::json &options,
+                 std::unique_ptr<mfem::Mesh> smesh = nullptr);
    
-   void initDerived();
+   void initDerived() override;
 
    // /// Returns the L2 error between the state `u` and given exact solution.
    // /// Overload for scalar quantities
@@ -113,7 +106,9 @@ private:
    /// Construct all coefficients for thermal solver
    void constructCoefficients() override;
 
-   void addMassVolumeIntegrators() override;
+   void constructForms() override;
+
+   void addMassIntegrators(double alpha) override;
    void addStiffVolumeIntegrators(double alpha) override;
    void addLoadVolumeIntegrators(double alpha) override;
    void addLoadBoundaryIntegrators(double alpha) override;
@@ -121,7 +116,7 @@ private:
 
    /// compute outward flux at boundary
    // static void FluxFunc(const mfem::Vector &x, mfem::Vector &y );
-   static void fluxFunc(const mfem::Vector &x, double time, mfem::Vector &y);
+   static void testFluxFunc(const mfem::Vector &x, double time, mfem::Vector &y);
 
    /// initial temperature
    // static double initialTemperature(const mfem::Vector &x);
@@ -146,9 +141,13 @@ private:
 
    /// work vector
    mutable mfem::Vector z;
+
+   friend SolverPtr createSolver<ThermalSolver>(
+       const nlohmann::json &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
-class ThermalEvolver : public ImplicitLinearEvolver
+class ThermalEvolver : public MachEvolver
 {
 public:
    ThermalEvolver(mfem::Array<int> ess_bdr, BilinearFormType *mass, BilinearFormType *stiff,

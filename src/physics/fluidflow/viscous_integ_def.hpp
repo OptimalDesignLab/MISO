@@ -198,6 +198,87 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
 }
 
 template <typename Derived>
+double ViscousBoundaryIntegrator<Derived>::GetFaceEnergy(
+    const mfem::FiniteElement &el_bnd,
+    const mfem::FiniteElement &el_unused,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el_bnd);
+   const int num_nodes = sbp.GetDof();
+   const int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face, uj, wj, x, nrm;
+   DenseMatrix adjJ_i, adjJ_j, Dwi;
+#endif
+   u_face.SetSize(num_states);
+   uj.SetSize(num_states);
+   wj.SetSize(num_states);
+   x.SetSize(dim);
+   nrm.SetSize(dim);
+   adjJ_i.SetSize(dim);
+   adjJ_j.SetSize(dim);
+   Dwi.SetSize(num_states, dim);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+
+   const FiniteElement *sbp_face;
+   switch (dim)
+   {
+      case 1: sbp_face = fec->FiniteElementForGeometry(Geometry::POINT);
+              break;
+      case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+              break;
+      default: throw mach::MachException(
+         "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
+         "\tcannot handle given dimension");
+   }
+   IntegrationPoint el_ip;
+   double fun = 0.0; // initialize the functional value
+   for (int k = 0; k < sbp_face->GetDof(); ++k)
+   {
+      // convert face index k to element index i, and get node location
+      const IntegrationPoint &face_ip = sbp_face->GetNodes().IntPoint(k);
+      trans.Loc1.Transform(face_ip, el_ip);
+      trans.Elem1->Transform(el_ip, x);
+      int i = sbp.getIntegrationPointIndex(el_ip);
+
+      // get the state at element node i, as well as the mapping adjugate
+      u.GetRow(i, u_face);
+      trans.Elem1->SetIntPoint(&el_ip);
+      double jac_i = trans.Elem1->Weight();
+      double Hinv = 1.0 /(sbp.getDiagNormEntry(i) * jac_i);
+      CalcAdjugate(trans.Elem1->Jacobian(), adjJ_i);
+
+      // compute the (physcial space) derivatives at node i
+      Dwi = 0.0;
+      for (int j = 0; j < num_nodes; ++j)
+      {
+         // Get mapping Jacobian adjugate and transform state to entropy vars
+         trans.Elem1->SetIntPoint(&el_bnd.GetNodes().IntPoint(j));
+         CalcAdjugate(trans.Elem1->Jacobian(), adjJ_j);
+         u.GetRow(j, uj);
+         convert(uj, wj);
+         for (int d = 0; d < dim; ++d)
+         {
+            double Qij = sbp.getQEntry(d, i, j, adjJ_i, adjJ_j);
+            for (int s = 0; s < num_states; ++s)
+            {
+               Dwi(s,d) += Qij * wj(s);
+            }
+         } // d loop
+      } // j loop
+      Dwi *= Hinv;
+
+      // get the normal vector to the face, and then compute the contribution
+      trans.Face->SetIntPoint(&face_ip);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      fun += bndryFun(x, nrm, jac_i, u_face, Dwi)*face_ip.weight*alpha;
+   } // k/i loop
+   return fun;
+}
+
+template <typename Derived>
 void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
    const mfem::FiniteElement &el_bnd,
    const mfem::FiniteElement &el_unused,
@@ -287,6 +368,29 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
       {
          res(i, s) += alpha*flux_face(s);
       }
+
+      // get the flux terms that are scaled by the test-function derivative
+      // (reuse Dwi here)
+      fluxDv(x, nrm, u_face, Dwi);
+      Dwi *= face_ip.weight;
+
+      // multiply flux_Dvi by the test-function derivative 
+      Dwi *= Hinv;
+      for (int j = 0; j < num_nodes; ++j)
+      {
+         // Get mapping Jacobian adjugate
+         trans.Elem1->SetIntPoint(&el_bnd.GetNodes().IntPoint(j));
+         CalcAdjugate(trans.Elem1->Jacobian(), adjJ_j);
+         for (int d = 0; d < dim; ++d)
+         {
+            double Qij = sbp.getQEntry(d, i, j, adjJ_i, adjJ_j);
+            for (int s = 0; s < num_states; ++s)
+            {
+               // Dwi(s,d) += Qij * wj(s);
+               res(j, s) += Qij * Dwi(s, d);
+            }
+         } // d loop
+      } // j loop
    } // k/i loop
 }
 
@@ -375,7 +479,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
       // get the normal vector to the face, and then compute the flux
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
-      //flux(x, nrm, jac_i, u_face, Dwi, flux_face);
+      //flux(x, nrm, jac_i, u_face, Dwi, flux_face, flux_Dvi);
       fluxJacState(x, nrm, jac_i, u_face, Dwi, jac_term);
       jac_term *= face_ip.weight;
 
@@ -419,5 +523,31 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
             }
          } // d loop
       } // j loop
+
+      // fluxDv(x, nrm, u_face, Dwi);
+      fluxDvJacState(x, nrm, u_face, fluxDw_jac);
+      // Dwi *= face_ip.weight;
+
+      // Add contribution due to flux that is scaled by test-function derivative
+      for (int j = 0; j < num_nodes; ++j)
+      {
+         // Get mapping Jacobian adjugate
+         trans.Elem1->SetIntPoint(&el_bnd.GetNodes().IntPoint(j));
+         CalcAdjugate(trans.Elem1->Jacobian(), adjJ_j);
+         for (int d = 0; d < dim; ++d)
+         {
+            double Dij = face_ip.weight * Hinv *
+                         sbp.getQEntry(d, i, j, adjJ_i, adjJ_j);
+            for (int si = 0; si < num_states; ++si)
+            {
+               for (int sj = 0; sj < num_states; ++sj)
+               {
+                  // res(j, s) += Qij * Dwi(s, d);
+                  elmat(sj * num_nodes + j, si * num_nodes + i) +=
+                      Dij * fluxDw_jac[d](sj, si);
+               }
+            }
+         } // d loop
+      }    // j loop
    } // k/i loop
 }

@@ -31,10 +31,24 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       nrm(di) = dir[di];
    }
 
-   SECTION( "Pressure function is correct" )
+   SECTION("Pressure function is correct")
    {
-      REQUIRE( mach::pressure<double,dim>(q.GetData()) == 
-               Approx(press_check[dim-1]) );
+      REQUIRE(mach::pressure<double, dim>(q.GetData()) ==
+              Approx(press_check[dim - 1]));
+   }
+
+   SECTION("Entropy function is correct")
+   {
+      REQUIRE(mach::entropy<double, dim>(q.GetData()) ==
+              Approx(entropy_check[dim - 1]));
+   }
+
+   SECTION("Entropy function is correct when using entropy variables")
+   {
+      mfem::Vector w(dim + 2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      REQUIRE(mach::entropy<double, dim, true>(w.GetData()) ==
+              Approx(entropy_check[dim - 1]));
    }
 
    SECTION( "Spectral radius of flux Jacobian is correct" )
@@ -113,14 +127,46 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       }
    }
 
+   SECTION( "Ismail-Roe face flux with dissipation is correct in given direction" )
+   {
+      // get flux from function
+      double diss_coeff = 1.0;
+      mach::calcIsmailRoeFaceFluxWithDiss<double, dim>(
+          nrm.GetData(), diss_coeff, q.GetData(), qR.GetData(), flux.GetData());
+      // evaluate the dissipation externally (since we cannot use fluxIR_check
+      // data here directly)
+      mfem::Vector wL(dim+2), wR(dim+2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
+      mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+      mfem::Vector q_avg(dim+2);
+      add(0.5, q, 0.5, qR, q_avg);
+      mfem::Vector dqdw(dim+2);
+      wL -= wR;
+      mach::calcdQdWProduct<double, dim>(q_avg.GetData(), wL.GetData(),
+                                         dqdw.GetData());
+      double spect = mach::calcSpectralRadius<double, dim>(nrm.GetData(),
+                                                           q_avg.GetData());
+
+      for (int i = 0; i < dim+2; ++i)
+      {
+         // get true flux by scaling fluxIR_check data
+         double fluxIR = 0.0;
+         for (int di = 0; di < dim; ++di)
+         {
+            fluxIR += fluxIR_check(i,di)*nrm(di);
+         }
+         REQUIRE( flux(i) - spect*dqdw(i) == Approx(fluxIR) );
+      }
+   }
+
    SECTION( "Ismail-Roe face flux (based on entropy vars) is correct in given direction" )
    {
       // get flux from function
       mfem::Vector wL(dim+2), wR(dim+2);
       mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
       mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
-      mach::calcIsmailRoeFaceFluxUsingEntVars<double, dim>(nrm.GetData(), wL.GetData(),
-                                               wR.GetData(), flux.GetData());
+      mach::calcIsmailRoeFaceFluxUsingEntVars<double, dim>(
+         nrm.GetData(), wL.GetData(), wR.GetData(), flux.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
          // get true flux by scaling fluxIR_check data
@@ -130,6 +176,39 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
             fluxIR += fluxIR_check(i,di)*nrm(di);
          }
          REQUIRE( flux(i) == Approx(fluxIR) );
+      }
+   }
+
+   SECTION( "Ismail-Roe face flux with dissipation (based on entropy vars) is correct in given direction" )
+   {
+      // get flux from function
+      mfem::Vector wL(dim+2), wR(dim+2);
+      mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
+      mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+      double diss_coeff = 1.0;
+      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
+          nrm.GetData(), diss_coeff, wL.GetData(), wR.GetData(), flux.GetData());
+
+      // evaluate the dissipation externally (since we cannot use fluxIR_check
+      // data here directly)
+      mfem::Vector q_avg(dim+2);
+      add(0.5, q, 0.5, qR, q_avg);
+      mfem::Vector dqdw(dim+2);
+      wL -= wR;
+      mach::calcdQdWProduct<double, dim>(q_avg.GetData(), wL.GetData(),
+                                         dqdw.GetData());
+      double spect = mach::calcSpectralRadius<double, dim>(nrm.GetData(),
+                                                           q_avg.GetData());
+
+      for (int i = 0; i < dim+2; ++i)
+      {
+         // get true flux by scaling fluxIR_check data
+         double fluxIR = 0.0;
+         for (int di = 0; di < dim; ++di)
+         {
+            fluxIR += fluxIR_check(i,di)*nrm(di);
+         }
+         REQUIRE( flux(i) - spect*dqdw(i) == Approx(fluxIR) );
       }
    }
 

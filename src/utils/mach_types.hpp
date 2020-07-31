@@ -6,10 +6,8 @@
 namespace mach
 {
 
-// Aliases that distinguish between serial and parallel types
-// Todo: Is this ok "polluting" the mach namespace with these aliases?
-// Todo: Should this go in a separate header file (e.g. "mach_types.hpp")?
-#ifdef MFEM_USE_MPI
+// Aliases for various mfem types.
+// Originally used to distinguish between serial and parallel types
 #ifdef MFEM_USE_PUMI
    using MeshType = mfem::ParMesh;
 #else
@@ -28,21 +26,6 @@ namespace mach
    using EMPrecType = mfem::HypreAMS;
    using EMPrecType2 = mfem::HypreBoomerAMG;
    using SolverType = CGType;
-#else
-   using MeshType = mfem::Mesh;
-   using SpaceType = mfem::FiniteElementSpace;
-   using LinearFormType = mfem::LinearForm;
-   using BilinearFormType = mfem::BilinearForm;
-   using NonlinearFormType = mfem::NonlinearForm;
-   using GridFunType = mfem::GridFunction;
-   using MatrixType = mfem::SparseMatrix;
-   using SmootherType = mfem::DSmoother;
-   using DiscLinOperatorType = mfem::DiscreteLinearOperator;
-   using MixedBilinearFormType = mfem::MixedBilinearForm;
-   using CGType = mfem::CGSolver;
-   using EMPrecType = mfem::GSSmoother;
-   using SolverType = mfem::CGSolver;
-#endif
 
 } // namespace mach
 

@@ -32,6 +32,24 @@ nlohmann::json material_library
       {"ke", -3.55555555555e-8},
       {"alpha", 1.0},
 	}},
+	{"regtestmat1",
+	{
+      {"mu_r", 1},
+      {"rho", 1},
+      {"cv", 1},
+      {"kappa", 1},
+      {"kappae", 1},
+      {"sigma", -1},
+	}},
+	{"regtestmat2",
+	{
+      {"mu_r", 1},
+      {"rho", 1},
+      {"cv", 1},
+      {"kappa", 1},
+      {"kappae", 1},
+      {"sigma", 1},
+	}},
 	{"steel", {
 		{"B",
 		{

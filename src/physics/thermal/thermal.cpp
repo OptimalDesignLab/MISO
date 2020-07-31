@@ -37,24 +37,7 @@ using namespace mfem;
 namespace mach
 {
 
-ThermalSolver::ThermalSolver(
-	 const std::string &opt_file_name,
-    std::unique_ptr<mfem::Mesh> smesh)
-	: AbstractSolver(opt_file_name, move(smesh))
-{
-   int dim = getMesh()->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
-
-   /// Create the H(Div) finite element collection for the representation the
-   /// magnetic flux density field in the thermal solver
-   h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create magnetic flux grid function
-   mag_field.reset(new GridFunType(h_div_space.get()));
-}
-
-ThermalSolver::ThermalSolver(nlohmann::json &options,
+ThermalSolver::ThermalSolver(const nlohmann::json &options,
                              std::unique_ptr<mfem::Mesh> smesh)
 	: AbstractSolver(options, move(smesh))
 {
@@ -85,13 +68,8 @@ void ThermalSolver::initDerived()
 	// /// Set static variables
 	// setStaticMembers();
 
-#ifdef MFEM_USE_MPI
    *out << "Number of finite element unknowns: "
        << fes->GlobalTrueVSize() << endl;
-#else
-   *out << "Number of finite element unknowns: "
-        << fes->GetNDofs() << endl;
-#endif
 
    //  ifstream material_file(options["material-lib-path"].get<string>());
 	// /// TODO: replace with mach exception
@@ -202,7 +180,7 @@ void ThermalSolver::initDerived()
 	// func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
 	// /// pass through aggregation parameters for functional
 	// does not include dJdu calculation, need AddOutputs for that
-	if(rhoa != 0)
+	if (rhoa != 0)
 	{
 		funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
 	}
@@ -324,13 +302,9 @@ void ThermalSolver::solveUnsteady()
 			cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
       }
-#ifdef MFEM_USE_MPI
 		HypreParVector *TV = u->GetTrueDofs();
 		ode_solver->Step(*TV, t, dt_real);
 		*u = *TV;
-#else
-		ode_solver->Step(*u, t, dt_real);
-#endif
 
 		// compute functional
 		if (rhoa != 0)
@@ -591,15 +565,9 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 	// Step 1: get the right-hand side vector, dJdu, and make an appropriate
    // alias to it, the state, and the adjoint
    std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
-#ifdef MFEM_USE_MPI
    HypreParVector *state = u->GetTrueDofs();
    HypreParVector *dJ = dJdu->GetTrueDofs();
    HypreParVector *adjoint = adj->GetTrueDofs();
-#else
-   GridFunType *state = u.get();
-   GridFunType *dJ = dJdu.get();
-   GridFunType *adjoint = adj.get();
-#endif
    double energy = output.at(fun).GetEnergy(*u);
 	output.at(fun).Mult(*state, *dJ);
 	cout << "Last Functional Output: " << energy << endl;
@@ -629,9 +597,7 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
    solver->Mult(*dJ, *adjoint);
    adjoint->Set(dt_real_, *adjoint);
-#ifdef MFEM_USE_MPI
    adj->SetFromTrueDofs(*adjoint);
-#endif
    if (0==rank)
    {
       time_end = MPI_Wtime();
@@ -657,7 +623,14 @@ void ThermalSolver::constructCoefficients()
    constructCore();
 }
 
-void ThermalSolver::addMassVolumeIntegrators()
+void ThermalSolver::constructForms()
+{
+	mass.reset(new BilinearFormType(fes.get()));
+	stiff.reset(new BilinearFormType(fes.get()));
+	load.reset(new LinearFormType(fes.get()));
+}
+
+void ThermalSolver::addMassIntegrators(double alpha)
 {
 	mass->AddDomainIntegrator(new MassIntegrator(*rho_cv));
 }
@@ -677,7 +650,15 @@ void ThermalSolver::addLoadVolumeIntegrators(double alpha)
 
 void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 {
-	flux_coeff.reset(new VectorFunctionCoefficient(3, fluxFunc));
+
+	//determine type of flux function
+	if(options["outflux-type"].template get<string>() == "test")
+	{
+		flux_coeff.reset(new VectorFunctionCoefficient(3, testFluxFunc));
+	}
+	else
+		throw MachException("Specified flux function not supported!\n");
+
 	auto &bcs = options["bcs"];
 	bndry_marker.resize(bcs.size());
 	int idx = 0;
@@ -713,10 +694,12 @@ void ThermalSolver::constructEvolver()
    evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), stiff.get(), load.get(), *out,
 												0.0, flux_coeff.get()));
 	evolver->SetLinearSolver(solver.get());
+   if (newton_solver == nullptr)
+      constructNewtonSolver();
    evolver->SetNewtonSolver(newton_solver.get());
 }
 
-void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
+void ThermalSolver::testFluxFunc(const Vector &x, double time, Vector &y)
 {
 	y.SetSize(3);
 	//use constant in time for now
@@ -731,7 +714,6 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 	else
 	{
 		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
-		//cout << "outflux val = " << y(0) << std::endl;
 	}
 
 	y(1) = 0;
@@ -748,19 +730,15 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
 										 BilinearFormType *stiff,
-                  				 LinearFormType *load,
+										 LinearFormType *load,
 										 std::ostream &outstream,
-                  				 double start_time,
+										 double start_time,
 										 mfem::VectorCoefficient *_flux_coeff)
-	: ImplicitLinearEvolver(ess_bdr, mass, stiff, -1.0, load, outstream, start_time),
-	  flux_coeff(_flux_coeff), work(height)
+	 : MachEvolver(ess_bdr, nullptr, mass, nullptr, stiff, load, nullptr,
+						outstream, start_time),
+		flux_coeff(_flux_coeff), work(height)
 {
-#ifdef MFEM_USE_MPI
    mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-#else
-   mass->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-#endif
-
 	// mass->FormSystemMatrix(ess_tdof_list, mMat);
    // stiff->FormSystemMatrix(ess_tdof_list, kMat);
 };
@@ -777,7 +755,7 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 	stiff->Mult(x, work);
 	work += *load;
    mass_solver.Mult(work, y);
-	y *= alpha;
+	y *= -1.0;
 }
 
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,

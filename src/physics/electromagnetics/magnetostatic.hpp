@@ -17,9 +17,7 @@ public:
 	/// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
-   /// \todo Can we infer dim some other way without using a template param?
-   MagnetostaticSolver(const std::string &opt_file_name,
+   MagnetostaticSolver(const nlohmann::json &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Write the mesh and solution to a vtk file
@@ -98,7 +96,7 @@ private:
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   void addVolumeIntegrators(double alpha) override;
+   void addResVolumeIntegrators(double alpha) override;
 
    /// mark which boundaries are essential
    void setEssentialBoundaries() override;
@@ -228,6 +226,10 @@ private:
    static void a_exact(const mfem::Vector &x, mfem::Vector &A);
 
    static void b_exact(const mfem::Vector &x, mfem::Vector &B);
+
+   friend SolverPtr createSolver<MagnetostaticSolver>(
+       const nlohmann::json &opt_file_name,
+       std::unique_ptr<mfem::Mesh> smesh);
 };
 
 } // namespace mach

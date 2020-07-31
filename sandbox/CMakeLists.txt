@@ -18,10 +18,12 @@ set(SANDBOX_SRCS
    steady_vortex_adjoint
    unsteady_vortex
    viscous_shock
+   airfoil_steady
    airfoil_chaotic
    magnetostatic_box
    magnetostatic_motor
    magnetostatic_wire
+   navier_stokes_mms
    thermal_square
    joule_wire
 )

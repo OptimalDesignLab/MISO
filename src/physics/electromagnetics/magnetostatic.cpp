@@ -39,9 +39,9 @@ namespace mach
 {
 
 MagnetostaticSolver::MagnetostaticSolver(
-   const std::string &opt_file_name,
+   const nlohmann::json &json_options,
    std::unique_ptr<mfem::Mesh> smesh)
-   : AbstractSolver(opt_file_name, move(smesh))
+   : AbstractSolver(json_options, move(smesh))
 {
    dim = getMesh()->Dimension();
    int order = options["space-dis"]["degree"].get<int>();
@@ -160,7 +160,7 @@ void MagnetostaticSolver::constructCoefficients()
    constructReluctivity();
 }
 
-void MagnetostaticSolver::addVolumeIntegrators(double alpha)
+void MagnetostaticSolver::addResVolumeIntegrators(double alpha)
 {
    /// TODO: Add a check in `CurlCurlNLFIntegrator` to check if |B| is close to
    ///       zero, and if so set the second term of the Jacobian to be zero.

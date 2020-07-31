@@ -78,6 +78,10 @@ public:
 
    void convertVarsJacState(const mfem::Vector &u, mfem::DenseMatrix &dwdu) {}
 
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       double jac, const mfem::Vector &u,
+                       const mfem::DenseMatrix &Dw) {}
+
    /// Compute Laplace natural boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -97,6 +101,17 @@ public:
       }
    }
 
+   /// Compute boundary fluxes that are scaled by test function derivative
+   /// \param[in] x - coordinate location at which fluxes are evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] u - state at which to evaluate the flux
+   /// \param[out] flux_mat - `flux_mat[:,di]` to be scaled by `D_[di] v` 
+   void calcFluxDv(const mfem::Vector &x, const mfem::Vector &dir,
+               const mfem::Vector &u, mfem::DenseMatrix &flux_mat)
+   {
+      flux_mat = 0.0;
+   }
+
    void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
                          double jac, const mfem::Vector &q,
                          const mfem::DenseMatrix &Dw,
@@ -106,6 +121,10 @@ public:
                       double jac, const mfem::Vector &q,
                       const mfem::DenseMatrix &Dw,
                       std::vector<mfem::DenseMatrix> &flux_jac) {}
+
+   void calcFluxDvJacState(const mfem::Vector &x, const mfem::Vector dir, 
+                           const mfem::Vector &u,
+                           std::vector<mfem::DenseMatrix> &flux_jac) {}
 };
 
 /// Implements a source for verifying the viscous terms

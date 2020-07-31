@@ -9,6 +9,7 @@
 #include "mfem.hpp"
 
 #include "mach_types.hpp"
+#include "utils.hpp"
 
 #ifdef MFEM_USE_PUMI
 namespace apf
@@ -70,7 +71,7 @@ public:
 
    /// Perform set-up of derived classes using virtual functions
    /// \todo Put the constructors and this in a factory
-   void initDerived();
+   virtual void initDerived();
 
    /// class destructor
    virtual ~AbstractSolver();
@@ -93,7 +94,7 @@ public:
 
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - vector that defines the initial condition
-   virtual void setInitialCondition(const mfem::Vector &uic); 
+   virtual void setInitialCondition(const mfem::Vector &uic);
 
    /// TODO move to protected?
    /// Returns the integral inner product between two grid functions
@@ -132,10 +133,16 @@ public:
                       void (*u_exact)(const mfem::Vector &, mfem::Vector &),
                       int entry = -1);
 
-   /// Find the gobal step size for the given CFL number
-   /// \param[in] cfl - target CFL number for the domain
-   /// \returns dt_min - the largest step size for the given CFL
-   virtual double calcStepSize(double cfl) const;
+   /// Find the step size based on the options
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt_old - the step size that was just taken
+   /// \returns dt - the step size appropriate to the problem
+   /// This base method simply returns the option in ["time-dis"]["dt"],
+   /// truncated as necessary such that `t + dt = t_final`.
+   virtual double calcStepSize(int iter, double t, double t_final,
+                               double dt_old) const;
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -199,7 +206,17 @@ public:
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
-   double calcResidualNorm();
+   double calcResidualNorm() const;
+   
+   /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
+   void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
+
+   /// Return the output map
+   std::map<std::string, NonlinearFormType> GetOutput() const { return output; }
+
+   /// convert conservative variables to entropy variables
+   /// \param[in/out] state - the conservative/entropy variables
+   //virtual void convertToEntvar(mfem::Vector &state) { };
 
    /// Return a pointer to the solver's mesh
    MeshType* getMesh() {return mesh.get();}
@@ -210,10 +227,8 @@ public:
 #endif
 
 protected:
-#ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication
    MPI_Comm comm;
-#endif
    /// process rank
    int rank;
    /// print object
@@ -228,16 +243,22 @@ protected:
    double dt;
    /// final time
    double t_final;
+   
+   //--------------------------------------------------------------------------
+   // Members associated with the mesh
+   /// object defining the mfem computational mesh
+   std::unique_ptr<MeshType> mesh;
 #ifdef MFEM_USE_PUMI
    /// pumi mesh object
    // apf::Mesh2* pumi_mesh;
    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
 #endif
+
+   //--------------------------------------------------------------------------
+   // Members associated with fields
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
-   /// object defining the computational mesh
-   std::unique_ptr<MeshType> mesh;
-   /// discrete function space
+   /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
@@ -245,27 +266,34 @@ protected:
    std::unique_ptr<GridFunType> adj;
    /// derivative of L = J + psi^T res, with respect to mesh nodes
    std::unique_ptr<GridFunType> dLdX;
-   /// the spatial residual (a semilinear form)
-   std::unique_ptr<NonlinearFormType> res;
-   /// derivative of psi^T res w.r.t the mesh nodes
-   std::unique_ptr<NonlinearFormType> res_mesh_sens;
-   /// time-marching method (might be NULL)
-   std::unique_ptr<mfem::ODESolver> ode_solver;
+
+   //--------------------------------------------------------------------------
+   // Members associated with forms
+   /// the nonlinear form evaluate the mass matrix
+   std::unique_ptr<NonlinearFormType> nonlinear_mass;
    /// the mass matrix bilinear form
    std::unique_ptr<BilinearFormType> mass;
-   /// mass matrix
-   std::unique_ptr<MatrixType> mass_matrix;
+   /// the spatial residual (a semilinear form)
+   std::unique_ptr<NonlinearFormType> res;
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
-   /// the stiffness matrix (linear components of the total jacobian)
-   std::unique_ptr<MatrixType> stiffness_matrix;
    /// the load vector linear form
    std::unique_ptr<LinearFormType> load;
+   /// entropy/energy that is needed for RRK methods
+   std::unique_ptr<NonlinearFormType> ent;
 
-   /// the operator used for time-marching ODEs 
-   std::unique_ptr<MachEvolver> evolver;
+   /// derivative of psi^T res w.r.t the mesh nodes
+   std::unique_ptr<NonlinearFormType> res_mesh_sens;
+
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
+
+   //--------------------------------------------------------------------------
+   // Members associated with time marching (and Newton's method)
+   /// time-marching method (might be NULL)
+   std::unique_ptr<mfem::ODESolver> ode_solver;
+   /// the operator used for time-marching ODEs 
+   std::unique_ptr<MachEvolver> evolver;
 
    /// newton solver for the steady problem
    std::unique_ptr<mfem::NewtonSolver> newton_solver;
@@ -273,6 +301,9 @@ protected:
    std::unique_ptr<mfem::Solver> solver;
    /// linear system preconditioner for solver in newton solver and adjoint
    std::unique_ptr<mfem::Solver> prec;
+
+   //--------------------------------------------------------------------------
+   // Members associated with boundary conditions and outputs
    /// Array that marks boundaries as essential
    mfem::Array<int> ess_bdr;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
@@ -282,51 +313,68 @@ protected:
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
 
+   //--------------------------------------------------------------------------
+
    /// Construct PUMI Mesh
    void constructPumiMesh();
 
    /// Construct various coefficients
    virtual void constructCoefficients() {};
 
-   /// Add volume integrators to `mass`
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
-   virtual void addMassVolumeIntegrators();
+   /// Initialize all forms needed by the derived class
+   /// \note Derived classes must allocate the forms they need to use.  Only
+   /// allocated forms will have integrators added to them.
+   virtual void constructForms()
+   {
+      throw MachException("constructForms() not defined by derived class!");
+   };
+
+   /// Add domain integrators to `mass`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addMassIntegrators(double alpha);
+
+   /// Add domain integrators to `nonlinear_mass`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addNonlinearMassIntegrators(double alpha) {};
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addVolumeIntegrators(double alpha) {};
+   virtual void addResVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addBoundaryIntegrators(double alpha) {};
+   virtual void addResBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addInterfaceIntegrators(double alpha) {};
+   virtual void addResInterfaceIntegrators(double alpha) {};
 
    /// Add volume integrators to `stiff`
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addStiffVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `stiff`
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addStiffBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `stiff`
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addStiffInterfaceIntegrators(double alpha) {};
 
    /// Add volume integrators to 'load'
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadVolumeIntegrators(double alpha) {};
 
    /// Add boundary-face integrators to `load'
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadBoundaryIntegrators(double alpha) {};
 
    /// Add interior-face integrators to `load'
-   /// \param[in] alpha - scales the data; used to move terms to the rhs or lhs
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadInterfaceIntegrators(double alpha) {};
+
+   /// Add volume integrators for `ent`
+   virtual void addEntVolumeIntegrators() {};
 
    /// mark which boundaries are essential
    virtual void setEssentialBoundaries();
@@ -343,6 +391,27 @@ protected:
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady();
    
+   /// For code that should be executed before the time stepping begins
+   virtual void initialHook() {};
+
+   /// For code that should be executed before `ode_solver->Step`
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   virtual void iterationHook(int iter, double t, double dt) {};
+
+   /// Determines when to exit the time stepping loop
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (after the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt - the step size that was just taken
+   virtual bool iterationExit(int iter, double t, double t_final, double dt);
+
+   /// For code that should be executed after the time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   virtual void terminalHook(int iter, double t_final) {};
+      
    /// Solve for a steady adjoint
    /// \param[in] fun - specifies the functional corresponding to the adjoint
    virtual void solveSteadyAdjoint(const std::string &fun);
@@ -350,6 +419,9 @@ protected:
    /// Solve for an unsteady adjoint
    /// \param[in] fun - specifies the functional corresponding to the adjoint
    virtual void solveUnsteadyAdjoint(const std::string &fun);
+
+   /// TODO: What is this doing here?
+   void (*pert)(const mfem::Vector &, mfem::Vector &);
 
    /// Constuct the linear system solver
    /// \note solver and preconditioner chosen based on options
@@ -382,6 +454,36 @@ private:
                  std::unique_ptr<mfem::Mesh> smesh);
 
 };
+
+using SolverPtr = std::unique_ptr<AbstractSolver>;
+
+/// Creates a new `DerivedSolver` and initializes it
+/// \param[in] json_options - json object that stores options
+/// \param[in] smesh - if provided, defines the mesh for the problem
+/// \tparam DerivedSolver - a derived class of `AbstractSolver`
+template <class DerivedSolver>
+SolverPtr createSolver(const nlohmann::json &json_options,
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+{
+   //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
+   SolverPtr solver(new DerivedSolver(json_options, move(smesh)));
+   solver->initDerived();
+   return solver;
+}
+
+/// Creates a new `DerivedSolver` and initializes it
+/// \param[in] opt_file_name - file where options are stored
+/// \param[in] smesh - if provided, defines the mesh for the problem
+/// \tparam DerivedSolver - a derived class of `AbstractSolver`
+template <class DerivedSolver>
+SolverPtr createSolver(const std::string &opt_file_name,
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+{
+   nlohmann::json json_options;
+   std::ifstream options_file(opt_file_name);
+   options_file >> json_options;
+   return createSolver<DerivedSolver>(json_options, move(smesh));
+}
 
 } // namespace mach
 

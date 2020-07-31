@@ -9,6 +9,8 @@ target_sources(mach
       evolver.hpp
       inexact_newton.cpp
       inexact_newton.hpp
+      mfem_extensions.cpp
+      mfem_extensions.hpp
       orthopoly.cpp
       orthopoly.hpp
       pfem_extras.cpp

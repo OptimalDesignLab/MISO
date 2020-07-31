@@ -19,7 +19,6 @@ public:
                   double ared_scale=1e-4)
       : eta(eta_init), eta_max(eta_maximum), t(ared_scale) {}
 
-#ifdef MFEM_USE_MPI
    /// Constructor for Inexact Newton Solver
    /// \param[in] comm - a MPI communicator
    /// \param[in] eta_init - initial value of eta, the forcing parameter
@@ -31,26 +30,25 @@ public:
                double eta_maximum = 1e-1, double ared_scale = 1e-4)
       : NewtonSolver(comm), eta(eta_init), eta_max(eta_maximum),
         t(ared_scale) {}
-#endif
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`
-   virtual void SetOperator(const mfem::Operator &op);
+   virtual void SetOperator(const mfem::Operator &op) override;
 
    /// Solve the nonlinear system with right-hand side b
    /// \param[in] b - the right-hand side vector (can be zero)
    /// \param[in] x - intial "guess" for solution
-   virtual void Mult(const mfem::Vector &b, mfem::Vector &x);
+   virtual void Mult(const mfem::Vector &b, mfem::Vector &x) const override;
 
    mfem::Solver *GetSolver(){return prec;}
 
 protected:
    /// Jacobian of the nonlinear operator; needed by ComputeStepSize();
-   Operator *jac;
+   mutable Operator *jac;
    /// member vector saves the new x position.
    mutable mfem::Vector x_new;
    /// Parameters for inexact newton method.
-   double eta, eta_max, t;
+   mutable double eta, eta_max, t;
    const double theta_min = 0.1;
    const double theta_max = 0.5;
 
@@ -67,7 +65,7 @@ private:
    /// \note See Pawlowski et al., doi:10.1137/S0036144504443511 for details
    /// regarding the line search method and its parameters.
    double ComputeStepSize(const mfem::Vector &x, const mfem::Vector &b, 
-                          const double norm);
+                          const double norm) const;
 };
 
 } // namespace mfem
