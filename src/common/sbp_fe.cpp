@@ -169,12 +169,12 @@ double SBPFiniteElement::getQEntry(int di, int i, int j,
 
 void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
 {
-   MFEM_ASSERT( P.Size() == Dof, "");
+   MFEM_ASSERT( P.Size() == dof, "");
    // Set lps = I - V*V'*H
    MultAAt(V, P);
    P.RightScaling(H);
    P *= -1.0;
-   for (int i = 0; i < Dof; ++i)
+   for (int i = 0; i < dof; ++i)
    {
       P(i, i) += 1.0;
    }
@@ -182,8 +182,8 @@ void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
 
 double SBPFiniteElement::getProjOperatorEntry(int i, int j) const
 {
-   MFEM_ASSERT( i < Dof, "");
-   MFEM_ASSERT( j < Dof, "");
+   MFEM_ASSERT( i < dof, "");
+   MFEM_ASSERT( j < dof, "");
    double Pij = (i == j) ? 1.0 : 0.0;
    // loop over the polynomial basis functions
    for (int k = 0; k < V.Width(); ++k)
@@ -361,7 +361,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
    getNodeCoords(0, xi);
    xi *= 2.0;
    xi -= 1.0;
-   mach::getVandermondeForSeg(xi, Order, V);
+   mach::getVandermondeForSeg(xi, order, V);
    // scale V to account for the different reference elements
    V *= sqrt(2.0);
 }
@@ -384,7 +384,7 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
    // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap,
    // and an out_of_range error is thrown.
    {
-      // This projects the SBP "basis" onto the degree = Order orthogonal polys;
+      // This projects the SBP "basis" onto the degree = order orthogonal polys;
       // Such an approach is fine if LPS is used, but it will eliminate high
       // frequencey modes that may be present in the true solution.  It has
       // the advantage of being fast and not requiring a min-norm solution.
@@ -393,7 +393,7 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
       xvec(0) = 2 * ip.x - 1;
       int ptr = 0;
       shape = 0.0;
-      for (int i = 0; i <= Order; ++i)
+      for (int i = 0; i <= order; ++i)
       {
          mach::jacobiPoly(xvec, 0.0, 0.0, i, poly);
          poly *= 2.0; // scale to mfem reference element
@@ -430,7 +430,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
    // index.
    {
       double tol = 1e-12;
-      for (int i = 0; i < Dof; i++)
+      for (int i = 0; i < dof; i++)
       {
          double delta_x = ip.x - Nodes.IntPoint(i).x;
          if (fabs(delta_x) < tol)
@@ -442,7 +442,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
    }
    // TODO: I think we can make tempVec an empty Vector, since it is just a reference
    dshape = 0.0;
-   Vector tempVec(Dof);
+   Vector tempVec(dof);
    Q[0].GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(0, tempVec);
    dshape.InvLeftScaling(H);
@@ -490,7 +490,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 // void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
 //                                   Vector &shape) const
 // {
-//    const int p = Order;
+//    const int p = order;
 
 // #ifdef MFEM_THREAD_SAFE
 //    Vector shape_x(p+2);
@@ -527,7 +527,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 // void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 //                                    DenseMatrix &dshape) const
 // {
-//    const int p = Order;
+//    const int p = order;
 
 // #ifdef MFEM_THREAD_SAFE
 //    Vector shape_x(p+2), dshape_x(p+2);
@@ -564,7 +564,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 // Leftover function from H1_Segment element
 // void SBPSegmentElement::ProjectDelta(int vertex, Vector &dofs) const
 // {
-//    const int p = Order;
+//    const int p = order;
 //    const double *cp = poly1d.ClosedPoints(p, b_type);
 
 //    switch (vertex)
@@ -707,12 +707,12 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    }
 
    // populate unordered_map with mapping from IntPoint address to index
-   for (int i = 0; i < Dof; i++)
+   for (int i = 0; i < dof; i++)
    {
       ipIdxMap[&(Nodes.IntPoint(i))] = i;
    }
 
-   for (int i = 0; i < Dof; i++)
+   for (int i = 0; i < dof; i++)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(i);
       H(i) = ip.weight;
@@ -730,7 +730,7 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    xi -= 1.0;
    eta *= 2.0;
    eta -= 1.0;
-   mach::getVandermondeForTri(xi, eta, Order, V);
+   mach::getVandermondeForTri(xi, eta, order, V);
    // scale V to account for the different reference elements
    V *= 2.0;
 }
@@ -753,7 +753,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
    // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap,
    // and an out_of_range error is thrown.
    {
-      // This projects the SBP "basis" onto the degree = Order orthogonal polys;
+      // This projects the SBP "basis" onto the degree = order orthogonal polys;
       // Such an approach is fine if LPS is used, but it will eliminate high
       // frequencey modes that may be present in the true solution.  It has
       // the advantage of being fast and not requiring a min-norm solution.
@@ -764,7 +764,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
       yvec(0) = 2 * ip.y - 1;
       int ptr = 0;
       shape = 0.0;
-      for (int r = 0; r <= Order; ++r)
+      for (int r = 0; r <= order; ++r)
       {
          for (int j = 0; j <= r; ++j)
          {
@@ -804,7 +804,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    // index.
    {
       double tol = 1e-12;
-      for (int i = 0; i < Dof; i++)
+      for (int i = 0; i < dof; i++)
       {
          double delta_x = ip.x - Nodes.IntPoint(i).x;
          double delta_y = ip.y - Nodes.IntPoint(i).y;
@@ -817,7 +817,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    }
    dshape = 0.0;
 
-   Vector tempVec(Dof);
+   Vector tempVec(dof);
    Q[0].GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(0, tempVec);
    Q[1].GetColumnReference(ipIdx, tempVec);
