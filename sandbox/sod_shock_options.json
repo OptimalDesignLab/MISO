@@ -8,7 +8,7 @@
       "degree": 1,
       "lps-coeff": 1.0,
       "iface-coeff": 1.0,
-      "basis-type": "H1"
+      "basis-type": "csbp"
    },
    "bcs": {
       "sod-shock-left": [1, 0],

@@ -51,9 +51,10 @@ int main(int argc, char *argv[])
 #endif
    // Parse command-line options
    OptionsParser args(argc, argv);
-   
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
+   int nx = 50;
+   args.AddOption(&nx, "-nx", "--num-elem", "number of elements");
    args.Parse();
    if (!args.Good())
    {
@@ -63,14 +64,21 @@ int main(int argc, char *argv[])
 
    try
    {
+      // construct the mesh
+      unique_ptr<Mesh> smesh(new Mesh(nx)); 
+      mfem::out << "Number of elements " << smesh->GetNE() <<'\n';
+
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      auto solver = createSolver<EulerSolver<1, entvar>>(opt_file_name, nullptr);
+      //auto solver = createSolver<EulerSolver<1, entvar>>(opt_file_name, nullptr);
+      auto solver = createSolver<EulerSolver<1, entvar>>(opt_file_name,
+                                                         move(smesh));
       solver->setInitialCondition(u0_function);
       solver->PrintSodShock("sod_shock_init");
       mfem::out << "Initial condition is set.\n";
-      mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver->calcL2Error(u0_function) << '\n' << endl;      
+      mfem::out << "\n|| u_h - u ||_{L^2} = "
+                << solver->calcL2Error(u0_function) << '\n'
+                << endl;
       solver->solveForState();
       solver->PrintSodShock("sod_shock_final");
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
@@ -108,12 +116,12 @@ void u0_function(const Vector &x, Vector& q)
    }
    else
    {
-      // u0(0) = 1.0/8.0;
-      // u0(1) = 0.0;
-      // u0(2) = 0.1/euler::gami + 0.5/u0(0) * u0(1) * u0(1);
-      u0(0) = 1.0;
+      u0(0) = 1.0/8.0;
       u0(1) = 0.0;
-      u0(2) = 1.0/euler::gami + 0.5/u0(0) * u0(1) * u0(1);
+      u0(2) = 0.1/euler::gami + 0.5/u0(0) * u0(1) * u0(1);
+      //u0(0) = 1.0;
+      //u0(1) = 0.0;
+      //u0(2) = 1.0/euler::gami + 0.5/u0(0) * u0(1) * u0(1);
    }
 
    if (entvar == false)

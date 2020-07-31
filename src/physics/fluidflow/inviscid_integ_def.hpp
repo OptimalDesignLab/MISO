@@ -473,18 +473,19 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
       int j = sbp.getIntegrationPointIndex(el_ip);
       u.GetRow(j, u_face);
 
-      // get the normal vector and the flux on the face
-      trans.Face->SetIntPoint(&face_ip);
+      // get the flux on the face
       if (1 == dim)
       {
-         nrm(0) = 2 *  el_ip.x - 1.0;
+         nrm(0) = 2 * el_ip.x - 1.0;
+         flux(x, nrm, u_face, flux_face);
       }
       else
       {
          CalcOrtho(trans.Face->Jacobian(), nrm);
+         flux(x, nrm, u_face, flux_face);
+         trans.Face->SetIntPoint(&face_ip);
+         flux_face *= face_ip.weight;
       }
-      flux(x, nrm, u_face, flux_face);
-      flux_face *= face_ip.weight;
 
       // multiply by test function
       for (int n = 0; n < num_states; ++n)
@@ -541,21 +542,20 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
       int j = sbp.getIntegrationPointIndex(el_ip);
       u.GetRow(j, u_face);
 
-      // get the normal vector and the flux Jacobian on the face
-      trans.Face->SetIntPoint(&face_ip);
+      // get the flux Jacobian on the face
       if (1 == dim)
       {
          nrm(0) = 2 * el_ip.x - 1.0;
+         fluxJacState(x, nrm, u_face, flux_jac_face);
       }
       else
       {
          CalcOrtho(trans.Face->Jacobian(), nrm);
+         // flux(x, nrm, u_face, flux_face);
+         fluxJacState(x, nrm, u_face, flux_jac_face);
+         trans.Face->SetIntPoint(&face_ip);
+         flux_jac_face *= face_ip.weight;
       }
-      // flux(x, nrm, u_face, flux_face);
-      fluxJacState(x, nrm, u_face, flux_jac_face);
-
-      // flux_face *= face_ip.weight;
-      flux_jac_face *= face_ip.weight;
 
       // multiply by test function
       for (int n = 0; n < num_states; ++n)
