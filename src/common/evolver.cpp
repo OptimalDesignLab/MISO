@@ -175,7 +175,7 @@ MachEvolver::MachEvolver(
          mass.Reset(_mass, false);
          mass_prec.reset(new OperatorJacobiSmoother(*_mass, ess_tdof_list));
       }
-      else if (mass_assem == AssemblyLevel::FULL)
+      else if (mass_assem == AssemblyLevel::LEGACYFULL)
       {
          mass.Reset(_mass->ParallelAssemble(), true);
          mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
