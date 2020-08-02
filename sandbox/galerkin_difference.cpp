@@ -27,6 +27,7 @@ using namespace mach;
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void uexact(const mfem::Vector &x, mfem::Vector &u);
+void uexact_1d(const mfem::Vector &x, mfem::Vector &u);
 void uexact_single(const mfem::Vector &x, mfem::Vector &u);
 void upoly(const mfem::Vector &x, mfem::Vector &u);
 
@@ -84,18 +85,11 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs, 0);
       sol_ofs.close();
       mfem::Mesh *mesh = new Mesh(*smesh);
+      // mfem::Mesh *mesh = new Mesh(nx);
       dim = mesh->Dimension();
-      // for(int degree = 0; degree < 4; degree++)
-      // {
-      //    GalerkinDifference gd(degree, pumi_mesh, fec.get(), 1, Ordering::byVDIM);
-      //    gd.BuildGDProlongation();
-      //    mfem::GridFunction x(&gd);
-      //    mfem::GridFunction x_exact(&gd);
-
-      // }
 
       cout << "Construct the GD fespace.\n";
-      DSBPCollection fec(degree, dim);
+      DSBPCollection fec(p, dim);
       GalerkinDifference gd(mesh, &fec, 1, Ordering::byVDIM, p);
       //GalerkinDifference gd(degree, pumi_mesh, 1, Ordering::byVDIM);
       cout << "Now build the prolongation matrix.\n";
@@ -264,6 +258,16 @@ void uexact_single(const mfem::Vector &x, mfem::Vector &u)
    u(0) = x(0);
    //u(0) = x(0) * x (0) - 7.0 * x(0) + 3.0;
 }
+
+void uexact_1d(const mfem::Vector &x, mfem::Vector &u)
+{
+   u(0) = 0;
+   for (int i = 2; i >= 0; i--)
+   {
+      u(0) += pow(x(0), i);
+   }
+}
+
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {

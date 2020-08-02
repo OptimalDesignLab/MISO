@@ -111,7 +111,7 @@ void AbstractSolver::initDerived()
       fes_normal.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                               Ordering::byVDIM));
       uc.reset(new CentGridFunction(fes.get()));
-      u.reset(new GridFunType(fes.get()));
+      u.reset(new GridFunType(fes_normal.get()));
    }
    else
    {
@@ -149,7 +149,6 @@ void AbstractSolver::initDerived()
    bndry_marker.resize(bcs.size()); // need to set this before next method
    addBoundaryIntegrators(alpha);
    addInterfaceIntegrators(alpha);
-
    // This just lists the boundary markers for debugging purposes
    if (0 == rank)
    {
@@ -1001,4 +1000,42 @@ void AbstractSolver::checkJacobian(
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
+void AbstractSolver::PrintSodShock(const std::string &file_name)
+{
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
+   ofstream write_value(file_name+"_u.txt");
+   write_value.precision(14);
+   ofstream write_coord(file_name+"_coord.txt");
+   write_coord.precision(14);
+   //u->Print(write_value, 3);
+   mfem::Vector quad_coord(1);
+   mfem::Array<int> vdofs;
+   ElementTransformation *eltransf;
+   const FiniteElement *fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+   const int num_dofs = fe->GetDof();
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      eltransf = mesh->GetElementTransformation(i);
+      fes->GetElementVDofs(i, vdofs);
+      // for (int s = 0; s < vdofs.Size(); s++)
+      // {
+      //    std::cout << vdofs[s] << ' ';
+      // }
+      // std::cout << std::endl;
+      for(int j = 0; j < num_dofs; j++)
+      {
+         eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
+         write_coord << quad_coord(0) << std::endl;
+
+         for(int k = 0; k < num_state; k++)
+         {
+            write_value << (*u)(vdofs[k*num_dofs + j]) << ' ';
+         }
+         write_value << std::endl;
+      }
+   }
+
+   write_coord.close();
+   write_value.close();
+}
 } // namespace mach

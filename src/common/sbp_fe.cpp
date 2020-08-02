@@ -816,7 +816,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
 SBPCollection::SBPCollection(const int p, const int dim)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
-   MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
+   //MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
 
    snprintf(SBPname, 32, "SBP_%dD_P%d", dim, p);
 
@@ -971,7 +971,7 @@ SBPCollection::~SBPCollection()
 DSBPCollection::DSBPCollection(const int p, const int dim)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
-   MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
+   //MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
    snprintf(DSBPname, 32, "DSBP_%dD_P%d", dim, p);
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
@@ -985,7 +985,6 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
    if (dim >= 1 )
    {
       DSBPdof[Geometry::POINT] = 0;
-      DSBPdof[Geometry::SEGMENT] = 0;
 
       DSBPElements[Geometry::POINT] = new PointFiniteElement;
       DSBPElements[Geometry::SEGMENT] = new SBPSegmentElement(p);
@@ -1005,6 +1004,7 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
       switch (p)
       {
          case 0:
+            DSBPdof[Geometry::SEGMENT] = 2;
             SegDofOrd[0] = new int[p];
             SegDofOrd[1] = new int[p];
             for (int i = 0; i < p; i++)
@@ -1014,6 +1014,7 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
             }
             break;
          case 1:
+            DSBPdof[Geometry::SEGMENT] = 3;
             SegDofOrd[0] = new int[p];
             SegDofOrd[1] = new int[p];
             for (int i = 0; i < p; i++)
@@ -1023,6 +1024,7 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
             }
             break;
          case 2:
+            DSBPdof[Geometry::SEGMENT] = 4;
             SegDofOrd[0] = new int[p];
             SegDofOrd[1] = new int[p];
             for (int i = 0; i < p; i++)
@@ -1032,6 +1034,7 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
             }
             break;
          case 3:
+            DSBPdof[Geometry::SEGMENT] = 5;
             SegDofOrd[0] = new int[p];
             SegDofOrd[1] = new int[p];
             for (int i = 0; i < p; i++)
@@ -1041,6 +1044,7 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
             }
             break;
          case 4:
+            DSBPdof[Geometry::SEGMENT] = 6;
             SegDofOrd[0] = new int[p];
             SegDofOrd[1] = new int[p];
             for (int i = 0; i < p; i++)
@@ -1059,6 +1063,8 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
    // two dimensional sbp triangle element
    if (dim >= 2)
    {
+      DSBPdof[Geometry::POINT] = 0;
+      DSBPdof[Geometry::SEGMENT] = 0;
       switch (p)
       {
          case 0:

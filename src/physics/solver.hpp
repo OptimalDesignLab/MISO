@@ -138,6 +138,9 @@ public:
       return output;
    }
 
+   /// A temporal funtion that print the 2d sod_shock problem
+   virtual void PrintSodShock(const std::string &file_name);
+   
    /// A virtual function convert the conservative variable to entropy variables
    /// defined in EulerSolver
    /// \param[in/out] state - state vector

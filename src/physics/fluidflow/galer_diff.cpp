@@ -150,7 +150,9 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    mat_cent.Clear(); 
    mat_cent.SetSize(dim, num_el);
 
-   const FiniteElement *fe = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+   // assume the mesh only contains only 1 type of element
+   const Element* el = mesh->GetElement(0);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
    // vectors that hold coordinates of quadrature points
    // used for duplication tests
@@ -300,7 +302,9 @@ void GalerkinDifference::GetElementCenter(int id, mfem::Vector &cent) const
 
 void GalerkinDifference::BuildGDProlongation() const
 {
-   const FiniteElement *fe = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+   // assume the mesh only contains only 1 type of element
+   const Element* el = mesh->GetElement(0);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
    // allocate the space for the prolongation matrix
    // this step should be done in the constructor (probably)
@@ -316,7 +320,7 @@ void GalerkinDifference::BuildGDProlongation() const
       case 3: throw MachException("Not implemeneted yet.\n"); break;
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
-   cout << "Number of required element: " << nelmt << '\n';
+   // cout << "Number of required element: " << nelmt << '\n';
    // loop over all the element:
    // 1. build the patch for each element,
    // 2. construct the local reconstruction operator
@@ -343,8 +347,8 @@ void GalerkinDifference::BuildGDProlongation() const
       //    nelmt = (degree+1) * (degree+2) / 2;
       // }
       GetNeighbourSet(i, nelmt, elmt_id);
-      // cout << "Elements id(s) in patch: ";
-      //elmt_id.Print(cout, elmt_id.Size());
+      // cout << "Elements id(s) in patch " << i << ": ";
+      // elmt_id.Print(cout, elmt_id.Size());
       
       // 2. build the quadrature and barycenter coordinate matrices
       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
@@ -394,7 +398,9 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
    // element id coresponds to the column indices
    // dofs id coresponds to the row indices
    // the local reconstruction matrix needs to be assembled `vdim` times
-   const FiniteElement *fe = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+   // assume the mesh only contains only 1 type of element
+   const Element* el = mesh->GetElement(0);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
 
    int nel = id.Size();

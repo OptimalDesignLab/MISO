@@ -26,7 +26,7 @@ void u0_function(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "unsteady_vortex_options.json";
+   const char *options_file = "sod_shock_options.json";
 #ifdef MFEM_USE_PETSC
    const char *petscrc_file = "eulersteady.petsc";
    // Get the option file
@@ -66,14 +66,16 @@ int main(int argc, char *argv[])
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
       unique_ptr<AbstractSolver> solver(
-         new EulerSolver<2, entvar>(opt_file_name, nullptr));
+         new EulerSolver<1, entvar>(opt_file_name, nullptr));
       solver->feedpert(pert);
       solver->initDerived();
       solver->setInitialCondition(u0_function);
       solver->feedpert(pert);
+      solver->PrintSodShock("sod_shock_init");
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;      
       solver->solveForState();
+      solver->PrintSodShock("sod_shock_final");
       mfem::out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;
       double entropy = solver->calcOutput("entropy");
@@ -105,7 +107,7 @@ void u0_function(const Vector &x, Vector& q)
    {
       u0(0) = 1.0;
       u0(1) = 0.0;
-      u0(2) = 1.0/euler::gami + 0.5/u0(0) * u0(1) * u(1);
+      u0(2) = 1.0/euler::gami + 0.5/u0(0) * u0(1) * u0(1);
    }
    else
    {
