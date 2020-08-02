@@ -1016,7 +1016,6 @@ void AbstractSolver::solveUnsteady()
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
       dt = calcStepSize(ti, t, t_final, dt);
-      dt = 1e-3;
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
          *out << " (" << round(100 * t / t_final) << "% complete)";

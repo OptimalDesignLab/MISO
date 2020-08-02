@@ -1,6 +1,5 @@
 #ifndef MACH_INVISCID_INTEG
 #define MACH_INVISCID_INTEG
-
 #include "mfem.hpp"
 
 #include "sbp_fe.hpp" // needed in inviscid_integ_def.hpp 

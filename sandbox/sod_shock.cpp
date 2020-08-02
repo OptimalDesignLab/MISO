@@ -65,14 +65,13 @@ int main(int argc, char *argv[])
    try
    {
       // construct the mesh
-      unique_ptr<Mesh> smesh(new Mesh(nx)); 
-      mfem::out << "Number of elements " << smesh->GetNE() <<'\n';
-
+      // unique_ptr<Mesh> smesh(new Mesh(nx)); 
+      // mfem::out << "Number of elements " << smesh->GetNE() <<'\n';
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      //auto solver = createSolver<EulerSolver<1, entvar>>(opt_file_name, nullptr);
-      auto solver = createSolver<EulerSolver<1, entvar>>(opt_file_name,
-                                                         move(smesh));
+      auto solver = createSolver<EulerSolver<1, entvar>>(opt_file_name, nullptr);
+      // auto solver = createSolver<EulerSolver<1, entvar>>(opt_file_name,
+      //                                                    move(smesh));
       solver->setInitialCondition(u0_function);
       solver->PrintSodShock("sod_shock_init");
       mfem::out << "Initial condition is set.\n";

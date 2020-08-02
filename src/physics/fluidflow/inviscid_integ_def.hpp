@@ -660,7 +660,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
       case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
               break;
       default: throw mach::MachException(
-         "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
+         "InviscidFaceIntegrator::AssembleFaceVector())\n"
          "\tcannot handle given dimension");
    }
    IntegrationPoint ip_left, ip_right;
@@ -676,18 +676,18 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
       u_right.GetRow(i_right, u_face_right); 
 
       // get the normal vector and the flux on the face
-      trans.Face->SetIntPoint(&ip_face);
       if (1 == dim)
       {
          nrm(0) = 2 * ip_left.x - 1.0;
+         flux(nrm, u_face_left, u_face_right, flux_face);
       }
       else
       {
+         trans.Face->SetIntPoint(&ip_face);
          CalcOrtho(trans.Face->Jacobian(), nrm);
+         nrm *= ip_face.weight;
+         flux(nrm, u_face_left, u_face_right, flux_face);
       }
-      nrm *= ip_face.weight;
-      flux(nrm, u_face_left, u_face_right, flux_face);
-
       // multiply by test functions from left and right elements
       for (int n = 0; n < num_states; ++n)
       {
@@ -750,19 +750,20 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
       u_right.GetRow(i_right, u_face_right); 
 
       // get the normal vector and the flux Jacobians on the face
-      trans.Face->SetIntPoint(&ip_face);
       if (1 == dim)
       {
          nrm(0) = 2 * ip_left.x - 1.0;
+         fluxJacStates(nrm, u_face_left, u_face_right, flux_jac_left,
+                    flux_jac_right);
       }
       else
       {
+         trans.Face->SetIntPoint(&ip_face);
          CalcOrtho(trans.Face->Jacobian(), nrm);
+         nrm *= alpha*ip_face.weight;
+         fluxJacStates(nrm, u_face_left, u_face_right, flux_jac_left,
+                     flux_jac_right);
       }
-      nrm *= alpha*ip_face.weight;
-      //flux(nrm, u_face_left, u_face_right, flux_face);
-      fluxJacStates(nrm, u_face_left, u_face_right, flux_jac_left,
-                    flux_jac_right);
 
       // insert flux Jacobians into element stiffness matrices
       const int offset = num_states*num_nodes_left;
