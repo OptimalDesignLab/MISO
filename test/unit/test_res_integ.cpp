@@ -5,9 +5,8 @@
 #include "res_integ.hpp"
 #include "euler_test_data.hpp"
 
-TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
-                       "[DomainResIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("DomainResIntegrator::AssembleElementVector",
+          "[DomainResIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;
@@ -81,9 +80,8 @@ TEMPLATE_TEST_CASE_SIG("DomainResIntegrator::AssembleElementVector",
    }
 }
 
-TEMPLATE_TEST_CASE_SIG("MassResIntegrator::AssembleElementVector",
-                       "[MassResIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("MassResIntegrator::AssembleElementVector",
+          "[MassResIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;
@@ -161,9 +159,8 @@ TEMPLATE_TEST_CASE_SIG("MassResIntegrator::AssembleElementVector",
    }
 }
 
-TEMPLATE_TEST_CASE_SIG("DiffusionResIntegrator::AssembleElementVector",
-                       "[DiffusionResIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("DiffusionResIntegrator::AssembleElementVector",
+          "[DiffusionResIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;
@@ -241,9 +238,8 @@ TEMPLATE_TEST_CASE_SIG("DiffusionResIntegrator::AssembleElementVector",
    }
 }
 
-TEMPLATE_TEST_CASE_SIG("BoundaryNormalResIntegrator::AssembleFaceVector",
-                       "[BoundaryNormalResIntegrator]",
-                       ((bool entvar), entvar), false, true)
+TEST_CASE("BoundaryNormalResIntegrator::AssembleFaceVector",
+          "[BoundaryNormalResIntegrator]")
 {
    using namespace mfem;
    using namespace euler_data;

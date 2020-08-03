@@ -236,6 +236,7 @@ public:
    virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
                                              int Or) const;
    virtual const char *Name() const { return SBPname; }
+   virtual int GetContType() const { return CONTINUOUS; }
    virtual ~SBPCollection();
 
 };
@@ -268,6 +269,7 @@ public:
    virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
                                              int Or) const;
    virtual const char *Name() const {  return DSBPname;  }
+   virtual int GetContType() const { return DISCONTINUOUS; }
    virtual ~DSBPCollection();
 };
 
