@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <functional>
 
 #include "adept.h"
 #include "json.hpp"
@@ -83,18 +84,23 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    void constructMesh(std::unique_ptr<mfem::Mesh> smesh);
 
-   /// Initializes the state variable to a given function.
+   /// Initializes the scalar state vector to a given function.
+   /// \param[in] u_init - function that defines the initial condition
+   virtual void setInitialCondition(
+      std::function<double(const mfem::Vector &)> u_init);
+
+   /// Initializes the state vector to a given function.
    /// \param[in] u_init - function that defines the initial condition
    /// \note The second argument in the function `u_init` is the initial condition
    /// value.  This may be a vector of length 1 for scalar.
-   virtual void setInitialCondition(void (*u_init)(const mfem::Vector &,
-                                           mfem::Vector &));
-
-   /// Initializes the state variable to a given function.
-   /// \param[in] u_init - function that defines the initial condition
-   virtual void setInitialCondition(double (*u_init)(const mfem::Vector &));
+   virtual void setInitialCondition(
+      std::function<void(const mfem::Vector &, mfem::Vector &)> u_init);
 
    /// Initializes the state variable to a given constant
+   /// \param[in] u_init - value that defines the initial condition
+   virtual void setInitialCondition(const double uic);
+
+   /// Initializes the state variable to a given constant vector
    /// \param[in] u_init - vector that defines the initial condition
    virtual void setInitialCondition(const mfem::Vector &uic);
 
@@ -102,37 +108,38 @@ public:
    /// Returns the integral inner product between two grid functions
    /// \param[in] x - grid function 
    /// \param[in] y - grid function 
-   /// \returns integral inner product between `x` and `y`
+   /// \return integral inner product between `x` and `y`
    double calcInnerProduct(const GridFunType &x, const GridFunType &y);
 
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
-   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
-   double calcL2Error(double (*u_exact)(const mfem::Vector &));
+   /// \return L2 error
+   double calcL2Error(std::function<double(const mfem::Vector &)> u_exact);
 
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
-   double calcL2Error(void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+   /// \return L2 error
+   double calcL2Error(std::function<void(const mfem::Vector &,
+                                         mfem::Vector &)> u_exact,
                       int entry = -1);
 
    /// Returns the L2 error of a field and given exact solution.
    /// \param[in] field - grid function to compute L2 error for
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
+   /// \return L2 error
    double calcL2Error(GridFunType *field,
-                      double (*u_exact)(const mfem::Vector &));
+                      std::function<double(const mfem::Vector &)> u_exact);
    
    /// Returns the L2 error of a field and given exact solution.
    /// \param[in] field - grid function to compute L2 error for
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
+   /// \return L2 error
    double calcL2Error(GridFunType *field,
-                      void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+                      std::function<void(const mfem::Vector &,
+                                         mfem::Vector &)> u_exact,
                       int entry = -1);
 
    /// Find the step size based on the options

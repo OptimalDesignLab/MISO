@@ -1,4 +1,4 @@
-from .pyMach import machSolver
+from .pyMach import MachSolver
 
 import openmdao.api as om
 
@@ -15,8 +15,8 @@ class omMach(om.Group):
         indeps.add_output('current_density', 10000)
         indeps.add_output('fill_factor', 0.5)
 
-        # self.solver = machSolver(options_file=self.options['options_file'])
-        self.solver = machSolver(self.comm)
+        # self.solver = MachSolver(options_file=self.options['options_file'])
+        self.solver = MachSolver(self.comm)
 
         self.add_subsystem('state',
                            omMachState(solver=self.solver),
@@ -36,7 +36,7 @@ class omMachState(om.ImplicitComponent):
 
     def initialize(self):
         self.options.declare('optionsFile', types=str)
-        self.options.declare('solver', types=machSolver)
+        self.options.declare('solver', types=MachSolver)
         # self.options['distributed'] = True
 
     def setup(self):
@@ -131,7 +131,7 @@ class omMachState(om.ImplicitComponent):
 class omMachFunctionals(om.ExplicitComponent):
     """OpenMDAO component that computes functionals given the state variables"""
     def initialize(self):
-        self.options.declare('solver', types=machSolver)
+        self.options.declare('solver', types=MachSolver)
         # self.options['distributed'] = True
 
     def setup(self):

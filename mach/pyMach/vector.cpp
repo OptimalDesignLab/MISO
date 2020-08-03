@@ -11,7 +11,7 @@ namespace py = pybind11;
 
 using namespace mfem;
 
-void init_vector(py::module &m)
+void initVector(py::module &m)
 {
    py::class_<Vector>(m, "Vector", py::buffer_protocol())
       /// method to allow Vector object to be constructable from a numpy array
@@ -53,6 +53,9 @@ void init_vector(py::module &m)
          *self = 0.0;
          return self;
       }))
+
+      /// construct unintialized Vector
+      .def(py::init<>())
 
       /// return the size
       .def("Size", &Vector::Size)

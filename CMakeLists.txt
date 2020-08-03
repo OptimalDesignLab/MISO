@@ -171,11 +171,17 @@ if (BUILD_PYTHON_WRAPPER)
 
    FetchContent_MakeAvailable(pybind11)
 
-   pybind11_add_module(_pyMach "")
+   # FetchContent_Declare(pybind11_json
+   #    GIT_REPOSITORY "https://github.com/pybind/pybind11_json"
+   # )
+
+   # FetchContent_MakeAvailable(pybind11_json)
+
+   pybind11_add_module(pyMach "")
 
    add_subdirectory(mach)
 
-   target_link_libraries(_pyMach
+   target_link_libraries(pyMach
       PUBLIC
          mach
          # "${MFEM_LIBRARIES}"
@@ -187,17 +193,17 @@ if (BUILD_PYTHON_WRAPPER)
       OUTPUT_VARIABLE MPI4PY_INCLUDE_DIRS
    )
    
-   target_include_directories(_pyMach
+   target_include_directories(pyMach
       PRIVATE
          "${MPI4PY_INCLUDE_DIRS}"
    )
 
-   # target_compile_options(_pyMach
+   # target_compile_options(pyMach
    #    PRIVATE 
    #       "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
    #       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
    # )
-   # set_target_properties(_pyMach
+   # set_target_properties(pyMach
    #    PROPERTIES 
    #       CXX_EXTENSIONS OFF
    #       POSITION_INDEPENDENT_CODE ON
@@ -206,7 +212,7 @@ if (BUILD_PYTHON_WRAPPER)
    #       INTERPROCEDURAL_OPTIMIZATION OFF
    # )
 
-   install(TARGETS _pyMach
+   install(TARGETS pyMach
       LIBRARY DESTINATION "${CMAKE_SOURCE_DIR}/mach"
    )
 

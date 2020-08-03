@@ -1,1 +1,1 @@
-add_subdirectory(_pyMach)
+add_subdirectory(pyMach)

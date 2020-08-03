@@ -452,37 +452,27 @@ void AbstractSolver::constructPumiMesh()
 }
 
 void AbstractSolver::setInitialCondition(
-    void (*u_init)(const Vector &, Vector &))
-{
-   // TODO: Need to verify that this is ok for scalar fields
-   VectorFunctionCoefficient u0(num_state, u_init);
-   u->ProjectCoefficient(u0);
-   // DenseMatrix vals;
-   // Vector uj;
-   // for (int i = 0; i < fes->GetNE(); i++)
-   // {
-   //    const FiniteElement *fe = fes->GetFE(i);
-   //    const IntegrationRule *ir = &(fe->GetNodes());
-   //    ElementTransformation *T = fes->GetElementTransformation(i);
-   //    u->GetVectorValues(*T, *ir, vals);
-   //    for (int j = 0; j < ir->GetNPoints(); j++)
-   //    {
-   //       vals.GetColumnReference(j, uj);
-   //       cout << "uj = " << uj(0) << ", " << uj(1) << ", " << uj(2) << ", " << uj(3) << endl;
-   //    }
-   // }
-}
-
-void AbstractSolver::setInitialCondition(
-    double (*u_init)(const Vector &))
+   std::function<double(const mfem::Vector &)> u_init)
 {
    FunctionCoefficient u0(u_init);
    u->ProjectCoefficient(u0);
 }
 
+void AbstractSolver::setInitialCondition(
+   std::function<void(const mfem::Vector &, mfem::Vector &)> u_init)
+{
+   VectorFunctionCoefficient u0(num_state, u_init);
+   u->ProjectCoefficient(u0);
+}
+
+void AbstractSolver::setInitialCondition(const double uic)
+{
+   ConstantCoefficient u0(uic);
+   u->ProjectCoefficient(u0);
+}
+
 void AbstractSolver::setInitialCondition(const Vector &uic)
 {
-   // TODO: Need to verify that this is ok for scalar fields
    VectorConstantCoefficient u0(uic);
    u->ProjectCoefficient(u0);
 }
@@ -518,19 +508,22 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
    return prod;
 }
 
-double AbstractSolver::calcL2Error(double (*u_exact)(const Vector &))
+double AbstractSolver::calcL2Error(
+   std::function<double(const mfem::Vector &)> u_exact)
 {
    return calcL2Error(u.get(), u_exact);
 }
 
 double AbstractSolver::calcL2Error(
-    void (*u_exact)(const Vector &, Vector &), int entry)
+   std::function<void(const mfem::Vector &, mfem::Vector &)> u_exact,
+   int entry)
 {
    return calcL2Error(u.get(), u_exact, entry);
 }
 
-double AbstractSolver::calcL2Error(GridFunType *field,
-    double (*u_exact)(const Vector &))
+double AbstractSolver::calcL2Error(
+   GridFunType *field,
+   std::function<double(const mfem::Vector &)> u_exact)
 {
    // TODO: need to generalize to parallel
    FunctionCoefficient exsol(u_exact);
@@ -591,8 +584,10 @@ double AbstractSolver::calcL2Error(GridFunType *field,
    return sqrt(norm);
 }
 
-double AbstractSolver::calcL2Error(GridFunType *field,
-    void (*u_exact)(const Vector &, Vector &), int entry)
+double AbstractSolver::calcL2Error(
+   GridFunType *field,
+   std::function<void(const mfem::Vector &, mfem::Vector &)> u_exact,
+   int entry)
 {
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
