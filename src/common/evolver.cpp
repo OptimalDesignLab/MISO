@@ -202,7 +202,7 @@ MachEvolver::MachEvolver(
       {
          stiff.Reset(_stiff, false);
       }
-      else if (stiff_assem == AssemblyLevel::FULL)
+      else if (stiff_assem == AssemblyLevel::LEGACYFULL)
       {
          stiff.Reset(_stiff->ParallelAssemble(), true);
       }
