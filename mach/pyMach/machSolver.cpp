@@ -94,6 +94,11 @@ void initSolver(py::module &m)
             py::return_value_policy::reference)
       .def("setMeshNodalCoordinates", &AbstractSolver::setMeshNodalCoordinates)
 
+      .def("setInitialCondition", (void (AbstractSolver::*)
+            (std::function<double(const mfem::Vector &)>))
+            &AbstractSolver::setInitialCondition,
+            "Initializes the state vector to a given scalar function.")
+
       /// TODO:
       // .def("calcResidual", &AbstractSolver::calcResidual)
       // .def("calcState", &AbstractSolver::calcState)

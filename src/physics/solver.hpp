@@ -84,17 +84,17 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    void constructMesh(std::unique_ptr<mfem::Mesh> smesh);
 
-   /// Initializes the scalar state vector to a given function.
+   /// Initializes the state vector to a given scalar function.
    /// \param[in] u_init - function that defines the initial condition
    virtual void setInitialCondition(
-      std::function<double(const mfem::Vector &)> u_init);
+      const std::function<double(const mfem::Vector &)> &u_init);
 
    /// Initializes the state vector to a given function.
    /// \param[in] u_init - function that defines the initial condition
    /// \note The second argument in the function `u_init` is the initial condition
    /// value.  This may be a vector of length 1 for scalar.
    virtual void setInitialCondition(
-      std::function<void(const mfem::Vector &, mfem::Vector &)> u_init);
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
 
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - value that defines the initial condition
@@ -114,14 +114,14 @@ public:
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
    /// \return L2 error
-   double calcL2Error(std::function<double(const mfem::Vector &)> u_exact);
+   double calcL2Error(const std::function<double(const mfem::Vector &)> &u_exact);
 
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
    /// \return L2 error
-   double calcL2Error(std::function<void(const mfem::Vector &,
-                                         mfem::Vector &)> u_exact,
+   double calcL2Error(const std::function<void(const mfem::Vector &,
+                                               mfem::Vector &)> &u_exact,
                       int entry = -1);
 
    /// Returns the L2 error of a field and given exact solution.
@@ -130,7 +130,7 @@ public:
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
    /// \return L2 error
    double calcL2Error(GridFunType *field,
-                      std::function<double(const mfem::Vector &)> u_exact);
+                      const std::function<double(const mfem::Vector &)> &u_exact);
    
    /// Returns the L2 error of a field and given exact solution.
    /// \param[in] field - grid function to compute L2 error for
@@ -138,8 +138,8 @@ public:
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
    /// \return L2 error
    double calcL2Error(GridFunType *field,
-                      std::function<void(const mfem::Vector &,
-                                         mfem::Vector &)> u_exact,
+                      const std::function<void(const mfem::Vector &,
+                                               mfem::Vector &)> &u_exact,
                       int entry = -1);
 
    /// Find the step size based on the options

@@ -452,14 +452,14 @@ void AbstractSolver::constructPumiMesh()
 }
 
 void AbstractSolver::setInitialCondition(
-   std::function<double(const mfem::Vector &)> u_init)
+   const std::function<double(const mfem::Vector &)> &u_init)
 {
    FunctionCoefficient u0(u_init);
    u->ProjectCoefficient(u0);
 }
 
 void AbstractSolver::setInitialCondition(
-   std::function<void(const mfem::Vector &, mfem::Vector &)> u_init)
+   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
@@ -509,13 +509,13 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
 }
 
 double AbstractSolver::calcL2Error(
-   std::function<double(const mfem::Vector &)> u_exact)
+   const std::function<double(const mfem::Vector &)> &u_exact)
 {
    return calcL2Error(u.get(), u_exact);
 }
 
 double AbstractSolver::calcL2Error(
-   std::function<void(const mfem::Vector &, mfem::Vector &)> u_exact,
+   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
    int entry)
 {
    return calcL2Error(u.get(), u_exact, entry);
@@ -523,7 +523,7 @@ double AbstractSolver::calcL2Error(
 
 double AbstractSolver::calcL2Error(
    GridFunType *field,
-   std::function<double(const mfem::Vector &)> u_exact)
+   const std::function<double(const mfem::Vector &)> &u_exact)
 {
    // TODO: need to generalize to parallel
    FunctionCoefficient exsol(u_exact);
@@ -586,7 +586,7 @@ double AbstractSolver::calcL2Error(
 
 double AbstractSolver::calcL2Error(
    GridFunType *field,
-   std::function<void(const mfem::Vector &, mfem::Vector &)> u_exact,
+   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
    int entry)
 {
    // TODO: need to generalize to parallel
