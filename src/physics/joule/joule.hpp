@@ -33,7 +33,7 @@ public:
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
-   void setInitialCondition(double (*u_init)(const mfem::Vector &)) override;
+   void setInitialCondition(const std::function<double(const mfem::Vector &)> &u_init) override;
 
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {T, A, B}
@@ -52,7 +52,7 @@ private:
    std::vector<GridFunType*> em_fields;
    std::vector<GridFunType*> thermal_fields;
 
-   double (*thermal_init)(const mfem::Vector &);
+   std::function<double(const mfem::Vector &)> thermal_init;
 
    friend SolverPtr createSolver<JouleSolver>(
        const std::string &opt_file_name,

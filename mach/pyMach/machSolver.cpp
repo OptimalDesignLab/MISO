@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 #include <mpi4py/mpi4py.h>
 #include <iostream>
 
@@ -94,10 +95,31 @@ void initSolver(py::module &m)
             py::return_value_policy::reference)
       .def("setMeshNodalCoordinates", &AbstractSolver::setMeshNodalCoordinates)
 
-      .def("setInitialCondition", (void (AbstractSolver::*)
-            (std::function<double(const mfem::Vector &)>))
+      .def("setScalarInitialCondition", (void (AbstractSolver::*)
+            (const std::function<double(const mfem::Vector &)>&))
             &AbstractSolver::setInitialCondition,
             "Initializes the state vector to a given scalar function.")
+
+      .def("setInitialCondition", [](
+         AbstractSolver& self,
+         std::function<void(const mfem::Vector &, mfem::Vector * const)> u_init)
+      {
+         self.setInitialCondition([u_init](const mfem::Vector &x, mfem::Vector &u)
+         {
+            u_init(x, &u);
+         });
+      },
+      "Initializes the state vector to a given function.")
+
+      .def("solveForState", &AbstractSolver::solveForState)
+
+      .def("calcL2Error", (double (AbstractSolver::*)
+           (const std::function<void(const mfem::Vector &,
+                                     mfem::Vector &)> &,
+            int))
+           &AbstractSolver::calcL2Error)
+
+      .def("printState", &AbstractSolver::printSolution)
 
       /// TODO:
       // .def("calcResidual", &AbstractSolver::calcResidual)

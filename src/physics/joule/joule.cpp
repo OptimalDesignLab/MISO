@@ -109,7 +109,7 @@ void JouleSolver::printSolution(const std::string &filename, int refine)
    thermal_solver->printSolution(thermal_filename, refine);
 }
 
-void JouleSolver::setInitialCondition(double (*u_init)(const mfem::Vector &))
+void JouleSolver::setInitialCondition(const std::function<double(const mfem::Vector &)> &u_init)
 {
    thermal_init = u_init;
 }

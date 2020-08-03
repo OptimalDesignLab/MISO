@@ -15,7 +15,7 @@ void initVector(py::module &m)
 {
    py::class_<Vector>(m, "Vector", py::buffer_protocol())
       /// method to allow Vector object to be constructable from a numpy array
-      .def(py::init([](py::buffer b)
+      .def(py::init([](py::array_t<double, py::array::f_style> b)
       {
 
          /* Request a buffer descriptor from Python */
@@ -58,7 +58,10 @@ void initVector(py::module &m)
       .def(py::init<>())
 
       /// return the size
-      .def("Size", &Vector::Size)
+      .def("size", &Vector::Size)
+
+      /// set the size of the vector
+      .def("setSize", (void (Vector::*)(int))&Vector::SetSize)
 
       /// methods to allow indexing vector
       .def("__getitem__", [](Vector& self, size_t index)
