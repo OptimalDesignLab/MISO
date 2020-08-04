@@ -34,7 +34,7 @@ SolverPtr initSolver(const std::string &type,
                      mpi4py_comm comm,
                      bool entvar)
 {
-   std::cout << "initSolver called with json options: " << json_options << "\n";
+   // std::cout << "initSolver called with json options: " << json_options << "\n";
    if (type == "Magnetostatic")
    {
       return createSolver<MagnetostaticSolver>(json_options, nullptr, comm);
@@ -102,7 +102,7 @@ void initSolver(py::module &m)
 
       .def("setInitialCondition", [](
          AbstractSolver& self,
-         std::function<void(const mfem::Vector &, mfem::Vector * const)> u_init)
+         std::function<void(const mfem::Vector &, mfem::Vector *const)> u_init)
       {
          self.setInitialCondition([u_init](const mfem::Vector &x, mfem::Vector &u)
          {
@@ -113,11 +113,16 @@ void initSolver(py::module &m)
 
       .def("solveForState", &AbstractSolver::solveForState)
 
-      .def("calcL2Error", (double (AbstractSolver::*)
-           (const std::function<void(const mfem::Vector &,
-                                     mfem::Vector &)> &,
-            int))
-           &AbstractSolver::calcL2Error)
+      .def("calcL2Error", [](
+         AbstractSolver &self,
+         std::function<void(const mfem::Vector &, mfem::Vector *const)> u_exact,
+         int entry)
+      {
+         return self.calcL2Error([u_exact](const mfem::Vector &x, mfem::Vector &u)
+         {
+            u_exact(x, &u);
+         }, entry);
+      })
 
       .def("printState", &AbstractSolver::printSolution)
 

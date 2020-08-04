@@ -40,7 +40,7 @@ auto options = R"(
       "slip-wall": [0, 0, 0, 1]
    },
    "newton": {
-      "printlevel": 0,
+      "printlevel": 2,
       "maxiter": 50,
       "reltol": 1e-1,
       "abstol": 1e-12
@@ -99,7 +99,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
    else
       target_error = {0.0700148195, 0.0260625842, 0.0129909277, 0.0079317615};
 
-   for (int nx = 2; nx <= 2; ++nx)
+   for (int nx = 1; nx <= 4; ++nx)
    {
       DYNAMIC_SECTION("...for mesh sizing nx = " << nx)
       {
@@ -149,7 +149,6 @@ void qexact(const Vector &x, Vector& q)
    q(1) = rho*a*Ma*sin(theta);
    q(2) = -rho*a*Ma*cos(theta);
    q(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
-   q.Print(mfem::out, 10);
 }
 
 void wexact(const Vector &x, Vector& w)
