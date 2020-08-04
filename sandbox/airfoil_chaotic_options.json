@@ -27,13 +27,5 @@
    "bcs": {
       "no-slip-adiabatic": [0, 0, 1, 1],
       "far-field": [1, 1, 0, 0]
-   },
-   "petscsolver": {
-      "ksptype": "gmres",
-      "pctype": "lu",
-      "abstol": 1e-15,
-      "reltol": 1e-15,
-      "maxiter": 100,
-      "printlevel": 0
-   }
+	}
 }

@@ -27,27 +27,9 @@ void u0_function(const Vector &x, Vector& u0);
 int main(int argc, char *argv[])
 {
    const char *options_file = "sod_shock_options.json";
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady.petsc";
-   // Get the option file
-   nlohmann::json options;
-   ifstream option_source(options_file);
-   option_source >> options;
-   // Write the petsc option file
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
-   petscoptions.close();
-#endif
 #ifdef MFEM_USE_MPI
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
-#endif
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
 #endif
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -93,9 +75,6 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-#ifdef MFEM_USE_PETSC
-   MFEMFinalizePetsc();
-#endif
 #ifdef MFEM_USE_MPI
    MPI_Finalize();
 #endif

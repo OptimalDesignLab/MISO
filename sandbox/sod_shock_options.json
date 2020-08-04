@@ -28,15 +28,7 @@
       "reltol": 1e-10,
       "abstol": 1e-10,
       "kdim": 100
-   },
-   "petscsolver": {
-      "ksptype": "gmres",
-      "pctype": "lu",
-      "abstol": 1e-15,
-      "reltol": 1e-15,
-      "maxiter": 100,
-      "printlevel": 2
-   },
+   }
    "outputs": {
       "entropy": true
    },

@@ -29,14 +29,6 @@
       "maxiter": 30,
       "printlevel": 1
    },
-   "petscsolver":{
-      "ksptype": "gmres",
-      "pctype": "lu",
-      "abstol": 1e-10,
-      "reltol": 1e-10,
-      "maxiter": 100,
-      "printlevel": 2
-   },
    "hypresolver":{
       "tol": 1e-10,
       "maxiter": 100,

@@ -483,7 +483,6 @@ void AbstractSolver::PrintSodShock(const std::string &file_name)
    write_value.precision(14);
    ofstream write_coord(file_name+"_coord.txt");
    write_coord.precision(14);
-   //u->Print(write_value, 3);
    mfem::Vector quad_coord(1);
    mfem::Array<int> vdofs;
    ElementTransformation *eltransf;
@@ -493,11 +492,6 @@ void AbstractSolver::PrintSodShock(const std::string &file_name)
    {
       eltransf = mesh->GetElementTransformation(i);
       fes->GetElementVDofs(i, vdofs);
-      // for (int s = 0; s < vdofs.Size(); s++)
-      // {
-      //    std::cout << vdofs[s] << ' ';
-      // }
-      // std::cout << std::endl;
       for(int j = 0; j < num_dofs; j++)
       {
          eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
@@ -1016,10 +1010,13 @@ void AbstractSolver::solveUnsteady()
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
       dt = calcStepSize(ti, t, t_final, dt);
-      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
-      if (!options["time-dis"]["steady"].get<bool>())
-         *out << " (" << round(100 * t / t_final) << "% complete)";
-      *out << endl;
+      if (ti % 10 == 0)
+      {
+         *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
+         if (!options["time-dis"]["steady"].get<bool>())
+            *out << " (" << round(100 * t / t_final) << "% complete)";
+         *out << endl;
+      }
       iterationHook(ti, t, dt);
       HypreParVector *u_true = u->GetTrueDofs();
       ode_solver->Step(*u_true, t, dt);

@@ -108,11 +108,6 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-
-#ifdef MFEM_USE_PETSC
-   MFEMFinalizePetsc();
-#endif
-
    MPI_Finalize();
 }
 

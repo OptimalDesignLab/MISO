@@ -1026,7 +1026,6 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
             }
             break;
          case 1:
-            DSBPdof[Geometry::SEGMENT] = 3;
             SegDofOrd[0] = new int[p];
             SegDofOrd[1] = new int[p];
             for (int i = 0; i < p; i++)
