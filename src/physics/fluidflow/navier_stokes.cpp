@@ -51,6 +51,7 @@ void NavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 template <int dim, bool entvar>
 void NavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
 {
+   cout << "Inside NS add boundary integrators" << endl;
    auto &bcs = this->options["bcs"];
    double mu = this->options["flow-param"]["mu"].template get<double>();
    int idx = 0;
@@ -160,6 +161,7 @@ void NavierStokesSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 template <int dim, bool entvar>
 void NavierStokesSolver<dim, entvar>::addOutputs()
 {
+   cout << "Inside NS add Outputs" << endl;
    auto &fun = this->options["outputs"];
    double mu = this->options["flow-param"]["mu"].template get<double>();
    Vector q_ref(dim+2);

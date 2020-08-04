@@ -3,7 +3,9 @@
       "mach": 0.5,
       "aoa": 3.0,
       "roll-axis": 0,
-      "pitch-axis": 1
+      "pitch-axis": 1,
+      "Re": 100.0,
+      "Pr": 0.75
    },
    "space-dis": {
       "GD": false,
@@ -28,7 +30,7 @@
       "refine": 0
    },
    "bcs": {
-      "slip-wall": [0, 0, 1, 1],
+      "no-slip-adiabatic": [0, 0, 1, 1],
       "far-field": [1, 1, 0, 0]
    },
    "newton": {
@@ -46,6 +48,8 @@
       "printlevel": 0
    },
    "lin-solver": {
+      "type": "hypregmres",
+      "pctype": "hypreeuclid",
       "printlevel": 0,
       "filllevel": 3,
       "maxiter": 100,

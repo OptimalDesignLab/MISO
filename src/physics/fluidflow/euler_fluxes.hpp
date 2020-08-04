@@ -684,12 +684,13 @@ void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
    }
    flux[dim + 1] = 0.0;
 }
+
 /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
 /// \param[in] q - conservative variables that are to be converted
 /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
 template <int dim>
 void convertVarsJac(const mfem::Vector &q, adept::Stack &stack, 
-                        mfem::DenseMatrix &dwdu)
+                    mfem::DenseMatrix &dwdu)
 {
    // vector of active input variables
    std::vector<adouble> q_a(q.Size());
