@@ -703,7 +703,6 @@ std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
       auto gf = std::unique_ptr<ParGridFunction>(
          new ParGridFunction(fes.get(), data));
 
-      *gf = 0.0;
       return gf;
    }
 

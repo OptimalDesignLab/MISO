@@ -162,7 +162,8 @@ void initSolver(py::module &m)
       }, py::arg("data") = py::none())
 
       .def("solveForState", (void (AbstractSolver::*)(mfem::ParGridFunction&))
-         &AbstractSolver::solveForState)
+         &AbstractSolver::solveForState,
+         py::arg("state"))
 
       .def("calcL2Error", [](
          AbstractSolver &self,
@@ -191,7 +192,9 @@ void initSolver(py::module &m)
       .def("calcResidual",
          (void (AbstractSolver::*)(const mfem::ParGridFunction &,
                                    mfem::ParGridFunction&))
-         &AbstractSolver::calcResidual)
+         &AbstractSolver::calcResidual,
+         py::arg("state"),
+         py::arg("residual"),)
 
       /// TODO:
       // .def("multStateJacTranspose", &AbstractSolver::multStateJacTranspose)
