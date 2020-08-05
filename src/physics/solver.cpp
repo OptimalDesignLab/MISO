@@ -1064,10 +1064,16 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
    {
       prec.reset(new HypreEuclid(comm));
       // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
-      *out << "!!!!!!! Euclid Fill level is not set "
+      *out << "!!!!!!! Euclid Fill level is hard-coded"
            << "(see AbstractSolver::constructLinearSolver() for details)" << endl;
       //int fill = options["lin-solver"]["filllevel"].get<int>();
       //HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(prec.get())->GetPrec(), fill);
+   }
+   else if (prec_type == "hypreilu")
+   {
+      if (solver_type != "hyprefgmres")
+         throw MachException("HypreILU needs to be used with Flexible GMRES!");
+      prec.reset(new HypreILU());
    }
    else if (prec_type == "hypreams")
    {
@@ -1094,6 +1100,10 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
    {
       solver.reset(new HypreGMRES(comm));
    }
+   else if (solver_type == "hyprefgmres")
+   {
+      solver.reset(new HypreFGMRES(comm));
+   }
    else if (solver_type == "gmressolver")
    {
       solver.reset(new GMRESSolver(comm));
@@ -1108,8 +1118,8 @@ void AbstractSolver::constructLinearSolver(nlohmann::json &_options)
    }
    else
    {
-      throw MachException("Unsupported preconditioner type!\n"
-               "\tavilable options are: HypreGMRES, GMRESSolver,\n"
+      throw MachException("Unsupported iterative solver type!\n"
+               "\tavilable options are: HypreGMRES, HypreFGMRES, GMRESSolver,\n"
                "\tHyprePCG, CGSolver");
    }
 
@@ -1152,11 +1162,22 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
       dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPrintLevel(ptl);
       dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetPreconditioner(
                                     *dynamic_cast<HypreSolver*>(prec.get()));
-
-      /// set GMRES restart value
+      /// set GMRES subspace size 
       int kdim = _options.value("kdim", -1);
       if (kdim != -1)
          dynamic_cast<mfem::HypreGMRES*> (solver.get())->SetKDim(kdim);
+   }
+   else if (solver_type == "hyprefgmres")
+   {
+      dynamic_cast<mfem::HypreFGMRES*> (solver.get())->SetTol(reltol);
+      dynamic_cast<mfem::HypreFGMRES*> (solver.get())->SetMaxIter(maxiter);
+      dynamic_cast<mfem::HypreFGMRES*> (solver.get())->SetPrintLevel(ptl);
+      dynamic_cast<mfem::HypreFGMRES*> (solver.get())->SetPreconditioner(
+                                    *dynamic_cast<HypreSolver*>(prec.get()));
+      /// set FGMRES subspace size
+      int kdim = _options.value("kdim", -1);
+      if (kdim != -1)
+         dynamic_cast<mfem::HypreFGMRES*> (solver.get())->SetKDim(kdim);
    }
    else if (solver_type == "gmressolver")
    {
@@ -1184,8 +1205,8 @@ void AbstractSolver::setIterSolverOptions(nlohmann::json &_options)
    }
    else
    {
-      throw MachException("Unsupported preconditioner type!\n"
-               "\tavilable options are: HypreGMRES, GMRESSolver,\n"
+      throw MachException("Unsupported iterative solver type!\n"
+               "\tavilable options are: HypreGMRES, HypreFGMRES, GMRESSolver,\n"
                "\tHyprePCG, CGSolver");
    }
 }
