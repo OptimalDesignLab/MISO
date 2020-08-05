@@ -123,7 +123,7 @@ private:
    // static double initialTemperature(const mfem::Vector &x);
 
    /// implementation of solveUnsteady
-   void solveUnsteady() override;
+   void solveUnsteady(mfem::ParGridFunction &state) override;
 
    /// Return the number of state variables
    int getNumState() override { return 1; }

@@ -452,29 +452,33 @@ void AbstractSolver::constructPumiMesh()
 }
 
 void AbstractSolver::setInitialCondition(
+   ParGridFunction &state,
    const std::function<double(const mfem::Vector &)> &u_init)
 {
    FunctionCoefficient u0(u_init);
-   u->ProjectCoefficient(u0);
+   state.ProjectCoefficient(u0);
 }
 
 void AbstractSolver::setInitialCondition(
+   ParGridFunction &state,
    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
    VectorFunctionCoefficient u0(num_state, u_init);
-   u->ProjectCoefficient(u0);
+   state.ProjectCoefficient(u0);
 }
 
-void AbstractSolver::setInitialCondition(const double uic)
+void AbstractSolver::setInitialCondition(ParGridFunction &state,
+                                         const double u_init)
 {
-   ConstantCoefficient u0(uic);
-   u->ProjectCoefficient(u0);
+   ConstantCoefficient u0(u_init);
+   state.ProjectCoefficient(u0);
 }
 
-void AbstractSolver::setInitialCondition(const Vector &uic)
+void AbstractSolver::setInitialCondition(ParGridFunction &state,
+                                         const Vector &u_init)
 {
-   VectorConstantCoefficient u0(uic);
-   u->ProjectCoefficient(u0);
+   VectorConstantCoefficient u0(u_init);
+   state.ProjectCoefficient(u0);
 }
 
 double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType &y)
@@ -683,6 +687,31 @@ double AbstractSolver::calcResidualNorm() const
    return res_norm;
 }
 
+std::unique_ptr<ParGridFunction> AbstractSolver::getNewStateVector(
+   double *data)
+{
+   if (data == nullptr)
+   {
+      return std::unique_ptr<ParGridFunction>(
+         new ParGridFunction(fes.get()));
+   }
+   else
+   {
+      return std::unique_ptr<ParGridFunction>(
+         new ParGridFunction(fes.get(), data));
+   }
+
+}
+
+/// TODO: this won't work for every solver, need to create a new operator like
+/// the one used in the evolvers to evaluate the residual
+void AbstractSolver::calcResidual(const ParGridFunction &state,
+                                  ParGridFunction &residual)
+{
+   auto *u_true = state.GetTrueDofs();
+   res->Mult(*u_true, residual);
+}
+
 double AbstractSolver::calcStepSize(int iter, double t, double t_final,
                                     double dt_old) const
 {
@@ -776,15 +805,15 @@ std::vector<GridFunType*> AbstractSolver::getFields()
    return {u.get()};
 }
 
-void AbstractSolver::solveForState()
+void AbstractSolver::solveForState(ParGridFunction &state)
 {
    if (options["steady"].get<bool>() == true)
    {
-      solveSteady();
+      solveSteady(state);
    }
    else 
    {
-      solveUnsteady();
+      solveUnsteady(state);
    }
 }
 
@@ -854,11 +883,11 @@ void AbstractSolver::setEssentialBoundaries()
    res->SetEssentialTrueDofs(ess_tdof_list);
 }
 
-void AbstractSolver::solveSteady()
+void AbstractSolver::solveSteady(ParGridFunction &state)
 {
    *out << "AbstractSolver::solveSteady() is deprecated!!!!!!!!!!!!!!" << endl;
    *out << "calling AbstractSolver::solveUnsteady() instead" << endl;
-   solveUnsteady();
+   solveUnsteady(state);
    return;
 
 // #ifdef MFEM_USE_MPI
@@ -954,7 +983,7 @@ void AbstractSolver::solveSteady()
 // #endif // MFEM_USE_MPI
 }
 
-void AbstractSolver::solveUnsteady()
+void AbstractSolver::solveUnsteady(ParGridFunction &state)
 {
    double t = 0.0;
    evolver->SetTime(t);
@@ -969,7 +998,7 @@ void AbstractSolver::solveUnsteady()
       mesh->Print(omesh);
       ofstream osol("initial-sol.gf");
       osol.precision(precision);
-      u->Save(osol);
+      state.Save(osol);
    }
 
    printSolution("init");
@@ -989,7 +1018,7 @@ void AbstractSolver::solveUnsteady()
          *out << " (" << round(100 * t / t_final) << "% complete)";
       *out << endl;
       iterationHook(ti, t, dt);
-      HypreParVector *u_true = u->GetTrueDofs();
+      HypreParVector *u_true = state.GetTrueDofs();
       ode_solver->Step(*u_true, t, dt);
       *u = *u_true;
       if (iterationExit(ti, t, t_final, dt)) break;
@@ -1001,7 +1030,7 @@ void AbstractSolver::solveUnsteady()
    {
       ofstream osol("final.gf");
       osol.precision(precision);
-      u->Save(osol);
+      state.Save(osol);
    }
    // write the solution to vtk file
    if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
@@ -1009,7 +1038,7 @@ void AbstractSolver::solveUnsteady()
       ofstream sol_ofs("final_cg.vtk");
       sol_ofs.precision(14);
       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
-      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      state.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
       sol_ofs.close();
       printSolution("final");
    }
@@ -1018,7 +1047,7 @@ void AbstractSolver::solveUnsteady()
       ofstream sol_ofs("final_dg.vtk");
       sol_ofs.precision(14);
       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
-      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      state.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
       sol_ofs.close();
       printSolution("final");
    }

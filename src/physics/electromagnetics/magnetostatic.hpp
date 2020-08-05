@@ -112,7 +112,7 @@ private:
    void addOutputs() override;
 
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
-   void solveSteady() override;
+   void solveSteady(mfem::ParGridFunction &state) override;
 
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source

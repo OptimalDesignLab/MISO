@@ -243,7 +243,7 @@ void ThermalSolver::addOutputs()
 	}
 }
 
-void ThermalSolver::solveUnsteady()
+void ThermalSolver::solveUnsteady(ParGridFunction &state)
 {
 	double t = 0.0;
 	double agg;

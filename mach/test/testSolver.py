@@ -153,6 +153,8 @@ class SolverRegressionTests(unittest.TestCase):
 
                 solver = MachSolver("Euler", options, entvar=use_entvar)
 
+                state = solver.getNewStateVector()
+
                 # define the appropriate exact solution based on entvar
                 if use_entvar:
                     # uexact = wexact
@@ -160,12 +162,12 @@ class SolverRegressionTests(unittest.TestCase):
                 else:
                     uexact = qexact
 
-                solver.setInitialCondition(uexact)
+                solver.setInitialCondition(state, uexact)
                 solver.printState("state", -1)
 
-                solver.solveForState();
+                solver.solveForState(state);
 
-                l2_error = solver.calcL2Error(uexact, 0)
+                l2_error = solver.calcL2Error(state, uexact, 0)
 
                 self.assertLessEqual(l2_error, target_error[nx-1])
 

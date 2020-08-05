@@ -86,23 +86,57 @@ public:
 
    /// Initializes the state vector to a given scalar function.
    /// \param[in] u_init - function that defines the initial condition
-   virtual void setInitialCondition(
-      const std::function<double(const mfem::Vector &)> &u_init);
+   inline virtual void setInitialCondition(
+      const std::function<double(const mfem::Vector &)> &u_init)
+   { setInitialCondition(*u, u_init); };
 
    /// Initializes the state vector to a given function.
    /// \param[in] u_init - function that defines the initial condition
    /// \note The second argument in the function `u_init` is the initial condition
    /// value.  This may be a vector of length 1 for scalar.
-   virtual void setInitialCondition(
-      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
+   inline virtual void setInitialCondition(
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+   { setInitialCondition(*u, u_init); };
 
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - value that defines the initial condition
-   virtual void setInitialCondition(const double uic);
+   inline virtual void setInitialCondition(const double u_init)
+   { setInitialCondition(*u, u_init); };
 
    /// Initializes the state variable to a given constant vector
    /// \param[in] u_init - vector that defines the initial condition
-   virtual void setInitialCondition(const mfem::Vector &uic);
+   inline virtual void setInitialCondition(const mfem::Vector &u_init)
+   { setInitialCondition(*u, u_init); };
+
+   /// Initializes the state vector to a given scalar function.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - function that defines the initial condition
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const std::function<double(const mfem::Vector &)> &u_init);
+
+   /// Initializes the state vector to a given function.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - function that defines the initial condition
+   /// \note The second argument in the function `u_init` is the initial condition
+   /// value.  This may be a vector of length 1 for scalar.
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
+
+   /// Initializes the state variable to a given constant
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - value that defines the initial condition
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const double u_init);
+
+   /// Initializes the state variable to a given constant vector
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - vector that defines the initial condition
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const mfem::Vector &u_init);
 
    /// TODO move to protected?
    /// Returns the integral inner product between two grid functions
@@ -196,7 +230,9 @@ public:
    virtual std::vector<GridFunType*> getFields();
 
    /// Solve for the state variables based on current mesh, solver, etc.
-   virtual void solveForState();
+   virtual void solveForState() { solveForState(*u); };
+
+   virtual void solveForState(mfem::ParGridFunction &state);
    
    /// Solve for the adjoint based on current mesh, solver, etc.
    /// \param[in] fun - specifies the functional corresponding to the adjoint
@@ -216,6 +252,23 @@ public:
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm() const;
+
+   /// Return a ParGridFunction constructed from an externally allocated array
+   /// \param[in] data - externally allocated array
+   /// \note If `data` is nullptr a new array will be allocated. If `data` is 
+   /// not `nullptr` it is assumed to be of size of at least `fes->GetVSize()`
+   std::unique_ptr<mfem::ParGridFunction> getNewStateVector(double *data = nullptr);
+
+   /// Compute the residual based on the current solution in `u`
+   /// \param[out] residual - the residual
+   void calcResidual(mfem::ParGridFunction &residual)
+   { calcResidual(*u, residual); };
+
+   /// Compute the residual based on `state` and store the it in `residual`
+   /// \param[in] state - the current state to evaluate the residual at
+   /// \param[out] residual - the residual
+   void calcResidual(const mfem::ParGridFunction &state, 
+                     mfem::ParGridFunction &residual);
    
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
@@ -231,7 +284,7 @@ public:
    MeshType* getMesh() {return mesh.get();}
 
    /// return a reference to the mesh's coordinate field
-   mfem::Vector& getMeshNodalCoordinates() {return *mesh->GetNodes();}
+   mfem::Vector& getMeshNodalCoordinates() { return *mesh->GetNodes(); }
 
    /// \brief function to update the mesh's nodal coordinate field
    /// \param[in] coords - Vector containing mesh's nodal coordinate field
@@ -242,7 +295,8 @@ public:
    /// underlying data (TODO? Look at cost of copying?)
    void setMeshNodalCoordinates(mfem::Vector &coords);
 
-   inline int getMeshSize() {return mesh->GetNodes()->FESpace()->GetVSize();}
+   inline int getMeshSize() { return mesh->GetNodes()->FESpace()->GetVSize(); }
+   inline int getStateSize() { return fes->GetVSize(); }
 
 #ifdef MFEM_USE_PUMI
    /// Return a pointer to the underlying PUMI mesh
@@ -409,10 +463,10 @@ protected:
    virtual void addOutputs() {};
 
    /// Solve for the steady state problem using newton method
-   virtual void solveSteady();
+   virtual void solveSteady(mfem::ParGridFunction &state);
 
    /// Solve for a transient state using a selected time-marching scheme
-   virtual void solveUnsteady();
+   virtual void solveUnsteady(mfem::ParGridFunction &state);
    
    /// For code that should be executed before the time stepping begins
    virtual void initialHook() {};

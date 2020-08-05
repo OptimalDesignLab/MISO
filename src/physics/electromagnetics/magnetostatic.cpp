@@ -91,7 +91,7 @@ void MagnetostaticSolver::setEssentialBoundaries()
    current_vec->SetSubVector(ess_tdof_list, 0.0);
 }
 
-void MagnetostaticSolver::solveSteady()
+void MagnetostaticSolver::solveSteady(ParGridFunction &state)
 {
    if (newton_solver == nullptr)
       constructNewtonSolver();

@@ -1,5 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
+#include <pybind11/numpy.h>
+
 #include <mpi4py/mpi4py.h>
 #include <iostream>
 
@@ -96,29 +98,78 @@ void initSolver(py::module &m)
       .def("setMeshNodalCoordinates", &AbstractSolver::setMeshNodalCoordinates)
 
       .def("setScalarInitialCondition", (void (AbstractSolver::*)
-            (const std::function<double(const mfem::Vector &)>&))
+            (ParGridFunction &state, 
+            const std::function<double(const mfem::Vector &)>&))
             &AbstractSolver::setInitialCondition,
             "Initializes the state vector to a given scalar function.")
 
       .def("setInitialCondition", [](
          AbstractSolver& self,
+         mfem::ParGridFunction &state,
          std::function<void(const mfem::Vector &, mfem::Vector *const)> u_init)
       {
-         self.setInitialCondition([u_init](const mfem::Vector &x, mfem::Vector &u)
+         self.setInitialCondition(state, [u_init](const mfem::Vector &x, mfem::Vector &u)
          {
             u_init(x, &u);
          });
       },
       "Initializes the state vector to a given function.")
 
-      .def("solveForState", &AbstractSolver::solveForState)
+      .def("getNewStateVector", [] (
+         AbstractSolver &self,
+         py::array_t<double> data)
+      {
+         py::buffer_info info = data.request();
+
+         std::cout << "ptr: " << info.ptr << "\n";
+         std::cout << "format: " << info.format << "\n";
+         std::cout << "ndim: " << info.ndim << "\n";
+         
+
+         /* Some sanity checks ... */
+         if (info.format != py::format_descriptor<double>::format())
+         {
+            throw std::runtime_error("Incompatible format:\n"
+                                       "\texpected a double array!");
+         }
+
+         if (info.ndim > 1)
+         {
+            throw std::runtime_error("Incompatible dimensions:\n"
+                                       "\texpected a 1D array!");
+         }
+
+         if (info.ndim == 0)
+         {
+            return self.getNewStateVector(nullptr);
+         }
+         else
+         {
+            if (info.shape[0] != self.getStateSize())
+            {
+               std::string err("Incompatible size:\n"
+               "\tattempting to construct state vector (size ");
+               err += self.getStateSize();
+               err += ") with numpy vector of size ";
+               err += info.shape[0];
+               throw std::runtime_error(err);
+            }
+            return self.getNewStateVector((double*)info.ptr);
+         }
+         
+         
+      }, py::arg("data") = py::none())
+
+      .def("solveForState", (void (AbstractSolver::*)(mfem::ParGridFunction&))
+         &AbstractSolver::solveForState)
 
       .def("calcL2Error", [](
          AbstractSolver &self,
+         ParGridFunction &state,
          std::function<void(const mfem::Vector &, mfem::Vector *const)> u_exact,
          int entry)
       {
-         return self.calcL2Error([u_exact](const mfem::Vector &x, mfem::Vector &u)
+         return self.calcL2Error(&state, [u_exact](const mfem::Vector &x, mfem::Vector &u)
          {
             u_exact(x, &u);
          }, entry);
@@ -126,9 +177,12 @@ void initSolver(py::module &m)
 
       .def("printState", &AbstractSolver::printSolution)
 
+      .def("calcResidual",
+         (void (AbstractSolver::*)(const mfem::ParGridFunction &,
+                                   mfem::ParGridFunction&))
+         &AbstractSolver::calcResidual)
+
       /// TODO:
-      // .def("calcResidual", &AbstractSolver::calcResidual)
-      // .def("calcState", &AbstractSolver::calcState)
       // .def("multStateJacTranspose", &AbstractSolver::multStateJacTranspose)
       // .def("multMeshJacTranspose", &AbstractSolver::multMeshJacTranspose)
       // .def("invertStateJacTranspose", &AbstractSolver::invertStateJacTranspose)
