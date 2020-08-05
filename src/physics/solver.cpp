@@ -674,11 +674,11 @@ double AbstractSolver::calcL2Error(
    return sqrt(norm);
 }
 
-double AbstractSolver::calcResidualNorm() const
+double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
    GridFunType r(fes.get());
    double res_norm;
-   HypreParVector *u_true = u->GetTrueDofs();
+   HypreParVector *u_true = state.GetTrueDofs();
    HypreParVector *r_true = r.GetTrueDofs();
    res->Mult(*u_true, *r_true); 
    double loc_norm = (*r_true)*(*r_true);
@@ -687,18 +687,24 @@ double AbstractSolver::calcResidualNorm() const
    return res_norm;
 }
 
-std::unique_ptr<ParGridFunction> AbstractSolver::getNewStateVector(
+std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
    double *data)
 {
    if (data == nullptr)
    {
-      return std::unique_ptr<ParGridFunction>(
+      auto gf = std::unique_ptr<ParGridFunction>(
          new ParGridFunction(fes.get()));
+
+      *gf = 0.0;
+      return gf;
    }
    else
    {
-      return std::unique_ptr<ParGridFunction>(
+      auto gf = std::unique_ptr<ParGridFunction>(
          new ParGridFunction(fes.get(), data));
+
+      *gf = 0.0;
+      return gf;
    }
 
 }
@@ -713,7 +719,8 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
 }
 
 double AbstractSolver::calcStepSize(int iter, double t, double t_final,
-                                    double dt_old) const
+                                    double dt_old,
+                                    const ParGridFunction &state) const
 {
    double dt = options["time-dis"]["dt"].get<double>();
    dt = min(dt, t_final - t);
@@ -721,7 +728,7 @@ double AbstractSolver::calcStepSize(int iter, double t, double t_final,
 }
 
 bool AbstractSolver::iterationExit(int iter, double t, double t_final,
-                                   double dt)
+                                   double dt, const ParGridFunction &state)
 {
    if (t >= t_final - 1e-14 * dt) return true;
    return false;
@@ -776,7 +783,7 @@ void AbstractSolver::printResidual(const std::string &file_name,
 }
 
 void AbstractSolver::printFields(const std::string &file_name,
-                                 std::vector<GridFunType*> fields,
+                                 std::vector<ParGridFunction *> fields,
                                  std::vector<std::string> names,
                                  int refine)
 {
@@ -1001,7 +1008,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       state.Save(osol);
    }
 
-   printSolution("init");
+   printField("init", state, "Solution");
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
@@ -1009,21 +1016,21 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    int ti;
    bool done = false;
    double dt = 0.0;
-   initialHook();
+   initialHook(state);
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
-      dt = calcStepSize(ti, t, t_final, dt);
+      dt = calcStepSize(ti, t, t_final, dt, state);
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
          *out << " (" << round(100 * t / t_final) << "% complete)";
       *out << endl;
-      iterationHook(ti, t, dt);
+      iterationHook(ti, t, dt, state);
       HypreParVector *u_true = state.GetTrueDofs();
       ode_solver->Step(*u_true, t, dt);
-      *u = *u_true;
-      if (iterationExit(ti, t, t_final, dt)) break;
+      state = *u_true;
+      if (iterationExit(ti, t, t_final, dt, state)) break;
    }
-   terminalHook(ti, t);
+   terminalHook(ti, t, state);
 
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
@@ -1040,7 +1047,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
       state.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
       sol_ofs.close();
-      printSolution("final");
+      printField("final", state, "Solution");
    }
    else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
    {
@@ -1049,7 +1056,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
       state.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
       sol_ofs.close();
-      printSolution("final");
+      printField("final", state, "Solution");
    }
    // TODO: These mfem functions do not appear to be parallelized
 }

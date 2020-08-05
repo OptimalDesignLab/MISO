@@ -161,15 +161,15 @@ void EulerSolver<dim, entvar>::addEntVolumeIntegrators()
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::initialHook() 
+void EulerSolver<dim, entvar>::initialHook(const ParGridFunction &state) 
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
       // res_norm0 is used to compute the time step in PTC
-      res_norm0 = calcResidualNorm();
+      res_norm0 = calcResidualNorm(state);
    }
    // TODO: this should only be output if necessary
-   double entropy = ent->GetEnergy(*u);
+   double entropy = ent->GetEnergy(state);
    *out << "before time stepping, entropy is "<< entropy << endl;
    remove("entropylog.txt");
    entropylog.open("entropylog.txt", fstream::app);
@@ -177,20 +177,22 @@ void EulerSolver<dim, entvar>::initialHook()
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::iterationHook(int iter, double t, double dt)
+void EulerSolver<dim, entvar>::iterationHook(int iter, double t, double dt,
+                                             const ParGridFunction &state)
 {
-   double entropy = ent->GetEnergy(*u);
+   double entropy = ent->GetEnergy(state);
    entropylog << t << ' ' << entropy << endl;
 }
 
 template <int dim, bool entvar>
 bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
-                                             double dt)
+                                             double dt,
+                                             const ParGridFunction &state)
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
       // use tolerance options for Newton's method
-      double norm = calcResidualNorm();
+      double norm = calcResidualNorm(state);
       if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
          return true;
       if (norm <= res_norm0 *
@@ -200,14 +202,15 @@ bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
    }
    else
    {
-      return AbstractSolver::iterationExit(iter, t, t_final, dt);
+      return AbstractSolver::iterationExit(iter, t, t_final, dt, state);
    }
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final)
+void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final,
+                                            const ParGridFunction &state)
 {
-   double entropy = ent->GetEnergy(*u);
+   double entropy = ent->GetEnergy(state);
    entropylog << t_final << ' ' << entropy << endl;
    entropylog.close();
 }
@@ -277,14 +280,15 @@ void EulerSolver<dim, entvar>::addOutputs()
 template <int dim, bool entvar>
 double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
                                               double t_final,
-                                              double dt_old) const
+                                              double dt_old,
+                                              const ParGridFunction &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
       // ramp up time step for pseudo-transient continuation
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
-      double res_norm = calcResidualNorm();
+      double res_norm = calcResidualNorm(state);
       double exponent = options["time-dis"]["res-exp"];
       double dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
@@ -321,7 +325,7 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
       const FiniteElement *fe = fes->GetFE(k);
       const IntegrationRule *ir = &(fe->GetNodes());
       ElementTransformation *trans = fes->GetElementTransformation(k);
-      u->GetVectorValues(*trans, *ir, uk);
+      state.GetVectorValues(*trans, *ir, uk);
       for (int i = 0; i < fe->GetDof(); ++i)
       {
          trans->SetIntPoint(&fe->GetNodes().IntPoint(i));

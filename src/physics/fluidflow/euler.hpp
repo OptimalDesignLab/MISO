@@ -25,6 +25,7 @@ public:
    /// \param[in] t - the current time (before the step)
    /// \param[in] t_final - the final time
    /// \param[in] dt_old - the step size that was just taken
+   /// \param[in] state - the current state
    /// \returns dt - appropriate step size
    /// \note If "const-cfl" option is invoked, this uses the average spectral
    /// radius to estimate the largest wave speed, and uses the minimum distance
@@ -32,7 +33,8 @@ public:
    /// \note If "steady" option is involved, the time step will increase based
    /// on the baseline value of "dt" and the inverse residual norm.
    virtual double calcStepSize(int iter, double t, double t_final,
-                               double dt_old) const override;
+                               double dt_old,
+                               const mfem::ParGridFunction &state) const override;
 
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);
@@ -112,26 +114,33 @@ protected:
    virtual int getNumState() override {return dim+2; }
 
    /// For code that should be executed before the time stepping begins
-   virtual void initialHook() override;
+   /// \param[in] state - the current state
+   virtual void initialHook(const mfem::ParGridFunction &state) override;
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
-   virtual void iterationHook(int iter, double t, double dt) override;
+   /// \param[in] state - the current state
+   virtual void iterationHook(int iter, double t, double dt,
+                              const mfem::ParGridFunction &state) override;
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (after the step)
    /// \param[in] t_final - the final time
    /// \param[in] dt - the step size that was just taken
+   /// \param[in] state - the current state
    virtual bool iterationExit(int iter, double t, double t_final, 
-                              double dt) override;
+                              double dt,
+                              const mfem::ParGridFunction &state) override;
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
-   virtual void terminalHook(int iter, double t_final) override;
+   /// \param[in] state - the current state
+   virtual void terminalHook(int iter, double t_final,
+                             const mfem::ParGridFunction &state) override;
 
    friend SolverPtr createSolver<EulerSolver<dim, entvar>>(
        const nlohmann::json &json_options,

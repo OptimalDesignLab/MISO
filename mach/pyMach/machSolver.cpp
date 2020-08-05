@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 #include <mpi4py/mpi4py.h>
 #include <iostream>
@@ -115,15 +116,15 @@ void initSolver(py::module &m)
       },
       "Initializes the state vector to a given function.")
 
-      .def("getNewStateVector", [] (
+      .def("getNewField", [] (
          AbstractSolver &self,
          py::array_t<double> data)
       {
          py::buffer_info info = data.request();
 
-         std::cout << "ptr: " << info.ptr << "\n";
-         std::cout << "format: " << info.format << "\n";
-         std::cout << "ndim: " << info.ndim << "\n";
+         // std::cout << "ptr: " << info.ptr << "\n";
+         // std::cout << "format: " << info.format << "\n";
+         // std::cout << "ndim: " << info.ndim << "\n";
          
 
          /* Some sanity checks ... */
@@ -141,7 +142,7 @@ void initSolver(py::module &m)
 
          if (info.ndim == 0)
          {
-            return self.getNewStateVector(nullptr);
+            return self.getNewField(nullptr);
          }
          else
          {
@@ -154,7 +155,7 @@ void initSolver(py::module &m)
                err += info.shape[0];
                throw std::runtime_error(err);
             }
-            return self.getNewStateVector((double*)info.ptr);
+            return self.getNewField((double*)info.ptr);
          }
          
          
@@ -175,7 +176,17 @@ void initSolver(py::module &m)
          }, entry);
       })
 
-      .def("printState", &AbstractSolver::printSolution)
+      .def("printField", &AbstractSolver::printField,
+         py::arg("filename"),
+         py::arg("field"),
+         py::arg("name"),
+         py::arg("refine") = -1)
+
+      .def("printFields", &AbstractSolver::printFields,
+         py::arg("filename"),
+         py::arg("fields"),
+         py::arg("names"),
+         py::arg("refine") = -1)
 
       .def("calcResidual",
          (void (AbstractSolver::*)(const mfem::ParGridFunction &,

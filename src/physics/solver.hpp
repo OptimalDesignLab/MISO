@@ -181,11 +181,13 @@ public:
    /// \param[in] t - the current time (before the step)
    /// \param[in] t_final - the final time
    /// \param[in] dt_old - the step size that was just taken
+   /// \param[in] state - the current state
    /// \returns dt - the step size appropriate to the problem
    /// This base method simply returns the option in ["time-dis"]["dt"],
    /// truncated as necessary such that `t + dt = t_final`.
    virtual double calcStepSize(int iter, double t, double t_final,
-                               double dt_old) const;
+                               double dt_old,
+                               const mfem::ParGridFunction &state) const;
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -211,6 +213,21 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printResidual(const std::string &file_name, int refine = -1);
 
+
+   /// TODO: make this work for parallel!
+   /// Write the mesh and an initializer list to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] field - grid function to print
+   /// \param[in] name - name to use for the printed grid function
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printField(const std::string &file_name,
+                   mfem::ParGridFunction &field,
+                   const std::string &name,
+                   int refine = -1)
+   { printFields(file_name, {&field}, {name}, refine); };
+
    /// TODO: make this work for parallel!
    /// Write the mesh and an initializer list to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -221,7 +238,7 @@ public:
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printFields(const std::string &file_name,
-                      std::vector<GridFunType*> fields,
+                      std::vector<mfem::ParGridFunction *> fields,
                       std::vector<std::string> names,
                       int refine = -1);
 
@@ -251,13 +268,17 @@ public:
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
-   double calcResidualNorm() const;
+   double calcResidualNorm() const { return calcResidualNorm(*u); };
 
-   /// Return a ParGridFunction constructed from an externally allocated array
-   /// \param[in] data - externally allocated array
+   /// Compute the residual norm based on the input `state`
+   /// \returns the l2 (discrete) norm of the residual evaluated at `u`
+   double calcResidualNorm(const mfem::ParGridFunction &state) const;
+
+   /// Return a state sized vector constructed from an externally allocated array
+   /// \param[in] data - external data array
    /// \note If `data` is nullptr a new array will be allocated. If `data` is 
    /// not `nullptr` it is assumed to be of size of at least `fes->GetVSize()`
-   std::unique_ptr<mfem::ParGridFunction> getNewStateVector(double *data = nullptr);
+   std::unique_ptr<mfem::ParGridFunction> getNewField(double *data = nullptr);
 
    /// Compute the residual based on the current solution in `u`
    /// \param[out] residual - the residual
@@ -469,25 +490,32 @@ protected:
    virtual void solveUnsteady(mfem::ParGridFunction &state);
    
    /// For code that should be executed before the time stepping begins
-   virtual void initialHook() {};
+   /// \param[in] state - the current state
+   virtual void initialHook(const mfem::ParGridFunction &state) {};
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
-   virtual void iterationHook(int iter, double t, double dt) {};
+   /// \param[in] state - the current state
+   virtual void iterationHook(int iter, double t, double dt,
+                              const mfem::ParGridFunction &state) {};
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (after the step)
    /// \param[in] t_final - the final time
    /// \param[in] dt - the step size that was just taken
-   virtual bool iterationExit(int iter, double t, double t_final, double dt);
+   /// \param[in] state - the current state
+   virtual bool iterationExit(int iter, double t, double t_final, double dt,
+                              const mfem::ParGridFunction &state );
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
-   virtual void terminalHook(int iter, double t_final) {};
+   /// \param[in] state - the current state
+   virtual void terminalHook(int iter, double t_final,
+                             const mfem::ParGridFunction &state) {};
       
    /// Solve for a steady adjoint
    /// \param[in] fun - specifies the functional corresponding to the adjoint

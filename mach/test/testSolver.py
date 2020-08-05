@@ -147,13 +147,13 @@ class SolverRegressionTests(unittest.TestCase):
             tmp = tempfile.gettempdir()
             filepath = os.path.join(tmp, "qa")
             mesh_degree = options["space-dis"]["degree"] + 1;
-            for nx in range(1, 5):
+            for nx in range(4, 5):
                 buildQuarterAnnulusMesh(mesh_degree, nx, nx, filepath)
                 options["mesh"]["file"] = filepath + ".mesh"
 
                 solver = MachSolver("Euler", options, entvar=use_entvar)
 
-                state = solver.getNewStateVector()
+                state = solver.getNewField()
 
                 # define the appropriate exact solution based on entvar
                 if use_entvar:
@@ -163,9 +163,16 @@ class SolverRegressionTests(unittest.TestCase):
                     uexact = qexact
 
                 solver.setInitialCondition(state, uexact)
-                solver.printState("state", -1)
 
                 solver.solveForState(state);
+
+                residual = solver.getNewField()
+                solver.calcResidual(state, residual)
+
+                solver.printField("state", state, "state", -1)
+                solver.printField("residual", residual, "residual", -1)
+
+                solver.printFields("steady_vortex", [state, residual], ["state", "residual"])
 
                 l2_error = solver.calcL2Error(state, uexact, 0)
 
