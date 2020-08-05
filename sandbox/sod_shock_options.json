@@ -28,7 +28,7 @@
       "reltol": 1e-10,
       "abstol": 1e-10,
       "kdim": 100
-   }
+   },
    "outputs": {
       "entropy": true
    },
