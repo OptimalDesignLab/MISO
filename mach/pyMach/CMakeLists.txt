@@ -1,7 +1,7 @@
 target_sources(pyMach
    PUBLIC
       "pyMach.cpp"
-      "gridfunc.cpp"
+      "field.cpp"
       "machSolver.cpp"
       "vector.cpp"
       "mesh.cpp"

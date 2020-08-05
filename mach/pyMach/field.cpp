@@ -11,7 +11,7 @@ namespace py = pybind11;
 
 using namespace mfem;
 
-void initGridFunction(py::module &m)
+void initField(py::module &m)
 {
-   py::class_<ParGridFunction, Vector>(m, "GridFunction");
+   py::class_<ParGridFunction, Vector>(m, "Field");
 }
