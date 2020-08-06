@@ -1035,9 +1035,7 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
 
    // Step 3: Solve the adjoint problem
-   *out << "Solving adjoint problem:\n"
-        << "\tsolver: HypreGMRES\n"
-        << "\tprec. : Euclid ILU" << endl;
+   *out << "Solving adjoint problem" << endl;
    unique_ptr<Solver> adj_prec = constructPreconditioner(options["adj-prec"]);
    unique_ptr<Solver> adj_solver = constructLinearSolver(
        options["adj-solver"], *adj_prec);

@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 
       *out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver->calcL2Error(uexact, 0) << '\n' << endl;
-      *out << "\ndrag = " << drag << endl;
+      *out << "\ndrag \"error\" = " << drag - 1.6 << endl;
       *out << "\nfinal residual norm = " << solver->calcResidualNorm() << endl;
 
       // TEMP
