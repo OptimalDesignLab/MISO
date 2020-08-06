@@ -44,7 +44,7 @@ const nlohmann::json default_options
       {"max-iter", 10000} // safe-guard upper bound on number of iterations
    }},
 
-   {"newton", // options related to root-finding algorithms
+   {"nonlin-solver", // options related to root-finding algorithms
    {
       {"type", "newton"}, // type of nonlinear solver
       {"printlevel", 1}, // linear solver print level (no printing if zero)

@@ -10,7 +10,7 @@
       "iface-coeff": 1.0,
       "basis-type": "csbp"
    },
-   "newton": {
+   "nonlin-solver": {
       "printlevel": 1,
       "maxiter": 100,
       "reltol": 1e-10,

@@ -285,7 +285,7 @@ void AbstractSolver::initDerived()
 
    prec = constructPreconditioner(options["lin-prec"]);
    solver = constructLinearSolver(options["lin-solver"], *prec);
-   newton_solver = constructNonlinearSolver(options["newton"], *solver);
+   newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
    constructEvolver();
 }
 
