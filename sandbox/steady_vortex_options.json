@@ -18,7 +18,7 @@
       "const-cfl": true,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 0.1,
+      "dt": 1e12,
       "cfl": 1.0
    },
 	"model-file": "annulus.dmg",
@@ -30,7 +30,7 @@
       "vortex": [1, 1, 1, 0],
       "slip-wall": [0, 0, 0, 1]
    },
-   "newton": {
+   "nonlin-solver": {
       "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-1,

@@ -36,15 +36,14 @@ auto options = R"(
       "cfl": 1.0,
       "res-exp": 2.0
    },
-   "newton": {
+   "nonlin-solver": {
       "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-1,
       "abstol": 1e-12
    },
    "lin-solver": {
-      "type": "hypregmres",
-      "pctype": "hypreeuclid",
+      "type": "hyprefgmres",
       "printlevel": 0,
       "filllevel": 3,
       "maxiter": 100,

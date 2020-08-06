@@ -17,7 +17,7 @@
       "printlevel": 2,
       "maxiter": 50
    },
-   "newton": {
+   "nonlin-solver": {
       "printlevel": 1,
       "reltol": 1e-9
    },

@@ -22,7 +22,7 @@
       "cfl": 1.0,
       "res-exp": 2.0
    },
-   "newton": {
+   "nonlin-solver": {
       "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-1,
