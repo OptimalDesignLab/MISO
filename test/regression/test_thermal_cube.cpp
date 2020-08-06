@@ -44,7 +44,7 @@ auto options = R"(
        "printlevel": 0,
        "maxiter": 500
     },
-    "newton":{
+    "nonlin-solver":{
        "printlevel": 0
     },
     "motor-opts" : {
