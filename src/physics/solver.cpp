@@ -1147,17 +1147,24 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    else if (prec_type == "hypreilu")
    {
       precond.reset(new HypreILU());
+      HypreILU *ilu = dynamic_cast<HypreILU*>(precond.get());
+      ilu->SetType(_options["ilu-type"].get<int>());
+      ilu->SetLevelOfFill(_options["lev-fill"].get<int>());
+      ilu->SetLocalReordering(_options["ilu-reorder"].get<int>());
+      ilu->SetPrintLevel(_options["printlevel"].get<int>());
    }
    else if (prec_type == "hypreams")
    {
       precond.reset(new HypreAMS(fes.get()));
-      dynamic_cast<mfem::HypreAMS *>(precond.get())->SetPrintLevel(0);
-      dynamic_cast<mfem::HypreAMS *>(precond.get())->SetSingularProblem();
+      HypreAMS *ams = dynamic_cast<HypreAMS*>(precond.get());
+      ams->SetPrintLevel(_options["printlevel"].get<int>());
+      ams->SetSingularProblem();
    }
    else if (prec_type == "hypreboomeramg")
    {
       precond.reset(new HypreBoomerAMG());
-      dynamic_cast<mfem::HypreBoomerAMG *>(precond.get())->SetPrintLevel(0);
+      HypreBoomerAMG *amg = dynamic_cast<HypreBoomerAMG*>(precond.get());
+      amg->SetPrintLevel(_options["printlevel"].get<int>());
    }
    else if (prec_type == "blockilu")
    {

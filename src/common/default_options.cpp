@@ -65,12 +65,16 @@ const nlohmann::json default_options
 
    {"lin-prec",
    {
-      {"type", "hypreilu"} // default preconditioner
+      {"type", "hypreilu"}, // default preconditioner
+      {"lev-fill", 1}, // ILU(k) fill level
+      {"ilu-type", 10}, // ILU type (see mfem HypreILU doc)
+      {"ilu-reorder", 1}, // 0 = no reordering, 1 = RCM
+      {"printlevel", 0} // 0 = none, 1 = setup, 2 = solve, 3 = setup+solve
    }},
 
    {"adj-solver",
    {
-      {"type", "hypregmres"}, // Default solver
+      {"type", "hyprefgmres"}, // Default solver
       {"printlevel", 0}, // adjoint solver print level (no printing if zero)
       {"maxiter", 100}, // maximum number of solver iterations 
       {"reltol", 1e-8}, // adjoint solver relative tolerance
@@ -80,7 +84,11 @@ const nlohmann::json default_options
 
    {"adj-prec",
    {
-      {"type", "hypreilu"} // default adjoint-solver preconditioner
+      {"type", "hypreilu"}, // default adjoint-solver preconditioner
+      {"lev-fill", 1}, // ILU(k) fill level
+      {"ilu-type", 10}, // ILU type (see mfem HypreILU doc)
+      {"ilu-reorder", 1}, // 0 = no reordering, 1 = RCM
+      {"printlevel", 0} // 0 = none, 1 = setup, 2 = solve, 3 = setup+solve
    }},
 
    {"petscsolver",
