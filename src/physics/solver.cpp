@@ -835,7 +835,7 @@ void AbstractSolver::solveForAdjoint(const std::string &fun)
    }
 }
 
-void AbstractSolver::setMeshNodalCoordinates(mfem::Vector &coords)
+void AbstractSolver::setMeshCoordinates(mfem::Vector &coords)
 {
    /// Added `EnsureNodes` to `constructMesh`
    // if (mesh->GetNodes() == nullptr)

@@ -313,7 +313,7 @@ public:
    MeshType* getMesh() {return mesh.get();}
 
    /// return a reference to the mesh's coordinate field
-   mfem::Vector& getMeshNodalCoordinates() { return *mesh->GetNodes(); }
+   mfem::Vector& getMeshCoordinates() { return *mesh->GetNodes(); }
 
    /// \brief function to update the mesh's nodal coordinate field
    /// \param[in] coords - Vector containing mesh's nodal coordinate field
@@ -322,7 +322,7 @@ public:
    /// \note After calling this method the mesh will own the GridFunction
    /// defining the coordinate field, but the GridFunction will not own the 
    /// underlying data (TODO? Look at cost of copying?)
-   void setMeshNodalCoordinates(mfem::Vector &coords);
+   void setMeshCoordinates(mfem::Vector &coords);
 
    inline int getMeshSize() { return mesh->GetNodes()->FESpace()->GetVSize(); }
    inline int getStateSize() { return fes->GetVSize(); }

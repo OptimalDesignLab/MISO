@@ -94,9 +94,9 @@ void initSolver(py::module &m)
           py::arg("entvar") = false)
 
       .def("getMeshSize", &AbstractSolver::getMeshSize)
-      .def("getMeshNodalCoordinates", &AbstractSolver::getMeshNodalCoordinates,
+      .def("getMeshCoordinates", &AbstractSolver::getMeshCoordinates,
             py::return_value_policy::reference)
-      .def("setMeshNodalCoordinates", &AbstractSolver::setMeshNodalCoordinates)
+      .def("setMeshCoordinates", &AbstractSolver::setMeshCoordinates)
 
       .def("setScalarInitialCondition", (void (AbstractSolver::*)
             (ParGridFunction &state, 
@@ -177,6 +177,8 @@ void initSolver(py::module &m)
          }, entry);
       })
 
+      // .def("printMesh", &AbstractSolver::printMesh)
+
       .def("printField", &AbstractSolver::printField,
          py::arg("filename"),
          py::arg("field"),
@@ -202,6 +204,8 @@ void initSolver(py::module &m)
          &AbstractSolver::calcOutput,
          py::arg("state"),
          py::arg("func"))
+
+      .def("getStateSize", &AbstractSolver::getStateSize)
 
       /// TODO:
       // .def("linearize", &AbstractSolver::linearize)

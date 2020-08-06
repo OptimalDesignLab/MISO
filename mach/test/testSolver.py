@@ -3,7 +3,7 @@ import numpy as np
 import tempfile
 import os
 
-from mach.pyMach import MachSolver, Mesh, Vector
+from mach import MachSolver, Mesh, Vector
 
 class SolverRegressionTests(unittest.TestCase):
     def test_steady_vortex(self):
