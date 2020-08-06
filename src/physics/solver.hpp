@@ -423,16 +423,25 @@ protected:
    /// TODO: What is this doing here?
    void (*pert)(const mfem::Vector &, mfem::Vector &);
 
-   /// Constuct the linear system solver
-   /// \note solver and preconditioner chosen based on options
-   virtual void constructLinearSolver(nlohmann::json &options);
+   /// Construct a preconditioner based on the given options
+   /// \param[in] _options - options structure that determines preconditioner
+   /// \returns unique pointer to the preconditioner object
+   virtual std::unique_ptr<mfem::Solver> constructPreconditioner(
+       nlohmann::json &_options);
 
-   /// Constructs the newton solver object
-   virtual void constructNewtonSolver();
+   /// Constuct a linear system solver based on the given options
+   /// \param[in] _options - options structure that determines the solver
+   /// \param[in] _prec - preconditioner object for iterative solvers
+   /// \returns unique pointer to the linear solver object
+   virtual std::unique_ptr<mfem::Solver> constructLinearSolver(
+       nlohmann::json &_options, mfem::Solver &_prec);
 
-   /// Sets convergence options for solver
-   /// \param[in] options - options structure for particular solver to set
-   virtual void setIterSolverOptions(nlohmann::json &options);
+   /// Constructs the nonlinear solver object
+   /// \param[in] _options - options structure that determines the solver
+   /// \param[in] _lin_solver - linear solver for the Newton steps
+   /// \returns unique pointer to the Newton solver object
+   virtual std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
+      nlohmann::json &_options, mfem::Solver &_lin_solver);
 
    /// Constructs the operator that defines ODE evolution 
    virtual void constructEvolver();

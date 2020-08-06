@@ -44,10 +44,18 @@ const nlohmann::json default_options
       {"max-iter", 10000} // safe-guard upper bound on number of iterations
    }},
 
+   {"newton", // options related to root-finding algorithms
+   {
+      {"type", "newton"}, // type of nonlinear solver
+      {"printlevel", 1}, // linear solver print level (no printing if zero)
+      {"maxiter", 100}, // default to 100 iterations
+      {"reltol", 1e-14}, // solver relative tolerance
+      {"abstol", 1e-14}, // solver absolute tolerance
+   }},
+
    {"lin-solver",
    {
-      {"type", "hypregmres"}, // Default solver
-      {"pctype", "hypreeuclid"}, // Default preconditioner type
+      {"type", "hyprefgmres"}, // Default solver
       {"printlevel", 1}, // linear solver print level (no printing if zero)
       {"maxiter", 100}, // default to 100 iterations
       {"reltol", 1e-12}, // solver relative tolerance
@@ -55,15 +63,24 @@ const nlohmann::json default_options
       {"kdim", 100} // default restart value
    }},
 
+   {"lin-prec",
+   {
+      {"type", "hypreilu"} // default preconditioner
+   }},
+
    {"adj-solver",
    {
       {"type", "hypregmres"}, // Default solver
-      {"pctype", "hypreeuclid"}, // Default preconditioner type
       {"printlevel", 0}, // adjoint solver print level (no printing if zero)
       {"maxiter", 100}, // maximum number of solver iterations 
       {"reltol", 1e-8}, // adjoint solver relative tolerance
       {"abstol", 1e-10}, // adjoint solver absolute tolerance
       {"kdim", 100} // default restart value
+   }},
+
+   {"adj-prec",
+   {
+      {"type", "hypreilu"} // default adjoint-solver preconditioner
    }},
 
    {"petscsolver",
@@ -74,14 +91,6 @@ const nlohmann::json default_options
       {"reltol", 1e-10},
       {"maxiter", 100},
       {"printlevel", 0}
-   }},
-
-   {"newton", // options related to root-finding algorithms
-   {
-      {"printlevel", 1}, // linear solver print level (no printing if zero)
-      {"maxiter", 100}, // default to 100 iterations
-      {"reltol", 1e-14}, // solver relative tolerance
-      {"abstol", 1e-14}, // solver absolute tolerance
    }},
 
    {"mesh",
