@@ -44,9 +44,13 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
+      //auto solver = createSolver<EulerSolver<2>>(opt_file_name);
       auto solver = createSolver<NavierStokesSolver<2>>(opt_file_name);
       Vector qfar(4);
+      //static_cast<EulerSolver<2>*>(solver.get())->getFreeStreamState(qfar);
       static_cast<NavierStokesSolver<2>*>(solver.get())->getFreeStreamState(qfar);
+      qfar(1) = 0.0;
+      qfar(2) = 0.0;
       //Vector wfar(4);
       // TODO: I do not like that we have to perform this conversion outside the solver...
       //calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());

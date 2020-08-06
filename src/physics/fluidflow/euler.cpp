@@ -534,9 +534,11 @@ void EulerSolver<dim, entvar>::solveEntBalanceAdjoint()
    *out << "Solving adjoint problem:\n"
         << "\tsolver: HypreGMRES\n"
         << "\tprec. : Euclid ILU" << endl;
-   constructLinearSolver(options["adj-solver"]);
-   solver->SetOperator(*jac_trans);
-   solver->Mult(*dJdu_true, *adj_true);
+   unique_ptr<Solver> adj_prec = constructPreconditioner(options["adj-prec"]);
+   unique_ptr<Solver> adj_solver = constructLinearSolver(options["adj-solver"],
+                                                         *adj_prec);
+   adj_solver->SetOperator(*jac_trans);
+   adj_solver->Mult(*dJdu_true, *adj_true);
 
    // check that adjoint residual is small
    std::unique_ptr<GridFunType> adj_res(new GridFunType(fes.get()));
