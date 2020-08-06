@@ -154,3 +154,13 @@ class omMachFunctionals(om.ExplicitComponent):
         self.add_output('func')
 
         #self.declare_partials(of='func', wrt='*')
+
+    def compute(self, inputs, outputs):
+        solver = self.options['solver']
+
+
+        mesh_coords = inputs['vol_mesh_coords']
+        state = inputs['state']
+
+        solver.setMeshCoordinates(mesh_coords)
+        outputs['func'] = solver.calcFunctional(state, "drag")

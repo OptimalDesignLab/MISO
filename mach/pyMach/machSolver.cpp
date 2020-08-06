@@ -194,9 +194,17 @@ void initSolver(py::module &m)
                                    mfem::ParGridFunction&))
          &AbstractSolver::calcResidual,
          py::arg("state"),
-         py::arg("residual"),)
+         py::arg("residual"))
+
+      .def("calcFunctional",
+         (double (AbstractSolver::*)(const mfem::ParGridFunction &,
+                                     const std::string &))
+         &AbstractSolver::calcOutput,
+         py::arg("state"),
+         py::arg("func"))
 
       /// TODO:
+      // .def("linearize", &AbstractSolver::linearize)
       // .def("multStateJacTranspose", &AbstractSolver::multStateJacTranspose)
       // .def("multMeshJacTranspose", &AbstractSolver::multMeshJacTranspose)
       // .def("invertStateJacTranspose", &AbstractSolver::invertStateJacTranspose)

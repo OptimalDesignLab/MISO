@@ -47,6 +47,7 @@ class SolverRegressionTests(unittest.TestCase):
             mesh.getNodes(mach_nodes)
             nodes = np.array(mach_nodes, copy=False)
             apply_map(nodes)
+            mesh.Print(path)
 
         # exact solution for conservative variables
         def qexact(x, q):
@@ -143,6 +144,7 @@ class SolverRegressionTests(unittest.TestCase):
                 target_error = [0.0690131081, 0.0224304871, 0.0107753424, 0.0064387612]
             else:
                 target_error = [0.0700148195, 0.0260625842, 0.0129909277, 0.0079317615]
+                target_drag = [-0.7351994763, -0.7173671079, -0.7152435959, -0.7146853812]
 
             tmp = tempfile.gettempdir()
             filepath = os.path.join(tmp, "qa")
@@ -171,8 +173,12 @@ class SolverRegressionTests(unittest.TestCase):
                 # solver.printFields("steady_vortex", [state, residual], ["state", "residual"])
 
                 l2_error = solver.calcL2Error(state, uexact, 0)
+                drag = solver.calcFunctional(state, "drag")
 
                 self.assertLessEqual(l2_error, target_error[nx-1])
+                # self.assertAlmostEqual(l2_error, target_error[nx-1])
+
+                self.assertAlmostEqual(drag, target_drag[nx-1])
 
 
 if __name__ == '__main__':

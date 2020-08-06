@@ -264,7 +264,15 @@ public:
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
    /// \returns scalar value of estimated functional value
-   double calcOutput(const std::string &fun);
+   double calcOutput(const std::string &fun)
+   { return calcOutput(*u, fun); };
+
+   /// Evaluate and return the output functional specified by `fun`
+   /// \param[in] state - the state vector to evaluate the functional at
+   /// \param[in] fun - specifies the desired functional
+   /// \returns scalar value of estimated functional value
+   double calcOutput(const mfem::ParGridFunction &state,
+                     const std::string &fun);
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`

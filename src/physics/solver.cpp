@@ -1259,7 +1259,8 @@ void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
                        "\tnot implemented yet!");
 }
 
-double AbstractSolver::calcOutput(const std::string &fun)
+double AbstractSolver::calcOutput(const ParGridFunction &state,
+                                  const std::string &fun)
 {
    try
    {
@@ -1267,7 +1268,7 @@ double AbstractSolver::calcOutput(const std::string &fun)
       {
          *out << "Did not find " << fun << " in output map?" << endl;
       }
-      return output.at(fun).GetEnergy(*u);
+      return output.at(fun).GetEnergy(state);
    }
    catch (const std::out_of_range &exception)
    {
