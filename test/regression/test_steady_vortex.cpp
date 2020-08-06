@@ -39,7 +39,7 @@ auto options = R"(
       "vortex": [1, 1, 1, 0],
       "slip-wall": [0, 0, 0, 1]
    },
-   "newton": {
+   "nonlin-solver": {
       "printlevel": 0,
       "maxiter": 50,
       "reltol": 1e-1,

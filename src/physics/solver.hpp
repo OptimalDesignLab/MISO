@@ -424,24 +424,24 @@ protected:
    void (*pert)(const mfem::Vector &, mfem::Vector &);
 
    /// Construct a preconditioner based on the given options
-   /// \param[in] _options - options structure that determines preconditioner
+   /// \param[in] options - options structure that determines preconditioner
    /// \returns unique pointer to the preconditioner object
    virtual std::unique_ptr<mfem::Solver> constructPreconditioner(
-       nlohmann::json &_options);
+       nlohmann::json &options);
 
    /// Constuct a linear system solver based on the given options
-   /// \param[in] _options - options structure that determines the solver
-   /// \param[in] _prec - preconditioner object for iterative solvers
+   /// \param[in] options - options structure that determines the solver
+   /// \param[in] prec - preconditioner object for iterative solvers
    /// \returns unique pointer to the linear solver object
    virtual std::unique_ptr<mfem::Solver> constructLinearSolver(
-       nlohmann::json &_options, mfem::Solver &_prec);
+       nlohmann::json &options, mfem::Solver &prec);
 
    /// Constructs the nonlinear solver object
-   /// \param[in] _options - options structure that determines the solver
-   /// \param[in] _lin_solver - linear solver for the Newton steps
+   /// \param[in] options - options structure that determines the solver
+   /// \param[in] lin_solver - linear solver for the Newton steps
    /// \returns unique pointer to the Newton solver object
    virtual std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
-      nlohmann::json &_options, mfem::Solver &_lin_solver);
+      nlohmann::json &options, mfem::Solver &lin_solver);
 
    /// Constructs the operator that defines ODE evolution 
    virtual void constructEvolver();
