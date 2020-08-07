@@ -481,9 +481,9 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
       }
       else
       {
+         trans.Face->SetIntPoint(&face_ip);
          CalcOrtho(trans.Face->Jacobian(), nrm);
          flux(x, nrm, u_face, flux_face);
-         trans.Face->SetIntPoint(&face_ip);
          flux_face *= face_ip.weight;
       }
 
@@ -550,10 +550,10 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
       }
       else
       {
+         trans.Face->SetIntPoint(&face_ip);
          CalcOrtho(trans.Face->Jacobian(), nrm);
          // flux(x, nrm, u_face, flux_face);
          fluxJacState(x, nrm, u_face, flux_jac_face);
-         trans.Face->SetIntPoint(&face_ip);
          flux_jac_face *= face_ip.weight;
       }
 
