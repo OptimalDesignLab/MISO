@@ -99,7 +99,7 @@ void initSolver(py::module &m)
       .def("setMeshCoordinates", &AbstractSolver::setMeshCoordinates)
 
       .def("setScalarInitialCondition", (void (AbstractSolver::*)
-            (ParGridFunction &state, 
+            (mfem::ParGridFunction &state, 
             const std::function<double(const mfem::Vector &)>&))
             &AbstractSolver::setInitialCondition,
             "Initializes the state vector to a given scalar function.")
@@ -167,7 +167,7 @@ void initSolver(py::module &m)
 
       .def("calcL2Error", [](
          AbstractSolver &self,
-         ParGridFunction &state,
+         mfem::ParGridFunction &state,
          std::function<void(const mfem::Vector &, mfem::Vector *const)> u_exact,
          int entry)
       {
@@ -177,7 +177,7 @@ void initSolver(py::module &m)
          }, entry);
       })
 
-      // .def("printMesh", &AbstractSolver::printMesh)
+      .def("printMesh", &AbstractSolver::printMesh)
 
       .def("printField", &AbstractSolver::printField,
          py::arg("filename"),

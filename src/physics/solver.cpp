@@ -846,6 +846,17 @@ void AbstractSolver::setMeshCoordinates(mfem::Vector &coords)
    // }
    // auto mesh_gf = static_cast<ParGridFunction*>(mesh->GetNodes());
    auto mesh_gf = mesh->GetNodes();
+   mfem::Vector diff(coords);
+   diff -= *mesh_gf;
+
+   std::cout << "\n-------------------------------\n";
+   std::cout << "l2 norm of mesh diff: " << diff.Norml2() << "\n";
+   std::cout << "-------------------------------\n";
+
+   std::cout << "input coords: \n";
+   coords.Print();
+   std::cout << "mesh gf: \n";
+   mesh_gf->Print();
    // mesh_gf->MakeRef(coords, 0);
    mesh_gf->MakeRef(coords, 0);
 }

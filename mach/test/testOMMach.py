@@ -3,7 +3,7 @@ import numpy as np
 import tempfile
 import os
 
-from mach import omMach, Mesh, Vector
+from mach import omMach, Mesh, Vector, MachSolver
 import openmdao.api as om
 
 options = {
@@ -87,7 +87,9 @@ def buildQuarterAnnulusMesh(degree, num_rad, num_ang, path):
     def apply_map(coords):
         num_nodes = coords.size
         for i in range(0, num_nodes, 2):
+        # for i in range(0, num_nodes//2):
             # print(np.array([coords[i], coords[i+1]]), end=' -> ')
+            # xy = map(np.array([coords[i], coords[i+num_nodes//2]]))
             xy = map(np.array([coords[i], coords[i+1]]))
             coords[i] = xy[0]
             coords[i+1] = xy[1]
@@ -98,9 +100,11 @@ def buildQuarterAnnulusMesh(degree, num_rad, num_ang, path):
 
     mach_nodes = Vector()
     mesh.getNodes(mach_nodes)
+    print(mach_nodes)
     nodes = np.array(mach_nodes, copy=False)
     apply_map(nodes)
     mesh.Print(path)
+    mesh.PrintVTU("testpath")
     return mesh
 
 # exact solution for conservative variables
@@ -144,7 +148,13 @@ class TestMachGroup(unittest.TestCase):
             if use_entvar:
                 pass
             else:
+                # c++:
+                # target_drag = [-0.7355357753, -0.717524391, -0.7152446356, -0.7146853447]
+                # python:
                 target_drag = [-0.7351994763, -0.7173671079, -0.7152435959, -0.7146853812]
+                # openmdao:
+                # target_drag = [-0.7817978779, -0.7323840978, -0.7176052052, -0.7146853447]
+                # pass
 
             tmp = tempfile.gettempdir()
             filepath = os.path.join(tmp, "qa")
@@ -162,22 +172,26 @@ class TestMachGroup(unittest.TestCase):
 
                 mesh = buildQuarterAnnulusMesh(mesh_degree, nx, nx, filepath)
 
-                mach_nodes = Vector()
-                mesh.getNodes(mach_nodes)
+                # mach_nodes = Vector()
+                # mesh.getNodes(mach_nodes)
+                # mesh_nodes = np.array(mach_nodes, copy=False)
+
+                solver = MachSolver('Euler', options, problem.comm)
+                mach_nodes = solver.getMeshCoordinates()
                 mesh_nodes = np.array(mach_nodes, copy=False)
 
                 ivc.add_output('vol_mesh_coords', mesh_nodes, mesh_nodes.shape)
 
                 model.add_subsystem('machSolver', omMach(options_dict=options,
-                                                         solver_type='Euler',
-                                                         initial_condition=qexact),
+                                                            solver_type='Euler',
+                                                            initial_condition=qexact),
                                     promotes_inputs=['vol_mesh_coords'],
                                     promotes_outputs=['func'])
 
                 problem.setup()
                 problem.run_model()
                 drag = problem.get_val('func')
-
+                print(drag[0])
                 self.assertAlmostEqual(drag[0], target_drag[nx-1])
 
 if __name__ == '__main__':

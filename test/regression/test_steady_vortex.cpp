@@ -88,16 +88,23 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
 
 TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
-                       "[Euler-Vortex]", ((bool entvar), entvar), false)
+                       "[Euler-Vortex]", ((bool entvar), entvar), true, false)
 {
    // define the appropriate exact solution based on entvar
    auto uexact = !entvar ? qexact : wexact;
    int mesh_degree = options["space-dis"]["degree"].get<int>() + 1;
    std::vector<double> target_error;
+   std::vector<double> target_drag;
    if (entvar)
+   {
       target_error = {0.0690131081, 0.0224304871, 0.0107753424, 0.0064387612};
+      target_drag = {-0.7355357753, -0.717524391, -0.7152446356, -0.7146853447};
+   }
    else
+   {
       target_error = {0.0700148195, 0.0260625842, 0.0129909277, 0.0079317615};
+      target_drag = {-0.7355357753, -0.717524391, -0.7152446356, -0.7146853447};
+   }
 
    for (int nx = 1; nx <= 4; ++nx)
    {
@@ -115,6 +122,10 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
          // Compute error and check against appropriate target
          double l2_error = solver->calcL2Error(uexact, 0);
          REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
+
+         // Compute drag and check against target
+         double drag = solver->calcOutput("drag");
+         REQUIRE(drag == Approx(target_drag[nx-1]).margin(1e-10));
       }
    }
 }

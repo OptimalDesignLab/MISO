@@ -102,12 +102,19 @@ class omMachState(om.ImplicitComponent):
 
         solver.setInitialCondition(state, u_init)
 
-        solver.printField("state", state, "state")
+        # solver.printField("state", state, "state")
         # TODO: change these methods in machSolver to support numpy array 
         # as argument and do the conversion internally
         solver.setMeshCoordinates(Vector(mesh_coords))
-        # solver.printMesh("mesh")
+        solver.printMesh("mesh")
         solver.solveForState(state)
+
+        uex = solver.getNewField()
+        solver.setInitialCondition(uex, u_init)
+
+        solver.printFields("state_post_solve", [state, uex], ["state", "uex"])
+
+        print("error: ", solver.calcL2Error(state, u_init, -1))
 
     def linearize(self, inputs, outputs, residuals):
         """

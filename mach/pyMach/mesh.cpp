@@ -1,5 +1,8 @@
 #include <pybind11/pybind11.h>
 
+#include <mpi4py/mpi4py.h>
+#include "mpi4py_comm.hpp"
+
 #include "mfem.hpp"
 
 namespace py = pybind11;
@@ -8,14 +11,18 @@ using namespace mfem;
 
 void initMesh(py::module &m)
 {
-   py::class_<mfem::Mesh>(m, "Mesh")
-      .def(py::init([](int nx, int ny, double sx, double sy, int order)
+   py::class_<mfem::ParMesh>(m, "Mesh")
+      .def(py::init([](int nx, int ny, double sx, double sy, int order,
+                       mpi4py_comm comm)
       {
          auto mesh = std::unique_ptr<Mesh>(new Mesh(nx, ny,
                                                     Element::TRIANGLE, true,
                                                     sx, sy, true));
-         mesh->SetCurvature(order);
-         return mesh;
+
+         // mesh->SetCurvature(order, false, -1, 0);
+         auto parmesh = std::unique_ptr<ParMesh>(new ParMesh(comm, *mesh));
+         parmesh->SetCurvature(order, false, -1, 1);
+         return parmesh;
       }),
       "Creates mesh of the given order for the rectangle [0,sx]x[0,sy], "
       "divided into 2*nx*ny triangles", 
@@ -23,9 +30,10 @@ void initMesh(py::module &m)
       py::arg("ny"), 
       py::arg("sx"), 
       py::arg("sy"),
-      py::arg("order"))
+      py::arg("order"),
+      py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
 
-      .def("Print", [](Mesh &self, std::string &filename)
+      .def("Print", [](ParMesh &self, std::string &filename)
       {
          filename += ".mesh";
          std::ofstream ofs(filename);
@@ -35,7 +43,7 @@ void initMesh(py::module &m)
       "(without an extension).",
       py::arg("filename"))
 
-      .def("PrintVTU", [](Mesh &self,
+      .def("PrintVTU", [](ParMesh &self,
                           std::string &filename,
                           bool binary, 
                           bool high_order,
@@ -59,7 +67,7 @@ void initMesh(py::module &m)
       py::arg("high_order") = false,
       py::arg("compression_level") = 0)
 
-      .def("getMeshSize", [](Mesh &self)
+      .def("getMeshSize", [](ParMesh &self)
       {
          self.EnsureNodes();
          return self.GetNodes()->FESpace()->GetVSize();
@@ -73,7 +81,7 @@ void initMesh(py::module &m)
       //    return nodes;
       // }, "Return the vector holding the coordinates of the mesh nodes")
 
-      .def("getNodes", [](Mesh &self, Vector &nodes)
+      .def("getNodes", [](ParMesh &self, Vector &nodes)
       {
          self.EnsureNodes();
          nodes.MakeRef(*self.GetNodes(), 0, self.GetNodes()->FESpace()->GetVSize());
@@ -81,7 +89,7 @@ void initMesh(py::module &m)
       "output argument `nodes`",
       py::arg("nodes"))
 
-      .def("setNodes", [](Mesh &self, Vector &nodes)
+      .def("setNodes", [](ParMesh &self, Vector &nodes)
       {
          self.EnsureNodes();
          auto mesh_gf = self.GetNodes();
