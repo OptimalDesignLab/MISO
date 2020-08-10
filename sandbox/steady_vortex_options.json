@@ -47,6 +47,7 @@
    "saveresults":false,
    "outputs":
    {
+      "entropy": true,
       "drag": [0, 0, 0, 1]
    }
 }

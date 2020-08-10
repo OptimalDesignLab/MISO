@@ -51,7 +51,8 @@ int main(int argc, char *argv[])
 #endif
    // Parse command-line options
    OptionsParser args(argc, argv);
-   
+   int nx = 50;
+   args.AddOption(&nx, "-n", "--number", "Number of elements");
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();
@@ -65,8 +66,11 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
+      // unique_ptr<AbstractSolver> solver(
+      //    new EulerSolver<1, entvar>(opt_file_name, nullptr));
+      unique_ptr<Mesh> mesh(new Mesh(nx));
       unique_ptr<AbstractSolver> solver(
-         new EulerSolver<1, entvar>(opt_file_name, nullptr));
+         new EulerSolver<1, entvar>(opt_file_name, move(mesh)));
       solver->feedpert(pert);
       solver->initDerived();
       solver->setInitialCondition(u0_function);
