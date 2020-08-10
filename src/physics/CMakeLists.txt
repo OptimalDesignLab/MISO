@@ -5,6 +5,8 @@ target_sources(mach
       physics.hpp
       solver.cpp
       solver.hpp
+      res_integ.cpp
+      res_integ.hpp
 )
 
 target_include_directories(mach
@@ -15,3 +17,4 @@ target_include_directories(mach
 add_subdirectory(electromagnetics)
 add_subdirectory(fluidflow)
 add_subdirectory(thermal)
+add_subdirectory(joule)

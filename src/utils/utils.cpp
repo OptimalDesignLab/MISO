@@ -16,6 +16,16 @@ void multiplyElementwise(const Vector &v1, const Vector &v2, Vector &v)
    }
 }
 
+/// performs the Hadamard (elementwise) product: `a(i) *= b(i)`
+void multiplyElementwise(const Vector &b, Vector &a)
+{
+   MFEM_ASSERT( a.Size() == b.Size(), "");
+   for (int i = 0; i < a.Size(); ++i)
+   {
+      a(i) *= b(i);
+   }
+}
+
 /// performs an elementwise division: `v(i) = v1(i)/v2(i)`
 void divideElementwise(const Vector &v1, const Vector &v2, Vector &v)
 {
@@ -36,6 +46,32 @@ void invertElementwise(const Vector &x, Vector &y)
    }
 }
 
+/// Handles print in parallel case
+template<typename _CharT, typename _Traits>
+class basic_oblackholestream
+    : virtual public std::basic_ostream<_CharT, _Traits>
+{
+public:   
+   /// called when rank is not root, prints nothing
+   explicit basic_oblackholestream() : std::basic_ostream<_CharT, _Traits>(NULL) {}
+}; // end class basic_oblackholestream
+
+using oblackholestream = basic_oblackholestream<char,std::char_traits<char> >;
+static oblackholestream obj;
+
+std::ostream *getOutStream(int rank)
+{
+   /// print only on root
+   if (0 == rank)
+   {
+      return &std::cout;
+   }
+   else
+   {
+      return &obj;
+   }
+}
+
 /// performs quadratic interpolation given x0, y0, dy0/dx0, x1, and y1.
 double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 {
@@ -47,6 +83,196 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
         (x0 * x0 - 2 * x1 * x0 + x1 * x1);
    c2 = -(y0 - y1 - x0 * dydx0 + x1 * dydx0) / (x0 * x0 - 2 * x1 * x0 + x1 * x1);
    return -c1 / (2 * c2);
+}
+
+DiscreteInterpolationOperator::~DiscreteInterpolationOperator()
+{}
+
+DiscreteGradOperator::DiscreteGradOperator(SpaceType *dfes,
+                                           SpaceType *rfes)
+   : DiscreteInterpolationOperator(dfes, rfes)
+{
+   this->AddDomainInterpolator(new GradientInterpolator);
+}
+
+DiscreteCurlOperator::DiscreteCurlOperator(SpaceType *dfes,
+                                           SpaceType *rfes)
+   : DiscreteInterpolationOperator(dfes, rfes)
+{
+   this->AddDomainInterpolator(new CurlInterpolator);
+}
+
+DiscreteDivOperator::DiscreteDivOperator(SpaceType *dfes,
+                                         SpaceType *rfes)
+   : DiscreteInterpolationOperator(dfes, rfes)
+{
+   this->AddDomainInterpolator(new DivergenceInterpolator);
+}
+
+IrrotationalProjector
+::IrrotationalProjector(SpaceType &H1FESpace,
+                        SpaceType &HCurlFESpace,
+                        const int &irOrder,
+                        BilinearFormType *s0,
+                        MixedBilinearFormType *weakDiv,
+                        DiscreteGradOperator *grad)
+   : H1FESpace_(&H1FESpace),
+     HCurlFESpace_(&HCurlFESpace),
+     s0_(s0),
+     weakDiv_(weakDiv),
+     grad_(grad),
+     psi_(NULL),
+     xDiv_(NULL),
+     S0_(NULL),
+     amg_(NULL),
+     pcg_(NULL),
+     ownsS0_(s0 == NULL),
+     ownsWeakDiv_(weakDiv == NULL),
+     ownsGrad_(grad == NULL)
+{
+   /// not sure if theres a better way to handle this
+   ess_bdr_.SetSize(H1FESpace_->GetParMesh()->bdr_attributes.Max());
+   ess_bdr_ = 1;
+   H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
+
+   int geom = H1FESpace_->GetFE(0)->GetGeomType();
+   const IntegrationRule * ir = &IntRules.Get(geom, irOrder);
+
+   if ( s0 == NULL )
+   {
+      s0_ = new BilinearFormType(H1FESpace_);
+      BilinearFormIntegrator *diffInteg = new DiffusionIntegrator;
+      diffInteg->SetIntRule(ir);
+      s0_->AddDomainIntegrator(diffInteg);
+      s0_->Assemble();
+      s0_->Finalize();
+      S0_ = new MatrixType;
+   }
+   if ( weakDiv_ == NULL )
+   {
+      weakDiv_ = new MixedBilinearFormType(HCurlFESpace_, H1FESpace_);
+      BilinearFormIntegrator *wdivInteg = new VectorFEWeakDivergenceIntegrator;
+      wdivInteg->SetIntRule(ir);
+      weakDiv_->AddDomainIntegrator(wdivInteg);
+      weakDiv_->Assemble();
+      weakDiv_->Finalize();
+   }
+   if ( grad_ == NULL )
+   {
+      grad_ = new DiscreteGradOperator(H1FESpace_, HCurlFESpace_);
+      grad_->Assemble();
+      grad_->Finalize();
+   }
+
+   psi_  = new GridFunType(H1FESpace_);
+   xDiv_ = new GridFunType(H1FESpace_);
+}
+
+IrrotationalProjector::~IrrotationalProjector()
+{
+   delete psi_;
+   delete xDiv_;
+   delete amg_;
+   delete pcg_;
+   delete S0_;
+   delete s0_;
+   delete weakDiv_;
+}
+
+void
+IrrotationalProjector::InitSolver() const
+{
+
+   delete pcg_;
+   delete amg_;
+
+   amg_ = new HypreBoomerAMG(*S0_);
+   amg_->SetPrintLevel(0);
+   pcg_ = new HyprePCG(*S0_);
+   pcg_->SetTol(1e-14);
+   pcg_->SetMaxIter(200);
+   pcg_->SetPrintLevel(0);
+   pcg_->SetPreconditioner(*amg_);
+}
+
+void
+IrrotationalProjector::Mult(const Vector &x, Vector &y) const
+{
+   // Compute the divergence of x
+   weakDiv_->Mult(x,*xDiv_); *xDiv_ *= -1.0;
+   std::cout << "weakdiv mult\n";
+
+   // Apply essential BC and form linear system
+   *psi_ = 0.0;
+   s0_->FormLinearSystem(ess_bdr_tdofs_, *psi_, *xDiv_, *S0_, Psi_, RHS_);
+   std::cout << "form lin system\n";
+
+   // Solve the linear system for Psi
+   if ( pcg_ == NULL ) { this->InitSolver(); }
+   pcg_->Mult(RHS_, Psi_);
+   std::cout << "pcg mult\n";
+
+   // Compute the parallel grid function correspoinding to Psi
+   s0_->RecoverFEMSolution(Psi_, *xDiv_, *psi_);
+
+   // Compute the irrotational portion of x
+   grad_->Mult(*psi_, y);
+}
+
+void
+IrrotationalProjector::Update()
+{
+   delete pcg_; pcg_ = NULL;
+   delete amg_; amg_ = NULL;
+   delete S0_;  S0_  = new MatrixType;
+
+   psi_->Update();
+   xDiv_->Update();
+
+   if ( ownsS0_ )
+   {
+      s0_->Update();
+      s0_->Assemble();
+      s0_->Finalize();
+   }
+   if ( ownsWeakDiv_ )
+   {
+      weakDiv_->Update();
+      weakDiv_->Assemble();
+      weakDiv_->Finalize();
+   }
+   if ( ownsGrad_ )
+   {
+      grad_->Update();
+      grad_->Assemble();
+      grad_->Finalize();
+   }
+
+   H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
+}
+
+DivergenceFreeProjector
+::DivergenceFreeProjector(SpaceType &H1FESpace,
+                          SpaceType &HCurlFESpace,
+                          const int &irOrder,
+                          BilinearFormType *s0,
+                          MixedBilinearFormType *weakDiv,
+                          DiscreteGradOperator *grad)
+   : IrrotationalProjector(H1FESpace,HCurlFESpace, irOrder, s0, weakDiv, grad)
+{}
+
+void DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
+{
+   std::cout << "above irrot proj mult\n";
+   this->IrrotationalProjector::Mult(x, y);
+   std::cout << "below irrot proj mult\n";
+   y  -= x;
+   y *= -1.0;
+}
+
+void DivergenceFreeProjector::Update()
+{
+   this->IrrotationalProjector::Update();
 }
 
 double bisection(std::function<double(double)> func, double xl, double xr,
@@ -88,6 +314,54 @@ double bisection(std::function<double(double)> func, double xl, double xr,
       throw(-1);
    }
    return xm;
+}
+
+double secant(std::function<double(double)> func, double x1, double x2,
+              double ftol, double xtol, int maxiter)
+{
+   double f1 = func(x1); 
+   double f2 = func(x2);
+   double x, f;
+   if (fabs(f1) < fabs(f2))
+   {
+      // swap x1 and x2 if the latter gives a smaller value
+      x = x2;
+      f = f2;
+      x2 = x1;
+      f2 = f1;
+      x1 = x;
+      f1 = f;
+   }
+   x = x2;
+   f = f2;
+   int iter = 0;
+   while ( (fabs(f) > ftol) && (iter < maxiter) )
+   {
+      ++iter;
+      try
+      {
+         double dx = f2*(x2 - x1)/(f2 - f1);
+         x -= dx;
+         f = func(x);
+         if (fabs(dx) < xtol)
+         {
+            break;
+         }
+         x1 = x2;
+         f1 = f2;
+         x2 = x;
+         f2 = f;
+      }
+      catch(std::exception &exception)
+      {
+         cerr << "secant: " << exception.what() << endl;
+      }
+   }
+   if (iter > maxiter)
+   {
+      throw MachException("secant: maximum number of iterations exceeded");
+   }
+   return x;
 }
 
 #ifndef MFEM_USE_LAPACK
@@ -194,6 +468,217 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
       }
    }
 } // end of constructing interp
+#endif
+
+#ifdef MFEM_USE_LAPACK
+void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
+                          const DenseMatrix &x_quad, DenseMatrix &interp)
+{
+   // get the number of quadrature points and elements.
+   int num_quad = x_quad.Width();
+   int num_elem = x_center.Width();
+
+   // number of total polynomial basis functions
+   int num_basis = -1;
+   if (1 == dim)
+   {
+      num_basis = degree + 1;
+   }
+   else if (2 == dim)
+   {
+      num_basis = (degree + 1) * (degree + 2) / 2;
+   }
+   else if (3 == dim)
+   {
+      num_basis = (degree + 1) * (degree + 2) * (degree + 3) / 6;
+   }
+   else
+   {
+      throw MachException("buildLSInterpolation: dim must be 3 or less.\n");
+   }
+
+   // Construct the generalized Vandermonde matrix
+   mfem::DenseMatrix V(num_elem, num_basis);
+   if (1 == dim)
+   {
+      for (int i = 0; i < num_elem; ++i)
+      {
+         double dx = x_center(0, i) - x_center(0, 0);
+         for (int p = 0; p <= degree; ++p)
+         {
+            V(i,p) = pow(dx, p);
+         }
+      }
+   }
+   else if (2 == dim)
+   {
+      for (int i = 0; i < num_elem; ++i)
+      {
+         double dx = x_center(0, i) - x_center(0, 0);
+         double dy = x_center(1, i) - x_center(1, 0);
+         int col = 0;
+         for (int p = 0; p <= degree; ++p)
+         {
+            for (int q = 0; q <= p; ++q)
+            {
+               V(i, col) = pow(dx, p - q)*pow(dy, q);
+               ++col;
+            }
+         }
+      }
+   }
+   else if (3 == dim)
+   {
+      for (int i = 0; i < num_elem; ++i)
+      {
+         double dx = x_center(0, i) - x_center(0, 0);
+         double dy = x_center(1, i) - x_center(1, 0);
+         double dz = x_center(2, i) - x_center(2, 0);
+         int col = 0;
+         for (int p = 0; p <= degree; ++p)
+         {
+            for (int q = 0; q <= p; ++q)
+            {
+               for (int r = 0; r <= p - q; ++r)
+               {
+                  V(i, col) = pow(dx, p - q - r)*pow(dy, r)*pow(dz, q);
+                  ++col;
+               }
+            }
+         }
+      }
+   }
+
+   // Set the RHS for the LS problem (it's the identity matrix)
+   // This will store the solution, that is, the basis coefficients, hence
+   // the name `coeff`
+   mfem::DenseMatrix coeff(num_elem, num_elem);
+   coeff = 0.0;
+   for (int i = 0; i < num_elem; ++i)
+   {
+      coeff(i,i) = 1.0;
+   }
+
+   // Set-up and solve the least-squares problem using LAPACK's dgels
+   char TRANS = 'N';
+   int info;
+   int lwork = 2*num_elem*num_basis;
+   double work[lwork];
+   dgels_(&TRANS, &num_elem, &num_basis, &num_elem, V.GetData(), &num_elem,
+          coeff.GetData(), &num_elem, work, &lwork, &info);
+   MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
+
+   // Perform matrix-matrix multiplication between basis functions evalauted at
+   // quadrature nodes and basis function coefficients.
+   interp.SetSize(num_quad, num_elem);
+   interp = 0.0;
+   if (1 == dim)
+   {
+      // loop over quadrature points
+      for (int j = 0; j < num_quad; ++j)
+      {
+         double dx = x_quad(0, j) - x_center(0, 0);
+         // loop over the element centers
+         for (int i = 0; i < num_elem; ++i)
+         {
+            for (int p = 0; p <= degree; ++p)
+            {
+               interp(j, i) += pow(dx, p)*coeff(p, i);
+            }
+         }
+      }
+   }
+   else if (2 == dim)
+   {
+      // loop over quadrature points
+      for (int j = 0; j < num_quad; ++j)
+      {
+         double dx = x_quad(0, j) - x_center(0, 0);
+         double dy = x_quad(1, j) - x_center(1, 0);
+         // loop over the element centers
+         for (int i = 0; i < num_elem; ++i)
+         {
+            int col = 0;
+            for (int p = 0; p <= degree; ++p)
+            {
+               for (int q = 0; q <= p; ++q)
+               {
+                  interp(j, i) += pow(dx, p - q) * pow(dy, q) * coeff(col, i);
+                  ++col;
+               }
+            }
+         }
+      }
+   }
+   else if (dim == 3)
+   {
+      // loop over quadrature points
+      for (int j = 0; j < num_quad; ++j)
+      {
+         double dx = x_quad(0, j) - x_center(0, 0);
+         double dy = x_quad(1, j) - x_center(1, 0);
+         double dz = x_quad(2, j) - x_center(2, 0);
+         // loop over the element centers
+         for (int i = 0; i < num_elem; ++i)
+         {
+            int col = 0;
+            for (int p = 0; p <= degree; ++p)
+            {
+               for (int q = 0; q <= p; ++q)
+               {
+                  for (int r = 0; r <= p - q; ++r)
+                  {
+                     interp(j, i) += pow(dx, p - q - r) * pow(dy, r) 
+                                       * pow(dz, q) * coeff(col, i);
+                     ++col;
+                  }
+               }
+            }
+         }
+      }
+   }
+}
+#endif
+
+#ifdef MFEM_USE_GSLIB
+void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
+                      const GridFunType &in, GridFunType &out)
+{
+   const int dim = old_mesh.Dimension(); 
+
+   old_mesh.EnsureNodes();
+   new_mesh.EnsureNodes();
+
+   Vector vxyz = *(new_mesh.GetNodes());
+   const int nodes_cnt = vxyz.Size() / dim;
+   FindPointsGSLIB finder(MPI_COMM_WORLD);
+   const double rel_bbox_el = 0.05;
+   const double newton_tol  = 1.0e-12;
+   const int npts_at_once   = 256;
+
+   // Get the values at the nodes of mesh 1.
+   Array<unsigned int> el_id_out(nodes_cnt), code_out(nodes_cnt),
+         task_id_out(nodes_cnt);
+   Vector pos_r_out(nodes_cnt * dim), dist_p_out(nodes_cnt * dim),
+         interp_vals(nodes_cnt);
+   finder.Setup(old_mesh, rel_bbox_el, newton_tol, npts_at_once);
+   finder.FindPoints(vxyz, code_out, task_id_out,
+                     el_id_out, pos_r_out, dist_p_out);
+   finder.Interpolate(code_out, task_id_out, el_id_out,
+                      pos_r_out, in, interp_vals);
+   for (int n = 0; n < nodes_cnt; n++)
+   {
+      out(n) = interp_vals(n);
+   }
+   finder.FreeData();
+}
+#else
+void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
+                      const GridFunType &in, GridFunType &out)
+{
+   throw MachException("transferSolution requires GSLIB!"
+                       "\trecompile MFEM with GSLIB!");
+}
 #endif
 
 } // namespace mach

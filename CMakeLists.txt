@@ -25,20 +25,23 @@ configure_file(
 if (MFEM_USE_PUMI)
    # If PUMI_DIR was specified, only link to that directory,
    # i.e. don't link to another installation in /usr/lib by mistake
-   find_package(SCOREC 2.1.0 REQUIRED OPTIONAL_COMPONENTS gmi_sim
+   find_package(SCOREC 2.1.0 REQUIRED OPTIONAL_COMPONENTS gmi_sim gmi_egads
       CONFIG PATHS ${PUMI_DIR} NO_DEFAULT_PATH)
    if (SCOREC_FOUND)
       set(PUMI_FOUND ${SCOREC_FOUND})
+
+      # TODO: when EGADS is in mainline PUMI put this in MFEM CMake
+      # Define a header file with the MFEM_USE_EGADS preprocessor variable
+      set(MFEM_USE_EGADS ${SCOREC_gmi_egads_FOUND})
+
       get_target_property(PUMI_INCLUDE_DIRS
          SCOREC::apf INTERFACE_INCLUDE_DIRECTORIES)
       set(PUMI_LIBRARIES SCOREC::core)
    endif (SCOREC_FOUND)
 endif (MFEM_USE_PUMI)
 
-# If MFEM uses MPI find the MPI compilers
-if (MFEM_USE_MPI)
-   find_package(MPI REQUIRED)
-endif (MFEM_USE_MPI)
+# find the MPI compilers used by MFEM
+find_package(MPI REQUIRED)
 
 option(MACH_USE_EGADS "Build with EGADS support" OFF)
 message(STATUS "MACH_USE_EGADS: ${MACH_USE_EGADS}")
@@ -54,7 +57,7 @@ if (MACH_USE_EGADS)
 endif()
 
 # Try to find OpenMP (used by Adept)
-find_package(OpenMP)
+# find_package(OpenMP)
 
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
@@ -83,13 +86,6 @@ if(MACH_USE_EGADS)
    )
 endif()
 
-# if OpenMP found on system, link to it
-if(OpenMP_CXX_FOUND)
-   target_link_libraries(mach
-      PUBLIC
-         OpenMP::OpenMP_CXX)
-endif()
-
 target_include_directories(mach
    PUBLIC
       "${ADEPT_INCLUDE_DIRS}"
@@ -115,17 +111,30 @@ set_target_properties(mach
       POSITION_INDEPENDENT_CODE ON
 )
 
-set(DEBUG_OPTIONS "-g")
-set(RELEASE_OPTIONS "-O2")
+set(DEBUG_OPTIONS
+   "-g"
+   -Wall
+   # -Wextra
+   # -Werror
+)
+
+set(RELEASE_OPTIONS
+   "-O2"
+)
 
 target_compile_options(mach
    PRIVATE 
-      -Wall 
-      # -Wextra
-      # -Werror
       "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
 )
+
+# TODO: When EGADS support is in mainline PUMI move this to MFEM CMake
+if (MFEM_USE_EGADS)
+   target_compile_definitions(mach
+      PUBLIC
+         MFEM_USE_EGADS
+   )
+endif(MFEM_USE_EGADS)
 
 install(TARGETS mach
    EXPORT machTargets
@@ -153,7 +162,7 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
    add_custom_target(build_tests)
    # 'tests' triggers 'ctest'.
    add_custom_target(tests COMMAND ${CMAKE_CTEST_COMMAND})
-   # tests' implies 'build_tests'
+   # 'tests' implies 'build_tests'
    add_dependencies(tests build_tests)
    add_subdirectory(test EXCLUDE_FROM_ALL)
 endif ()

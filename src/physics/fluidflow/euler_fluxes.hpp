@@ -35,6 +35,76 @@ inline xdouble pressure(const xdouble *q)
    return euler::gami * (q[dim + 1] - 0.5 * dot<xdouble, dim>(q + 1, q + 1) / q[0]);
 }
 
+/// Convert conservative variables `q` to entropy variables `w`
+/// \param[in] q - conservative variables that we want to convert from
+/// \param[out] w - entropy variables we want to convert to
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcEntropyVars(const xdouble *q, xdouble *w)
+{
+   xdouble u[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = q[i + 1] / q[0];
+   }
+   xdouble p = pressure<xdouble, dim>(q);
+   xdouble s = log(p / pow(q[0], euler::gamma));
+   xdouble fac = 1.0 / p;
+   w[0] = (euler::gamma - s) / euler::gami - 0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
+   for (int i = 0; i < dim; ++i)
+   {
+      w[i + 1] = q[i + 1] * fac;
+   }
+   w[dim + 1] = -q[0] * fac;
+}
+
+/// Convert entropy variables `w` to conservative variables `q`
+/// \param[in] w - entropy variables we want to convert from
+/// \param[out] q - conservative variables that we want to convert to
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcConservativeVars(const xdouble *w, xdouble *q)
+{
+   xdouble u[dim];
+   xdouble Vel2 = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = -w[i + 1] / w[dim + 1];
+      Vel2 += u[i]*u[i];
+   }
+   xdouble s = euler::gamma + euler::gami*(0.5*Vel2*w[dim+1] - w[0]);
+   q[0] = pow(-exp(-s)/w[dim+1], 1.0/euler::gami);
+   for (int i = 0; i < dim; ++i)
+   {
+      q[i + 1] = q[0]*u[i];
+   }
+   xdouble p = -q[0]/w[dim+1];
+   q[dim+1] = p/euler::gami + 0.5*q[0]*Vel2;  
+}
+
+/// Mathematical entropy function rho*s/(gamma-1), where s = ln(p/rho^gamma)
+/// \param[in] q - state variables (either conservative or entropy variables)
+/// \tparam xdouble - either double or adouble
+/// \tparam dim - number of physical dimensions
+/// \tparam entvar - if true q = conservative vars, if false q = entropy vars
+template <typename xdouble, int dim, bool entvar = false>
+inline xdouble entropy(const xdouble *q)
+{
+   if (entvar)
+   {
+      double Vel2 = dot<xdouble, dim>(q + 1, q + 1); // Vel2*rho^2/p^2
+      double s = -euler::gamma + euler::gami*(q[0] - 0.5*Vel2/q[dim+1]); // -s
+      double rho = pow(-exp(s)/q[dim+1], 1.0/euler::gami);
+      return rho*s/euler::gami;
+   }
+   else
+   {
+      return -q[0]*log(pressure<xdouble,dim>(q)/pow(q[0],euler::gamma))/euler::gami;
+   }
+}
+
 /// Euler flux function in a given (scaled) direction
 /// \param[in] dir - direction in which the flux is desired
 /// \param[in] q - conservative variables
@@ -105,7 +175,56 @@ void calcIsmailRoeFlux(int di, const xdouble *qL, const xdouble *qR,
    zR[dim + 1] = sqrt(qR[0] * pR);
 
    xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
-   xdouble U = (zL[0] * qL[di + 1] / qL[0] + zR[0] * qR[di + 1] / qR[0]) / (zL[0] + zR[0]);
+   xdouble U = (zL[di + 1] + zR[di + 1]) / (zL[0] + zR[0]);
+   xdouble p1_hat = (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0]);
+   xdouble p2_hat = ((euler::gamma + 1.0) * logavg(zL[dim + 1], zR[dim + 1]) /
+                         logavg(zL[0], zR[0]) +
+                     (euler::gami) * (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0])) /
+                    (2.0 * euler::gamma);
+   xdouble h_hat = euler::gamma * p2_hat / (rho_hat * euler::gami);
+
+   flux[0] = rho_hat * U;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] = (zL[i + 1] + zR[i + 1]) / (zL[0] + zR[0]); // u_hat
+      h_hat += 0.5 * flux[i + 1] * flux[i + 1];
+      flux[i + 1] *= rho_hat * U;
+   }
+   flux[di + 1] += p1_hat;
+   flux[dim + 1] = rho_hat * h_hat * U;
+}
+
+/// Ismail-Roe flux function evaluated using entropy variables
+/// \param[in] di - physical coordinate direction in which flux is wanted
+/// \param[in] wL - entropy variables at "left" state
+/// \param[in] wR - entropy variables at "right" state
+/// \param[out] flux - fluxes in the direction `di`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcIsmailRoeFluxUsingEntVars(int di, const xdouble *wL, const xdouble *wR,
+                                   xdouble *flux)
+{
+   xdouble zL[dim + 2];
+   xdouble zR[dim + 2];
+   zL[0] = sqrt(-wL[dim+1]);
+   zR[0] = sqrt(-wR[dim+1]);
+   xdouble sL = 0.0;
+   xdouble sR = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {      
+      zL[i + 1] = -wL[i + 1] * zL[0] / wL[dim + 1];
+      sL += wL[i + 1]*wL[i + 1];
+      zR[i + 1] = -wR[i + 1] * zR[0] / wR[dim + 1];
+      sR += wR[i + 1]*wR[i + 1];
+   }
+   sL = euler::gamma + euler::gami*(0.5*sL/wL[dim+1] - wL[0]); // physical ent.
+   zL[dim + 1] = pow(-exp(-sL)/wL[dim+1], 1.0/euler::gami)/zL[0];
+   sR = euler::gamma + euler::gami*(0.5*sR/wR[dim+1] - wR[0]); // physical ent.
+   zR[dim + 1] = pow(-exp(-sR)/wR[dim+1], 1.0/euler::gami)/zR[0];
+
+   xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
+   xdouble U = (zL[di + 1] + zR[di + 1])/(zL[0] + zR[0]);
    xdouble p1_hat = (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0]);
    xdouble p2_hat = ((euler::gamma + 1.0) * logavg(zL[dim + 1], zR[dim + 1]) /
                          logavg(zL[0], zR[0]) +
@@ -175,45 +294,87 @@ void calcIsmailRoeFaceFlux(const xdouble *dir, const xdouble *qL,
    flux[dim + 1] = rho_hat * h_hat * U;
 }
 
-/// The spectral radius of the flux Jacobian in the direction `dir`
-/// \param[in] dir - desired direction of flux Jacobian
-/// \param[in] q - conservative variables used to evaluate Jacobian
-/// \returns absolute value of the largest eigenvalue of the Jacobian
+/// Ismail-Roe entropy conservative flux function in direction `dir`
+/// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] qL - entropy variables at "left" state
+/// \param[in] qR - entropy variables at "right" state
+/// \param[out] flux - fluxes in the direction `dir`
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
-xdouble calcSpectralRadius(const xdouble *dir, const xdouble *q)
+void calcIsmailRoeFaceFluxUsingEntVars(const xdouble *dir, const xdouble *wL,
+                                       const xdouble *wR, xdouble *flux)
 {
+   xdouble zL[dim + 2];
+   xdouble zR[dim + 2];
+   zL[0] = sqrt(-wL[dim+1]);
+   zR[0] = sqrt(-wR[dim+1]);
+   xdouble sL = 0.0;
+   xdouble sR = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {      
+      zL[i + 1] = -wL[i + 1] * zL[0] / wL[dim + 1];
+      sL += wL[i + 1]*wL[i + 1];
+      zR[i + 1] = -wR[i + 1] * zR[0] / wR[dim + 1];
+      sR += wR[i + 1]*wR[i + 1];
+   }
+   sL = euler::gamma + euler::gami*(0.5*sL/wL[dim+1] - wL[0]); // physical ent.
+   zL[dim + 1] = pow(-exp(-sL)/wL[dim+1], 1.0/euler::gami)/zL[0];
+   sR = euler::gamma + euler::gami*(0.5*sR/wR[dim+1] - wR[0]); // physical ent.
+   zR[dim + 1] = pow(-exp(-sR)/wR[dim+1], 1.0/euler::gami)/zR[0];
+
+   xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
+   xdouble U = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      U += (zL[i + 1] + zR[i + 1]) * dir[i] /(zL[0] + zR[0]);
+   }
+   xdouble p1_hat = (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0]);
+   xdouble p2_hat = ((euler::gamma + 1.0) * logavg(zL[dim + 1], zR[dim + 1]) /
+                         logavg(zL[0], zR[0]) +
+                     (euler::gami) * (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0])) /
+                    (2.0 * euler::gamma);
+   xdouble h_hat = euler::gamma * p2_hat / (rho_hat * euler::gami);
+
+   flux[0] = rho_hat * U;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] = (zL[i + 1] + zR[i + 1]) / (zL[0] + zR[0]); // u_hat
+      h_hat += 0.5 * flux[i + 1] * flux[i + 1];
+      flux[i + 1] *= rho_hat * U;
+      flux[i + 1] += p1_hat * dir[i];
+   }
+   flux[dim + 1] = rho_hat * h_hat * U;
+}
+
+/// The spectral radius of flux Jacobian in direction `dir` w.r.t. conservative
+/// \param[in] dir - desired direction of flux Jacobian
+/// \param[in] u - state variables used to evaluate Jacobian
+/// \returns absolute value of the largest eigenvalue of the Jacobian
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true u = conservative vars, if false u = entropy vars
+template <typename xdouble, int dim, bool entvar = false>
+xdouble calcSpectralRadius(const xdouble *dir, const xdouble *u)
+{
+   xdouble q[dim+2];
+   if (entvar)
+   {
+      calcConservativeVars<xdouble, dim>(u, q);
+   }
+   else
+   {
+      for (int i = 0; i < dim+2; ++i)
+      {
+         q[i] = u[i];
+      }
+   }
    xdouble press = pressure<xdouble, dim>(q);
    xdouble sndsp = sqrt(euler::gamma * press / q[0]);
    // U = u*dir[0] + v*dir[1] + ...
    xdouble U = dot<xdouble, dim>(q + 1, dir) / q[0];
    xdouble dir_norm = sqrt(dot<xdouble, dim>(dir, dir));
    return fabs(U) + sndsp * dir_norm;
-}
-
-/// Convert conservative variables `q` to entropy variables `w`
-/// \param[in] q - conservative variables that we want to convert from
-/// \param[out] w - entropy variables we want to convert to
-/// \tparam xdouble - typically `double` or `adept::adouble`
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
-void calcEntropyVars(const xdouble *q, xdouble *w)
-{
-   xdouble u[dim];
-   for (int i = 0; i < dim; ++i)
-   {
-      u[i] = q[i + 1] / q[0];
-   }
-   xdouble p = pressure<xdouble, dim>(q);
-   xdouble s = log(p / pow(q[0], euler::gamma));
-   xdouble fac = 1.0 / p;
-   w[0] = (euler::gamma - s) / euler::gami - 0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
-   for (int i = 0; i < dim; ++i)
-   {
-      w[i + 1] = q[i + 1] * fac;
-   }
-   w[dim + 1] = -q[0] * fac;
 }
 
 // TODO: How should we return matrices, particularly when they will be differentiated?
@@ -252,31 +413,11 @@ void calcdQdWProduct(const xdouble *q, const xdouble *vec, xdouble *dqdw_vec)
       dqdw_vec[dim + 1] += q[i + 1] * h * vec[i + 1];
    }
    dqdw_vec[dim + 1] += (q[0] * h * h - a2 * p / euler::gami) * vec[dim + 1];
-
-   //   dqdw[1,1] = rho
-   //   dqdw[2,1] = rhou
-   //   dqdw[3,1] = rhov
-   //   dqdw[4,1] = rhoe
-
-   //   dqdw[1,2] = rhou
-   //   dqdw[2,2] = rhou*rhou*rhoinv + p
-   //   dqdw[3,2] = rhou*rhov*rhoinv
-   //   dqdw[4,2] = rhou*h
-
-   //   dqdw[1,3] = rhov
-   //   dqdw[2,3] = rhou*rhov/rho
-   //   dqdw[3,3] = rhov*rhov*rhoinv + p
-   //   dqdw[4,3] = rhov*h
-
-   //   dqdw[1,4] = rhoe
-   //   dqdw[2,4] = h*rhou
-   //   dqdw[3,4] = h*rhov
-   //   dqdw[4,4] = rho*h*h - a2*p/gami
 }
 
 /// Applies the matrix `dQ/dW` to `vec`, and scales by the avg. spectral radius
 /// \param[in] adjJ - the adjugate of the mapping Jacobian
-/// \param[in] q - the state at which `dQ/dW` and radius are to be evaluated
+/// \param[in] q - cons. variable at which `dQ/dW` and radius are to be evaluated
 /// \param[in] vec - the vector being multiplied
 /// \param[out] mat_vec - the result of the operation
 /// \warning adjJ must be supplied transposed from its `mfem` storage format,
@@ -299,6 +440,23 @@ void applyLPSScaling(const xdouble *adjJ, const xdouble *q, const xdouble *vec,
    }
 }
 
+/// Applies the matrix `dQ/dW` to `vec`, and scales by the avg. spectral radius
+/// \param[in] adjJ - the adjugate of the mapping Jacobian
+/// \param[in] w - ent. variables at which `dQ/dW` and radius are to be evaluated
+/// \param[in] vec - the vector being multiplied
+/// \param[out] mat_vec - the result of the operation
+/// \warning adjJ must be supplied transposed from its `mfem` storage format,
+/// so we can use pointer arithmetic to access its rows.
+/// \todo This converts w to conservative variables, which is inefficient
+template <typename xdouble, int dim>
+void applyLPSScalingUsingEntVars(const xdouble *adjJ, const xdouble *w,
+                                 const xdouble *vec, xdouble *mat_vec)
+{
+   xdouble q[dim+2];
+   calcConservativeVars<xdouble, dim>(w, q);
+   applyLPSScaling<xdouble, dim>(adjJ, q, vec, mat_vec);
+}
+
 /// Boundary flux that uses characteristics to determine which state to use
 /// \param[in] dir - direction in which the flux is desired
 /// \param[in] qbnd - boundary values of the conservative variables
@@ -317,8 +475,8 @@ void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
    using std::max;
 
    // Define some constants
-   const xdouble sat_Vn = 0.0; // 0.025
-   const xdouble sat_Vl = 0.0; // 0.025
+   const xdouble sat_Vn = 0.0; //0.025;
+   const xdouble sat_Vl = 0.0; //0.025;
 
    // Define some constants used to construct the "Jacobian"
    const xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
@@ -373,6 +531,33 @@ void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
    flux[dim + 1] += Edq * (E2dq_fac * Un + E34dq_fac * H);
 }
 
+/// Boundary flux that uses characteristics to determine which state to use
+/// \param[in] dir - direction in which the flux is desired
+/// \param[in] qbnd - boundary values of the **conservative** variables
+/// \param[in] q - interior domain values of the state variables
+/// \param[in] work - a work vector of size `dim+2`
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, `q` is entropy var; otherwise, `q` is conservative
+/// \note the "flux Jacobian" is computed using `qbnd`, so the boundary values
+/// define what is inflow and what is outflow.
+template <typename xdouble, int dim, bool entvar = false>
+void calcFarFieldFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
+                      xdouble *work, xdouble *flux)
+{
+   if (entvar)
+   {
+      xdouble qcons[dim+2];
+      calcConservativeVars<xdouble, dim>(q, qcons);
+      calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
+   }
+   else
+   {
+      calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, work, flux);
+   }
+}
+
 /// Isentropic vortex exact state as a function of position
 /// \param[in] x - location at which the exact state is desired
 /// \param[out] qbnd - vortex conservative variable at `x`
@@ -416,17 +601,26 @@ void calcIsentropicVortexState(const xdouble *x, xdouble *qbnd)
 /// A wrapper for `calcBoundaryFlux` in the case of the isentropic vortex
 /// \param[in] x - location at which the boundary flux is desired
 /// \param[in] dir - desired (scaled) direction of the flux
-/// \param[in] q - conservative state variable on the interior of the boundary
+/// \param[in] q - state variable on the interior of the boundary
 /// \param[out] flux - the boundary flux in the direction `dir`
 /// \tparam xdouble - typically `double` or `adept::adouble`
-template <typename xdouble>
+/// \tparam entvar - if true, `q` is entropy var; otherwise, `q` is conservative
+template <typename xdouble, bool entvar = false>
 void calcIsentropicVortexFlux(const xdouble *x, const xdouble *dir,
                               const xdouble *q, xdouble *flux)
 {
    xdouble qbnd[4];
    xdouble work[4];
    calcIsentropicVortexState<xdouble>(x, qbnd);
-   calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
+   if (entvar)
+   {
+      xdouble qcons[4];
+      calcConservativeVars<xdouble, 2>(q, qcons);
+      calcBoundaryFlux<xdouble, 2>(dir, qbnd, qcons, work, flux);
+   }
+   else {
+      calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
+   }
 }
 
 /// removes the component of momentum normal to the wall from `q`
@@ -461,7 +655,8 @@ void projectStateOntoWall(const xdouble *dir, const xdouble *q, xdouble *qbnd)
 /// \param[out] flux - the boundary flux in the direction `dir`
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
+/// \tparam entvar - if true, `q` = ent. vars; otherwise, `q` = conserv. vars
+template <typename xdouble, int dim, bool entvar = false>
 void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
                       xdouble *flux)
 {
@@ -471,7 +666,17 @@ void calcSlipWallFlux(const xdouble *x, const xdouble *dir, const xdouble *q,
    calcEulerFlux<xdouble,dim>(dir, qbnd, flux);
    //calcIsentropicVortexFlux<xdouble>(x, dir, q, flux);
 #endif
-   xdouble press = pressure<xdouble, dim>(q);
+   xdouble press;
+   if (entvar)
+   {
+      xdouble Vel2 = dot<xdouble, dim>(q+1, q+1);
+      xdouble s = euler::gamma + euler::gami*(0.5*Vel2/q[dim+1] - q[0]);
+      press = -pow(-exp(-s)/q[dim+1], 1.0/euler::gami)/q[dim+1];
+   }
+   else
+   {
+      press = pressure<xdouble, dim>(q);
+   }
    flux[0] = 0.0;
    for (int i = 0; i < dim; ++i)
    {
@@ -539,6 +744,151 @@ void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
    stack.independent(q_a.data(), q.Size());
    stack.dependent(flux_a.data(), q.Size());
    stack.jacobian(flux_jac.GetData());
+}
+
+/// Ismail-Roe flux function in direction `dir` with Lax-Friedichs dissipation
+/// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] diss_coeff - scales the dissipation (must be non-negative!)
+/// \param[in] qL - conservative variables at "left" state
+/// \param[in] qR - conservative variables at "right" state
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir, xdouble diss_coeff,
+                                   const xdouble *qL, const xdouble *qR,
+                                   xdouble *flux)
+{
+   xdouble pL = pressure<xdouble, dim>(qL);
+   xdouble pR = pressure<xdouble, dim>(qR);
+   xdouble zL[dim + 2];
+   xdouble zR[dim + 2];
+   zL[0] = sqrt(qL[0] / pL);
+   zR[0] = sqrt(qR[0] / pR);
+   for (int i = 0; i < dim; ++i)
+   {
+      zL[i + 1] = zL[0] * qL[i + 1] / qL[0];
+      zR[i + 1] = zR[0] * qR[i + 1] / qR[0];
+   }
+   zL[dim + 1] = sqrt(qL[0] * pL);
+   zR[dim + 1] = sqrt(qR[0] * pR);
+
+   xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
+
+   xdouble U = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      U += (zL[0] * qL[i + 1] / qL[0] + zR[0] * qR[i + 1] / qR[0]) *
+           dir[i] / (zL[0] + zR[0]);
+   }
+   xdouble p1_hat = (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0]);
+   xdouble p2_hat = ((euler::gamma + 1.0) * logavg(zL[dim + 1], zR[dim + 1]) /
+                         logavg(zL[0], zR[0]) +
+                     (euler::gami) * (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0])) /
+                    (2.0 * euler::gamma);
+   xdouble h_hat = euler::gamma * p2_hat / (rho_hat * euler::gami);
+
+   flux[0] = rho_hat * U;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] = (zL[i + 1] + zR[i + 1]) / (zL[0] + zR[0]); // u_hat
+      h_hat += 0.5 * flux[i + 1] * flux[i + 1];
+      flux[i + 1] *= rho_hat * U;
+      flux[i + 1] += p1_hat * dir[i];
+   }
+   flux[dim + 1] = rho_hat * h_hat * U;
+
+   // add the dissipation
+   xdouble q_ave[dim+2];
+   xdouble wL[dim+2], wR[dim+2], w_diff[dim+2];
+   xdouble dqdw_vec[dim+2];
+   calcEntropyVars<xdouble, dim>(qL, wL); //first convert to entropy vars
+   calcEntropyVars<xdouble, dim>(qR, wR);
+   for (int i = 0; i < dim+2; i++)
+   {
+      q_ave[i] = 0.5 * (qL[i] + qR[i]);
+      w_diff[i] = wL[i] - wR[i];
+   }
+   xdouble lambda  = diss_coeff*calcSpectralRadius<xdouble, dim>(dir, q_ave);
+
+   calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
+   for (int i = 0; i < dim+2; i++)
+   {
+      flux[i] = flux[i] + lambda * dqdw_vec[i];
+   }
+}
+
+/// Ismail-Roe flux function in direction `dir` with Lax-Friedichs dissipation
+/// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] diss_coeff - scales the dissipation (must be non-negative!)
+/// \param[in] qL - entropy variables at "left" state
+/// \param[in] qR - entropy variables at "right" state
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcIsmailRoeFaceFluxWithDissUsingEntVars(
+    const xdouble *dir, xdouble diss_coeff, const xdouble *wL,
+    const xdouble *wR, xdouble *flux)
+{
+   xdouble zL[dim + 2];
+   xdouble zR[dim + 2];
+   zL[0] = sqrt(-wL[dim+1]);
+   zR[0] = sqrt(-wR[dim+1]);
+   xdouble sL = 0.0;
+   xdouble sR = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {      
+      zL[i + 1] = -wL[i + 1] * zL[0] / wL[dim + 1];
+      sL += wL[i + 1]*wL[i + 1];
+      zR[i + 1] = -wR[i + 1] * zR[0] / wR[dim + 1];
+      sR += wR[i + 1]*wR[i + 1];
+   }
+   sL = euler::gamma + euler::gami*(0.5*sL/wL[dim+1] - wL[0]); // physical ent.
+   zL[dim + 1] = pow(-exp(-sL)/wL[dim+1], 1.0/euler::gami)/zL[0];
+   sR = euler::gamma + euler::gami*(0.5*sR/wR[dim+1] - wR[0]); // physical ent.
+   zR[dim + 1] = pow(-exp(-sR)/wR[dim+1], 1.0/euler::gami)/zR[0];
+
+   xdouble rho_hat = 0.5 * (zL[0] + zR[0]) * logavg(zL[dim + 1], zR[dim + 1]);
+   xdouble U = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      U += (zL[i + 1] + zR[i + 1]) * dir[i] /(zL[0] + zR[0]);
+   }
+   xdouble p1_hat = (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0]);
+   xdouble p2_hat = ((euler::gamma + 1.0) * logavg(zL[dim + 1], zR[dim + 1]) /
+                         logavg(zL[0], zR[0]) +
+                     (euler::gami) * (zL[dim + 1] + zR[dim + 1]) / (zL[0] + zR[0])) /
+                    (2.0 * euler::gamma);
+   xdouble h_hat = euler::gamma * p2_hat / (rho_hat * euler::gami);
+
+   flux[0] = rho_hat * U;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] = (zL[i + 1] + zR[i + 1]) / (zL[0] + zR[0]); // u_hat
+      h_hat += 0.5 * flux[i + 1] * flux[i + 1];
+      flux[i + 1] *= rho_hat * U;
+      flux[i + 1] += p1_hat * dir[i];
+   }
+   flux[dim + 1] = rho_hat * h_hat * U;
+
+   // add the dissipation
+   xdouble qL[dim+2], qR[dim+2], q_ave[dim+2];
+   xdouble w_diff[dim+2];
+   xdouble dqdw_vec[dim+2];
+   calcConservativeVars<xdouble, dim>(wL, qL);
+   calcConservativeVars<xdouble, dim>(wR, qR);
+   for (int i = 0; i < dim+2; i++)
+   {
+      q_ave[i] = 0.5 * (qL[i] + qR[i]);
+      w_diff[i] = wL[i] - wR[i];
+   }
+   xdouble lambda = diss_coeff*calcSpectralRadius<xdouble, dim>(dir, q_ave);
+   calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
+   for (int i = 0; i < dim+2; i++)
+   {
+      flux[i] = flux[i] + lambda * dqdw_vec[i];
+   }
 }
 
 } // namespace mach

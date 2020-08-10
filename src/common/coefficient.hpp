@@ -19,11 +19,11 @@ class StateCoefficient : public mfem::Coefficient
 {
 public:
 	virtual double Eval(mfem::ElementTransformation &trans,
-							  const mfem::IntegrationPoint &ip)
-	{
-		std::cerr << "Wrong Eval method for StateCoefficient!" << std::endl;
-		return 0.0;
-	}
+                       const mfem::IntegrationPoint &ip)
+   {
+      return Eval(trans, ip, 0);
+   }
+
 	virtual double Eval(mfem::ElementTransformation &trans,
 							  const mfem::IntegrationPoint &ip,
 							  const double state) = 0;
@@ -63,7 +63,7 @@ public:
 		}
 	}
 
-	/// \brief Search the map of coefficients and evaluate the one whose key is
+   /// \brief Search the map of coefficients and evaluate the one whose key is
 	/// 		  the same as the element's `Attribute` at the point defined by
 	///		  `ip`.
 	/// \param[in] trans - element transformation relating real element to
@@ -106,50 +106,7 @@ public:
 											const mfem::IntegrationPoint &ip,
 											const double state);
 
-	/// Returns reference to <std::unique_ptr<mfem::Coefficient> from material_map
-	/// \param[in] attr - attribute integer indicating which elements coeff
-	///					    should be evaluated on
-	/// \param[in] coeff - the coefficient the to evaluate on elements
-	///						  identified by the attribute
-	mfem::Coefficient* getCoefficient(const int attr)
-	{
-		auto it = material_map.find(attr);
-		mfem::Coefficient *coeff;
-   		if (it != material_map.end())
-		{
-      		coeff = it->second.get();
-			return coeff;
-   		}
-	}
-
 protected:
-	/// \brief Method to be called if a coefficient matching the element's
-	/// 		  attribute is not a subclass of `StateCoefficient and thus
-	///		  does not implement `Eval()` with state argument
-	/// \param[in] *coeff - pointer to the coefficient in the map
-	/// \param[in] trans - element transformation relating real element to
-	///					 	  reference element
-	/// \param[in] ip - the integration point to evalaute the coefficient at
-	/// \param[in] state - the state at which to evaluate the coefficient
-	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
-	/// \tparam typename - Uses template meta programming and SFINAE to check if
-	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
-	///						  If it is not, typename is void and this function is
-	///						  an invalid overload and not considered. This enables
-	///						  compile-time introspection of object.
-   /// \note When this method is called, the caller must make sure that the
-   /// IntegrationPoint associated with trans is the same as ip. This can be
-   /// achieved by calling trans.SetIntPoint(&ip).
-	template <class T, typename
-				 std::enable_if<!std::is_base_of<StateCoefficient,
-				 T>::value, int>::type= 0>
-	inline double Eval(T *coeff,
-							 mfem::ElementTransformation &trans,
-							 const mfem::IntegrationPoint &ip)
-	{
-		return coeff->Eval(trans, ip);
-	}
-
 	/// \brief Method to be called if a coefficient matching the element's
 	/// 		  attribute is a subclass of `StateCoefficient and
 	///		  thus implements `Eval()` with state argument
@@ -160,7 +117,7 @@ protected:
 	/// \param[in] state - the state at which to evaluate the coefficient
 	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
 	/// \tparam typename - Uses template meta programming and SFINAE to check if
-	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
+	///						  `T` is a subclass of `StateCoefficient`
 	///						  If it is not, typename is void and this function is
 	///						  an invalid overload and not considered. This enables
 	///						  compile-time introspection of object.
@@ -188,7 +145,7 @@ protected:
 	/// \param[in] state - the state at which to evaluate the coefficient
 	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
 	/// \tparam typename - Uses template meta programming and SFINAE to check if
-	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
+	///						  `T` is a subclass of `StateCoefficient`
 	///						  If it is not, typename is void and this function is
 	///						  an invalid overload and not considered. This enables
 	///						  compile-time introspection of object.
@@ -206,6 +163,58 @@ protected:
 		return coeff->Eval(trans, ip);
 	}
 
+	// /// \brief Method to be called if a coefficient matching the element's
+	// /// 		  attribute is a subclass of `StateCoefficient and
+	// ///		  thus implements `Eval()` with state argument
+	// /// \param[in] *coeff - pointer to the coefficient in the map
+	// /// \param[in] trans - element transformation relating real element to
+	// ///					 	  reference element
+	// /// \param[in] ip - the integration point to evalaute the coefficient at
+	// /// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
+	// /// \tparam typename - Uses template meta programming and SFINAE to check if
+	// ///						  `T` is a subclass of `StateCoefficient`
+	// ///						  If it is not, typename is void and this function is
+	// ///						  an invalid overload and not considered. This enables
+	// ///						  compile-time introspection of object.
+   // /// \note When this method is called, the caller must make sure that the
+   // /// IntegrationPoint associated with trans is the same as ip. This can be
+   // /// achieved by calling trans.SetIntPoint(&ip).
+	// template <class T, typename
+	// 			 std::enable_if<std::is_base_of<StateCoefficient,
+	// 			 T>::value, int>::type= 0>
+	// inline double Eval(T *coeff,
+	// 						 mfem::ElementTransformation &trans,
+	// 						 const mfem::IntegrationPoint &ip)
+	// {
+	// 	return coeff->Eval(trans, ip, 0);
+	// }
+
+	// /// \brief Method to be called if a coefficient matching the element's
+	// /// 		  attribute is not a subclass of `StateCoefficient and thus
+	// ///		  does not implement `Eval()` with state argument
+	// /// \param[in] *coeff - pointer to the coefficient in the map
+	// /// \param[in] trans - element transformation relating real element to
+	// ///					 	  reference element
+	// /// \param[in] ip - the integration point to evalaute the coefficient at
+	// /// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
+	// /// \tparam typename - Uses template meta programming and SFINAE to check if
+	// ///						  `T` is a subclass of `StateCoefficient`
+	// ///						  If it is not, typename is void and this function is
+	// ///						  an invalid overload and not considered. This enables
+	// ///						  compile-time introspection of object.
+   // /// \note When this method is called, the caller must make sure that the
+   // /// IntegrationPoint associated with trans is the same as ip. This can be
+   // /// achieved by calling trans.SetIntPoint(&ip).
+	// template <class T, typename
+	// 			 std::enable_if<!std::is_base_of<StateCoefficient,
+	// 			 T>::value, int>::type= 0>
+	// inline double Eval(T *coeff,
+	// 						 mfem::ElementTransformation &trans,
+	// 						 const mfem::IntegrationPoint &ip)
+   // {
+	// 	return coeff->Eval(trans, ip);
+	// }
+
 	/// \brief Method to be called if a coefficient matching the element's
 	/// 		  attribute is a subclass of `StateCoefficient and
 	///		  thus implements `EvalStateDeriv()`
@@ -216,7 +225,7 @@ protected:
 	/// \param[in] state - the state at which to evaluate the coefficient
 	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
 	/// \tparam typename - Uses template meta programming and SFINAE to check if
-	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
+	///						  `T` is a subclass of `StateCoefficient`
 	///						  If it is not, typename is void and this function is
 	///						  an invalid overload and not considered. This enables
 	///						  compile-time introspection of object.
@@ -244,7 +253,7 @@ protected:
 	/// \param[in] state - the state at which to evaluate the coefficient
 	/// \tparam T - templated type, must be a subclass of `mfem::Coefficient`
 	/// \tparam typename - Uses template meta programming and SFINAE to check if
-	///						  `T` is a subclass of `ExplictStateDependentCoefficient`
+	///						  `T` is a subclass of `StateCoefficient`
 	///						  If it is not, typename is void and this function is
 	///						  an invalid overload and not considered. This enables
 	///						  compile-time introspection of object.

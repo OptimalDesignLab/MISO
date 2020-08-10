@@ -1,4 +1,5 @@
 #include "euler_test_data.hpp"
+#include "euler_fluxes.hpp"
 
 namespace euler_data
 {
@@ -68,10 +69,10 @@ double delw_data[15] = {0.964888535199277, 0.7354003853089198, 0.157613081677548
                    0.915735525189067, 0.6064661887024042, 0.19554342457115859, 0.12338014544564024};
 
 // define the random-number generator; uniform between 0 and 1
-static std::default_random_engine gen;
+static std::default_random_engine gen(std::random_device{}());
 static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
 
-template <int dim>
+template <int dim, bool entvar>
 void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
 {
     const double scale = 0.01;
@@ -81,11 +82,19 @@ void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
     {
         u(di + 1) = rhou[di] * (1.0 + scale * uniform_rand(gen));
     }
+    if (entvar)
+    {
+       mfem::Vector q(u);
+       mach::calcEntropyVars<double, dim>(q.GetData(), u.GetData());
+    }
 }
 // explicit instantiation of the templated function above
-template void randBaselinePert<1>(const mfem::Vector &x, mfem::Vector &u);
-template void randBaselinePert<2>(const mfem::Vector &x, mfem::Vector &u);
-template void randBaselinePert<3>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePert<1, true>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePert<2, true>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePert<3, true>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePert<1, false>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePert<2, false>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePert<3, false>(const mfem::Vector &x, mfem::Vector &u);
 
 void randState(const mfem::Vector &x, mfem::Vector &u)
 {
@@ -93,6 +102,17 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
     {
         u(i) = 2.0 * uniform_rand(gen) - 1.0;
     }
+}
+
+double randBaselinePert(const mfem::Vector &x)
+{
+    const double scale = 0.01;
+    return 1.0 + scale * uniform_rand(gen);
+}
+
+double randState(const mfem::Vector &x)
+{
+    return 2.0 * uniform_rand(gen) - 1.0;
 }
 
 } // namespace euler_data

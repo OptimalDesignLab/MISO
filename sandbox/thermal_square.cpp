@@ -18,16 +18,11 @@ static double ExactSolution(const Vector &x);
 
 int main(int argc, char *argv[])
 {
-   ostream *out;
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
    MPI_Init(&argc, &argv);
    int rank;
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   out = getOutStream(rank); 
-#else
-   out = getOutStream(0);
-#endif
+   ostream *out = getOutStream(rank);
 
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -52,9 +47,12 @@ int main(int argc, char *argv[])
    t_final = options["time-dis"]["t-final"].get<double>();
 
    // generate a simple tet mesh
-   int num_edge = options["mesh"]["num-edge"].get<int>();
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, 2, 2,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
+   int num_edge_x = options["mesh"]["num-edge-x"].get<int>();
+   int num_edge_y = options["mesh"]["num-edge-y"].get<int>();
+   int num_edge_z = options["mesh"]["num-edge-z"].get<int>();
+
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge_x, num_edge_y, num_edge_z,
+                              Element::HEXAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
 
    mesh->ReorientTetMesh();
@@ -92,6 +90,7 @@ int main(int argc, char *argv[])
 
    ofstream mesh_ofs("test_cube.vtk");
    mesh_ofs.precision(8);
+   mesh->SetAttributes(); //need to do this to set the attributes array
    mesh->PrintVTK(mesh_ofs);
 
    try
@@ -99,17 +98,21 @@ int main(int argc, char *argv[])
       // construct the solver
 
       
-      ThermalSolver solver(opt_file_name, move(mesh));
-      solver.setInitialTemperature(InitialTemperature);
+      // ThermalSolver solver(opt_file_name, move(mesh));
+      // solver.initDerived();
+      auto solver = createSolver<ThermalSolver>(opt_file_name, move(mesh));
+      solver->setInitialCondition(InitialTemperature);
       // unique_ptr<MagnetostaticSolver<3>> solver(
       //    new MagnetostaticSolver<3>(opt_file_name, nullptr));
       std::cout << "Solving..." << std::endl;
-      solver.solveForState();
+      solver->solveForState();
+      // std::cout << "Solving Adjoint..." << std::endl;
       // solver->solveForState();
+      // solver.solveForAdjoint(options["outputs"]["temp-agg"].get<std::string>());
       std::cout << "Solver Done" << std::endl;
-
-      mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver.calcL2Error(ExactSolution, 0) << '\n' << endl;
+      std::cout.precision(17);
+      std::cout << "\n|| rho_h - rho ||_{L^2} = " 
+                << solver->calcL2Error(ExactSolution) << '\n' << endl;
    }
    catch (MachException &exception)
    {
@@ -119,16 +122,15 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-#ifdef MFEM_USE_MPI
+
    MPI_Finalize();
-#endif
 }
 
 double InitialTemperature(const Vector &x)
 {
    //return cos(M_PI*x(0));
 
-   return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
+   //return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
 
    // if (x(0) <= .5)
    // {
@@ -138,13 +140,16 @@ double InitialTemperature(const Vector &x)
    // {
    //    return sin(M_PI*x(0)/2) + x(0)*x(0)/2 - 1.0/4;
    // }
+
+   //For Use Testing Aggregated Constraint
+   return sin(M_PI*x(0))*sin(M_PI*x(0));
 }
 
 double ExactSolution(const Vector &x)
 {
-   //return cos(M_PI*x(0))*exp(-M_PI*M_PI*t_final);
+   return cos(M_PI*x(0))*exp(-M_PI*M_PI*t_final);
    
-   return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
+   //return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2;
 
    // if (x(0) <= .5)
    // {

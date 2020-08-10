@@ -9,38 +9,40 @@ namespace mach
 {
 
 /// Solver for Navier-Stokes flows
-template <int dim>
-class NavierStokesSolver : public EulerSolver<dim>
+/// dim - number of spatial dimensions (1, 2, or 3)
+/// entvar - if true, the entropy variables are used in the integrators
+template <int dim, bool entvar = false>
+class NavierStokesSolver : public EulerSolver<dim, entvar>
 {
-public:
-   /// Class constructor.
-   /// \param[in] opt_file_name - file where options are stored
-   /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
-   /// \todo Can we infer dim some other way without using a template param?
-   NavierStokesSolver(const std::string &opt_file_name,
-                      std::unique_ptr<mfem::Mesh> smesh = nullptr);
-
 protected:
    /// free-stream Reynolds number
    double re_fs;
    /// Prandtl number
    double pr_fs;
 
+   /// Class constructor.
+   /// \param[in] json_options - json object containing the options
+   /// \param[in] smesh - if provided, defines the mesh for the problem
+   NavierStokesSolver(const nlohmann::json &json_options,
+                      std::unique_ptr<mfem::Mesh> smesh = nullptr);
+
    /// Add volume/domain integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addVolumeIntegrators() first
-   virtual void addVolumeIntegrators(double alpha);
+   virtual void addResVolumeIntegrators(double alpha);
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addBoundaryIntegrators() first
-   virtual void addBoundaryIntegrators(double alpha);
+   virtual void addResBoundaryIntegrators(double alpha);
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addInterfaceIntegrators() first
-   virtual void addInterfaceIntegrators(double alpha);
+   virtual void addResInterfaceIntegrators(double alpha);
+
+   /// Create `output` based on `options` and add approporiate integrators
+   virtual void addOutputs() override;
 
    /// Set the state corresponding to the inflow boundary
    /// \param[in] q_in - state corresponding to the inflow
@@ -50,8 +52,9 @@ protected:
    /// \param[in] q_out - state corresponding to the outflow
    void getViscousOutflowState(mfem::Vector &q_out);
 
-   /// Create `output` based on `options` and add approporiate integrators
-   ///void addOutputs();
+   friend SolverPtr createSolver<NavierStokesSolver<dim, entvar>>(
+       const nlohmann::json &json_options,
+       std::unique_ptr<mfem::Mesh> smesh);    
 };
 
 /// Defines the right-hand side of Equation (7.5) in "Entropy stable spectral
@@ -68,6 +71,11 @@ double shockEquation(double Re, double Ma, double v);
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void shockExact(const mfem::Vector &x, mfem::Vector& u);
+
+/// Defines the exact solution for the viscous MMS verification
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void viscousMMSExact(const mfem::Vector &x, mfem::Vector& u);
 
 } // namespace mach
 

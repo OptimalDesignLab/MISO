@@ -27,6 +27,7 @@ const double dir[3] = {0.6541305612927484, -0.0016604759052086802, -0.2176322846
 
 const double press_check[3] = {0.8227706007961364, 0.8225798733170867, 0.8188974449720051};
 const double spect_check[3] = {0.7708202616595441, 0.7707922224516813, 0.8369733021138251};
+const double entropy_check[3] = {0.4308595411133724, 0.4314308230805257, 0.44248676664229974};
 
 // Define the Euler flux values for checking; The first 3 entries are for the
 // 1D flux, the next 4 for the 2D flux, and the last 5 for the 3D flux
@@ -61,17 +62,27 @@ extern double adjJ_data[9];
 
 // Use this for spatial derivatives of entropy-variables
 extern double delw_data[15];
+
 /// Returns a perturbed version of the baseline flow state
 /// \param[in] x - coordinates (not used)
 /// \param[out] u - pertrubed state variable
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <int dim>
+/// \tparam entvar - if true, returns entropy variables
+template <int dim, bool entvar = false>
 void randBaselinePert(const mfem::Vector &x, mfem::Vector &u);
 
 /// Returns a random state with entries uniformly distributed in [-1,1]
 /// \param[in] x - coordinates (not used)
 /// \param[out] u - rand state variable
 void randState(const mfem::Vector &x, mfem::Vector &u);
+
+/// Returns a perturbed version of the baseline temperature state
+/// \param[in] x - coordinates (not used)
+double randBaselinePert(const mfem::Vector &x);
+
+/// Returns a random state with entries uniformly distributed in [-1,1]
+/// \param[in] x - coordinates (not used)
+double randState(const mfem::Vector &x);
 
 } // euler_data namespace
 
