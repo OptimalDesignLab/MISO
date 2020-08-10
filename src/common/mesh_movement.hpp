@@ -3,10 +3,10 @@
 
 #include "mfem.hpp"
 #include "adept.h"
-#include "egads.h"
 #include "../../build/_config.hpp"
 
 #ifdef MACH_USE_EGADS
+#include "egads.h"
 #include "mach_egads.hpp"
 #endif
 
@@ -19,15 +19,15 @@ namespace mach
 class MeshMovementSolver : public AbstractSolver
 {
 protected:
-    /// Base Class Constructor
-    MeshMovementSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
-					    int dim = 3) 
+   /// Base Class Constructor
+   MeshMovementSolver(const std::string &opt_file_name,
+                     std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                  int dim = 3) 
                               : AbstractSolver(opt_file_name, move(smesh))
-    {
-        /// Fill as would be useful
-        fes = NULL; 
-    }
+   {
+      /// Fill as would be useful
+      fes = NULL; 
+   }
 };
 
 #ifdef MFEM_USE_PUMI
@@ -35,17 +35,17 @@ protected:
 class LEAnalogySolver : public MeshMovementSolver
 {
 public:
-    /// Class Constructor
-    LEAnalogySolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+   /// Class Constructor
+   LEAnalogySolver(const std::string &opt_file_name,
+                     std::unique_ptr<mfem::Mesh> smesh = nullptr,
                         int dim = 3);
 
 private:
-    /// Moved mesh
-    apf::Mesh2 *moved_mesh;
+   /// Moved mesh
+   apf::Mesh2 *moved_mesh;
 
-    // static copy of the original mesh
-    static mfem::Mesh *mesh_copy;
+   // static copy of the original mesh
+   static mfem::Mesh *mesh_copy;
 
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::ofstream sol_ofs;
@@ -105,12 +105,12 @@ private:
 
    /// work vector
    mutable mfem::Vector z;
-    
-    // Lambda element wise function
-    static double LambdaFunc(const mfem::Vector &x, int ie);
+   
+   // Lambda element wise function
+   static double LambdaFunc(const mfem::Vector &x, int ie);
 
-    // Mu element wise function
-    static double MuFunc(const mfem::Vector &x, int ie);
+   // Mu element wise function
+   static double MuFunc(const mfem::Vector &x, int ie);
 };
 
 #endif
