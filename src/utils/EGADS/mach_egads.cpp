@@ -1,3 +1,5 @@
+#ifdef MFEM_USE_PUMI
+
 #include "mach_egads.hpp"
 #include "egads.h"
 #include "adept.h"
@@ -136,3 +138,5 @@ apf::Mesh2* getNewMesh(std::string newmodel,
    PCU_Comm_Free();
    return moved_mesh;
 }
+
+#endif

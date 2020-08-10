@@ -12,7 +12,7 @@ target_include_directories(mach
      "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-if(MACH_USE_EGADS)
+if (MACH_USE_EGADS)
    add_subdirectory(EGADS)
-endif()
+endif (MACH_USE_EGADS)
 

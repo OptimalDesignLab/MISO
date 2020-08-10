@@ -46,15 +46,11 @@ find_package(MPI REQUIRED)
 option(MACH_USE_EGADS "Build with EGADS support" OFF)
 message(STATUS "MACH_USE_EGADS: ${MACH_USE_EGADS}")
 
-if(MACH_USE_EGADS)
-  add_definitions(-DUSE_EGADS)
-endif()
-
 # EGADS Support for mesh movement
 if (MACH_USE_EGADS)
    message(STATUS "hello")
    find_package(EGADS MODULE REQUIRED)
-endif()
+endif (MACH_USE_EGADS)
 
 # Try to find OpenMP (used by Adept)
 # find_package(OpenMP)
@@ -79,12 +75,12 @@ target_link_libraries(mach
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
 )
 
-if(MACH_USE_EGADS)
+if (MACH_USE_EGADS)
    target_link_libraries(mach
       PUBLIC
          "${EGADS_LIBRARIES}"
    )
-endif()
+endif (MACH_USE_EGADS)
 
 target_include_directories(mach
    PUBLIC
@@ -93,12 +89,12 @@ target_include_directories(mach
       "${PUMI_INCLUDE_DIRS}"
 )
 
-if(MACH_USE_EGADS)
+if (MACH_USE_EGADS)
    target_include_directories(mach
       PUBLIC
          "${EGADS_INCLUDE_DIRS}"
    )
-endif()
+endif (MACH_USE_EGADS)
 
 target_compile_features(mach
    PUBLIC
@@ -134,7 +130,7 @@ if (MFEM_USE_EGADS)
       PUBLIC
          MFEM_USE_EGADS
    )
-endif(MFEM_USE_EGADS)
+endif (MFEM_USE_EGADS)
 
 install(TARGETS mach
    EXPORT machTargets

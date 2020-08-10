@@ -9,6 +9,7 @@ using namespace mfem;
 namespace mach
 {
 
+#ifdef MFEM_USE_PUMI
 #ifdef MACH_USE_EGADS
 LEAnalogySolver::LEAnalogySolver(
    const std::string &opt_file_name,
@@ -77,7 +78,7 @@ LEAnalogySolver::LEAnalogySolver(
    std::cout << "Computing Boundary Node Displacements..." << std::endl;
    
    getBoundaryNodeDisplacement(model_file_old, model_file_new, tess_file, 
-                              pumi_mesh, &disp_list);
+                              pumi_mesh.get(), &disp_list);
    /// replicating ProjectCoefficient
    int el = -1;
    const FiniteElement *fe = NULL;
@@ -160,7 +161,7 @@ void LEAnalogySolver::solveSteady()
       //update pumi mesh and write to file
       string model_file_new = options["model-file-new"].template get<string>();
       string mesh_file_new = options["mesh"]["moved-file"].template get<string>();
-      moved_mesh = getNewMesh(model_file_new, mesh_file_new, mesh.get(), pumi_mesh);
+      moved_mesh = getNewMesh(model_file_new, mesh_file_new, mesh.get(), pumi_mesh.get());
    }
 }
 
@@ -176,6 +177,7 @@ double LEAnalogySolver::MuFunc(const mfem::Vector &x, int ie)
 
 mfem::Mesh* LEAnalogySolver::mesh_copy = 0;
 
+#endif
 #endif
 
 } //namespace mach
