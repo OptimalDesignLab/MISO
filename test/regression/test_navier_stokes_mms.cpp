@@ -36,15 +36,14 @@ auto options = R"(
       "cfl": 1.0,
       "res-exp": 2.0
    },
-   "newton": {
+   "nonlin-solver": {
       "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-1,
       "abstol": 1e-12
    },
    "lin-solver": {
-      "type": "hypregmres",
-      "pctype": "hypreeuclid",
+      "type": "hyprefgmres",
       "printlevel": 0,
       "filllevel": 3,
       "maxiter": 100,
@@ -74,25 +73,23 @@ void uexact(const Vector &x, Vector& u);
 
 TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
 {
-   // nx = ny = 3 are used for p=1 and p=2, while nx = ny = 2
-   // are used for p=3 and p=4.
-   int nx = 3;
+   int nx = 2;
 
    const double target_error[4] = {
-       0.0247554309947045,  // p = 1
-       0.00595950048015833, // p = 2
-       0.00990406696611465, // p = 3
-       0.00367220988354624  // p = 4
+       0.0737783882613367, // p = 1
+       0.0301870954654436, // p = 2
+       0.0110927229078876, // p = 3
+       0.00373341426303304 // p = 4
    };
    const double target_drag_error[4] = {
-       -0.10385422494785002,  // p = 1
-       0.0030476279320998945, // p = 2
-       0.007633481807769904,  // p = 3
-       0.0038958484553899275  // p = 4
+       0.0265315876403271, // p = 1
+       0.0102832210446619, // p = 2
+       0.00980301225032143,// p = 3
+       0.00435654251310824 // p = 4
    };
 
    // Just test p=1 and p=2 to keep test time limited
-   for (int p = 1; p <= 2; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for solution degree p = " << p)
       {
@@ -100,8 +97,6 @@ TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
          // std::cout << setw(3) << options << std::endl;
          
          // construct the mesh
-         if (p >= 3)
-            nx--; // recall that nx is reset each time the section is re-run
          unique_ptr<Mesh> smesh = buildCurvilinearMesh(p+1, nx, nx);
          //std::cout << "Number of elements " << smesh->GetNE() << '\n';
 

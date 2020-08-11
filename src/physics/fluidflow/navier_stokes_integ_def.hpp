@@ -219,7 +219,6 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(
    // Step 3: evaluate the no-slip penalty
    mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(), jac, mu_Re, Pr, qfs_a.data(),
                                              q_a.data(), work_vec_a.data());
-
    for (int i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] += work_vec_a[i];

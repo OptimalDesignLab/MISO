@@ -61,6 +61,8 @@ void ThermalSolver::initDerived()
 	setInit = false;
 
 	mesh->ReorientTetMesh();
+	/// Override, only use 1st order H elements
+	int fe_order = 1;// options["space-dis"]["degree"].get<int>();
 
 	/// Create temperature grid function
 	// u.reset(new GridFunType(fes.get()));
@@ -695,8 +697,8 @@ void ThermalSolver::constructEvolver()
    evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), stiff.get(), load.get(), *out,
 												0.0, flux_coeff.get()));
 	evolver->SetLinearSolver(solver.get());
-   if (newton_solver == nullptr)
-      constructNewtonSolver();
+   //if (newton_solver == nullptr)
+   //   constructNewtonSolver();
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

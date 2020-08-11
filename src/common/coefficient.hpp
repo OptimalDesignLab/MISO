@@ -385,26 +385,45 @@ protected:
 	std::map<const int, std::unique_ptr<mfem::VectorCoefficient>> material_map;
 };
 
-class SteinmetzCoefficient : public mfem::Coefficient
+/// ElementFunctionCoefficient
+/// A class that maps coefficients as functions of the element they are in.
+/// Used to set stiffness of elements for mesh movement.
+class ElementFunctionCoefficient : public mfem::Coefficient
 {
 public:
-	/// Define a coefficient to represent the Steinmetz core losses
-	/// \param[in] rho - TODO: material density?
-	/// \param[in] alpha - TODO
-	/// \param[in] f - electrical frequency of excitation
-	/// \param[in] kh - Steinmetz hysteresis coefficient
-	/// \param[in] ke - Steinmetz eddy currnt coefficient
-	/// \param[in] B - magnetic flux density GridFunction 
-	SteinmetzCoefficient(double rho, double alpha, double f, double kh,
-								double ke, GridFunType *B)
-		: rho(rho), alpha(alpha), freq(f), kh(kh), ke(ke), B(B) {}
+	/// Construct ElementFunctionCoefficient
+	/// \param [in] dflt - default coefficient to evaluate if element attribute
+	///						  is not found in the map. If not set, will default
+	///						  to zero
+	ElementFunctionCoefficient(double (*f)(const mfem::Vector &, int)) 
+	{
+		Function = f;
+		TDFunction = NULL;
+	}
 
-	/// Evaluate the Steinmetz coefficient
-	double Eval(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip) override;
+	// Time Dependent Version
+	ElementFunctionCoefficient(double (*tdf)(const mfem::Vector &, int, double)) 
+	{
+		Function = NULL;
+		TDFunction = tdf;
+	}
+
+	/// \brief Get element number from the transformation and accept as argument
+	/// 		for the given function coefficient.
+	/// \param[in] trans - element transformation relating real element to
+	///					 	  reference element
+	/// \param[in] ip - the integration point to evalaute the coefficient at
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+	virtual double Eval(mfem::ElementTransformation &trans,
+							  const mfem::IntegrationPoint &ip);
+
+protected:
+	double (*Function)(const mfem::Vector &, int);
+	double (*TDFunction)(const mfem::Vector &, int, double);
 private:
-	double rho, alpha, freq, kh, ke;
-	GridFunType *B;
+
 };
 
 } // namespace mach

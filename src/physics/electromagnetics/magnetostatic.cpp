@@ -93,8 +93,9 @@ void MagnetostaticSolver::setEssentialBoundaries()
 
 void MagnetostaticSolver::solveSteady(ParGridFunction &state)
 {
-   if (newton_solver == nullptr)
-      constructNewtonSolver();
+   *out << "Tucker: please check if the code below is needed" << endl;
+   // if (newton_solver == nullptr)
+   //    constructNewtonSolver();
 
    setEssentialBoundaries();
 
