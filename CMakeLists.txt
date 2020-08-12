@@ -14,6 +14,28 @@ endif (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 set(CMAKE_MODULE_PATH
    ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
+### correctly handle rpath when installing
+### From: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
+# use, i.e. don't skip the full RPATH for the build tree
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+
+# when building, don't use the install RPATH already
+# (but later on when installing)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# the RPATH to be used when installing, but only if it's not a system directory
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+endif("${isSystemDir}" STREQUAL "-1")
+### end of install rpath stuff
+
 find_package(Adept MODULE REQUIRED)
 find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 
@@ -43,14 +65,14 @@ endif (MFEM_USE_PUMI)
 # find the MPI compilers used by MFEM
 find_package(MPI REQUIRED)
 
-option(MACH_USE_EGADS "Build with EGADS support" OFF)
-message(STATUS "MACH_USE_EGADS: ${MACH_USE_EGADS}")
+# option(MFEM_USE_EGADS "Build with EGADS support" OFF)
+# message(STATUS "MFEM_USE_EGADS: ${MFEM_USE_EGADS}")
 
 # EGADS Support for mesh movement
-if (MACH_USE_EGADS)
-   message(STATUS "hello")
+if (MFEM_USE_EGADS)
+   message(STATUS "finding EGADS")
    find_package(EGADS MODULE REQUIRED)
-endif (MACH_USE_EGADS)
+endif (MFEM_USE_EGADS)
 
 # Try to find OpenMP (used by Adept)
 # find_package(OpenMP)
@@ -75,13 +97,6 @@ target_link_libraries(mach
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
 )
 
-if (MACH_USE_EGADS)
-   target_link_libraries(mach
-      PUBLIC
-         "${EGADS_LIBRARIES}"
-   )
-endif (MACH_USE_EGADS)
-
 target_include_directories(mach
    PUBLIC
       "${ADEPT_INCLUDE_DIRS}"
@@ -89,12 +104,17 @@ target_include_directories(mach
       "${PUMI_INCLUDE_DIRS}"
 )
 
-if (MACH_USE_EGADS)
+if (MFEM_USE_EGADS)
+   target_link_libraries(mach
+      PUBLIC
+         "${EGADS_LIBRARIES}"
+   )
+
    target_include_directories(mach
       PUBLIC
          "${EGADS_INCLUDE_DIRS}"
    )
-endif (MACH_USE_EGADS)
+endif (MFEM_USE_EGADS)
 
 target_compile_features(mach
    PUBLIC
@@ -194,6 +214,7 @@ if (BUILD_PYTHON_WRAPPER)
 
    FetchContent_Declare(pybind11
       GIT_REPOSITORY "https://github.com/pybind/pybind11"
+      GIT_TAG v2.5.0
    )
 
    FetchContent_MakeAvailable(pybind11)
@@ -213,6 +234,18 @@ if (BUILD_PYTHON_WRAPPER)
          mach
          # "${MFEM_LIBRARIES}"
    )
+
+   if (MFEM_USE_EGADS)
+      target_link_libraries(pyMach
+         PUBLIC
+            "${EGADS_LIBRARIES}"
+      )
+
+      target_include_directories(pyMach
+         PUBLIC
+            "${EGADS_INCLUDE_DIRS}"
+      )
+   endif (MFEM_USE_EGADS)
 
    # find the mpi4py c interface include directories and include them
    execute_process(COMMAND

@@ -5,6 +5,7 @@ target_sources(pyMach
       "machSolver.cpp"
       "vector.cpp"
       "mesh.cpp"
+      "meshMotion.cpp"
 )
 
 

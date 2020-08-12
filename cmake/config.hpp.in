@@ -2,6 +2,6 @@
 #define MACH_CONFIG_HEADER
 
 /// Enable define guards for EGADS 
-#cmakedefine MACH_USE_EGADS
+#cmakedefine MFEM_USE_EGADS
 
 #endif

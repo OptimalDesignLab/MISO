@@ -1,4 +1,4 @@
-if (MACH_USE_EGADS)
+if (MFEM_USE_EGADS)
 
 option(EGADS_LITE "Enable EGADSlite" OFF)
 # this file brings EGADS_LITE from CMake to C++
@@ -29,4 +29,4 @@ target_include_directories(mach
 
 # mach_export_library(mach_egads)
 
-endif (MACH_USE_EGADS)
+endif (MFEM_USE_EGADS)

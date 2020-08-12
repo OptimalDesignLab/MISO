@@ -10,7 +10,7 @@ namespace mach
 {
 
 #ifdef MFEM_USE_PUMI
-#ifdef MACH_USE_EGADS
+#ifdef MFEM_USE_EGADS
 LEAnalogySolver::LEAnalogySolver(
    const std::string &opt_file_name,
    std::unique_ptr<mfem::Mesh> smesh,

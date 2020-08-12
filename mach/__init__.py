@@ -10,7 +10,18 @@ except ImportError as err:
     openmdao = None
 
     if MPI.COMM_WORLD.rank == 0:
-        print('Warning: OpenMDAO dependency is not installed. omMach wrapper will not be active')
+        print('Warning: OpenMDAO dependency is not installed. omMach wrapper will not be active.')
 
 if openmdao is not None: 
     from .omMach import omMach
+
+try:
+    import pyCAPS
+except ImportError as err:
+    pyCAPS = None
+
+    if MPI.COMM_WORLD.rank == 0:
+        print('Warning: pyCAPS dependency is not installed. omEGADS wrapper will not be active.')
+
+if pyCAPS is not None: 
+    from .omEGADS import omEGADS

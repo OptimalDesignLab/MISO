@@ -97,11 +97,11 @@ void getBoundaryNodeDisplacement(std::string oldmodel,
 }
 
 apf::Mesh2* getNewMesh(std::string newmodel,
-                        std::string newmesh,
-                        mfem::Mesh* mfemmesh,
-                        apf::Mesh2* oldmesh)
+                       std::string newmesh,
+                       mfem::Mesh* mfemmesh,
+                       apf::Mesh2* oldmesh)
 {
-   PCU_Comm_Init();
+   // PCU_Comm_Init();
    //start egads
    egObject* eg_context;
    int status = EG_open(&eg_context);

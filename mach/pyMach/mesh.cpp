@@ -5,6 +5,43 @@
 
 #include "mfem.hpp"
 
+#ifdef MFEM_USE_PUMI
+
+#include "apfMDS.h"
+#include "PCU.h"
+#include "apfConvert.h"
+#include "crv.h"
+#include "gmi_mesh.h"
+#include "gmi_null.h"
+
+#ifdef MFEM_USE_SIMMETRIX
+#include "SimUtil.h"
+#include "gmi_sim.h"
+#endif // MFEM_USE_SIMMETRIX
+
+#ifdef MFEM_USE_EGADS
+#include "gmi_egads.h"
+#endif // MFEM_USE_EGADS
+
+namespace
+{
+/// function to figure out if tet element is next to a model surface
+bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
+{
+   apf::MeshEntity* dfs[12];
+   int nfs = m->getDownward(e, 2, dfs);
+   for (int i = 0; i < nfs; i++)
+   {
+      int mtype = m->getModelType(m->toModel(dfs[i]));
+      if (mtype == 2)
+         return true;
+   }
+   return false;
+}
+} // anonymous namespace
+
+#endif // MFEM_USE_PUMI
+
 namespace py = pybind11;
 
 using namespace mfem;
@@ -31,6 +68,144 @@ void initMesh(py::module &m)
       py::arg("sx"), 
       py::arg("sy"),
       py::arg("order"),
+      py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
+
+      .def(py::init([](const std::string &model_file,
+                       const std::string &mesh_file,
+                       mpi4py_comm comm)
+      {
+#ifdef MFEM_USE_PUMI
+         PCU_Comm_Init();
+#ifdef MFEM_USE_SIMMETRIX
+         Sim_readLicenseFile(0);
+         gmi_sim_start();
+         gmi_register_sim();
+#endif
+#ifdef MFEM_USE_EGADS
+         gmi_register_egads();
+         gmi_egads_start();
+#endif
+         gmi_register_mesh();
+         auto *pumi_mesh = apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str());
+
+         // int mesh_dim = pumi_mesh->getDimension();
+         // int nEle = pumi_mesh->count(mesh_dim);
+         // int ref_levels = (int)floor(log(10000. / nEle) / log(2.) / mesh_dim);
+         // Perform Uniform refinement
+         // if (ref_levels > 1)
+         // {
+         //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
+         //    ma::adapt(uniInput);
+         // }
+
+         /// TODO: change this to use argument
+         /// If it is higher order change shape
+         // if (order > 1)
+         // {
+         //     crv::BezierCurver bc(pumi_mesh, order, 2);
+         //     bc.run();
+         // }
+
+         pumi_mesh->verify();
+
+         apf::Numbering* aux_num = apf::createNumbering(pumi_mesh, "aux_numbering",
+                                                      pumi_mesh->getShape(), 1);
+
+         apf::MeshIterator* it = pumi_mesh->begin(0);
+         apf::MeshEntity* v;
+         int count = 0;
+         while ((v = pumi_mesh->iterate(it)))
+         {
+         apf::number(aux_num, v, 0, 0, count++);
+         }
+         pumi_mesh->end(it);
+
+         auto *mesh = new ParPumiMesh(comm, pumi_mesh);
+
+         it = pumi_mesh->begin(pumi_mesh->getDimension());
+         count = 0;
+         while ((v = pumi_mesh->iterate(it)))
+         {
+         if (count > 10) break;
+         printf("at element %d =========\n", count);
+         if (isBoundaryTet(pumi_mesh, v))
+            printf("tet is connected to the boundary\n");
+         else
+            printf("tet is NOT connected to the boundary\n");
+         apf::MeshEntity* dvs[12];
+         int nd = pumi_mesh->getDownward(v, 0, dvs);
+         for (int i = 0; i < nd; i++) {
+            int id = apf::getNumber(aux_num, dvs[i], 0, 0);
+            printf("%d ", id);
+         }
+         printf("\n");
+         Array<int> mfem_vs;
+         mesh->GetElementVertices(count, mfem_vs);
+         for (int i = 0; i < mfem_vs.Size(); i++) {
+            printf("%d ", mfem_vs[i]);
+         }
+         printf("\n");
+         printf("=========\n");
+         count++;
+         }
+
+         /// Add attributes based on reverse classification
+         // Boundary faces
+         int dim = mesh->Dimension();
+         apf::MeshIterator* itr = pumi_mesh->begin(dim-1);
+         apf::MeshEntity* ent ;
+         int ent_cnt = 0;
+         while ((ent = pumi_mesh->iterate(itr)))
+         {
+            apf::ModelEntity *me = pumi_mesh->toModel(ent);
+            if (pumi_mesh->getModelType(me) == (dim-1))
+            {
+               //Get tag from model by  reverse classification
+               int tag = pumi_mesh->getModelTag(me);
+               (mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
+               ent_cnt++;
+            }
+         }
+         pumi_mesh->end(itr);  
+         
+         // Volume faces
+         itr = pumi_mesh->begin(dim);
+         ent_cnt = 0;
+         while ((ent = pumi_mesh->iterate(itr)))
+         {
+            apf::ModelEntity *me = pumi_mesh->toModel(ent);
+            int tag = pumi_mesh->getModelTag(me);
+            mesh->SetAttribute(ent_cnt, tag);
+            ent_cnt++;
+         }
+         pumi_mesh->end(itr);
+         
+         // Apply the attributes
+         mesh->SetAttributes();
+
+         pumi_mesh->destroyNative();
+         apf::destroyMesh(pumi_mesh);
+         PCU_Comm_Free();
+#ifdef MFEM_USE_SIMMETRIX
+         gmi_sim_stop();
+         Sim_unregisterAllKeys();
+#endif // MFEM_USE_SIMMETRIX
+
+#ifdef MFEM_USE_EGADS
+         gmi_egads_stop();
+#endif // MFEM_USE_EGADS
+
+         return mesh;
+#else
+         throw MachException("mfem::ParMesh::init()\n"
+                             "\tMFEM was not built with PUMI!\n"
+                             "\trecompile MFEM with PUMI\n");
+#endif // MFEM_USE_PUMI
+      }),
+      "Loads a PUMI mesh from an .smb file and associated model file, and "
+      "converts to an MFEM mesh",
+      py::arg("model_file"),
+      py::arg("mesh_file"),
       py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
 
       .def("Print", [](ParMesh &self, std::string &filename)

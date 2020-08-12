@@ -34,7 +34,7 @@
 #include "../../build/_config.hpp"
 #include "material_library.hpp"
 
-#ifdef MACH_USE_EGADS
+#ifdef MFEM_USE_EGADS
 #include "gmi_egads.h"
 #endif
 
@@ -351,7 +351,7 @@ void AbstractSolver::constructPumiMesh()
    gmi_sim_start();
    gmi_register_sim();
 #endif
-#ifdef MACH_USE_EGADS
+#ifdef MFEM_USE_EGADS
    gmi_register_egads();
    gmi_egads_start();
 #endif

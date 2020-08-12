@@ -5,7 +5,7 @@
 #include "adept.h"
 #include "../../build/_config.hpp"
 
-#ifdef MACH_USE_EGADS
+#ifdef MFEM_USE_EGADS
 #include "egads.h"
 #include "mach_egads.hpp"
 #endif
@@ -31,7 +31,7 @@ protected:
 };
 
 #ifdef MFEM_USE_PUMI
-#ifdef MACH_USE_EGADS
+#ifdef MFEM_USE_EGADS
 class LEAnalogySolver : public MeshMovementSolver
 {
 public:
