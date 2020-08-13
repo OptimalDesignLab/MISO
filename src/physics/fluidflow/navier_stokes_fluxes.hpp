@@ -203,7 +203,7 @@ void calcNoSlipPenaltyFlux(const xdouble *dir, const xdouble Jac,
    }
    for (int d = 0; d < dim; ++d)
    {
-      applyCijMatrix<xdouble, dim>(d, d, mu*dir[d], Pr, qfs, dw, flux);
+      applyCijMatrix<xdouble, dim>(d, d, mu, Pr, qfs, dw, flux);
    }
    // scale the penalty
    xdouble fac = sqrt(dot<xdouble,dim>(dir, dir))/Jac;

@@ -35,8 +35,8 @@ void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    cout << "Inside RANS add volume integrators" << endl;
    this->res->AddDomainIntegrator(new SAInviscidIntegrator<dim, entvar>( //Inviscid term
        this->diff_stack, alpha));
-   // this->res->AddDomainIntegrator(new SAViscousIntegrator<dim>( //SAViscousIntegrator
-   //     this->diff_stack, re_fs, pr_fs, mu, alpha));
+   this->res->AddDomainIntegrator(new SAViscousIntegrator<dim>( //SAViscousIntegrator
+       this->diff_stack, this->re_fs, this->pr_fs, sacs, mu, alpha));
    // now add RANS integrators
    // this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
    //     this->diff_stack, sacs, mu, alpha));
@@ -55,7 +55,7 @@ void RANavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    double mu = this->options["flow-param"]["mu"].template get<double>();
 
    int idx = 0;
-#if 0
+
    if (bcs.find("slip-wall") != bcs.end())
    { // slip-wall boundary condition
       vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
@@ -63,10 +63,11 @@ void RANavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       this->bndry_marker[idx].Assign(tmp.data());
       this->res->AddBdrFaceIntegrator(
           new SAViscousSlipWallBC<dim>(this->diff_stack, this->fec.get(),
-                                     re_fs, pr_fs, mu, alpha),
+                                     this->re_fs, this->pr_fs, sacs, mu, alpha),
           this->bndry_marker[idx]);
       idx++;
    }
+
    if (bcs.find("no-slip-adiabatic") != bcs.end())
    {
       vector<int> tmp = bcs["no-slip-adiabatic"].template get<vector<int>>();
@@ -78,11 +79,12 @@ void RANavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       // Add the adiabatic flux BC
       this->res->AddBdrFaceIntegrator(
           new SANoSlipAdiabaticWallBC<dim>(
-              this->diff_stack, this->fec.get(), re_fs, pr_fs, q_ref, mu, alpha),
-          this->bndry_marker[idx]);
+              this->diff_stack, this->fec.get(), this->re_fs, 
+                                    this->pr_fs, sacs, q_ref, mu, alpha),
+                                    this->bndry_marker[idx]);
       idx++;
    }
-
+#if 0
    if (bcs.find("rans-inflow") != bcs.end())
    {
       vector<int> tmp = bcs["rans-inflow"].template get<vector<int>>();

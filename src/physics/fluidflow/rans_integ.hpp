@@ -15,28 +15,6 @@ using namespace std; /// TODO: this is polluting other headers!
 namespace mach
 {
 
-/// Entropy-stable volume integrator for Navier-Stokes viscous terms
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-/// \note This derived class uses the CRTP
-template <int dim>
-class ESViscousSAIntegrator : public ESViscousIntegrator <dim>
-{
-public:
-   /// Construct an entropy-stable viscous integrator
-   /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] Re_num - Reynolds number
-   /// \param[in] Pr_num - Prandtl number
-   /// \param[in] vis - nondimensional dynamic viscosity (use Sutherland if neg)
-   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   ESViscousSAIntegrator(adept::Stack &diff_stack, double Re_num, double Pr_num,
-                       double vis = -1.0, double a = 1.0)
-       : ESViscousIntegrator <dim>(
-             diff_stack, Re_num, Pr_num, vis, a) {}
-
-private:
-
-};
-
 /// Volume integrator for inviscid terms, including SA variable
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \note This derived class uses the CRTP
@@ -112,26 +90,26 @@ public:
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
-   // Compute vorticity on an SBP element, needed for SA model terms
-   /// \param[in] q - the state over the element
-   /// \param[in] sbp - the sbp element whose shape functions we want
-   /// \param[in] Trans - defines the reference to physical element mapping
-   /// \param[out] curl - the curl of the velocity field at each node/int point
-   void calcVorticitySBP(const mfem::DenseMatrix &q, 
-                         const mfem::FiniteElement &fe, 
-                         mfem::ElementTransformation &Trans, 
-                         mfem::DenseMatrix curl);
+   // // Compute vorticity on an SBP element, needed for SA model terms
+   // /// \param[in] q - the state over the element
+   // /// \param[in] sbp - the sbp element whose shape functions we want
+   // /// \param[in] Trans - defines the reference to physical element mapping
+   // /// \param[out] curl - the curl of the velocity field at each node/int point
+   // void calcVorticitySBP(const mfem::DenseMatrix &q, 
+   //                       const mfem::FiniteElement &fe, 
+   //                       mfem::ElementTransformation &Trans, 
+   //                       mfem::DenseMatrix curl);
 
-   // Compute gradient for the turbulence variable on an SBP element, 
-   // needed for SA model terms
-   /// \param[in] q - the state over the element
-   /// \param[in] sbp - the sbp element whose shape functions we want
-   /// \param[in] Trans - defines the reference to physical element mapping
-   /// \param[out] grad - the gradient of the turbulence variable at each node
-   void calcGradSBP(const mfem::DenseMatrix &q, 
-                    const mfem::FiniteElement &fe, 
-                    mfem::ElementTransformation &Trans, 
-                    mfem::DenseMatrix grad);
+   // // Compute gradient for the turbulence variable on an SBP element, 
+   // // needed for SA model terms
+   // /// \param[in] q - the state over the element
+   // /// \param[in] sbp - the sbp element whose shape functions we want
+   // /// \param[in] Trans - defines the reference to physical element mapping
+   // /// \param[out] grad - the gradient of the turbulence variable at each node
+   // void calcGradSBP(const mfem::DenseMatrix &q, 
+   //                  const mfem::FiniteElement &fe, 
+   //                  mfem::ElementTransformation &Trans, 
+   //                  mfem::DenseMatrix grad);
 
 private:
 
@@ -170,6 +148,194 @@ protected:
 #endif
 };
 
+/// Integrator for SA no-slip adiabatic-wall boundary condition
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim>
+class SANoSlipAdiabaticWallBC : public ViscousBoundaryIntegrator<SANoSlipAdiabaticWallBC<dim>>
+{
+public:
+   /// Constructs an integrator for a no-slip, adiabatic boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] q_ref - a reference state (needed by penalty)
+   /// \param[in] vis - viscosity (if negative use Sutherland's law)
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   SANoSlipAdiabaticWallBC(adept::Stack &diff_stack,
+                         const mfem::FiniteElementCollection *fe_coll,
+                         double Re_num, double Pr_num, mfem::Vector sa_params,
+                         const mfem::Vector &q_ref, double vis = -1.0,
+                         double a = 1.0)
+       : ViscousBoundaryIntegrator<SANoSlipAdiabaticWallBC<dim>>(
+             diff_stack, fe_coll, dim + 3, a),
+         Re(Re_num), Pr(Pr_num), sacs(sa_params),
+         qfs(q_ref), mu(vis),  work_vec(dim + 3) {}
+
+   /// converts conservative variables to entropy variables
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] w - entropy variables corresponding to `q`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &q, mfem::Vector &w)
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      w(dim+2) = q(dim+2);
+   }
+
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u' 
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      dwdu = 0.0;
+      convertVarsJac<dim>(q, this->stack, dwdu);
+      dwdu(dim+2,dim+2) = 1.0;
+   }
+
+   /// Compute entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                 const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                 mfem::Vector &flux_vec);
+
+   /// Compute Jacobian of entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// w.r.t states
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux w.r.t. states
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                         const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute Jacobian of entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// w.r.t vector of entropy-variables' derivatives
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux w.r.t. entropy-variables' derivatives
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                      const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac);
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
+   /// nondimensionalized dynamic viscosity
+   double mu;
+   /// Fixed state used to compute no-slip penalty matrix
+   mfem::Vector qfs;
+   /// work space for flux computations
+   mfem::Vector work_vec;
+   /// vector of SA model parameters
+   mfem::Vector sacs;
+};
+
+/// Integrator for SA viscous slip-wall boundary condition
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+/// \note This is the same as the inviscid slip wall, but it provides the
+/// necessary entropy-variable gradient flux.
+template <int dim>
+class SAViscousSlipWallBC : public ViscousBoundaryIntegrator<SAViscousSlipWallBC<dim>>
+{
+public:
+   /// Constructs an integrator for a viscous slip-wall boundary
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] vis - viscosity (if negative use Sutherland's law)
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   SAViscousSlipWallBC(adept::Stack &diff_stack,
+                     const mfem::FiniteElementCollection *fe_coll,
+                     double Re_num, double Pr_num, mfem::Vector sa_params, 
+                     double vis = -1.0, double a = 1.0)
+       : ViscousBoundaryIntegrator<SAViscousSlipWallBC<dim>>(
+             diff_stack, fe_coll, dim + 3, a),
+         Re(Re_num), Pr(Pr_num), mu(vis),
+         sacs(sa_params), work_vec(dim + 3) {}
+
+   /// converts conservative variables to entropy variables
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] w - entropy variables corresponding to `q`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &q, mfem::Vector &w)
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      w(dim+2) = q(dim+2);
+   }
+
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      dwdu = 0.0;
+      convertVarsJac<dim>(q, this->stack, dwdu);
+      dwdu(dim+2,dim+2) = 1.0;
+   }
+   /// Compute flux corresponding to a viscous slip-wall boundary
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+                 const mfem::Vector &q, const mfem::DenseMatrix &Dw,
+                 mfem::Vector &flux_vec);
+
+   /// Compute jacobian of flux corresponding to a viscous slip-wall boundary
+   /// w.r.t `states`
+   /// \param[in] x - coordinate location at which flux is evaluated 
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables (not used yet)
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
+                         double jac, const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute jacobian of flux corresponding to a viscous slip-wall boundary
+   /// w.r.t `entrpy-variables' derivatives`
+   /// \param[in] x - coordinate location at which flux is evaluated 
+   /// \param[in] dir - vector normal to the boundary at `x` 
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables 
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
+                      double jac, const mfem::Vector &q,
+                      const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac);
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
+   /// nondimensionalized dynamic viscosity
+   double mu;
+   /// work space for flux computations
+   mfem::Vector work_vec;
+   /// vector of SA model parameters
+   mfem::Vector sacs;
+};            
 
 /// Integrator for SA far-field boundary conditions
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
@@ -513,6 +679,92 @@ public:
                          mfem::DenseMatrix &mat_vec_jac);
 
 };
+
+/// Volume integrator for Navier-Stokes viscous terms with SA variable
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim>
+class SAViscousIntegrator : public SymmetricViscousIntegrator<SAViscousIntegrator<dim>>
+{
+public:
+   /// Construct an SA viscous integrator
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] vis - nondimensional dynamic viscosity (use Sutherland if neg)
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   SAViscousIntegrator(adept::Stack &diff_stack, double Re_num, double Pr_num,
+                       mfem::Vector sa_params, double vis = -1.0, double a = 1.0)
+       : SymmetricViscousIntegrator<SAViscousIntegrator<dim>>(
+             diff_stack, dim + 3, a),
+         Re(Re_num), Pr(Pr_num), mu(vis), sacs(sa_params) {}
+
+   /// converts conservative variables to entropy variables
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] w - entropy variables corresponding to `q`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &q, mfem::Vector &w)
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      w(dim+2) = q(dim+2);
+   }
+
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      dwdu = 0.0;
+      convertVarsJac<dim>(q, this->stack, dwdu);
+      dwdu(dim+2, dim+2) = 1.0;
+   }
+
+   /// applies symmetric matrices \f$ C_{d,:}(q) \f$ to input `Dw`
+   /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
+   /// \param[in] x - coordinate location at which scaling evaluated (not used)
+   /// \param[in] q - state at which the symmetric matrices `C` are evaluated
+   /// \param[in] Dw - `Du[:,d2]` stores derivative of `w` in direction `d2`.
+   /// \param[out] CDw - product of the multiplication between the `C` and `Dw`.
+   void applyScaling(int d, const mfem::Vector &x, const mfem::Vector &q,
+                     const mfem::DenseMatrix &Dw, mfem::Vector &CDw);
+
+   /// Computes the Jacobian of the product `C(q)*Dw` w.r.t. `q`
+   /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices   
+   /// \param[in] x - coordinate location at which scaling evaluated (not used)
+   /// \param[in] q - state at which the symmetric matrix `C` is evaluated
+   /// \param[in] Dw - vector that is being multiplied
+   /// \param[out] CDw_jac - Jacobian of product w.r.t. `q`
+   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
+   void applyScalingJacState(int d, const mfem::Vector &x,
+                             const mfem::Vector &q,
+                             const mfem::DenseMatrix &Dw,
+                             mfem::DenseMatrix &CDw_jac);
+
+   /// Computes the Jacobian of the product `C(q)*Dw` w.r.t. `Dw`
+   /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices   
+   /// \param[in] x - coordinate location at which scaling evaluated (not used)
+   /// \param[in] q - state at which the symmetric matrix `C` is evaluated
+   /// \param[in] Dw - vector that is being multiplied
+   /// \param[out] CDw_jac - Jacobian of product w.r.t. `Dw` (i.e. `C`)
+   /// \note This uses the CRTP, so it wraps call to a func. in Derived.
+   void applyScalingJacDw(int d, const mfem::Vector &x, const mfem::Vector &q,
+                          const mfem::DenseMatrix &Dw, 
+                          vector<mfem::DenseMatrix> &CDw_jac);
+
+   /// This allows the base class to access the number of dimensions
+   static const int ndim = dim;
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
+   /// nondimensional dynamic viscosity
+   double mu;
+   /// vector of SA model parameters
+   mfem::Vector sacs;
+};
+
 
 #include "rans_integ_def.hpp"
 

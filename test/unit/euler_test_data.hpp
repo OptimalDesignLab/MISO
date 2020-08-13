@@ -63,6 +63,9 @@ extern double adjJ_data[9];
 // Use this for spatial derivatives of entropy-variables
 extern double delw_data[15];
 
+// Spalart-Allmaras model parameters
+const double sa_params[11] = {0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.1, 1.2, 0.5, 10, 16};
+
 /// Returns a perturbed version of the baseline flow state
 /// \param[in] x - coordinates (not used)
 /// \param[out] u - pertrubed state variable

@@ -7,6 +7,7 @@
 #include "rans_integ.hpp"
 #include "euler_test_data.hpp"
 
+
 TEMPLATE_TEST_CASE_SIG("SA Inviscid Flux Test", "[sa_inviscid_flux_test]",
                        ((int dim), dim), 1, 2, 3)
 {
@@ -38,8 +39,8 @@ TEMPLATE_TEST_CASE_SIG("SA Inviscid Flux Test", "[sa_inviscid_flux_test]",
         // check if euler variables are the same as before
         for(int n = 0; n < dim+2; n++)
         {
-            std::cout << "Ismail-Roe " << n << " Flux: " << flux1(n) << std::endl; 
-            std::cout << "Spalart-Allmaras " << n << " Flux: " << flux2(n) << std::endl; 
+            // std::cout << "Ismail-Roe " << n << " Flux: " << flux1(n) << std::endl; 
+            // std::cout << "Spalart-Allmaras " << n << " Flux: " << flux2(n) << std::endl; 
             REQUIRE(flux1(n) - flux2(n) == Approx(0.0));
         }
     }
@@ -160,7 +161,7 @@ TEMPLATE_TEST_CASE_SIG("SAFarFieldBC Jacobian", "[SAFarFieldBC]",
         if(di == 1)
             nrm *= -1.0;
         
-        DYNAMIC_SECTION("SA Far-Field BC safarfieldinteg jacobian is correct w.r.t state when di = "<<di)
+        DYNAMIC_SECTION("SA Far-Field BC jacobian is correct w.r.t state when di = "<<di)
         {
             
             // get perturbed states flux vector
@@ -176,6 +177,325 @@ TEMPLATE_TEST_CASE_SIG("SAFarFieldBC Jacobian", "[SAFarFieldBC]",
             // compare each component of the matrix-vector products
             for (int i = 0; i < dim + 3; ++i)
             {
+                // std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
+                // std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
+                REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
+            }
+        }
+    }
+}
+
+TEMPLATE_TEST_CASE_SIG("SANoSlipAdiabaticWallBC Jacobian", "[SANoSlipAdiabaticWallBC]",
+                       ((int dim), dim), 1, 2, 3)
+{
+    using namespace euler_data;
+    // copy the data into mfem vectors for convenience
+    mfem::Vector nrm(dim); mfem::Vector x(dim);
+    mfem::Vector q(dim + 3);
+    mfem::Vector qfar(dim + 3);
+    mfem::Vector flux(dim + 3);
+    mfem::Vector v(dim + 3);
+    mfem::Vector jac_v(dim + 3);
+    mfem::DenseMatrix Dw(delw_data, dim+3, dim);
+    mfem::DenseMatrix jac(dim + 3, dim + 3);
+    mfem::Vector sacs(11);
+    // create SA parameter vector
+    for (int di = 0; di < 11; ++di)
+    {
+       sacs(di) = sa_params[di];
+    }
+    double delta = 1e-5;
+    
+    x = 0.0;
+    q(0) = rho;
+    q(dim + 1) = rhoe;
+    q(dim + 2) = 4;
+    for (int di = 0; di < dim; ++di)
+    {
+       q(di + 1) = rhou[di];
+       Dw(dim+2, di) = 0.7;
+    }
+    qfar.Set(1.1, q);
+    // create direction vector
+    for (int di = 0; di < dim; ++di)
+    {
+       nrm(di) = dir[di];
+    }
+    // create perturbation vector
+    for (int di = 0; di < dim + 3; ++di)
+    {
+       v(di) = vec_pert[di];
+    }
+    // perturbed vectors
+    mfem::Vector q_plus(q), q_minus(q);
+    mfem::Vector flux_plus(q), flux_minus(q);
+    adept::Stack diff_stack;
+    mfem::H1_FECollection fe_coll(1); //dummy
+    double Re = 1.0; double Pr = 1.0;
+    mach::SANoSlipAdiabaticWallBC<dim> sanoslipinteg(diff_stack, &fe_coll, Re, Pr, sacs, qfar);
+    // +ve perturbation
+    q_plus.Add(delta, v);
+    // -ve perturbation
+    q_minus.Add(-delta, v);
+    DYNAMIC_SECTION("SA No-Slip BC jacobian is correct w.r.t state")
+    {
+            
+        // get perturbed states flux vector
+        sanoslipinteg.calcFlux(x, nrm, 1.0, q_plus, Dw, flux_plus);
+        sanoslipinteg.calcFlux(x, nrm, 1.0, q_minus, Dw, flux_minus);
+        // compute the jacobian
+        sanoslipinteg.calcFluxJacState(x, nrm, 1.0, q, Dw, jac);
+        jac.Mult(v, jac_v);
+        // finite difference jacobian
+        mfem::Vector jac_v_fd(flux_plus);
+        jac_v_fd -= flux_minus;
+        jac_v_fd /= 2.0 * delta;
+        // compare each component of the matrix-vector products
+        for (int i = 0; i < dim + 3; ++i)
+        {
+            // std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
+            // std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
+        }
+    }
+}
+
+TEMPLATE_TEST_CASE_SIG("SANoSlipAdiabaticWallBC Dw Jacobian", "[SANoSlipAdiabaticWallBC]",
+                       ((int dim), dim), 1, 2, 3)
+{
+    using namespace euler_data;
+    // copy the data into mfem vectors for convenience
+    mfem::Vector nrm(dim); mfem::Vector x(dim);
+    mfem::Vector q(dim + 3);
+    mfem::Vector qfar(dim + 3);
+    mfem::Vector flux(dim + 3);
+    mfem::Vector v(dim + 3);
+    mfem::Vector jac_v(dim + 3);
+    mfem::DenseMatrix Dw(delw_data, dim+3, dim);
+    mfem::DenseMatrix jac(dim + 3, dim + 3);
+    mfem::Vector sacs(11);
+    // create SA parameter vector
+    for (int di = 0; di < 11; ++di)
+    {
+       sacs(di) = sa_params[di];
+    }
+    double delta = 1e-5;
+    
+    x = 0.0;
+    q(0) = rho;
+    q(dim + 1) = rhoe;
+    q(dim + 2) = 4;
+    for (int di = 0; di < dim; ++di)
+    {
+       q(di + 1) = rhou[di];
+       Dw(dim+2, di) = 0.7;
+    }
+    qfar.Set(1.1, q);
+    // create direction vector
+    for (int di = 0; di < dim; ++di)
+    {
+       nrm(di) = dir[di];
+    }
+    // create perturbation vector
+    for (int di = 0; di < dim + 3; ++di)
+    {
+       v(di) = vec_pert[di];
+    }
+    // perturbed vectors
+    mfem::Vector flux_plus(q), flux_minus(q);
+    adept::Stack diff_stack;
+    mfem::H1_FECollection fe_coll(1); //dummy
+    double Re = 1.0; double Pr = 1.0;
+    mach::SANoSlipAdiabaticWallBC<dim> sanoslipinteg(diff_stack, &fe_coll, Re, Pr, sacs, qfar);
+    DYNAMIC_SECTION("SA No-Slip BC Dw jacobian is correct w.r.t state")
+    {
+        std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
+        for (int d = 0; d < dim; ++d)
+        {
+            mat_vec_jac[d].SetSize(dim+3);
+        }
+        // compute the jacobian
+        sanoslipinteg.calcFluxJacDw(x, nrm, 1.0, q, Dw, mat_vec_jac);
+
+        for (int d = 0; d < dim; ++d)
+        {
+            // perturb one column of delw everytime
+            mfem::DenseMatrix Dw_plus(Dw), Dw_minus(Dw);
+            for (int s = 0; s < dim+3; ++s)
+            {
+                Dw_plus.GetColumn(d)[s] += v(s) * delta;
+                Dw_minus.GetColumn(d)[s] -= v(s) * delta;
+            }
+            // get perturbed states flux vector
+            sanoslipinteg.calcFlux(x, nrm, 1.0, q, Dw_plus, flux_plus);
+            sanoslipinteg.calcFlux(x, nrm, 1.0, q, Dw_minus, flux_minus);
+
+            mat_vec_jac[d].Mult(v, jac_v);
+            // finite difference jacobian
+            mfem::Vector jac_v_fd(flux_plus);
+            jac_v_fd -= flux_minus;
+            jac_v_fd /= 2.0 * delta;
+            // compare each component of the matrix-vector products
+            for (int i = 0; i < dim + 3; ++i)
+            {
+                // std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
+                // std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
+                REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
+            }
+        }
+    }
+}
+
+TEMPLATE_TEST_CASE_SIG("SAViscousSlipWallBC Jacobian", "[SASlipWallBC]",
+                       ((int dim), dim), 1, 2, 3)
+{
+    using namespace euler_data;
+    // copy the data into mfem vectors for convenience
+    mfem::Vector nrm(dim); mfem::Vector x(dim);
+    mfem::Vector q(dim + 3);
+    mfem::Vector flux(dim + 3);
+    mfem::Vector v(dim + 3);
+    mfem::Vector jac_v(dim + 3);
+    mfem::DenseMatrix Dw(delw_data, dim+3, dim);
+    mfem::DenseMatrix jac(dim + 3, dim + 3);
+    mfem::Vector sacs(11);
+    // create SA parameter vector
+    for (int di = 0; di < 11; ++di)
+    {
+       sacs(di) = sa_params[di];
+    }
+    double delta = 1e-5;
+    
+    x = 0.0;
+    q(0) = rho;
+    q(dim + 1) = rhoe;
+    q(dim + 2) = 4;
+    for (int di = 0; di < dim; ++di)
+    {
+       q(di + 1) = rhou[di];
+       Dw(dim+2, di) = 0.7;
+    }
+    // create direction vector
+    for (int di = 0; di < dim; ++di)
+    {
+       nrm(di) = dir[di];
+    }
+    // create perturbation vector
+    for (int di = 0; di < dim + 3; ++di)
+    {
+       v(di) = vec_pert[di];
+    }
+    // perturbed vectors
+    mfem::Vector q_plus(q), q_minus(q);
+    mfem::Vector flux_plus(q), flux_minus(q);
+    adept::Stack diff_stack;
+    mfem::H1_FECollection fe_coll(1); //dummy
+    double Re = 1.0; double Pr = 1.0;
+    mach::SAViscousSlipWallBC<dim> saslipinteg(diff_stack, &fe_coll, Re, Pr, sacs);
+    // +ve perturbation
+    q_plus.Add(delta, v);
+    // -ve perturbation
+    q_minus.Add(-delta, v);
+    DYNAMIC_SECTION("SA Slip-Wall BC jacobian is correct w.r.t state")
+    {
+            
+        // get perturbed states flux vector
+        saslipinteg.calcFlux(x, nrm, 1.0, q_plus, Dw, flux_plus);
+        saslipinteg.calcFlux(x, nrm, 1.0, q_minus, Dw, flux_minus);
+        // compute the jacobian
+        saslipinteg.calcFluxJacState(x, nrm, 1.0, q, Dw, jac);
+        jac.Mult(v, jac_v);
+        // finite difference jacobian
+        mfem::Vector jac_v_fd(flux_plus);
+        jac_v_fd -= flux_minus;
+        jac_v_fd /= 2.0 * delta;
+        // compare each component of the matrix-vector products
+        for (int i = 0; i < dim + 3; ++i)
+        {
+            // std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
+            // std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
+            REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
+        }
+    }
+}
+
+TEMPLATE_TEST_CASE_SIG("SAViscousSlipWallBC Dw Jacobian", "[SASlipWallBC]",
+                       ((int dim), dim), 1, 2, 3)
+{
+    using namespace euler_data;
+    // copy the data into mfem vectors for convenience
+    mfem::Vector nrm(dim); mfem::Vector x(dim);
+    mfem::Vector q(dim + 3);
+    mfem::Vector flux(dim + 3);
+    mfem::Vector v(dim + 3);
+    mfem::Vector jac_v(dim + 3);
+    mfem::DenseMatrix Dw(delw_data, dim+3, dim);
+    mfem::DenseMatrix jac(dim + 3, dim + 3);
+    mfem::Vector sacs(11);
+    // create SA parameter vector
+    for (int di = 0; di < 11; ++di)
+    {
+       sacs(di) = sa_params[di];
+    }
+    double delta = 1e-5;
+    
+    x = 0.0;
+    q(0) = rho;
+    q(dim + 1) = rhoe;
+    q(dim + 2) = 4;
+    for (int di = 0; di < dim; ++di)
+    {
+       q(di + 1) = rhou[di];
+       Dw(dim+2, di) = 0.7;
+    }
+    // create direction vector
+    for (int di = 0; di < dim; ++di)
+    {
+       nrm(di) = dir[di];
+    }
+    // create perturbation vector
+    for (int di = 0; di < dim + 3; ++di)
+    {
+       v(di) = vec_pert[di];
+    }
+    // perturbed vectors
+    adept::Stack diff_stack;
+    mfem::H1_FECollection fe_coll(1); //dummy
+    double Re = 1.0; double Pr = 1.0;
+    mach::SAViscousSlipWallBC<dim> saslipinteg(diff_stack, &fe_coll, Re, Pr, sacs);
+    DYNAMIC_SECTION("SA Slip-Wall BC Dw jacobian is correct w.r.t state")
+    {
+        std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
+        for (int d = 0; d < dim; ++d)
+        {
+            mat_vec_jac[d].SetSize(dim+3);
+        }
+        // compute the jacobian
+        saslipinteg.calcFluxJacDw(x, nrm, 1.0, q, Dw, mat_vec_jac);
+
+        for (int d = 0; d < dim; ++d)
+        {
+            // perturb one column of delw everytime
+            mfem::DenseMatrix Dw_plus(Dw), Dw_minus(Dw);
+            mfem::Vector flux_plus(q.Size()), flux_minus(q.Size());
+            flux_plus = 0.0; flux_minus = 0.0;
+            for (int s = 0; s < dim+3; ++s)
+            {
+                Dw_plus.GetColumn(d)[s] += v(s) * delta;
+                Dw_minus.GetColumn(d)[s] -= v(s) * delta;
+            }
+            // get perturbed states flux vector
+            saslipinteg.calcFlux(x, nrm, 1.0, q, Dw_plus, flux_plus);
+            saslipinteg.calcFlux(x, nrm, 1.0, q, Dw_minus, flux_minus);
+
+            mat_vec_jac[d].Mult(v, jac_v);
+            // finite difference jacobian
+            mfem::Vector jac_v_fd(flux_plus);
+            jac_v_fd -= flux_minus;
+            jac_v_fd /= 2.0 * delta;
+            // compare each component of the matrix-vector products
+            for (int i = 0; i < dim + 3; ++i)
+            {
                 std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
                 std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
                 REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
@@ -183,6 +503,198 @@ TEMPLATE_TEST_CASE_SIG("SAFarFieldBC Jacobian", "[SAFarFieldBC]",
         }
     }
 }
+
+
+TEMPLATE_TEST_CASE_SIG("SAViscous Jacobian", "[SAViscous]",
+                       ((int dim), dim), 1, 2, 3)
+{
+    using namespace euler_data;
+    // copy the data into mfem vectors for convenience
+    mfem::Vector q(dim + 3);
+    mfem::Vector conv(dim + 3);
+    mfem::Vector conv_plus(dim + 3);
+    mfem::Vector conv_minus(dim + 3);
+    mfem::Vector scale(dim + 3);
+    mfem::Vector scale_plus(dim + 3);
+    mfem::Vector scale_minus(dim + 3);
+    mfem::Vector scale_plus_2(dim + 3);
+    mfem::Vector scale_minus_2(dim + 3);
+    mfem::DenseMatrix Dw(delw_data, dim+3, dim);
+    mfem::Vector v(dim + 3);
+    mfem::DenseMatrix vm(dim, dim + 3);
+    mfem::Vector jac_v(dim + 3);
+    mfem::DenseMatrix adjJ(dim, dim);
+    mfem::DenseMatrix jac_conv(dim + 3, dim + 3);
+    mfem::DenseMatrix jac_scale(dim + 3, dim + 3);
+    double delta = 1e-5;
+    double Re = 1; double Pr = 1;
+    mfem::Vector sacs(11);
+    q(0) = rho;
+    q(dim + 1) = rhoe;
+    q(dim + 2) = 4;
+    for (int di = 0; di < dim; ++di)
+    {
+       q(di + 1) = rhou[di];
+       Dw(dim+2, di) = 0.7;
+    }
+    // create SA parameter vector
+    for (int di = 0; di < 11; ++di)
+    {
+       sacs(di) = sa_params[di];
+    }
+    // create perturbation vector
+    for (int di = 0; di < dim + 3; ++di)
+    {
+       v(di) = vec_pert[di];
+    }
+    // create perturbation matrix
+    for (int di = 0; di < dim + 3; ++di)
+    {
+        for (int di2 = 0; di2 < dim; ++di2)
+        {
+            vm(di2, di) = (1.1 + 0.1*di2)*vec_pert[di];
+        }
+    }
+    // perturbed vectors
+    mfem::Vector q_plus(q), q_minus(q);
+    adept::Stack diff_stack;
+    mach::SAViscousIntegrator<dim> saviscousinteg(diff_stack, Re, Pr, sacs);
+    for (int di = 0; di < dim; ++di)
+    {
+        DYNAMIC_SECTION("Jacobians w.r.t state is correct, dir"<<di)
+        {
+            // compute the jacobian
+            saviscousinteg.convertVarsJacState(q, jac_conv);
+            saviscousinteg.applyScalingJacState(di, v, q, Dw, jac_scale);
+            for (int i = 0; i < dim + 3; ++i)
+            {
+                q_plus = q; q_minus = q;
+                // +ve perturbation
+                q_plus(i) += delta;
+                // -ve perturbation
+                q_minus(i) -= delta;
+                // get perturbed states conv vector
+                saviscousinteg.convertVars(q_plus, conv_plus);
+                saviscousinteg.convertVars(q_minus, conv_minus);
+                saviscousinteg.applyScaling(di, v, q_plus, Dw, scale_plus);
+                saviscousinteg.applyScaling(di, v, q_minus, Dw, scale_minus);
+                
+                //jac_conv.Mult(v, jac_v);
+                // finite difference jacobian
+                mfem::Vector jac_v_fd(conv_plus);
+                jac_v_fd -= conv_minus;
+                jac_v_fd /= 2.0 * delta;
+                // compare each component of the matrix-vector products
+                //std::cout << "viscous convertVars jac:" << std::endl; 
+                for (int j = 0; j < dim + 3; ++j)
+                {
+                    // std::cout << "FD " << j << " Deriv: " << jac_v_fd[j]  << std::endl; 
+                    // std::cout << "AN " << j << " Deriv: " << jac_conv(j, i) << std::endl; 
+                    REQUIRE(jac_conv(j, i) == Approx(jac_v_fd[j]).margin(1e-10));
+                }
+
+                //jac_scale.Mult(v, jac_v);
+                // finite difference jacobian
+                jac_v_fd = scale_plus;
+                jac_v_fd -= scale_minus;
+                jac_v_fd /= 2.0 * delta;
+                //std::cout << "viscous applyScaling jac:" << std::endl; 
+                for (int j = 0; j < dim + 3; ++j)
+                {
+                    // std::cout << "FD " << j << " Deriv: " << jac_v_fd[j]  << std::endl; 
+                    // std::cout << "AN " << j << " Deriv: " << jac_scale(j, i) << std::endl; 
+                    REQUIRE(jac_scale(j, i) == Approx(jac_v_fd[j]).margin(1e-10));
+                }
+            }
+        }
+    }
+}
+
+
+TEMPLATE_TEST_CASE_SIG("SAViscous Dw Jacobian", "[SAViscous]",
+                       ((int dim), dim), 1, 2, 3)
+{
+    using namespace euler_data;
+    // copy the data into mfem vectors for convenience
+    mfem::Vector q(dim + 3);
+    mfem::Vector scale(dim + 3);
+    mfem::Vector scale_plus_2(dim + 3);
+    mfem::Vector scale_minus_2(dim + 3);
+    mfem::DenseMatrix Dw(delw_data, dim+3, dim);
+    mfem::Vector v(dim + 3);
+    mfem::Vector jac_v(dim + 3);
+    mfem::DenseMatrix adjJ(dim, dim);
+    mfem::DenseMatrix jac_scale_2(dim + 3, dim + 3);
+    double delta = 1e-5;
+    double Re = 1; double Pr = 1;
+    mfem::Vector sacs(11);
+    Dw = 0.5;
+    q(0) = rho;
+    q(dim + 1) = rhoe;
+    q(dim + 2) = 4;
+    for (int di = 0; di < dim; ++di)
+    {
+       q(di + 1) = rhou[di];
+       Dw(dim+2, di) = 0.7;
+    }
+    // create SA parameter vector
+    for (int di = 0; di < 11; ++di)
+    {
+       sacs(di) = sa_params[di];
+    }
+    // create perturbation vector
+    for (int di = 0; di < dim + 3; ++di)
+    {
+       v(di) = vec_pert[di];
+    }
+    // perturbed vectors
+    mfem::DenseMatrix Dw_plus(Dw), Dw_minus(Dw);
+    adept::Stack diff_stack;
+    mach::SAViscousIntegrator<dim> saviscousinteg(diff_stack, Re, Pr, sacs);
+    
+    for (int di = 0; di < dim; ++di)
+    {
+        DYNAMIC_SECTION("Jacobians w.r.t Dw is correct, dir"<<di)
+        {
+            std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
+            for (int d = 0; d < dim; ++d)
+            {
+                mat_vec_jac[d].SetSize(dim+3);
+            }
+            // compute the jacobian
+            saviscousinteg.applyScalingJacDw(di, v, q, Dw, mat_vec_jac);
+            
+            for (int d = 0; d < dim; ++d)
+            {
+                // perturb one column of delw everytime
+                mfem::DenseMatrix Dw_plus(Dw), Dw_minus(Dw);
+                for (int s = 0; s < dim+3; ++s)
+                {
+                    Dw_plus.GetColumn(d)[s] += v(s) * delta;
+                    Dw_minus.GetColumn(d)[s] -= v(s) * delta;
+                }
+                // get perturbed states conv vector
+                saviscousinteg.applyScaling(di, v, q, Dw_plus, scale_plus_2);
+                saviscousinteg.applyScaling(di, v, q, Dw_minus, scale_minus_2);
+                
+                mat_vec_jac[d].Mult(v, jac_v);
+                // finite difference jacobian
+                mfem::Vector jac_v_fd(dim+3);
+                jac_v_fd = scale_plus_2;
+                jac_v_fd -= scale_minus_2;
+                jac_v_fd /= 2.0 * delta;
+                //std::cout << "viscous applyScaling jac Dw:" << std::endl; 
+                for (int j = 0; j < dim + 3; ++j)
+                {
+                    // std::cout << "FD " << j << " Deriv: " << jac_v_fd[j]  << std::endl; 
+                    // std::cout << "AN " << j << " Deriv: " << jac_v(j) << std::endl; 
+                    REQUIRE(jac_v(j) == Approx(jac_v_fd[j]).margin(1e-10));
+                }
+            }
+        }
+    }
+}
+                
 
 TEMPLATE_TEST_CASE_SIG("SALPS Jacobian", "[SALPS]",
                        ((int dim), dim), 1, 2, 3)
@@ -249,11 +761,9 @@ TEMPLATE_TEST_CASE_SIG("SALPS Jacobian", "[SALPS]",
         jac_v_fd -= conv_minus;
         jac_v_fd /= 2.0 * delta;
         // compare each component of the matrix-vector products
-        std::cout << "convertVars jac:" << std::endl; 
+        //std::cout << "convertVars jac:" << std::endl; 
         for (int i = 0; i < dim + 3; ++i)
         {
-            std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
-            std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
             REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
         }
         
@@ -262,11 +772,9 @@ TEMPLATE_TEST_CASE_SIG("SALPS Jacobian", "[SALPS]",
         jac_v_fd = scale_plus;
         jac_v_fd -= scale_minus;
         jac_v_fd /= 2.0 * delta;
-        std::cout << "applyScaling jac:" << std::endl; 
+        //std::cout << "applyScaling jac:" << std::endl; 
         for (int i = 0; i < dim + 3; ++i)
         {
-            std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
-            std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
             REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
         }
 
@@ -275,16 +783,15 @@ TEMPLATE_TEST_CASE_SIG("SALPS Jacobian", "[SALPS]",
         jac_v_fd = scale_plus_2;
         jac_v_fd -= scale_minus_2;
         jac_v_fd /= 2.0 * delta;
-        std::cout << "applyScaling jac vec:" << std::endl; 
+        //std::cout << "applyScaling jac vec:" << std::endl; 
         for (int i = 0; i < dim + 3; ++i)
         {
-            std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
-            std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
             REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
         }
     }
 }
 
+#if 0
 TEST_CASE("SALPSIntegrator::AssembleElementGrad", "[SALPSIntegrator]")
 {
    using namespace mfem;
@@ -342,7 +849,7 @@ TEST_CASE("SALPSIntegrator::AssembleElementGrad", "[SALPSIntegrator]")
       }
    }
 }
-
+#endif
 
 #if 0
 TEMPLATE_TEST_CASE_SIG("SAInviscid Gradient",

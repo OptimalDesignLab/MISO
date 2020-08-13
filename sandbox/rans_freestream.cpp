@@ -87,13 +87,13 @@ int main(int argc, char *argv[])
       *out << "Number of elements " << smesh->GetNE() <<'\n';
 
       // construct the solver and set initial conditions
-      auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
+      auto solver = createSolver<RANavierStokesSolver<2, entvar>>(opt_file_name,
                                                          move(smesh));
       solver->setInitialCondition(uinit_pert);
       solver->printSolution("rans_init", 0);
 
       // get the initial density error
-      double l2_error_init = (static_cast<EulerSolver<2, entvar>&>(*solver)
+      double l2_error_init = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
       *out << "\n|| rho_h - rho ||_{L^2} init  = " << l2_error_init << endl;
 
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
       solver->solveForState();
       solver->printSolution("rans_final",0);
       // get the final density error
-      double l2_error_final = (static_cast<EulerSolver<2, entvar>&>(*solver)
+      double l2_error_final = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
 
@@ -129,33 +129,33 @@ int main(int argc, char *argv[])
 // perturbation function used to check the jacobian in each iteration
 void pert(const Vector &x, Vector& p)
 {
-   // p.SetSize(5);
-   // for (int i = 0; i < 5; i++)
-   // {
-   //    p(i) = normal_rand(gen);
-   // }
-
-   p.SetSize(4);
-   for (int i = 0; i < 4; i++)
+   p.SetSize(5);
+   for (int i = 0; i < 5; i++)
    {
       p(i) = normal_rand(gen);
    }
+
+   // p.SetSize(4);
+   // for (int i = 0; i < 4; i++)
+   // {
+   //    p(i) = normal_rand(gen);
+   // }
 }
 
 // Exact solution; same as freestream bc
 void uexact(const Vector &x, Vector& q)
 {
-   q.SetSize(4);
-   Vector u(4);
-   // q.SetSize(5);
-   // Vector u(5);
+   // q.SetSize(4);
+   // Vector u(4);
+   q.SetSize(5);
+   Vector u(5);
    
    u = 0.0;
    u(0) = 1.0;
    u(1) = u(0)*mach_fs*cos(aoa_fs);
    u(2) = u(0)*mach_fs*sin(aoa_fs);
    u(3) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
-   //u(4) = chi_fs*mu/u(0);
+   u(4) = chi_fs*mu/u(0);
 
    if (entvar == false)
    {
@@ -170,17 +170,17 @@ void uexact(const Vector &x, Vector& q)
 // initial guess perturbed from exact
 void uinit_pert(const Vector &x, Vector& q)
 {
-   q.SetSize(4);
-   Vector u(4);
-   // q.SetSize(5);
-   // Vector u(5);
+   // q.SetSize(4);
+   // Vector u(4);
+   q.SetSize(5);
+   Vector u(5);
    
    u = 0.0;
    u(0) = pert_fs*1.0;
    u(1) = u(0)*mach_fs*cos(aoa_fs);
    u(2) = u(0)*mach_fs*sin(aoa_fs);
    u(3) = pert_fs*1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
-//   u(4) = pert_fs*pert_fs*chi_fs*mu/u(0);
+   u(4) = pert_fs*pert_fs*chi_fs*mu/u(0);
 
    q = u;
 }
