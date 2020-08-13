@@ -47,11 +47,11 @@ void SASourceIntegrator<dim>::AssembleElementVector(
       Dui.Set(1.0, (HQu.GetData() + i*dim*num_states));
 
       // compute vorticity at node and take magnitude
-      calcVorticity(Dui.GetData(), Trans.InverseJacobian().GetData(), curl_i.GetData()); //curl.GetRow(i, curl_i);
+      calcVorticity<double, dim>(Dui.GetData(), Trans.InverseJacobian().GetData(), curl_i.GetData()); //curl.GetRow(i, curl_i);
       double S = curl_i.Norml2();
 
       // compute gradient of turbulent viscosity at node
-      calcGrad(Dui.GetData(), Trans.InverseJacobian().GetData(), grad_i.GetData()); //curl.GetRow(i, curl_i);
+      calcGrad<double, dim>(Dui.GetData(), Trans.InverseJacobian().GetData(), grad_i.GetData()); //curl.GetRow(i, curl_i);
 
       // get distance function value at node
       double d = xi(1); //temp solution, y distance from wall
@@ -91,7 +91,6 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    Vector ui, xi, uj, grad_i, curl_i;
    DenseMatrix grad, curl;
 #endif
-   elvect.SetSize(num_states * num_nodes);
    ui.SetSize(num_states);
    xi.SetSize(dim);
    grad.SetSize(num_nodes, dim);
@@ -104,11 +103,20 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    DenseMatrix Dui(num_states, dim);
    vector<DenseMatrix> jac_curl(dim);
    vector<DenseMatrix> jac_grad(dim);
+   std::vector<adouble> sacs_a(sacs.Size());
+   adept::set_values(sacs_a.data(), sacs.Size(), sacs.GetData());
    for (int d = 0; d < dim; ++d)
    {
       jac_curl[d].SetSize(3, num_states);
       jac_grad[d].SetSize(dim, num_states);
    }
+
+   // partial derivative terms
+   Vector dSdc(3); //partial vorticity mag (S) w.r.t. curl
+   Vector dSrcdu(num_states); //partial src w.r.t. u
+   Vector dSrcdS(1); //partial src w.r.t. S
+   Vector dSrcdgrad(dim); //partial src w.r.t grad
+   //need dgraddDu, dcdDu, dDudu 
 
    // get Du
    for(int di = 0; di < dim; di++)
@@ -126,40 +134,115 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
       u.GetRow(i, ui);
       Trans.Transform(node, xi);
       Dui.Set(1.0, (HQu.GetData() + i*dim*num_states));
+      int Dui_size = Dui.Height() * Dui.Width();
 
-      // compute vorticity at node and take magnitude
-      calcVorticity(Dui.GetData(), Trans.InverseJacobian().GetData(), curl_i.GetData()); //curl.GetRow(i, curl_i);
-      double S = curl_i.Norml2();
-      // compute vorticity magnitude gradient
-      calcVorticityJacDw(Dui.GetData(), Trans.InverseJacobian().GetData(), jac_curl);
+      // set adept inputs
+      std::vector<adouble> ui_a(ui.Size());
+      //std::vector<adouble> Dui_a(Dui_size);
+      std::vector<adouble> curl_i_a(curl_i.Size());
+      std::vector<adouble> grad_i_a(grad_i.Size());
+      adouble S;
+      adouble mu_a = mu;
+      // initialize adouble inputs
+      adept::set_values(ui_a.data(), ui.Size(), ui.GetData());
+      //adept::set_values(Dui_a.data(), Dw_size, Dui.GetData());
+      adept::set_values(curl_i_a.data(), curl_i.Size(), curl_i.GetData());
+      adept::set_values(grad_i_a.data(), grad_i.Size(), grad_i.GetData());
+
+      // compute vorticity at node
+      calcVorticity<double, dim>(Dui.GetData(), 
+         Trans.InverseJacobian().GetData(), curl_i.GetData()); //curl.GetRow(i, curl_i);
+      calcVorticityJacDw<dim>(Dui.GetData(), 
+         Trans.InverseJacobian().GetData(), jac_curl);
 
       // compute gradient of turbulent viscosity at node
-      calcGrad(Dui.GetData(), Trans.InverseJacobian().GetData(), grad_i.GetData()); //curl.GetRow(i, curl_i);
-      calcGradJacDw(Dui.GetData(), Trans.InverseJacobian().GetData(), jac_grad);
+      calcGrad<double, dim>(Dui.GetData(), 
+         Trans.InverseJacobian().GetData(), grad_i.GetData()); //curl.GetRow(i, curl_i);
+      calcGradJacDw<dim>(Dui.GetData(), 
+         Trans.InverseJacobian().GetData(), jac_grad);
 
       // get distance function value at node
-      double d = xi(1); //temp solution, y distance from wall
+      adouble d = xi(1); //temp solution, y distance from wall
 
-      // accumulate source terms
+      // vorticity magnitude deriv
+      this->stack.new_recording();
+      S = sqrt(curl_i_a[0]*curl_i_a[0] + curl_i_a[1]*curl_i_a[1] +curl_i_a[2]*curl_i_a[2]);
+      this->stack.independent(curl_i_a.data(), curl_i.Size());
+      this->stack.dependent(S);
+      this->stack.jacobian(dSdc.GetData());
+
+      // ui differentiation
+      this->stack.new_recording();
       adouble src = calcSASource<adouble,dim>(
-         ui.GetData(), grad_i.GetData(), sacs.GetData());
+         ui_a.data(), grad_i_a.data(), sacs_a.data());
       // use negative model if turbulent viscosity is negative
-      if (ui(dim+2) < 0)
+      if (ui_a[dim+2] < 0)
       {
          src += calcSANegativeProduction<adouble,dim>(
-            ui.GetData(), S, sacs.GetData());
+            ui_a.data(), S, sacs_a.data());
          src += calcSANegativeDestruction<adouble,dim>(
-            ui.GetData(), d, sacs.GetData());
+            ui_a.data(), d, sacs_a.data());
       }
       else
       {
          src += calcSAProduction<adouble,dim>(
-            ui.GetData(), mu, d, S, sacs.GetData());
+            ui_a.data(), mu_a, d, S, sacs_a.data());
          src += calcSADestruction<adouble,dim>(
-            ui.GetData(), mu, d, S, sacs.GetData());
+            ui_a.data(), mu_a, d, S, sacs_a.data());
       }
+      this->stack.independent(ui_a.data(), ui.Size());
+      this->stack.dependent(src);
+      this->stack.jacobian(dSrcdu.GetData());
 
-      res(i, dim+2) += alpha * Trans.Weight() * node.weight * src;
+      // S differentiation
+      this->stack.new_recording();
+      src = calcSASource<adouble,dim>(
+         ui_a.data(), grad_i_a.data(), sacs_a.data());
+      // use negative model if turbulent viscosity is negative
+      if (ui_a[dim+2] < 0)
+      {
+         src += calcSANegativeProduction<adouble,dim>(
+            ui_a.data(), S, sacs_a.data());
+         src += calcSANegativeDestruction<adouble,dim>(
+            ui_a.data(), d, sacs_a.data());
+      }
+      else
+      {
+         src += calcSAProduction<adouble,dim>(
+            ui_a.data(), mu_a, d, S, sacs_a.data());
+         src += calcSADestruction<adouble,dim>(
+            ui_a.data(), mu_a, d, S, sacs_a.data());
+      }
+      this->stack.independent(S);
+      this->stack.dependent(src);
+      this->stack.jacobian(dSrcdS.GetData());
+      
+      // grad differentiation
+      this->stack.new_recording();
+      src = calcSASource<adouble,dim>(
+         ui_a.data(), grad_i_a.data(), sacs_a.data());
+      // use negative model if turbulent viscosity is negative
+      if (ui_a[dim+2] < 0)
+      {
+         src += calcSANegativeProduction<adouble,dim>(
+            ui_a.data(), S, sacs_a.data());
+         src += calcSANegativeDestruction<adouble,dim>(
+            ui_a.data(), d, sacs_a.data());
+      }
+      else
+      {
+         src += calcSAProduction<adouble,dim>(
+            ui_a.data(), mu_a, d, S, sacs_a.data());
+         src += calcSADestruction<adouble,dim>(
+            ui_a.data(), mu_a, d, S, sacs_a.data());
+      }
+      this->stack.independent(grad_i_a.data(), grad_i_a.size());
+      this->stack.dependent(src);
+      this->stack.jacobian(dSrcdgrad.GetData());
+
+      // Dui differentiation
+
+
    } // loop over element nodes i
    elmat *= alpha;
 }
