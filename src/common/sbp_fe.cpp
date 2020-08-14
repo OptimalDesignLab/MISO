@@ -59,6 +59,19 @@ void SBPFiniteElement::getStrongOperator(int di, DenseMatrix &D,
    }
 }
 
+void SBPFiniteElement::getStrongOperator(int di, int i, Vector &D) const
+{
+   MFEM_ASSERT(di >= 0 && di < GetDim(), "");
+   MFEM_ASSERT(i >= 0 && i < GetDof(), "");
+   int num_nodes = GetDof();
+   D.SetSize(num_nodes);
+   double fac = 1.0/H(i);
+   for (int j = 0; j < num_nodes; ++j)
+   {
+      D[j] = fac*Q[di](j,i); // Q[di] stores transposed weak operator
+   }
+}
+
 void SBPFiniteElement::getWeakOperator(int di, DenseMatrix &Qdi,
                                        bool trans) const
 {
@@ -74,7 +87,8 @@ void SBPFiniteElement::getWeakOperator(int di, DenseMatrix &Qdi,
    }
 }
 
-void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u, DenseMatrix &Qu,
+void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u,
+                                        DenseMatrix &Qu,
                                         bool trans) const
 {
    MFEM_ASSERT(di >= 0 && di < GetDim(), "");
@@ -110,7 +124,35 @@ void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u, DenseMatri
          }
       }
    }
+}
 
+void SBPFiniteElement::multWeakOperator(int di, int i,
+                                        const DenseMatrix &u,
+                                        Vector &Qu) const
+{
+   MFEM_ASSERT(di >= 0 && di < GetDim(), "");
+   int num_nodes = GetDof();
+   MFEM_ASSERT( u.Width() == num_nodes , "");
+   MFEM_ASSERT( u.Height() == Qu.Size() , "");
+   int num_states = u.Height();
+   Qu = 0.0;
+   for (int j = 0; j < num_nodes; ++j)
+   {
+      for (int n = 0; n < num_states; ++n)
+      {
+         // recall that Q[di] stores the transposed operator
+         Qu(n) += Q[di](j, i) * u(n, j);
+      }
+   }
+}
+
+void SBPFiniteElement::multStrongOperator(int di, int i,
+                                          const DenseMatrix &u,
+                                          Vector &Du) const
+{
+   multWeakOperator(di, i, u, Du);
+   double fac = 1.0/H(i);
+   Du *= fac;
 }
 
 double SBPFiniteElement::getQ(int di, int i, int j) const
