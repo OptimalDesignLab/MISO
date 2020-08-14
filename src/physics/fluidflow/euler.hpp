@@ -59,11 +59,6 @@ public:
    /// \warning This overwrites the solution in `u`!!!
    void setSolutionError(void (*u_exact)(const mfem::Vector &, mfem::Vector &));
 
-   /// Solves the adjoint for the entropy-balance functional
-   /// \note This uses a different approach to evaluating the RHS dJ/du, which
-   /// is why the default adjoint solve is not used.
-   void solveEntBalanceAdjoint();
-
 protected:
    /// free-stream Mach number
    double mach_fs;

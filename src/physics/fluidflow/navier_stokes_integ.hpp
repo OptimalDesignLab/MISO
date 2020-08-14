@@ -1052,6 +1052,8 @@ private:
 #endif
 };
 
+
+
 #include "navier_stokes_integ_def.hpp"
 
 } // namespace mach

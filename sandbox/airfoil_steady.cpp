@@ -63,6 +63,9 @@ int main(int argc, char *argv[])
       solver->printSolution("airfoil-steady-final");
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
+
+      static_cast<NavierStokesSolver<2>*>(solver.get())->solveEntBalanceAdjoint();
+      solver->printAdjoint("ent-adjoint", 2);
    }
    catch (MachException &exception)
    {

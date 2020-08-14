@@ -14,6 +14,12 @@ namespace mach
 template <int dim, bool entvar = false>
 class NavierStokesSolver : public EulerSolver<dim, entvar>
 {
+public:
+   /// Solves the adjoint for the entropy-balance functional
+   /// \note This uses a different approach to evaluating the RHS dJ/du, which
+   /// is why the default adjoint solve is not used.
+   void solveEntBalanceAdjoint();
+
 protected:
    /// free-stream Reynolds number
    double re_fs;

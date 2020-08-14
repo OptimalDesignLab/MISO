@@ -84,9 +84,13 @@ template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // TODO: should decide between one-point and two-point fluxes using options
-   res->AddDomainIntegrator(
-       new IsmailRoeIntegrator<dim, entvar>(diff_stack, alpha));
-   //res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
+   if (options["space-dis"]["ent-stable"].template get<bool>())
+      res->AddDomainIntegrator(
+          new IsmailRoeIntegrator<dim, entvar>(diff_stack, alpha));
+   else
+   {
+      res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
+   }
 
    // add the LPS stabilization
    double lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
@@ -435,25 +439,27 @@ void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
    }
    else
    {
-      int num_nodes, offset;
-      Array<int> vdofs(num_state);
-      Vector el_con, el_ent;
+      int num_nodes;
+      Array<int> vdofs;
+      Vector u_vec, state_vec, con_j, ent_j(num_state);
       const FiniteElement *fe;
       for (int i = 0; i < fes->GetNE(); i++)
       {
          fe = fes->GetFE(i);
+         fes->GetElementVDofs(i, vdofs);
          num_nodes = fe->GetDof();
-         for (int j = 0; j < num_nodes; j++)
+         u->GetSubVector(vdofs, u_vec);
+         state_vec.SetSize(u_vec.Size());
+         DenseMatrix u_elem(u_vec.GetData(), num_nodes, num_state);
+         DenseMatrix state_elem(state_vec.GetData(), num_nodes, num_state);
+         for (int j = 0; j < num_nodes; ++j)
          {
-            offset = i * num_nodes * num_state + j * num_state;
-            for (int k = 0; k < num_state; k++)
-            {
-               vdofs[k] = offset + k;
-            }
-            u->GetSubVector(vdofs, el_con);
-            calcEntropyVars<double, dim>(el_con.GetData(), el_ent.GetData());
-            state.SetSubVector(vdofs, el_ent);
+            u_elem.GetRow(j, con_j);
+            calcEntropyVars<double, dim>(con_j.GetData(), ent_j.GetData());
+            for (int s = 0; s < num_state; ++s)
+               state_elem(j, s) = ent_j(s);
          }
+         state.SetSubVector(vdofs, state_vec);
       }
    }
 }
@@ -470,90 +476,6 @@ void EulerSolver<dim, entvar>::setSolutionError(
    HypreParVector *ue_true = ue.GetTrueDofs();
    *u_true -= *ue_true;
    u->SetFromTrueDofs(*u_true);
-}
-
-template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::solveEntBalanceAdjoint()
-{
-   double time_beg, time_end;
-   time_beg = MPI_Wtime();
-
-   // Step 0: allocate the adjoint variable
-   adj.reset(new GridFunType(fes.get()));
-
-   // Step 1: get the entropy variables
-   GridFunType w(*u);
-   convertToEntvar(w);
-
-   // Step 2: get the Jacobian and transpose it
-   HypreParVector *u_true = u->GetTrueDofs();
-   Operator *jac = &res->GetGradient(*u_true);
-   const Operator *jac_trans =
-       dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
-   MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
-
-   // Step 1: get the right-hand side vector, dJdu, and make an appropriate
-   // alias to it, the state, and the adjoint
-   std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
-   HypreParVector *dJdu_true = dJdu->GetTrueDofs();
-   // For the trivial functional, dJ/du = (dR/du)^*w + R*(dw/du)
-   HypreParVector *w_true = w.GetTrueDofs();
-   jac_trans->Mult(*w_true, *dJdu_true);
-
-   // The following is for the R*(dw/du) contribution
-   GridFunType r(fes.get());
-   res->Mult(*u_true, r);
-   int num_nodes, offset;
-   Array<int> vdofs(num_state);
-   Vector u_j, r_j, product(dim+2);
-   DenseMatrix dwdu(dim+2);
-   const FiniteElement *fe;
-
-   // !!!!! The following is incorrect, since we will have extra contributions from edge and vertex nodes.
-   for (int i = 0; i < fes->GetNE(); i++)
-   {
-      fe = fes->GetFE(i);
-      num_nodes = fe->GetDof();
-      for (int j = 0; j < num_nodes; j++)
-      {
-         offset = i * num_nodes * num_state + j * num_state;
-         for (int k = 0; k < num_state; k++)
-         {
-            vdofs[k] = offset + k;
-         }
-         u->GetSubVector(vdofs, u_j);
-         r.GetSubVector(vdofs, r_j);
-         convertVarsJac<dim>(u_j, this->diff_stack, dwdu);
-         dwdu.Mult(r_j, product);
-         dJdu->AddElementVector(vdofs, product);
-      }
-   }
-
-   // Step 3: Solve the adjoint problem
-   HypreParVector *adj_true = adj->GetTrueDofs();
-   *out << "Solving adjoint problem:\n"
-        << "\tsolver: HypreGMRES\n"
-        << "\tprec. : Euclid ILU" << endl;
-   unique_ptr<Solver> adj_prec = constructPreconditioner(options["adj-prec"]);
-   unique_ptr<Solver> adj_solver = constructLinearSolver(options["adj-solver"],
-                                                         *adj_prec);
-   adj_solver->SetOperator(*jac_trans);
-   adj_solver->Mult(*dJdu_true, *adj_true);
-
-   // check that adjoint residual is small
-   std::unique_ptr<GridFunType> adj_res(new GridFunType(fes.get()));
-   double res_norm = 0;
-   HypreParVector *adj_res_true = adj_res->GetTrueDofs();
-   jac_trans->Mult(*adj_true, *adj_res_true);
-   *adj_res_true -= *dJdu_true;
-   double loc_norm = (*adj_res_true)*(*adj_res_true);
-   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   res_norm = sqrt(res_norm);
-   *out << "Adjoint residual norm = " << res_norm << endl;
-   adj->SetFromTrueDofs(*adj_true);
- 
-   time_end = MPI_Wtime();
-   *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
 }
 
 // explicit instantiation

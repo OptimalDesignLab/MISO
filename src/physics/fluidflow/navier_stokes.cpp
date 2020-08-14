@@ -163,6 +163,7 @@ void NavierStokesSolver<dim, entvar>::addOutputs()
 {
    cout << "Inside NS add Outputs" << endl;
    auto &fun = this->options["outputs"];
+   auto &bcs = this->options["bcs"];
    double mu = this->options["flow-param"]["mu"].template get<double>();
    Vector q_ref(dim+2);
    this->getFreeStreamState(q_ref);
@@ -258,6 +259,105 @@ void NavierStokesSolver<dim, entvar>::getViscousOutflowState(Vector &q_out)
    {
       q_out(i) = tmp[i];
    }
+}
+
+template <int dim, bool entvar>
+void NavierStokesSolver<dim, entvar>::solveEntBalanceAdjoint()
+{
+   double time_beg, time_end;
+   time_beg = MPI_Wtime();
+
+   // Use res_fun for the dJdu calculations; this way, we can verify that 
+   // the entropy variables are not adjoints for non-ent stable codes
+   NonlinearFormType res_fun(this->fes.get());
+   res_fun.AddDomainIntegrator(
+       new IsmailRoeIntegrator<dim, entvar>(this->diff_stack, 1.0));
+   double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
+   res_fun.AddDomainIntegrator(
+       new EntStableLPSIntegrator<dim, entvar>(this->diff_stack, 1.0, lps_coeff));
+   double mu = this->options["flow-param"]["mu"].template get<double>();
+   res_fun.AddDomainIntegrator(new ESViscousIntegrator<dim>(
+       this->diff_stack, re_fs, pr_fs, mu, 1.0));
+
+   // WARNING: this is not general!  It assumes only no-slip and far-field BCs,
+   // and that they are added in a particular order
+   Vector qfar(dim + 2);
+   this->getFreeStreamState(qfar);
+   res_fun.AddBdrFaceIntegrator(
+       new NoSlipAdiabaticWallBC<dim>(
+           this->diff_stack, this->fec.get(), re_fs, pr_fs, qfar, mu, 1.0),
+       this->bndry_marker[0]);
+   res_fun.AddBdrFaceIntegrator(
+       new FarFieldBC<dim, entvar>(this->diff_stack, this->fec.get(), qfar,
+                                   1.0),
+       this->bndry_marker[1]);
+
+   // Step 0: allocate the adjoint variable
+   cout << "Step 0" << endl;
+   this->adj.reset(new GridFunType(this->fes.get()));
+   HypreParVector *adj_true = this->adj->GetTrueDofs();
+
+   // Step 1: get the entropy variables
+   cout << "Step 1" << endl;
+   GridFunType w(this->fes.get());
+   this->convertToEntvar(w);
+
+   // Step 2: get the Jacobian and transpose it
+   cout << "Step 2" << endl;
+   HypreParVector *u_true = this->u->GetTrueDofs();
+   Operator *jac = &(this->res->GetGradient(*u_true));
+   Operator *jac_trans =
+       dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
+   MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
+
+   // Step 3: get the right-hand side vector, dJdu, and make an appropriate
+   // alias to it, the state, and the adjoint
+   // For the trivial functional, dJ/du = (dR/du)^*w, where R uses res_fun
+   Operator *jac_entbal = &res_fun.GetGradient(*u_true);
+   Operator *jac_entbal_trans =
+       dynamic_cast<const HypreParMatrix *>(jac_entbal)->Transpose();
+   MFEM_VERIFY(jac_entbal_trans, "Jacobian must be a HypreParMatrix!");
+   std::unique_ptr<GridFunType> dJdu(new GridFunType(this->fes.get()));
+   HypreParVector *dJdu_true = dJdu->GetTrueDofs();
+   HypreParVector *w_true = w.GetTrueDofs();
+   dynamic_cast<HypreParMatrix*>(jac_entbal_trans)->Mult(*w_true, *dJdu_true);
+
+   // Step 4: Solve the adjoint problem
+   cout << "Step 4" << endl;
+   cout << "Solving adjoint problem:\n";
+   unique_ptr<Solver> adj_prec = this->constructPreconditioner(this->options["adj-prec"]);
+   cout << "Step 4a" << endl;
+   unique_ptr<Solver> adj_solver = this->constructLinearSolver(this->options["adj-solver"],
+                                                         *adj_prec);
+   cout << "Step 4b" << endl;
+   adj_solver->SetOperator(*jac_trans);
+   cout << "Step 4c" << endl;
+   adj_solver->Mult(*dJdu_true, *adj_true);
+
+   // check that adjoint residual is small
+   cout << "Step 5" << endl;
+   std::unique_ptr<GridFunType> adj_res(new GridFunType(this->fes.get()));
+   double res_norm = 0;
+   HypreParVector *adj_res_true = adj_res->GetTrueDofs();
+   jac_trans->Mult(*adj_true, *adj_res_true);
+   *adj_res_true -= *dJdu_true;
+   double loc_norm = (*adj_res_true)*(*adj_res_true);
+   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, this->comm);
+   res_norm = sqrt(res_norm);
+   cout << "Adjoint residual norm = " << res_norm << endl;
+   this->adj->SetFromTrueDofs(*adj_true);
+ 
+   time_end = MPI_Wtime();
+   cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+
+   res_fun.Mult(*u_true, *dJdu_true);
+   dJdu->SetFromTrueDofs(*dJdu_true);
+   cout.precision(14);
+   cout << "Entropy balance functional value = " << (*dJdu)*w << endl;
+   w.Add(-1.0, *(this->adj));
+   double error = sqrt(this->calcInnerProduct(w, w));
+
+   cout << "L2 error in the entropy adjoint = " << error << endl;
 }
 
 // explicit instantiation
