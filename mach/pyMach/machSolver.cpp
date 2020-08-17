@@ -15,6 +15,7 @@
 #include "solver.hpp"
 #include "magnetostatic.hpp"
 #include "euler.hpp"
+#include "mesh_movement.hpp"
 
 namespace py = pybind11;
 
@@ -49,12 +50,17 @@ SolverPtr initSolver(const std::string &type,
       else
          return createSolver<EulerSolver<2, false>>(json_options, nullptr, comm);
    }
+   else if (type == "MeshMovement")
+   {
+      return createSolver<LEAnalogySolver>(json_options, nullptr, comm);
+   }
    else
    {
       throw std::runtime_error("Unknown solver type!\n"
       "\tKnown types are:\n"
       "\t\tMagnetostatic\n"
-      "\t\tEuler\n");
+      "\t\tEuler\n"
+      "\t\tMeshMovement\n");
    }
 }
 

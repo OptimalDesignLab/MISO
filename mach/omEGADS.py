@@ -57,13 +57,13 @@ class omEGADS(om.ExplicitComponent):
 
         MeshMovement.mapSurfaceMesh(old_model, tmp_model, tess_file, surf_coords)
         surf_coords2 = Vector(surf_coords)
-        print("surf nodes")
-        print(surf_coords2)
+        # print("surf nodes")
+        # print(surf_coords2)
 
         mesh_coords = Vector(self.mesh.getMeshSize())
         self.mesh.getNodes(mesh_coords)
-        print("mesh coords")
-        print(mesh_coords)
+        # print("mesh coords")
+        # print(mesh_coords)
 
         self.mesh.setNodes(surf_coords2)
         self.mesh.Print("testegads")
@@ -71,8 +71,8 @@ class omEGADS(om.ExplicitComponent):
 
         mesh_coords2 = Vector(self.mesh.getMeshSize())
         self.mesh.getNodes(mesh_coords2)
-        print("mesh coords2")
-        print(mesh_coords2)
+        # print("mesh coords2")
+        # print(mesh_coords2)
 
 
         # np_mesh_coords = np.array(mesh_coords, copy=False)

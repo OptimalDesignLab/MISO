@@ -14,6 +14,7 @@ except ImportError as err:
 
 if openmdao is not None: 
     from .omMach import omMach
+    from .omMeshMovement import omMeshMove
 
 try:
     import pyCAPS

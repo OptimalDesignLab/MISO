@@ -432,10 +432,7 @@ protected:
    /// Initialize all forms needed by the derived class
    /// \note Derived classes must allocate the forms they need to use.  Only
    /// allocated forms will have integrators added to them.
-   virtual void constructForms()
-   {
-      throw MachException("constructForms() not defined by derived class!");
-   };
+   virtual void constructForms() = 0;
 
    /// Add domain integrators to `mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs

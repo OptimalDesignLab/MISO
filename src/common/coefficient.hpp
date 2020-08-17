@@ -426,6 +426,28 @@ private:
 
 };
 
+class LameFirstParameter: public mfem::Coefficient
+{
+public:
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override
+   {
+      return 1.0 / trans.Weight();
+   }
+
+};
+
+class LameSecondParameter: public mfem::Coefficient
+{
+public:
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override
+   {
+      return 1.0;
+   }
+
+};
+
 } // namespace mach
 
 #endif

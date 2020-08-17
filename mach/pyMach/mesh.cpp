@@ -75,7 +75,9 @@ void initMesh(py::module &m)
                        mpi4py_comm comm)
       {
 #ifdef MFEM_USE_PUMI
-         PCU_Comm_Init();
+
+         // PCU_Comm_Init();
+
 #ifdef MFEM_USE_SIMMETRIX
          Sim_readLicenseFile(0);
          gmi_sim_start();
@@ -185,7 +187,7 @@ void initMesh(py::module &m)
 
          pumi_mesh->destroyNative();
          apf::destroyMesh(pumi_mesh);
-         PCU_Comm_Free();
+         // PCU_Comm_Free();
 #ifdef MFEM_USE_SIMMETRIX
          gmi_sim_stop();
          Sim_unregisterAllKeys();

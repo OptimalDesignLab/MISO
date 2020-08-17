@@ -37,6 +37,9 @@ public:
    std::vector<GridFunType*> getFields() override;
 
 private:
+   /// TODO: update!
+   void constructForms() override {}
+
    // /// Nedelec finite element collection
    // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
    /// Raviart-Thomas finite element collection

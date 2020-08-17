@@ -179,7 +179,11 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    {
       mesh->UniformRefinement();
    }
+}
 
+void AbstractSolver::initDerived()
+{
+   int dim = mesh->Dimension();
    int fe_order = options["space-dis"]["degree"].template get<int>();
    std::string basis_type = options["space-dis"]["basis-type"].template get<string>();
    bool galerkin_diff = options["space-dis"].value("GD", false);
@@ -203,10 +207,7 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    {
       fec.reset(new H1_FECollection(fe_order, dim));
    }
-}
 
-void AbstractSolver::initDerived()
-{
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState(); // <--- this is a virtual fun
    *out << "Num states = " << num_state << endl;
@@ -282,6 +283,8 @@ void AbstractSolver::initDerived()
       }
       *out << endl;
    }
+
+   setEssentialBoundaries();
 
    // add the output functional QoIs 
    auto &fun = options["outputs"];
