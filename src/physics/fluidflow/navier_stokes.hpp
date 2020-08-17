@@ -21,11 +21,9 @@ protected:
    double pr_fs;
 
    /// Class constructor.
-   /// \param[in] opt_file_name - file where options are stored
+   /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
-   /// \todo Can we infer dim some other way without using a template param?
-   NavierStokesSolver(const std::string &opt_file_name,
+   NavierStokesSolver(const nlohmann::json &json_options,
                       std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Add volume/domain integrators to `res` based on `options`
@@ -43,6 +41,9 @@ protected:
    /// \note This function calls EulerSolver::addInterfaceIntegrators() first
    virtual void addResInterfaceIntegrators(double alpha);
 
+   /// Create `output` based on `options` and add approporiate integrators
+   virtual void addOutputs() override;
+
    /// Set the state corresponding to the inflow boundary
    /// \param[in] q_in - state corresponding to the inflow
    void getViscousInflowState(mfem::Vector &q_in);
@@ -51,12 +52,9 @@ protected:
    /// \param[in] q_out - state corresponding to the outflow
    void getViscousOutflowState(mfem::Vector &q_out);
 
-   /// Create `output` based on `options` and add approporiate integrators
-   ///void addOutputs();
-
    friend SolverPtr createSolver<NavierStokesSolver<dim, entvar>>(
-       const std::string &opt_file_name,
-       std::unique_ptr<mfem::Mesh> smesh);
+       const nlohmann::json &json_options,
+       std::unique_ptr<mfem::Mesh> smesh);    
 };
 
 /// Defines the right-hand side of Equation (7.5) in "Entropy stable spectral
@@ -73,6 +71,11 @@ double shockEquation(double Re, double Ma, double v);
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void shockExact(const mfem::Vector &x, mfem::Vector& u);
+
+/// Defines the exact solution for the viscous MMS verification
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void viscousMMSExact(const mfem::Vector &x, mfem::Vector& u);
 
 } // namespace mach
 

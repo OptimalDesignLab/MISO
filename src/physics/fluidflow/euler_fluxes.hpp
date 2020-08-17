@@ -475,8 +475,8 @@ void calcBoundaryFlux(const xdouble *dir, const xdouble *qbnd, const xdouble *q,
    using std::max;
 
    // Define some constants
-   const xdouble sat_Vn = 0.0; // 0.025
-   const xdouble sat_Vl = 0.0; // 0.025
+   const xdouble sat_Vn = 0.0; //0.025;
+   const xdouble sat_Vl = 0.0; //0.025;
 
    // Define some constants used to construct the "Jacobian"
    const xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));

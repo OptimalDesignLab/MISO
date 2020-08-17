@@ -23,6 +23,7 @@ set(SANDBOX_SRCS
    magnetostatic_box
    magnetostatic_motor
    magnetostatic_wire
+   navier_stokes_mms
    thermal_square
    joule_wire
    rans_freestream

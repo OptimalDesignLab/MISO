@@ -94,7 +94,7 @@ public:
 
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - vector that defines the initial condition
-   virtual void setInitialCondition(const mfem::Vector &uic); 
+   virtual void setInitialCondition(const mfem::Vector &uic);
 
    /// TODO move to protected?
    /// Returns the integral inner product between two grid functions
@@ -423,16 +423,25 @@ protected:
    /// TODO: What is this doing here?
    void (*pert)(const mfem::Vector &, mfem::Vector &);
 
-   /// Constuct the linear system solver
-   /// \note solver and preconditioner chosen based on options
-   virtual void constructLinearSolver(nlohmann::json &options);
+   /// Construct a preconditioner based on the given options
+   /// \param[in] options - options structure that determines preconditioner
+   /// \returns unique pointer to the preconditioner object
+   virtual std::unique_ptr<mfem::Solver> constructPreconditioner(
+       nlohmann::json &options);
 
-   /// Constructs the newton solver object
-   virtual void constructNewtonSolver();
+   /// Constuct a linear system solver based on the given options
+   /// \param[in] options - options structure that determines the solver
+   /// \param[in] prec - preconditioner object for iterative solvers
+   /// \returns unique pointer to the linear solver object
+   virtual std::unique_ptr<mfem::Solver> constructLinearSolver(
+       nlohmann::json &options, mfem::Solver &prec);
 
-   /// Sets convergence options for solver
-   /// \param[in] options - options structure for particular solver to set
-   virtual void setIterSolverOptions(nlohmann::json &options);
+   /// Constructs the nonlinear solver object
+   /// \param[in] options - options structure that determines the solver
+   /// \param[in] lin_solver - linear solver for the Newton steps
+   /// \returns unique pointer to the Newton solver object
+   virtual std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
+      nlohmann::json &options, mfem::Solver &lin_solver);
 
    /// Constructs the operator that defines ODE evolution 
    virtual void constructEvolver();
@@ -458,6 +467,20 @@ private:
 using SolverPtr = std::unique_ptr<AbstractSolver>;
 
 /// Creates a new `DerivedSolver` and initializes it
+/// \param[in] json_options - json object that stores options
+/// \param[in] smesh - if provided, defines the mesh for the problem
+/// \tparam DerivedSolver - a derived class of `AbstractSolver`
+template <class DerivedSolver>
+SolverPtr createSolver(const nlohmann::json &json_options,
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+{
+   //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
+   SolverPtr solver(new DerivedSolver(json_options, move(smesh)));
+   solver->initDerived();
+   return solver;
+}
+
+/// Creates a new `DerivedSolver` and initializes it
 /// \param[in] opt_file_name - file where options are stored
 /// \param[in] smesh - if provided, defines the mesh for the problem
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
@@ -465,10 +488,10 @@ template <class DerivedSolver>
 SolverPtr createSolver(const std::string &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr)
 {
-   //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
-   SolverPtr solver(new DerivedSolver(opt_file_name, move(smesh)));
-   solver->initDerived();
-   return solver;
+   nlohmann::json json_options;
+   std::ifstream options_file(opt_file_name);
+   options_file >> json_options;
+   return createSolver<DerivedSolver>(json_options, move(smesh));
 }
 
 } // namespace mach

@@ -152,7 +152,7 @@ public:
 	virtual double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
                                 const mfem::FiniteElement &el_unused,
                                 mfem::FaceElementTransformations &trans,
-                                const mfem::Vector &elfun) {}
+                                const mfem::Vector &elfun);
 
    /// Construct the contribution to the element local residual
    /// \param[in] el_bnd - the finite element whose residual we want to update
@@ -232,6 +232,23 @@ protected:
       static_cast<Derived *>(this)->convertVarsJacState(u, dwdu);
    }
 
+   /// Compute a scalar boundary function
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
+   /// \param[in] u - state at which to evaluate the function
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
+   /// \returns fun - value of the function
+   /// \note `x` can be ignored depending on the function
+   /// \note This uses the CRTP, so it wraps a call to `calcFunction` in
+   /// Derived.
+   double bndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                   double jac, const mfem::Vector &u,
+                   const mfem::DenseMatrix &Dw)
+   {
+      return static_cast<Derived *>(this)->calcBndryFun(x, dir, jac, u, Dw);
+   }
+
    /// Compute a boundary flux function
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -241,28 +258,23 @@ protected:
    /// \param[out] flux_vec - value of the flux
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
-   double flux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
+   void flux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
                  const mfem::Vector &u, const mfem::DenseMatrix &Dw,
                  mfem::Vector &flux_vec)
    {
       static_cast<Derived*>(this)->calcFlux(x, dir, jac, u, Dw, flux_vec);
    }
 
-#if 0
-   /// Compute a scalar boundary function
-   /// \param[in] x - coordinate location at which function is evaluated
+   /// Compute boundary fluxes that are scaled by test function derivative
+   /// \param[in] x - coordinate location at which fluxes are evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] u - state at which to evaluate the function
-   /// \returns fun - value of the function
-   /// \note `x` can be ignored depending on the function
-   /// \note This uses the CRTP, so it wraps a call to `calcFunction` in
-   /// Derived.
-   double bndryFun(const mfem::Vector &x, const mfem::Vector &dir,
-                   const mfem::Vector &u)
+   /// \param[in] u - state at which to evaluate the flux
+   /// \param[out] flux_mat - `flux_mat[:,di]` to be scaled by `D_[di] v` 
+   void fluxDv(const mfem::Vector &x, const mfem::Vector &dir,
+               const mfem::Vector &u, mfem::DenseMatrix &flux_mat)
    {
-      return static_cast<Derived*>(this)->calcBndryFun(x, dir, u);
+      static_cast<Derived*>(this)->calcFluxDv(x, dir, u, flux_mat);
    }
-#endif
 
    /// Compute the Jacobian of the boundary flux function w.r.t. `u`
    /// \param[in] x - coordinate location at which flux is evaluated
@@ -281,12 +293,12 @@ protected:
                                                      flux_jac);
    }
    
-   /// Compute the Jacobian of the boundary flux function w.r.t. `u`
+   /// Compute the Jacobian of the boundary flux function w.r.t. `Dw`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
    /// \param[in] u - state at which to evaluate the flux
-   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `u`
+   /// \param[out] flux_jac[di] - Jacobian of `flux` w.r.t. `D_[di]w`
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call a func. in Derived.
    void fluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
@@ -296,6 +308,18 @@ protected:
    {
       static_cast<Derived *>(this)->calcFluxJacDw(x, dir, jac, u, Dw,
                                                   flux_jac);
+   }
+
+   /// Compute the Jacobian of fluxDv w.r.t. `u`
+   /// \param[in] x - coordinate location at which fluxes are evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] u - state at which to evaluate the flux
+   /// \param[in] flux_jac[di] - Jacobian of fluxDv[di] with respect to `u`
+   void fluxDvJacState(const mfem::Vector &x, const mfem::Vector dir, 
+                       const mfem::Vector &u,
+                       std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      static_cast<Derived*>(this)->calcFluxDvJacState(x, dir, u, flux_jac);
    }
 
 #if 0

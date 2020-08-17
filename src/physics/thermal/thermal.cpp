@@ -37,24 +37,7 @@ using namespace mfem;
 namespace mach
 {
 
-ThermalSolver::ThermalSolver(
-	 const std::string &opt_file_name,
-    std::unique_ptr<mfem::Mesh> smesh)
-	: AbstractSolver(opt_file_name, move(smesh))
-{
-   int dim = getMesh()->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
-
-   /// Create the H(Div) finite element collection for the representation the
-   /// magnetic flux density field in the thermal solver
-   h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create magnetic flux grid function
-   mag_field.reset(new GridFunType(h_div_space.get()));
-}
-
-ThermalSolver::ThermalSolver(nlohmann::json &options,
+ThermalSolver::ThermalSolver(const nlohmann::json &options,
                              std::unique_ptr<mfem::Mesh> smesh)
 	: AbstractSolver(options, move(smesh))
 {
@@ -667,7 +650,15 @@ void ThermalSolver::addLoadVolumeIntegrators(double alpha)
 
 void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 {
-	flux_coeff.reset(new VectorFunctionCoefficient(3, fluxFunc));
+
+	//determine type of flux function
+	if(options["outflux-type"].template get<string>() == "test")
+	{
+		flux_coeff.reset(new VectorFunctionCoefficient(3, testFluxFunc));
+	}
+	else
+		throw MachException("Specified flux function not supported!\n");
+
 	auto &bcs = options["bcs"];
 	bndry_marker.resize(bcs.size());
 	int idx = 0;
@@ -703,12 +694,12 @@ void ThermalSolver::constructEvolver()
    evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), stiff.get(), load.get(), *out,
 												0.0, flux_coeff.get()));
 	evolver->SetLinearSolver(solver.get());
-   if (newton_solver == nullptr)
-      constructNewtonSolver();
+   //if (newton_solver == nullptr)
+   //   constructNewtonSolver();
    evolver->SetNewtonSolver(newton_solver.get());
 }
 
-void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
+void ThermalSolver::testFluxFunc(const Vector &x, double time, Vector &y)
 {
 	y.SetSize(3);
 	//use constant in time for now
@@ -723,7 +714,6 @@ void ThermalSolver::fluxFunc(const Vector &x, double time, Vector &y)
 	else
 	{
 		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
-		//cout << "outflux val = " << y(0) << std::endl;
 	}
 
 	y(1) = 0;

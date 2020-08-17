@@ -17,30 +17,27 @@
    },
    "steady": true,
    "time-dis": {
-      "ode-solver": "MIDPOINT",
+      "steady": true,
+      "steady-abstol": 1e-12,
+      "steady-restol": 1e-10,
       "const-cfl": true,
-      "cfl": 0.09,
-      "dt": 0.0001,
-      "t-final": 1.0
+      "ode-solver": "PTC",
+      "t-final": 100,
+      "dt": 0.1,
+      "cfl": 1.0
    },
-   "newtonsolver":{
-      "abstol": 1e-10,
-      "reltol": 1e-10,
-      "maxiter": 30,
-      "printlevel": 1
+   "nonlin-solver": {
+      "printlevel": 1,
+      "maxiter": 50,
+      "reltol": 1e-1,
+      "abstol": 1e-12
    },
-   "petscsolver":{
-      "ksptype": "gmres",
-      "pctype": "lu",
-      "abstol": 1e-10,
-      "reltol": 1e-10,
+   "lin-solver": {
+      "printlevel": 0,
+      "filllevel": 3,
       "maxiter": 100,
-      "printlevel": 2
-   },
-   "hypresolver":{
-      "tol": 1e-10,
-      "maxiter": 100,
-      "printlevel": 0
+      "reltol": 1e-2,
+      "abstol": 1e-12
    },
    "bcs": {
       "viscous-shock": [1, 1, 1, 1]

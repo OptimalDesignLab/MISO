@@ -15,7 +15,7 @@
       "print-lvl": 2,
       "max-iter": 500
    },
-   "newton": {
+   "nonlin-solver": {
       "print-lvl": 1,
       "rel-tol": 1e-8,
       "abs-tol": 1e-8

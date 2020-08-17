@@ -9,6 +9,7 @@ namespace mach
 
 const nlohmann::json default_options
 {   
+   {"print-options", true}, //print out options when solver is constructed
    {"flow-param", // options related to flow simulations
    {
       {"mach", 0.5}, // far-field mach number
@@ -43,10 +44,18 @@ const nlohmann::json default_options
       {"max-iter", 10000} // safe-guard upper bound on number of iterations
    }},
 
+   {"nonlin-solver", // options related to root-finding algorithms
+   {
+      {"type", "newton"}, // type of nonlinear solver
+      {"printlevel", 1}, // linear solver print level (no printing if zero)
+      {"maxiter", 100}, // default to 100 iterations
+      {"reltol", 1e-14}, // solver relative tolerance
+      {"abstol", 1e-14}, // solver absolute tolerance
+   }},
+
    {"lin-solver",
    {
-      {"type", "hypregmres"}, // Default solver
-      {"pctype", "hypreeuclid"}, // Default preconditioner type
+      {"type", "hyprefgmres"}, // Default solver
       {"printlevel", 1}, // linear solver print level (no printing if zero)
       {"maxiter", 100}, // default to 100 iterations
       {"reltol", 1e-12}, // solver relative tolerance
@@ -54,12 +63,32 @@ const nlohmann::json default_options
       {"kdim", 100} // default restart value
    }},
 
+   {"lin-prec",
+   {
+      {"type", "hypreilu"}, // default preconditioner
+      {"lev-fill", 1}, // ILU(k) fill level
+      {"ilu-type", 10}, // ILU type (see mfem HypreILU doc)
+      {"ilu-reorder", 1}, // 0 = no reordering, 1 = RCM
+      {"printlevel", 0} // 0 = none, 1 = setup, 2 = solve, 3 = setup+solve
+   }},
+
    {"adj-solver",
    {
+      {"type", "hyprefgmres"}, // Default solver
       {"printlevel", 0}, // adjoint solver print level (no printing if zero)
       {"maxiter", 100}, // maximum number of solver iterations 
       {"reltol", 1e-8}, // adjoint solver relative tolerance
-      {"abstol", 1e-10} // adjoint solver absolute tolerance
+      {"abstol", 1e-10}, // adjoint solver absolute tolerance
+      {"kdim", 100} // default restart value
+   }},
+
+   {"adj-prec",
+   {
+      {"type", "hypreilu"}, // default adjoint-solver preconditioner
+      {"lev-fill", 1}, // ILU(k) fill level
+      {"ilu-type", 10}, // ILU type (see mfem HypreILU doc)
+      {"ilu-reorder", 1}, // 0 = no reordering, 1 = RCM
+      {"printlevel", 0} // 0 = none, 1 = setup, 2 = solve, 3 = setup+solve
    }},
 
    {"petscsolver",
@@ -70,14 +99,6 @@ const nlohmann::json default_options
       {"reltol", 1e-10},
       {"maxiter", 100},
       {"printlevel", 0}
-   }},
-
-   {"newton", // options related to root-finding algorithms
-   {
-      {"printlevel", 1}, // linear solver print level (no printing if zero)
-      {"maxiter", 100}, // default to 100 iterations
-      {"reltol", 1e-14}, // solver relative tolerance
-      {"abstol", 1e-14}, // solver absolute tolerance
    }},
 
    {"mesh",

@@ -13,9 +13,9 @@ namespace mach
 {
 
 template <int dim, bool entvar>
-EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
+EulerSolver<dim, entvar>::EulerSolver(const nlohmann::json &json_options,
                               unique_ptr<mfem::Mesh> smesh)
-    : AbstractSolver(opt_file_name, move(smesh))
+    : AbstractSolver(json_options, move(smesh))
 {
    if (entvar)
    {
@@ -456,6 +456,20 @@ void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
          }
       }
    }
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::setSolutionError(
+    void (*u_exact)(const mfem::Vector &, mfem::Vector &))
+{
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   GridFunType ue(fes.get());
+   ue.ProjectCoefficient(exsol);
+   // TODO: are true DOFs necessary here?
+   HypreParVector *u_true = u->GetTrueDofs();
+   HypreParVector *ue_true = ue.GetTrueDofs();
+   *u_true -= *ue_true;
+   u->SetFromTrueDofs(*u_true);
 }
 
 // explicit instantiation

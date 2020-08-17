@@ -59,6 +59,12 @@ public:
    /// \param[in] trans - if true, return \f$ D^T \f$.
    void getStrongOperator(int di, DenseMatrix &D, bool trans = false) const;
 
+   /// Sets `D` to be the `i`th row of the deriv op. in direction `di`
+   /// \param[in] di - desired reference direction for operator
+   /// \param[in] i - row of the derivative operator to be returned
+   /// \param[ou] D - used to store the row of the operator
+   void getStrongOperator(int di, int i, Vector &D) const;
+
    /// Sets `Q` to be the weak derivative operator in direction `di`.
    /// \param[in] di - desired reference direction for operator
    /// \param[in,out] Q - to store the operator
@@ -83,6 +89,21 @@ public:
    /// responsible for initializing `Qu`.
    void multWeakOperator(int di, const DenseMatrix &u, DenseMatrix &Qu,
                          bool trans = false) const;
+
+   /// Applies the weak derivative, `Q`, at a given node location `i`
+   /// \param[in] di - desired reference space direction for operator
+   /// \param[in] i - index at which we want the weak derivative 
+   /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
+   /// \param[out] Qu - result of applying `Q` to `u` at node `i`
+   void multWeakOperator(int di, int i, const DenseMatrix &u, Vector &Qu) const;
+
+   /// Applies the difference operator, `D`, at a given node location `i`
+   /// \param[in] di - desired reference space direction for operator
+   /// \param[in] i - index at which we want the derivative
+   /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
+   /// \param[out] Du - result of applying `D` to `u` at node `i`
+   void multStrongOperator(int di, int i, const DenseMatrix &u,
+                           Vector &Du) const;
 
    /// Sets `P` to be the operator that removes polynomials of degree `order`
    /// \param[in,out] P - to store the operator
@@ -236,6 +257,7 @@ public:
    virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
                                              int Or) const;
    virtual const char *Name() const { return SBPname; }
+   virtual int GetContType() const { return CONTINUOUS; }
    virtual ~SBPCollection();
 
 };
@@ -268,6 +290,7 @@ public:
    virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
                                              int Or) const;
    virtual const char *Name() const {  return DSBPname;  }
+   virtual int GetContType() const { return DISCONTINUOUS; }
    virtual ~DSBPCollection();
 };
 
