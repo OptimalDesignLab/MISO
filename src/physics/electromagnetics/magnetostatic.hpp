@@ -37,9 +37,6 @@ public:
    std::vector<GridFunType*> getFields() override;
 
 private:
-   /// TODO: update!
-   void constructForms() override {}
-
    // /// Nedelec finite element collection
    // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
    /// Raviart-Thomas finite element collection
@@ -72,7 +69,7 @@ private:
    // std::unique_ptr<NonlinearFormType> res;
 
    /// current source vector
-   std::unique_ptr<GridFunType> current_vec;
+   // std::unique_ptr<GridFunType> current_vec;
    std::unique_ptr<GridFunType> div_free_current_vec;
 
    /// mesh dependent reluctivity coefficient
@@ -83,21 +80,11 @@ private:
    std::unique_ptr<VectorMeshDependentCoefficient> mag_coeff;
 
    /// boundary condition marker array
-   mfem::Array<int> ess_bdr;
+   // mfem::Array<int> ess_bdr;
    std::unique_ptr<mfem::VectorCoefficient> bc_coef;
 
-   // /// linear system solver used in Newton's method
-   // std::unique_ptr<mfem::HypreGMRES> solver;
-   // /// linear system preconditioner used in Newton's method
-   // std::unique_ptr<EMPrecType> prec;
-
-   // /// Newton solver
-   // mfem::NewtonSolver newton_solver;
-
-   /// Material Library
-   // nlohmann::json materials;
-
    int dim;
+   void constructForms() override;
 
    /// Construct various coefficients
    void constructCoefficients() override;
@@ -111,11 +98,14 @@ private:
 
    int getNumState() override {return 1;};
    
+   void terminalHook(int iter, double t_final,
+                             const mfem::ParGridFunction &state) override;
+
    /// Create `output` based on `options` and add approporiate integrators
    void addOutputs() override;
 
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
-   void solveSteady(mfem::ParGridFunction &state) override;
+   // void solveUnsteady(mfem::ParGridFunction &state) override;
 
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source
@@ -155,7 +145,7 @@ private:
 
    /// Function to compute seconday fields
    /// For magnetostatics, computes the magnetic flux density
-   void computeSecondaryFields();
+   void computeSecondaryFields(const mfem::ParGridFunction &state);
 
    /// function describing current density in phase A windings
    /// \param[in] x - position x in space of evaluation

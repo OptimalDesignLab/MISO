@@ -645,14 +645,16 @@ void ThermalSolver::addStiffVolumeIntegrators(double alpha)
 
 void ThermalSolver::addLoadVolumeIntegrators(double alpha)
 {
+   auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
 	/// add joule heating term
-	load->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
+	load_lf->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
 	/// add iron loss heating terms
-	load->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
+	load_lf->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
 }
 
 void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 {
+   auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
 
 	//determine type of flux function
 	if(options["outflux-type"].template get<string>() == "test")
@@ -670,7 +672,7 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
         vector<int> tmp = bcs["outflux"].get<vector<int>>();
         bndry_marker[idx].SetSize(tmp.size(), 0);
         bndry_marker[idx].Assign(tmp.data());
-        load->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(
+        load_lf->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(
 			  												*flux_coeff), bndry_marker[idx]);
         idx++;
 	}
@@ -733,7 +735,7 @@ void ThermalSolver::testFluxFunc(const Vector &x, double time, Vector &y)
 
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
 										 BilinearFormType *stiff,
-										 LinearFormType *load,
+										 Vector *load,
 										 std::ostream &outstream,
 										 double start_time,
 										 mfem::VectorCoefficient *_flux_coeff)

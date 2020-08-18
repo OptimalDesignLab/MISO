@@ -386,7 +386,7 @@ protected:
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
    /// the load vector linear form
-   std::unique_ptr<LinearFormType> load;
+   std::unique_ptr<mfem::Vector> load;
    /// entropy/energy that is needed for RRK methods
    std::unique_ptr<NonlinearFormType> ent;
 

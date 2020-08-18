@@ -88,17 +88,37 @@ void MagnetostaticSolver::setEssentialBoundaries()
    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    res->SetEssentialTrueDofs(ess_tdof_list);
    /// set current vector's ess_tdofs to zero
-   current_vec->SetSubVector(ess_tdof_list, 0.0);
+   load->SetSubVector(ess_tdof_list, 0.0);
 }
 
-void MagnetostaticSolver::solveSteady(ParGridFunction &state)
+// void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
+// {
+//    *out << "Tucker: please check if the code below is needed" << endl;
+//    // if (newton_solver == nullptr)
+//    //    constructNewtonSolver();
+
+   // setEssentialBoundaries();
+
+   // Vector Zero(3);
+   // Zero = 0.0;
+   // bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
+   // // bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
+
+   // *u = 0.0;
+   // u->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+
+   // HypreParVector *u_true = u->GetTrueDofs();
+   // auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
+   // HypreParVector *current_true = load_gf->GetTrueDofs();
+   // newton_solver->Mult(*current_true, *u_true);
+   // MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
+   // u->SetFromTrueDofs(*u_true);
+
+   // computeSecondaryFields();
+}
+
+void MagnetostaticSolver::initialHook()
 {
-   *out << "Tucker: please check if the code below is needed" << endl;
-   // if (newton_solver == nullptr)
-   //    constructNewtonSolver();
-
-   setEssentialBoundaries();
-
    Vector Zero(3);
    Zero = 0.0;
    bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
@@ -106,14 +126,12 @@ void MagnetostaticSolver::solveSteady(ParGridFunction &state)
 
    *u = 0.0;
    u->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+}
 
-   HypreParVector *u_true = u->GetTrueDofs();
-   HypreParVector *current_true = current_vec->GetTrueDofs();
-   newton_solver->Mult(*current_true, *u_true);
-   MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-   u->SetFromTrueDofs(*u_true);
-
-   computeSecondaryFields();
+void MagnetostaticSolver::terminalHook(int iter, double t_final,
+                                       const ParGridFunction &state)
+{
+   computeSecondaryFields(state);
 }
 
 void MagnetostaticSolver::addOutputs()
@@ -143,9 +161,14 @@ std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
    return {u.get(), B.get()};
 }
 
+void MagnetostaticSolver::constructForms()
+{
+   res.reset(new NonlinearFormType(fes.get()));
+   load.reset(new ParGridFunction(fes.get()));
+}
+
 void MagnetostaticSolver::constructCoefficients()
 {
-   current_vec.reset(new GridFunType(fes.get()));
    div_free_current_vec.reset(new GridFunType(fes.get()));
    
    /// read options file to set the proper values of static member variables
@@ -412,8 +435,8 @@ void MagnetostaticSolver::assembleCurrentSource()
    h_curl_mass->Assemble();
    h_curl_mass->Finalize();
 
-   *current_vec = 0.0;
-   h_curl_mass->AddMult(*div_free_current_vec, *current_vec);
+   *load = 0.0;
+   h_curl_mass->AddMult(*div_free_current_vec, *load);
    std::cout << "below h_curl add mult\n";
    // I had strange errors when not using pointer versions of these
    delete h_curl_mass;
@@ -433,19 +456,19 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
    weakCurlMuInv_->Finalize();
 
    M->ProjectCoefficient(*mag_coeff);
-   weakCurlMuInv_->AddMult(*M, *current_vec, 1.0);
+   weakCurlMuInv_->AddMult(*M, *load, 1.0);
 
    delete weakCurlMuInv_;
 }
 
-void MagnetostaticSolver::computeSecondaryFields()
+void MagnetostaticSolver::computeSecondaryFields(const ParGridFunction &state)
 {
    std::cout << "before curl constructed\n";
    DiscreteCurlOperator curl(fes.get(), h_div_space.get());
    std::cout << "curl constructed\n";
    curl.Assemble();
    curl.Finalize();
-   curl.Mult(*u, *B);
+   curl.Mult(state, *B);
    std::cout << "secondary quantities computed\n";
 }
 

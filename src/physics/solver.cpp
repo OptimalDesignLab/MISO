@@ -262,10 +262,14 @@ void AbstractSolver::initDerived()
    {
       /// TODO: make this work for a grid function as well as a linear form
       //load.reset(new LinearFormType(fes.get()));
-      addLoadVolumeIntegrators(alpha);
-      addLoadBoundaryIntegrators(alpha);
-      addLoadInterfaceIntegrators(alpha);
-      load->Assemble();
+      auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+      if (load_lf)
+      {
+         addLoadVolumeIntegrators(alpha);
+         addLoadBoundaryIntegrators(alpha);
+         addLoadInterfaceIntegrators(alpha);
+         load_lf->Assemble();
+      }
    }
 
    if (ent)

@@ -153,7 +153,7 @@ class ThermalEvolver : public MachEvolver
 {
 public:
    ThermalEvolver(mfem::Array<int> ess_bdr, BilinearFormType *mass, BilinearFormType *stiff,
-                  LinearFormType *load, std::ostream &outstream,
+                  mfem::Vector *load, std::ostream &outstream,
                   double start_time, mfem::VectorCoefficient *flux_coeff);
 
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
