@@ -97,9 +97,17 @@ private:
    void setEssentialBoundaries() override;
 
    int getNumState() override {return 1;};
+
+   void initialHook(const mfem::ParGridFunction &state) override;
+
+   // void iterationHook(int iter, double t, double dt,
+   //                    const mfem::ParGridFunction &state) override;
+
+   // bool iterationExit(int iter, double t, double t_final, double dt,
+   //                    const mfem::ParGridFunction &state) override;
    
    void terminalHook(int iter, double t_final,
-                             const mfem::ParGridFunction &state) override;
+                     const mfem::ParGridFunction &state) override;
 
    /// Create `output` based on `options` and add approporiate integrators
    void addOutputs() override;

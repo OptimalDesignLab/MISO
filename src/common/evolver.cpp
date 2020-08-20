@@ -168,8 +168,8 @@ MachEvolver::MachEvolver(
 
    if (_mass != nullptr)
    {
-      Array<int> ess_tdof_list;
-      _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      Array<int> mass_ess_tdof_list;
+      _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, mass_ess_tdof_list);
 
       AssemblyLevel mass_assem;
       mass_assem = _mass->GetAssemblyLevel();
@@ -202,7 +202,7 @@ MachEvolver::MachEvolver(
 
    if (_stiff != nullptr)
    {
-      Array<int> ess_tdof_list;
+      // Array<int> ess_tdof_list;
       _stiff->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
       AssemblyLevel stiff_assem;

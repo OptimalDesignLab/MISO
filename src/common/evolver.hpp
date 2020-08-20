@@ -146,6 +146,8 @@ protected:
    mfem::Solver *linsolver;
    /// Newton solver for implicit problems (not owned)
    mfem::NewtonSolver *newton;
+   /// essential degrees of freedom
+   mfem::Array<int> ess_tdof_list;
 
    /// pointer-to-implementation idiom
    /// Hides implementation details of this operator, and because it's private,

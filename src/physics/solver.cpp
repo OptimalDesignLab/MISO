@@ -308,6 +308,20 @@ void AbstractSolver::initDerived()
 
 AbstractSolver::~AbstractSolver()
 {
+#ifdef MFEM_USE_PUMI
+   if (!PCU_previously_initialized)
+      PCU_Comm_Free();
+
+#ifdef MFEM_USE_SIMMETRIX
+   gmi_sim_stop();
+   Sim_unregisterAllKeys();
+#endif // MFEM_USE_SIMMETRIX
+
+#ifdef MFEM_USE_EGADS
+   gmi_egads_stop();
+#endif // MFEM_USE_EGADS
+#endif
+
    MPI_Comm_free(&comm);
    *out << "Deleting Abstract Solver..." << endl;
 }
@@ -352,7 +366,13 @@ void AbstractSolver::constructPumiMesh()
    *out << options["mesh"]["model-file"].get<string>().c_str() << std::endl;
    std::string model_file = options["mesh"]["model-file"].get<string>();
    std::string mesh_file = options["mesh"]["file"].get<string>();
-   PCU_Comm_Init();
+   if (PCU_Comm_Initialized())
+   {
+      PCU_previously_initialized = true;
+   }
+   if (!PCU_previously_initialized)
+      PCU_Comm_Init();
+   PCU_Switch_Comm(comm);
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
    gmi_sim_start();

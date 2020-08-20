@@ -34,15 +34,6 @@ struct pumiDeleter
    {
       mesh->destroyNative();
       apf::destroyMesh(mesh);
-      PCU_Comm_Free();
-#ifdef MFEM_USE_SIMMETRIX
-      gmi_sim_stop();
-      Sim_unregisterAllKeys();
-#endif // MFEM_USE_SIMMETRIX
-
-#ifdef MFEM_USE_EGADS
-      gmi_egads_stop();
-#endif // MFEM_USE_EGADS
    }
 };
 
@@ -360,6 +351,7 @@ protected:
    /// pumi mesh object
    // apf::Mesh2* pumi_mesh;
    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
+   bool PCU_previously_initialized = false;
 #endif
 
    //--------------------------------------------------------------------------

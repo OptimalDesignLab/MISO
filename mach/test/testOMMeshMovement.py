@@ -18,7 +18,7 @@ options = {
         'steady-abstol': 1e-12,
         'steady-restol': 1e-10,
         'ode-solver': 'PTC',
-        't-final': 0,
+        't-final': 100,
         'dt': 1e12,
         'cfl': 1.0,
         'res-exp': 2.0

@@ -115,17 +115,18 @@ void MagnetostaticSolver::setEssentialBoundaries()
    // u->SetFromTrueDofs(*u_true);
 
    // computeSecondaryFields();
-}
+// }
 
-void MagnetostaticSolver::initialHook()
+void MagnetostaticSolver::initialHook(const mfem::ParGridFunction &state)
 {
-   Vector Zero(3);
-   Zero = 0.0;
-   bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
-   // bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
+   /// TODO!!
+   // Vector Zero(3);
+   // Zero = 0.0;
+   // bc_coef.reset(new VectorConstantCoefficient(Zero)); // for motor 
+   // // bc_coef.reset(new VectorFunctionCoefficient(3, a_exact)); // for box problem
 
-   *u = 0.0;
-   u->ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
+   // state = 0.0;
+   // state.ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
 }
 
 void MagnetostaticSolver::terminalHook(int iter, double t_final,
