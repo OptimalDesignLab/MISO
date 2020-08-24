@@ -52,27 +52,6 @@ xdouble calcSALaminarSuppression(const xdouble *q, const xdouble mu,
     return ft2;
 }
 
-
-
-/// Returns the modified vorticity in SA
-/// \param[in] q - state used to define the destruction
-/// \param[in] mu - **nondimensionalized** viscosity
-/// \param[in] sacs - Spalart-Allmaras constants
-/// \returns St - modified vorticity
-/// \tparam xdouble - typically `double` or `adept::adouble`
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
-xdouble calcSAModifiedVorticity(const xdouble *q, const xdouble S, 
-                                 const xdouble mu, const xdouble d, 
-                                const xdouble *sacs)
-{
-    xdouble nu_tilde = q[dim+2];
-    xdouble kappa = sacs[3];
-    xdouble fv2 = calcSAProductionCoefficient(q, mu, sacs);
-    xdouble St = S + nu_tilde*fv2/(kappa*kappa*d*d);
-    return St;
-}
-
 /// Returns the turbulent viscosity coefficient in SA
 /// \param[in] q - state used to define the destruction
 /// \param[in] mu - **nondimensionalized** viscosity
@@ -106,9 +85,28 @@ xdouble calcSAProductionCoefficient(const xdouble *q, const xdouble mu,
     xdouble nu_tilde = q[dim+2];
     xdouble nu_mat = mu/q[0];
     xdouble chi = nu_tilde/nu_mat;
-    xdouble fv1 = calcSACoefficient(q, mu, sacs);
-    xdouble fv2 = 1 - chi/(1 + chi*fv1);
+    xdouble fv1 = calcSACoefficient<xdouble, dim>(q, mu, sacs);
+    xdouble fv2 = 1.0 - chi/(1.0 + chi*fv1);
     return fv2;
+}
+
+/// Returns the modified vorticity in SA
+/// \param[in] q - state used to define the destruction
+/// \param[in] mu - **nondimensionalized** viscosity
+/// \param[in] sacs - Spalart-Allmaras constants
+/// \returns St - modified vorticity
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+xdouble calcSAModifiedVorticity(const xdouble *q, const xdouble S, 
+                                 const xdouble mu, const xdouble d, 
+                                const xdouble *sacs)
+{
+    xdouble nu_tilde = q[dim+2];
+    xdouble kappa = sacs[3];
+    xdouble fv2 = calcSAProductionCoefficient<xdouble, dim>(q, mu, sacs);
+    xdouble St = S + nu_tilde*fv2/(kappa*kappa*d*d);
+    return St;
 }
 
 /// Returns the destruction coefficient in SA
@@ -129,13 +127,13 @@ xdouble calcSADestructionCoefficient(const xdouble *q,
     xdouble cw3 = sacs[5];
     xdouble rlim = sacs[9];
 
-    xdouble St = calcSAModifiedVorticity(q, S, mu, d, sacs);
+    xdouble St = calcSAModifiedVorticity<xdouble, dim>(q, S, mu, d, sacs);
     xdouble work = nu_tilde/(St*kappa*kappa*d*d);
     xdouble r = std::min(work, rlim);
-    xdouble g = r + cw2*(std::pow(r, 6) - r);
-    xdouble work2 = (1 + std::pow(cw3, 6))/
-                     (std::pow(g, 6) + std::pow(cw3, 6));
-    xdouble fw = g*std::pow(work2, (1/6));
+    xdouble g = r + cw2*(pow(r, 6.0) - r);
+    xdouble work2 = (1.0 + pow(cw3, 6.0))/
+                     (pow(g, 6.0) + pow(cw3, 6.0));
+    xdouble fw = g*pow(work2, (1.0/6.0));
     return fw;
 }
 
@@ -153,9 +151,9 @@ xdouble calcSAProduction(const xdouble *q,
 {
     xdouble cb1 = sacs[0];
     xdouble nu_tilde = q[dim+2];
-    xdouble St = calcSAModifiedVorticity(q, S, mu, d, sacs);
-    xdouble ft2 = calcSALaminarSuppression(q, mu, sacs);
-    xdouble P = cb1*(1-ft2)*St*nu_tilde;
+    xdouble St = calcSAModifiedVorticity<xdouble, dim>(q, S, mu, d, sacs);
+    xdouble ft2 = calcSALaminarSuppression<xdouble, dim>(q, mu, sacs);
+    xdouble P = cb1*(1.0-ft2)*St*nu_tilde;
     return P;
 }
 
@@ -177,8 +175,8 @@ xdouble calcSADestruction(const xdouble *q,
     xdouble kappa = sacs[3];
     xdouble chi_d = q[dim+2]/d;
     xdouble cw1 = cb1/(kappa*kappa) + (1+cb2)/sigma;
-    xdouble fw = calcSADestructionCoefficient(q, mu, d, S, sacs);
-    xdouble ft2 = calcSALaminarSuppression(q, mu, sacs);
+    xdouble fw = calcSADestructionCoefficient<xdouble, dim>(q, mu, d, S, sacs);
+    xdouble ft2 = calcSALaminarSuppression<xdouble, dim>(q, mu, sacs);
     xdouble D = (cw1*fw - (cb1/(kappa*kappa))*ft2)*chi_d*chi_d;
     return D;
 }
@@ -197,7 +195,7 @@ xdouble calcSANegativeProduction(const xdouble *q, const xdouble S,
     xdouble cb1 = sacs[0];
     xdouble ct3 = sacs[7];
     xdouble nu_tilde = q[dim+2];
-    xdouble Pn = cb1*(1-ct3)*S*nu_tilde;
+    xdouble Pn = cb1*(1.0-ct3)*S*nu_tilde;
     return Pn;
 }
 
@@ -383,7 +381,7 @@ void calcVorticity(const xdouble *Dq, const xdouble *jac_inv,
             xdouble work = 0;
             for(int k = 0; k < dim; k++)
             {
-                work += Dq[di+k*(dim+3)]*jac_inv[k+d*dim];
+                work += (Dq[di+k*(dim+3)])*jac_inv[k+d*dim];
             }
             DqJ[di+d*(dim+3)] = work;
         }
@@ -500,7 +498,7 @@ void calcGradJacDw(adept::Stack &stack, const double *Dq, const double *jac_inv,
    // identify independent and dependent variables
    stack.independent(Dq_a.data(), Dq_a.size());
    stack.dependent(grad_a.data(), grad_a.size());
-   // compute and store jacobian in jac_inv
+   // compute and store jacobian in jac_grad
     mfem::Vector work(dim*(dim+3)*dim);
    stack.jacobian_reverse(work.GetData());
     for (int i = 0; i < dim; ++i)

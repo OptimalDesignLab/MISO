@@ -228,6 +228,41 @@ public:
                       const mfem::Vector &q, const mfem::DenseMatrix &Dw,
                       std::vector<mfem::DenseMatrix> &flux_jac);
 
+   /// Compute flux terms that are multiplied by test-function derivative
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the fluxes
+   /// \param[out] flux_mat[:,di] - to be scaled by derivative `D_[di] v`
+   void calcFluxDv(const mfem::Vector &x, const mfem::Vector &dir,
+                   const mfem::Vector &q, mfem::DenseMatrix &flux_mat)
+   {
+      flux_mat = 0.0;
+   }
+
+   /// Compute the Jacobian of calcFluxDv w.r.t. state
+   /// \param[in] x - coordinate location at which fluxes are evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
+   void calcFluxDvJacState(const mfem::Vector &x, const mfem::Vector dir,
+                           const mfem::Vector &u,
+                           std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      for (int d = 0; d < dim; ++d)
+         flux_jac[d] = 0.0;
+   }
+
+   /// Computes boundary node contribution to the surface force
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
+   /// \param[in] u - state at which to evaluate the function
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
+   /// \returns fun - stress at given point
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       double jac, const mfem::Vector &u,
+                       const mfem::DenseMatrix &Dw) {return 0.0;}
+
 private:
    /// Reynolds number
    double Re;
@@ -324,6 +359,41 @@ public:
                       const mfem::DenseMatrix &Dw,
                       std::vector<mfem::DenseMatrix> &flux_jac);
 
+   /// Compute flux terms that are multiplied by test-function derivative
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the fluxes
+   /// \param[out] flux_mat[:,di] - to be scaled by derivative `D_[di] v`
+   void calcFluxDv(const mfem::Vector &x, const mfem::Vector &dir,
+                   const mfem::Vector &q, mfem::DenseMatrix &flux_mat)
+   {
+      flux_mat = 0.0;
+   }
+
+   /// Compute the Jacobian of calcFluxDv w.r.t. state
+   /// \param[in] x - coordinate location at which fluxes are evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
+   void calcFluxDvJacState(const mfem::Vector &x, const mfem::Vector dir,
+                           const mfem::Vector &u,
+                           std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      for (int d = 0; d < dim; ++d)
+         flux_jac[d] = 0.0;
+   }
+
+   /// Computes boundary node contribution to the surface force
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
+   /// \param[in] u - state at which to evaluate the function
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
+   /// \returns fun - stress at given point
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       double jac, const mfem::Vector &u,
+                       const mfem::DenseMatrix &Dw) {return 0.0;}
+
 private:
    /// Reynolds number
    double Re;
@@ -419,6 +489,41 @@ public:
                       const mfem::DenseMatrix &Dw,
                       std::vector<mfem::DenseMatrix> &flux_jac);
 
+   /// Compute flux terms that are multiplied by test-function derivative
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the fluxes
+   /// \param[out] flux_mat[:,di] - to be scaled by derivative `D_[di] v`
+   void calcFluxDv(const mfem::Vector &x, const mfem::Vector &dir,
+                   const mfem::Vector &q, mfem::DenseMatrix &flux_mat)
+   {
+      flux_mat = 0.0;
+   }
+
+   /// Compute the Jacobian of calcFluxDv w.r.t. state
+   /// \param[in] x - coordinate location at which fluxes are evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
+   void calcFluxDvJacState(const mfem::Vector &x, const mfem::Vector dir,
+                           const mfem::Vector &u,
+                           std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      for (int d = 0; d < dim; ++d)
+         flux_jac[d] = 0.0;
+   }
+
+   /// Computes boundary node contribution to the surface force
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
+   /// \param[in] u - state at which to evaluate the function
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
+   /// \returns fun - stress at given point
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       double jac, const mfem::Vector &u,
+                       const mfem::DenseMatrix &Dw) {return 0.0;}
+
 private:
    /// Reynolds number
    double Re;
@@ -512,6 +617,41 @@ public:
                       const mfem::DenseMatrix &Dw,
                       vector<mfem::DenseMatrix> &flux_jac);
 
+   /// Compute flux terms that are multiplied by test-function derivative
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the fluxes
+   /// \param[out] flux_mat[:,di] - to be scaled by derivative `D_[di] v`
+   void calcFluxDv(const mfem::Vector &x, const mfem::Vector &dir,
+                   const mfem::Vector &q, mfem::DenseMatrix &flux_mat)
+   {
+      flux_mat = 0.0;
+   }
+
+   /// Compute the Jacobian of calcFluxDv w.r.t. state
+   /// \param[in] x - coordinate location at which fluxes are evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
+   void calcFluxDvJacState(const mfem::Vector &x, const mfem::Vector dir,
+                           const mfem::Vector &u,
+                           std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      for (int d = 0; d < dim; ++d)
+         flux_jac[d] = 0.0;
+   }
+
+   /// Computes boundary node contribution to the surface force
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
+   /// \param[in] u - state at which to evaluate the function
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
+   /// \returns fun - stress at given point
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       double jac, const mfem::Vector &u,
+                       const mfem::DenseMatrix &Dw) {return 0.0;}
+
 private:
    /// Reynolds number
    double Re;
@@ -602,6 +742,41 @@ public:
                       double jac, const mfem::Vector &q,
                       const mfem::DenseMatrix &Dw,
                       std::vector<mfem::DenseMatrix> &flux_jac);
+
+   /// Compute flux terms that are multiplied by test-function derivative
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the fluxes
+   /// \param[out] flux_mat[:,di] - to be scaled by derivative `D_[di] v`
+   void calcFluxDv(const mfem::Vector &x, const mfem::Vector &dir,
+                   const mfem::Vector &q, mfem::DenseMatrix &flux_mat)
+   {
+      flux_mat = 0.0;
+   }
+
+   /// Compute the Jacobian of calcFluxDv w.r.t. state
+   /// \param[in] x - coordinate location at which fluxes are evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
+   void calcFluxDvJacState(const mfem::Vector &x, const mfem::Vector dir,
+                           const mfem::Vector &u,
+                           std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      for (int d = 0; d < dim; ++d)
+         flux_jac[d] = 0.0;
+   }
+
+   /// Computes boundary node contribution to the surface force
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
+   /// \param[in] u - state at which to evaluate the function
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
+   /// \returns fun - stress at given point
+   double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
+                       double jac, const mfem::Vector &u,
+                       const mfem::DenseMatrix &Dw) {return 0.0;}
 
 private:
    /// Reynolds number

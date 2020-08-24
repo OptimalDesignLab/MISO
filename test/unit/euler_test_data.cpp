@@ -96,6 +96,31 @@ template void randBaselinePert<1, false>(const mfem::Vector &x, mfem::Vector &u)
 template void randBaselinePert<2, false>(const mfem::Vector &x, mfem::Vector &u);
 template void randBaselinePert<3, false>(const mfem::Vector &x, mfem::Vector &u);
 
+template <int dim, bool entvar>
+void randBaselinePertSA(const mfem::Vector &x, mfem::Vector &u)
+{
+    const double scale = 0.01;
+    u(0) = rho * (1.0 + scale * uniform_rand(gen));
+    u(dim + 1) = rhoe * (1.0 + scale * uniform_rand(gen));
+    for (int di = 0; di < dim; ++di)
+    {
+        u(di + 1) = rhou[di] * (1.0 + scale * uniform_rand(gen));
+    }
+    if (entvar)
+    {
+       mfem::Vector q(u);
+       mach::calcEntropyVars<double, dim>(q.GetData(), u.GetData());
+    }
+    u(dim + 2) = 10.0 * scale * (uniform_rand(gen) - 0.1);
+}
+// explicit instantiation of the templated function above
+template void randBaselinePertSA<1, true>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePertSA<2, true>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePertSA<3, true>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePertSA<1, false>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePertSA<2, false>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselinePertSA<3, false>(const mfem::Vector &x, mfem::Vector &u);
+
 void randState(const mfem::Vector &x, mfem::Vector &u)
 {
     for (int i = 0; i < u.Size(); ++i)

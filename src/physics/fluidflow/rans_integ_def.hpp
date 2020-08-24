@@ -20,41 +20,52 @@ void SASourceIntegrator<dim>::AssembleElementVector(
    grad_i.SetSize(dim);
    curl_i.SetSize(3);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states); // send u into function to compute curl, gradient of nu, send transformation as well
+   u.Transpose();
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
    DenseMatrix Qu(num_nodes, num_states);
    DenseMatrix HQu(num_nodes, num_states);
    DenseMatrix Dui(num_states, dim);
+   Vector Duidi(num_states);
 
-   // get Du
-   for(int di = 0; di < dim; di++)
-   {
-      sbp.multWeakOperator(di, u, Qu);
-      sbp.multNormMatrix(Qu, HQu);
-      //dxi.CopyMN(HQu, q.Height(), dim, 1, dim+1, di*q.Height(), 0);
-   }
+   // convert momentum to velocity
+   
 
    // precompute certain values
-   //calcVorticitySBP<double, dim>(u, sbp, Trans, curl);
-   //calcGradSBP<double, dim>(u, sbp, Trans, grad);
    elvect = 0.0; 
    for (int i = 0; i < num_nodes; ++i)
    {
       // get the Jacobian (Trans.Weight) and cubature weight (node.weight)
-      IntegrationPoint &node = fe.GetNodes().IntPoint(i);
+      const IntegrationPoint &node = fe.GetNodes().IntPoint(i);
       Trans.SetIntPoint(&node);
-      u.GetRow(i, ui);
+      u.GetColumn(i, ui);
       Trans.Transform(node, xi);
-      Dui.Set(1.0, (HQu.GetData() + i*dim*num_states));
+
+      // get Dui
+      Duidi = 0.0; Dui = 0.0;
+      for (int di = 0; di < dim; di++)
+      {
+         sbp.multStrongOperator(di, i, u, Duidi);
+         Dui.SetCol(di, Duidi);
+      }
+
+      // get Dui ()
+      Duidi = 0.0; Dui = 0.0;
+      for (int di = 0; di < dim; di++)
+      {
+         sbp.multStrongOperator(di, i, u, Duidi);
+         Dui.SetCol(di, Duidi);
+      }
 
       // compute vorticity at node and take magnitude
       calcVorticity<double, dim>(Dui.GetData(), Trans.InverseJacobian().GetData(), curl_i.GetData()); //curl.GetRow(i, curl_i);
-      double S = curl_i.Norml2();
+      double S = sqrt(curl_i(0)*curl_i(0) + curl_i(1)*curl_i(1) +curl_i(2)*curl_i(2));
+      S = curl_i(2);
 
       // compute gradient of turbulent viscosity at node
       calcGrad<double, dim>(Dui.GetData(), Trans.InverseJacobian().GetData(), grad_i.GetData()); //curl.GetRow(i, curl_i);
 
       // get distance function value at node
-      double d = xi(1); //temp solution, y distance from wall
+      double d = 1.0; //temp solution, y distance from wall
 
       // accumulate source terms
       double src = calcSASource<double,dim>(
@@ -75,7 +86,9 @@ void SASourceIntegrator<dim>::AssembleElementVector(
             ui.GetData(), mu, d, S, sacs.GetData());
       }
 
-      res(i, dim+2) += alpha * Trans.Weight() * node.weight * src;
+      //byNODES
+      elvect(i + num_nodes*(num_states-1)) = alpha * Trans.Weight() * node.weight * src;
+      //elvect((dim+2) + i*(num_states)) = alpha * Trans.Weight() * node.weight * src;
    } // loop over element nodes i
 }
 
@@ -98,9 +111,11 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    grad_i.SetSize(dim);
    curl_i.SetSize(3);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states); // send u into function to compute curl, gradient of nu, send transformation as well
+   u.Transpose();
    DenseMatrix Qu(num_nodes, num_states);
    DenseMatrix HQu(num_nodes, num_states);
    DenseMatrix Dui(num_states, dim);
+   Vector Duidi(num_states);
    vector<DenseMatrix> jac_curl(dim);
    vector<DenseMatrix> jac_grad(dim);
    std::vector<adouble> sacs_a(sacs.Size());
@@ -116,26 +131,35 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    Vector dSrcdu(num_states); //partial src w.r.t. u
    Vector dSrcdS(1); //partial src w.r.t. S
    Vector dSrcdgrad(dim); //partial src w.r.t grad
+   DenseMatrix src_grad(dim, num_states);
+   DenseMatrix src_curl(3, num_states);
+   Vector work1(num_nodes*num_states); 
+   Vector work2s(num_states);
+   Vector work2g(num_states);
+   Vector work3(num_nodes);
+   Vector dnu(num_nodes*num_states); //total derivative
    //need dgraddDu, dcdDu, dDudu 
 
-   // get Du
-   for(int di = 0; di < dim; di++)
-   {
-      sbp.multWeakOperator(di, u, Qu);
-      sbp.multNormMatrix(Qu, HQu);
-      //dxi.CopyMN(HQu, q.Height(), dim, 1, dim+1, di*q.Height(), 0);
-   }
-
+   elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
    for (int i = 0; i < num_nodes; ++i)
    {
+      dnu = 0.0;
       // get the Jacobian (Trans.Weight) and cubature weight (node.weight)
-      IntegrationPoint &node = fe.GetNodes().IntPoint(i);
+      const IntegrationPoint &node = fe.GetNodes().IntPoint(i);
       Trans.SetIntPoint(&node);
-      u.GetRow(i, ui);
+      u.GetColumn(i, ui);
       Trans.Transform(node, xi);
-      Dui.Set(1.0, (HQu.GetData() + i*dim*num_states));
-      int Dui_size = Dui.Height() * Dui.Width();
 
+      // get Dui
+      Duidi = 0.0; Dui = 0.0;
+      for (int di = 0; di < dim; di++)
+      {
+         sbp.multStrongOperator(di, i, u, Duidi);
+         Dui.SetCol(di, Duidi);
+      }
+      
+      int Dui_size = Dui.Height() * Dui.Width();
       // set adept inputs
       std::vector<adouble> ui_a(ui.Size());
       //std::vector<adouble> Dui_a(Dui_size);
@@ -146,27 +170,30 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
       // initialize adouble inputs
       adept::set_values(ui_a.data(), ui.Size(), ui.GetData());
       //adept::set_values(Dui_a.data(), Dw_size, Dui.GetData());
-      adept::set_values(curl_i_a.data(), curl_i.Size(), curl_i.GetData());
-      adept::set_values(grad_i_a.data(), grad_i.Size(), grad_i.GetData());
 
       // compute vorticity at node
       calcVorticity<double, dim>(Dui.GetData(), 
          Trans.InverseJacobian().GetData(), curl_i.GetData()); //curl.GetRow(i, curl_i);
-      calcVorticityJacDw<dim>(Dui.GetData(), 
+      calcVorticityJacDw<dim>(this->stack, Dui.GetData(), 
          Trans.InverseJacobian().GetData(), jac_curl);
 
       // compute gradient of turbulent viscosity at node
       calcGrad<double, dim>(Dui.GetData(), 
          Trans.InverseJacobian().GetData(), grad_i.GetData()); //curl.GetRow(i, curl_i);
-      calcGradJacDw<dim>(Dui.GetData(), 
+      calcGradJacDw<dim>(this->stack, Dui.GetData(), 
          Trans.InverseJacobian().GetData(), jac_grad);
 
+      adept::set_values(curl_i_a.data(), curl_i.Size(), curl_i.GetData());
+      adept::set_values(grad_i_a.data(), grad_i.Size(), grad_i.GetData());
+
+
       // get distance function value at node
-      adouble d = xi(1); //temp solution, y distance from wall
+      adouble d = 1.0; //temp solution, y distance from wall
 
       // vorticity magnitude deriv
       this->stack.new_recording();
-      S = sqrt(curl_i_a[0]*curl_i_a[0] + curl_i_a[1]*curl_i_a[1] +curl_i_a[2]*curl_i_a[2]);
+      //S = sqrt(curl_i_a[0]*curl_i_a[0] + curl_i_a[1]*curl_i_a[1] +curl_i_a[2]*curl_i_a[2]);
+      S = curl_i_a[2];
       this->stack.independent(curl_i_a.data(), curl_i.Size());
       this->stack.dependent(S);
       this->stack.jacobian(dSdc.GetData());
@@ -236,13 +263,43 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
          src += calcSADestruction<adouble,dim>(
             ui_a.data(), mu_a, d, S, sacs_a.data());
       }
+
       this->stack.independent(grad_i_a.data(), grad_i_a.size());
       this->stack.dependent(src);
       this->stack.jacobian(dSrcdgrad.GetData());
 
+      // Assemble nu derivative
+      for(int ns = 0; ns < num_states; ns ++)
+      {
+         dnu(i + ns*num_nodes) = dSrcdu(ns);
+      }
+
       // Dui differentiation
+      for (int di = 0; di < dim; di++)
+      {
+         work1 = 0.0; work2s = 0.0; work2g = 0.0; work3 = 0.0;
+         sbp.getStrongOperator(di, i, work3);
+         jac_curl[di].MultTranspose(dSdc, work2s);
+         work2s *= dSrcdS(0);
+         jac_grad[di].MultTranspose(dSrcdgrad, work2g);
+         //src_grad.GetRow(di, work2g);
+         for (int nn = 0; nn < num_nodes; nn++)
+         {
+            // assuming ordering BY NODES
+            for (int ns = 0; ns < num_states; ns++)
+            {
+               work1(nn + ns*num_nodes) = work3(nn)*(work2s(ns) + work2g(ns));
+            }
+         }
+         dnu += work1;
+      }
+      dnu *= (Trans.Weight() * node.weight);
 
+      // Set elmat entry
 
+      //byNODES
+      //elmat.SetRow((num_states-1)+i*num_states, dnu);
+      elmat.SetRow(i+num_nodes*(num_states-1), dnu);
    } // loop over element nodes i
    elmat *= alpha;
 }
