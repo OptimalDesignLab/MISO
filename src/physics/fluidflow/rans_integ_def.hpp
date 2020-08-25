@@ -28,7 +28,13 @@ void SASourceIntegrator<dim>::AssembleElementVector(
    Vector Duidi(num_states);
 
    // convert momentum to velocity
-   
+   for (int nn = 0; nn < num_nodes; nn++)
+   {
+      for (int di = 0; di < dim; di++)
+      {
+         u(di+1, nn) *= 1.0/u(0, nn);
+      }
+   }
 
    // precompute certain values
    elvect = 0.0; 
@@ -110,8 +116,9 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    curl.SetSize(num_nodes, 3);
    grad_i.SetSize(dim);
    curl_i.SetSize(3);
-   DenseMatrix u(elfun.GetData(), num_nodes, num_states); // send u into function to compute curl, gradient of nu, send transformation as well
-   u.Transpose();
+   DenseMatrix uc(elfun.GetData(), num_nodes, num_states); // send u into function to compute curl, gradient of nu, send transformation as well
+   uc.Transpose();
+   DenseMatrix u; u = uc;
    DenseMatrix Qu(num_nodes, num_states);
    DenseMatrix HQu(num_nodes, num_states);
    DenseMatrix Dui(num_states, dim);
@@ -139,6 +146,15 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    Vector work3(num_nodes);
    Vector dnu(num_nodes*num_states); //total derivative
    //need dgraddDu, dcdDu, dDudu 
+
+   // convert momentum to velocity
+   for (int nn = 0; nn < num_nodes; nn++)
+   {
+      for (int di = 0; di < dim; di++)
+      {
+         u(di+1, nn) *= 1.0/uc(0, nn);
+      }
+   }
 
    elmat.SetSize(num_states*num_nodes);
    elmat = 0.0;
@@ -294,6 +310,16 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
          dnu += work1;
       }
       dnu *= (Trans.Weight() * node.weight);
+
+      // account for momentum conversion
+      for (int nn = 0; nn < num_nodes; nn++)
+      {
+         for (int di = 0; di < dim; di++)
+         {
+            dnu(nn) -= dnu(nn + (di+1)*num_nodes)*uc(di+1,nn)/(uc(0, nn)*uc(0, nn));
+            dnu(nn + (di+1)*num_nodes) *= 1.0/uc(0, nn);
+         }
+      }
 
       // Set elmat entry
 
