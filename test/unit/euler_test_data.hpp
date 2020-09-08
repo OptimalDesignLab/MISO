@@ -64,7 +64,7 @@ extern double adjJ_data[9];
 extern double delw_data[15];
 
 // Spalart-Allmaras model parameters
-const double sa_params[11] = {0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.1, 1.2, 0.5, 10.0, 16.0};
+const double sa_params[13] = {0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.1, 1.2, 0.5, 10.0, 16.0, 0.7, 0.9};
 
 /// Returns a perturbed version of the baseline flow state
 /// \param[in] x - coordinates (not used)

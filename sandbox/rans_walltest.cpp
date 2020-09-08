@@ -24,6 +24,11 @@ static int iroll;
 static int ipitch;
 static double chi_fs;
 
+static double m_offset;
+static double m_coeff;
+static int m_x;
+static int m_y;
+
 /// \brief Defines the random function for the jacobian check
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative + SA variables stored as a 5-vector
@@ -39,9 +44,19 @@ void uexact(const Vector &x, Vector& u);
 /// \param[out] u - conservative + SA variables stored as a 5-vector
 void uinit_pert(const Vector &x, Vector& u);
 
+/// \brief Defines a pseudo wall-distance function
+/// \param[in] x - coordinate of the point at which the distance is needed
+double walldist(const Vector &x);
+
+/// Generate a quadrilateral wall mesh, more dense near the wall
+/// \param[in] num_x - number of nodes in x
+/// \param[in] num_y - number of nodes in y
+std::unique_ptr<Mesh> buildWalledMesh(int num_x,
+                                              int num_y);
+
 int main(int argc, char *argv[])
 {
-   const char *options_file = "rans_freestream_options.json";
+   const char *options_file = "rans_walltest_options.json";
 
    // Initialize MPI
    int num_procs, rank;
@@ -53,8 +68,8 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 2.0;
-   int nx = 4;
-   int ny = 4;
+   int nx = 14;
+   int ny = 10;
    args.AddOption(&nx, "-nx", "--numx",
                   "Number of elements in x direction");
    args.AddOption(&ny, "-ny", "--numy",
@@ -80,17 +95,20 @@ int main(int argc, char *argv[])
       iroll = file_options["flow-param"]["roll-axis"].template get<int>();
       ipitch = file_options["flow-param"]["pitch-axis"].template get<int>();
       chi_fs = file_options["flow-param"]["chi"].template get<double>();
-      // generate a simple tri mesh and a distance function
-      std::unique_ptr<Mesh> smesh(new Mesh(nx, ny, 
-                              Element::TRIANGLE, true /* gen. edges */, 1.0,
-                              1.0, true));
-      *out << "Number of elements " << smesh->GetNE() <<'\n';
+
+      m_offset = file_options["mesh"]["offset"].template get<double>();
+      m_coeff = file_options["mesh"]["coeff"].template get<double>();
+      m_x = file_options["mesh"]["num-x"].template get<int>();
+      m_y = file_options["mesh"]["num-y"].template get<int>();
+
+      // generate the walled mesh, and its distance function
+      std::unique_ptr<Mesh> smesh = buildWalledMesh(m_x, m_y);
 
       // construct the solver and set initial conditions
       auto solver = createSolver<RANavierStokesSolver<2, entvar>>(opt_file_name,
                                                          move(smesh));
       solver->setInitialCondition(uinit_pert);
-      solver->printSolution("rans_init", 0);
+      solver->printSolution("rans_wall_init", 0);
 
       // get the initial density error
       double l2_error_init = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
@@ -101,7 +119,7 @@ int main(int argc, char *argv[])
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("rans_final",0);
+      solver->printSolution("rans_wall_final",0);
       // get the final density error
       double l2_error_final = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
@@ -149,7 +167,7 @@ void uexact(const Vector &x, Vector& q)
    u(1) = u(0)*mach_fs*cos(aoa_fs);
    u(2) = u(0)*mach_fs*sin(aoa_fs);
    u(3) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
-   u(4) = chi_fs*mu;
+   u(4) = u(0)*chi_fs*mu;
 
    if (entvar == false)
    {
@@ -164,6 +182,8 @@ void uexact(const Vector &x, Vector& q)
 // initial guess perturbed from exact
 void uinit_pert(const Vector &x, Vector& q)
 {
+   // q.SetSize(4);
+   // Vector u(4);
    q.SetSize(5);
    Vector u(5);
    
@@ -172,7 +192,90 @@ void uinit_pert(const Vector &x, Vector& q)
    u(1) = u(0)*mach_fs*cos(aoa_fs);
    u(2) = u(0)*mach_fs*sin(aoa_fs);
    u(3) = pert_fs*1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
-   u(4) = pert_fs*chi_fs*mu;
+   u(4) = pert_fs*chi_fs*abs(mu);
+
+   // if(x(1) == 0.0)
+   // {
+   //    u(1) = 1e-10;
+   // }
 
    q = u;
+}
+
+std::unique_ptr<Mesh> buildWalledMesh(int num_x, int num_y)
+{
+   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_x, num_y,
+                                             Element::TRIANGLE, true /* gen. edges */,
+                                             2.33333, 1.0, true));
+   // strategy:
+   // 1) generate a fes for Lagrange elements of desired degree
+   // 2) create a Grid Function using a VectorFunctionCoefficient
+   // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
+   
+   // Problem: fes does not own fec, which is generated in this function's scope
+   // Solution: the grid function can own both the fec and fes
+   H1_FECollection *fec = new H1_FECollection(1, 2 /* = dim */);
+   FiniteElementSpace *fes = new FiniteElementSpace(mesh_ptr.get(), fec, 2,
+                                                    Ordering::byVDIM);
+
+   // Lambda function increases element density towards wall
+   double offset = m_offset;
+   double coeff = m_coeff;
+   auto xy_fun = [coeff, offset, num_y](const Vector& rt, Vector &xy)
+   {
+      xy(0) = rt(0) - 0.33333; 
+      xy(1) = rt(1);
+
+      double c = 1.0/num_y;
+      double b = log(offset)/(c - 1.0);
+      double a = 1.0/exp(1.0*b);
+
+      if(rt(1) > 0.0 && rt(1) < 1.0)
+      {
+         xy(1) = coeff*a*exp(b*rt(1));
+         //std::cout << xy(1) << std::endl;
+      }
+   };
+   VectorFunctionCoefficient xy_coeff(2, xy_fun);
+   GridFunction *xy = new GridFunction(fes);
+   xy->MakeOwner(fec);
+   xy->ProjectCoefficient(xy_coeff);
+
+   mesh_ptr->NewNodes(*xy, true);
+
+   // Assign extra boundary attribute
+   for (int i = 0; i < mesh_ptr->GetNBE(); ++i)
+   {
+      Element *elem = mesh_ptr->GetBdrElement(i);
+
+      Array<int> verts;
+      elem->GetVertices(verts);
+
+      bool before = true; //before wall
+      for (int j = 0; j < 2; ++j)
+      {
+         auto vtx = mesh_ptr->GetVertex(verts[j]);
+         cout<< "B El: "<<i<<", " << vtx[0] <<", "<<vtx[1]<<endl;
+         if (vtx[1] == 0.0 && vtx[0] <= 0.3333334)
+         {
+            before = before & true;
+         }
+         else
+         {
+            before = before & false;
+         }
+      }
+      if (before)
+      {
+         elem->SetAttribute(5);
+      }
+   }
+   mesh_ptr->bdr_attributes.Append(5);
+   // mesh_ptr->SetAttributes();
+   // mesh_ptr->Finalize();
+
+   cout << "Number of bdr attr " << mesh_ptr->bdr_attributes.Size() <<'\n';
+   cout << "Number of elements " << mesh_ptr->GetNE() <<'\n';
+
+   return mesh_ptr;
 }

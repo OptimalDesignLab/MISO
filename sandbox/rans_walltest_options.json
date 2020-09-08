@@ -1,11 +1,11 @@
 {
    "flow-param": {
-      "mach": 1.0,
-      "aoa": 0.3,
+      "mach": 0.2,
+      "aoa": 0.0,
       "roll-axis": 0,
       "pitch-axis": 1,
-      "chi": 3,
-      "Re": 1000.0,
+      "chi": 3.0,
+      "Re": 5000000.0,
       "Pr": 0.75,
       "mu": 1.0,
       "sa-consts": [0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.1, 1.2, 0.5, 10, 16, 0.7, 0.9]
@@ -22,8 +22,9 @@
       "const-cfl": true,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 1e6,
-      "cfl": 1.0
+      "dt": 0.001,
+      "cfl": 1.0,
+      "res-exp": 2.0
    },
    "nonlin-solver": {
       "abstol": 1e-12,
@@ -39,11 +40,19 @@
       "maxiter": 100
    },
    "bcs": {
-      "far-field": [1, 1, 1, 1]
+      "far-field": [0, 1, 1, 1, 0],
+      "slip-wall": [0, 0, 0, 0, 1],
+      "no-slip-adiabatic": [1, 0, 0, 0, 0]
    },
    "wall-func": {
-      "type": "const",
-      "val": 1.0
+      "type": "y-dist"
+   },
+   "mesh": {
+      "num-x": 25,
+      "num-y": 15,
+      "offset": 1e-3,
+      "coeff": 1.0
    },
    "init-pert": 0.0
+
 }

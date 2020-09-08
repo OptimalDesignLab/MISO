@@ -111,7 +111,7 @@ void randBaselinePertSA(const mfem::Vector &x, mfem::Vector &u)
        mfem::Vector q(u);
        mach::calcEntropyVars<double, dim>(q.GetData(), u.GetData());
     }
-    u(dim + 2) = 10.0 * scale * (uniform_rand(gen) - 0.1);
+    u(dim + 2) = 3.0 * (uniform_rand(gen) - 0.1);
 }
 // explicit instantiation of the templated function above
 template void randBaselinePertSA<1, true>(const mfem::Vector &x, mfem::Vector &u);

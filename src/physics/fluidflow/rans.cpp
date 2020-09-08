@@ -11,9 +11,9 @@ namespace mach
 {
 
 template <int dim, bool entvar>
-RANavierStokesSolver<dim, entvar>::RANavierStokesSolver(const string &opt_file_name,
-                                            unique_ptr<mfem::Mesh> smesh)
-    : NavierStokesSolver<dim, entvar>(opt_file_name, move(smesh))
+RANavierStokesSolver<dim, entvar>::RANavierStokesSolver(const nlohmann::json &json_options,
+                                             unique_ptr<mfem::Mesh> smesh)
+    : NavierStokesSolver<dim, entvar>(json_options, move(smesh))
 {
    if (entvar)
    {
@@ -24,8 +24,9 @@ RANavierStokesSolver<dim, entvar>::RANavierStokesSolver(const string &opt_file_n
    chi_fs = this->options["flow-param"]["chi"].template get<double>();
    mu = this->options["flow-param"]["mu"].template get<double>();
    vector<double> sa = this->options["flow-param"]["sa-consts"].template get<vector<double>>();
-   sacs.SetData(sa.data());
-
+   sacs.SetSize(13);
+   sacs = sa.data();
+   getDistanceFunction();
 }
 
 template <int dim, bool entvar>
@@ -38,8 +39,8 @@ void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    this->res->AddDomainIntegrator(new SAViscousIntegrator<dim>( //SAViscousIntegrator
        this->diff_stack, this->re_fs, this->pr_fs, sacs, mu, alpha));
    // now add RANS integrators
-   // this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
-   //     this->diff_stack, sacs, mu, alpha));
+   this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
+       this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha)); 
    // add LPS stabilization
    double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
    this->res->AddDomainIntegrator(new SALPSIntegrator<dim, entvar>(
@@ -188,7 +189,7 @@ void RANavierStokesSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
       q_ref(this->ipitch+1) = q_ref(0)*this->mach_fs*sin(this->aoa_fs);
    }
    q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*this->mach_fs*this->mach_fs;
-   q_ref(dim+2) = this->chi_fs*mu/q_ref(0);
+   q_ref(dim+2) = q_ref(0)*this->chi_fs*mu;
 }
 
 static void pert(const Vector &x, Vector& p);
@@ -198,6 +199,38 @@ void RANavierStokesSolver<dim, entvar>::iterationHook(int iter,
                                                       double t, double dt) 
 {
    this->checkJacobian(pert);
+   this->printSolution("rans_wall_last", 0);
+}
+
+template <int dim, bool entvar>
+void RANavierStokesSolver<dim, entvar>::getDistanceFunction()
+{
+   std::string wall_type = 
+      this->options["wall-func"]["type"].template get<std::string>();
+   H1_FECollection *dfec = new H1_FECollection(1, dim);
+   FiniteElementSpace *dfes = new FiniteElementSpace(this->mesh.get(), dfec);
+   dist.reset(new GridFunction(dfes));
+
+   if (wall_type == "const")
+   { 
+      double val = this->options["wall-func"]["val"].template get<double>();
+      ConstantCoefficient wall_coeff(val);
+      dist->ProjectCoefficient(wall_coeff);
+   }
+   if (wall_type == "y-dist")
+   {
+      double offset = 
+         this->options["mesh"]["offset"].template get<double>();
+      auto walldist = [offset](const Vector &x)
+      {
+         if(x(1) == 0.0)
+            return 0.25*offset;
+         else
+            return x(1); 
+      };
+      FunctionCoefficient wall_coeff(walldist);
+      dist->ProjectCoefficient(wall_coeff);
+   }   
 }
 
 std::default_random_engine gen(std::random_device{}());

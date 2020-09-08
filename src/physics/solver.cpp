@@ -711,6 +711,9 @@ void AbstractSolver::printSolution(const std::string &file_name,
    }
    mesh->PrintVTK(sol_ofs, refine);
    u->SaveVTK(sol_ofs, "Solution", refine);
+   GridFunction r(u->FESpace());
+   res->Mult(*u, r);
+   r.SaveVTK(sol_ofs, "Residual", refine);
    sol_ofs.close();
 }
 

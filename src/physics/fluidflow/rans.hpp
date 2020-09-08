@@ -16,6 +16,13 @@ template <int dim, bool entvar = false>
 class RANavierStokesSolver : public  NavierStokesSolver<dim, entvar>
 {
 public:
+    /// Class constructor.
+    /// \param[in] opt_file_name - file where options are stored
+    /// \param[in] smesh - if provided, defines the mesh for the problem
+    /// \param[in] dim - number of dimensions
+    RANavierStokesSolver(const nlohmann::json &json_options, 
+                         std::unique_ptr<mfem::Mesh> smesh = nullptr);
+
     /// Sets `q_in` to the inflow conservative + SA variables
     void getRANSInflowState(mfem::Vector &q_in);
 
@@ -33,12 +40,7 @@ public:
     }
 
 protected:
-    /// Class constructor.
-    /// \param[in] opt_file_name - file where options are stored
-    /// \param[in] smesh - if provided, defines the mesh for the problem
-    /// \param[in] dim - number of dimensions
-    RANavierStokesSolver(const std::string &opt_file_name,
-                         std::unique_ptr<mfem::Mesh> smesh = nullptr);
+
 
     /// Add volume/domain integrators to `res` based on `options`
     /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
@@ -56,11 +58,16 @@ protected:
     virtual void iterationHook(int iter, double t, double dt) override;
 
     friend SolverPtr createSolver<RANavierStokesSolver<dim, entvar>>(
-       const std::string &opt_file_name,
+       const nlohmann::json &json_options,
        std::unique_ptr<mfem::Mesh> smesh);
+
+    /// create mesh distance function from options
+    void getDistanceFunction();
 
     /// SA constants vector
     mfem::Vector sacs;
+    /// Gridfunction for wall distance function (unused for now)
+    std::unique_ptr<mfem::GridFunction> dist;
     /// free-stream SA viscosity ratio (nu_tilde/nu_material)
     double chi_fs;
     /// material dynamic viscosity

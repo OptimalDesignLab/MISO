@@ -66,9 +66,10 @@ public:
    /// \param[in] 
    /// \param[in] vis - nondimensional dynamic viscosity (use Sutherland if neg)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   SASourceIntegrator(adept::Stack &diff_stack, mfem::GridFunction dist,
+   SASourceIntegrator(adept::Stack &diff_stack, mfem::GridFunction distance, double re_fs,
                           mfem::Vector sa_params, double vis = -1.0, double a = 1.0)
-       : alpha(a), mu(vis), stack(diff_stack), num_states(dim+3), sacs(sa_params) {}
+       : alpha(a), mu(vis), stack(diff_stack), num_states(dim+3), Re(re_fs), sacs(sa_params),
+       dist(distance) {}
 
    /// Construct the element local residual
    /// \param[in] fe - the finite element whose residual we want
@@ -90,26 +91,6 @@ public:
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
 
-   // // Compute vorticity on an SBP element, needed for SA model terms
-   // /// \param[in] q - the state over the element
-   // /// \param[in] sbp - the sbp element whose shape functions we want
-   // /// \param[in] Trans - defines the reference to physical element mapping
-   // /// \param[out] curl - the curl of the velocity field at each node/int point
-   // void calcVorticitySBP(const mfem::DenseMatrix &q, 
-   //                       const mfem::FiniteElement &fe, 
-   //                       mfem::ElementTransformation &Trans, 
-   //                       mfem::DenseMatrix curl);
-
-   // // Compute gradient for the turbulence variable on an SBP element, 
-   // // needed for SA model terms
-   // /// \param[in] q - the state over the element
-   // /// \param[in] sbp - the sbp element whose shape functions we want
-   // /// \param[in] Trans - defines the reference to physical element mapping
-   // /// \param[out] grad - the gradient of the turbulence variable at each node
-   // void calcGradSBP(const mfem::DenseMatrix &q, 
-   //                  const mfem::FiniteElement &fe, 
-   //                  mfem::ElementTransformation &Trans, 
-   //                  mfem::DenseMatrix grad);
 
 private:
 
@@ -120,6 +101,8 @@ protected:
    int num_states;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
+   /// Freestream Reynolds number
+   double Re;
    /// vector of SA model parameters
    mfem::Vector sacs;
    /// stack used for algorithmic differentiation
@@ -129,8 +112,10 @@ protected:
    mfem::Vector xi;
    /// used to reference the states at node i 
    mfem::Vector ui;
-   /// used to reference the gradient at node i
-   mfem::Vector grad_i;
+   /// used to reference the gradient of nu at node i
+   mfem::Vector grad_nu_i;
+   /// used to reference the gradient of rho at node i
+   mfem::Vector grad_rho_i;
    /// used to reference the curl at node i
    mfem::Vector curl_i;
    /// stores the result of calling the flux function
@@ -145,6 +130,8 @@ protected:
    mfem::DenseMatrix elflux;
    /// used to store the residual in (num_states, Dof) format
    mfem::DenseMatrix elres;
+   /// wall distance function
+   mfem::GridFunction dist;
 #endif
 };
 

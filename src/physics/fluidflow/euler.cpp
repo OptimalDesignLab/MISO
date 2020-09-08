@@ -366,7 +366,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    // This lambda function computes the error at a node
    // Beware: this is not particularly efficient, given the conditionals
    // Also **NOT thread safe!**
-   Vector qdiscrete(dim+2), qexact(dim+2); // define here to avoid reallocation
+   Vector qdiscrete(num_state), qexact(num_state); // define here to avoid reallocation
    auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
    {
       if (entvar)
