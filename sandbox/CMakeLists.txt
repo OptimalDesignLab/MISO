@@ -26,7 +26,9 @@ set(SANDBOX_SRCS
    navier_stokes_mms
    thermal_square
    joule_wire
+   ns_walltest
    rans_freestream
+   rans_walltest
 )
 
 create_sandbox("${SANDBOX_SRCS}")

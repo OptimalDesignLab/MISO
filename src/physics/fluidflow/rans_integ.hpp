@@ -221,10 +221,10 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the fluxes
    /// \param[out] flux_mat[:,di] - to be scaled by derivative `D_[di] v`
    void calcFluxDv(const mfem::Vector &x, const mfem::Vector &dir,
-                   const mfem::Vector &q, mfem::DenseMatrix &flux_mat)
-   {
-      flux_mat = 0.0;
-   }
+                   const mfem::Vector &q, mfem::DenseMatrix &flux_mat);
+   // {
+   //    flux_mat = 0.0;
+   // }
 
    /// Compute the Jacobian of calcFluxDv w.r.t. state
    /// \param[in] x - coordinate location at which fluxes are evaluated
@@ -233,11 +233,11 @@ public:
    /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
    void calcFluxDvJacState(const mfem::Vector &x, const mfem::Vector dir,
                            const mfem::Vector &u,
-                           std::vector<mfem::DenseMatrix> &flux_jac)
-   {
-      for (int d = 0; d < dim; ++d)
-         flux_jac[d] = 0.0;
-   }
+                           std::vector<mfem::DenseMatrix> &flux_jac);
+   // {
+   //    for (int d = 0; d < dim; ++d)
+   //       flux_jac[d] = 0.0;
+   // }
 
    /// Computes boundary node contribution to the surface force
    /// \param[in] x - coordinate location at which function is evaluated

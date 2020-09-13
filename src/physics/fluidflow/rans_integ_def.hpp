@@ -501,7 +501,7 @@ void SANoSlipAdiabaticWallBC<dim>::calcFlux(const mfem::Vector &x,
                                                       sacs.GetData());
    flux_vec(dim+2) -= (mu + fn*q(dim+2))*SAflux/(sacs(2)*Re);
    // Step 3: evaluate the no-slip penalty
-   calcNoSlipPenaltyFlux<double, dim>(dir.GetData(), jac, mu_Re, Pr, qfs.GetData(),
+   calcNoSlipPenaltyFlux<double, dim>(dir.GetData(), jac, mu_Re_SA, Pr, qfs.GetData(),
                                       q.GetData(), work_vec.GetData());
    flux_vec += work_vec;
    double dnu = q(dim+2);
@@ -564,7 +564,7 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacState(
                                                       sacs_a.data());
    flux_a[dim+2] -= (mu + fn*q_a[dim+2])*SAflux/(sacs_a[2]*Re);
    // Step 3: evaluate the no-slip penalty
-   mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(), jac, mu_Re, Pr, qfs_a.data(),
+   mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(), jac, mu_Re_SA, Pr, qfs_a.data(),
                                              q_a.data(), work_vec_a.data());
    for (int i = 0; i < flux_a.size(); ++i)
    {
@@ -632,7 +632,7 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mf
                                                       sacs_a.data());
    flux_a[dim+2] -= (mu + fn*q_a[dim+2])*SAflux/(sacs_a[2]*Re);
    // Step 3: evaluate the no-slip penalty
-   mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(), jac, mu_Re, Pr, qfs_a.data(),
+   mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(), jac, mu_Re_SA, Pr, qfs_a.data(),
                                              q_a.data(), work_vec_a.data());
    for (int i = 0; i < flux_a.size(); ++i)
    {
@@ -653,6 +653,71 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mf
       flux_jac[i] = (work.GetData() + i*this->num_states*this->num_states);
    }
 }
+
+template <int dim>
+void SANoSlipAdiabaticWallBC<dim>::calcFluxDv(const mfem::Vector &x,
+                                              const mfem::Vector &dir,
+                                              const mfem::Vector &q,
+                                              mfem::DenseMatrix &flux_mat)
+{
+   double mu_Re = mu;
+   if (mu < 0.0)
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   //mu_Re /= Re;
+   double fv1 = calcSACoefficient<double, dim>(q.GetData(), mu, 
+                                                      sacs.GetData());
+   double mu_Re_SA = (mu_Re + q(dim+2)*fv1)/Re;
+   calcNoSlipDualFlux<double, dim>(dir.GetData(), mu_Re_SA, Pr, q.GetData(),
+                                   flux_mat.GetData());
+   for (int di = 0; di < dim; di++)
+      flux_mat(dim+2, di) = 0.0;
+
+}
+
+template <int dim>
+void SANoSlipAdiabaticWallBC<dim>::calcFluxDvJacState(
+   const mfem::Vector &x, const mfem::Vector dir, const mfem::Vector &q,
+   std::vector<mfem::DenseMatrix> &flux_jac)
+{
+   // create containers for active double objects for each input
+   int flux_size = dim*(dim+3);
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> sacs_a(sacs.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(sacs_a.data(), sacs.Size(), sacs.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> fluxes_a(flux_size);
+   // evaluate the fluxes
+   adouble mu_Re = mu;
+   if (mu < 0.0)
+      mu_Re = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   //mu_Re /= Re;
+   adouble fv1 = calcSACoefficient<adouble, dim>(q_a.data(), mu, 
+                                                      sacs_a.data());
+   adouble mu_Re_SA = (mu_Re + q_a[dim+2]*fv1)/Re;
+   calcNoSlipDualFlux<adouble, dim>(dir_a.data(), mu_Re_SA, Pr, q_a.data(),
+                                    fluxes_a.data());
+   for (int di = 0; di < dim; di++)
+      fluxes_a[dim+2 + di*(dim+3)] = 0.0;
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(fluxes_a.data(), flux_size);
+   // compute and store jacobian in flux_jac
+   mfem::Vector work(flux_size*(dim+3));
+   this->stack.jacobian(work.GetData());
+   for (int s = 0; s < dim+3; ++s)
+   {
+      for (int i = 0; i < dim; ++i)
+      {
+         flux_jac[i].SetCol(s, work.GetData() + (s*dim + i)*(dim+3));
+      }
+   }
+}
+
 
 //==============================================================================
 //SA Viscous Slip-Wall Integrator methods

@@ -44,6 +44,8 @@ protected:
    /// Create `output` based on `options` and add approporiate integrators
    virtual void addOutputs() override;
 
+    virtual void iterationHook(int iter, double t, double dt) override;
+
    /// Set the state corresponding to the inflow boundary
    /// \param[in] q_in - state corresponding to the inflow
    void getViscousInflowState(mfem::Vector &q_in);

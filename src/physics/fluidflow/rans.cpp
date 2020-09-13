@@ -233,8 +233,8 @@ void RANavierStokesSolver<dim, entvar>::getDistanceFunction()
    }   
 }
 
-std::default_random_engine gen(std::random_device{}());
-std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+std::default_random_engine gen_ns(std::random_device{}());
+std::uniform_real_distribution<double> normal_rand_ns(-1.0,1.0);
 
 // perturbation function used to check the jacobian in each iteration
 void pert(const Vector &x, Vector& p)
@@ -242,7 +242,7 @@ void pert(const Vector &x, Vector& p)
    p.SetSize(5);
    for (int i = 0; i < 5; i++)
    {
-      p(i) = normal_rand(gen);
+      p(i) = normal_rand_ns(gen_ns);
    }
 }
 

@@ -148,7 +148,7 @@ TEST_CASE("SA S derivatives", "[SASource]")
     const int dim = 2;
     mfem::Vector q(dim+3);
     mfem::Vector grad(dim);
-    double delta = 1e-5;
+    double delta = 1e-6;
 
     grad(0) = 0.0;
     grad(1) = 0.0;
@@ -182,7 +182,7 @@ TEST_CASE("SA S derivatives", "[SASource]")
         stack.new_recording();
         mfem::Vector dSrcdu(1);
         adouble S_a; 
-        S_a.set_value(0.000);
+        S_a.set_value(2e-5);
         adouble d_a = 10.1;
         adouble mu_a = 1.1;
         adouble Re_a = 5000000;
@@ -209,7 +209,7 @@ TEST_CASE("SA S derivatives", "[SASource]")
         stack.dependent(src);
         stack.jacobian(dSrcdu.GetData());
 
-        double Sp = 0.000 + delta; double Sm = 0.000 - delta;
+        double Sp = 2e-5 + delta; double Sm = 2e-5 - delta;
         double d = 10.1;
         double mu = 1.1;
         double Re = 5000000;

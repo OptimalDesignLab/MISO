@@ -864,7 +864,7 @@ TEST_CASE("SAViscousIntegrator::AssembleElementGrad", "[SAViscousIntegrator]")
 }
 #endif
 
-#if 0
+
 TEST_CASE("SANoSlipAdiabaticWallBC::AssembleElementGrad", "[SANoSlipAdiabaticWallBC]")
 {
    using namespace mfem;
@@ -942,6 +942,7 @@ TEST_CASE("SANoSlipAdiabaticWallBC::AssembleElementGrad", "[SANoSlipAdiabaticWal
    }
 }
 
+#if 0
 TEST_CASE("SAViscousSlipWallBC::AssembleElementGrad", "[SAViscousSlipWallBC]")
 {
    using namespace mfem;
@@ -1132,11 +1133,11 @@ TEST_CASE("SASourceIntegrator::AssembleElementGrad", "[SASourceIntegrator]")
          GridFunction dist(fes.get()); 
         auto walldist = [](const Vector &x)
         {
-                return x(1) + 0.00001; 
+                return 0.0001*x(1) + 0.00001; 
         };
         FunctionCoefficient wall_coeff(walldist);
          dist.ProjectCoefficient(wall_coeff);
-         dist = 0.00001;
+         //dist = 0.00001;
          NonlinearForm res(fes.get());
          double Re = 5000000.0;
          res.AddDomainIntegrator(new mach::SASourceIntegrator<dim>(diff_stack, dist, Re, sacs, 1.0));

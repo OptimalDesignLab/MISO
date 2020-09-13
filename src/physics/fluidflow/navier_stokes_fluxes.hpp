@@ -235,7 +235,7 @@ template <typename xdouble, int dim>
 void calcNoSlipDualFlux(const xdouble *dir, xdouble mu, double Pr,
                         const xdouble *q, xdouble *fluxes)
 {
-   int num_state = dim + 2;
+   int num_state = dim + 3;
    // zero out the fluxes, since applyCijMatrix accummulates 
    for (int i = 0; i < num_state*dim; ++i)
       fluxes[i] = 0.0;
