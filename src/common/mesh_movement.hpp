@@ -2,23 +2,13 @@
 #define MACH_MESH_MOVEMENT
 
 #include "mfem.hpp"
-#include "adept.h"
-#include "../../build/_config.hpp"
-
-// #ifdef MFEM_USE_PUMI
-// namespace apf
-// {
-// class Mesh2;
-// } // namespace apf
-// #endif
-
-// #ifdef MFEM_USE_EGADS
-// #include "egads.h"
-// #include "mach_egads.hpp"
-// #endif
 
 #include "solver.hpp"
-#include "coefficient.hpp"
+
+namespace mfem
+{
+class Coefficient;
+} // namespace mfem
 
 namespace mach
 {
@@ -53,8 +43,6 @@ private:
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::ofstream sol_ofs;
 
-   mfem::HypreParMatrix K;
-   mfem::Vector B, U;
 
    /// Stiffness coefficients
    std::unique_ptr<mfem::Coefficient> lambda_c;
@@ -66,7 +54,8 @@ private:
 
    void addMassIntegrators(double alpha) override;
 
-   void addStiffVolumeIntegrators(double alpha) override;
+   // void addStiffVolumeIntegrators(double alpha) override;
+   void addResVolumeIntegrators(double alpha) override;
 
    void setEssentialBoundaries() override;
 
@@ -78,9 +67,6 @@ private:
    // // Mu element wise function
    // static double MuFunc(const mfem::Vector &x, int ie);
 };
-
-// #endif
-// #endif
 
 } //namespace mach
 

@@ -1,9 +1,8 @@
+#include <fstream>
+
+#include "coefficient.hpp"
 #include "mesh_movement.hpp"
 
-#include <fstream>
-#include "../../build/_config.hpp"
-
-using namespace std;
 using namespace mfem;
 
 namespace mach
@@ -49,7 +48,8 @@ void LEAnalogySolver::constructCoefficients()
 void LEAnalogySolver::constructForms()
 {
    mass.reset(new BilinearFormType(fes.get()));
-   stiff.reset(new BilinearFormType(fes.get()));
+   res.reset(new NonlinearFormType(fes.get()));
+   // stiff.reset(new BilinearFormType(fes.get()));
    load.reset(new LinearFormType(fes.get()));
    *load = 0.0;
 }
@@ -59,9 +59,14 @@ void LEAnalogySolver::addMassIntegrators(double alpha)
    mass->AddDomainIntegrator(new VectorMassIntegrator());
 }
 
-void LEAnalogySolver::addStiffVolumeIntegrators(double alpha)
+// void LEAnalogySolver::addStiffVolumeIntegrators(double alpha)
+// {
+//    stiff->AddDomainIntegrator(new ElasticityIntegrator(*lambda_c, *mu_c));
+// }
+
+void LEAnalogySolver::addResVolumeIntegrators(double alpha)
 {
-   stiff->AddDomainIntegrator(new ElasticityIntegrator(*lambda_c, *mu_c));
+   res->AddDomainIntegrator(new ElasticityIntegrator(*lambda_c, *mu_c));
 }
 
 void LEAnalogySolver::setEssentialBoundaries()

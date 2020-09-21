@@ -27,7 +27,8 @@ options = {
         'printlevel': 3,
         'maxiter': 2,
         'reltol': 1e-6,
-        'abstol': 1e-6
+        'abstol': 1e-6,
+        'maxiter': 5
     },
     'lin-solver': {
         'type': 'hyprepcg',

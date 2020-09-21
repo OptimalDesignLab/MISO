@@ -1,8 +1,10 @@
-#include "evolver.hpp"
-#include "utils.hpp"
 #include <iostream>
+
+#include "utils.hpp"
+#include "evolver.hpp"
+
 using namespace mfem;
-using namespace std;
+
 using namespace mach;
 
 namespace mach
@@ -110,8 +112,8 @@ public:
          *resjac *= dt;
          jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
       }
-      HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
-      delete Je;
+      // HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
+      // delete Je;
 
       return *jac;
    }
