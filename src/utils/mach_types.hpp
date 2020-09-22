@@ -9,7 +9,7 @@ namespace mach
 // Aliases for various mfem types.
 // Originally used to distinguish between serial and parallel types
 #ifdef MFEM_USE_PUMI
-   using MeshType = mfem::ParPumiMesh;
+   using MeshType = mfem::ParMesh;
 #else
    using MeshType = mfem::ParMesh;
 #endif
