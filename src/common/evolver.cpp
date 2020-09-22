@@ -262,9 +262,14 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
 {
    setOperParameters(dt, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   // k = 0.0; // In case iterative mode is set to true
-   k = x;
+
+   // set iterative mode to false so k is only zeroed once, but set back after
+   auto iter_mode = newton->iterative_mode;
+   newton->iterative_mode = false;
    newton->Mult(zero, k);
+   newton->iterative_mode = iter_mode;
+   newton->Mult(zero, k);
+   
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 

@@ -309,9 +309,11 @@ void AbstractSolver::initDerived()
 AbstractSolver::~AbstractSolver()
 {
 #ifdef MFEM_USE_PUMI
-   if (!PCU_previously_initialized)
-      PCU_Comm_Free();
-
+   if (pumi_mesh)
+   {
+      if (!PCU_previously_initialized)
+         PCU_Comm_Free();
+   }
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
    Sim_unregisterAllKeys();
