@@ -67,7 +67,7 @@ const nlohmann::json default_options
    {
       {"type", "hypreilu"}, // default preconditioner
       {"lev-fill", 1}, // ILU(k) fill level
-      {"ilu-type", 10}, // ILU type (see mfem HypreILU doc)
+      {"ilu-type", 0}, // ILU type (see mfem HypreILU doc)
       {"ilu-reorder", 1}, // 0 = no reordering, 1 = RCM
       {"printlevel", 0} // 0 = none, 1 = setup, 2 = solve, 3 = setup+solve
    }},
