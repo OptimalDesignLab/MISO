@@ -23,6 +23,11 @@ set(THERMAL_TEST_SRCS
     test_thermal_cube
 )
 
+# group together all EM related tests
+set(EM_TEST_SRCS
+    test_magnetostatic_box
+)
 
 create_tests("${FLUID_TEST_SRCS}" regression_data.cpp)
 create_tests("${THERMAL_TEST_SRCS}" regression_data.cpp)
+create_tests("${EM_TEST_SRCS}" regression_data.cpp)

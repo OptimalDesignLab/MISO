@@ -91,11 +91,11 @@ public:
 
       if (mass)
          jac = mass->ParallelAssemble();
-      if (stiff)
-      {
-         HypreParMatrix *stiffmat = stiff->ParallelAssemble();
-         jac == nullptr ? jac = stiffmat : jac = Add(1.0, *jac, dt, *stiffmat);
-      }
+      // if (stiff)
+      // {
+      //    HypreParMatrix *stiffmat = stiff->ParallelAssemble();
+      //    jac == nullptr ? jac = stiffmat : jac = Add(1.0, *jac, dt, *stiffmat);
+      // }
       if (nonlinear_mass)
       {
          add(*x, dt_stage, k, x_work);
@@ -112,8 +112,8 @@ public:
          *resjac *= dt;
          jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
       }
-      // HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
-      // delete Je;
+      HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
+      delete Je;
 
       return *jac;
    }

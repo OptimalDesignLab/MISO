@@ -14,7 +14,7 @@ class omMeshMove(om.ImplicitComponent):
 
         local_mesh_size = solver.getMeshSize()
 
-        self.add_input('surf_mesh_coords', shape=local_mesh_size)
+        self.add_input('surf_mesh_disp', shape=local_mesh_size)
         self.add_output('vol_mesh_coords', shape=local_mesh_size)
 
         #self.declare_partials(of='state', wrt='*')
@@ -25,7 +25,7 @@ class omMeshMove(om.ImplicitComponent):
         """
         solver = self.options['solver']
 
-        surf_mesh_coords = inputs['surf_mesh_coords']
+        surf_mesh_disp = inputs['surf_mesh_disp']
         vol_mesh_coords = outputs['vol_mesh_coords']
         
         state = solver.getNewField(vol_mesh_coords)
@@ -42,13 +42,17 @@ class omMeshMove(om.ImplicitComponent):
         """
         solver = self.options['solver']
 
-        surf_mesh_coords = inputs['surf_mesh_coords']
+        surf_mesh_disp = inputs['surf_mesh_disp']
         vol_mesh_coords = outputs['vol_mesh_coords']
 
         # set IC
-        vol_mesh_coords = np.copy(surf_mesh_coords)
-        print(surf_mesh_coords)
+        # vol_mesh_coords = np.copy(surf_mesh_disp)
+        # print(surf_mesh_disp)
 
+        vol_mesh_coords = np.copy(solver.getMeshCoordinates())
+
+        # add surface displacement to mesh_coords
+        vol_mesh_coords += surf_mesh_disp
         state = solver.getNewField(vol_mesh_coords)
 
         solver.printField("state", state, "state")

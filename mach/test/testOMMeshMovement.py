@@ -69,7 +69,7 @@ if __name__ == "__main__":
     model.connect('des_vars.length', 'surf_mesh_move.length')
     model.connect('des_vars.radius', 'surf_mesh_move.radius')
 
-    model.connect('surf_mesh_move.surf_mesh_coords', 'vol_mesh_move.surf_mesh_coords')
+    model.connect('surf_mesh_move.surf_mesh_disp', 'vol_mesh_move.surf_mesh_disp')
 
     problem.setup()
     problem.run_model()
