@@ -227,7 +227,7 @@ double EulerSolver<dim, entvar>::calcStepSize(double cfl) const
       else
       {
          return calcSpectralRadius<double, dim>(dir, u);
-      }   
+      }
    };
    double dt_local = 1e100;
    Vector xi(dim);

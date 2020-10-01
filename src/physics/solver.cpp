@@ -187,7 +187,7 @@ void AbstractSolver::initDerived()
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    if (odes == "RK1" || odes == "RK4")
    {
-      evolver.reset(new NonlinearEvolver(*mass_matrix, *res, -1.0));
+      evolver.reset(new NonlinearEvolver(*mass_matrix_gd, *res, -1.0));
    }
    else if (odes == "MIDPOINT")
    {
@@ -789,6 +789,7 @@ void AbstractSolver::solveUnsteady()
       double dt_real = min(dt, t_final - t);
       // TODO: !!!!! The following does not generalize beyond midpoint !!!!!
       updateNonlinearMass(ti, 0.5*dt_real, 1.0);
+      //updateNonlinearMass(ti, dt_real/2, 1.0);
       // if (ti % 10 == 0)
       // {
       //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real

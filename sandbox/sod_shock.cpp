@@ -1,6 +1,6 @@
 /// Solve the unsteady isentropic vortex problem
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = false;
+constexpr bool entvar = true;
 #include <random>
 #include "mfem.hpp"
 #include "euler.hpp"
@@ -125,7 +125,7 @@ void u0_function(const Vector &x, Vector& q)
    }
    else
    {
-      calcEntropyVars<double, 2>(u0.GetData(), q.GetData());
+      calcEntropyVars<double, 1>(u0.GetData(), q.GetData());
    }
 }
 

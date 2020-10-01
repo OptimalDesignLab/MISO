@@ -78,7 +78,8 @@ int main(int argc, char *argv[])
 
    try
    {
-      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      //unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      unique_ptr<Mesh> smesh(new Mesh(nx));
       std::cout << "Number of elements " << smesh->GetNE() << '\n';
       ofstream sol_ofs("gd_test.vtk");
       sol_ofs.precision(14);
