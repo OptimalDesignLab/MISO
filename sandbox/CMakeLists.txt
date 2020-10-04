@@ -25,6 +25,7 @@ set(SANDBOX_SRCS
    magnetostatic_wire
    navier_stokes_mms
    thermal_square
+   surface_distance
    joule_wire
 )
 

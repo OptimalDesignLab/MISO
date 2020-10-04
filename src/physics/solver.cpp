@@ -1146,10 +1146,16 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    {
       precond.reset(new HypreILU());
       HypreILU *ilu = dynamic_cast<HypreILU*>(precond.get());
-      ilu->SetType(_options["ilu-type"].get<int>());
-      ilu->SetLevelOfFill(_options["lev-fill"].get<int>());
-      ilu->SetLocalReordering(_options["ilu-reorder"].get<int>());
-      ilu->SetPrintLevel(_options["printlevel"].get<int>());
+      HYPRE_ILUSetType(*ilu, _options["ilu-type"].get<int>());
+      HYPRE_ILUSetLevelOfFill(*ilu, _options["lev-fill"].get<int>());
+      HYPRE_ILUSetLocalReordering(*ilu, _options["ilu-reorder"].get<int>());
+      HYPRE_ILUSetPrintLevel(*ilu, _options["printlevel"].get<int>());
+      cout << "Just after Hypre options" << endl;
+      // Just listing the options below in case we need them in the future
+      //HYPRE_ILUSetSchurMaxIter(ilu, schur_max_iter);
+      //HYPRE_ILUSetNSHDropThreshold(ilu, nsh_thres); needs type = 20,21
+      //HYPRE_ILUSetDropThreshold(ilu, drop_thres);
+      //HYPRE_ILUSetMaxNnzPerRow(ilu, nz_max);
    }
    else if (prec_type == "hypreams")
    {
