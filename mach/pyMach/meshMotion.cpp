@@ -45,9 +45,9 @@ void initMeshMotion(py::module &m)
          throw std::runtime_error("Incompatible dimensions:\n"
                                     "\texpected a 1D array!");
 
-      auto new_coords_size = info.shape[0];
+      auto displacements_size = info.shape[0];
       
-      auto new_coords = static_cast<double *>(info.ptr);
+      auto displacements = static_cast<double *>(info.ptr);
 
       // start egads
       ego eg_context;
@@ -101,15 +101,15 @@ void initMeshMotion(py::module &m)
       auto *raw_tess = static_cast<egTessel *>(new_tess->blind);
 
       int ptype, pindex;
-      double xyz[3];
+      double xyz[3], xyz_old[3];
       // std::cout << "old_raw_tess->nGlobal: " << old_raw_tess->nGlobal << "\n";
       // std::cout << "raw_tess->nGlobal: " << raw_tess->nGlobal << "\n";
 
       bool two_dimensional = false;
-      if (new_coords_size == 2*old_raw_tess->nGlobal )
+      if (displacements_size == 2*old_raw_tess->nGlobal )
          two_dimensional = true;
 
-      // std::cout << "new_coords_size: " << new_coords_size << "\n";
+      // std::cout << "displacements_size: " << displacements_size << "\n";
       // std::cout << "tess size: " << old_raw_tess->nGlobal << "\n";
       // std::cout << "tess size (2): " << 2 * (old_raw_tess->nGlobal / 3) << "\n";
       // std::cout << "two dim: " << two_dimensional << "\n";
@@ -117,16 +117,17 @@ void initMeshMotion(py::module &m)
       for (int i = 1; i <= old_raw_tess->nGlobal; ++i)
       {
          EG_getGlobal(new_tess, i, &ptype, &pindex, xyz);
+         EG_getGlobal(old_tess, i, &ptype, &pindex, xyz_old);
          if (two_dimensional)
          {
-            new_coords[(i-1)*2 + 0] = xyz[0];
-            new_coords[(i-1)*2 + 1] = xyz[1];
+            displacements[(i-1)*2 + 0] = xyz[0] - xyz_old[0];
+            displacements[(i-1)*2 + 1] = xyz[1] - xyz_old[1];
          }
          else
          {
-            new_coords[(i-1)*3 + 0] = xyz[0];
-            new_coords[(i-1)*3 + 1] = xyz[1];
-            new_coords[(i-1)*3 + 2] = xyz[2];
+            displacements[(i-1)*3 + 0] = xyz[0] - xyz_old[0];
+            displacements[(i-1)*3 + 1] = xyz[1] - xyz_old[1];
+            displacements[(i-1)*3 + 2] = xyz[2] - xyz_old[2];
          }
          // std::cout << "(" << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << ")\n";
       }
@@ -138,7 +139,7 @@ void initMeshMotion(py::module &m)
    py::arg("old_model"),
    py::arg("new_model"),
    py::arg("tess_file"),
-   py::arg("new_coords"))
+   py::arg("displacements"))
    ;
 
 }

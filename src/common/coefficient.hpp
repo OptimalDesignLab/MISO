@@ -2,6 +2,7 @@
 #define MACH_COEFFICIENT
 
 #include <map>
+
 #include "mfem.hpp"
 
 #include "mach_types.hpp"

@@ -85,7 +85,7 @@ class SolverRegressionTests(unittest.TestCase):
         options = {
             "mesh": {
             },
-            "print-options": False,
+            "print-options": True,
             "flow-param": {
                 "mach": 1.0,
                 "aoa": 0.0
@@ -109,10 +109,10 @@ class SolverRegressionTests(unittest.TestCase):
                 "vortex": [1, 1, 1, 0],
                 "slip-wall": [0, 0, 0, 1]
             },
-            "newton": {
-                "printlevel": 0,
-                "maxiter": 50,
-                "reltol": 1e-1,
+            "nonlin-solver": {
+                "printlevel": 1,
+                "maxiter": 5,
+                "reltol": 1e-12,
                 "abstol": 1e-12
             },
             "petscsolver": {
