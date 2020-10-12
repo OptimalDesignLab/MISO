@@ -181,7 +181,7 @@ TEST_CASE("AggregateResIntegrator::AssembleVector", "[AggregateResIntegrator]")
          
          // initialize the vector that dJdx multiplies
          GridFunction v(mesh_fes);
-         VectorFunctionCoefficient v_rand(dim, randState);
+         VectorFunctionCoefficient v_rand(dim, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate dJdx and compute its product with v

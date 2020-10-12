@@ -34,12 +34,12 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -74,12 +74,12 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -133,12 +133,12 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -174,12 +174,12 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -238,12 +238,12 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate dJdu and compute its product with v
@@ -274,12 +274,12 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate dJdu and compute its product with v
@@ -330,12 +330,12 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2,entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2,entvar>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -370,12 +370,12 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2, entvar>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -433,12 +433,12 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
 //          // initialize state; here we randomly perturb a constant state
 //          GridFunction q(fes.get());
-//          VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+//          VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
 //          q.ProjectCoefficient(pert);
 
 //          // initialize the vector that the Jacobian multiplies
 //          GridFunction v(fes.get());
-//          VectorFunctionCoefficient v_rand(num_state, randState);
+//          VectorFunctionCoefficient v_rand(num_state, randVectorState);
 //          v.ProjectCoefficient(v_rand);
 
 //          // evaluate the Jacobian and compute its product with v
@@ -494,12 +494,12 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2, entvar>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -534,12 +534,12 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2, entvar>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -590,12 +590,12 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
 
          // initialize state; we randomly perturb a constant state
          GridFunction u(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2, entvar>);
          u.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          NonlinearForm res(fes.get());
@@ -631,12 +631,12 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
 
          // initialize state and k = du/dt; here we randomly perturb a constant state
          GridFunction u(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2, entvar>);
          u.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          NonlinearForm res(fes.get());
@@ -700,12 +700,12 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad",
 
          // initialize state; here we randomly perturb a constant state
          GridFunction w(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim, entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim, entvar>);
          w.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v

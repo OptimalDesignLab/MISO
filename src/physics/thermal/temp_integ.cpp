@@ -7,17 +7,16 @@ using namespace std;
 namespace mach
 {
 
-AggregateIntegrator::AggregateIntegrator(
-                              const mfem::FiniteElementSpace *fe_space,
-                              const double r,
-                              const mfem::Vector m,
-                              mfem::GridFunction *temp)       
+AggregateIntegrator::AggregateIntegrator(const FiniteElementSpace *fe_space,
+                                         const double r,
+                                         const Vector m,
+                                         GridFunction *temp)       
    : fes(fe_space), rho(r), max(m)
 { 
    GetIEAggregate(temp);
 }
 
-double AggregateIntegrator::GetIEAggregate(mfem::GridFunction *temp)
+double AggregateIntegrator::GetIEAggregate(GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
@@ -61,9 +60,9 @@ double AggregateIntegrator::GetIEAggregate(mfem::GridFunction *temp)
    return J_;
 }
 
-double AggregateIntegrator::GetElementEnergy(const mfem::FiniteElement &el, 
-               mfem::ElementTransformation &Trans,
-               const mfem::Vector &elfun)
+double AggregateIntegrator::GetElementEnergy(const FiniteElement &el, 
+                                             ElementTransformation &Trans,
+                                             const Vector &elfun)
 {
    double Jpart = 0;
    // const int dof = el.GetDof();
@@ -85,9 +84,10 @@ double AggregateIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
    return Jpart/denom_;
 }
 
-void AggregateIntegrator::AssembleElementVector(const mfem::FiniteElement &el, 
-               mfem::ElementTransformation &Trans,
-               const mfem::Vector &elfun, mfem::Vector &elvect)
+void AggregateIntegrator::AssembleElementVector(const FiniteElement &el, 
+                                                ElementTransformation &Trans,
+                                                const Vector &elfun,
+                                                Vector &elvect)
 {
    int dof = el.GetDof(); //, dim = el.GetDim();
    elvect.SetSize(dof);
@@ -114,14 +114,14 @@ void AggregateIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
 }
 
 
-TempIntegrator::TempIntegrator( const mfem::FiniteElementSpace *fe_space,
-                              mfem::GridFunction *temp)       
+TempIntegrator::TempIntegrator(const FiniteElementSpace *fe_space,
+                               GridFunction *temp)       
    : fes(fe_space), temp_(temp)
 { 
    //GetTemp(temp);
 }
 
-double TempIntegrator::GetTemp(mfem::GridFunction *temp)
+double TempIntegrator::GetTemp(GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
@@ -162,9 +162,10 @@ double TempIntegrator::GetTemp(mfem::GridFunction *temp)
    return J_;
 }
 
-void TempIntegrator::AssembleElementVector(const mfem::FiniteElement &el, 
-               mfem::ElementTransformation &Trans,
-               const mfem::Vector &elfun, mfem::Vector &elvect)
+void TempIntegrator::AssembleElementVector(const FiniteElement &el, 
+                                           ElementTransformation &Trans,
+                                           const Vector &elfun,
+                                           Vector &elvect)
 {
    int dof = el.GetDof(); //, dim = el.GetDim();
    elvect.SetSize(dof);
@@ -183,10 +184,11 @@ void TempIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
    }
 }
 
-void TempIntegrator::AssembleFaceVector(const mfem::FiniteElement &el1, 
-               const mfem::FiniteElement &el2, 
-               mfem::FaceElementTransformations &Trans,
-               const mfem::Vector &elfun, mfem::Vector &elvect)
+void TempIntegrator::AssembleFaceVector(const FiniteElement &el1, 
+                                        const FiniteElement &el2, 
+                                        FaceElementTransformations &Trans,
+                                        const Vector &elfun,
+                                        Vector &elvect)
 {
    int dof = el1.GetDof(); //, dim = el1.GetDim();
    elvect.SetSize(dof);
@@ -210,16 +212,16 @@ void TempIntegrator::AssembleFaceVector(const mfem::FiniteElement &el1,
 
 
 AggregateResIntegrator::AggregateResIntegrator(
-                              const mfem::FiniteElementSpace *fe_space,
-                              const double r,
-                              const mfem::Vector m,
-                              mfem::GridFunction *temp)       
+   const FiniteElementSpace *fe_space,
+   const double r,
+   const Vector m,
+   GridFunction *temp)       
    : fes(fe_space), rho(r), max(m)
 { 
    GetIEAggregate(temp);
 }
 
-double AggregateResIntegrator::GetIEAggregate(mfem::GridFunction *temp)
+double AggregateResIntegrator::GetIEAggregate(GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
@@ -264,9 +266,10 @@ double AggregateResIntegrator::GetIEAggregate(mfem::GridFunction *temp)
    return J_;
 }
 
-void AggregateResIntegrator::AssembleElementVector(const mfem::FiniteElement &elx, 
-               mfem::ElementTransformation &Trx,
-               const mfem::Vector &elfunx, mfem::Vector &elvect)
+void AggregateResIntegrator::AssembleElementVector(const FiniteElement &elx, 
+                                                   ElementTransformation &Trx,
+                                                   const Vector &elfunx,
+                                                   Vector &elvect)
 {
    /// get the proper element, transformation, and state vector
    Array<int> vdofs; Vector elfun; 
