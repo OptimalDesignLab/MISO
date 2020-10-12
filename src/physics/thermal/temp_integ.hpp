@@ -74,21 +74,24 @@ public:
 
    /// Overloaded, precomputes for use in adjoint
    TempIntegrator(const mfem::FiniteElementSpace *fe_space,
-                              mfem::GridFunction *temp);
+                  mfem::GridFunction *temp);
 
+   /// TODO: Turn this into a GetElementEnergy and GetFaceEnergy
    /// Computes the induced functional estimate for aggregated temperature
 	double GetTemp(mfem::GridFunction *temp);
 
    /// Computes dJdu, for the adjoint
-   virtual void AssembleElementVector(const mfem::FiniteElement &el, 
-               mfem::ElementTransformation &Trans,
-               const mfem::Vector &elfun, mfem::Vector &elvect);
+   void AssembleElementVector(const mfem::FiniteElement &el, 
+                              mfem::ElementTransformation &Trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
    /// Computes dJdu for the adjoint on the boundary
-   virtual void AssembleFaceVector(const mfem::FiniteElement &el1, 
-               const mfem::FiniteElement &el2, 
-               mfem::FaceElementTransformations  &Trans,
-               const mfem::Vector &elfun, mfem::Vector &elvect);
+   void AssembleFaceVector(const mfem::FiniteElement &el1, 
+                           const mfem::FiniteElement &el2, 
+                           mfem::FaceElementTransformations  &Trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elvect) override;
 private: 
 
    /// used to integrate over appropriate elements

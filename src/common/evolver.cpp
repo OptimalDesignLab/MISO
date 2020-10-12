@@ -66,11 +66,11 @@ public:
          res->Mult(x_work, r_work);
          r += r_work;
       }
-      if (stiff)
-      {
-         stiff->TrueAddMult(x_work, r);
-         r.SetSubVector(ess_tdof_list, 0.0);
-      }
+      // if (stiff)
+      // {
+      //    stiff->TrueAddMult(x_work, r);
+      //    r.SetSubVector(ess_tdof_list, 0.0);
+      // }
       if (load)
       {
          r += *load;
@@ -112,8 +112,8 @@ public:
          *resjac *= dt;
          jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
       }
-      HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
-      delete Je;
+      // HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
+      // delete Je;
 
       return *jac;
    }
@@ -268,7 +268,6 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
    newton->iterative_mode = false;
    newton->Mult(zero, k);
    newton->iterative_mode = iter_mode;
-   newton->Mult(zero, k);
    
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }

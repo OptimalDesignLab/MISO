@@ -43,6 +43,7 @@ TEST_CASE( "Segment SBP difference operator is accurate...", "[sbp-seg-D]")
          Vector u(sbp.GetDof());
          Vector dudx(sbp.GetDof());
          Vector du(sbp.GetDof());
+         Vector Dk(sbp.GetDof());
          for (int i = 0; i <= p; ++i)
          {
             polynomial1D(x, i, u);
@@ -53,6 +54,12 @@ TEST_CASE( "Segment SBP difference operator is accurate...", "[sbp-seg-D]")
             for (int k = 0; k < sbp.GetDof(); ++k)
             {
                REQUIRE( du(k) == Approx(dudx(k)).margin(abs_tol) );
+               // Check that row extraction of D is correct
+               sbp.getStrongOperator(0, k, Dk);
+               for (int j = 0; j < sbp.GetDof(); ++j)
+               {
+                  REQUIRE( D(k,j) == Approx(Dk(j)).margin(abs_tol) );
+               }
             }
          }
 
@@ -111,6 +118,7 @@ TEST_CASE( "Triangle SBP difference operator is accurate...", "[sbp-tri-D]")
          Vector dudx(sbp.GetDof());
          Vector dudy(sbp.GetDof());
          Vector du(sbp.GetDof());
+         Vector Dk(sbp.GetDof());
          for (int r = 0; r <= p; ++r)
          {
             for (int j = 0; j <= r; ++j)
@@ -126,12 +134,26 @@ TEST_CASE( "Triangle SBP difference operator is accurate...", "[sbp-tri-D]")
                for (int k = 0; k < sbp.GetDof(); ++k)
                {
                   REQUIRE( du(k) == Approx(dudx(k)).margin(abs_tol) );
+
+                  // Check that row extraction of D is correct
+                  sbp.getStrongOperator(0, k, Dk);
+                  for (int col = 0; col < sbp.GetDof(); ++col)
+                  {
+                     REQUIRE(D(k, col) == Approx(Dk(col)).margin(abs_tol));
+                  }
                }
                sbp.getStrongOperator(1, D);
                D.Mult(u, du);
                for (int k = 0; k < sbp.GetDof(); ++k)
                {
                   REQUIRE( du(k) == Approx(dudy(k)).margin(abs_tol) );
+
+                  // Check that row extraction of D is correct
+                  sbp.getStrongOperator(1, k, Dk);
+                  for (int col = 0; col < sbp.GetDof(); ++col)
+                  {
+                     REQUIRE(D(k, col) == Approx(Dk(col)).margin(abs_tol));
+                  }
                }
             }
          }
@@ -187,7 +209,7 @@ TEST_CASE( "Triangle DSBP difference operator is accurate...", "[dsbp-tri-D]")
    } // loop over p
 }
 
-TEST_CASE( "Segment SBP multWeakOperator is accurate...", "[sbp-seg-Q]")
+TEST_CASE( "Segment SBP multWeak/StrongOperator are accurate...", "[sbp-seg-Q]")
 {
    // This test indirectly checks multWeakOperator by forming H^{-}*Q*u = D*u
    int dim = 1;
@@ -205,6 +227,7 @@ TEST_CASE( "Segment SBP multWeakOperator is accurate...", "[sbp-seg-Q]")
          Vector du(sbp.GetDof());
          DenseMatrix du_mat(du.GetData(), 1, sbp.GetDof());
          Vector dudx(sbp.GetDof());
+         Vector du_vec(1);
          for (int i = 0; i <= p; ++i)
          {
             polynomial1D(x, i, u);
@@ -216,6 +239,9 @@ TEST_CASE( "Segment SBP multWeakOperator is accurate...", "[sbp-seg-Q]")
             for (int k = 0; k < sbp.GetDof(); ++k)
             {
                REQUIRE( du(k) == Approx(dudx(k)).margin(abs_tol) );
+               // Now test the application at a node
+               sbp.multStrongOperator(0, k, u_mat, du_vec);
+               REQUIRE( du_vec(0) == Approx(dudx(k)).margin(abs_tol) );
             }
          }
       } // DYNAMIC SECTION
@@ -257,7 +283,7 @@ TEST_CASE( "Segment DSBP multWeakOperator is accurate...", "[dsbp-seg-Q]")
    } // loop over p
 }
 
-TEST_CASE( "Triangle SBP multWeakOperator is accurate...", "[sbp-tri-Q]")
+TEST_CASE( "Triangle SBP multWeak/StrongOperator are accurate...", "[sbp-tri-Q]")
 {
    // This test indirectly checks multWeakOperator by forming H^{-}*Q*u = D*u
    int dim = 2;
@@ -277,6 +303,7 @@ TEST_CASE( "Triangle SBP multWeakOperator is accurate...", "[sbp-tri-Q]")
          DenseMatrix du_mat(du.GetData(), 1, sbp.GetDof());
          Vector dudx(sbp.GetDof());
          Vector dudy(sbp.GetDof());
+         Vector du_vec(1);
          for (int r = 0; r <= p; ++r)
          {
             for (int j = 0; j <= r; ++j)
@@ -293,6 +320,10 @@ TEST_CASE( "Triangle SBP multWeakOperator is accurate...", "[sbp-tri-Q]")
                for (int k = 0; k < sbp.GetDof(); ++k)
                {
                   REQUIRE( du(k) == Approx(dudx(k)).margin(abs_tol) );
+
+                  // Now test the application at a node
+                  sbp.multStrongOperator(0, k, u_mat, du_vec);
+                  REQUIRE( du_vec(0) == Approx(dudx(k)).margin(abs_tol) );
                }
                du = 0.0;
                sbp.multWeakOperator(1, u_mat, du_mat, false);
@@ -300,6 +331,10 @@ TEST_CASE( "Triangle SBP multWeakOperator is accurate...", "[sbp-tri-Q]")
                for (int k = 0; k < sbp.GetDof(); ++k)
                {
                   REQUIRE( du(k) == Approx(dudy(k)).margin(abs_tol) );
+
+                  // Now test the application at a node
+                  sbp.multStrongOperator(1, k, u_mat, du_vec);
+                  REQUIRE( du_vec(0) == Approx(dudy(k)).margin(abs_tol) );
                }
             }
          }

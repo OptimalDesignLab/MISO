@@ -35,6 +35,7 @@ set(FLUID_TEST_SRCS
    test_reconstruction
    test_sbp_fe
    test_viscous_integ
+   test_surface
    test_utils
    test_thermal_integ
    test_res_integ
