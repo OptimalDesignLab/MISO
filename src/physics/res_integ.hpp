@@ -122,7 +122,8 @@ public:
 
 /// Class that evaluates the residual part and derivatives
 /// for a BoundaryNormalLFIntegrator (lininteg)
-class BoundaryNormalResIntegrator : public mfem::NonlinearFormIntegrator
+/// NOTE: Add using AddBdrFaceIntegrator
+class BoundaryNormalResIntegrator : public mfem::LinearFormIntegrator
 {
     Vector shape;
     VectorCoefficient &Q;
@@ -135,11 +136,15 @@ public:
                         : Q(QF), state(u), adjoint(adj), oa(a), ob(b)
     { }
 
+    /// Computes dR/dX, X being mesh node locations (DO NOT USE)
+    virtual void AssembleRHSElementVect(const FiniteElement &elx,
+                                         ElementTransformation &Trx,
+                                         Vector &elvect) { }
+
     /// Computes dR/dX, X being mesh node locations
-    virtual void AssembleFaceVector(const FiniteElement &el1x,
-                                    const FiniteElement &el2x,
+    virtual void AssembleRHSElementVect(const FiniteElement &elx,
                                          FaceElementTransformations &Trx,
-                                         const Vector &elfunx, Vector &elvect);
+                                         Vector &elvect);
 
 };
 

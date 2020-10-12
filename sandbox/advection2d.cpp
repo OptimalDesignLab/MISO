@@ -21,6 +21,7 @@ void u0_function(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
 {
+#if 0
    ostream *out;
    // Initialize MPI
    MPI_Init(&argc, &argv);
@@ -62,6 +63,7 @@ int main(int argc, char *argv[])
       cerr << exception.what() << endl;
    }
    MPI_Finalize();
+#endif
 }
 
 void velocity_function(const Vector &x, Vector &v)

@@ -74,7 +74,11 @@ default: all
 all: libmach.a
 
 status info:
+<<<<<<< HEAD
 	$(info MFEM_USE_EGADS          = $(MFEM_USE_EGADS))
+=======
+	$(info MFEM_USE_EGADS         = $(MFEM_USE_EGADS))
+>>>>>>> thermal
 
 .PHONY: temp
 temp:

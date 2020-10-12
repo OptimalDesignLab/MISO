@@ -9,6 +9,11 @@
 #include "coefficient.hpp"
 #include "therm_integ.hpp"
 #include "temp_integ.hpp"
+#include "res_integ.hpp"
+#include "mesh_movement.hpp"
+
+#include <limits>
+#include <random>
 
 namespace mach
 {
@@ -37,6 +42,21 @@ public:
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {theta, B}
    std::vector<GridFunType*> getFields() override;
+
+   /// Compute the sensitivity of the aggregate temperature output to the mesh 
+   /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
+   /// the adjoint first.
+   // virtual mfem::Vector* getMeshSensitivities();
+
+   mfem::Vector* getSurfaceMeshSensitivities();
+
+   double getOutput();
+
+   /// perturb the whole mesh and finite difference
+   void verifyMeshSensitivities();
+
+   /// perturb the surface mesh, deform interior points, and finite difference
+   void verifySurfaceMeshSensitivities();
 
 private:
    /// Raviart-Thomas finite element collection

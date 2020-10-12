@@ -1389,4 +1389,10 @@ void AbstractSolver::checkJacobian(
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
+mfem::Vector* AbstractSolver::getMeshSensitivities()
+{
+   throw MachException("AbstractSolver::getMeshSensitivities\n"
+                       "\tnot implemented yet!");
+}
+
 } // namespace mach

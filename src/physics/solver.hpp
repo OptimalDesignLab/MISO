@@ -300,6 +300,10 @@ public:
    /// \param[in/out] state - the conservative/entropy variables
    //virtual void convertToEntvar(mfem::Vector &state) { };
 
+   /// Compute the sensitivity of an output to the mesh nodes, using appropriate
+   /// mesh sensitivity integrators. Need to compute the adjoint first.
+   virtual mfem::Vector* getMeshSensitivities();
+
    /// Return a pointer to the solver's mesh
    MeshType* getMesh() {return mesh.get();}
 
@@ -362,8 +366,16 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   /// initial state variable
+   std::unique_ptr<GridFunType> u_init;
+   /// prior state variable
+   std::unique_ptr<GridFunType> u_old;
+   /// time derivative at current step
+   std::unique_ptr<GridFunType> dudt;
    /// adjoint variable 
    std::unique_ptr<GridFunType> adj;
+   /// prior adjoint variable (forward in time)
+   std::unique_ptr<GridFunType> adj_old;
    /// derivative of L = J + psi^T res, with respect to mesh nodes
    std::unique_ptr<GridFunType> dLdX;
 

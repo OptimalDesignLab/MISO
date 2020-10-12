@@ -26,9 +26,11 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
     adjoint->GetSubVector(vdofs, eladj);
 
     const int dof = elx.GetDof();
+    const int dofu = el->GetDof();
     const int dim = el->GetDim();
     elvect.SetSize(dof*dim);
     elvect = 0.0;
+    shape.SetSize(dofu);
 
     // cast the ElementTransformation
     IsoparametricTransformation &isotrans =
@@ -92,6 +94,7 @@ void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
     const int dim = el->GetDim();
     elvect.SetSize(dof*dim);
     elvect = 0.0;
+    shape.SetSize(dofu);
 
     // cast the ElementTransformation
     IsoparametricTransformation &isotrans =
@@ -170,6 +173,7 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
     DenseMatrix elmat(dofu);
     DenseMatrix PointMat_bar(dim, dof);
     DenseMatrix jac_bar(dim);
+    dshape.SetSize(dofu, dim);
 
     // loop through nodes
     for (int i = 0; i < ir->GetNPoints(); ++i)
@@ -217,70 +221,108 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
     }
 }
 
-void BoundaryNormalResIntegrator::AssembleFaceVector(
-   const FiniteElement &el1x,
-   const FiniteElement &el2x,
+
+void BoundaryNormalResIntegrator::AssembleRHSElementVect(
+   const FiniteElement &elx,
    FaceElementTransformations &Trx,
-   const Vector &elfunx,
    Vector &elvect)
 {   
     /// get the proper element, transformation, and state vector
     Array<int> vdofs; Vector elfun; Vector eladj;
-    int element = Trx.Face->ElementNo;
-    const FiniteElement *el = state->FESpace()->GetBE(element);
-    ElementTransformation *Tr = state->FESpace()->GetBdrElementTransformation(element);
-    state->FESpace()->GetBdrElementVDofs(element, vdofs);
+    int element = Trx.Elem1No;
+    const FiniteElementCollection *fec = state->FESpace()->FEColl();
+    const FiniteElement *el = state->FESpace()->GetFE(element);
+
+    const int dof = elx.GetDof();
+    const int dofu = el->GetDof();
+    const int dim = Trx.Face->GetDimension();
+    int space_dim = Trx.Face->GetSpaceDim();
+    shape.SetSize(dofu);
+    elvect.SetSize(space_dim*dof);
+    elvect = 0.0;
+
+    // get the right boundary element
+    const FiniteElement *el_bnd;
+    switch (space_dim)
+    {
+        case 1: el_bnd = fec->FiniteElementForGeometry(Geometry::POINT);
+              break;
+        case 2: el_bnd = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+              break;
+        case 3:
+            if(Trx.Elem1->GetGeometryType() == Geometry::TETRAHEDRON)
+            {
+                el_bnd = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+            }
+            if(Trx.Elem1->GetGeometryType() == Geometry::CUBE)
+            {
+                el_bnd = fec->FiniteElementForGeometry(Geometry::SQUARE);
+            } 
+             break;
+    }
+    ElementTransformation *Tr_bnd = Trx.Face;
+    ElementTransformation *Tr = Trx.Elem1;
+    
+    //boundary element integration rule
     const IntegrationRule *ir = IntRule;
     if (ir == NULL)
     {
-        ir = &IntRules.Get(el->GetGeomType(), oa * el->GetOrder() + ob);
+        ir = &IntRules.Get(el_bnd->GetGeomType(), oa * el_bnd->GetOrder() + ob);
     }
+
+    state->FESpace()->GetElementVDofs(element, vdofs);
     state->GetSubVector(vdofs, elfun); //don't need this one
     adjoint->GetSubVector(vdofs, eladj);
 
-    const int dofx = el1x.GetDof();
-    const int dimx = el1x.GetDim();
-    const int dof = el->GetDof();
-    const int dim = el->GetDim()+1;
-    shape.SetSize(dof);
-    elvect.SetSize(dofx*dimx);
-    elvect = 0.0;
-
-    // cast the ElementTransformation
+    // cast the ElementTransformation (for the domain element)
     IsoparametricTransformation &isotrans =
-    dynamic_cast<IsoparametricTransformation&>(*Tr);
+    dynamic_cast<IsoparametricTransformation&>(*Trx.Elem1);
 
-    DenseMatrix PointMat_bar(dim, dof*(dim-1));
-    Vector Qvec(dim);
+    DenseMatrix PointMat_bar(space_dim, dof);
+    DenseMatrix R;
+    Vector Qvec(space_dim);
     
     // loop through nodes
     for (int i = 0; i < ir->GetNPoints(); ++i)
     {
-        //compute dR/dnor*dnor/dJ*dJ/dX
+        //compute dR/dnor*dnor/dJ_bnd*dJ_bnd/dJ_el*dJ_el/dX
+
+        //get corresponding element integration point
         const IntegrationPoint &ip = ir->IntPoint(i);
-        Tr->SetIntPoint(&ip);
-        DenseMatrix J = Tr->Jacobian();
+        IntegrationPoint eip;
+        Trx.Loc1.Transform(ip, eip);
+        Tr_bnd->SetIntPoint(&ip);
+        Tr->SetIntPoint(&eip);
+
+        //get el to bnd jacobian transformation
+        DenseMatrix J = Tr_bnd->Jacobian();
+        DenseMatrix Jinv_el = Tr->InverseJacobian();
+        R.SetSize(Jinv_el.Height(), J.Width());
+        Mult(Jinv_el, J, R);
         DenseMatrix J_bar(J.Height(), J.Width());
+        DenseMatrix J_bar_el(space_dim, space_dim);
 
         PointMat_bar = 0.0;
 
         /// NOTE: Q may or may not have sensitivity to x. Need to tailor to
         /// different coefficients 
-        el->CalcShape(ip, shape);
-        Q.Eval(Qvec, *Tr, ip);
+        el->CalcShape(eip, shape);
+        Q.Eval(Qvec, *Tr_bnd, ip);
         Vector nor_bar(Qvec.Size()); 
         for (int p = 0; p < nor_bar.Size(); ++p) //dR/dnor
         {
             nor_bar(p) = ip.weight*Qvec(p)*(eladj*shape); 
         }
-        CalcOrthoRevDiff(J, nor_bar, J_bar); //dnor/dJ        
-        isotrans.JacobianRevDiff(J_bar, PointMat_bar); //dJ/d
+        CalcOrthoRevDiff(J, nor_bar, J_bar); //dnor/dJbnd
 
-        //elvect refers to the element at the boundary, NOT the boundary element
-        //how do I map the face to the element entries? need Loc1
+        //convert face jacobian bar to element jacobian bar by inverting
+        MultABt(J_bar, R, J_bar_el); //dJbnd/dJel
+
+        isotrans.JacobianRevDiff(J_bar_el, PointMat_bar); //dJel/dX
+
         for (int j = 0; j < dof ; ++j)
         {
-            for (int d = 0; d < (dim-1); ++d)
+            for (int d = 0; d < space_dim; ++d)
             {
                 elvect(d* dof + j) += PointMat_bar (d,j);
             }
