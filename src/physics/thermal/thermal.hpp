@@ -110,7 +110,7 @@ private:
    void constructForms() override;
 
    void addMassIntegrators(double alpha) override;
-   void addStiffVolumeIntegrators(double alpha) override;
+   void addResVolumeIntegrators(double alpha) override;
    void addLoadVolumeIntegrators(double alpha) override;
    void addLoadBoundaryIntegrators(double alpha) override;
    void constructEvolver() override;
@@ -152,9 +152,13 @@ private:
 class ThermalEvolver : public MachEvolver
 {
 public:
-   ThermalEvolver(mfem::Array<int> ess_bdr, BilinearFormType *mass, BilinearFormType *stiff,
-                  mfem::Vector *load, std::ostream &outstream,
-                  double start_time, mfem::VectorCoefficient *flux_coeff);
+   ThermalEvolver(mfem::Array<int> ess_bdr,
+                  BilinearFormType *mass,
+                  mfem::ParNonlinearForm *res,
+                  mfem::Vector *load, 
+                  std::ostream &outstream,
+                  double start_time, 
+                  mfem::VectorCoefficient *flux_coeff);
 
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 

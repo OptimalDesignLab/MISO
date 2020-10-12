@@ -934,7 +934,8 @@ void AbstractSolver::setEssentialBoundaries()
    }
    Array<int> ess_tdof_list;
    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-   res->SetEssentialTrueDofs(ess_tdof_list);
+   if (ess_tdof_list)
+      res->SetEssentialTrueDofs(ess_tdof_list);
 }
 
 void AbstractSolver::solveSteady(ParGridFunction &state)
