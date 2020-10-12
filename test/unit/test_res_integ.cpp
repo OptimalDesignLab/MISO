@@ -400,7 +400,7 @@ TEST_CASE("DiffusionResIntegrator::AssembleRHSElementVect",
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
-         VectorFunctionCoefficient v_rand(dim, randState);
+         VectorFunctionCoefficient v_rand(dim, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate df/dx and contract with v

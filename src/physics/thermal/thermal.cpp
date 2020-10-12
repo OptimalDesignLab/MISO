@@ -37,11 +37,11 @@ void ThermalSolver::initDerived()
 
    /// Create the H(Div) finite element collection for the representation the
    /// magnetic flux density field in the thermal solver
-   h_div_coll.reset(new RT_FECollection(order, dim));
+   // h_div_coll.reset(new RT_FECollection(order, dim));
    /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
+   // h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
    /// Create magnetic flux grid function
-   mag_field.reset(new GridFunType(h_div_space.get()));
+   // mag_field.reset(new GridFunType(h_div_space.get()));
       
 
    /// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY

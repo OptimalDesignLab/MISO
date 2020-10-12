@@ -41,8 +41,8 @@ nlohmann::json material_library
       // {"mu_r", 1.0} // for real scaled problem
       {"mu_r", 1/(4 * M_PI * 1e-7)} // for unit scaled problem
    }},
-   {"testmat",
-   {
+	{"testmat",
+	{
       {"mu_r", 1},
       {"rho", 1},
       {"cv", 1},
@@ -52,19 +52,25 @@ nlohmann::json material_library
       {"kh", -0.00013333333333333},
       {"ke", -3.55555555555e-8},
       {"alpha", 1.0},
-   }},
-   {"testmat2",
-   {
+	}},
+	{"regtestmat1",
+	{
       {"mu_r", 1},
       {"rho", 1},
       {"cv", 1},
       {"kappa", 1},
       {"kappae", 1},
-      {"sigma", 3},
-      {"kh", -0.00013333333333333},
-      {"ke", -3.55555555555e-8},
-      {"alpha", 1.0},
-   }},
+      {"sigma", -1},
+	}},
+	{"regtestmat2",
+	{
+      {"mu_r", 1},
+      {"rho", 1},
+      {"cv", 1},
+      {"kappa", 1},
+      {"kappae", 1},
+      {"sigma", 1},
+	}},
    {"steel", {
       {"B",
       {

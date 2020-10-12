@@ -49,7 +49,7 @@ public:
    /// Compute the sensitivity of the aggregate temperature output to the mesh 
    /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
    /// the adjoint first.
-   mfem::Vector* getMeshSensitivities() override;
+   // mfem::Vector* getMeshSensitivities() override;
 
    mfem::Vector* getSurfaceMeshSensitivities();
 
@@ -162,8 +162,6 @@ private:
        const nlohmann::json &opt_file_name,
        std::unique_ptr<mfem::Mesh> smesh,
        MPI_Comm comm);
-   /// functions for random perturbation
-   static void randState(const mfem::Vector &x, mfem::Vector &u);
 };
 
 class ThermalEvolver : public MachEvolver

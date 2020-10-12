@@ -78,7 +78,11 @@ status info:
 	$(info MFEM_USE_EGADS          = $(MFEM_USE_EGADS))
 =======
 	$(info MFEM_USE_EGADS         = $(MFEM_USE_EGADS))
+<<<<<<< HEAD
 >>>>>>> joule
+=======
+>>>>>>> thermal
+>>>>>>> python-wrapper-dev
 
 .PHONY: temp
 temp:

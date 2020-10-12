@@ -64,6 +64,7 @@ int main(int argc, char *argv[])
       cerr << exception.what() << endl;
    }
    MPI_Finalize();
+#endif
 }
 
 void velocity_function(const Vector &x, Vector &v)

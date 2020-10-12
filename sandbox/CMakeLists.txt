@@ -32,8 +32,6 @@ set(SANDBOX_SRCS
    mesh_move_2
    surface_distance
    joule_wire
-   # spline_test
-   # integration_test
 )
 
 create_sandbox("${SANDBOX_SRCS}")
