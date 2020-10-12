@@ -28,6 +28,7 @@ set(SANDBOX_SRCS
    thermal_square
    mesh_move
    mesh_move_2
+   surface_distance
    joule_wire
 )
 

@@ -38,12 +38,12 @@ TEST_CASE("ESViscousIntegrator::AssembleElementGrad", "[ESViscousIntegrator]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -109,12 +109,12 @@ TEST_CASE("NoSlipAdiabaticWallBC::AssembleFaceGrad", "[NoSlipBC]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -172,12 +172,12 @@ TEST_CASE("ViscousSlipWallBC::AssembleFaceGrad", "[VisSlipWallBC]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -243,12 +243,12 @@ TEST_CASE("ViscousInflowWallBC::AssembleFaceGrad", "[VisInflowBC]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -314,12 +314,12 @@ TEST_CASE("ViscousOutflowBC::AssembleFaceGrad", "[VisOutflowBC]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -385,12 +385,12 @@ TEST_CASE("ViscousFarFieldBC::AssembleFaceGrad", "[VisFarFieldBC]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -460,12 +460,12 @@ TEST_CASE("SurfaceForce::AssembleVector", "[Surface Force]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate dJdu and compute its product with v
@@ -497,12 +497,12 @@ TEST_CASE("SurfaceForce::AssembleVector", "[Surface Force]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<dim>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate dJdu and compute its product with v

@@ -41,7 +41,7 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
 
          // initialize state and adjoint; here we randomly perturb a constant state
          GridFunction state(fes.get()), adjoint(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2,entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2,entvar>);
          state.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(pert);
 
@@ -58,7 +58,7 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
-         VectorFunctionCoefficient v_rand(dim, randState);
+         VectorFunctionCoefficient v_rand(dim, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // contract dfdx with v
@@ -117,7 +117,7 @@ TEMPLATE_TEST_CASE_SIG("SlipWallBCMeshSens::AssembleRHSElementVect",
 
          // initialize state and adjoint; here we randomly perturb a constant state
          GridFunction state(fes.get()), adjoint(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2,entvar>);
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2,entvar>);
          state.ProjectCoefficient(pert);
          adjoint.ProjectCoefficient(pert);
 
@@ -134,7 +134,7 @@ TEMPLATE_TEST_CASE_SIG("SlipWallBCMeshSens::AssembleRHSElementVect",
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
-         VectorFunctionCoefficient v_rand(dim, randState);
+         VectorFunctionCoefficient v_rand(dim, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // contract dfdx with v
