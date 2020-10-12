@@ -6,34 +6,6 @@
 using namespace std;
 using namespace mfem;
 
-// namespace
-// {
-
-// void fluxFunc(const Vector &x, double time, Vector &y)
-// {
-// 	y.SetSize(3);
-// 	//use constant in time for now
-
-// 	//assuming centered coordinate system, will offset
-// 	// double th;// = atan(x(1)/x(0));
-
-// 	if (x(0) > .5)
-// 	{
-// 		y(0) = 1;
-// 	}
-// 	else
-// 	{
-// 		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
-// 		//cout << "outflux val = " << y(0) << std::endl;
-// 	}
-
-// 	y(1) = 0;
-// 	y(2) = 0;
-	
-// }
-
-// } // anonymous namespace
-
 namespace mach
 {
 
@@ -57,28 +29,15 @@ ThermalSolver::ThermalSolver(const nlohmann::json &options,
 void ThermalSolver::initDerived()
 {
    AbstractSolver::initDerived();
-   // AbstractSolver::initDerived();
-   setInit = false;
 
    mesh->ReorientTetMesh();
    /// Override, only use 1st order H elements
    int fe_order = 1;// options["space-dis"]["degree"].get<int>();
 
-   /// Create temperature grid function
-   // u.reset(new GridFunType(fes.get()));
    th_exact.reset(new GridFunType(fes.get()));
-
-   // /// Set static variables
-   // setStaticMembers();
 
    *out << "Number of finite element unknowns: "
       << fes->GlobalTrueVSize() << endl;
-
-   //  ifstream material_file(options["material-lib-path"].get<string>());
-   // /// TODO: replace with mach exception
-   // if (!material_file)
-   // 	std::cerr << "Could not open materials library file!" << std::endl;
-   // material_file >> materials;
 
    *out << "Constructing Material Coefficients..." << std::endl;
 
@@ -92,83 +51,10 @@ void ThermalSolver::initDerived()
    h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
    /// Create magnetic flux grid function
    mag_field.reset(new GridFunType(h_div_space.get()));
-   
-   // constructDensityCoeff();
-
-   // constructHeatCoeff();
-
-   // constructMassCoeff();
-
-   // constructConductivity();
-   
-   // constructJoule();
-
-   // constructCore();
-
-   // std::cout << "Defining Finite Element Spaces..." << std::endl;
-   // /// set essential BCs (none)
-   // Array<int> ess_tdof_list;
-   // mfem::Array<int> ess_bdr(mesh->bdr_attributes.Max());
-   // ess_bdr = 0;
-   // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-
-   /// set up the bilinear forms
-   // m.reset(new BilinearFormType(fes.get()));
-   // k.reset(new BilinearFormType(fes.get()));
-
-   std::cout << "Creating Mass Matrix..." << std::endl;
-   /// add mass integrator to m bilinear form
-   // m->AddDomainIntegrator(new MassIntegrator(*rho_cv));
-   /// assemble mass matrix
-   // m->Assemble(0);
-
-   // m->FormSystemMatrix(ess_tdof_list, M);
-
-   /// add diffusion integrator to k bilinear form
-   // k->AddDomainIntegrator(new DiffusionIntegrator(*kappa));
-
-
-   /// set up the linear form (volumetric fluxes)
-   // bs.reset(new LinearForm(fes.get()));
-
-   /// add joule heating term
-   // bs->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
-   // std::cout << "Constructing Boundary Conditions..." << std::endl;
-   /// add iron loss heating terms
-   // bs->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
-
-
-   // std::cout << "Assembling Stiffness Matrix..." << std::endl;
-   /// assemble stiffness matrix and linear form
-   // k->Assemble(0);
-
-   // k->FormSystemMatrix(ess_tdof_list, K);
-   // std::cout << "Assembling Forcing Term..." << std::endl;
-   // bs->Assemble();
-
-   // std::cout << "Setting Up ODE Solver..." << std::endl;
-   // /// define ode solver
-   // ode_solver = NULL;
-   // ode_solver.reset(new ImplicitMidpointSolver);
-   // std::string ode_opt = 
-   // 	options["time-dis"]["ode-solver"].get<std::string>();
-   // if (ode_opt == "MIDPOINT")
-   // {
-   // 	ode_solver = NULL;
-   // 	ode_solver.reset(new ImplicitMidpointSolver);
-   // }
-   // if (ode_opt == "RK4")
-   // {
-   // 	ode_solver = NULL;
-   // 	ode_solver.reset(new RK4Solver);
-   // }
-   
-   // evolver.reset(new ThermalEvolver(opt_file_name, M, 
-                              // K, move(bs), *out));
+      
 
    /// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
    rhoa = options["rho-agg"].get<double>();
-   //double max = options["max-temp"].get<double>();
 
    /// assemble max temp array
    max.SetSize(fes->GetMesh()->attributes.Size()+1);
@@ -252,11 +138,6 @@ void ThermalSolver::solveUnsteady(ParGridFunction &state)
    double gerror = 0;
    evolver->SetTime(t);
    ode_solver->Init(*evolver);
-
-   // if (!setInit)
-   // {
-   // 	setInitialCondition(initialTemperature);
-   // }
 
    int precision = 8;
    {
@@ -726,13 +607,6 @@ void ThermalSolver::testFluxFunc(const Vector &x, double time, Vector &y)
    
 }
 
-// double ThermalSolver::initialTemperature(const Vector &x)
-// {
-//    return 100;
-// }
-
-// double ThermalSolver::temp_0 = 0.0;
-
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
                                ParNonlinearForm *res,
                                Vector *load,
@@ -742,9 +616,7 @@ ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
    : MachEvolver(ess_bdr, nullptr, mass, res, nullptr, load, nullptr,
                  outstream, start_time),
    flux_coeff(_flux_coeff), work(height)
-{
-   mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-};
+{ };
 
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
@@ -764,21 +636,7 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,
                                    Vector &k)
 {
-   // auto *T = Add(1.0, mMat, dt, kMat);
-
-   // // t_solver->SetOperator(*T);
-   // linsolver->SetOperator(*T);
-
-   // kMat.Mult(x, work);
-   // work.Neg();  
-   // work.Add(-1, *load);
-   // linsolver->Mult(work, k);
-
-
-
-   // I thought setting this to false would help, it zeros out K each time
-   // Still see the behavior where execution changes with each run
-   newton->iterative_mode = false;
+   /// re-assemble time dependent load vector
    flux_coeff->SetTime(t);
    // dynamic_cast<LinearFormType*>(load)->Assemble();
    LinearFormType *load_lf = dynamic_cast<LinearFormType*>(load);
@@ -786,83 +644,16 @@ void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,
       load_lf->Assemble();
    else
       throw MachException("Couldn't cast load to LinearFormType!\n");
+
    setOperParameters(dt, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+
+   // set iterative mode to false so k is only zeroed once, but set back after
+   auto iter_mode = newton->iterative_mode;
+   newton->iterative_mode = false;
    newton->Mult(zero, k);
+   newton->iterative_mode = iter_mode;
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
-	  
-// ThermalEvolver::ThermalEvolver(const std::string &opt_file_name, 
-// 									MatrixType &m, 
-// 									MatrixType &k, 
-// 									std::unique_ptr<mfem::LinearForm> b, 
-// 									std::ostream &outstream)
-// 	: ImplicitLinearEvolver(opt_file_name, m, k, move(b), outstream), zero(m.Height())
-// {
-// 	/// set static members
-// 	setStaticMembers();
-
-// 	/// set initial boundary state	
-// 	updateParameters();
-// }
-
-// void ThermalEvolver::setStaticMembers()
-// {
-// 	outflux = options["bcs"]["const-val"].get<double>();
-// }
-
-// /// TODO: move this to addLoadBoundaryIntegrator
-// /// Make fluxFunc a regular function in this file in anonymous namespace
-
-
-// void ThermalEvolver::updateParameters()
-// {
-// 	bb.reset(new LinearForm(force->FESpace()));
-// 	rhs.reset(new LinearForm(force->FESpace()));
-
-// 	/// add boundary integrator to linear form for flux BC, elsewhere is natural 0
-// 	fluxcoeff.reset(new VectorFunctionCoefficient(3, fluxFunc));
-// 	fluxcoeff->SetTime(t);
-// 	auto &bcs = options["bcs"];
-//    bndry_marker.resize(bcs.size());
-// 	int idx = 0;
-// 	if (bcs.find("outflux") != bcs.end())
-// 	{ // outward flux bc
-//         vector<int> tmp = bcs["outflux"].get<vector<int>>();
-//         bndry_marker[idx].SetSize(tmp.size(), 0);
-//         bndry_marker[idx].Assign(tmp.data());
-//         bb->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(*fluxcoeff), bndry_marker[idx]);
-//         idx++;
-// 	}
-// 	bb->Assemble();
-
-// 	rhs->Set(1, *force);
-// 	rhs->Add(1, *bb);
-// }
-
-// void ThermalEvolver::fluxFunc(const Vector &x, double time, Vector &y)
-// {
-// 	y.SetSize(3);
-// 	//use constant in time for now
-
-// 	//assuming centered coordinate system, will offset
-// 	// double th;// = atan(x(1)/x(0));
-
-// 	if (x(0) > .5)
-// 	{
-// 		y(0) = 1;
-// 	}
-// 	else
-// 	{
-// 		y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
-// 		//cout << "outflux val = " << y(0) << std::endl;
-// 	}
-
-// 	y(1) = 0;
-// 	y(2) = 0;
-	
-// }
-
-// double ThermalEvolver::outflux = 0.0;
 
 } // namespace mach

@@ -268,7 +268,6 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
    newton->iterative_mode = false;
    newton->Mult(zero, k);
    newton->iterative_mode = iter_mode;
-   // newton->Mult(zero, k);
    
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
