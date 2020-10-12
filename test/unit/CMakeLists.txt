@@ -8,6 +8,16 @@ function(create_tests source_list data_files)
    endforeach()
 endfunction(create_tests)
 
+function(create_mpi_tests source_list data_files)
+   foreach(X ${source_list})
+      add_executable("${X}.bin" "${X}.cpp" unit_test_mpi_main.cpp ${data_files})
+      add_dependencies(tests "${X}.bin")
+      target_link_libraries("${X}.bin" PRIVATE mach Catch)
+      target_include_directories("${X}.bin" PRIVATE "${CMAKE_SOURCE_DIR}")
+      add_test(NAME "${X}" COMMAND "${X}.bin") 
+   endforeach()
+endfunction(create_mpi_tests)
+
 # for all targets created in this file, include the main dir (containing mach.hpp)
 #include_directories(BEFORE ${PROJECT_SOURCE_DIR})
 
@@ -33,7 +43,16 @@ set(FLUID_TEST_SRCS
 # group EM tests
 set(EM_TEST_SRCS
    test_electromag_integ
+   test_coefficient
+)
+
+# group EM MPI tests
+set(EM_MPI_TEST_SRCS
+   test_magnetostatic_solver
+   test_steinmetz_integ
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
 create_tests("${EM_TEST_SRCS}" electromag_test_data.hpp)
+
+create_mpi_tests("${EM_MPI_TEST_SRCS}" electromag_test_data.hpp)

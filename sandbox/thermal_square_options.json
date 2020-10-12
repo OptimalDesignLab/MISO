@@ -1,9 +1,9 @@
 {
     "mesh": {
        "file": "initial.mesh",
-       "num-edge-x": 20,
-       "num-edge-y": 5,
-       "num-edge-z": 5
+       "num-edge-x": 2,
+       "num-edge-y": 2,
+       "num-edge-z": 2
     },
     "space-dis": {
        "basis-type": "H1",
@@ -16,15 +16,19 @@
         "const-cfl": true,
         "cfl": 1.0,
         "dt": 0.01,
-        "t-final": 0.2
+        "t-final": 0.02
     },
     "lin-solver": {
+       "type": "hypregmres",
+       "pctype": "hypreboomeramg",
        "reltol": 1e-8,
        "abstol": 0.0,
        "printlevel": 0,
        "maxiter": 500
     },
     "adj-solver":{
+       "type": "hypregmres",
+       "pctype": "hypreboomeramg",
        "reltol": 1e-8,
        "abstol": 0.0,
        "printlevel": 0,
@@ -47,7 +51,9 @@
        }
     },
     "bcs": {
-        "outflux": [0, 0, 0, 0, 1, 0]
+        "outflux": [0, 0, 0, 1, 1, 0],
+        "const": true,
+        "const-val": 1
     },
     "outflux-type": "test",
     "outputs": {
@@ -55,6 +61,10 @@
     },
     "rho-agg": 10,
     "max-temp": 0.1,
-    "init-temp": 300,
+    "init-temp": 1,
+    "compute-sens": true,
+    "verify-full": false,
+    "verify-cd": true,
+    "mesh-move-opts-path": "thermal_mesh_move_options.json",
     "material-lib-path": "../../src/material_options.json"
  }

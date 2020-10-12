@@ -1,13 +1,11 @@
 {
    "mesh": {
-      "file": "wire.smb",
-      "model-file": "wire.egads",
-      "out-file": "wire_out"
+      "out-file": "joule_box_out"
    },
    "em-opts": {
       "space-dis": {
          "basis-type": "nedelec",
-         "degree": 1
+         "degree": 2
       },
       "steady": true,
       "lin-solver": {
@@ -18,7 +16,7 @@
          "printlevel": 2,
          "maxiter": 50
       },
-      "nonlin-solver": {
+      "newton": {
          "printlevel": 1,
          "reltol": 1e-9
       }
@@ -26,7 +24,7 @@
    "thermal-opts": {
       "space-dis": {
          "basis-type": "H1",
-         "degree": 1
+         "degree": 2
       },
       "steady": false,
       "time-dis": {
@@ -34,7 +32,7 @@
           "const-cfl": true,
           "cfl": 1.0,
           "dt": 0.01,
-          "t-final": 0.1
+          "t-final": 1.0
       },
       "lin-solver": {
          "type": "hypregmres",
@@ -44,30 +42,32 @@
          "print-lvl": 2,
          "max-iter": 50
       },
-      "nonlin-solver": {
+      "newton": {
          "printlevel": 1,
          "reltol": 1e-9
       },
       "bcs": {
-         "poutflux": [0, 0, 0, 0, 0, 0, 1, 1]
+         "outflux": [0, 0, 0, 1, 1, 0]
       }
    },
    "components": {
-      "wire": {
-         "material": "copperwire",
-         "linear": true,
-         "attr": 1
+      "attr1": {
+         "material": "box1",
+         "attr": 1,
+         "linear": true
       },
-      "farfields": {
-         "material": "air",
-         "linear": true,
-         "attr": 2
+      "attr2": {
+         "material": "box2",
+         "attr": 2,
+         "linear": true
       }
    },
    "problem-opts" : {
-      "current" : {
-         "z" : [1]
+      "current": {
+         "box1": [1],
+         "box2": [2]
       },
+      "box": true,
       "fill-factor" : 1.0,
       "current-density" : 1,
       "frequency": 1500,

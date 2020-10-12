@@ -9,6 +9,11 @@
 #include "coefficient.hpp"
 #include "therm_integ.hpp"
 #include "temp_integ.hpp"
+#include "res_integ.hpp"
+#include "mesh_movement.hpp"
+
+#include <limits>
+#include <random>
 
 namespace mach
 {
@@ -26,6 +31,9 @@ public:
    
    void initDerived() override;
 
+   /// Set the Magnetic Vector Potential
+   void setAField(GridFunType *_a_field) {a_field = _a_field;}
+
    // /// Returns the L2 error between the state `u` and given exact solution.
    // /// Overload for scalar quantities
    // /// \param[in] u_exact - function that defines the exact solution
@@ -38,22 +46,29 @@ public:
    /// returns {theta, B}
    std::vector<GridFunType*> getFields() override;
 
-private:
-   /// Raviart-Thomas finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
-   /// H(Div) finite element space
-   std::unique_ptr<SpaceType> h_div_space;
-   /// Magnetic flux density B grid function;
-   /// (mapped from EM solver onto thermal solver's mesh)
-   std::unique_ptr<GridFunType> mag_field;
+   /// Compute the sensitivity of the aggregate temperature output to the mesh 
+   /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
+   /// the adjoint first.
+   mfem::Vector* getMeshSensitivities() override;
 
+   mfem::Vector* getSurfaceMeshSensitivities();
+
+   void getASensitivity(mfem::Vector &psiTdRtdA) {};
+
+   double getOutput();
+
+   /// perturb the whole mesh and finite difference
+   void verifyMeshSensitivities();
+
+   /// perturb the surface mesh, deform interior points, and finite difference
+   void verifySurfaceMeshSensitivities();
+
+private:
+   /// Magnetic vector potential A grid function (not owned)
+   GridFunType *a_field;
 
    /// Use for exact solution
    std::unique_ptr<GridFunType> th_exact;
-
-   // mfem::HypreParMatrix M;
-   // mfem::HypreParMatrix K;
-   // mfem::Vector B;
 
    /// aggregation functional (aggregation or temp)
    std::unique_ptr<AggregateIntegrator> funca;
@@ -147,6 +162,8 @@ private:
        const nlohmann::json &opt_file_name,
        std::unique_ptr<mfem::Mesh> smesh,
        MPI_Comm comm);
+   /// functions for random perturbation
+   static void randState(const mfem::Vector &x, mfem::Vector &u);
 };
 
 class ThermalEvolver : public MachEvolver

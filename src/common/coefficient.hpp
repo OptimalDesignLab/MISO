@@ -107,6 +107,22 @@ public:
 											const mfem::IntegrationPoint &ip,
 											const double state);
 
+	/// \brief Search the map of coefficients and evaluate the one whose key is
+   ///        the same as the element's `Attribute` at the point defined by
+   ///        `ip`.
+   /// \param[in] Q_bar - derivative of functional with respect to `Q`
+   /// \param[in] trans - element transformation relating real element to
+   ///                    reference element
+   /// \param[in] ip - defines location in reference space
+   /// \param[out] PointMat_bar - derivative of function w.r.t. mesh nodes
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   virtual void EvalRevDiff(const double Q_bar,
+                            mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            mfem::DenseMatrix &PointMat_bar);
+
 protected:
 	/// \brief Method to be called if a coefficient matching the element's
 	/// 		  attribute is a subclass of `StateCoefficient and
@@ -300,9 +316,9 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-   virtual double Eval(mfem::ElementTransformation &trans,
-                       const mfem::IntegrationPoint &ip,
-							  const double state);
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+					const double state) override;
 
 	/// \brief Evaluate the derivative of reluctivity with respsect to magnetic
 	/// flux in the element described by trans at the point ip. Checks which
@@ -311,12 +327,62 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-	virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
-                       				const mfem::IntegrationPoint &ip,
-											const double state);
+	double EvalStateDeriv(mfem::ElementTransformation &trans,
+                       	 const mfem::IntegrationPoint &ip,
+								 const double state) override;
 
 	/// class destructor. Not sure if I need to delete anything?
-	~ReluctivityCoefficient() {}
+	~ReluctivityCoefficient() = default;
+
+protected:
+	/// reference to temperature grid function
+	GridFunType *temperature_GF;
+
+	/// spline representing B-H curve, 1st deriv is reluctivity
+	Spline b_h_curve;
+};
+
+class MagneticFluxCoefficient : public StateCoefficient
+{
+public:
+	/// Define a temperature independent magnetic flux model
+	/// \param[in] B - magnetic flux density values from B-H curve 
+	/// \param[in] H - magnetic field intensity valyes from B-H curve
+	MagneticFluxCoefficient(std::vector<double> B, std::vector<double> H);
+
+	/// TODO - implement
+	/// Define a temperature dependent magnetic flux model
+	/// \param[in] B - magnetic flux density values from B-H curve 
+	/// \param[in] H - magnetic field intensity valyes from B-H curve
+	/// \param *T_ - pointer to existing temperature grid function
+	/// \note not currently implemented
+	MagneticFluxCoefficient(std::vector<double> B, std::vector<double> H,
+								   GridFunType *T_);
+
+	/// \brief Evaluate the B-H curve in the element described by trans at
+	/// the point ip. Checks which model was initialized, temperature-dependent
+	/// or not, and evalutes the correct one.
+	/// \param[in] state - H
+	/// \returns B
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+	double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+					const double state) override;
+
+	/// \brief Evaluate the permeability in the element described by trans at
+	/// the point ip. Checks which model was initialized, temperature-dependent
+	/// or not, and evalutes the correct one.
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+	double EvalStateDeriv(mfem::ElementTransformation &trans,
+                       	 const mfem::IntegrationPoint &ip,
+								 const double state) override;
+
+	/// class destructor. Not sure if I need to delete anything?
+	~MagneticFluxCoefficient() = default;
 
 protected:
 	/// reference to temperature grid function
@@ -364,6 +430,22 @@ public:
 				 mfem::ElementTransformation &trans,
 			    const mfem::IntegrationPoint &ip);
 
+   /// \brief Search the map of coefficients and evaluate the one whose key is
+   ///        the same as the element's `Attribute` at the point defined by
+   ///        `ip`.
+   /// \param[in] V_bar - derivative of functional with respect to `V`
+   /// \param[in] trans - element transformation relating real element to
+   ///                    reference element
+   /// \param[in] ip - defines location in reference space
+   /// \param[out] PointMat_bar - derivative of function w.r.t. mesh nodes
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   virtual void EvalRevDiff(const mfem::Vector &V_bar,
+                            mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            mfem::DenseMatrix &PointMat_bar);
+
 	// /// TODO - implement expression SFINAE when iterating over map
 	// /// TODO - Consider different model for coefficient's dependent upon multiple
 	// ///		  GridFunctions
@@ -384,6 +466,61 @@ public:
 protected:
 	std::unique_ptr<mfem::VectorCoefficient> default_coeff;
 	std::map<const int, std::unique_ptr<mfem::VectorCoefficient>> material_map;
+};
+
+class SteinmetzCoefficient : public mfem::Coefficient
+{
+public:
+	/// Define a coefficient to represent the Steinmetz core losses
+	/// \param[in] rho - TODO: material density?
+	/// \param[in] alpha - TODO
+	/// \param[in] f - electrical frequency of excitation
+	/// \param[in] kh - Steinmetz hysteresis coefficient
+	/// \param[in] ke - Steinmetz eddy currnt coefficient
+	/// \param[in] A - magnetic vector potential GridFunction 
+	SteinmetzCoefficient(double rho, double alpha, double f, double kh,
+								double ke, mfem::GridFunction *A)
+		: rho(rho), alpha(alpha), freq(f), kh(kh), ke(ke), A(A) {}
+
+	/// Evaluate the Steinmetz coefficient
+	double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
+
+	/// Evaluate the derivative of the Steinmetz coefficient with respect to x
+	void EvalRevDiff(const double Q_bar,
+    					  mfem::ElementTransformation &trans,
+    					  const mfem::IntegrationPoint &ip,
+    					  mfem::DenseMatrix &PointMat_bar) override;
+
+private:
+	double rho, alpha, freq, kh, ke;
+	mfem::GridFunction *A;
+};
+
+class SteinmetzVectorDiffCoefficient : public mfem::VectorCoefficient
+{
+public:
+	/// Define a coefficient to represent the Steinmetz core losses differentiated
+	/// with respect to the magnetic vector potential
+	/// \param[in] rho - TODO: material density?
+	/// \param[in] alpha - TODO
+	/// \param[in] f - electrical frequency of excitation
+	/// \param[in] kh - Steinmetz hysteresis coefficient
+	/// \param[in] ke - Steinmetz eddy currnt coefficient
+	/// \param[in] A - magnetic vector potential GridFunction 
+	/// \note this coefficient only works on meshes with only one element type
+	SteinmetzVectorDiffCoefficient(double rho, double alpha, double f,
+											 double kh, double ke, mfem::GridFunction *A)
+		: VectorCoefficient(A->FESpace()->GetFE(0)->GetDof()), rho(rho),
+		  alpha(alpha), freq(f), kh(kh), ke(ke), A(A) {}
+
+	/// Evaluate the derivative of the Steinmetz coefficient with respect to A
+	void Eval(mfem::Vector &V, mfem::ElementTransformation &T,
+             const mfem::IntegrationPoint &ip) override;
+
+private:
+	double rho, alpha, freq, kh, ke;
+	mfem::GridFunction *A;
 };
 
 /// ElementFunctionCoefficient

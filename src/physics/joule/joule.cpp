@@ -90,9 +90,13 @@ JouleSolver::JouleSolver(
    thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr, comm));
    // thermal_solver->initDerived();
 
-   em_fields = em_solver->getFields();
-   thermal_fields = thermal_solver->getFields();
+}
 
+void JouleSolver::initDerived()
+{
+   em_solver->initDerived();
+   em_fields = em_solver->getFields();
+   thermal_solver->setAField(em_fields[0]);
 }
 
 JouleSolver::~JouleSolver()
@@ -122,13 +126,35 @@ std::vector<GridFunType*> JouleSolver::getFields(void)
 void JouleSolver::solveForState()
 {
    em_solver->solveForState();
-
-   transferSolution(*em_solver->getMesh(), *thermal_solver->getMesh(),
-                    *em_fields[1], *thermal_fields[1]);
    thermal_solver->initDerived();
    thermal_fields = thermal_solver->getFields();
    thermal_solver->setInitialCondition(thermal_init);
    thermal_solver->solveForState();
+}
+
+void JouleSolver::solveForAdjoint(const std::string &fun)
+{
+   if (fun == "temp-agg")
+   {
+      thermal_solver->solveForAdjoint(fun);
+      Vector psiTdRtdA;
+      thermal_solver->getASensitivity(psiTdRtdA);
+      em_solver->solveForAdjoint(psiTdRtdA);
+   }
+   else if (fun == "co-energy")
+   {
+      em_solver->solveForAdjoint(fun);
+   }
+}
+
+// Vector* JouleSolver::getMeshSensitivities()
+// {
+
+// }
+
+void JouleSolver::addOutputs()
+{
+   auto &fun = options["outputs"];
 }
 
 } // namespace mach

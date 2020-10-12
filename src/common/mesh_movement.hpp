@@ -37,6 +37,14 @@ public:
                    std::unique_ptr<mfem::Mesh> smesh,
                    MPI_Comm comm);
 
+    LEAnalogySolver(const std::string &opt_file_name,
+                        mfem::GridFunction *u_bound,
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                        int dim = 3);
+
+    /// Implement InitDerived
+    virtual void initDerived();
+
 private:
    int dim;
 

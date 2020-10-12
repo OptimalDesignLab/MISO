@@ -164,6 +164,46 @@ private:
 #endif
 };
 
+/// Class that integrates over temperature
+class TempResIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// Constructs a domain integrator that computes the integral over temperature
+   TempResIntegrator(const mfem::FiniteElementSpace *fe_space)
+       : fes(fe_space) { }
+
+   /// Overloaded, precomputes for use in adjoint
+   TempResIntegrator(const mfem::FiniteElementSpace *fe_space,
+                              mfem::GridFunction *temp);
+
+   /// Computes the induced functional estimate for aggregated temperature
+	double GetTemp(mfem::GridFunction *temp);
+
+   /// Computes dJdu, for the adjoint
+   virtual void AssembleElementVector(const mfem::FiniteElement &elx, 
+               mfem::ElementTransformation &Trx,
+               const mfem::Vector &elfunx, mfem::Vector &elvect);
+
+private: 
+
+   /// used to integrate over appropriate elements
+   const mfem::FiniteElementSpace *fes;
+
+   // last computed output (for dJdU)
+   double J_;
+
+   // last computed denom (for dJdU)
+   double denom_;
+
+   // last computed state vector (for dJdu)
+   mfem::GridFunction *temp_;
+
+#ifndef MFEM_THREAD_SAFE
+   /// store the physical location of a node
+   mfem::Vector x;
+#endif
+};
+
 
 } // namespace mach
 

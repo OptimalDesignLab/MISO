@@ -51,10 +51,11 @@ int main(int argc, char *argv[])
    int num_edge_y = options["mesh"]["num-edge-y"].get<int>();
    int num_edge_z = options["mesh"]["num-edge-z"].get<int>();
 
+   int dim = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge_x, num_edge_y, num_edge_z,
-                              Element::HEXAHEDRON, true /* gen. edges */, 1.0,
+                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
-
+   mesh->EnsureNodes();
    mesh->ReorientTetMesh();
    std::cout << "Number of Boundary Attributes: "<< mesh->bdr_attributes.Size() <<std::endl;
    // assign attributes to top and bottom sides
@@ -95,24 +96,25 @@ int main(int argc, char *argv[])
 
    try
    {
-      // construct the solver
+      // Verify the total sensitivity of the functional to the mesh nodes
 
-      
-      // ThermalSolver solver(opt_file_name, move(mesh));
-      // solver.initDerived();
-      auto solver = createSolver<ThermalSolver>(opt_file_name, move(mesh));
-      solver->setInitialCondition(InitialTemperature);
-      // unique_ptr<MagnetostaticSolver<3>> solver(
-      //    new MagnetostaticSolver<3>(opt_file_name, nullptr));
-      std::cout << "Solving..." << std::endl;
-      solver->solveForState();
+      // construct the solvers   
+      ThermalSolver solver(opt_file_name, move(mesh));
+
+      solver.initDerived();
+      solver.setInitialCondition(InitialTemperature);
+      std::cout << "Solving Analytic..." << std::endl;
+      solver.solveForState();
       // std::cout << "Solving Adjoint..." << std::endl;
-      // solver->solveForState();
       // solver.solveForAdjoint(options["outputs"]["temp-agg"].get<std::string>());
       std::cout << "Solver Done" << std::endl;
       std::cout.precision(17);
       std::cout << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver->calcL2Error(ExactSolution) << '\n' << endl;
+      // std::cout << "\n|| rho_h - rho ||_{L^2} = " 
+      //           << solver.calcL2Error(ExactSolution) << '\n' << endl;
+      //solver.verifyMeshSensitivities();
+      solver->verifySurfaceMeshSensitivities();
    }
    catch (MachException &exception)
    {
@@ -142,7 +144,7 @@ double InitialTemperature(const Vector &x)
    // }
 
    //For Use Testing Aggregated Constraint
-   return sin(M_PI*x(0))*sin(M_PI*x(0));
+   return temp_0;//sin(M_PI*x(0))*sin(M_PI*x(0));
 }
 
 double ExactSolution(const Vector &x)

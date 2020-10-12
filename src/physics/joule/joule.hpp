@@ -21,6 +21,9 @@ public:
                std::unique_ptr<mfem::Mesh> smesh,
                MPI_Comm comm);
 
+   /// Fully initialize the Joule Solver and its sub-solvers
+   void initDerived();
+
    /// Write the solutions of both the EM and thermal problems to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    ///                        EM vtk file will be filename_em,
@@ -40,6 +43,12 @@ public:
    std::vector<GridFunType*> getFields() override;
 
    void solveForState() override;
+
+   void solveForAdjoint(const std::string &fun) override;
+
+   // mfem::Vector* getMeshSensitivities() override;
+
+   void addOutputs() override;
 
    int getNumState() override {return 0;};
 
