@@ -112,8 +112,8 @@ public:
          *resjac *= dt;
          jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
       }
-      // HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
-      // delete Je;
+      HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
+      delete Je;
 
       return *jac;
    }

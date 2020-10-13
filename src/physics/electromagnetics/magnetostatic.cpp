@@ -455,8 +455,8 @@ void MagnetostaticSolver::setEssentialBoundaries()
    // computeSecondaryFields();
 // }
 
-void MagnetostaticSolver::initialHook(const mfem::ParGridFunction &state)
-{
+// void MagnetostaticSolver::initialHook(const mfem::ParGridFunction &state)
+// {
    /// TODO!!
    // Vector Zero(3);
    // Zero = 0.0;
@@ -465,13 +465,7 @@ void MagnetostaticSolver::initialHook(const mfem::ParGridFunction &state)
 
    // state = 0.0;
    // state.ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
-}
-
-void MagnetostaticSolver::terminalHook(int iter, double t_final,
-                                       const ParGridFunction &state)
-{
-   computeSecondaryFields(state);
-}
+// }
 
 void MagnetostaticSolver::addOutputs()
 {
@@ -733,6 +727,78 @@ void MagnetostaticSolver::Update()
    assembleCurrentSource();
    assembleMagnetizationSource();
 
+}
+
+void MagnetostaticSolver::setInitialCondition(
+   mfem::ParGridFunction &state,
+   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+{
+   state = 0.0;
+
+   VectorFunctionCoefficient u0(dim, u_init);
+   state.ProjectBdrCoefficientTangent(u0, ess_bdr);
+   // state.ProjectCoefficient(u0);
+   printField("uinit", state, "solution");
+   // state = 100.0;
+}
+
+void MagnetostaticSolver::initialHook(const ParGridFunction &state) 
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // res_norm0 is used to compute the time step in PTC
+      res_norm0 = calcResidualNorm(state);
+   }
+}
+
+bool MagnetostaticSolver::iterationExit(int iter, 
+                                        double t, 
+                                        double t_final,
+                                        double dt,
+                                        const ParGridFunction &state)
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // use tolerance options for Newton's method
+      double norm = calcResidualNorm(state);
+      if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
+         return true;
+      if (norm <= res_norm0 *
+                      options["time-dis"]["steady-reltol"].template get<double>())
+         return true;
+      return false;
+   }
+   else
+   {
+      return AbstractSolver::iterationExit(iter, t, t_final, dt, state);
+   }
+}
+
+void MagnetostaticSolver::terminalHook(int iter, double t_final,
+                                       const ParGridFunction &state)
+{
+   computeSecondaryFields(state);
+}
+
+double MagnetostaticSolver::calcStepSize(int iter, 
+                                         double t,
+                                         double t_final,
+                                         double dt_old,
+                                         const ParGridFunction &state) const
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // ramp up time step for pseudo-transient continuation
+      // TODO: the l2 norm of the weak residual is probably not ideal here
+      // A better choice might be the l1 norm
+      double res_norm = calcResidualNorm(state);
+      double exponent = options["time-dis"]["res-exp"];
+      double dt = options["time-dis"]["dt"].template get<double>() *
+                  pow(res_norm0 / res_norm, exponent);
+      return max(dt, dt_old);
+   }
+   else
+      throw MachException("MagnetostaticSolver requires steady time-dis!\n");
 }
 
 void MagnetostaticSolver::constructCoefficients()
@@ -1065,6 +1131,8 @@ void MagnetostaticSolver::assembleCurrentSource()
    
    *load = 0.0;
    h_curl_mass.AddMult(*div_free_current_vec, *load);
+   *load *= -1.0;
+   printField("current_source", *dynamic_cast<ParGridFunction*>(load.get()), "current", 5);
    std::cout << "below h_curl add mult\n";
    // I had strange errors when not using pointer versions of these
 }
@@ -1314,7 +1382,7 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
    weakCurlMuInv_->Finalize();
 
    M->ProjectCoefficient(*mag_coeff);
-   weakCurlMuInv_->AddMult(*M, *load, 1.0);
+   weakCurlMuInv_->AddMult(*M, *load, -1.0);
 
    delete weakCurlMuInv_;
 }

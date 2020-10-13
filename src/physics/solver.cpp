@@ -274,8 +274,6 @@ void AbstractSolver::initDerived()
 
    if (load)
    {
-      /// TODO: make this work for a grid function as well as a linear form
-      //load.reset(new LinearFormType(fes.get()));
       auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
       if (load_lf)
       {
@@ -736,7 +734,9 @@ double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
    double res_norm;
    HypreParVector *u_true = state.GetTrueDofs();
    HypreParVector *r_true = r.GetTrueDofs();
-   res->Mult(*u_true, *r_true); 
+   res->Mult(*u_true, *r_true);
+   if (load)
+      *r_true -= *load;
    double loc_norm = (*r_true)*(*r_true);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    res_norm = sqrt(res_norm);
@@ -771,6 +771,8 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
 {
    auto *u_true = state.GetTrueDofs();
    res->Mult(*u_true, residual);
+   if (*load)
+      residual -= *load;
 }
 
 double AbstractSolver::calcStepSize(int iter, double t, double t_final,
@@ -1075,7 +1077,9 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       state.Save(osol);
    }
 
-   printField("init", state, "Solution");
+   auto residual = ParGridFunction(fes.get());
+   calcResidual(state, residual);
+   printFields("init", {&residual, &state}, {"Residual", "Solution"});
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
