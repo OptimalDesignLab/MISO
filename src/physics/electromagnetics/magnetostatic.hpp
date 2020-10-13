@@ -12,18 +12,28 @@
 namespace mach
 {
 
+class MeshMovementSolver;
+
 /// Solver for magnetostatic electromagnetic problems
 /// dim - number of spatial dimensions (only 3 supported)
 class MagnetostaticSolver : public AbstractSolver
 {
 public:
-	/// Class constructor.
+   /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] comm - MPI communicator for parallel operations
    MagnetostaticSolver(const nlohmann::json &opt_file_name,
                        std::unique_ptr<mfem::Mesh> smesh,
                        MPI_Comm comm);
+
+   /// Class constructor.
+   /// \param[in] options - pre-loaded JSON options object
+   /// \param[in] smesh - if provided, defines the mesh for the problem
+   MagnetostaticSolver(const nlohmann::json &options,
+                       std::unique_ptr<mfem::Mesh> smesh);
+
+   ~MagnetostaticSolver();
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -35,6 +45,29 @@ public:
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {A, B}
    std::vector<GridFunType*> getFields() override;
+
+   /// TODO: have this accept a string input chosing the functional
+   /// Compute the sensitivity of the functional to the mesh volume
+   /// nodes, using appropriate mesh sensitivity integrators. This function will
+   /// compute the adjoint.
+   mfem::GridFunction* getMeshSensitivities() override;
+
+   /// perturb the whole mesh and finite difference
+   void verifyMeshSensitivities();
+
+   void Update() override;
+
+   /// Initializes the state vector to a given function.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - function that defines the initial condition
+   /// \note The second argument in the function `u_init` is the initial condition
+   /// value.  This may be a vector of length 1 for scalar.
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init) override;
+
+   double calcStepSize(int iter, double t, double t_final, double dt_old,
+                       const mfem::ParGridFunction &state) const override;
 
 private:
    // /// Nedelec finite element collection
@@ -89,22 +122,23 @@ private:
    /// Construct various coefficients
    void constructCoefficients() override;
 
-   /// Add volume integrators to `res` based on `options`
-   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   void addMassIntegrators(double alpha) override;
    void addResVolumeIntegrators(double alpha) override;
+   void assembleLoadVector(double alpha) override;
 
    /// mark which boundaries are essential
    void setEssentialBoundaries() override;
 
    int getNumState() override {return 1;};
 
+   double res_norm0 = -1.0;
    void initialHook(const mfem::ParGridFunction &state) override;
 
    // void iterationHook(int iter, double t, double dt,
    //                    const mfem::ParGridFunction &state) override;
 
-   // bool iterationExit(int iter, double t, double t_final, double dt,
-   //                    const mfem::ParGridFunction &state) override;
+   bool iterationExit(int iter, double t, double t_final, double dt,
+                      const mfem::ParGridFunction &state) override;
    
    void terminalHook(int iter, double t_final,
                      const mfem::ParGridFunction &state) override;
@@ -138,18 +172,39 @@ private:
    /// \param[in] alpha - used to move to lhs or rhs
    void constructCurrent();
 
+public:
    /// TODO: throw MachException if constructCurrent not called first
    ///       introdue some current constructed flag?
    /// assemble vector associated with current source
    /// \note - constructCurrent must be called before calling this
    void assembleCurrentSource();
 
+   /// Assemble mesh sensitivities of current source vector
+   /// \param[in] psi_a - Adjoint vector
+   /// \param[out] mesh_sens - mesh sensitivitites
+   /// \note this method will not initialize mesh_sens, but will add to it
+   void getCurrentSourceMeshSens(const mfem::GridFunction &psi_a,
+                                 mfem::Vector &mesh_sens);
+
+   std::unique_ptr<GridFunType> residual;
+   /// return the residual as a vector
+   mfem::Vector* getResidual();
+
+   /// Get the derivative of the residual with respect to the current density
+   mfem::Vector* getResidualCurrentDensitySensitivity();
+
+   /// Get the total derivative of a functional with respect to the current
+   /// density
+   /// \param[in] fun - which functional to get sensitivity with respect to
+   double getFunctionalCurrentDensitySensitivity(const std::string &fun);
+
+private:
    /// TODO: throw MachException if constructMagnetization or
    ///       assembleCurrentSource not called first
    /// \brief assemble magnetization source terms into rhs vector and add them
    ///        with the current source terms
    /// \note - constructMagnetization must be called before calling this
-   void assembleMagnetizationSource(void);
+   void assembleMagnetizationSource();
 
    /// Function to compute seconday fields
    /// For magnetostatics, computes the magnetic flux density
@@ -158,76 +213,163 @@ private:
    /// function describing current density in phase A windings
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
-   static void phase_a_source(const mfem::Vector &x,
-                              mfem::Vector &J);
+   static void phaseACurrentSource(const mfem::Vector &x,
+                                   mfem::Vector &J);
+
+   static void phaseACurrentSourceRevDiff(const mfem::Vector &x,
+                                          const mfem::Vector &V_bar,
+                                          mfem::Vector &x_bar);
 
    /// function describing current density in phase B windings
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
-   static void phase_b_source(const mfem::Vector &x,
-                              mfem::Vector &J);
+   static void phaseBCurrentSource(const mfem::Vector &x,
+                                   mfem::Vector &J);
+
+   static void phaseBCurrentSourceRevDiff(const mfem::Vector &x,
+                                          const mfem::Vector &V_bar,
+                                          mfem::Vector &x_bar);
 
    /// function describing current density in phase C windings
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
-   static void phase_c_source(const mfem::Vector &x,
-                              mfem::Vector &J);
+   static void phaseCCurrentSource(const mfem::Vector &x,
+                                   mfem::Vector &J);
+
+   static void phaseCCurrentSourceRevDiff(const mfem::Vector &x,
+                                          const mfem::Vector &V_bar,
+                                          mfem::Vector &x_bar);
 
    /// function describing permanent magnet magnetization pointing outwards
    /// \param[in] x - position x in space
    /// \param[out] M - magetic flux density at position x cause by permanent
    ///                 magnets
-   static void magnetization_source_north(const mfem::Vector &x,
-                                          mfem::Vector &M);
-   
+   static void northMagnetizationSource(const mfem::Vector &x,
+                                        mfem::Vector &M);
+
+   /// \param[in] x - position x in space of evaluation
+   /// \param[in] V_bar - 
+   /// \param[out] x_bar - V_bar^T Jacobian
+   static void northMagnetizationSourceRevDiff(const mfem::Vector &x,
+                                               const mfem::Vector &V_bar,
+                                               mfem::Vector &x_bar);
+
    /// function describing permanent magnet magnetization pointing inwards
    /// \param[in] x - position x in space
    /// \param[out] M - magetic flux density at position x cause by permanent
    ///                 magnets
-   static void magnetization_source_south(const mfem::Vector &x,
-                                          mfem::Vector &M);
+   static void southMagnetizationSource(const mfem::Vector &x,
+                                        mfem::Vector &M);
+
+   /// \param[in] x - position x in space of evaluation
+   /// \param[in] V_bar - 
+   /// \param[out] x_bar - V_bar^T Jacobian
+   static void southMagnetizationSourceRevDiff(const mfem::Vector &x,
+                                               const mfem::Vector &V_bar,
+                                               mfem::Vector &x_bar);
+
 
    /// function defining current density aligned with the x axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
-   static void x_axis_current_source(const mfem::Vector &x,
-                                     mfem::Vector &J);
+   static void xAxisCurrentSource(const mfem::Vector &x,
+                                  mfem::Vector &J);
+
+   static void xAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                                         const mfem::Vector &V_bar,
+                                         mfem::Vector &x_bar);
+   
+   /// function defining current density aligned with the x axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void yAxisCurrentSource(const mfem::Vector &x,
+                                  mfem::Vector &J);
+
+   static void yAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                                         const mfem::Vector &V_bar,
+                                         mfem::Vector &x_bar);
 
    /// function defining current density aligned with the x axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
-   static void y_axis_current_source(const mfem::Vector &x,
-                                     mfem::Vector &J);
+   static void zAxisCurrentSource(const mfem::Vector &x,
+                                  mfem::Vector &J);
 
-   /// function defining current density aligned with the x axis
-   /// \param[in] x - position x in space of evaluation
-   /// \param[out] J - current density at position x 
-   static void z_axis_current_source(const mfem::Vector &x,
-                                     mfem::Vector &J);
+   static void zAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                                         const mfem::Vector &V_bar,
+                                         mfem::Vector &x_bar);
 
    /// function defining current density aligned in a ring around the z axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
-   static void ring_current_source(const mfem::Vector &x,
+   static void ringCurrentSource(const mfem::Vector &x,
+                                 mfem::Vector &J);
+
+   static void ringCurrentSourceRevDiff(const mfem::Vector &x,
+                                        const mfem::Vector &V_bar,
+                                        mfem::Vector &x_bar);
+
+   /// function defining current density for simple box problem
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void box1CurrentSource(const mfem::Vector &x,
                                    mfem::Vector &J);
+
+   static void box1CurrentSourceRevDiff(const mfem::Vector &x,
+                                        const mfem::Vector &V_bar,
+                                        mfem::Vector &x_bar);
+
+   /// function defining current density for simple box problem
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void box2CurrentSource(const mfem::Vector &x,
+                                 mfem::Vector &J);
+
+   static void box2CurrentSourceRevDiff(const mfem::Vector &x,
+                                        const mfem::Vector &V_bar,
+                                        mfem::Vector &x_bar);
 
    /// function defining magnetization aligned with the x axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x
-   static void x_axis_magnetization_source(const mfem::Vector &x,
-                                           mfem::Vector &M);
+   static void xAxisMagnetizationSource(const mfem::Vector &x,
+                                        mfem::Vector &M);
+
+   /// function defining magnetization aligned with the x axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[in] V_bar - 
+   /// \param[out] x_bar - V_bar^T Jacobian
+   static void xAxisMagnetizationSourceRevDiff(const mfem::Vector &x,
+                                               const mfem::Vector &V_bar,
+                                               mfem::Vector &x_bar);
 
    /// function defining magnetization aligned with the y axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x
-   static void y_axis_magnetization_source(const mfem::Vector &x,
-                                           mfem::Vector &M);
+   static void yAxisMagnetizationSource(const mfem::Vector &x,
+                                        mfem::Vector &M);
+
+   /// function defining magnetization aligned with the x axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[in] V_bar - 
+   /// \param[out] x_bar - V_bar^T Jacobian
+   static void yAxisMagnetizationSourceRevDiff(const mfem::Vector &x,
+                                               const mfem::Vector &V_bar,
+                                               mfem::Vector &x_bar);
 
    /// function defining magnetization aligned with the z axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x
-   static void z_axis_magnetization_source(const mfem::Vector &x,
-                                           mfem::Vector &M);
+   static void zAxisMagnetizationSource(const mfem::Vector &x,
+                                        mfem::Vector &M);
+
+   /// function defining magnetization aligned with the x axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[in] V_bar - 
+   /// \param[out] x_bar - V_bar^T Jacobian
+   static void zAxisMagnetizationSourceRevDiff(const mfem::Vector &x,
+                                               const mfem::Vector &V_bar,
+                                               mfem::Vector &x_bar);
 
    static void a_exact(const mfem::Vector &x, mfem::Vector &A);
 

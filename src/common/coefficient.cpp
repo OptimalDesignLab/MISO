@@ -81,6 +81,29 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
    return value;
 }
 
+void MeshDependentCoefficient::EvalRevDiff(
+   const double Q_bar,
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   DenseMatrix &PointMat_bar)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   Coefficient *coeff;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      coeff = it->second.get();
+      coeff->EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
+   }
+   else if (default_coeff)
+   {
+      default_coeff->EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
+   }
+   // if attribute not found and no default set, don't change PointMat_bar
+   return;
+}
+
 ReluctivityCoefficient::ReluctivityCoefficient(std::vector<double> B,
                                                std::vector<double> H)
    : temperature_GF(NULL), b_h_curve()
@@ -120,6 +143,45 @@ double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
    }
 }
 
+MagneticFluxCoefficient::MagneticFluxCoefficient(std::vector<double> B,
+                                                 std::vector<double> H)
+   : temperature_GF(NULL), b_h_curve()
+{
+   b_h_curve.set_boundary(Spline::second_deriv, 0.0,
+                          Spline::second_deriv, 0.0);
+   b_h_curve.set_points(H, B);
+}
+
+double MagneticFluxCoefficient::Eval(ElementTransformation &trans,
+												 const IntegrationPoint &ip,
+                                     const double state)
+{
+	if (temperature_GF)
+   {
+      throw MachException(
+         "Temperature dependent reluctivity is not currently supported!");
+   }
+   else
+   {
+      return b_h_curve(state);
+   }
+}
+
+double MagneticFluxCoefficient::EvalStateDeriv(ElementTransformation &trans,
+												           const IntegrationPoint &ip,
+                                               const double state)
+{
+   if (temperature_GF)
+   {
+      throw MachException(
+         "Temperature dependent reluctivity is not currently supported!");
+   }
+   else
+   {
+      return b_h_curve.deriv(1, state);
+   }
+}
+
 void VectorMeshDependentCoefficient::Eval(Vector &vec,
                                           ElementTransformation &trans,
                                           const IntegrationPoint &ip)
@@ -148,18 +210,155 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
    // vec.Print();
 }
 
+void VectorMeshDependentCoefficient::EvalRevDiff(
+   const Vector &V_bar,
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   DenseMatrix &PointMat_bar)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   VectorCoefficient *coeff;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      coeff = it->second.get();
+      coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+   }
+   else if (default_coeff)
+   {
+      default_coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+   }
+   // if attribute not found and no default set, don't change PointMat_bar
+   return;
+}
+
 double SteinmetzCoefficient::Eval(ElementTransformation &trans,
                                   const IntegrationPoint &ip)
 {
-   if (B)
+   if (A)
    {
-      Vector b;
-      B->GetVectorValue(trans.ElementNo, ip, b);
-      double bMag = b.Norml2();
-      return rho*(kh*freq*pow(bMag, alpha) + ke*freq*freq*bMag*bMag);
+      int dim = trans.GetSpaceDim();
+      Array<int> vdofs;
+      Vector elfun;
+      A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+      A->GetSubVector(vdofs, elfun);
+
+      auto &el = *A->FESpace()->GetFE(trans.ElementNo);
+      int ndof = el.GetDof();
+
+      DenseMatrix curlshape(ndof,dim);
+      DenseMatrix curlshape_dFt(ndof,dim);
+      Vector b_vec(dim);
+      b_vec = 0.0;
+
+      trans.SetIntPoint(&ip);
+
+      el.CalcCurlShape(ip, curlshape);
+      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+
+      double b_mag = b_vec.Norml2();
+
+      double S = rho*(kh*freq*std::pow(b_mag, alpha) + ke*freq*freq*b_mag*b_mag);
+      return S;
    }
    else
       return 0.0;
+}
+
+void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
+    						                  ElementTransformation &trans,
+    						                  const IntegrationPoint &ip,
+    						                  DenseMatrix &PointMat_bar)
+{
+   if (A)
+   {
+      int dim = trans.GetSpaceDim();
+      Array<int> vdofs;
+      Vector elfun;
+      A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+      A->GetSubVector(vdofs, elfun);
+
+      auto &el = *A->FESpace()->GetFE(trans.ElementNo);
+      int ndof = el.GetDof();
+
+      DenseMatrix curlshape(ndof,dim);
+      DenseMatrix curlshape_dFt(ndof,dim);
+      Vector b_vec(dim);
+      Vector b_hat(dim);
+      b_vec = 0.0;
+      b_hat = 0.0;
+
+      trans.SetIntPoint(&ip);
+
+      el.CalcCurlShape(ip, curlshape);
+      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      curlshape.AddMultTranspose(elfun, b_hat);
+
+      double b_mag = b_vec.Norml2();
+      // double S = rho*(kh*freq*std::pow(b_mag, alpha) + ke*freq*freq*b_mag*b_mag);
+      double dS = rho*(alpha*kh*freq*std::pow(b_mag, alpha-2) + 2*ke*freq*freq);
+
+      DenseMatrix Jac_bar(3);
+      MultVWt(b_vec, b_hat, Jac_bar);
+      Jac_bar *= dS;
+
+      // cast the ElementTransformation
+      IsoparametricTransformation &isotrans =
+         dynamic_cast<IsoparametricTransformation&>(trans);
+
+      DenseMatrix loc_PointMat_bar(PointMat_bar.Height(), PointMat_bar.Width());
+      loc_PointMat_bar = 0.0;
+
+      isotrans.JacobianRevDiff(Jac_bar, loc_PointMat_bar);
+
+      PointMat_bar.Add(Q_bar, loc_PointMat_bar);
+
+   }
+   else
+      return;
+}
+
+void SteinmetzVectorDiffCoefficient::Eval(Vector &V, 
+                                          ElementTransformation &trans,
+                                          const IntegrationPoint &ip)
+{
+   if (A)
+   {
+      int dim = trans.GetSpaceDim();
+      Array<int> vdofs;
+      Vector elfun;
+      A->FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+      A->GetSubVector(vdofs, elfun);
+
+      auto &el = *A->FESpace()->GetFE(trans.ElementNo);
+      int ndof = el.GetDof();
+
+      DenseMatrix curlshape(ndof,dim);
+      DenseMatrix curlshape_dFt(ndof,dim);
+      Vector b_vec(dim);
+      Vector temp_vec(ndof);
+      b_vec = 0.0;
+      temp_vec = 0.0;
+
+      trans.SetIntPoint(&ip);
+
+      el.CalcCurlShape(ip, curlshape);
+      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      double b_mag = b_vec.Norml2();
+
+      V = 0.0;
+      curlshape_dFt.Mult(b_vec, temp_vec);
+      V = temp_vec;
+      double dS = rho*(alpha*kh*freq*std::pow(b_mag, alpha-2) + 2*ke*freq*freq);
+
+      V *= dS;
+   }
+   else
+      V =  0.0;
 }
 
 double ElementFunctionCoefficient::Eval (ElementTransformation &trans,

@@ -244,7 +244,10 @@ public:
    
    /// Solve for the adjoint based on current mesh, solver, etc.
    /// \param[in] fun - specifies the functional corresponding to the adjoint
-   void solveForAdjoint(const std::string &fun);
+   virtual void solveForAdjoint(const std::string &fun);
+
+   /// Solve for the adjoint with a given right hand side (instead of )
+   virtual void solveForAdjoint(const mfem::Vector& rhs) {};
 
    /// Check the Jacobian using a finite-difference directional derivative
    /// \param[in] pert - function that defines the perturbation direction
@@ -329,6 +332,9 @@ public:
    apf::Mesh2* getPumiMesh() {return pumi_mesh.get();};
 #endif
 
+   /// Tell the underling forms that the mesh has changed;
+   virtual void Update() {fes->Update();};
+
 protected:
    /// communicator used by MPI group for communication
    MPI_Comm comm;
@@ -364,6 +370,8 @@ protected:
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
+   /// pointer to mesh's underlying finite element space
+   SpaceType *mesh_fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
    /// initial state variable
@@ -396,6 +404,10 @@ protected:
 
    /// derivative of psi^T res w.r.t the mesh nodes
    std::unique_ptr<NonlinearFormType> res_mesh_sens;
+   /// partial of J w.r.t the mesh nodes
+   std::unique_ptr<NonlinearFormType> j_mesh_sens;
+   /// derivative of psi^T res w.r.t the mesh nodes, if using LinearFormIntegrators
+   std::unique_ptr<LinearFormType> res_mesh_sens_l;
 
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
@@ -418,6 +430,10 @@ protected:
    // Members associated with boundary conditions and outputs
    /// Array that marks boundaries as essential
    mfem::Array<int> ess_bdr;
+   /// Array that hold mesh fes degrees of freedom on model surfaces
+   mfem::Array<int> mesh_fes_surface_dofs;
+   /// Array that holds fes degrees of freedom on model surfaces
+   mfem::Array<int> fes_surface_dofs;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
@@ -481,6 +497,12 @@ protected:
    /// Add interior-face integrators to `load'
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadInterfaceIntegrators(double alpha) {};
+
+   /// Construct load vector
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   /// \note - only implement this method if `load` is a GridFunction, and not
+   /// a LinearForm
+   virtual void assembleLoadVector(double alpha) {};
 
    /// Add volume integrators for `ent`
    virtual void addEntVolumeIntegrators() {};

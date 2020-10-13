@@ -8,6 +8,35 @@ using namespace mfem;
 
 namespace mach
 {
+
+class TestLFIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   TestLFIntegrator(mfem::Coefficient &_Q)
+   : Q(_Q) {}
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                         mfem::ElementTransformation &trans,
+                         const mfem::Vector &elfun) override;
+
+private:
+   mfem::Coefficient &Q;
+};
+
+class TestLFMeshSensIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   TestLFMeshSensIntegrator(mfem::Coefficient &_Q)
+   : Q(_Q) {}
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+private:
+   mfem::Coefficient &Q;
+};
+
 /// Class that evaluates the residual part and derivatives
 /// for a DomainLFIntegrator (lininteg)
 class DomainResIntegrator : public mfem::NonlinearFormIntegrator
@@ -15,18 +44,18 @@ class DomainResIntegrator : public mfem::NonlinearFormIntegrator
     Vector shape;
     Coefficient &Q;
     int oa, ob;
-    GridFunction *state; GridFunction *adjoint;
+    GridFunction *adjoint;
 public:
     /// Constructs a domain integrator with a given Coefficient
-    DomainResIntegrator(Coefficient &QF, GridFunction *u, GridFunction *adj, 
+    DomainResIntegrator(Coefficient &QF, GridFunction *adj, 
                         int a = 2, int b = 0)
-                        : Q(QF), state(u), adjoint(adj), oa(a), ob(b)
+                        : Q(QF), oa(a), ob(b), adjoint(adj)
     { }
 
     /// Constructs a domain integrator with a given Coefficient
-    DomainResIntegrator(Coefficient &QF, GridFunction *u, GridFunction *adj, 
+    DomainResIntegrator(Coefficient &QF, GridFunction *adj, 
                         const IntegrationRule *ir)
-                        : Q(QF), state(u), adjoint(adj)
+                        : Q(QF), oa(1), ob(1), adjoint(adj)
     { }
 
     /// Computes the residual contribution
@@ -95,7 +124,8 @@ public:
 /// Class that evaluates the residual part and derivatives
 /// for a DiffusionIntegrator (bilininteg)
 /// NOTE: MatrixCoefficient not implemented
-class DiffusionResIntegrator : public mfem::NonlinearFormIntegrator
+class DiffusionResIntegrator : public mfem::NonlinearFormIntegrator,
+                               public mfem::LinearFormIntegrator
 {
 protected:
     Vector shape; DenseMatrix dshape;
@@ -114,9 +144,16 @@ public:
     //                                    const Vector &elfun);
 
     /// Computes dR/dX, X being mesh node locations
-    virtual void AssembleElementVector(const FiniteElement &elx,
-                                         ElementTransformation &Trx,
-                                         const Vector &elfunx, Vector &elvect);
+    void AssembleElementVector(const FiniteElement &elx,
+                               ElementTransformation &Trx,
+                               const Vector &elfunx,
+                               Vector &elvect) override;
+
+
+    /// Computes dR/dX, X being mesh node locations
+    void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                                mfem::ElementTransformation &trans,
+                                mfem::Vector &elvect) override;
 
 };
 
@@ -133,7 +170,7 @@ public:
     /// Constructs a boundary integrator with a given Coefficient
     BoundaryNormalResIntegrator(VectorCoefficient &QF, GridFunction *u, GridFunction *adj, 
                         int a = 2, int b = 0)
-                        : Q(QF), state(u), adjoint(adj), oa(a), ob(b)
+                        : Q(QF), oa(a), ob(b), state(u), adjoint(adj)
     { }
 
     /// Computes dR/dX, X being mesh node locations (DO NOT USE)
@@ -148,7 +185,6 @@ public:
 
 };
 
-
-}
+} // namespace mach
 
 #endif

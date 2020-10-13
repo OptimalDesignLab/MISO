@@ -28,6 +28,8 @@
         "maxiter": 500
      },
     "adj-solver":{
+       "type": "hypregmres",
+       "pctype": "hypreboomeramg",
        "reltol": 1e-8,
        "abstol": 0.0,
        "printlevel": 0,

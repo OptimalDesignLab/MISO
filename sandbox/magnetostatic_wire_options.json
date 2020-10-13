@@ -40,8 +40,8 @@
          "z": [1]
       }
    },
-   "outputs": [
-      "energy",
-      "co-energy"
-   ]
+   "outputs": {
+      "energy": {},
+      "co-energy": {}
+   }
 }

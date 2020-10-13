@@ -113,6 +113,9 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    options_file >> file_options;
    options = default_options;
    options.merge_patch(file_options);
+   
+   bool silent = options.value("silent", false);
+   out = getOutStream(rank, silent);
    *out << setw(3) << options << endl;
 
    // comm = incomm;
@@ -138,9 +141,20 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
       *out << setw(3) << options << endl;
    }
 
-	materials = material_library;
+   bool silent = options.value("silent", false);
+   out = getOutStream(rank, silent);
+   *out << setw(3) << options << endl;
+ 
+   materials = material_library;
 
    constructMesh(move(smesh));
+   mesh->EnsureNodes();
+   mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
+   /// before internal boundaries are removed
+   ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   ess_bdr = 1;
+   /// get all dofs on model surfaces
+   mesh_fes->GetEssentialTrueDofs(ess_bdr, mesh_fes_surface_dofs);
    int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
    // Define the ODE solver used for time integration (possibly not used)
@@ -260,8 +274,6 @@ void AbstractSolver::initDerived()
 
    if (load)
    {
-      /// TODO: make this work for a grid function as well as a linear form
-      //load.reset(new LinearFormType(fes.get()));
       auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
       if (load_lf)
       {
@@ -269,6 +281,11 @@ void AbstractSolver::initDerived()
          addLoadBoundaryIntegrators(alpha);
          addLoadInterfaceIntegrators(alpha);
          load_lf->Assemble();
+      }
+      auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
+      if (load_gf)
+      {
+         assembleLoadVector(alpha);
       }
    }
 
@@ -717,7 +734,9 @@ double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
    double res_norm;
    HypreParVector *u_true = state.GetTrueDofs();
    HypreParVector *r_true = r.GetTrueDofs();
-   res->Mult(*u_true, *r_true); 
+   res->Mult(*u_true, *r_true);
+   if (load)
+      *r_true += *load;
    double loc_norm = (*r_true)*(*r_true);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    res_norm = sqrt(res_norm);
@@ -752,6 +771,8 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
 {
    auto *u_true = state.GetTrueDofs();
    res->Mult(*u_true, residual);
+   if (load)
+      residual -= *load;
 }
 
 double AbstractSolver::calcStepSize(int iter, double t, double t_final,
@@ -1056,7 +1077,9 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       state.Save(osol);
    }
 
-   printField("init", state, "Solution");
+   auto residual = ParGridFunction(fes.get());
+   calcResidual(state, residual);
+   printFields("init", {&residual, &state}, {"Residual", "Solution"});
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
@@ -1116,6 +1139,7 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 
    // Step 0: allocate the adjoint variable
    adj.reset(new GridFunType(fes.get()));
+   *adj = 0.0;
 
    // Step 1: get the right-hand side vector, dJdu, and make an appropriate
    // alias to it, the state, and the adjoint

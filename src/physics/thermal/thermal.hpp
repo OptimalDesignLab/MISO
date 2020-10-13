@@ -31,6 +31,9 @@ public:
    
    void initDerived() override;
 
+   /// Set the Magnetic Vector Potential
+   void setAField(GridFunType *_a_field) {a_field = _a_field;}
+
    // /// Returns the L2 error between the state `u` and given exact solution.
    // /// Overload for scalar quantities
    // /// \param[in] u_exact - function that defines the exact solution
@@ -46,9 +49,11 @@ public:
    /// Compute the sensitivity of the aggregate temperature output to the mesh 
    /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
    /// the adjoint first.
-   // virtual mfem::Vector* getMeshSensitivities();
+   // mfem::Vector* getMeshSensitivities() override;
 
    mfem::Vector* getSurfaceMeshSensitivities();
+
+   void getASensitivity(mfem::Vector &psiTdRtdA) {};
 
    double getOutput();
 
@@ -59,21 +64,11 @@ public:
    void verifySurfaceMeshSensitivities();
 
 private:
-   /// Raviart-Thomas finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
-   /// H(Div) finite element space
-   std::unique_ptr<SpaceType> h_div_space;
-   /// Magnetic flux density B grid function;
-   /// (mapped from EM solver onto thermal solver's mesh)
-   std::unique_ptr<GridFunType> mag_field;
-
+   /// Magnetic vector potential A grid function (not owned)
+   GridFunType *a_field;
 
    /// Use for exact solution
    std::unique_ptr<GridFunType> th_exact;
-
-   // mfem::HypreParMatrix M;
-   // mfem::HypreParMatrix K;
-   // mfem::Vector B;
 
    /// aggregation functional (aggregation or temp)
    std::unique_ptr<AggregateIntegrator> funca;
