@@ -736,7 +736,7 @@ double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
    HypreParVector *r_true = r.GetTrueDofs();
    res->Mult(*u_true, *r_true);
    if (load)
-      *r_true -= *load;
+      *r_true += *load;
    double loc_norm = (*r_true)*(*r_true);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    res_norm = sqrt(res_norm);
@@ -771,7 +771,7 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
 {
    auto *u_true = state.GetTrueDofs();
    res->Mult(*u_true, residual);
-   if (*load)
+   if (load)
       residual -= *load;
 }
 

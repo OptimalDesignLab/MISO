@@ -15,11 +15,12 @@ using namespace mach;
 // Provide the options explicitly for regression tests
 auto options = R"(
 {
+   "silent": false,
    "print-options": false,
    "problem": "box",
    "space-dis": {
       "basis-type": "nedelec",
-      "degree": 2
+      "degree": 1
    },
    "time-dis": {
       "steady": true,
@@ -28,7 +29,7 @@ auto options = R"(
       "ode-solver": "PTC",
       "t-final": 100,
       "dt": 1e12,
-      "max-iter": 1
+      "max-iter": 10
    },
    "lin-solver": {
       "type": "hypregmres",
@@ -93,45 +94,51 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
           "[Magnetostatic-Box]")
 {
    // define the appropriate exact solution error
-   std::vector<double> target_error = {0.0690131081,
-                                       0.0224304871, 
-                                       0.0107753424, 
-                                       0.0064387612};
+   std::vector<std::vector<double>> target_error = {
+      // nxy = 2,    nxy = 4,      nyx = 8,      nyx = 16,     nxy = 32
+      {0.1909560005, 0.0714431496, 0.0254173455, 0.0089731459, 0.0031667063}, // p = 1
+      {0.0503432775, 0.0103611278, 0.0022325345, 0.0005048188, 0.0001186963}, // p = 2
+      {0.0056063669, 0.0006908125, 8.56636e-05,  1.0664e-05,   1.33025e-06},  // p = 3
+      {0.0,          0.0,          0.0,          0.0,          0.0}           // p = 4
+   };
 
-   std::vector<double> target_coenergy = {-0.7355357753, 
-                                          -0.717524391,
-                                          -0.7152446356,
-                                          -0.7146853447};
-
+   /// TODO:
+   std::vector<std::vector<double>> target_coenergy = {
+      {0.0, 0.0, 0.0, 0.0},
+      {0.0, 0.0, 0.0, 0.0},
+      {0.0, 0.0, 0.0, 0.0},
+      {0.0, 0.0, 0.0, 0.0}
+   };
 
    /// number of elements in Z direction
    auto nz = 2;
 
-   for (int nxy = 16; nxy <= 16; ++nxy)
+   for (int order = 1; order <= 2; ++order)
    {
-      DYNAMIC_SECTION("...for mesh sizing nxy = " << nxy)
-      {
-         // construct the solver, set the initial condition, and solve
-         unique_ptr<Mesh> smesh = buildMesh(nxy, nz);
-         auto solver = createSolver<MagnetostaticSolver>(options, move(smesh));
-         solver->setInitialCondition(aexact);
-         solver->solveForState();
-         solver->printSolution("test_mag_box");
-         auto fields = solver->getFields();
+      options["space-dis"]["degree"] = order;
+      int nxy = 1;
+      for (int ref = 1; ref <= 4; ++ref)
+      {  
+         nxy *= 2;
+         DYNAMIC_SECTION("...for order " << order << " and mesh sizing nxy = " << nxy)
+         {
+            // construct the solver, set the initial condition, and solve
+            unique_ptr<Mesh> smesh = buildMesh(nxy, nz);
+            auto solver = createSolver<MagnetostaticSolver>(options, move(smesh));
+            solver->setInitialCondition(aexact);
+            solver->solveForState();
+            auto fields = solver->getFields();
 
+            // Compute error and check against appropriate target
+            mfem::VectorFunctionCoefficient bEx(3, bexact);
+            double l2_error = fields[1]->ComputeL2Error(bEx);
+            std::cout << "\n\nl2 error in B: " << l2_error << "\n\n\n";
+            REQUIRE(l2_error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
-         // Compute error and check against appropriate target
-         mfem::VectorFunctionCoefficient bEx(3, bexact);
-         double l2_error = fields[1]->ComputeL2Error(bEx);
-         std::cout << "l2 error in B: " << l2_error << "\n";
-         // REQUIRE(l2_error == Approx(target_error[nxy - 1]).margin(1e-10));
-
-         auto bExField = ParGridFunction(fields[0]->ParFESpace());
-         bExField.ProjectCoefficient(bEx);
-         solver->printField("bexact", bExField, "b_exact", options["space-dis"]["degree"].get<int>());
-         // // Compute co-energy and check against target
-         // double coenergy = solver->calcOutput("co-energy");
-         // REQUIRE(coenergy == Approx(target_coenergy[nxy-1]).margin(1e-10));
+            // // Compute co-energy and check against target
+            // double coenergy = solver->calcOutput("co-energy");
+            // REQUIRE(coenergy == Approx(target_coenergy[nxy-1]).margin(1e-10));
+         }
       }
    }
 }
