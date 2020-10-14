@@ -1,6 +1,8 @@
 #include "euler_test_data.hpp"
 #include "euler_fluxes.hpp"
 
+using namespace mfem;
+
 namespace euler_data
 {
 
@@ -73,7 +75,7 @@ static std::default_random_engine gen(std::random_device{}());
 static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
 
 template <int dim, bool entvar>
-void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
+void randBaselineVectorPert(const Vector &x, Vector &u)
 {
     const double scale = 0.01;
     u(0) = rho * (1.0 + scale * uniform_rand(gen));
@@ -84,19 +86,19 @@ void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
     }
     if (entvar)
     {
-       mfem::Vector q(u);
+       Vector q(u);
        mach::calcEntropyVars<double, dim>(q.GetData(), u.GetData());
     }
 }
 // explicit instantiation of the templated function above
-template void randBaselinePert<1, true>(const mfem::Vector &x, mfem::Vector &u);
-template void randBaselinePert<2, true>(const mfem::Vector &x, mfem::Vector &u);
-template void randBaselinePert<3, true>(const mfem::Vector &x, mfem::Vector &u);
-template void randBaselinePert<1, false>(const mfem::Vector &x, mfem::Vector &u);
-template void randBaselinePert<2, false>(const mfem::Vector &x, mfem::Vector &u);
-template void randBaselinePert<3, false>(const mfem::Vector &x, mfem::Vector &u);
+template void randBaselineVectorPert<1, true>(const Vector &x, Vector &u);
+template void randBaselineVectorPert<2, true>(const Vector &x, Vector &u);
+template void randBaselineVectorPert<3, true>(const Vector &x, Vector &u);
+template void randBaselineVectorPert<1, false>(const Vector &x, Vector &u);
+template void randBaselineVectorPert<2, false>(const Vector &x, Vector &u);
+template void randBaselineVectorPert<3, false>(const Vector &x, Vector &u);
 
-void randState(const mfem::Vector &x, mfem::Vector &u)
+void randVectorState(const Vector &x, Vector &u)
 {
     for (int i = 0; i < u.Size(); ++i)
     {
@@ -104,13 +106,13 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
     }
 }
 
-double randBaselinePert(const mfem::Vector &x)
+double randBaselinePert(const Vector &x)
 {
     const double scale = 0.01;
     return 1.0 + scale * uniform_rand(gen);
 }
 
-double randState(const mfem::Vector &x)
+double randState(const Vector &x)
 {
     return 2.0 * uniform_rand(gen) - 1.0;
 }

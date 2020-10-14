@@ -7,8 +7,9 @@ namespace mach
 {
 
 void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
-                                       ElementTransformation &Trx,
-                                       const Vector &elfunx, Vector &elvect)
+                                                ElementTransformation &Trx,
+                                                const Vector &elfunx,
+                                                Vector &elvect)
 {   
     /// get the proper element, transformation, and state vector
     Array<int> vdofs; Vector elfun; Vector eladj;
@@ -67,8 +68,9 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
 }
 
 void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
-                                       ElementTransformation &Trx,
-                                       const Vector &elfunx, Vector &elvect)
+                                              ElementTransformation &Trx,
+                                              const Vector &elfunx,
+                                              Vector &elvect)
 {
     /// get the proper element, transformation, and state vector
     Array<int> vdofs; Vector elfun; Vector eladj; 
@@ -131,8 +133,9 @@ void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
 }
 
 void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
-                                       ElementTransformation &Trx,
-                                       const Vector &elfunx, Vector &elvect)
+                                                   ElementTransformation &Trx,
+                                                   const Vector &elfunx,
+                                                   Vector &elvect)
 {
     /// get the proper element, transformation, and state vector
     Array<int> vdofs; Vector elfun; Vector eladj; 
@@ -214,10 +217,12 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
     }
 }
 
-void BoundaryNormalResIntegrator::AssembleFaceVector(const FiniteElement &el1x,
-                                        const FiniteElement &el2x,
-                                         FaceElementTransformations &Trx,
-                                         const Vector &elfunx, Vector &elvect)
+void BoundaryNormalResIntegrator::AssembleFaceVector(
+   const FiniteElement &el1x,
+   const FiniteElement &el2x,
+   FaceElementTransformations &Trx,
+   const Vector &elfunx,
+   Vector &elvect)
 {   
     /// get the proper element, transformation, and state vector
     Array<int> vdofs; Vector elfun; Vector eladj;
@@ -286,8 +291,8 @@ void BoundaryNormalResIntegrator::AssembleFaceVector(const FiniteElement &el1x,
 
 #if 0
 double DomainResIntegrator::GetElementEnergy(const FiniteElement &elx,
-                                       ElementTransformation &Trx,
-                                       const Vector &elfunx)
+                                             ElementTransformation &Trx,
+                                             const Vector &elfunx)
 {
     double Rpart = 0;
     
@@ -330,8 +335,8 @@ double DomainResIntegrator::GetElementEnergy(const FiniteElement &elx,
 }
 
 double MassResIntegrator::GetElementEnergy(const FiniteElement &elx,
-                                       ElementTransformation &Trx,
-                                       const Vector &elfunx)
+                                           ElementTransformation &Trx,
+                                           const Vector &elfunx)
 {
     double Rpart = 0;
     
