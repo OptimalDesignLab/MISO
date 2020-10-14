@@ -97,7 +97,7 @@ jobs:
       run: |
         cmake ${GITHUB_WORKSPACE}/mach \
          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-         -DMFEM_DIR="${{runner.workspace}}/.deps/mfem/build"
+         -DMFEM_DIR="${{runner.workspace}}/.deps/mfem/build" \
          -DADEPT_DIR="${GITHUB_WORKSPACE}/.deps/adept/install"
     # - name: ls
     #   run: ls -latr ${GITHUB_WORKSPACE}/.deps/mfem
