@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
   
    // Parse command-line options
    OptionsParser args(argc, argv);
-   int map_degree = 2.0;
+   int map_degree = 2;
    int nx = 1;
    int ny = 1;
    args.AddOption(&options_file, "-o", "--options",
