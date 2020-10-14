@@ -1358,7 +1358,8 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
    {
       if (output.find(fun) == output.end())
       {
-         *out << "Did not find " << fun << " in output map?" << endl;
+         //*out << "Did not find " << fun << " in output map?" << endl;
+         throw MachException("Did not find " + fun + " in output map?");
       }
       return output.at(fun).GetEnergy(state);
    }

@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
   
    // Parse command-line options
    OptionsParser args(argc, argv);
-   int degree = 2.0;
+   int degree = 2;
    int nx = 1;
    int ny = 1;
    args.AddOption(&options_file, "-o", "--options",
@@ -118,6 +118,7 @@ int main(int argc, char *argv[])
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
       double entropy = solver->calcOutput("entropy");
 
+      out->precision(15);
       *out << "\nfinal residual norm = " << res_error;
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
       *out << "\nDrag error = " << drag << endl;
@@ -192,8 +193,8 @@ void uexact(const Vector &x, Vector& q)
    double a = sqrt(euler::gamma*press/rho);
 
    u(0) = rho;
-   u(1) = rho*a*Ma*sin(theta);
-   u(2) = -rho*a*Ma*cos(theta);
+   u(1) = -rho*a*Ma*sin(theta);
+   u(2) = rho*a*Ma*cos(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 
    if (entvar == false)

@@ -94,16 +94,22 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
    auto uexact = !entvar ? qexact : wexact;
    int mesh_degree = options["space-dis"]["degree"].get<int>() + 1;
    std::vector<double> target_error;
-   std::vector<double> target_drag;
+   std::vector<double> target_drag_error;
    if (entvar)
    {
-      target_error = {0.0690131081, 0.0224304871, 0.0107753424, 0.0064387612};
-      target_drag = {-0.7355357753, -0.717524391, -0.7152446356, -0.7146853447};
+      target_error = {0.0901571779707352, 0.0311496716090168,
+                      0.0160317976193675, 0.0098390277746438};
+      target_drag_error = {0.0149959859366922, 0.00323047181284186,
+                           0.00103944525942667, 0.000475003178886935};
+      // target_error = {0.0690131081, 0.0224304871, 0.0107753424, 0.0064387612};
    }
    else
    {
-      target_error = {0.0700148195, 0.0260625842, 0.0129909277, 0.0079317615};
-      target_drag = {-0.7355357753, -0.717524391, -0.7152446356, -0.7146853447};
+      target_error = {0.0901571779707358, 0.0311496716080777,
+                      0.0160317976193642, 0.00983902777464837};
+      target_drag_error = {0.0149959859366923, 0.00323047181325709,
+                           0.00103944525936905, 0.000475003178874278};
+      // target_error = {0.0700148195, 0.0260625842, 0.0129909277, 0.0079317615};
    }
 
    for (int nx = 1; nx <= 4; ++nx)
@@ -119,13 +125,17 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
             solver->printSolution("steady_vtx");
          solver->solveForState();
 
-         // Compute error and check against appropriate target
-         double l2_error = solver->calcL2Error(uexact, 0);
+         // Compute error and check against appropriate target:
+         // Using calcConservativeVarsL2Error, we should have the same error 
+         // for both entvar=true and entvar=false
+         double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
+         //double l2_error = solver->calcL2Error(uexact, 0);
          REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
 
          // Compute drag and check against target
-         double drag = solver->calcOutput("drag");
-         REQUIRE(drag == Approx(target_drag[nx-1]).margin(1e-10));
+         double drag_error = fabs(solver->calcOutput("drag") - (-1 /mach::euler::gamma));
+         REQUIRE(drag_error == Approx(target_drag_error[nx-1]).margin(1e-10));
       }
    }
 }
@@ -157,8 +167,8 @@ void qexact(const Vector &x, Vector& q)
    double a = sqrt(euler::gamma*press/rho);
 
    q(0) = rho;
-   q(1) = rho*a*Ma*sin(theta);
-   q(2) = -rho*a*Ma*cos(theta);
+   q(1) = -rho*a*Ma*sin(theta);
+   q(2) = rho*a*Ma*cos(theta);
    q(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 }
 
