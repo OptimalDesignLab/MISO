@@ -1,0 +1,36 @@
+{
+   "problem": "box",
+   "mesh": {
+      "file": "motor_fix.mesh",
+      "out-file": "box_mesh"
+   },
+   "space-dis": {
+      "basis-type": "nedelec",
+      "degree": 1
+   },
+   "steady": true,
+   "time-dis": {
+   },
+   "lin-solver": {
+      "print-lvl": 2,
+      "max-iter": 500
+   },
+   "nonlin-solver": {
+      "print-lvl": 1,
+      "rel-tol": 1e-8,
+      "abs-tol": 1e-8
+   },
+   "components": {
+      "attr1": {
+         "material": "box1",
+         "attr": 1,
+         "linear": true
+      },
+      "attr2": {
+         "material": "box2",
+         "attr": 2,
+         "linear": true
+      }
+   },
+   "material-lib-path": "../src/material_library.json"
+}

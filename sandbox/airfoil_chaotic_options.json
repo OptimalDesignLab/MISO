@@ -1,0 +1,39 @@
+{
+   "mesh": {
+      "file": "naca0012-5deg.mesh"
+   },   
+   "flow-param": {
+      "mach": 0.2,
+      "aoa": 20.0,
+      "roll-axis": 0,
+      "pitch-axis": 1,
+      "Re": 3500.0,
+      "Pr": 0.72,
+      "mu": -1.0
+   },
+   "space-dis": {
+      "degree": 4,
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
+   },
+   "steady": false,
+   "time-dis": {
+      "const-cfl": false,
+      "ode-solver": "MIDPOINT",
+      "t-final": 2.0,
+      "dt": 0.05,
+      "cfl": 0.05
+   }, 
+   "bcs": {
+      "no-slip-adiabatic": [0, 0, 1, 1],
+      "far-field": [1, 1, 0, 0]
+   },
+   "petscsolver": {
+      "ksptype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-15,
+      "reltol": 1e-15,
+      "maxiter": 100,
+      "printlevel": 0
+   }
+}

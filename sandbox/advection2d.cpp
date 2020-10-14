@@ -22,15 +22,11 @@ void u0_function(const Vector &x, Vector& u0);
 int main(int argc, char *argv[])
 {
    ostream *out;
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
+   // Initialize MPI
    MPI_Init(&argc, &argv);
    int rank;
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   out = getOutStream(rank); 
-#else
-   out = getOutStream(0);
-#endif
+   out = getOutStream(rank);
 
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -48,14 +44,14 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      AdvectionSolver solver(opt_file_name, velocity_function);
-      solver.setInitialCondition(u0_function);
+      unique_ptr<AbstractSolver> solver(
+         new AdvectionSolver<2>(opt_file_name, velocity_function));
+      solver->setInitialCondition(u0_function);
       *out << "\n|| u_h - u ||_{L^2} = " 
-                << solver.calcL2Error(u0_function) << '\n' << endl;      
-      solver.solveForState();
+                << solver->calcL2Error(u0_function) << '\n' << endl;      
+      solver->solveForState();
       *out << "\n|| u_h - u ||_{L^2} = " 
-                << solver.calcL2Error(u0_function) << '\n' << endl;
-
+                << solver->calcL2Error(u0_function) << '\n' << endl;
    }
    catch (MachException &exception)
    {
@@ -65,9 +61,7 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-#ifdef MFEM_USE_MPI
    MPI_Finalize();
-#endif
 }
 
 void velocity_function(const Vector &x, Vector &v)
