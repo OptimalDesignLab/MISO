@@ -1,6 +1,6 @@
 name: CMake Build Matrix
 
-on: [push, pull_request]
+on: [push]
 
 env:
   CMAKE_VERSION: 3.18.3
@@ -39,6 +39,18 @@ jobs:
         make
         make check
         make install
+
+    - name: Cache brew packages
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-brew-packages
+      with:
+        path: $(brew --cellar)
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
 
     - name: Brew install OpenMPI
       run: brew install open-mpi
@@ -107,15 +119,15 @@ jobs:
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE
 
-    - name: Build Mach Tests
-      working-directory: ${{runner.workspace}}/mach/build
-      shell: bash
-      # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --target build_tests --config $BUILD_TYPE
-
     - name: Test Mach
       working-directory: ${{runner.workspace}}/mach/build
       shell: bash
-      # Execute tests defined by the CMake configuration.  
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C $BUILD_TYPE
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build . --target tests --config $BUILD_TYPE
+
+    # - name: Test Mach
+    #   working-directory: ${{runner.workspace}}/mach/build
+    #   shell: bash
+    #   # Execute tests defined by the CMake configuration.  
+    #   # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+    #   run: ctest -C $BUILD_TYPE
