@@ -768,9 +768,7 @@ bool MagnetostaticSolver::iterationExit(int iter,
       return false;
    }
    else
-   {
-      return AbstractSolver::iterationExit(iter, t, t_final, dt, state);
-   }
+      throw MachException("MagnetostaticSolver requires steady time-dis!\n");
 }
 
 void MagnetostaticSolver::terminalHook(int iter, double t_final,
