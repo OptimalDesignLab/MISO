@@ -10,268 +10,112 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.config.name }}
-    runs-on: ${{ matrix.config.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-        - {
-            name: "Ubuntu Latest GCC", artifact: "Linux.7z",
-            os: ubuntu-latest,
-            cc: "gcc", cxx: "g++"
-          }
-        - {
-            name: "macOS Latest Clang", artifact: "macOS.7z",
-            os: macos-latest,
-            cc: "clang", cxx: "clang++"
-          }
+    # The CMake configure and build commands are platform agnostic and should work equally
+    # well on Windows or Mac.  You can convert this to a matrix build if you need
+    # cross-platform coverage.
+    # See: https://docs.github.com/en/actions/configuring-and-managing-workflows/configuring-a-workflow#configuring-a-build-matrix
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
 
-    - name: Download Ninja and CMake
-      shell: cmake -P {0}
-      run: |
-        set(cmake_version $ENV{CMAKE_VERSION})
-        set(ninja_version $ENV{NINJA_VERSION})
-        message(STATUS "Using host CMake version: ${CMAKE_VERSION}")
-        if ("${{ runner.os }}" STREQUAL "Linux")
-          set(ninja_suffix "linux.zip")
-          set(cmake_suffix "Linux-x86_64.tar.gz")
-          set(cmake_dir "cmake-${cmake_version}-Linux-x86_64/bin")
-        elseif ("${{ runner.os }}" STREQUAL "macOS")
-          set(ninja_suffix "mac.zip")
-          set(cmake_suffix "Darwin-x86_64.tar.gz")
-          set(cmake_dir "cmake-${cmake_version}-Darwin-x86_64/CMake.app/Contents/bin")
-        endif()
-        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-${ninja_suffix}")
-        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./ninja.zip)
-        set(cmake_url "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-${cmake_suffix}")
-        file(DOWNLOAD "${cmake_url}" ./cmake.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./cmake.zip)
-        # Add to PATH environment variable
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/${cmake_dir}" cmake_dir)
-        set(path_separator ":")
-        file(APPEND "$ENV{GITHUB_PATH}" "$ENV{GITHUB_WORKSPACE}${path_separator}${cmake_dir}")
-        execute_process(
-          COMMAND chmod +x ninja
-          COMMAND chmod +x ${cmake_dir}/cmake
-        )
-
-    - name: Download ccache
-      id: ccache
-      shell: cmake -P {0}
-      run: |
-        set(ccache_url "https://github.com/cristianadam/ccache/releases/download/v$ENV{CCACHE_VERSION}/${{ runner.os }}.tar.xz")
-        file(DOWNLOAD "${ccache_url}" ./ccache.tar.xz SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./ccache.tar.xz)
-
-    - name: Prepare ccache timestamp
-      id: ccache_cache_timestamp
-      shell: cmake -P {0}
-      run: |
-        string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
-        message("::set-output name=timestamp::${current_date}")
-
-    - name: ccache cache files
-      uses: actions/cache@v1.1.0
-      with:
-        path: .ccache
-        key: ${{ matrix.config.name }}-ccache-${{ steps.ccache_cache_timestamp.outputs.timestamp }}
-        restore-keys: |
-          ${{ matrix.config.name }}-ccache-
-    # Build OpenMPI
-    - name: Download OpenMPI
-      run: wget https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-4.0.5.tar.gz
-    - name: Extract OpenMPI
-      run: tar -xvf ./openmpi-4.0.5.tar.gz
-    - name: Configure OpenMPI
-      run: ./openmpi-4.0.5/configure --prefix="/home/${USER}/.openmpi"
-    - name: Install OpenMPI
-      shell: cmake -P {0}
-      run: |
-        set(ENV{CC} ${{ matrix.config.cc }})
-        set(ENV{CXX} ${{ matrix.config.cxx }})
-        execute_process(
-          COMMAND make -j
-            sudo make install
-        )
-    
-    - name: Download Metis 5
-      run: wget http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz
-    - name: Configure Metis
-      run: |
-        tar -xvf ./metis-5.1.0.tar.gz
-        cd metis-5.1.0
-        make config CC=mpicc
-    - name: Build Metis
-      run: |
-        make
-        make install
-        cd ..
-
-    - name: Download Hypre
+    - name: Download Adept
       uses: actions/checkout@v2
       with:
-        repository: 'hypre-space/hypre'
-        ref: 'v2.20.0'
-        
-    - name: Configure Hypre
+        repository: 'rjhogan/Adept-2'
+        path: .deps/adept
+
+    - name: Create Adept Install Directory
+      run: cmake -E make_directory ${GITHUB_WORKSPACE}/.deps/adept/install
+
+    - name: Configure Adept
       run: |
-        cd hypre/src
-        ./configure
-    - name: Build Hypre
+        cd ${GITHUB_WORKSPACE}/.deps/adept/
+        autoreconf -i
+        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/install"
+  
+    - name: Build Adept
       run: |
+        cd ${GITHUB_WORKSPACE}/.deps/adept/
         make
+        make check
         make install
-        cd ../..
-        
+
+    - name: Brew install OpenMPI
+      run: brew install open-mpi
+
+    - name: Brew install metis
+      run: brew install metis
+
+    - name: Brew install hypre
+      run: brew install hypre
+
     - name: Download MFEM
       uses: actions/checkout@v2
       with:
         repository: 'mfem/mfem'
         ref: 'odl'
+        path: .deps/mfem
+     
+    - name: Create MFEM Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/.deps/mfem/build
+
     - name: Configure MFEM
+      shell: bash
+      working-directory: ${{runner.workspace}}/.deps/mfem/build
       run: |
-        mkdir mfem/build
-        
+        cmake ${GITHUB_WORKSPACE}/.deps/mfem \
+         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+         -DMFEM_USE_MPI=YES \
+         -DMFEM_USE_METIS_5=YES \
+         -DHYPRE_DIR="$(brew --prefix hypre)" \
+         -DMETIS_DIR="$(brew --prefix metis)" \
+         -DMFEM_ENABLE_EXAMPLES=NO \
+         -DMFEM_ENABLE_MINIAPPS=NO
+    
     - name: Build MFEM
-      shell: cmake -P {0}
-      run: |
-        set(ENV{CC} ${{ matrix.config.cc }})
-        set(ENV{CXX} ${{ matrix.config.cxx }})
-        set(path_separator ":")
-        set(ENV{PATH} "$ENV{GITHUB_WORKSPACE}${path_separator}$ENV{PATH}")
-        execute_process(
-          COMMAND cmake
-            -S mfem
-            -B mfem/build
-            -D CMAKE_BUILD_TYPE=$ENV{BUILD_TYPE}
-            -G Ninja
-            -D CMAKE_MAKE_PROGRAM=ninja
-            -D CMAKE_C_COMPILER_LAUNCHER=ccache
-            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
-            -D MFEM_USE_MPI=YES
-            -D MFEM_USE_METIS_5=YES
-            -D MFEM_ENABLE_EXAMPLES=NO
-            -D MFEM_ENABLE_MINIAPPS=NO
-          RESULT_VARIABLE result
-        )
+      working-directory: ${{runner.workspace}}/.deps/mfem/build
+      run: cmake --build . --parallel ${nproc} --config $BUILD_TYPE
 
-    - name: Download Adept
-      run: wget http://www.met.reading.ac.uk/clouds/adept/adept-2.0.8.tar.gz
-        
-    - name: Configure Adept
-      run: |
-        tar -xvf ./adept-2.0.8.tar.gz
-        cd adept-2.0.8
-        ./configure --prefix="."
-    - name: Build Adept
-      run: |
-        make
-        make check
-        make install
-        cd ..
-  
-    - name: Configure
-      shell: cmake -P {0}
-      run: |
-        set(ENV{CC} ${{ matrix.config.cc }})
-        set(ENV{CXX} ${{ matrix.config.cxx }})
-        set(path_separator ":")
-        set(ENV{PATH} "$ENV{GITHUB_WORKSPACE}${path_separator}$ENV{PATH}")
-        execute_process(
-          COMMAND cmake
-            -S .
-            -B build
-            -D CMAKE_BUILD_TYPE=$ENV{BUILD_TYPE}
-            -G Ninja
-            -D CMAKE_MAKE_PROGRAM=ninja
-            -D CMAKE_C_COMPILER_LAUNCHER=ccache
-            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
-            -D ADEPT_DIR="../adept-2.0.8"
-            -D MFEM_DIR="../mfem/build"
-            -D BUILD_TESTING=YES
-            -D BUILD_PYTHON_WRAPPER=NO
-          RESULT_VARIABLE result
-        )
-        if (NOT result EQUAL 0)
-          message(FATAL_ERROR "Bad exit status")
-        endif()
+    - name: Install MFEM
+      working-directory: ${{runner.workspace}}/.deps/mfem/build
+      run: cmake --build . --config $BUILD_TYPE
 
-    - name: Build
-      shell: cmake -P {0}
-      run: |
-        set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}" ccache_basedir)
-        set(ENV{CCACHE_BASEDIR} "${ccache_basedir}")
-        set(ENV{CCACHE_DIR} "${ccache_basedir}/.ccache")
-        set(ENV{CCACHE_COMPRESS} "true")
-        set(ENV{CCACHE_COMPRESSLEVEL} "6")
-        set(ENV{CCACHE_MAXSIZE} "400M")
-        execute_process(COMMAND ccache -p)
-        execute_process(COMMAND ccache -z)
-        execute_process(
-          COMMAND cmake --build build
-          RESULT_VARIABLE result
-          OUTPUT_VARIABLE output
-          ERROR_VARIABLE output
-          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-        )
-        if (NOT result EQUAL 0)
-          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
-          string(REPLACE "\n" "%0A" error_message "${error_message}")
-          message("::error::${error_message}")
-          message(FATAL_ERROR "Build failed")
-        endif()
-        execute_process(COMMAND ccache -s)
+    - name: Clone Mach
+      uses: actions/checkout@v2
+      with:
+        path: mach
 
-- name: Build tests
-      shell: cmake -P {0}
-      run: |
-        set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}" ccache_basedir)
-        set(ENV{CCACHE_BASEDIR} "${ccache_basedir}")
-        set(ENV{CCACHE_DIR} "${ccache_basedir}/.ccache")
-        set(ENV{CCACHE_COMPRESS} "true")
-        set(ENV{CCACHE_COMPRESSLEVEL} "6")
-        set(ENV{CCACHE_MAXSIZE} "400M")
-        execute_process(COMMAND ccache -p)
-        execute_process(COMMAND ccache -z)
-        execute_process(
-          COMMAND cmake --build build --target build_tests
-          RESULT_VARIABLE result
-          OUTPUT_VARIABLE output
-          ERROR_VARIABLE output
-          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-        )
-        if (NOT result EQUAL 0)
-          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
-          string(REPLACE "\n" "%0A" error_message "${error_message}")
-          message("::error::${error_message}")
-          message(FATAL_ERROR "Build failed")
-        endif()
-        execute_process(COMMAND ccache -s)
+    - name: Create Mach Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/mach/build
 
-    - name: Run tests
-      shell: cmake -P {0}
+    - name: Configure Mach
+      shell: bash
+      working-directory: ${{runner.workspace}}/mach/build
+      # Note the current convention is to use the -S and -B options here to specify source 
+      # and build directories, but this is only available with CMake 3.13 and higher.  
+      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |
-        include(ProcessorCount)
-        ProcessorCount(N)
-        set(ENV{CTEST_OUTPUT_ON_FAILURE} "ON")
-        execute_process(
-          COMMAND ctest -j ${N}
-          WORKING_DIRECTORY build
-          RESULT_VARIABLE result
-          OUTPUT_VARIABLE output
-          ERROR_VARIABLE output
-          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
-        )
-        if (NOT result EQUAL 0)
-          string(REGEX MATCH "[0-9]+% tests.*[0-9.]+ sec.*$" test_results "${output}")
-          string(REPLACE "\n" "%0A" test_results "${test_results}")
-          message("::error::${test_results}")
-          message(FATAL_ERROR "Running tests failed!")
-        endif()
+        cmake ${GITHUB_WORKSPACE}/mach \
+         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+         -DMFEM_DIR="${{runner.workspace}}/.deps/mfem/build"
+         -DADEPT_DIR="${GITHUB_WORKSPACE}/.deps/adept/install"
+    # - name: ls
+    #   run: ls -latr ${GITHUB_WORKSPACE}/.deps/mfem
+    - name: Build Mach
+      working-directory: ${{runner.workspace}}/mach/build
+      shell: bash
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build . --config $BUILD_TYPE
+
+    - name: Build Mach Tests
+      working-directory: ${{runner.workspace}}/mach/build
+      shell: bash
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build . --target build_tests --config $BUILD_TYPE
+
+    - name: Test Mach
+      working-directory: ${{runner.workspace}}/mach/build
+      shell: bash
+      # Execute tests defined by the CMake configuration.  
+      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+      run: ctest -C $BUILD_TYPE
