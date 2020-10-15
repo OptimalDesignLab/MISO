@@ -1,0 +1,158 @@
+name: CMake Build Matrix
+
+on: [push]
+
+env:
+  CMAKE_VERSION: 3.18.3
+  NINJA_VERSION: 1.10.1
+  BUILD_TYPE: Release
+  CCACHE_VERSION: 3.7.7
+
+jobs:
+  build:
+    # The CMake configure and build commands are platform agnostic and should work equally
+    # well on Windows or Mac.  You can convert this to a matrix build if you need
+    # cross-platform coverage.
+    # See: https://docs.github.com/en/actions/configuring-and-managing-workflows/configuring-a-workflow#configuring-a-build-matrix
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {
+            name: "Ubuntu Latest GCC", artifact: "Linux.7z",
+            os: ubuntu-latest,
+            cc: "gcc", cxx: "g++"
+          }
+        - {
+            name: "macOS Latest Clang", artifact: "macOS.7z",
+            os: macos-latest,
+            cc: "clang", cxx: "clang++"
+          }
+
+    steps:
+
+    - name: Cache Adept
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-adept
+      with:
+        path: ${GITHUB_WORKSPACE}/.deps/adept/
+        key: ${{ runner.os }}-build-${{ env.cache-name }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: Download Adept
+      uses: actions/checkout@v2
+      with:
+        repository: 'rjhogan/Adept-2'
+        path: .deps/adept
+
+    - name: Create Adept Install Directory
+      run: cmake -E make_directory ${GITHUB_WORKSPACE}/.deps/adept/install
+
+    - name: Configure Adept
+      run: |
+        cd ${GITHUB_WORKSPACE}/.deps/adept/
+        autoreconf -i
+        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/install"
+  
+    - name: Build Adept
+      run: |
+        cd ${GITHUB_WORKSPACE}/.deps/adept/
+        make
+        make check
+        make install
+
+    - name: Cache brew packages
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-brew-packages
+      with:
+        path: $(brew --cellar)
+        key: ${{ runner.os }}-build-${{ env.cache-name }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: Brew install OpenMPI
+      run: brew install open-mpi
+
+    - name: Brew install metis
+      run: brew install metis
+
+    - name: Brew install hypre
+      run: brew install hypre
+
+    - name: Download MFEM
+      uses: actions/checkout@v2
+      with:
+        repository: 'mfem/mfem'
+        ref: 'odl'
+        path: .deps/mfem
+     
+    - name: Create MFEM Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/.deps/mfem/build
+
+    - name: Configure MFEM
+      shell: bash
+      working-directory: ${{runner.workspace}}/.deps/mfem/build
+      run: |
+        cmake ${GITHUB_WORKSPACE}/.deps/mfem \
+         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+         -DMFEM_USE_MPI=YES \
+         -DMFEM_USE_METIS_5=YES \
+         -DHYPRE_DIR="$(brew --prefix hypre)" \
+         -DMETIS_DIR="$(brew --prefix metis)" \
+         -DMFEM_ENABLE_EXAMPLES=NO \
+         -DMFEM_ENABLE_MINIAPPS=NO
+    
+    - name: Build MFEM
+      working-directory: ${{runner.workspace}}/.deps/mfem/build
+      run: cmake --build . --parallel ${nproc} --config $BUILD_TYPE
+
+    - name: Install MFEM
+      working-directory: ${{runner.workspace}}/.deps/mfem/build
+      run: cmake --build . --config $BUILD_TYPE
+
+    - name: Clone Mach
+      uses: actions/checkout@v2
+      with:
+        path: mach
+
+    - name: Create Mach Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/mach/build
+
+    - name: Configure Mach
+      shell: bash
+      working-directory: ${{runner.workspace}}/mach/build
+      # Note the current convention is to use the -S and -B options here to specify source 
+      # and build directories, but this is only available with CMake 3.13 and higher.  
+      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
+      run: |
+        cmake ${GITHUB_WORKSPACE}/mach \
+         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+         -DMFEM_DIR="${{runner.workspace}}/.deps/mfem/build" \
+         -DADEPT_DIR="${GITHUB_WORKSPACE}/.deps/adept/install"
+    # - name: ls
+    #   run: ls -latr ${GITHUB_WORKSPACE}/.deps/mfem
+    - name: Build Mach
+      working-directory: ${{runner.workspace}}/mach/build
+      shell: bash
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build . --config $BUILD_TYPE
+
+    - name: Test Mach
+      working-directory: ${{runner.workspace}}/mach/build
+      shell: bash
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build . --target tests --config $BUILD_TYPE
+
+    # - name: Test Mach
+    #   working-directory: ${{runner.workspace}}/mach/build
+    #   shell: bash
+    #   # Execute tests defined by the CMake configuration.  
+    #   # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+    #   run: ctest -C $BUILD_TYPE
