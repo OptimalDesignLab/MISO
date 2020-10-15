@@ -45,9 +45,8 @@ jobs:
           ${{ runner.os }}-
 
     - name: Brew install Adept dependencies
-      run: brew install automake openblas lapack
+      run: brew install automake
       if: matrix.config.os == 'macos-latest' && steps.cache-brew.outputs.cache-hit != 'true'
-
 
     - name: Cache Adept
       id: cache-adept
@@ -68,13 +67,20 @@ jobs:
         repository: 'rjhogan/Adept-2'
         path: .deps/adept
 
-    - name: Configure Adept
-      if: steps.cache-adept.outputs.cache-hit != 'true'
+    - name: Configure Adept (Ubuntu)
+      if: matrix.config.os == 'ubuntu-latest'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         autoreconf -i
-        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst"
-  
+        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst" --with-blas=blas --with-lapack=lapack
+
+    - name: Configure Adept (macOS)
+      if: matrix.config.os == 'macos-latest'
+      run: |
+        cd ${GITHUB_WORKSPACE}/.deps/adept/
+        autoreconf -i
+        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst" --with-blas=blas --with-lapack=lapack CC=clang CXX=clang++ F77=gfortran-9
+
     - name: Build Adept
       if: steps.cache-adept.outputs.cache-hit != 'true'
       run: |
