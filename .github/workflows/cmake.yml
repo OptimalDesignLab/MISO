@@ -51,7 +51,10 @@ jobs:
         path: .deps/adept
 
     - name: Create Adept Install Directory
-      run: cmake -E make_directory ${GITHUB_WORKSPACE}/.deps/adept/install
+      run: |
+        mkdir -p ${GITHUB_WORKSPACE}/.deps
+        mkdir -p ${GITHUB_WORKSPACE}/.deps/adept
+        mkdir -p ${GITHUB_WORKSPACE}/.deps/install
 
     - name: Configure Adept
       run: |

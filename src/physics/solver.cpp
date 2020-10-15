@@ -31,7 +31,7 @@
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
-#include "../../build/_config.hpp"
+// #include "../../build/_config.hpp"
 #include "material_library.hpp"
 
 #ifdef MFEM_USE_EGADS
