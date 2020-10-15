@@ -86,8 +86,7 @@ jobs:
         path: .deps/adept
 
     - name: Configure Adept (Ubuntu)
-      if: steps.cache-adept.outputs.cache-hit != 'true'
-      if: matrix.config.os == 'ubuntu-latest'
+      if: matrix.config.os == 'ubuntu-latest' && steps.cache-adept.outputs.cache-hit != 'true'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         autoreconf -i
