@@ -26,6 +26,11 @@ jobs:
             cc: "gcc", cxx: "g++"
           }
         - {
+            name: "Ubuntu Latest Clang", artifact: "Linux.7z",
+            os: ubuntu-latest,
+            cc: "clang", cxx: "clang++"
+          }
+        - {
             name: "macOS Latest Clang", artifact: "macOS.7z",
             os: macos-latest,
             cc: "clang", cxx: "clang++"
@@ -72,7 +77,7 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         autoreconf -i
-        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst" --with-blas=blas --with-lapack=lapack
+        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst" --with-blas=blas --with-lapack=lapack CC=matrix.config.cc CXX=matrix.config.c++
 
     - name: Configure Adept (macOS)
       if: matrix.config.os == 'macos-latest'
