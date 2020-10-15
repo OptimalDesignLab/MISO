@@ -6,70 +6,70 @@
 #include "electromag_integ.hpp"
 #include "electromag_test_data.hpp"
 
-TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
-          "[CurlCurlNLFIntegrator]")
-{
-   using namespace mfem;
-   using namespace electromag_data;
+// TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
+//           "[CurlCurlNLFIntegrator]")
+// {
+//    using namespace mfem;
+//    using namespace electromag_data;
 
-   const int dim = 3;  // templating is hard here because mesh constructors
-   // static adept::Stack diff_stack;
-   double delta = 1e-5;
+//    const int dim = 3;  // templating is hard here because mesh constructors
+//    // static adept::Stack diff_stack;
+//    double delta = 1e-5;
 
-   // generate a 6 element mesh
-   int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
-   for (int p = 1; p <= 4; ++p)
-   {
-      DYNAMIC_SECTION( "...for degree p = " << p )
-      {
-         std::unique_ptr<FiniteElementCollection> fec(
-            new ND_FECollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-            mesh.get(), fec.get()));
+//    // generate a 6 element mesh
+//    int num_edge = 1;
+//    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
+//                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
+//                               1.0, 1.0, true));
+//    for (int p = 1; p <= 4; ++p)
+//    {
+//       DYNAMIC_SECTION( "...for degree p = " << p )
+//       {
+//          std::unique_ptr<FiniteElementCollection> fec(
+//             new ND_FECollection(p, dim));
+//          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+//             mesh.get(), fec.get()));
 
-         NonlinearForm res(fes.get());
+//          NonlinearForm res(fes.get());
 
-         std::unique_ptr<mach::StateCoefficient> nu(
-            new LinearCoefficient(1.0));
+//          std::unique_ptr<mach::StateCoefficient> nu(
+//             new LinearCoefficient(1.0));
 
-         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
+//          res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
 
-         // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
-         // I think this should be 1? Only have one DOF per "node"
-         VectorFunctionCoefficient pert(1, randBaselineVectorPert);
-         q.ProjectCoefficient(pert);
+//          // initialize state; here we randomly perturb a constant state
+//          GridFunction q(fes.get());
+//          // I think this should be 1? Only have one DOF per "node"
+//          VectorFunctionCoefficient pert(1, randBaselineVectorPert);
+//          q.ProjectCoefficient(pert);
 
-         // initialize the vector that the Jacobian multiplies
-         GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(1, randVectorState);
-         v.ProjectCoefficient(v_rand);
+//          // initialize the vector that the Jacobian multiplies
+//          GridFunction v(fes.get());
+//          VectorFunctionCoefficient v_rand(1, randVectorState);
+//          v.ProjectCoefficient(v_rand);
 
-         // evaluate the Jacobian and compute its product with v
-         Operator& Jac = res.GetGradient(q);
-         GridFunction jac_v(fes.get());
-         Jac.Mult(v, jac_v);
+//          // evaluate the Jacobian and compute its product with v
+//          Operator& Jac = res.GetGradient(q);
+//          GridFunction jac_v(fes.get());
+//          Jac.Mult(v, jac_v);
 
-         std::unique_ptr<mfem::Coefficient> nu_linear(
-            new ConstantCoefficient(1.0));
-         /// Bilinear Form
-         BilinearForm blf(fes.get());
-         blf.AddDomainIntegrator(new CurlCurlIntegrator(*nu_linear.get()));
+//          std::unique_ptr<mfem::Coefficient> nu_linear(
+//             new ConstantCoefficient(1.0));
+//          /// Bilinear Form
+//          BilinearForm blf(fes.get());
+//          blf.AddDomainIntegrator(new CurlCurlIntegrator(*nu_linear.get()));
 
-         blf.Assemble();
-         GridFunction blf_v(fes.get());
-         blf.Mult(v, blf_v);
+//          blf.Assemble();
+//          GridFunction blf_v(fes.get());
+//          blf.Mult(v, blf_v);
 
-         for (int i = 0; i < jac_v.Size(); ++i)
-         {
-            REQUIRE( jac_v(i) == Approx(blf_v(i)) );
-         }
-      }
-   }
-}
+//          for (int i = 0; i < jac_v.Size(); ++i)
+//          {
+//             REQUIRE( jac_v(i) == Approx(blf_v(i)) );
+//          }
+//       }
+//    }
+// }
 
 TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
           "[CurlCurlNLFIntegrator]")
