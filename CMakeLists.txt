@@ -187,6 +187,11 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
    # 'tests' implies 'build_tests'
    add_dependencies(tests build_tests)
    add_subdirectory(test EXCLUDE_FROM_ALL)
+
+   # add_custom_target(verbose_tests COMMAND "${CMAKE_CTEST_COMMAND} -V")
+   # # 'verbose_tests' implies 'build_tests'
+   # add_dependencies(verbose_tests build_tests)
+   # add_subdirectory(test EXCLUDE_FROM_ALL)
 endif ()
 
 
