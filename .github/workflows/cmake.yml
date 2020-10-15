@@ -43,8 +43,9 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
-    - name: Install brew packages
-      run: brew install automake autoconf libtool openblas lapack open-mpi metis hypre
+    - name: Brew install Adept dependencies
+      run: brew install automake openblas lapack
+      if: matrix.config.os == 'macos-latest'
 
     - name: Cache Adept
       uses: actions/cache@v2
@@ -63,16 +64,11 @@ jobs:
         repository: 'rjhogan/Adept-2'
         path: .deps/adept
 
-    - name: Create Adept Install Directory
-      run: |
-        mkdir -p ${GITHUB_WORKSPACE}/.deps
-        mkdir -p ${GITHUB_WORKSPACE}/.deps/adept
-
     - name: Configure Adept
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         autoreconf -i
-        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/install"
+        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst"
   
     - name: Build Adept
       run: |
@@ -80,6 +76,9 @@ jobs:
         make -j 2
         make check
         make install
+
+    - name: Brew install MFEM dependencies
+      run: brew install open-mpi metis hypre
 
     - name: Download MFEM
       uses: actions/checkout@v2
@@ -130,7 +129,7 @@ jobs:
         cmake ${GITHUB_WORKSPACE}/mach \
          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
          -DMFEM_DIR="${{runner.workspace}}/.deps/mfem/build" \
-         -DADEPT_DIR="${GITHUB_WORKSPACE}/.deps/adept/install"
+         -DADEPT_DIR="${GITHUB_WORKSPACE}/.deps/adept/inst"
     # - name: ls
     #   run: ls -latr ${GITHUB_WORKSPACE}/.deps/mfem
     - name: Build Mach
