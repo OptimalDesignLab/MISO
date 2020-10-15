@@ -33,6 +33,7 @@ jobs:
 
     steps:
     - name: Cache brew packages
+      id: cache-brew
       uses: actions/cache@v2
       env:
         cache-name: cache-brew-packages
@@ -45,9 +46,11 @@ jobs:
 
     - name: Brew install Adept dependencies
       run: brew install automake openblas lapack
-      if: matrix.config.os == 'macos-latest'
+      if: matrix.config.os == 'macos-latest' && steps.cache-brew.outputs.cache-hit != 'true'
+
 
     - name: Cache Adept
+      id: cache-adept
       uses: actions/cache@v2
       env:
         cache-name: cache-adept
@@ -59,18 +62,21 @@ jobs:
           ${{ runner.os }}-
 
     - name: Download Adept
+      if: steps.cache-adept.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: 'rjhogan/Adept-2'
         path: .deps/adept
 
     - name: Configure Adept
+      if: steps.cache-adept.outputs.cache-hit != 'true'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         autoreconf -i
         ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst"
   
     - name: Build Adept
+      if: steps.cache-adept.outputs.cache-hit != 'true'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         make -j 2
@@ -78,6 +84,7 @@ jobs:
         make install
 
     - name: Brew install MFEM dependencies
+      if: steps.cache-brew.outputs.cache-hit != 'true'
       run: brew install open-mpi metis hypre
 
     - name: Download MFEM
