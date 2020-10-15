@@ -50,57 +50,57 @@ jobs:
         #   }
 
     steps:
-    - name: Cache brew packages
-      id: cache-brew
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-brew-packages
-      with:
-        path: "$(brew --cellar)/*"
-        key: ${{ runner.os }}-build-${{ env.cache-name }}
-        restore-keys: |
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
+    # - name: Cache brew packages
+    #   id: cache-brew
+    #   uses: actions/cache@v2
+    #   env:
+    #     cache-name: cache-brew-packages
+    #   with:
+    #     path: "$(brew --cellar)/*"
+    #     key: ${{ runner.os }}-build-${{ env.cache-name }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-build-
+    #       ${{ runner.os }}-
 
     - name: Brew install Adept dependencies
       run: brew install automake
-      if: matrix.config.os == 'macos-latest' && steps.cache-brew.outputs.cache-hit != 'true'
+      if: matrix.config.os == 'macos-latest' #&& steps.cache-brew.outputs.cache-hit != 'true'
 
-    - name: Cache Adept
-      id: cache-adept
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-adept
-      with:
-        path: ${GITHUB_WORKSPACE}/.deps/adept/*
-        key: ${{ runner.os }}-build-${{ env.cache-name }}
-        restore-keys: |
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
+    # - name: Cache Adept
+    #   id: cache-adept
+    #   uses: actions/cache@v2
+    #   env:
+    #     cache-name: cache-adept
+    #   with:
+    #     path: ${GITHUB_WORKSPACE}/.deps/adept/*
+    #     key: ${{ runner.os }}-build-${{ env.cache-name }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-build-
+    #       ${{ runner.os }}-
 
     - name: Download Adept
-      if: steps.cache-adept.outputs.cache-hit != 'true'
+      # if: steps.cache-adept.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: 'rjhogan/Adept-2'
         path: .deps/adept
 
     - name: Configure Adept (Ubuntu)
-      if: matrix.config.os == 'ubuntu-latest' && steps.cache-adept.outputs.cache-hit != 'true'
+      if: matrix.config.os == 'ubuntu-latest' #&& steps.cache-adept.outputs.cache-hit != 'true'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         autoreconf -i
         ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst" --with-blas=blas --with-lapack=lapack CC=${{matrix.config.cc}} CXX=${{matrix.config.cxx}}
 
     - name: Configure Adept (macOS)
-      if: matrix.config.os == 'macos-latest' && steps.cache-adept.outputs.cache-hit != 'true'
+      if: matrix.config.os == 'macos-latest' #&& steps.cache-adept.outputs.cache-hit != 'true'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         autoreconf -i
         ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst" --with-blas=blas --with-lapack=lapack CC=clang CXX=clang++ F77=gfortran-9
 
     - name: Build Adept
-      if: steps.cache-adept.outputs.cache-hit != 'true'
+      # if: steps.cache-adept.outputs.cache-hit != 'true'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         make -j 2
@@ -108,7 +108,7 @@ jobs:
         make install
 
     - name: Brew install MFEM dependencies
-      if: steps.cache-brew.outputs.cache-hit != 'true'
+      # if: steps.cache-brew.outputs.cache-hit != 'true'
       run: brew install open-mpi metis hypre
 
     - name: Download MFEM
