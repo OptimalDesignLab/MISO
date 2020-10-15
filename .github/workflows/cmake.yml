@@ -16,24 +16,37 @@ jobs:
     # See: https://docs.github.com/en/actions/configuring-and-managing-workflows/configuring-a-workflow#configuring-a-build-matrix
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
+    env:
+      BUILD_TYPE: ${{ matrix.config.buildtype }}
+      CC: ${{ matrix.config.cc }}
+      C++: ${{ matrix.config.cxx }}
     strategy:
       fail-fast: false
       matrix:
         config:
         - {
-            name: "Ubuntu Latest GCC", artifact: "Linux.7z",
+            name: "Ubuntu Latest GCC (Release)", artifact: "Linux.7z",
             os: ubuntu-latest,
-            cc: "gcc", cxx: "g++"
+            cc: "gcc", cxx: "g++",
+            buildtype: "Release"
           }
         - {
-            name: "Ubuntu Latest Clang", artifact: "Linux.7z",
+            name: "Ubuntu Latest GCC (Debug)", artifact: "Linux.7z",
             os: ubuntu-latest,
-            cc: "clang", cxx: "clang++"
+            cc: "gcc", cxx: "g++",
+            buildtype: "Debug"
           }
         - {
-            name: "macOS Latest Clang", artifact: "macOS.7z",
+            name: "Ubuntu Latest Clang (Debug)", artifact: "Linux.7z",
+            os: ubuntu-latest,
+            cc: "clang", cxx: "clang++",
+            buildtype: "Debug"
+          }
+        - {
+            name: "macOS Latest Clang (Debug)", artifact: "macOS.7z",
             os: macos-latest,
-            cc: "clang", cxx: "clang++"
+            cc: "clang", cxx: "clang++",
+            buildtype: "Debug"
           }
 
     steps:
