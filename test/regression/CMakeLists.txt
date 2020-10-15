@@ -19,6 +19,7 @@ set(REGRESSION_TEST_SRCS
    test_thermal_cube
    test_magnetostatic_box
    test_meshmovement_box
+   test_meshmovement_annulus
 )
 
 create_tests("${REGRESSION_TEST_SRCS}" regression_data.cpp)

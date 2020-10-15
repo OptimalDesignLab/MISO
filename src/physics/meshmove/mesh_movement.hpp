@@ -21,10 +21,7 @@ protected:
                       std::unique_ptr<mfem::Mesh> smesh,
                       MPI_Comm comm)
    : AbstractSolver(options, move(smesh), comm)
-   {
-      /// Fill as would be useful
-      // fes = NULL; 
-   }
+   { }
 };
 
 // #ifdef MFEM_USE_PUMI

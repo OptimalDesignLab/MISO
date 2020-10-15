@@ -117,8 +117,6 @@ void LEAnalogySolver::constructForms()
 {
    mass.reset(new BilinearFormType(fes.get()));
    res.reset(new NonlinearFormType(fes.get()));
-   // load.reset(new LinearFormType(fes.get()));
-   // *load = 0.0;
 }
 
 void LEAnalogySolver::addMassIntegrators(double alpha)

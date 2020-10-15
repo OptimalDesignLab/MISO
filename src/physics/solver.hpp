@@ -313,7 +313,7 @@ public:
    void printMesh(const std::string &filename)
    { mesh->PrintVTU(filename, mfem::VTKFormat::BINARY, true, 0); }
    /// return a reference to the mesh's coordinate field
-   mfem::Vector& getMeshCoordinates() { return *mesh->GetNodes(); }
+   mfem::GridFunction& getMeshCoordinates() { return *mesh->GetNodes(); }
 
    /// \brief function to update the mesh's nodal coordinate field
    /// \param[in] coords - Vector containing mesh's nodal coordinate field
