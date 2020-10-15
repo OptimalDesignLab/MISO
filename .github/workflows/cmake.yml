@@ -86,6 +86,7 @@ jobs:
         path: .deps/adept
 
     - name: Configure Adept (Ubuntu)
+      if: steps.cache-adept.outputs.cache-hit != 'true'
       if: matrix.config.os == 'ubuntu-latest'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
