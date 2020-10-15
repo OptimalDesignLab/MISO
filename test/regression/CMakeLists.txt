@@ -23,3 +23,7 @@ set(REGRESSION_TEST_SRCS
 )
 
 create_tests("${REGRESSION_TEST_SRCS}" regression_data.cpp)
+
+if (MFEM_USE_EGADS)
+   add_subdirectory(egads)
+endif (MFEM_USE_EGADS)
