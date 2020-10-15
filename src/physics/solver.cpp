@@ -31,7 +31,7 @@
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
-#include "../../build/_config.hpp"
+// #include "../../build/_config.hpp"
 #include "material_library.hpp"
 
 #ifdef MFEM_USE_EGADS
@@ -1358,7 +1358,8 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
    {
       if (output.find(fun) == output.end())
       {
-         *out << "Did not find " << fun << " in output map?" << endl;
+         //*out << "Did not find " << fun << " in output map?" << endl;
+         throw MachException("Did not find " + fun + " in output map?");
       }
       return output.at(fun).GetEnergy(state);
    }
