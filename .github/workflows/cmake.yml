@@ -2,11 +2,11 @@ name: CMake Build Matrix
 
 on: [push]
 
-env:
-  CMAKE_VERSION: 3.18.3
-  NINJA_VERSION: 1.10.1
-  BUILD_TYPE: Release
-  CCACHE_VERSION: 3.7.7
+# env:
+  # CMAKE_VERSION: 3.18.3
+  # NINJA_VERSION: 1.10.1
+  # BUILD_TYPE: Release
+  # CCACHE_VERSION: 3.7.7
 
 jobs:
   build:
@@ -56,7 +56,7 @@ jobs:
       env:
         cache-name: cache-brew-packages
       with:
-        path: $(brew --cellar)
+        path: "$(brew --cellar)/*"
         key: ${{ runner.os }}-build-${{ env.cache-name }}
         restore-keys: |
           ${{ runner.os }}-build-
@@ -72,7 +72,7 @@ jobs:
       env:
         cache-name: cache-adept
       with:
-        path: ${GITHUB_WORKSPACE}/.deps/adept/
+        path: ${GITHUB_WORKSPACE}/.deps/adept/*
         key: ${{ runner.os }}-build-${{ env.cache-name }}
         restore-keys: |
           ${{ runner.os }}-build-
@@ -93,7 +93,7 @@ jobs:
         ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/inst" --with-blas=blas --with-lapack=lapack CC=${{matrix.config.cc}} CXX=${{matrix.config.cxx}}
 
     - name: Configure Adept (macOS)
-      if: matrix.config.os == 'macos-latest'
+      if: matrix.config.os == 'macos-latest' && steps.cache-adept.outputs.cache-hit != 'true'
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
         autoreconf -i
