@@ -12,22 +12,13 @@ endfunction(create_tests)
 # for all targets created in this file, include the main dir (containing mach.hpp)
 #include_directories(BEFORE ${PROJECT_SOURCE_DIR})
 
-# group together all fluids related tests
-set(FLUID_TEST_SRCS
-    test_steady_vortex
-    test_navier_stokes_mms
+# group together all regression tests
+set(REGRESSION_TEST_SRCS
+   test_steady_vortex
+   test_navier_stokes_mms
+   test_thermal_cube
+   test_magnetostatic_box
+   test_meshmovement_box
 )
 
-# group together all thermal related tests
-set(THERMAL_TEST_SRCS
-    test_thermal_cube
-)
-
-# group together all EM related tests
-set(EM_TEST_SRCS
-    test_magnetostatic_box
-)
-
-create_tests("${FLUID_TEST_SRCS}" regression_data.cpp)
-create_tests("${THERMAL_TEST_SRCS}" regression_data.cpp)
-create_tests("${EM_TEST_SRCS}" regression_data.cpp)
+create_tests("${REGRESSION_TEST_SRCS}" regression_data.cpp)

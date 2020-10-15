@@ -37,13 +37,13 @@ public:
                    std::unique_ptr<mfem::Mesh> smesh,
                    MPI_Comm comm);
 
-    LEAnalogySolver(const std::string &opt_file_name,
-                        mfem::GridFunction *u_bound,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
-                        int dim = 3);
+   LEAnalogySolver(const std::string &opt_file_name,
+                   mfem::GridFunction *u_bound,
+                   std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                   int dim = 3);
 
-    /// Implement InitDerived
-    virtual void initDerived();
+   /// Implement InitDerived
+   //  virtual void initDerived();
 
    /// Initializes the state vector to a given function.
    /// \param[in] state - the state vector to initialize

@@ -37,8 +37,7 @@ void LEAnalogySolver::setInitialCondition(
    state = 0.0;
 
    VectorFunctionCoefficient u0(dim, u_init);
-   state.ProjectBdrCoefficientTangent(u0, ess_bdr);
-   // state.ProjectCoefficient(u0);
+   state.ProjectBdrCoefficient(u0, ess_bdr);
    printField("uinit", state, "solution");
    // state = 100.0;
 }
@@ -100,10 +99,10 @@ bool LEAnalogySolver::iterationExit(int iter,
 void LEAnalogySolver::constructCoefficients()
 {
    /// assign stiffness
-   if (options["uniform-stiff"]["on"].template get<bool>())
+   if (options["problem-opts"].contains("uniform-stiff"))
    {
-      double lambda = options["uniform-stiff"]["lambda"].template get<double>();
-      double mu = options["uniform-stiff"]["mu"].template get<double>();
+      double lambda = options["problem-opts"]["uniform-stiff"]["lambda"].template get<double>();
+      double mu = options["problem-opts"]["uniform-stiff"]["mu"].template get<double>();
       lambda_c.reset(new ConstantCoefficient(lambda));
       mu_c.reset(new ConstantCoefficient(mu));
    }
