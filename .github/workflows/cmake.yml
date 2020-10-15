@@ -32,6 +32,19 @@ jobs:
           }
 
     steps:
+    - name: Cache brew packages
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-brew-packages
+      with:
+        path: $(brew --cellar)
+        key: ${{ runner.os }}-build-${{ env.cache-name }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    - name: Install brew packages
+      run: brew install automake autoconf libtool openblas lapack open-mpi metis hypre
 
     - name: Cache Adept
       uses: actions/cache@v2
@@ -54,7 +67,6 @@ jobs:
       run: |
         mkdir -p ${GITHUB_WORKSPACE}/.deps
         mkdir -p ${GITHUB_WORKSPACE}/.deps/adept
-        mkdir -p ${GITHUB_WORKSPACE}/.deps/install
 
     - name: Configure Adept
       run: |
@@ -65,29 +77,9 @@ jobs:
     - name: Build Adept
       run: |
         cd ${GITHUB_WORKSPACE}/.deps/adept/
-        make
+        make -j 2
         make check
         make install
-
-    - name: Cache brew packages
-      uses: actions/cache@v2
-      env:
-        cache-name: cache-brew-packages
-      with:
-        path: $(brew --cellar)
-        key: ${{ runner.os }}-build-${{ env.cache-name }}
-        restore-keys: |
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-
-    - name: Brew install OpenMPI
-      run: brew install open-mpi
-
-    - name: Brew install metis
-      run: brew install metis
-
-    - name: Brew install hypre
-      run: brew install hypre
 
     - name: Download MFEM
       uses: actions/checkout@v2
@@ -114,7 +106,7 @@ jobs:
     
     - name: Build MFEM
       working-directory: ${{runner.workspace}}/.deps/mfem/build
-      run: cmake --build . --parallel ${nproc} --config $BUILD_TYPE
+      run: cmake --build . --parallel 2 --config $BUILD_TYPE
 
     - name: Install MFEM
       working-directory: ${{runner.workspace}}/.deps/mfem/build
@@ -145,13 +137,13 @@ jobs:
       working-directory: ${{runner.workspace}}/mach/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE
+      run: cmake --build . --parallel 2 --config $BUILD_TYPE
 
     - name: Test Mach
       working-directory: ${{runner.workspace}}/mach/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --target tests --config $BUILD_TYPE
+      run: cmake --build . --parallel 2 --target tests --config $BUILD_TYPE
 
     # - name: Test Mach
     #   working-directory: ${{runner.workspace}}/mach/build
