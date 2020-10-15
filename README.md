@@ -1,4 +1,4 @@
-![.github/workflows/cmake.yml](https://github.com/OptimalDesignLab/mach/workflows/.github/workflows/cmake.yml/badge.svg?branch=dev)
+![.github/workflows/build.yml](https://github.com/OptimalDesignLab/mach/workflows/.github/workflows/build.yml/badge.svg?branch=dev)
 
 # ODL Mach #
 
