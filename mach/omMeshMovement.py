@@ -57,12 +57,10 @@ class omMeshMove(om.ImplicitComponent):
         solver.printField("state2", state, "state")
 
         mesh = Mesh(model_file='data/testOMMeshMovement/cyl.egads', mesh_file='data/testOMMeshMovement/cyl.smb')
-        # mesh_coords = Vector(mesh.getMeshSize())
-        # mesh.getNodes(mesh_coords)
-
-        # mesh.setNodes(state)
+        print(type(state))
         mesh.addDisplacement(state)
         mesh.PrintVTU("testmeshmove")
+
 
         # solver.printFields("state_post_solve", [state, uex], ["state", "uex"])
 

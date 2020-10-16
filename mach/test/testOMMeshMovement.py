@@ -24,29 +24,30 @@ options = {
         'res-exp': 2.0
     },
     'nonlin-solver': {
+        'type': 'newton',
         'printlevel': 3,
-        'maxiter': 2,
-        'reltol': 1e-6,
-        'abstol': 1e-6,
-        'maxiter': 5
-    },
-    'lin-solver': {
-        'type': 'hyprepcg',
-        'printlevel': 2,
         'maxiter': 50,
         'reltol': 1e-10,
         'abstol': 1e-12
+    },
+    'lin-solver': {
+        'type': 'hyprepcg',
+        'printlevel': -1,
+        'maxiter': 100,
+        'abstol': 1e-14,
+        'reltol': 1e-14
     },
     'lin-prec': {
         'type': 'hypreboomeramg',
         'printlevel': -1
     },
     'saveresults': False,
-    "uniform-stiff": {
-        "on": False,
-        "lambda": 1,
-        "mu": 1
-    },
+    'problem-opts': {
+        'uniform-stiff': {
+            'lambda': 1,
+            'mu': 1
+        }
+    }
 }
 
 if __name__ == "__main__":
