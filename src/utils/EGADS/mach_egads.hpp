@@ -1,26 +1,37 @@
 #ifndef MACH_EGADS
 #define MACH_EGADS
 
-/// try to put includes in the .cpp file unless theyre explicitly needed for
-/// the function prototypes
-#include "mfem.hpp"
-#include "utils.hpp"
+namespace mfem
+{
+class GridFunction;
+} // namespace mfem
 
-#ifdef MFEM_USE_PUMI
-#include "gmi_egads.h"
-#include <PCU.h>
-#include <apfMDS.h>
+void mapSurfaceMesh(const std::string &old_model_file,
+                    const std::string &new_model_file,
+                    const std::string &tess_file,
+                    mfem::GridFunction &displacement);
 
-void getBoundaryNodeDisplacement(std::string oldmodel,
-                                 std::string newmodel, 
-                                 std::string tessname,
-                                 apf::Mesh2* mesh, 
-                                 mfem::Array<mfem::Vector>* disp_list);
+// /// try to put includes in the .cpp file unless theyre explicitly needed for
+// /// the function prototypes
+// #include "mfem.hpp"
+// #include "utils.hpp"
 
-apf::Mesh2* getNewMesh(std::string newmodel,
-                       std::string newmesh,
-                       mfem::Mesh* mfemmesh,
-                       apf::Mesh2* oldmesh);
+// #ifdef MFEM_USE_PUMI
+// #include "gmi_egads.h"
+// #include <PCU.h>
+// #include <apfMDS.h>
 
-#endif
+// void getBoundaryNodeDisplacement(std::string oldmodel,
+//                                  std::string newmodel, 
+//                                  std::string tessname,
+//                                  apf::Mesh2* mesh, 
+//                                  mfem::Array<mfem::Vector>* disp_list);
+
+// apf::Mesh2* getNewMesh(std::string newmodel,
+//                        std::string newmesh,
+//                        mfem::Mesh* mfemmesh,
+//                        apf::Mesh2* oldmesh);
+
+// #endif
+
 #endif

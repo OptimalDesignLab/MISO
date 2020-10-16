@@ -6,6 +6,11 @@ function(create_egads_tests source_list data_files)
       target_include_directories("${X}.bin" PRIVATE "${CMAKE_SOURCE_DIR}" "${EGADS_INCLUDE_DIRS}")
       add_test(NAME "${X}" COMMAND "${X}.bin") 
       # configure_file("${X}_options.json" "${X}_options.json" COPYONLY)
+      add_custom_target(copy-egads-data-files ALL
+                  COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_CURRENT_SOURCE_DIR}/data
+                          ${CMAKE_CURRENT_BINARY_DIR}/data
+                  DEPENDS "${X}.bin")
    endforeach()
 endfunction(create_egads_tests)
 

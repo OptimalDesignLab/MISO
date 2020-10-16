@@ -7,6 +7,7 @@
 #include "mfem.hpp"
 
 #include "mesh_movement.hpp"
+#include "mach_egads.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -74,8 +75,16 @@ TEST_CASE("Mesh Movement EGADS Cylinder Test",
       // construct the solver, set the initial condition, and solve
       auto solver = createSolver<LEAnalogySolver>(options);
 
-      solver->setInitialCondition(boxDisplacement);
+      std::string old_model("data/cyl.egads");
+      std::string new_model("data/cyl2.egads");
+      std::string tess("data/cyl.eto");
+      auto surface_displacement = solver->getNewField();
+
+      mapSurfaceMesh(old_model, new_model, tess, *surface_displacement);
+
+      solver->setInitialCondition(*surface_displacement);
       solver->solveForState();
+      // solver->printSolution("final");
 
       auto fields = solver->getFields();
 
@@ -85,9 +94,9 @@ TEST_CASE("Mesh Movement EGADS Cylinder Test",
       // std::cout << "\n\nl2 error in field: " << l2_error << "\n\n\n";
       // REQUIRE(l2_error == Approx(target_error[ref - 1]).margin(1e-10));
 
-      // auto &mesh_coords = solver->getMeshCoordinates();
-      // mesh_coords += *fields[0];
-      // solver->printMesh("moved_box_mesh");
+      auto &mesh_coords = solver->getMeshCoordinates();
+      mesh_coords += *fields[0];
+      solver->printMesh("moved_egads_cyl_mesh");
    }
 }
 

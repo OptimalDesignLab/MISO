@@ -75,6 +75,11 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    void constructMesh(std::unique_ptr<mfem::Mesh> smesh);
 
+   /// Initializes the state vector to a given field.
+   /// \param[in] u_init - field that defines the initial condition
+   inline virtual void setInitialCondition(mfem::ParGridFunction &u_init)
+   { setInitialCondition(*u, u_init); };
+
    /// Initializes the state vector to a given scalar function.
    /// \param[in] u_init - function that defines the initial condition
    inline virtual void setInitialCondition(
@@ -98,6 +103,14 @@ public:
    /// \param[in] u_init - vector that defines the initial condition
    inline virtual void setInitialCondition(const mfem::Vector &u_init)
    { setInitialCondition(*u, u_init); };
+
+   /// Initializes the state vector to a given field.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - field that defines the initial condition
+   inline virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      mfem::ParGridFunction &u_init)
+   { state = u_init; };
 
    /// Initializes the state vector to a given scalar function.
    /// \param[in] state - the state vector to initialize
