@@ -10,7 +10,7 @@
 #include "rans_fluxes.hpp"
 
 using adept::adouble;
-using namespace std; /// TODO: this is polluting other headers!
+using namespace std; 
 
 namespace mach
 {
@@ -26,10 +26,9 @@ public:
    /// Construct an inviscid integrator with SA terms
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   SAInviscidIntegrator(adept::Stack &diff_stack, double a = 1.0)
+   SAInviscidIntegrator(adept::Stack &diff_stack,  double a = 1.0)
        : DyadicFluxIntegrator<SAInviscidIntegrator<dim, entvar>>(
             diff_stack, dim+3, a) {}
-
 
    /// Ismail-Roe two-point (dyadic) flux function with additional variable
    /// \param[in] di - physical coordinate direction in which flux is wanted
@@ -51,10 +50,10 @@ public:
                           mfem::DenseMatrix &jacL,
                           mfem::DenseMatrix &jacR);
 private:
-
+   mfem::Vector qfs;
 };
 
-/// Integrator for RANS SA Production term 
+/// Integrator for RANS SA Production, Destruction, Viscous-Like terms 
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \note This derived class uses the CRTP
 template <int dim>
@@ -63,12 +62,15 @@ class SASourceIntegrator : public mfem::NonlinearFormIntegrator
 public:
    /// Construct an integrator for RANS SA Production term 
    /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] 
+   /// \param[in] distance - wall distance function projected onto a space
+   /// \param[in] re_fs - freestream reynolds number
+   /// \param[in] sa_params - Spalart-Allmaras model constants
    /// \param[in] vis - nondimensional dynamic viscosity (use Sutherland if neg)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   /// \param[in] P, D - control production and destruction terms for debugging
    SASourceIntegrator(adept::Stack &diff_stack, mfem::GridFunction distance, double re_fs,
-                          mfem::Vector sa_params, double vis = -1.0, double a = 1.0)
-       : alpha(a), mu(vis), stack(diff_stack), num_states(dim+3), Re(re_fs), sacs(sa_params),
+                          mfem::Vector sa_params, double vis = -1.0, double a = 1.0, double P = 1.0, double D = 1.0)
+       : alpha(a), prod(P), dest(D), mu(vis), stack(diff_stack), num_states(dim+3), Re(re_fs), sacs(sa_params),
        dist(distance) {}
 
    /// Construct the element local residual
@@ -107,6 +109,8 @@ protected:
    mfem::Vector sacs;
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
+   /// activate production and destruction terms
+   double prod; double dest; 
 #ifndef MFEM_THREAD_SAFE
    /// the coordinates of node i
    mfem::Vector xi;
@@ -283,7 +287,7 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    SAViscousSlipWallBC(adept::Stack &diff_stack,
                      const mfem::FiniteElementCollection *fe_coll,
-                     double Re_num, double Pr_num, mfem::Vector sa_params, 
+                     double Re_num, double Pr_num, mfem::Vector sa_params,
                      double vis = -1.0, double a = 1.0)
        : ViscousBoundaryIntegrator<SAViscousSlipWallBC<dim>>(
              diff_stack, fe_coll, dim + 3, a),
@@ -392,6 +396,8 @@ private:
    mfem::Vector work_vec;
    /// vector of SA model parameters
    mfem::Vector sacs;
+
+   mfem::Vector qfs;
 };            
 
 /// Integrator for SA far-field boundary conditions
@@ -925,6 +931,8 @@ private:
    double mu;
    /// vector of SA model parameters
    mfem::Vector sacs;
+
+   mfem::Vector qfs;
 };
 
 

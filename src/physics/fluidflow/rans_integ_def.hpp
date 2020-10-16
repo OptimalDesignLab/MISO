@@ -15,17 +15,12 @@ void SASourceIntegrator<dim>::AssembleElementVector(
    elvect.SetSize(num_states * num_nodes);
    ui.SetSize(num_states);
    xi.SetSize(dim);
-   grad.SetSize(num_nodes, dim);
-   curl.SetSize(num_nodes, 3);
    grad_nu_i.SetSize(dim);
    grad_rho_i.SetSize(dim);
    curl_i.SetSize(3);
-   DenseMatrix uc(elfun.GetData(), num_nodes, num_states); // send u into function to compute curl, gradient of nu, send transformation as well
+   DenseMatrix uc(elfun.GetData(), num_nodes, num_states);
    DenseMatrix u; u = uc;
    u.Transpose(); //NOTE: Do not manipulate elfun directly
-   DenseMatrix res(elvect.GetData(), num_nodes, num_states);
-   DenseMatrix Qu(num_nodes, num_states);
-   DenseMatrix HQu(num_nodes, num_states);
    DenseMatrix Dui(num_states, dim);
    Vector Duidi(num_states);
 
@@ -58,44 +53,62 @@ void SASourceIntegrator<dim>::AssembleElementVector(
       }
 
       // compute vorticity at node and take magnitude
-      calcVorticity<double, dim>(Dui.GetData(), Trans.InverseJacobian().GetData(), curl_i.GetData()); //curl.GetRow(i, curl_i);
+      calcVorticity<double, dim>(Dui.GetData(), Trans.InverseJacobian().GetData(), curl_i.GetData()); 
       double S = sqrt(curl_i(0)*curl_i(0) + curl_i(1)*curl_i(1) +curl_i(2)*curl_i(2));
-      S = abs(curl_i(2));
+      //S = abs(curl_i(2));
       // compute gradient of turbulent viscosity at node
-      calcGrad<double, dim>(dim+2, Dui.GetData(), Trans.InverseJacobian().GetData(), grad_nu_i.GetData()); //curl.GetRow(i, curl_i);
+      calcGrad<double, dim>(dim+2, Dui.GetData(), Trans.InverseJacobian().GetData(), grad_nu_i.GetData()); 
       // compute gradient of density at node
-      calcGrad<double, dim>(0, Dui.GetData(), Trans.InverseJacobian().GetData(), grad_rho_i.GetData()); //curl.GetRow(i, curl_i);
+      calcGrad<double, dim>(0, Dui.GetData(), Trans.InverseJacobian().GetData(), grad_rho_i.GetData()); 
 
       // get distance function value at node
       double d = dist.GetValue(Trans.ElementNo, node); //temp solution, y distance from wall
 
       // accumulate source terms
       double src = calcSASource<double,dim>(
-          ui.GetData(), grad_nu_i.GetData(), sacs.GetData())/Re;
+         ui.GetData(), grad_nu_i.GetData(), sacs.GetData())/Re;
       src -= calcSASource2<double,dim>(
-          ui.GetData(), mu, grad_nu_i.GetData(), grad_rho_i.GetData(), sacs.GetData())/Re;
-      ///std::cout << "grad:" << src << std::endl;
-      // use negative model if turbulent viscosity is negative
+         ui.GetData(), mu, grad_nu_i.GetData(), grad_rho_i.GetData(), sacs.GetData())/Re;
+      
+      //use negative model if turbulent viscosity is negative
+      double d0 = 1e-4;     
+      if (fabs(d) > 1e-12)
+      {
       if (ui(dim+2) < 0)
       {
-         src += calcSANegativeProduction<double,dim>(
+         src += prod*calcSANegativeProduction<double,dim>(
             ui.GetData(), S, sacs.GetData());
-         src += calcSANegativeDestruction<double,dim>(
+         src += dest*calcSANegativeDestruction<double,dim>(
             ui.GetData(), d, sacs.GetData())/Re;
+         //cout << "Negative!"<<endl;
       }
       else
       {
-         src += calcSAProduction<double,dim>(
-            ui.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+         src += prod*calcSAProduction<double,dim>(
+            ui.GetData(), mu, d, S, Re, sacs.GetData());///Re;
          ///std::cout << "P+grad:" << src << std::endl;
-         src += calcSADestruction<double,dim>(
+         src += dest*calcSADestruction<double,dim>(
             ui.GetData(), mu, d, S, Re, sacs.GetData())/Re;
          ///std::cout << "P+D+grad:" << src << std::endl;
       }
-
-      // std::cout << "El: " << Trans.ElementNo << " P+D+grad: " << src << std::endl;
-      // std::cout << "Vorticity: " <<S<< std::endl;
-      // std::cout << "Grad Sq: " << grad_nu_i*grad_nu_i << std::endl;
+      }
+      else
+      {
+         if (ui(dim+2) < 0)
+         {
+            src += dest*calcSANegativeDestruction<double,dim>(
+               ui.GetData(), d0, sacs.GetData())/Re;
+         }
+         else
+         {
+            src += dest*calcSADestruction<double,dim>(
+               ui.GetData(), mu, d0, S, Re, sacs.GetData())/Re;
+         }
+      }
+      // if (d < 1e-12)
+      //    d = d0;
+      src = prod*(ui(dim+2)-3); ///!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      //cout << src << endl;
 
       //byNODES
       elvect(i + num_nodes*(num_states-1)) = alpha * Trans.Weight() * node.weight * src;
@@ -113,20 +126,15 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    int num_nodes = sbp.GetDof();
 #ifdef MFEM_THREAD_SAFE
    Vector ui, xi, uj, grad_nu_i, curl_i;
-   DenseMatrix grad, curl;
 #endif
    ui.SetSize(num_states);
    xi.SetSize(dim);
-   grad.SetSize(num_nodes, dim);
-   curl.SetSize(num_nodes, 3);
    grad_nu_i.SetSize(dim);
    grad_rho_i.SetSize(dim);
    curl_i.SetSize(3);
-   DenseMatrix uc(elfun.GetData(), num_nodes, num_states); // send u into function to compute curl, gradient of nu, send transformation as well
+   DenseMatrix uc(elfun.GetData(), num_nodes, num_states);
    DenseMatrix u; u = uc;
    u.Transpose();
-   DenseMatrix Qu(num_nodes, num_states);
-   DenseMatrix HQu(num_nodes, num_states);
    DenseMatrix Dui(num_states, dim);
    Vector Duidi(num_states);
    vector<DenseMatrix> jac_curl(dim);
@@ -134,6 +142,8 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    vector<DenseMatrix> jac_grad_rho(dim);
    std::vector<adouble> sacs_a(sacs.Size());
    adept::set_values(sacs_a.data(), sacs.Size(), sacs.GetData());
+   
+   // each matrix represents d/dx, d/dy, d/dz
    for (int d = 0; d < dim; ++d)
    {
       jac_curl[d].SetSize(3, num_states);
@@ -147,15 +157,12 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
    Vector dSrcdS(1); //partial src w.r.t. S
    Vector dSrcdgradnu(dim); //partial src w.r.t grad
    Vector dSrcdgradrho(dim); //partial src w.r.t grad
-   DenseMatrix src_grad(dim, num_states);
-   DenseMatrix src_curl(3, num_states);
    Vector work1(num_nodes*num_states); 
    Vector work2s(num_states);
    Vector work2gn(num_states);
    Vector work2gr(num_states);
    Vector work3(num_nodes);
    Vector dnu(num_nodes*num_states); //total derivative
-   //need dgraddDu, dcdDu, dDudu 
 
    // convert momentum to velocity
    for (int nn = 0; nn < num_nodes; nn++)
@@ -178,7 +185,7 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
       u.GetColumn(i, ui);
       Trans.Transform(node, xi);
 
-      // get Dui
+      // get Dui, insert each spatial derivative into column matrix
       Duidi = 0.0; Dui = 0.0;
       for (int di = 0; di < dim; di++)
       {
@@ -193,22 +200,19 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
       std::vector<adouble> curl_i_a(curl_i.Size());
       std::vector<adouble> grad_nu_i_a(grad_nu_i.Size());
       std::vector<adouble> grad_rho_i_a(grad_rho_i.Size());
-      adouble S;
       adouble mu_a = mu;
       adouble Re_a = Re;
-      // initialize adouble inputs
       adept::set_values(ui_a.data(), ui.Size(), ui.GetData());
-      //adept::set_values(Dui_a.data(), Dw_size, Dui.GetData());
 
       // compute vorticity at node
       calcVorticity<double, dim>(Dui.GetData(), 
-         Trans.InverseJacobian().GetData(), curl_i.GetData()); //curl.GetRow(i, curl_i);
+         Trans.InverseJacobian().GetData(), curl_i.GetData()); 
       calcVorticityJacDw<dim>(this->stack, Dui.GetData(), 
          Trans.InverseJacobian().GetData(), jac_curl);
 
       // compute gradient of turbulent viscosity at node
       calcGrad<double, dim>(dim+2, Dui.GetData(), 
-         Trans.InverseJacobian().GetData(), grad_nu_i.GetData()); //curl.GetRow(i, curl_i);
+         Trans.InverseJacobian().GetData(), grad_nu_i.GetData()); 
       calcGradJacDw<dim>(this->stack, dim+2, Dui.GetData(), 
          Trans.InverseJacobian().GetData(), jac_grad_nu);
       // compute gradient of density at node
@@ -217,17 +221,21 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
       calcGradJacDw<dim>(this->stack, 0, Dui.GetData(), 
          Trans.InverseJacobian().GetData(), jac_grad_rho);
 
+      // set adept outputs
       adept::set_values(curl_i_a.data(), curl_i.Size(), curl_i.GetData());
       adept::set_values(grad_nu_i_a.data(), grad_nu_i.Size(), grad_nu_i.GetData());
       adept::set_values(grad_rho_i_a.data(), grad_rho_i.Size(), grad_rho_i.GetData());
 
       // get distance function value at node
-      adouble d = dist.GetValue(Trans.ElementNo, node); //temp solution, y distance from wall
+      adouble d = dist.GetValue(Trans.ElementNo, node); //evaluate the distance gridfunction at the node
+      adouble d0 = 1e-4; //temporary solution for nodes on wall
+      // if (d < 1e-12)
+      //    d = d0;
 
       // vorticity magnitude deriv
       this->stack.new_recording();
-      //S = sqrt(curl_i_a[0]*curl_i_a[0] + curl_i_a[1]*curl_i_a[1] +curl_i_a[2]*curl_i_a[2]);
-      S = abs(curl_i_a[2]);
+      adouble S = sqrt(curl_i_a[0]*curl_i_a[0] + curl_i_a[1]*curl_i_a[1] +curl_i_a[2]*curl_i_a[2]);
+      //S = abs(curl_i_a[2]);
       this->stack.independent(curl_i_a.data(), curl_i.Size());
       this->stack.dependent(S);
       this->stack.jacobian(dSdc.GetData());
@@ -236,24 +244,40 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
       // ui differentiation
       this->stack.new_recording();
       adouble src = calcSASource<adouble,dim>(
-         ui_a.data(), grad_nu_i_a.data(), sacs_a.data())/Re_a;
+        ui_a.data(), grad_nu_i_a.data(), sacs_a.data())/Re_a;
       src -= calcSASource2<adouble,dim>(
-         ui_a.data(), mu_a, grad_nu_i_a.data(), grad_rho_i_a.data(), sacs_a.data())/Re_a;
-      // use negative model if turbulent viscosity is negative
+        ui_a.data(), mu_a, grad_nu_i_a.data(), grad_rho_i_a.data(), sacs_a.data())/Re_a;
+      if (fabs(d) > 1e-12)
+      {
       if (ui_a[dim+2] < 0)
       {
-         src += calcSANegativeProduction<adouble,dim>(
+         src += prod*calcSANegativeProduction<adouble,dim>(
             ui_a.data(), S, sacs_a.data());
-         src += calcSANegativeDestruction<adouble,dim>(
+         src += dest*calcSANegativeDestruction<adouble,dim>(
             ui_a.data(), d, sacs_a.data())/Re_a;
       }
       else
       {
-         src += calcSAProduction<adouble,dim>(
-            ui_a.data(), mu_a, d, S, Re_a, sacs_a.data())/Re_a;
-         src += calcSADestruction<adouble,dim>(
+         src += prod*calcSAProduction<adouble,dim>(
+            ui_a.data(), mu_a, d, S, Re_a, sacs_a.data());///Re_a;
+         src += dest*calcSADestruction<adouble,dim>(
             ui_a.data(), mu_a, d, S, Re_a, sacs_a.data())/Re_a;
       }
+      }
+      else
+      {
+         if (ui_a[dim+2] < 0)
+         {
+            src += dest*calcSANegativeDestruction<adouble,dim>(
+               ui_a.data(), d0, sacs_a.data())/Re_a;
+         }
+         else
+         {
+            src += dest*calcSADestruction<adouble,dim>(
+               ui_a.data(), mu_a, d0, S, Re_a, sacs_a.data())/Re_a;
+         }
+      }
+      src = prod*(ui_a[dim+2]-3); ///!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       this->stack.independent(ui_a.data(), ui.Size());
       this->stack.dependent(src);
       this->stack.jacobian(dSrcdu.GetData());
@@ -261,92 +285,137 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
       dSrcdS = 0.0;
       // S differentiation
       this->stack.new_recording();
-      adouble S_a; 
-      S_a.set_value(S.value());
       src = calcSASource<adouble,dim>(
-         ui_a.data(), grad_nu_i_a.data(), sacs_a.data())/Re_a;
+        ui_a.data(), grad_nu_i_a.data(), sacs_a.data())/Re_a;
       src -= calcSASource2<adouble,dim>(
-         ui_a.data(), mu_a, grad_nu_i_a.data(), grad_rho_i_a.data(), sacs_a.data())/Re_a;
-      // use negative model if turbulent viscosity is negative
+        ui_a.data(), mu_a, grad_nu_i_a.data(), grad_rho_i_a.data(), sacs_a.data())/Re_a;
+      if (fabs(d) > 1e-12)
+      {
       if (ui_a[dim+2] < 0)
       {
-         src += calcSANegativeProduction<adouble,dim>(
+         src += prod*calcSANegativeProduction<adouble,dim>(
             ui_a.data(), S, sacs_a.data());
-         src += calcSANegativeDestruction<adouble,dim>(
+         src += dest*calcSANegativeDestruction<adouble,dim>(
             ui_a.data(), d, sacs_a.data())/Re_a;
       }
       else
       {
-         src += calcSAProduction<adouble,dim>(
-            ui_a.data(), mu_a, d, S, Re_a, sacs_a.data())/Re_a;
-         src += calcSADestruction<adouble,dim>(
+         src += prod*calcSAProduction<adouble,dim>(
+            ui_a.data(), mu_a, d, S, Re_a, sacs_a.data());///Re_a;
+         src += dest*calcSADestruction<adouble,dim>(
             ui_a.data(), mu_a, d, S, Re_a, sacs_a.data())/Re_a;
       }
-      this->stack.independent(S_a);
+      }
+      else
+      {
+         if (ui_a[dim+2] < 0)
+         {
+            src += dest*calcSANegativeDestruction<adouble,dim>(
+               ui_a.data(), d0, sacs_a.data())/Re_a;
+         }
+         else
+         {
+            src += dest*calcSADestruction<adouble,dim>(
+               ui_a.data(), mu_a, d0, S, Re_a, sacs_a.data())/Re_a;
+         }
+      }
+      src = prod*(ui_a[dim+2]-3); ///!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      this->stack.independent(S);
       this->stack.dependent(src);
       this->stack.jacobian(dSrcdS.GetData());
       
       dSrcdgradnu = 0.0;
-      // grad differentiation
+      // grad nu differentiation
       this->stack.new_recording();
       src = calcSASource<adouble,dim>(
-         ui_a.data(), grad_nu_i_a.data(), sacs_a.data())/Re_a;
+        ui_a.data(), grad_nu_i_a.data(), sacs_a.data())/Re_a;
       src -= calcSASource2<adouble,dim>(
-         ui_a.data(), mu_a, grad_nu_i_a.data(), grad_rho_i_a.data(), sacs_a.data())/Re_a;
-      // use negative model if turbulent viscosity is negative
+        ui_a.data(), mu_a, grad_nu_i_a.data(), grad_rho_i_a.data(), sacs_a.data())/Re_a;
+      if (fabs(d) > 1e-12)
+      {
       if (ui_a[dim+2] < 0)
       {
-         src += calcSANegativeProduction<adouble,dim>(
+         src += prod*calcSANegativeProduction<adouble,dim>(
             ui_a.data(), S, sacs_a.data());
-         src += calcSANegativeDestruction<adouble,dim>(
+         src += dest*calcSANegativeDestruction<adouble,dim>(
             ui_a.data(), d, sacs_a.data())/Re_a;
       }
       else
       {
-         src += calcSAProduction<adouble,dim>(
-            ui_a.data(), mu_a, d, S, Re_a, sacs_a.data())/Re_a;
-         src += calcSADestruction<adouble,dim>(
+         src += prod*calcSAProduction<adouble,dim>(
+            ui_a.data(), mu_a, d, S, Re_a, sacs_a.data());///Re_a;
+         src += dest*calcSADestruction<adouble,dim>(
             ui_a.data(), mu_a, d, S, Re_a, sacs_a.data())/Re_a;
       }
-
+      }
+      else
+      {
+         if (ui_a[dim+2] < 0)
+         {
+            src += dest*calcSANegativeDestruction<adouble,dim>(
+               ui_a.data(), d0, sacs_a.data())/Re_a;
+         }
+         else
+         {
+            src += dest*calcSADestruction<adouble,dim>(
+               ui_a.data(), mu_a, d0, S, Re_a, sacs_a.data())/Re_a;
+         }
+      }
+      src = prod*(ui_a[dim+2]-3); ///!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       this->stack.independent(grad_nu_i_a.data(), grad_nu_i_a.size());
       this->stack.dependent(src);
       this->stack.jacobian(dSrcdgradnu.GetData());
 
       dSrcdgradrho = 0.0;
-      // grad differentiation
+      // grad rho differentiation
       this->stack.new_recording();
       src = calcSASource<adouble,dim>(
          ui_a.data(), grad_nu_i_a.data(), sacs_a.data())/Re_a;
       src -= calcSASource2<adouble,dim>(
          ui_a.data(), mu_a, grad_nu_i_a.data(), grad_rho_i_a.data(), sacs_a.data())/Re_a;
-      // use negative model if turbulent viscosity is negative
+      if (fabs(d) > 1e-12)
+      {
       if (ui_a[dim+2] < 0)
       {
-         src += calcSANegativeProduction<adouble,dim>(
+         src += prod*calcSANegativeProduction<adouble,dim>(
             ui_a.data(), S, sacs_a.data());
-         src += calcSANegativeDestruction<adouble,dim>(
+         src += dest*calcSANegativeDestruction<adouble,dim>(
             ui_a.data(), d, sacs_a.data())/Re_a;
       }
       else
       {
-         src += calcSAProduction<adouble,dim>(
-            ui_a.data(), mu_a, d, S, Re_a, sacs_a.data())/Re_a;
-         src += calcSADestruction<adouble,dim>(
+         src += prod*calcSAProduction<adouble,dim>(
+            ui_a.data(), mu_a, d, S, Re_a, sacs_a.data());///Re_a;
+         src += dest*calcSADestruction<adouble,dim>(
             ui_a.data(), mu_a, d, S, Re_a, sacs_a.data())/Re_a;
       }
-
+      }
+      else
+      {
+         if (ui_a[dim+2] < 0)
+         {
+            src += dest*calcSANegativeDestruction<adouble,dim>(
+               ui_a.data(), d0, sacs_a.data())/Re_a;
+         }
+         else
+         {
+            src += dest*calcSADestruction<adouble,dim>(
+               ui_a.data(), mu_a, d0, S, Re_a, sacs_a.data())/Re_a;
+         }
+      }
+      src = prod*(ui_a[dim+2]-3);  ///!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       this->stack.independent(grad_rho_i_a.data(), grad_rho_i_a.size());
       this->stack.dependent(src);
       this->stack.jacobian(dSrcdgradrho.GetData());
 
       // Assemble nu derivative
+      // Direct ui sensitivities
       for(int ns = 0; ns < num_states; ns ++)
       {
          dnu(i + ns*num_nodes) = dSrcdu(ns);
       }
 
-      // Dui differentiation
+      // Dui sensitivities
       for (int di = 0; di < dim; di++)
       {
          work1 = 0.0; work2s = 0.0; work2gn = 0.0; work2gr = 0.0; work3 = 0.0;
@@ -355,7 +424,6 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
          work2s *= dSrcdS(0);
          jac_grad_nu[di].MultTranspose(dSrcdgradnu, work2gn);
          jac_grad_rho[di].MultTranspose(dSrcdgradrho, work2gr);
-         //src_grad.GetRow(di, work2g);
          for (int nn = 0; nn < num_nodes; nn++)
          {
             // assuming ordering BY NODES
@@ -366,6 +434,8 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
          }
          dnu += work1;
       }
+
+      // node weighting
       dnu *= (Trans.Weight() * node.weight);
 
       // account for momentum conversion
@@ -397,8 +467,6 @@ void SAInviscidIntegrator<dim, entvar>::calcFlux(int di, const mfem::Vector &qL,
                                                 const mfem::Vector &qR,
                                                 mfem::Vector &flux)
 {
-   ///NOTE: Differentiate this function with adept directly, check euler/navier stokes integrators
-   //operate on original state variables
    if (entvar)
    {
       calcIsmailRoeFluxUsingEntVars<double, dim>(di, qL.GetData(), qR.GetData(),
@@ -410,8 +478,8 @@ void SAInviscidIntegrator<dim, entvar>::calcFlux(int di, const mfem::Vector &qL,
                                      flux.GetData());
    }
    //add flux term for SA
+   //flux(dim+2) = 0.5*(qfs(di+1)/qfs(0) + qfs(di+1)/qfs(0))*0.5*(qL(dim+2) + qR(dim+2));
    flux(dim+2) = 0.5*(qL(di+1)/qL(0) + qR(di+1)/qR(0))*0.5*(qL(dim+2) + qR(dim+2));
-   //flux(dim+2) = (qL(di+1)/qL(0) + qR(di+1)/qR(0))*0.5*(qL(dim+2) + qR(dim+2));
 }
 
 template <int dim, bool entvar>
@@ -453,14 +521,15 @@ void SAInviscidIntegrator<dim, entvar>::calcFluxJacStates(
    jacL.CopyCols(jac, 0, dim + 2);
    // retrieve the jacobian w.r.t right state
    jacR.CopyCols(jac, dim + 3, 2 * (dim + 3) - 1);
-   // add SA variable contributions
+   // add SA variable contributions ///NOTE: no real need to do it this way
    jacL(dim+2,0) = -0.25*(qL(di+1)/(qL(0)*qL(0)))*(qL(dim+2) + qR(dim+2));
    jacR(dim+2,0) = -0.25*(qR(di+1)/(qR(0)*qR(0)))*(qL(dim+2) + qR(dim+2));
    jacL(dim+2,di+1) = 0.25*(1.0/qL(0))*(qL(dim+2) + qR(dim+2));
-   jacR(dim+2,di+1) = 0.25*(1.0/qR(0))*(qL(dim+2) + qR(dim+2));
+   jacR(dim+2,di+1) = 0.25*(1.0/qR(0))*(qL(dim+2) + qR(dim+2));   
    jacL(dim+2,dim+2) = 0.25*(qL(di+1)/qL(0) + qR(di+1)/qR(0));
    jacR(dim+2,dim+2) = 0.25*(qL(di+1)/qL(0) + qR(di+1)/qR(0));
-
+   // jacL(dim+2,dim+2) = 0.5*(qfs(di+1)/qfs(0) + qfs(di+1)/qfs(0));
+   // jacR(dim+2,dim+2) = 0.5*(qfs(di+1)/qfs(0) + qfs(di+1)/qfs(0));
 }
 
 //====================================================================================
@@ -485,12 +554,14 @@ void SANoSlipAdiabaticWallBC<dim>::calcFlux(const mfem::Vector &x,
    {
       mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
    }
-   //mu_Re /= Re;
    double fv1 = calcSACoefficient<double, dim>(q.GetData(), mu, 
                                                       sacs.GetData());
+   if (q(dim+2)<0)
+      fv1 = 0.0;
    double mu_Re_SA = (mu_Re + q(dim+2)*fv1)/Re;
    calcAdiabaticWallFlux<double, dim>(dir.GetData(), mu_Re_SA, Pr, q.GetData(),
                                       Dw.GetData(), work_vec.GetData());
+   work_vec(dim+2) = 0.0;
    flux_vec -= work_vec; // note the minus sign!!!
    // evaluate wall normal eddy viscosity flux
    double grad[dim];
@@ -503,10 +574,11 @@ void SANoSlipAdiabaticWallBC<dim>::calcFlux(const mfem::Vector &x,
    // Step 3: evaluate the no-slip penalty
    calcNoSlipPenaltyFlux<double, dim>(dir.GetData(), jac, mu_Re_SA, Pr, qfs.GetData(),
                                       q.GetData(), work_vec.GetData());
+   work_vec(dim+2) = 0.0;
    flux_vec += work_vec;
    double dnu = q(dim+2);
    double dnuflux = (mu + fn*q(dim+2))*dnu/(sacs(2)*Re);
-   double fac = sqrt(dot<double,dim>(dir, dir))/jac;
+   double fac = 100*sqrt(dot<double,dim>(dir, dir))/jac;
    flux_vec(dim+2) += dnuflux*fac;
 }
 
@@ -539,6 +611,7 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacState(
    // Step 1: apply the EC slip wall flux
    mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
                                         flux_a.data());
+   flux_a[dim+2] = 0.0;
    // Step 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
    if (mu < 0.0)
@@ -548,9 +621,12 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacState(
    //mu_Re /= Re;
    adouble fv1 = calcSACoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());
+   if (q_a[dim+2]<0)
+      fv1 = 0.0;
    adouble mu_Re_SA = (mu_Re + q_a[dim+2]*fv1)/Re;
    mach::calcAdiabaticWallFlux<adouble, dim>(dir_a.data(), mu_Re_SA, Pr, q_a.data(),
                                              Dw_a.data(), work_vec_a.data());
+   work_vec_a[dim+2] = 0.0;
    for (int i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i]; // note the minus sign!!!
@@ -566,13 +642,14 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacState(
    // Step 3: evaluate the no-slip penalty
    mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(), jac, mu_Re_SA, Pr, qfs_a.data(),
                                              q_a.data(), work_vec_a.data());
+   work_vec_a[dim+2] = 0.0;
    for (int i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] += work_vec_a[i];
    }
    adouble dnu = q_a[dim+2];
    adouble dnuflux = (mu + fn*q_a[dim+2])*dnu/(sacs_a[2]*Re);
-   adouble fac = sqrt(dot<adouble,dim>(dir_a.data(), dir_a.data()))/jac;
+   adouble fac = 100*sqrt(dot<adouble,dim>(dir_a.data(), dir_a.data()))/jac;
    flux_a[dim+2] += dnuflux*fac;
 
    this->stack.independent(q_a.data(), q.Size());
@@ -607,6 +684,7 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mf
    // Step 1: apply the EC slip wall flux
    mach::calcSlipWallFlux<adouble, dim>(x_a.data(), dir_a.data(), q_a.data(),
                                         flux_a.data());
+   flux_a[dim+2] = 0.0;
    // Step 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
    if (mu < 0.0)
@@ -616,9 +694,12 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mf
    //mu_Re /= Re;
    adouble fv1 = calcSACoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());
+   if (q_a[dim+2]<0)
+      fv1 = 0.0;
    adouble mu_Re_SA = (mu_Re + q_a[dim+2]*fv1)/Re;
    mach::calcAdiabaticWallFlux<adouble, dim>(dir_a.data(), mu_Re_SA, Pr, q_a.data(),
                                              Dw_a.data(), work_vec_a.data());
+   work_vec_a[dim+2] = 0.0;
    for (int i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i]; // note the minus sign!!!
@@ -634,13 +715,14 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mf
    // Step 3: evaluate the no-slip penalty
    mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(), jac, mu_Re_SA, Pr, qfs_a.data(),
                                              q_a.data(), work_vec_a.data());
+   work_vec_a[dim+2] = 0.0;
    for (int i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] += work_vec_a[i];
    }
    adouble dnu = q_a[dim+2];
    adouble dnuflux = (mu + fn*q_a[dim+2])*dnu/(sacs_a[2]*Re);
-   adouble fac = sqrt(dot<adouble,dim>(dir_a.data(), dir_a.data()))/jac;
+   adouble fac = 100*sqrt(dot<adouble,dim>(dir_a.data(), dir_a.data()))/jac;
    flux_a[dim+2] += dnuflux*fac;
 
    this->stack.independent(Dw_a.data(),Dw_size);
@@ -666,12 +748,14 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxDv(const mfem::Vector &x,
    //mu_Re /= Re;
    double fv1 = calcSACoefficient<double, dim>(q.GetData(), mu, 
                                                       sacs.GetData());
+   if (q(dim+2)<0)
+      fv1 = 0.0;
    double mu_Re_SA = (mu_Re + q(dim+2)*fv1)/Re;
-   calcNoSlipDualFlux<double, dim>(dir.GetData(), mu_Re_SA, Pr, q.GetData(),
+   double fn = calcSANegativeCoefficient<double, dim>(q.GetData(), mu, 
+                                                      sacs.GetData());
+   double mu_2 = (mu_Re + q(dim+2)*fn)/Re;
+   calcNoSlipDualFluxSA<double, dim>(dir.GetData(), mu_Re_SA, mu_2, Pr, q.GetData(),
                                    flux_mat.GetData());
-   for (int di = 0; di < dim; di++)
-      flux_mat(dim+2, di) = 0.0;
-
 }
 
 template <int dim>
@@ -699,11 +783,15 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxDvJacState(
    //mu_Re /= Re;
    adouble fv1 = calcSACoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());
+   if (q_a[dim+2]<0)
+      fv1 = 0.0;
    adouble mu_Re_SA = (mu_Re + q_a[dim+2]*fv1)/Re;
-   calcNoSlipDualFlux<adouble, dim>(dir_a.data(), mu_Re_SA, Pr, q_a.data(),
+   adouble fn = calcSANegativeCoefficient<adouble, dim>(q_a.data(), mu, 
+                                                      sacs_a.data());
+   adouble mu_2 = (mu_Re + q_a[dim+2]*fn)/Re;
+   calcNoSlipDualFluxSA<adouble, dim>(dir_a.data(), mu_Re_SA, mu_2, Pr, q_a.data(),
                                     fluxes_a.data());
-   for (int di = 0; di < dim; di++)
-      fluxes_a[dim+2 + di*(dim+3)] = 0.0;
+
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(fluxes_a.data(), flux_size);
    // compute and store jacobian in flux_jac
@@ -759,11 +847,13 @@ void SAViscousSlipWallBC<dim>::calcFlux(const mfem::Vector &x,
    //mu_Re /= Re;
    double fv1 = calcSACoefficient<double, dim>(q.GetData(), mu, 
                                                       sacs.GetData());
+   if (q(dim+2)<0)
+      fv1 = 0.0;
    double mu_Re_SA = (mu_Re + q(dim+2)*fv1)/Re;
    for (int d = 0; d < dim; ++d)
    {
       work_vec = 0.0;
-      applyViscousScaling<double, dim>(d, mu_Re_SA, Pr, q.GetData(),
+      applyViscousScalingSA<double, dim>(d, mu_Re_SA, Pr, q.GetData(),
                                        Dw_work.GetData(), work_vec.GetData());
       work_vec *= dir(d);
       flux_vec -= work_vec;
@@ -827,11 +917,13 @@ void SAViscousSlipWallBC<dim>::calcFluxJacState(
    //mu_Re /= Re;
    adouble fv1 = calcSACoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());
+   if (q_a[dim+2]<0)
+      fv1 = 0.0;
    adouble mu_Re_SA = (mu_Re + q_a[dim+2]*fv1)/Re;
    for (int d = 0; d < dim; ++d)
    {
       work_vec_a[dim+2] = 0.0;
-      applyViscousScaling<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(),
+      applyViscousScalingSA<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(),
                                        Dw_work_a.data(), work_vec_a.data());
       for (int k = 0; k < dim+2; k++)
       {
@@ -899,11 +991,13 @@ void SAViscousSlipWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mfem::
    //mu_Re /= Re;
    adouble fv1 = calcSACoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());
+   if (q_a[dim+2]<0)
+      fv1 = 0.0;
    adouble mu_Re_SA = (mu_Re + q_a[dim+2]*fv1)/Re;
    for (int d = 0; d < dim; ++d)
    {
       work_vec_a[dim+2] = 0.0;
-      applyViscousScaling<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(),
+      applyViscousScalingSA<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(),
                                        Dw_work_a.data(), work_vec_a.data());
       for (int k = 0; k < dim+2; k++)
       {
@@ -948,7 +1042,7 @@ void SAFarFieldBC<dim>::calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
    for (int d = 0; d < dim; ++d)
    {
       work_vec = 0.0;
-      applyViscousScaling<double, dim>(d, mu_Re_SA, Pr, q.GetData(), Dw.GetData(),
+      applyViscousScalingSA<double, dim>(d, mu_Re_SA, Pr, q.GetData(), Dw.GetData(),
                                        work_vec.GetData());
       work_vec *= dir[d];
       flux_vec -= work_vec;      
@@ -958,13 +1052,16 @@ void SAFarFieldBC<dim>::calcFlux(const mfem::Vector &x, const mfem::Vector &dir,
    //flux_vec(dim+2) = 0;
    // handle SA variable
    double Unrm = dot<double, dim>(dir.GetData(), qfs.GetData()+1); 
+   double fac = 1.0;//sqrt(dot<double, dim>(dir, dir));
    if (Unrm > 0.0)
    {
-      flux_vec(dim+2) = Unrm*q(dim+2)/q(0);
+      
+      flux_vec(dim+2) = Unrm*q(dim+2)/(q(0)*fac);
    }
    else
    {
-      flux_vec(dim+2) = Unrm*qfs(dim+2)/qfs(0);
+      //double dq = q(dim+2) - qfs(dim+2);
+      flux_vec(dim+2) = Unrm*qfs(dim+2)/(qfs(0)*fac);//Unrm*dq/fac;
    }
 }
 
@@ -1013,7 +1110,7 @@ void SAFarFieldBC<dim>::calcFluxJacState(
       {
          work_vec_a[i] = 0.0;
       }
-      applyViscousScaling<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(), Dw_a.data(),
+      applyViscousScalingSA<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(), Dw_a.data(),
                                        work_vec_a.data());
       for (int i = 0; i < flux_a.size(); ++i)
       {
@@ -1023,28 +1120,41 @@ void SAFarFieldBC<dim>::calcFluxJacState(
    }
 #endif
 
+   adouble Unrm = dot<adouble, dim>(dir_a.data(), qfs_a.data()+1); 
+   adouble fac = 1.0;//sqrt(dot<adouble, dim>(dir_a.data(), dir_a.data()));
+   if (Unrm > 0.0)
+   {
+      flux_a[dim+2] = Unrm*q_a[dim+2]/(q_a[0]*fac);
+   }
+   else
+   {
+      //adouble dq = q_a[dim+2] - qfs_a[dim+2];
+      flux_a[dim+2] = Unrm*qfs_a[dim+2]/(qfs_a[0]*fac); //Unrm*dq/fac;
+   }
+
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());   
    
    // handle SA variable
-   double Unrm = dot<double, dim>(dir.GetData(), qfs.GetData()+1); 
-   if (Unrm > 0.0)
-   {
-      flux_jac(dim+2, 0) = -Unrm*q(dim+2)/(q(0)*q(0));
-      // for(int di = 0; di < dim; di++)
-      // {
-      //    flux_jac(dim+2, di+1) = dir(di)*q(dim+2)/q(0);
-      // }
-      flux_jac(dim+2, dim+2) = Unrm/q(0);
-   }
-   else
-   {
-      // for(int di = 0; di < dim; di++)
-      // {
-      //    flux_jac(dim+2, di+1) = dir(di)*qfs(dim+2)/qfs(0);
-      // }
-   }
+   // double Unrm = dot<double, dim>(dir.GetData(), qfs.GetData()+1); 
+   // double fac = sqrt(dot<double, dim>(dir, dir));
+   // if (Unrm > 0.0)
+   // {
+   //    flux_jac(dim+2, 0) = -Unrm*q(dim+2)/(q(0)*q(0)*fac);
+   //    for(int di = 0; di < dim; di++)
+   //    {
+   //       flux_jac(dim+2, di+1) = dir(di)*q(dim+2)/(q(0)*fac);
+   //    }
+   //    flux_jac(dim+2, dim+2) = Unrm/(q(0)*fac);
+   // }
+   // else
+   // {
+   //    // for(int di = 0; di < dim; di++)
+   //    // {
+   //    //    flux_jac(dim+2, di+1) = dir(di)*qfs(dim+2)/qfs(0);
+   //    // }
+   // }
 }
 
 template <int dim>
@@ -1227,12 +1337,16 @@ void SAViscousIntegrator<dim>::applyScaling(int d, const mfem::Vector &x,
    //mu_Re /= Re;
    double fv1 = calcSACoefficient<double, dim>(q.GetData(), mu, 
                                                       sacs.GetData());
+   if (q(dim+2)<0)
+      fv1 = 0.0;
    double mu_Re_SA = (mu_Re + q(dim+2)*fv1)/Re;
-   applyViscousScaling<double, dim>(d, mu_Re_SA, Pr, q.GetData(), Dw.GetData(),
+   applyViscousScalingSA<double, dim>(d, mu_Re_SA, Pr, q.GetData(), Dw.GetData(),
                                     CDw.GetData());
    double fn = calcSANegativeCoefficient<double, dim>(q.GetData(), mu, 
                                                       sacs.GetData());
    CDw(dim+2) = (mu + fn*q(dim+2))*Dw(dim+2, d)/(sacs(2)*Re);
+   // if (mu + fn*q(dim+2) < 0)
+   //    cout << "Negative diffusion!: " <<mu + fn*q(dim+2) <<endl;
 }
 
 template <int dim>
@@ -1262,8 +1376,10 @@ void SAViscousIntegrator<dim>::applyScalingJacState(int d, const mfem::Vector &x
    //mu_Re /= Re;
    adouble fv1 = calcSACoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());
+   if (q_a[dim+2]<0)
+      fv1 = 0.0;
    adouble mu_Re_SA = (mu_Re + q_a[dim+2]*fv1)/Re;
-   applyViscousScaling<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(), Dw_a.data(),
+   applyViscousScalingSA<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(), Dw_a.data(),
                                     CDw_a.data());
    adouble fn = calcSANegativeCoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());
@@ -1302,8 +1418,10 @@ void SAViscousIntegrator<dim>::applyScalingJacDw(
    //mu_Re /= Re;
    adouble fv1 = calcSACoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());
+   if (q_a[dim+2]<0)
+      fv1 = 0.0;
    adouble mu_Re_SA = (mu_Re + q_a[dim+2]*fv1)/Re;
-   applyViscousScaling<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(), Dw_a.data(),
+   applyViscousScalingSA<adouble, dim>(d, mu_Re_SA, Pr, q_a.data(), Dw_a.data(),
                                     CDw_a.data());
    adouble fn = calcSANegativeCoefficient<adouble, dim>(q_a.data(), mu, 
                                                       sacs_a.data());

@@ -34,6 +34,11 @@ static int m_y;
 /// \param[out] u - conservative + SA variables stored as a 5-vector
 void pert(const Vector &x, Vector& p);
 
+/// \brief Defines the random function for the jacobian check
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void pert_ns(const Vector &x, Vector& p);
+
 /// \brief Defines the exact solution for the rans freestream problem
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative + SA variables stored as a 5-vector
@@ -43,6 +48,11 @@ void uexact(const Vector &x, Vector& u);
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative + SA variables stored as a 5-vector
 void uinit_pert(const Vector &x, Vector& u);
+
+/// \brief Defines a perturbed solution for the ns freestream problem
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void uinit_pert_ns(const Vector &x, Vector& u);
 
 /// \brief Defines a pseudo wall-distance function
 /// \param[in] x - coordinate of the point at which the distance is needed
@@ -96,37 +106,89 @@ int main(int argc, char *argv[])
       ipitch = file_options["flow-param"]["pitch-axis"].template get<int>();
       chi_fs = file_options["flow-param"]["chi"].template get<double>();
 
-      m_offset = file_options["mesh"]["offset"].template get<double>();
+      m_offset = file_options["mesh"]["offset"].template get<double>(); //thickness of elements on wall
       m_coeff = file_options["mesh"]["coeff"].template get<double>();
       m_x = file_options["mesh"]["num-x"].template get<int>();
       m_y = file_options["mesh"]["num-y"].template get<int>();
 
+      string file = file_options["file-names"].template get<std::string>();
+      stringstream fileinit; stringstream filefinal;
+      fileinit << file << "_init";
+      filefinal << file << "_final";
+
+      std::vector<GridFunType*> u_ns(1);
+      std::vector<GridFunType*> u_rans(1);
+
       // generate the walled mesh, and its distance function
       std::unique_ptr<Mesh> smesh = buildWalledMesh(m_x, m_y);
-
+      
+      if (file_options["try-rans"].template get<bool>())
+      {
       // construct the solver and set initial conditions
       auto solver = createSolver<RANavierStokesSolver<2, entvar>>(opt_file_name,
                                                          move(smesh));
       solver->setInitialCondition(uinit_pert);
-      solver->printSolution("rans_wall_init", 0);
-
-      // get the initial density error
-      double l2_error_init = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
-                            .calcConservativeVarsL2Error(uexact, 0));
-      *out << "\n|| rho_h - rho ||_{L^2} init  = " << l2_error_init << endl;
+      solver->printSolution(fileinit.str(), 0);
 
       double res_error = solver->calcResidualNorm();
-      *out << "\ninitial residual norm = " << res_error << endl;
-      solver->checkJacobian(pert);
+      *out << "\ninitial rans residual norm = " << res_error << endl;
+      //solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("rans_wall_final",0);
+      solver->printSolution(filefinal.str(),0);
       // get the final density error
-      double l2_error_final = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
-                            .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
 
-      *out << "\nfinal residual norm = " << res_error;
-      *out << "\n|| rho_h - rho ||_{L^2} final = " << l2_error_final << endl;
+      *out << "\nfinal rans residual norm = " << res_error;
+      u_rans = solver->getFields();
+      }
+
+      if (file_options["try-ns"].template get<bool>())
+      {
+      
+      // construct the solver and set initial conditions
+      std::unique_ptr<Mesh> smesh2 = buildWalledMesh(m_x, m_y);
+      auto solver2 = createSolver<NavierStokesSolver<2, entvar>>(opt_file_name,
+                                                         move(smesh2));
+      solver2->setInitialCondition(uinit_pert_ns);
+      fileinit << "_ns";
+      filefinal << "_ns";
+      solver2->printSolution(fileinit.str(), 0);
+
+      double res_error2 = solver2->calcResidualNorm();
+      *out << "\ninitial ns residual norm = " << res_error2 << endl;
+      solver2->checkJacobian(pert_ns);
+      solver2->solveForState();
+      solver2->printSolution(filefinal.str(),0);
+      res_error2 = solver2->calcResidualNorm();
+
+      *out << "\nfinal ns residual norm = " << res_error2;
+      u_ns = solver2->getFields();
+      }
+
+      //if (file_options["compare"].template get<bool>())
+      //{
+      
+      *out << "\n Before Reording " << endl;
+      mfem::Vector u_rans_comp(u_ns[0]->Size());
+      for(int i = 0; i < u_rans[0]->Size()/5; i++)
+      {
+         for(int j = 0; j < 4; j++)
+         {
+            u_rans_comp(j + i*4) = u_rans[0]->Elem(j + i*5);
+         }
+      }
+      
+      // u_rans[0]->ReorderByNodes();
+      // u_ns[0]->ReorderByNodes();
+      *out << "\n After Reording = " << endl;
+
+      //u_rans[0]->SetSize(u_ns[0]->Size());
+
+      *u_ns[0] -= u_rans_comp;
+
+      *out << "\n ns-rans result norm = " << u_ns[0]->Norml2() << endl;
+      //}
+
    }
    catch (MachException &exception)
    {
@@ -149,6 +211,16 @@ void pert(const Vector &x, Vector& p)
 {
    p.SetSize(5);
    for (int i = 0; i < 5; i++)
+   {
+      p(i) = 2.0 * uniform_rand(gen) - 1.0;
+   }
+}
+
+// perturbation function used to check the jacobian in each iteration
+void pert_ns(const Vector &x, Vector& p)
+{
+   p.SetSize(4);
+   for (int i = 0; i < 4; i++)
    {
       p(i) = 2.0 * uniform_rand(gen) - 1.0;
    }
@@ -202,6 +274,27 @@ void uinit_pert(const Vector &x, Vector& q)
    q = u;
 }
 
+// initial guess perturbed from exact
+void uinit_pert_ns(const Vector &x, Vector& q)
+{
+   // q.SetSize(4);
+   // Vector u(4);
+   q.SetSize(4);
+   Vector u(4);
+   
+   u = 0.0;
+   u(0) = pert_fs*1.0;
+   u(1) = u(0)*mach_fs*cos(aoa_fs);
+   u(2) = u(0)*mach_fs*sin(aoa_fs);
+   u(3) = pert_fs*1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
+   // if(x(1) == 0.0)
+   // {
+   //    u(1) = 1e-10;
+   // }
+
+   q = u;
+}
+
 std::unique_ptr<Mesh> buildWalledMesh(int num_x, int num_y)
 {
    auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_x, num_y,
@@ -230,11 +323,19 @@ std::unique_ptr<Mesh> buildWalledMesh(int num_x, int num_y)
       double b = log(offset)/(c - 1.0);
       double a = 1.0/exp(1.0*b);
 
+      ///Condense mesh near wall
       if(rt(1) > 0.0 && rt(1) < 1.0)
       {
          xy(1) = coeff*a*exp(b*rt(1));
          //std::cout << xy(1) << std::endl;
       }
+
+      ///TODO: condense mesh near wall transition as well
+      //double cx1 = 2.0/
+      // if(rt(0) > 0.0 && rt(0) < 2.0)
+      // {
+      //    xy(1) = coeff*a*exp(b*rt(0));
+      // }
    };
    VectorFunctionCoefficient xy_coeff(2, xy_fun);
    GridFunction *xy = new GridFunction(fes);
@@ -255,7 +356,6 @@ std::unique_ptr<Mesh> buildWalledMesh(int num_x, int num_y)
       for (int j = 0; j < 2; ++j)
       {
          auto vtx = mesh_ptr->GetVertex(verts[j]);
-         cout<< "B El: "<<i<<", " << vtx[0] <<", "<<vtx[1]<<endl;
          if (vtx[1] == 0.0 && vtx[0] <= 0.3333334)
          {
             before = before & true;

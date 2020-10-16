@@ -1,5 +1,6 @@
 #include "inexact_newton.hpp"
-
+#include <fstream>
+#include <iostream>
 #include "utils.hpp"
 
 using namespace std;
@@ -145,6 +146,10 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
       }
 
       jac = &oper->GetGradient(x);
+      // stringstream nssolname;
+      // nssolname << "jac_" <<it<<"";
+      // std::ofstream matlab(nssolname.str()); matlab.precision(15);
+      // jac->PrintMatlab(matlab);
       // std::cout << "Get the jacobian matrix.\n";
       prec->SetOperator(*jac);
       //std::cout << "jac is set as one operator.\n";

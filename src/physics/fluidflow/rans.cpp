@@ -33,14 +33,16 @@ template <int dim, bool entvar>
 void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // add Navier Stokes integrators
-   cout << "Inside RANS add volume integrators" << endl;
+   vector<double> srcs = this->options["flow-param"]["sa-srcs"].template get<vector<double>>();
+   Vector q_ref(dim+3);
+      this->getFreeStreamState(q_ref);
    this->res->AddDomainIntegrator(new SAInviscidIntegrator<dim, entvar>( //Inviscid term
        this->diff_stack, alpha));
    this->res->AddDomainIntegrator(new SAViscousIntegrator<dim>( //SAViscousIntegrator
        this->diff_stack, this->re_fs, this->pr_fs, sacs, mu, alpha));
    // now add RANS integrators
    this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
-       this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha)); 
+       this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha, srcs[0], srcs[1])); 
    // add LPS stabilization
    double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
    this->res->AddDomainIntegrator(new SALPSIntegrator<dim, entvar>(
@@ -51,7 +53,6 @@ void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 template <int dim, bool entvar>
 void RANavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
 {
-   // add base class integrators
    auto &bcs = this->options["bcs"];
    double mu = this->options["flow-param"]["mu"].template get<double>();
 
@@ -62,6 +63,9 @@ void RANavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
+      
+      Vector q_ref(dim+3);
+      this->getFreeStreamState(q_ref);
       this->res->AddBdrFaceIntegrator(
           new SAViscousSlipWallBC<dim>(this->diff_stack, this->fec.get(),
                                      this->re_fs, this->pr_fs, sacs, mu, alpha),
@@ -70,7 +74,7 @@ void RANavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    }
 
    if (bcs.find("no-slip-adiabatic") != bcs.end())
-   {
+   { // no-slip-wall boundary condition
       vector<int> tmp = bcs["no-slip-adiabatic"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
@@ -198,9 +202,45 @@ template <int dim, bool entvar>
 void RANavierStokesSolver<dim, entvar>::iterationHook(int iter, 
                                                       double t, double dt) 
 {
+   string file = this->options["file-names"].template get<std::string>();
+   stringstream filename;
+   filename << file <<"_last";
+
    this->checkJacobian(pert);
-   this->printSolution("rans_wall_last", 0);
+   this->printSolution(filename.str(), 0);
+   
+   stringstream solname;
+	solname << file <<"_last.gf";
+   ofstream ssol(solname.str()); ssol.precision(16);
+	this->u->Save(ssol);
+
+   stringstream rsolname;
+	rsolname << file <<"_last_res.gf";
+   ofstream rsol(rsolname.str()); rsol.precision(16);
+	GridFunction r(this->u->FESpace());
+   this->res->Mult(*this->u, r);
+   r.Save(rsol);
+
+   cout << "Iter "<<iter<<" Residual Norm: "<<this->calcResidualNorm()<<endl;
 }
+
+
+template <int dim, bool entvar>
+void RANavierStokesSolver<dim, entvar>::terminalHook(int iter, double t_final)
+{
+   // double entropy = ent->GetEnergy(*u);
+   // entropylog << t_final << ' ' << entropy << endl;
+   // entropylog.close();
+
+   string file = this->options["file-names"].template get<std::string>();
+   stringstream filename;
+   filename << file <<"_final";
+   stringstream solname;
+	solname << file <<"_final.gf";
+   ofstream ssol(solname.str()); ssol.precision(30);
+	this->u->Save(ssol);
+}
+
 
 template <int dim, bool entvar>
 void RANavierStokesSolver<dim, entvar>::getDistanceFunction()
@@ -211,26 +251,27 @@ void RANavierStokesSolver<dim, entvar>::getDistanceFunction()
    FiniteElementSpace *dfes = new FiniteElementSpace(this->mesh.get(), dfec);
    dist.reset(new GridFunction(dfes));
 
-   if (wall_type == "const")
+   if (wall_type == "const") // uniform d value
    { 
       double val = this->options["wall-func"]["val"].template get<double>();
       ConstantCoefficient wall_coeff(val);
       dist->ProjectCoefficient(wall_coeff);
    }
-   if (wall_type == "y-dist")
+   if (wall_type == "y-dist") // y distance from the origin
    {
       double offset = 
          this->options["mesh"]["offset"].template get<double>();
       auto walldist = [offset](const Vector &x)
       {
-         if(x(1) == 0.0)
-            return 0.25*offset;
-         else
+         // if(x(1) == 0.0)
+         //    return 0.25*offset; //// not going to do it this way
+         // else
             return x(1); 
       };
       FunctionCoefficient wall_coeff(walldist);
       dist->ProjectCoefficient(wall_coeff);
-   }   
+   } 
+   ///TODO: Add option for proper wall distance function 
 }
 
 std::default_random_engine gen_ns(std::random_device{}());

@@ -7,6 +7,113 @@
 #include "rans_integ.hpp"
 #include "euler_test_data.hpp"
 
+//rotational vortex state
+void uvort(const mfem::Vector &x, mfem::Vector& u);
+
+//exact vorticity magnitude field
+double s_proj(const mfem::Vector &x);
+
+TEMPLATE_TEST_CASE_SIG("SA calcVorticity Accuracy", "[SAVorticity]",
+                       ((bool entvar), entvar), false)
+{
+   using namespace mfem;
+   using namespace euler_data;
+
+   const int dim = 2; // templating is hard here because mesh constructors
+   int num_state = dim + 3;
+
+   // generate a mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
+                                       true /* gen. edges */, 1.0, 1.0, true));
+
+    for (int p = 1; p <= 2; ++p)
+    {
+        DYNAMIC_SECTION("Vorticity correct for degree p = " << p)
+        {
+            std::unique_ptr<FiniteElementCollection> fec(
+             new SBPCollection(p, dim));
+            std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+            std::unique_ptr<FiniteElementSpace> fess(new FiniteElementSpace(
+             mesh.get(), fec.get()));
+
+            // state gridfunction
+            GridFunction u(fes.get());
+
+            // vorticity magnitude gridfunctions
+            GridFunction s_exact(fess.get());
+            GridFunction s_comp(fess.get());
+
+            FunctionCoefficient s_coeff(*s_proj);
+            VectorFunctionCoefficient u_coeff(dim+3, *uvort);
+            s_exact.ProjectCoefficient(s_coeff);
+            u.ProjectCoefficient(u_coeff);
+
+            Array<int> vdofs, vdofs2;
+            Vector el_x, el_y;
+            const FiniteElement *fe;
+            ElementTransformation *T;
+
+            // element loop
+            for (int i = 0; i < fes->GetNE(); i++)
+            {
+
+                fe = fes->GetFE(i);
+                fes->GetElementVDofs(i, vdofs);
+                fess->GetElementVDofs(i, vdofs2);
+                T = fes->GetElementTransformation(i);
+                const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(*fe);
+                int num_nodes = sbp.GetDof();
+                int num_states = dim+3;
+                u.GetSubVector(vdofs, el_x);
+                s_comp.GetSubVector(vdofs2, el_y);
+
+                Vector curl(3);
+                Vector Duidi(num_states);
+                DenseMatrix Dui(num_states, dim);
+                DenseMatrix uc(el_x.GetData(), num_nodes, num_states);
+                DenseMatrix ucc; ucc = uc;
+                ucc.Transpose();
+
+                // dof loop
+                for (int j = 0; j < num_nodes; j++)
+                {
+                    const IntegrationPoint &node = fe->GetNodes().IntPoint(j);
+                    T->SetIntPoint(&node);
+
+                    Duidi = 0.0; Dui = 0.0;
+                    for (int di = 0; di < dim; di++)
+                    {
+                        sbp.multStrongOperator(di, j, ucc, Duidi);
+                        Dui.SetCol(di, Duidi);
+                    }
+
+                    // get vorticity at dof
+                    mach::calcVorticity<double, dim>(Dui.GetData(), T->InverseJacobian().GetData(),  
+                                curl.GetData());
+
+                    double S = curl.Norml2();
+
+                    el_y(j) = S;
+                }
+                // insert into vorticity gridfunction
+                s_comp.AddElementVector(vdofs2, el_y);
+
+            }
+            
+            // compare vorticity
+            for (int j = 0; j < s_comp.Size(); j++)
+            {
+                std::cout << "Computed: " << s_comp(j)  << std::endl; 
+                std::cout << "Exact: " << s_exact(j) << std::endl; 
+                //REQUIRE(s_comp(j) == Approx(s_exact(j)).margin(1e-10));
+            }
+        }
+    }
+}
+
+
 TEMPLATE_TEST_CASE_SIG("SA calcVorticity Jacobian", "[SAVorticity]",
                        ((int dim), dim), 2, 3)
 {
@@ -148,7 +255,7 @@ TEST_CASE("SA S derivatives", "[SASource]")
     const int dim = 2;
     mfem::Vector q(dim+3);
     mfem::Vector grad(dim);
-    double delta = 1e-6;
+    double delta = 1e-5;
 
     grad(0) = 0.0;
     grad(1) = 0.0;
@@ -176,14 +283,16 @@ TEST_CASE("SA S derivatives", "[SASource]")
     std::vector<adouble> grad_a(grad.Size());
     adept::set_values(grad_a.data(), grad.Size(), grad.GetData());
 
+    double sval = 0.0;
+
     DYNAMIC_SECTION("Jacobians w.r.t S is correct")
     {
         // compute the jacobian
         stack.new_recording();
         mfem::Vector dSrcdu(1);
         adouble S_a; 
-        S_a.set_value(2e-5);
-        adouble d_a = 10.1;
+        S_a.set_value(sval);
+        adouble d_a = 1.001;
         adouble mu_a = 1.1;
         adouble Re_a = 5000000;
         adouble src;// = mach::calcSADestruction<adouble, dim>(q_a.data(), S_a, mu_a, d_a, Re_a, sacs_a.data());
@@ -199,8 +308,8 @@ TEST_CASE("SA S derivatives", "[SASource]")
         // }
         // else
         {
-            // src += mach::calcSAProduction<adouble,dim>(
-            //     q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data())/Re_a;
+            src += mach::calcSAProduction<adouble,dim>(
+                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data())/Re_a;
             src += mach::calcSADestruction<adouble,dim>(
                 q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data())/Re_a;
         }
@@ -209,8 +318,8 @@ TEST_CASE("SA S derivatives", "[SASource]")
         stack.dependent(src);
         stack.jacobian(dSrcdu.GetData());
 
-        double Sp = 2e-5 + delta; double Sm = 2e-5 - delta;
-        double d = 10.1;
+        double Sp = sval + delta; double Sm = sval - delta;
+        double d = 1.001;
         double mu = 1.1;
         double Re = 5000000;
 
@@ -229,8 +338,8 @@ TEST_CASE("SA S derivatives", "[SASource]")
         // }
         // else
         {
-            // srcp += mach::calcSAProduction<double,dim>(
-            //     q.GetData(), mu, d, Sp, Re, sacs.GetData())/Re;
+            srcp += mach::calcSAProduction<double,dim>(
+                q.GetData(), mu, d, Sp, Re, sacs.GetData())/Re;
             srcp += mach::calcSADestruction<double,dim>(
                 q.GetData(), mu, d, Sp, Re, sacs.GetData())/Re;
         }
@@ -246,8 +355,8 @@ TEST_CASE("SA S derivatives", "[SASource]")
         // }
         // else
         {
-            // srcm += mach::calcSAProduction<double,dim>(
-            //     q.GetData(), mu, d, Sm, Re, sacs.GetData())/Re;
+            srcm += mach::calcSAProduction<double,dim>(
+                q.GetData(), mu, d, Sm, Re, sacs.GetData())/Re;
             srcm += mach::calcSADestruction<double,dim>(
                 q.GetData(), mu, d, Sm, Re, sacs.GetData())/Re;
         }
@@ -523,3 +632,27 @@ TEST_CASE("SA q derivatives", "[SAVorticity]")
 
     }
 } 
+
+void uvort(const mfem::Vector &x, mfem::Vector& q)
+{
+   // q.SetSize(4);
+   // Vector u(4);
+   q.SetSize(5);
+   mfem::Vector u(5);
+   double om = 4;
+   u = 0.0;
+   u(0) = 1.0;
+   u(1) = -om*x(1);
+   u(2) = om*x(0);
+   u(3) = 1.0/(1.4) + 0.5*1.5*1.5;
+   u(4) = u(0)*3;
+
+   q = u;
+}
+
+double s_proj(const mfem::Vector &x)
+{
+   double om = 4;
+
+    return 2*om;
+}

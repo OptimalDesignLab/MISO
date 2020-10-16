@@ -23,7 +23,7 @@
       "const-cfl": true,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 0.1,
+      "dt": 1.0,
       "cfl": 1.0,
       "res-exp": 2.0
    },
@@ -54,6 +54,6 @@
       "offset": 1e-3,
       "coeff": 1.0
    },
-   "init-pert": 0.0
-
+   "init-pert": 0.0,
+   "file-names": "ns_1e-2"
 }

@@ -1,5 +1,5 @@
 #include <random>
-
+#include <fstream>
 #include "catch.hpp"
 #include "mfem.hpp"
 #include "euler_integ.hpp"
@@ -352,7 +352,7 @@ TEMPLATE_TEST_CASE_SIG("SAViscousSlipWallBC Jacobian", "[SASlipWallBC]",
 {
     using namespace euler_data;
     // copy the data into mfem vectors for convenience
-    std::cout << "Slip-Wall State Jac" << std::endl;
+//    std::cout << "Slip-Wall State Jac" << std::endl;
     mfem::Vector nrm(dim); mfem::Vector x(dim);
     mfem::Vector q(dim + 3);
     mfem::Vector flux(dim + 3);
@@ -414,8 +414,8 @@ TEMPLATE_TEST_CASE_SIG("SAViscousSlipWallBC Jacobian", "[SASlipWallBC]",
         // compare each component of the matrix-vector products
         for (int i = 0; i < dim + 3; ++i)
         {
-            std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
-            std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
+            // std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
+            // std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
             REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
         }
     }
@@ -426,7 +426,7 @@ TEMPLATE_TEST_CASE_SIG("SAViscousSlipWallBC Dw Jacobian", "[SASlipWallBC]",
 {
     using namespace euler_data;
     // copy the data into mfem vectors for convenience
-    std::cout << "Slip-Wall Dw Jac" << std::endl;
+//    std::cout << "Slip-Wall Dw Jac" << std::endl;
     mfem::Vector nrm(dim); mfem::Vector x(dim);
     mfem::Vector q(dim + 3);
     mfem::Vector flux(dim + 3);
@@ -499,8 +499,8 @@ TEMPLATE_TEST_CASE_SIG("SAViscousSlipWallBC Dw Jacobian", "[SASlipWallBC]",
             // compare each component of the matrix-vector products
             for (int i = 0; i < dim + 3; ++i)
             {
-                std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
-                std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
+               //  std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
+               //  std::cout << "AN " << i << " Deriv: " << jac_v[i] << std::endl; 
                 REQUIRE(jac_v[i] == Approx(jac_v_fd[i]).margin(1e-10));
             }
         }
@@ -620,11 +620,14 @@ TEMPLATE_TEST_CASE_SIG("SAViscous Dw Jacobian", "[SAViscous]",
     using namespace euler_data;
     // copy the data into mfem vectors for convenience
     mfem::Vector q(dim + 3);
+    mfem::Vector qr(dim + 2);
     mfem::Vector scale(dim + 3);
     mfem::Vector scale_plus_2(dim + 3);
     mfem::Vector scale_minus_2(dim + 3);
     mfem::DenseMatrix Dw(delw_data, dim+3, dim);
+    mfem::DenseMatrix Dwr(delw_data, dim+2, dim);
     mfem::Vector v(dim + 3);
+    mfem::Vector vr(dim + 2);
     mfem::Vector jac_v(dim + 3);
     mfem::DenseMatrix adjJ(dim, dim);
     mfem::DenseMatrix jac_scale_2(dim + 3, dim + 3);
@@ -632,12 +635,16 @@ TEMPLATE_TEST_CASE_SIG("SAViscous Dw Jacobian", "[SAViscous]",
     double Re = 1000000; double Pr = 1;
     mfem::Vector sacs(13);
     Dw = 0.5;
+    Dwr = 0.5;
     q(0) = rho;
+    qr(0) = rho;
     q(dim + 1) = rhoe;
+    qr(dim + 1) = rhoe;
     q(dim + 2) = 4;
     for (int di = 0; di < dim; ++di)
     {
        q(di + 1) = rhou[di];
+       qr(di + 1) = rhou[di];
        Dw(dim+2, di) = 0.7;
     }
     // create SA parameter vector
@@ -646,27 +653,41 @@ TEMPLATE_TEST_CASE_SIG("SAViscous Dw Jacobian", "[SAViscous]",
        sacs(di) = sa_params[di];
     }
     // create perturbation vector
-    for (int di = 0; di < dim + 3; ++di)
+    for (int di = 0; di < dim + 2; ++di)
     {
        v(di) = vec_pert[di];
+       vr(di) = vec_pert[di];
     }
+    v(dim+2) = vec_pert[dim+2];
     // perturbed vectors
     mfem::DenseMatrix Dw_plus(Dw), Dw_minus(Dw);
     adept::Stack diff_stack;
     mach::SAViscousIntegrator<dim> saviscousinteg(diff_stack, Re, Pr, sacs, 1.0);
-    
+    mach::ESViscousIntegrator<dim> esviscousinteg(diff_stack, Re, Pr, 1.0);
+
+      
     for (int di = 0; di < dim; ++di)
     {
         DYNAMIC_SECTION("Jacobians w.r.t Dw is correct, dir"<<di)
         {
             std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
+            std::vector<mfem::DenseMatrix> mat_vec_jac_ns(dim);
             for (int d = 0; d < dim; ++d)
             {
                 mat_vec_jac[d].SetSize(dim+3);
+                mat_vec_jac_ns[d].SetSize(dim+2);
             }
             // compute the jacobian
             saviscousinteg.applyScalingJacDw(di, v, q, Dw, mat_vec_jac);
-            
+            esviscousinteg.applyScalingJacDw(di, vr, qr, Dwr, mat_vec_jac_ns);
+
+            stringstream nssolname; stringstream ranssolname;
+            nssolname << "visc_jac_rans"; ranssolname << "visc_jac_ns";
+            std::ofstream matlabns(nssolname.str()); matlabns.precision(15);
+            std::ofstream matlabrans(ranssolname.str()); matlabrans.precision(15);
+            mat_vec_jac[0].PrintMatlab(matlabrans);
+            mat_vec_jac_ns[0].PrintMatlab(matlabns);
+
             for (int d = 0; d < dim; ++d)
             {
                 // perturb one column of delw everytime
@@ -794,7 +815,6 @@ TEMPLATE_TEST_CASE_SIG("SALPS Jacobian", "[SALPS]",
     }
 }
 
-#if 0
 TEST_CASE("SAViscousIntegrator::AssembleElementGrad", "[SAViscousIntegrator]")
 {
    using namespace mfem;
@@ -862,7 +882,6 @@ TEST_CASE("SAViscousIntegrator::AssembleElementGrad", "[SAViscousIntegrator]")
       }
    }
 }
-#endif
 
 
 TEST_CASE("SANoSlipAdiabaticWallBC::AssembleElementGrad", "[SANoSlipAdiabaticWallBC]")
@@ -942,7 +961,6 @@ TEST_CASE("SANoSlipAdiabaticWallBC::AssembleElementGrad", "[SANoSlipAdiabaticWal
    }
 }
 
-#if 0
 TEST_CASE("SAViscousSlipWallBC::AssembleElementGrad", "[SAViscousSlipWallBC]")
 {
    using namespace mfem;
@@ -1012,16 +1030,16 @@ TEST_CASE("SAViscousSlipWallBC::AssembleElementGrad", "[SAViscousSlipWallBC]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
-            std::cout << "AN " << i << " Deriv: " << jac_v(i) << std::endl; 
+            // std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
+            // std::cout << "AN " << i << " Deriv: " << jac_v(i) << std::endl; 
             REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
 }
-#endif
 
-#if 0
+
+
 TEST_CASE("SAFarFieldBC::AssembleElementGrad", "[SAFarFieldBC]")
 {
    using namespace mfem;
@@ -1091,14 +1109,13 @@ TEST_CASE("SAFarFieldBC::AssembleElementGrad", "[SAFarFieldBC]")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
-            std::cout << "AN " << i << " Deriv: " << jac_v(i) << std::endl; 
+            // std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
+            // std::cout << "AN " << i << " Deriv: " << jac_v(i) << std::endl; 
             REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
       }
    }
 }
-#endif
 
 TEST_CASE("SASourceIntegrator::AssembleElementGrad", "[SASourceIntegrator]")
 {
@@ -1117,11 +1134,14 @@ TEST_CASE("SASourceIntegrator::AssembleElementGrad", "[SASourceIntegrator]")
        sacs(di) = sa_params[di];
     }
 
-   // generate a 2 element mesh
-   int num_edge = 2;
+   // generate a 8 element mesh
+   int num_edge = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
-   for (int p = 1; p <= 2; ++p)
+   
+   
+   
+   for (int p = 1; p <= 1; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
@@ -1129,22 +1149,33 @@ TEST_CASE("SASourceIntegrator::AssembleElementGrad", "[SASourceIntegrator]")
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+         std::unique_ptr<FiniteElementSpace> fesx(new FiniteElementSpace(
+             mesh.get(), fec.get(), 2, Ordering::byVDIM));
 
+         mesh->EnsureNodes();
+         
          GridFunction dist(fes.get()); 
-        auto walldist = [](const Vector &x)
-        {
-                return 0.0001*x(1) + 0.00001; 
-        };
-        FunctionCoefficient wall_coeff(walldist);
+         GridFunction x_nodes(fesx.get()); 
+         auto walldist = [](const Vector &x)
+         {
+               return x(1); 
+         };
+         auto coord = [](const Vector &x, Vector &u)
+         {
+            u = x;
+         };
+         FunctionCoefficient wall_coeff(walldist);
+         VectorFunctionCoefficient x_coord(2, coord);
          dist.ProjectCoefficient(wall_coeff);
-         //dist = 0.00001;
+         x_nodes.ProjectCoefficient(x_coord);
+         //dist = 1.0000;
          NonlinearForm res(fes.get());
          double Re = 5000000.0;
-         res.AddDomainIntegrator(new mach::SASourceIntegrator<dim>(diff_stack, dist, Re, sacs, 1.0));
+         res.AddDomainIntegrator(new mach::SASourceIntegrator<dim>(diff_stack, dist, Re, sacs, 1.0, -1.0, 1.0, 1.0));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, uinit);//randBaselinePertSA<2>);
+         VectorFunctionCoefficient pert(num_state, randBaselinePertSA<2>);
          q.ProjectCoefficient(pert); 
 
          // initialize the vector that the Jacobian multiplies
@@ -1152,8 +1183,14 @@ TEST_CASE("SASourceIntegrator::AssembleElementGrad", "[SASourceIntegrator]")
          VectorFunctionCoefficient v_rand(num_state, randState);
          v.ProjectCoefficient(v_rand);
 
-         // evaluate the Ja;cobian and compute its product with v
+         // evaluate the Jacobian and compute its product with v
          Operator &Jac = res.GetGradient(q);
+
+         // stringstream nssolname;
+         // nssolname << "jac_test";
+         // std::ofstream matlab(nssolname.str()); matlab.precision(15);
+         // Jac.PrintMatlab(matlab);
+
          GridFunction jac_v(fes.get());
          Jac.Mult(v, jac_v);
 
@@ -1166,17 +1203,33 @@ TEST_CASE("SASourceIntegrator::AssembleElementGrad", "[SASourceIntegrator]")
          jac_v_fd -= r;
          jac_v_fd /= (2 * delta);
 
+         GridFunction error(fes.get());
+            //jac_v.Size());
+         error = jac_v;
+         error -= jac_v_fd;
+
+         // res.Mult(q, r);
+         // ofstream sol_ofs("why.vtk");
+         // sol_ofs.precision(14);
+         // mesh->PrintVTK(sol_ofs, 1);
+         // r.SaveVTK(sol_ofs, "jac_error", 1);
+
+         std::cout.precision(17);
+         std::cout << "Error Norm: " << error.Norml2() << std::endl; 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
+            int n = i/5;
+            std::cout << "Node Coord: "<< x_nodes(0+2*n) <<", "<< x_nodes(1+2*n) <<std::endl;
+            std::cout << "State: "<< q(i) <<std::endl;
             std::cout << "FD " << i << " Deriv: " << jac_v_fd[i]  << std::endl; 
             std::cout << "AN " << i << " Deriv: " << jac_v(i) << std::endl; 
             REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
          }
+         std::cout << "Error Norm: " << error.Norml2() << std::endl; 
       }
    }
 }
 
-#if 0
 TEST_CASE("SALPSIntegrator::AssembleElementGrad", "[SALPSIntegrator]")
 {
    using namespace mfem;
@@ -1234,7 +1287,6 @@ TEST_CASE("SALPSIntegrator::AssembleElementGrad", "[SALPSIntegrator]")
       }
    }
 }
-#endif
 
 #if 0
 TEMPLATE_TEST_CASE_SIG("SAInviscid Gradient",
@@ -1312,10 +1364,10 @@ void uinit(const mfem::Vector &x, mfem::Vector& q)
    
    u = 0.0;
    u(0) = 1.0;
-   u(1) = u(0)*1.5*cos(0.3*M_PI/180.0);
-   u(2) = u(0)*1.5*sin(0.3*M_PI/180.0);
+   u(1) = 1.5;//u(0)*1.5*cos(0.3*M_PI/180.0);
+   u(2) = 0;//u(0)*1.5*sin(0.3*M_PI/180.0);
    u(3) = 1.0/(1.4) + 0.5*1.5*1.5;
-   u(4) = u(0)*3*(1.0e-5);
+   u(4) = u(0)*3;
 
    q = u;
 }

@@ -783,11 +783,11 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
                                    Vector &shape) const
 {
    int ipIdx;
-   try
-   {
-      ipIdx = ipIdxMap.at(&ip);
-   }
-   catch (const std::out_of_range& oor)
+   // try
+   // {
+   //    ipIdx = ipIdxMap.at(&ip);
+   // }
+   // catch (const std::out_of_range& oor)
    // error handling code to handle cases where the pointer to ip is not
    // in the map. Problems arise in GridFunction::SaveVTK() (specifically 
    // GridFunction::GetValues()), which calls CalcShape() with an

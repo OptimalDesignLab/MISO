@@ -57,6 +57,8 @@ protected:
 
     virtual void iterationHook(int iter, double t, double dt) override;
 
+    virtual void terminalHook(int iter, double t_final) override;
+
     friend SolverPtr createSolver<RANavierStokesSolver<dim, entvar>>(
        const nlohmann::json &json_options,
        std::unique_ptr<mfem::Mesh> smesh);

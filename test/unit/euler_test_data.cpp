@@ -104,14 +104,14 @@ void randBaselinePertSA(const mfem::Vector &x, mfem::Vector &u)
     u(dim + 1) = rhoe * (1.0 + scale * uniform_rand(gen));
     for (int di = 0; di < dim; ++di)
     {
-        u(di + 1) = rhou[di] * (1.0 + scale * uniform_rand(gen));
+        u(di + 1) = rhou[di]* (1.0 + scale * uniform_rand(gen));
     }
     if (entvar)
     {
        mfem::Vector q(u);
        mach::calcEntropyVars<double, dim>(q.GetData(), u.GetData());
     }
-    u(dim + 2) = 3.0 * (uniform_rand(gen) - 0.1);
+    u(dim + 2) = 3.0 *(1.0 + scale*(uniform_rand(gen) - 0.1));
 }
 // explicit instantiation of the templated function above
 template void randBaselinePertSA<1, true>(const mfem::Vector &x, mfem::Vector &u);
@@ -125,7 +125,10 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
 {
     for (int i = 0; i < u.Size(); ++i)
     {
-        u(i) = 2.0 * uniform_rand(gen) - 1.0;
+        if(u.Size() > 3 && (i == 1 || i == 2))
+            u(i) = 0.01*(2.0 * uniform_rand(gen) - 1.0);
+        else
+            u(i) = 2.0 * uniform_rand(gen) - 1.0;
     }
 }
 

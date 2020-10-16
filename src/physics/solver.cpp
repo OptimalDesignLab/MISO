@@ -1193,6 +1193,10 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    {
       nonlin_solver.reset(new mfem::NewtonSolver(comm));
    }
+   else if (solver_type == "inexact-newton")
+   {
+      nonlin_solver.reset(new InexactNewton(comm));
+   }
    else
    {
       throw MachException("Unsupported nonlinear solver type!\n"
