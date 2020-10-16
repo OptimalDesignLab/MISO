@@ -17,6 +17,10 @@ auto options = R"(
 {
    "silent": false,
    "print-options": false,
+   "mesh": {
+      "file": "data/cyl.smb",
+      "model-file": "data/cyl.egads"
+   },
    "space-dis": {
       "basis-type": "H1",
       "degree": 1
@@ -60,49 +64,30 @@ auto options = R"(
    }
 })"_json;
 
-/// \brief Mapping function for coordinate field
-/// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] X - new coordinate
-void boxDisplacement(const Vector &x, Vector& X);
 
-/// Generate mesh 
-/// \param[in] nxy - number of nodes in the x and y directions
-/// \param[in] nz - number of nodes in the z direction
-std::unique_ptr<Mesh> buildBoxMesh(int nxy,
-                                   int nz);
 
-TEST_CASE("Mesh Movement Box Regression Test",
-          "[Mesh-Movement-Box]")
+TEST_CASE("Mesh Movement EGADS Cylinder Test",
+          "[Mesh-Movement-EGADS-Cyl]")
 {
-   // define the appropriate exact solution error
-   std::vector<double> target_error = {0.0, 0.0, 0.0, 0.0, 0.0};
+   SECTION("...for mesh sizing nxy = ")
+   {
+      // construct the solver, set the initial condition, and solve
+      auto solver = createSolver<LEAnalogySolver>(options);
 
-   /// number of elements in Z direction
-   auto nz = 8;
+      solver->setInitialCondition(boxDisplacement);
+      solver->solveForState();
 
-   int nxy = 1;
-   for (int ref = 1; ref <= 4; ++ref)
-   {  
-      nxy *= 2;
-      DYNAMIC_SECTION("...for mesh sizing nxy = " << nxy)
-      {
-         // construct the solver, set the initial condition, and solve
-         unique_ptr<Mesh> smesh = buildBoxMesh(nxy, nz);
-         auto solver = createSolver<LEAnalogySolver>(options, move(smesh));
-         solver->setInitialCondition(boxDisplacement);
-         solver->solveForState();
-         auto fields = solver->getFields();
+      auto fields = solver->getFields();
 
-         // Compute error and check against appropriate target
-         mfem::VectorFunctionCoefficient dispEx(3, boxDisplacement);
-         double l2_error = fields[0]->ComputeL2Error(dispEx);
-         std::cout << "\n\nl2 error in field: " << l2_error << "\n\n\n";
-         REQUIRE(l2_error == Approx(target_error[ref - 1]).margin(1e-10));
+      // Compute error and check against appropriate target
+      // mfem::VectorFunctionCoefficient dispEx(3, boxDisplacement);
+      // double l2_error = fields[0]->ComputeL2Error(dispEx);
+      // std::cout << "\n\nl2 error in field: " << l2_error << "\n\n\n";
+      // REQUIRE(l2_error == Approx(target_error[ref - 1]).margin(1e-10));
 
-         auto &mesh_coords = solver->getMeshCoordinates();
-         mesh_coords += *fields[0];
-         solver->printMesh("moved_box_mesh");
-      }
+      // auto &mesh_coords = solver->getMeshCoordinates();
+      // mesh_coords += *fields[0];
+      // solver->printMesh("moved_box_mesh");
    }
 }
 
@@ -110,46 +95,4 @@ void boxDisplacement(const Vector &x, Vector& X)
 {
    X.SetSize(x.Size());
    X = x; // new field is 2x, displacement is x
-}
-
-unique_ptr<Mesh> buildBoxMesh(int nxy, int nz)
-{
-   // generate a simple tet mesh
-   std::unique_ptr<Mesh> mesh(new Mesh(nxy, nxy, nz,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, (double)nz / (double)nxy, true));
-
-   mesh->ReorientTetMesh();
-
-   // assign attributes to top and bottom sides
-   for (int i = 0; i < mesh->GetNE(); ++i)
-   {
-      Element *elem = mesh->GetElement(i);
-
-      Array<int> verts;
-      elem->GetVertices(verts);
-
-      bool below = true;
-      for (int i = 0; i < 4; ++i)
-      {
-         auto vtx = mesh->GetVertex(verts[i]);
-         if (vtx[1] <= 0.5)
-         {
-            below = below & true;
-         }
-         else
-         {
-            below = below & false;
-         }
-      }
-      if (below)
-      {
-         elem->SetAttribute(1);
-      }
-      else
-      {
-         elem->SetAttribute(2);
-      }
-   }
-   return mesh;
 }

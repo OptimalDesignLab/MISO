@@ -42,12 +42,9 @@ bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
 
 #endif // MFEM_USE_PUMI
 
-#include "mach.hpp"
-
 namespace py = pybind11;
 
 using namespace mfem;
-using namespace mach;
 
 void initMesh(py::module &m)
 {

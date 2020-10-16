@@ -82,8 +82,6 @@ add_library(mach STATIC "")
 
 target_sources(mach
    PUBLIC
-
-   PRIVATE
       mach.hpp
 )
 
@@ -219,7 +217,7 @@ if (BUILD_PYTHON_WRAPPER)
 
    FetchContent_Declare(pybind11
       GIT_REPOSITORY "https://github.com/pybind/pybind11"
-      GIT_TAG v2.5.0
+      # GIT_TAG v2.6.0
    )
 
    FetchContent_MakeAvailable(pybind11)
@@ -231,6 +229,11 @@ if (BUILD_PYTHON_WRAPPER)
    # FetchContent_MakeAvailable(pybind11_json)
 
    pybind11_add_module(pyMach "")
+
+   target_compile_features(pyMach
+   PUBLIC
+      cxx_std_11
+   )
 
    add_subdirectory(mach)
 
