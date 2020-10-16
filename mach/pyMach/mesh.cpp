@@ -42,9 +42,12 @@ bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
 
 #endif // MFEM_USE_PUMI
 
+#include "mach.hpp"
+
 namespace py = pybind11;
 
 using namespace mfem;
+using namespace mach;
 
 void initMesh(py::module &m)
 {
@@ -70,12 +73,11 @@ void initMesh(py::module &m)
       py::arg("order"),
       py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
 
+#ifdef MFEM_USE_PUMI
       .def(py::init([](const std::string &model_file,
                        const std::string &mesh_file,
                        mpi4py_comm comm)
       {
-#ifdef MFEM_USE_PUMI
-
          // PCU_Comm_Init();
 
 #ifdef MFEM_USE_SIMMETRIX
@@ -198,17 +200,17 @@ void initMesh(py::module &m)
 #endif // MFEM_USE_EGADS
 
          return mesh;
-#else
-         throw MachException("mfem::ParMesh::init()\n"
-                             "\tMFEM was not built with PUMI!\n"
-                             "\trecompile MFEM with PUMI\n");
-#endif // MFEM_USE_PUMI
+// #else
+//          throw MachException("mfem::ParMesh::init()\n"
+//                              "\tMFEM was not built with PUMI!\n"
+//                              "\trecompile MFEM with PUMI\n");
       }),
       "Loads a PUMI mesh from an .smb file and associated model file, and "
       "converts to an MFEM mesh",
       py::arg("model_file"),
       py::arg("mesh_file"),
       py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
+#endif // MFEM_USE_PUMI
 
       .def("Print", [](ParMesh &self, std::string &filename)
       {
