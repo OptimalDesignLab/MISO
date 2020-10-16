@@ -122,6 +122,16 @@ void initSolver(py::module &m)
       },
       "Initializes the state vector to a given function.")
 
+      .def("setInitialField", [](
+         AbstractSolver& self,
+         mfem::ParGridFunction &state,
+         const mfem::ParGridFunction &u_init)
+      {
+         self.setInitialCondition(state, u_init);
+      },
+      "Initializes the state vector to a given field.")
+
+
       .def("getNewField", [] (
          AbstractSolver &self,
          py::array_t<double> data)

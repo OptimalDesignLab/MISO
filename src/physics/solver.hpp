@@ -77,7 +77,7 @@ public:
 
    /// Initializes the state vector to a given field.
    /// \param[in] u_init - field that defines the initial condition
-   inline virtual void setInitialCondition(mfem::ParGridFunction &u_init)
+   inline virtual void setInitialCondition(const mfem::ParGridFunction &u_init)
    { setInitialCondition(*u, u_init); };
 
    /// Initializes the state vector to a given scalar function.
@@ -109,7 +109,7 @@ public:
    /// \param[in] u_init - field that defines the initial condition
    inline virtual void setInitialCondition(
       mfem::ParGridFunction &state,
-      mfem::ParGridFunction &u_init)
+      const mfem::ParGridFunction &u_init)
    { state = u_init; };
 
    /// Initializes the state vector to a given scalar function.
