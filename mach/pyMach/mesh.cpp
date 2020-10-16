@@ -272,13 +272,14 @@ void initMesh(py::module &m)
          mesh_gf->MakeRef(nodes, 0);
       }, "Set the coordinates of the mesh nodes to the new vector `nodes`",
       py::arg("nodes"))
+
       .def("addDisplacement", [](ParMesh &self, ParGridFunction &displacement)
       {
          self.EnsureNodes();
          auto &mesh_coords = *self.GetNodes();
          mesh_coords += displacement;
-         self.PrintVTU("filename", mfem::VTKFormat::BINARY, true, 0);
-      })
+      }, "Displace the coordinates of the mesh nodes by the values in the field `displacement`",
+      py::arg("displacement"))
    ;
 }
 

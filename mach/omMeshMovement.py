@@ -49,20 +49,17 @@ class omMeshMove(om.ImplicitComponent):
         initial_condition = solver.getNewField(surf_mesh_disp)
         state = solver.getNewField(vol_mesh_disp)
 
-        # solver.printField("state", state, "state")
-        # TODO: change these methods in machSolver to support numpy array 
+        # TODO: change these methods in machSolver.cpp to support numpy array 
         # as argument and do the conversion internally
         solver.setInitialField(state, initial_condition)
         solver.solveForState(state)
-        solver.printField("state2", state, "state")
 
+        # test displacement
         mesh = Mesh(model_file='data/testOMMeshMovement/cyl.egads', mesh_file='data/testOMMeshMovement/cyl.smb')
         print(type(state))
         mesh.addDisplacement(state)
         mesh.PrintVTU("testmeshmove")
 
-
-        # solver.printFields("state_post_solve", [state, uex], ["state", "uex"])
 
     def linearize(self, inputs, outputs, residuals):
         """
