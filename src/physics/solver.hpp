@@ -232,6 +232,12 @@ public:
    mfem::HypreParVector* pullbackResidualFieldSens(std::string field,
                                                    mfem::Vector &seed);
 
+   /// Compute \frac{\partial J}{\partial field}
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] field - name of the field to differentiate with respect to
+   mfem::HypreParVector* calcFunctionalFieldSens(std::string fun,
+                                                 std::string field);
+
 protected:
    /// communicator used by MPI group for communication
    MPI_Comm comm;
@@ -290,8 +296,21 @@ protected:
 
    //--------------------------------------------------------------------------
    // Members associated with field sensitivities
-   std::unordered_map<std::string, mfem::ParGridFunction*> external_fields;
-   std::unordered_map<std::string, mfem::ParLinearForm> field_sens_integ;
+   /// map of external fields the residual depends on
+   std::unordered_map<std::string, mfem::ParGridFunction*> res_fields;
+   /// map of linear forms that will compute
+   /// \psi^T \frac{\partial R}{\partial field}
+   /// for each field the residual depends on
+   std::unordered_map<std::string, mfem::ParLinearForm> res_sens_integ;
+   /// map of external fields each functional depends on
+   std::unordered_map<std::string,
+                      std::unordered_map<std::string,
+                                         mfem::ParGridFunction*>> func_fields;
+   /// map of linear forms that will compute \frac{\partial J}{\partial field}
+   /// for each functional and field the functional depends on
+   std::unordered_map<std::string,
+                      std::unordered_map<std::string,
+                                         mfem::ParLinearForm>> func_sens_integ;
 
    // /// derivative of psi^T res w.r.t the mesh nodes
    // std::unique_ptr<NonlinearFormType> res_mesh_sens;
@@ -466,15 +485,31 @@ protected:
    /// \param[in] name - name of the field
    /// \param[in] field - reference the existing field
    /// \note field/name pairs are stored in `external_fields`
-   void registerFieldDependence(std::string name,
-                                mfem::ParGridFunction &field);
+   void registerResFieldDependence(std::string name,
+                                   mfem::ParGridFunction &field);
 
    /// Add integrators to the linear form representing the product
    /// seed^T \frac{\partial R}{\partial field} for a particular field
    /// \param[in] name - name of the field for the integrators
    /// \param[in] seed - the field to contract with (usually the adjoint)
-   virtual void addFieldSensIntegrators(std::string field,
-                                        mfem::Vector seed) {}
+   virtual void addResFieldSensIntegrators(std::string field,
+                                           mfem::Vector seed) {}
+
+   /// Register a functional's dependence on a field
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] name - name of the field
+   /// \param[in] field - reference the existing field
+   /// \note field/name pairs are stored in `external_fields`
+   void registerFuncFieldDependence(std::string fun,
+                                    std::string name,
+                                    mfem::ParGridFunction &field);
+
+   /// Add integrators to the linear form representing the vector
+   /// \frac{\partial J}{\partial field} for a particular field
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] name - name of the field for the integrators
+   virtual void addFuncFieldSensIntegrators(std::string fun,
+                                            std::string field) {}
 
 private:
    /// explicitly prohibit copy construction

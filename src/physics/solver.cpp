@@ -289,8 +289,8 @@ void AbstractSolver::initDerived()
    constructEvolver();
 
    /// always register the residual as dependent on the mesh coordinate field
-   registerFieldDependence("mesh",
-                           *dynamic_cast<ParGridFunction*>(mesh->GetNodes()));
+   registerResFieldDependence(
+      "mesh", *dynamic_cast<ParGridFunction*>(mesh->GetNodes()));
 }
 
 AbstractSolver::~AbstractSolver()
@@ -1295,20 +1295,33 @@ void AbstractSolver::checkJacobian(
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
-mfem::HypreParVector* AbstractSolver::pullbackResidualFieldSens(
-   std::string field,
-   mfem::Vector &seed)
+HypreParVector* AbstractSolver::pullbackResidualFieldSens(std::string field,
+                                                          Vector &seed)
 {
-   addFieldSensIntegrators(field, seed);
-   return field_sens_integ.at(field).ParallelAssemble();
+   addResFieldSensIntegrators(field, seed);
+   return res_sens_integ.at(field).ParallelAssemble();
 }
 
-void AbstractSolver::registerFieldDependence(std::string name,
-                                             mfem::ParGridFunction &field)
+HypreParVector* AbstractSolver::calcFunctionalFieldSens(std::string fun,
+                                                        std::string field)
 {
-   external_fields.insert({name, &field});
-   field_sens_integ.emplace(name, field.ParFESpace());
+   addFuncFieldSensIntegrators(fun, field);
+   return func_sens_integ.at(fun).at(field).ParallelAssemble();
 }
 
+void AbstractSolver::registerResFieldDependence(std::string name,
+                                                ParGridFunction &field)
+{
+   res_fields.insert({name, &field});
+   res_sens_integ.emplace(name, field.ParFESpace());
+}
+
+void AbstractSolver::registerFuncFieldDependence(std::string fun,
+                                                 std::string name,
+                                                 ParGridFunction &field)
+{
+   func_fields.at(fun).insert({name, &field});
+   func_sens_integ.at(fun).emplace(name, field.ParFESpace());
+}
 
 } // namespace mach
