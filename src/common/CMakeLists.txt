@@ -19,6 +19,7 @@ target_sources(mach
       sbp_fe.hpp
       spline.cpp
       spline.hpp
+      surface.hpp
 )
 
 target_include_directories(mach

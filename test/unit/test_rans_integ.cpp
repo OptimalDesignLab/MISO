@@ -856,7 +856,7 @@ TEST_CASE("SAViscousIntegrator::AssembleElementGrad", "[SAViscousIntegrator]")
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Ja;cobian and compute its product with v
@@ -934,7 +934,7 @@ TEST_CASE("SANoSlipAdiabaticWallBC::AssembleElementGrad", "[SANoSlipAdiabaticWal
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Ja;cobian and compute its product with v
@@ -1011,7 +1011,7 @@ TEST_CASE("SAViscousSlipWallBC::AssembleElementGrad", "[SAViscousSlipWallBC]")
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Ja;cobian and compute its product with v
@@ -1090,7 +1090,7 @@ TEST_CASE("SAFarFieldBC::AssembleElementGrad", "[SAFarFieldBC]")
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Ja;cobian and compute its product with v
@@ -1180,7 +1180,7 @@ TEST_CASE("SASourceIntegrator::AssembleElementGrad", "[SASourceIntegrator]")
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -1258,12 +1258,12 @@ TEST_CASE("SALPSIntegrator::AssembleElementGrad", "[SALPSIntegrator]")
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+         VectorFunctionCoefficient pert(num_state, randBaselinePertSA<2>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(num_state, randState);
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate the Jacobian and compute its product with v
@@ -1322,12 +1322,12 @@ TEMPLATE_TEST_CASE_SIG("SAInviscid Gradient",
 
          // initialize state ; here we randomly perturb a constant state
          GridFunction state(fes.get())
-         VectorFunctionCoefficient v_rand(dim+3, randState);
+         VectorFunctionCoefficient v_rand(dim+3, randVectorState);
          state.ProjectCoefficient(pert);
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(dim, randState);
+         VectorFunctionCoefficient v_rand(dim, randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate df/dx and contract with v

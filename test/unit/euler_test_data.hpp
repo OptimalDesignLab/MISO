@@ -72,7 +72,7 @@ const double sa_params[13] = {0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, returns entropy variables
 template <int dim, bool entvar = false>
-void randBaselinePert(const mfem::Vector &x, mfem::Vector &u);
+void randBaselineVectorPert(const mfem::Vector &x, mfem::Vector &u);
 
 /// Returns a perturbed version of the baseline flow state (Spalart-Allmaras)
 /// \param[in] x - coordinates (not used)
@@ -85,7 +85,7 @@ void randBaselinePertSA(const mfem::Vector &x, mfem::Vector &u);
 /// Returns a random state with entries uniformly distributed in [-1,1]
 /// \param[in] x - coordinates (not used)
 /// \param[out] u - rand state variable
-void randState(const mfem::Vector &x, mfem::Vector &u);
+void randVectorState(const mfem::Vector &x, mfem::Vector &u);
 
 /// Returns a perturbed version of the baseline temperature state
 /// \param[in] x - coordinates (not used)
