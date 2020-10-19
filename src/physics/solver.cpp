@@ -287,6 +287,10 @@ void AbstractSolver::initDerived()
    solver = constructLinearSolver(options["lin-solver"], *prec);
    newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
    constructEvolver();
+
+   /// always register the residual as dependent on the mesh coordinate field
+   registerFieldDependence("mesh",
+                           *dynamic_cast<ParGridFunction*>(mesh->GetNodes()));
 }
 
 AbstractSolver::~AbstractSolver()
@@ -1290,5 +1294,21 @@ void AbstractSolver::checkJacobian(
    double error = calcInnerProduct(jac_v, jac_v);
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
+
+mfem::HypreParVector* AbstractSolver::pullbackResidualFieldSens(
+   std::string field,
+   mfem::Vector &seed)
+{
+   addFieldSensIntegrators(field, seed);
+   return field_sens_integ.at(field).ParallelAssemble();
+}
+
+void AbstractSolver::registerFieldDependence(std::string name,
+                                             mfem::ParGridFunction &field)
+{
+   external_fields.insert({name, &field});
+   field_sens_integ.emplace(name, field.ParFESpace());
+}
+
 
 } // namespace mach

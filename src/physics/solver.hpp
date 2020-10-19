@@ -226,6 +226,12 @@ public:
    apf::Mesh2* getPumiMesh() {return pumi_mesh.get();};
 #endif
 
+   /// Compute seed^T \frac{\partial R}{\partial field}
+   /// \param[in] field - name of the field to differentiate with respect to
+   /// \param[in] seed - the field to contract with (usually the adjoint)
+   mfem::HypreParVector* pullbackResidualFieldSens(std::string field,
+                                                   mfem::Vector &seed);
+
 protected:
    /// communicator used by MPI group for communication
    MPI_Comm comm;
@@ -282,8 +288,13 @@ protected:
    /// entropy/energy that is needed for RRK methods
    std::unique_ptr<NonlinearFormType> ent;
 
-   /// derivative of psi^T res w.r.t the mesh nodes
-   std::unique_ptr<NonlinearFormType> res_mesh_sens;
+   //--------------------------------------------------------------------------
+   // Members associated with field sensitivities
+   std::unordered_map<std::string, mfem::ParGridFunction*> external_fields;
+   std::unordered_map<std::string, mfem::ParLinearForm> field_sens_integ;
+
+   // /// derivative of psi^T res w.r.t the mesh nodes
+   // std::unique_ptr<NonlinearFormType> res_mesh_sens;
 
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
@@ -450,6 +461,20 @@ protected:
    /// don't need all the memory for a fully featured solver, that just need to
    /// support the AbstractSolver interface (JouleSolver)
    AbstractSolver(const std::string &opt_file_name);
+
+   /// Register the residual's dependence on a field
+   /// \param[in] name - name of the field
+   /// \param[in] field - reference the existing field
+   /// \note field/name pairs are stored in `external_fields`
+   void registerFieldDependence(std::string name,
+                                mfem::ParGridFunction &field);
+
+   /// Add integrators to the linear form representing the product
+   /// seed^T \frac{\partial R}{\partial field} for a particular field
+   /// \param[in] name - name of the field for the integrators
+   /// \param[in] seed - the field to contract with (usually the adjoint)
+   virtual void addFieldSensIntegrators(std::string field,
+                                        mfem::Vector seed) {}
 
 private:
    /// explicitly prohibit copy construction
