@@ -1,5 +1,4 @@
 #include <memory>
-#include <random>
 
 #include "navier_stokes.hpp"
 #include "navier_stokes_integ.hpp"
@@ -225,16 +224,6 @@ void NavierStokesSolver<dim, entvar>::addOutputs()
    }
 }
 
-static void pert(const Vector &x, Vector& p);
-
-template <int dim, bool entvar>
-void NavierStokesSolver<dim, entvar>::iterationHook(int iter, 
-                                                      double t, double dt) 
-{
-   this->checkJacobian(pert);
-   this->printSolution("ns_last", 0);
-}
-
 template <int dim, bool entvar>
 void NavierStokesSolver<dim, entvar>::getViscousInflowState(Vector &q_in)
 {
@@ -266,19 +255,6 @@ void NavierStokesSolver<dim, entvar>::getViscousOutflowState(Vector &q_out)
    for (int i = 0; i < dim+2; ++i)
    {
       q_out(i) = tmp[i];
-   }
-}
-
-std::default_random_engine gen(std::random_device{}());
-std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
-
-// perturbation function used to check the jacobian in each iteration
-void pert(const Vector &x, Vector& p)
-{
-   p.SetSize(4);
-   for (int i = 0; i < 4; i++)
-   {
-      p(i) = normal_rand(gen);
    }
 }
 
