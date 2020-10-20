@@ -202,9 +202,14 @@ void AbstractSolver::initDerived()
    *out << "Num states = " << num_state << endl;
    fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                    Ordering::byVDIM));
+   /// we'll stop using `u` eventually
+   /// start creating your own state vector with `getNewField`
    u.reset(new GridFunType(fes.get()));
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
+}
 
+void AbstractSolver::finalize()
+{
    double alpha = 1.0;
 
    // construct coefficients before nonlinear/bilinear forms
@@ -287,10 +292,6 @@ void AbstractSolver::initDerived()
    solver = constructLinearSolver(options["lin-solver"], *prec);
    newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
    constructEvolver();
-
-   /// always register the residual as dependent on the mesh coordinate field
-   registerResFieldDependence(
-      "mesh", *dynamic_cast<ParGridFunction*>(mesh->GetNodes()));
 }
 
 AbstractSolver::~AbstractSolver()
@@ -1295,30 +1296,30 @@ void AbstractSolver::checkJacobian(
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
-HypreParVector* AbstractSolver::pullbackResidualFieldSens(std::string field,
-                                                          Vector &seed)
+HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
+                                                      Vector &seed)
 {
    addResFieldSensIntegrators(field, seed);
    return res_sens_integ.at(field).ParallelAssemble();
 }
 
-HypreParVector* AbstractSolver::calcFunctionalFieldSens(std::string fun,
-                                                        std::string field)
+HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
+                                                       std::string field)
 {
    addFuncFieldSensIntegrators(fun, field);
    return func_sens_integ.at(fun).at(field).ParallelAssemble();
 }
 
-void AbstractSolver::registerResFieldDependence(std::string name,
-                                                ParGridFunction &field)
+void AbstractSolver::registerResidualInput(std::string name,
+                                           ParGridFunction &field)
 {
    res_fields.insert({name, &field});
    res_sens_integ.emplace(name, field.ParFESpace());
 }
 
-void AbstractSolver::registerFuncFieldDependence(std::string fun,
-                                                 std::string name,
-                                                 ParGridFunction &field)
+void AbstractSolver::registerFunctionalInput(std::string fun,
+                                             std::string name,
+                                             ParGridFunction &field)
 {
    func_fields.at(fun).insert({name, &field});
    func_sens_integ.at(fun).emplace(name, field.ParFESpace());

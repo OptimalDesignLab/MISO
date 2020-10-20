@@ -69,9 +69,11 @@ public:
    AbstractSolver(const nlohmann::json &options,
                   std::unique_ptr<mfem::Mesh> smesh);
 
-   /// Perform set-up of derived classes using virtual functions
-   /// \todo Put the constructors and this in a factory
+   /// Construct the finite element space
    virtual void initDerived();
+
+   /// Perform set-up of derived classes using virtual functions
+   virtual void finalize();
 
    /// class destructor
    virtual ~AbstractSolver();
@@ -229,14 +231,14 @@ public:
    /// Compute seed^T \frac{\partial R}{\partial field}
    /// \param[in] field - name of the field to differentiate with respect to
    /// \param[in] seed - the field to contract with (usually the adjoint)
-   mfem::HypreParVector* pullbackResidualFieldSens(std::string field,
-                                                   mfem::Vector &seed);
+   mfem::HypreParVector* vectorJacobianProduct(std::string field,
+                                               mfem::Vector &seed);
 
    /// Compute \frac{\partial J}{\partial field}
    /// \param[in] fun - specifies the desired functional
    /// \param[in] field - name of the field to differentiate with respect to
-   mfem::HypreParVector* calcFunctionalFieldSens(std::string fun,
-                                                 std::string field);
+   mfem::HypreParVector* calcFunctionalGradient(std::string fun,
+                                                std::string field);
 
 protected:
    /// communicator used by MPI group for communication
@@ -485,8 +487,8 @@ protected:
    /// \param[in] name - name of the field
    /// \param[in] field - reference the existing field
    /// \note field/name pairs are stored in `external_fields`
-   void registerResFieldDependence(std::string name,
-                                   mfem::ParGridFunction &field);
+   void registerResidualInput(std::string name,
+                              mfem::ParGridFunction &field);
 
    /// Add integrators to the linear form representing the product
    /// seed^T \frac{\partial R}{\partial field} for a particular field
@@ -500,9 +502,9 @@ protected:
    /// \param[in] name - name of the field
    /// \param[in] field - reference the existing field
    /// \note field/name pairs are stored in `external_fields`
-   void registerFuncFieldDependence(std::string fun,
-                                    std::string name,
-                                    mfem::ParGridFunction &field);
+   void registerFunctionalInput(std::string fun,
+                                std::string name,
+                                mfem::ParGridFunction &field);
 
    /// Add integrators to the linear form representing the vector
    /// \frac{\partial J}{\partial field} for a particular field
@@ -532,11 +534,14 @@ using SolverPtr = std::unique_ptr<AbstractSolver>;
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr createSolver(const nlohmann::json &json_options,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                       bool finalize = true)
 {
    //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
    SolverPtr solver(new DerivedSolver(json_options, move(smesh)));
    solver->initDerived();
+   if (finalize)
+      solver->finalize();
    return solver;
 }
 
@@ -546,12 +551,13 @@ SolverPtr createSolver(const nlohmann::json &json_options,
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr createSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                       bool finalize = true)
 {
    nlohmann::json json_options;
    std::ifstream options_file(opt_file_name);
    options_file >> json_options;
-   return createSolver<DerivedSolver>(json_options, move(smesh));
+   return createSolver<DerivedSolver>(json_options, move(smesh), finalize);
 }
 
 } // namespace mach
