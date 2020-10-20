@@ -232,7 +232,7 @@ public:
    /// \param[in] field - name of the field to differentiate with respect to
    /// \param[in] seed - the field to contract with (usually the adjoint)
    mfem::HypreParVector* vectorJacobianProduct(std::string field,
-                                               mfem::Vector &seed);
+                                               mfem::ParGridFunction &seed);
 
    /// Compute \frac{\partial J}{\partial field}
    /// \param[in] fun - specifies the desired functional
@@ -495,7 +495,7 @@ protected:
    /// \param[in] name - name of the field for the integrators
    /// \param[in] seed - the field to contract with (usually the adjoint)
    virtual void addResFieldSensIntegrators(std::string field,
-                                           mfem::Vector seed) {}
+                                           mfem::ParGridFunction &seed) {}
 
    /// Register a functional's dependence on a field
    /// \param[in] fun - specifies the desired functional

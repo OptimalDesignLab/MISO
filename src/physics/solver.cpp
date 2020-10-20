@@ -1297,7 +1297,7 @@ void AbstractSolver::checkJacobian(
 }
 
 HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
-                                                      Vector &seed)
+                                                      ParGridFunction &seed)
 {
    addResFieldSensIntegrators(field, seed);
    return res_sens_integ.at(field).ParallelAssemble();
