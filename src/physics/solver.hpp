@@ -69,11 +69,9 @@ public:
    AbstractSolver(const nlohmann::json &options,
                   std::unique_ptr<mfem::Mesh> smesh);
 
-   /// Construct the finite element space
+   /// Construct the finite element space and perform set-up of derived classes
+   /// using virtual functions
    virtual void initDerived();
-
-   /// Perform set-up of derived classes using virtual functions
-   virtual void finalize();
 
    /// class destructor
    virtual ~AbstractSolver();
@@ -350,6 +348,8 @@ protected:
    /// Construct PUMI Mesh
    void constructPumiMesh();
 
+   void setUpExternalFields();
+
    /// Construct various coefficients
    virtual void constructCoefficients() {};
 
@@ -487,8 +487,8 @@ protected:
    /// \param[in] name - name of the field
    /// \param[in] field - reference the existing field
    /// \note field/name pairs are stored in `external_fields`
-   void registerResidualInput(std::string name,
-                              mfem::ParGridFunction &field);
+   void setResidualInput(std::string name,
+                         mfem::ParGridFunction *field);
 
    /// Add integrators to the linear form representing the product
    /// seed^T \frac{\partial R}{\partial field} for a particular field
@@ -502,9 +502,9 @@ protected:
    /// \param[in] name - name of the field
    /// \param[in] field - reference the existing field
    /// \note field/name pairs are stored in `external_fields`
-   void registerFunctionalInput(std::string fun,
-                                std::string name,
-                                mfem::ParGridFunction &field);
+   void setFunctionalInput(std::string fun,
+                           std::string name,
+                           mfem::ParGridFunction *field);
 
    /// Add integrators to the linear form representing the vector
    /// \frac{\partial J}{\partial field} for a particular field
@@ -534,14 +534,11 @@ using SolverPtr = std::unique_ptr<AbstractSolver>;
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr createSolver(const nlohmann::json &json_options,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
-                       bool finalize = true)
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
 {
    //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
    SolverPtr solver(new DerivedSolver(json_options, move(smesh)));
    solver->initDerived();
-   if (finalize)
-      solver->finalize();
    return solver;
 }
 
@@ -551,13 +548,12 @@ SolverPtr createSolver(const nlohmann::json &json_options,
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr createSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
-                       bool finalize = true)
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
 {
    nlohmann::json json_options;
    std::ifstream options_file(opt_file_name);
    options_file >> json_options;
-   return createSolver<DerivedSolver>(json_options, move(smesh), finalize);
+   return createSolver<DerivedSolver>(json_options, move(smesh));
 }
 
 } // namespace mach
