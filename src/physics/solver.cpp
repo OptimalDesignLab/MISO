@@ -1454,16 +1454,16 @@ HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
 }
 
 void AbstractSolver::setResidualInput(std::string name,
-                                      ParGridFunction *field)
+                                      ParGridFunction &field)
 {
-   res_fields.at(name) = field;
+   res_fields.at(name) = &field;
 }
 
 void AbstractSolver::setFunctionalInput(std::string fun,
                                         std::string name,
-                                        ParGridFunction *field)
+                                        ParGridFunction &field)
 {
-   func_fields.at(fun).at(name) = field;
+   func_fields.at(fun).at(name) = &field;
 }
 
 } // namespace mach

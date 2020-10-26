@@ -636,7 +636,7 @@ protected:
    /// \param[in] field - reference the existing field
    /// \note field/name pairs are stored in `external_fields`
    void setResidualInput(std::string name,
-                         mfem::ParGridFunction *field);
+                         mfem::ParGridFunction &field);
 
    /// Add integrators to the linear form representing the product
    /// seed^T \frac{\partial R}{\partial field} for a particular field
@@ -652,7 +652,7 @@ protected:
    /// \note field/name pairs are stored in `external_fields`
    void setFunctionalInput(std::string fun,
                            std::string name,
-                           mfem::ParGridFunction *field);
+                           mfem::ParGridFunction &field);
 
    /// Add integrators to the linear form representing the vector
    /// \frac{\partial J}{\partial field} for a particular field
