@@ -176,8 +176,8 @@ std::unique_ptr<Mesh> buildMesh(int nxy,
 TEST_CASE("Joule Box Solver Regression Test",
           "[Joule-Box]")
 {
-   temp_0 = options["init-temp"].get<double>();
-   t_final = options["time-dis"]["t-final"].get<double>();
+   temp_0 = therm_options["init-temp"].get<double>();
+   t_final = therm_options["time-dis"]["t-final"].get<double>();
    double target_error[4] {
       0.0548041517, 0.0137142199, 0.0060951886, 0.0034275387
    };
@@ -187,7 +187,8 @@ TEST_CASE("Joule Box Solver Regression Test",
 
    for (int order = 1; order <= 2; ++order)
    {
-      options["space-dis"]["degree"] = order;
+      em_options["space-dis"]["degree"] = order;
+      therm_options["space-dis"]["degree"] = order;
       int nxy = 1;
       for (int ref = 1; ref <= 4; ++ref)
       {  

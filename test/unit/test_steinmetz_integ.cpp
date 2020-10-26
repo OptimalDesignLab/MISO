@@ -38,10 +38,10 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
 
    // generate a 8 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh = electromag_data::getMesh(2, 1);
+   std::unique_ptr<Mesh> smesh = electromag_data::getMesh(2, 1);
                               //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                               //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   // std::unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh));
+   std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
@@ -52,16 +52,17 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
          // get the finite-element space for the state and adjoint
          H1_FECollection fec(p, dim);
          ND_FECollection feca(p, dim);
-         FiniteElementSpace fes(mesh.get(), &fec);
-         FiniteElementSpace fesa(mesh.get(), &feca);
+         ParFiniteElementSpace fes(mesh.get(), &fec);
+         ParFiniteElementSpace fesa(mesh.get(), &feca);
 
          // we use res for finite-difference approximation
-         GridFunction A(&fesa);
+         ParGridFunction A(&fesa);
+         auto Aptr = &A;
          VectorFunctionCoefficient perta(dim, electromag_data::randVectorState);
          A.ProjectCoefficient(perta);
          // std::unique_ptr<Coefficient> q2(new FunctionCoefficient(func, funcRevDiff));
          std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
-                        1, 2, 4, 0.5, 0.6, &A));
+                        1, 2, 4, 0.5, 0.6, Aptr));
          // std::unique_ptr<mach::MeshDependentCoefficient> Q;
          // Q.reset(new mach::MeshDependentCoefficient());
          // Q->addCoefficient(1, move(q1)); 
@@ -140,18 +141,19 @@ TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
              new H1_FECollection(p, dim));
          std::unique_ptr<FiniteElementCollection> feca(
              new ND_FECollection(p, dim));
-         std::unique_ptr<SpaceType> fes(new SpaceType(
+         std::unique_ptr<ParFiniteElementSpace> fes(new ParFiniteElementSpace(
              pmesh.get(), fec.get()));
-         std::unique_ptr<SpaceType> fesa(new SpaceType(
+         std::unique_ptr<ParFiniteElementSpace> fesa(new ParFiniteElementSpace(
              pmesh.get(), feca.get()));
 
          // we use res for finite-difference approximation
-         GridFunType A(fesa.get());
+         ParGridFunction A(fesa.get());
+         auto Aptr = &A;
          VectorFunctionCoefficient perta(dim, electromag_data::randVectorState);
          A.ProjectCoefficient(perta);
          std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
          std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
-                        1, 2, 4, 0.5, 0.6, &A));
+                        1, 2, 4, 0.5, 0.6, Aptr));
          std::unique_ptr<mach::MeshDependentCoefficient> Q;
          Q.reset(new mach::MeshDependentCoefficient());
          Q->addCoefficient(1, move(q1)); 

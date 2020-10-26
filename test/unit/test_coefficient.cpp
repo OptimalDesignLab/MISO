@@ -301,22 +301,25 @@ TEST_CASE("SteinmetzCoefficient::EvalRevDiff",
    // meshStr << two_tet_mesh_str;
    // Mesh mesh(meshStr);
 
-   Mesh mesh(1, 2, 2, Element::TETRAHEDRON,
-             true /* gen. edges */, 1.0, 1.0, 1.0, true);
+   Mesh smesh(1, 2, 2, Element::TETRAHEDRON,
+              true /* gen. edges */, 1.0, 1.0, 1.0, true);
+
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
 
    /// Costruct coefficient
    for (int p = 1; p <= 1; p++)
    {
       /// construct elements
       ND_FECollection fec(p, dim);
-      FiniteElementSpace fes(&mesh, &fec);
+      ParFiniteElementSpace fes(&mesh, &fec);
 
 
-      GridFunction A(&fes);
+      ParGridFunction A(&fes);
+      auto Aptr = &A;
       VectorFunctionCoefficient pert(dim, electromag_data::randVectorState);
       A.ProjectCoefficient(pert);
 
-      mach::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, &A);
+      mach::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, Aptr);
 
       for (int j = 0; j < fes.GetNE(); j++)
       {
@@ -380,21 +383,23 @@ TEST_CASE("SteinmetzVectorDiffCoefficient::Eval",
 
    std::stringstream meshStr;
    meshStr << two_tet_mesh_str;
-   Mesh mesh(meshStr);
+   Mesh smesh(meshStr);
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
 
    /// Costruct coefficient
    for (int p = 1; p <= 1; p++)
    {
       /// construct elements
       ND_FECollection fec(p, dim);
-      FiniteElementSpace fes(&mesh, &fec);
+      ParFiniteElementSpace fes(&mesh, &fec);
 
 
-      GridFunction A(&fes);
+      ParGridFunction A(&fes);
+      auto Aptr = &A;
       VectorFunctionCoefficient pert(dim, electromag_data::randVectorState);
       A.ProjectCoefficient(pert);
 
-      mach::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, &A);
+      mach::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, Aptr);
       mach::SteinmetzVectorDiffCoefficient d_coeff(1, 2, 4, 0.5, 0.6, &A);
 
       for (int j = 0; j < fes.GetNE(); j++)

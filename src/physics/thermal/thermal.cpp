@@ -365,7 +365,6 @@ void ThermalSolver::constructCore()
    {
       return;
    }
-   auto mvp = res_fields.at("mvp");
    coreloss.reset(new MeshDependentCoefficient());
 
    for (auto& component : options["components"])
@@ -390,7 +389,8 @@ void ThermalSolver::constructCore()
          {
             std::unique_ptr<mfem::Coefficient> temp_coeff;
             temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
-                                                      kh, ke, mvp));
+                                                      kh, ke,
+                                                      res_fields.at("mvp")));
             coreloss->addCoefficient(attr, move(temp_coeff));		
          }
       }
@@ -403,7 +403,8 @@ void ThermalSolver::constructCore()
             {
                std::unique_ptr<mfem::Coefficient> temp_coeff;
                temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
-                                                         kh, ke, mvp));
+                                                         kh, ke,
+                                                         res_fields.at("mvp")));
                coreloss->addCoefficient(attribute, move(temp_coeff));
             }
          }

@@ -497,51 +497,51 @@ void MagnetostaticSolver::constructForms()
 
 GridFunction* MagnetostaticSolver::getMeshSensitivities()
 {	
-   /// assign mesh node space to forms
-   mesh->EnsureNodes();
-   SpaceType *mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
+   // /// assign mesh node space to forms
+   // mesh->EnsureNodes();
+   // SpaceType *mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
 
-   dLdX.reset(new GridFunType(mesh_fes));
-   *dLdX = 0.0;
+   // dLdX.reset(new GridFunType(mesh_fes));
+   // *dLdX = 0.0;
 
-   /// Add mesh sensitivities of functional 
-   LinearFormType dJdX(mesh_fes);
-   dJdX.AddDomainIntegrator(
-      new MagneticCoenergyIntegrator(*u, nu.get()));
-   dJdX.Assemble();
-   std::cout << "dJdX norm: " << dJdX.Norml2() << "\n";
-   /// TODO I don't know if this works in parallel / when we need to use tdof vectors
-   // *dLdX -= dJdX;
+   // /// Add mesh sensitivities of functional 
+   // LinearFormType dJdX(mesh_fes);
+   // dJdX.AddDomainIntegrator(
+   //    new MagneticCoenergyIntegrator(*u, nu.get()));
+   // dJdX.Assemble();
+   // std::cout << "dJdX norm: " << dJdX.Norml2() << "\n";
+   // /// TODO I don't know if this works in parallel / when we need to use tdof vectors
+   // // *dLdX -= dJdX;
 
-   res_mesh_sens_l.reset(new LinearFormType(mesh_fes));
+   // res_mesh_sens_l.reset(new LinearFormType(mesh_fes));
 
-   /// compute \psi_A
-   solveForAdjoint("co-energy");
+   // /// compute \psi_A
+   // solveForAdjoint("co-energy");
 
-   /// add integrators R = CurlCurl(A) + Cm + Mj = 0
-   /// \psi^T CurlCurl(A)
-   res_mesh_sens_l->AddDomainIntegrator(
-      new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
-   /// \psi^T C m 
-   res_mesh_sens_l->AddDomainIntegrator(
-      new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(),
-                                      mag_coeff.get(), -1.0));
+   // /// add integrators R = CurlCurl(A) + Cm + Mj = 0
+   // /// \psi^T CurlCurl(A)
+   // res_mesh_sens_l->AddDomainIntegrator(
+   //    new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
+   // /// \psi^T C m 
+   // res_mesh_sens_l->AddDomainIntegrator(
+   //    new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(),
+   //                                    mag_coeff.get(), -1.0));
 
-   /// Compute the derivatives and accumulate the result
-   res_mesh_sens_l->Assemble();
+   // /// Compute the derivatives and accumulate the result
+   // res_mesh_sens_l->Assemble();
 
    
-   ParGridFunction j_mesh_sens(mesh_fes);
-   j_mesh_sens = 0.0;
-   auto *j_mesh_sens_true = j_mesh_sens.GetTrueDofs();
-   getCurrentSourceMeshSens(*adj, *j_mesh_sens_true);
-   std::cout << "residual dJdX norm: " << res_mesh_sens_l->Norml2() << "\n";
-   std::cout << "current source dJdX norm: " << j_mesh_sens_true->Norml2() << "\n";
-   /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
-   dLdX->Add(1, *res_mesh_sens_l);
-   dLdX->Add(-1, *j_mesh_sens_true);
+   // ParGridFunction j_mesh_sens(mesh_fes);
+   // j_mesh_sens = 0.0;
+   // auto *j_mesh_sens_true = j_mesh_sens.GetTrueDofs();
+   // getCurrentSourceMeshSens(*adj, *j_mesh_sens_true);
+   // std::cout << "residual dJdX norm: " << res_mesh_sens_l->Norml2() << "\n";
+   // std::cout << "current source dJdX norm: " << j_mesh_sens_true->Norml2() << "\n";
+   // /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
+   // dLdX->Add(1, *res_mesh_sens_l);
+   // dLdX->Add(-1, *j_mesh_sens_true);
 
-   return dLdX.get();
+   // return dLdX.get();
 }
 
 void MagnetostaticSolver::verifyMeshSensitivities()
