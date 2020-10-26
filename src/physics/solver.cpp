@@ -227,10 +227,14 @@ void AbstractSolver::initDerived()
    *out << "Num states = " << num_state << endl;
    fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                    Ordering::byVDIM));
+   /// we'll stop using `u` eventually
+   /// start creating your own state vector with `getNewField`
    u.reset(new GridFunType(fes.get()));
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
 
    double alpha = 1.0;
+
+   setUpExternalFields();
 
    // construct coefficients before nonlinear/bilinear forms
    constructCoefficients();
@@ -919,6 +923,18 @@ void AbstractSolver::setMeshCoordinates(mfem::Vector &coords)
    mesh_gf->MakeRef(coords, 0);
 }
 
+void AbstractSolver::setUpExternalFields()
+{
+   if (options.contains("external-fields"))
+   {
+      auto &external_fields = options["external-fields"];
+      for (auto &field : external_fields)
+      {
+         res_fields.emplace(field, nullptr);
+      }
+   }
+}
+
 void AbstractSolver::addMassIntegrators(double alpha)
 {
    const char* name = fes->FEColl()->Name();
@@ -1418,6 +1434,36 @@ mfem::Vector* AbstractSolver::getMeshSensitivities()
 {
    throw MachException("AbstractSolver::getMeshSensitivities\n"
                        "\tnot implemented yet!");
+}
+
+HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
+                                                      ParGridFunction &seed)
+{
+   res_sens_integ.emplace(field, res_fields.at(field)->ParFESpace());
+   addResFieldSensIntegrators(field, seed);
+   return res_sens_integ.at(field).ParallelAssemble();
+}
+
+HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
+                                                       std::string field)
+{
+   func_sens_integ.at(fun).emplace(field,
+                                 func_fields.at(fun).at(field)->ParFESpace());
+   addFuncFieldSensIntegrators(fun, field);
+   return func_sens_integ.at(fun).at(field).ParallelAssemble();
+}
+
+void AbstractSolver::setResidualInput(std::string name,
+                                      ParGridFunction *field)
+{
+   res_fields.at(name) = field;
+}
+
+void AbstractSolver::setFunctionalInput(std::string fun,
+                                        std::string name,
+                                        ParGridFunction *field)
+{
+   func_fields.at(fun).at(name) = field;
 }
 
 } // namespace mach
