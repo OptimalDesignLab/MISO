@@ -67,37 +67,37 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
          // Q.reset(new mach::MeshDependentCoefficient());
          // Q->addCoefficient(1, move(q1)); 
          // Q->addCoefficient(2, move(q2));
-         LinearForm res(&fes);
+         ParLinearForm res(&fes);
          res.AddDomainIntegrator(
             new DomainLFIntegrator(*q2));
 
          // initialize state and adjoint; here we randomly perturb a constant state
-         GridFunction adjoint(&fes);
+         ParGridFunction adjoint(&fes);
          FunctionCoefficient pert(electromag_data::randState);
          adjoint.ProjectCoefficient(pert);
 
          // extract mesh nodes and get their finite-element space
-         GridFunction *x_nodes = mesh->GetNodes();
-         FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+         auto *x_nodes = dynamic_cast<ParGridFunction*>(mesh->GetNodes());
+         auto *mesh_fes = dynamic_cast<ParFiniteElementSpace*>(x_nodes->FESpace());
 
          // build the nonlinear form for d(psi^T R)/dx 
-         NonlinearForm dfdx_form(mesh_fes);
+         ParNonlinearForm dfdx_form(mesh_fes);
          dfdx_form.AddDomainIntegrator(
             new mach::DomainResIntegrator(*q2, &adjoint));
 
          // initialize the vector that we use to perturb the mesh nodes
-         GridFunction v(mesh_fes);
+         ParGridFunction v(mesh_fes);
          VectorFunctionCoefficient v_rand(dim, electromag_data::randVectorState);
          v.ProjectCoefficient(v_rand);
 
          // evaluate df/dx and contract with v
-         GridFunction dfdx(*x_nodes);
+         ParGridFunction dfdx(*x_nodes);
          dfdx_form.Mult(*x_nodes, dfdx);
          double dfdx_v = dfdx * v;
 
          // now compute the finite-difference approximation...
-         GridFunction x_pert(*x_nodes);
-         GridFunction r(&fes);
+         ParGridFunction x_pert(*x_nodes);
+         ParGridFunction r(&fes);
          x_pert.Add(delta, v);
          mesh->SetNodes(x_pert);
          res.Assemble();
@@ -155,9 +155,9 @@ TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
          std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
                         1, 2, 4, 0.5, 0.6, Aptr));
          std::unique_ptr<mach::MeshDependentCoefficient> Q;
-         Q.reset(new mach::MeshDependentCoefficient());
-         Q->addCoefficient(1, move(q1)); 
-         //Q->addCoefficient(2, move(q2));
+         // Q.reset(new mach::MeshDependentCoefficient());
+         // Q->addCoefficient(1, move(q1)); 
+         // Q->addCoefficient(2, move(q2));
          std::unique_ptr<VectorCoefficient> QV(new SteinmetzVectorDiffCoefficient(
                1, 2, 4, 0.5, 0.6, &A));
          LinearForm res(fes.get());
