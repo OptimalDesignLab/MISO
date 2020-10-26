@@ -226,11 +226,27 @@ public:
    apf::Mesh2* getPumiMesh() {return pumi_mesh.get();};
 #endif
 
+   /// Register the residual's dependence on a field
+   /// \param[in] name - name of the field
+   /// \param[in] field - reference the existing field
+   /// \note field/name pairs are stored in `external_fields`
+   void setResidualInput(std::string name,
+                         mfem::ParGridFunction &field);
+
    /// Compute seed^T \frac{\partial R}{\partial field}
    /// \param[in] field - name of the field to differentiate with respect to
    /// \param[in] seed - the field to contract with (usually the adjoint)
    mfem::HypreParVector* vectorJacobianProduct(std::string field,
                                                mfem::ParGridFunction &seed);
+
+   /// Register a functional's dependence on a field
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] name - name of the field
+   /// \param[in] field - reference the existing field
+   /// \note field/name pairs are stored in `external_fields`
+   void setFunctionalInput(std::string fun,
+                           std::string name,
+                           mfem::ParGridFunction &field);
 
    /// Compute \frac{\partial J}{\partial field}
    /// \param[in] fun - specifies the desired functional
@@ -483,28 +499,12 @@ protected:
    /// support the AbstractSolver interface (JouleSolver)
    AbstractSolver(const std::string &opt_file_name);
 
-   /// Register the residual's dependence on a field
-   /// \param[in] name - name of the field
-   /// \param[in] field - reference the existing field
-   /// \note field/name pairs are stored in `external_fields`
-   void setResidualInput(std::string name,
-                         mfem::ParGridFunction &field);
-
    /// Add integrators to the linear form representing the product
    /// seed^T \frac{\partial R}{\partial field} for a particular field
    /// \param[in] name - name of the field for the integrators
    /// \param[in] seed - the field to contract with (usually the adjoint)
    virtual void addResFieldSensIntegrators(std::string field,
                                            mfem::ParGridFunction &seed) {}
-
-   /// Register a functional's dependence on a field
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] name - name of the field
-   /// \param[in] field - reference the existing field
-   /// \note field/name pairs are stored in `external_fields`
-   void setFunctionalInput(std::string fun,
-                           std::string name,
-                           mfem::ParGridFunction &field);
 
    /// Add integrators to the linear form representing the vector
    /// \frac{\partial J}{\partial field} for a particular field
