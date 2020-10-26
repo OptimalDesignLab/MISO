@@ -493,6 +493,8 @@ protected:
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
    std::map<std::string, NonlinearFormType> output;
+   /// map of product functionals -- a funtional that is the product of others
+   std::unordered_map<std::string, std::vector<std::string>> product_output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
    std::vector<mfem::Array<int>> output_bndry_marker;
 
@@ -646,6 +648,13 @@ protected:
    /// support the AbstractSolver interface (JouleSolver)
    AbstractSolver(const std::string &opt_file_name,
                   MPI_Comm comm = MPI_COMM_WORLD);
+
+   /// calculate a functional that is the product of others
+   /// \param[in] state - the state vector to evaluate the functional at
+   /// \param[in] fun - specifies the desired functional
+   /// \returns scalar value of estimated functional value
+   double calcProductOutput(const mfem::ParGridFunction &state,
+                            const std::string &fun);
 
    /// Add integrators to the linear form representing the product
    /// seed^T \frac{\partial R}{\partial field} for a particular field

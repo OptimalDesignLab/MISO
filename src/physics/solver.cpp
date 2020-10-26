@@ -1370,6 +1370,9 @@ void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
 double AbstractSolver::calcOutput(const ParGridFunction &state,
                                   const std::string &fun)
 {
+   if (product_output.find(fun) != product_output.end())
+      return calcProductOutput(state, fun);
+
    try
    {
       if (output.find(fun) == output.end())
@@ -1464,6 +1467,17 @@ void AbstractSolver::setFunctionalInput(std::string fun,
                                         ParGridFunction &field)
 {
    func_fields.at(fun).at(name) = &field;
+}
+
+double AbstractSolver::calcProductOutput(const ParGridFunction &state,
+                                          const std::string &fun)
+{
+   double val = 1.0;
+   for (auto func& : product_output.at(fun))
+   {
+      val *= output.at(func).GetEnergy(state);
+   }
+   return val;
 }
 
 } // namespace mach
