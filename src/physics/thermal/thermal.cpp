@@ -359,6 +359,13 @@ void ThermalSolver::constructJoule()
 
 void ThermalSolver::constructCore()
 {
+   /// only construct the coreloss coefficient if the magnetic field is known
+   /// to the thermal solver
+   if (res_fields.count("mvp") == 0)
+   {
+      return;
+   }
+   auto mvp = res_fields.at("mvp");
    coreloss.reset(new MeshDependentCoefficient());
 
    for (auto& component : options["components"])
@@ -382,9 +389,8 @@ void ThermalSolver::constructCore()
          if (params > 1e-12)
          {
             std::unique_ptr<mfem::Coefficient> temp_coeff;
-            // temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
-            // 														kh, ke, mag_field));
-            temp_coeff.reset(new ConstantCoefficient(0.0));
+            temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
+                                                      kh, ke, mvp));
             coreloss->addCoefficient(attr, move(temp_coeff));		
          }
       }
@@ -396,9 +402,8 @@ void ThermalSolver::constructCore()
             if (params > 1e-12)
             {
                std::unique_ptr<mfem::Coefficient> temp_coeff;
-               // temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
-               // 														kh, ke, mag_field));
-               temp_coeff.reset(new ConstantCoefficient(0.0));
+               temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
+                                                         kh, ke, mvp));
                coreloss->addCoefficient(attribute, move(temp_coeff));
             }
          }
@@ -520,8 +525,9 @@ void ThermalSolver::addLoadVolumeIntegrators(double alpha)
    auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
    /// add joule heating term
    load_lf->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
-   /// add iron loss heating terms
-   load_lf->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
+   /// add iron loss heating terms only if the EM field exists
+   if (res_fields.find("mvp") != res_fields.end())
+      load_lf->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
 }
 
 void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
@@ -529,7 +535,7 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
    auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
 
    //determine type of flux function
-   if(options["outflux-type"].template get<string>() == "test")
+   if (options["outflux-type"].template get<string>() == "test")
    {
       flux_coeff.reset(new VectorFunctionCoefficient(3, testFluxFunc));
    }
