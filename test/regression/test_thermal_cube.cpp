@@ -73,10 +73,11 @@ auto options = R"(
     "outputs": {
         "temp-agg": "temp-agg"
     },
-    "rho-agg": 10,
-    "max-temp": 0.1,
-    "init-temp": 300,
-    "material-lib-path": "../../src/material_options.json"
+    "problem-opts": {
+      "rho-agg": 10,
+      "max-temp": 0.1,
+      "init-temp": 300
+    }
 })"_json;
 
 
@@ -90,7 +91,7 @@ static double ExactSolution(const Vector &x);
 
 TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
 {
-   temp_0 = options["init-temp"].get<double>();
+   temp_0 = options["problem-opts"]["init-temp"].get<double>();
    t_final = options["time-dis"]["t-final"].get<double>();
    double target_error[4] {
       0.0548041517, 0.0137142199, 0.0060951886, 0.0034275387
