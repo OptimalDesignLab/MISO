@@ -45,7 +45,7 @@ void ThermalSolver::initDerived()
       
 
    /// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
-   rhoa = options["rho-agg"].get<double>();
+   rhoa = options["problem-opts"]["rho-agg"].get<double>();
 
    /// assemble max temp array
    max.SetSize(fes->GetMesh()->attributes.Size()+1);
@@ -53,7 +53,7 @@ void ThermalSolver::initDerived()
    {
       double mat_max = component["max-temp"].get<double>();
       int attrib = component["attr"].get<int>();
-      max(attrib) = mat_max;
+      max(attrib - 1) = mat_max;
    }
 
    /// pass through aggregation parameters for functional
@@ -83,7 +83,7 @@ void ThermalSolver::addOutputs()
    int idx = 0;
    if (fun.find("temp-agg") != fun.end())
    {
-      rhoa = options["rho-agg"].template get<double>();
+      rhoa = options["problem-opts"]["rho-agg"].template get<double>();
       //double max = options["max-temp"].template get<double>();
       output.emplace("temp-agg", fes.get());
       /// assemble max temp array
@@ -92,11 +92,11 @@ void ThermalSolver::addOutputs()
       {
          double mat_max = component["max-temp"].template get<double>();
          int attrib = component["attr"].template get<int>();
-         max(attrib) = mat_max;
+         max(attrib - 1) = mat_max;
       }
       
       // call the second constructor of the aggregate integrator
-      if(rhoa != 0)
+      if (rhoa != 0)
       {
          output.at("temp-agg").AddDomainIntegrator(
          new AggregateIntegrator(fes.get(), rhoa, max, u.get()));
@@ -149,20 +149,20 @@ void ThermalSolver::solveUnsteady(ParGridFunction &state)
    double dt = options["time-dis"]["dt"].get<double>();
 
    // compute functional for first step, testing purposes
-   if (rhoa != 0)
-   {
-      agg = funca->GetIEAggregate(u.get());
+   // if (rhoa != 0)
+   // {
+   //    agg = funca->GetIEAggregate(u.get());
 
-      cout << "aggregated temp constraint = " << agg << endl;
+   //    cout << "aggregated temp constraint = " << agg << endl;
 
-   // 	compare to actual max, ASSUMING UNIFORM CONSTRAINT
-   // 	gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
+   // // 	compare to actual max, ASSUMING UNIFORM CONSTRAINT
+   // // 	gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
       
-   }
-   else
-   {
-      agg = funct->GetTemp(u.get());
-   }
+   // }
+   // else
+   // {
+   //    agg = funct->GetTemp(u.get());
+   // }
 
    for (int ti = 0; !done;)
    {
@@ -181,16 +181,16 @@ void ThermalSolver::solveUnsteady(ParGridFunction &state)
       ode_solver->Step(*TV, t, dt_real);
       *u = *TV;
 
-      // compute functional
-      if (rhoa != 0)
-      {
-         agg = funca->GetIEAggregate(u.get());
-         cout << "aggregated temp constraint = " << agg << endl;
-      }
-      else
-      {
-         agg = funct->GetTemp(u.get());
-      }
+      // // compute functional
+      // if (rhoa != 0)
+      // {
+      //    agg = funca->GetIEAggregate(u.get());
+      //    cout << "aggregated temp constraint = " << agg << endl;
+      // }
+      // else
+      // {
+      //    agg = funct->GetTemp(u.get());
+      // }
 
       // evolver->updateParameters();
 
@@ -199,10 +199,10 @@ void ThermalSolver::solveUnsteady(ParGridFunction &state)
       done = (t >= t_final - 1e-8 * dt);
    }
 
-   if (rhoa != 0)
-   {
-      cout << "aggregated constraint error at initial state = " << gerror << endl;
-   }
+   // if (rhoa != 0)
+   // {
+   //    cout << "aggregated constraint error at initial state = " << gerror << endl;
+   // }
 
    {
       ofstream osol("motor_heat.gf");

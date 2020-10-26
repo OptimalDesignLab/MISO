@@ -79,7 +79,7 @@ auto therm_options = R"(
    "print-options": false,
    "space-dis": {
       "basis-type": "H1",
-      "degree": 1,
+      "degree": 1
    },
    "steady": false,
    "time-dis": {
@@ -106,27 +106,17 @@ auto therm_options = R"(
       "frequency": 1500
    },
    "components": {
-      "stator": {
-         "material": "regtestmat1",
-         "attr": 1,
-         "max-temp": 0.5
-      },
-      "rotor": {
-         "material": "regtestmat1",
-         "attr": 2,
-         "max-temp": 0.5
-      }
-   },
-   "components": {
       "attr1": {
          "material": "box1",
          "attr": 1,
-         "linear": true
+         "linear": true,
+         "max-temp": 0.5
       },
       "attr2": {
          "material": "box2",
          "attr": 2,
-         "linear": true
+         "linear": true,
+         "max-temp": 0.5
       }
    },
    "problem-opts": {
@@ -146,7 +136,10 @@ auto therm_options = R"(
    "outflux-type": "test",
    "outputs": {
       "temp-agg": {}
-   }
+   },
+   "external-fields": [
+      "mvp"
+   ]
 })"_json;
 
 double temp_0;
@@ -176,7 +169,7 @@ std::unique_ptr<Mesh> buildMesh(int nxy,
 TEST_CASE("Joule Box Solver Regression Test",
           "[Joule-Box]")
 {
-   temp_0 = therm_options["init-temp"].get<double>();
+   temp_0 = therm_options["problem-opts"]["init-temp"].get<double>();
    t_final = therm_options["time-dis"]["t-final"].get<double>();
    double target_error[4] {
       0.0548041517, 0.0137142199, 0.0060951886, 0.0034275387
@@ -185,14 +178,14 @@ TEST_CASE("Joule Box Solver Regression Test",
    /// number of elements in Z direction
    auto nz = 2;
 
-   for (int order = 1; order <= 2; ++order)
+   for (int order = 1; order <= 1; ++order)
    {
       em_options["space-dis"]["degree"] = order;
       therm_options["space-dis"]["degree"] = order;
       int nxy = 1;
-      for (int ref = 1; ref <= 4; ++ref)
+      for (int ref = 1; ref <= 1; ++ref)
       {  
-         nxy *= 2;
+         nxy *= 4;
          DYNAMIC_SECTION("...for order " << order
                          << " and mesh sizing nxy = " << nxy)
          {
