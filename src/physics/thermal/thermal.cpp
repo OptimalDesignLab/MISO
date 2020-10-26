@@ -124,96 +124,97 @@ void ThermalSolver::addOutputs()
 
 void ThermalSolver::solveUnsteady(ParGridFunction &state)
 {
-   double t = 0.0;
-   double agg;
-   double gerror = 0;
-   evolver->SetTime(t);
-   ode_solver->Init(*evolver);
+   AbstractSolver::solveUnsteady(state);
+   // double t = 0.0;
+   // double agg;
+   // double gerror = 0;
+   // evolver->SetTime(t);
+   // ode_solver->Init(*evolver);
 
-   int precision = 8;
-   {
-      ofstream osol("motor_heat_init.gf");
-      osol.precision(precision);
-      u->Save(osol);
-   }
+   // int precision = 8;
    // {
-   //     ofstream sol_ofs("motor_heat_init.vtk");
-   //     sol_ofs.precision(14);
-   //     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-   //     u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-   //     sol_ofs.close();
+   //    ofstream osol("motor_heat_init.gf");
+   //    osol.precision(precision);
+   //    u->Save(osol);
    // }
+   // // {
+   // //     ofstream sol_ofs("motor_heat_init.vtk");
+   // //     sol_ofs.precision(14);
+   // //     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+   // //     u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+   // //     sol_ofs.close();
+   // // }
 
-   bool done = false;
-   double t_final = options["time-dis"]["t-final"].get<double>();
-   double dt = options["time-dis"]["dt"].get<double>();
+   // bool done = false;
+   // double t_final = options["time-dis"]["t-final"].get<double>();
+   // double dt = options["time-dis"]["dt"].get<double>();
 
-   // compute functional for first step, testing purposes
-   // if (rhoa != 0)
-   // {
-   //    agg = funca->GetIEAggregate(u.get());
+   // // compute functional for first step, testing purposes
+   // // if (rhoa != 0)
+   // // {
+   // //    agg = funca->GetIEAggregate(u.get());
 
-   //    cout << "aggregated temp constraint = " << agg << endl;
+   // //    cout << "aggregated temp constraint = " << agg << endl;
 
-   // // 	compare to actual max, ASSUMING UNIFORM CONSTRAINT
-   // // 	gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
+   // // // 	compare to actual max, ASSUMING UNIFORM CONSTRAINT
+   // // // 	gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
       
-   // }
-   // else
+   // // }
+   // // else
+   // // {
+   // //    agg = funct->GetTemp(u.get());
+   // // }
+
+   // for (int ti = 0; !done;)
    // {
-   //    agg = funct->GetTemp(u.get());
+   //    // if (options["time-dis"]["const-cfl"].get<bool>())
+   //    // {
+   //    //     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
+   //    // }
+   //    double dt_real = min(dt, t_final - t);
+   //    dt_real_ = dt_real;
+   //    //if (ti % 100 == 0)
+   //    {
+   //       cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+   //          << " (" << round(100 * t / t_final) << "% complete)" << endl;
+   //    }
+   //    HypreParVector *TV = u->GetTrueDofs();
+   //    ode_solver->Step(*TV, t, dt_real);
+   //    *u = *TV;
+
+   //    // // compute functional
+   //    // if (rhoa != 0)
+   //    // {
+   //    //    agg = funca->GetIEAggregate(u.get());
+   //    //    cout << "aggregated temp constraint = " << agg << endl;
+   //    // }
+   //    // else
+   //    // {
+   //    //    agg = funct->GetTemp(u.get());
+   //    // }
+
+   //    // evolver->updateParameters();
+
+   //    ti++;
+
+   //    done = (t >= t_final - 1e-8 * dt);
    // }
 
-   for (int ti = 0; !done;)
-   {
-      // if (options["time-dis"]["const-cfl"].get<bool>())
-      // {
-      //     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
-      // }
-      double dt_real = min(dt, t_final - t);
-      dt_real_ = dt_real;
-      //if (ti % 100 == 0)
-      {
-         cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-            << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      }
-      HypreParVector *TV = u->GetTrueDofs();
-      ode_solver->Step(*TV, t, dt_real);
-      *u = *TV;
+   // // if (rhoa != 0)
+   // // {
+   // //    cout << "aggregated constraint error at initial state = " << gerror << endl;
+   // // }
 
-      // // compute functional
-      // if (rhoa != 0)
-      // {
-      //    agg = funca->GetIEAggregate(u.get());
-      //    cout << "aggregated temp constraint = " << agg << endl;
-      // }
-      // else
-      // {
-      //    agg = funct->GetTemp(u.get());
-      // }
-
-      // evolver->updateParameters();
-
-      ti++;
-
-      done = (t >= t_final - 1e-8 * dt);
-   }
-
-   // if (rhoa != 0)
    // {
-   //    cout << "aggregated constraint error at initial state = " << gerror << endl;
+   //    ofstream osol("motor_heat.gf");
+   //    osol.precision(precision);
+   //    u->Save(osol);
    // }
-
-   {
-      ofstream osol("motor_heat.gf");
-      osol.precision(precision);
-      u->Save(osol);
-   }
    
       
-   // sol_ofs.precision(14);
-   // mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-   // u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+   // // sol_ofs.precision(14);
+   // // mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+   // // u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
 }
 
 // void ThermalSolver::setStaticMembers()

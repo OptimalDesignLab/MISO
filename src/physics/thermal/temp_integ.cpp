@@ -13,7 +13,7 @@ AggregateIntegrator::AggregateIntegrator(const FiniteElementSpace *fe_space,
                                          GridFunction *temp)       
    : fes(fe_space), rho(r), max(m)
 { 
-   // GetIEAggregate(temp);
+   GetIEAggregate(temp);
 }
 
 double AggregateIntegrator::GetIEAggregate(GridFunction *temp)
