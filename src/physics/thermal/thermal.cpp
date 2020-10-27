@@ -384,7 +384,7 @@ void ThermalSolver::constructJoule()
       std::string material = component["material"].get<std::string>();
 
       /// todo use grid function?
-      auto current = options["motor-opts"]["current"].get<double>();
+      auto current = options["problem-opts"]["current-density"].get<double>();
 
       double sigma = materials[material].value("sigma", 0.0);
 
@@ -393,7 +393,7 @@ void ThermalSolver::constructJoule()
          if (sigma > 1e-12)
          {
             std::unique_ptr<mfem::Coefficient> temp_coeff;
-            temp_coeff.reset(new ConstantCoefficient(current*current/sigma));
+            temp_coeff.reset(new ConstantCoefficient(-current*current/sigma));
             i2sigmainv->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -405,7 +405,7 @@ void ThermalSolver::constructJoule()
             if (sigma > 1e-12)
             {
                std::unique_ptr<mfem::Coefficient> temp_coeff;
-               temp_coeff.reset(new ConstantCoefficient(current*current/sigma));
+               temp_coeff.reset(new ConstantCoefficient(-current*current/sigma));
                i2sigmainv->addCoefficient(attribute, move(temp_coeff));
             }
          }
@@ -431,7 +431,7 @@ void ThermalSolver::constructCore()
       /// the value of zero
       double rho_val = materials[material].value("rho", 0.0);
       double alpha = materials[material].value("alpha", 0.0);
-      double freq = options["motor-opts"].value("frequency", 0.0);
+      double freq = options["problem-opts"].value("frequency", 0.0);
       double kh = materials[material].value("kh", 0.0);
       double ke = materials[material].value("ke", 0.0);
 
@@ -600,7 +600,7 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
       throw MachException("Specified flux function not supported!\n");
 
    auto &bcs = options["bcs"];
-   bndry_marker.resize(bcs.size());
+
    int idx = 0;
    if (bcs.find("outflux") != bcs.end())
    { // outward flux bc

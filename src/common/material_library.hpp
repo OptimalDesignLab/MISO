@@ -221,18 +221,16 @@ nlohmann::json material_library
       {"rho", 5.000},
       {"cv", 0.376},
       {"kappa", 23},
-      {"kappae", 10},
-      {"sigma", 0.04},
+      {"sigma", 58.14e6},
    }},
    {"copperwire", // meant for windings - should have reduced conductivity
    {
       {"mu_r", 1},
-      {"rho", 5.000},
-      {"cv", 0.376},
-      {"kappa", 23},
-      {"kappae", 10},
-      {"sigma", 0.04},
-      {"max-temp", 500}
+      {"rho", 8960},
+      {"cv", 376},
+      {"kappa", 4.01e2},
+      {"sigma", 58.14e6},
+      {"max-temp", 400}
    }}
 };
 

@@ -1094,7 +1094,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    }
 
    /// TODO: put this in options
-   bool paraview = true;
+   bool paraview = !options["time-dis"]["steady"].get<bool>();
    std::unique_ptr<ParaViewDataCollection> pd;
    if (paraview)
    {
