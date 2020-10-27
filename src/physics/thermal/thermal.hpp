@@ -144,19 +144,16 @@ private:
    int getNumState() override { return 1; }
 
    /// implementation of solveUnsteadyAdjoint, call only after solveForState
-   virtual void solveUnsteadyAdjoint(const std::string &fun) override;
+   void solveUnsteadyAdjoint(const std::string &fun) override;
 
    /// implementation of addOutputs
-   virtual void addOutputs() override;
+   void addOutputs() override;
 
-   /// aggregation parameter
-   double rhoa;
+   // /// vector of maximum temperature constraints
+   // mfem::Vector max;
 
-   /// vector of maximum temperature constraints
-   mfem::Vector max;
-
-   /// work vector
-   mutable mfem::Vector z;
+   // /// work vector
+   // mutable mfem::Vector z;
 
    friend SolverPtr createSolver<ThermalSolver>(
        const nlohmann::json &opt_file_name,

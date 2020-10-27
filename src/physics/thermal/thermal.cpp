@@ -23,17 +23,17 @@ void ThermalSolver::initDerived()
 
    mesh->ReorientTetMesh();
    /// Override, only use 1st order H elements
-   int fe_order = 1;// options["space-dis"]["degree"].get<int>();
+   // int fe_order = 1;// options["space-dis"]["degree"].get<int>();
 
-   th_exact.reset(new GridFunType(fes.get()));
+   // th_exact.reset(new GridFunType(fes.get()));
 
-   *out << "Number of finite element unknowns: "
-      << fes->GlobalTrueVSize() << endl;
+   // *out << "Number of finite element unknowns: "
+   //    << fes->GlobalTrueVSize() << endl;
 
-   *out << "Constructing Material Coefficients..." << std::endl;
+   // *out << "Constructing Material Coefficients..." << std::endl;
 
-   int dim = getMesh()->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
+   // int dim = getMesh()->Dimension();
+   // int order = options["space-dis"]["degree"].get<int>();
 
    /// Create the H(Div) finite element collection for the representation the
    /// magnetic flux density field in the thermal solver
@@ -44,30 +44,30 @@ void ThermalSolver::initDerived()
    // mag_field.reset(new GridFunType(h_div_space.get()));
       
 
-   /// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
-   rhoa = options["problem-opts"]["rho-agg"].get<double>();
+   // /// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
+   // rhoa = options["problem-opts"]["rho-agg"].get<double>();
 
-   /// assemble max temp array
-   max.SetSize(fes->GetMesh()->attributes.Size()+1);
-   for (auto& component : options["components"])
-   {
-      double mat_max = component["max-temp"].get<double>();
-      int attrib = component["attr"].get<int>();
-      max(attrib - 1) = mat_max;
-   }
+   // /// assemble max temp array
+   // max.SetSize(fes->GetMesh()->attributes.Size()+1);
+   // for (auto& component : options["components"])
+   // {
+   //    double mat_max = component["max-temp"].get<double>();
+   //    int attrib = component["attr"].get<int>();
+   //    max(attrib - 1) = mat_max;
+   // }
 
-   /// pass through aggregation parameters for functional
-   // func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
    // /// pass through aggregation parameters for functional
-   // does not include dJdu calculation, need AddOutputs for that
-   if (rhoa != 0)
-   {
-      funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
-   }
-   else
-   {
-      funct.reset(new TempIntegrator(fes.get()));
-   }
+   // // func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+   // // /// pass through aggregation parameters for functional
+   // // does not include dJdu calculation, need AddOutputs for that
+   // if (rhoa != 0)
+   // {
+   //    funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
+   // }
+   // else
+   // {
+   //    funct.reset(new TempIntegrator(fes.get()));
+   // }
 }
 
 
@@ -81,45 +81,59 @@ void ThermalSolver::addOutputs()
 {
    auto &fun = options["outputs"];
    int idx = 0;
-   if (fun.find("temp-agg") != fun.end())
+   if (fun.find("agg") != fun.end())
    {
-      rhoa = options["problem-opts"]["rho-agg"].template get<double>();
-      //double max = options["max-temp"].template get<double>();
-      output.emplace("temp-agg", fes.get());
+      output.emplace("agg", fes.get());
+      
       /// assemble max temp array
-      max.SetSize(fes->GetMesh()->attributes.Size()+1);
+      Vector max(fes->GetMesh()->attributes.Size());
+      double default_max = options["problem-opts"].value("max-temp", 1e6);
       for (auto& component : options["components"])
       {
-         double mat_max = component["max-temp"].template get<double>();
-         int attrib = component["attr"].template get<int>();
-         max(attrib - 1) = mat_max;
+         auto material = component["material"].get<std::string>();
+         auto mat_max = materials[material].value("max-temp", default_max);
+
+         int attr = component.value("attr", -1);
+         if (-1 != attr)
+         {
+            max(attr - 1) = mat_max;
+         }
+         else
+         {
+            auto attrs = component["attrs"].get<std::vector<int>>();
+            for (auto& attribute : attrs)
+            {
+               max(attribute - 1) = mat_max;
+            }
+         }
+         
       }
       
-      // call the second constructor of the aggregate integrator
-      if (rhoa != 0)
-      {
-         output.at("temp-agg").AddDomainIntegrator(
+      /// use rho = 10 for a default if rho not given
+      double rhoa = options["problem-opts"].value("rho-agg", 10.0);
+      output.at("agg").AddDomainIntegrator(
          new AggregateIntegrator(fes.get(), rhoa, max, u.get()));
-      }
-      else
-      {
-         auto &bcs = options["bcs"];
-         int idx = 0;
-         bndry_marker.resize(bcs.size());
-         if (bcs.find("outflux") != bcs.end())
-         { // outward flux bc
-            vector<int> tmp = bcs["outflux"].get<vector<int>>();
-            bndry_marker[idx].SetSize(tmp.size(), 0);
-            bndry_marker[idx].Assign(tmp.data());
-            output.at("temp-agg").AddBdrFaceIntegrator(
-               new TempIntegrator(fes.get(), u.get()), bndry_marker[idx]);
-            idx++;
-         }
-         //output.at("temp-agg").AddDomainIntegrator(
-         //new TempIntegrator(fes.get(), u.get()));
-      }
-         idx++; 
    }
+   else if (fun.find("temp") != fun.end())
+   {
+      output.emplace("temp", fes.get());
+
+      auto &bcs = options["bcs"];
+      int idx = 0;
+      bndry_marker.resize(bcs.size());
+      if (bcs.find("outflux") != bcs.end())
+      { // outward flux bc
+         vector<int> tmp = bcs["outflux"].get<vector<int>>();
+         bndry_marker[idx].SetSize(tmp.size(), 0);
+         bndry_marker[idx].Assign(tmp.data());
+         output.at("temp").AddBdrFaceIntegrator(
+            new TempIntegrator(fes.get(), u.get()), bndry_marker[idx]);
+         idx++;
+      }
+      //output.at("temp-agg").AddDomainIntegrator(
+      //new TempIntegrator(fes.get(), u.get()));
+   }
+   idx++; 
 }
 
 void ThermalSolver::solveUnsteady(ParGridFunction &state)
@@ -537,7 +551,7 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
    auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
 
    //determine type of flux function
-   if (options["outflux-type"].template get<string>() == "test")
+   if (options["outflux-type"].get<string>() == "test")
    {
       flux_coeff.reset(new VectorFunctionCoefficient(3, testFluxFunc));
    }
