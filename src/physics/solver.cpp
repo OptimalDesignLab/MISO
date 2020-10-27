@@ -1473,7 +1473,7 @@ double AbstractSolver::calcProductOutput(const ParGridFunction &state,
                                           const std::string &fun)
 {
    double val = 1.0;
-   for (auto func& : product_output.at(fun))
+   for (auto& func : product_output.at(fun))
    {
       val *= output.at(func).GetEnergy(state);
    }

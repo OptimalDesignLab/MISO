@@ -6,6 +6,55 @@
 
 namespace mach
 {
+
+class AggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
+{
+public:
+   AggregateIntegratorNumerator(const double r,
+                                const mfem::Vector m)
+      : rho(r), max(m)
+   { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el, 
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   // /// Computes dJdu, for the adjoint.
+   // void AssembleElementVector(const mfem::FiniteElement &el, 
+   //                            mfem::ElementTransformation &trans,
+   //                            const mfem::Vector &elfun, 
+   //                            mfem::Vector &elvect) override;
+private:
+   /// aggregation parameter rho
+   const double rho;
+   /// maximum allowable field value in each model region
+   const mfem::Vector max;
+};
+
+class AggregateIntegratorDenominator : public mfem::NonlinearFormIntegrator
+{
+public:
+   AggregateIntegratorDenominator(const double r,
+                                  const mfem::Vector m)
+      : rho(r), max(m)
+   { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el, 
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   // /// Computes dJdu, for the adjoint.
+   // void AssembleElementVector(const mfem::FiniteElement &el, 
+   //                            mfem::ElementTransformation &trans,
+   //                            const mfem::Vector &elfun, 
+   //                            mfem::Vector &elvect) override;
+private:
+   /// aggregation parameter rho
+   const double rho;
+   /// maximum allowable field value in each model region
+   const mfem::Vector max;
+};
+
 /// Class that evaluates the aggregated temperature constraint
 class AggregateIntegrator : public mfem::NonlinearFormIntegrator
 {

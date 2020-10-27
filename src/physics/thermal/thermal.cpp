@@ -81,6 +81,47 @@ void ThermalSolver::addOutputs()
 {
    auto &fun = options["outputs"];
    int idx = 0;
+   if (fun.find("new-agg") != fun.end())
+   {
+      product_output.emplace("new-agg",
+                              std::initializer_list<std::string>{"agg-num",
+                                                                 "agg_denom"});
+      output.emplace("agg-num", fes.get());
+      output.emplace("agg-denom", fes.get());
+
+      /// assemble max temp array
+      Vector max(fes->GetMesh()->attributes.Size());
+      double default_max = options["problem-opts"].value("max-temp", 1e6);
+      for (auto& component : options["components"])
+      {
+         auto material = component["material"].get<std::string>();
+         auto mat_max = materials[material].value("max-temp", default_max);
+
+         int attr = component.value("attr", -1);
+         if (-1 != attr)
+         {
+            max[attr - 1] = mat_max;
+         }
+         else
+         {
+            auto attrs = component["attrs"].get<std::vector<int>>();
+            for (auto& attribute : attrs)
+            {
+               max[attribute - 1] = mat_max;
+            }
+         }
+         
+      }
+      
+      /// use rho = 10 for a default if rho not given in options
+      double rhoa = options["problem-opts"].value("rho-agg", 10.0);
+      output.at("agg-num").AddDomainIntegrator(
+         new AggregateIntegratorNumerator(rhoa, max));
+
+      output.at("agg-denom").AddDomainIntegrator(
+         new AggregateIntegratorDenominator(rhoa, max));
+
+   }
    if (fun.find("agg") != fun.end())
    {
       output.emplace("agg", fes.get());
@@ -96,14 +137,14 @@ void ThermalSolver::addOutputs()
          int attr = component.value("attr", -1);
          if (-1 != attr)
          {
-            max(attr - 1) = mat_max;
+            max[attr - 1] = mat_max;
          }
          else
          {
             auto attrs = component["attrs"].get<std::vector<int>>();
             for (auto& attribute : attrs)
             {
-               max(attribute - 1) = mat_max;
+               max[attribute - 1] = mat_max;
             }
          }
          
@@ -114,7 +155,7 @@ void ThermalSolver::addOutputs()
       output.at("agg").AddDomainIntegrator(
          new AggregateIntegrator(fes.get(), rhoa, max, u.get()));
    }
-   else if (fun.find("temp") != fun.end())
+   if (fun.find("temp") != fun.end())
    {
       output.emplace("temp", fes.get());
 
