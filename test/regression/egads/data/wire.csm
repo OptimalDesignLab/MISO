@@ -1,0 +1,12 @@
+# wire.csm written by ocsmSave (v1.18)
+
+# Constant, Design, and Output Parameters:
+despmtr   length       1.00000
+despmtr   radius       0.00500
+
+# Global Attributes:
+
+# Branches:
+cylinder  0   0   -length/2   0   0   length/2   radius
+
+end
