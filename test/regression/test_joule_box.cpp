@@ -87,7 +87,7 @@ auto therm_options = R"(
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.01,
-      "t-final": 0.2
+      "t-final": 1.0
    },
    "lin-prec": {
       "type": "hypreboomeramg"

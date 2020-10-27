@@ -1093,6 +1093,22 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       state.Save(osol);
    }
 
+   /// TODO: put this in options
+   bool paraview = true;
+   std::unique_ptr<ParaViewDataCollection> pd;
+   if (paraview)
+   {
+      pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
+      pd->SetPrefixPath("ParaView");
+      pd->RegisterField("state", &state);
+      pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
+      pd->SetDataFormat(VTKFormat::BINARY);
+      pd->SetHighOrderOutput(true);
+      pd->SetCycle(0);
+      pd->SetTime(t);
+      pd->Save();
+   }
+
    auto residual = ParGridFunction(fes.get());
    calcResidual(state, residual);
    printFields("init", {&residual, &state}, {"Residual", "Solution"});
@@ -1115,6 +1131,14 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       HypreParVector *u_true = state.GetTrueDofs();
       ode_solver->Step(*u_true, t, dt);
       state = *u_true;
+
+      if (paraview)
+      {
+         pd->SetCycle(ti);
+         pd->SetTime(t);
+         pd->Save();
+      }
+
       if (iterationExit(ti, t, t_final, dt, state)) break;
    }
    terminalHook(ti, t, state);
@@ -1447,6 +1471,7 @@ HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
    return res_sens_integ.at(field).ParallelAssemble();
 }
 
+/// TODO: do something for compound functionals
 HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
                                                        std::string field)
 {

@@ -83,9 +83,9 @@ void ThermalSolver::addOutputs()
    int idx = 0;
    if (fun.find("new-agg") != fun.end())
    {
-      product_output.emplace("new-agg",
-                              std::initializer_list<std::string>{"agg-num",
-                                                                 "agg_denom"});
+      fractional_output.emplace("new-agg",
+         std::initializer_list<std::string>{"agg-num", "agg_denom"});
+
       output.emplace("agg-num", fes.get());
       output.emplace("agg-denom", fes.get());
 
