@@ -48,7 +48,7 @@ double AggregateIntegratorDenominator::GetElementEnergy(
       Trans.SetIntPoint(&ip);
       el.CalcShape(ip, shape);
       double g = (shape*elfun) / max(attr - 1);
-      fun += ip.weight*Trans.Weight()/exp(rho*(g));
+      fun += ip.weight*Trans.Weight()*exp(rho*(g));
    }
    return fun;
 }

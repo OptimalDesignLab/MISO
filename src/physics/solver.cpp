@@ -1370,8 +1370,8 @@ void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
 double AbstractSolver::calcOutput(const ParGridFunction &state,
                                   const std::string &fun)
 {
-   if (product_output.find(fun) != product_output.end())
-      return calcProductOutput(state, fun);
+   if (fractional_output.find(fun) != fractional_output.end())
+      return calcFractionalOutput(state, fun);
 
    try
    {
@@ -1469,14 +1469,13 @@ void AbstractSolver::setFunctionalInput(std::string fun,
    func_fields.at(fun).at(name) = &field;
 }
 
-double AbstractSolver::calcProductOutput(const ParGridFunction &state,
-                                          const std::string &fun)
+double AbstractSolver::calcFractionalOutput(const ParGridFunction &state,
+                                            const std::string &fun)
 {
-   double val = 1.0;
-   for (auto& func : product_output.at(fun))
-   {
-      val *= output.at(func).GetEnergy(state);
-   }
+   /// the first element in fractional_output is the numerator
+   double val = output.at(fractional_output.at(fun)[0]).GetEnergy(state);
+   val /= output.at(fractional_output.at(fun)[1]).GetEnergy(state);
+
    return val;
 }
 

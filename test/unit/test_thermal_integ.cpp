@@ -6,6 +6,59 @@
 #include "temp_integ.hpp"
 #include "euler_test_data.hpp"
 
+TEST_CASE("AggregateIntegratorNumerator/Denominator::GetEnergy")
+{
+   using namespace mfem;
+   using namespace mach;
+
+   constexpr int dim = 3;
+   int num_edge = 2;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
+                                       Element::TETRAHEDRON, true,
+                                       1.0, 1.0, 1.0, true));
+   
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("... for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(mesh.get(), &fec);
+
+         GridFunction theta(&fes);
+         FunctionCoefficient parabola([](const Vector &x)
+         {
+            return -(x(0)-0.5)*(x(0)-0.5) + -(x(1)-0.5)*(x(1)-0.5) + 100;
+         });
+         theta.ProjectCoefficient(parabola);
+         {
+               std::ofstream sol_ofs("theta.vtk");
+               sol_ofs.precision(14);
+               int refine = p+1;
+               mesh->PrintVTK(sol_ofs, refine);
+               theta.SaveVTK(sol_ofs, "Solution", refine);
+               sol_ofs.close();
+         }
+         Vector max(2);
+         max = 95;
+         double rho = 20;
+
+         NonlinearForm numer(&fes);
+         numer.AddDomainIntegrator(
+            new AggregateIntegratorNumerator(rho, max));
+
+         NonlinearForm denom(&fes);
+         denom.AddDomainIntegrator(
+            new AggregateIntegratorDenominator(rho, max));
+
+         double n = numer.GetEnergy(theta);
+         double d = denom.GetEnergy(theta);
+
+         double fun = n/d;
+         std::cout << "n: " << n << " d: " << d << " fun: " << fun << "\n";
+      }
+   }
+}
+
 TEST_CASE("AggregateIntegrator::AssembleVector", "[AggregateIntegrator]")
 {
    using namespace mfem;
