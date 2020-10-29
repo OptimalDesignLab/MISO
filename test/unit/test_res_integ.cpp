@@ -36,9 +36,10 @@ TEST_CASE("TestLFMeshSensIntegrator::AssembleRHSElementVect",
 
    // generate a 2 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> smesh(new Mesh(2, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
+   std::unique_ptr<Mesh> mesh(new Mesh(2, num_edge, num_edge,
+                                       Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, 
+                                       true));
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
@@ -48,12 +49,11 @@ TEST_CASE("TestLFMeshSensIntegrator::AssembleRHSElementVect",
          // get the finite-element space for the state
          std::unique_ptr<FiniteElementCollection> fec(
              new ND_FECollection(p, dim));
-         std::unique_ptr<ParFiniteElementSpace> fes(new ParFiniteElementSpace(
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
              mesh.get(), fec.get()));
 
          // we use res for finite-difference approximation
-         ParGridFunction A(fes.get());
-         auto Aptr = &A;
+         GridFunction A(fes.get());
          VectorFunctionCoefficient pert(dim, electromag_data::randVectorState);
          A.ProjectCoefficient(pert);
 
@@ -63,7 +63,7 @@ TEST_CASE("TestLFMeshSensIntegrator::AssembleRHSElementVect",
 
          // ConstantCoefficient Q(1.0);
          // FunctionCoefficient Q(func, funcRevDiff);
-         mach::SteinmetzCoefficient Q(1, 2, 4, 0.5, 0.6, Aptr);
+         mach::SteinmetzCoefficient Q(1, 2, 4, 0.5, 0.6, A);
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
