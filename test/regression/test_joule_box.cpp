@@ -137,9 +137,13 @@ auto therm_options = R"(
    "outputs": {
       "temp-agg": {}
    },
-   "external-fields": [
-      "mvp"
-   ]
+   "external-fields": {
+      "mvp": {
+         "basis-type": "nedelec",
+         "degree": 1,
+         "num-states": 1
+      }
+   }
 })"_json;
 
 double temp_0;

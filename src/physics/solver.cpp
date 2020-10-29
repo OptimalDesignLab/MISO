@@ -284,12 +284,6 @@ void AbstractSolver::initDerived()
          addLoadVolumeIntegrators(alpha);
          addLoadBoundaryIntegrators(alpha);
          addLoadInterfaceIntegrators(alpha);
-         load_lf->Assemble();
-      }
-      auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
-      if (load_gf)
-      {
-         assembleLoadVector(alpha);
       }
    }
 
@@ -876,6 +870,22 @@ std::vector<GridFunType*> AbstractSolver::getFields()
 
 void AbstractSolver::solveForState(ParGridFunction &state)
 {
+   /// perform assembly just before solving
+   if (load)
+   {
+      auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+      if (load_lf)
+         {
+            load_lf->Assemble();
+         }
+      auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
+      if (load_gf)
+      {
+         /// TODO: get rid of `alpha` param, load should have standard sign
+         assembleLoadVector(1.0);
+      }
+   }
+
    if (options["steady"].get<bool>() == true)
    {
       solveSteady(state);
