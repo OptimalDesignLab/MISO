@@ -875,9 +875,9 @@ void AbstractSolver::solveForState(ParGridFunction &state)
    {
       auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
       if (load_lf)
-         {
-            load_lf->Assemble();
-         }
+      {
+         load_lf->Assemble();
+      }
       auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
       if (load_gf)
       {
