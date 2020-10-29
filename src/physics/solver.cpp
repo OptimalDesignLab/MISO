@@ -329,6 +329,8 @@ void AbstractSolver::initDerived()
 
 AbstractSolver::~AbstractSolver()
 {
+   *out << "Deleting Abstract Solver..." << endl;
+
 #ifdef MFEM_USE_PUMI
    if (pumi_mesh)
    {
@@ -346,7 +348,6 @@ AbstractSolver::~AbstractSolver()
 #endif
 
    MPI_Comm_free(&comm);
-   *out << "Deleting Abstract Solver..." << endl;
 }
 
 void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
@@ -923,14 +924,38 @@ void AbstractSolver::setMeshCoordinates(mfem::Vector &coords)
    mesh_gf->MakeRef(coords, 0);
 }
 
+/// This approach will only work for fields on the same mesh
 void AbstractSolver::setUpExternalFields()
 {
    if (options.contains("external-fields"))
    {
+      int dim = mesh->Dimension();
       auto &external_fields = options["external-fields"];
-      for (auto &field : external_fields)
+      for (auto &f : external_fields.items())
       {
-         res_fields.emplace(field, nullptr);
+         auto field = f.value();
+         std::string name = std::string(f.key());
+         /// this approach will only work for fields on the same mesh
+         auto order = field["degree"].get<int>();
+         auto basis = field["basis-type"].get<std::string>();
+         auto num_states = field["num-states"].get<int>();
+
+         FiniteElementCollection *fecoll;
+         if (basis == "H1")
+            fecoll = new H1_FECollection(order, dim, num_state);
+         else if (basis == "nedelec")
+            fecoll = new ND_FECollection(order, dim, num_state);
+   
+         auto *fespace = new ParFiniteElementSpace(mesh.get(), 
+                                                   fecoll, 
+                                                   num_states);
+
+         /// constructs a grid function with an empty data array that must
+         /// later be set by `setResidualInput`
+         res_fields.emplace(std::piecewise_construct,
+                            std::forward_as_tuple(name),
+                            std::forward_as_tuple(fespace, (double*)nullptr));
+         res_fields.at(name).MakeOwner(fecoll);
       }
    }
 }
@@ -1466,7 +1491,7 @@ mfem::Vector* AbstractSolver::getMeshSensitivities()
 HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
                                                       ParGridFunction &seed)
 {
-   res_sens_integ.emplace(field, res_fields.at(field)->ParFESpace());
+   res_sens_integ.emplace(field, res_fields.at(field).ParFESpace());
    addResFieldSensIntegrators(field, seed);
    return res_sens_integ.at(field).ParallelAssemble();
 }
@@ -1484,7 +1509,13 @@ HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
 void AbstractSolver::setResidualInput(std::string name,
                                       ParGridFunction &field)
 {
-   res_fields.at(name) = &field;
+   res_fields.at(name).SetData(field.GetData());
+}
+
+void AbstractSolver::setResidualInput(std::string name,
+                                      double *field)
+{
+   res_fields.at(name).SetData(field);
 }
 
 void AbstractSolver::setFunctionalInput(std::string fun,

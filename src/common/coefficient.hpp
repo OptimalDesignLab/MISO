@@ -479,7 +479,7 @@ public:
 	/// \param[in] ke - Steinmetz eddy currnt coefficient
 	/// \param[in] A - magnetic vector potential GridFunction 
 	SteinmetzCoefficient(double rho, double alpha, double f, double kh,
-								double ke, mfem::ParGridFunction *&A)
+								double ke, mfem::ParGridFunction &A)
 		: rho(rho), alpha(alpha), freq(f), kh(kh), ke(ke), A(A) {}
 
 	/// Evaluate the Steinmetz coefficient
@@ -494,7 +494,7 @@ public:
 
 private:
 	double rho, alpha, freq, kh, ke;
-	mfem::ParGridFunction *&A;
+	mfem::ParGridFunction &A;
 };
 
 class SteinmetzVectorDiffCoefficient : public mfem::VectorCoefficient
@@ -510,8 +510,8 @@ public:
 	/// \param[in] A - magnetic vector potential GridFunction 
 	/// \note this coefficient only works on meshes with only one element type
 	SteinmetzVectorDiffCoefficient(double rho, double alpha, double f,
-											 double kh, double ke, mfem::GridFunction *A)
-		: VectorCoefficient(A->FESpace()->GetFE(0)->GetDof()), rho(rho),
+											 double kh, double ke, mfem::GridFunction &A)
+		: VectorCoefficient(A.FESpace()->GetFE(0)->GetDof()), rho(rho),
 		  alpha(alpha), freq(f), kh(kh), ke(ke), A(A) {}
 
 	/// Evaluate the derivative of the Steinmetz coefficient with respect to A
@@ -520,7 +520,7 @@ public:
 
 private:
 	double rho, alpha, freq, kh, ke;
-	mfem::GridFunction *A;
+	mfem::GridFunction &A;
 };
 
 /// ElementFunctionCoefficient

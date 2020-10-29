@@ -51,7 +51,7 @@ class omMachState(om.ImplicitComponent):
         # self.options.declare('options_file', types=str)
         # self.options.declare('options_dict', types=dict)
         self.options.declare('solver', types=MachSolver)
-        self.options.declare('initial_condition', types=FunctionType)
+        self.options.declare('initial_condition')
         # self.options['distributed'] = True
 
     def setup(self):

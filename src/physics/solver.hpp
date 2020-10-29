@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <functional>
+#include <unordered_map>
 
 #include "adept.h"
 #include "json.hpp"
@@ -348,12 +349,21 @@ public:
    /// Tell the underling forms that the mesh has changed;
    virtual void Update() {fes->Update();};
 
-   /// Register the residual's dependence on a field
+   /// Set the data for the input field
    /// \param[in] name - name of the field
    /// \param[in] field - reference the existing field
-   /// \note field/name pairs are stored in `external_fields`
+   /// \note it is assumed that this external grid function is defined on the
+   /// same mesh the solver uses
    void setResidualInput(std::string name,
                          mfem::ParGridFunction &field);
+
+   /// Set the data for the input field
+   /// \param[in] name - name of the field
+   /// \param[in] field - data buffer for an external grid function
+   /// \note it is assumed that this external grid function is defined on the
+   /// same mesh the solver uses
+   void setResidualInput(std::string name,
+                         double *field);
 
    /// Compute seed^T \frac{\partial R}{\partial field}
    /// \param[in] field - name of the field to differentiate with respect to
@@ -444,9 +454,9 @@ protected:
    std::unique_ptr<NonlinearFormType> ent;
 
    //--------------------------------------------------------------------------
-   // Members associated with field sensitivities
+   // Members associated with external inputs
    /// map of external fields the residual depends on
-   std::unordered_map<std::string, mfem::ParGridFunction*> res_fields;
+   std::unordered_map<std::string, mfem::ParGridFunction> res_fields;
    /// map of linear forms that will compute
    /// \psi^T \frac{\partial R}{\partial field}
    /// for each field the residual depends on
