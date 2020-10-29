@@ -13,71 +13,69 @@ using namespace mach;
 auto options = R"(
 {
    "print-options": false,
-    "mesh": {
-       "file": "initial.mesh",
-       "num-edge-x": 20,
-       "num-edge-y": 5,
-       "num-edge-z": 5
-    },
-    "space-dis": {
-       "basis-type": "H1",
-       "degree": 1,
-       "GD": false
-    },
-    "steady": false,
-    "time-dis": {
-        "ode-solver": "MIDPOINT",
-        "const-cfl": true,
-        "cfl": 1.0,
-        "dt": 0.01,
-        "t-final": 0.2
-    },
-    "lin-prec": {
-       "type": "hypreboomeramg"
-    },
-    "lin-solver": {
-       "reltol": 1e-14,
-       "abstol": 0.0,
-       "printlevel": 0,
-       "maxiter": 500
-    },
-    "adj-solver":{
-       "reltol": 1e-8,
-       "abstol": 0.0,
-       "printlevel": 0,
-       "maxiter": 500
-    },
-    "nonlin-solver":{
-       "printlevel": 0
-    },
-    "motor-opts" : {
-       "current": 1,
-       "frequency": 1500
-    },
-    "components": {
-       "stator": {
-          "material": "regtestmat1",
-          "attr": 1,
-          "max-temp": 0.5
-       },
-       "rotor": {
-          "material": "regtestmat1",
-          "attr": 2,
-          "max-temp": 0.5
-       }
-    },
-    "bcs": {
-        "outflux": [0, 0, 1, 0, 1, 0]
-    },
-    "outflux-type": "test",
-    "outputs": {
-        "temp-agg": "temp-agg"
-    },
-    "problem-opts": {
+   "mesh": {
+      "file": "initial.mesh",
+      "num-edge-x": 20,
+      "num-edge-y": 5,
+      "num-edge-z": 5
+   },
+   "space-dis": {
+      "basis-type": "H1",
+      "degree": 1,
+      "GD": false
+   },
+   "steady": false,
+   "time-dis": {
+      "ode-solver": "MIDPOINT",
+      "const-cfl": true,
+      "cfl": 1.0,
+      "dt": 0.01,
+      "t-final": 0.2
+   },
+   "lin-prec": {
+      "type": "hypreboomeramg"
+   },
+   "lin-solver": {
+      "reltol": 1e-14,
+      "abstol": 0.0,
+      "printlevel": 0,
+      "maxiter": 500
+   },
+   "adj-solver":{
+      "reltol": 1e-8,
+      "abstol": 0.0,
+      "printlevel": 0,
+      "maxiter": 500
+   },
+   "nonlin-solver":{
+      "printlevel": 0
+   },
+   "components": {
+      "stator": {
+         "material": "regtestmat1",
+         "attr": 1,
+         "max-temp": 0.5
+      },
+      "rotor": {
+         "material": "regtestmat1",
+         "attr": 2,
+         "max-temp": 0.5
+      }
+   },
+   "bcs": {
+      "outflux": [0, 0, 1, 0, 1, 0]
+   },
+   "outflux-type": "test",
+   "outputs": {
+      "temp-agg": "temp-agg"
+   },
+   "problem-opts": {
       "rho-agg": 10,
       "max-temp": 0.1,
-      "init-temp": 300
-    }
+      "init-temp": 300,
+      "current-density": 1,
+      "frequency": 1500
+   }
 })"_json;
 
 
