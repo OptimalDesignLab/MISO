@@ -41,8 +41,9 @@ void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    this->res->AddDomainIntegrator(new SAViscousIntegrator<dim>( //SAViscousIntegrator
        this->diff_stack, this->re_fs, this->pr_fs, sacs, mu, alpha));
    // now add RANS integrators
+   double d0 = getZeroDistance();
    this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
-       this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha, srcs[0], srcs[1])); 
+       this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha, srcs[0], srcs[1], d0)); 
    // add LPS stabilization
    double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
    this->res->AddDomainIntegrator(new SALPSIntegrator<dim, entvar>(
@@ -247,7 +248,8 @@ void RANavierStokesSolver<dim, entvar>::getDistanceFunction()
 {
    std::string wall_type = 
       this->options["wall-func"]["type"].template get<std::string>();
-   H1_FECollection *dfec = new H1_FECollection(1, dim);
+   int fe_order = this->options["space-dis"]["degree"].template get<int>();
+   H1_FECollection *dfec = new H1_FECollection(fe_order, dim);
    FiniteElementSpace *dfes = new FiniteElementSpace(this->mesh.get(), dfec);
    dist.reset(new GridFunction(dfes));
 
@@ -272,6 +274,47 @@ void RANavierStokesSolver<dim, entvar>::getDistanceFunction()
       dist->ProjectCoefficient(wall_coeff);
    } 
    ///TODO: Add option for proper wall distance function 
+}
+
+template <int dim, bool entvar>
+double RANavierStokesSolver<dim, entvar>::getZeroDistance()
+{
+   std::string wall_type = 
+      this->options["wall-func"]["type"].template get<std::string>();
+   // H1_FECollection *dfec = new H1_FECollection(1, dim);
+   // FiniteElementSpace *dfes = new FiniteElementSpace(this->mesh.get(), dfec);
+   // unique_ptr<GridFunction> distcheck;
+   // distcheck.reset(new GridFunction(dfes));
+
+   double d0 = 0.0;
+
+   if (wall_type == "const") // uniform d value
+   { 
+      // doesn't make any difference
+      double val = this->options["wall-func"]["val"].template get<double>();
+      d0 = val;
+   }
+   if (wall_type == "y-dist") // y distance from the origin
+   {
+
+      // this should probably work for any distance function 
+      double work = 1e15;
+      // exhaustive search of the mesh for the smallest d value
+      for(int i = 0; i < dist->Size(); i++)
+      {
+         if(dist->Elem(i) < work && dist->Elem(i) > 0.0)
+         {
+            work = dist->Elem(i);
+         }
+      }      
+
+      // half the smallest computed distance from the wall
+      d0 = work/2;
+   } 
+   ///TODO: Add option for proper wall distance function 
+
+   cout << "At-wall distance: "<<d0<<endl;
+   return d0;
 }
 
 std::default_random_engine gen_ns(std::random_device{}());

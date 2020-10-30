@@ -13,68 +13,68 @@ namespace mfem
 double InexactNewton::ComputeStepSize (const Vector &x, const Vector &b,
                                        const double norm) const
 {
-   double theta = 0.0;
-   double s = 1.0;
-   // p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
-   // p0 is the value of p(0), p0p is the derivative p'(0), and 
-   // p1 is the value of p(1). */
-   double p0, p1, p0p;
-   // A temporary vector for calculating p0p.
-   Vector temp(r.Size());
+   // double theta = 0.0;
+   // double s = 1.0;
+   // // p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
+   // // p0 is the value of p(0), p0p is the derivative p'(0), and 
+   // // p1 is the value of p(1). */
+   // double p0, p1, p0p;
+   // // A temporary vector for calculating p0p.
+   // Vector temp(r.Size());
 
-   p0 = 0.5 * norm * norm;
-   // temp=F'(x_i)*r(x_i)
-   jac->Mult(r,temp);
-   // c is the negative inexact newton step size.
-   p0p = -Dot(c,temp);
-   //Calculate the new norm.
+   // p0 = 0.5 * norm * norm;
+   // // temp=F'(x_i)*r(x_i)
+   // jac->Mult(r,temp);
+   // // c is the negative inexact newton step size.
+   // p0p = -Dot(c,temp);
+   // //Calculate the new norm.
 
-   add(x,-1.0,c,x_new);
-   oper->Mult(x_new,r);
-   const bool have_b = (b.Size()==Height());
-   if (have_b)
-   {
-      r -= b;
-   }
-   double err_new = Norm(r);
+   // add(x,-1.0,c,x_new);
+   // oper->Mult(x_new,r);
+   // const bool have_b = (b.Size()==Height());
+   // if (have_b)
+   // {
+   //    r -= b;
+   // }
+   // double err_new = Norm(r);
 
-   // Globalization start from here.
-   int itt=0;
-   while (err_new > (1 - t * (1 - theta) ) * norm)
-   {
-      p1 = 0.5*err_new*err_new;
-      // Quadratic interpolation between [0,1]
-      theta = quadInterp(0.0, p0, p0p, 1.0, p1);
-      theta = (theta > theta_min) ? theta : theta_min;
-      theta = (theta < theta_max) ? theta : theta_max;
-      // set the new trial step size. 
-      s *= theta;
-      // update eta
-      eta = 1 - theta * (1- eta);
-      eta = (eta < eta_max) ? eta : eta_max;
-      // re-evaluate the error norm at new x.
-      add(x,-s,c,x_new);
-      oper->Mult(x_new, r);
-      if (have_b)
-      {
-         r-=b;
-      }
-      err_new = Norm(r);
+   // // Globalization start from here.
+   // int itt=0;
+   // while (err_new > (1 - t * (1 - theta) ) * norm)
+   // {
+   //    p1 = 0.5*err_new*err_new;
+   //    // Quadratic interpolation between [0,1]
+   //    theta = quadInterp(0.0, p0, p0p, 1.0, p1);
+   //    theta = (theta > theta_min) ? theta : theta_min;
+   //    theta = (theta < theta_max) ? theta : theta_max;
+   //    // set the new trial step size. 
+   //    s *= theta;
+   //    // update eta
+   //    eta = 1 - theta * (1- eta);
+   //    eta = (eta < eta_max) ? eta : eta_max;
+   //    // re-evaluate the error norm at new x.
+   //    add(x,-s,c,x_new);
+   //    oper->Mult(x_new, r);
+   //    if (have_b)
+   //    {
+   //       r-=b;
+   //    }
+   //    err_new = Norm(r);
 
-      // Check the iteration counts.
-      itt ++;
-      if (itt > max_iter)
-      {
-         mfem::mfem_error("Fail to globalize: Exceed maximum iterations.\n");
-         break;
-      }
-   }
-   if (print_level>=0)
-   {
-      mfem::out << " Globalization factors: theta= "<< s 
-            << ", eta= " << eta <<'\n';
-   }
-   return s;
+   //    // Check the iteration counts.
+   //    itt ++;
+   //    if (itt > max_iter)
+   //    {
+   //       mfem::mfem_error("Fail to globalize: Exceed maximum iterations.\n");
+   //       break;
+   //    }
+   // }
+   // if (print_level>=0)
+   // {
+   //    mfem::out << " Globalization factors: theta= "<< s 
+   //          << ", eta= " << eta <<'\n';
+   // }
+   return 1.0;//s;
 }
 
 void InexactNewton::SetOperator(const Operator &op)
@@ -146,10 +146,21 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
       }
 
       jac = &oper->GetGradient(x);
-      // stringstream nssolname;
-      // nssolname << "jac_" <<it<<"";
-      // std::ofstream matlab(nssolname.str()); matlab.precision(15);
-      // jac->PrintMatlab(matlab);
+
+      // time to scale ? can't since newton expects the base Operator class
+      // double scale = 1e-4;
+      // for(int s = 0; s < r.Size()/5; s++)
+      // {
+      //    r(4 + s*5) *= scale;
+
+      //    jac->ScaleRow(4 + s*5, scale);
+      // }
+
+
+      stringstream nssolname;
+      nssolname << "jac_" <<it<<"";
+      std::ofstream matlab(nssolname.str()); matlab.precision(15);
+      jac->PrintMatlab(matlab);
       // std::cout << "Get the jacobian matrix.\n";
       prec->SetOperator(*jac);
       //std::cout << "jac is set as one operator.\n";

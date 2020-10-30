@@ -124,70 +124,25 @@ int main(int argc, char *argv[])
       
       if (file_options["try-rans"].template get<bool>())
       {
-      // construct the solver and set initial conditions
-      auto solver = createSolver<RANavierStokesSolver<2, entvar>>(opt_file_name,
-                                                         move(smesh));
-      solver->setInitialCondition(uinit_pert);
-      solver->printSolution(fileinit.str(), 0);
+         // construct the solver and set initial conditions
+         auto solver = createSolver<RANavierStokesSolver<2, entvar>>(opt_file_name,
+                                                            move(smesh));
+         solver->setInitialCondition(uinit_pert);
+         solver->printSolution(fileinit.str(), 0);
 
-      double res_error = solver->calcResidualNorm();
-      *out << "\ninitial rans residual norm = " << res_error << endl;
-      //solver->checkJacobian(pert);
-      solver->solveForState();
-      solver->printSolution(filefinal.str(),0);
-      // get the final density error
-      res_error = solver->calcResidualNorm();
+         double res_error = solver->calcResidualNorm();
+         *out << "\ninitial rans residual norm = " << res_error << endl;
+         //solver->checkJacobian(pert);
+         solver->solveForState();
+         solver->printSolution(filefinal.str(),0);
+         // get the final density error
+         res_error = solver->calcResidualNorm();
 
-      *out << "\nfinal rans residual norm = " << res_error;
-      u_rans = solver->getFields();
+         out->precision(15);
+         *out << "\nfinal rans residual norm = " << res_error;
+         double drag = abs(solver->calcOutput("drag"));
+         *out << "\nDrag  = " << drag << endl;
       }
-
-      if (file_options["try-ns"].template get<bool>())
-      {
-      
-      // construct the solver and set initial conditions
-      std::unique_ptr<Mesh> smesh2 = buildWalledMesh(m_x, m_y);
-      auto solver2 = createSolver<NavierStokesSolver<2, entvar>>(opt_file_name,
-                                                         move(smesh2));
-      solver2->setInitialCondition(uinit_pert_ns);
-      fileinit << "_ns";
-      filefinal << "_ns";
-      solver2->printSolution(fileinit.str(), 0);
-
-      double res_error2 = solver2->calcResidualNorm();
-      *out << "\ninitial ns residual norm = " << res_error2 << endl;
-      solver2->checkJacobian(pert_ns);
-      solver2->solveForState();
-      solver2->printSolution(filefinal.str(),0);
-      res_error2 = solver2->calcResidualNorm();
-
-      *out << "\nfinal ns residual norm = " << res_error2;
-      u_ns = solver2->getFields();
-      }
-
-      //if (file_options["compare"].template get<bool>())
-      //{
-      
-      *out << "\n Before Reording " << endl;
-      mfem::Vector u_rans_comp(u_ns[0]->Size());
-      for(int i = 0; i < u_rans[0]->Size()/5; i++)
-      {
-         for(int j = 0; j < 4; j++)
-         {
-            u_rans_comp(j + i*4) = u_rans[0]->Elem(j + i*5);
-         }
-      }
-      
-      // u_rans[0]->ReorderByNodes();
-      // u_ns[0]->ReorderByNodes();
-      *out << "\n After Reording = " << endl;
-
-      //u_rans[0]->SetSize(u_ns[0]->Size());
-
-      *u_ns[0] -= u_rans_comp;
-
-      *out << "\n ns-rans result norm = " << u_ns[0]->Norml2() << endl;
-      //}
 
    }
    catch (MachException &exception)
@@ -314,7 +269,25 @@ std::unique_ptr<Mesh> buildWalledMesh(int num_x, int num_y)
    // Lambda function increases element density towards wall
    double offset = m_offset;
    double coeff = m_coeff;
-   auto xy_fun = [coeff, offset, num_y](const Vector& rt, Vector &xy)
+   // double s1 = m_s1;
+   // double s2 = m_s2;
+
+   // double A = sqrt(s2)/sqrt(s1);
+   // double B = 1.0/sqrt(s1*s2);
+
+   // // need to solve transcendental equation sinh(x)/x = B for x, use Newton's method
+   // double del = 5.0;
+   // double res = sinh(del) - B*del;
+   // double dres;
+   // while(res > 1e-15)
+   // {
+   //    dres = cosh(del) - B;
+   //    del = del - res/dres;
+   //    res = sinh(del) - B*del;
+   // }
+   // double delta = del;
+
+   auto xy_fun = [coeff, offset, num_y/*A, delta*/](const Vector& rt, Vector &xy)
    {
       xy(0) = rt(0) - 0.33333; 
       xy(1) = rt(1);
@@ -323,12 +296,19 @@ std::unique_ptr<Mesh> buildWalledMesh(int num_x, int num_y)
       double b = log(offset)/(c - 1.0);
       double a = 1.0/exp(1.0*b);
 
-      ///Condense mesh near wall
-      if(rt(1) > 0.0 && rt(1) < 1.0)
-      {
-         xy(1) = coeff*a*exp(b*rt(1));
-         //std::cout << xy(1) << std::endl;
-      }
+      // double u = 0.5*(1 + tanh(delta*(rt(1) - 0.5))/tanh(delta)));
+
+      // double s = u/(A + (1-A)*u);
+
+
+      //Condense mesh near wall
+      xy(1) = (1 + tanh(coeff*(rt(1) - 1))/tanh(coeff));
+
+      // if(rt(1) > 0.0 && rt(1) < 1.0)
+      // {
+      //    xy(1) = coeff*a*exp(b*rt(1));
+      //    //std::cout << xy(1) << std::endl;
+      // }
 
       ///TODO: condense mesh near wall transition as well
       //double cx1 = 2.0/

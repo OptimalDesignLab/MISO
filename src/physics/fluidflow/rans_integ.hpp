@@ -68,9 +68,9 @@ public:
    /// \param[in] vis - nondimensional dynamic viscosity (use Sutherland if neg)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    /// \param[in] P, D - control production and destruction terms for debugging
-   SASourceIntegrator(adept::Stack &diff_stack, mfem::GridFunction distance, double re_fs,
-                          mfem::Vector sa_params, double vis = -1.0, double a = 1.0, double P = 1.0, double D = 1.0)
-       : alpha(a), prod(P), dest(D), mu(vis), stack(diff_stack), num_states(dim+3), Re(re_fs), sacs(sa_params),
+   SASourceIntegrator(adept::Stack &diff_stack, mfem::GridFunction distance, double re_fs, 
+                          mfem::Vector sa_params, double vis = -1.0, double a = 1.0,  double P = 1.0, double D = 1.0, double dmin = 1e-4)
+       : alpha(a), d0(dmin), prod(P), dest(D), mu(vis), stack(diff_stack), num_states(dim+3), Re(re_fs), sacs(sa_params),
        dist(distance) {}
 
    /// Construct the element local residual
@@ -105,6 +105,8 @@ protected:
    double alpha;
    /// Freestream Reynolds number
    double Re;
+   /// 0-wall distance to evaluate
+   double d0;
    /// vector of SA model parameters
    mfem::Vector sacs;
    /// stack used for algorithmic differentiation
@@ -116,6 +118,8 @@ protected:
    mfem::Vector xi;
    /// used to reference the states at node i 
    mfem::Vector ui;
+   /// used to reference the conservative states at node i 
+   mfem::Vector uci;
    /// used to reference the gradient of nu at node i
    mfem::Vector grad_nu_i;
    /// used to reference the gradient of rho at node i

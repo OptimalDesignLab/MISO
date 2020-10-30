@@ -65,7 +65,8 @@ protected:
 
     /// create mesh distance function from options
     void getDistanceFunction();
-
+    /// get the distance value to calculate at the wall itself
+    double getZeroDistance();
     /// SA constants vector
     mfem::Vector sacs;
     /// Gridfunction for wall distance function (unused for now)

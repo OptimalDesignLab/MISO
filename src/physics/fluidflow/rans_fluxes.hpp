@@ -49,7 +49,7 @@ xdouble calcSALaminarSuppression(const xdouble *q, const xdouble mu,
 {
     xdouble ct3 = sacs[7];
     xdouble ct4 = sacs[8];
-    xdouble nu_tilde = q[dim+2]/q[0];
+    xdouble nu_tilde = q[dim+2];///q[0];
     xdouble nu_mat = mu/q[0];
     xdouble chi = nu_tilde/nu_mat;
     xdouble ft2 = ct3*exp(-ct4*chi*chi);
@@ -68,7 +68,7 @@ xdouble calcSACoefficient(const xdouble *q, const xdouble mu,
                                 const xdouble *sacs)
 {
     xdouble cv1 = sacs[6];
-    xdouble nu_tilde = q[dim+2]/q[0];
+    xdouble nu_tilde = q[dim+2];///q[0];
     xdouble nu_mat = mu/q[0];
     xdouble chi = nu_tilde/nu_mat;
     xdouble fv1 = chi*chi*chi/(cv1*cv1*cv1 + chi*chi*chi);
@@ -86,7 +86,7 @@ template <typename xdouble, int dim>
 xdouble calcSAProductionCoefficient(const xdouble *q, const xdouble mu,
                                 const xdouble *sacs)
 {
-    xdouble nu_tilde = q[dim+2]/q[0];
+    xdouble nu_tilde = q[dim+2];///q[0];
     xdouble nu_mat = mu/q[0];
     xdouble chi = nu_tilde/nu_mat;
     xdouble fv1 = calcSACoefficient<xdouble, dim>(q, mu, sacs);
@@ -109,18 +109,18 @@ xdouble calcSAModifiedVorticity(const xdouble *q, const xdouble S,
                                  const xdouble mu, const xdouble d, 
                                 const xdouble Re, const xdouble *sacs)
 {
-    xdouble nu_tilde = q[dim+2]/q[0];
+    xdouble nu_tilde = q[dim+2];///q[0];
     xdouble kappa = sacs[3];
     xdouble cv2 = sacs[11];
     xdouble cv3 = sacs[12];
     xdouble fv2 = calcSAProductionCoefficient<xdouble, dim>(q, mu, sacs);
     xdouble work = nu_tilde*fv2/(kappa*kappa*d*d);
     xdouble St;
-    if (work < -cv2*S)
-        St = S + (S*(cv2*cv2*S + cv3*work))/((cv3-2*cv2)*S - work); 
+    if (work/Re < -cv2*S)
+        St = S + (S*(cv2*cv2*S*Re + cv3*work))/((cv3-2*cv2)*S*Re - work); 
     else 
-        St = S + work;
-    return St;
+        St = S + work/Re;
+    return Re*St;
 }
 
 /// Returns the destruction coefficient in SA
@@ -143,7 +143,7 @@ xdouble calcSADestructionCoefficient(const xdouble *q,
     using adept::min;
     using std::pow;
     using adept::pow;
-    xdouble nu_tilde = q[dim+2]/q[0];
+    xdouble nu_tilde = q[dim+2];///q[0];
     xdouble kappa = sacs[3];
     xdouble cw2 = sacs[4];
     xdouble cw3 = sacs[5];
@@ -152,7 +152,7 @@ xdouble calcSADestructionCoefficient(const xdouble *q,
     xdouble St = calcSAModifiedVorticity<xdouble, dim>(q, S, mu, d, Re, sacs);
     //xdouble fv2 = calcSAProductionCoefficient<xdouble, dim>(q, mu, sacs);
 
-    xdouble work = nu_tilde/(Re*St*kappa*kappa*d*d);
+    xdouble work = nu_tilde/(St*kappa*kappa*d*d);
     
     xdouble r = min(work, rlim);
     xdouble r6 = r*r*r*r*r*r;
@@ -181,11 +181,11 @@ xdouble calcSAProduction(const xdouble *q,
                                  const xdouble *sacs)
 {
     xdouble cb1 = sacs[0];
-    xdouble nu_tilde = q[dim+2]/q[0];
+    xdouble nu_tilde = q[dim+2];///q[0];
     xdouble St = calcSAModifiedVorticity<xdouble, dim>(q, S, mu, d, Re, sacs);
     xdouble ft2 = calcSALaminarSuppression<xdouble, dim>(q, mu, sacs);
     xdouble P = cb1*(1.0-ft2)*St*nu_tilde;
-    return q[0]*P;
+    return /*q[0]*/P/Re;
 }
 
 /// Returns the destruction term in SA
@@ -205,12 +205,12 @@ xdouble calcSADestruction(const xdouble *q,
     xdouble cb2 = sacs[1];
     xdouble sigma = sacs[2];
     xdouble kappa = sacs[3];
-    xdouble chi_d = q[dim+2]/(d*q[0]);
+    xdouble chi_d = q[dim+2]/(d/*q[0]*/);
     xdouble cw1 = cb1/(kappa*kappa) + (1+cb2)/sigma;
     xdouble fw = calcSADestructionCoefficient<xdouble, dim>(q, mu, d, S, Re, sacs);
     xdouble ft2 = calcSALaminarSuppression<xdouble, dim>(q, mu, sacs);
     xdouble D = (cw1*fw - (cb1/(kappa*kappa))*ft2)*chi_d*chi_d;
-    return -q[0]*D;
+    return /*q[0]*/-D/Re;
 }
 
 /// Returns the production term in negative SA
@@ -226,9 +226,9 @@ xdouble calcSANegativeProduction(const xdouble *q, const xdouble S,
 {
     xdouble cb1 = sacs[0];
     xdouble ct3 = sacs[7];
-    xdouble nu_tilde = q[dim+2]/q[0];
+    xdouble nu_tilde = q[dim+2];///q[0];
     xdouble Pn = cb1*(1.0-ct3)*S*nu_tilde;
-    return q[0]*Pn;
+    return /*q[0]*/Pn;
 }
 
 /// Returns the destruction term in negative SA
@@ -240,16 +240,16 @@ xdouble calcSANegativeProduction(const xdouble *q, const xdouble S,
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
 xdouble calcSANegativeDestruction(const xdouble *q, const xdouble d,
-                             const xdouble *sacs)
+                              const xdouble Re, const xdouble *sacs)
 {
     xdouble cb1 = sacs[0];
     xdouble cb2 = sacs[1];
     xdouble sigma = sacs[2];
     xdouble kappa = sacs[3];
-    xdouble chi_d = q[dim+2]/(d*q[0]);
+    xdouble chi_d = q[dim+2]/(d/*q[0]*/);
     xdouble cw1 = cb1/(kappa*kappa) + (1+cb2)/sigma;
     xdouble Dn = -cw1*chi_d*chi_d;
-    return -q[0]*Dn;
+    return /*q[0]*/-Dn/Re;
 }
 
 /// Returns the turbulent viscosity coefficient in negative SA
@@ -264,7 +264,7 @@ xdouble calcSANegativeCoefficient(const xdouble *q, const xdouble mu,
                                 const xdouble *sacs)
 {
     xdouble cn1 = sacs[10];
-    xdouble nu_tilde = q[dim+2]/q[0];
+    xdouble nu_tilde = q[dim+2];///q[0];
     xdouble nu_mat = mu/q[0];
     xdouble chi = nu_tilde/nu_mat;
     xdouble fn = (cn1 + chi*chi*chi)/(cn1 - chi*chi*chi);
@@ -287,7 +287,7 @@ xdouble calcSASource(const xdouble *q, const xdouble *dir,
     xdouble cb2 = sacs[1];
     xdouble sigma = sacs[2];
     xdouble Sr = (cb2/sigma)*dot<xdouble, dim>(dir, dir);
-    return q[0]*Sr;
+    return /*q[0]*/Sr;
 }
 
 /// Returns the viscous "source" term in SA
@@ -305,8 +305,70 @@ xdouble calcSASource2(const xdouble *q, const xdouble mu, const xdouble *dir,
     xdouble sigma = sacs[2];
     xdouble fn = calcSANegativeCoefficient<xdouble, dim>(q, mu, sacs);
     xdouble Sr = (1.0/sigma)*(mu/q[0] + fn*nu_tilde)*dot<xdouble, dim>(dir, dir2);
-    return Sr;
+    return 0.0;//Sr;
 }
+
+
+
+/// Returns the full sum of source terms
+/// \param[in] q - state used to define the destruction
+/// \param[in] mu - **nondimensionalized** viscosity
+/// \param[in] d - wall distance value
+/// \param[in] S - vorticity magnitude
+/// \param[in] Re - Reynold's number, if needed
+/// \param[in] d0 - at-wall distance value
+/// \param[in] dir - turbulent viscosity gradient
+/// \param[in] dir2 - density gradient
+/// \param[in] sacs - Spalart-Allmaras constants
+/// \returns src - full source term sum
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+xdouble calcSAFullSource(const xdouble *q, 
+                                 const xdouble mu, const xdouble d, 
+                                 const xdouble S, const xdouble Re,
+                                 const xdouble d0, const xdouble *dir, 
+                                 const xdouble *dir2, const xdouble *sacs,
+                                 const xdouble prod, const xdouble dest)
+{
+    xdouble src = calcSASource<xdouble,dim>(
+         q, dir, sacs)/Re;
+    src -= calcSASource2<xdouble,dim>(
+         q, mu, dir, dir2, sacs)/Re;
+    if (fabs(d) > 1e-12)
+    {
+    if (q[dim+2] < 0)
+    {
+        src += prod*calcSANegativeProduction<xdouble,dim>(
+            q, S, sacs);
+        src += dest*calcSANegativeDestruction<xdouble,dim>(
+            q, d, Re, sacs);
+    }
+    else
+    {
+        src += prod*calcSAProduction<xdouble,dim>(
+            q, mu, d, S, Re, sacs);
+        src += dest*calcSADestruction<xdouble,dim>(
+            q, mu, d, S, Re, sacs);
+    }
+    }
+    else
+    {
+        if (q[dim+2] < 0)
+        {
+            src += dest*calcSANegativeDestruction<xdouble,dim>(
+               q, d0, Re, sacs);
+        }
+        else
+        {
+            src += dest*calcSADestruction<xdouble,dim>(
+               q, mu, d0, S, Re, sacs);
+        }
+    }
+    return src;
+}
+
+
 
 #if 0
 // Compute vorticity on an SBP element, needed for SA model terms

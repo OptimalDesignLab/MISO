@@ -10,7 +10,7 @@
       "mu": 1.0,
       "viscous-mms": false,
       "sa-consts": [0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.1, 1.2, 0.5, 10, 16, 0.7, 0.9],
-      "sa-srcs": [0.0, 1.0]
+      "sa-srcs": [1.0, 1.0]
    },
    "space-dis": {
       "degree": 1,
@@ -33,7 +33,7 @@
       "maxiter": 100,
       "printlevel": 1,
       "reltol": 1e-2,
-      "type": "newton"
+      "type": "inexact-newton"
    },
    "lin-solver": {
       "reltol": 1e-5,
@@ -61,6 +61,9 @@
       "num-y": 12,
       "offset": 1e-3,
       "coeff": 1.0
+   },
+   "outputs": {
+      "drag": [1, 0, 0, 0, 0]
    },
    "init-pert": 0.0,
    "file-names": "rans_wturb_1e-3",
