@@ -32,11 +32,11 @@ class omMach(om.Group):
         self.add_subsystem('state',
                            omMachState(solver=self.solver,
                                        initial_condition=initial_condition),
-                           promotes_inputs=['vol_mesh_coords'])
+                           promotes_inputs=['mesh_coords'])
 
         self.add_subsystem('functionals',
                            omMachFunctionals(solver=self.solver),
-                           promotes_inputs=['vol_mesh_coords'],
+                           promotes_inputs=['mesh_coords'],
                            promotes_outputs=['func'])
 
         # self.connect('current_density', ['state.current_density', 'functionals.current_density'])
@@ -68,7 +68,7 @@ class omMachState(om.ImplicitComponent):
         solver_options = solver.getOptions()
         if "external-fields" in solver_options:
             for ext_field in solver_options["external-fields"]:
-                self.add_input(ext_field, solver.getFieldSize(ext_field))
+                self.add_input(ext_field, shape=solver.getFieldSize(ext_field))
 
         if self.comm.rank == 0:
             print('Adding state outputs')
@@ -84,7 +84,7 @@ class omMachState(om.ImplicitComponent):
         """
         solver = self.options['solver']
 
-        mesh_coords = inputs['vol_mesh_coords']
+        mesh_coords = inputs['mesh_coords']
         state = solver.getNewField(outputs['state'])
         residual = solver.getNewField(residuals['state'])
 
@@ -100,12 +100,14 @@ class omMachState(om.ImplicitComponent):
         """
         solver = self.options['solver']
 
-        mesh_coords = inputs['vol_mesh_coords']
+        mesh_coords = inputs['mesh_coords']
         state = solver.getNewField(outputs['state'])
 
         u_init = self.options['initial_condition']
-
-        solver.setInitialCondition(state, u_init)
+        if isinstance(u_init, float):
+            solver.setInitialFieldValue(state, u_init)
+        elif isinstance(u_init, Vector):
+            solver.setInitialFieldVectorValue(state, u_init)
 
         # solver.printField("state", state, "state")
         # TODO: change these methods in machSolver to support numpy array 
@@ -142,8 +144,8 @@ class omMachState(om.ImplicitComponent):
                 if 'state' in d_outputs: 
                     d_outputs['state'] = solver.multStateJacTranspose(d_residuals['state'])
         
-                if 'vol_mesh_coords' in d_inputs: 
-                    d_inputs['vol_mesh_coords'] = solver.multMeshJacTranspose(d_residuals['state'])
+                if 'mesh_coords' in d_inputs: 
+                    d_inputs['mesh_coords'] = solver.multMeshJacTranspose(d_residuals['state'])
 
                 if 'current_density' in d_inputs: 
                     raise NotImplementedError 
@@ -180,7 +182,7 @@ class omMachFunctionals(om.ExplicitComponent):
             print('Adding functional inputs')
 
         local_mesh_size = solver.getMeshSize()
-        self.add_input('vol_mesh_coords', shape=local_mesh_size)
+        self.add_input('mesh_coords', shape=local_mesh_size)
 
         local_state_size = solver.getStateSize()
         self.add_input('state', shape=local_state_size)
@@ -197,7 +199,7 @@ class omMachFunctionals(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         solver = self.options['solver']
 
-        mesh_coords = inputs['vol_mesh_coords']
+        mesh_coords = inputs['mesh_coords']
         state = inputs['state']
 
         state_field = solver.getNewField(state)

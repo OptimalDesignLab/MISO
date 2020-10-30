@@ -104,6 +104,13 @@ em_options = {
     },
     "outputs": {
         "co-energy": {}
+    },
+    "external-fields": {
+        "mesh_coords": {
+            "basis-type": "H1",
+            "degree": 1,
+            "num-states": 3
+        }
     }
 }
 
@@ -170,6 +177,11 @@ thermal_options = {
             "basis-type": "nedelec",
             "degree": 2,
             "num-states": 1
+        },
+        "mesh_coords": {
+            "basis-type": "H1",
+            "degree": 1,
+            "num-states": 3
         }
     }
 }
@@ -193,7 +205,8 @@ if __name__ == "__main__":
     model.connect('surf_mesh_move.surf_mesh_disp', 'vol_mesh_move.surf_mesh_disp')
 
     emSolver = MachSolver("Magnetostatic", em_options, problem.comm)
-    model.add_subsystem('em_solver', omMachState(solver=emSolver, initial_condition=0.0))
+    model.add_subsystem('em_solver', omMachState(solver=emSolver, 
+                                                 initial_condition=Vector([0.0, 0.0, 0.0])))
     model.connect('vol_mesh_move.vol_mesh_coords', 'em_solver.mesh_coords')
 
     thermalSolver = MachSolver("Thermal", thermal_options, problem.comm)
