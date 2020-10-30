@@ -958,7 +958,7 @@ void AbstractSolver::setUpExternalFields()
          std::string name = std::string(f.key());
 
          // special set up if the external field is the mesh coordinate field
-         if (name == "mesh_coords")
+         if (name == "mesh-coords")
          {
             auto &mesh_gf = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
             ParFiniteElementSpace *mesh_fespace;
@@ -973,7 +973,7 @@ void AbstractSolver::setUpExternalFields()
             else
             {
                // else copy the FESpace and get its FECollection
-               mesh_fespace = new ParFiniteElementSpace(mesh_gf.ParFESpace());
+               mesh_fespace = new ParFiniteElementSpace(*mesh_gf.ParFESpace());
                mesh_fec = const_cast<FiniteElementCollection*>(
                                                       mesh_fespace->FEColl());
             }
@@ -981,7 +981,9 @@ void AbstractSolver::setUpExternalFields()
             res_fields.emplace(
                std::piecewise_construct,
                std::forward_as_tuple(name),
-               std::forward_as_tuple(mesh_fespace, (double*)nullptr));
+               // std::forward_as_tuple(mesh_fespace, (double*)nullptr));
+               std::forward_as_tuple(mesh_fespace));
+
             // tell the new GF it owns the FESpace and FECollection
             res_fields.at(name).MakeOwner(mesh_fec);
             // get the values of the new GF to those of the mesh's old nodes

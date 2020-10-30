@@ -106,11 +106,7 @@ em_options = {
         "co-energy": {}
     },
     "external-fields": {
-        "mesh_coords": {
-            "basis-type": "H1",
-            "degree": 1,
-            "num-states": 3
-        }
+        "mesh-coords": {}
     }
 }
 
@@ -178,11 +174,7 @@ thermal_options = {
             "degree": 2,
             "num-states": 1
         },
-        "mesh_coords": {
-            "basis-type": "H1",
-            "degree": 1,
-            "num-states": 3
-        }
+        "mesh-coords": {}
     }
 }
 
@@ -191,7 +183,7 @@ if __name__ == "__main__":
     model = problem.model
     ivc = om.IndepVarComp()
 
-    ivc.add_output('radius', 0.005) # radius of wire
+    ivc.add_output('radius', 0.006) # radius of wire
 
     model.add_subsystem('des_vars', ivc)
     model.add_subsystem('surf_mesh_move', omEGADS(csm_file='wire',
@@ -207,12 +199,12 @@ if __name__ == "__main__":
     emSolver = MachSolver("Magnetostatic", em_options, problem.comm)
     model.add_subsystem('em_solver', omMachState(solver=emSolver, 
                                                  initial_condition=Vector([0.0, 0.0, 0.0])))
-    model.connect('vol_mesh_move.vol_mesh_coords', 'em_solver.mesh_coords')
+    model.connect('vol_mesh_move.vol_mesh_coords', 'em_solver.mesh-coords')
 
     thermalSolver = MachSolver("Thermal", thermal_options, problem.comm)
     model.add_subsystem('thermal_solver', omMachState(solver=thermalSolver,
                                                       initial_condition=300.0))
-    model.connect('vol_mesh_move.vol_mesh_coords', 'thermal_solver.mesh_coords')
+    model.connect('vol_mesh_move.vol_mesh_coords', 'thermal_solver.mesh-coords')
     model.connect('em_solver.state', 'thermal_solver.mvp')
 
     problem.setup()

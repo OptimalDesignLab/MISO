@@ -39,7 +39,8 @@ class omMeshMove(om.ImplicitComponent):
         """
         solver = self.options['solver']
 
-        surf_mesh_disp = inputs['surf_mesh_disp']
+        print(inputs['surf_mesh_disp'])
+        surf_mesh_disp = inputs['surf_mesh_disp'] + np.array(solver.getMeshCoordinates(), copy=False)
         vol_mesh_coords = outputs['vol_mesh_coords']
 
         # Get fields for the surface displacement and volume coords
@@ -52,7 +53,7 @@ class omMeshMove(om.ImplicitComponent):
         # test displacement
         mesh = Mesh(model_file='wire.egads', mesh_file='wire.smb')
         print(type(state))
-        mesh.addDisplacement(state)
+        mesh.setNodes(state)
         mesh.PrintVTU("testmeshmove")
 
     def linearize(self, inputs, outputs, residuals):

@@ -115,7 +115,38 @@ void initSolver(py::module &m)
       .def("getMeshSize", &AbstractSolver::getMeshSize)
       .def("getMeshCoordinates", &AbstractSolver::getMeshCoordinates,
             py::return_value_policy::reference)
-      .def("setMeshCoordinates", &AbstractSolver::setMeshCoordinates)
+      .def("setResidualInput", [](
+         AbstractSolver &self,
+         const std::string &field,
+         py::array_t<double> data)
+      {
+         py::buffer_info info = data.request();
+
+         /* Some sanity checks ... */
+         if (info.format != py::format_descriptor<double>::format())
+         {
+            throw std::runtime_error("Incompatible format:\n"
+                                       "\texpected a double array!");
+         }
+         if (info.ndim != 1)
+         {
+            throw std::runtime_error("Incompatible dimensions:\n"
+                                       "\texpected a 1D array!");
+         }
+         
+         if (info.shape[0] != self.getFieldSize(field))
+         {
+            std::string err("Incompatible size:\n"
+            "\tattempting to set field \"");
+            err += field;
+            err += "\" (size: ";
+            err += self.getFieldSize(field);
+            err += ") with numpy vector of size: ";
+            err += info.shape[0];
+            throw std::runtime_error(err);
+         }
+         return self.setResidualInput(field, (double*)info.ptr);
+      })
 
       .def("setScalarInitialCondition", (void (AbstractSolver::*)
             (mfem::ParGridFunction &state, 

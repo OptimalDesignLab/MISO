@@ -32,11 +32,11 @@ class omMach(om.Group):
         self.add_subsystem('state',
                            omMachState(solver=self.solver,
                                        initial_condition=initial_condition),
-                           promotes_inputs=['mesh_coords'])
+                           promotes_inputs=['mesh-coords'])
 
         self.add_subsystem('functionals',
                            omMachFunctionals(solver=self.solver),
-                           promotes_inputs=['mesh_coords'],
+                           promotes_inputs=['mesh-coords'],
                            promotes_outputs=['func'])
 
         # self.connect('current_density', ['state.current_density', 'functionals.current_density'])
@@ -60,8 +60,6 @@ class omMachState(om.ImplicitComponent):
         if self.comm.rank == 0:
             print('Adding state inputs')
 
-        local_mesh_size = solver.getMeshSize()
-        self.add_input('mesh_coords', shape=local_mesh_size)
         # self.add_input('current_density')
         # self.add_input('fill_factor')
 
@@ -84,13 +82,13 @@ class omMachState(om.ImplicitComponent):
         """
         solver = self.options['solver']
 
-        mesh_coords = inputs['mesh_coords']
+        mesh_coords = inputs['mesh-coords']
         state = solver.getNewField(outputs['state'])
         residual = solver.getNewField(residuals['state'])
 
         # TODO: change these methods in machSolver to support numpy array 
         # as argument and do the conversion internally
-        solver.setMeshCoordinates(Vector(mesh_coords))
+        solver.setResidualInput("mesh-coords", mesh_coords)
         solver.calcResidual(state, residual)
 
 
@@ -100,7 +98,6 @@ class omMachState(om.ImplicitComponent):
         """
         solver = self.options['solver']
 
-        mesh_coords = inputs['mesh_coords']
         state = solver.getNewField(outputs['state'])
 
         u_init = self.options['initial_condition']
@@ -109,19 +106,14 @@ class omMachState(om.ImplicitComponent):
         elif isinstance(u_init, Vector):
             solver.setInitialFieldVectorValue(state, u_init)
 
-        # solver.printField("state", state, "state")
-        # TODO: change these methods in machSolver to support numpy array 
-        # as argument and do the conversion internally
-        solver.setMeshCoordinates(Vector(mesh_coords))
-        solver.printMesh("mesh")
+        solver_options = solver.getOptions()
+        if "external-fields" in solver_options:
+            for field_name in solver_options["external-fields"]:
+                field = inputs[field_name]
+                solver.setResidualInput(field_name, field)
+
+        # solver.printMesh("mesh")
         solver.solveForState(state)
-
-        uex = solver.getNewField()
-        solver.setInitialCondition(uex, u_init)
-
-        solver.printFields("state_post_solve", [state, uex], ["state", "uex"])
-
-        print("error: ", solver.calcL2Error(state, u_init, -1))
 
     def linearize(self, inputs, outputs, residuals):
         """
@@ -144,8 +136,8 @@ class omMachState(om.ImplicitComponent):
                 if 'state' in d_outputs: 
                     d_outputs['state'] = solver.multStateJacTranspose(d_residuals['state'])
         
-                if 'mesh_coords' in d_inputs: 
-                    d_inputs['mesh_coords'] = solver.multMeshJacTranspose(d_residuals['state'])
+                if 'mesh-coords' in d_inputs: 
+                    d_inputs['mesh-coords'] = solver.multMeshJacTranspose(d_residuals['state'])
 
                 if 'current_density' in d_inputs: 
                     raise NotImplementedError 
@@ -182,7 +174,7 @@ class omMachFunctionals(om.ExplicitComponent):
             print('Adding functional inputs')
 
         local_mesh_size = solver.getMeshSize()
-        self.add_input('mesh_coords', shape=local_mesh_size)
+        self.add_input('mesh-coords', shape=local_mesh_size)
 
         local_state_size = solver.getStateSize()
         self.add_input('state', shape=local_state_size)
@@ -199,7 +191,7 @@ class omMachFunctionals(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         solver = self.options['solver']
 
-        mesh_coords = inputs['mesh_coords']
+        mesh_coords = inputs['mesh-coords']
         state = inputs['state']
 
         state_field = solver.getNewField(state)
