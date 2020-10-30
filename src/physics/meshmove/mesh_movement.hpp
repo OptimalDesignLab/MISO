@@ -44,15 +44,6 @@ public:
       const std::function<void(const mfem::Vector &,
                                mfem::Vector &)> &u_init) override;
 
-   /// override AbstractSolver's implementation to give the appearance of
-   /// solving for coordinates instead of displacement
-   void solveForState(mfem::ParGridFunction &state) override;
-
-   /// override AbstractSolver's implementation to give the appearance of
-   /// solving for coordinates instead of displacement
-   void calcResidual(const mfem::ParGridFunction &state,
-                     mfem::ParGridFunction &residual) const override;
-
    double calcStepSize(int iter, double t, double t_final, double dt_old,
                        const mfem::ParGridFunction &state) const override;
 

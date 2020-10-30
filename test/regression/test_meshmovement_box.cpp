@@ -81,7 +81,7 @@ TEST_CASE("Mesh Movement Box Regression Test",
    auto nz = 8;
 
    int nxy = 1;
-   for (int ref = 1; ref <= 4; ++ref)
+   for (int ref = 1; ref <= 2; ++ref)
    {  
       nxy *= 2;
       DYNAMIC_SECTION("...for mesh sizing nxy = " << nxy)
@@ -89,18 +89,21 @@ TEST_CASE("Mesh Movement Box Regression Test",
          // construct the solver, set the initial condition, and solve
          unique_ptr<Mesh> smesh = buildBoxMesh(nxy, nz);
          auto solver = createSolver<LEAnalogySolver>(options, move(smesh));
-         solver->setInitialCondition(boxDisplacement);
-         solver->solveForState();
-         auto fields = solver->getFields();
+         auto coord_field = solver->getNewField();
+         solver->setInitialCondition(*coord_field, boxDisplacement);
+         solver->solveForState(*coord_field);
+         solver->printField("sol", *coord_field, "coords", 0);
 
          // Compute error and check against appropriate target
          mfem::VectorFunctionCoefficient dispEx(3, boxDisplacement);
-         double l2_error = fields[0]->ComputeL2Error(dispEx);
+         double l2_error = coord_field->ComputeL2Error(dispEx);
          std::cout << "\n\nl2 error in field: " << l2_error << "\n\n\n";
          REQUIRE(l2_error == Approx(target_error[ref - 1]).margin(1e-10));
 
+         auto res_norm = solver->calcResidualNorm(*coord_field);
+         std::cout << "\n\n res_norm: " << res_norm << "\n";
          auto &mesh_coords = solver->getMeshCoordinates();
-         mesh_coords += *fields[0];
+         mesh_coords.SetData(coord_field->GetData());
          solver->printMesh("moved_box_mesh");
       }
    }
@@ -109,7 +112,8 @@ TEST_CASE("Mesh Movement Box Regression Test",
 void boxDisplacement(const Vector &x, Vector& X)
 {
    X.SetSize(x.Size());
-   X = x; // new field is 2x, displacement is x
+   X = x;
+   X *= 2; // new field is 2x
 }
 
 unique_ptr<Mesh> buildBoxMesh(int nxy, int nz)
