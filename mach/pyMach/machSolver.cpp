@@ -14,6 +14,7 @@
 
 #include "solver.hpp"
 #include "magnetostatic.hpp"
+#include "thermal.hpp"
 #include "euler.hpp"
 #include "mesh_movement.hpp"
 
@@ -43,12 +44,18 @@ SolverPtr initSolver(const std::string &type,
    {
       return createSolver<MagnetostaticSolver>(json_options, nullptr, comm);
    }
+   else if (type == "Thermal")
+   {
+      return createSolver<ThermalSolver>(json_options, nullptr, comm);
+   }
    else if (type == "Euler")
    {
       if (entvar)
          return createSolver<EulerSolver<2, true>>(json_options, nullptr, comm);
       else
-         return createSolver<EulerSolver<2, false>>(json_options, nullptr, comm);
+         return createSolver<EulerSolver<2, false>>(json_options,
+                                                    nullptr,
+                                                    comm);
    }
    else if (type == "MeshMovement")
    {
@@ -59,6 +66,7 @@ SolverPtr initSolver(const std::string &type,
       throw std::runtime_error("Unknown solver type!\n"
       "\tKnown types are:\n"
       "\t\tMagnetostatic\n"
+      "\t\tThermal\n"
       "\t\tEuler\n"
       "\t\tMeshMovement\n");
    }
@@ -98,6 +106,11 @@ void initSolver(py::module &m)
           py::arg("json_options"),
           py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD),
           py::arg("entvar") = false)
+
+      .def("getOptions", [](AbstractSolver &self) -> nlohmann::json
+      {
+         return self.getOptions();
+      })
 
       .def("getMeshSize", &AbstractSolver::getMeshSize)
       .def("getMeshCoordinates", &AbstractSolver::getMeshCoordinates,
@@ -209,7 +222,7 @@ void initSolver(py::module &m)
 
       .def("calcResidual",
          (void (AbstractSolver::*)(const mfem::ParGridFunction &,
-                                   mfem::ParGridFunction&))
+                                   mfem::ParGridFunction&) const)
          &AbstractSolver::calcResidual,
          py::arg("state"),
          py::arg("residual"))
@@ -222,6 +235,7 @@ void initSolver(py::module &m)
          py::arg("func"))
 
       .def("getStateSize", &AbstractSolver::getStateSize)
+      .def("getFieldSize", &AbstractSolver::getFieldSize)
 
       /// TODO:
       // .def("linearize", &AbstractSolver::linearize)

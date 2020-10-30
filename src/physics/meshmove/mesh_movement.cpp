@@ -12,7 +12,7 @@ namespace mach
 
 LEAnalogySolver::LEAnalogySolver(
    const nlohmann::json &options,
-   std::unique_ptr<mfem::Mesh> smesh,
+   std::unique_ptr<Mesh> smesh,
    MPI_Comm comm)
    : MeshMovementSolver(options, move(smesh), comm)
 {
@@ -31,8 +31,8 @@ LEAnalogySolver::LEAnalogySolver(
 }
 
 void LEAnalogySolver::setInitialCondition(
-   mfem::ParGridFunction &state,
-   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+   ParGridFunction &state,
+   const std::function<void(const Vector &, Vector &)> &u_init)
 {
    state = 0.0;
 
@@ -40,6 +40,32 @@ void LEAnalogySolver::setInitialCondition(
    state.ProjectBdrCoefficient(u0, ess_bdr);
    printField("uinit", state, "solution");
    // state = 100.0;
+}
+
+void LEAnalogySolver::solveForState(ParGridFunction &state)
+{
+   // the input state is the coordinate field of the displaced mesh, but the
+   // linear elactisty problem solves for displacements. We need to turn the
+   // coordiate field into a displacement field so we can appropriately solve
+   // for the state, then transform back to the moved coordinate field
+   auto &mesh_coords = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
+   state -= mesh_coords;
+   AbstractSolver::solveForState(state);
+   state += mesh_coords;
+}
+
+void LEAnalogySolver::calcResidual(const ParGridFunction &state,
+                                   ParGridFunction &residual) const
+{
+   // the input state is the coordinate field of the displaced mesh, but the
+   // linear elactisty problem solves for displacements. We need to turn the
+   // coordiate field into a displacement field so we can appropriately solve
+   // for the state, then transform back to the moved coordinate field
+   auto &mesh_coords = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
+   auto &disp = const_cast<ParGridFunction&>(state);
+   disp -= mesh_coords;
+   AbstractSolver::calcResidual(disp, residual);
+   disp += mesh_coords;
 }
 
 double LEAnalogySolver::calcStepSize(int iter, 

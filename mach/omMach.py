@@ -61,9 +61,14 @@ class omMachState(om.ImplicitComponent):
             print('Adding state inputs')
 
         local_mesh_size = solver.getMeshSize()
-        self.add_input('vol_mesh_coords', shape=local_mesh_size)
+        self.add_input('mesh_coords', shape=local_mesh_size)
         # self.add_input('current_density')
         # self.add_input('fill_factor')
+
+        solver_options = solver.getOptions()
+        if "external-fields" in solver_options:
+            for ext_field in solver_options["external-fields"]:
+                self.add_input(ext_field, solver.getFieldSize(ext_field))
 
         if self.comm.rank == 0:
             print('Adding state outputs')

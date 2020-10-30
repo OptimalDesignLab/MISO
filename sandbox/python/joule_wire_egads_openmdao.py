@@ -5,8 +5,8 @@ from mach import MachSolver
 
 mesh_options = {
     'mesh': {
-        'file': 'data/testOMMeshMovement/cyl.smb',
-        'model-file': 'data/testOMMeshMovement/cyl.egads'
+        'file': 'wire.smb',
+        'model-file': 'wire.egads'
     },
     'print-options': True,
     'space-dis': {
@@ -54,8 +54,8 @@ em_options = {
     "silent": False,
     "print-options": False,
     "mesh": {
-        "file": "data/wire.smb",
-        "model-file": "data/wire.egads"
+        "file": "wire.smb",
+        "model-file": "wire.egads"
     },
     "space-dis": {
         "basis-type": "nedelec",
@@ -110,8 +110,8 @@ em_options = {
 thermal_options = {
     "print-options": False,
     "mesh": {
-        "file": "data/wire.smb",
-        "model-file": "data/wire.egads"
+        "file": "wire.smb",
+        "model-file": "wire.egads"
     },
     "space-dis": {
         "basis-type": "H1",

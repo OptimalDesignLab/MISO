@@ -298,14 +298,14 @@ public:
 
    /// Compute the residual based on the current solution in `u`
    /// \param[out] residual - the residual
-   void calcResidual(mfem::ParGridFunction &residual)
+   void calcResidual(mfem::ParGridFunction &residual) const
    { calcResidual(*u, residual); };
 
    /// Compute the residual based on `state` and store the it in `residual`
    /// \param[in] state - the current state to evaluate the residual at
    /// \param[out] residual - the residual
-   void calcResidual(const mfem::ParGridFunction &state, 
-                     mfem::ParGridFunction &residual);
+   virtual void calcResidual(const mfem::ParGridFunction &state, 
+                             mfem::ParGridFunction &residual) const;
    
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
@@ -340,6 +340,11 @@ public:
 
    inline int getMeshSize() { return mesh->GetNodes()->FESpace()->GetVSize(); }
    inline int getStateSize() { return fes->GetVSize(); }
+   inline int getFieldSize(std::string field)
+   { return res_fields.at(field).FESpace()->GetVSize(); }
+
+   /// return the options dictionary with read-only access
+   inline const nlohmann::json& getOptions() const { return options; }
 
 #ifdef MFEM_USE_PUMI
    /// Return a pointer to the underlying PUMI mesh

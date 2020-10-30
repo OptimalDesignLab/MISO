@@ -1,0 +1,16 @@
+# wire.csm written by ocsmSave (v1.18)
+
+# Constant, Design, and Output Parameters:
+despmtr   length       0.01000
+despmtr   radius       0.00500
+
+# Global Attributes:
+attribute capsAIM   $egadsTessAIM;tetgenAIM;pumiAIM
+attribute capsMeshLength   1
+
+# Branches:
+cylinder  0   0   -length/2   0   0   length/2   radius
+
+attribute capsGroup   $wire
+
+end

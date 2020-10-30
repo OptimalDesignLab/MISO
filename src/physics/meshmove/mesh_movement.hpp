@@ -39,18 +39,19 @@ public:
                    std::unique_ptr<mfem::Mesh> smesh = nullptr,
                    int dim = 3);
 
-   /// Implement InitDerived
-   //  virtual void initDerived();
-
-   /// Initializes the state vector to a given function.
-   /// \param[in] state - the state vector to initialize
-   /// \param[in] u_init - function that defines the initial condition
-   /// \note The second argument in the function `u_init` is the initial
-   /// condition value.
    void setInitialCondition(
       mfem::ParGridFunction &state,
       const std::function<void(const mfem::Vector &,
                                mfem::Vector &)> &u_init) override;
+
+   /// override AbstractSolver's implementation to give the appearance of
+   /// solving for coordinates instead of displacement
+   void solveForState(mfem::ParGridFunction &state) override;
+
+   /// override AbstractSolver's implementation to give the appearance of
+   /// solving for coordinates instead of displacement
+   void calcResidual(const mfem::ParGridFunction &state,
+                     mfem::ParGridFunction &residual) const override;
 
    double calcStepSize(int iter, double t, double t_final, double dt_old,
                        const mfem::ParGridFunction &state) const override;

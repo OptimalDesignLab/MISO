@@ -215,7 +215,6 @@ void AbstractSolver::initDerived()
    else if (basis_type == "nedelec")
    {
       fec.reset(new ND_FECollection(fe_order, dim));
-      // mesh->ReorientTetMesh();
    }
    else if (basis_type == "H1")
    {
@@ -376,6 +375,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       constructPumiMesh();
    }
    mesh->EnsureNodes();
+   mesh->ReorientTetMesh();
 }
 
 void AbstractSolver::constructPumiMesh()
@@ -730,16 +730,9 @@ double AbstractSolver::calcL2Error(
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
    GridFunType r(fes.get());
-   double res_norm;
-   HypreParVector *u_true = state.GetTrueDofs();
+   calcResidual(state, r);
    HypreParVector *r_true = r.GetTrueDofs();
-   res->Mult(*u_true, *r_true);
-   if (load)
-      *r_true += *load;
-   double loc_norm = (*r_true)*(*r_true);
-   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   res_norm = sqrt(res_norm);
-   return res_norm;
+   return std::sqrt(InnerProduct(comm, *r_true, *r_true));
 }
 
 std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
@@ -763,15 +756,34 @@ std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
 
 }
 
-/// TODO: this won't work for every solver, need to create a new operator like
-/// the one used in the evolvers to evaluate the residual
+
+/// NOTE: the load vectors must have previously been assembled
 void AbstractSolver::calcResidual(const ParGridFunction &state,
-                                  ParGridFunction &residual)
+                                  ParGridFunction &residual) const
 {
    auto *u_true = state.GetTrueDofs();
-   res->Mult(*u_true, residual);
+   auto *r_true = residual.GetTrueDofs();
+   res->Mult(*u_true, *r_true);
    if (load)
-      residual -= *load;
+   {
+      auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+      if (load_lf)
+      {
+         auto *l_true = load_lf->ParallelAssemble();
+         *r_true -= *l_true;
+         delete l_true;
+      }
+      auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
+      if (load_gf)
+      {
+         auto *l_true = load_gf->GetTrueDofs();
+         *r_true -= *l_true;
+         delete l_true;
+      }
+   }
+   residual.SetFromTrueDofs(*r_true);
+   delete u_true;
+   delete r_true;
 }
 
 double AbstractSolver::calcStepSize(int iter, double t, double t_final,
@@ -824,8 +836,7 @@ void AbstractSolver::printResidual(const std::string &file_name,
                                    int refine)
 {
    GridFunType r(fes.get());
-   HypreParVector *u_true = u->GetTrueDofs();
-   res->Mult(*u_true, r);
+   calcResidual(*u, r);
    // TODO: These mfem functions do not appear to be parallelized
    ofstream res_ofs(file_name + ".vtk");
    res_ofs.precision(14);
