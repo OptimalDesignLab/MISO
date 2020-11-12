@@ -50,11 +50,11 @@ class omMeshMove(om.ImplicitComponent):
         solver.setInitialField(state, initial_condition)
         solver.solveForState(state)
 
-        # test displacement
-        mesh = Mesh(model_file='wire.egads', mesh_file='wire.smb')
-        print(type(state))
-        mesh.setNodes(state)
-        mesh.PrintVTU("testmeshmove")
+        # # test displacement
+        # mesh = Mesh(model_file='wire.egads', mesh_file='wire.smb')
+        # print(type(state))
+        # mesh.setNodes(state)
+        # mesh.PrintVTU("testmeshmove")
 
     def linearize(self, inputs, outputs, residuals):
         """

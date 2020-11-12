@@ -70,8 +70,8 @@ void phase_a_current(const xdouble &current_density,
 
    // example of needed geometric parameters, this should be all you need
    xdouble n_s = 12; // number of slots
-   xdouble zb = 0.0; // bottom of stator
-   xdouble zt = 0.25; // top of stator
+   xdouble zb = -0.03450/2; // bottom of stator
+   xdouble zt = 0.03450/2; // top of stator
 
    // compute theta from x and y
    xdouble tha = atan2(x[1], x[0]);
@@ -760,10 +760,10 @@ bool MagnetostaticSolver::iterationExit(int iter,
    {
       // use tolerance options for Newton's method
       double norm = calcResidualNorm(state);
-      if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
+      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
          return true;
       if (norm <= res_norm0 *
-                      options["time-dis"]["steady-reltol"].template get<double>())
+                      options["time-dis"]["steady-reltol"].get<double>())
          return true;
       return false;
    }
@@ -775,6 +775,10 @@ void MagnetostaticSolver::terminalHook(int iter, double t_final,
                                        const ParGridFunction &state)
 {
    computeSecondaryFields(state);
+
+   auto *state_gf = const_cast<ParGridFunction*>(&state);
+   printFields("em_state", {state_gf, B.get()}, {"mvp", "B"});
+
 }
 
 double MagnetostaticSolver::calcStepSize(int iter, 

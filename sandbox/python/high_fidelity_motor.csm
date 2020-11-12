@@ -1,0 +1,232 @@
+# motor11_4_20.csm written by ocsmSave (v1.18)
+
+# Constant, Design, and Output Parameters:
+despmtr   stator_od       0.15645
+despmtr   stator_id       0.12450
+despmtr   rotor_od       0.11370
+despmtr   rotor_id       0.11125
+despmtr   slot_depth       0.01210
+despmtr   tooth_width       0.00430
+despmtr   magnet_thickness       0.00440
+despmtr   heatsink_od       0.16000
+despmtr   tooth_tip_thickness       0.00100
+despmtr   tooth_tip_angle      10.00000
+despmtr   slot_radius       0.00100
+despmtr   stack_length       0.03450
+cfgpmtr   num_slots      12.00000
+cfgpmtr   num_magnets       4.00000
+
+# Global Attributes:
+attribute capsAIM $egadsTessAIM;aflr4AIM;tetgenAIM;pumiAIM
+attribute capsMeshLength 1
+
+# Branches:
+set       magnet_angle 360/num_magnets
+set       stator_yoke_thickness (stator_od/2)-((stator_id/2)+slot_depth)
+set       shoe_spacing 0.0035
+set       shoe_spacing_angle shoe_spacing*360/pi(stator_id)
+set       shoe_angle 360/num_slots-shoe_spacing_angle
+skbeg     0   0   0   1
+   skvar     xy   0.000000;0.000000;-0.000424;0.000000;-0.014038;0.000000;0.002150;-0.014038;0.000000;0.002150;-0.001484;0.000000;0.014647;0.000719;0.000000;0.014415;0.001692;0.000000;
+   skcon     X   1   -1  0
+   skcon     Y   1   -1  0
+   skcon     V   1   2  0
+   skcon     H   2   3  0
+   skcon     V   3   4  0
+   skcon     L   5   6  tooth_tip_thickness
+   skcon     I   4   5  tooth_tip_angle
+   skcon     R   6   1  -stator_id/2
+   skcon     P   1   -1  0
+   skcon     S   6   1  -shoe_angle/2
+   skcon     L   1   2  (stator_od-stator_id)/2-stator_yoke_thickness/2
+   skcon     L   2   3  tooth_width/2
+   skcon     P   6   -1  0
+   linseg    ::x[2]   ::y[2]   0
+   linseg    ::x[3]   ::y[3]   0
+   linseg    ::x[4]   ::y[4]   0
+   linseg    ::x[5]   ::y[5]   0
+   linseg    ::x[6]   ::y[6]   0
+   arc       ::x[1]   ::y[1]   0   ::d[1]   xy
+skend     0
+translate 0   -stator_id/2   -stack_length/2
+extrude   0   0   stack_length
+fillet    slot_radius   8   1
+store     half_tooth   0   0
+restore   half_tooth   0
+mirror    1   0   0   0
+restore   half_tooth   0
+union     0   0   0
+store     tooth   0   0
+
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_od/2
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_id/2+slot_depth
+subtract  none   1   0
+store stator_yoke
+restore stator_yoke
+patbeg    i   num_slots
+   restore   tooth   0
+   rotatez   i*360/num_slots   0   0
+   union     0   0   0
+   fillet    slot_radius   0   0
+patend
+store     stator_solid   0   0
+restore   stator_solid   0
+extract   0
+store     stator_shell   0   0
+box       0   -stator_id/2-tooth_tip_thickness/2   -stack_length/2   0   -slot_depth   stack_length
+revolve   0   0   0   0   0   1   shoe_angle/2
+restore   stator_solid   0
+subtract  none   1   0
+store     winding_straight   0   0
+restore   winding_straight   0
+extract   8
+revolve   0   0   stack_length/2   0   -1   0   180
+restore   winding_straight   0
+union     0   0   0
+store     winding_half   0   0
+restore   winding_half   0
+rotatey   180   0   0
+restore   winding_half   0
+union     0   0   0
+store     winding_solid   0   0
+restore   winding_solid   0
+extract   0
+store     winding_shell   0   0
+
+restore   stator_shell   0
+patbeg    i   num_slots
+   restore   winding_shell   0
+   rotatez   i*360/num_slots   0   0
+   join     0    0
+patend
+store     stator_assembly_shell   0   0
+
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_od/2
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_id/2
+subtract  none   1   0
+store     rotor_yoke_solid   0   0
+restore   rotor_yoke_solid   0
+extract   0
+store     rotor_yoke_shell   0   0
+restore   rotor_yoke_shell   0
+box       0   -rotor_od/2   -stack_length/2   0   -magnet_thickness   stack_length
+revolve   0   0   0   0   0   1   magnet_angle
+store     magnet_solid   0   0
+restore   magnet_solid   0
+extract   0
+store     magnet_shell   0   0
+patbeg    i   num_magnets
+   restore   magnet_shell   0
+   rotatez   i*magnet_angle   0   0
+   join     0    0
+patend
+store     rotor_shell   0   0
+restore   rotor_yoke_solid   0
+patbeg    i   num_magnets
+   restore   magnet_solid   0
+   rotatez   i*magnet_angle   0   0
+   union     0   0   0
+patend
+store     rotor_solid   0   0
+
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_od/2-stator_yoke_thickness/2
+restore   stator_solid   0
+subtract  none   1   0
+
+
+patbeg    i   num_slots
+   restore   winding_solid   0
+   rotatez   i*360/num_slots   0   0
+   subtract  none   1   0
+   # join 0 0   0
+patend
+
+restore   rotor_solid   0
+subtract  none   1   0
+store     airgap_solid   0   0
+restore   airgap_solid   0
+extract   0
+store     airgap_shell   0   0
+restore   airgap_shell   0
+restore   rotor_shell   0
+join     0    0
+restore   stator_assembly_shell   0
+join     0    0
+store     motor_shell   0   0
+
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_od/2
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_id/2
+subtract  none   1   0
+# patbeg    i   num_slots
+#    restore   winding_solid   0
+#    rotatez   i*360/num_slots   0   0
+#    union     0   0 0
+# patend
+store     motor_solid   0   0
+
+set       farfield_radius stator_od
+sphere    0   0   0   farfield_radius
+box       -2*farfield_radius   0   -2*farfield_radius   4*farfield_radius   2*farfield_radius   4*farfield_radius
+subtract  none   1   0
+rotatez   90   0   0
+
+# restore motor_solid 0
+# patbeg    i   2
+#    restore   winding_solid   0
+#    rotatez   i*180   0   0
+#    union     0    0
+# patend
+# store motor_solid
+
+
+restore   motor_solid  0
+subtract  none   1   0
+extract   0
+store     hemisphere   0   0
+restore   hemisphere   0
+# restore motor_shell
+# subtract
+restore motor_shell 0
+join
+restore hemisphere
+mirror 1 0 0 0
+join
+
+# set all faces to be transparent
+select face
+attribute AFLR_GBC   $TRANSP_UG3_GBC
+attribute capsGroup $motor
+
+# set farfield faces
+select face 1
+attribute AFLR_GBC   $FARFIELD_UG3_GBC
+select face 3
+attribute AFLR_GBC   $FARFIELD_UG3_GBC
+
+# attempt to set internal cutting face as some other kind of transparent face
+# select face 2
+# attribute AFLR_GBC $TRANSP_INTRNL_UG3_GBC
+
+# # set airgap faces very fine
+# select face 361
+# attribute AFLR4_Scale_Factor 0.5
+
+# select face 362
+# attribute AFLR4_Scale_Factor 0.5
+# select face 364
+# attribute AFLR4_Scale_Factor 0.5
+# select face 366
+# attribute AFLR4_Scale_Factor 0.5
+# select face 367
+# attribute AFLR4_Scale_Factor 0.5
+# select face 368
+# attribute AFLR4_Scale_Factor 0.5
+# select face 370
+# attribute AFLR4_Scale_Factor 0.5
+# select face 372
+# attribute AFLR4_Scale_Factor 0.5
+# select face 373
+# attribute AFLR4_Scale_Factor 0.5
+
+
+end

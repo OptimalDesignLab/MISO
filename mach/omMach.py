@@ -114,6 +114,7 @@ class omMachState(om.ImplicitComponent):
 
         # solver.printMesh("mesh")
         solver.solveForState(state)
+        solver.printField("state", state, "state")
 
     def linearize(self, inputs, outputs, residuals):
         """

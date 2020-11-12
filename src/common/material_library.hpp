@@ -192,7 +192,7 @@ nlohmann::json material_library
          62227.2176750000000000,
          73321.1169499999000000
       }},
-      {"mu_r", 2000},
+      {"mu_r", 750},
       {"rho", 7.750},
       {"cv", 0.420}, 
       {"kappa", 50},
@@ -204,8 +204,10 @@ nlohmann::json material_library
    {
       {"mu_r", 1.0},
       {"B_r", 1},
-      {"rho", 8500},
-      {"cv", 420},
+      {"rho", 7500},
+      {"cv", 502.08},
+      {"kappa", 7.7},
+      {"max-temp", 310+273.15} // Curie temp is 310 C
    }},
    {"air",
    {
