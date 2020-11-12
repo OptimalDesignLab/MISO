@@ -10,6 +10,8 @@
 *.o
 /libmach.*
 *.bin
+*.so
+*.a
 
 # Backup files
 *~
@@ -24,6 +26,9 @@
 # Output mesh files
 *.vtk
 *.gf
+*.pvtu
+*.vtu
+*.pvd
 
 # Dependence folder
 .d
@@ -38,3 +43,7 @@ build/*
 lib/*
 include/*
 !build/mach_config.sh
+
+# python wrapper related files
+/mach/__pycache__
+/mach.egg-info
