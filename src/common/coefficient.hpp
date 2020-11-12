@@ -4,10 +4,11 @@
 #include <map>
 
 #include "mfem.hpp"
+#include "tinysplinecxx.h"
 
 #include "mach_types.hpp"
 #include "utils.hpp"
-#include "spline.hpp"
+
 
 
 namespace mach
@@ -296,100 +297,36 @@ private:
 class ReluctivityCoefficient : public StateCoefficient
 {
 public:
-	/// Define a temperature independent reluctivity model
-	/// \param[in] B - magnetic flux density values from B-H curve 
-	/// \param[in] H - magnetic field intensity valyes from B-H curve
-	ReluctivityCoefficient(std::vector<double> B, std::vector<double> H);
+   /// Define a temperature independent reluctivity model
+   /// \param[in] B - magnetic flux density values from B-H curve 
+   /// \param[in] H - magnetic field intensity valyes from B-H curve
+   ReluctivityCoefficient(std::vector<double> B, std::vector<double> H);
 
-	/// TODO - implement
-	/// Define a temperature dependent reluctivity model
-	/// \param[in] B - magnetic flux density values from B-H curve 
-	/// \param[in] H - magnetic field intensity valyes from B-H curve
-	/// \param *T_ - pointer to existing temperature grid function
-	/// \note not currently implemented
-	ReluctivityCoefficient(std::vector<double> B, std::vector<double> H,
-								  GridFunType *T_);
-
-	/// \brief Evaluate the reluctivity in the element described by trans at the
-	/// point ip. Checks which model was initialized, temperature-dependent or
-	/// not, and evalutes the correct one.
+   /// \brief Evaluate the reluctivity in the element described by trans at the
+   /// point ip.
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
    double Eval(mfem::ElementTransformation &trans,
                const mfem::IntegrationPoint &ip,
-					const double state) override;
+               const double state) override;
 
-	/// \brief Evaluate the derivative of reluctivity with respsect to magnetic
-	/// flux in the element described by trans at the point ip. Checks which
-	/// model was initialized, temperature-dependent or not, and evalutes the
-	/// correct one.
+   /// \brief Evaluate the derivative of reluctivity with respsect to magnetic
+   /// flux in the element described by trans at the point ip.
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-	double EvalStateDeriv(mfem::ElementTransformation &trans,
-                       	 const mfem::IntegrationPoint &ip,
-								 const double state) override;
-
-	/// class destructor. Not sure if I need to delete anything?
-	~ReluctivityCoefficient() = default;
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                        const mfem::IntegrationPoint &ip,
+                        const double state) override;
 
 protected:
-	/// reference to temperature grid function
-	GridFunType *temperature_GF;
-
-	/// spline representing B-H curve, 1st deriv is reluctivity
-	Spline b_h_curve;
-};
-
-class MagneticFluxCoefficient : public StateCoefficient
-{
-public:
-	/// Define a temperature independent magnetic flux model
-	/// \param[in] B - magnetic flux density values from B-H curve 
-	/// \param[in] H - magnetic field intensity valyes from B-H curve
-	MagneticFluxCoefficient(std::vector<double> B, std::vector<double> H);
-
-	/// TODO - implement
-	/// Define a temperature dependent magnetic flux model
-	/// \param[in] B - magnetic flux density values from B-H curve 
-	/// \param[in] H - magnetic field intensity valyes from B-H curve
-	/// \param *T_ - pointer to existing temperature grid function
-	/// \note not currently implemented
-	MagneticFluxCoefficient(std::vector<double> B, std::vector<double> H,
-								   GridFunType *T_);
-
-	/// \brief Evaluate the B-H curve in the element described by trans at
-	/// the point ip. Checks which model was initialized, temperature-dependent
-	/// or not, and evalutes the correct one.
-	/// \param[in] state - H
-	/// \returns B
-   /// \note When this method is called, the caller must make sure that the
-   /// IntegrationPoint associated with trans is the same as ip. This can be
-   /// achieved by calling trans.SetIntPoint(&ip).
-	double Eval(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-					const double state) override;
-
-	/// \brief Evaluate the permeability in the element described by trans at
-	/// the point ip. Checks which model was initialized, temperature-dependent
-	/// or not, and evalutes the correct one.
-   /// \note When this method is called, the caller must make sure that the
-   /// IntegrationPoint associated with trans is the same as ip. This can be
-   /// achieved by calling trans.SetIntPoint(&ip).
-	double EvalStateDeriv(mfem::ElementTransformation &trans,
-                       	 const mfem::IntegrationPoint &ip,
-								 const double state) override;
-
-	/// class destructor. Not sure if I need to delete anything?
-	~MagneticFluxCoefficient() = default;
-
-protected:
-	/// reference to temperature grid function
-	GridFunType *temperature_GF;
-
-	/// spline representing B-H curve, 1st deriv is reluctivity
-	Spline b_h_curve;
+   /// spline representing H(B)
+   tinyspline::BSpline b_h;
+   /// spline representing dH(B)/dB
+   tinyspline::BSpline nu;
+   /// spline representing d^2H(B)/dB^2
+   tinyspline::BSpline dnudb;
 };
 
 class VectorMeshDependentCoefficient : public mfem::VectorCoefficient
