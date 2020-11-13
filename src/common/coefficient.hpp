@@ -297,10 +297,12 @@ private:
 class ReluctivityCoefficient : public StateCoefficient
 {
 public:
-   /// Define a temperature independent reluctivity model
+   /// \brief Define a reluctivity model from a B-Spline fit with linear
+   /// extrapolation at the far end
    /// \param[in] B - magnetic flux density values from B-H curve 
    /// \param[in] H - magnetic field intensity valyes from B-H curve
-   ReluctivityCoefficient(std::vector<double> B, std::vector<double> H);
+   ReluctivityCoefficient(const std::vector<double> &B,
+                          const std::vector<double> &H);
 
    /// \brief Evaluate the reluctivity in the element described by trans at the
    /// point ip.
@@ -321,6 +323,8 @@ public:
                         const double state) override;
 
 protected:
+   /// max B value in the data
+   double b_max;
    /// spline representing H(B)
    tinyspline::BSpline b_h;
    /// spline representing dH(B)/dB

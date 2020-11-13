@@ -345,6 +345,55 @@ void box2_current(const xdouble &current_density,
    J[2] = current_density*6*y;
 }
 
+/// function to get the sign of a number
+template <typename T>
+int sgn(T val)
+{
+   return (T(0) < val) - (val < T(0));
+}
+
+template <typename xdouble = double>
+void team13_current(const xdouble &current_density,
+                    const xdouble *X,
+                    xdouble *J)
+{
+   for (int i = 0; i < 3; ++i)
+   {
+      J[i] = 0.0;
+   }
+
+	auto x = X[0]; auto y = X[1];
+
+   if (y >= -0.075 && y <= 0.075)
+   {
+      J[1] = sgn(x);
+   }
+   else if (x >= -0.075 && x <= 0.075)
+   {
+      J[0] = -sgn(y);
+   }
+   else if (x > 0.075 && y > 0.075)
+   {
+      J[0] = -(y - 0.075);
+      J[1] = (x - 0.075);
+   }
+   else if (x < 0.075 && y > 0.075)
+   {
+      J[0] = -(y - 0.075);
+      J[1] = (x + 0.075);
+   }
+   else if (x < 0.075 && y < 0.075)
+   {
+      J[0] = -(y + 0.075);
+      J[1] = (x + 0.075);
+   }
+   else if (x > 0.075 && y < 0.075)
+   {
+      J[0] = -(y + 0.075);
+      J[1] = (x - 0.075);
+   }
+}
+
 // void func(const mfem::Vector &x, mfem::Vector &y)
 // {
 //    y.SetSize(3);
@@ -2009,6 +2058,35 @@ void MagnetostaticSolver::box2CurrentSourceRevDiff(
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
    box2_current<adouble>(current_density, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::team13CurrentSource(const Vector &x,
+                                      Vector &J)
+{
+   team13_current(current_density, x.GetData(), J.GetData());
+}
+
+void MagnetostaticSolver::team13CurrentSourceRevDiff(
+   const Vector &x,
+   const Vector &V_bar,
+   Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   team13_current<adouble>(current_density, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());

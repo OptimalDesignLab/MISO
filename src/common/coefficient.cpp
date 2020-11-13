@@ -104,9 +104,9 @@ void MeshDependentCoefficient::EvalRevDiff(
    return;
 }
 
-ReluctivityCoefficient::ReluctivityCoefficient(std::vector<double> B,
-                                               std::vector<double> H)
-   : b_h(B.size())
+ReluctivityCoefficient::ReluctivityCoefficient(const std::vector<double> &B,
+                                               const std::vector<double> &H)
+   : b_max(B[B.size()-1]), b_h(B.size())
 {
    /// set control points of B-H spline
    auto ctrlp = b_h.controlPoints();
@@ -126,18 +126,32 @@ double ReluctivityCoefficient::Eval(ElementTransformation &trans,
                                     const IntegrationPoint &ip,
                                     const double state)
 {
-   auto t = b_h.bisect(state, 1e-8).knot();
-   auto dbhdt = nu.eval(t).result();
-   return dbhdt[1] / dbhdt[0];
+   if (state <= b_max)
+   {
+      auto t = b_h.bisect(state, 1e-8).knot();
+      auto dbhdt = nu.eval(t).result();
+      return dbhdt[1] / dbhdt[0]; // dH/dt / dB/dt
+   }
+   else
+   {
+      return 1 / (4e-7*M_PI); // assumed fully saturated
+   }
 }
 
 double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
                                              const IntegrationPoint &ip,
                                              const double state)
 {
-   auto t = b_h.bisect(state, 1e-8).knot();
-   auto dbhdt = dnudb.eval(t).result();
-   return dbhdt[1] / dbhdt[0];
+   if (state <= b_max)
+   {
+      auto t = b_h.bisect(state, 1e-8).knot();
+      auto d2bhdt2 = dnudb.eval(t).result();
+      return d2bhdt2[1] / d2bhdt2[0]; // d2H/dt2 / d2B/dt2
+   }
+   else
+   {
+      return 0.0; // assumed fully saturated
+   }
 }
 
 void VectorMeshDependentCoefficient::Eval(Vector &vec,
