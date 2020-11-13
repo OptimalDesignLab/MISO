@@ -329,6 +329,16 @@ private:
                                         const mfem::Vector &V_bar,
                                         mfem::Vector &x_bar);
 
+   /// function defining current density for TEAM 13 problem
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void team13CurrentSource(const mfem::Vector &x,
+                                   mfem::Vector &J);
+
+   static void team13CurrentSourceRevDiff(const mfem::Vector &x,
+                                          const mfem::Vector &V_bar,
+                                          mfem::Vector &x_bar);
+
    /// function defining magnetization aligned with the x axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x

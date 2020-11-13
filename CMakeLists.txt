@@ -77,6 +77,20 @@ endif (MFEM_USE_EGADS)
 # Try to find OpenMP (used by Adept)
 # find_package(OpenMP)
 
+include(FetchContent)
+FetchContent_Declare(tinyspline
+   GIT_REPOSITORY "https://github.com/msteinbeck/tinyspline"
+)
+
+set(TINYSPLINE_BUILD_EXAMPLES OFF)
+set(TINYSPLINE_BUILD_TESTS OFF)
+set(TINYSPLINE_BUILD_DOCS ON)
+FetchContent_MakeAvailable(tinyspline)
+set_target_properties(tinysplinecxx
+   PROPERTIES 
+      POSITION_INDEPENDENT_CODE ON
+)
+
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
 
@@ -93,6 +107,7 @@ target_link_libraries(mach
       "${ADEPT_LIBRARIES}"
       "${MFEM_LIBRARIES}"
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
+      tinysplinecxx
 )
 
 target_include_directories(mach

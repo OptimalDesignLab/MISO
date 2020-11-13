@@ -104,81 +104,53 @@ void MeshDependentCoefficient::EvalRevDiff(
    return;
 }
 
-ReluctivityCoefficient::ReluctivityCoefficient(std::vector<double> B,
-                                               std::vector<double> H)
-   : temperature_GF(NULL), b_h_curve()
+ReluctivityCoefficient::ReluctivityCoefficient(const std::vector<double> &B,
+                                               const std::vector<double> &H)
+   : b_max(B[B.size()-1]), b_h(B.size())
 {
-   b_h_curve.set_boundary(Spline::second_deriv, 0.0,
-                          Spline::second_deriv, 0.0);
-   b_h_curve.set_points(B, H);
+   /// set control points of B-H spline
+   auto ctrlp = b_h.controlPoints();
+   for (size_t i = 0; i < B.size(); ++i)
+   {
+      ctrlp[2*i] = B[i];
+      ctrlp[(2*i) + 1] = H[i];
+   }
+   b_h.setControlPoints(ctrlp);
+
+   /// take derivatives of B-H curve
+   nu = b_h.derive();
+   dnudb = nu.derive();
 }
 
 double ReluctivityCoefficient::Eval(ElementTransformation &trans,
-												const IntegrationPoint &ip,
+                                    const IntegrationPoint &ip,
                                     const double state)
 {
-	if (temperature_GF)
+   if (state <= b_max)
    {
-      throw MachException(
-         "Temperature dependent reluctivity is not currently supported!");
+      auto t = b_h.bisect(state, 1e-8).knot();
+      auto dbhdt = nu.eval(t).result();
+      return dbhdt[1] / dbhdt[0]; // dH/dt / dB/dt
    }
    else
    {
-      return b_h_curve.deriv(1, state);
+      return 1 / (4e-7*M_PI); // assumed fully saturated
    }
 }
 
 double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
-												          const IntegrationPoint &ip,
-                                              const double state)
+                                             const IntegrationPoint &ip,
+                                             const double state)
 {
-   if (temperature_GF)
+   if (state <= b_max)
    {
-      throw MachException(
-         "Temperature dependent reluctivity is not currently supported!");
+      auto t = b_h.bisect(state, 1e-8).knot();
+      auto d2bhdt2 = dnudb.eval(t).result();
+      return d2bhdt2[1] / d2bhdt2[0]; // d2H/dt2 / d2B/dt2
    }
    else
    {
-      return b_h_curve.deriv(2, state);
-   }
-}
-
-MagneticFluxCoefficient::MagneticFluxCoefficient(std::vector<double> B,
-                                                 std::vector<double> H)
-   : temperature_GF(NULL), b_h_curve()
-{
-   b_h_curve.set_boundary(Spline::second_deriv, 0.0,
-                          Spline::second_deriv, 0.0);
-   b_h_curve.set_points(H, B);
-}
-
-double MagneticFluxCoefficient::Eval(ElementTransformation &trans,
-												 const IntegrationPoint &ip,
-                                     const double state)
-{
-	if (temperature_GF)
-   {
-      throw MachException(
-         "Temperature dependent reluctivity is not currently supported!");
-   }
-   else
-   {
-      return b_h_curve(state);
-   }
-}
-
-double MagneticFluxCoefficient::EvalStateDeriv(ElementTransformation &trans,
-												           const IntegrationPoint &ip,
-                                               const double state)
-{
-   if (temperature_GF)
-   {
-      throw MachException(
-         "Temperature dependent reluctivity is not currently supported!");
-   }
-   else
-   {
-      return b_h_curve.deriv(1, state);
+      return 0.0; // assumed fully saturated
    }
 }
 
