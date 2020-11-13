@@ -1,10 +1,3 @@
-#ifndef MACH_COMMON
-#define MACH_COMMON
-
-#include "default_options.hpp"
-#include "evolver.hpp"
-#include "inexact_newton.hpp"
-#include "orthopoly.hpp"
-#include "sbp_fe.hpp"
-
-#endif
+version https://git-lfs.github.com/spec/v1
+oid sha256:8d07fd6e32b93c80917a5ee9146afc3681eee2ed836f92d9b46efaa480827415
+size 179

@@ -1,16 +1,3 @@
-# Make file to generate MACH documentation using Doxygen
-
-MACH_DIR ?= ..
-DOXYGEN_CONF = CodeDocumentation.conf
-
-# doxygen uses: graphviz, latex
-html: $(DOXYGEN_CONF)
-	doxygen $(DOXYGEN_CONF)
-	rm -f CodeDocumentation.html
-	ln -s CodeDocumentation/html/index.html CodeDocumentation.html
-clean:
-	rm -rf $(DOXYGEN_CONF) CodeDocumentation CodeDocumentation.html *~
-
-$(DOXYGEN_CONF): $(MACH_DIR)/doc/$(DOXYGEN_CONF).in
-	sed -e 's%@MACH_SOURCE_DIR@%$(MACH_DIR)%g' $(<) \
-	  > $(DOXYGEN_CONF)
+version https://git-lfs.github.com/spec/v1
+oid sha256:3846b3b8fafa0b8cb34e0e4e2bc12012332ce509674db367b082a67ab8551ea4
+size 485

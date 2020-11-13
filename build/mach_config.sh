@@ -1,8 +1,3 @@
-cmake .. \
- -DCMAKE_BUILD_TYPE=Debug \
- -DADEPT_DIR="/users/bedong/Builds/adept-install/" \
- -DMFEM_DIR="/users/bedong/Builds/mfem-install/" \
- -DPUMI_DIR="/lore/babcot/core/build/install/" \
- -DMFEM_USE_EGADS=YES \
- -DEGADS_DIR="/lore/babcot/MeshGen/EngSketchPad/" \
- -DBUILD_TESTING="YES" 
+version https://git-lfs.github.com/spec/v1
+oid sha256:44d7a33bca9fc85bf5dae325d6a1dbc6c9176b9d0e3f1e6ddc9da19ec9b8c610
+size 292

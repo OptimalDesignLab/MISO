@@ -1,16 +1,3 @@
-#ifndef MACH_DEFAULT_OPTIONS
-#define MACH_DEFAULT_OPTIONS
-
-#include "json.hpp"
-
-namespace mach
-{
-
-/// Defines the default options for mach
-/// Declared extern and defined in default_options.cpp so that executables can
-/// `#include "mach.hpp"` and avoid a duplicate symbol linking error
-extern const nlohmann::json default_options;
-
-} // namespace mach
-
-#endif
+version https://git-lfs.github.com/spec/v1
+oid sha256:11751814807293afdf4d9b8225c5e714ccc40faea755e0fa5bf1d21b879eda3f
+size 361

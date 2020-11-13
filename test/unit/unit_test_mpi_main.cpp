@@ -1,11 +1,3 @@
-#define CATCH_CONFIG_RUNNER
-#include "catch.hpp"
-#include <mpi.h>
-
-int main(int argc, char *argv[])
-{
-    MPI_Init(&argc, &argv);
-    int result = Catch::Session().run(argc, argv);
-    MPI_Finalize();
-    return result;
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:213e995ec815a319a8683c17bd4fc56c8cc3130dc48d6533391c8a0f945c3455
+size 222

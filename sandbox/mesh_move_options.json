@@ -1,24 +1,3 @@
-{
-    "mesh": {
-       "file": "../../sandbox/move_box.smb"
-    },
-    "model-file-old": "../../sandbox/move_box.egads",
-    "model-file-new": "../../sandbox/move_box_2.egads",
-    "tess-file-old": "../../sandbox/move_box.eto",
-    "space-dis": {
-       "basis-type": "H1",
-       "degree": 1
-    },
-    "steady": true,
-    "lin-solver": {
-       "rel-tol": 1e-8,
-       "abs-tol": 0.0,
-       "print-lvl": 0,
-       "max-iter": 500
-    },
-    "uniform-stiff": {
-      "on": true,
-      "lambda": 1,
-      "mu": 1
-    }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:53a423e9ccdef8da7be5188387e6fe920a52f285b528b632dadaa00254093a3d
+size 521

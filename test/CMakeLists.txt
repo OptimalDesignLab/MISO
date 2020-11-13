@@ -1,14 +1,3 @@
-if(NOT TARGET Catch)
-   add_library(Catch INTERFACE)
-   target_include_directories(Catch INTERFACE "${CMAKE_SOURCE_DIR}/test") 
-   # target_sources(Catch INTERFACE catch.hpp)
-endif()
-
-#set(UNIT_TESTS unit)
-#add_custom_target("${UNIT_TESTS}")
-add_subdirectory(unit)
-
-#set(REGRESSION_TESTS regression)
-#add_custom_target("${REGRESSION_TESTS}")
-add_subdirectory(regression)
-
+version https://git-lfs.github.com/spec/v1
+oid sha256:25f0a9338d782237ba48418de648a7e67f8cda52317360f29e7a138145ec8463
+size 372

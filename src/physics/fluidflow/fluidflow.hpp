@@ -1,14 +1,3 @@
-#ifndef MACH_FLUIDFLOW
-#define MACH_FLUIDFLOW
-
-#include "advection.hpp"
-#include "euler_fluxes.hpp"
-#include "euler_integ.hpp"
-#include "euler.hpp"
-#include "inviscid_integ.hpp"
-#include "navier_stokes_fluxes.hpp"
-#include "navier_stokes_integ.hpp"
-#include "navier_stokes.hpp"
-#include "viscous_integ.hpp"
-
-#endif
+version https://git-lfs.github.com/spec/v1
+oid sha256:515f22173c0444a554900d112866b23f9809aeba11e4fec33452498db40b4d43
+size 314

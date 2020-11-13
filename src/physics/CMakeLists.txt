@@ -1,21 +1,3 @@
-target_sources(mach
-   PRIVATE
-      diag_mass_integ.cpp
-      diag_mass_integ.hpp
-      physics.hpp
-      solver.cpp
-      solver.hpp
-      res_integ.cpp
-      res_integ.hpp
-)
-
-target_include_directories(mach
-   PUBLIC
-      "${CMAKE_CURRENT_SOURCE_DIR}"
-)
-
-add_subdirectory(electromagnetics)
-add_subdirectory(fluidflow)
-add_subdirectory(joule)
-add_subdirectory(meshmove)
-add_subdirectory(thermal)
+version https://git-lfs.github.com/spec/v1
+oid sha256:348f3df1702e7b96878f808fb48d141ddb1ecddefbe6fc018a24ab3b26ffb337
+size 399

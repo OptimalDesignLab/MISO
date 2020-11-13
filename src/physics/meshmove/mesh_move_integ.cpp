@@ -1,33 +1,3 @@
-#include "mfem.hpp"
-
-#include "mesh_move_integ.hpp"
-
-using namespace mfem;
-
-namespace mach
-{
-
-void ElasticityPositionIntegrator::AssembleElementVector(
-   const FiniteElement &el,
-   ElementTransformation &trans,
-   const Vector &elfun,
-   Vector &elvect)
-{
-   DenseMatrix elmat;
-   AssembleElementMatrix(el, trans, elmat);
-
-   Vector disp(elfun);
-
-   auto &iso_trans = *dynamic_cast<IsoparametricTransformation*>(&trans);
-   auto point_mat = iso_trans.GetPointMat();
-   point_mat.Transpose();
-   Vector point_vec(point_mat.GetData(),
-                    point_mat.Height()*point_mat.Width());
-
-   disp -= point_vec;
-
-   elvect.SetSize(elmat.Height());
-   elmat.Mult(disp, elvect);
-}
-
-} // namespace mach
+version https://git-lfs.github.com/spec/v1
+oid sha256:e3290ea8cf30439e598e4ffffbfd3fd737a9786624ad918186e48cc686f30ef4
+size 705
