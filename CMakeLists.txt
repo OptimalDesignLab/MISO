@@ -84,7 +84,7 @@ FetchContent_Declare(tinyspline
 
 set(TINYSPLINE_BUILD_EXAMPLES OFF)
 set(TINYSPLINE_BUILD_TESTS OFF)
-set(TINYSPLINE_BUILD_DOCS ON)
+set(TINYSPLINE_BUILD_DOCS OFF)
 FetchContent_MakeAvailable(tinyspline)
 set_target_properties(tinysplinecxx
    PROPERTIES 
