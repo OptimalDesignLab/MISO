@@ -47,3 +47,6 @@ include/*
 # python wrapper related files
 /mach/__pycache__
 /mach.egg-info
+
+# smb meshes in the sandbox
+sandbox/*.smb
