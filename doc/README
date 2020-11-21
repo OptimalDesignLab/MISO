@@ -1,3 +1,50 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ebda035e37bb8d028e40bc1a12790c0be0f219e0c1b57dbfd7b8c37fba1fe47b
-size 2281
+                                Flow Solver Library 
+                  /////////////////////////////////////////////
+                      **    **     *       *  *  *  *     *
+                      * *  * *    *  *     *        *     *
+                      *   *  *   * * * *   *        * * * *
+                      *      *  *       *  *  *  *  *     *     
+                  ////////////////////////////////////////////// 
+ 
+
+This directory contains Doxygen configuration files for building HTML and LaTeX
+documentation of the MACH sources.
+
+If not already available, Doxygen can be downloaded from
+
+   http://www.doxygen.org
+
+We recommend using version 1.8 or later.
+
+To build the documentation, simply type "make" in the doc/ directory. This will
+create the file CodeDocumentation.html, which can be viewed in any web browser and LaTeX 
+files can be used to create pdf. Both LaTeX and HTML documentation can be found in CodeDocumentation directory.
+***
+But in case there is addition of new directories, then "CodeDocumentation.conf.in" needs to 
+be modified a bit. The option to add input directories can be found around line 752 in the above file.
+In addition, there are options to change name, version of the project and EXCLUDE tag can be used to exclude files
+that you don't want to include in documentation. 
+***
+Note: In this case, doxygen configuration file is aviable already but if you want new configuration file;
+it can be generated using  "doxygen -g <config_file>" and use doxygen <config_file> to generate documentation. 
+
+Some building considerations:
+
+- To clean the (large) CodeDocumentation/ directory, type "make clean".
+
+- On Mac OS X, the command-line executable "doxygen", required to build the code
+  documentation, can be found inside the Doxygen application in
+
+     Doxygen.app/Contents/Resources/doxygen
+
+- The class inheritance and collaboration diagrams in the code documentation use
+  the directed graph visualization tool, DOT, which is part of the Graphviz
+  package. If not available (e.g. on Mac OS X), Graphviz can be downloaded from
+
+     http://www.graphviz.org
+
+- Formulas in the documentation are rendered using LaTeX. A popular choice for
+  TeX typesetting is the TeX Live distribution
+
+     http://www.tug.org/texlive
+              

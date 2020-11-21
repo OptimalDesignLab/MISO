@@ -1,3 +1,10 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:32f9ee8978ae028f45f867ebb8d11a60d0c3883cfcbb38d61c1f23c1c1dce7b3
-size 176
+#ifndef MACH_HPP
+#define MACH_HPP
+
+#include "src/common/common.hpp"
+#include "src/physics/physics.hpp"
+#include "src/utils/utilities.hpp"
+
+#include "build/_config.hpp"
+
+#endif

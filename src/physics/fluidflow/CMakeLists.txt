@@ -1,3 +1,30 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:7b506fba8e5dd4a268684dfd35f18a4062f33f2b1d3b7309b7bfb64198843c78
-size 627
+target_sources(mach
+   PRIVATE
+      advection.cpp
+      advection.hpp
+      euler_fluxes.hpp
+      euler_integ_def.hpp
+      euler_integ.hpp
+      euler_sens_integ.hpp
+      euler_sens_integ_def.hpp
+      euler.cpp
+      euler.hpp
+      fluidflow.hpp
+      galer_diff.cpp
+      galer_diff.hpp
+      inviscid_integ_def.hpp
+      inviscid_integ.hpp
+      navier_stokes_fluxes.hpp
+      navier_stokes_integ_def.hpp
+      navier_stokes_integ.hpp
+      navier_stokes.cpp
+      navier_stokes.hpp
+      viscous_integ_def.hpp
+      viscous_integ.hpp
+)
+
+target_include_directories(mach
+   PUBLIC
+      "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+

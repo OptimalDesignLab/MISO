@@ -1,3 +1,18 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:6b84a80fd5e14faea735f6217a45b047d0eae64415d8289b0fe408075bce2aad
-size 273
+target_sources(mach
+   PRIVATE
+      json.hpp
+      mach_types.hpp
+      utilities.hpp
+      utils.cpp
+      utils.hpp
+)
+
+target_include_directories(mach
+   PUBLIC
+     "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+if (MFEM_USE_EGADS)
+   add_subdirectory(EGADS)
+endif (MFEM_USE_EGADS)
+

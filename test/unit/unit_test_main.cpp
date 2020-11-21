@@ -1,3 +1,8 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:87c356efae1662a0651b1000b2cce2ba97031a8ac019203776055c0cd93ae28e
-size 235
+
+// In a Catch project with multiple files, dedicate one file to compile the
+// source code of Catch itself and reuse the resulting object file for linking.
+
+// Let Catch provide main():
+#define CATCH_CONFIG_MAIN
+
+#include "catch.hpp"

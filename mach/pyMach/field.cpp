@@ -1,3 +1,17 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:34e3de0ad08d5777fd7e8c3c188cf2574ed75161566316ed22c3be3ef93b03e8
-size 285
+#include <string>
+#include <sstream>
+
+#include <pybind11/pybind11.h>
+#include <pybind11/iostream.h>
+#include <pybind11/numpy.h>
+
+#include "mfem.hpp"
+
+namespace py = pybind11;
+
+using namespace mfem;
+
+void initField(py::module &m)
+{
+   py::class_<ParGridFunction, Vector>(m, "Field");
+}

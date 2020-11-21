@@ -1,3 +1,32 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:0f8774ee954e400927b73f24fca4f597de2322fd92c0695541ca29f4b066f9ab
-size 922
+#ifndef MACH_TYPES
+#define MACH_TYPES
+
+#include "mfem.hpp"
+
+namespace mach
+{
+
+// Aliases for various mfem types.
+// Originally used to distinguish between serial and parallel types
+#ifdef MFEM_USE_PUMI
+   using MeshType = mfem::ParMesh;
+#else
+   using MeshType = mfem::ParMesh;
+#endif
+   using SpaceType = mfem::ParFiniteElementSpace;
+   using LinearFormType = mfem::ParLinearForm;
+   using BilinearFormType = mfem::ParBilinearForm;
+   using NonlinearFormType = mfem::ParNonlinearForm;
+   using GridFunType = mfem::ParGridFunction;
+   using MatrixType = mfem::HypreParMatrix;
+   using SmootherType = mfem::HypreSmoother;
+   using DiscLinOperatorType = mfem::ParDiscreteLinearOperator;
+   using MixedBilinearFormType = mfem::ParMixedBilinearForm;
+   using CGType = mfem::HyprePCG;
+   using EMPrecType = mfem::HypreAMS;
+   using EMPrecType2 = mfem::HypreBoomerAMG;
+   using SolverType = CGType;
+
+} // namespace mach
+
+#endif

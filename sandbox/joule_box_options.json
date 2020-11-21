@@ -1,3 +1,80 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:cc7b8e10259e15ebf61e3cd8f9dfbf9a8ebb6313304417dca7b4de8a18f821d7
-size 1631
+{
+   "mesh": {
+      "out-file": "joule_box_out"
+   },
+   "em-opts": {
+      "space-dis": {
+         "basis-type": "nedelec",
+         "degree": 2
+      },
+      "steady": true,
+      "lin-solver": {
+         "type": "hypregmres",
+         "pctype": "hypreams",
+         "rel-tol": 1e-10,
+         "abs-tol": 0.0,
+         "printlevel": 2,
+         "maxiter": 50
+      },
+      "newton": {
+         "printlevel": 1,
+         "reltol": 1e-9
+      }
+   },
+   "thermal-opts": {
+      "space-dis": {
+         "basis-type": "H1",
+         "degree": 2
+      },
+      "steady": false,
+      "time-dis": {
+          "ode-solver": "MIDPOINT",
+          "const-cfl": true,
+          "cfl": 1.0,
+          "dt": 0.01,
+          "t-final": 1.0
+      },
+      "lin-solver": {
+         "type": "hypregmres",
+         "pctype": "hypreboomeramg",
+         "rel-tol": 1e-10,
+         "abs-tol": 0.0,
+         "print-lvl": 2,
+         "max-iter": 50
+      },
+      "newton": {
+         "printlevel": 1,
+         "reltol": 1e-9
+      },
+      "bcs": {
+         "outflux": [0, 0, 0, 1, 1, 0]
+      }
+   },
+   "components": {
+      "attr1": {
+         "material": "box1",
+         "attr": 1,
+         "linear": true
+      },
+      "attr2": {
+         "material": "box2",
+         "attr": 2,
+         "linear": true
+      }
+   },
+   "problem-opts" : {
+      "current": {
+         "box1": [1],
+         "box2": [2]
+      },
+      "box": true,
+      "fill-factor" : 1.0,
+      "current-density" : 1,
+      "frequency": 1500,
+      "const-flux" : true,
+      "const-val" : 1.0,
+      "rho-agg": 10,
+      "max-temp": 0.1,
+      "init-temp": 294.261
+   }
+}

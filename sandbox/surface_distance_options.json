@@ -1,3 +1,2 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:43e0e0c58248a994d03e6f9657225db5af7fb9fa6bc036dd5b1df2dc394e5adb
-size 105
+# This file is not used, but is needed because the sandbox examples expect each
+# to have an options file

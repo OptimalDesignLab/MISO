@@ -1,3 +1,28 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:2900eee9b5120428523db2d8708b17b21da8ff90db11f29e6834d1918996e978
-size 525
+target_sources(mach
+   PRIVATE
+      coefficient.cpp
+      coefficient.hpp
+      common.hpp
+      default_options.cpp
+      default_options.hpp
+      evolver.cpp
+      evolver.hpp
+      inexact_newton.cpp
+      inexact_newton.hpp
+      mfem_extensions.cpp
+      mfem_extensions.hpp
+      orthopoly.cpp
+      orthopoly.hpp
+      pfem_extras.cpp
+      pfem_extras.hpp
+      sbp_fe.cpp
+      sbp_fe.hpp
+      surface.hpp
+)
+
+target_include_directories(mach
+   PUBLIC
+      "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_subdirectory(data)

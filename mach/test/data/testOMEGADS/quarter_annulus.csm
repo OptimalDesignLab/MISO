@@ -1,3 +1,30 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ed0d77197a140fbd720aa00b197a27e54a7875dc08df187eb80285469a340c8c
-size 900
+# quarter_annulus.csm written by ocsmSave (v1.18)
+
+# Constant, Design, and Output Parameters:
+despmtr   thickness       3.00000
+
+# Global Attributes:
+attribute capsAIM   $egadsTessAIM;pumiAIM
+attribute capsMeshLength   1
+
+# Branches:
+skbeg     1   0   0   0
+   skvar     xy   1.000000;0.000000;-0.292893;4.000000;0.000000;0.000000;0.000000;4.000000;1.171573;0.000000;1.000000;0.000000;
+   skcon     X   1   -1  1
+   skcon     Y   1   -1  0
+   skcon     H   1   2  0
+   skcon     V   3   4  0
+   skcon     L   1   2  thickness
+   skcon     L   3   4  thickness
+   skcon     R   2   3  thickness+1
+   skcon     X   4   -1  0
+   skcon     Y   4   -1  1
+   skcon     R   4   1  -1
+   linseg    ::x[2]   ::y[2]   ::z[2]
+   arc       ::x[3]   ::y[3]   ::z[3]   ::d[3]   xy
+   linseg    ::x[4]   ::y[4]   ::z[4]
+   arc       ::x[1]   ::y[1]   ::z[1]   ::d[1]   xy
+skend     0
+attribute capsGroup   $qa
+
+end

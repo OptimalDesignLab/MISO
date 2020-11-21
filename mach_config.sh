@@ -1,3 +1,10 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:c788823ac59d5ef5669c48de18373dd8fd7b0c839c6d0057788f46090727c34b
-size 431
+cmake .. \
+ -DCMAKE_BUILD_TYPE=Debug \
+ -DADEPT_DIR="/users/babcot/Developer/adept-install/" \
+ -DMFEM_DIR="/users/bedong/Builds/mfem-install/" \
+ -DPUMI_DIR="/lore/babcot/core/build/install/" \
+ -DMFEM_USE_EGADS=YES \
+ -DEGADS_DIR="/lore/babcot/MeshGen/EngSketchPad/" \
+# -DEGADS_INCLUDE_DIR=/users/bedong/Builds/EngSketchPad/include \
+# -DEGADS_LIBRARY=/users/bedong/Builds/EngSketchPad/lib/libegads.so \
+ -DBUILD_TESTING="YES" 

@@ -1,3 +1,44 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:e4899a543d302e9061d54b4087586113c72d754146bfad017e8a17786f14fab6
-size 856
+{
+    "mesh": {
+       "file": "initial.mesh",
+       "num-edge": 20
+    },
+    "space-dis": {
+       "basis-type": "H1",
+       "degree": 2
+    },
+    "steady": false,
+    "time-dis": {
+        "const-cfl": true,
+        "cfl": 1.0,
+        "dt": 0.000001,
+        "t-final": 0.2
+    },
+    "lin-solver": {
+       "rel-tol": 1e-8,
+       "abs-tol": 0.0,
+       "print-lvl": 0,
+       "max-iter": 500
+    },
+    "motor-opts" : {
+       "current": 1,
+       "frequency": 1500
+    },
+    "components": {
+       "stator": {
+          "material": "testmat",
+          "attr": 1
+       },
+       "rotor": {
+          "material": "testmat",
+          "attr": 2
+       }
+    },
+    "bcs": {
+        "outflux": [0, 0, 1, 0, 1, 0],
+        "const": true,
+        "const-val": 1
+    },
+    "init-temp": 300,
+    "material-lib-path": "../src/material_options.json"
+ }

@@ -1,3 +1,64 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:8f61100f69ee2666243ac6d097e1ef29f3b2bf7fc0e26e8e20db8e59b5e70d3f
-size 1879
+function(create_tests source_list data_files)
+   foreach(X ${source_list})
+      add_executable("${X}.bin" "${X}.cpp" unit_test_main.cpp ${data_files})
+      add_dependencies(build_tests "${X}.bin")
+      target_link_libraries("${X}.bin" PRIVATE mach Catch)
+      target_include_directories("${X}.bin" PRIVATE "${CMAKE_SOURCE_DIR}")
+      add_test(NAME "${X}" COMMAND "${X}.bin") 
+   endforeach()
+endfunction(create_tests)
+
+function(create_mpi_tests source_list data_files)
+   foreach(X ${source_list})
+      add_executable("${X}.bin" "${X}.cpp" unit_test_mpi_main.cpp ${data_files})
+      add_dependencies(build_tests "${X}.bin")
+      target_link_libraries("${X}.bin" PRIVATE mach Catch)
+      target_include_directories("${X}.bin" PRIVATE "${CMAKE_SOURCE_DIR}")
+      add_test(NAME "${X}" COMMAND "${X}.bin") 
+   endforeach()
+endfunction(create_mpi_tests)
+
+# for all targets created in this file, include the main dir (containing mach.hpp)
+#include_directories(BEFORE ${PROJECT_SOURCE_DIR})
+
+# group together all fluids related tests
+set(FLUID_TEST_SRCS
+   test_euler_fluxes 
+   test_euler_integ
+   test_euler_assemble
+   test_euler_sens_integ
+   test_evolver
+   test_inexact_newton
+   test_navier_stokes_fluxes
+   test_navier_stokes_integ
+   test_navier_stokes_assemble
+   test_reconstruction
+   test_sbp_fe
+   test_viscous_integ
+   test_surface
+   test_utils
+   test_thermal_integ
+)
+
+# group EM tests
+set(EM_TEST_SRCS
+   test_electromag_integ
+)
+
+# group fluid MPI tests
+set(FLUID_MPI_TEST_SRCS
+   test_res_integ
+)
+
+# group EM MPI tests
+set(EM_MPI_TEST_SRCS
+   test_magnetostatic_solver
+   test_steinmetz_integ
+   test_coefficient
+)
+
+create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
+create_tests("${EM_TEST_SRCS}" electromag_test_data.hpp)
+
+create_mpi_tests("${EM_MPI_TEST_SRCS}" electromag_test_data.hpp)
+create_mpi_tests("${FLUID_MPI_TEST_SRCS}" euler_test_data.cpp)

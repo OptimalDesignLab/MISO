@@ -1,3 +1,17 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:e176827c47cdcaf084d7874ad335abc8c6f571eb2a83f78a3059ce5b4736916d
-size 304
+{
+   "mesh": {
+      "file": "kernel-lev-1.mesh",
+      "refine": 0
+   },
+   "model-file": "Test.dmg",
+   "space-dis": {
+      "degree": 1,
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
+   },
+   "time-dis": {
+      "ode-solver": "RK4", 
+      "dt": 0.047619047619047616,
+      "t-final": 1.0
+   }
+}
