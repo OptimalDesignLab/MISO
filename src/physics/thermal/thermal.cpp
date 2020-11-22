@@ -222,13 +222,13 @@ void ThermalSolver::terminalHook(int iter, double t_final,
 void ThermalSolver::solveUnsteady(ParGridFunction &state)
 {
    {
-      auto stein_field = getNewField();
-      stein_field->ProjectCoefficient(*coreloss);
-      auto i2r_field = getNewField();
-      i2r_field->ProjectCoefficient(*i2sigmainv);
-      printFields("loses",
-                  {stein_field.get(), i2r_field.get()},
-                  {"steinmetz", "i2r"});
+      // auto stein_field = getNewField();
+      // stein_field->ProjectCoefficient(*coreloss);
+      // auto i2r_field = getNewField();
+      // i2r_field->ProjectCoefficient(*i2sigmainv);
+      // printFields("loses",
+      //             {stein_field.get(), i2r_field.get()},
+      //             {"steinmetz", "i2r"});
    }
 
    AbstractSolver::solveUnsteady(state);

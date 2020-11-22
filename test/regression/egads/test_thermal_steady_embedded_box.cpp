@@ -61,7 +61,7 @@ auto current_options = R"(
       "essential": [1, 3, 6, 7, 10, 11, 12, 13]
    },
    "problem-opts": {
-      "keep-bndrys-adj-to": [2, 3],
+      "keep-bndrys": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
       "fill-factor": 1.0,
       "current-density": 1.2732395447351627e7,
       "frequency": 0,
@@ -73,49 +73,49 @@ auto current_options = R"(
    }
 })"_json;
 
-//       "keep-bndrys": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+      // "keep-bndrys-adj-to": [2, 3],
 
 /// NOTE: This test doesn't actually solve anything right now, since the
 /// initial condition is the exact solution the residual is zero and the newton
 /// solver doesn't run.
-// TEST_CASE("Thermal Solver Current Steady Regression Test",
-//           "[Thermal Steady Embedded Box]")
-// {
-//    auto temp0 = current_options["problem-opts"]["init-temp"].get<double>();
-//    double target_error[] {
-//       0.0133079447, 0.0
-//    };
+TEST_CASE("Thermal Solver Current Steady Regression Test",
+          "[Thermal Steady Embedded Box]")
+{
+   auto temp0 = current_options["problem-opts"]["init-temp"].get<double>();
+   double target_error[] {
+      0.0133079447, 0.0
+   };
 
-//    /// set correct current density source
-//    auto kappa = 4.01e2;
-//    auto sigma = 58.14e6;
-//    auto current_density = std::sqrt(4*kappa*sigma);
-//    current_options["problem-opts"]["current-density"] = current_density;
+   /// set correct current density source
+   auto kappa = 4.01e2;
+   auto sigma = 58.14e6;
+   auto current_density = std::sqrt(4*kappa*sigma);
+   current_options["problem-opts"]["current-density"] = current_density;
 
-//    for (int order = 1; order <= 2; ++order)
-//    {
-//       current_options["space-dis"]["degree"] = order;
+   for (int order = 1; order <= 2; ++order)
+   {
+      current_options["space-dis"]["degree"] = order;
  
-//       DYNAMIC_SECTION("...for order " << order)
-//       {
-//          // construct the solver, set the initial condition, and solve
-//          auto solver = createSolver<ThermalSolver>(current_options, nullptr);
-//          auto state = solver->getNewField();
+      DYNAMIC_SECTION("...for order " << order)
+      {
+         // construct the solver, set the initial condition, and solve
+         auto solver = createSolver<ThermalSolver>(current_options, nullptr);
+         auto state = solver->getNewField();
 
-//          auto u0 = [temp0](const Vector &x)
-//          {
-//             return -x(0)*x(0) - x(1)*x(1) + temp0;
-//          };
+         auto u0 = [temp0](const Vector &x)
+         {
+            return -x(0)*x(0) - x(1)*x(1) + temp0;
+         };
 
-//          solver->setInitialCondition(*state, u0);
+         solver->setInitialCondition(*state, u0);
 
-//          solver->solveForState(*state);
-//          double l2_error = solver->calcL2Error(state.get(), u0);
-//          std::cout << "l2_error: " << l2_error << "\n";
-//          REQUIRE(l2_error == Approx(target_error[order-1]).margin(1e-10));
-//       }
-//    }
-// }
+         solver->solveForState(*state);
+         double l2_error = solver->calcL2Error(state.get(), u0);
+         std::cout << "l2_error: " << l2_error << "\n";
+         REQUIRE(l2_error == Approx(target_error[order-1]).margin(1e-10));
+      }
+   }
+}
 
 // Provide the options explicitly for regression tests
 auto mag_options = R"(
@@ -170,7 +170,7 @@ auto mag_options = R"(
       "keep-bndrys-adj-to": [2, 3],
       "fill-factor": 1.0,
       "current-density": 0.0,
-      "frequency": 57.09806795649978,
+      "frequency": 91.64428855781742,
       "init-temp": 0.0
    },
    "external-fields": {
@@ -236,7 +236,7 @@ auto em_opts = R"(
    "problem-opts": {
       "fill-factor": 1.0,
       "current-density": 0.0,
-      "frequency": 57.09806795649978,
+      "frequency": 91.64428855781742,
       "init-temp": 0.0
    }
 })"_json;
@@ -267,7 +267,7 @@ TEST_CASE("Thermal Solver Mag-Field Steady Regression Test",
    VectorFunctionCoefficient internalState(3, initState);
    em_state->ProjectCoefficient(internalState);
 
-   for (int order = 1; order <= 2; ++order)
+   for (int order = 1; order <= 1; ++order)
    {
       mag_options["space-dis"]["degree"] = order;
  
