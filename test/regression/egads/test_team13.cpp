@@ -59,7 +59,7 @@ auto em_options = R"(
          "attrs": [1, 2]
       },
       "channel": {
-         "attrs": [6, 7],
+         "attrs": [4, 7],
          "material": "team13",
          "linear": false
       },
@@ -69,14 +69,14 @@ auto em_options = R"(
          "linear": false
       },
       "airgap": {
-         "attrs": [3, 8],
+         "attrs": [6, 8],
          "material": "air",
          "linear": true
       },
       "windings": {
          "material": "copperwire",
          "linear": true,
-         "attrs": [4]
+         "attrs": [3]
       }
    },
    "problem-opts": {

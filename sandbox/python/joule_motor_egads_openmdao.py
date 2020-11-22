@@ -287,7 +287,6 @@ thermal_options = {
         }
     },
     "problem-opts": {
-        "keep-bndrys-adj-to": [1, 2],
         "rho-agg": 10,
         "init-temp": 300,
         "fill-factor": 0.6,
@@ -327,7 +326,7 @@ thermal_options = {
         },
     },
     "bcs": {
-      "essential": [19, 20, 87, 88]
+      "essential": [1, 3]
     },
     "outflux-type": "test",
     "outputs": {
@@ -344,6 +343,7 @@ thermal_options = {
 }
 
 # faces for inner rotor yoke: 42, 43, 72, 73, 
+#"keep-bndrys-adj-to": [1, 2],
 
 if __name__ == "__main__":
     problem = om.Problem()
