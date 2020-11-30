@@ -6,8 +6,10 @@
 
 #include "magnetostatic.hpp"
 #include "solver.hpp"
+#include "evolver.hpp"
 #include "electromag_integ.hpp"
 #include "res_integ.hpp"
+#include "mfem_extensions.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -26,9 +28,39 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
    std::string material = component["material"].get<std::string>();
    if (!component["linear"].get<bool>())
    {
-      auto b = materials[material]["B"].get<std::vector<double>>();
-      auto h = materials[material]["H"].get<std::vector<double>>();
-      temp_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+      // std::unique_ptr<mfem::Coefficient> lin_coeff;
+      // std::unique_ptr<mach::StateCoefficient> nonlin_coeff;
+
+      // auto mu_r = materials[material]["mu_r"].get<double>();
+      // lin_coeff.reset(new mfem::ConstantCoefficient(1.0/(mu_r*mu_0)));
+
+      // if (material == "team13")
+      // {
+      //    nonlin_coeff.reset(new mach::team13ReluctivityCoefficient());
+      // }
+      // else
+      // {
+      //    auto b = materials[material]["B"].get<std::vector<double>>();
+      //    auto h = materials[material]["H"].get<std::vector<double>>();
+      //    nonlin_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+      // }
+
+      // temp_coeff.reset(
+      //    new mach::ParameterContinuationCoefficient(move(lin_coeff),
+      //                                               move(nonlin_coeff)));
+
+      // if (material == "team13")
+      // {
+      //    temp_coeff.reset(new mach::team13ReluctivityCoefficient());
+      // }
+      // else
+      // {
+         auto b = materials[material]["B"].get<std::vector<double>>();
+         auto h = materials[material]["H"].get<std::vector<double>>();
+         temp_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+      // }
+
+      
    }
    else
    {
@@ -511,8 +543,151 @@ void MagnetostaticSolver::setEssentialBoundaries()
    AbstractSolver::setEssentialBoundaries();
 }
 
-// void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
-// {
+void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
+{
+   double t = 0.0;
+   evolver->SetTime(t);
+   ode_solver->Init(*evolver);
+
+   // output the mesh and initial condition
+   // TODO: need to swtich to vtk for SBP
+   int precision = 8;
+   {
+      ofstream omesh("initial.mesh");
+      omesh.precision(precision);
+      mesh->Print(omesh);
+      ofstream osol("initial-sol.gf");
+      osol.precision(precision);
+      state.Save(osol);
+   }
+
+   /// TODO: put this in options
+   // bool paraview = !options["time-dis"]["steady"].get<bool>();
+   bool paraview = true;
+   std::unique_ptr<ParaViewDataCollection> pd;
+   if (paraview)
+   {
+      pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
+      pd->SetPrefixPath("ParaView");
+      pd->RegisterField("state", &state);
+      pd->RegisterField("B", B.get());
+      pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
+      pd->SetDataFormat(VTKFormat::BINARY);
+      pd->SetHighOrderOutput(true);
+      pd->SetCycle(0);
+      pd->SetTime(t);
+      pd->Save();
+   }
+
+   std::cout.precision(16);
+   std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+
+   auto residual = ParGridFunction(fes.get());
+   calcResidual(state, residual);
+   printFields("init", {&residual, &state}, {"Residual", "Solution"});
+
+   double t_final = options["time-dis"]["t-final"].template get<double>();
+   *out << "t_final is " << t_final << '\n';
+
+   int ti;
+   bool done = false;
+   double dt = 0.0;
+   initialHook(state);
+
+   // int max_iter = options["time-dis"]["max-iter"].get<int>();
+   // double dlambda = 1.0/(max_iter-1);
+
+   for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
+   {
+      // ParameterContinuationCoefficient::setLambda(ti*dlambda);
+      dt = calcStepSize(ti, t, t_final, dt, state);
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
+      if (!options["time-dis"]["steady"].get<bool>())
+         *out << " (" << round(100 * t / t_final) << "% complete)";
+      *out << endl;
+      iterationHook(ti, t, dt, state);
+      computeSecondaryFields(state);
+      HypreParVector *u_true = state.GetTrueDofs();
+      ode_solver->Step(*u_true, t, dt);
+      state = *u_true;
+
+      if (paraview)
+      {
+         pd->SetCycle(ti);
+         pd->SetTime(t);
+         pd->Save();
+      }
+      // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+
+      if (iterationExit(ti, t, t_final, dt, state)) break;
+   }
+   {
+      ofstream osol("final_before_TH.gf");
+      osol.precision(std::numeric_limits<long double>::digits10 + 1);
+      state.Save(osol);
+   }   
+   terminalHook(ti, t, state);
+
+   // Save the final solution. This output can be viewed later using GLVis:
+   // glvis -m unitGridTestMesh.msh -g adv-final.gf".
+   {
+      ofstream osol("final.gf");
+      osol.precision(std::numeric_limits<long double>::digits10 + 1);
+      state.Save(osol);
+   }
+   // write the solution to vtk file
+   if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
+   {
+      ofstream sol_ofs("final_cg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
+      state.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      printField("final", state, "Solution");
+   }
+   else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
+   {
+      ofstream sol_ofs("final_dg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
+      state.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      printField("final", state, "Solution");
+   }
+   // TODO: These mfem functions do not appear to be parallelized
+}
+
+void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
+{
+   // auto old_comps = options["components"];
+   // // std::cout << "old cops: " << setw(3) << old_comps << "\n";
+   // for (auto& component : options["components"])
+   // {
+   //    if (!component["linear"].get<bool>())
+   //    {
+   //       component["linear"] = true;
+   //    }
+   // }
+   // // std::cout << "old cops: " << setw(3) << old_comps << "\n";
+   // constructReluctivity();
+   // Array<NonlinearFormIntegrator*> &dnfi = *res->GetDNFI();
+   // delete dnfi[0];
+   // dnfi[0] = new CurlCurlNLFIntegrator(nu.get());
+   // // AbstractSolver::solveUnsteady(state);
+   // auto old_time_dis = options["time-dis"];
+   // options["time-dis"]["dt"] = 1e12;
+
+   // _solveUnsteady(state);
+
+   // options["time-dis"] = old_time_dis;
+   // options["components"] = old_comps;
+   // constructReluctivity();
+   // dnfi = *res->GetDNFI();
+   // delete dnfi[0];
+   // dnfi[0] = new CurlCurlNLFIntegrator(nu.get());
+   // // AbstractSolver::solveUnsteady(state);
+   _solveUnsteady(state);
+}
 //    *out << "Tucker: please check if the code below is needed" << endl;
 //    // if (newton_solver == nullptr)
 //    //    constructNewtonSolver();
@@ -584,6 +759,7 @@ void MagnetostaticSolver::constructForms()
    mass.reset(new BilinearFormType(fes.get()));
    res.reset(new NonlinearFormType(fes.get()));
    load.reset(new ParGridFunction(fes.get()));
+   ent.reset(new ParNonlinearForm(fes.get()));
 }
 
 GridFunction* MagnetostaticSolver::getMeshSensitivities()
@@ -823,14 +999,14 @@ void MagnetostaticSolver::setInitialCondition(
    ParGridFunction &state,
    const Vector &u_init)
 {
-   auto initState = [](const mfem::Vector &x, mfem::Vector &A)
-   {
-      A(0) = -0.5*x(1);
-      A(1) = 0.5*x(0);
-      A(2) = 0.0;
-   };
-   VectorFunctionCoefficient internalState(dim, initState);
-   state.ProjectCoefficient(internalState);
+   // auto initState = [](const mfem::Vector &x, mfem::Vector &A)
+   // {
+   //    A(0) = 0.5*x(1);
+   //    A(1) = -0.5*x(0);
+   //    A(2) = 0.0;
+   // };
+   // VectorFunctionCoefficient internalState(dim, initState);
+   // state.ProjectCoefficient(internalState);
 
    VectorConstantCoefficient u0(u_init);
    state.ProjectBdrCoefficientTangent(u0, ess_bdr);
@@ -842,14 +1018,14 @@ void MagnetostaticSolver::setInitialCondition(
 {
    state = 0.0;
 
-   auto initState = [](const mfem::Vector &x, mfem::Vector &A)
-   {
-      A(0) = -0.5*x(1);
-      A(1) = 0.5*x(0);
-      A(2) = 0.0;
-   };
-   VectorFunctionCoefficient internalState(dim, initState);
-   state.ProjectCoefficient(internalState);
+   // auto initState = [](const mfem::Vector &x, mfem::Vector &A)
+   // {
+   //    A(0) = -0.01*x(1);
+   //    A(1) = -0.01*x(0);
+   //    A(2) = 0.0;
+   // };
+   // VectorFunctionCoefficient internalState(dim, initState);
+   // state.ProjectCoefficient(internalState);
 
    VectorFunctionCoefficient u0(dim, u_init);
    state.ProjectBdrCoefficientTangent(u0, ess_bdr);
@@ -926,6 +1102,45 @@ double MagnetostaticSolver::calcStepSize(int iter,
       throw MachException("MagnetostaticSolver requires steady time-dis!\n");
 }
 
+unique_ptr<NewtonSolver> MagnetostaticSolver::constructNonlinearSolver(
+   nlohmann::json &_options, mfem::Solver &_lin_solver)
+{
+   std::string solver_type = _options["type"].get<std::string>();
+   double abstol = _options["abstol"].get<double>();
+   double reltol = _options["reltol"].get<double>();
+   int maxiter = _options["maxiter"].get<int>();
+   int ptl = _options["printlevel"].get<int>();
+   unique_ptr<NewtonSolver> nonlin_solver;
+   if (solver_type == "newton")
+   {
+      nonlin_solver.reset(new mfem::NewtonSolver(comm));
+   }
+   else if (solver_type == "relaxed-newton")
+   {
+      nonlin_solver.reset(new RelaxedNewton(comm));
+      RelaxedNewton *rnewton = dynamic_cast<RelaxedNewton*>(nonlin_solver.get());
+      rnewton->SetEnergyOperator(*ent);
+      /// TODO: this needs to be a true vec in parallel
+      rnewton->SetLoad(load.get());
+   }
+   else
+   {
+      throw MachException("Unsupported nonlinear solver type!\n"
+         "\tavilable options are: newton\n");
+   }
+   //double eta = 1e-1;
+   //newton_solver.reset(new InexactNewton(comm, eta));
+
+   nonlin_solver->iterative_mode = true;
+   nonlin_solver->SetSolver(dynamic_cast<Solver&>(_lin_solver));
+   nonlin_solver->SetPrintLevel(ptl);
+   nonlin_solver->SetRelTol(reltol);
+   nonlin_solver->SetAbsTol(abstol);
+   nonlin_solver->SetMaxIter(maxiter);
+
+   return nonlin_solver;
+}
+
 void MagnetostaticSolver::constructCoefficients()
 {
    div_free_current_vec.reset(new GridFunType(fes.get()));
@@ -959,6 +1174,11 @@ void MagnetostaticSolver::assembleLoadVector(double alpha)
    assembleCurrentSource();
    /// Assemble magnetization source vector and add it into current
    assembleMagnetizationSource();
+}
+
+void MagnetostaticSolver::addEntVolumeIntegrators()
+{
+   ent->AddDomainIntegrator(new MagneticEnergyIntegrator(nu.get()));
 }
 
 void MagnetostaticSolver::setStaticMembers()
@@ -1261,6 +1481,9 @@ void MagnetostaticSolver::assembleCurrentSource()
    ParGridFunction j(fes.get());
    // j = 0.0;
    j.ProjectCoefficient(*current_coeff);
+   ParGridFunction jhdiv(h_div_space.get());
+   jhdiv.ProjectCoefficient(*current_coeff);
+   printFields("jproj", {&j, &jhdiv}, {"jhcurl", "jhdiv"});
    {
       HypreParMatrix M;
       Vector X, RHS;
@@ -1289,6 +1512,8 @@ void MagnetostaticSolver::assembleCurrentSource()
    // Compute the discretely divergence-free portion of j
    *div_free_current_vec = 0.0;
    div_free_proj.Mult(j, *div_free_current_vec);
+
+   printFields("current", {&j, div_free_current_vec.get()}, {"jhcurl", "jdivfree"});
    
    *load = 0.0;
    h_curl_mass.AddMult(*div_free_current_vec, *load);

@@ -105,6 +105,8 @@ class omMachState(om.ImplicitComponent):
             solver.setInitialFieldValue(state, u_init)
         elif isinstance(u_init, Vector):
             solver.setInitialFieldVectorValue(state, u_init)
+        elif isinstance(u_init, FunctionType):
+            solver.setInitialFieldFunction(state, u_init)
 
         solver_options = solver.getOptions()
         if "external-fields" in solver_options:

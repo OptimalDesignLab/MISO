@@ -60,6 +60,9 @@ auto em_options = R"(
          "linear": true
       }
    },
+   "bcs": {
+      "essential": [1, 2, 3, 4]
+   },
    "problem-opts": {
       "fill-factor": 1.0,
       "current-density": 1.2732395447351627e7,

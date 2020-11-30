@@ -43,6 +43,8 @@ public:
       }
       if (load)
          load_tv = _mass->ParFESpace()->NewTrueDofVector();
+      else
+         load_tv = nullptr;
    }
 
    /// Compute r = N(x + dt_stage*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) + K@(x+dt*k) + l
@@ -136,7 +138,7 @@ public:
       dt_stage = _dt_stage;
    };
 
-   ~SystemOperator() { delete jac; delete load_tv; };
+   ~SystemOperator() { delete jac; if (load_tv) {delete load_tv;} };
 
 private:
    NonlinearFormType *nonlinear_mass;

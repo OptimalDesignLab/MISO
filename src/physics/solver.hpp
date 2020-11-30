@@ -267,6 +267,13 @@ public:
    /// \param[in] pert - function that defines the perturbation direction
    /// \note Compare the results of the project Jac*pert using the Jacobian
    /// directly versus a finite-difference based product.  
+   void checkJacobian(const mfem::ParGridFunction &state,
+                      std::function<double(const mfem::Vector &)> pert_fun);
+
+   /// Check the Jacobian using a finite-difference directional derivative
+   /// \param[in] pert - function that defines the perturbation direction
+   /// \note Compare the results of the project Jac*pert using the Jacobian
+   /// directly versus a finite-difference based product.  
    void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
    
    /// Evaluate and return the output functional specified by `fun`

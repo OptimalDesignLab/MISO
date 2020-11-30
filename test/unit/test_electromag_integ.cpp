@@ -6,70 +6,74 @@
 #include "electromag_integ.hpp"
 #include "electromag_test_data.hpp"
 
-// TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
-//           "[CurlCurlNLFIntegrator]")
-// {
-//    using namespace mfem;
-//    using namespace electromag_data;
+TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
+          "[CurlCurlNLFIntegrator]")
+{
+   using namespace mfem;
+   using namespace electromag_data;
 
-//    const int dim = 3;  // templating is hard here because mesh constructors
-//    // static adept::Stack diff_stack;
-//    double delta = 1e-5;
+   const int dim = 3;  // templating is hard here because mesh constructors
+   // static adept::Stack diff_stack;
+   double delta = 1e-5;
 
-//    // generate a 6 element mesh
-//    int num_edge = 1;
-//    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-//                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-//                               1.0, 1.0, true));
-//    for (int p = 1; p <= 4; ++p)
-//    {
-//       DYNAMIC_SECTION( "...for degree p = " << p )
-//       {
-//          std::unique_ptr<FiniteElementCollection> fec(
-//             new ND_FECollection(p, dim));
-//          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-//             mesh.get(), fec.get()));
+   int num_edge = 2;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
+                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
+                              1.0, 1.0, true));
+   mesh->ReorientTetMesh();
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new ND_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get()));
 
-//          NonlinearForm res(fes.get());
+         NonlinearForm res(fes.get());
 
-//          std::unique_ptr<mach::StateCoefficient> nu(
-//             new LinearCoefficient(1.0));
+         std::unique_ptr<mach::StateCoefficient> nu(
+            new LinearCoefficient(1.0));
 
-//          res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
+         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
 
-//          // initialize state; here we randomly perturb a constant state
-//          GridFunction q(fes.get());
-//          // I think this should be 1? Only have one DOF per "node"
-//          VectorFunctionCoefficient pert(1, randBaselineVectorPert);
-//          q.ProjectCoefficient(pert);
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         // I think this should be 1? Only have one DOF per "node"
+         VectorFunctionCoefficient pert(1, randBaselineVectorPert);
+         q.ProjectCoefficient(pert);
 
-//          // initialize the vector that the Jacobian multiplies
-//          GridFunction v(fes.get());
-//          VectorFunctionCoefficient v_rand(1, randVectorState);
-//          v.ProjectCoefficient(v_rand);
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(1, randVectorState);
+         v.ProjectCoefficient(v_rand);
 
-//          // evaluate the Jacobian and compute its product with v
-//          Operator& Jac = res.GetGradient(q);
-//          GridFunction jac_v(fes.get());
-//          Jac.Mult(v, jac_v);
+         // evaluate the Jacobian and compute its product with v
+         Operator& Jac = res.GetGradient(q);
+         GridFunction jac_v(fes.get());
+         Jac.Mult(v, jac_v);
 
-//          std::unique_ptr<mfem::Coefficient> nu_linear(
-//             new ConstantCoefficient(1.0));
-//          /// Bilinear Form
-//          BilinearForm blf(fes.get());
-//          blf.AddDomainIntegrator(new CurlCurlIntegrator(*nu_linear.get()));
+         GridFunction res_v(fes.get());
+         res.Mult(v, res_v);
 
-//          blf.Assemble();
-//          GridFunction blf_v(fes.get());
-//          blf.Mult(v, blf_v);
+         std::unique_ptr<mfem::Coefficient> nu_linear(
+            new ConstantCoefficient(1.0));
+         /// Bilinear Form
+         BilinearForm blf(fes.get());
+         blf.AddDomainIntegrator(new CurlCurlIntegrator(*nu_linear.get()));
 
-//          for (int i = 0; i < jac_v.Size(); ++i)
-//          {
-//             REQUIRE( jac_v(i) == Approx(blf_v(i)) );
-//          }
-//       }
-//    }
-// }
+         blf.Assemble();
+         GridFunction blf_v(fes.get());
+         blf.Mult(v, blf_v);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE( res_v(i) == Approx(blf_v(i)) );
+            REQUIRE( jac_v(i) == Approx(blf_v(i)) );
+         }
+      }
+   }
+}
 
 TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
           "[CurlCurlNLFIntegrator]")
@@ -82,10 +86,11 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
+   mesh->ReorientTetMesh();
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -103,8 +108,22 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
 
          res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
 
-         // initialize state; here we randomly perturb a constant state
+         // GridFunction A(fes.get());
+         // VectorFunctionCoefficient a0(3, [](const Vector &x, Vector &a)
+         // {
+         //    a(0) = -0.05*x(1);
+         //    a(1) = 0.05*x(0);
+         //    a(2) = 0.0;
+         // });
+         // A.ProjectCoefficient(a0);
+
+
          GridFunction q(fes.get());
+         // res.Mult(A, q);
+         // Operator& tJac = res.GetGradient(A);
+
+
+         // initialize state; here we randomly perturb a constant state
          VectorFunctionCoefficient pert(3, randBaselineVectorPert);
          q.ProjectCoefficient(pert);
 
@@ -146,10 +165,11 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
+   mesh->ReorientTetMesh();
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -209,10 +229,11 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleRHSElementVect",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
+   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -762,6 +783,139 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
 //    }
 // }
 
+TEST_CASE("LoadEnergyIntegrator::GetEnergy",
+          "[LoadEnergyIntegrator]")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 3;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
+                                       Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0,
+                                       true));
+   mesh->ReorientTetMesh();
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new ND_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get()));
+
+         NonlinearForm functional(fes.get());
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(3, randVectorState);
+         q.ProjectCoefficient(pert);
+
+         GridFunction load(fes.get());
+         load.ProjectCoefficient(pert);
+
+         functional.AddDomainIntegrator(
+            new mach::LoadEnergyIntegrator(&load));
+
+         // initialize the vector that dJdu multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(3, randVectorState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate product of load and v
+         GridFunction dJdu(load);
+         dJdu *= -1.0;
+         double dJdu_dot_v = InnerProduct(dJdu, v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q);
+         q_pert.Add(-delta, v);
+         double dJdu_dot_v_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, v);
+         dJdu_dot_v_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_v_fd /= (2 * delta);
+         std::cout << "dJdu_dot_v: " << dJdu_dot_v << "\n";         
+         std::cout << "dJdu_dot_v_fd: " << dJdu_dot_v_fd << "\n";
+         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
+      }
+   }
+}
+
+TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
+          "[MagneticEnergyIntegrator]")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 3;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
+                                       Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0,
+                                       true));
+   mesh->ReorientTetMesh();
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new ND_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get()));
+
+         NonlinearForm res(fes.get());
+         NonlinearForm functional(fes.get());
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(3, randVectorState);
+         q.ProjectCoefficient(pert);
+
+         GridFunction load(fes.get());
+         load.ProjectCoefficient(pert);
+
+         std::unique_ptr<mach::StateCoefficient> nu(
+            // new LinearCoefficient());
+            new NonLinearCoefficient());
+
+         res.AddDomainIntegrator(
+            new mach::CurlCurlNLFIntegrator(nu.get()));
+
+         functional.AddDomainIntegrator(
+            new mach::MagneticEnergyIntegrator(nu.get()));
+
+         // initialize the vector that dJdu multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(3, randVectorState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(fes.get());
+         res.Mult(q, dJdu);
+         dJdu -= load;
+         double dJdu_dot_v = InnerProduct(dJdu, v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q);
+         q_pert.Add(-delta, v);
+         double dJdu_dot_v_fd = -(functional.GetEnergy(q_pert) - load * q_pert);
+         q_pert.Add(2 * delta, v);
+         dJdu_dot_v_fd += functional.GetEnergy(q_pert) - load * q_pert;
+         dJdu_dot_v_fd /= (2 * delta);
+         std::cout << "dJdu_dot_v: " << dJdu_dot_v << "\n";         
+         std::cout << "dJdu_dot_v_fd: " << dJdu_dot_v_fd << "\n";
+         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
+      }
+   }
+}
+
 TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
           "[MagneticCoenergyIntegrator]")
 {
@@ -785,8 +939,6 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
             mesh.get(), fec.get()));
 
          NonlinearForm functional(fes.get());
-
-         const double scale = 0.01;
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());

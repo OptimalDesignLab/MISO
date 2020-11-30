@@ -133,6 +133,7 @@ private:
    void addMassIntegrators(double alpha) override;
    void addResVolumeIntegrators(double alpha) override;
    void assembleLoadVector(double alpha) override;
+   void addEntVolumeIntegrators() override;
 
    /// mark which boundaries are essential
    void setEssentialBoundaries() override;
@@ -151,11 +152,19 @@ private:
    void terminalHook(int iter, double t_final,
                      const mfem::ParGridFunction &state) override;
 
+   /// Constructs the nonlinear solver object
+   /// \param[in] options - options structure that determines the solver
+   /// \param[in] lin_solver - linear solver for the Newton steps
+   /// \returns unique pointer to the Newton solver object
+   std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
+      nlohmann::json &options, mfem::Solver &lin_solver) override;
+
    /// Create `output` based on `options` and add approporiate integrators
    void addOutputs() override;
 
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
-   // void solveUnsteady(mfem::ParGridFunction &state) override;
+   void solveUnsteady(mfem::ParGridFunction &state) override;
+   void _solveUnsteady(mfem::ParGridFunction &state);
 
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source

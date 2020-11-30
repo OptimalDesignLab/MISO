@@ -1,7 +1,10 @@
 #include <fstream>
+#include <unordered_set>
 
-#include "thermal.hpp"
+#include "mfem.hpp"
+
 #include "evolver.hpp"
+#include "thermal.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -425,41 +428,61 @@ void ThermalSolver::constructConductivity()
    }
 }
 
+void ThermalSolver::constructConvection()
+{
+   auto &bcs = options["bcs"];
+   if (bcs.contains("convection"))
+   {
+      if (options["problem-opts"].contains("convection-coeff"))
+      {
+         auto h = options["problem-opts"]["convection-coeff"].get<double>();
+         convection.reset(new ConstantCoefficient(h));
+      }
+      else
+      {
+         throw MachException("Using convection boundary condition without"
+                             "specifying heat transfer coefficient!\n");
+      }
+   }
+}
+
 void ThermalSolver::constructJoule()
 {
    i2sigmainv.reset(new MeshDependentCoefficient());
 
-   for (auto& component : options["components"])
+   if (options["problem-opts"].contains("current"))
    {
-      int attr = component.value("attr", -1);
-
-      std::string material = component["material"].get<std::string>();
-
-      /// todo use grid function?
-      auto current = options["problem-opts"]["current-density"].get<double>();
-      current *= options["problem-opts"]["fill-factor"].get<double>();
-
-      double sigma = materials[material].value("sigma", 0.0);
-
-      if (-1 != attr)
+      for (auto& component : options["components"])
       {
-         if (sigma > 1e-12)
-         {
-            std::unique_ptr<mfem::Coefficient> temp_coeff;
-            temp_coeff.reset(new ConstantCoefficient(-current*current/sigma));
-            i2sigmainv->addCoefficient(attr, move(temp_coeff));
-         }
-      }
-      else
-      {
-         auto attrs = component["attrs"].get<std::vector<int>>();
-         for (auto& attribute : attrs)
+         int attr = component.value("attr", -1);
+
+         std::string material = component["material"].get<std::string>();
+
+         auto current = options["problem-opts"]["current-density"].get<double>();
+         current *= options["problem-opts"].value("fill-factor", 1.0);
+
+         double sigma = materials[material].value("sigma", 0.0);
+
+         if (-1 != attr)
          {
             if (sigma > 1e-12)
             {
                std::unique_ptr<mfem::Coefficient> temp_coeff;
                temp_coeff.reset(new ConstantCoefficient(-current*current/sigma));
-               i2sigmainv->addCoefficient(attribute, move(temp_coeff));
+               i2sigmainv->addCoefficient(attr, move(temp_coeff));
+            }
+         }
+         else
+         {
+            auto attrs = component["attrs"].get<std::vector<int>>();
+            for (auto& attribute : attrs)
+            {
+               if (sigma > 1e-12)
+               {
+                  std::unique_ptr<mfem::Coefficient> temp_coeff;
+                  temp_coeff.reset(new ConstantCoefficient(-current*current/sigma));
+                  i2sigmainv->addCoefficient(attribute, move(temp_coeff));
+               }
             }
          }
       }
@@ -618,6 +641,7 @@ void ThermalSolver::constructCoefficients()
    constructMassCoeff();
    // constructHeatCoeff();
    constructConductivity();
+   constructConvection();
    constructJoule();
    constructCore();
 }
@@ -637,6 +661,33 @@ void ThermalSolver::addMassIntegrators(double alpha)
 void ThermalSolver::addResVolumeIntegrators(double alpha)
 {
    res->AddDomainIntegrator(new DiffusionIntegrator(*kappa));
+}
+
+void ThermalSolver::addResBoundaryIntegrators(double alpha)
+{
+   if (convection)
+   {
+      auto &bcs = options["bcs"];
+      auto conv_bdr = bcs["convection"].get<std::vector<int>>();
+
+      int source = conv_bdr[0];
+      std::unordered_set<int> conv_faces(conv_bdr.begin()+1, conv_bdr.end());
+
+      double ambient_temp = options["problem-opts"]["init-temp"].get<double>();
+      // res->AddBdrFaceIntegrator(new InteriorBoundaryOutFluxInteg(*kappa,
+      //                                                            *convection,
+      //                                                            source,
+      //                                                            ambient_temp),
+      //                                                            conv_faces);
+      res->AddInteriorFaceIntegrator(
+         new InteriorBoundaryOutFluxInteg(*kappa,
+                                          *convection,
+                                          source,
+                                          ambient_temp,
+                                          conv_faces,
+                                          pumi_mesh.get()));
+      
+   }
 }
 
 void ThermalSolver::addLoadVolumeIntegrators(double alpha)

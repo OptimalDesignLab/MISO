@@ -18,7 +18,7 @@ auto em_options = R"(
    "silent": false,
    "print-options": false,
    "mesh": {
-      "file": "data/ser_team13.smb",
+      "file": "data/team13.smb",
       "model-file": "data/team13.egads"
    },
    "space-dis": {
@@ -27,30 +27,30 @@ auto em_options = R"(
    },
    "time-dis": {
       "steady": true,
-      "steady-abstol": 1e-8,
-      "steady-reltol": 1e-8,
+      "steady-abstol": 5e-3,
+      "steady-reltol": 5e-6,
       "ode-solver": "PTC",
-      "t-final": 100,
       "dt": 1e12,
-      "max-iter": 2
+      "res-exp": 2.0,
+      "max-iter": 20
    },
    "lin-solver": {
       "type": "hypregmres",
-      "printlevel": 0,
-      "maxiter": 100,
-      "abstol": 1e-14,
-      "reltol": 1e-14
+      "printlevel": -1,
+      "maxiter": 250,
+      "abstol": 1e-8,
+      "reltol": 1e-10
    },
    "lin-prec": {
       "type": "hypreams",
       "printlevel": 0
    },
    "nonlin-solver": {
-      "type": "newton",
+      "type": "relaxed-newton",
       "printlevel": 3,
       "maxiter": 50,
-      "reltol": 1e-10,
-      "abstol": 1e-8
+      "reltol": 5e-6,
+      "abstol": 1e-3
    },
    "components": {
       "farfields": {
@@ -59,39 +59,42 @@ auto em_options = R"(
          "attrs": [1, 2]
       },
       "channel": {
-         "attrs": [4, 7],
+         "attrs": [3, 5],
          "material": "team13",
          "linear": false
       },
       "center": {
-         "attr": 5,
+         "attr": 6,
          "material": "team13",
          "linear": false
       },
       "airgap": {
-         "attrs": [6, 8],
+         "attrs": [7, 8],
          "material": "air",
          "linear": true
       },
       "windings": {
          "material": "copperwire",
          "linear": true,
-         "attrs": [3]
+         "attrs": [4]
       }
    },
    "problem-opts": {
       "fill-factor": 1.0,
-      "current-density": 1200000,
+      "current-density": 400000,
       "current": {
          "team13": [4]
       }
+   },
+   "bcs": {
+      "essential": [32, 33]
    },
    "outputs": {
       "co-energy": {}
    }
 })"_json;
 
-// area = 0.1 * 0.0025
+// area = 0.1 * 0.025
 // current = 1000 or 3000 AT
 
 TEST_CASE("TEAM 13 Nonlinear Magnetostatic Benchmark Regression Test",
@@ -100,20 +103,20 @@ TEST_CASE("TEAM 13 Nonlinear Magnetostatic Benchmark Regression Test",
    auto em_solver = createSolver<MagnetostaticSolver>(em_options);
    auto em_state = em_solver->getNewField();
 
-   auto uinit = [](const mfem::Vector &x, mfem::Vector &A)
+   em_solver->setInitialCondition(*em_state,
+                                  [](const mfem::Vector &x, mfem::Vector &A)
    {
       A = 0.0;
-   };
-   em_solver->setInitialCondition(*em_state, uinit);
+   });
 
-   int rank;
-   auto comm = MPI_COMM_WORLD;
-   MPI_Comm_rank(comm, &rank);
-   HypreParVector *u_true = em_state->GetTrueDofs();
-   std::cout.precision(16);
-   std::cout << "res norm: " << em_solver->calcResidualNorm(*em_state) << "\n";
-   // std::cout << "u0 norm: " << std::sqrt(em_solver->calcInnerProduct(*em_state, *em_state)) << "\n";
-   std::cout << "u0 norm: " << std::sqrt(InnerProduct(comm, *u_true, *u_true)) << "\n";
+   // int rank;
+   // auto comm = MPI_COMM_WORLD;
+   // MPI_Comm_rank(comm, &rank);
+   // HypreParVector *u_true = em_state->GetTrueDofs();
+   // std::cout.precision(16);
+   // std::cout << "res norm: " << em_solver->calcResidualNorm(*em_state) << "\n";
+   // // std::cout << "u0 norm: " << std::sqrt(em_solver->calcInnerProduct(*em_state, *em_state)) << "\n";
+   // std::cout << "u0 norm: " << std::sqrt(InnerProduct(comm, *u_true, *u_true)) << "\n";
 
    em_solver->solveForState(*em_state);
    em_solver->printSolution("em_sol");

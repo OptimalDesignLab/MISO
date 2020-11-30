@@ -24,21 +24,46 @@ namespace mach
 class StateCoefficient : public mfem::Coefficient
 {
 public:
-	virtual double Eval(mfem::ElementTransformation &trans,
-                       const mfem::IntegrationPoint &ip)
+   virtual double Eval(mfem::ElementTransformation &trans,
+                     const mfem::IntegrationPoint &ip)
    {
       return Eval(trans, ip, 0);
    }
 
-	virtual double Eval(mfem::ElementTransformation &trans,
-							  const mfem::IntegrationPoint &ip,
-							  const double state) = 0;
+   virtual double Eval(mfem::ElementTransformation &trans,
+                     const mfem::IntegrationPoint &ip,
+                     const double state) = 0;
 
-	virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
-											const mfem::IntegrationPoint &ip,
-											const double state) = 0;
+   virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
+                                 const mfem::IntegrationPoint &ip,
+                                 const double state) = 0;
 };
 
+class ParameterContinuationCoefficient : public StateCoefficient
+{
+public:
+   ParameterContinuationCoefficient(std::unique_ptr<mfem::Coefficient> lin,
+                                    std::unique_ptr<StateCoefficient> nonlin)
+   :  linear(move(lin)), nonlinear(move(nonlin))
+   { }
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override;
+
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         const double state) override;
+
+   inline static void setLambda(double _lambda) {lambda = _lambda;}
+   inline static double getLambda() {return lambda;}
+
+private:
+   static double lambda;
+
+   std::unique_ptr<mfem::Coefficient> linear;
+   std::unique_ptr<StateCoefficient> nonlinear;
+};
 
 /// MeshDependentCoefficient
 /// A class that contains a map of material attributes and coefficients to
@@ -335,6 +360,32 @@ protected:
    tinyspline::BSpline nu;
    /// spline representing d^2H(B)/dB^2
    tinyspline::BSpline dnudb;
+};
+
+class team13ReluctivityCoefficient : public StateCoefficient
+{
+public:
+   /// \brief Define a reluctivity model for the team13 steel
+   team13ReluctivityCoefficient()
+	{std::cout << "using team13 coeff!\n";};
+
+   /// \brief Evaluate the reluctivity in the element described by trans at the
+   /// point ip.
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override;
+
+   /// \brief Evaluate the derivative of reluctivity with respsect to magnetic
+   /// flux in the element described by trans at the point ip.
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                        const mfem::IntegrationPoint &ip,
+                        const double state) override;
 };
 
 class VectorMeshDependentCoefficient : public mfem::VectorCoefficient

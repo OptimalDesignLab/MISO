@@ -85,6 +85,8 @@ private:
    std::unique_ptr<MeshDependentCoefficient> rho_cv;
    /// mesh dependent thermal conductivity tensor
    std::unique_ptr<MeshDependentCoefficient> kappa;
+   /// convective heat transfer coefficient
+   std::unique_ptr<mfem::ConstantCoefficient> convection;
    /// mesh dependent i^2(1/sigma) term (purely scalar)
    std::unique_ptr<MeshDependentCoefficient> i2sigmainv;
    /// mesh dependent core losses term
@@ -94,6 +96,8 @@ private:
    /// natural bc coefficient
    std::unique_ptr<mfem::VectorCoefficient> flux_coeff;
 
+   /// TODO: use bndry_marker instead
+   // mfem::Array<int> conv_faces;
 
    /// essential boundary condition marker array (not using )
    std::unique_ptr<mfem::Coefficient> bc_coef;
@@ -129,6 +133,8 @@ private:
    void constructMassCoeff();
    /// construct mesh dependent coefficient for conductivity
    void constructConductivity();
+   /// construct coefficient for convective cooling
+   void constructConvection();
    /// construct mesh dependent coefficient for joule heating
    void constructJoule();
    /// construct mesh dependent coefficient for core loss heating
@@ -141,6 +147,7 @@ private:
 
    void addMassIntegrators(double alpha) override;
    void addResVolumeIntegrators(double alpha) override;
+   void addResBoundaryIntegrators(double alpha) override;
    void addLoadVolumeIntegrators(double alpha) override;
    void addLoadBoundaryIntegrators(double alpha) override;
    void constructEvolver() override;

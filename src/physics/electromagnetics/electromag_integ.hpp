@@ -363,12 +363,13 @@ private:
 
 };
 
-/// Integrator to compute the magnetic energy
-class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
+class LoadEnergyIntegrator: public mfem::NonlinearFormIntegrator
 {
 public:
-   /// \param[in] nu - model describing reluctivity
-   MagneticEnergyIntegrator(StateCoefficient *_nu) : nu(_nu) {};
+   /// \param[in] J - current load vector
+   LoadEnergyIntegrator(mfem::GridFunction *_J)
+   : J(_J)
+   { }
 
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
@@ -378,12 +379,65 @@ public:
                            const mfem::Vector &elfun) override;
 
 private:
+   /// Current source load vector
+   mfem::GridFunction *J;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix vshape, vshape_dFt, M;
+   mfem::Vector b_vec;
+#endif
+
+};
+
+/// Integrator to compute the magnetic energy
+class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// \param[in] nu - model describing reluctivity
+   MagneticEnergyIntegrator(StateCoefficient *_nu)
+   : nu(_nu), J(nullptr)
+   { }
+
+   /// \param[in] nu - model describing reluctivity
+   /// \param[in] J - current load vector
+   MagneticEnergyIntegrator(StateCoefficient *_nu,
+                            mfem::GridFunction *_J)
+   : nu(_nu), J(_J)
+   { }
+
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   // /// \brief - assemble an element's contribution to
+   // ///          \frac{\partial J}{\partial u}, needed to solve for the adjoint
+   // /// \param[in] el - the finite element
+   // /// \param[in] trans - defines the reference to physical element mapping
+   // /// \param[in] elfun - state vector of the element
+   // /// \param[out] elvect - \partial J \partial u for this functional
+   // void AssembleElementVector(const mfem::FiniteElement &el, 
+   //                            mfem::ElementTransformation &trans,
+   //                            const mfem::Vector &elfun,
+   //                            mfem::Vector &elvect) override;
+
+private:
    /// material (thus mesh) dependent model describing reluctivity
    StateCoefficient *nu;
+   /// Current source load vector -- if exists, functional is W - J \cdot A
+   mfem::GridFunction *J;
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
    mfem::Vector b_vec;
 #endif
+
+   /// integrate H dB (nuB dB)
+   double integrateHdB(const mfem::IntegrationRule *ir,
+                      mfem::ElementTransformation &trans,
+                      const mfem::IntegrationPoint &old_ip,
+                      double lower_bound,
+                      double upper_bound);
 };
 
 /// Integrator to compute the magnetic co-energy

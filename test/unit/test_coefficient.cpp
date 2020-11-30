@@ -5,6 +5,7 @@
 #include "json.hpp"
 
 #include "coefficient.hpp"
+#include "material_library.hpp"
 
 #include "electromag_test_data.hpp"
 
@@ -452,4 +453,74 @@ TEST_CASE("SteinmetzVectorDiffCoefficient::Eval",
    }
 }
 
+TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
+          "[ReluctivityCoefficient]")
+{
+   using namespace mfem;
+   using namespace mach;
 
+   constexpr double eps_fd = 1e-5;
+   constexpr int dim = 3;
+
+   std::stringstream meshStr;
+   meshStr << two_tet_mesh_str;
+   Mesh mesh(meshStr);
+
+   /// Costruct coefficient
+   for (int p = 1; p <= 1; p++)
+   {
+      /// construct elements
+      ND_FECollection fec(p, dim);
+      FiniteElementSpace fes(&mesh, &fec);
+
+      GridFunction A(&fes);
+      VectorFunctionCoefficient pert(dim, [](const Vector &x, Vector &A)
+      {
+         A(0) = -0.5*x(1);
+         A(1) = 0.1*x(0);
+         A(2) = 0.0;
+      });
+      A.ProjectCoefficient(pert);
+
+
+      auto b = material_library["team13"]["B"].get<std::vector<double>>();
+      auto h = material_library["team13"]["H"].get<std::vector<double>>();
+      mach::ReluctivityCoefficient coeff(b, h);
+
+      for (int j = 0; j < fes.GetNE(); j++)
+      {
+
+         const FiniteElement &el = *fes.GetFE(j);
+
+         IsoparametricTransformation trans;
+         mesh.GetElementTransformation(j, &trans);
+
+         const IntegrationRule *ir = NULL;
+         {
+            int order = trans.OrderW() + 2 * el.GetOrder();
+            ir = &IntRules.Get(el.GetGeomType(), order);
+         }
+
+         for (int i = 0; i < ir->GetNPoints(); i++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(i);
+
+            trans.SetIntPoint(&ip);
+            Vector b_vec;
+            A.GetCurl(trans, b_vec);
+
+            auto b_mag = b_vec.Norml2();
+
+            double dnudB = coeff.EvalStateDeriv(trans, ip, b_mag);
+
+            double dnudB_fd = -coeff.Eval(trans, ip, b_mag - eps_fd);
+            dnudB_fd += coeff.Eval(trans, ip, b_mag + eps_fd);
+            dnudB_fd /= (2* eps_fd);
+
+            std::cout << "dnudB: " << dnudB << "\n";
+            std::cout << "dnudB_fd: " << dnudB_fd << "\n";
+            REQUIRE(dnudB == Approx(dnudB_fd));
+         }
+      }
+   }
+}

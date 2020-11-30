@@ -510,11 +510,11 @@ void AbstractSolver::setInitialCondition(
    ParGridFunction &state,
    const std::function<double(const mfem::Vector &)> &u_init)
 {
-   state = 0.0;
+   // state = 0.0;
    FunctionCoefficient u0(u_init);
-   // state.ProjectCoefficient(u0);
-   state.ProjectBdrCoefficient(u0, ess_bdr);
-   std::cout << "ess_bdr: "; ess_bdr.Print();
+   state.ProjectCoefficient(u0);
+   // state.ProjectBdrCoefficient(u0, ess_bdr);
+   // std::cout << "ess_bdr: "; ess_bdr.Print();
 }
 
 void AbstractSolver::setInitialCondition(
@@ -1254,7 +1254,8 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    }
 
    /// TODO: put this in options
-   bool paraview = !options["time-dis"]["steady"].get<bool>();
+   // bool paraview = !options["time-dis"]["steady"].get<bool>();
+   bool paraview = true;
    std::unique_ptr<ParaViewDataCollection> pd;
    if (paraview)
    {
@@ -1403,6 +1404,17 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    {
       lin_solver.reset(new HypreGMRES(comm));
       HypreGMRES *gmres = dynamic_cast<HypreGMRES*>(lin_solver.get());
+      gmres->SetTol(reltol);
+      gmres->SetMaxIter(maxiter);
+      gmres->SetPrintLevel(ptl);
+      gmres->SetPreconditioner(dynamic_cast<HypreSolver&>(_prec));
+      if (kdim != -1)
+         gmres->SetKDim(kdim); // set GMRES subspace size
+   }
+   else if (solver_type == "mhypregmres")
+   {
+      lin_solver.reset(new MHypreGMRES(comm));
+      MHypreGMRES *gmres = dynamic_cast<MHypreGMRES*>(lin_solver.get());
       gmres->SetTol(reltol);
       gmres->SetMaxIter(maxiter);
       gmres->SetPrintLevel(ptl);
@@ -1580,6 +1592,99 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
       std::cerr << exception.what() << endl;
       return -1.0;
    }
+}
+
+void AbstractSolver::checkJacobian(
+   const ParGridFunction &state,
+   std::function<double(const Vector &)> pert_fun)
+{
+   // initialize some variables
+   const double delta = 1e-5;
+
+   GridFunType u_plus(state);
+   GridFunType u_minus(state);
+   GridFunType pert_vec(fes.get());
+   FunctionCoefficient up(pert_fun);
+   pert_vec.ProjectCoefficient(up);
+
+   Array<int> ess_tdof_list;
+   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   pert_vec.SetSubVector(ess_tdof_list, 0.0);
+
+   // perturb in the positive and negative pert_vec directions
+   u_plus.Add(delta, pert_vec);
+   u_minus.Add(-delta, pert_vec);
+
+   // Get the product using a 2nd-order finite-difference approximation
+   GridFunType res_plus(fes.get());
+   GridFunType res_minus(fes.get());
+
+   calcResidual(u_plus, res_plus);
+   calcResidual(u_minus, res_minus);
+   // res_plus = 1/(2*delta)*(res_plus - res_minus)
+   subtract(1/(2*delta), res_plus, res_minus, res_plus);
+
+   // Get the product directly using Jacobian from GetGradient
+   GridFunType jac_v(fes.get());
+   HypreParVector *u_true = state.GetTrueDofs();
+   HypreParVector *pert = pert_vec.GetTrueDofs();
+   HypreParVector *prod = jac_v.GetTrueDofs();
+   mfem::Operator &jac = res->GetGradient(*u_true);
+   jac.Mult(*pert, *prod);
+   jac_v.SetFromTrueDofs(*prod);
+
+   // check the difference norm
+   jac_v -= res_plus;
+   double error = calcInnerProduct(jac_v, jac_v);
+   *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+   // for (int i = 0; i < jac_v.Size(); ++i)
+   // {
+   //    if (jac_v(i) > 1e-6)
+   //       *out << "jac_v(" << i << "): " << jac_v(i) << "\n";
+   // }
+
+
+   // ParGridFunction real_res(fes.get());
+   // ParGridFunction zero_res(fes.get());
+   // ParGridFunction jac_temp(fes.get());
+   // ParGridFunction zero_state(fes.get());
+   // zero_state = 0.0;
+
+   // calcResidual(state, real_res);
+   // calcResidual(zero_state, zero_res);
+
+   // Array<int> ess_tdof_list;
+   // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   // zero_res.SetSubVector(ess_tdof_list, 100.0);
+
+   // auto *real_res_true = real_res.GetTrueDofs();
+   // auto *zero_res_true = zero_res.GetTrueDofs();
+
+
+
+   // auto *u_true = state.GetTrueDofs();
+   // mfem::Operator &jac = res->GetGradient(*u_true);
+   // auto *jac_temp_true = jac_temp.GetTrueDofs();
+   // jac.Mult(*u_true, *jac_temp_true);
+
+   // jac_temp.SetFromTrueDofs(*jac_temp_true);
+
+   // printFields("real_res", {&real_res, &jac_temp, &zero_res}, {"res", "jac_temp", "zero_res"});
+
+   // real_res -= jac_temp;
+   // real_res += zero_res;
+
+   // // *real_res_true -= *jac_temp_true;
+   // // *real_res_true += *zero_res_true;
+
+   // printField("res_diff", real_res, "res");
+
+   // double norm = calcInnerProduct(real_res, real_res);
+   // // double norm = *real_res_true * *real_res_true;
+   // *out << "The norm is " << sqrt(norm) << endl;
+   
+
+
 }
 
 void AbstractSolver::checkJacobian(

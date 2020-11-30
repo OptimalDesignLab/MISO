@@ -5,6 +5,25 @@ using namespace mfem;
 namespace mach
 {
 
+double ParameterContinuationCoefficient::lambda = 0.0;
+
+double ParameterContinuationCoefficient::Eval(ElementTransformation &trans,
+                                              const IntegrationPoint &ip,
+                                              const double state)
+{
+   const double lin_comp = (1 - lambda) * linear->Eval(trans, ip);
+   const double nonlin_comp = lambda * nonlinear->Eval(trans, ip, state);
+   return lin_comp + nonlin_comp;
+}
+
+double ParameterContinuationCoefficient::EvalStateDeriv(
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   const double state)
+{
+   return lambda * nonlinear->EvalStateDeriv(trans, ip, state);
+}
+
 double MeshDependentCoefficient::Eval(ElementTransformation &trans,
                                     const IntegrationPoint &ip)
 {
@@ -119,19 +138,28 @@ void MeshDependentCoefficient::EvalRevDiff(
 
 ReluctivityCoefficient::ReluctivityCoefficient(const std::vector<double> &B,
                                                const std::vector<double> &H)
-   : b_max(B[B.size()-1]), b_h(B.size())
+   : b_max(B[B.size()-1]), nu(H.size(), 1, 3)
 {
-   /// set control points of B-H spline
-   auto ctrlp = b_h.controlPoints();
-   for (size_t i = 0; i < B.size(); ++i)
-   {
-      ctrlp[2*i] = B[i];
-      ctrlp[(2*i) + 1] = H[i];
-   }
-   b_h.setControlPoints(ctrlp);
+   // /// set control points of B-H spline
+   // auto ctrlp = b_h.controlPoints();
+   // for (size_t i = 0; i < B.size(); ++i)
+   // {
+   //    ctrlp[2*i] = B[i];
+   //    ctrlp[(2*i) + 1] = H[i];
+   // }
+   // b_h.setControlPoints(ctrlp);
 
-   /// take derivatives of B-H curve
-   nu = b_h.derive();
+   // /// take derivatives of B-H curve
+   // nu = b_h.derive();
+   // dnudb = nu.derive();
+
+   std::vector<double> knots(B);
+   for (int i = 0; i < B.size(); ++i)
+   {
+      knots[i] = knots[i] / b_max;
+   }
+   nu.setControlPoints(H);
+   nu.setKnots(knots);
    dnudb = nu.derive();
 }
 
@@ -139,11 +167,14 @@ double ReluctivityCoefficient::Eval(ElementTransformation &trans,
                                     const IntegrationPoint &ip,
                                     const double state)
 {
+   // std::cout << "eval state state: " << state << "\n";
    if (state <= b_max)
    {
-      auto t = b_h.bisect(state, 1e-8).knot();
-      auto dbhdt = nu.eval(t).result();
-      return dbhdt[1] / dbhdt[0]; // dH/dt / dB/dt
+      // auto t = b_h.bisect(state, 1e-8).knot();
+      // auto dbhdt = nu.eval(t).result();
+      // return dbhdt[1] / dbhdt[0]; // dH/dt / dB/dt
+
+      return std::exp(nu.eval(state/b_max).result()[0]) - 1.0;
    }
    else
    {
@@ -157,14 +188,126 @@ double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
 {
    if (state <= b_max)
    {
-      auto t = b_h.bisect(state, 1e-8).knot();
-      auto d2bhdt2 = dnudb.eval(t).result();
-      return d2bhdt2[1] / d2bhdt2[0]; // d2H/dt2 / d2B/dt2
+      // std::cout << "eval state deriv. state: " << state << "\n";
+      // auto t = b_h.bisect(state, 1e-8).knot();
+      // auto dbhdt = nu.eval(t).result();
+      // auto d2bhdt2 = dnudb.eval(t).result();
+      // return (dbhdt[0] * d2bhdt2[1] - dbhdt[1] * d2bhdt2[0]) / std::pow(dbhdt[0], 3);
+
+      return dnudb.eval(state/b_max).result()[0] * 
+               std::exp(nu.eval(state/b_max).result()[0]) / b_max;
    }
    else
    {
       return 0.0; // assumed fully saturated
    }
+}
+
+/// namespace for TEAM 13 B-H curve fit
+namespace
+{
+double team13h(double b_hat)
+{
+   const double h = exp((0.0011872363994136887*pow(b_hat, 2)*(15*pow(b_hat, 2) - 9.0) - 0.19379133411847338*pow(b_hat, 2) - 0.012675319795245974*b_hat*(3*pow(b_hat, 2) - 1.0) + 0.52650810858405916*b_hat + 0.77170389255937188)/(-0.037860246476916264*pow(b_hat, 2) + 0.085040155318288846*b_hat + 0.1475250808150366)) - 31;
+   return h;
+}
+
+double team13dhdb_hat(double b_hat)
+{
+   const double dhdb_hat = (-0.0013484718812450662*pow(b_hat, 5) + 0.0059829967461202211*pow(b_hat, 4) + 0.0040413617616232578*pow(b_hat, 3) - 0.013804440762666015*pow(b_hat, 2) - 0.0018970139190370716*b_hat + 0.013917259962808418)*exp((0.017808545991205332*pow(b_hat, 4) - 0.038025959385737926*pow(b_hat, 3) - 0.20447646171319658*pow(b_hat, 2) + 0.53918342837930511*b_hat + 0.77170389255937188)/(-0.037860246476916264*pow(b_hat, 2) + 0.085040155318288846*b_hat + 0.1475250808150366))/(0.0014333982632928504*pow(b_hat, 4) - 0.0064392824815713142*pow(b_hat, 3) - 0.0039388438258098624*pow(b_hat, 2) + 0.025091111571707653*b_hat + 0.02176364946948308);
+   return dhdb_hat;
+}
+
+double team13d2hdb_hat2(double b_hat)
+{
+   const double d2hdb_hat2 = (1.8183764145086082e-6*pow(b_hat, 10) - 1.6135805755447689e-5*pow(b_hat, 9) + 2.2964027416433258e-5*pow(b_hat, 8) + 0.00010295509167249583*pow(b_hat, 7) - 0.0001721199302193437*pow(b_hat, 6) - 0.00031470749218644612*pow(b_hat, 5) + 0.00054873370082066282*pow(b_hat, 4) + 0.00078428896855240252*pow(b_hat, 3) - 0.00020176627749697931*pow(b_hat, 2) - 0.00054403666453702558*b_hat - 0.00019679534359955033)*exp((0.017808545991205332*pow(b_hat, 4) - 0.038025959385737926*pow(b_hat, 3) - 0.20447646171319658*pow(b_hat, 2) + 0.53918342837930511*b_hat + 0.77170389255937188)/(-0.037860246476916264*pow(b_hat, 2) + 0.085040155318288846*b_hat + 0.1475250808150366))/(2.0546305812109595e-6*pow(b_hat, 8) - 1.8460112651872795e-5*pow(b_hat, 7) + 3.0172495078875982e-5*pow(b_hat, 6) + 0.00012265776759231136*pow(b_hat, 5) - 0.0002452310649846335*pow(b_hat, 4) - 0.00047794451332165656*pow(b_hat, 3) + 0.00045811664722395466*pow(b_hat, 2) + 0.001092148314092672*b_hat + 0.00047365643823053111);
+   return d2hdb_hat2;
+}
+
+double team13b_hat(double b)
+{
+   const double b_hat = 1.10803324099723*b + 1.10803324099723*atan(20*b) - 0.9944598337950139;
+   return b_hat;
+}
+
+double team13db_hatdb(double b)
+{
+   const double db_hatdb = (443.213296398892*pow(b, 2) + 23.26869806094183)/(400*pow(b, 2) + 1);
+   return db_hatdb;
+}
+
+double team13d2b_hatdb2(double b)
+{
+   const double d2b_hatdb2 = -17728.53185595568*b/pow(400*pow(b, 2) + 1, 2);
+   return d2b_hatdb2;
+}
+
+} // anonymous namespace
+
+double team13ReluctivityCoefficient::Eval(ElementTransformation &trans,
+                                          const IntegrationPoint &ip,
+                                          const double state)
+{
+   if (state > 2.2)
+   {
+      return 1 / (4*M_PI*1e-7);
+   }
+   const double b_hat = team13b_hat(state);
+   const double db_hatdb = team13db_hatdb(state);
+
+   const double dhdb_hat = team13dhdb_hat(b_hat);
+
+   const double nu = dhdb_hat * db_hatdb;
+   // std::cout << "state: " << state << " nu: " << nu << "\n";
+
+
+   // try
+   // {
+   //    if (!isfinite(nu))
+   //    {
+   //       throw MachException("nan!");
+   //    }
+   // }
+   // catch(const std::exception& e)
+   // {
+   //    std::cerr << e.what() << '\n';
+   // }
+
+   return nu;
+}
+
+double team13ReluctivityCoefficient::EvalStateDeriv(
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   const double state)
+{
+   if (state > 2.2)
+   {
+      return 0;
+   }
+   const double b_hat = team13b_hat(state);
+   const double db_hatdb = team13db_hatdb(state);
+   const double d2b_hatdb2 = team13d2b_hatdb2(state);
+
+   const double dhdb_hat = team13dhdb_hat(b_hat);
+   const double d2hdb_hat2 = team13d2hdb_hat2(b_hat);
+
+   const double dnudb = d2hdb_hat2*pow(db_hatdb,2) + dhdb_hat *d2b_hatdb2;
+   // std::cout << "state: " << state << " dnudb: " << dnudb << "\n";
+   
+   // try
+   // {
+   //    if (!isfinite(dnudb))
+   //    {
+   //       throw MachException("nan!");
+   //    }
+   // }
+   // catch(const std::exception& e)
+   // {
+   //    std::cerr << e.what() << '\n';
+   // }
+   
+   return d2hdb_hat2*pow(db_hatdb,2) + dhdb_hat *d2b_hatdb2;
 }
 
 void VectorMeshDependentCoefficient::Eval(Vector &vec,
