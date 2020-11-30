@@ -138,47 +138,43 @@ void MeshDependentCoefficient::EvalRevDiff(
 
 ReluctivityCoefficient::ReluctivityCoefficient(const std::vector<double> &B,
                                                const std::vector<double> &H)
-   : b_max(B[B.size()-1]), nu(H.size(), 1, 3)
+   // : b_max(B[B.size()-1]), nu(H.size(), 1, 3)
+   : b_max(B[B.size()-1]), h_max(H[H.size()-1]), bh(H.size(), 1, 3)
 {
-   // /// set control points of B-H spline
-   // auto ctrlp = b_h.controlPoints();
-   // for (size_t i = 0; i < B.size(); ++i)
-   // {
-   //    ctrlp[2*i] = B[i];
-   //    ctrlp[(2*i) + 1] = H[i];
-   // }
-   // b_h.setControlPoints(ctrlp);
-
-   // /// take derivatives of B-H curve
-   // nu = b_h.derive();
-   // dnudb = nu.derive();
-
    std::vector<double> knots(B);
    for (int i = 0; i < B.size(); ++i)
    {
       knots[i] = knots[i] / b_max;
    }
-   nu.setControlPoints(H);
-   nu.setKnots(knots);
-   dnudb = nu.derive();
+   bh.setControlPoints(H);
+   bh.setKnots(knots);
+
+   dbdh = bh.derive();
+   // dnudb = nu.derive();
 }
 
 double ReluctivityCoefficient::Eval(ElementTransformation &trans,
                                     const IntegrationPoint &ip,
                                     const double state)
 {
+   constexpr double nu0 = 1 / (4e-7*M_PI);
    // std::cout << "eval state state: " << state << "\n";
-   if (state <= b_max)
+   if (state <= 1e-14)
    {
-      // auto t = b_h.bisect(state, 1e-8).knot();
-      // auto dbhdt = nu.eval(t).result();
-      // return dbhdt[1] / dbhdt[0]; // dH/dt / dB/dt
-
-      return std::exp(nu.eval(state/b_max).result()[0]) - 1.0;
+      double t = state / b_max;
+      double nu = dbdh.eval(t).result()[0] / b_max;
+      return nu;
+   }
+   else if (state <= b_max)
+   {
+      double t = state / b_max;
+      double nu = bh.eval(t).result()[0] / state;
+      // std::cout << "eval state nu: " << nu << "\n";
+      return nu;
    }
    else
    {
-      return 1 / (4e-7*M_PI); // assumed fully saturated
+      return (h_max - nu0*b_max) / state + nu0;
    }
 }
 
@@ -186,20 +182,18 @@ double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
                                              const IntegrationPoint &ip,
                                              const double state)
 {
+   constexpr double nu0 = 1 / (4e-7*M_PI);
+
+   /// TODO: handle state == 0
    if (state <= b_max)
    {
-      // std::cout << "eval state deriv. state: " << state << "\n";
-      // auto t = b_h.bisect(state, 1e-8).knot();
-      // auto dbhdt = nu.eval(t).result();
-      // auto d2bhdt2 = dnudb.eval(t).result();
-      // return (dbhdt[0] * d2bhdt2[1] - dbhdt[1] * d2bhdt2[0]) / std::pow(dbhdt[0], 3);
-
-      return dnudb.eval(state/b_max).result()[0] * 
-               std::exp(nu.eval(state/b_max).result()[0]) / b_max;
+      double t = state / b_max;
+      double h = bh.eval(t).result()[0];
+      return dbdh.eval(t).result()[0] / (state*b_max) - h / pow(state,2);
    }
    else
    {
-      return 0.0; // assumed fully saturated
+      return -(h_max - nu0*b_max) / pow(state,2);
    }
 }
 

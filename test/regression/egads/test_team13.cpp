@@ -36,7 +36,7 @@ auto em_options = R"(
    },
    "lin-solver": {
       "type": "hypregmres",
-      "printlevel": -1,
+      "printlevel": 3,
       "maxiter": 250,
       "abstol": 1e-8,
       "reltol": 1e-10
@@ -49,8 +49,8 @@ auto em_options = R"(
       "type": "relaxed-newton",
       "printlevel": 3,
       "maxiter": 50,
-      "reltol": 5e-6,
-      "abstol": 1e-3
+      "reltol": 1e-8,
+      "abstol": 1e-6
    },
    "components": {
       "farfields": {

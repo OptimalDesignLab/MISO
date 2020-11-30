@@ -354,12 +354,14 @@ public:
 protected:
    /// max B value in the data
    double b_max;
+   /// max H value in the data
+   double h_max;
    /// spline representing H(B)
-   tinyspline::BSpline b_h;
+   tinyspline::BSpline bh;
    /// spline representing dH(B)/dB
-   tinyspline::BSpline nu;
+   tinyspline::BSpline dbdh;
    /// spline representing d^2H(B)/dB^2
-   tinyspline::BSpline dnudb;
+   // tinyspline::BSpline dnudb;
 };
 
 class team13ReluctivityCoefficient : public StateCoefficient

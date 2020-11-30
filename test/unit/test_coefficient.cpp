@@ -477,7 +477,7 @@ TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
       VectorFunctionCoefficient pert(dim, [](const Vector &x, Vector &A)
       {
          A(0) = -0.5*x(1);
-         A(1) = 0.1*x(0);
+         A(1) = 0.8*x(0);
          A(2) = 0.0;
       });
       A.ProjectCoefficient(pert);
