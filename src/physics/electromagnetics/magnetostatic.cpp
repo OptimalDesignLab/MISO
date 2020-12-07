@@ -563,28 +563,28 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
 
    /// TODO: put this in options
    // bool paraview = !options["time-dis"]["steady"].get<bool>();
-   bool paraview = true;
-   std::unique_ptr<ParaViewDataCollection> pd;
-   if (paraview)
-   {
-      pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
-      pd->SetPrefixPath("ParaView");
-      pd->RegisterField("state", &state);
-      pd->RegisterField("B", B.get());
-      pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
-      pd->SetDataFormat(VTKFormat::BINARY);
-      pd->SetHighOrderOutput(true);
-      pd->SetCycle(0);
-      pd->SetTime(t);
-      pd->Save();
-   }
+   // bool paraview = true;
+   // std::unique_ptr<ParaViewDataCollection> pd;
+   // if (paraview)
+   // {
+   //    pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
+   //    pd->SetPrefixPath("ParaView");
+   //    pd->RegisterField("state", &state);
+   //    pd->RegisterField("B", B.get());
+   //    pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
+   //    pd->SetDataFormat(VTKFormat::BINARY);
+   //    pd->SetHighOrderOutput(true);
+   //    pd->SetCycle(0);
+   //    pd->SetTime(t);
+   //    pd->Save();
+   // }
 
-   std::cout.precision(16);
-   std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+   // std::cout.precision(16);
+   // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
    auto residual = ParGridFunction(fes.get());
    calcResidual(state, residual);
-   printFields("init", {&residual, &state}, {"Residual", "Solution"});
+   // printFields("init", {&residual, &state}, {"Residual", "Solution"});
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
@@ -597,7 +597,7 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
    // int max_iter = options["time-dis"]["max-iter"].get<int>();
    // double dlambda = 1.0/(max_iter-1);
    std::vector<double> lambda = {0.0, 1./8, 1./3, 2./3, 3./4, 7./8, 15./16, 31./32, 63./64, 127./128, 1.0};
-   // std::vector<double> lambda = {0.0, 1./8, 1./3}; // just for a test
+   // std::vector<double> lambda = {0.0}; // just for a test
    // for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    for (ti = 0; ti < lambda.size(); ++ti)
    {
@@ -609,26 +609,26 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
          *out << " (" << round(100 * t / t_final) << "% complete)";
       *out << endl;
       iterationHook(ti, t, dt, state);
-      computeSecondaryFields(state);
+      // computeSecondaryFields(state);
       HypreParVector *u_true = state.GetTrueDofs();
       ode_solver->Step(*u_true, t, dt);
       state = *u_true;
 
-      if (paraview)
-      {
-         pd->SetCycle(ti);
-         pd->SetTime(t);
-         pd->Save();
-      }
+      // if (paraview)
+      // {
+      //    pd->SetCycle(ti);
+      //    pd->SetTime(t);
+      //    pd->Save();
+      // }
       // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
       if (iterationExit(ti, t, t_final, dt, state)) break;
    }
-   {
-      ofstream osol("final_before_TH.gf");
-      osol.precision(std::numeric_limits<long double>::digits10 + 1);
-      state.Save(osol);
-   }   
+   // {
+   //    ofstream osol("final_before_TH.gf");
+   //    osol.precision(std::numeric_limits<long double>::digits10 + 1);
+   //    state.Save(osol);
+   // }   
    terminalHook(ti, t, state);
 
    // Save the final solution. This output can be viewed later using GLVis:
@@ -1493,7 +1493,7 @@ void MagnetostaticSolver::assembleCurrentSource()
    j.ProjectCoefficient(*current_coeff);
    ParGridFunction jhdiv(h_div_space.get());
    jhdiv.ProjectCoefficient(*current_coeff);
-   printFields("jproj", {&j, &jhdiv}, {"jhcurl", "jhdiv"});
+   // printFields("jproj", {&j, &jhdiv}, {"jhcurl", "jhdiv"});
    {
       HypreParMatrix M;
       Vector X, RHS;
@@ -1530,7 +1530,7 @@ void MagnetostaticSolver::assembleCurrentSource()
    *div_free_current_vec = 0.0;
    div_free_proj.Mult(j, *div_free_current_vec);
 
-   printFields("current", {&j, div_free_current_vec.get()}, {"jhcurl", "jdivfree"});
+   // printFields("current", {&j, div_free_current_vec.get()}, {"jhcurl", "jdivfree"});
    
    *load = 0.0;
    h_curl_mass.AddMult(*div_free_current_vec, *load);
