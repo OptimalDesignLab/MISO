@@ -23,7 +23,7 @@ auto em_options = R"(
    },
    "space-dis": {
       "basis-type": "nedelec",
-      "degree": 1
+      "degree": 2
    },
    "time-dis": {
       "steady": true,
@@ -37,7 +37,7 @@ auto em_options = R"(
    "lin-solver": {
       "type": "hypregmres",
       "printlevel": 3,
-      "maxiter": 250,
+      "maxiter": 125,
       "abstol": 1e-8,
       "reltol": 1e-10
    },
@@ -48,9 +48,10 @@ auto em_options = R"(
    "nonlin-solver": {
       "type": "relaxed-newton",
       "printlevel": 3,
-      "maxiter": 50,
+      "maxiter": 10,
       "reltol": 1e-8,
-      "abstol": 1e-6
+      "abstol": 5e-5,
+      "abort": false
    },
    "components": {
       "farfields": {
@@ -93,6 +94,7 @@ auto em_options = R"(
       "co-energy": {}
    }
 })"_json;
+      // "current-density": 400000,
 
 // area = 0.1 * 0.025
 // current = 1000 or 3000 AT

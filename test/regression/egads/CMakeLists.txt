@@ -24,6 +24,7 @@ set(TEST_SRCS
    test_team13
    test_thermal_steady_embedded_box
    test_thermal_ring
+   coupled_motor
 )
 
 create_egads_tests("${TEST_SRCS}" "../regression_data.cpp")

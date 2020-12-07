@@ -28,11 +28,11 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
    std::string material = component["material"].get<std::string>();
    if (!component["linear"].get<bool>())
    {
-      // std::unique_ptr<mfem::Coefficient> lin_coeff;
-      // std::unique_ptr<mach::StateCoefficient> nonlin_coeff;
+      std::unique_ptr<mfem::Coefficient> lin_coeff;
+      std::unique_ptr<mach::StateCoefficient> nonlin_coeff;
 
-      // auto mu_r = materials[material]["mu_r"].get<double>();
-      // lin_coeff.reset(new mfem::ConstantCoefficient(1.0/(mu_r*mu_0)));
+      auto mu_r = materials[material]["mu_r"].get<double>();
+      lin_coeff.reset(new mfem::ConstantCoefficient(1.0/(mu_r*mu_0)));
 
       // if (material == "team13")
       // {
@@ -40,14 +40,14 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
       // }
       // else
       // {
-      //    auto b = materials[material]["B"].get<std::vector<double>>();
-      //    auto h = materials[material]["H"].get<std::vector<double>>();
-      //    nonlin_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+         auto b = materials[material]["B"].get<std::vector<double>>();
+         auto h = materials[material]["H"].get<std::vector<double>>();
+         nonlin_coeff.reset(new mach::ReluctivityCoefficient(b, h));
       // }
 
-      // temp_coeff.reset(
-      //    new mach::ParameterContinuationCoefficient(move(lin_coeff),
-      //                                               move(nonlin_coeff)));
+      temp_coeff.reset(
+         new mach::ParameterContinuationCoefficient(move(lin_coeff),
+                                                    move(nonlin_coeff)));
 
       // if (material == "team13")
       // {
@@ -55,9 +55,9 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
       // }
       // else
       // {
-         auto b = materials[material]["B"].get<std::vector<double>>();
-         auto h = materials[material]["H"].get<std::vector<double>>();
-         temp_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+         // auto b = materials[material]["B"].get<std::vector<double>>();
+         // auto h = materials[material]["H"].get<std::vector<double>>();
+         // temp_coeff.reset(new mach::ReluctivityCoefficient(b, h));
       // }
 
       
@@ -596,10 +596,13 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
 
    // int max_iter = options["time-dis"]["max-iter"].get<int>();
    // double dlambda = 1.0/(max_iter-1);
-
-   for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
+   std::vector<double> lambda = {0.0, 1./8, 1./3, 2./3, 3./4, 7./8, 15./16, 31./32, 63./64, 127./128, 1.0};
+   // std::vector<double> lambda = {0.0, 1./8, 1./3}; // just for a test
+   // for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
+   for (ti = 0; ti < lambda.size(); ++ti)
    {
       // ParameterContinuationCoefficient::setLambda(ti*dlambda);
+      ParameterContinuationCoefficient::setLambda(lambda[ti]);
       dt = calcStepSize(ti, t, t_final, dt, state);
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
@@ -676,16 +679,21 @@ void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
    // // AbstractSolver::solveUnsteady(state);
    // auto old_time_dis = options["time-dis"];
    // options["time-dis"]["dt"] = 1e12;
+   // options["time-dis"]["max-iter"] = 1;
+   // options["time-dis"]["steady-reltol"] = 1e-8;
+   // auto old_newton_opt = options["nonlin-solver"];
+   // options["nonlin-solver"]["reltol"] = 1e-8;
 
    // _solveUnsteady(state);
 
    // options["time-dis"] = old_time_dis;
    // options["components"] = old_comps;
+   // options["nonlin-solver"] = old_newton_opt;
    // constructReluctivity();
    // dnfi = *res->GetDNFI();
    // delete dnfi[0];
    // dnfi[0] = new CurlCurlNLFIntegrator(nu.get());
-   // // AbstractSolver::solveUnsteady(state);
+   // AbstractSolver::solveUnsteady(state);
    _solveUnsteady(state);
 }
 //    *out << "Tucker: please check if the code below is needed" << endl;
@@ -999,6 +1007,7 @@ void MagnetostaticSolver::setInitialCondition(
    ParGridFunction &state,
    const Vector &u_init)
 {
+   state = 0.0;
    // auto initState = [](const mfem::Vector &x, mfem::Vector &A)
    // {
    //    A(0) = 0.5*x(1);
@@ -1093,6 +1102,7 @@ double MagnetostaticSolver::calcStepSize(int iter,
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm(state);
+      if (std::abs(res_norm) <= 1e-14) return 1e14;
       double exponent = options["time-dis"]["res-exp"];
       double dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
@@ -1493,12 +1503,19 @@ void MagnetostaticSolver::assembleCurrentSource()
       *out << "solving for j in H(curl)\n";
       HypreBoomerAMG amg(M);
       amg.SetPrintLevel(-1);
-      HypreGMRES gmres(M);
-      gmres.SetTol(1e-12);
-      gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(3);
-      gmres.SetPreconditioner(amg);
-      gmres.Mult(RHS, X);
+      // HypreGMRES gmres(M);
+      // gmres.SetTol(1e-12);
+      // gmres.SetMaxIter(200);
+      // gmres.SetPrintLevel(3);
+      // gmres.SetPreconditioner(amg);
+      // gmres.Mult(RHS, X);
+
+      HyprePCG pcg(M);
+      pcg.SetTol(1e-12);
+      pcg.SetMaxIter(200);
+      pcg.SetPrintLevel(2);
+      pcg.SetPreconditioner(amg);
+      pcg.Mult(RHS, X);
 
       h_curl_mass.RecoverFEMSolution(X, J, j);
    }

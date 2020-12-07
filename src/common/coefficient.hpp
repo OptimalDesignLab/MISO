@@ -55,7 +55,7 @@ public:
                          const mfem::IntegrationPoint &ip,
                          const double state) override;
 
-   inline static void setLambda(double _lambda) {lambda = _lambda;}
+   inline static void setLambda(double _lambda) {lambda = _lambda; std::cout << "lambda = " << lambda << "\n";}
    inline static double getLambda() {return lambda;}
 
 private:

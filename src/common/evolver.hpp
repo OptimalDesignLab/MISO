@@ -70,7 +70,8 @@ public:
                NonlinearFormType *res, BilinearFormType *stiff,
                mfem::Vector *load, NonlinearFormType *ent,
                std::ostream &outstream, double start_time,
-               mfem::TimeDependentOperator::Type type = EXPLICIT);
+               mfem::TimeDependentOperator::Type type = EXPLICIT,
+               bool abort_on_no_convergence = true);
 
    /// Perform the action of the operator: y = k = f(x, t), where k solves
    /// the algebraic equation F(x, k, t) = G(x, t) and t is the current time.
@@ -148,6 +149,8 @@ protected:
    mfem::NewtonSolver *newton;
    /// essential degrees of freedom
    mfem::Array<int> ess_tdof_list;
+   /// flag that determines if program should abort if Newton's method does not converge
+   bool abort_on_no_converge;
 
    /// pointer-to-implementation idiom
    /// Hides implementation details of this operator, and because it's private,

@@ -1559,10 +1559,12 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
 
 void AbstractSolver::constructEvolver()
 {
+   bool newton_abort = options["nonlin-solver"]["abort"].get<bool>();
    evolver.reset(new MachEvolver(ess_bdr, nonlinear_mass.get(), mass.get(),
                                  res.get(), stiff.get(), load.get(), ent.get(),
                                  *out, 0.0,
-                                 TimeDependentOperator::Type::IMPLICIT));
+                                 TimeDependentOperator::Type::IMPLICIT,
+                                 newton_abort));
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

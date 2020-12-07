@@ -64,30 +64,31 @@ em_options = {
     },
     "time-dis": {
         "steady": True,
-        "steady-abstol": 1e-8,
-        "steady-reltol": 1e-8,
+        "steady-abstol": 0.0,
+        "steady-reltol": 0.0,
         "ode-solver": "PTC",
         "t-final": 100,
-        "dt": 1e12,
-        "max-iter": 5
+        "dt": 1e14,
+        "max-iter": 8
     },
     "lin-solver": {
         "type": "hypregmres",
         "printlevel": 2,
-        "maxiter": 200,
-        "abstol": 1e-10,
-        "reltol": 1e-10
+        "maxiter": 250,
+        "abstol": 0.0,
+        "reltol": 1e-8
     },
     "lin-prec": {
         "type": "hypreams",
         "printlevel": 0
     },
     "nonlin-solver": {
-        "type": "newton",
+        "type": "relaxed-newton",
         "printlevel": 3,
-        "maxiter": 10,
-        "reltol": 1e-8,
-        "abstol": 1e-8
+        "maxiter": 5,
+        "reltol": 1e-4,
+        "abstol": 5e-1,
+        "abort": False
     },
     "components": {
         "farfields": {
@@ -121,60 +122,60 @@ em_options = {
         "windings": {
             "material": "copperwire",
             "linear": True,
-            "attrs": [65, 98, 142, 127,
-                      75, 111, 64, 101,
-                      138, 145, 46, 86, 113, 68,
-                      114, 59, 79, 76,
-                      85, 62, 78, 82,
-                      61, 104, 94, 119,
-                      106, 105, 120, 126, 118, 50,
-                      72, 132, 129, 51,
-                      139, 73, 60, 49,
-                      136, 69, 87, 123,
-                      110, 108, 48, 47,
-                      103, 52, 56, 67,
-                      121, 100, 96, 80,
-                      131, 54, 70, 83,
-                      102, 122, 125, 116,
-                      130, 91, 143, 115,
-                      137, 95, 133, 57,
-                      144, 128, 134, 77,
-                      89, 71, 74, 53,
-                      107, 63, 81, 55,
-                      93, 90, 88, 92,
-                      135, 58, 97, 84,
-                      109, 66, 117, 124,
-                      99, 112, 140, 141]
+            "attrs": [46, 47, 48, 49,
+                      50, 51, 52, 53, 
+                      54, 55, 56, 57, 
+                      58, 59, 60, 61, 
+                      62, 63, 64, 65,
+                      66, 67, 68, 69,
+                      70, 71, 72, 73,
+                      74, 75, 76, 77,
+                      78, 79, 80, 81,
+                      82, 83, 84, 85,
+                      86, 87, 88, 89, 
+                      90, 91, 92, 93,
+                      94, 95, 96, 97,
+                      98, 99, 100, 101,
+                      102, 103, 104, 105,
+                      106, 107, 108, 109,
+                      110, 111, 112, 113,
+                      114, 115, 116, 117,
+                      118, 119, 120, 121,
+                      122, 123, 124, 125,
+                      126, 127, 128, 129,
+                      130, 131, 132, 133,
+                      134, 135, 136, 137, 138, 139,
+                      140, 141, 142, 143, 144, 145]
         }
     },
     "problem-opts": {
         "fill-factor": 0.6,
-        "current-density": 11000000,
+        "current-density": 11e6,
         "current" : {
-            "Phase-A": [65, 98, 142, 127,
-                        75, 111, 64, 101,
-                        138, 145, 46, 86, 113, 68,
-                        114, 59, 79, 76,
-                        85, 62, 78, 82,
-                        61, 104, 94, 119,
-                        106, 105, 120, 126, 118, 50,
-                        72, 132, 129, 51],
-            "Phase-B": [139, 73, 60, 49,
-                        136, 69, 87, 123,
-                        110, 108, 48, 47,
-                        103, 52, 56, 67,
-                        121, 100, 96, 80,
-                        131, 54, 70, 83,
-                        102, 122, 125, 116,
-                        130, 91, 143, 115],
-            "Phase-C": [137, 95, 133, 57,
-                        144, 128, 134, 77,
-                        89, 71, 74, 53,
-                        107, 63, 81, 55,
-                        93, 90, 88, 92,
-                        135, 58, 97, 84,
-                        109, 66, 117, 124,
-                        99, 112, 140, 141]
+            "Phase-A": [46, 47, 48, 49,
+                      58, 59, 60, 61, 
+                      78, 79, 80, 81,
+                      90, 91, 92, 93,
+                      102, 103, 104, 105,
+                      122, 123, 124, 125,
+                      134, 135, 136, 137, 138, 139,
+                      140, 141, 142, 143, 144, 145],
+            "Phase-B": [50, 51, 52, 53,
+                      62, 63, 64, 65,
+                      70, 71, 72, 73,
+                      82, 83, 84, 85,
+                      94, 95, 96, 97,
+                      106, 107, 108, 109,
+                      114, 115, 116, 117,
+                      126, 127, 128, 129],
+            "Phase-C": [54, 55, 56, 57,
+                      66, 67, 68, 69,
+                      74, 75, 76, 77,
+                      86, 87, 88, 89, 
+                      98, 99, 100, 101,
+                      110, 111, 112, 113,
+                      118, 119, 120, 121,
+                      130, 131, 132, 133]
         },
         "magnets": {
             "south": [6, 10, 14, 18, 22, 26, 30, 34, 38, 42],
@@ -215,6 +216,7 @@ thermal_options = {
         "type": "hypreboomeramg"
     },
     "lin-solver": {
+        "type": "hyprepcg",
         "reltol": 1e-10,
         "abstol": 1e-8,
         "printlevel": 3,
@@ -290,33 +292,33 @@ thermal_options = {
         "rho-agg": 10,
         "init-temp": 300,
         "fill-factor": 0.6,
-        "current-density": 11000000,
+        "current-density": 11e6,
         "frequency": 1000,
         "current" : {
-            "Phase-A": [65, 98, 142, 127,
-                        75, 111, 64, 101,
-                        138, 145, 46, 86, 113, 68,
-                        114, 59, 79, 76,
-                        85, 62, 78, 82,
-                        61, 104, 94, 119,
-                        106, 105, 120, 126, 118, 50,
-                        72, 132, 129, 51],
-            "Phase-B": [139, 73, 60, 49,
-                        136, 69, 87, 123,
-                        110, 108, 48, 47,
-                        103, 52, 56, 67,
-                        121, 100, 96, 80,
-                        131, 54, 70, 83,
-                        102, 122, 125, 116,
-                        130, 91, 143, 115],
-            "Phase-C": [137, 95, 133, 57,
-                        144, 128, 134, 77,
-                        89, 71, 74, 53,
-                        107, 63, 81, 55,
-                        93, 90, 88, 92,
-                        135, 58, 97, 84,
-                        109, 66, 117, 124,
-                        99, 112, 140, 141]
+            "Phase-A": [46, 47, 48, 49,
+                      58, 59, 60, 61, 
+                      78, 79, 80, 81,
+                      90, 91, 92, 93,
+                      102, 103, 104, 105,
+                      122, 123, 124, 125,
+                      134, 135, 136, 137, 138, 139,
+                      140, 141, 142, 143, 144, 145],
+            "Phase-B": [50, 51, 52, 53,
+                      62, 63, 64, 65,
+                      70, 71, 72, 73,
+                      82, 83, 84, 85,
+                      94, 95, 96, 97,
+                      106, 107, 108, 109,
+                      114, 115, 116, 117,
+                      126, 127, 128, 129],
+            "Phase-C": [54, 55, 56, 57,
+                      66, 67, 68, 69,
+                      74, 75, 76, 77,
+                      86, 87, 88, 89, 
+                      98, 99, 100, 101,
+                      110, 111, 112, 113,
+                      118, 119, 120, 121,
+                      130, 131, 132, 133]
         },
         "magnets": {
             "north": [6, 10, 14, 18, 22, 26, 30, 34, 38, 42],
@@ -395,9 +397,9 @@ if __name__ == "__main__":
     # model.add_subsystem('vol_mesh_move', omMeshMove(solver=meshMoveSolver))
     # model.connect('surf_mesh_move.surf_mesh_disp', 'vol_mesh_move.surf_mesh_disp')
 
-    emSolver = MachSolver("Magnetostatic", em_options, problem.comm)
-    model.add_subsystem('em_solver', omMachState(solver=emSolver, 
-                                                 initial_condition=Vector([0.0, 0.0, 0.0])))
+    # emSolver = MachSolver("Magnetostatic", em_options, problem.comm)
+    # model.add_subsystem('em_solver', omMachState(solver=emSolver, 
+    #                                              initial_condition=Vector([0.0, 0.0, 0.0])))
     # model.connect('vol_mesh_move.vol_mesh_coords', 'em_solver.mesh-coords')
 
     def thermal_init(x):
@@ -412,7 +414,7 @@ if __name__ == "__main__":
     model.add_subsystem('thermal_solver', omMachState(solver=thermalSolver,
                                                       initial_condition=thermal_init))
     # model.connect('vol_mesh_move.vol_mesh_coords', 'thermal_solver.mesh-coords')
-    model.connect('em_solver.state', 'thermal_solver.mvp')
+    # model.connect('em_solver.state', 'thermal_solver.mvp')
 
     problem.setup()
     problem.run_model()

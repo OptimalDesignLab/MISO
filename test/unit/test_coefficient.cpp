@@ -477,14 +477,16 @@ TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
       VectorFunctionCoefficient pert(dim, [](const Vector &x, Vector &A)
       {
          A(0) = -0.5*x(1);
-         A(1) = 0.8*x(0);
+         A(1) = 1.79*x(0);
          A(2) = 0.0;
       });
       A.ProjectCoefficient(pert);
 
 
-      auto b = material_library["team13"]["B"].get<std::vector<double>>();
-      auto h = material_library["team13"]["H"].get<std::vector<double>>();
+      auto b = material_library["hiperco50"]["B"].get<std::vector<double>>();
+      auto h = material_library["hiperco50"]["H"].get<std::vector<double>>();
+      // auto b = material_library["team13"]["B"].get<std::vector<double>>();
+      // auto h = material_library["team13"]["H"].get<std::vector<double>>();
       mach::ReluctivityCoefficient coeff(b, h);
 
       for (int j = 0; j < fes.GetNE(); j++)

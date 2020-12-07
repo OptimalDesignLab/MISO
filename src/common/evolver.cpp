@@ -162,13 +162,15 @@ MachEvolver::MachEvolver(
     Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
     BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
     Vector *_load, NonlinearFormType *_ent, std::ostream &outstream,
-    double start_time, TimeDependentOperator::Type type)
+    double start_time, TimeDependentOperator::Type type,
+    bool _abort_on_no_converge)
     : EntropyConstrainedOperator((_nonlinear_mass != nullptr)
                                      ? _nonlinear_mass->FESpace()->GetTrueVSize()
                                      : _mass->FESpace()->GetTrueVSize(),
                                  start_time, type),
       nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
-      out(outstream), x_work(width), r_work1(height), r_work2(height)
+      out(outstream), x_work(width), r_work1(height), r_work2(height),
+      abort_on_no_converge(_abort_on_no_converge)
 {
    if ( (_mass != nullptr) && (_nonlinear_mass != nullptr) )
    {
@@ -277,7 +279,8 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
    newton->Mult(zero, k);
    newton->iterative_mode = iter_mode;
    
-   MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+   if (abort_on_no_converge)
+      MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 
 void MachEvolver::ImplicitSolve(const double dt_stage, const double dt,
@@ -287,7 +290,8 @@ void MachEvolver::ImplicitSolve(const double dt_stage, const double dt,
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
    k = 0.0; // In case iterative mode is set to true
    newton->Mult(zero, k);
-   MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+   if (abort_on_no_converge)
+      MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 
 void MachEvolver::SetLinearSolver(Solver *_linsolver)

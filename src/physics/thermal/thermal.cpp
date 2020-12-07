@@ -514,7 +514,7 @@ void ThermalSolver::constructCore()
       double beta = materials[material].value("beta", 0.0);
 
       /// make sure that there is a coefficient
-      double params = rho_val + alpha + freq + ks + beta;
+      double params =  alpha + ks + beta;
 
       int attr = component.value("attr", -1);
       if (-1 != attr)
