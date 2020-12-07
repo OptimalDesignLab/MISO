@@ -1411,17 +1411,17 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
       if (kdim != -1)
          gmres->SetKDim(kdim); // set GMRES subspace size
    }
-   else if (solver_type == "mhypregmres")
-   {
-      lin_solver.reset(new MHypreGMRES(comm));
-      MHypreGMRES *gmres = dynamic_cast<MHypreGMRES*>(lin_solver.get());
-      gmres->SetTol(reltol);
-      gmres->SetMaxIter(maxiter);
-      gmres->SetPrintLevel(ptl);
-      gmres->SetPreconditioner(dynamic_cast<HypreSolver&>(_prec));
-      if (kdim != -1)
-         gmres->SetKDim(kdim); // set GMRES subspace size
-   }
+   // else if (solver_type == "mhypregmres")
+   // {
+   //    lin_solver.reset(new MHypreGMRES(comm));
+   //    MHypreGMRES *gmres = dynamic_cast<MHypreGMRES*>(lin_solver.get());
+   //    gmres->SetTol(reltol);
+   //    gmres->SetMaxIter(maxiter);
+   //    gmres->SetPrintLevel(ptl);
+   //    gmres->SetPreconditioner(dynamic_cast<HypreSolver&>(_prec));
+   //    if (kdim != -1)
+   //       gmres->SetKDim(kdim); // set GMRES subspace size
+   // }
    else if (solver_type == "hyprefgmres")
    {
       lin_solver.reset(new HypreFGMRES(comm));
