@@ -27,7 +27,7 @@ auto options = R"(
       "steady-reltol": 1e-10,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 1e14,
+      "dt": 1,
       "max-iter": 5
    },
    "lin-solver": {

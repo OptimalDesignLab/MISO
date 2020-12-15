@@ -102,8 +102,11 @@ void phase_a_current(const xdouble &current_density,
 
    // example of needed geometric parameters, this should be all you need
    xdouble n_s = 24; // number of slots
-   xdouble zb = -0.03450/2; // bottom of stator
-   xdouble zt = 0.03450/2; // top of stator
+   // xdouble zb = -0.03450/2; // bottom of stator
+   // xdouble zt = 0.03450/2; // top of stator
+   xdouble zb = -0.001/2; // bottom of stator
+   xdouble zt = 0.001/2; // top of stator
+
 
    // compute theta from x and y
    xdouble tha = atan2(x[1], x[0]);
@@ -170,8 +173,11 @@ void phase_b_current(const xdouble &current_density,
 
    // example of needed geometric parameters, this should be all you need
    xdouble n_s = 24; // number of slots
-   xdouble zb = -0.03450/2; // bottom of stator
-   xdouble zt = 0.03450/2; // top of stator
+   // xdouble zb = -0.03450/2; // bottom of stator
+   // xdouble zt = 0.03450/2; // top of stator
+   xdouble zb = -0.001/2; // bottom of stator
+   xdouble zt = 0.001/2; // top of stator
+
 
    // compute theta from x and y
    xdouble tha = atan2(x[1], x[0]);
@@ -582,8 +588,8 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
    // std::cout.precision(16);
    // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
-   auto residual = ParGridFunction(fes.get());
-   calcResidual(state, residual);
+   // auto residual = ParGridFunction(fes.get());
+   // calcResidual(state, residual);
    // printFields("init", {&residual, &state}, {"Residual", "Solution"});
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
@@ -591,19 +597,18 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
 
    int ti;
    bool done = false;
-   double dt = 0.0;
+   double dt = 1.0;
    initialHook(state);
 
    // int max_iter = options["time-dis"]["max-iter"].get<int>();
    // double dlambda = 1.0/(max_iter-1);
    std::vector<double> lambda = {0.0, 1./8, 1./3, 2./3, 3./4, 7./8, 15./16, 31./32, 63./64, 127./128, 1.0};
-   // std::vector<double> lambda = {0.0}; // just for a test
+   // std::vector<double> lambda = {1.0}; // just for a test
    // for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    for (ti = 0; ti < lambda.size(); ++ti)
    {
-      // ParameterContinuationCoefficient::setLambda(ti*dlambda);
       ParameterContinuationCoefficient::setLambda(lambda[ti]);
-      dt = calcStepSize(ti, t, t_final, dt, state);
+      // dt = calcStepSize(ti, t, t_final, dt, state);
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
          *out << " (" << round(100 * t / t_final) << "% complete)";
@@ -622,7 +627,7 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
       // }
       // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
-      if (iterationExit(ti, t, t_final, dt, state)) break;
+      // if (iterationExit(ti, t, t_final, dt, state)) break;
    }
    // {
    //    ofstream osol("final_before_TH.gf");
@@ -764,7 +769,7 @@ std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
 
 void MagnetostaticSolver::constructForms()
 {
-   mass.reset(new BilinearFormType(fes.get()));
+   // mass.reset(new BilinearFormType(fes.get()));
    res.reset(new NonlinearFormType(fes.get()));
    load.reset(new ParGridFunction(fes.get()));
    ent.reset(new ParNonlinearForm(fes.get()));

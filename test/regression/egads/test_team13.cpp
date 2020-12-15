@@ -32,14 +32,14 @@ auto em_options = R"(
       "ode-solver": "PTC",
       "dt": 1e12,
       "res-exp": 2.0,
-      "max-iter": 20
+      "max-iter": 1
    },
    "lin-solver": {
       "type": "hypregmres",
       "printlevel": 3,
       "maxiter": 125,
       "abstol": 1e-8,
-      "reltol": 1e-10
+      "reltol": 1e-8
    },
    "lin-prec": {
       "type": "hypreams",
@@ -48,7 +48,7 @@ auto em_options = R"(
    "nonlin-solver": {
       "type": "relaxed-newton",
       "printlevel": 3,
-      "maxiter": 10,
+      "maxiter": 15,
       "reltol": 1e-8,
       "abstol": 5e-5,
       "abort": false
@@ -60,31 +60,31 @@ auto em_options = R"(
          "attrs": [1, 2]
       },
       "channel": {
-         "attrs": [3, 5],
+         "attrs": [4, 7],
          "material": "team13",
          "linear": false
       },
       "center": {
-         "attr": 6,
+         "attr": 8,
          "material": "team13",
          "linear": false
       },
       "airgap": {
-         "attrs": [7, 8],
+         "attrs": [5, 6],
          "material": "air",
          "linear": true
       },
       "windings": {
          "material": "copperwire",
          "linear": true,
-         "attrs": [4]
+         "attrs": [3]
       }
    },
    "problem-opts": {
       "fill-factor": 1.0,
       "current-density": 400000,
       "current": {
-         "team13": [4]
+         "team13": [3]
       }
    },
    "bcs": {

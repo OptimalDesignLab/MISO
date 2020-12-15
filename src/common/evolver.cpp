@@ -28,7 +28,8 @@ public:
                   BilinearFormType *_stiff, mfem::Vector *_load)
        : Operator(((_nonlinear_mass != nullptr)
                        ? _nonlinear_mass->FESpace()->GetTrueVSize()
-                       : _mass->FESpace()->GetTrueVSize())),
+                       : (_mass != nullptr) ? _mass->FESpace()->GetTrueVSize()
+                       : _res->FESpace()->GetTrueVSize())), 
          nonlinear_mass(_nonlinear_mass), mass(_mass),
          res(_res), stiff(_stiff), load(_load), jac(nullptr),
          dt(0.0), x(nullptr), x_work(width), r_work(height)
@@ -41,8 +42,12 @@ public:
       {
          _stiff->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       }
+      else if (_res)
+      {
+         _res->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      }
       if (load)
-         load_tv = _mass->ParFESpace()->NewTrueDofVector();
+         load_tv = _res->ParFESpace()->NewTrueDofVector();
       else
          load_tv = nullptr;
    }
@@ -77,7 +82,7 @@ public:
       // }
       if (load)
       {
-         const auto* prolong = mass->ParFESpace()->GetProlongationMatrix();
+         const auto* prolong = res->ParFESpace()->GetProlongationMatrix();
          prolong->MultTranspose(*load, *load_tv);
          r += *load_tv;
          r.SetSubVector(ess_tdof_list, 0.0);
@@ -93,7 +98,7 @@ public:
    /// \param[in] k - dx/dt 
    mfem::Operator &GetGradient(const mfem::Vector &k) const override
    {
-      delete jac;
+      // delete jac;
       jac = nullptr;
 
       if (mass)
@@ -138,7 +143,17 @@ public:
       dt_stage = _dt_stage;
    };
 
-   ~SystemOperator() { delete jac; if (load_tv) {delete load_tv;} };
+   ~SystemOperator()
+   {
+      if (jac)
+      {
+         // delete jac;
+      }
+      if (load_tv)
+      {
+         delete load_tv;
+      }
+   };
 
 private:
    NonlinearFormType *nonlinear_mass;
@@ -166,7 +181,8 @@ MachEvolver::MachEvolver(
     bool _abort_on_no_converge)
     : EntropyConstrainedOperator((_nonlinear_mass != nullptr)
                                      ? _nonlinear_mass->FESpace()->GetTrueVSize()
-                                     : _mass->FESpace()->GetTrueVSize(),
+                                     : (_mass != nullptr) ? _mass->FESpace()->GetTrueVSize()
+                                     : _res->FESpace()->GetTrueVSize(),
                                  start_time, type),
       nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
       out(outstream), x_work(width), r_work1(height), r_work2(height),

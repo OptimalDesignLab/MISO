@@ -225,7 +225,7 @@ double RelaxedNewton::ComputeScalingFactor(const Vector &x,
       alpha = 0.1;
       first_iter = false;
    }
-   double beta = 0.5;
+   double beta = 0.75;
 
    add(x, -alpha, c, xkp1);
 

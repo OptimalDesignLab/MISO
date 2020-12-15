@@ -29,13 +29,13 @@ auto em_options = R"(
       "steady-reltol": 0.0,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 1e14,
+      "dt": 1,
       "max-iter": 8
    },
    "lin-solver": {
       "type": "hypregmres",
       "printlevel": 2,
-      "maxiter": 250,
+      "maxiter": 125,
       "abstol": 0.0,
       "reltol": 1e-8
    },
@@ -164,12 +164,12 @@ auto thermal_options = R"(
 {
    "print-options": false,
    "mesh": {
-      "file": "data/motor.smb",
-      "model-file": "data/motor.egads"
+      "file": "data/des_motor.smb",
+      "model-file": "data/des_motor.egads"
    },
    "space-dis": {
       "basis-type": "H1",
-      "degree": 2
+      "degree": 1
    },
    "time-dis": {
       "steady": true,
@@ -264,7 +264,7 @@ auto thermal_options = R"(
       "rho-agg": 10,
       "init-temp": 300,
       "fill-factor": 0.6,
-      "current-density": 10.7e6,
+      "current-density": 12.7e6,
       "frequency": 1000,
       "current" : {
          "Phase-A": [47, 48, 49, 50,
@@ -305,13 +305,6 @@ auto thermal_options = R"(
    "outflux-type": "test",
    "outputs": {
       "temp-agg": {}
-   },
-   "external-fields": {
-      "mvp": {
-         "basis-type": "nedelec",
-         "degree": 1,
-         "num-states": 1
-      }
    }
 })"_json;
       // "keep-bndrys": [19, 20, 42, 43, 72, 73, 87, 88],
@@ -337,22 +330,22 @@ TEST_CASE("Coupled Motor Solve",
       A = 0.0;
    });
 
-   auto therm_solver = createSolver<ThermalSolver>(thermal_options);
-   auto therm_state = therm_solver->getNewField();
-   therm_solver->setInitialCondition(*therm_state,
-                                     [](const mfem::Vector &x)
-   {
-      if (x.Norml2() < 0.06)
-         return 351.25;
-      else if (x.Norml2() < 0.1)
-         // return 401.15;
-         return 389.51;
-      else
-         return 303.15;
-   });
-   therm_solver->setResidualInput("mvp", *em_state);
+   // auto therm_solver = createSolver<ThermalSolver>(thermal_options);
+   // auto therm_state = therm_solver->getNewField();
+   // therm_solver->setInitialCondition(*therm_state,
+   //                                   [](const mfem::Vector &x)
+   // {
+   //    if (x.Norml2() < 0.06)
+   //       return 351.25;
+   //    else if (x.Norml2() < 0.1)
+   //       // return 401.15;
+   //       return 389.51;
+   //    else
+   //       return 303.15;
+   // });
+   // therm_solver->setResidualInput("mvp", *em_state);
 
    em_solver->solveForState(*em_state);
-   therm_solver->solveForState(*therm_state);
+   // therm_solver->solveForState(*therm_state);
 
 }
