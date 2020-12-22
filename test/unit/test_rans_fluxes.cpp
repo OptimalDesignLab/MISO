@@ -27,7 +27,7 @@ TEMPLATE_TEST_CASE_SIG("SA calcVorticity Accuracy", "[SAVorticity]",
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
 
-    for (int p = 1; p <= 2; ++p)
+    for (int p = 1; p <= 1; ++p)
     {
         DYNAMIC_SECTION("Vorticity correct for degree p = " << p)
         {
@@ -102,6 +102,11 @@ TEMPLATE_TEST_CASE_SIG("SA calcVorticity Accuracy", "[SAVorticity]",
 
             }
             
+            ofstream sol_ofs("why.vtk");
+            sol_ofs.precision(14);
+            mesh->PrintVTK(sol_ofs, 1);
+            s_comp.SaveVTK(sol_ofs, "vorticity_error", 1);
+
             // compare vorticity
             for (int j = 0; j < s_comp.Size(); j++)
             {
@@ -430,14 +435,14 @@ TEST_CASE("SA grad derivatives", "[SAVorticity]")
             src += mach::calcSANegativeProduction<adouble,dim>(
                 q_a.data(), S_a, sacs_a.data());
             src += mach::calcSANegativeDestruction<adouble,dim>(
-                q_a.data(), d_a, sacs_a.data())/Re_a;
+                q_a.data(), d_a, Re_a,  sacs_a.data());
         }
         else
         {
             src += mach::calcSAProduction<adouble,dim>(
-                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data())/Re_a;
+                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data());
             src += mach::calcSADestruction<adouble,dim>(
-                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data())/Re_a;
+                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data());
         }
 
         stack.independent(grad_a.data(), dim);
@@ -462,14 +467,14 @@ TEST_CASE("SA grad derivatives", "[SAVorticity]")
             srcp += mach::calcSANegativeProduction<double,dim>(
                 q.GetData(), S, sacs.GetData());
             srcp += mach::calcSANegativeDestruction<double,dim>(
-                q.GetData(), d, sacs.GetData())/Re;
+                q.GetData(), d, Re, sacs.GetData());
         }
         else
         {
             srcp += mach::calcSAProduction<double,dim>(
-                q.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+                q.GetData(), mu, d, S, Re, sacs.GetData());
             srcp += mach::calcSADestruction<double,dim>(
-                q.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+                q.GetData(), mu, d, S, Re, sacs.GetData());
         }
 
         double srcm = mach::calcSASource<double,dim>(
@@ -479,14 +484,14 @@ TEST_CASE("SA grad derivatives", "[SAVorticity]")
             srcm += mach::calcSANegativeProduction<double,dim>(
                 q.GetData(), S, sacs.GetData());
             srcm += mach::calcSANegativeDestruction<double,dim>(
-                q.GetData(), d, sacs.GetData())/Re;
+                q.GetData(), d, Re, sacs.GetData());
         }
         else
         {
             srcm += mach::calcSAProduction<double,dim>(
-                q.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+                q.GetData(), mu, d, S, Re, sacs.GetData());
             srcm += mach::calcSADestruction<double,dim>(
-                q.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+                q.GetData(), mu, d, S, Re, sacs.GetData());
         }
 
         // finite difference jacobian
@@ -560,14 +565,14 @@ TEST_CASE("SA q derivatives", "[SAVorticity]")
             src += mach::calcSANegativeProduction<adouble,dim>(
                 q_a.data(), S_a, sacs_a.data());
             src += mach::calcSANegativeDestruction<adouble,dim>(
-                q_a.data(), d_a, sacs_a.data())/Re_a;
+                q_a.data(), d_a, Re_a, sacs_a.data());
         }
         else
         {
             src += mach::calcSAProduction<adouble,dim>(
-                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data())/Re_a;
+                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data());
             src += mach::calcSADestruction<adouble,dim>(
-                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data())/Re_a;
+                q_a.data(), mu_a, d_a, S_a, Re_a, sacs_a.data());
         }
 
         stack.independent(q_a.data(), dim+3);
@@ -592,14 +597,14 @@ TEST_CASE("SA q derivatives", "[SAVorticity]")
             srcp += mach::calcSANegativeProduction<double,dim>(
                 qp.GetData(), S, sacs.GetData());
             srcp += mach::calcSANegativeDestruction<double,dim>(
-                qp.GetData(), d, sacs.GetData())/Re;
+                qp.GetData(), d, Re, sacs.GetData());
         }
         else
         {
             srcp += mach::calcSAProduction<double,dim>(
-                qp.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+                qp.GetData(), mu, d, S, Re, sacs.GetData());
             srcp += mach::calcSADestruction<double,dim>(
-                qp.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+                qp.GetData(), mu, d, S, Re, sacs.GetData());
         }
 
         double srcm = mach::calcSASource<double,dim>(
@@ -609,14 +614,14 @@ TEST_CASE("SA q derivatives", "[SAVorticity]")
             srcm += mach::calcSANegativeProduction<double,dim>(
                 qm.GetData(), S, sacs.GetData());
             srcm += mach::calcSANegativeDestruction<double,dim>(
-                qm.GetData(), d, sacs.GetData())/Re;
+                qm.GetData(), d, Re, sacs.GetData());
         }
         else
         {
             srcm += mach::calcSAProduction<double,dim>(
-                qm.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+                qm.GetData(), mu, d, S, Re, sacs.GetData());
             srcm += mach::calcSADestruction<double,dim>(
-                qm.GetData(), mu, d, S, Re, sacs.GetData())/Re;
+                qm.GetData(), mu, d, S, Re, sacs.GetData());
         }
 
         // finite difference jacobian

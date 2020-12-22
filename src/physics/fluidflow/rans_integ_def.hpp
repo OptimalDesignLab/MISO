@@ -213,41 +213,6 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
                                  mu_a, d, S, Re_a, d0_a, grad_nu_i_a.data(), 
                                  grad_rho_i_a.data(), sacs_a.data(),
                                  prod, dest);
-      
-      // adouble src = calcSASource<adouble,dim>(
-      //    ui_a.data(), grad_nu_i_a.data(), sacs_a.data())/Re_a;
-      // src -= calcSASource2<adouble,dim>(
-      //    ui_a.data(), mu_a, grad_nu_i_a.data(), grad_rho_i_a.data(), sacs_a.data())/Re_a;
-      // if (fabs(d) > 1e-12)
-      // {
-      // if (ui_a[dim+2] < 0)
-      // {
-      //    src += prod*calcSANegativeProduction<adouble,dim>(
-      //       ui_a.data(), S, sacs_a.data());
-      //    src += dest*calcSANegativeDestruction<adouble,dim>(
-      //       ui_a.data(), d, Re_a, sacs_a.data());
-      // }
-      // else
-      // {
-      //    src += prod*calcSAProduction<adouble,dim>(
-      //       ui_a.data(), mu_a, d, S, Re_a, sacs_a.data());
-      //    src += dest*calcSADestruction<adouble,dim>(
-      //       ui_a.data(), mu_a, d, S, Re_a, sacs_a.data());
-      // }
-      // }
-      // else
-      // {
-      //    if (ui_a[dim+2] < 0)
-      //    {
-      //       src += dest*calcSANegativeDestruction<adouble,dim>(
-      //          ui_a.data(), d0_a, Re_a, sacs_a.data());
-      //    }
-      //    else
-      //    {
-      //       src += dest*calcSADestruction<adouble,dim>(
-      //          ui_a.data(), mu_a, d0_a, S, Re_a, sacs_a.data());
-      //    }
-      // }
       //src = prod*(uci_a[dim+2]-3)*d; ///!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       this->stack.independent(ui_a.data(), ui.Size());
       this->stack.dependent(src);
@@ -331,18 +296,6 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
          //dnu(nn) -= dnu(nn + (dim+2)*num_nodes)*uc(nn, dim+2)/(uc(nn, 0)*uc(nn, 0));
          //dnu(nn + (dim+2)*num_nodes) *= 1.0/uc(nn, 0);
       }
-      // for (int nn = 0; nn < num_nodes; nn++)
-      // {
-      //    for (int di = 0; di < dim; di++)
-      //    {
-      //       dnu(nn + (di+1)*num_nodes) *= 1.0/uc(nn, 0);
-      //       dnu(nn + (di+1)*num_nodes) += dnu(nn)/u(di+1, nn);
-      //    }
-      //    dnu(nn + (dim+2)*num_nodes) *= 1.0/uc(nn, 0);
-      //    dnu(nn + (dim+2)*num_nodes) += dnu(nn)/u(dim+2, nn);
-      // }
-
-
 
       // Set elmat entry
 

@@ -940,6 +940,36 @@ private:
 };
 
 
+/// Source-term integrator for a 2D SA MMS problem
+/// \note For details on the MMS problem, see the file rans_mms.py
+class SAMMSIntegrator : public MMSIntegrator<SAMMSIntegrator>
+{
+public:
+   /// Construct an integrator for a 2D RANS SA MMS source
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   SAMMSIntegrator(double Re_num, double Pr_num, double a = -1.0)
+       : MMSIntegrator<SAMMSIntegrator>(5, a),
+         Re(Re_num), Pr(Pr_num) {}
+
+   /// Computes the MMS source term at a give point
+   /// \param[in] x - spatial location at which to evaluate the source
+   /// \param[out] src - source term evaluated at `x`
+   void calcSource(const mfem::Vector &x, mfem::Vector &src)
+   {
+      double mu = 1.0/Re;
+      calcSAMMS<double>(mu, Pr, x.GetData(), src.GetData());
+   }
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
+};
+
 #include "rans_integ_def.hpp"
 
 } // namespace mach

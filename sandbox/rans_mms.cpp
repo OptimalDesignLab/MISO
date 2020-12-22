@@ -45,7 +45,7 @@ void uinit_pert_mms(const Vector &x, Vector& u);
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "rans_freestream_options.json";
+   const char *options_file = "rans_mms_options.json";
 
    // Initialize MPI
    int num_procs, rank;
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
       iroll = file_options["flow-param"]["roll-axis"].template get<int>();
       ipitch = file_options["flow-param"]["pitch-axis"].template get<int>();
       chi_fs = file_options["flow-param"]["chi"].template get<double>();
-      mms = file_options["flow-param"]["rans-mms"].template get<bool>();
+      mms = file_options["flow-param"]["sa-mms"].template get<bool>();
 
       // generate a simple tri mesh and a distance function
       std::unique_ptr<Mesh> smesh(new Mesh(nx, ny, 
@@ -99,8 +99,8 @@ int main(int argc, char *argv[])
          solver->setInitialCondition(uinit_pert_mms);
       else
          solver->setInitialCondition(uinit_pert);
-      solver->printSolution("rans_init", 0);
-      solver->printResidual("rans_res_init", 0);
+      solver->printSolution("rans_mms_init", 0);
+      solver->printResidual("rans_res_mms_init", 0);
 
 
       // get the initial density error
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("rans_final",0);
+      solver->printSolution("rans_mms_final",0);
       // get the final density error
       double l2_error_final = (static_cast<RANavierStokesSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));

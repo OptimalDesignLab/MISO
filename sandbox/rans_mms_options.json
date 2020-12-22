@@ -5,10 +5,10 @@
       "roll-axis": 0,
       "pitch-axis": 1,
       "chi": 3.0,
-      "Re": 1000.0,
+      "Re": 1.0,
       "Pr": 0.75,
       "mu": 1.0,
-      "rans-mms": false,
+      "sa-mms": true,
       "sa-consts": [0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.1, 1.2, 0.5, 10, 16, 0.7, 0.9],
       "sa-srcs": [1.0, 1.0]
    },
@@ -47,6 +47,6 @@
       "type": "const",
       "val": 1.0
    },
-   "file-names": "rans_free",
+   "file-names": "rans_mms",
    "init-pert": 0.0
 }

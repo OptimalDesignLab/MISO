@@ -21,7 +21,8 @@ const nlohmann::json default_options
       {"mu", -1.0},   // nondimensional viscosity (if negative, use Sutherland's)
       {"sa-consts", {0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.1, 1.2, 0.5, 10, 16, 0.7, 0.9}},
       //Spalart-Allmaras turbulence model constants, defined in rans_fluxes.hpp
-      {"sa-srcs", {1.0, 1.0}}
+      {"sa-srcs", {1.0, 1.0}},
+      {"sa-mms", false}
    }},
 
    {"space-dis", // options related to spatial discretization

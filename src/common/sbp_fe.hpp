@@ -137,6 +137,9 @@ public:
    /// \returns \f$ (E_{di})_{i,j} \f$ in physical space 
    double getSymEntry(int di, int i, const mfem::DenseMatrix &adjJ_i) const;
 
+   void getSymEntryRevDiff(int di, int i, double Sij_bar,
+                            mfem::DenseMatrix &adjJ_i_bar) const;
+
    /// `(i,j)`th entry of skew-symmetric matrix \f$ S_{di} \f$ in physical space
    /// \param[in] di - desired physical space coordinate direction
    /// \param[in] i - row index for \f$ S_{di} \f$
@@ -162,6 +165,10 @@ public:
    /// \returns \f$ (Q_{di})_{i,j} \f$ in physical space
    double getQEntry(int di, int i, int j, const mfem::DenseMatrix &adjJ_i,
                     const mfem::DenseMatrix &adjJ_j) const;
+
+   void getQEntryRevDiff(int di, int i, int j, double Sij_bar,
+                            mfem::DenseMatrix &adjJ_i_bar,
+                            mfem::DenseMatrix &adjJ_j_bar) const;
 
    /// Attempts to find the index corresponding to a given IntegrationPoint
    /// \param[in] ip - try to match the coordinates of this point

@@ -32,22 +32,39 @@ RANavierStokesSolver<dim, entvar>::RANavierStokesSolver(const nlohmann::json &js
 template <int dim, bool entvar>
 void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
-   // add Navier Stokes integrators
    vector<double> srcs = this->options["flow-param"]["sa-srcs"].template get<vector<double>>();
    Vector q_ref(dim+3);
-      this->getFreeStreamState(q_ref);
-   this->res->AddDomainIntegrator(new SAInviscidIntegrator<dim, entvar>( //Inviscid term
-       this->diff_stack, alpha));
-   this->res->AddDomainIntegrator(new SAViscousIntegrator<dim>( //SAViscousIntegrator
-       this->diff_stack, this->re_fs, this->pr_fs, sacs, mu, alpha));
-   // now add RANS integrators
+   this->getFreeStreamState(q_ref);
    double d0 = getZeroDistance();
-   this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
+   bool mms = this->options["flow-param"]["sa-mms"].template get<bool>();
+
+   // MMS option
+   if (mms)
+   {
+      if (dim != 2)
+      {
+         throw MachException("SA MMS problem only available for 2D!");
+      }
+      this->res->AddDomainIntegrator(
+          new SAMMSIntegrator(this->re_fs, this->pr_fs));
+      this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
        this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha, srcs[0], srcs[1], d0)); 
-   // add LPS stabilization
-   double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
-   this->res->AddDomainIntegrator(new SALPSIntegrator<dim, entvar>(
-       this->diff_stack, alpha, lps_coeff));
+   }
+   else
+   {
+      
+      this->res->AddDomainIntegrator(new SAInviscidIntegrator<dim, entvar>( //Inviscid term
+            this->diff_stack, alpha));
+      this->res->AddDomainIntegrator(new SAViscousIntegrator<dim>( //SAViscousIntegrator
+            this->diff_stack, this->re_fs, this->pr_fs, sacs, mu, alpha));
+      // now add RANS integrators
+      this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
+            this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha, srcs[0], srcs[1], d0)); 
+      // add LPS stabilization
+      double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
+      this->res->AddDomainIntegrator(new SALPSIntegrator<dim, entvar>(
+            this->diff_stack, alpha, lps_coeff));
+   }
 
 }
 
@@ -261,9 +278,7 @@ void RANavierStokesSolver<dim, entvar>::getDistanceFunction()
    }
    if (wall_type == "y-dist") // y distance from the origin
    {
-      double offset = 
-         this->options["mesh"]["offset"].template get<double>();
-      auto walldist = [offset](const Vector &x)
+      auto walldist = [](const Vector &x)
       {
          // if(x(1) == 0.0)
          //    return 0.25*offset; //// not going to do it this way
@@ -272,8 +287,33 @@ void RANavierStokesSolver<dim, entvar>::getDistanceFunction()
       };
       FunctionCoefficient wall_coeff(walldist);
       dist->ProjectCoefficient(wall_coeff);
+   }
+   if (wall_type == "true") // true computed distance function
+   {
+      // assemble wall attribute vector
+      auto &bcs = this->options["bcs"];
+      vector<int> tmp = bcs["no-slip-adiabatic"].template get<vector<int>>();
+      vector<int> tmp2 = bcs["slip-wall"].template get<vector<int>>();
+      for(int i = 0; i < tmp.size(); i++)
+      {
+         tmp[i] = tmp[i] + tmp2[i];
+      }
+      mfem::Array<int> wall_marker; 
+      wall_marker.SetSize(tmp.size(), 0);
+      wall_marker.Assign(tmp.data());
+
+      // create surface object
+      Surface<dim> surf(*this->mesh, wall_marker);
+
+      // project surface function
+      auto walldist = [&surf](const Vector &x)
+      {
+         return surf.calcDistance(x); 
+      };
+      FunctionCoefficient wall_coeff(walldist);
+      dist->ProjectCoefficient(wall_coeff);
    } 
-   ///TODO: Add option for proper wall distance function 
+   ///TODO: Differentiate true wall function
 }
 
 template <int dim, bool entvar>
@@ -294,15 +334,14 @@ double RANavierStokesSolver<dim, entvar>::getZeroDistance()
       double val = this->options["wall-func"]["val"].template get<double>();
       d0 = val;
    }
-   if (wall_type == "y-dist") // y distance from the origin
+   else
    {
-
       // this should probably work for any distance function 
       double work = 1e15;
       // exhaustive search of the mesh for the smallest d value
       for(int i = 0; i < dist->Size(); i++)
       {
-         if(dist->Elem(i) < work && dist->Elem(i) > 0.0)
+         if(dist->Elem(i) < work && dist->Elem(i) > 1e-15)
          {
             work = dist->Elem(i);
          }

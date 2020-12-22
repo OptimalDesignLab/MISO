@@ -331,10 +331,11 @@ xdouble calcSAFullSource(const xdouble *q,
                                  const xdouble *dir2, const xdouble *sacs,
                                  const xdouble prod, const xdouble dest)
 {
-    xdouble src = calcSASource<xdouble,dim>(
-         q, dir, sacs)/Re;
-    src -= calcSASource2<xdouble,dim>(
-         q, mu, dir, dir2, sacs)/Re;
+    xdouble src = 0.0;
+    // src += calcSASource<xdouble,dim>(
+    //      q, dir, sacs)/Re;
+    // src -= calcSASource2<xdouble,dim>(
+    //      q, mu, dir, dir2, sacs)/Re;
     if (fabs(d) > 1e-12)
     {
     if (q[dim+2] < 0)
@@ -348,8 +349,8 @@ xdouble calcSAFullSource(const xdouble *q,
     {
         src += prod*calcSAProduction<xdouble,dim>(
             q, mu, d, S, Re, sacs);
-        src += dest*calcSADestruction<xdouble,dim>(
-            q, mu, d, S, Re, sacs);
+        // src += dest*calcSADestruction<xdouble,dim>(
+        //     q, mu, d, S, Re, sacs);
     }
     }
     else
@@ -702,6 +703,48 @@ void applyViscousScalingSA(int d, xdouble mu, double Pr, const xdouble *q,
       applyCijMatrix<xdouble, dim>(d, d2, mu, Pr, q, Dw+(d2*(dim+3)), mat_vec);
    }
 }
+
+
+/// MMS source term for a particular Navier-Stokes verification
+/// \param[in] mu - nondimensionalized dynamic viscosity 
+/// \param[in] Pr - Prandtl number
+/// \param[in] x - location at which to evaluate the source
+/// \param[out] src - the source value
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcSAMMS(double mu, double Pr, const xdouble *x, xdouble *src)
+{
+   double gamma = euler::gamma;
+   const double rho0 = 1.0;
+   const double rhop = 0.05;
+   const double U0 = 0.5;
+   const double Up = 0.05;
+   const double T0 = 1.0;
+   const double Tp = 0.05;
+   double kappa = mu * gamma / (Pr * euler::gami);
+    const double chif = 100.0;
+    // const double nut = chif*mu*x[1];
+    // const double rho = rho0 + rhop*sin(M_PI*x[0])*sin(M_PI*x[0])*sin(M_PI*x[1]);
+    // const double chi = nut*rho/mu;
+    // const double fv1 = (chi*chi*chi)/(chi*chi*chi + 7.1*7.1*7.1);
+    // const double fv2 = 1 - chi/(1 + chi*fv1);
+    // const double mu_t = mu + rho*nut*fv1;
+    // const double dummy = sqrt(pow(-4*U0*x[1] + 4*U0*(1 - x[1]) + 2*M_PI*Up*pow(sin(M_PI*x[0]), 2)*cos(2*M_PI*x[1]) + 4*M_PI*Up*sin(2*M_PI*x[0])*sin(M_PI*x[1])*cos(2*M_PI*x[0]), 2)); 
+
+    src[0] = 0 ;
+
+    src[1] = 0 ;
+
+    src[2] = 0 ;
+
+    src[3] = 0 ;
+    
+    //-P
+    //src[4] = chif*mu*x[1]*(0.13550000000000001 - 0.16259999999999999*exp(-0.5*pow(chif, 2)*pow(x[1], 2)*pow(rho0 + rhop*pow(sin(M_PI*x[0]), 2)*sin(M_PI*x[1]), 2)))*(-3.5693039857227848*chif*mu*(chif*x[1]*(rho0 + rhop*pow(sin(M_PI*x[0]), 2)*sin(M_PI*x[1]))/(pow(chif, 4)*pow(x[1], 4)*pow(rho0 + rhop*pow(sin(M_PI*x[0]), 2)*sin(M_PI*x[1]), 4)/(pow(chif, 3)*pow(x[1], 3)*pow(rho0 + rhop*pow(sin(M_PI*x[0]), 2)*sin(M_PI*x[1]), 3) + 357.91099999999994) + 1) - 1)/x[1] - 0.67333333333333334*sqrt(pow(-4*U0*x[1] + 4*U0*(1 - x[1]) + 2*M_PI*Up*pow(sin(M_PI*x[0]), 2)*cos(2*M_PI*x[1]) + 4*M_PI*Up*sin(2*M_PI*x[0])*sin(M_PI*x[1])*cos(2*M_PI*x[0]), 2))) ;
+
+    //-P-src
+    src[4] = -1.0718113612004292*pow(chif, 2)*pow(mu, 2) - chif*mu*x[1]*(0.13550000000000001 - 0.16259999999999999*exp(-0.5*pow(chif, 2)*pow(x[1], 2)*pow(rho0 + rhop*pow(sin(M_PI*x[0]), 2)*sin(M_PI*x[1]), 2)))*(3.5693039857227848*chif*mu*(chif*x[1]*(rho0 + rhop*pow(sin(M_PI*x[0]), 2)*sin(M_PI*x[1]))/(pow(chif, 4)*pow(x[1], 4)*pow(rho0 + rhop*pow(sin(M_PI*x[0]), 2)*sin(M_PI*x[1]), 4)/(pow(chif, 3)*pow(x[1], 3)*pow(rho0 + rhop*pow(sin(M_PI*x[0]), 2)*sin(M_PI*x[1]), 3) + 357.91099999999994) + 1) - 1)/x[1] + 0.67333333333333334*sqrt(pow(-4*U0*x[1] + 4*U0*(1 - x[1]) + 2*M_PI*Up*pow(sin(M_PI*x[0]), 2)*cos(2*M_PI*x[1]) + 4*M_PI*Up*sin(2*M_PI*x[0])*sin(M_PI*x[1])*cos(2*M_PI*x[0]), 2))) ;}
+
 
 } // namespace mach
 

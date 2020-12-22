@@ -4,6 +4,7 @@
 #include "mfem.hpp"
 
 #include "navier_stokes.hpp"
+#include "surface.hpp"
 
 namespace mach
 {

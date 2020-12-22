@@ -17,6 +17,7 @@ target_sources(mach
       navier_stokes_fluxes.hpp
       navier_stokes_integ_def.hpp
       navier_stokes_integ.hpp
+      navier_stokes_sens_integ.hpp
       navier_stokes.cpp
       navier_stokes.hpp
       viscous_integ_def.hpp
