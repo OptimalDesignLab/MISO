@@ -50,7 +50,7 @@ skbeg     0   0   0   1
 skend     0
 translate 0   -stator_id/2   -stack_length/2
 extrude   0   0   stack_length
-fillet    slot_radius   8   1
+fillet    2*slot_radius   8   1
 store     half_tooth   0   0
 restore   half_tooth   0
 mirror    1   0   0   0
@@ -59,7 +59,7 @@ union     0   0   0
 store     tooth   0   0
 
 cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_od/2
-cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_id/2+slot_depth
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_id/2+slot_depth+tooth_tip_thickness
 subtract  none   1   0
 store stator_yoke
 restore stator_yoke
@@ -73,7 +73,7 @@ store     stator_solid   0   0
 restore   stator_solid   0
 extract   0
 store     stator_shell   0   0
-box       0   -stator_id/2-tooth_tip_thickness/2   -stack_length/2   0   -slot_depth   stack_length
+box       0   -stator_id/2-tooth_tip_thickness/2   -stack_length/2   0   -slot_depth-tooth_tip_thickness   stack_length
 revolve   0   0   0   0   0   1   shoe_angle/2
 restore   stator_solid   0
 subtract  none   1   0
@@ -99,6 +99,11 @@ patbeg    i   num_slots
    rotatez   i*360/num_slots   0   0
    join     0    0
 patend
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   heatsink_od/2
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_od/2
+subtract  none   1   0
+extract   0
+join     0    0
 store     stator_assembly_shell   0   0
 
 cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_od/2
@@ -154,7 +159,7 @@ restore   stator_assembly_shell   0
 join     0    0
 store     motor_shell   0   0
 
-cylinder  0   0   -stack_length/2   0   0   stack_length/2   stator_od/2
+cylinder  0   0   -stack_length/2   0   0   stack_length/2   heatsink_od/2
 cylinder  0   0   -stack_length/2   0   0   stack_length/2   rotor_id/2
 subtract  none   1   0
 # patbeg    i   num_slots
@@ -164,7 +169,7 @@ subtract  none   1   0
 # patend
 store     motor_solid   0   0
 
-set       farfield_radius stator_od
+set       farfield_radius heatsink_od
 sphere    0   0   0   farfield_radius
 box       -2*farfield_radius   0   -2*farfield_radius   4*farfield_radius   2*farfield_radius   4*farfield_radius
 subtract  none   1   0
