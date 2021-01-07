@@ -140,6 +140,7 @@ public:
 
    /// A temporal funtion that print the 2d sod_shock problem
    virtual void PrintSodShock(const std::string &file_name);
+   virtual void PrintSodShockCenter(const std::string &file_name);
    
    /// A virtual function convert the conservative variable to entropy variables
    /// defined in EulerSolver

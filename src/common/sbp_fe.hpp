@@ -224,7 +224,7 @@ protected:
 
 public:
    explicit SBPCollection(const int p, const int dim = 2);
-
+   virtual int GetContType() const { return CONTINUOUS; }
    virtual const FiniteElement *FiniteElementForGeometry(
       Geometry::Type GeomType) const;
    virtual int DofForGeometry(Geometry::Type GeomType) const
@@ -264,6 +264,9 @@ public:
    virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
                                              int Or) const;
    virtual const char *Name() const {  return DSBPname;  }
+
+   virtual int GetContType() const { return DISCONTINUOUS; }
+
    virtual ~DSBPCollection();
 };
 

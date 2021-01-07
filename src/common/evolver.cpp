@@ -38,8 +38,8 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
       //cout << "In lambda function: " << std::setprecision(14); 
       add(x, gamma*dt, k, x_new);
       double entropy = f_ode->Entropy(x_new);
-      // cout << "gamma = " << gamma << ": ";
-      // cout << "residual = " << entropy - entropy_old + gamma*dt*delta_entropy << endl;
+      //cout << "gamma = " << gamma << ": ";
+      //cout << "residual = " << entropy - entropy_old + gamma*dt*delta_entropy << endl;
       //cout << "new entropy is " << entropy << '\n';
       return entropy - entropy_old + gamma*dt*delta_entropy;
    };

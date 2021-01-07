@@ -86,13 +86,11 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    if (options["space-dis"]["GD"].get<bool>() == true || 
        options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
-      fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),
-                                   dim));
+      fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(), dim));
    }
    else if (options["space-dis"]["basis-type"].get<string>() == "csbp")
    {
-      fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(),
-                                  dim));
+      fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(), dim ));
    }
 }
 
@@ -1018,11 +1016,6 @@ void AbstractSolver::PrintSodShock(const std::string &file_name)
    {
       eltransf = mesh->GetElementTransformation(i);
       fes->GetElementVDofs(i, vdofs);
-      // for (int s = 0; s < vdofs.Size(); s++)
-      // {
-      //    std::cout << vdofs[s] << ' ';
-      // }
-      // std::cout << std::endl;
       for(int j = 0; j < num_dofs; j++)
       {
          eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
@@ -1038,5 +1031,31 @@ void AbstractSolver::PrintSodShock(const std::string &file_name)
 
    write_coord.close();
    write_value.close();
+}
+
+void AbstractSolver::PrintSodShockCenter(const std::string &file_name)
+{
+   // prepare the file stream
+   ofstream write_center(file_name+"_coord.txt");
+   ofstream write_state(file_name+"_u.txt");
+   write_state.precision(14);
+   write_center.precision(14);
+   // print the state
+   mfem::Vector cent(1);
+   int geom = mesh->GetElement(0)->GetGeometryType();
+   ElementTransformation *eltransf;
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      eltransf = mesh->GetElementTransformation(i);
+      eltransf->Transform(Geometries.GetCenter(geom), cent);
+      write_center << cent(0) << std::endl;
+      for (int j = 0; j < num_state; j++)
+      {
+         write_state << (*uc)( i * num_state + j) << ' ';
+      }
+      write_state << std::endl;
+   }
+   write_state.close();
+   write_center.close();
 }
 } // namespace mach

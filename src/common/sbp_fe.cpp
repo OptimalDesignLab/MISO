@@ -162,7 +162,7 @@ void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
    MultAAt(V, P);
    P.RightScaling(H);
    P *= -1.0;
-   for (int i = 0; i < Dof; ++i)
+   for (int i = 0; i < dof; ++i)
    {
       P(i, i) += 1.0;
    }
@@ -349,7 +349,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
    getNodeCoords(0, xi);
    xi *= 2.0;
    xi -= 1.0;
-   mach::getVandermondeForSeg(xi, Order, V);
+   mach::getVandermondeForSeg(xi, order, V);
    // scale V to account for the different reference elements
    V *= sqrt(2.0);
 }
@@ -381,7 +381,7 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
       xvec(0) = 2 * ip.x - 1;
       int ptr = 0;
       shape = 0.0;
-      for (int i = 0; i <= Order; ++i)
+      for (int i = 0; i <= order; ++i)
       {
          mach::jacobiPoly(xvec, 0.0, 0.0, i, poly);
          poly *= 2.0; // scale to mfem reference element
@@ -418,7 +418,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
    // index.
    {
       double tol = 1e-12;
-      for (int i = 0; i < Dof; i++)
+      for (int i = 0; i < dof; i++)
       {
          double delta_x = ip.x - Nodes.IntPoint(i).x;
          if (fabs(delta_x) < tol)
@@ -430,7 +430,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
    }
    // TODO: I think we can make tempVec an empty Vector, since it is just a reference
    dshape = 0.0;
-   Vector tempVec(Dof);
+   Vector tempVec(dof);
    Q[0].GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(0, tempVec);
    dshape.InvLeftScaling(H);
@@ -695,12 +695,12 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    }
 
    // populate unordered_map with mapping from IntPoint address to index
-   for (int i = 0; i < Dof; i++)
+   for (int i = 0; i < dof; i++)
    {
       ipIdxMap[&(Nodes.IntPoint(i))] = i;
    }
 
-   for (int i = 0; i < Dof; i++)
+   for (int i = 0; i < dof; i++)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(i);
       H(i) = ip.weight;
@@ -718,7 +718,7 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    xi -= 1.0;
    eta *= 2.0;
    eta -= 1.0;
-   mach::getVandermondeForTri(xi, eta, Order, V);
+   mach::getVandermondeForTri(xi, eta, order, V);
    // scale V to account for the different reference elements
    V *= 2.0;
 }
@@ -752,7 +752,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
       yvec(0) = 2 * ip.y - 1;
       int ptr = 0;
       shape = 0.0;
-      for (int r = 0; r <= Order; ++r)
+      for (int r = 0; r <= order; ++r)
       {
          for (int j = 0; j <= r; ++j)
          {
@@ -792,7 +792,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    // index.
    {
       double tol = 1e-12;
-      for (int i = 0; i < Dof; i++)
+      for (int i = 0; i < dof; i++)
       {
          double delta_x = ip.x - Nodes.IntPoint(i).x;
          double delta_y = ip.y - Nodes.IntPoint(i).y;
@@ -805,7 +805,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    }
    dshape = 0.0;
 
-   Vector tempVec(Dof);
+   Vector tempVec(dof);
    Q[0].GetColumnReference(ipIdx, tempVec);
    dshape.SetCol(0, tempVec);
    Q[1].GetColumnReference(ipIdx, tempVec);
