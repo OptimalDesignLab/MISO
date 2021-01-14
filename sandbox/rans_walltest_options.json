@@ -25,7 +25,7 @@
       "const-cfl": true,
       "ode-solver": "PTC",
       "t-final": 100.0,
-      "dt": 1.0,
+      "dt": 10.0,
       "cfl": 0.5,
       "res-exp": 2.0
    },
@@ -55,7 +55,7 @@
       "no-slip-adiabatic": [1, 0, 0, 0, 0]
    },
    "wall-func": {
-      "type": "y-dist"
+      "type": "true"
    },
    "mesh": {
       "num-x": 21,

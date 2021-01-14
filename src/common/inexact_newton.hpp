@@ -45,6 +45,10 @@ public:
 protected:
    /// Jacobian of the nonlinear operator; needed by ComputeStepSize();
    mutable Operator *jac;
+   /// Diagonal row scaling matrix
+   mutable SparseMatrix *scaling_m;
+   /// Jacobian scaled by an automatic matrix to improve condition number
+   mutable ProductOperator *jac_scaled;
    /// member vector saves the new x position.
    mutable mfem::Vector x_new;
    /// Parameters for inexact newton method.

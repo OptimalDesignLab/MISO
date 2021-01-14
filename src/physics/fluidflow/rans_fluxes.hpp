@@ -332,10 +332,10 @@ xdouble calcSAFullSource(const xdouble *q,
                                  const xdouble prod, const xdouble dest)
 {
     xdouble src = 0.0;
-    // src += calcSASource<xdouble,dim>(
-    //      q, dir, sacs)/Re;
-    // src -= calcSASource2<xdouble,dim>(
-    //      q, mu, dir, dir2, sacs)/Re;
+    src += calcSASource<xdouble,dim>(
+         q, dir, sacs)/Re;
+    //src -= calcSASource2<xdouble,dim>(
+    //    q, mu, dir, dir2, sacs)/Re;
     if (fabs(d) > 1e-12)
     {
     if (q[dim+2] < 0)
@@ -349,8 +349,8 @@ xdouble calcSAFullSource(const xdouble *q,
     {
         src += prod*calcSAProduction<xdouble,dim>(
             q, mu, d, S, Re, sacs);
-        // src += dest*calcSADestruction<xdouble,dim>(
-        //     q, mu, d, S, Re, sacs);
+        src += dest*calcSADestruction<xdouble,dim>(
+            q, mu, d, S, Re, sacs);
     }
     }
     else
@@ -507,16 +507,16 @@ void calcVorticity(const xdouble *Dq, const xdouble *jac_inv,
     {
         curl[0] = 0;
         curl[1] = 0;
-        curl[2] = DqJ[2] - DqJ[1 + dim+3]; 
+        curl[2] = (DqJ[2] - DqJ[1 + dim+3]); 
     }
     ////!!!!!!!
     //curl[2] = 1.0;// min(abs(curl[2]), 0.0);
     ////!!!!!!!
     if(dim == 3)
     {
-        curl[0] = DqJ[3 + dim+3] - DqJ[2 + 2*(dim+3)];
-        curl[1] = DqJ[1 + 2*(dim+3)] - DqJ[3];
-        curl[2] = DqJ[2] - DqJ[1 + dim+3];
+        curl[0] = (DqJ[3 + dim+3] - DqJ[2 + 2*(dim+3)]);
+        curl[1] = (DqJ[1 + 2*(dim+3)] - DqJ[3]);
+        curl[2] = (DqJ[2] - DqJ[1 + dim+3]);
     }
 }
 

@@ -2,6 +2,8 @@
 constexpr bool entvar = false;
 
 #include<random>
+#include<algorithm>
+#include <chrono>
 #include "adept.h"
 
 #include "mfem.hpp"
@@ -194,7 +196,7 @@ void uexact(const Vector &x, Vector& q)
    u(1) = u(0)*mach_fs*cos(aoa_fs);
    u(2) = u(0)*mach_fs*sin(aoa_fs);
    u(3) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
-   u(4) = u(0)*chi_fs*mu;
+   u(4) = chi_fs*mu;
 
    if (entvar == false)
    {
@@ -255,6 +257,19 @@ std::unique_ptr<Mesh> buildWalledMesh(int num_x, int num_y)
    auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_x, num_y,
                                              Element::TRIANGLE, true /* gen. edges */,
                                              2.33333, 1.0, true));
+
+   // Randomly reorder elements
+   int numelem = mesh_ptr->GetNE();
+   unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+   Array<int> randelem(numelem);
+   for (int n = 0; n < numelem; n++)
+      randelem[n] = n;
+   //randelem[2*num_x - 1] = 0;
+   //randelem[0] = 2*num_x - 1;
+   //std::shuffle(randelem.begin(), randelem.end(), std::default_random_engine(seed));
+   mesh_ptr->GetGeckoElementOrdering(randelem);
+   mesh_ptr->ReorderElements(randelem);
+
    // strategy:
    // 1) generate a fes for Lagrange elements of desired degree
    // 2) create a Grid Function using a VectorFunctionCoefficient

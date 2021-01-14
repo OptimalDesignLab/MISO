@@ -48,7 +48,7 @@ void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
       this->res->AddDomainIntegrator(
           new SAMMSIntegrator(this->re_fs, this->pr_fs));
       this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
-       this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha, srcs[0], srcs[1], d0)); 
+       this->diff_stack, *dist, this->re_fs, sacs, mu, alpha, srcs[0], srcs[1], d0)); 
    }
    else
    {
@@ -59,7 +59,7 @@ void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
             this->diff_stack, this->re_fs, this->pr_fs, sacs, mu, alpha));
       // now add RANS integrators
       this->res->AddDomainIntegrator(new SASourceIntegrator<dim>(
-            this->diff_stack, *dist, this->re_fs, sacs, mu, -alpha, srcs[0], srcs[1], d0)); 
+            this->diff_stack, *dist, this->re_fs, sacs, mu, alpha, srcs[0], srcs[1], d0)); 
       // add LPS stabilization
       double lps_coeff = this->options["space-dis"]["lps-coeff"].template get<double>();
       this->res->AddDomainIntegrator(new SALPSIntegrator<dim, entvar>(
@@ -211,7 +211,7 @@ void RANavierStokesSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
       q_ref(this->ipitch+1) = q_ref(0)*this->mach_fs*sin(this->aoa_fs);
    }
    q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*this->mach_fs*this->mach_fs;
-   q_ref(dim+2) = q_ref(0)*this->chi_fs*mu;
+   q_ref(dim+2) = this->chi_fs*mu;
 }
 
 static void pert(const Vector &x, Vector& p);

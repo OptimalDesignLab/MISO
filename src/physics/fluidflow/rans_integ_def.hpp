@@ -56,7 +56,7 @@ void SASourceIntegrator<dim>::AssembleElementVector(
 
       // compute vorticity at node and take magnitude
       calcVorticity<double, dim>(Dui.GetData(), Trans.InverseJacobian().GetData(), curl_i.GetData()); 
-      double S = sqrt(curl_i(0)*curl_i(0) + curl_i(1)*curl_i(1) +curl_i(2)*curl_i(2));
+      double S = sqrt((curl_i(0)*curl_i(0) + curl_i(1)*curl_i(1) +curl_i(2)*curl_i(2)));
       //S = abs(curl_i(2));
       // compute gradient of turbulent viscosity at node
       calcGrad<double, dim>(dim+2, Dui.GetData(), Trans.InverseJacobian().GetData(), grad_nu_i.GetData()); 
@@ -74,7 +74,7 @@ void SASourceIntegrator<dim>::AssembleElementVector(
       
 
       //byNODES
-      elvect(i + num_nodes*(num_states-1)) = alpha * Trans.Weight() * node.weight * src;
+      elvect(i + num_nodes*(num_states-1)) = -alpha * Trans.Weight() * node.weight * src;
       //elvect((dim+2) + i*(num_states)) = alpha * Trans.Weight() * node.weight * src;
    } // loop over element nodes i
 }
@@ -199,7 +199,7 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
 
       // vorticity magnitude deriv
       this->stack.new_recording();
-      adouble S = sqrt(curl_i_a[0]*curl_i_a[0] + curl_i_a[1]*curl_i_a[1] +curl_i_a[2]*curl_i_a[2]);
+      adouble S = sqrt((curl_i_a[0]*curl_i_a[0] + curl_i_a[1]*curl_i_a[1] +curl_i_a[2]*curl_i_a[2]));
       //S = abs(curl_i_a[2]);
       this->stack.independent(curl_i_a.data(), curl_i.Size());
       this->stack.dependent(S);
@@ -303,7 +303,7 @@ void SASourceIntegrator<dim>::AssembleElementGrad(
       //elmat.SetRow((num_states-1)+i*num_states, dnu);
       elmat.SetRow(i+num_nodes*(num_states-1), dnu);
    } // loop over element nodes i
-   elmat *= alpha;
+   elmat *= -alpha;
 }
 
 //====================================================================================
