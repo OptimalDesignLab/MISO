@@ -272,6 +272,55 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacV(
 }
 
 template <int dim, bool entvar>
+void MassIntegrator<dim, entvar>::convertToConserv(const mfem::Vector &w,
+                                                   mfem::Vector &q)
+{
+   if (entvar)
+   {
+      calcConservativeVars<double, dim>(w.GetData(), q.GetData());
+   }
+   else
+   {
+      // If the state is the conservative variables, then dq/du = I
+      q = w;
+   }
+}
+
+template <int dim, bool entvar>
+void MassIntegrator<dim, entvar>::calcToConservJacState(const mfem::Vector &w,
+                                                        mfem::DenseMatrix &jac)
+{
+   if (!entvar)
+   {
+      jac = 0.0;
+      for (int i = 0; i < dim+2; ++i)
+      {
+         jac(i,i) = 1.0;
+      }
+   }
+   else
+   {
+      // vector of active input variables
+      std::vector<adouble> w_a(w.Size());
+      // initialize adouble inputs
+      adept::set_values(w_a.data(), w.Size(), w.GetData());
+      // start recording
+      this->stack.new_recording();
+      // create vector of active output variables
+      std::vector<adouble> q_a(w.Size());
+      // run algorithm
+      //convertToConserv<dim, entvar>(w_a.data(), q_a.data());
+      calcConservativeVars<adouble, dim>(w_a.data(), q_a.data());
+      // identify independent and dependent variables
+      this->stack.independent(w_a.data(), w.Size());
+      this->stack.dependent(q_a.data(), w.Size());
+      // compute and store jacobian in dwdu
+      this->stack.jacobian(jac.GetData());
+   }
+}
+
+
+template <int dim, bool entvar>
 void MassIntegrator<dim, entvar>::calcMatVec(const mfem::Vector &u,
                                              const mfem::Vector &k,
                                              mfem::Vector &Ak)

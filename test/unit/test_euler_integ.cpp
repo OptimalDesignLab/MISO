@@ -626,6 +626,40 @@ TEMPLATE_TEST_CASE_SIG("Mass integrator calcMatVec Jacobians",
       }
    }
 
+   SECTION(" partial u / partial w is correct")
+   {
+      // random vector used in scaling product
+      mfem::Vector vec(vec_pert, num_states);
+
+      // calculate the jacobian w.r.t w
+      mfem::DenseMatrix mat_vec_jac(num_states);
+      mfem::Vector mat_vec_jac_v(num_states);
+      mass_integ.calcToConservJacState(w, mat_vec_jac);
+
+      // loop over each state variable and check column of mat_vec_jac...
+      for (int i = 0; i < num_states; i++)
+      {
+         mfem::Vector w_plus(w), w_minus(w);
+         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+         w_plus(i) += delta;
+         w_minus(i) -= delta;
+
+         // get finite-difference approximation of ith column
+         mass_integ.convertToConserv(w_plus, mat_vec_plus);
+         mass_integ.convertToConserv(w_minus, mat_vec_minus);
+         mfem::Vector mat_vec_fd(num_states);
+         mat_vec_fd = 0.0;
+         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+         mat_vec_fd /= 2.0 * delta;
+
+         // compare with explicit Jacobian
+         for (int j = 0; j < num_states; j++)
+         {
+            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)).margin(1e-10));
+         }
+      }
+   }
+
    SECTION("calcMatVec Jacobian w.r.t vec is correct")
    {
       // random vector used in scaling product

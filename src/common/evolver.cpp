@@ -298,8 +298,11 @@ void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const
    //cout << "vec1&2 size is " << vec1.Size()<< '\n';
    vec1.Add(dt, k);  // vec1 = x + dt * k
    res.Mult(vec1, y); // y = f(vec1)
-   mass.Mult(k, vec2);
-   y += vec2;  // y = f(x + dt * k) + M(k)
+   mass.Mult(x, vec2);
+   y -= vec2;  // y = f(x + dt * k) - M(x)
+   vec1.Add(dt, k);
+   mass.Mult(vec1, vec2); // M(x + 2 * dt * k)
+   y += vec2; // y = f(x + dt * k) + M(x + 2*dt*k) - M(x)
 }
 
 Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
@@ -308,9 +311,10 @@ Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
    Vector vec1(x);
    vec1.Add(dt, k);
    jac1 = dynamic_cast<MatrixType*>(&res.GetGradient(vec1));
-   *jac1 *= dt; // jac1 = dt * f'(x + dt * k) 
-   jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(k)); // jac2 = M'(k);
-   jac1->Add(1.0, *jac2);
+   *jac1 *= dt; // jac1 = dt * f'(x + dt * k)
+   vec1.Add(dt, k);
+   jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(vec1)); // jac2 = M'(x + 2 * dt * k);
+   jac1->Add(2.0 * dt, *jac2);
    return *jac1;
 }
 
@@ -380,5 +384,17 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    double error = jac_v * jac_v;
    std::cout << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
+
+// void ImplicitNonlinearMassEvolver::printinit(const mfem::Vector &u)
+// {
+//    MatrixType *jac = res.GetGradient(u);
+//    MatrixType *jac2 = mass.GetGradient(u);
+//    ofstream jac_save("jac.txt");
+//    ofstream mass_save("mass_matrix.txt")
+//    jac->PrintMatlab(jac_save);
+//    jac2->PrintMatlab(mass_save);
+//    mass_save.close();
+//    jac_save.close();
+// }
 
 } // end of mach namespace

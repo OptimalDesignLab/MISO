@@ -188,6 +188,12 @@ public:
                                                               dim + 2, a),
          stack(diff_stack), q_work(dim + 2) {}
 
+   /// converts state variables to entropy variables, if necessary
+   /// \param[in] w - entropy variables that will be converted to conservative variables
+   /// \param[out] q - conservative variables corresponding to `w`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertToConserv(const mfem::Vector &w, mfem::Vector &q);
+
    /// applies symmetric matrix `dq/du` to input `k`
    /// \param[in] u - state at which the symmetric matrix `dq/du` is evaluated
    /// \param[in] k - vector that is being multiplied
@@ -201,7 +207,12 @@ public:
    /// \param[out] jac - Jacobian of the product w.r.t. `u`
    void calcMatVecJacState(const mfem::Vector &u, const mfem::Vector &k,
                            mfem::DenseMatrix &jac);
-
+   
+   /// Compute the Jacobian \partial u / \partial w
+   /// \param[in] q - the input state variables 
+   /// \param[out] jac - the Jacobian of conservative variable w.r.t state variables
+   void calcToConservJacState(const mfem::Vector &q, mfem::DenseMatrix &jac);
+   
    /// Computes the matrix (dq/du)
    /// \param[in] u - state at which to evaluate the entropy inverse Hessian
    /// \param[out] jac - stores the entropy inverse Hessian
@@ -500,7 +511,6 @@ public:
                        mfem::DenseMatrix &flux_jac) {}
 };
 
-#include "euler_integ_def.hpp"
 
 } // namespace mach
 

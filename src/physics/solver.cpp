@@ -74,12 +74,6 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
       // TODO: parallel exit
    }
 
-   // Refine the mesh here, or have a separate member function?
-   // for (int l = 0; l < options["mesh"]["refine"].get<int>(); l++)
-   // {
-   //    mesh->UniformRefinement();
-   // }
-
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
@@ -764,7 +758,7 @@ void AbstractSolver::solveUnsteady()
    res->Mult(*uc, test);
    double inner = (*uc) * test;
    cout << "The inner product is " << inner << '\n'; 
-
+   // check the jacobian
    bool done = false;
    double t_final = options["time-dis"]["t-final"].get<double>();
    *out << "t_final is " << t_final << '\n';
@@ -787,6 +781,17 @@ void AbstractSolver::solveUnsteady()
       double dt_real = min(dt, t_final - t);
       // TODO: !!!!! The following does not generalize beyond midpoint !!!!!
       updateNonlinearMass(ti, 0.5*dt_real, 1.0);
+      if (0 == ti)
+      {
+         MatrixType *jac1 = dynamic_cast<MatrixType *>(&res->GetGradient(*uc));
+         MatrixType *jac2 = dynamic_cast<MatrixType *>(&nonlinear_mass->GetGradient(*uc));
+         ofstream jac_save("jac.txt");
+         ofstream mass_save("mass.txt");
+         jac1->PrintMatlab(jac_save);
+         jac2->PrintMatlab(mass_save);
+         jac_save.close();
+         mass_save.close();
+      }
       //updateNonlinearMass(ti, dt_real/2, 1.0);
       // if (ti % 10 == 0)
       // {

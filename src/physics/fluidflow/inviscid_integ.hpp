@@ -5,7 +5,7 @@
 
 #include "sbp_fe.hpp" // needed in inviscid_integ_def.hpp 
 #include "solver.hpp"
-
+#include <iostream>
 namespace mach
 {
 
@@ -648,7 +648,7 @@ protected:
    /// state at which the matrix (du/dw) is evaluated 
    mfem::Vector u_i;
    /// vector that multiplies (du/dw), usually the time derivative here
-   mfem::Vector k_i;
+   mfem::Vector q_i;
    /// stores the matrix-vector product (du/dw)*k at node i
    mfem::Vector Ak_i;
    /// stores the (du/dw) for the Jacobian calculation 
@@ -656,6 +656,15 @@ protected:
    /// stores the derivative of (du/dw)*k with respect to k
    mfem::DenseMatrix jac_node;
 #endif
+
+   /// converts working variables to another set (e.g. entropy to conservative)
+   /// \param[in] w - working states that are to be converted (presumabably entropy variables)
+   /// \param[out] q - transformed variables (conservative variables)
+   /// \note This uses the CRTP, so it wraps a call to `convertVars` in Derived.
+   void convert(const mfem::Vector &w, mfem::Vector &q)
+   {
+      static_cast<Derived*>(this)->convertToConserv(w, q);
+   }
 
    /// applies symmetric matrix `du/dw` to input `k`
    /// \param[in] u - state at which the symmetric matrix `du/dw` is evaluated
@@ -676,6 +685,12 @@ protected:
                        mfem::DenseMatrix &jac)
    {
       static_cast<Derived*>(this)->calcMatVecJacState(u, k, jac);
+   }
+
+
+   void convertJacState(const mfem::Vector &u, mfem::DenseMatrix &jac)
+   {
+      static_cast<Derived*>(this)->calcToConservJacState(u, jac);
    }
 
    /// Computes the matrix (du/dw)

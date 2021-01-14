@@ -237,6 +237,8 @@ public:
    /// check evolver jacobian
    void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
 
+   /// temperal function used for checking operator
+   void prininit(const mfem::Vector &u);
    /// Class destructor
    virtual ~ImplicitNonlinearMassEvolver() { }
 

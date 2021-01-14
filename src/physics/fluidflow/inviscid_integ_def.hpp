@@ -766,13 +766,14 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
-   Vector u_i, k_i, Ak_i;
+   Vector u_i, q_i, Ak_i;
 #endif
 	elvect.SetSize(num_states*num_nodes);
    u_i.SetSize(num_states);
-   k_i.SetSize(num_states);
-   Ak_i.SetSize(num_states);
-   DenseMatrix k(elfun.GetData(), num_nodes, num_states);
+   //k_i.SetSize(num_states);
+   //Ak_i.SetSize(num_states);
+   q_i.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
    elvect = 0.0;
    for (int i = 0; i < num_nodes; ++i)
@@ -780,13 +781,14 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
       const IntegrationPoint &ip = el.GetNodes().IntPoint(i);
       trans.SetIntPoint(&ip);
       double weight = trans.Weight()*ip.weight;
-      u_old.GetColumn(i, u_i);
-      k.GetRow(i, k_i);
-      u_i.Add(dt, k_i);
-      matVec(u_i, k_i, Ak_i);
+      //u_old.GetColumn(i, u_i);
+      u.GetRow(i, u_i);
+      //u_i.Add(dt, k_i);
+      convert(u_i, q_i);
+      //matVec(u_i, q_i, Ak_i);
       for (int n = 0; n < num_states; ++n)
       {
-         res(i, n) += weight*Ak_i(n);
+         res(i, n) += weight*q_i(n);
       }
    }
    res *= alpha;
@@ -810,8 +812,8 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
 #endif
    elmat.SetSize(num_states*num_nodes);
    u_i.SetSize(num_states);
-   k_i.SetSize(num_states);
-   A_i.SetSize(num_states);
+   // k_i.SetSize(num_states);
+   // A_i.SetSize(num_states);
    jac_node.SetSize(num_states);
    DenseMatrix k(elfun.GetData(), num_nodes, num_states);
    elmat = 0.0;
@@ -821,13 +823,15 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
       const IntegrationPoint &ip = el.GetNodes().IntPoint(i);
       trans.SetIntPoint(&ip);
       double weight = trans.Weight()*ip.weight;
-      u_old.GetColumn(i, u_i);
-      k.GetRow(i, k_i);
-      u_i.Add(dt, k_i);
+      // u_old.GetColumn(i, u_i);
+      // k.GetRow(i, k_i);
+      // u_i.Add(dt, k_i);
       //matVec(u_i, k_i, Ak_i);
-      matVecJacK(u_i, A_i);
-      matVecJacState(u_i, k_i, jac_node);
-      Add(A_i, jac_node, dt, jac_node);
+      // matVecJacK(u_i, A_i);
+      // matVecJacState(u_i, k_i, jac_node);
+      // Add(A_i, jac_node, dt, jac_node);
+      k.GetRow(i, u_i);
+      convertJacState(u_i, jac_node);
       for (int n = 0; n < num_states; ++n)
       {
          for (int m = 0; m < num_states; ++m)
