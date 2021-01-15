@@ -593,8 +593,8 @@ void calcIsentropicVortexState(const xdouble *x, xdouble *qbnd)
    xdouble a = sqrt(euler::gamma * press / rho);
 
    qbnd[0] = rho;
-   qbnd[1] = rho * a * Ma * sin(theta);
-   qbnd[2] = -rho * a * Ma * cos(theta);
+   qbnd[1] = -rho * a * Ma * sin(theta);
+   qbnd[2] = rho * a * Ma * cos(theta);
    qbnd[3] = press / euler::gami + 0.5 * rho * a * a * Ma * Ma;
 }
 

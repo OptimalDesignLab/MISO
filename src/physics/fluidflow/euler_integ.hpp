@@ -511,6 +511,7 @@ public:
                        mfem::DenseMatrix &flux_jac) {}
 };
 
+#include "euler_integ_def.hpp"
 
 } // namespace mach
 

@@ -124,10 +124,8 @@ void AbstractSolver::initDerived()
    mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
    mass->Assemble();
    mass->Finalize();
-
    // set nonlinear mass matrix form
    nonlinear_mass.reset(new NonlinearFormType(fes.get()));
-
    // set up the spatial semi-linear form
    double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
