@@ -235,7 +235,8 @@ public:
       dt = dt_;
    }
    /// check evolver jacobian
-   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
+   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &),
+                      const mfem::Vector &uc);
 
    /// temperal function used for checking operator
    void prininit(const mfem::Vector &u);

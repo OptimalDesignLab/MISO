@@ -269,7 +269,7 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(0);
    dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::HypreGMRES*> (linear_solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
+   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver*>(prec.get()));
 #endif
    newton_solver.reset(new mfem::NewtonSolver(mass.ParFESpace()->GetComm()));
    //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
@@ -292,29 +292,33 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(
 }
 
 void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const
-{   
+{
+   //cout << "In ImplicitNonlinearMassEvolver::Mult\n";
    Vector vec1(x);
-   Vector vec2(x.Size());
-   //cout << "vec1&2 size is " << vec1.Size()<< '\n';
-   vec1.Add(dt, k);  // vec1 = x + dt * k
-   res.Mult(vec1, y); // y = f(vec1)
+   Vector vec2(x.Size()); // working vector
+   cout << "size of vec1 and vec2 is " << vec1.Size() << endl;
+   vec1.Add(2*dt, k);  // vec1 = x + 2 * dt * k
+   mass.Mult(vec1, y);
    mass.Mult(x, vec2);
-   y -= vec2;  // y = f(x + dt * k) - M(x)
-   vec1.Add(dt, k);
-   mass.Mult(vec1, vec2); // M(x + 2 * dt * k)
-   y += vec2; // y = f(x + dt * k) + M(x + 2*dt*k) - M(x)
+   y -= vec2; // y = M(x + 2 * dt * k) - M(x)
+
+   vec1.Add(-dt, k); // vec1 = x + dt*k
+   res.Mult(vec1, vec2); // vec2 = f(x + dt * k)
+   vec2  *= (2*dt);
+   y += vec2; // y = M(x + 2 * dt * k) - M(x) + 2 * dt * f(x + dt * k)
 }
 
 Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
 {
    MatrixType *jac1, *jac2; 
    Vector vec1(x);
-   vec1.Add(dt, k);
-   jac1 = dynamic_cast<MatrixType*>(&res.GetGradient(vec1));
-   *jac1 *= dt; // jac1 = dt * f'(x + dt * k)
-   vec1.Add(dt, k);
-   jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(vec1)); // jac2 = M'(x + 2 * dt * k);
-   jac1->Add(2.0 * dt, *jac2);
+   vec1.Add(2*dt, k);
+   jac1 = dynamic_cast<MatrixType*>(&mass.GetGradient(vec1));
+   *jac1 *= (2*dt); // jac1 = 2 * dt * M'(x+2*dt*k)
+
+   vec1.Add(-dt, k); // vec1 = x + dt * k 
+   jac2 = dynamic_cast<MatrixType*>(&res.GetGradient(vec1));
+   jac1->Add(2*dt*dt, *jac2);
    return *jac1;
 }
 
@@ -345,28 +349,76 @@ void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &
 }
 
 void ImplicitNonlinearMassEvolver::checkJacobian(
-    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
+    void (*pert_fun)(const mfem::Vector &, mfem::Vector &),
+    const Vector &u)
 {
-   cout << "evolver check jac is called.\n";
    // this is a specific version for gd_serial_mfem
    // dont accept incoming changes
    // initialize some variables
+   // check individual jacobians
+   x = u;
    const double delta = 1e-5;
-   Vector u_plus(x);
-   Vector u_minus(x);
+   Vector u_plus(u);
+   Vector u_minus(u);
    CentGridFunction pert_vec(mass.FESpace());
    VectorFunctionCoefficient up(4, pert_fun);
    pert_vec.ProjectCoefficient(up);
-
    // perturb in the positive and negative pert_vec directions
    u_plus.Add(delta, pert_vec);
    u_minus.Add(-delta, pert_vec);
+   std::cout << "u_plus is: " <<std::endl;
+   u_plus.Print(std::cout, 4);
 
-   // Get the product using a 2nd-order finite-difference approximation
+   // // check mass getgradient
+   // CentGridFunction mass_plus(mass.FESpace());
+   // CentGridFunction mass_minus(mass.FESpace());
+   // mass.Mult(u_plus, mass_plus);
+   // mass.Mult(u_minus, mass_minus);
+   // subtract(1/(2*delta), mass_plus, mass_minus, mass_plus);
+   // CentGridFunction jac_v(mass.FESpace());
+   // CentGridFunction *pert = &pert_vec;
+   // CentGridFunction *prod = &jac_v;
+   // mfem::Operator &jac = mass.GetGradient(x);
+   // jac.Mult(*pert, *prod);
+   // std::cout << "mass_plus is: " <<std::endl;
+   // mass_plus.Print(std::cout, 4);
+   // std::cout << "jac_v is: " <<  std::endl;
+   // jac_v.Print(std::cout, 4);
+   // double norm1 = jac_v * jac_v;
+   // double norm2 = mass_plus * mass_plus;
+   // std::cout << "norm1 is " << std::setprecision(10) << norm1 << ". And norm2 is " << norm2 << std::endl;
+   // jac_v -= mass_plus;
+   // //double error = calcInnerProduct(jac_v, jac_v);
+   // double error = jac_v * jac_v;
+   // std::cout << "The mass Jacobian product error norm is " << std::setprecision(10)
+   //    << sqrt(error) << endl;
+
+   // check the residual form GetGradient
+   // CentGridFunction res_plus(mass.FESpace());
+   // CentGridFunction res_minus(mass.FESpace());
+   // mass.Mult(u_plus, res_plus);
+   // mass.Mult(u_minus, res_minus);
+   // std::cout << "res_plus is: " << std::endl;
+   // res_plus.Print(std::cout, 4);
+   // subtract(1/(2*delta), res_plus, res_minus, res_plus);
+   // CentGridFunction jac_v(mass.FESpace());
+   // CentGridFunction *pert = &pert_vec;
+   // CentGridFunction *prod = &jac_v;
+   // mfem::Operator &jac = mass.GetGradient(x);
+   // jac.Mult(*pert, *prod);
+   // jac_v -= res_plus;
+   // //double error = calcInnerProduct(jac_v, jac_v);
+   // double error = jac_v * jac_v;
+   // std::cout << "The residual Jacobian product error norm is " << std::setprecision(10) 
+   //    << sqrt(error) << endl;
+
+
+   // check the evolver GetGradient
    CentGridFunction res_plus(mass.FESpace());
    CentGridFunction res_minus(mass.FESpace());
    this->Mult(u_plus, res_plus);
    this->Mult(u_minus, res_minus);
+   std::cout << "after mult " << std::endl;
    // res_plus = 1/(2*delta)*(res_plus - res_minus)
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
    // Get the product directly using Jacobian from GetGradient
@@ -375,26 +427,13 @@ void ImplicitNonlinearMassEvolver::checkJacobian(
    CentGridFunction *pert = &pert_vec;
    CentGridFunction *prod = &jac_v;
 
-   mfem::Operator &jac = this->GetGradient(x);
+   mfem::Operator &jac = this->GetGradient(u);
    jac.Mult(*pert, *prod);
-
    // check the difference norm
    jac_v -= res_plus;
    //double error = calcInnerProduct(jac_v, jac_v);
    double error = jac_v * jac_v;
    std::cout << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
-
-// void ImplicitNonlinearMassEvolver::printinit(const mfem::Vector &u)
-// {
-//    MatrixType *jac = res.GetGradient(u);
-//    MatrixType *jac2 = mass.GetGradient(u);
-//    ofstream jac_save("jac.txt");
-//    ofstream mass_save("mass_matrix.txt")
-//    jac->PrintMatlab(jac_save);
-//    jac2->PrintMatlab(mass_save);
-//    mass_save.close();
-//    jac_save.close();
-// }
 
 } // end of mach namespace
