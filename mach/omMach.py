@@ -168,37 +168,41 @@ class omMachFunctionals(om.ExplicitComponent):
     """OpenMDAO component that computes functionals given the state variables"""
     def initialize(self):
         self.options.declare('solver', types=MachSolver)
+        self.options.declare('func', types=str)
         # self.options['distributed'] = True
 
     def setup(self):
         solver = self.options['solver']
 
         if self.comm.rank == 0:
-            print('Adding functional inputs')
-
-        local_mesh_size = solver.getMeshSize()
-        self.add_input('mesh-coords', shape=local_mesh_size)
+            print('Adding state inputs')
 
         local_state_size = solver.getStateSize()
         self.add_input('state', shape=local_state_size)
-        # self.add_input('current_density')
-        # self.add_input('fill_factor')
+
+        solver_options = solver.getOptions()
+        if "external-fields" in solver_options:
+            for ext_field in solver_options["external-fields"]:
+                self.add_input(ext_field, shape=solver.getFieldSize(ext_field))
 
         if self.comm.rank == 0:
-            print('Adding functional outputs')
+            print('Adding state outputs')
 
-        self.add_output('func')
+        func = self.options['func']
+        self.add_output(func)
 
+        #self.declare_partials(of='state', wrt='*')
         #self.declare_partials(of='func', wrt='*')
 
     def compute(self, inputs, outputs):
         solver = self.options['solver']
+        state = solver.getNewField(inputs['state'])
 
-        mesh_coords = inputs['mesh-coords']
-        state = inputs['state']
+        solver_options = solver.getOptions()
+        if "external-fields" in solver_options:
+            for field_name in solver_options["external-fields"]:
+                field = inputs[field_name]
+                solver.setResidualInput(field_name, field)
 
-        state_field = solver.getNewField(state)
-
-        solver.setMeshCoordinates(Vector(mesh_coords))
-
-        outputs['func'] = solver.calcFunctional(state_field, "drag")
+        func = self.options['func']
+        outputs[func] = solver.calcFunctional(state, func)
