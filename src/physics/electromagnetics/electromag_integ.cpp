@@ -1700,8 +1700,6 @@ void MagneticCoenergyIntegrator::AssembleRHSElementVect(
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       PointMat_bar = 0.0;
-      b_hat = 0.0;
-      b_vec = 0.0;
 
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans->SetIntPoint(&ip);
@@ -1715,18 +1713,22 @@ void MagneticCoenergyIntegrator::AssembleRHSElementVect(
       {
          el->CalcCurlShape(ip, curlshape_dFt);
       }
+
+      b_hat = 0.0;
+      b_vec = 0.0;
       curlshape.AddMultTranspose(elfun, b_hat);
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      b_vec /= trans->Weight();
+      const double b_mag = b_vec.Norml2();
+   
+      const double nu_val = nu->Eval(*trans, ip, b_mag);
+      const double dnu_dB = nu->EvalStateDeriv(*trans, ip, b_mag);
 
-      double b_mag = b_vec.Norml2();
-      double nu_val = nu->Eval(*trans, ip, b_mag);
-      double dnu_dB = nu->EvalStateDeriv(*trans, ip, b_mag);
-
-      double wp = integrateBH(segment_ir, *trans, ip,
+      const double wp = integrateBH(segment_ir, *trans, ip,
                               0.0, nu_val * b_mag);
 
       // start reverse sweep
-      double dwp_dh = RevADintegrateBH(segment_ir, *trans, ip,
+      const double dwp_dh = RevADintegrateBH(segment_ir, *trans, ip,
                                        0, nu_val * b_mag);
 
       DenseMatrix BB_hatT(3);
