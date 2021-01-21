@@ -50,7 +50,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       int order;
       if (el.Space() == FunctionSpace::Pk)
       {
-         order = 2*el.GetOrder() - 2;
+         order = 2*el.GetOrder() - 1;
       }
       else
       {
@@ -126,7 +126,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       int order;
       if (el.Space() == FunctionSpace::Pk)
       {
-         order = 2*el.GetOrder() - 2;
+         order = 2*el.GetOrder() - 1;
       }
       else
       {
@@ -234,7 +234,7 @@ double CurlCurlNLFIntegrator::GetElementEnergy(
       int order;
       if (el.Space() == FunctionSpace::Pk)
       {
-         order = 2*el.GetOrder() - 2;
+         order = 2*el.GetOrder() - 1;
       }
       else
       {
@@ -316,7 +316,7 @@ void CurlCurlNLFIntegrator::AssembleRHSElementVect(
       int order;
       if (el->Space() == FunctionSpace::Pk)
       {
-         order = 2*el->GetOrder() - 2;
+         order = 2*el->GetOrder() - 1;
       }
       else
       {
@@ -1529,12 +1529,11 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
 
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      b_vec = 0.0;
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight;
+      w = ip.weight / trans.Weight();
 
       if ( dim == 3 )
       {
@@ -1546,11 +1545,12 @@ void MagneticCoenergyIntegrator::AssembleElementVector(
          el.CalcCurlShape(ip, curlshape_dFt);
       }
 
+      b_vec = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       b_vec /= trans.Weight();
-      double b_mag = b_vec.Norml2();
-      double nu_val = nu->Eval(trans, ip, b_mag);
-      double dnu_dB = nu->EvalStateDeriv(trans, ip, b_mag);
+      const double b_mag = b_vec.Norml2();
+      const double nu_val = nu->Eval(trans, ip, b_mag);
+      const double dnu_dB = nu->EvalStateDeriv(trans, ip, b_mag);
 
       /// temp_vec = curl(N_i) dot curl(A)
       temp_vec = 0.0;

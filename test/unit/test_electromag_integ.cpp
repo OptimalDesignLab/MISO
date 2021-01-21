@@ -21,6 +21,8 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
    mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
@@ -60,7 +62,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
             new ConstantCoefficient(1.0));
          /// Bilinear Form
          BilinearForm blf(fes.get());
-         blf.AddDomainIntegrator(new CurlCurlIntegrator(*nu_linear.get()));
+         blf.AddDomainIntegrator(new CurlCurlIntegrator(*nu_linear));
 
          blf.Assemble();
          GridFunction blf_v(fes.get());
@@ -86,11 +88,12 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 3;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
    mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -165,11 +168,12 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 3;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
    mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -229,12 +233,13 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleRHSElementVect",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 3;
+   int num_edge = 1;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -793,12 +798,14 @@ TEST_CASE("LoadEnergyIntegrator::GetEnergy",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 3;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                                        Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0,
                                        true));
    mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -855,12 +862,14 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 3;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                                        Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0,
                                        true));
    mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -926,9 +935,12 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -985,11 +997,13 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementRHSVect",
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                                        Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -1059,9 +1073,12 @@ TEST_CASE("BNormIntegrator::AssembleElementVector",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -1116,10 +1133,12 @@ TEST_CASE("BNormdJdX::AssembleRHSElementVect",
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -1186,9 +1205,12 @@ TEST_CASE("nuBNormIntegrator::AssembleElementVector",
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -1246,10 +1268,12 @@ TEST_CASE("nuBNormdJdX::AssembleRHSElementVect",
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -1319,10 +1343,12 @@ TEST_CASE("nuFuncIntegrator::AssembleRHSElementVect",
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
+
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
