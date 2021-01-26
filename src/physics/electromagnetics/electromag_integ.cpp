@@ -1434,11 +1434,9 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
 
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      b_vec = 0.0;
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       trans.SetIntPoint(&ip);
-
       w = ip.weight;
 
       if ( dim == 3 )
@@ -1451,15 +1449,14 @@ double MagneticCoenergyIntegrator::GetElementEnergy(
          el.CalcCurlShape(ip, curlshape_dFt);
       }
 
+      b_vec = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       b_vec /= trans.Weight();
-      double nu_val = nu->Eval(trans, ip, b_vec.Norml2());
+      const double b_mag = b_vec.Norml2();
+      const double nu_val = nu->Eval(trans, ip, b_mag);
 
-      double lower_bound = 0.0;
-      double upper_bound = nu_val * b_vec.Norml2();
-
-      double qp_en = integrateBH(segment_ir, trans, ip,
-                                 lower_bound, upper_bound);
+      const double qp_en = integrateBH(segment_ir, trans, ip,
+                                       0.0, nu_val * b_mag);
 
       fun += qp_en * w;
    }
@@ -1729,11 +1726,11 @@ void MagneticCoenergyIntegrator::AssembleRHSElementVect(
 
       // start reverse sweep
       const double dwp_dh = RevADintegrateBH(segment_ir, *trans, ip,
-                                       0, nu_val * b_mag);
+                                             0.0, nu_val * b_mag);
 
       DenseMatrix BB_hatT(3);
       MultVWt(b_vec, b_hat, BB_hatT);
-      BB_hatT *= dwp_dh*(dnu_dB + nu_val/b_mag) / trans->Weight();
+      BB_hatT *= dwp_dh*(dnu_dB + nu_val/b_mag); // / trans->Weight();
 
       isotrans.WeightRevDiff(PointMat_bar);
       PointMat_bar *= -wp / pow(trans->Weight(), 2.0);
@@ -2381,7 +2378,9 @@ double nuFuncIntegrator::GetElementEnergy(
       }
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      fun += nu->Eval(trans, ip, b_vec.Norml2())* w;
+      const double b_mag = b_vec.Norml2() / trans.Weight();
+      const double nu_val = nu->Eval(trans, ip, b_mag);
+      fun += nu_val * w;
    }
    return fun;
 }
@@ -2429,6 +2428,7 @@ void nuFuncIntegrator::AssembleRHSElementVect(
    b_vec.SetSize(dimc);
 #endif
    DenseMatrix PointMat_bar(dimc, ndof);
+   DenseMatrix PointMat_bar_2(dimc, ndof);
    Vector b_hat(dimc);
    
    // cast the ElementTransformation
@@ -2437,9 +2437,6 @@ void nuFuncIntegrator::AssembleRHSElementVect(
 
    for (int i = 0; i < ir->GetNPoints(); ++i)
    {
-      PointMat_bar = 0.0;
-      b_vec = 0.0;
-      b_hat = 0.0;
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       trans->SetIntPoint(&ip);
@@ -2452,27 +2449,39 @@ void nuFuncIntegrator::AssembleRHSElementVect(
       {
          el->CalcCurlShape(ip, curlshape_dFt);
       }
-      curlshape.AddMultTranspose(elfun, b_hat);
+      b_vec = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      const double b_mag = b_vec.Norml2() / isotrans.Weight();
+      const double nu_val = nu->Eval(*trans, ip, b_mag);
 
-      double nu_val = nu->Eval(*trans, ip, b_vec.Norml2());
-      double nu_deriv = nu->EvalStateDeriv(*trans, ip, b_vec.Norml2());
+      // reverse pass
+
+      PointMat_bar = 0.0;
+      b_hat = 0.0;
+      curlshape.AddMultTranspose(elfun, b_hat);
+
+      const double nu_deriv = nu->EvalStateDeriv(*trans, ip, b_mag);
 
       DenseMatrix dBdJ(b_hat.Size(), b_vec.Size());
       dBdJ = 0.0;
-      AddMult_a_VWt(nu_deriv / (b_vec.Norml2() * isotrans.Weight()), b_vec, b_hat, dBdJ);
-
+      AddMult_a_VWt(1.0 / (b_vec.Norml2() * isotrans.Weight()), b_vec, b_hat, dBdJ);
 
       isotrans.WeightRevDiff(PointMat_bar);
-      PointMat_bar *= - nu_val / pow(isotrans.Weight(),2);
+      PointMat_bar *= - b_vec.Norml2() / pow(isotrans.Weight(),2);
 
       isotrans.JacobianRevDiff(dBdJ, PointMat_bar);
    
+      PointMat_bar *= nu_deriv / isotrans.Weight();
+
+      PointMat_bar_2 = 0.0;
+      isotrans.WeightRevDiff(PointMat_bar_2);
+      PointMat_bar_2 *= - nu_val / pow(isotrans.Weight(),2);
+
       for (int j = 0; j < ndof ; ++j)
       {
          for (int d = 0; d < dimc; ++d)
          {
-            elvect(d*ndof + j) += ip.weight * PointMat_bar(d,j);
+            elvect(d*ndof + j) += ip.weight * (PointMat_bar(d,j) + PointMat_bar_2(d,j));
          }
       }
    }
