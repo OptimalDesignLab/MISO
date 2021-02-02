@@ -2525,6 +2525,77 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
+double HybridACLossFunctionalIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+   /// holds quadrature weight
+   double w;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc);
+   Vector b_vec(dimc);
+#else
+   curlshape.SetSize(ndof,dimc);
+   curlshape_dFt.SetSize(ndof,dimc);
+   b_vec.SetSize(dimc);
+#endif
+
+   const IntegrationRule *ir = NULL;
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      b_vec = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+
+      w = ip.weight / trans.Weight();
+
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      const double b_mag = b_vec.Norml2() / trans.Weight();
+
+      const double sigma_val = sigma.Eval(trans, ip);
+
+      fun += std::pow(diam,2) * sigma_val * std::pow(omega*b_mag, 2) * w / 16.0;
+   }
+   return fun;
+}
+
 // ForceIntegrator::ForceIntegrator(AbstractSolver *_solver,
 //                                  std::unordered_set<int> _regions,
 //                                  std::unordered_set<int> _free_regions,

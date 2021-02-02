@@ -711,9 +711,9 @@ public:
    /// \param[out] elvect - \frac{\partial psi^T R}{\partial A} for the element
    /// \note LinearForm that assembles this integrator's FiniteElementSpace
    ///       MUST be the magnetic vector potential's finite element space
-   virtual void AssembleRHSElementVect(const mfem::FiniteElement &ela,
-                                       mfem::ElementTransformation &Transa,
-                                       mfem::Vector &elvect) override;
+   void AssembleRHSElementVect(const mfem::FiniteElement &ela,
+                               mfem::ElementTransformation &Transa,
+                               mfem::Vector &elvect) override;
 private:
    /// vector coefficient that evaluates dQ/dA
    mfem::VectorCoefficient &Q;
@@ -722,6 +722,37 @@ private:
    mfem::GridFunction *adjoint;
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
+#endif
+};
+
+/// Functional integrator to compute AC copper losses based on hybrid approach
+class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   HybridACLossFunctionalIntegrator(const mfem::Coefficient &sigma,
+                                    const double omega,
+                                    const double diam)
+   : sigma(sigma), omega(omega), diam(diam)
+   { }
+
+   /// \brief - Compute AC copper losses in the domain based on a hybrid
+   ///          analytical-FEM approach
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the AC losses calculated over an element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   const mfem::Coefficient &sigma;
+   double omega;
+   double diam;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt;
+   mfem::Vector b_vec;
 #endif
 };
 
