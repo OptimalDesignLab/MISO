@@ -16,9 +16,13 @@ public:
 	/// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   /// \param[in] dim - number of dimensions
+   /// \param[in] comm - MPI communicator for parallel operations
    JouleSolver(const std::string &opt_file_name,
-               std::unique_ptr<mfem::Mesh> smesh = nullptr);
+               std::unique_ptr<mfem::Mesh> smesh,
+               MPI_Comm comm);
+
+   /// Fully initialize the Joule Solver and its sub-solvers
+   void initDerived();
 
    /// Write the solutions of both the EM and thermal problems to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -32,13 +36,19 @@ public:
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
-   void setInitialCondition(double (*u_init)(const mfem::Vector &)) override;
+   void setInitialCondition(const std::function<double(const mfem::Vector &)> &u_init) override;
 
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {T, A, B}
    std::vector<GridFunType*> getFields() override;
 
    void solveForState() override;
+
+   void solveForAdjoint(const std::string &fun) override;
+
+   // mfem::Vector* getMeshSensitivities() override;
+
+   void addOutputs() override;
 
    int getNumState() override {return 0;};
 
@@ -51,11 +61,12 @@ private:
    std::vector<GridFunType*> em_fields;
    std::vector<GridFunType*> thermal_fields;
 
-   double (*thermal_init)(const mfem::Vector &);
+   std::function<double(const mfem::Vector &)> thermal_init;
 
    friend SolverPtr createSolver<JouleSolver>(
        const std::string &opt_file_name,
-       std::unique_ptr<mfem::Mesh> smesh);
+       std::unique_ptr<mfem::Mesh> smesh,
+       MPI_Comm comm);
 };
 
 } // namespace mach

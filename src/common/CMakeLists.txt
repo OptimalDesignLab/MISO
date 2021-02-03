@@ -17,8 +17,6 @@ target_sources(mach
       pfem_extras.hpp
       sbp_fe.cpp
       sbp_fe.hpp
-      spline.cpp
-      spline.hpp
       surface.hpp
 )
 

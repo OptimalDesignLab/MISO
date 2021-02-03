@@ -6,6 +6,7 @@ target_sources(mach
       therm_integ.hpp
       temp_integ.cpp
       temp_integ.hpp
+      thermal_verify.cpp
 )
 
 target_include_directories(mach

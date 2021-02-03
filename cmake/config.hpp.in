@@ -1,0 +1,7 @@
+#ifndef MACH_CONFIG_HEADER
+#define MACH_CONFIG_HEADER
+
+/// Enable define guards for EGADS 
+#cmakedefine MFEM_USE_EGADS
+
+#endif

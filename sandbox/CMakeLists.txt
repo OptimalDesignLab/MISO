@@ -14,6 +14,7 @@ function(create_sandbox source_list)
 endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
+   advection2d
    steady_vortex
    steady_vortex_adjoint
    unsteady_vortex
@@ -25,6 +26,10 @@ set(SANDBOX_SRCS
    magnetostatic_wire
    navier_stokes_mms
    thermal_square
+   # joule_wire
+   joule_box
+   mesh_move
+   mesh_move_2
    surface_distance
    joule_wire
 )

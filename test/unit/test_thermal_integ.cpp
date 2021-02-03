@@ -208,3 +208,71 @@ TEST_CASE("AggregateResIntegrator::AssembleVector", "[AggregateResIntegrator]")
       }
    }
 }
+
+TEST_CASE("TempResIntegrator::AssembleVector", "[TempResIntegrator]")
+{
+   using namespace mfem;
+   using namespace euler_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 2 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->EnsureNodes();
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // get the finite-element space for the state
+         std::unique_ptr<FiniteElementCollection> fec(
+             new H1_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+             mesh.get(), fec.get()));
+
+         std::unique_ptr<mach::TempResIntegrator> func;
+
+         const double scale = 0.01;
+
+         double delta = 1e-5;
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         FunctionCoefficient pert(randState);
+         q.ProjectCoefficient(pert);
+
+         // extract mesh nodes and get their finite-element space
+         GridFunction *x_nodes = mesh->GetNodes();
+         FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+         
+         // initialize the vector that dJdx multiplies
+         GridFunction v(mesh_fes);
+         VectorFunctionCoefficient v_rand(dim, randVectorState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate dJdx and compute its product with v
+         GridFunction dJdx(*x_nodes);
+         NonlinearForm tempint(mesh_fes);
+         tempint.AddDomainIntegrator(
+            new mach::TempResIntegrator(fes.get(), &q));
+         func.reset(new mach::TempResIntegrator(fes.get()));
+         tempint.Mult(*x_nodes, dJdx);
+         double dJdx_dot_v = dJdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(*x_nodes);
+         x_pert.Add(-delta, v);
+         mesh->SetNodes(x_pert);
+         double dJdx_dot_v_fd = -func->GetTemp(&q);
+         x_pert.Add(2 * delta, v);
+         mesh->SetNodes(x_pert);
+         dJdx_dot_v_fd += func->GetTemp(&q);
+         dJdx_dot_v_fd /= (2 * delta);
+         std::cout << "dJdx_dot_v = " << dJdx_dot_v << std::endl;
+         std::cout << "dJdx_dot_v_fd = " << dJdx_dot_v_fd << std::endl;
+         REQUIRE(dJdx_dot_v == Approx(dJdx_dot_v_fd));
+      }
+   }
+}

@@ -16,5 +16,6 @@ target_include_directories(mach
 
 add_subdirectory(electromagnetics)
 add_subdirectory(fluidflow)
-add_subdirectory(thermal)
 add_subdirectory(joule)
+add_subdirectory(meshmove)
+add_subdirectory(thermal)

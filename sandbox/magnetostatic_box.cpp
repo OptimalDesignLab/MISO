@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "mag_box_options.json";
+   const char *options_file = "magnetostatic_box_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    int nxy = 2, nz = 2;
@@ -73,28 +73,8 @@ int main(int argc, char *argv[])
       }
    }
 
-
-   // std::unique_ptr<mfem::Mesh> mesh(new Mesh("periodic_cube.mesh", 1, 1));
-   // std::cout << "loaded mesh\n";
-   // mesh->RemoveUnusedVertices();
-   // std::cout << "removed unused\n";
-   // mesh->RemoveInternalBoundaries();
-   // std::cout << "removed internal boundaries\n";
-
-   // ofstream mesh_ofs("periodic_cube_2.mesh");
-   // mesh_ofs.precision(8);
-   // mesh->Print(mesh_ofs);
-   // mesh_ofs.close();
-
-   // ofstream vtk_ofs("periodic_cube_2.vtk");
-   // vtk_ofs.precision(8);
-   // mesh->PrintVTK(vtk_ofs);
-   // vtk_ofs.close();
-
-
    try
    {
-      // construct the solver
       string opt_file_name(options_file);
       // MagnetostaticSolver solver(opt_file_name, move(mesh));
       auto solver = createSolver<MagnetostaticSolver>(opt_file_name, move(mesh));
@@ -103,6 +83,11 @@ int main(int argc, char *argv[])
       solver->solveForState();
       // solver->solveForState();
       std::cout << "finish steady solve\n";
+      // double coenergy = solver.calcOutput("co-energy");
+      // std::cout << "Co-energy = " << coenergy << std::endl;
+      // solver.solveForAdjoint("co-energy");
+      // solver.printAdjoint("co-energy-adjoint");
+      solver->verifyMeshSensitivities();
    }
    catch (MachException &exception)
    {

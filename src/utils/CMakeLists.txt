@@ -12,3 +12,7 @@ target_include_directories(mach
      "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
+if (MFEM_USE_EGADS)
+   add_subdirectory(EGADS)
+endif (MFEM_USE_EGADS)
+
