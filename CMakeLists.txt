@@ -79,12 +79,13 @@ endif (MFEM_USE_EGADS)
 
 include(FetchContent)
 FetchContent_Declare(tinyspline
-   GIT_REPOSITORY "https://github.com/msteinbeck/tinyspline"
+   GIT_REPOSITORY "https://github.com/tuckerbabcock/tinyspline"
 )
 
 set(TINYSPLINE_BUILD_EXAMPLES OFF)
 set(TINYSPLINE_BUILD_TESTS OFF)
 set(TINYSPLINE_BUILD_DOCS OFF)
+
 FetchContent_MakeAvailable(tinyspline)
 set_target_properties(tinysplinecxx
    PROPERTIES 
