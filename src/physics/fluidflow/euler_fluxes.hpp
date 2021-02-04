@@ -125,6 +125,87 @@ void calcEulerFlux(const xdouble *dir, const xdouble *q, xdouble *flux)
    flux[dim + 1] = (q[dim + 1] + press) * U;
 }
 
+/// Roe flux function in direction `dir`
+/// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] qL - conservative variables at "left" state
+/// \param[in] qR - conservative variables at "right" state
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcRoeFaceFlux(const xdouble *dir, const xdouble *qL,
+                     const xdouble *qR, xdouble *flux)
+{
+   using adept::max;
+   using std::max;
+
+   // Define some constants
+   const xdouble sat_Vn = 0.025;
+   const xdouble sat_Vl = 0.025;
+
+   // Define the Roe-average state 
+   const xdouble sqL = sqrt(qL[0]);
+   const xdouble sqR = sqrt(qR[0]);
+   const xdouble facL = 1.0/qL[0];
+   const xdouble facR = 1.0/qR[0];
+   const xdouble fac = 1.0/(sqL + sqR);
+   xdouble u[dim]; // should pass in another work array?
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = (sqL*qL[i+1]*facL + sqR*qR[i+1]*facR)*fac;
+   }
+   const xdouble phi = 0.5*dot<xdouble, dim>(u, u);
+   const xdouble Un = dot<xdouble, dim>(dir, u);
+   const xdouble HL = (euler::gamma * qL[dim + 1] - 0.5 * euler::gami *         
+                       dot<xdouble, dim>(qL + 1, qL + 1) * facL) * facL;
+   const xdouble HR = (euler::gamma * qR[dim + 1] - 0.5 * euler::gami *         
+                       dot<xdouble, dim>(qR + 1, qR + 1) * facR) * facR;
+   const xdouble H = (sqL*HL + sqR*HR)*fac;
+   const xdouble a = sqrt(euler::gami * (H - phi));
+   const xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
+
+   // Define the wave speeds
+   const xdouble rhoA = fabs(Un) + dA * a;
+   const xdouble lambda1 = 0.5 * max(fabs(Un + dA * a), sat_Vn * rhoA);
+   const xdouble lambda2 = 0.5 * max(fabs(Un - dA * a), sat_Vn * rhoA);
+   const xdouble lambda3 = 0.5 * max(fabs(Un), sat_Vl * rhoA);
+
+   // start flux computation by averaging the Euler flux
+   xdouble dq[dim+2];
+   calcEulerFlux<xdouble, dim>(dir, qL, flux);
+   calcEulerFlux<xdouble, dim>(dir, qR, dq);
+   for (int i = 0; i < dim + 2; ++i)
+   {
+      flux[i] = 0.5*(flux[i] + dq[i]);
+      dq[i] = qL[i] - qR[i];
+      flux[i] += lambda3 * dq[i]; // diagonal matrix multiply 
+   }
+
+   // some scalars needed for E1*dq, E2*dq, E3*dq, and E4*dq
+   xdouble tmp1 = 0.5 * (lambda1 + lambda2) - lambda3;
+   xdouble E1dq_fac = tmp1 * euler::gami / (a * a);
+   xdouble E2dq_fac = tmp1 / (dA * dA);
+   xdouble E34dq_fac = 0.5 * (lambda1 - lambda2) / (dA * a);
+
+   // get E1*dq + E4*dq and add to flux
+   xdouble Edq = phi * dq[0] + dq[dim + 1] - dot<xdouble, dim>(u, dq + 1);
+   flux[0] += E1dq_fac * Edq;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] += Edq * (E1dq_fac * u[i] + euler::gami * E34dq_fac * dir[i]);
+   }
+   flux[dim + 1] += Edq * (E1dq_fac * H + euler::gami * E34dq_fac * Un);
+
+   // get E2*dq + E3*dq and add to flux
+   Edq = -Un * dq[0] + dot<xdouble, dim>(dir, dq + 1);
+   flux[0] += E34dq_fac * Edq;
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] += Edq * (E2dq_fac * dir[i] + E34dq_fac * u[i]);
+   }
+   flux[dim + 1] += Edq * (E2dq_fac * Un + E34dq_fac * H);
+}
+
 /// Log-average function used in the Ismail-Roe flux function
 /// \param[in] aL - nominal left state variable to average
 /// \param[in] aR - nominal right state variable to average

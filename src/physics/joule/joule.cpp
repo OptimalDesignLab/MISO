@@ -12,9 +12,10 @@ namespace mach
 /// TODO: read options file and construct options files for EM and 
 JouleSolver::JouleSolver(
 	const std::string &opt_file_name,
-   std::unique_ptr<mfem::Mesh> smesh)
+   std::unique_ptr<mfem::Mesh> smesh,
+   MPI_Comm comm)
 	// : AbstractSolver(opt_file_name, move(smesh))
-   : AbstractSolver(opt_file_name)
+   : AbstractSolver(opt_file_name, comm)
 {
    nlohmann::json em_opts = options["em-opts"];
    nlohmann::json thermal_opts = options["thermal-opts"];
@@ -82,16 +83,20 @@ JouleSolver::JouleSolver(
    *out << "EM options:\n";
    *out << setw(3) << em_opts << endl;
 
-   em_solver.reset(new MagnetostaticSolver(em_opt_filename, nullptr));
+   em_solver.reset(new MagnetostaticSolver(em_opt_filename, nullptr, comm));
    /// TODO: this should be moved to an init derived when a factory is made
    // em_solver->initDerived();
 
-   thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr));
+   thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr, comm));
    // thermal_solver->initDerived();
 
-   em_fields = em_solver->getFields();
-   thermal_fields = thermal_solver->getFields();
+}
 
+void JouleSolver::initDerived()
+{
+   em_solver->initDerived();
+   em_fields = em_solver->getFields();
+   thermal_solver->setAField(em_fields[0]);
 }
 
 JouleSolver::~JouleSolver()
@@ -108,7 +113,7 @@ void JouleSolver::printSolution(const std::string &filename, int refine)
    thermal_solver->printSolution(thermal_filename, refine);
 }
 
-void JouleSolver::setInitialCondition(double (*u_init)(const mfem::Vector &))
+void JouleSolver::setInitialCondition(const std::function<double(const mfem::Vector &)> &u_init)
 {
    thermal_init = u_init;
 }
@@ -121,13 +126,35 @@ std::vector<GridFunType*> JouleSolver::getFields(void)
 void JouleSolver::solveForState()
 {
    em_solver->solveForState();
-
-   transferSolution(*em_solver->getMesh(), *thermal_solver->getMesh(),
-                    *em_fields[1], *thermal_fields[1]);
    thermal_solver->initDerived();
    thermal_fields = thermal_solver->getFields();
    thermal_solver->setInitialCondition(thermal_init);
    thermal_solver->solveForState();
+}
+
+void JouleSolver::solveForAdjoint(const std::string &fun)
+{
+   if (fun == "temp-agg")
+   {
+      thermal_solver->solveForAdjoint(fun);
+      Vector psiTdRtdA;
+      thermal_solver->getASensitivity(psiTdRtdA);
+      em_solver->solveForAdjoint(psiTdRtdA);
+   }
+   else if (fun == "co-energy")
+   {
+      em_solver->solveForAdjoint(fun);
+   }
+}
+
+// Vector* JouleSolver::getMeshSensitivities()
+// {
+
+// }
+
+void JouleSolver::addOutputs()
+{
+   auto &fun = options["outputs"];
 }
 
 } // namespace mach

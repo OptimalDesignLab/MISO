@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <functional>
 
 #include "adept.h"
 #include "json.hpp"
@@ -33,15 +34,6 @@ struct pumiDeleter
    {
       mesh->destroyNative();
       apf::destroyMesh(mesh);
-      PCU_Comm_Free();
-#ifdef MFEM_USE_SIMMETRIX
-      gmi_sim_stop();
-      Sim_unregisterAllKeys();
-#endif // MFEM_USE_SIMMETRIX
-
-#ifdef MFEM_USE_EGADS
-      gmi_egads_stop();
-#endif // MFEM_USE_EGADS
    }
 };
 
@@ -60,14 +52,16 @@ public:
    /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   AbstractSolver(const std::string &opt_file_name,
-                  std::unique_ptr<mfem::Mesh> smesh);
+   // AbstractSolver(const std::string &opt_file_name,
+   //                std::unique_ptr<mfem::Mesh> smesh);
 
    /// Class constructor.
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem
+   /// \param[in] comm - MPI communicator for parallel operations
    AbstractSolver(const nlohmann::json &options,
-                  std::unique_ptr<mfem::Mesh> smesh);
+                  std::unique_ptr<mfem::Mesh> smesh,
+                  MPI_Comm comm);
 
    /// Perform set-up of derived classes using virtual functions
    /// \todo Put the constructors and this in a factory
@@ -81,56 +75,109 @@ public:
    /// \param[in] smesh - if provided, defines the mesh for the problem
    void constructMesh(std::unique_ptr<mfem::Mesh> smesh);
 
-   /// Initializes the state variable to a given function.
+   /// Initializes the state vector to a given field.
+   /// \param[in] u_init - field that defines the initial condition
+   inline virtual void setInitialCondition(const mfem::ParGridFunction &u_init)
+   { setInitialCondition(*u, u_init); };
+
+   /// Initializes the state vector to a given scalar function.
+   /// \param[in] u_init - function that defines the initial condition
+   inline virtual void setInitialCondition(
+      const std::function<double(const mfem::Vector &)> &u_init)
+   { setInitialCondition(*u, u_init); };
+
+   /// Initializes the state vector to a given function.
    /// \param[in] u_init - function that defines the initial condition
    /// \note The second argument in the function `u_init` is the initial condition
    /// value.  This may be a vector of length 1 for scalar.
-   virtual void setInitialCondition(void (*u_init)(const mfem::Vector &,
-                                           mfem::Vector &));
-
-   /// Initializes the state variable to a given function.
-   /// \param[in] u_init - function that defines the initial condition
-   virtual void setInitialCondition(double (*u_init)(const mfem::Vector &));
+   inline virtual void setInitialCondition(
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+   { setInitialCondition(*u, u_init); };
 
    /// Initializes the state variable to a given constant
+   /// \param[in] u_init - value that defines the initial condition
+   inline virtual void setInitialCondition(const double u_init)
+   { setInitialCondition(*u, u_init); };
+
+   /// Initializes the state variable to a given constant vector
    /// \param[in] u_init - vector that defines the initial condition
-   virtual void setInitialCondition(const mfem::Vector &uic);
+   inline virtual void setInitialCondition(const mfem::Vector &u_init)
+   { setInitialCondition(*u, u_init); };
+
+   /// Initializes the state vector to a given field.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - field that defines the initial condition
+   inline virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const mfem::ParGridFunction &u_init)
+   { state = u_init; };
+
+   /// Initializes the state vector to a given scalar function.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - function that defines the initial condition
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const std::function<double(const mfem::Vector &)> &u_init);
+
+   /// Initializes the state vector to a given function.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - function that defines the initial condition
+   /// \note The second argument in the function `u_init` is the initial condition
+   /// value.  This may be a vector of length 1 for scalar.
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
+
+   /// Initializes the state variable to a given constant
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - value that defines the initial condition
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const double u_init);
+
+   /// Initializes the state variable to a given constant vector
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - vector that defines the initial condition
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const mfem::Vector &u_init);
 
    /// TODO move to protected?
    /// Returns the integral inner product between two grid functions
    /// \param[in] x - grid function 
    /// \param[in] y - grid function 
-   /// \returns integral inner product between `x` and `y`
+   /// \return integral inner product between `x` and `y`
    double calcInnerProduct(const GridFunType &x, const GridFunType &y);
 
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
-   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
-   double calcL2Error(double (*u_exact)(const mfem::Vector &));
+   /// \return L2 error
+   double calcL2Error(const std::function<double(const mfem::Vector &)> &u_exact);
 
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
-   double calcL2Error(void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+   /// \return L2 error
+   double calcL2Error(const std::function<void(const mfem::Vector &,
+                                               mfem::Vector &)> &u_exact,
                       int entry = -1);
 
    /// Returns the L2 error of a field and given exact solution.
    /// \param[in] field - grid function to compute L2 error for
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
+   /// \return L2 error
    double calcL2Error(GridFunType *field,
-                      double (*u_exact)(const mfem::Vector &));
+                      const std::function<double(const mfem::Vector &)> &u_exact);
    
    /// Returns the L2 error of a field and given exact solution.
    /// \param[in] field - grid function to compute L2 error for
    /// \param[in] u_exact - function that defines the exact solution
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
-   /// \returns L2 error
+   /// \return L2 error
    double calcL2Error(GridFunType *field,
-                      void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+                      const std::function<void(const mfem::Vector &,
+                                               mfem::Vector &)> &u_exact,
                       int entry = -1);
 
    /// Find the step size based on the options
@@ -138,11 +185,13 @@ public:
    /// \param[in] t - the current time (before the step)
    /// \param[in] t_final - the final time
    /// \param[in] dt_old - the step size that was just taken
+   /// \param[in] state - the current state
    /// \returns dt - the step size appropriate to the problem
    /// This base method simply returns the option in ["time-dis"]["dt"],
    /// truncated as necessary such that `t + dt = t_final`.
    virtual double calcStepSize(int iter, double t, double t_final,
-                               double dt_old) const;
+                               double dt_old,
+                               const mfem::ParGridFunction &state) const;
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -168,6 +217,21 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printResidual(const std::string &file_name, int refine = -1);
 
+
+   /// TODO: make this work for parallel!
+   /// Write the mesh and an initializer list to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] field - grid function to print
+   /// \param[in] name - name to use for the printed grid function
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printField(const std::string &file_name,
+                   mfem::ParGridFunction &field,
+                   const std::string &name,
+                   int refine = -1)
+   { printFields(file_name, {&field}, {name}, refine); };
+
    /// TODO: make this work for parallel!
    /// Write the mesh and an initializer list to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -178,7 +242,7 @@ public:
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printFields(const std::string &file_name,
-                      std::vector<GridFunType*> fields,
+                      std::vector<mfem::ParGridFunction *> fields,
                       std::vector<std::string> names,
                       int refine = -1);
 
@@ -187,11 +251,16 @@ public:
    virtual std::vector<GridFunType*> getFields();
 
    /// Solve for the state variables based on current mesh, solver, etc.
-   virtual void solveForState();
+   virtual void solveForState() { solveForState(*u); };
+
+   virtual void solveForState(mfem::ParGridFunction &state);
    
    /// Solve for the adjoint based on current mesh, solver, etc.
    /// \param[in] fun - specifies the functional corresponding to the adjoint
-   void solveForAdjoint(const std::string &fun);
+   virtual void solveForAdjoint(const std::string &fun);
+
+   /// Solve for the adjoint with a given right hand side (instead of )
+   virtual void solveForAdjoint(const mfem::Vector& rhs) {};
 
    /// Check the Jacobian using a finite-difference directional derivative
    /// \param[in] pert - function that defines the perturbation direction
@@ -202,11 +271,40 @@ public:
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
    /// \returns scalar value of estimated functional value
-   double calcOutput(const std::string &fun);
+   double calcOutput(const std::string &fun)
+   { return calcOutput(*u, fun); };
+
+   /// Evaluate and return the output functional specified by `fun`
+   /// \param[in] state - the state vector to evaluate the functional at
+   /// \param[in] fun - specifies the desired functional
+   /// \returns scalar value of estimated functional value
+   double calcOutput(const mfem::ParGridFunction &state,
+                     const std::string &fun);
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
-   double calcResidualNorm() const;
+   double calcResidualNorm() const { return calcResidualNorm(*u); };
+
+   /// Compute the residual norm based on the input `state`
+   /// \returns the l2 (discrete) norm of the residual evaluated at `u`
+   double calcResidualNorm(const mfem::ParGridFunction &state) const;
+
+   /// Return a state sized vector constructed from an externally allocated array
+   /// \param[in] data - external data array
+   /// \note If `data` is nullptr a new array will be allocated. If `data` is 
+   /// not `nullptr` it is assumed to be of size of at least `fes->GetVSize()`
+   std::unique_ptr<mfem::ParGridFunction> getNewField(double *data = nullptr);
+
+   /// Compute the residual based on the current solution in `u`
+   /// \param[out] residual - the residual
+   void calcResidual(mfem::ParGridFunction &residual)
+   { calcResidual(*u, residual); };
+
+   /// Compute the residual based on `state` and store the it in `residual`
+   /// \param[in] state - the current state to evaluate the residual at
+   /// \param[out] residual - the residual
+   void calcResidual(const mfem::ParGridFunction &state, 
+                     mfem::ParGridFunction &residual);
    
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
@@ -218,13 +316,37 @@ public:
    /// \param[in/out] state - the conservative/entropy variables
    //virtual void convertToEntvar(mfem::Vector &state) { };
 
+   /// Compute the sensitivity of an output to the mesh nodes, using appropriate
+   /// mesh sensitivity integrators. Need to compute the adjoint first.
+   virtual mfem::Vector* getMeshSensitivities();
+
    /// Return a pointer to the solver's mesh
    MeshType* getMesh() {return mesh.get();}
+
+   void printMesh(const std::string &filename)
+   { mesh->PrintVTU(filename, mfem::VTKFormat::BINARY, true, 0); }
+   /// return a reference to the mesh's coordinate field
+   mfem::GridFunction& getMeshCoordinates() { return *mesh->GetNodes(); }
+
+   /// \brief function to update the mesh's nodal coordinate field
+   /// \param[in] coords - Vector containing mesh's nodal coordinate field
+   /// \note the size of `coords` is assumed to be the size returned from the
+   /// mesh finite element space's vdof size
+   /// \note After calling this method the mesh will own the GridFunction
+   /// defining the coordinate field, but the GridFunction will not own the 
+   /// underlying data (TODO? Look at cost of copying?)
+   void setMeshCoordinates(mfem::Vector &coords);
+
+   inline int getMeshSize() { return mesh->GetNodes()->FESpace()->GetVSize(); }
+   inline int getStateSize() { return fes->GetVSize(); }
 
 #ifdef MFEM_USE_PUMI
    /// Return a pointer to the underlying PUMI mesh
    apf::Mesh2* getPumiMesh() {return pumi_mesh.get();};
 #endif
+
+   /// Tell the underling forms that the mesh has changed;
+   virtual void Update() {fes->Update();};
 
 protected:
    /// communicator used by MPI group for communication
@@ -252,6 +374,7 @@ protected:
    /// pumi mesh object
    // apf::Mesh2* pumi_mesh;
    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
+   bool PCU_previously_initialized = false;
 #endif
 
    //--------------------------------------------------------------------------
@@ -260,10 +383,20 @@ protected:
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
+   /// pointer to mesh's underlying finite element space
+   SpaceType *mesh_fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   /// initial state variable
+   std::unique_ptr<GridFunType> u_init;
+   /// prior state variable
+   std::unique_ptr<GridFunType> u_old;
+   /// time derivative at current step
+   std::unique_ptr<GridFunType> dudt;
    /// adjoint variable 
    std::unique_ptr<GridFunType> adj;
+   /// prior adjoint variable (forward in time)
+   std::unique_ptr<GridFunType> adj_old;
    /// derivative of L = J + psi^T res, with respect to mesh nodes
    std::unique_ptr<GridFunType> dLdX;
 
@@ -278,12 +411,16 @@ protected:
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
    /// the load vector linear form
-   std::unique_ptr<LinearFormType> load;
+   std::unique_ptr<mfem::Vector> load;
    /// entropy/energy that is needed for RRK methods
    std::unique_ptr<NonlinearFormType> ent;
 
    /// derivative of psi^T res w.r.t the mesh nodes
    std::unique_ptr<NonlinearFormType> res_mesh_sens;
+   /// partial of J w.r.t the mesh nodes
+   std::unique_ptr<NonlinearFormType> j_mesh_sens;
+   /// derivative of psi^T res w.r.t the mesh nodes, if using LinearFormIntegrators
+   std::unique_ptr<LinearFormType> res_mesh_sens_l;
 
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
@@ -306,6 +443,10 @@ protected:
    // Members associated with boundary conditions and outputs
    /// Array that marks boundaries as essential
    mfem::Array<int> ess_bdr;
+   /// Array that hold mesh fes degrees of freedom on model surfaces
+   mfem::Array<int> mesh_fes_surface_dofs;
+   /// Array that holds fes degrees of freedom on model surfaces
+   mfem::Array<int> fes_surface_dofs;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
@@ -324,10 +465,7 @@ protected:
    /// Initialize all forms needed by the derived class
    /// \note Derived classes must allocate the forms they need to use.  Only
    /// allocated forms will have integrators added to them.
-   virtual void constructForms()
-   {
-      throw MachException("constructForms() not defined by derived class!");
-   };
+   virtual void constructForms() = 0;
 
    /// Add domain integrators to `mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
@@ -373,6 +511,12 @@ protected:
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addLoadInterfaceIntegrators(double alpha) {};
 
+   /// Construct load vector
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   /// \note - only implement this method if `load` is a GridFunction, and not
+   /// a LinearForm
+   virtual void assembleLoadVector(double alpha) {};
+
    /// Add volume integrators for `ent`
    virtual void addEntVolumeIntegrators() {};
 
@@ -386,31 +530,38 @@ protected:
    virtual void addOutputs() {};
 
    /// Solve for the steady state problem using newton method
-   virtual void solveSteady();
+   virtual void solveSteady(mfem::ParGridFunction &state);
 
    /// Solve for a transient state using a selected time-marching scheme
-   virtual void solveUnsteady();
+   virtual void solveUnsteady(mfem::ParGridFunction &state);
    
    /// For code that should be executed before the time stepping begins
-   virtual void initialHook() {};
+   /// \param[in] state - the current state
+   virtual void initialHook(const mfem::ParGridFunction &state) {};
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
-   virtual void iterationHook(int iter, double t, double dt) {};
+   /// \param[in] state - the current state
+   virtual void iterationHook(int iter, double t, double dt,
+                              const mfem::ParGridFunction &state) {};
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (after the step)
    /// \param[in] t_final - the final time
    /// \param[in] dt - the step size that was just taken
-   virtual bool iterationExit(int iter, double t, double t_final, double dt);
+   /// \param[in] state - the current state
+   virtual bool iterationExit(int iter, double t, double t_final, double dt,
+                              const mfem::ParGridFunction &state );
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
-   virtual void terminalHook(int iter, double t_final) {};
+   /// \param[in] state - the current state
+   virtual void terminalHook(int iter, double t_final,
+                             const mfem::ParGridFunction &state) {};
       
    /// Solve for a steady adjoint
    /// \param[in] fun - specifies the functional corresponding to the adjoint
@@ -449,7 +600,8 @@ protected:
    /// Used by derived classes that themselves construct solver objects that
    /// don't need all the memory for a fully featured solver, that just need to
    /// support the AbstractSolver interface (JouleSolver)
-   AbstractSolver(const std::string &opt_file_name);
+   AbstractSolver(const std::string &opt_file_name,
+                  MPI_Comm comm = MPI_COMM_WORLD);
 
 private:
    /// explicitly prohibit copy construction
@@ -459,8 +611,10 @@ private:
    /// Used to do the bulk of the initialization shared between constructors
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem
+   /// \param[in] comm - MPI communicator to use for parallel operations
    void initBase(const nlohmann::json &file_options,
-                 std::unique_ptr<mfem::Mesh> smesh);
+                 std::unique_ptr<mfem::Mesh> smesh,
+                 MPI_Comm comm);
 
 };
 
@@ -469,13 +623,15 @@ using SolverPtr = std::unique_ptr<AbstractSolver>;
 /// Creates a new `DerivedSolver` and initializes it
 /// \param[in] json_options - json object that stores options
 /// \param[in] smesh - if provided, defines the mesh for the problem
+/// \param[in] comm - MPI communicator for parallel operations
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr createSolver(const nlohmann::json &json_options,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                       MPI_Comm comm = MPI_COMM_WORLD)
 {
    //auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
-   SolverPtr solver(new DerivedSolver(json_options, move(smesh)));
+   SolverPtr solver(new DerivedSolver(json_options, move(smesh), comm));
    solver->initDerived();
    return solver;
 }
@@ -483,15 +639,17 @@ SolverPtr createSolver(const nlohmann::json &json_options,
 /// Creates a new `DerivedSolver` and initializes it
 /// \param[in] opt_file_name - file where options are stored
 /// \param[in] smesh - if provided, defines the mesh for the problem
+/// \param[in] comm - MPI communicator for parallel operations
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr createSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh = nullptr)
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                       MPI_Comm comm = MPI_COMM_WORLD)
 {
    nlohmann::json json_options;
    std::ifstream options_file(opt_file_name);
    options_file >> json_options;
-   return createSolver<DerivedSolver>(json_options, move(smesh));
+   return createSolver<DerivedSolver>(json_options, move(smesh), comm);
 }
 
 } // namespace mach

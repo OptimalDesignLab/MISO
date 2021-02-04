@@ -51,10 +51,11 @@ int main(int argc, char *argv[])
    int num_edge_y = options["mesh"]["num-edge-y"].get<int>();
    int num_edge_z = options["mesh"]["num-edge-z"].get<int>();
 
+   int dim = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge_x, num_edge_y, num_edge_z,
-                              Element::HEXAHEDRON, true /* gen. edges */, 1.0,
+                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
-
+   mesh->EnsureNodes();
    mesh->ReorientTetMesh();
    std::cout << "Number of Boundary Attributes: "<< mesh->bdr_attributes.Size() <<std::endl;
    // assign attributes to top and bottom sides
@@ -95,7 +96,7 @@ int main(int argc, char *argv[])
 
    try
    {
-      // construct the solver
+      // Verify the total sensitivity of the functional to the mesh nodes
 
       
       // ThermalSolver solver(opt_file_name, move(mesh));
@@ -107,7 +108,6 @@ int main(int argc, char *argv[])
       std::cout << "Solving..." << std::endl;
       solver->solveForState();
       // std::cout << "Solving Adjoint..." << std::endl;
-      // solver->solveForState();
       // solver.solveForAdjoint(options["outputs"]["temp-agg"].get<std::string>());
       std::cout << "Solver Done" << std::endl;
       std::cout.precision(17);
@@ -142,7 +142,7 @@ double InitialTemperature(const Vector &x)
    // }
 
    //For Use Testing Aggregated Constraint
-   return sin(M_PI*x(0))*sin(M_PI*x(0));
+   return temp_0;//sin(M_PI*x(0))*sin(M_PI*x(0));
 }
 
 double ExactSolution(const Vector &x)

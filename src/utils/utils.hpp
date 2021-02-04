@@ -93,7 +93,7 @@ inline xdouble dot(const xdouble *a, const xdouble *b)
     return DotProduct<xdouble,dim>::result(a,b);
 }
 
-std::ostream *getOutStream(int rank);
+std::ostream *getOutStream(int rank, bool silent = false);
 
 /// The following are adapted from MFEM's pfem_extras.xpp to use mach types
 /// and support serial usage.

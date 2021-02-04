@@ -1,8 +1,10 @@
-#include "evolver.hpp"
-#include "utils.hpp"
 #include <iostream>
+
+#include "utils.hpp"
+#include "evolver.hpp"
+
 using namespace mfem;
-using namespace std;
+
 using namespace mach;
 
 namespace mach
@@ -28,14 +30,17 @@ public:
                        ? _nonlinear_mass->FESpace()->GetTrueVSize()
                        : _mass->FESpace()->GetTrueVSize())),
          nonlinear_mass(_nonlinear_mass), mass(_mass),
-         res(_res), stiff(_stiff), load(_load), Jacobian(NULL),
-         dt(0.0), x(NULL), x_work(width), r_work(height)
+         res(_res), stiff(_stiff), load(_load), jac(nullptr),
+         dt(0.0), x(nullptr), x_work(width), r_work(height)
    {
-      if ((_mass) && (ess_bdr))
+      if (_mass)
       {
          _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       }
-      // x = 0.0;
+      else if (_stiff)
+      {
+         _stiff->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      }
    }
 
    /// Compute r = N(x + dt_stage*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) + K@(x+dt*k) + l
@@ -61,10 +66,11 @@ public:
          res->Mult(x_work, r_work);
          r += r_work;
       }
-      if (stiff)
-      {
-         stiff->TrueAddMult(x_work, r);
-      }
+      // if (stiff)
+      // {
+      //    stiff->TrueAddMult(x_work, r);
+      //    r.SetSubVector(ess_tdof_list, 0.0);
+      // }
       if (load)
       {
          r += *load;
@@ -80,21 +86,16 @@ public:
    /// \param[in] k - dx/dt 
    mfem::Operator &GetGradient(const mfem::Vector &k) const override
    {
-      MatrixType *jac = nullptr;
+      delete jac;
+      jac = nullptr;
+
       if (mass)
          jac = mass->ParallelAssemble();
-      if (stiff)
-      {
-         if (jac != nullptr)
-         {
-            jac->Add(dt, *(stiff->ParallelAssemble()));
-         }
-         else
-         {
-            jac = stiff->ParallelAssemble();
-            *jac *= dt;
-         }
-      }
+      // if (stiff)
+      // {
+      //    HypreParMatrix *stiffmat = stiff->ParallelAssemble();
+      //    jac == nullptr ? jac = stiffmat : jac = Add(1.0, *jac, dt, *stiffmat);
+      // }
       if (nonlinear_mass)
       {
          add(*x, dt_stage, k, x_work);
@@ -111,6 +112,9 @@ public:
          *resjac *= dt;
          jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
       }
+      HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
+      delete Je;
+
       return *jac;
    }
 
@@ -127,7 +131,7 @@ public:
       dt_stage = _dt_stage;
    };
 
-   ~SystemOperator() { delete Jacobian; };
+   ~SystemOperator() { delete jac; };
 
 private:
    NonlinearFormType *nonlinear_mass;
@@ -135,7 +139,7 @@ private:
    NonlinearFormType *res;
    BilinearFormType *stiff;
    mfem::Vector *load;
-   mutable MatrixType *Jacobian;
+   mutable MatrixType *jac;
    double dt;
    double dt_stage;
    const mfem::Vector *x;
@@ -166,7 +170,8 @@ MachEvolver::MachEvolver(
 
    if (_mass != nullptr)
    {
-      Array<int> ess_tdof_list;
+      Array<int> mass_ess_tdof_list;
+      _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, mass_ess_tdof_list);
 
       AssemblyLevel mass_assem;
       mass_assem = _mass->GetAssemblyLevel();
@@ -177,7 +182,10 @@ MachEvolver::MachEvolver(
       }
       else if (mass_assem == AssemblyLevel::LEGACYFULL)
       {
-         mass.Reset(_mass->ParallelAssemble(), true);
+         auto *Mmat = _mass->ParallelAssemble();
+         auto *Me = Mmat->EliminateRowsCols(ess_tdof_list);
+         delete Me;
+         mass.Reset(Mmat, true);
          mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
                                            HypreSmoother::Jacobi));
       }
@@ -196,6 +204,9 @@ MachEvolver::MachEvolver(
 
    if (_stiff != nullptr)
    {
+      // Array<int> ess_tdof_list;
+      _stiff->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+
       AssemblyLevel stiff_assem;
       stiff_assem = _stiff->GetAssemblyLevel();
       if (stiff_assem == AssemblyLevel::PARTIAL)
@@ -204,8 +215,10 @@ MachEvolver::MachEvolver(
       }
       else if (stiff_assem == AssemblyLevel::LEGACYFULL)
       {
-         stiff.Reset(_stiff->ParallelAssemble(), true);
-      }
+         auto *Smat = _stiff->ParallelAssemble();
+         auto *Se = Smat->EliminateRowsCols(ess_tdof_list);
+         delete Se;
+         stiff.Reset(Smat, true);      }
       else
       {
          throw MachException("Unsupported assembly level"
@@ -249,8 +262,13 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
 {
    setOperParameters(dt, &x);
    Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   k = 0.0; // In case iterative mode is set to true
+
+   // set iterative mode to false so k is only zeroed once, but set back after
+   auto iter_mode = newton->iterative_mode;
+   newton->iterative_mode = false;
    newton->Mult(zero, k);
+   newton->iterative_mode = iter_mode;
+   
    MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 

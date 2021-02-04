@@ -90,8 +90,10 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
 
 template <int dim>
 AdvectionSolver<dim>::AdvectionSolver(
-    const string &opt_file_name, void (*vel_field)(const Vector &, Vector &))
-    : AbstractSolver(opt_file_name, nullptr)
+    const nlohmann::json &json_options,
+    void (*vel_field)(const Vector &, Vector &),
+    MPI_Comm comm)
+    : AbstractSolver(json_options, nullptr, comm)
 {
    // set up the stiffness matrix
    velocity.reset(

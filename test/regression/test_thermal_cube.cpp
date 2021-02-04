@@ -32,8 +32,11 @@ auto options = R"(
         "dt": 0.01,
         "t-final": 0.2
     },
+    "lin-prec": {
+       "type": "hypreboomeramg"
+    },
     "lin-solver": {
-       "reltol": 1e-8,
+       "reltol": 1e-14,
        "abstol": 0.0,
        "printlevel": 0,
        "maxiter": 500

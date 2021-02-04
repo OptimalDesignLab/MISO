@@ -11,8 +11,10 @@ namespace mach
 
 template <int dim, bool entvar>
 NavierStokesSolver<dim, entvar>::NavierStokesSolver(
-   const nlohmann::json &json_options, unique_ptr<mfem::Mesh> smesh)
-    : EulerSolver<dim, entvar>(json_options, move(smesh))
+   const nlohmann::json &json_options,
+   unique_ptr<mfem::Mesh> smesh,
+   MPI_Comm comm)
+    : EulerSolver<dim, entvar>(json_options, move(smesh), comm)
 {
    // define NS-related parameters; may or may not be used, depending on case
    re_fs = this->options["flow-param"]["Re"].template get<double>();
