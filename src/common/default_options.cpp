@@ -45,7 +45,8 @@ const nlohmann::json default_options
       {"t-final", 1.0}, // final time to simulate to
       {"dt", 0.01}, // time-step size when `const-cfl` is false
       {"cfl", 1.0}, // target CFL number
-      {"max-iter", 10000} // safe-guard upper bound on number of iterations
+      {"max-iter", 10000}, // safe-guard upper bound on number of iterations
+      {"start-up", false} // in steady case, iterate PTC with constant step at first
    }},
 
    {"nonlin-solver", // options related to root-finding algorithms

@@ -27,7 +27,8 @@
       "t-final": 100.0,
       "dt": 10.0,
       "cfl": 0.5,
-      "res-exp": 2.0
+      "res-exp": 2.0,
+      "start-up": true
    },
    "nonlin-solver": {
       "abstol": 1e-12,

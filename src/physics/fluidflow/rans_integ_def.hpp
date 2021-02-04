@@ -425,7 +425,7 @@ void SANoSlipAdiabaticWallBC<dim>::calcFlux(const mfem::Vector &x,
    flux_vec += work_vec;
    double dnu = q(dim+2);
    double dnuflux = (mu/q(0) + fn*q(dim+2))*dnu/(sacs(2)*Re);
-   double fac = 10*sqrt(dot<double,dim>(dir, dir))/jac;
+   double fac = 1*sqrt(dot<double,dim>(dir, dir))/jac;
    flux_vec(dim+2) += dnuflux*fac;
 }
 
@@ -496,7 +496,7 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacState(
    }
    adouble dnu = q_a[dim+2];
    adouble dnuflux = (mu/q_a[0] + fn*q_a[dim+2])*dnu/(sacs_a[2]*Re);
-   adouble fac = 10*sqrt(dot<adouble,dim>(dir_a.data(), dir_a.data()))/jac;
+   adouble fac = 1*sqrt(dot<adouble,dim>(dir_a.data(), dir_a.data()))/jac;
    flux_a[dim+2] += dnuflux*fac;
 
    this->stack.independent(q_a.data(), q.Size());
@@ -569,7 +569,7 @@ void SANoSlipAdiabaticWallBC<dim>::calcFluxJacDw(const mfem::Vector &x, const mf
    }
    adouble dnu = q_a[dim+2];
    adouble dnuflux = (mu/q_a[0] + fn*q_a[dim+2])*dnu/(sacs_a[2]*Re);
-   adouble fac = 10*sqrt(dot<adouble,dim>(dir_a.data(), dir_a.data()))/jac;
+   adouble fac = 1*sqrt(dot<adouble,dim>(dir_a.data(), dir_a.data()))/jac;
    flux_a[dim+2] += dnuflux*fac;
 
    this->stack.independent(Dw_a.data(),Dw_size);

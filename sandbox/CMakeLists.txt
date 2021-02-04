@@ -14,24 +14,22 @@ function(create_sandbox source_list)
 endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
-   #steady_vortex
-   #steady_vortex_adjoint
-   #unsteady_vortex
-   #viscous_shock
-   #airfoil_steady
-   #airfoil_chaotic
-   #magnetostatic_box
-   #magnetostatic_motor
-   #magnetostatic_wire
-   #navier_stokes_mms
-   #thermal_square
-   #surface_distance
-   #joule_wire
-   #ns_walltest
+   steady_vortex
+   steady_vortex_adjoint
+   unsteady_vortex
+   viscous_shock
+   airfoil_steady
+   airfoil_chaotic
+   magnetostatic_box
+   magnetostatic_motor
+   magnetostatic_wire
+   navier_stokes_mms
+   thermal_square
+   surface_distance
+   joule_wire
    rans_freestream
    rans_walltest
    rans_mms
-   #gf_error
 )
 
 create_sandbox("${SANDBOX_SRCS}")

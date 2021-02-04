@@ -76,6 +76,8 @@ protected:
     double chi_fs;
     /// material dynamic viscosity
     double mu;
+
+    bool sa_conv = false;
 };
 
 } //namespace mach

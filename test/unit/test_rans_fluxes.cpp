@@ -299,7 +299,7 @@ TEST_CASE("SA S derivatives", "[SASource]")
         S_a.set_value(sval);
         adouble d_a = 1.001;
         adouble mu_a = 1.1;
-        adouble Re_a = 5000000;
+        adouble Re_a = 5000;
         adouble src;// = mach::calcSADestruction<adouble, dim>(q_a.data(), S_a, mu_a, d_a, Re_a, sacs_a.data());
         src = mach::calcSASource<adouble,dim>(
          q_a.data(), grad_a.data(), sacs_a.data())/Re_a;
@@ -326,7 +326,7 @@ TEST_CASE("SA S derivatives", "[SASource]")
         double Sp = sval + delta; double Sm = sval - delta;
         double d = 1.001;
         double mu = 1.1;
-        double Re = 5000000;
+        double Re = 5000;
 
         // get perturbed states conv vector
         //double srcp = mach::calcSADestruction<double, dim>(q.GetData(), Sp, mu, d, Re, sacs.GetData());

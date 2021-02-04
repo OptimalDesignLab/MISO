@@ -1119,6 +1119,13 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
       cg->SetPrintLevel(ptl);
       cg->SetPreconditioner(dynamic_cast<Solver&>(_prec));
    }
+#ifdef MFEM_USE_SUPERLU
+   else if (solver_type == "superlu")
+   {
+      lin_solver.reset(new SuperLUSolver(comm));
+      SuperLUSolver *slu = dynamic_cast<SuperLUSolver*>(lin_solver.get());
+   }
+#endif
    else
    {
       throw MachException("Unsupported iterative solver type!\n"

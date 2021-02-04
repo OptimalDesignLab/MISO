@@ -127,10 +127,7 @@ void randVectorState(const Vector &x, Vector &u)
 {
     for (int i = 0; i < u.Size(); ++i)
     {
-        // if(u.Size() > 3 && (i == 1 || i == 2))
-        //     u(i) = 0.01*(2.0 * uniform_rand(gen) - 1.0);
-        // else
-            u(i) = 2.0 * uniform_rand(gen) - 1.0;
+        u(i) = 2.0 * uniform_rand(gen) - 1.0;
     }
 }
 

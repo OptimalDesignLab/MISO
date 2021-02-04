@@ -279,12 +279,21 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
+      double dt = 0.0;
+      double res_norm = calcResidualNorm();
+      // run a start-up period at constant dt until a threshold is reached
+      // if (start_up)
+      // {
+      //    //dt = options["time-dis"]["dt"].template get<double>();
+
+      //    return dt_old;
+      // }
+
       // ramp up time step for pseudo-transient continuation
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
-      double res_norm = calcResidualNorm();
       double exponent = options["time-dis"]["res-exp"];
-      double dt = options["time-dis"]["dt"].template get<double>() *
+      dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
       return max(dt, dt_old);
    }

@@ -23,6 +23,7 @@ RANavierStokesSolver<dim, entvar>::RANavierStokesSolver(const nlohmann::json &js
    // define free-stream parameters; may or may not be used, depending on case
    chi_fs = this->options["flow-param"]["chi"].template get<double>();
    mu = this->options["flow-param"]["mu"].template get<double>();
+   this->start_up = this->options["time-dis"]["start-up"].template get<bool>();
    vector<double> sa = this->options["flow-param"]["sa-consts"].template get<vector<double>>();
    sacs.SetSize(13);
    sacs = sa.data();
@@ -223,6 +224,10 @@ void RANavierStokesSolver<dim, entvar>::iterationHook(int iter,
    string file = this->options["file-names"].template get<std::string>();
    stringstream filename;
    filename << file <<"_last";
+   int num_rans = this->res->Height();
+   Array<int> disable_ns(num_rans);
+   //disable_ns = NULL;
+   //this->res->SetEssentialTrueDofs(disable_ns);
 
    this->checkJacobian(pert);
    this->printSolution(filename.str(), 0);
@@ -238,8 +243,35 @@ void RANavierStokesSolver<dim, entvar>::iterationHook(int iter,
 	GridFunction r(this->u->FESpace());
    this->res->Mult(*this->u, r);
    r.Save(rsol);
+   double res_norm = this->calcResidualNorm();
 
-   cout << "Iter "<<iter<<" Residual Norm: "<<this->calcResidualNorm()<<endl;
+   cout << "Iter "<<iter<<" Residual Norm: "<<res_norm<<endl;
+
+   // if(this->start_up)
+   //    cout << "Start-Up Phase"<<endl;
+
+   // // disable updates to NS equation to help SA converge on its own
+   // if(iter > 1 && res_norm/this->res_norm0 > 1e-9 && sa_conv == false)
+   // {
+   //    cout << "Navier Stokes Disabled"<<endl;
+   //    this->start_up = true;
+   //    for(int s = 0; s < num_rans; s++)
+   //    {
+   //       if((s+1)%(dim+3) == 0) 
+   //          disable_ns[s] = s-1;
+   //       else
+   //          disable_ns[s] = s;
+   //    }
+   // }
+   // else if (iter <= 1)
+   //    disable_ns = NULL;
+   // else
+   // {
+   //    disable_ns = NULL;
+   //    sa_conv = true;
+   //    this->start_up = false;
+   // }
+   // this->res->SetEssentialTrueDofs(disable_ns);
 }
 
 

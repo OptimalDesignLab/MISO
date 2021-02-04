@@ -73,6 +73,8 @@ protected:
    /// used to store the initial residual norm for PTC and convergence checks
    double res_norm0 = -1.0;
 
+   bool start_up = false;
+
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem

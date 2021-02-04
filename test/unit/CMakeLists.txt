@@ -13,23 +13,23 @@ endfunction(create_tests)
 
 # group together all fluids related tests
 set(FLUID_TEST_SRCS
-   #test_euler_fluxes 
-   #test_euler_integ
-   #test_euler_assemble
-   #test_euler_sens_integ
-   #test_evolver
-   #test_inexact_newton
-   #test_navier_stokes_fluxes
-   #test_navier_stokes_integ
-   test_navier_stokes_sens_integ
-   #test_navier_stokes_assemble
-   #test_reconstruction
-   #test_sbp_fe
-   #test_viscous_integ
-   #test_surface
-   #test_utils
-   #test_thermal_integ
-   #test_res_integ
+   test_euler_fluxes 
+   test_euler_integ
+   test_euler_assemble
+   test_euler_sens_integ
+   test_evolver
+   test_inexact_newton
+   test_navier_stokes_fluxes
+   test_navier_stokes_integ
+   #test_navier_stokes_sens_integ
+   test_navier_stokes_assemble
+   test_reconstruction
+   test_sbp_fe
+   test_viscous_integ
+   test_surface
+   test_utils
+   test_thermal_integ
+   test_res_integ
    test_rans_fluxes
    test_rans_integ
 )
