@@ -286,7 +286,6 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
    if (options["time-dis"]["steady"].template get<bool>())
    {
       double dt = 0.0;
-      double res_norm = calcResidualNorm();
       // run a start-up period at constant dt until a threshold is reached
       // if (start_up)
       // {

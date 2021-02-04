@@ -7,6 +7,7 @@ constexpr bool entvar = false;
 #include "adept.h"
 
 #include "mfem.hpp"
+#include "euler.hpp"
 #include "rans.hpp"
 #include <fstream>
 #include <iostream>

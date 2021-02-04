@@ -12,8 +12,9 @@ namespace mach
 
 template <int dim, bool entvar>
 RANavierStokesSolver<dim, entvar>::RANavierStokesSolver(const nlohmann::json &json_options,
-                                             unique_ptr<mfem::Mesh> smesh)
-    : NavierStokesSolver<dim, entvar>(json_options, move(smesh))
+                                             unique_ptr<mfem::Mesh> smesh,
+                                             MPI_Comm comm)
+    : NavierStokesSolver<dim, entvar>(json_options, move(smesh), comm)
 {
    if (entvar)
    {
@@ -37,9 +38,9 @@ void RANavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    Vector q_ref(dim+3);
    this->getFreeStreamState(q_ref);
    double d0 = getZeroDistance();
-   bool mms = this->options["flow-param"]["sa-mms"].template get<bool>();
 
-   // MMS option
+   // MMS option ///NOTE: Doesn't work
+   bool mms = false;//this->options["flow-param"]["sa-mms"].template get<bool>();
    if (mms)
    {
       if (dim != 2)
@@ -219,7 +220,8 @@ static void pert(const Vector &x, Vector& p);
 
 template <int dim, bool entvar>
 void RANavierStokesSolver<dim, entvar>::iterationHook(int iter, 
-                                                      double t, double dt) 
+                                                      double t, double dt,
+                                                      const ParGridFunction &state) 
 {
    string file = this->options["file-names"].template get<std::string>();
    stringstream filename;
@@ -276,7 +278,8 @@ void RANavierStokesSolver<dim, entvar>::iterationHook(int iter,
 
 
 template <int dim, bool entvar>
-void RANavierStokesSolver<dim, entvar>::terminalHook(int iter, double t_final)
+void RANavierStokesSolver<dim, entvar>::terminalHook(int iter, double t_final,
+                                                      const ParGridFunction &state)
 {
    // double entropy = ent->GetEnergy(*u);
    // entropylog << t_final << ' ' << entropy << endl;
@@ -402,9 +405,9 @@ void pert(const Vector &x, Vector& p)
 }
 
 // explicit instantiation
-template class RANavierStokesSolver<1>;
-template class RANavierStokesSolver<2>;
-template class RANavierStokesSolver<3>;
+template class RANavierStokesSolver<1, false>;
+template class RANavierStokesSolver<2, false>;
+template class RANavierStokesSolver<3, false>;
 
 }//namespace mach
 

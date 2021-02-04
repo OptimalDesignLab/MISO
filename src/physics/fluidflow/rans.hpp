@@ -22,7 +22,8 @@ public:
     /// \param[in] smesh - if provided, defines the mesh for the problem
     /// \param[in] dim - number of dimensions
     RANavierStokesSolver(const nlohmann::json &json_options, 
-                         std::unique_ptr<mfem::Mesh> smesh = nullptr);
+                         std::unique_ptr<mfem::Mesh> smesh,
+                         MPI_Comm comm);
 
     /// Sets `q_in` to the inflow conservative + SA variables
     void getRANSInflowState(mfem::Vector &q_in);
@@ -56,13 +57,14 @@ protected:
     /// Return the number of state variables
     virtual int getNumState() override {return dim+3; }
 
-    virtual void iterationHook(int iter, double t, double dt) override;
+    virtual void iterationHook(int iter, double t, double dt, const mfem::ParGridFunction &state) override;
 
-    virtual void terminalHook(int iter, double t_final) override;
+    virtual void terminalHook(int iter, double t_final, const mfem::ParGridFunction &state) override;
 
     friend SolverPtr createSolver<RANavierStokesSolver<dim, entvar>>(
        const nlohmann::json &json_options,
-       std::unique_ptr<mfem::Mesh> smesh);
+       std::unique_ptr<mfem::Mesh> smesh,
+       MPI_Comm comm);
 
     /// create mesh distance function from options
     void getDistanceFunction();

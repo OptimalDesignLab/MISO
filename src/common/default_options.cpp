@@ -21,8 +21,7 @@ const nlohmann::json default_options
       {"mu", -1.0},   // nondimensional viscosity (if negative, use Sutherland's)
       {"sa-consts", {0.1355, 0.622, 0.666666666666667, 0.41, 0.3, 2, 7.1, 1.2, 0.5, 10, 16, 0.7, 0.9}},
       //Spalart-Allmaras turbulence model constants, defined in rans_fluxes.hpp
-      {"sa-srcs", {1.0, 1.0}},
-      {"sa-mms", false}
+      {"sa-srcs", {1.0, 1.0}} //for debug purposes, disable SA source terms
    }},
 
    {"space-dis", // options related to spatial discretization
@@ -45,8 +44,7 @@ const nlohmann::json default_options
       {"t-final", 1.0}, // final time to simulate to
       {"dt", 0.01}, // time-step size when `const-cfl` is false
       {"cfl", 1.0}, // target CFL number
-      {"max-iter", 10000}, // safe-guard upper bound on number of iterations
-      {"start-up", false} // in steady case, iterate PTC with constant step at first
+      {"max-iter", 10000} // safe-guard upper bound on number of iterations
    }},
 
    {"nonlin-solver", // options related to root-finding algorithms
