@@ -723,6 +723,46 @@ protected:
                  const std::string &name,
                  const MachInput &input);
 
+   /// Adds domain integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addFunctionalDomainIntegrator(const std::string &fun,
+                                      T *integrator)
+   {
+      output.at(fun).AddDomainIntegrator(integrator);
+      fun_integrators.at(fun).emplace_back(integrator);
+   }
+
+   /// Adds interface integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator   
+   template <typename T>
+   void addFunctionalInteriorFaceIntegrator(const std::string &fun,
+                                            T *integrator)
+   {
+      output.at(fun).AddInteriorFaceIntegrator(integrator);
+      fun_integrators.at(fun).emplace_back(integrator);
+   }
+
+   /// Adds boundary integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addFunctionalBdrFaceIntegrator(const std::string &fun,
+                                       T *integrator,
+                                       mfem::Array<int> &bdr_marker)
+   {
+      output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
+      fun_integrators.at(fun).emplace_back(integrator);
+   }
+
 private:
    /// explicitly prohibit copy construction
    AbstractSolver(const AbstractSolver&) = delete;
