@@ -1,3 +1,4 @@
+#include <iostream>
 template <typename Derived>
 double InviscidIntegrator<Derived>::GetElementEnergy(
    const mfem::FiniteElement &el, mfem::ElementTransformation &trans,
@@ -761,8 +762,6 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    const IntegrationRule& ir = sbp.GetNodes();
-   DenseMatrix u_old;
-   state.GetVectorValues(trans, ir, u_old);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -792,6 +791,8 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
       }
    }
    res *= alpha;
+   // std::cout << "elvect is:\n";
+   // elvect.Print(std::cout, 4);
 }
 
 template <typename Derived>
@@ -802,8 +803,8 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    const IntegrationRule& ir = sbp.GetNodes();
-   DenseMatrix u_old;
-   state.GetVectorValues(trans, ir, u_old);
+   //DenseMatrix u_old;
+   //state.GetVectorValues(trans, ir, u_old);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -815,7 +816,7 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
    // k_i.SetSize(num_states);
    // A_i.SetSize(num_states);
    jac_node.SetSize(num_states);
-   DenseMatrix k(elfun.GetData(), num_nodes, num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    elmat = 0.0;
    // loop over the SBP nodes/integration points
    for (int i = 0; i < num_nodes; ++i)
@@ -830,7 +831,7 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
       // matVecJacK(u_i, A_i);
       // matVecJacState(u_i, k_i, jac_node);
       // Add(A_i, jac_node, dt, jac_node);
-      k.GetRow(i, u_i);
+      u.GetRow(i, u_i);
       convertJacState(u_i, jac_node);
       for (int n = 0; n < num_states; ++n)
       {

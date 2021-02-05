@@ -7,7 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <random>
-
+const bool entvar = true;
 // #ifdef MFEM_USE_SIMMETRIX
 // #include <SimUtil.h>
 // #include <gmi_sim.h>
@@ -23,13 +23,14 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
-/// \brief Defines the exact solution for the steady isentropic vortex
+/// \brief multiply exact solutions for testing
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
-void uexact(const mfem::Vector &x, mfem::Vector &u);
-void uexact_1d(const mfem::Vector &x, mfem::Vector &u);
-void uexact_single(const mfem::Vector &x, mfem::Vector &u);
-void upoly(const mfem::Vector &x, mfem::Vector &u);
+void u_exact(const mfem::Vector &x, mfem::Vector &u);
+void conserv_exact(const mfem::Vector &x, mfem::Vector &u);
+// void uexact_1d(const mfem::Vector &x, mfem::Vector &u);
+// void uexact_single(const mfem::Vector &x, mfem::Vector &u);
+// void upoly(const mfem::Vector &x, mfem::Vector &u);
 
 /// Generate quarter annulus mesh
 /// \param[in] degree - polynomial degree of the mapping
@@ -41,34 +42,17 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 // This function will be used to check the local R and the assembled prolongation matrix
 int main(int argc, char *argv[])
 {
-   // the specfic option file for this problem
-   // const char *options_file = "galerkin_difference.json";
-   // nlohmann::json options;
-   // ifstream option_source(options_file);
-   // option_source >> options;
-   // option_source.close();
-
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
-   int num_procs, myid;
-   MPI_Init(&argc, &argv);
-   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-#else
-   int myid = 0;
-#endif
-
-   int dim; // space dimension of the mesh
    //Parse command-line options
    OptionsParser args(argc, argv);
-   int degree = 2;
    int p = 1;
-   int nx = 1;
-   int ny = 1;
-   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
+   int degree = p+1; // annulus mesh degree, should be p+1
+   int nx = 10;
+   int ny = 10;
+   int rf = 0;
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
    args.AddOption(&p, "-p", "--order", "projection operator degree");
+   args.AddOption(&rf, "-r", "--refine", "level of refinement");
    args.Parse();
    if (!args.Good())
    {
@@ -78,97 +62,160 @@ int main(int argc, char *argv[])
 
    try
    {
-      //unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      unique_ptr<Mesh> smesh(new Mesh(nx));
-      std::cout << "Number of elements " << smesh->GetNE() << '\n';
-      ofstream sol_ofs("gd_test.vtk");
-      sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs, 0);
-      sol_ofs.close();
-      mfem::Mesh *mesh = new Mesh(*smesh);
-      // mfem::Mesh *mesh = new Mesh(nx);
+      int dim;
+      int num_state = 3;
+   //================== Multiply mesh files for testing ====================
+      // unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      // unique_ptr<Mesh> mesh(new Mesh(nx));
+      // ofstream sol_ofs("gd_test.vtk");
+      // sol_ofs.precision(14);
+      // smesh->PrintVTK(sol_ofs, 0);
+      // sol_ofs.close();
+      mfem::Mesh *mesh = new Mesh(nx);
+      //mfem::Mesh *mesh = new Mesh("periodic_segment.mesh", 1, 1);
+      // for (int l = 0; l < rf; l++)
+      // {
+      //    mesh->UniformRefinement();
+      // }
+      std::cout << "Number of elements " << mesh->GetNE() << '\n';
       dim = mesh->Dimension();
 
+   //================== Construct the gd and normal finite element spaces =========
       cout << "Construct the GD fespace.\n";
       DSBPCollection fec(p, dim);
-      GalerkinDifference gd(mesh, &fec, 1, Ordering::byVDIM, p);
-      //GalerkinDifference gd(degree, pumi_mesh, 1, Ordering::byVDIM);
-      cout << "Now build the prolongation matrix.\n";
-      //GalerkinDifference gd(options_file, pumi_mesh);
+      GalerkinDifference gd(mesh, &fec, num_state, Ordering::byVDIM, p);
+      FiniteElementSpace fes(mesh, &fec, num_state, Ordering::byVDIM);
 
-      // Test the prolongation matrix with gridfunction vdim = 4
-      mfem::GridFunction x(&gd);
-      mfem::GridFunction x_exact(&gd);
-
-      mfem::VectorFunctionCoefficient u0(1, uexact);
-      x_exact.ProjectCoefficient(u0);
-      // cout << "Check the exact solution:\n";
-      // x_exact.Print(cout ,4);
-
+   //================== Construct the gridfunction and apply the exact solution ========
       mfem::CentGridFunction x_cent(&gd);
-      x_cent.ProjectCoefficient(u0);
-      //cout << "Size of x_cent is " << x_cent.Size() << '\n';
-      // cout << "\n\n\n\nCheck the the center values:\n";
-      // x_cent.Print(cout, 4);
+      mfem::GridFunction x(&fes);
+      mfem::GridFunction x_exact(&fes);
+      mfem::GridFunction conserv_solution(&fes);
 
+      mfem::VectorFunctionCoefficient u0_fun(num_state, u_exact);
+      mfem::VectorFunctionCoefficient conserv_fun(num_state, conserv_exact);
+      x_cent.ProjectCoefficient(u0_fun);
+      x_exact.ProjectCoefficient(u0_fun);
+      conserv_solution.ProjectCoefficient(conserv_fun);
+
+   //============== Prolong the solution to SBP nodes =================================
+   //============== and check the simple l2 norm error ================================
       gd.GetProlongationMatrix()->Mult(x_cent, x);
-      // cout << "\n\n\n\nCheck the results:\n";
-      // x.Print(cout,4);
       x -= x_exact;
-      cout << "Check the projection error: " << x.Norml2() << '\n';
+      // cout << "\nCheck the nodal error:\n";
+      // x.Print(cout, num_state);
+      cout << "Check the projection l2 error: " << x.Norml2() << '\n';
 
-      std::cout << "Check P transpose: ";
-      mfem::GridFunction y(&gd);
-      mfem::CentGridFunction y_cent(&gd);
+   //============= check the prolonged entropy error in terms of the conservative variables
+      gd.GetProlongationMatrix()->Mult(x_cent, x);
+      int num_nodes, offset;
+      const mfem::FiniteElement *fe;
+      mfem::Vector w(num_state), q(num_state);
+      mfem::GridFunction conserv_converted(&fes);
+      Array<int> vdofs(num_state);
+      ofstream write_exact("exact_solution.txt");
+      ofstream write_prolong("prolong_solution.txt");
+      for (int i = 0; i < gd.GetNE(); i++)
+      {
+         fe = gd.GetFE(i);
+         num_nodes = fe->GetDof();
+         for (int j = 0; j < num_nodes; j++)
+         {
+            offset = i * num_nodes * num_state + j * num_state;
+            for (int k = 0; k < num_state; k++)
+            {
+               vdofs[k] = offset + k;
+            }
+            x.GetSubVector(vdofs, w);
+            if (entvar)
+            {
+               calcConservativeVars<double, 1>(w, q);
+            }
+            else
+            {
+               q = w;
+            }
+            conserv_converted.SetSubVector(vdofs, q);
+            for (int k = 0; k < num_state; k++)
+            {
+               write_exact << conserv_solution(vdofs[k]) << ' ';
+               write_prolong << conserv_converted(vdofs[k]) << ' ';
+            }
+            write_exact << endl;
+            write_prolong << endl;
+         }
+      }
+      write_exact.close();
+      write_prolong.close();
+      conserv_converted -= conserv_solution;
+      //conserv_converted.Print(cout, num_state);
+      cout << "Check the converted state l2 error: " << conserv_converted.Norml2() << '\n';
 
-      mfem::VectorFunctionCoefficient u1(1, upoly);
-      y.ProjectCoefficient(u1);
-      y_cent.ProjectCoefficient(u1);
+      //============== a funny test ===========
+      mfem::Vector q_1(3), w_1(3), q_2(3);
+      q_1(0) = 0.02;
+      q_1(1) = 0.1 * q_1(0);
+      q_1(2) = 20.0/0.4 + 0.5 * q_1(0) * 0.1 * 0.1;
+      calcEntropyVars<double, 1>(q_1, w_1);
+      calcConservativeVars<double, 1>(w_1, q_2);
+      cout << "original state: "<< q_1(0) << ' ' << q_1(1) << ' ' << q_1(2) << endl;
+      cout << "entropy variable: "<< w_1(0) << ' ' << w_1(1) << ' ' << w_1(2) << endl;
+      cout << "converted back: "<< q_2(0) << ' ' << q_2(1) << ' ' <<q_2(2) << endl;
 
-      mfem::GridFunction y_project(&gd);
-      gd.GetProlongationMatrix()->Mult(y_cent, y_project);
+      GalerkinDifference gd2(mesh, &fec, 1, Ordering::byVDIM, p);
       
-      const FiniteElement *fe;
-      ElementTransformation *T;
-      double h;
-      int num_pt;
+      // std::cout << "Check P transpose: ";
+      // mfem::GridFunction y(&gd);
+      // mfem::CentGridFunction y_cent(&gd);
 
-      // sum up the L2 error over all states
-      for (int i = 0; i < gd.GetNE(); i++)
-      {
-         fe = gd.GetFE(i);
-         const IntegrationRule *ir = &(fe->GetNodes());
-         T = gd.GetElementTransformation(i);
-         num_pt = ir->GetNPoints();
-         for (int j = 0; j < num_pt; j++)
-         {
-            const IntegrationPoint &ip = ir->IntPoint(j);
-            T->SetIntPoint(&ip);
-            h = ip.weight * T->Weight();
-            y_project(i*num_pt+j) = h * y_project(i*num_pt+j);
-         }
-      }
-      double lhs = x_exact * y_project;
+      // mfem::VectorFunctionCoefficient u1(1, uexact_1d);
+      // y.ProjectCoefficient(u1);
+      // y_cent.ProjectCoefficient(u1);
 
-      mfem::CentGridFunction x_project(&gd);
-      for (int i = 0; i < gd.GetNE(); i++)
-      {
-         fe = gd.GetFE(i);
-         const IntegrationRule *ir = &(fe->GetNodes());
-         T = gd.GetElementTransformation(i);
-         num_pt = ir->GetNPoints();
-         for (int j = 0; j < num_pt; j++)
-         {
-            const IntegrationPoint &ip = ir->IntPoint(j);
-            T->SetIntPoint(&ip);
-            h = ip.weight * T->Weight();
-            x_exact(i*num_pt+j) = h * x_exact(i*num_pt+j);
-         }
-      }
-      gd.GetProlongationMatrix()->MultTranspose(x_exact, x_project);
-      double rhs = y_cent * x_project;
-      std::cout << "x^t * P * yc - yc^t * P^t * x^t = " << lhs - rhs << '\n';
-      std::cout << "lhs = " << lhs << ", rhs = " << rhs << '\n';
+      // mfem::GridFunction y_project(&gd);
+      // gd.GetProlongationMatrix()->Mult(y_cent, y_project);
+      
+      // const FiniteElement *fe;
+      // ElementTransformation *T;
+      // double h;
+      // int num_pt;
+
+      // // sum up the L2 error over all states
+      // for (int i = 0; i < gd.GetNE(); i++)
+      // {
+      //    fe = gd.GetFE(i);
+      //    const IntegrationRule *ir = &(fe->GetNodes());
+      //    T = gd.GetElementTransformation(i);
+      //    num_pt = ir->GetNPoints();
+      //    for (int j = 0; j < num_pt; j++)
+      //    {
+      //       const IntegrationPoint &ip = ir->IntPoint(j);
+      //       T->SetIntPoint(&ip);
+      //       h = ip.weight * T->Weight();
+      //       y_project(i*num_pt+j) = h * y_project(i*num_pt+j);
+      //    }
+      // }
+      // double lhs = x_exact * y_project;
+
+      // mfem::CentGridFunction x_project(&gd);
+      // for (int i = 0; i < gd.GetNE(); i++)
+      // {
+      //    fe = gd.GetFE(i);
+      //    const IntegrationRule *ir = &(fe->GetNodes());
+      //    T = gd.GetElementTransformation(i);
+      //    num_pt = ir->GetNPoints();
+      //    for (int j = 0; j < num_pt; j++)
+      //    {
+      //       const IntegrationPoint &ip = ir->IntPoint(j);
+      //       T->SetIntPoint(&ip);
+      //       h = ip.weight * T->Weight();
+      //       x_exact(i*num_pt+j) = h * x_exact(i*num_pt+j);
+      //    }
+      // }
+      // gd.GetProlongationMatrix()->MultTranspose(x_exact, x_project);
+      // double rhs = y_cent * x_project;
+      // std::cout << "x^t * P * yc - yc^t * P^t * x^t = " << lhs - rhs << '\n';
+      // std::cout << "lhs = " << lhs << ", rhs = " << rhs << '\n';
       // Test the prolongation matrix with gridfunction vdim = 1
       // mfem::GridFunction x(&gd);
       // mfem::GridFunction x_exact(&gd);
@@ -201,73 +248,87 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-#ifdef MFEM_USE_MPI
-   MPI_Finalize();
-#endif
+   return 0;
 }
 
 // Exact solution; note that I reversed the flow direction to be clockwise, so
 // the problem and mesh are consistent with the LPS paper (that is, because the
 // triangles are subdivided from the quads using the opposite diagonal)
-void uexact(const mfem::Vector &x, mfem::Vector &u)
+void u_exact(const mfem::Vector &x, mfem::Vector &u)
 {
-   // steady vortext exact solution with shifted coordinate
-   u.SetSize(1);
-   double ri = 1.0;
-   double Mai = 0.5; //0.95
-   double rhoi = 2.0;
-   double prsi = 1.0 / euler::gamma;
-   double rinv = ri / sqrt(x(0) * x(0) + x(1) * x(1));
-   double rho = rhoi * pow(1.0 + 0.5 * euler::gami * Mai * Mai * (1.0 - rinv * rinv),
-                           1.0 / euler::gami);
-   double Ma = sqrt((2.0 / euler::gami) * ((pow(rhoi / rho, euler::gami)) *
-                                               (1.0 + 0.5 * euler::gami * Mai * Mai) -
-                                           1.0));
-   double theta;
-   if (x(0) > 1e-15)
+   mfem::Vector u0(3);
+   u.SetSize(3);
+
+   double rho = 1.0 + 0.98 * sin(2.0 * x(0) * M_PI );
+   double v = 0.1;
+   double p = 20.0;
+   
+   u0(0) = rho;
+   u0(1) = rho * v;
+   u0(2) = p/euler::gami + 0.5 * rho * v * v;
+
+   if (entvar == false)
    {
-      theta = atan( x(1)/x(0) );
+      u = u0;
    }
    else
    {
-      theta = M_PI / 2.0;
+      calcEntropyVars<double, 1>(u0.GetData(), u.GetData());
    }
-   double press = prsi * pow((1.0 + 0.5 * euler::gami * Mai * Mai) /
-                                 (1.0 + 0.5 * euler::gami * Ma * Ma),
-                             euler::gamma / euler::gami);
-   double a = sqrt(euler::gamma * press / rho);
 
-   // u(0) = rho;
-   // u(1) = rho*a*Ma*sin(theta);
-   // u(2) = -rho*a*Ma*cos(theta);
-   // u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
-
-   u(0) = rho + rho * a * Ma * sin(theta) - rho * a * Ma * cos(theta) + press / euler::gami + 0.5 * rho * a * a * Ma * Ma;
 }
 
-void upoly(const mfem::Vector &x, mfem::Vector &u)
+void conserv_exact(const mfem::Vector &x, mfem::Vector &u)
 {
-   u(0) = 0;
-   for (int i = 2; i >= 0; i--)
-   {
-      u(0) += pow(x(0) + x(1), i);
-   }
+   u.SetSize(3);
+   double rho = 1.0 + 0.98 * sin(2.0 * x(0) * M_PI );
+   double v = 0.1;
+   double p = 20.0;
+
+   u(0) = rho;
+   u(1) = rho * v;
+   u(2) = p/euler::gami + 0.5 * rho * v * v;
 }
 
-void uexact_single(const mfem::Vector &x, mfem::Vector &u)
-{
-   u(0) = x(0);
-   //u(0) = x(0) * x (0) - 7.0 * x(0) + 3.0;
-}
+// void upoly(const mfem::Vector &x, mfem::Vector &u)
+// {
+//    mfem::Vector u0(3);
+//    u.SetSize(3);
 
-void uexact_1d(const mfem::Vector &x, mfem::Vector &u)
-{
-   u(0) = 0;
-   for (int i = 2; i >= 0; i--)
-   {
-      u(0) += pow(x(0), i);
-   }
-}
+//    double rho = 1.0 + 0.98 * sin(2.0 * x(0) * M_PI );
+//    double v = 0.1;
+//    double p = 20.0;
+   
+//    u0(0) = rho;
+//    u0(1) = rho * v;
+//    u0(2) = p/euler::gami + 0.5 * rho * v * v;
+
+//    if (entvar == false)
+//    {
+//       u = u0;
+//    }
+//    else
+//    {
+//       calcEntropyVars<double, 1>(u0.GetData(), u.GetData());
+//    }
+// }
+
+
+
+// void uexact_single(const mfem::Vector &x, mfem::Vector &u)
+// {
+//    u(0) = 20.0;
+//    //u(0) = x(0) * x (0) - 7.0 * x(0) + 3.0;
+// }
+
+// void uexact_1d(const mfem::Vector &x, mfem::Vector &u)
+// {
+//    u(0) = 0;
+//    for (int i = 2; i >= 0; i--)
+//    {
+//       u(0) += pow(x(0), i);
+//    }
+// }
 
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)

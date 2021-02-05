@@ -4,7 +4,7 @@
 #define MACH_EULER_FLUXES
 
 #include <algorithm> // std::max
-
+#include <iostream>
 #include "adept.h"
 
 #include "utils.hpp"
@@ -49,6 +49,7 @@ void calcEntropyVars(const xdouble *q, xdouble *w)
       u[i] = q[i + 1] / q[0];
    }
    xdouble p = pressure<xdouble, dim>(q);
+   //std::cout << "pressure is " << p << std::endl;
    xdouble s = log(p / pow(q[0], euler::gamma));
    xdouble fac = 1.0 / p;
    w[0] = (euler::gamma - s) / euler::gami - 0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
@@ -81,7 +82,7 @@ void calcConservativeVars(const xdouble *w, xdouble *q)
       q[i + 1] = q[0]*u[i];
    }
    xdouble p = -q[0]/w[dim+1];
-   q[dim+1] = p/euler::gami + 0.5*q[0]*Vel2;  
+   q[dim+1] = p/euler::gami + 0.5*q[0]*Vel2;
 }
 
 /// Mathematical entropy function rho*s/(gamma-1), where s = ln(p/rho^gamma)

@@ -10,12 +10,15 @@ namespace mfem
 class CentGridFunction : public mfem::GridFunction
 {
 public:
+   CentGridFunction() { }
    CentGridFunction(mfem::FiniteElementSpace *f);
 
    virtual void ProjectCoefficient(mfem::VectorCoefficient &coeff);
    
    CentGridFunction &operator=(const Vector &v);
    CentGridFunction &operator=(double value);
+
+   void SaveVTK(std::ostream &out, const std::string &field_name, int ref);
 
    // mfem::HypreParVector *GetTrueDofs()
    // {

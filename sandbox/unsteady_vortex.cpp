@@ -27,31 +27,8 @@ void u0_function(const Vector &x, Vector& u0);
 int main(int argc, char *argv[])
 {
    const char *options_file = "unsteady_vortex_options.json";
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady.petsc";
-   // Get the option file
-   nlohmann::json options;
-   ifstream option_source(options_file);
-   option_source >> options;
-   // Write the petsc option file
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
-   petscoptions.close();
-#endif
-#ifdef MFEM_USE_MPI
-   // Initialize MPI if parallel
-   MPI_Init(&argc, &argv);
-#endif
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
    // Parse command-line options
    OptionsParser args(argc, argv);
-   
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();
@@ -87,12 +64,7 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-#ifdef MFEM_USE_PETSC
-   MFEMFinalizePetsc();
-#endif
-#ifdef MFEM_USE_MPI
-   MPI_Finalize();
-#endif
+   return 0;
 }
 
 // Initial condition; see Crean et al. 2018 for the notation
@@ -109,7 +81,7 @@ void u0_function(const Vector &x, Vector& q)
    double xi = (x(0) - x0)*scale - t;
    double eta = (x(1) - y0)*scale;
    double M = 0.5;
-   double epsilon = 1.0;
+   double epsilon = 1.0; // the actual value should be 1.0
    double f = 1.0 - (xi*xi + eta*eta);
    // density
    u0(0) = pow(1.0 - epsilon*epsilon*euler::gami*M*M*exp(f)/(8*M_PI*M_PI),
@@ -124,6 +96,7 @@ void u0_function(const Vector &x, Vector& q)
    double press = pow(u0(0), euler::gamma)/(euler::gamma*M*M);
    press *= scale*scale;
    u0(3) = press/euler::gami + 0.5*(u0(1)*u0(1) + u0(2)*u0(2))/u0(0);
+
    if (entvar == false)
    {
       q = u0;

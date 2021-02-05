@@ -21,6 +21,8 @@ set(SANDBOX_SRCS
 	galerkin_difference
    steady_vortex_adjoint
    sod_shock
+	implicitnonlinear_test
+	continuous_1d
 )
 
 create_sandbox("${SANDBOX_SRCS}")

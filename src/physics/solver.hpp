@@ -100,7 +100,7 @@ public:
    /// \todo make this work for parallel!
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
-   void printResidual(const std::string &file_name, int refine = -1);
+   void printResidual(const std::string &file_name);
 
    /// Solve for the state variables based on current mesh, solver, etc.
    void solveForState();
@@ -139,13 +139,18 @@ public:
    }
 
    /// A temporal funtion that print the 2d sod_shock problem
-   virtual void PrintSodShock(const std::string &file_name);
-   virtual void PrintSodShockCenter(const std::string &file_name);
+   virtual void PrintSodShock(const std::string &file_name) = 0;
+   virtual void PrintSodShockCenter(const std::string &file_name) = 0;
    
    /// A virtual function convert the conservative variable to entropy variables
    /// defined in EulerSolver
    /// \param[in/out] state - state vector
    virtual void convertToEntvar(mfem::Vector &state) = 0;
+   virtual void convertToConserv(mfem::Vector &state) = 0;
+   virtual void convertToConservCent(mfem::Vector &state) = 0;
+   virtual void checkConversion(void (*u_exact)(const mfem::Vector &, mfem::Vector &)) = 0;
+   virtual void conToEntropyVars(const mfem::Vector &entropy, mfem::Vector &conserv) = 0;
+   virtual void conToConservVars(const mfem::Vector &conserv, mfem::Vector &entropy) = 0; 
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication

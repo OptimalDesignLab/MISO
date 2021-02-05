@@ -118,6 +118,7 @@ int main(int argc, char *argv[])
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
       solver->checkJacobian(pert);
+      solver->feedpert(pert);
       solver->solveForState();
       solver->printSolution("gd_final",0);
       // get the final density error

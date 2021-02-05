@@ -119,6 +119,7 @@ void AbstractSolver::initDerived()
         << fes->GetTrueVSize() << endl;
 #endif
 
+   double alpha = 1.0;
    // set up the mass matrix
    mass.reset(new BilinearFormType(fes_normal.get()));
    mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
@@ -126,8 +127,8 @@ void AbstractSolver::initDerived()
    mass->Finalize();
    // set nonlinear mass matrix form
    nonlinear_mass.reset(new NonlinearFormType(fes.get()));
+   addMassIntegrators(alpha);
    // set up the spatial semi-linear form
-   double alpha = 1.0;
    res.reset(new NonlinearFormType(fes.get()));
    std::cout << "In rank " << rank << ": fes Vsize " << fes->GetVSize() << ". fes TrueVsize " << fes->GetTrueVSize();
    std::cout << ". fes ndofs is " << fes->GetNDofs() << ". res size " << res->Width() << ". u size " << u->Size();
@@ -267,8 +268,24 @@ void AbstractSolver::setInitialCondition(
    mesh->PrintVTK(projection, 0);
    u_test.SaveVTK(projection, "projection", 0);
    projection.close();
-
-
+   // cout << "check nodal values\n";
+   // mfem::Array<int> vdofs;
+   // int num_dofs;
+   // for (int i = 0; i < fes_normal->GetNE(); i++)
+   // {
+   //    const FiniteElement *fe = fes->GetFE(i);
+   //    num_dofs = fe->GetDof();
+   //    fes_normal->GetElementVDofs(i, vdofs);
+   //    for(int j = 0; j < num_dofs; j++)
+   //    {
+   //       for(int k = 0; k < num_state; k++)
+   //       {
+   //          cout << (*u)(vdofs[k*num_dofs + j]) << ' ';
+   //          cout << u_test(vdofs[k*num_dofs + j]) << "   ";
+   //       }
+   //       cout << std::endl;
+   //    }
+   // }
    
    u_test -= *u;
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
@@ -501,6 +518,7 @@ void AbstractSolver::printSolution(const std::string &file_name,
    mesh->PrintVTK(sol_ofs, 0);
    fes->GetProlongationMatrix()->Mult(*uc, *u);
    u->SaveVTK(sol_ofs, "Solution", 0);
+   // uc->SaveVTK(sol_ofs, "GD Solution",0);
    sol_ofs.close();
 }
 
@@ -519,30 +537,51 @@ void AbstractSolver::printAdjoint(const std::string &file_name,
    adj_ofs.close();
 }
 
-void AbstractSolver::printResidual(const std::string &file_name,
-                                   int refine)
+void AbstractSolver::printResidual(const std::string &file_name)
 {
-
-   GridFunType r(fes.get());
-#ifdef MFEM_USE_MPI
-   // HypreParVector *U = u->GetTrueDofs();
-   // res->Mult(*U, r);
-   cout << "Print residual is called, in MPI, uc is feed into Mult, size: " << uc->Size() << '\n';
-   res->Mult(*uc, r);
-#else
-   cout << "Print residual is called, not in MPI, uc is feed into Mult, size: " << uc->Size() << '\n';
-   res->Mult(*u, r);
-#endif
-   // TODO: These mfem functions do not appear to be parallelized
-   ofstream res_ofs(file_name + ".vtk");
-   res_ofs.precision(14);
-   if (refine == -1)
+//    GridFunType r(fes.get());
+// #ifdef MFEM_USE_MPI
+//    // HypreParVector *U = u->GetTrueDofs();
+//    // res->Mult(*U, r);
+//    cout << "Print residual is called, in MPI, uc is feed into Mult, size: " << uc->Size() << '\n';
+//    res->Mult(*uc, r);
+// #else
+//    cout << "Print residual is called, not in MPI, uc is feed into Mult, size: " << uc->Size() << '\n';
+//    res->Mult(*u, r);
+// #endif
+//    // TODO: These mfem functions do not appear to be parallelized
+//    ofstream res_ofs(file_name + ".vtk");
+//    res_ofs.precision(14);
+//    if (refine == -1)
+//    {
+//       refine = options["space-dis"]["degree"].get<int>() + 1;
+//    }
+//    mesh->PrintVTK(res_ofs, refine);
+//    r.SaveVTK(res_ofs, "Residual", refine);
+//    res_ofs.close();
+   mfem::Vector test(uc->Size());
+   res->Mult(*uc, test);
+   ofstream write_center(file_name+"_res_coord.txt");
+   ofstream write_state(file_name+"_res.txt");
+   write_state.precision(14);
+   write_center.precision(14);
+   // print the state
+   mfem::Vector cent(1);
+   int geom = mesh->GetElement(0)->GetGeometryType();
+   ElementTransformation *eltransf;
+   for (int i = 0; i < fes->GetNE(); i++)
    {
-      refine = options["space-dis"]["degree"].get<int>() + 1;
+      eltransf = mesh->GetElementTransformation(i);
+      eltransf->Transform(Geometries.GetCenter(geom), cent);
+      write_center << cent(0) << std::endl;
+      for (int j = 0; j < num_state; j++)
+      {
+         write_state << test( i * num_state + j) << ' ';
+      }
+      write_state << std::endl;
    }
-   mesh->PrintVTK(res_ofs, refine);
-   r.SaveVTK(res_ofs, "Residual", refine);
-   res_ofs.close();
+   write_state.close();
+   write_center.close();
 }
 
 void AbstractSolver::solveForState()
@@ -754,6 +793,7 @@ void AbstractSolver::solveUnsteady()
    cout << "Check the inner product.\n";
    mfem::Vector test(uc->Size());
    res->Mult(*uc, test);
+   printResidual("initial_cent");
    double inner = (*uc) * test;
    cout << "The inner product is " << inner << '\n'; 
    // check the jacobian
@@ -766,7 +806,7 @@ void AbstractSolver::solveUnsteady()
    double entropy;
    ofstream entropylog;
    entropylog.open("entropylog.txt", fstream::app);
-   entropylog << setprecision(14);
+   entropylog << setprecision(16);
    clock_t start_t = clock();
    for (int ti = 0; !done;)
    {
@@ -778,9 +818,10 @@ void AbstractSolver::solveUnsteady()
       }
       double dt_real = min(dt, t_final - t);
       // TODO: !!!!! The following does not generalize beyond midpoint !!!!!
-      updateNonlinearMass(ti, 0.5*dt_real, 1.0);
+      //updateNonlinearMass(ti, 0.5*dt_real, 1.0);
       if (0 == ti)
       {
+         //dynamic_cast<mach::ImplicitNonlinearMassEvolver *>(evolver.get())->checkJacobian(pert, *uc);
          MatrixType *jac1 = dynamic_cast<MatrixType *>(&res->GetGradient(*uc));
          MatrixType *jac2 = dynamic_cast<MatrixType *>(&nonlinear_mass->GetGradient(*uc));
          ofstream jac_save("jac.txt");
@@ -998,67 +1039,9 @@ void AbstractSolver::checkJacobian(
 
    // check the difference norm
    jac_v -= res_plus;
-   double error = calcInnerProduct(jac_v, jac_v);
+   //double error = calcInnerProduct(jac_v, jac_v);
+   double error = jac_v *jac_v;
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
-void AbstractSolver::PrintSodShock(const std::string &file_name)
-{
-   fes->GetProlongationMatrix()->Mult(*uc, *u);
-   ofstream write_value(file_name+"_u.txt");
-   write_value.precision(14);
-   ofstream write_coord(file_name+"_coord.txt");
-   write_coord.precision(14);
-   //u->Print(write_value, 3);
-   mfem::Vector quad_coord(1);
-   mfem::Array<int> vdofs;
-   ElementTransformation *eltransf;
-   const FiniteElement *fe = fec->FiniteElementForGeometry(Geometry::SEGMENT);
-   const int num_dofs = fe->GetDof();
-   for (int i = 0; i < fes->GetNE(); i++)
-   {
-      eltransf = mesh->GetElementTransformation(i);
-      fes->GetElementVDofs(i, vdofs);
-      for(int j = 0; j < num_dofs; j++)
-      {
-         eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
-         write_coord << quad_coord(0) << std::endl;
-
-         for(int k = 0; k < num_state; k++)
-         {
-            write_value << (*u)(vdofs[k*num_dofs + j]) << ' ';
-         }
-         write_value << std::endl;
-      }
-   }
-
-   write_coord.close();
-   write_value.close();
-}
-
-void AbstractSolver::PrintSodShockCenter(const std::string &file_name)
-{
-   // prepare the file stream
-   ofstream write_center(file_name+"_coord.txt");
-   ofstream write_state(file_name+"_u.txt");
-   write_state.precision(14);
-   write_center.precision(14);
-   // print the state
-   mfem::Vector cent(1);
-   int geom = mesh->GetElement(0)->GetGeometryType();
-   ElementTransformation *eltransf;
-   for (int i = 0; i < fes->GetNE(); i++)
-   {
-      eltransf = mesh->GetElementTransformation(i);
-      eltransf->Transform(Geometries.GetCenter(geom), cent);
-      write_center << cent(0) << std::endl;
-      for (int j = 0; j < num_state; j++)
-      {
-         write_state << (*uc)( i * num_state + j) << ' ';
-      }
-      write_state << std::endl;
-   }
-   write_state.close();
-   write_center.close();
-}
 } // namespace mach
