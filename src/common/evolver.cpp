@@ -49,7 +49,8 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    const int maxiter = 30;
    //double gamma = bisection(entropyFun, 0.50, 1.5, ftol, xtol, maxiter);
    double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
-   //cout << "\tgamma = " << gamma << endl;
+   //double gamma = 1.0;
+   cout << "\tgamma = " << gamma << endl;
    x.Add(gamma*dt, k);
    t += gamma*dt;
 }
@@ -206,7 +207,7 @@ void ImplicitNonlinearEvolver::ImplicitSolve(const double dt, const Vector &x,
 }
 
 void ImplicitNonlinearEvolver::checkJacobian(
-    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
+   void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
 {
    cout << "evolver check jac is called.\n";
    // this is a specific version for gd_serial_mfem
@@ -281,8 +282,8 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(
 #endif
 
    // set paramters for the newton solver
-   newton_solver->SetRelTol(1e-10);
-   newton_solver->SetAbsTol(1e-10);
+   newton_solver->SetRelTol(1e-12);
+   newton_solver->SetAbsTol(1e-12);
    newton_solver->SetPrintLevel(1);
    newton_solver->SetMaxIter(30);
    // set linear solver and operator
@@ -295,27 +296,35 @@ void ImplicitNonlinearMassEvolver::Mult(const Vector &k, Vector &y) const
 {   
    Vector vec1(x);
    Vector vec2(x.Size());
-   //cout << "vec1&2 size is " << vec1.Size()<< '\n';
-   vec1.Add(dt, k);  // vec1 = x + dt * k
-   res.Mult(vec1, y); // y = f(vec1)
-   mass.Mult(x, vec2);
-   y -= vec2;  // y = f(x + dt * k) - M(x)
-   vec1.Add(dt, k);
-   mass.Mult(vec1, vec2); // M(x + 2 * dt * k)
-   y += vec2; // y = f(x + dt * k) + M(x + 2*dt*k) - M(x)
+
+   vec1.Add(2.0*dt, k);  // vec1 = x + 2 * dt * k
+   mass.Mult(vec1, y); // y = M(x + 2 * dt * k)
+
+   mass.Mult(x, vec2); // vec2 = M(x)
+   y -= vec2; // y = M(x + 2 *dt * k) - M(x)
+
+   vec1.Add(-dt, k);
+   res.Mult(vec1, vec2); // vec2 = f(x+ dt * k)
+   //res.Mult(x, vec2);
+   vec2 *= (2.0*dt);
+
+   y += vec2; // y = M(x + 2 * dt * k) - M(x) + 2 * dt * f(x + dt * k)
 }
 
 Operator &ImplicitNonlinearMassEvolver::GetGradient(const mfem::Vector &k) const
 {
    MatrixType *jac1, *jac2; 
    Vector vec1(x);
-   vec1.Add(dt, k);
-   jac1 = dynamic_cast<MatrixType*>(&res.GetGradient(vec1));
-   *jac1 *= dt; // jac1 = dt * f'(x + dt * k)
-   vec1.Add(dt, k);
-   jac2 = dynamic_cast<MatrixType*>(&mass.GetGradient(vec1)); // jac2 = M'(x + 2 * dt * k);
-   jac1->Add(2.0 * dt, *jac2);
-   return *jac1;
+   vec1.Add(2.0*dt, k);
+   jac1 = dynamic_cast<MatrixType *>(&mass.GetGradient(vec1)); // M'(x+2*dt*k)
+   *jac1 *= (2.0*dt); // jac1 = 2*dt * M'(vec1)
+
+   vec1.Add(-dt, k);
+   jac2 = dynamic_cast<MatrixType *>(&res.GetGradient(vec1)); // jac2 = f'(x + dt * k);
+   *jac2 *= (2*dt*dt);
+   jac2->Add(1.0, *jac1);
+   // jac1->Add(2.0 * dt * dt, *jac2); // jac1 = jac1 + 2 * dt^2 * f'(x+dt*k)
+   return *jac2;
 }
 
 double ImplicitNonlinearMassEvolver::Entropy(const Vector &state)
@@ -345,56 +354,103 @@ void ImplicitNonlinearMassEvolver::ImplicitSolve(const double dt, const Vector &
 }
 
 void ImplicitNonlinearMassEvolver::checkJacobian(
-    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
+    void (*pert_fun)(const mfem::Vector &, mfem::Vector &),
+    const mfem::CentGridFunction &u)
 {
-   cout << "evolver check jac is called.\n";
-   // this is a specific version for gd_serial_mfem
-   // dont accept incoming changes
-   // initialize some variables
+   x = u;
+   dt = 1e-3;
+   cout << "dt is " << dt << endl;
+   const int num_states = mass.FESpace()->GetVDim();
+
+   // initialize the perturbation vector
    const double delta = 1e-5;
-   Vector u_plus(x);
-   Vector u_minus(x);
+   VectorFunctionCoefficient up(num_states, pert_fun);
    CentGridFunction pert_vec(mass.FESpace());
-   VectorFunctionCoefficient up(4, pert_fun);
    pert_vec.ProjectCoefficient(up);
 
-   // perturb in the positive and negative pert_vec directions
+   // Initialize the step k
+   CentGridFunction k(mass.FESpace());
+   //k.ProjectCoefficient(up);
+   k = 0.5;
+   CentGridFunction k_plus(k);
+   CentGridFunction k_minus(k);
+   k_plus.Add(delta, pert_vec);
+   k_minus.Add(-delta, pert_vec);
+
+   // Initialize perturbed state
+   CentGridFunction u_plus(u);
+   CentGridFunction u_minus(u);
    u_plus.Add(delta, pert_vec);
    u_minus.Add(-delta, pert_vec);
 
-   // Get the product using a 2nd-order finite-difference approximation
+   // Check the res gradient
    CentGridFunction res_plus(mass.FESpace());
    CentGridFunction res_minus(mass.FESpace());
-   this->Mult(u_plus, res_plus);
-   this->Mult(u_minus, res_minus);
-   // res_plus = 1/(2*delta)*(res_plus - res_minus)
+   res.Mult(u_plus, res_plus);
+   res.Mult(u_minus, res_minus);
+   cout << "res_plus is:\n";
+   res_plus.Print(cout, num_states);
+   cout << "res_minus is:\n";
+   res_minus.Print(cout, num_states);
    subtract(1/(2*delta), res_plus, res_minus, res_plus);
-   // Get the product directly using Jacobian from GetGradient
+
    CentGridFunction jac_v(mass.FESpace());
+   mfem::Operator &jac = res.GetGradient(x);
+   jac.Mult(pert_vec, jac_v);
+   cout << "jac_v is:\n";
+   jac_v.Print(cout, num_states);
+   cout << "fd result is:\n";
+   res_plus.Print(cout, num_states);
 
-   CentGridFunction *pert = &pert_vec;
-   CentGridFunction *prod = &jac_v;
-
-   mfem::Operator &jac = this->GetGradient(x);
-   jac.Mult(*pert, *prod);
-
-   // check the difference norm
    jac_v -= res_plus;
-   //double error = calcInnerProduct(jac_v, jac_v);
-   double error = jac_v * jac_v;
-   std::cout << "The Jacobian product error norm is " << sqrt(error) << endl;
-}
+   double error = jac_v *jac_v;
+   cout << "The res Jacobian product error norm is " << sqrt(error) << endl;
 
-// void ImplicitNonlinearMassEvolver::printinit(const mfem::Vector &u)
-// {
-//    MatrixType *jac = res.GetGradient(u);
-//    MatrixType *jac2 = mass.GetGradient(u);
-//    ofstream jac_save("jac.txt");
-//    ofstream mass_save("mass_matrix.txt")
-//    jac->PrintMatlab(jac_save);
-//    jac2->PrintMatlab(mass_save);
-//    mass_save.close();
-//    jac_save.close();
-// }
+   //Check the mass gradient
+   // CentGridFunction mass_plus(mass.FESpace());
+   // CentGridFunction mass_minus(mass.FESpace());
+   // mass.Mult(u_plus, mass_plus);
+   // mass.Mult(u_minus, mass_minus);
+   // cout << "mass_plus is:\n";
+   // mass_plus.Print(cout, num_states);
+   // cout << "mass_minus is:\n";
+   // mass_minus.Print(cout, num_states);
+   // subtract(1/(2*delta), mass_plus, mass_minus, mass_plus);
+
+   // CentGridFunction jac_v(mass.FESpace());
+   // mfem::Operator &jac = mass.GetGradient(u);
+   // jac.Mult(pert_vec, jac_v);
+   // cout << "jac_v is:\n";
+   // jac_v.Print(cout, num_states);
+   // cout << "fd result is:\n";
+   // mass_plus.Print(cout, num_states);
+
+   // jac_v -= mass_plus;
+   // double error = jac_v *jac_v;
+   // cout << "The mass Jacobian product error norm is " << sqrt(error) << endl;
+
+   // Check total gradient
+   // CentGridFunction res_plus(mass.FESpace());
+   // CentGridFunction res_minus(mass.FESpace());
+   // this->Mult(k_plus, res_plus);
+   // this->Mult(k_minus, res_minus);
+   // cout << "res_plus is:\n";
+   // res_plus.Print(cout, num_states);
+   // cout << "res_minus is:\n";
+   // res_minus.Print(cout, num_states);
+   // subtract(1/(2*delta), res_plus, res_minus, res_plus);
+
+   // CentGridFunction jac_v(mass.FESpace());
+   // mfem::Operator &jac = this->GetGradient(k);
+   // jac.Mult(pert_vec, jac_v);
+   // cout << "jac_v is:\n";
+   // jac_v.Print(cout, num_states);
+   // cout << "fd result is:\n";
+   // res_plus.Print(cout, num_states);
+   
+   // jac_v -= res_plus;
+   // double error = jac_v *jac_v;
+   // cout << "The total Jacobian product error norm is " << sqrt(error) << endl;
+}
 
 } // end of mach namespace

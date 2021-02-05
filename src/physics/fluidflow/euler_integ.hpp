@@ -182,10 +182,14 @@ public:
    /// \param[in] u_old - the state at the previous time step
    /// \param[in] delta_t - used to define state where mass matrix is evaluated
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   MassIntegrator(adept::Stack &diff_stack, const mfem::GridFunction &u_old,
-                  double delta_t, double a = 1.0)
-       : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(u_old, delta_t,
-                                                              dim + 2, a),
+   // MassIntegrator(adept::Stack &diff_stack, const mfem::GridFunction &u_old,
+   //                double delta_t, double a = 1.0)
+   //     : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(u_old, delta_t,
+   //                                                            dim + 2, a),
+   //       stack(diff_stack), q_work(dim + 2) {}
+
+   MassIntegrator(adept::Stack &diff_stack, double a = 1.0)
+       : NonlinearMassIntegrator<MassIntegrator<dim, entvar>>(dim + 2, a),
          stack(diff_stack), q_work(dim + 2) {}
 
    /// converts state variables to entropy variables, if necessary

@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
       // Define the initial condition function
       solver->setInitialCondition(shockExact);
       solver->printSolution("init", degree+1);
-      solver->printResidual("init-res", degree+1);
+      // solver->printResidual("init-res", degree+1);
 
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver->calcL2Error(shockExact, 0) << '\n' << endl;

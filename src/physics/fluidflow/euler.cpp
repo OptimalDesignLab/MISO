@@ -2,9 +2,9 @@
 
 #include "sbp_fe.hpp"
 #include "euler.hpp"
-//#include "euler_fluxes.hpp"
+#include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
-
+#include <iostream>
 using namespace mfem;
 using namespace std;
 
@@ -43,6 +43,13 @@ EulerSolver<dim, entvar>::EulerSolver(const string &opt_file_name,
    {
       throw MachException("ipitch axis must be between 0 and 2!");
    }
+}
+
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addMassIntegrators(double alpha)
+{
+   nonlinear_mass->AddDomainIntegrator(new MassIntegrator<dim, entvar>(diff_stack, alpha)); 
 }
 
 template <int dim, bool entvar>
@@ -149,7 +156,7 @@ template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addMassIntegrator(double alpha)
 {
    double dt = options["time-dis"]["dt"].template get<double>();
-   mass_integ.reset(new MassIntegrator<dim,entvar>(diff_stack, *u, dt, alpha));
+   mass_integ.reset(new MassIntegrator<dim,entvar>(diff_stack, alpha));
    nonlinear_mass->AddDomainIntegrator(mass_integ.get());
 }
 
@@ -357,19 +364,18 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    return sqrt(norm);
 }
 
-template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alpha)
-{
-   fes->GetProlongationMatrix()->Mult(*uc, *u);
-   if(0 == ti)
-   {
-      mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
-      nonlinear_mass->AddDomainIntegrator(mass_integ.get()); 
-   }
-   dynamic_cast<mach::NonlinearMassIntegrator<MassIntegrator<dim,entvar>>*>
-               (mass_integ.get())->updateDeltat(dt);
-   
-}
+// template <int dim, bool entvar>
+// void EulerSolver<dim, entvar>::updateNonlinearMass(int ti, double dt, double alpha)
+// {
+//    fes->GetProlongationMatrix()->Mult(*uc, *u);
+//    if(0 == ti)
+//    {
+//       mass_integ.reset(new MassIntegrator<dim, entvar>(diff_stack, *u, dt, alpha));
+//       nonlinear_mass->AddDomainIntegrator(mass_integ.get()); 
+//    }
+//    dynamic_cast<mach::NonlinearMassIntegrator<MassIntegrator<dim,entvar>>*>
+//                (mass_integ.get())->updateDeltat(dt);
+// }
 
 template<int dim, bool entvar>
 void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
@@ -382,7 +388,7 @@ void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
    {
       int num_nodes, offset;
       Array<int> vdofs(num_state);
-      Vector el_con, el_ent;
+      Vector el_con(num_state), el_ent(num_state);
       const FiniteElement *fe;
       for (int i = 0; i < fes->GetNE(); i++)
       {
@@ -399,6 +405,215 @@ void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
             calcEntropyVars<double, dim>(el_con.GetData(), el_ent.GetData());
             state.SetSubVector(vdofs, el_ent);
          }
+      }
+   }
+}
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::convertToConserv(mfem::Vector &state)
+{
+   if (!entvar)
+   {
+      return ;
+   }
+   else
+   {
+      int num_nodes, offset;
+      Array<int> vdofs(num_state);
+      Vector el_con(num_state), el_ent(num_state);
+      const FiniteElement *fe;
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         num_nodes = fe->GetDof();
+         for (int j = 0; j < num_nodes; j++)
+         {
+            offset = i * num_nodes * num_state + j * num_state;
+            for (int k = 0; k < num_state; k++)
+            {
+               vdofs[k] = offset + k;
+            }
+            u->GetSubVector(vdofs, el_ent);
+            // cout << "entropy variables is:";
+            // el_ent.Print(cout, dim+2);
+            calcConservativeVars<double, dim>(el_ent.GetData(), el_con.GetData());
+            state.SetSubVector(vdofs, el_con);
+         }
+      }
+   }
+}
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::convertToConservCent(mfem::Vector &state)
+{
+   if (!entvar)
+   {
+
+      return ;
+   }
+   else
+   {
+      int num_nodes, offset;
+      Array<int> vdofs(num_state);
+      Vector el_con(num_state), el_ent(num_state);
+      const FiniteElement *fe;
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         offset = i *num_state;
+         for (int k = 0; k < num_state; k++)
+         {
+            vdofs[k] = offset + k;
+         }
+         uc->GetSubVector(vdofs, el_ent);
+         calcConservativeVars<double, dim>(el_ent.GetData(), el_con.GetData());
+         state.SetSubVector(vdofs, el_con);
+      }
+   }
+}
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::PrintSodShock(const std::string &file_name)
+{
+   cout << "In print sodshock\n";
+   fes->GetProlongationMatrix()->Mult(*uc, *u);
+   mfem::GridFunction state(fes_normal.get());
+   state = *u;
+   convertToConserv(state);
+   ofstream write_value(file_name+"_u.txt");
+   write_value.precision(14);
+   ofstream write_coord(file_name+"_coord.txt");
+   write_coord.precision(14);
+   mfem::Vector quad_coord(1);
+   mfem::Array<int> vdofs;
+   ElementTransformation *eltransf;
+   const FiniteElement *fe;
+   int num_dofs;
+   for (int i = 0; i < fes_normal->GetNE(); i++)
+   {
+      fe = fes_normal->GetFE(i);
+      num_dofs = fe->GetDof();
+      eltransf = mesh->GetElementTransformation(i);
+      fes_normal->GetElementVDofs(i, vdofs);
+      for(int j = 0; j < num_dofs; j++)
+      {
+         eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
+         write_coord << quad_coord(0) << std::endl;
+
+         for(int k = 0; k < num_state; k++)
+         {
+            write_value << state(vdofs[k*num_dofs + j]) << ' ';
+         }
+         write_value << std::endl;
+      }
+   }
+   write_coord.close();
+   write_value.close();
+}
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::PrintSodShockCenter(const std::string &file_name)
+{
+   cout << "In print sodshock center.\n";
+   // prepare the file stream
+   mfem::CentGridFunction state(fes.get());
+   state = *uc;
+   cout << "state size is " << state.Size() << endl;
+   convertToConservCent(state);
+   ofstream write_center(file_name+"_coord.txt");
+   ofstream write_state(file_name+"_u.txt");
+   write_state.precision(14);
+   write_center.precision(14);
+   // print the state
+   mfem::Vector cent(1);
+   int geom = mesh->GetElement(0)->GetGeometryType();
+   ElementTransformation *eltransf;
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      eltransf = mesh->GetElementTransformation(i);
+      eltransf->Transform(Geometries.GetCenter(geom), cent);
+      write_center << cent(0) << std::endl;
+      for (int j = 0; j < num_state; j++)
+      {
+         write_state << state( i * num_state + j) << ' ';
+      }
+      write_state << std::endl;
+   }
+   write_state.close();
+   write_center.close();
+}
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::checkConversion(void (*u_exact)(const mfem::Vector &, mfem::Vector &))
+{
+   VectorFunctionCoefficient u_fun(num_state, u_exact);
+   GridFunction state1(fes_normal.get());
+   GridFunction state2(fes_normal.get());
+   u->ProjectCoefficient(u_fun);
+
+   if (entvar)
+   {
+      conToConservVars(*u, state1);
+      conToEntropyVars(state1, state2);
+   }
+   else
+   {
+      conToEntropyVars(*u, state1);
+      conToConservVars(state1, state2);
+   }
+   state2 -= *u;
+   cout << "After two consersion " << state2.Norml2() << '\n';
+}
+
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::conToConservVars(const mfem::Vector &conserv, mfem::Vector &entropy)
+{
+   int num_nodes, offset;
+   Array<int> vdofs(num_state);
+   Vector el_con(num_state), el_ent(num_state);
+   const FiniteElement *fe;
+   for (int i = 0; i < fes_normal->GetNE(); i++)
+   {
+      fe = fes_normal->GetFE(i);
+      num_nodes = fe->GetDof();
+      for (int j = 0; j < num_nodes; j++)
+      {
+         offset = i * num_nodes * num_state + j * num_state;
+         for (int k = 0; k < num_state; k++)
+         {
+            vdofs[k] = offset + k;
+         }
+         conserv.GetSubVector(vdofs, el_ent);
+         // cout << "entropy variables is:";
+         // el_ent.Print(cout, dim+2);
+         calcConservativeVars<double, dim>(el_ent.GetData(), el_con.GetData());
+         entropy.SetSubVector(vdofs, el_con);
+      }
+   }
+}
+
+template<int dim, bool entvar>
+void EulerSolver<dim, entvar>::conToEntropyVars(const mfem::Vector &entropy, mfem::Vector &conserv)
+{
+   int num_nodes, offset;
+   Array<int> vdofs(num_state);
+   Vector el_con(num_state), el_ent(num_state);
+   const FiniteElement *fe;
+   for (int i = 0; i < fes_normal->GetNE(); i++)
+   {
+      fe = fes_normal->GetFE(i);
+      num_nodes = fe->GetDof();
+      for (int j = 0; j < num_nodes; j++)
+      {
+         offset = i * num_nodes * num_state + j * num_state;
+         for (int k = 0; k < num_state; k++)
+         {
+            vdofs[k] = offset + k;
+         }
+         entropy.GetSubVector(vdofs, el_con);
+         calcEntropyVars<double, dim>(el_con.GetData(), el_ent.GetData());
+         conserv.SetSubVector(vdofs, el_ent);
       }
    }
 }

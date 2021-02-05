@@ -53,6 +53,14 @@ public:
    /// A virtual function convert the conservative variable to entropy variables
    /// \param[in/out] state - state vector
    virtual void convertToEntvar(mfem::Vector &state);
+   virtual void convertToConserv(mfem::Vector &state);
+   virtual void convertToConservCent(mfem::Vector &state);
+   virtual void PrintSodShock(const std::string &file_name);
+   virtual void PrintSodShockCenter(const std::string &file_name);
+   virtual void checkConversion(void (*u_exact)(const mfem::Vector &, mfem::Vector &));
+   virtual void conToEntropyVars(const mfem::Vector &entropy, mfem::Vector &conserv);
+   virtual void conToConservVars(const mfem::Vector &conserv, mfem::Vector &entropy);
+
 protected:
    /// free-stream Mach number
    double mach_fs;
@@ -89,7 +97,9 @@ protected:
 
    /// Update the mass integrator
    /// \param[in] dt - the numerical time step
-   virtual void updateNonlinearMass(int ti, double dt, double alpha);
+   //virtual void updateNonlinearMass(int ti, double dt, double alpha);
+
+   virtual void addMassIntegrators(double alpha);
 };
 
 } // namespace mach

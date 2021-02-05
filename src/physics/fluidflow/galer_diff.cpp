@@ -333,7 +333,7 @@ void GalerkinDifference::BuildGDProlongation() const
    //int degree_actual;
    for (int i = 0; i < nEle; i++)
    {
-      //cout << "Element " << i << ": ";
+      // cout << "Element " << i << ": ";
       // 1. construct the patch the patch
       // have more elements than required to make it a underdetermined system
       // if( i%32 == 0)
@@ -347,7 +347,7 @@ void GalerkinDifference::BuildGDProlongation() const
       //    nelmt = (degree+1) * (degree+2) / 2;
       // }
       GetNeighbourSet(i, nelmt, elmt_id);
-      // cout << "Elements id(s) in patch " << i << ": ";
+      // cout << "id(s) in patch " << i << ": ";
       // elmt_id.Print(cout, elmt_id.Size());
       
       // 2. build the quadrature and barycenter coordinate matrices
@@ -370,9 +370,9 @@ void GalerkinDifference::BuildGDProlongation() const
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-   // ofstream cp_save("cP.txt");
-   // cP->PrintMatlab(cp_save);
-   // cp_save.close();
+   ofstream cp_save("cP.txt");
+   cP->PrintMatlab(cp_save);
+   cp_save.close();
 }
 
 // This function will be deleted because of the usage of dsbp

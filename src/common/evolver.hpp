@@ -235,7 +235,8 @@ public:
       dt = dt_;
    }
    /// check evolver jacobian
-   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
+   void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &),
+                      const mfem::CentGridFunction &u);
 
    /// temperal function used for checking operator
    void prininit(const mfem::Vector &u);
@@ -254,7 +255,8 @@ private:
    /// the time step
    double dt;
    /// Vector that hould the current state
-   mfem::Vector x;
+   mfem::CentGridFunction x;
+   //mfem::CentGridFunction uc;
    /// Solver for the implicit time marching
    std::unique_ptr<mfem::NewtonSolver> newton_solver;
    //std::unique_ptr<mfem::InexactNewton> newton_solver;
