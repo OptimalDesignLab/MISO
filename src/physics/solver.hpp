@@ -12,6 +12,8 @@
 
 #include "mach_types.hpp"
 #include "utils.hpp"
+#include "mach_integrator.hpp"
+#include "mach_input.hpp"
 
 #ifdef MFEM_USE_PUMI
 namespace apf
@@ -288,6 +290,9 @@ public:
    /// \returns scalar value of estimated functional value
    double calcOutput(const mfem::ParGridFunction &state,
                      const std::string &fun);
+
+   double calcOutput(const std::string &fun,
+                                     const MachInputs &inputs);
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
@@ -515,6 +520,8 @@ protected:
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
    std::map<std::string, NonlinearFormType> output;
+   /// collection of integrators for each functional
+   std::unordered_map<std::string, std::vector<MachIntegrator>> fun_integrators;
    /// map of fractional functionals - a funtional that is a fraction of others
    std::unordered_map<std::string, std::vector<std::string>> fractional_output;
    /// `output_bndry_marker[i]` lists the boundaries associated with output i
@@ -694,6 +701,13 @@ protected:
    /// \param[in] name - name of the field for the integrators
    virtual void addFuncFieldSensIntegrators(std::string fun,
                                             std::string field) {}
+
+   void setInputs(const std::vector<MachIntegrator> &integrators,
+                  const MachInputs &inputs);
+
+   void setInput(const std::vector<MachIntegrator> &integrators,
+                 const std::string &name,
+                 const MachInput &input);
 
 private:
    /// explicitly prohibit copy construction

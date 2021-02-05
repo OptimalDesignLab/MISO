@@ -33,6 +33,8 @@
 #include "solver.hpp"
 // #include "../../build/_config.hpp"
 #include "material_library.hpp"
+#include "mach_input.hpp"
+#include "mach_integrator.hpp"
 
 #ifdef MFEM_USE_EGADS
 #include "gmi_egads.h"
@@ -1596,6 +1598,28 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
    }
 }
 
+double AbstractSolver::calcOutput(const std::string &fun,
+                                  const MachInputs &inputs)
+{
+   try
+   {
+      if (output.find(fun) == output.end())
+      {
+         throw MachException("Did not find " + fun + " in output map?");
+      }
+      auto &integrators = fun_integrators.at(fun);
+      setInputs(integrators, inputs);
+
+      auto &state = res_fields.at("state");
+      return output.at(fun).GetEnergy(state);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << endl;
+      return std::nan("");
+   }
+}
+
 void AbstractSolver::checkJacobian(
    const ParGridFunction &state,
    std::function<double(const Vector &)> pert_fun)
@@ -1755,6 +1779,33 @@ HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
                                  func_fields.at(fun).at(field)->ParFESpace());
    addFuncFieldSensIntegrators(fun, field);
    return func_sens_integ.at(fun).at(field).ParallelAssemble();
+}
+
+void AbstractSolver::setInputs(const std::vector<MachIntegrator> &integrators,
+                               const MachInputs &inputs)
+{
+   for (auto &input : inputs)
+   {
+      setInput(integrators, input.first, input.second);
+   }
+}
+
+void AbstractSolver::setInput(const std::vector<MachIntegrator> &integrators,
+                              const std::string &name,
+                              const MachInput &input)
+{
+   if (input.isField())
+   {
+      auto &field = res_fields.at(name);
+      field.SetData(input.getField());
+   }
+   else if (input.isValue())
+   {
+      for (auto &integrator : integrators)
+      {
+         mach::setInput(integrator, name, input);
+      }
+   }
 }
 
 void AbstractSolver::setResidualInput(std::string name,

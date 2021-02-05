@@ -6,6 +6,8 @@
 #include "thermal/thermal.hpp"
 #include "joule/joule.hpp"
 #include "diag_mass_integ.hpp"
+#include "mach_input.hpp"
+#include "mach_integrator.hpp"
 #include "solver.hpp"
 
 #endif

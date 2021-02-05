@@ -2,6 +2,10 @@ target_sources(mach
    PRIVATE
       diag_mass_integ.cpp
       diag_mass_integ.hpp
+      mach_input.cpp
+      mach_input.hpp
+      mach_integrator.cpp
+      mach_integrator.hpp
       physics.hpp
       solver.cpp
       solver.hpp
