@@ -733,7 +733,7 @@ protected:
                                       T *integrator)
    {
       output.at(fun).AddDomainIntegrator(integrator);
-      fun_integrators.at(fun).emplace_back(integrator);
+      fun_integrators.at(fun).emplace_back(*integrator);
    }
 
    /// Adds interface integrator to the nonlinear form for `fun`, and adds
@@ -746,7 +746,7 @@ protected:
                                             T *integrator)
    {
       output.at(fun).AddInteriorFaceIntegrator(integrator);
-      fun_integrators.at(fun).emplace_back(integrator);
+      fun_integrators.at(fun).emplace_back(*integrator);
    }
 
    /// Adds boundary integrator to the nonlinear form for `fun`, and adds
@@ -760,7 +760,7 @@ protected:
                                        mfem::Array<int> &bdr_marker)
    {
       output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
-      fun_integrators.at(fun).emplace_back(integrator);
+      fun_integrators.at(fun).emplace_back(*integrator);
    }
 
 private:

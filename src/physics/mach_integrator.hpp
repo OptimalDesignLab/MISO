@@ -55,7 +55,7 @@ private:
    };
 
    template <typename T>
-   class model : concept_t
+   class model : public concept_t
    {
    public:
       model(T &x) : data_(x) { }

@@ -750,15 +750,21 @@ void MagnetostaticSolver::addOutputs()
    auto &fun = options["outputs"];
    if (fun.find("energy") != fun.end())
    { 
-      output.emplace("energy", fes.get());
-      output.at("energy").AddDomainIntegrator(
-         new MagneticEnergyIntegrator(nu.get()));
+      // output.emplace("energy", fes.get());
+      // output.at("energy").AddDomainIntegrator(
+      //    new MagneticEnergyIntegrator(nu.get()));
+      
+      addFunctionalDomainIntegrator("energy",
+                                    new MagneticEnergyIntegrator(nu.get()));
    }
    if (fun.find("co-energy") != fun.end())
    {
       output.emplace("co-energy", fes.get());
       output.at("co-energy").AddDomainIntegrator(
          new MagneticCoenergyIntegrator(*u, nu.get()));
+
+      addFunctionalDomainIntegrator("co-energy",
+                                 new MagneticCoenergyIntegrator(*u, nu.get()));
    }
 }
 
