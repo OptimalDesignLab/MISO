@@ -13,6 +13,19 @@
 namespace mach
 {
 
+/// Creates common interface for integrators used by mach
+/// A MachIntegrator can wrap any type `T` that has a function
+/// `setInput(const T &, const std::string &, const MachInput &)` defined.
+/// We have defined this function where `T` is a
+/// `mfem::NonlinearFormIntegrator` so that every nonlinear form integrator
+/// can be wrapped with a MachIntegrator. This default implementation does
+/// nothing, but `setInput` can be specialized for specific integrators that
+/// depend on scalar inputs. For example, see `setInput` for
+/// `HybridACLossFunctionalIntegrator`.
+
+/// We use this class as a way to achieve polymorphism without having to modify
+/// `mfem::NonlinearFormIntegrator`. This approach is based on the example in
+/// Sean Parent's talk: ``Inheritance is the base class of evil''
 class MachIntegrator
 {
 public:
@@ -57,10 +70,16 @@ private:
    std::unique_ptr<concept_t> self_;
 };
 
+/// Used to set scalar inputs in the underlying integrator
+/// Ends up calling `setInput` on for either the `NonlinearFormIntegrator` or
+/// a specialized version for each particular integrator.
 void setInput(const MachIntegrator &integ,
               const std::string &name,
               const MachInput &input);
 
+/// Default implementation of setInput for a NonlinearFormIntegrator that does
+/// nothing but allows each child class of NonlinearFormIntegrator to be a
+/// `MachIntegrator`
 void setInput(const mfem::NonlinearFormIntegrator &integ,
               const std::string &name,
               const MachInput &input);
