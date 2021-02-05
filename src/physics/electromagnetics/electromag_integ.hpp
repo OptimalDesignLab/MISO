@@ -729,7 +729,7 @@ private:
 class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   HybridACLossFunctionalIntegrator(const mfem::Coefficient &sigma,
+   HybridACLossFunctionalIntegrator(mfem::Coefficient &sigma,
                                     const double omega,
                                     const double diam)
    : sigma(sigma), omega(omega), diam(diam)
@@ -746,7 +746,7 @@ public:
                            const mfem::Vector &elfun) override;
 
 private:
-   const mfem::Coefficient &sigma;
+   mfem::Coefficient &sigma;
    double omega;
    double diam;
 
