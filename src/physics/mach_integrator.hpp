@@ -6,6 +6,8 @@
 #include <string>
 #include <algorithm>
 
+#include "mfem.hpp"
+
 #include "mach_input.hpp"
 
 namespace mach
@@ -25,7 +27,7 @@ public:
    { MachIntegrator tmp(x); *this = std::move(tmp); return *this; }
    MachIntegrator& operator=(MachIntegrator&&) noexcept = default;
 
-   friend void setInput(const MachIntegrator &x,
+   friend void setInput(const MachIntegrator &integ,
                         const std::string &name,
                         const MachInput &input);
 
@@ -55,7 +57,11 @@ private:
    std::unique_ptr<concept_t> self_;
 };
 
-void setInput(const MachIntegrator &x,
+void setInput(const MachIntegrator &integ,
+              const std::string &name,
+              const MachInput &input);
+
+void setInput(const mfem::NonlinearFormIntegrator &integ,
               const std::string &name,
               const MachInput &input);
 
