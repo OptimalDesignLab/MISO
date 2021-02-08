@@ -17,6 +17,7 @@
 #include "thermal.hpp"
 #include "euler.hpp"
 #include "mesh_movement.hpp"
+#include "mach_input.hpp"
 
 namespace py = pybind11;
 
@@ -282,12 +283,44 @@ void initSolver(py::module &m)
          py::arg("state"),
          py::arg("residual"))
 
-      .def("calcFunctional",
-         (double (AbstractSolver::*)(const mfem::ParGridFunction &,
-                                     const std::string &))
-         &AbstractSolver::calcOutput,
-         py::arg("state"),
-         py::arg("func"))
+      .def("calcOutput", [](AbstractSolver &self,
+                            const std::string &fun,
+                            const std::vector<std::string> &keys,
+                            const std::vector<py::array_t<double>> &values)
+         {
+            if (keys.size() != values.size())
+            {
+               throw std::runtime_error("Input keys and values must be the "
+                                        "same length!\n");
+            }
+
+            MachInputs inputs(keys.size());
+
+            for (std::size_t i = 0; i < keys.size(); ++i)
+            {
+
+               auto &buffer = values[i];
+               /* Request a buffer descriptor from Python */
+               py::buffer_info info = buffer.request();
+
+               /* Some sanity checks ... */
+               if (info.format != py::format_descriptor<double>::format())
+                  throw std::runtime_error("Incompatible format:\n"
+                                           "\texpected a double array!");
+               if (info.ndim != 1)
+                  throw std::runtime_error("Incompatible dimensions:\n"
+                                           "\texpected a 1D array!");
+
+               if (info.shape[0] == 1)
+                  inputs.emplace(keys[i], *(double*)info.ptr);
+               else
+                  inputs.emplace(keys[i], (double*)info.ptr);
+            }
+            return self.calcOutput(fun, inputs);
+         },
+         py::arg("fun"),
+         py::arg("keys"),
+         py::arg("values"))
 
       .def("getStateSize", &AbstractSolver::getStateSize)
       .def("getFieldSize", &AbstractSolver::getFieldSize)

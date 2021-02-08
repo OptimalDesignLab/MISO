@@ -194,15 +194,21 @@ class omMachFunctionals(om.ExplicitComponent):
         #self.declare_partials(of='state', wrt='*')
         #self.declare_partials(of='func', wrt='*')
 
+    # def compute(self, inputs, outputs):
+    #     solver = self.options['solver']
+    #     state = solver.getNewField(inputs['state'])
+
+    #     solver_options = solver.getOptions()
+    #     if "external-fields" in solver_options:
+    #         for field_name in solver_options["external-fields"]:
+    #             field = inputs[field_name]
+    #             solver.setResidualInput(field_name, field)
+
+    #     func = self.options['func']
+    #     outputs[func] = solver.calcFunctional(state, func)
+
+
     def compute(self, inputs, outputs):
         solver = self.options['solver']
-        state = solver.getNewField(inputs['state'])
-
-        solver_options = solver.getOptions()
-        if "external-fields" in solver_options:
-            for field_name in solver_options["external-fields"]:
-                field = inputs[field_name]
-                solver.setResidualInput(field_name, field)
-
         func = self.options['func']
-        outputs[func] = solver.calcFunctional(state, func)
+        outputs[func] = solver.calcOutput(func, list(inputs.keys()), inputs.values())
