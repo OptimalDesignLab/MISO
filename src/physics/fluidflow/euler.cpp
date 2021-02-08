@@ -307,6 +307,43 @@ void EulerSolver<dim, entvar>::addOutputIntegrators(
          new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
          output_bndry_marker.at(fun));
    }
+   else if (fun == "lift")
+   {
+      // lift on the specified boundaries
+      vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      output_bndry_marker.emplace(fun, bdr.size());
+      output_bndry_marker.at(fun).Assign(bdr.data());
+
+      mfem::Vector lift_dir(dim);
+      lift_dir = 0.0;
+      if (dim == 1)
+      {
+         lift_dir(0) = 0.0;
+      }
+      else
+      {
+         lift_dir(iroll) = -sin(aoa_fs);
+         lift_dir(ipitch) = cos(aoa_fs);
+      }
+      lift_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cl
+
+      addOutputBdrFaceIntegrator(
+         fun,
+         new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+         output_bndry_marker.at(fun));
+   }
+   else if (fun == "entropy")
+   {
+      // integral of entropy over the entire volume domain         
+      addOutputDomainIntegrator(
+         fun,
+         new EntropyIntegrator<dim, entvar>(diff_stack));
+   }
+   else
+   {
+      throw MachException("Output with name " + fun + " not supported by "
+                          "EulerSolver!\n");
+   }
 }
 
 template <int dim, bool entvar>

@@ -781,6 +781,11 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
       addOutputDomainIntegrator(fun,
                                 new MagneticCoenergyIntegrator(*u, nu.get()));
    }
+   else
+   {
+      throw MachException("Output with name " + fun + " not supported by "
+                          "MagnetostaticSolver!\n");
+   }
 }
 
 std::vector<GridFunType*> MagnetostaticSolver::getFields(void)

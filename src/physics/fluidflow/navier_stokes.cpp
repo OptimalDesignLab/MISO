@@ -227,6 +227,81 @@ void NavierStokesSolver<dim, entvar>::addOutputs()
 }
 
 template <int dim, bool entvar>
+void NavierStokesSolver<dim, entvar>::addOutputIntegrators(
+   const std::string &fun,
+   const nlohmann::json &options)
+{
+   double mu = this->options["flow-param"]["mu"].template get<double>();
+   Vector q_ref(dim+2);
+   this->getFreeStreamState(q_ref);
+   int idx = 0;
+   if (fun == "drag")
+   { 
+      // drag on the specified boundaries
+      vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      this->output_bndry_marker.emplace(fun, bdr.size());
+      this->output_bndry_marker.at(fun).Assign(bdr.data());
+
+      mfem::Vector drag_dir(dim);
+      drag_dir = 0.0;
+      if (dim == 1)
+      {
+         drag_dir(0) = 1.0;
+      }
+      else 
+      {
+         drag_dir(this->iroll) = cos(this->aoa_fs);
+         drag_dir(this->ipitch) = sin(this->aoa_fs);
+      }
+      drag_dir *= 1.0 / pow(this->mach_fs, 2.0); // to get non-dimensional Cd
+
+      this->addOutputBdrFaceIntegrator(
+         fun,
+         new SurfaceForce<dim>(this->diff_stack, this->fec.get(), dim + 2,
+                               re_fs, pr_fs, q_ref, drag_dir, mu),
+         this->output_bndry_marker.at(fun));
+   }
+   else if (fun == "lift")
+   { 
+      // lift on the specified boundaries
+      vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      this->output_bndry_marker.emplace(fun, bdr.size());
+      this->output_bndry_marker.at(fun).Assign(bdr.data());
+
+      mfem::Vector lift_dir(dim);
+      lift_dir = 0.0;
+      if (dim == 1)
+      {
+         lift_dir(0) = 0.0;
+      }
+      else
+      {
+         lift_dir(this->iroll) = -sin(this->aoa_fs);
+         lift_dir(this->ipitch) = cos(this->aoa_fs);
+      }
+      lift_dir *= 1.0 / pow(this->mach_fs, 2.0); // to get non-dimensional Cl
+      this->addOutputBdrFaceIntegrator(
+         fun,
+         new SurfaceForce<dim>(this->diff_stack, this->fec.get(), dim + 2,
+                               re_fs, pr_fs, q_ref, lift_dir, mu),
+         this->output_bndry_marker.at(fun));
+   }
+   else if (fun == "entropy")
+   {
+      // integral of entropy over the entire volume domain         
+      this->addOutputDomainIntegrator(
+         fun,
+         new EntropyIntegrator<dim, entvar>(this->diff_stack));
+   }
+   else
+   {
+      throw MachException("Output with name " + fun + " not supported by "
+                          "NavierStokesSolver!\n");
+   }
+
+}
+
+template <int dim, bool entvar>
 void NavierStokesSolver<dim, entvar>::getViscousInflowState(Vector &q_in)
 {
    vector<double> tmp = this->options["flow-param"]
