@@ -745,26 +745,41 @@ void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
    // state.ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
 // }
 
-void MagnetostaticSolver::addOutputs()
-{
-   auto &fun = options["outputs"];
-   if (fun.find("energy") != fun.end())
-   { 
-      // output.emplace("energy", fes.get());
-      // output.at("energy").AddDomainIntegrator(
-      //    new MagneticEnergyIntegrator(nu.get()));
+// void MagnetostaticSolver::addOutputs()
+// {
+//    auto &fun = options["outputs"];
+//    if (fun.find("energy") != fun.end())
+//    { 
+//       // output.emplace("energy", fes.get());
+//       // output.at("energy").AddDomainIntegrator(
+//       //    new MagneticEnergyIntegrator(nu.get()));
       
-      addFunctionalDomainIntegrator("energy",
-                                    new MagneticEnergyIntegrator(nu.get()));
-   }
-   if (fun.find("co-energy") != fun.end())
-   {
-      output.emplace("co-energy", fes.get());
-      output.at("co-energy").AddDomainIntegrator(
-         new MagneticCoenergyIntegrator(*u, nu.get()));
+//       addFunctionalDomainIntegrator("energy",
+//                                     new MagneticEnergyIntegrator(nu.get()));
+//    }
+//    if (fun.find("co-energy") != fun.end())
+//    {
+//       output.emplace("co-energy", fes.get());
+//       output.at("co-energy").AddDomainIntegrator(
+//          new MagneticCoenergyIntegrator(*u, nu.get()));
 
-      addFunctionalDomainIntegrator("co-energy",
-                                 new MagneticCoenergyIntegrator(*u, nu.get()));
+//       addFunctionalDomainIntegrator("co-energy",
+//                                  new MagneticCoenergyIntegrator(*u, nu.get()));
+//    }
+// }
+
+void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
+                                               const nlohmann::json &options)
+{
+   if (fun == "energy")
+   { 
+      addOutputDomainIntegrator(fun,
+                                new MagneticEnergyIntegrator(nu.get()));
+   }
+   else if (fun == "co-energy")
+   {
+      addOutputDomainIntegrator(fun,
+                                new MagneticCoenergyIntegrator(*u, nu.get()));
    }
 }
 

@@ -306,15 +306,15 @@ void AbstractSolver::initDerived()
 
    setEssentialBoundaries();
 
-   // add the output functional QoIs 
-   auto &fun = options["outputs"];
-   using json_iter = nlohmann::json::iterator;
-   int num_bndry_outputs = 0;
-   for (json_iter it = fun.begin(); it != fun.end(); ++it) {
-      if (it->is_array()) ++num_bndry_outputs;
-   }
-   output_bndry_marker.resize(num_bndry_outputs);
-   addOutputs(); // virtual function
+   // // add the output functional QoIs 
+   // auto &fun = options["outputs"];
+   // using json_iter = nlohmann::json::iterator;
+   // int num_bndry_outputs = 0;
+   // for (json_iter it = fun.begin(); it != fun.end(); ++it) {
+   //    if (it->is_array()) ++num_bndry_outputs;
+   // }
+   // output_bndry_marker.resize(num_bndry_outputs);
+   // addOutputs(); // virtual function
 
    prec = constructPreconditioner(options["lin-prec"]);
    solver = constructLinearSolver(options["lin-solver"], *prec);
@@ -1574,6 +1574,26 @@ void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
 {
    throw MachException("AbstractSolver::solveUnsteadyAdjoint(fun)\n"
                        "\tnot implemented yet!");
+}
+
+void AbstractSolver::createOutput(const std::string &fun)
+{
+   nlohmann::json options;
+   createOutput(fun, options);
+}
+
+void AbstractSolver::createOutput(const std::string &fun,
+                                  const nlohmann::json &options)
+{
+   if (output.count(fun) != 0)
+   {
+      output.emplace(fun, fes.get());
+      addOutputIntegrators(fun, options);
+   }
+   else
+   {
+      throw MachException("Output with name " + fun + " already created!\n");
+   }
 }
 
 double AbstractSolver::calcOutput(const ParGridFunction &state,

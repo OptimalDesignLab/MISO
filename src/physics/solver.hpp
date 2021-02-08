@@ -277,6 +277,20 @@ public:
    /// \note Compare the results of the project Jac*pert using the Jacobian
    /// directly versus a finite-difference based product.  
    void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
+
+   /// Creates the nonlinear form for the functional
+   /// \param[in] fun - specifies the desired functional
+   /// \note if a nonlinear from for `fun` has already been created an
+   /// exception will be thrown
+   void createOutput(const std::string &fun);
+
+   /// Creates the nonlinear form for the functional
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] options - options needed for calculating functional
+   /// \note if a nonlinear from for `fun` has already been created an
+   /// exception will be thrown
+   void createOutput(const std::string &fun,
+                     const nlohmann::json &options);
    
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
@@ -529,8 +543,8 @@ protected:
    std::unordered_map<std::string, std::vector<MachIntegrator>> fun_integrators;
    /// map of fractional functionals - a funtional that is a fraction of others
    std::unordered_map<std::string, std::vector<std::string>> fractional_output;
-   /// `output_bndry_marker[i]` lists the boundaries associated with output i
-   std::vector<mfem::Array<int>> output_bndry_marker;
+   /// output_bndry_marker[fun] lists the boundaries associated with output fun
+   std::unordered_map<std::string, mfem::Array<int>> output_bndry_marker;
 
    //--------------------------------------------------------------------------
 
@@ -611,6 +625,10 @@ protected:
 
    /// Create `output` based on `options` and add approporiate integrators
    virtual void addOutputs() {};
+
+   /// Add integrators to functional `fun` based on options
+   virtual void addOutputIntegrators(const std::string &fun,
+                                     const nlohmann::json &options) {};
 
    /// Solve for the steady state problem using newton method
    virtual void solveSteady(mfem::ParGridFunction &state);
@@ -729,8 +747,8 @@ protected:
    /// \param[in] integrator - integrator to add to functional
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
-   void addFunctionalDomainIntegrator(const std::string &fun,
-                                      T *integrator)
+   void addOutputDomainIntegrator(const std::string &fun,
+                                  T *integrator)
    {
       output.at(fun).AddDomainIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
@@ -742,8 +760,8 @@ protected:
    /// \param[in] integrator - integrator to add to functional
    /// \tparam T - type of integrator, used for constructing MachIntegrator   
    template <typename T>
-   void addFunctionalInteriorFaceIntegrator(const std::string &fun,
-                                            T *integrator)
+   void addOutputInteriorFaceIntegrator(const std::string &fun,
+                                        T *integrator)
    {
       output.at(fun).AddInteriorFaceIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
@@ -755,9 +773,9 @@ protected:
    /// \param[in] integrator - integrator to add to functional
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
-   void addFunctionalBdrFaceIntegrator(const std::string &fun,
-                                       T *integrator,
-                                       mfem::Array<int> &bdr_marker)
+   void addOutputBdrFaceIntegrator(const std::string &fun,
+                                   T *integrator,
+                                   mfem::Array<int> &bdr_marker)
    {
       output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
       fun_integrators.at(fun).emplace_back(*integrator);
@@ -775,7 +793,6 @@ private:
    void initBase(const nlohmann::json &file_options,
                  std::unique_ptr<mfem::Mesh> smesh,
                  MPI_Comm comm);
-
 };
 
 using SolverPtr = std::unique_ptr<AbstractSolver>;

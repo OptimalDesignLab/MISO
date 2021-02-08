@@ -12,8 +12,6 @@
 namespace mach
 {
 
-class MeshMovementSolver;
-
 /// Solver for magnetostatic electromagnetic problems
 /// dim - number of spatial dimensions (only 3 supported)
 class MagnetostaticSolver : public AbstractSolver
@@ -160,7 +158,10 @@ private:
       nlohmann::json &options, mfem::Solver &lin_solver) override;
 
    /// Create `output` based on `options` and add approporiate integrators
-   void addOutputs() override;
+   // void addOutputs() override;
+
+   void addOutputIntegrators(const std::string &fun,
+                             const nlohmann::json &options) override;
 
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
    void solveUnsteady(mfem::ParGridFunction &state) override;

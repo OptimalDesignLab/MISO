@@ -215,18 +215,80 @@ void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final,
    entropylog.close();
 }
 
+// template <int dim, bool entvar>
+// void EulerSolver<dim, entvar>::addOutputs()
+// {
+//    auto &fun = options["outputs"];
+//    int idx = 0;
+//    if (fun.find("drag") != fun.end())
+//    { 
+//       // drag on the specified boundaries
+//       vector<int> tmp = fun["drag"].template get<vector<int>>();
+//       output_bndry_marker[idx].SetSize(tmp.size(), 0);
+//       output_bndry_marker[idx].Assign(tmp.data());
+//       output.emplace("drag", fes.get());
+//       mfem::Vector drag_dir(dim);
+//       drag_dir = 0.0;
+//       if (dim == 1)
+//       {
+//          drag_dir(0) = 1.0;
+//       }
+//       else 
+//       {
+//          drag_dir(iroll) = cos(aoa_fs);
+//          drag_dir(ipitch) = sin(aoa_fs);
+//       }
+//       drag_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cd
+//       output.at("drag").AddBdrFaceIntegrator(
+//           new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
+//           output_bndry_marker[idx]);
+//       idx++;
+//    }
+//    if (fun.find("lift") != fun.end())
+//    { 
+//       // lift on the specified boundaries
+//       vector<int> tmp = fun["lift"].template get<vector<int>>();
+//       output_bndry_marker[idx].SetSize(tmp.size(), 0);
+//       output_bndry_marker[idx].Assign(tmp.data());
+//       output.emplace("lift", fes.get());
+//       mfem::Vector lift_dir(dim);
+//       lift_dir = 0.0;
+//       if (dim == 1)
+//       {
+//          lift_dir(0) = 0.0;
+//       }
+//       else
+//       {
+//          lift_dir(iroll) = -sin(aoa_fs);
+//          lift_dir(ipitch) = cos(aoa_fs);
+//       }
+//       lift_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cl
+//       output.at("lift").AddBdrFaceIntegrator(
+//           new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+//           output_bndry_marker[idx]);
+//       idx++;
+//    }
+//    if (fun.find("entropy") != fun.end())
+//    {
+//       // integral of entropy over the entire volume domain
+//       output.emplace("entropy", fes.get());
+//       output.at("entropy").AddDomainIntegrator(
+//          new EntropyIntegrator<dim, entvar>(diff_stack));
+//    }
+// }
+
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addOutputs()
+void EulerSolver<dim, entvar>::addOutputIntegrators(
+   const std::string &fun,
+   const nlohmann::json &options)
 {
-   auto &fun = options["outputs"];
-   int idx = 0;
-   if (fun.find("drag") != fun.end())
+   if (fun == "drag")
    { 
       // drag on the specified boundaries
-      vector<int> tmp = fun["drag"].template get<vector<int>>();
-      output_bndry_marker[idx].SetSize(tmp.size(), 0);
-      output_bndry_marker[idx].Assign(tmp.data());
-      output.emplace("drag", fes.get());
+      vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      output_bndry_marker.emplace(fun, bdr.size());
+      output_bndry_marker.at(fun).Assign(bdr.data());
+
       mfem::Vector drag_dir(dim);
       drag_dir = 0.0;
       if (dim == 1)
@@ -239,41 +301,11 @@ void EulerSolver<dim, entvar>::addOutputs()
          drag_dir(ipitch) = sin(aoa_fs);
       }
       drag_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cd
-      output.at("drag").AddBdrFaceIntegrator(
-          new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
-          output_bndry_marker[idx]);
-      idx++;
-   }
-   if (fun.find("lift") != fun.end())
-   { 
-      // lift on the specified boundaries
-      vector<int> tmp = fun["lift"].template get<vector<int>>();
-      output_bndry_marker[idx].SetSize(tmp.size(), 0);
-      output_bndry_marker[idx].Assign(tmp.data());
-      output.emplace("lift", fes.get());
-      mfem::Vector lift_dir(dim);
-      lift_dir = 0.0;
-      if (dim == 1)
-      {
-         lift_dir(0) = 0.0;
-      }
-      else
-      {
-         lift_dir(iroll) = -sin(aoa_fs);
-         lift_dir(ipitch) = cos(aoa_fs);
-      }
-      lift_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cl
-      output.at("lift").AddBdrFaceIntegrator(
-          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
-          output_bndry_marker[idx]);
-      idx++;
-   }
-   if (fun.find("entropy") != fun.end())
-   {
-      // integral of entropy over the entire volume domain
-      output.emplace("entropy", fes.get());
-      output.at("entropy").AddDomainIntegrator(
-         new EntropyIntegrator<dim, entvar>(diff_stack));
+
+      addOutputBdrFaceIntegrator(
+         fun,
+         new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
+         output_bndry_marker.at(fun));
    }
 }
 
