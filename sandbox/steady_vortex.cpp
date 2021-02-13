@@ -1,6 +1,6 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = false;
+constexpr bool entvar = true;
 
 #include<random>
 #include "adept.h"
@@ -89,6 +89,12 @@ int main(int argc, char *argv[])
    try
    {
       // construct the solver, set the initial condition, and solve
+      // string opt_file_name(options_file);
+      // unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      // ofstream sol_ofs("steady_vortex_mesh.vtk");
+      // sol_ofs.precision(14);
+      // smesh->PrintVTK(sol_ofs);
+      // sol_ofs.close();
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
@@ -121,6 +127,7 @@ int main(int argc, char *argv[])
       solver->feedpert(pert);
       solver->solveForState();
       solver->printSolution("gd_final",0);
+      solver->printError("gd_final_error", 0, uexact);
       // get the final density error
       l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));

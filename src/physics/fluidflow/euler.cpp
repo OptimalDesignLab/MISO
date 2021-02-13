@@ -116,7 +116,7 @@ void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
       // 1d sod-shock boundary conditions
       vector<int> tmp = bcs["sod-shock-left"].template get<vector<int>>();
       mfem::Vector qfar(dim+2);
-      qfar(0) = 1.0; qfar(1) = 0.0; qfar(2) = 2.5;
+      qfar(0) = 5.0; qfar(1) = 0.0; qfar(2) = 2.5;
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
@@ -129,7 +129,7 @@ void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
       // 1d sod-shock boundary conditions
       vector<int> tmp = bcs["sod-shock-right"].template get<vector<int>>();
       mfem::Vector qfar(dim+2);
-      qfar(0) = 0.125; qfar(1) = 0.0; qfar(2) = 0.25;
+      qfar(0) = 0.5; qfar(1) = 0.0; qfar(2) = 0.25;
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(

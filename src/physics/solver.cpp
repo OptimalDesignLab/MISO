@@ -247,6 +247,73 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 #endif // end of MFEM_USE_MPI
 }
 
+
+void AbstractSolver::setInverseInitialCondition(
+   void (*u_init)(const Vector &, Vector &))
+{
+   // Apply the initial condition at SBP nodes
+   VectorFunctionCoefficient u0(num_state, u_init);
+   u->ProjectCoefficient(u0);
+
+   // apply the quadrature weights
+   GridFunType u_weighted(fes_normal.get());
+   CentGridFunction temp(fes.get());
+   Array<int> vdofs;
+   Vector el_x, el_y;
+   const FiniteElement *fe;
+   const SBPFiniteElement *sbp;
+   ElementTransformation *T;
+   Vector u_j(num_state);
+   int num_nodes;
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      fe = fes->GetFE(i);
+      fes->GetElementVDofs(i, vdofs);
+      T = fes->GetElementTransformation(i);
+      u->GetSubVector(vdofs, el_x);
+      sbp = dynamic_cast<const SBPFiniteElement*>(fe);
+      const IntegrationRule &ir = sbp->GetNodes();
+      num_nodes = sbp->GetDof();
+      el_y.SetSize(num_state*num_nodes);
+      DenseMatrix u_matrix(el_x.GetData(), num_nodes, num_state);
+      DenseMatrix res(el_y.GetData(), num_nodes, num_state);
+      el_y = 0.0;
+      for (int j = 0; j < num_nodes; j++)
+      {
+         u_matrix.GetRow(j, u_j);
+         const IntegrationPoint &ip = fe->GetNodes().IntPoint(j);
+         T->SetIntPoint(&ip);
+         double weight = T->Weight() * ip.weight;
+         for (int n = 0; n < num_state; n++)
+         {
+            res(j,n) += weight * u_j(n);
+         }
+      }
+      u_weighted.SetSubVector(vdofs, el_y);
+   }
+
+   //compute temp = P^t H u_{sbp}
+   dynamic_cast<GalerkinDifference*>(fes.get())->GetCP()->MultTranspose(u_weighted, temp);
+
+   // assemble the mass matrix M
+   MatrixType *mass_matrix = &(mass->SpMat());
+   MatrixType *cp = dynamic_cast<GalerkinDifference*>(fes.get())->GetCP();
+   MatrixType *p = RAP(*cp, *mass_matrix, *cp);
+
+   // Solver for M u_c = P^t H u_{sbp}
+   mfem::CG(*p, temp, *uc, 0, 1000, 1e-13, 1e-24);
+   GridFunType u_test(fes.get());
+   fes->GetProlongationMatrix()->Mult(*uc, u_test);
+   ofstream projection("initial_projection.vtk");
+   projection.precision(14);
+   mesh->PrintVTK(projection, 0);
+   u_test.SaveVTK(projection, "projection", 0);
+   projection.close();
+
+   // check the projection error
+   u_test -= *u;
+   cout << "The initial condition projection error norm is " << u_test.Norml2() << '\n';
+}
 void AbstractSolver::setInitialCondition(
     void (*u_init)(const Vector &, Vector &))
 {
@@ -806,7 +873,7 @@ void AbstractSolver::solveUnsteady()
    double entropy;
    ofstream entropylog;
    entropylog.open("entropylog.txt", fstream::app);
-   entropylog << setprecision(16);
+   entropylog << setprecision(15);
    clock_t start_t = clock();
    for (int ti = 0; !done;)
    {
@@ -848,23 +915,6 @@ void AbstractSolver::solveUnsteady()
 #endif
       ti++;
       done = (t >= t_final - 1e-8 * dt);
-      //std::cout << "t_final is " << t_final << ", done is " << done << std::endl;
-      /*       if (done || ti % vis_steps == 0)
-      {
-         cout << "time step: " << ti << ", time: " << t << endl;
-
-         if (visualization)
-         {
-            sout << "solution\n" << mesh << u << flush;
-         }
-
-         if (visit)
-         {
-            dc->SetCycle(ti);
-            dc->SetTime(t);
-            dc->Save();
-         }
-      } */
    }
    entropy = calcOutput("entropy");
    entropylog << t << ' ' << entropy << '\n';

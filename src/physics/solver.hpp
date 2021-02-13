@@ -55,6 +55,8 @@ public:
    /// value.  This may be a vector of length 1 for scalar.
    void setInitialCondition(void (*u_init)(const mfem::Vector &,
                                            mfem::Vector &));
+   void setInverseInitialCondition(void (*u_init)(const mfem::Vector &,
+                                           mfem::Vector &));
 
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - vector that defines the initial condition
@@ -150,7 +152,7 @@ public:
    virtual void convertToConservCent(mfem::Vector &state) = 0;
    virtual void checkConversion(void (*u_exact)(const mfem::Vector &, mfem::Vector &)) = 0;
    virtual void conToEntropyVars(const mfem::Vector &entropy, mfem::Vector &conserv) = 0;
-   virtual void conToConservVars(const mfem::Vector &conserv, mfem::Vector &entropy) = 0; 
+   virtual void conToConservVars(const mfem::Vector &conserv, mfem::Vector &entropy) = 0;
 protected:
 #ifdef MFEM_USE_MPI
    /// communicator used by MPI group for communication

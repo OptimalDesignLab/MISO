@@ -46,13 +46,20 @@ int main(int argc, char *argv[])
          new EulerSolver<2, entvar>(opt_file_name, nullptr));
       solver->feedpert(pert);
       solver->initDerived();
-      solver->setInitialCondition(u0_function);
+      solver->setInverseInitialCondition(u0_function);
+      //solver->setInitialCondition(u0_function);
       solver->feedpert(pert);
-      mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver->calcL2Error(u0_function) << '\n' << endl;      
+      // mfem::out << "\n|| u_h - u ||_{L^2} = " 
+      //           << solver->calcL2Error(u0_function) << '\n' << endl;
+      double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(u0_function, 0));
+      mfem::out << "\n|| u_h - u ||_{L^2} = "<< l2_error << '\n' << endl;
       solver->solveForState();
-      mfem::out << "\n|| u_h - u ||_{L^2} = " 
-                << solver->calcL2Error(u0_function) << '\n' << endl;
+      l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(u0_function, 0));
+      mfem::out << "\n|| u_h - u ||_{L^2} = " << l2_error << '\n' << endl;
+      // mfem::out << "\n|| u_h - u ||_{L^2} = " 
+      //           << solver->calcL2Error(u0_function) << '\n' << endl;
       double entropy = solver->calcOutput("entropy");
       mfem::out << "entropy is " << entropy << '\n';
    }
