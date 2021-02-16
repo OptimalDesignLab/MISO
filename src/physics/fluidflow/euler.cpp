@@ -215,9 +215,9 @@ void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final,
    entropylog.close();
 }
 
-// template <int dim, bool entvar>
-// void EulerSolver<dim, entvar>::addOutputs()
-// {
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::addOutputs()
+{
 //    auto &fun = options["outputs"];
 //    int idx = 0;
 //    if (fun.find("drag") != fun.end())
@@ -275,7 +275,7 @@ void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final,
 //       output.at("entropy").AddDomainIntegrator(
 //          new EntropyIntegrator<dim, entvar>(diff_stack));
 //    }
-// }
+}
 
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addOutputIntegrators(
