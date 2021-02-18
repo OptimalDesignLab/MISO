@@ -24,8 +24,6 @@ public:
    : input(value), active(Type::Value)
    { }
 
-   ~MachInput() = default;
-
    /// access the input data
    double* getField() const;
    double getValue() const;
@@ -50,8 +48,8 @@ private:
 
    enum Type {Field, Value};
 
-   const Input input;
-   const Type active;
+   Input input;
+   Type active;
 };
 
 /// Convenient shorthand for a map of inputs since each input must be named

@@ -8,14 +8,14 @@
 namespace mach
 {
 
-void setInput(const MachIntegrator &integ,
+void setInput(MachIntegrator &integ,
               const std::string &name,
               const MachInput &input)
 {
    integ.self_->setInput_(name, input);
 }
 
-void setInput(const mfem::NonlinearFormIntegrator &integ,
+void setInput(mfem::NonlinearFormIntegrator &integ,
               const std::string &name,
               const MachInput &input)
 {

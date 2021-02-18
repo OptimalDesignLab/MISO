@@ -728,7 +728,7 @@ protected:
    /// Iterates through each input and calls `setInput` for each
    /// \param[in] integrators - list of integrators to set scalar inputs for
    /// \param[in] inputs - collection of named field or scalar inputs
-   void setInputs(const std::vector<MachIntegrator> &integrators,
+   void setInputs(std::vector<MachIntegrator> &integrators,
                   const MachInputs &inputs);
 
    /// If the input is a field variable, updates the data for the field in
@@ -737,7 +737,7 @@ protected:
    /// \param[in] integrators - list of integrators to set scalar inputs for
    /// \param[in] name - name of input
    /// \param[in] input - input to set, either a field or scalar
-   void setInput(const std::vector<MachIntegrator> &integrators,
+   void setInput(std::vector<MachIntegrator> &integrators,
                  const std::string &name,
                  const MachInput &input);
 

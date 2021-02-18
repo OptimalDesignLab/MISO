@@ -135,17 +135,16 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    // comm = incomm;
    MPI_Comm_dup(incomm, &comm);
    MPI_Comm_rank(comm, &rank);
-   out = getOutStream(rank);
    options = default_options;
    options.merge_patch(file_options);
-   if(options["print-options"])
-   {
-      *out << setw(3) << options << endl;
-   }
 
    bool silent = options.value("silent", false);
    out = getOutStream(rank, silent);
-   *out << setw(3) << options << endl;
+
+   if (options["print-options"])
+   {
+      *out << setw(3) << options << endl;
+   }
  
    materials = material_library;
 
@@ -1019,6 +1018,10 @@ void AbstractSolver::removeInternalBoundaries()
 /// This approach will only work for fields on the same mesh
 void AbstractSolver::setUpExternalFields()
 {
+   res_fields.emplace(std::piecewise_construct,
+                      std::forward_as_tuple("state"),
+                      std::forward_as_tuple(fes.get(), (double*)nullptr));
+
    if (options.contains("external-fields"))
    {
       int dim = mesh->Dimension();
@@ -1075,6 +1078,13 @@ void AbstractSolver::setUpExternalFields()
             fecoll = new H1_FECollection(order, dim, num_state);
          else if (basis == "nedelec")
             fecoll = new ND_FECollection(order, dim, num_state);
+         else
+         {
+            throw MachException("Unrecognized basis type: " + basis + "!\n"
+                                "Known types are:\n"
+                                "\tH1\n"
+                                "\tnedelec\n");
+         }
    
          auto *fespace = new ParFiniteElementSpace(mesh.get(), 
                                                    fecoll, 
@@ -1585,9 +1595,10 @@ void AbstractSolver::createOutput(const std::string &fun)
 void AbstractSolver::createOutput(const std::string &fun,
                                   const nlohmann::json &options)
 {
-   if (output.count(fun) != 0)
+   if (output.count(fun) == 0)
    {
       output.emplace(fun, fes.get());
+      fun_integrators.emplace(fun, std::vector<MachIntegrator>());
       addOutputIntegrators(fun, options);
    }
    else
@@ -1801,7 +1812,7 @@ HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
    return func_sens_integ.at(fun).at(field).ParallelAssemble();
 }
 
-void AbstractSolver::setInputs(const std::vector<MachIntegrator> &integrators,
+void AbstractSolver::setInputs(std::vector<MachIntegrator> &integrators,
                                const MachInputs &inputs)
 {
    for (auto &input : inputs)
@@ -1810,7 +1821,7 @@ void AbstractSolver::setInputs(const std::vector<MachIntegrator> &integrators,
    }
 }
 
-void AbstractSolver::setInput(const std::vector<MachIntegrator> &integrators,
+void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
                               const std::string &name,
                               const MachInput &input)
 {

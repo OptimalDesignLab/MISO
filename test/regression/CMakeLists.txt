@@ -18,6 +18,7 @@ set(REGRESSION_TEST_SRCS
    test_navier_stokes_mms
    test_thermal_cube
    test_steady_thermal_cube
+   test_mach_inputs
    test_magnetostatic_box
    test_meshmovement_box
    test_meshmovement_annulus
