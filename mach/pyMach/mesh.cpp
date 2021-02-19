@@ -70,6 +70,26 @@ void initMesh(py::module &m)
       py::arg("order"),
       py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
 
+      .def(py::init([](int nx, int ny, int nz, double sx, double sy, double sz,
+                       mpi4py_comm comm)
+      {
+         auto mesh = std::unique_ptr<Mesh>(new Mesh(nx, ny, nz,
+                                                    Element::TETRAHEDRON, true,
+                                                    sx, sy, sz, true));
+
+         auto parmesh = std::unique_ptr<ParMesh>(new ParMesh(comm, *mesh));
+         return parmesh;
+      }),
+      "Creates mesh for the parallelepiped [0,1]x[0,1]x[0,1], divided into"
+      "6 x `nx` x `ny` x 'nz' tetrahedrons", 
+      py::arg("nx"), 
+      py::arg("ny"), 
+      py::arg("nz"), 
+      py::arg("sx"), 
+      py::arg("sy"),
+      py::arg("sz"),
+      py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
+
 #ifdef MFEM_USE_PUMI
       .def(py::init([](const std::string &model_file,
                        const std::string &mesh_file,

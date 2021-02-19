@@ -17,6 +17,11 @@
 #include "thermal.hpp"
 #include "euler.hpp"
 #include "mesh_movement.hpp"
+
+#ifdef BUILD_TESTING
+#include "test_mach_inputs.hpp"
+#endif
+
 #include "mach_input.hpp"
 
 namespace py = pybind11;
@@ -25,6 +30,21 @@ using namespace mfem;
 // using namespace nlohmann;
 using namespace mach;
 
+
+/// should getNewField create an entry in `res_fields`?
+/// would need to specify name of field
+/// could have optional options input to construct different fes/fec for the field
+/// 
+/// this does not address that integrators need to have a reference to the field
+/// when they're constructed
+/// what about getting reference to named field?
+///
+/// I think in general this is a bad idea
+/// -- just make a field implicitly convertable to a buffer
+/// or should getNewField just return the buffer with no gf?
+///   -- anywhere that would use it would need to know its size a priori
+///   ^ we could not use mfem functions without the gf object
+/// ** just make implicitly castable to buffer (not from) **
 
 namespace
 {
@@ -62,6 +82,12 @@ SolverPtr initSolver(const std::string &type,
    {
       return createSolver<LEAnalogySolver>(json_options, nullptr, comm);
    }
+#ifdef BUILD_TESTING
+   else if (type == "TestMachInput")
+   {
+      return createSolver<TestMachInputSolver>(json_options, nullptr, comm);
+   }
+#endif
    else
    {
       throw std::runtime_error("Unknown solver type!\n"
@@ -205,12 +231,7 @@ void initSolver(py::module &m)
          AbstractSolver &self,
          py::array_t<double> data)
       {
-         py::buffer_info info = data.request();
-
-         // std::cout << "ptr: " << info.ptr << "\n";
-         // std::cout << "format: " << info.format << "\n";
-         // std::cout << "ndim: " << info.ndim << "\n";
-         
+         py::buffer_info info = data.request();         
 
          /* Some sanity checks ... */
          if (info.format != py::format_descriptor<double>::format())
@@ -283,44 +304,70 @@ void initSolver(py::module &m)
          py::arg("state"),
          py::arg("residual"))
 
+      .def("createOutput", 
+         static_cast<void (AbstractSolver::*)(const std::string &fun)>
+         (&AbstractSolver::createOutput),
+         "Initialize the nonlinear form for the functional",
+         py::arg("fun"))
+
+      .def("createOutput", 
+         static_cast<void (AbstractSolver::*)(const std::string &fun,
+                                              const nlohmann::json &options)>
+         (&AbstractSolver::createOutput),
+         "Initialize the nonlinear form for the functional with options",
+         py::arg("fun"),
+         py::arg("options"))
+
       .def("calcOutput", [](AbstractSolver &self,
                             const std::string &fun,
-                            const std::vector<std::string> &keys,
-                            const std::vector<py::array_t<double>> &values)
+                            const py::dict &py_inputs)
          {
-            if (keys.size() != values.size())
+            MachInputs inputs(py_inputs.size());
+
+            for (auto &input : py_inputs)
             {
-               throw std::runtime_error("Input keys and values must be the "
-                                        "same length!\n");
-            }
+               const auto &key = input.first.cast<std::string>();
+               try
+               {
+                  const auto &value = input.second.cast<py::buffer>();
+                  /* Request a buffer descriptor from Python */
+                  py::buffer_info buffer = value.request();
 
-            MachInputs inputs(keys.size());
+                  /* Some sanity checks ... */
+                  if (buffer.format != py::format_descriptor<double>::format())
+                     throw std::runtime_error("Incompatible format:\n"
+                                             "\texpected a double array!");
+                  if (buffer.ndim != 1)
+                     throw std::runtime_error("Incompatible dimensions:\n"
+                                             "\texpected a 1D array!");
 
-            for (std::size_t i = 0; i < keys.size(); ++i)
-            {
-
-               auto &buffer = values[i];
-               /* Request a buffer descriptor from Python */
-               py::buffer_info info = buffer.request();
-
-               /* Some sanity checks ... */
-               if (info.format != py::format_descriptor<double>::format())
-                  throw std::runtime_error("Incompatible format:\n"
-                                           "\texpected a double array!");
-               if (info.ndim != 1)
-                  throw std::runtime_error("Incompatible dimensions:\n"
-                                           "\texpected a 1D array!");
-
-               if (info.shape[0] == 1)
-                  inputs.emplace(keys[i], *(double*)info.ptr);
-               else
-                  inputs.emplace(keys[i], (double*)info.ptr);
+                  if (buffer.shape[0] == 1)
+                     inputs.emplace(key, *(double*)buffer.ptr);
+                  else
+                     inputs.emplace(key, (double*)buffer.ptr);
+               }
+               catch (const py::cast_error &e)
+               {
+                  try
+                  {
+                     const auto &value = input.second.cast<double>();
+                     inputs.emplace(key, value);
+                  }
+                  catch(const py::cast_error &e)
+                  {
+                     std::stringstream err("Could not convert input ");
+                     err << key;
+                     err << " to Float64 or array!";
+                     throw std::runtime_error(err.str());
+                  }
+                  
+               }
             }
             return self.calcOutput(fun, inputs);
-         },
-         py::arg("fun"),
-         py::arg("keys"),
-         py::arg("values"))
+         })
+         // py::arg("fun"),
+         // py::arg("keys"),
+         // py::arg("values"))
 
       .def("getStateSize", &AbstractSolver::getStateSize)
       .def("getFieldSize", &AbstractSolver::getFieldSize)

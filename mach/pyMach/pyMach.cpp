@@ -7,14 +7,12 @@ void initField(py::module &);
 void initSolver(py::module &);
 void initMesh(py::module &);
 void initMeshMotion(py::module &);
-void initInput(py::module &);
 
 PYBIND11_MODULE(pyMach, m) {
    initVector(m);
    initField(m);
    initSolver(m);
    initMesh(m);
-   initInput(m);
 
    auto mesh_motion = m.def_submodule("MeshMovement", 
                                       "Handles support for mesh movement");

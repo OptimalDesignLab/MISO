@@ -207,8 +207,6 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
    # add_subdirectory(test EXCLUDE_FROM_ALL)
 endif ()
 
-
-
 # create sandbox target
 add_custom_target(sandbox)
 add_subdirectory(sandbox EXCLUDE_FROM_ALL)
@@ -251,6 +249,23 @@ if (BUILD_PYTHON_WRAPPER)
    )
 
    add_subdirectory(mach)
+
+   if (BUILD_TESTING)
+      target_compile_definitions(pyMach
+         PRIVATE
+            BUILD_TESTING
+      )
+
+      target_sources(pyMach
+         PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/regression/test_mach_inputs.hpp"
+      )
+      target_include_directories(pyMach
+         PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/regression/"
+      )
+
+   endif (BUILD_TESTING)
 
    target_link_libraries(pyMach
       PUBLIC
