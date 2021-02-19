@@ -169,46 +169,46 @@ class omMachFunctionals(om.ExplicitComponent):
     def initialize(self):
         self.options.declare('solver', types=MachSolver)
         self.options.declare('func', types=str)
+        self.options.declare('depends', types=list)
         # self.options['distributed'] = True
 
     def setup(self):
         solver = self.options['solver']
 
         if self.comm.rank == 0:
-            print('Adding state inputs')
+            print('Adding functional inputs')
 
-        local_state_size = solver.getStateSize()
-        self.add_input('state', shape=local_state_size)
+        # local_state_size = solver.getStateSize()
+        # self.add_input('state', shape=local_state_size)
+
+        # solver_options = solver.getOptions()
+        # if "external-fields" in solver_options:
+        #     for ext_field in solver_options["external-fields"]:
+        #         self.add_input(ext_field, shape=solver.getFieldSize(ext_field))
 
         solver_options = solver.getOptions()
-        if "external-fields" in solver_options:
-            for ext_field in solver_options["external-fields"]:
-                self.add_input(ext_field, shape=solver.getFieldSize(ext_field))
+        for input in self.options['depends']:
+            if "external-fields" in solver_options:
+                if input in solver_options["external-fields"]:
+                    self.add_input(input, shape=solver.getFieldSize(input))
+                elif input == "state":
+                    self.add_input(input, shape=solver.getStateSize())
+                else:
+                    self.add_input(input)
+            elif input == "state":
+                self.add_input(input, shape=solver.getStateSize())
+            else:
+                self.add_input(input)
 
         if self.comm.rank == 0:
-            print('Adding state outputs')
+            print('Adding functional outputs')
 
         func = self.options['func']
+        solver.createOutput(func)
         self.add_output(func)
-
-        #self.declare_partials(of='state', wrt='*')
-        #self.declare_partials(of='func', wrt='*')
-
-    # def compute(self, inputs, outputs):
-    #     solver = self.options['solver']
-    #     state = solver.getNewField(inputs['state'])
-
-    #     solver_options = solver.getOptions()
-    #     if "external-fields" in solver_options:
-    #         for field_name in solver_options["external-fields"]:
-    #             field = inputs[field_name]
-    #             solver.setResidualInput(field_name, field)
-
-    #     func = self.options['func']
-    #     outputs[func] = solver.calcFunctional(state, func)
-
 
     def compute(self, inputs, outputs):
         solver = self.options['solver']
         func = self.options['func']
-        outputs[func] = solver.calcOutput(func, list(inputs.keys()), inputs.values())
+        # outputs[func] = solver.calcOutput(func, list(inputs.keys()), inputs.values())
+        outputs[func] = solver.calcOutput(func, dict(zip(inputs.keys(), inputs.values())))

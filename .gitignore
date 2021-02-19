@@ -50,3 +50,10 @@ include/*
 
 # smb meshes in the sandbox
 sandbox/*.smb
+
+# python related files
+*.pyc
+dist/*
+
+# openmdao related files
+n2.html
