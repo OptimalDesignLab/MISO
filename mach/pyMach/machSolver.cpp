@@ -99,6 +99,44 @@ SolverPtr initSolver(const std::string &type,
    }
 }
 
+MachInputs pyDictToMachInputs(const py::dict &py_inputs)
+{
+   MachInputs inputs(py_inputs.size());
+
+   for (auto &input : py_inputs)
+   {
+      const auto &key = input.first.cast<std::string>();
+
+      const char *val_name = input.second.ptr()->ob_type->tp_name;
+      bool is_float = strncmp("float", val_name, 5) == 0;
+      if (is_float)
+      {
+         const auto &value = input.second.cast<double>();
+         inputs.emplace(key, value);
+      }
+      else
+      {
+         const auto &value = input.second.cast<py::buffer>();
+         /* Request a buffer descriptor from Python */
+         py::buffer_info buffer = value.request();
+
+         /* Some sanity checks ... */
+         if (buffer.format != py::format_descriptor<double>::format())
+            throw std::runtime_error("Incompatible format:\n"
+                                    "\texpected a double array!");
+         if (buffer.ndim != 1)
+            throw std::runtime_error("Incompatible dimensions:\n"
+                                    "\texpected a 1D array!");
+
+         if (buffer.shape[0] == 1)
+            inputs.emplace(key, *(double*)buffer.ptr);
+         else
+            inputs.emplace(key, (double*)buffer.ptr);
+      }
+   }
+   return inputs;
+}
+
 } // anonymous namespace
 
 void initSolver(py::module &m)
@@ -322,48 +360,8 @@ void initSolver(py::module &m)
                             const std::string &fun,
                             const py::dict &py_inputs)
          {
-            MachInputs inputs(py_inputs.size());
-
-            for (auto &input : py_inputs)
-            {
-               const auto &key = input.first.cast<std::string>();
-               try
-               {
-                  const auto &value = input.second.cast<py::buffer>();
-                  /* Request a buffer descriptor from Python */
-                  py::buffer_info buffer = value.request();
-
-                  /* Some sanity checks ... */
-                  if (buffer.format != py::format_descriptor<double>::format())
-                     throw std::runtime_error("Incompatible format:\n"
-                                             "\texpected a double array!");
-                  if (buffer.ndim != 1)
-                     throw std::runtime_error("Incompatible dimensions:\n"
-                                             "\texpected a 1D array!");
-
-                  if (buffer.shape[0] == 1)
-                     inputs.emplace(key, *(double*)buffer.ptr);
-                  else
-                     inputs.emplace(key, (double*)buffer.ptr);
-               }
-               catch (const py::cast_error &e)
-               {
-                  try
-                  {
-                     const auto &value = input.second.cast<double>();
-                     inputs.emplace(key, value);
-                  }
-                  catch(const py::cast_error &e)
-                  {
-                     std::stringstream err("Could not convert input ");
-                     err << key;
-                     err << " to Float64 or array!";
-                     throw std::runtime_error(err.str());
-                  }
-                  
-               }
-            }
-            return self.calcOutput(fun, inputs);
+            
+            return self.calcOutput(fun, pyDictToMachInputs(py_inputs));
          })
          // py::arg("fun"),
          // py::arg("keys"),

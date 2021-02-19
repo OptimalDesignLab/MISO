@@ -264,14 +264,22 @@ class SolverRegressionTests(unittest.TestCase):
         solver.setInitialFieldValue(test_field, 0.0);
 
         inputs = {
-            "test_val": 1.0,
+            "test_val": 2.0,
             "test_field": test_field,
             "state": state
         }
 
         fun = solver.calcOutput("testMachInput", inputs);
-        print("fun: ",fun)
+        self.assertAlmostEqual(fun, 2.0)
+
+        inputs["test_val"] = 1.0;
+        fun = solver.calcOutput("testMachInput", inputs);
         self.assertAlmostEqual(fun, 1.0)
+
+        inputs["test_val"] = 0.0;
+        solver.setInitialFieldValue(test_field, -1.0);
+        fun = solver.calcOutput("testMachInput", inputs);
+        self.assertAlmostEqual(fun, -1.0)
 
 
 if __name__ == '__main__':
