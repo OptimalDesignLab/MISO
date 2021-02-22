@@ -178,14 +178,6 @@ class omMachFunctionals(om.ExplicitComponent):
         if self.comm.rank == 0:
             print('Adding functional inputs')
 
-        # local_state_size = solver.getStateSize()
-        # self.add_input('state', shape=local_state_size)
-
-        # solver_options = solver.getOptions()
-        # if "external-fields" in solver_options:
-        #     for ext_field in solver_options["external-fields"]:
-        #         self.add_input(ext_field, shape=solver.getFieldSize(ext_field))
-
         solver_options = solver.getOptions()
         for input in self.options['depends']:
             if "external-fields" in solver_options:
@@ -210,5 +202,4 @@ class omMachFunctionals(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         solver = self.options['solver']
         func = self.options['func']
-        # outputs[func] = solver.calcOutput(func, list(inputs.keys()), inputs.values())
         outputs[func] = solver.calcOutput(func, dict(zip(inputs.keys(), inputs.values())))
