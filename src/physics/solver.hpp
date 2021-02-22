@@ -337,6 +337,13 @@ public:
    /// \param[out] residual - the residual
    virtual void calcResidual(const mfem::ParGridFunction &state, 
                              mfem::ParGridFunction &residual) const;
+
+   // /// Compute the residual based on inputs and store the it in `residual`
+   // /// \param[in] inputs - collection of field or scalar inputs to set before
+   // ///                     evaluating residual
+   // /// \param[out] residual - the residual
+   // void calcResidual(const MachInputs &inputs,
+   //                   mfem::ParGridFunction &residual) const;
    
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }

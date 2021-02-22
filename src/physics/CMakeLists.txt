@@ -6,6 +6,8 @@ target_sources(mach
       mach_input.hpp
       mach_integrator.cpp
       mach_integrator.hpp
+      mach_load.cpp
+      mach_load.hpp
       physics.hpp
       solver.cpp
       solver.hpp

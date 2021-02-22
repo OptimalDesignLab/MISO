@@ -70,6 +70,15 @@ private:
    std::unique_ptr<concept_t> self_;
 };
 
+/// Used to set scalar inputs in several integrators
+void setScalarInputs(std::vector<MachIntegrator> &integrators,
+                    const MachInputs &inputs);
+
+/// Used to set a scalar input in several integrators
+void setScalarInput(std::vector<MachIntegrator> &integrators,
+                    const std::string &name,
+                    const MachInput &input);
+
 /// Used to set scalar inputs in the underlying integrator
 /// Ends up calling `setInput` on for either the `NonlinearFormIntegrator` or
 /// a specialized version for each particular integrator.

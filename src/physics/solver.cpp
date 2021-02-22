@@ -1832,10 +1832,7 @@ void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
    }
    else if (input.isValue())
    {
-      for (auto &integrator : integrators)
-      {
-         mach::setInput(integrator, name, input);
-      }
+      mach::setScalarInput(integrators, name, input);
    }
 }
 
