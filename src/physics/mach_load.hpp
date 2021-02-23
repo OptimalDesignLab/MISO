@@ -15,9 +15,8 @@ namespace mach
 
 /// Creates common interface for load vectors used by mach
 /// A MachLoad can wrap any type `T` that has the interface of a load vector.
-/// We have defined this function where `T` is a
-/// `mfem::LinearForm` so that every linear form can be wrapped with a
-/// MachLoad.
+/// We have defined this function where `T` is a `MachLinearForm` so that every
+/// linear form can be wrapped with a MachLoad.
 
 /// We use this class as a way to achieve polymorphism without needing to rely
 /// on inheritance This approach is based on the example in Sean Parent's talk:
@@ -25,6 +24,16 @@ namespace mach
 class MachLoad
 {
 public:
+   /// Used to set scalar inputs in the underlying load type
+   /// Ends up calling `setInputs` on either the `MachLinearForm` or
+   /// a specialized version for each particular load.
+   friend void setInputs(MachLoad &load,
+                         const MachInputs &inputs);
+
+   /// Assemble the load vector on the true dofs and store in tv
+   friend void assemble(MachLoad &load,
+                        mfem::HypreParVector &tv);
+
    template <typename T>
    MachLoad(T &x) : self_(new model<T>(x))
    { }
@@ -35,12 +44,6 @@ public:
    MachLoad& operator=(const MachLoad &x)
    { MachLoad tmp(x); *this = std::move(tmp); return *this; }
    MachLoad& operator=(MachLoad&&) noexcept = default;
-
-   friend void setInputs(MachLoad &load,
-                         const MachInputs &inputs);
-
-   friend void assemble(MachLoad &load,
-                        mfem::HypreParVector &tv);
 
 private:
    class concept_t
@@ -69,15 +72,17 @@ private:
    std::unique_ptr<concept_t> self_;
 };
 
-/// Used to set scalar inputs in the underlying load type
-/// Ends up calling `setInputs` on for either the `NonlinearFormloadrator` or
-/// a specialized version for each particular loadrator.
-void setInputs(MachLoad &load,
-               const MachInputs &inputs);
+inline void setInputs(MachLoad &load,
+                      const MachInputs &inputs)
+{
+   load.self_->setInputs_(inputs);
+}
 
-/// Assemble the load vector
-void assemble(MachLoad &load,
-              mfem::HypreParVector &tv);
+inline void assemble(MachLoad &load,
+                     mfem::HypreParVector &tv)
+{
+   load.self_->assemble_(tv);
+}
 
 } // namespace mach
 
