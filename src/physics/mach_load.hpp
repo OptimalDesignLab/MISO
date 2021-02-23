@@ -79,24 +79,6 @@ void setInputs(MachLoad &load,
 void assemble(MachLoad &load,
               mfem::HypreParVector &tv);
 
-/// Default implementation of setInputs for a LinearForm that get the linear
-/// form's integrators and sets their inputs
-void setInputs(mfem::LinearForm &load,
-               const MachInputs &inputs);
-
 } // namespace mach
-
-namespace mfem
-{
-
-/// Assemble the linear form
-void assemble(LinearForm &load,
-              HypreParVector &tv);
-
-/// Assemble and then parallel assemble the parallel linear form
-void assemble(ParLinearForm &load,
-              HypreParVector &tv);
-
-} // namespace mfem
 
 #endif
