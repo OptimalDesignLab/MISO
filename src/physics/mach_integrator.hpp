@@ -93,6 +93,13 @@ void setInput(mfem::NonlinearFormIntegrator &integ,
               const std::string &name,
               const MachInput &input);
 
+/// Default implementation of setInput for a LinearFormIntegrator that does
+/// nothing but allows each child class of LinearFormIntegrator to be a
+/// `MachIntegrator`
+void setInput(mfem::LinearFormIntegrator &integ,
+              const std::string &name,
+              const MachInput &input);
+
 } // namespace mach
 
 #endif

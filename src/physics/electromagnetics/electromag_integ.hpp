@@ -6,6 +6,7 @@
 #include "mfem.hpp"
 
 #include "mach_types.hpp"
+#include "mach_input.hpp"
 
 namespace mach
 {
@@ -482,6 +483,10 @@ public:
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
 
+   friend void setInput(MagneticCoenergyIntegrator &integ,
+                        const std::string &name,
+                        const MachInput &input);
+
 private:
    /// the current state to use when evaluating \frac{\partial J}{\partial X}
    mfem::GridFunction &state;
@@ -510,6 +515,13 @@ private:
                         double lower_bound,
                         double upper_bound);
 };
+
+inline void setInput(MagneticCoenergyIntegrator &integ,
+         const std::string &name,
+         const MachInput &input)
+{
+   // do nothing yet
+}
 
 /// Integrator to compute the magnetic co-energy
 class BNormIntegrator : public mfem::NonlinearFormIntegrator

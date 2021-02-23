@@ -55,6 +55,7 @@ set(EM_MPI_TEST_SRCS
    test_magnetostatic_solver
    test_steinmetz_integ
    test_coefficient
+   test_mach_load
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
