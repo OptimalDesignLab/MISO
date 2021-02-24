@@ -15,9 +15,9 @@ void setInputs(CurrentLoad &load,
 {
    for (auto &input : inputs)
    {
-      if input.first == "current_density"
+      if (input.first == "current_density")
       {
-         if input.second.isValue()
+         if (input.second.isValue())
          {
             load.current_density = input.second.getValue();
          }
@@ -27,6 +27,7 @@ void setInputs(CurrentLoad &load,
          }
       }
    }
+   load.nd_mass.Update();
    load.assembleLoad();
 }
 
@@ -37,7 +38,7 @@ void assemble(CurrentLoad &load,
 }
 
 CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
-            VectorMeshDependentCoefficient *current_coeff)
+                         VectorMeshDependentCoefficient &current_coeff)
    : fes(pfes), h1_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    h1_fes(fes.GetParMesh(), &h1_coll),
    rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()), 
@@ -51,7 +52,10 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
 
-   J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(*current_coeff));
+   J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(current_coeff));
+
+   // project current_coeff as initial guess for iterative solve
+   j.ProjectCoefficient(current_coeff);
 }
 
 void CurrentLoad::assembleLoad()
@@ -63,8 +67,7 @@ void CurrentLoad::assembleLoad()
    // assemble linear form
    J.Assemble();
 
-   // project current_coeff as initial guess for iterative solve
-   j.ProjectCoefficient(*current_coeff);
+
    HypreParMatrix M;
    Vector X, RHS;
    Array<int> ess_tdof_list;
