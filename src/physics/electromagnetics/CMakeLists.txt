@@ -1,5 +1,7 @@
 target_sources(mach
    PRIVATE
+      current_load.cpp
+      current_load.hpp
       electromag_integ.cpp
       electromag_integ.hpp
       electromagnetics.hpp
