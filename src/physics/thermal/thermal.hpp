@@ -18,6 +18,9 @@
 namespace mach
 {
 
+class MachLoad;
+class MachLinearForm;
+
 class ThermalSolver : public AbstractSolver
 {
 public:
@@ -30,6 +33,8 @@ public:
                  MPI_Comm comm);
    
    void initDerived() override;
+
+   ~ThermalSolver();
 
    /// Set the Magnetic Vector Potential
    void setAField(GridFunType *_a_field) {a_field = _a_field;}
@@ -67,6 +72,8 @@ public:
                        const mfem::ParGridFunction &state) const override;
 
 private:
+   /// linear form object that allows setting inputs/assembling
+   std::unique_ptr<MachLinearForm> therm_load;
    /// Magnetic vector potential A grid function (not owned)
    GridFunType *a_field;
 
@@ -189,10 +196,12 @@ public:
    ThermalEvolver(mfem::Array<int> ess_bdr,
                   BilinearFormType *mass,
                   mfem::ParNonlinearForm *res,
-                  mfem::Vector *load, 
+                  MachLoad *load, 
                   std::ostream &outstream,
                   double start_time, 
                   mfem::VectorCoefficient *flux_coeff);
+
+   ~ThermalEvolver();
 
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 

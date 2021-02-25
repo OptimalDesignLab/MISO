@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "utils.hpp"
+#include "mach_load.hpp"
 #include "evolver.hpp"
 
 using namespace mfem;
@@ -25,7 +26,7 @@ public:
    /// local height=width
    SystemOperator(Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
                   BilinearFormType *_mass, NonlinearFormType *_res,
-                  BilinearFormType *_stiff, mfem::Vector *_load)
+                  BilinearFormType *_stiff, MachLoad *_load)
        : Operator(((_nonlinear_mass != nullptr)
                        ? _nonlinear_mass->FESpace()->GetTrueVSize()
                        : (_mass != nullptr) ? _mass->FESpace()->GetTrueVSize()
@@ -82,10 +83,10 @@ public:
       // }
       if (load)
       {
-         const auto* prolong = res->ParFESpace()->GetProlongationMatrix();
-         prolong->MultTranspose(*load, *load_tv);
-         r += *load_tv;
-         r.SetSubVector(ess_tdof_list, 0.0);
+         // const auto* prolong = res->ParFESpace()->GetProlongationMatrix();
+         // prolong->MultTranspose(*load, *load_tv);
+         // r += *load_tv;
+         // r.SetSubVector(ess_tdof_list, 0.0);
       }
       if (mass)
       {
@@ -160,7 +161,7 @@ private:
    BilinearFormType *mass;
    NonlinearFormType *res;
    BilinearFormType *stiff;
-   mfem::Vector *load;
+   MachLoad *load;
    mfem::HypreParVector *load_tv;
    mutable MatrixType *jac;
    double dt;
@@ -176,7 +177,7 @@ private:
 MachEvolver::MachEvolver(
     Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
     BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
-    Vector *_load, NonlinearFormType *_ent, std::ostream &outstream,
+    MachLoad *_load, NonlinearFormType *_ent, std::ostream &outstream,
     double start_time, TimeDependentOperator::Type type,
     bool _abort_on_no_converge)
     : EntropyConstrainedOperator((_nonlinear_mass != nullptr)
@@ -277,7 +278,7 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
    }
    if (load)
    {
-      r_work1 += *load;
+      // r_work1 += *load;
    }
    mass_solver.Mult(r_work1, y);
    y *= -1.0;

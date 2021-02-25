@@ -12,6 +12,8 @@
 namespace mach
 {
 
+class MagnetostaticLoad;
+
 /// Solver for magnetostatic electromagnetic problems
 /// dim - number of spatial dimensions (only 3 supported)
 class MagnetostaticSolver : public AbstractSolver
@@ -31,7 +33,7 @@ public:
    MagnetostaticSolver(const nlohmann::json &options,
                        std::unique_ptr<mfem::Mesh> smesh);
 
-   // ~MagnetostaticSolver();
+   ~MagnetostaticSolver();
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -103,9 +105,7 @@ private:
    /// Magnetization grid function
    std::unique_ptr<GridFunType> M;
 
-   // /// TODO: delete? defined in abstract solver
-   // /// the spatial residual (a semilinear form)
-   // std::unique_ptr<NonlinearFormType> res;
+   std::unique_ptr<MagnetostaticLoad> magnetostatic_load;
 
    /// current source vector
    // std::unique_ptr<GridFunType> current_vec;

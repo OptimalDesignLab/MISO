@@ -31,10 +31,10 @@
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
-// #include "../../build/_config.hpp"
 #include "material_library.hpp"
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
+#include "mach_load.hpp"
 
 #ifdef MFEM_USE_EGADS
 #include "gmi_egads.h"
@@ -276,16 +276,16 @@ void AbstractSolver::initDerived()
       stiff->Finalize();
    }
 
-   if (load)
-   {
-      auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
-      if (load_lf)
-      {
-         addLoadVolumeIntegrators(alpha);
-         addLoadBoundaryIntegrators(alpha);
-         addLoadInterfaceIntegrators(alpha);
-      }
-   }
+   // if (load)
+   // {
+   //    auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+   //    if (load_lf)
+   //    {
+   //       addLoadVolumeIntegrators(alpha);
+   //       addLoadBoundaryIntegrators(alpha);
+   //       addLoadInterfaceIntegrators(alpha);
+   //    }
+   // }
 
    if (ent)
    {
@@ -785,20 +785,20 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
    res->Mult(*u_true, *r_true);
    if (load)
    {
-      auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
-      if (load_lf)
-      {
-         auto *l_true = load_lf->ParallelAssemble();
-         *r_true += *l_true;
-         delete l_true;
-      }
-      auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
-      if (load_gf)
-      {
-         auto *l_true = load_gf->GetTrueDofs();
-         *r_true += *l_true;
-         delete l_true;
-      }
+      // auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+      // if (load_lf)
+      // {
+      //    auto *l_true = load_lf->ParallelAssemble();
+      //    *r_true += *l_true;
+      //    delete l_true;
+      // }
+      // auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
+      // if (load_gf)
+      // {
+      //    auto *l_true = load_gf->GetTrueDofs();
+      //    *r_true += *l_true;
+      //    delete l_true;
+      // }
    }
    residual.SetFromTrueDofs(*r_true);
    delete u_true;
@@ -905,20 +905,20 @@ void AbstractSolver::solveForState(ParGridFunction &state)
    /// perform assembly just before solving
    if (load)
    {
-      auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
-      if (load_lf)
-      {
-         load_lf->Assemble();
-      }
-      auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
-      if (load_gf)
-      {
-         /// TODO: get rid of `alpha` param, load should have standard sign
-         assembleLoadVector(1.0);
-      }
-      Array<int> ess_tdof_list;
-      fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-      load->SetSubVector(ess_tdof_list, 0.0);
+      // auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+      // if (load_lf)
+      // {
+      //    load_lf->Assemble();
+      // }
+      // auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
+      // if (load_gf)
+      // {
+      //    /// TODO: get rid of `alpha` param, load should have standard sign
+      //    assembleLoadVector(1.0);
+      // }
+      // Array<int> ess_tdof_list;
+      // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      // load->SetSubVector(ess_tdof_list, 0.0);
    }
 
    if (options["steady"].get<bool>() == true)

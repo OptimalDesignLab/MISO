@@ -24,7 +24,7 @@ public:
                         mfem::HypreParVector &tv);
 
    CurrentLoad(mfem::ParFiniteElementSpace &pfes,
-               VectorMeshDependentCoefficient &current_coeff);
+               mfem::VectorCoefficient &current_coeff);
 
 private:
    mfem::ParFiniteElementSpace &fes;
@@ -34,7 +34,6 @@ private:
    mfem::ParFiniteElementSpace rt_fes;
    
    double current_density;
-   VectorMeshDependentCoefficient &current_coeff;
    mfem::HypreParVector load;
    mfem::HypreParVector scratch;
 

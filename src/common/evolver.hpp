@@ -6,6 +6,7 @@
 #include "adept.h"
 #include "mach_types.hpp"
 #include "inexact_newton.hpp"
+#include "mach_load.hpp"
 
 namespace mach
 {
@@ -68,7 +69,7 @@ public:
    MachEvolver(mfem::Array<int> &ess_bdr,
                NonlinearFormType *nonlinear_mass, BilinearFormType *mass,
                NonlinearFormType *res, BilinearFormType *stiff,
-               mfem::Vector *load, NonlinearFormType *ent,
+               MachLoad *load, NonlinearFormType *ent,
                std::ostream &outstream, double start_time,
                mfem::TimeDependentOperator::Type type = EXPLICIT,
                bool abort_on_no_convergence = true);
@@ -133,7 +134,7 @@ protected:
    /// pointer to stiffness bilinear form (not owned)
    mfem::OperatorHandle stiff;
    ///pointer to load vector (not owned)
-   mfem::Vector *load;
+   MachLoad *load;
    /// pointer to a form for computing the entropy  (not owned)
    NonlinearFormType *ent;
    /// outstream for printing

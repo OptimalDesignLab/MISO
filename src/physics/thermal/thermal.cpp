@@ -5,6 +5,8 @@
 
 #include "evolver.hpp"
 #include "thermal.hpp"
+#include "mach_load.hpp"
+#include "mach_linearform.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -47,6 +49,7 @@ void ThermalSolver::initDerived()
    AbstractSolver::initDerived();
 }
 
+ThermalSolver::~ThermalSolver() = default;
 
 std::vector<GridFunType*> ThermalSolver::getFields(void)
 {
@@ -650,7 +653,8 @@ void ThermalSolver::constructForms()
 {
    mass.reset(new BilinearFormType(fes.get()));
    res.reset(new ParNonlinearForm(fes.get()));
-   load.reset(new LinearFormType(fes.get()));
+   therm_load.reset(new MachLinearForm(fes.get()));
+   load.reset(new MachLoad(*therm_load));
 }
 
 void ThermalSolver::addMassIntegrators(double alpha)
@@ -692,19 +696,19 @@ void ThermalSolver::addResBoundaryIntegrators(double alpha)
 
 void ThermalSolver::addLoadVolumeIntegrators(double alpha)
 {
-   auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+   // auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
    /// add joule heating term
-   load_lf->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
+   therm_load->addDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
    /// add iron loss heating terms only if the EM field exists
    if (res_fields.find("mvp") != res_fields.end())
-      load_lf->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
+      therm_load->addDomainIntegrator(new DomainLFIntegrator(*coreloss));
 }
 
 void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 {
-   auto *load_lf = dynamic_cast<ParLinearForm*>(load.get());
-   if (!load_lf)
-      throw MachException("Couldn't cast load to LinearFormType!\n");
+   // auto *load_lf = dynamic_cast<ParLinearForm*>(load.get());
+   // if (!load_lf)
+   //    throw MachException("Couldn't cast load to LinearFormType!\n");
 
    /// determine type of flux function
    auto &bcs = options["bcs"];
@@ -733,7 +737,7 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
       vector<int> tmp = bcs["outflux"].get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
-      load_lf->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(
+      therm_load->addBoundaryIntegrator(new BoundaryNormalLFIntegrator(
                                              *flux_coeff), bndry_marker[idx]);
    }
 }
@@ -747,7 +751,7 @@ void ThermalSolver::constructEvolver()
 
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
                                ParNonlinearForm *res,
-                               Vector *load,
+                               MachLoad *load,
                                std::ostream &outstream,
                                double start_time,
                                VectorCoefficient *_flux_coeff)
@@ -756,17 +760,19 @@ ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
    flux_coeff(_flux_coeff)
 { };
 
+ThermalEvolver::~ThermalEvolver() = default;
+
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
-   if (flux_coeff)
-   {
-      flux_coeff->SetTime(t);
-      auto *load_lf = dynamic_cast<ParLinearForm*>(load);
-      if (load_lf)
-         load_lf->Assemble();
-      else
-         throw MachException("Couldn't cast load to LinearFormType!\n");
-   }
+   // if (flux_coeff)
+   // {
+   //    flux_coeff->SetTime(t);
+   //    auto *load_lf = dynamic_cast<ParLinearForm*>(load);
+   //    if (load_lf)
+   //       load_lf->Assemble();
+   //    else
+   //       throw MachException("Couldn't cast load to LinearFormType!\n");
+   // }
 
    MachEvolver::Mult(x, y);
 }
@@ -774,16 +780,16 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,
                                    Vector &k)
 {
-   /// re-assemble time dependent load vector
-   if (flux_coeff)
-   {
-      flux_coeff->SetTime(t);
-      auto *load_lf = dynamic_cast<ParLinearForm*>(load);
-      if (load_lf)
-         load_lf->Assemble();
-      else
-         throw MachException("Couldn't cast load to LinearFormType!\n");
-   }
+   // /// re-assemble time dependent load vector
+   // if (flux_coeff)
+   // {
+   //    flux_coeff->SetTime(t);
+   //    auto *load_lf = dynamic_cast<ParLinearForm*>(load);
+   //    if (load_lf)
+   //       load_lf->Assemble();
+   //    else
+   //       throw MachException("Couldn't cast load to LinearFormType!\n");
+   // }
 
    MachEvolver::ImplicitSolve(dt, x, k);
 }

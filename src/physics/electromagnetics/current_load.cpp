@@ -38,13 +38,12 @@ void assemble(CurrentLoad &load,
 }
 
 CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
-                         VectorMeshDependentCoefficient &current_coeff)
+                         VectorCoefficient &current_coeff)
    : fes(pfes), h1_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    h1_fes(fes.GetParMesh(), &h1_coll),
    rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()), 
-   rt_fes(fes.GetParMesh(), &rt_coll), current_density(1.0),
-   current_coeff(current_coeff), load(&fes), scratch(&fes), nd_mass(&fes),
-   J(&fes), j(&fes), div_free_current_vec(&fes),
+   rt_fes(fes.GetParMesh(), &rt_coll), current_density(1.0), load(&fes),
+   scratch(&fes), nd_mass(&fes), J(&fes), j(&fes), div_free_current_vec(&fes),
    div_free_proj(h1_fes, fes, h1_fes.GetElementTransformation(0)->OrderW()
                                  + 2 * fes.GetFE(0)->GetOrder(),
                  NULL, NULL, NULL)

@@ -47,6 +47,7 @@ namespace mach
 {
 
 class MachEvolver;
+class MachLoad;
 
 /// Serves as a base class for specific PDE solvers
 class AbstractSolver
@@ -492,7 +493,7 @@ protected:
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
    /// the load vector linear form
-   std::unique_ptr<mfem::Vector> load;
+   std::unique_ptr<MachLoad> load;
    /// entropy/energy that is needed for RRK methods
    std::unique_ptr<NonlinearFormType> ent;
 

@@ -10,6 +10,8 @@
 #include "electromag_integ.hpp"
 #include "res_integ.hpp"
 #include "mfem_extensions.hpp"
+#include "current_load.hpp"
+#include "magnetic_load.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -18,8 +20,9 @@ using adept::adouble;
 
 namespace
 {
+
 /// permeability of free space
-const double mu_0 = 4e-7*M_PI;
+constexpr double mu_0 = 4e-7*M_PI;
 
 std::unique_ptr<mfem::Coefficient>
 constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
@@ -71,24 +74,24 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
    return temp_coeff;
 }
 
-// define the random-number generator; uniform between -1 and 1
-static std::default_random_engine gen;
-static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+// // define the random-number generator; uniform between -1 and 1
+// static std::default_random_engine gen;
+// static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
-// double randState(const mfem::Vector &x)
+// // double randState(const mfem::Vector &x)
+// // {
+// //    return 2.0 * uniform_rand(gen) - 1.0;
+// // }
+
+// void randState(const mfem::Vector &x, mfem::Vector &u)
 // {
-//    return 2.0 * uniform_rand(gen) - 1.0;
+//    // std::cout << "u size: " << u.Size() << std::endl;
+//    for (int i = 0; i < u.Size(); ++i)
+//    {
+//       // std::cout << i << std::endl;
+//       u(i) = uniform_rand(gen);
+//    }
 // }
-
-void randState(const mfem::Vector &x, mfem::Vector &u)
-{
-   // std::cout << "u size: " << u.Size() << std::endl;
-   for (int i = 0; i < u.Size(); ++i)
-   {
-      // std::cout << i << std::endl;
-      u(i) = uniform_rand(gen);
-   }
-}
 
 template <typename xdouble = double>
 void phase_a_current(const xdouble &current_density,
@@ -485,6 +488,27 @@ void team13_current(const xdouble &current_density,
 namespace mach
 {
 
+class MagnetostaticLoad final
+{
+public:
+   friend void setInputs(MagnetostaticLoad &load,
+                         const MachInputs &inputs);
+   
+   friend void assemble(MagnetostaticLoad &load,
+                        mfem::HypreParVector &tv);
+   
+   MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
+                     mfem::VectorCoefficient &current_coeff,
+                     mfem::VectorCoefficient &mag_coeff,
+                     mfem::Coefficient &nu)
+   :  current_load(pfes, current_coeff), magnetic_load(pfes, mag_coeff, nu)
+   { }
+
+private:
+   CurrentLoad current_load;
+   MagneticLoad magnetic_load;
+};
+
 MagnetostaticSolver::MagnetostaticSolver(
    const nlohmann::json &json_options,
    std::unique_ptr<mfem::Mesh> smesh,
@@ -516,7 +540,7 @@ MagnetostaticSolver::MagnetostaticSolver(
    B.reset(new GridFunType(h_div_space.get()));
 }
 
-// MagnetostaticSolver::~MagnetostaticSolver() = default;
+MagnetostaticSolver::~MagnetostaticSolver() = default;
 
 void MagnetostaticSolver::printSolution(const std::string &file_name,
                                        int refine)
@@ -797,7 +821,7 @@ void MagnetostaticSolver::constructForms()
 {
    // mass.reset(new BilinearFormType(fes.get()));
    res.reset(new NonlinearFormType(fes.get()));
-   load.reset(new ParGridFunction(fes.get()));
+   // load.reset(new MachLoad(fes.get()));
    ent.reset(new ParNonlinearForm(fes.get()));
 }
 
@@ -852,165 +876,165 @@ GridFunction* MagnetostaticSolver::getMeshSensitivities()
 
 void MagnetostaticSolver::verifyMeshSensitivities()
 {
-   std::cout << "Verifying Mesh Sensitivities..." << std::endl;
-   int dim = mesh->SpaceDimension();
-   double delta = 1e-7;
-   double delta_cd = 1e-5;
-   double dJdX_fd_v = -calcOutput("co-energy") / delta;
-   double dJdX_cd_v = 0.0;
+   // std::cout << "Verifying Mesh Sensitivities..." << std::endl;
+   // int dim = mesh->SpaceDimension();
+   // double delta = 1e-7;
+   // double delta_cd = 1e-5;
+   // double dJdX_fd_v = -calcOutput("co-energy") / delta;
+   // double dJdX_cd_v = 0.0;
 
-   VectorFunctionCoefficient v_rand(dim, randState);
-   // GridFunction state(fes.get());
-   // GridFunction adjoint(fes.get());
-   // state.ProjectCoefficient(v_rand);
-   // adjoint.ProjectCoefficient(v_rand);
+   // VectorFunctionCoefficient v_rand(dim, randState);
+   // // GridFunction state(fes.get());
+   // // GridFunction adjoint(fes.get());
+   // // state.ProjectCoefficient(v_rand);
+   // // adjoint.ProjectCoefficient(v_rand);
 
-   ess_bdr.SetSize(mesh->bdr_attributes.Max());
-   ess_bdr = 0;
+   // ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   // ess_bdr = 0;
 
-   Array<int> ess_tdof_list;
-   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-   res->SetEssentialTrueDofs(ess_tdof_list);
+   // Array<int> ess_tdof_list;
+   // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   // res->SetEssentialTrueDofs(ess_tdof_list);
 
 
-   Vector *dJdX_vect = getMeshSensitivities();
+   // Vector *dJdX_vect = getMeshSensitivities();
 
-   // extract mesh nodes and get their finite-element space
-   GridFunction *x_nodes = mesh->GetNodes();
-   FiniteElementSpace *mesh_fes = x_nodes->FESpace();
-   GridFunction dJdX(mesh_fes, dJdX_vect->GetData());
-   GridFunction dJdX_fd(mesh_fes); GridFunction dJdX_cd(mesh_fes);
-   GridFunction dJdX_fd_err(mesh_fes); GridFunction dJdX_cd_err(mesh_fes);
-   // initialize the vector that we use to perturb the mesh nodes
-   GridFunction v(mesh_fes);
-   v.ProjectCoefficient(v_rand);
+   // // extract mesh nodes and get their finite-element space
+   // GridFunction *x_nodes = mesh->GetNodes();
+   // FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+   // GridFunction dJdX(mesh_fes, dJdX_vect->GetData());
+   // GridFunction dJdX_fd(mesh_fes); GridFunction dJdX_cd(mesh_fes);
+   // GridFunction dJdX_fd_err(mesh_fes); GridFunction dJdX_cd_err(mesh_fes);
+   // // initialize the vector that we use to perturb the mesh nodes
+   // GridFunction v(mesh_fes);
+   // v.ProjectCoefficient(v_rand);
 
-   /// only perturb the inside dofs not on model faces
-   // for (int i = 0; i < mesh_fes_surface_dofs.Size(); ++i)
+   // /// only perturb the inside dofs not on model faces
+   // // for (int i = 0; i < mesh_fes_surface_dofs.Size(); ++i)
+   // // {
+   // //    v(mesh_fes_surface_dofs[i]) = 0.0;
+   // // }
+
+   // // contract dJ/dX with v
+   // double dJdX_v = (dJdX) * v;
+
+   // if (options["verify-full"].get<bool>())
    // {
-   //    v(mesh_fes_surface_dofs[i]) = 0.0;
+   //    for(int k = 0; k < x_nodes->Size(); k++)
+   //    {
+   //       GridFunction x_pert(*x_nodes);
+   //       x_pert(k) += delta; mesh->SetNodes(x_pert);
+   //       std::cout << "Solving Forward Step..." << std::endl;
+   //       Update();
+   //       solveForState();
+   //       std::cout << "Solver Done" << std::endl;
+   //       dJdX_fd(k) = calcOutput("co-energy")/delta + dJdX_fd_v;
+   //       x_pert(k) -= delta; mesh->SetNodes(x_pert);
+
+   //    }
+   //    // central difference
+   //    for(int k = 0; k < x_nodes->Size(); k++)
+   //    {
+   //       //forward
+   //       GridFunction x_pert(*x_nodes);
+   //       x_pert(k) += delta_cd; mesh->SetNodes(x_pert);
+   //       std::cout << "Solving Forward Step..." << std::endl;
+   //       Update();
+   //       solveForState();
+   //       std::cout << "Solver Done" << std::endl;
+   //       dJdX_cd(k) = calcOutput("co-energy")/(2*delta_cd);
+
+   //       //backward
+   //       x_pert(k) -= 2*delta_cd; mesh->SetNodes(x_pert);
+   //       std::cout << "Solving Backward Step..." << std::endl;
+   //       Update();
+   //       solveForState();
+   //       std::cout << "Solver Done" << std::endl;
+   //       dJdX_cd(k) -= calcOutput("co-energy")/(2*delta_cd);
+   //       x_pert(k) += delta_cd; mesh->SetNodes(x_pert);
+   //    }
+
+   //    dJdX_fd_v = dJdX_fd*v;
+   //    dJdX_cd_v = dJdX_cd*v;
+   //    dJdX_fd_err += dJdX_fd; dJdX_fd_err -= dJdX;
+   //    dJdX_cd_err += dJdX_cd; dJdX_cd_err -= dJdX;
+   //    std::cout << "FD L2:  " << dJdX_fd_err.Norml2() << std::endl;
+   //    std::cout << "CD L2:  " << dJdX_cd_err.Norml2() << std::endl;
+   //    for(int k = 0; k < x_nodes->Size(); k++)
+   //    {
+   //       dJdX_fd_err(k) = dJdX_fd_err(k)/dJdX(k);
+   //       dJdX_cd_err(k) = dJdX_cd_err(k)/dJdX(k);
+   //    }
+   //    stringstream fderrname;
+   //    fderrname << "dJdX_fd_err.gf";
+   //    ofstream fd(fderrname.str()); fd.precision(15);
+   //    dJdX_fd_err.Save(fd);
+
+   //    stringstream cderrname;
+   //    cderrname << "dJdX_cd_err.gf";
+   //    ofstream cd(cderrname.str()); cd.precision(15);
+   //    dJdX_cd_err.Save(cd);
+
+   //    stringstream analytic;
+   //    analytic << "dJdX.gf";
+   //    ofstream an(analytic.str()); an.precision(15);
+   //    dJdX.Save(an);
+   // }
+   // else
+   // {
+   //    // // compute finite difference approximation
+   //    GridFunction x_pert(*x_nodes);
+   //    // x_pert.Add(delta, v);
+   //    // mesh->SetNodes(x_pert);
+   //    // std::cout << "Solving Forward Step..." << std::endl;
+   //    // Update();
+   //    // residual.reset(new GridFunType(fes.get()));
+   //    // *residual = 0.0;
+   //    // res->Mult(state, *residual);
+   //    // *residual -= *load;
+   //    // dJdX_fd_v += *residual * adjoint;
+   //    // // solveForState();
+   //    // std::cout << "Solver Done" << std::endl;
+   //    // // dJdX_fd_v += calcOutput("co-energy")/delta;
+
+   //    // central difference approximation
+   //    std::cout << "Solving CD Backward Step..." << std::endl;
+   //    x_pert = *x_nodes; x_pert.Add(-delta_cd, v);
+   //    mesh->SetNodes(x_pert);
+   //    Update();
+   //    residual.reset(new GridFunType(fes.get()));
+   //    *residual = 0.0;
+   //    res->Mult(*u, *residual);
+   //    // *residual -= *load;
+   //    dJdX_cd_v -= (*residual * *adj )/(2*delta_cd);
+
+   //    // solveForState();
+   //    // std::cout << "Solver Done" << std::endl;
+   //    // dJdX_cd_v = -calcOutput("co-energy")/(2*delta_cd);
+
+   //    std::cout << "Solving CD Forward Step..." << std::endl;
+   //    x_pert.Add(2*delta_cd, v);
+   //    mesh->SetNodes(x_pert);
+   //    Update();
+   //    residual.reset(new GridFunType(fes.get()));
+   //    *residual = 0.0;
+   //    res->Mult(*u, *residual);
+   //    // *residual -= *load;
+   //    dJdX_cd_v += (*residual * *adj )/(2*delta_cd);
+
+   //    // solveForState();
+   //    // std::cout << "Solver Done" << std::endl;
+   //    // dJdX_cd_v += calcOutput("co-energy")/(2*delta_cd);
    // }
 
-   // contract dJ/dX with v
-   double dJdX_v = (dJdX) * v;
-
-   if (options["verify-full"].get<bool>())
-   {
-      for(int k = 0; k < x_nodes->Size(); k++)
-      {
-         GridFunction x_pert(*x_nodes);
-         x_pert(k) += delta; mesh->SetNodes(x_pert);
-         std::cout << "Solving Forward Step..." << std::endl;
-         Update();
-         solveForState();
-         std::cout << "Solver Done" << std::endl;
-         dJdX_fd(k) = calcOutput("co-energy")/delta + dJdX_fd_v;
-         x_pert(k) -= delta; mesh->SetNodes(x_pert);
-
-      }
-      // central difference
-      for(int k = 0; k < x_nodes->Size(); k++)
-      {
-         //forward
-         GridFunction x_pert(*x_nodes);
-         x_pert(k) += delta_cd; mesh->SetNodes(x_pert);
-         std::cout << "Solving Forward Step..." << std::endl;
-         Update();
-         solveForState();
-         std::cout << "Solver Done" << std::endl;
-         dJdX_cd(k) = calcOutput("co-energy")/(2*delta_cd);
-
-         //backward
-         x_pert(k) -= 2*delta_cd; mesh->SetNodes(x_pert);
-         std::cout << "Solving Backward Step..." << std::endl;
-         Update();
-         solveForState();
-         std::cout << "Solver Done" << std::endl;
-         dJdX_cd(k) -= calcOutput("co-energy")/(2*delta_cd);
-         x_pert(k) += delta_cd; mesh->SetNodes(x_pert);
-      }
-
-      dJdX_fd_v = dJdX_fd*v;
-      dJdX_cd_v = dJdX_cd*v;
-      dJdX_fd_err += dJdX_fd; dJdX_fd_err -= dJdX;
-      dJdX_cd_err += dJdX_cd; dJdX_cd_err -= dJdX;
-      std::cout << "FD L2:  " << dJdX_fd_err.Norml2() << std::endl;
-      std::cout << "CD L2:  " << dJdX_cd_err.Norml2() << std::endl;
-      for(int k = 0; k < x_nodes->Size(); k++)
-      {
-         dJdX_fd_err(k) = dJdX_fd_err(k)/dJdX(k);
-         dJdX_cd_err(k) = dJdX_cd_err(k)/dJdX(k);
-      }
-      stringstream fderrname;
-      fderrname << "dJdX_fd_err.gf";
-      ofstream fd(fderrname.str()); fd.precision(15);
-      dJdX_fd_err.Save(fd);
-
-      stringstream cderrname;
-      cderrname << "dJdX_cd_err.gf";
-      ofstream cd(cderrname.str()); cd.precision(15);
-      dJdX_cd_err.Save(cd);
-
-      stringstream analytic;
-      analytic << "dJdX.gf";
-      ofstream an(analytic.str()); an.precision(15);
-      dJdX.Save(an);
-   }
-   else
-   {
-      // // compute finite difference approximation
-      GridFunction x_pert(*x_nodes);
-      // x_pert.Add(delta, v);
-      // mesh->SetNodes(x_pert);
-      // std::cout << "Solving Forward Step..." << std::endl;
-      // Update();
-      // residual.reset(new GridFunType(fes.get()));
-      // *residual = 0.0;
-      // res->Mult(state, *residual);
-      // *residual -= *load;
-      // dJdX_fd_v += *residual * adjoint;
-      // // solveForState();
-      // std::cout << "Solver Done" << std::endl;
-      // // dJdX_fd_v += calcOutput("co-energy")/delta;
-
-      // central difference approximation
-      std::cout << "Solving CD Backward Step..." << std::endl;
-      x_pert = *x_nodes; x_pert.Add(-delta_cd, v);
-      mesh->SetNodes(x_pert);
-      Update();
-      residual.reset(new GridFunType(fes.get()));
-      *residual = 0.0;
-      res->Mult(*u, *residual);
-      *residual -= *load;
-      dJdX_cd_v -= (*residual * *adj )/(2*delta_cd);
-
-      // solveForState();
-      // std::cout << "Solver Done" << std::endl;
-      // dJdX_cd_v = -calcOutput("co-energy")/(2*delta_cd);
-
-      std::cout << "Solving CD Forward Step..." << std::endl;
-      x_pert.Add(2*delta_cd, v);
-      mesh->SetNodes(x_pert);
-      Update();
-      residual.reset(new GridFunType(fes.get()));
-      *residual = 0.0;
-      res->Mult(*u, *residual);
-      *residual -= *load;
-      dJdX_cd_v += (*residual * *adj )/(2*delta_cd);
-
-      // solveForState();
-      // std::cout << "Solver Done" << std::endl;
-      // dJdX_cd_v += calcOutput("co-energy")/(2*delta_cd);
-   }
-
-   std::cout << "Volume Mesh Sensititivies:  " << std::endl;
-   // std::cout << "Finite Difference:          " << dJdX_fd_v << std::endl;
-   std::cout << "Central Difference:         " << dJdX_cd_v << std::endl;
-   std::cout << "Analytic:                   " << dJdX_v << std::endl;
-   // std::cout << "FD Relative:                " << (dJdX_v-dJdX_fd_v)/dJdX_v << std::endl;
-   // std::cout << "FD Absolute:                " << dJdX_v - dJdX_fd_v << std::endl;
-   std::cout << "CD Relative:                " << (dJdX_v-dJdX_cd_v)/dJdX_v << std::endl;
-   std::cout << "CD Absolute:                " << dJdX_v - dJdX_cd_v << std::endl;
+   // std::cout << "Volume Mesh Sensititivies:  " << std::endl;
+   // // std::cout << "Finite Difference:          " << dJdX_fd_v << std::endl;
+   // std::cout << "Central Difference:         " << dJdX_cd_v << std::endl;
+   // std::cout << "Analytic:                   " << dJdX_v << std::endl;
+   // // std::cout << "FD Relative:                " << (dJdX_v-dJdX_fd_v)/dJdX_v << std::endl;
+   // // std::cout << "FD Absolute:                " << dJdX_v - dJdX_fd_v << std::endl;
+   // std::cout << "CD Relative:                " << (dJdX_v-dJdX_cd_v)/dJdX_v << std::endl;
+   // std::cout << "CD Absolute:                " << dJdX_v - dJdX_cd_v << std::endl;
 }
 
 void MagnetostaticSolver::Update()
@@ -1024,8 +1048,8 @@ void MagnetostaticSolver::Update()
    B->Update();
    M->Update();
    // load->Update();
-   auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
-   load_gf->Update();
+   // auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
+   // load_gf->Update();
    div_free_current_vec->Update();
 
    res->Update();
@@ -1162,7 +1186,7 @@ unique_ptr<NewtonSolver> MagnetostaticSolver::constructNonlinearSolver(
       RelaxedNewton *rnewton = dynamic_cast<RelaxedNewton*>(nonlin_solver.get());
       rnewton->SetEnergyOperator(*ent);
       /// TODO: this needs to be a true vec in parallel
-      rnewton->SetLoad(load.get());
+      // rnewton->SetLoad(load.get());
    }
    else
    {
@@ -1563,9 +1587,9 @@ void MagnetostaticSolver::assembleCurrentSource()
 
    // printFields("current", {&j, div_free_current_vec.get()}, {"jhcurl", "jdivfree"});
    
-   *load = 0.0;
-   h_curl_mass.AddMult(*div_free_current_vec, *load);
-   *load *= -1.0;
+   // *load = 0.0;
+   // h_curl_mass.AddMult(*div_free_current_vec, *load);
+   // *load *= -1.0;
    // printField("current_source", *dynamic_cast<ParGridFunction*>(load.get()), "current", 5);
    *out << "below h_curl add mult\n";
 }
@@ -1764,26 +1788,26 @@ Vector* MagnetostaticSolver::getResidual()
    /// state needs to be the same as the current density changes, zero is arbitrary
    *u = 0.0;
    res->Mult(*u, *residual);
-   *residual -= *load;
+   // *residual -= *load;
    return residual.get();
 }
 
 Vector* MagnetostaticSolver::getResidualCurrentDensitySensitivity()
 {
    current_density = 1.0;
-   *load = 0.0;
+   // *load = 0.0;
    constructCurrent();
    assembleCurrentSource();
-   *load *= -1.0;
+   // *load *= -1.0;
 
    Array<int> ess_bdr(mesh->bdr_attributes.Size());
    Array<int> ess_tdof_list;
    ess_bdr = 1;
    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    /// set current vector's ess_tdofs to zero
-   load->SetSubVector(ess_tdof_list, 0.0);
+   // load->SetSubVector(ess_tdof_list, 0.0);
 
-   return load.get();
+   // return load.get();
 }
 
 double MagnetostaticSolver::getFunctionalCurrentDensitySensitivity(const std::string &fun)
@@ -1815,7 +1839,7 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
    weakCurlMuInv_->Finalize();
 
    M->ProjectCoefficient(*mag_coeff);
-   weakCurlMuInv_->AddMult(*M, *load, -1.0);
+   // weakCurlMuInv_->AddMult(*M, *load, -1.0);
 
    delete weakCurlMuInv_;
 }
@@ -2576,5 +2600,19 @@ double MagnetostaticSolver::remnant_flux = 0.0;
 double MagnetostaticSolver::mag_mu_r = 0.0;
 double MagnetostaticSolver::fill_factor = 0.0;
 double MagnetostaticSolver::current_density = 0.0;
+
+void setInputs(MagnetostaticLoad &load,
+               const MachInputs &inputs)
+{
+   setInputs(load.current_load, inputs);
+   setInputs(load.magnetic_load, inputs);
+}
+
+void assemble(MagnetostaticLoad &load,
+              mfem::HypreParVector &tv)
+{
+   assemble(load.current_load, tv);
+   assemble(load.magnetic_load, tv);
+}
 
 } // namespace mach
