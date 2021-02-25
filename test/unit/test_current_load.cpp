@@ -82,7 +82,9 @@ TEST_CASE("CurrentLoad Test",
    std::unique_ptr<HypreParVector> tv(fes.NewTrueDofVector());
 
    setInputs(ml, inputs);
-   assemble(ml, *tv);
+
+   *tv = 0.0;
+   addLoad(ml, *tv);
 
    auto norm = ParNormlp(*tv, 2.0, MPI_COMM_WORLD);
    std::cout << "norm: " << norm << "\n";
@@ -91,12 +93,14 @@ TEST_CASE("CurrentLoad Test",
 
    inputs.at("current_density") = 2.0;
    setInputs(ml, inputs);
-   assemble(ml, *tv);
+
+   *tv = 0.0;
+   addLoad(ml, *tv);
 
    norm = ParNormlp(*tv, 2.0, MPI_COMM_WORLD);
    std::cout << "norm: " << norm << "\n";
 
-   REQUIRE(norm == Approx(0.9560661588).margin(1e-10));
+   REQUIRE(norm == Approx(0.6373774392).margin(1e-10));
 
 }
 

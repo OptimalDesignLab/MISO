@@ -30,9 +30,9 @@ public:
    friend void setInputs(MachLoad &load,
                          const MachInputs &inputs);
 
-   /// Assemble the load vector on the true dofs and store in tv
-   friend void assemble(MachLoad &load,
-                        mfem::HypreParVector &tv);
+   /// Assemble the load vector on the true dofs and add it to tv
+   friend void addLoad(MachLoad &load,
+                       mfem::HypreParVector &tv);
 
    template <typename T>
    MachLoad(T &x) : self_(new model<T>(x))
@@ -52,7 +52,7 @@ private:
       virtual ~concept_t() = default;
       virtual concept_t* copy_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) const = 0;
-      virtual void assemble_(mfem::HypreParVector &tv) = 0;
+      virtual void addLoad_(mfem::HypreParVector &tv) = 0;
    };
 
    template <typename T>
@@ -63,8 +63,8 @@ private:
       concept_t* copy_() const override { return new model(*this); }
       void setInputs_(const MachInputs &inputs) const override
       { setInputs(data_, inputs); }
-      void assemble_(mfem::HypreParVector &tv) override
-      { assemble(data_, tv); }
+      void addLoad_(mfem::HypreParVector &tv) override
+      { addLoad(data_, tv); }
 
       T &data_;
    };
@@ -78,10 +78,10 @@ inline void setInputs(MachLoad &load,
    load.self_->setInputs_(inputs);
 }
 
-inline void assemble(MachLoad &load,
-                     mfem::HypreParVector &tv)
+inline void addLoad(MachLoad &load,
+                    mfem::HypreParVector &tv)
 {
-   load.self_->assemble_(tv);
+   load.self_->addLoad_(tv);
 }
 
 } // namespace mach

@@ -17,11 +17,12 @@ void setInputs(MachLinearForm &load,
    setScalarInputs(load.flfi, inputs);
 }
 
-void assemble(MachLinearForm &load,
-              mfem::HypreParVector &tv)
+void addLoad(MachLinearForm &load,
+             mfem::HypreParVector &tv)
 {
    load.lf.Assemble();
-   load.lf.ParallelAssemble(tv);
+   load.lf.ParallelAssemble(load.scratch);
+   add(tv, load.scratch, tv);
 }
 
 } // namespace mach

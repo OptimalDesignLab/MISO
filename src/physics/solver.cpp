@@ -839,7 +839,7 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
    if (load)
    {
       mach::setInputs(*load, inputs);
-      assemble(*load, residual);
+      mach::addLoad(*load, residual);
    }
 }
 

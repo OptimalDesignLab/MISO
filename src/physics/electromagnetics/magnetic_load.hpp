@@ -20,7 +20,7 @@ public:
                          const MachInputs &inputs);
 
    /// Assemble the load vector on the true dofs and store in tv
-   friend void assemble(MagneticLoad &load,
+   friend void addLoad(MagneticLoad &load,
                         mfem::HypreParVector &tv);
 
    MagneticLoad(mfem::ParFiniteElementSpace &pfes,

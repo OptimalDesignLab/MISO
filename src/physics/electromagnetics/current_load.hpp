@@ -20,8 +20,8 @@ public:
                          const MachInputs &inputs);
 
    /// Assemble the load vector on the true dofs and store in tv
-   friend void assemble(CurrentLoad &load,
-                        mfem::HypreParVector &tv);
+   friend void addLoad(CurrentLoad &load,
+                       mfem::HypreParVector &tv);
 
    CurrentLoad(mfem::ParFiniteElementSpace &pfes,
                mfem::VectorCoefficient &current_coeff);

@@ -103,7 +103,8 @@ TEST_CASE("MachInputs Scalar Input Test",
    setInputs(ml, inputs);
 
    HypreParVector *tv = fes.NewTrueDofVector();
-   assemble(ml, *tv);
+   *tv = 0.0;
+   addLoad(ml, *tv);
 
    auto norm = InnerProduct(tv, tv);
    std::cout << "norm: " << norm << "\n";

@@ -31,7 +31,7 @@ void setInputs(CurrentLoad &load,
    load.assembleLoad();
 }
 
-void assemble(CurrentLoad &load,
+void addLoad(CurrentLoad &load,
               HypreParVector &tv)
 {
    add(tv, load.current_density, load.load, tv);

@@ -494,8 +494,8 @@ public:
    friend void setInputs(MagnetostaticLoad &load,
                          const MachInputs &inputs);
    
-   friend void assemble(MagnetostaticLoad &load,
-                        mfem::HypreParVector &tv);
+   friend void addLoad(MagnetostaticLoad &load,
+                       mfem::HypreParVector &tv);
    
    MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
                      mfem::VectorCoefficient &current_coeff,
@@ -2608,11 +2608,11 @@ void setInputs(MagnetostaticLoad &load,
    setInputs(load.magnetic_load, inputs);
 }
 
-void assemble(MagnetostaticLoad &load,
-              mfem::HypreParVector &tv)
+void addLoad(MagnetostaticLoad &load,
+             mfem::HypreParVector &tv)
 {
-   assemble(load.current_load, tv);
-   assemble(load.magnetic_load, tv);
+   addLoad(load.current_load, tv);
+   addLoad(load.magnetic_load, tv);
 }
 
 } // namespace mach

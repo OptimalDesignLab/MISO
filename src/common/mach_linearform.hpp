@@ -56,20 +56,21 @@ public:
    void addBdrFaceIntegrator(T *integrator,
                              mfem::Array<int> &bdr_attr_marker);
 
-   /// Assemble the linear form on the true dofs and store in tv
-   friend void assemble(MachLinearForm &lf,
-                        mfem::HypreParVector &tv);
+   /// Assemble the linear form on the true dofs and add it to tv
+   friend void addLoad(MachLinearForm &lf,
+                       mfem::HypreParVector &tv);
    
    /// Set scalar inputs in all integrators used by the linear form
    friend void setInputs(MachLinearForm &lf,
                          const MachInputs &inputs);
 
    MachLinearForm(mfem::ParFiniteElementSpace *pfes)
-   : lf(pfes)
+   : lf(pfes), scratch(pfes)
    { }
 
 private:
    mfem::ParLinearForm lf;
+   mfem::HypreParVector scratch;
 
    /// Set of Domain Integrators to be applied.
    std::vector<MachIntegrator> dlfi;

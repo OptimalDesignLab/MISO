@@ -63,7 +63,8 @@ TEST_CASE("MagneticLoad Test",
 
    MachInputs inputs;
    setInputs(ml, inputs);
-   assemble(ml, *tv);
+   *tv = 0.0;
+   addLoad(ml, *tv);
 
    auto norm = ParNormlp(*tv, 2.0, MPI_COMM_WORLD);
    std::cout << "norm: " << norm << "\n";
@@ -72,7 +73,7 @@ TEST_CASE("MagneticLoad Test",
 
    setInputs(ml, inputs);
    *tv = 0.0;
-   assemble(ml, *tv);
+   addLoad(ml, *tv);
 
    norm = ParNormlp(*tv, 2.0, MPI_COMM_WORLD);
    std::cout << "norm: " << norm << "\n";
