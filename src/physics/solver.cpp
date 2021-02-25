@@ -1361,7 +1361,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       iterationHook(ti, t, dt, state);
       auto &u_true = state.GetTrueVector();
       ode_solver->Step(u_true, t, dt);
-      state.SetFromTrueVector();
+      state.SetFromTrueDofs(u_true);
 
       if (paraview)
       {
