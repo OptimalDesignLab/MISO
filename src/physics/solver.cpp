@@ -969,6 +969,31 @@ void AbstractSolver::solveForState(ParGridFunction &state)
    }
 }
 
+void AbstractSolver::solveForState(const MachInputs &inputs,
+                                   double *state_buffer)
+{
+   HypreParVector state(fes->GetComm(),
+                        fes->GlobalTrueVSize(),
+                        state_buffer,
+                        fes->GetTrueDofOffsets());
+
+   solveForState(inputs, state);
+}
+
+void AbstractSolver::solveForState(const MachInputs &inputs,
+                                   mfem::HypreParVector &state)
+{
+   // mach::setInputs(*res, inputs);
+   if (load)
+      mach::setInputs(*load, inputs);
+
+   auto &state_gf = res_fields.at("state");
+   state_gf.MakeTRef(state_gf.ParFESpace(), state.GetData());
+   state_gf.SetFromTrueVector();
+   
+   solveUnsteady(state_gf);
+}
+
 void AbstractSolver::solveForAdjoint(const std::string &fun)
 {
    if (options["steady"].get<bool>() == true)

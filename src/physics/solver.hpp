@@ -254,10 +254,18 @@ public:
    /// Default behavior is to return just the state `u`
    virtual std::vector<GridFunType*> getFields();
 
+   /// DEPRECIATED -> use version with inputs
    /// Solve for the state variables based on current mesh, solver, etc.
    virtual void solveForState() { solveForState(*u); };
 
+   /// DEPRECIATED -> use version with inputs
    virtual void solveForState(mfem::ParGridFunction &state);
+
+   virtual void solveForState(const MachInputs &inputs,
+                              double *state);
+
+   virtual void solveForState(const MachInputs &inputs,
+                              mfem::HypreParVector &state);
    
    /// Solve for the adjoint based on current mesh, solver, etc.
    /// \param[in] fun - specifies the functional corresponding to the adjoint
