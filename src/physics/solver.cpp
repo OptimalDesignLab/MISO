@@ -805,6 +805,44 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
    delete r_true;
 }
 
+void AbstractSolver::calcResidual(const MachInputs &inputs,
+                                  double *res_buffer)
+{
+   HypreParVector residual(fes->GetComm(),
+                           fes->GlobalTrueVSize(),
+                           res_buffer,
+                           fes->GetTrueDofOffsets());
+   calcResidual(inputs, residual);
+}
+
+void AbstractSolver::calcResidual(const MachInputs &inputs,
+                                  HypreParVector &residual)
+{
+   // setInputs(*res, inputs); // once I've added MachNonlinearForm
+
+   /// this approach would require communication twice, once to set the tdofs
+   ///   and then again inside of res->Mult
+   // auto &state_gf = res_fields.at("state");
+   // state_gf.MakeTRef(state.ParFESpace(), inputs.at("state").getField());
+   // state_gf.SetFromTrueVector();
+   // auto &state = state_gf.GetTrueVector();
+
+   // this only communicates once inside of res->Mult to distribute state
+   // create HypreParVector that contains the data from the state input
+   HypreParVector state(fes->GetComm(),
+                        fes->GlobalTrueVSize(),
+                        inputs.at("state").getField(),
+                        fes->GetTrueDofOffsets());
+
+   res->Mult(state, residual);
+
+   if (load)
+   {
+      mach::setInputs(*load, inputs);
+      assemble(*load, residual);
+   }
+}
+
 double AbstractSolver::calcStepSize(int iter, double t, double t_final,
                                     double dt_old,
                                     const ParGridFunction &state) const
@@ -1018,9 +1056,7 @@ void AbstractSolver::removeInternalBoundaries()
 /// This approach will only work for fields on the same mesh
 void AbstractSolver::setUpExternalFields()
 {
-   res_fields.emplace(std::piecewise_construct,
-                      std::forward_as_tuple("state"),
-                      std::forward_as_tuple(fes.get(), (double*)nullptr));
+   res_fields.emplace("state", fes.get());
 
    if (options.contains("external-fields"))
    {
@@ -1052,11 +1088,7 @@ void AbstractSolver::setUpExternalFields()
                                                       mesh_fespace->FEColl());
             }
             // create a new GF for the mesh nodes with the new/stolen FESpace
-            res_fields.emplace(
-               std::piecewise_construct,
-               std::forward_as_tuple(name),
-               // std::forward_as_tuple(mesh_fespace, (double*)nullptr));
-               std::forward_as_tuple(mesh_fespace));
+            res_fields.emplace(name, mesh_fespace);
 
             // tell the new GF it owns the FESpace and FECollection
             res_fields.at(name).MakeOwner(mesh_fec);
@@ -1092,9 +1124,7 @@ void AbstractSolver::setUpExternalFields()
 
          /// constructs a grid function with an empty data array that must
          /// later be set by `setResidualInput`
-         res_fields.emplace(std::piecewise_construct,
-                            std::forward_as_tuple(name),
-                            std::forward_as_tuple(fespace, (double*)nullptr));
+         res_fields.emplace(name, fespace);
          res_fields.at(name).MakeOwner(fecoll);
       }
    }
