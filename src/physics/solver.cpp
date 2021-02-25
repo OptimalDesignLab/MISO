@@ -1359,9 +1359,9 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
          *out << " (" << round(100 * t / t_final) << "% complete)";
       *out << endl;
       iterationHook(ti, t, dt, state);
-      HypreParVector *u_true = state.GetTrueDofs();
-      ode_solver->Step(*u_true, t, dt);
-      state = *u_true;
+      auto &u_true = state.GetTrueVector();
+      ode_solver->Step(u_true, t, dt);
+      state.SetFromTrueVector();
 
       if (paraview)
       {
