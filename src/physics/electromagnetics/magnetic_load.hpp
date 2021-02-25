@@ -39,7 +39,7 @@ private:
    mfem::ParGridFunction M;
    mfem::ParGridFunction scratch;
 
-   /// Assemble the divergence free load vector
+   /// Assemble the magnetic source load vector
    void assembleLoad();
 };
 
