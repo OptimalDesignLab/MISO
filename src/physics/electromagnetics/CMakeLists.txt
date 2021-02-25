@@ -5,6 +5,8 @@ target_sources(mach
       electromag_integ.cpp
       electromag_integ.hpp
       electromagnetics.hpp
+      magnetic_load.cpp
+      magnetic_load.hpp
       magnetostatic.cpp
       magnetostatic.hpp
 )
