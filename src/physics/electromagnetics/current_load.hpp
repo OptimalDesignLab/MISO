@@ -4,7 +4,6 @@
 #include "mfem.hpp"
 
 #include "pfem_extras.hpp"
-#include "coefficient.hpp"
 #include "mach_input.hpp"
 
 namespace mach
