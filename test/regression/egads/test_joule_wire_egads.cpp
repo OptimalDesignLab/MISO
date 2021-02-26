@@ -158,4 +158,12 @@ TEST_CASE("Joule Wire Solver Regression Test",
     therm_solver->setResidualInput("mvp", *em_state);
     *therm_state = 300; // initialize termperature field at constant 300 K
     therm_solver->solveForState(*therm_state);
+
+    /// the final temperature in the wire after 10.5s should be ~308.69 K
+   auto ex_state = therm_solver->getNewField();
+   *ex_state = 308.69037774418;
+
+   ParGridFunction diff(*ex_state);
+   diff -= *therm_state;
+   REQUIRE(diff.Norml2() == Approx(0.0).margin(1e-10));
 }
