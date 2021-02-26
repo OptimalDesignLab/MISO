@@ -21,7 +21,7 @@ public:
 
    /// Assemble the load vector on the true dofs and store in tv
    friend void addLoad(MagneticLoad &load,
-                        mfem::HypreParVector &tv);
+                       mfem::Vector &tv);
 
    MagneticLoad(mfem::ParFiniteElementSpace &pfes,
                 mfem::VectorCoefficient &mag_coeff,

@@ -32,7 +32,7 @@ void setInputs(CurrentLoad &load,
 }
 
 void addLoad(CurrentLoad &load,
-              HypreParVector &tv)
+             Vector &tv)
 {
    add(tv, load.current_density, load.load, tv);
 }

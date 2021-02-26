@@ -18,7 +18,7 @@ void setInputs(MagneticLoad &load,
 }
 
 void addLoad(MagneticLoad &load,
-              HypreParVector &tv)
+             Vector &tv)
 {
    add(tv, load.load, tv);
 }

@@ -58,7 +58,7 @@ public:
 
    /// Assemble the linear form on the true dofs and add it to tv
    friend void addLoad(MachLinearForm &lf,
-                       mfem::HypreParVector &tv);
+                       mfem::Vector &tv);
    
    /// Set scalar inputs in all integrators used by the linear form
    friend void setInputs(MachLinearForm &lf,

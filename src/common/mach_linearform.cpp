@@ -18,7 +18,7 @@ void setInputs(MachLinearForm &load,
 }
 
 void addLoad(MachLinearForm &load,
-             mfem::HypreParVector &tv)
+             mfem::Vector &tv)
 {
    load.lf.Assemble();
    load.lf.ParallelAssemble(load.scratch);

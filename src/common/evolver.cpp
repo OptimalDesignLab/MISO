@@ -83,10 +83,8 @@ public:
       // }
       if (load)
       {
-         // const auto* prolong = res->ParFESpace()->GetProlongationMatrix();
-         // prolong->MultTranspose(*load, *load_tv);
-         // r += *load_tv;
-         // r.SetSubVector(ess_tdof_list, 0.0);
+         mach::addLoad(*load, r);
+         r.SetSubVector(ess_tdof_list, 0.0);
       }
       if (mass)
       {
@@ -149,10 +147,6 @@ public:
       if (jac)
       {
          // delete jac;
-      }
-      if (load_tv)
-      {
-         delete load_tv;
       }
    };
 

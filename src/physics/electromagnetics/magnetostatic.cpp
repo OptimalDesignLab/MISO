@@ -495,7 +495,7 @@ public:
                          const MachInputs &inputs);
    
    friend void addLoad(MagnetostaticLoad &load,
-                       mfem::HypreParVector &tv);
+                       mfem::Vector &tv);
    
    MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
                      mfem::VectorCoefficient &current_coeff,
@@ -2609,7 +2609,7 @@ void setInputs(MagnetostaticLoad &load,
 }
 
 void addLoad(MagnetostaticLoad &load,
-             mfem::HypreParVector &tv)
+             mfem::Vector &tv)
 {
    addLoad(load.current_load, tv);
    addLoad(load.magnetic_load, tv);

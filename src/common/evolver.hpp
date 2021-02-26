@@ -46,8 +46,6 @@ public:
 
 /// Class that can handle implicit or explicit time marching of linear or
 /// nonlinear ODEs
-/// TODO: think about how to handle partial assebmly of residual jacobian and
-///       stiffness matrices
 class MachEvolver : public EntropyConstrainedOperator
 {
 public:
@@ -64,8 +62,6 @@ public:
    /// \param[in] start_time - time to start integration from
    ///                         (important for time-variant sources)
    /// \param[in] type - solver type; explicit or implicit
-   /// \note supports partial assembly of mass and stiffness matrices for
-   ///       explicit time marching
    MachEvolver(mfem::Array<int> &ess_bdr,
                NonlinearFormType *nonlinear_mass, BilinearFormType *mass,
                NonlinearFormType *res, BilinearFormType *stiff,
