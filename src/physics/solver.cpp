@@ -276,16 +276,12 @@ void AbstractSolver::initDerived()
       stiff->Finalize();
    }
 
-   // if (load)
-   // {
-   //    auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
-   //    if (load_lf)
-   //    {
-   //       addLoadVolumeIntegrators(alpha);
-   //       addLoadBoundaryIntegrators(alpha);
-   //       addLoadInterfaceIntegrators(alpha);
-   //    }
-   // }
+   if (load)
+   {
+      addLoadVolumeIntegrators(alpha);
+      addLoadBoundaryIntegrators(alpha);
+      addLoadInterfaceIntegrators(alpha);
+   }
 
    if (ent)
    {

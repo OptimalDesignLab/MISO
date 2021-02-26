@@ -125,12 +125,12 @@ auto therm_options = R"(
          "z": [1]
       },
       "rho-agg": 10,
-      "init-temp": 300
+      "init-temp": 300,
+      "outflux-type": "test"
    },
    "bcs": {
       "outflux": [0, 0, 0, 0]
    },
-   "outflux-type": "test",
    "outputs": {
       "temp-agg": {}
    },

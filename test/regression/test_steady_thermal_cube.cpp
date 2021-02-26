@@ -80,7 +80,7 @@ TEST_CASE("Thermal Cube Solver Steady Regression Test",
    };
 
    /// set correct current density source
-   auto kappa = 4.01e2;
+   auto kappa = 2.49;
    auto sigma = 58.14e6;
    auto current_density = std::sqrt(4*kappa*sigma);
    options["problem-opts"]["current-density"] = current_density;
