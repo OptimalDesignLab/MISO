@@ -273,6 +273,7 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
    if (load)
    {
       // r_work1 += *load;
+      addLoad(*load, r_work1);
    }
    mass_solver.Mult(r_work1, y);
    y *= -1.0;

@@ -764,15 +764,14 @@ ThermalEvolver::~ThermalEvolver() = default;
 
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
-   // if (flux_coeff)
-   // {
-   //    flux_coeff->SetTime(t);
-   //    auto *load_lf = dynamic_cast<ParLinearForm*>(load);
-   //    if (load_lf)
-   //       load_lf->Assemble();
-   //    else
-   //       throw MachException("Couldn't cast load to LinearFormType!\n");
-   // }
+   if (flux_coeff)
+   {
+      flux_coeff->SetTime(t);
+      MachInputs inputs({
+         {"time", t}
+      });
+      setInputs(*load, inputs);
+   }
 
    MachEvolver::Mult(x, y);
 }
@@ -780,16 +779,15 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,
                                    Vector &k)
 {
-   // /// re-assemble time dependent load vector
-   // if (flux_coeff)
-   // {
-   //    flux_coeff->SetTime(t);
-   //    auto *load_lf = dynamic_cast<ParLinearForm*>(load);
-   //    if (load_lf)
-   //       load_lf->Assemble();
-   //    else
-   //       throw MachException("Couldn't cast load to LinearFormType!\n");
-   // }
+   /// re-assemble time dependent load vector
+   if (flux_coeff)
+   {
+      flux_coeff->SetTime(t);
+      MachInputs inputs({
+         {"time", t}
+      });
+      setInputs(*load, inputs);
+   }
 
    MachEvolver::ImplicitSolve(dt, x, k);
 }
