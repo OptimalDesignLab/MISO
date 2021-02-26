@@ -48,7 +48,7 @@ auto options = R"(
       "reltol": 1e-10,
       "abstol": 1e-9
    },
-  "components": {
+   "components": {
       "attr1": {
          "material": "box1",
          "attr": 1,

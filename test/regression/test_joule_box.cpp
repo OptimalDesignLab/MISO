@@ -24,11 +24,11 @@ auto em_options = R"(
    },
    "time-dis": {
       "steady": true,
-      "steady-abstol": 1e-12,
+      "steady-abstol": 1e-10,
       "steady-reltol": 1e-10,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 1e12,
+      "dt": 1,
       "max-iter": 10
    },
    "lin-solver": {
@@ -45,9 +45,9 @@ auto em_options = R"(
    "nonlin-solver": {
       "type": "newton",
       "printlevel": 3,
-      "maxiter": 50,
+      "maxiter": 5,
       "reltol": 1e-10,
-      "abstol": 1e-12
+      "abstol": 1e-9
    },
    "components": {
       "attr1": {
@@ -71,6 +71,9 @@ auto em_options = R"(
    },
    "outputs": {
       "co-energy": {}
+   },
+   "bcs": {
+      "essential": [1, 2, 3, 4, 5, 6]
    }
 })"_json;
 
