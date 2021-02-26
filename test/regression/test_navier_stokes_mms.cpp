@@ -113,6 +113,10 @@ TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
          // get the drag error and compare against target error
          // Note: the "exact" value of drag is set to 1.6, but this has
          // not been verified (unlike the L2 error).
+         auto drag_opts = R"({ 
+            "boundaries": [1, 0, 1, 0]
+         })"_json;
+         solver->createOutput("drag", drag_opts);
          double drag_error = solver->calcOutput("drag") - 1.6;
          REQUIRE(drag_error == Approx(target_drag_error[p-1]).margin(1e-10));
       }
