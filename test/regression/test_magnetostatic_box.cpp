@@ -119,7 +119,7 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
    {
       options["space-dis"]["degree"] = order;
       int nxy = 1;
-      for (int ref = 1; ref <= 4; ++ref)
+      for (int ref = 1; ref <= 1; ++ref)
       {  
          nxy *= 2;
          DYNAMIC_SECTION("...for order " << order << " and mesh sizing nxy = " << nxy)

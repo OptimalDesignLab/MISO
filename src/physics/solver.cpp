@@ -941,23 +941,23 @@ void AbstractSolver::solveForState(ParGridFunction &state)
 {
    /// TODO: move to initialHook?
    /// perform assembly just before solving
-   if (load)
-   {
-      // auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
-      // if (load_lf)
-      // {
-      //    load_lf->Assemble();
-      // }
-      // auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
-      // if (load_gf)
-      // {
-      //    /// TODO: get rid of `alpha` param, load should have standard sign
-      //    assembleLoadVector(1.0);
-      // }
-      // Array<int> ess_tdof_list;
-      // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-      // load->SetSubVector(ess_tdof_list, 0.0);
-   }
+   // if (old_load)
+   // {
+   //    auto load_lf = dynamic_cast<ParLinearForm*>(old_load.get());
+   //    if (load_lf)
+   //    {
+   //       load_lf->Assemble();
+   //    }
+   //    auto load_gf = dynamic_cast<ParGridFunction*>(old_load.get());
+   //    if (load_gf)
+   //    {
+   //       /// TODO: get rid of `alpha` param, load should have standard sign
+   //       assembleLoadVector(1.0);
+   //    }
+   //    Array<int> ess_tdof_list;
+   //    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   //    old_load->SetSubVector(ess_tdof_list, 0.0);
+   // }
 
    if (options["steady"].get<bool>() == true)
    {

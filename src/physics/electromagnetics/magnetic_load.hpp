@@ -39,6 +39,9 @@ private:
    mfem::ParGridFunction M;
    mfem::ParGridFunction scratch;
 
+   /// flag to know if the load vector should be reassembled
+   bool dirty;
+
    /// Assemble the magnetic source load vector
    void assembleLoad();
 };

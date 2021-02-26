@@ -723,6 +723,11 @@ void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
    // delete dnfi[0];
    // dnfi[0] = new CurlCurlNLFIntegrator(nu.get());
    // AbstractSolver::solveUnsteady(state);
+
+   HypreParVector new_load(fes.get());
+   new_load = 0.0;
+   addLoad(*load, new_load);
+
    _solveUnsteady(state);
 }
 //    *out << "Tucker: please check if the code below is needed" << endl;
@@ -821,7 +826,10 @@ void MagnetostaticSolver::constructForms()
 {
    // mass.reset(new BilinearFormType(fes.get()));
    res.reset(new NonlinearFormType(fes.get()));
-   // load.reset(new MachLoad(fes.get()));
+   magnetostatic_load.reset(new MagnetostaticLoad(*fes, *current_coeff,
+                                                  *mag_coeff, *nu));
+   load.reset(new MachLoad(*magnetostatic_load));
+   // old_load.reset(new ParGridFunction(fes.get()));
    ent.reset(new ParNonlinearForm(fes.get()));
 }
 
@@ -1585,12 +1593,15 @@ void MagnetostaticSolver::assembleCurrentSource()
    *div_free_current_vec = 0.0;
    div_free_proj.Mult(j, *div_free_current_vec);
 
+   std::cout << "div free norm old load: " << div_free_current_vec->Norml2() << "\n\n";
+
+
    // printFields("current", {&j, div_free_current_vec.get()}, {"jhcurl", "jdivfree"});
    
-   // *load = 0.0;
-   // h_curl_mass.AddMult(*div_free_current_vec, *load);
-   // *load *= -1.0;
-   // printField("current_source", *dynamic_cast<ParGridFunction*>(load.get()), "current", 5);
+   // *old_load = 0.0;
+   // h_curl_mass.AddMult(*div_free_current_vec, *old_load);
+   // *old_load *= -1.0;
+   // printField("current_source", *dynamic_cast<ParGridFunction*>(old_load.get()), "current", 5);
    *out << "below h_curl add mult\n";
 }
 
@@ -1839,7 +1850,7 @@ void MagnetostaticSolver::assembleMagnetizationSource(void)
    weakCurlMuInv_->Finalize();
 
    M->ProjectCoefficient(*mag_coeff);
-   // weakCurlMuInv_->AddMult(*M, *load, -1.0);
+   // weakCurlMuInv_->AddMult(*M, *old_load, -1.0);
 
    delete weakCurlMuInv_;
 }

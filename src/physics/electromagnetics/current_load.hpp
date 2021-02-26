@@ -43,6 +43,9 @@ private:
    mfem::ParGridFunction div_free_current_vec;
    mfem::common::DivergenceFreeProjector div_free_proj;
 
+   /// flag to know if the load vector should be reassembled
+   bool dirty;
+
    /// Assemble the divergence free load vector
    void assembleLoad();
 };

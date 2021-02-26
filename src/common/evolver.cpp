@@ -47,10 +47,10 @@ public:
       {
          _res->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       }
-      if (load)
-         load_tv = _res->ParFESpace()->NewTrueDofVector();
-      else
-         load_tv = nullptr;
+      // if (load)
+      //    load_tv = _res->ParFESpace()->NewTrueDofVector();
+      // else
+      //    load_tv = nullptr;
    }
 
    /// Compute r = N(x + dt_stage*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) + K@(x+dt*k) + l

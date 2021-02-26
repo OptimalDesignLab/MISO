@@ -14,13 +14,18 @@ void setInputs(MagneticLoad &load,
                const MachInputs &inputs)
 {
    load.weakCurlMuInv.Update();
-   load.assembleLoad();
+   load.dirty = true;
 }
 
 void addLoad(MagneticLoad &load,
              Vector &tv)
 {
-   add(tv, load.load, tv);
+   if (load.dirty)
+   {
+      load.dirty = false;
+      load.assembleLoad();
+   }
+   add(tv, -1.0, load.load, tv);
 }
 
 MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
@@ -28,7 +33,8 @@ MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
                            Coefficient &nu)
    : fes(pfes), rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    rt_fes(fes.GetParMesh(), &rt_coll), mag_coeff(mag_coeff),
-   load(&fes), weakCurlMuInv(&rt_fes, &fes), M(&rt_fes), scratch(&fes)
+   load(&fes), weakCurlMuInv(&rt_fes, &fes), M(&rt_fes), scratch(&fes),
+   dirty(true)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
    weakCurlMuInv.AddDomainIntegrator(new VectorFECurlIntegrator(nu));

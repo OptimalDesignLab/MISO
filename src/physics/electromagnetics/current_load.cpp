@@ -28,13 +28,18 @@ void setInputs(CurrentLoad &load,
       }
    }
    load.nd_mass.Update();
-   load.assembleLoad();
+   load.dirty = true;
 }
 
 void addLoad(CurrentLoad &load,
              Vector &tv)
 {
-   add(tv, load.current_density, load.load, tv);
+   if (load.dirty)
+   {
+      load.dirty = false;
+      load.assembleLoad();
+   }
+   add(tv, -load.current_density, load.load, tv);
 }
 
 CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
@@ -46,7 +51,7 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    scratch(&fes), nd_mass(&fes), J(&fes), j(&fes), div_free_current_vec(&fes),
    div_free_proj(h1_fes, fes, h1_fes.GetElementTransformation(0)->OrderW()
                                  + 2 * fes.GetFE(0)->GetOrder(),
-                 NULL, NULL, NULL)
+                 NULL, NULL, NULL), dirty(true)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
@@ -87,6 +92,8 @@ void CurrentLoad::assembleLoad()
    /// Compute the discretely divergence-free portion of j
    ParGridFunction div_free_current_vec(&fes);
    div_free_proj.Mult(j, div_free_current_vec);
+
+   std::cout << "div free norm new load: " << div_free_current_vec.Norml2() << "\n\n";
 
    /// get the div_free_current_vec's true dofs
    div_free_current_vec.ParallelAssemble(scratch);
