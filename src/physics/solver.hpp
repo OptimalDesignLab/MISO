@@ -74,7 +74,10 @@ public:
    /// \returns L2 error
    double calcL2Error(void (*u_exact)(const mfem::Vector &, mfem::Vector &),
                       int entry = -1);
-
+   double calcSodShockL1Error(void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+                      int entry = -1);
+   double calcSodShockMaxError(void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+                      int entry = -1);
    /// Find the gobal step size for the given CFL number
    /// \param[in] cfl - target CFL number for the domain
    /// \returns dt_min - the largest step size for the given CFL

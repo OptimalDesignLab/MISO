@@ -44,8 +44,8 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
       return entropy - entropy_old + gamma*dt*delta_entropy;
    };
    // TODO: tolerances and maxiter should be provided in some other way
-   const double ftol = 1e-13;
-   const double xtol = 1e-13;
+   const double ftol = 1e-12;
+   const double xtol = 1e-12;
    const int maxiter = 30;
    //double gamma = bisection(entropyFun, 0.50, 1.5, ftol, xtol, maxiter);
    double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
@@ -282,8 +282,8 @@ ImplicitNonlinearMassEvolver::ImplicitNonlinearMassEvolver(
 #endif
 
    // set paramters for the newton solver
-   newton_solver->SetRelTol(1e-14);
-   newton_solver->SetAbsTol(1e-14);
+   newton_solver->SetRelTol(1e-12);
+   newton_solver->SetAbsTol(1e-12);
    newton_solver->SetPrintLevel(1);
    newton_solver->SetMaxIter(30);
    // set linear solver and operator

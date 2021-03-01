@@ -470,6 +470,143 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
    return prod;
 }
 
+
+double AbstractSolver::calcSodShockMaxError(
+   void (*u_exact)(const Vector &, Vector &), int entry)
+{
+   // TODO: need to generalize to parallel
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   //return u->ComputeL2Error(ue);
+
+   double loc_norm = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals;
+   Vector loc_errs;
+
+   if (entry < 0)
+   {
+      fes->GetProlongationMatrix()->Mult(*uc, *u);
+      // sum up the L2 error over all states
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         const IntegrationRule *ir = &(fe->GetNodes());
+         T = fes->GetElementTransformation(i);
+         u->GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Height());
+         //vals.Norm1(loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            vals.GetColumn(j, loc_errs);
+            for (int k = 0; k < num_state; k++)
+            {
+               //  loc_norm += ip.weight * T->Weight() * abs(loc_errs(k));
+               //  loc_norm  = max(loc_norm, ip.weight * T->Weight() * abs(loc_errs(k)));
+               loc_norm = max(loc_norm, abs(loc_errs(k)));
+            }
+         }
+      }
+   }
+   else
+   {
+      // calculate the L2 error for component index `entry`
+      fes->GetProlongationMatrix()->Mult(*uc, *u);
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         const IntegrationRule *ir = &(fe->GetNodes());
+         T = fes->GetElementTransformation(i);
+         u->GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Width());
+         vals.GetRow(entry, loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            //loc_norm = max(loc_norm, ip.weight * T->Weight() * loc_errs(j));
+            loc_norm = max(loc_norm, abs(loc_errs(j)));
+            //loc_norm += ip.weight * T->Weight() * abs(loc_errs(j));
+            //cout << "loc_norm is " << loc_errs(j) <<'\n';
+         }
+      }
+   }
+   double norm = loc_norm;
+   return norm;
+}
+
+
+double AbstractSolver::calcSodShockL1Error(
+   void (*u_exact)(const Vector &, Vector &), int entry)
+{
+   // TODO: need to generalize to parallel
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   //return u->ComputeL2Error(ue);
+
+   double loc_norm = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals;
+   Vector loc_errs;
+
+   if (entry < 0)
+   {
+      fes->GetProlongationMatrix()->Mult(*uc, *u);
+      // sum up the L2 error over all states
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         const IntegrationRule *ir = &(fe->GetNodes());
+         T = fes->GetElementTransformation(i);
+         u->GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Height());
+         //vals.Norm1(loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            vals.GetColumn(j, loc_errs);
+            for (int k = 0; k < num_state; k++)
+            {
+               loc_norm += ip.weight * T->Weight() * abs(loc_errs(k));  
+            }
+         }
+      }
+   }
+   else
+   {
+      // calculate the L2 error for component index `entry`
+      fes->GetProlongationMatrix()->Mult(*uc, *u);
+      for (int i = 0; i < fes->GetNE(); i++)
+      {
+         fe = fes->GetFE(i);
+         const IntegrationRule *ir = &(fe->GetNodes());
+         T = fes->GetElementTransformation(i);
+         u->GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Width());
+         vals.GetRow(entry, loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            loc_norm += ip.weight * T->Weight() * abs(loc_errs(j));
+         }
+      }
+   }
+   double norm = loc_norm;
+   return norm;
+}
+
 double AbstractSolver::calcL2Error(
     void (*u_exact)(const Vector &, Vector &), int entry)
 {
@@ -873,7 +1010,7 @@ void AbstractSolver::solveUnsteady()
    double entropy;
    ofstream entropylog;
    entropylog.open("entropylog.txt", fstream::app);
-   entropylog << setprecision(15);
+   entropylog << setprecision(17);
    clock_t start_t = clock();
    for (int ti = 0; !done;)
    {
