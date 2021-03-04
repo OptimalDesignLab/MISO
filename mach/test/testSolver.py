@@ -353,12 +353,12 @@ class SolverRegressionTests(unittest.TestCase):
             "nonlin-solver": {
                 "type": "newton",
                 "printlevel": 3,
-                "maxiter": 50,
+                "maxiter": 5,
                 "reltol": 1e-10,
-                "abstol": 1e-12
+                "abstol": 1e-8
             },
             "components": {
-                "attr1": {
+                "wire": {
                     "material": "copperwire",
                     "attr": 1,
                     "linear": True
@@ -369,7 +369,6 @@ class SolverRegressionTests(unittest.TestCase):
             },
             "problem-opts": {
                 "fill-factor": 1.0,
-                # "current-density": 1.2732395447351627e7,
                 "current-density": 1.0,
                 "current": {
                     "z": [1]
@@ -381,15 +380,16 @@ class SolverRegressionTests(unittest.TestCase):
         solver.createOutput("ACLoss");
 
         state = solver.getNewField()
-        zero = Vector(np.array([0.0,0.0,0.0]))
+        zero = Vector(np.array([0.0, 0.0, 0.0]))
         solver.setFieldValue(state, zero);
-
 
         inputs = {
             "current-density": 1.2732395447351627e7,
             "state": state
         }
         solver.solveForState(inputs, state)
+
+        print(state)
 
         inputs = {
             "diam": d_c,

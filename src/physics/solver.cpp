@@ -1034,6 +1034,7 @@ void AbstractSolver::solveForState(const MachInputs &inputs,
    state_gf.SetFromTrueVector();
    
    solveUnsteady(state_gf);
+   state_gf.GetTrueDofs(state);
 }
 
 void AbstractSolver::solveForAdjoint(const std::string &fun)

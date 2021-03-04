@@ -308,10 +308,6 @@ void initSolver(py::module &m)
          }
       }, py::arg("data") = py::none())
 
-      // .def("solveForState", (void (AbstractSolver::*)(mfem::HypreParVector&))
-      //    &AbstractSolver::solveForState,
-      //    py::arg("state"))
-
       .def("solveForState", [](AbstractSolver &self,
                             const py::dict &py_inputs,
                             mfem::HypreParVector &state)
