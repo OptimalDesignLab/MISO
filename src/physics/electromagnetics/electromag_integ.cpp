@@ -2525,6 +2525,20 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
+void setInput(HybridACLossFunctionalIntegrator &integ,
+              const std::string &name,
+              const MachInput &input)
+{
+   if (name == "diam")
+   {
+      integ.diam = input.getValue();
+   }
+   else if (name == "omega")
+   {
+      integ.omega = input.getValue();
+   }
+}
+
 double HybridACLossFunctionalIntegrator::GetElementEnergy(
    const FiniteElement &el,
    ElementTransformation &trans,

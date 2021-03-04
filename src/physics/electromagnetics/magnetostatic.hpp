@@ -117,6 +117,8 @@ private:
    std::unique_ptr<VectorMeshDependentCoefficient> current_coeff;
    /// vector mesh dependent magnetization coefficient
    std::unique_ptr<VectorMeshDependentCoefficient> mag_coeff;
+   /// mesh dependent electrical conductivity coefficient
+   std::unique_ptr<MeshDependentCoefficient> sigma;
 
    /// boundary condition marker array
    // mfem::Array<int> ess_bdr;
@@ -189,6 +191,8 @@ private:
    /// construct vector mesh dependent coefficient for current source
    /// \param[in] alpha - used to move to lhs or rhs
    void constructCurrent();
+
+   void constructSigma();
 
 public:
    /// TODO: throw MachException if constructCurrent not called first

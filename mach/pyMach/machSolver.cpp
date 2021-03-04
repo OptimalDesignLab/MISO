@@ -213,56 +213,61 @@ void initSolver(py::module &m)
          return self.setResidualInput(field, (double*)info.ptr);
       })
 
-      .def("setScalarInitialCondition", (void (AbstractSolver::*)
-            (mfem::ParGridFunction &state, 
-            const std::function<double(const mfem::Vector &)>&))
-            &AbstractSolver::setInitialCondition,
-            "Initializes the state vector to a given scalar function.")
+      .def("setFieldValue", [](
+         AbstractSolver &self,
+         mfem::HypreParVector &state,
+         const double u_init)
+      {
+         self.setFieldValue(state, u_init);
 
-      .def("setInitialFieldValue", [](
-         AbstractSolver &self,
-         mfem::ParGridFunction &state,
-         double u_init)
-      {
-         self.setInitialCondition(state, u_init);
       },
-      "Initializes the state vector to a given value.")
-      .def("setInitialFieldVectorValue", [](
+      "Sets the field to a given value.")
+
+      // .def("setFieldValue",
+      // (void (AbstractSolver::*)
+      //    (mfem::HypreParVector &field, 
+      //    const std::function<double(const mfem::Vector &)>&))
+      // &AbstractSolver::setInitialCondition,
+      // "Sets the field to a given scalar function.")
+      .def("setFieldValue", [](
          AbstractSolver &self,
-         mfem::ParGridFunction &state,
-         const mfem::Vector &u_init)
-      {
-         self.setInitialCondition(state, u_init);
-      },
-      "Initializes the state vector to a given vector value.")
-      .def("setInitialFieldFunction", [](
-         AbstractSolver &self,
-         mfem::ParGridFunction &state,
+         mfem::HypreParVector &state,
          const std::function<double(const mfem::Vector &)> &u_init)
       {
-         self.setInitialCondition(state, u_init);
+         self.setFieldValue(state, u_init);
       },
-      "Initializes the state vector to a given scalar function.")
-      .def("setInitialCondition", [](
+      "Sets the field to a given scalar function.")
+
+      .def("setFieldValue", [](
+         AbstractSolver &self,
+         mfem::HypreParVector &field,
+         const mfem::Vector &u_init)
+      {
+         self.setFieldValue(field, u_init);
+      },
+      "Sets the vector field to a given vector value.")
+   
+      .def("setFieldValue", [](
          AbstractSolver& self,
-         mfem::ParGridFunction &state,
+         mfem::HypreParVector &field,
          std::function<void(const mfem::Vector &, mfem::Vector *const)> u_init)
       {
-         self.setInitialCondition(state, [u_init](const mfem::Vector &x, mfem::Vector &u)
+         self.setFieldValue(field, [u_init](const mfem::Vector &x, mfem::Vector &u)
          {
             u_init(x, &u);
          });
       },
-      "Initializes the state vector to a given function.")
+      "Sets the vector field to a given vector-valued function.")
 
-      .def("setInitialField", [](
+      .def("setField", [](
          AbstractSolver& self,
-         mfem::ParGridFunction &state,
-         const mfem::ParGridFunction &u_init)
+         mfem::HypreParVector &field,
+         const mfem::HypreParVector &u_init)
       {
-         self.setInitialCondition(state, u_init);
+         // self.setInitialCondition(state, u_init);
+         field = u_init;
       },
-      "Initializes the state vector to a given field.")
+      "Sets the field to equal a given field.")
 
 
       .def("getNewField", [] (
@@ -301,12 +306,20 @@ void initSolver(py::module &m)
             }
             return self.getNewField((double*)info.ptr);
          }
-         
-         
       }, py::arg("data") = py::none())
 
-      .def("solveForState", (void (AbstractSolver::*)(mfem::ParGridFunction&))
-         &AbstractSolver::solveForState,
+      // .def("solveForState", (void (AbstractSolver::*)(mfem::HypreParVector&))
+      //    &AbstractSolver::solveForState,
+      //    py::arg("state"))
+
+      .def("solveForState", [](AbstractSolver &self,
+                            const py::dict &py_inputs,
+                            mfem::HypreParVector &state)
+         {
+            
+            return self.solveForState(pyDictToMachInputs(py_inputs), state);
+         },
+         py::arg("inputs"),
          py::arg("state"))
 
       .def("calcL2Error", [](
@@ -335,11 +348,13 @@ void initSolver(py::module &m)
          py::arg("names"),
          py::arg("refine") = -1)
 
-      .def("calcResidual",
-         (void (AbstractSolver::*)(const mfem::ParGridFunction &,
-                                   mfem::ParGridFunction&) const)
-         &AbstractSolver::calcResidual,
-         py::arg("state"),
+      .def("calcResidual", [](AbstractSolver &self,
+                              const py::dict &py_inputs,
+                              mfem::HypreParVector &residual)
+         {
+            self.calcResidual(pyDictToMachInputs(py_inputs), residual);
+         },
+         py::arg("inputs"),
          py::arg("residual"))
 
       .def("createOutput", 

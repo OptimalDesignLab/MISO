@@ -231,6 +231,9 @@ void AbstractSolver::initDerived()
    /// start creating your own state vector with `getNewField`
    u.reset(new GridFunType(fes.get()));
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
+   
+   /// initialize scratch work vector
+   scratch.reset(new ParGridFunction(fes.get()));
 
    double alpha = 1.0;
 
@@ -536,6 +539,44 @@ void AbstractSolver::setInitialCondition(ParGridFunction &state,
    state.ProjectCoefficient(u0);
 }
 
+void AbstractSolver::setFieldValue(HypreParVector &field,
+                                   const double u_init)
+{
+   ConstantCoefficient u0(u_init);
+   *scratch = field;
+   scratch->ProjectCoefficient(u0);
+   scratch->GetTrueDofs(field);
+}
+
+void AbstractSolver::setFieldValue(
+   HypreParVector &field,
+   const std::function<double(const Vector &)> &u_init)
+{
+   FunctionCoefficient u0(u_init);
+   *scratch = field;
+   scratch->ProjectCoefficient(u0);
+   scratch->GetTrueDofs(field);
+}
+
+void AbstractSolver::setFieldValue(HypreParVector &field,
+                                   const Vector &u_init)
+{
+   VectorConstantCoefficient u0(u_init);
+   *scratch = field;
+   scratch->ProjectCoefficient(u0);
+   scratch->GetTrueDofs(field);
+}
+
+void AbstractSolver::setFieldValue(
+   HypreParVector &field,
+   const std::function<void(const Vector &, Vector&)> &u_init)
+{
+   VectorFunctionCoefficient u0(num_state, u_init);
+   *scratch = field;
+   scratch->ProjectCoefficient(u0);
+   scratch->GetTrueDofs(field);
+}
+
 double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType &y) const
 {
    ParFiniteElementSpace *fe_space = x.ParFESpace();
@@ -750,25 +791,46 @@ double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
    // return std::sqrt(calcInnerProduct(r, r));
 }
 
-std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
+// std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
+//    double *data)
+// {
+//    if (data == nullptr)
+//    {
+//       auto gf = std::unique_ptr<ParGridFunction>(
+//          new ParGridFunction(fes.get()));
+
+//       *gf = 0.0;
+//       return gf;
+//    }
+//    else
+//    {
+//       auto gf = std::unique_ptr<ParGridFunction>(
+//          new ParGridFunction(fes.get(), data));
+
+//       return gf;
+//    }
+// }
+
+std::unique_ptr<HypreParVector> AbstractSolver::getNewField(
    double *data)
 {
    if (data == nullptr)
    {
-      auto gf = std::unique_ptr<ParGridFunction>(
-         new ParGridFunction(fes.get()));
+      auto field = std::unique_ptr<HypreParVector>(
+         new HypreParVector(fes.get()));
 
-      *gf = 0.0;
-      return gf;
+      *field = 0.0;
+      return field;
    }
    else
    {
-      auto gf = std::unique_ptr<ParGridFunction>(
-         new ParGridFunction(fes.get(), data));
-
-      return gf;
+      auto field = std::unique_ptr<HypreParVector>(
+         new HypreParVector(fes->GetComm(),
+                            fes->GlobalTrueVSize(),
+                            data,
+                            fes->GetTrueDofOffsets()));
+      return field;
    }
-
 }
 
 

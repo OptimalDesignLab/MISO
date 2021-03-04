@@ -810,6 +810,11 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
       addOutputDomainIntegrator(fun,
                                 new MagneticCoenergyIntegrator(*u, nu.get()));
    }
+   else if (fun == "ACLoss")
+   {
+      addOutputDomainIntegrator(fun,
+                  new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0));
+   }
    else
    {
       throw MachException("Output with name " + fun + " not supported by "
@@ -1226,6 +1231,8 @@ void MagnetostaticSolver::constructCoefficients()
    constructMagnetization();
    /// Construct reluctivity coefficient
    constructReluctivity();
+   /// Construct electircal conductivity coefficient
+   constructSigma();
 }
 
 void MagnetostaticSolver::addMassIntegrators(double alpha)
@@ -1527,6 +1534,38 @@ void MagnetostaticSolver::constructCurrent()
       }
    }
 }
+
+void MagnetostaticSolver::constructSigma()
+{
+   sigma.reset(new MeshDependentCoefficient);
+
+   /// loop over all components, construct conductivity for each
+   for (auto& component : options["components"])
+   {
+      int attr = component.value("attr", -1);
+
+      const auto &material = component["material"].get<std::string>();
+      double sigma_val = materials[material].value("sigma", 0.0);
+
+      if (-1 != attr)
+      {
+         std::unique_ptr<mfem::Coefficient> temp_coeff;
+         temp_coeff.reset(new ConstantCoefficient(sigma_val));
+         sigma->addCoefficient(attr, move(temp_coeff));
+      }
+      else
+      {
+         auto attrs = component["attrs"].get<std::vector<int>>();
+         for (auto& attribute : attrs)
+         {
+            std::unique_ptr<mfem::Coefficient> temp_coeff;
+            temp_coeff.reset(new ConstantCoefficient(sigma_val));
+            sigma->addCoefficient(attribute, move(temp_coeff));
+         }
+      }
+   }
+}
+
 
 void MagnetostaticSolver::assembleCurrentSource()
 {

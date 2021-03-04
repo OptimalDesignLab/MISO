@@ -15,13 +15,13 @@ void setInputs(CurrentLoad &load,
 {
    for (auto &input : inputs)
    {
-      if (input.first == "current_density")
+      if (input.first == "current-density")
       {
-         if (input.second.isValue())
+         try
          {
             load.current_density = input.second.getValue();
          }
-         else
+         catch (const MachException &e)
          {
             throw MachException("Current density should be a scalar!");
          }

@@ -258,10 +258,10 @@ class SolverRegressionTests(unittest.TestCase):
         solver.createOutput("testMachInput");
 
         state = solver.getNewField()
-        solver.setInitialFieldValue(state, 0.0);
+        solver.setFieldValue(state, 0.0);
 
         test_field = solver.getNewField();
-        solver.setInitialFieldValue(test_field, 0.0);
+        solver.setFieldValue(test_field, 0.0);
 
         inputs = {
             "test_val": 2.0,
@@ -277,9 +277,130 @@ class SolverRegressionTests(unittest.TestCase):
         self.assertAlmostEqual(fun, 1.0)
 
         inputs["test_val"] = 0.0;
-        solver.setInitialFieldValue(test_field, -1.0);
+        solver.setFieldValue(test_field, -1.0);
         fun = solver.calcOutput("testMachInput", inputs);
         self.assertAlmostEqual(fun, -1.0)
+
+    def test_ac_losses(self):
+        # import Kelvin functions and derivatives
+        from scipy.special import ber, bei, berp, beip
+
+        freq = 1e2
+        mu_r = 1.0
+        mu_0 = 4.0 * np.pi * 1e-7
+        sigma = 400.0
+
+        d_c = 1.0
+        r = d_c / 2.0
+
+        R_dc = 1.0 / (sigma * np.pi * r ** 2)
+        print("R_dc: \t\t", R_dc)
+
+        delta = 1 / np.sqrt(np.pi * freq * mu_r * mu_0 * sigma)
+        # print("delta: ", delta)
+
+        q = d_c / (np.sqrt(2.0) * delta)
+        R_ac = (np.sqrt(2.0) / (np.pi * d_c * sigma * delta)
+                * (ber(q) * beip(q) - bei(q)*berp(q)) / (berp(q)**2 + beip(q)**2))
+        print("R_ac: \t\t", R_ac)
+
+        R_ac_approx = 1.0 / (np.pi * sigma * delta * 
+                        (1 - np.exp(-r/delta)) * (2*r - delta*(1 - np.exp(-r/delta))))
+        print("R_ac_approx: \t", R_ac_approx)
+
+        K_s = 1.0
+        x_s4 = ((8 * np.pi * freq * K_s) / (R_dc * 1e7))**2
+        x_s = x_s4 ** 0.25
+        # print("x_s: ", x_s)
+        y_s = x_s4 / (192.0 + 0.8 * x_s4)
+        # print("AC factor: ", 1.0 + y_s)
+        R_ac_approx2 = R_dc * (1.0 + y_s)
+        print("R_ac_approx2: \t", R_ac_approx2)
+        print(2*"\n")
+
+
+        options = {
+            "silent": False,
+            "print-options": False,
+            "mesh": {
+                "file": "../../test/regression/egads/data/wire.smb",
+                "model-file": "../../test/regression/egads/data/wire.egads"
+            },
+            "space-dis": {
+                "basis-type": "nedelec",
+                "degree": 2
+            },
+            "time-dis": {
+                "steady": True,
+                "steady-abstol": 1e-12,
+                "steady-reltol": 1e-10,
+                "ode-solver": "PTC",
+                "t-final": 100,
+                "dt": 1e12,
+                "max-iter": 10
+            },
+            "lin-solver": {
+                "type": "hypregmres",
+                "printlevel": 0,
+                "maxiter": 100,
+                "abstol": 1e-14,
+                "reltol": 1e-14
+            },
+            "lin-prec": {
+                "type": "hypreams",
+                "printlevel": 0
+            },
+            "nonlin-solver": {
+                "type": "newton",
+                "printlevel": 3,
+                "maxiter": 50,
+                "reltol": 1e-10,
+                "abstol": 1e-12
+            },
+            "components": {
+                "attr1": {
+                    "material": "copperwire",
+                    "attr": 1,
+                    "linear": True
+                }
+            },
+            "bcs": {
+                "essential": [1, 2, 3, 4]
+            },
+            "problem-opts": {
+                "fill-factor": 1.0,
+                # "current-density": 1.2732395447351627e7,
+                "current-density": 1.0,
+                "current": {
+                    "z": [1]
+                }
+            }
+        }
+
+        solver = MachSolver("Magnetostatic", options)
+        solver.createOutput("ACLoss");
+
+        state = solver.getNewField()
+        zero = Vector(np.array([0.0,0.0,0.0]))
+        solver.setFieldValue(state, zero);
+
+
+        inputs = {
+            "current-density": 1.2732395447351627e7,
+            "state": state
+        }
+        solver.solveForState(inputs, state)
+
+        inputs = {
+            "diam": d_c,
+            "omega": freq,
+            "state": state
+        }
+        fun = solver.calcOutput("ACLoss", inputs);
+
+        print("ACLoss val: ", fun)
+
+        print(2*"\n")
 
 
 if __name__ == '__main__':

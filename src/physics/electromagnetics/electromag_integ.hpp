@@ -741,6 +741,17 @@ private:
 class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
+   /// \brief allows changing the frequency and diameter of the strands for AC
+   /// loss calculation
+   friend void setInput(HybridACLossFunctionalIntegrator &integ,
+                        const std::string &name,
+                        const MachInput &input);
+
+   /// \brief - Compute AC copper losses in the domain based on a hybrid
+   ///          analytical-FEM approach
+   /// \param[in] sigma - the electrical conductivity coefficient
+   /// \param[in] omega - the electrical excitation frequency 
+   /// \param[in] diam - the diameter of a strand in the bundle
    HybridACLossFunctionalIntegrator(mfem::Coefficient &sigma,
                                     const double omega,
                                     const double diam)

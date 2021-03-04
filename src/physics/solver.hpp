@@ -146,6 +146,34 @@ public:
       mfem::ParGridFunction &state,
       const mfem::Vector &u_init);
 
+   /// Initializes the field to a given constant
+   /// \param[in] field - the field to set
+   /// \param[in] u_init - constant to set the field to
+   virtual void setFieldValue(
+      mfem::HypreParVector &field,
+      const double u_init);
+
+   /// Initializes the field to a given scalar function
+   /// \param[in] field - the field to set
+   /// \param[in] u_init - function that defines spatially varying field
+   virtual void setFieldValue(
+      mfem::HypreParVector &field,
+      const std::function<double(const mfem::Vector &)> &u_init);
+      
+   /// Initializes the vector field to a given constant vector
+   /// \param[in] field - the vector field to set
+   /// \param[in] u_init - vector to set the field to
+   virtual void setFieldValue(
+      mfem::HypreParVector &field,
+      const mfem::Vector &u_init);
+
+   /// Sets the vector field to a given vector-valued function.
+   /// \param[in] field - the vector field to set
+   /// \param[in] u_init - function that defines spatially varying vector field
+   virtual void setFieldValue(
+      mfem::HypreParVector &field,
+      const std::function<void(const mfem::Vector &, mfem::Vector&)> &u_init);
+
    /// TODO move to protected?
    /// Returns the integral inner product between two grid functions
    /// \param[in] x - grid function 
@@ -334,7 +362,13 @@ public:
    /// \param[in] data - external data array
    /// \note If `data` is nullptr a new array will be allocated. If `data` is 
    /// not `nullptr` it is assumed to be of size of at least `fes->GetVSize()`
-   std::unique_ptr<mfem::ParGridFunction> getNewField(double *data = nullptr);
+   // std::unique_ptr<mfem::ParGridFunction> getNewField(double *data = nullptr);
+
+   /// Return a state sized vector constructed from an externally allocated array
+   /// \param[in] data - external data array
+   /// \note If `data` is nullptr a new array will be allocated. If `data` is 
+   /// not `nullptr` it is assumed to be of size of at least `fes->GetTrueVSize()`
+   std::unique_ptr<mfem::HypreParVector> getNewField(double *data = nullptr);
 
    /// Compute the residual based on the current solution in `u`
    /// \param[out] residual - the residual
@@ -482,6 +516,8 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// pointer to mesh's underlying finite element space
    SpaceType *mesh_fes;
+   /// state sized work vector
+   std::unique_ptr<mfem::ParGridFunction> scratch;
    /// state variable
    std::unique_ptr<GridFunType> u;
    /// initial state variable
