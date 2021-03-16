@@ -2610,18 +2610,13 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       const double b_mag = b_vec.Norml2() / trans.Weight();
-      // std::cout << "b_mag: " << b_mag << "\n";
-
+      
       const double sigma_val = sigma.Eval(trans, ip);
-      // std::cout << "sigma_val: " << sigma_val << "\n";
 
       const double loss = std::pow(diam, 2)
                               * sigma_val * std::pow(omega * b_mag, 2) / 64.0;
-      // std::cout << "loss: " << loss << "\n";
       fun += loss * fill_factor * w;
-         // std::pow(diam,2) * sigma_val * std::pow(omega*b_mag, 2) * w / 64.0;
    }
-   // std::cout << "fun: " << fun << "\n";
    return fun;
 }
 
