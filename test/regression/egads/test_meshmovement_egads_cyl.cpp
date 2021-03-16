@@ -1,4 +1,3 @@
-/// Solve the steady isentropic vortex problem on a quarter annulus
 #include <fstream>
 #include <iostream>
 
@@ -64,8 +63,6 @@ auto options = R"(
    "outputs": {
    }
 })"_json;
-
-
 
 TEST_CASE("Mesh Movement EGADS Cylinder Test",
           "[Mesh-Movement-EGADS-Cyl]")

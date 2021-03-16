@@ -2537,6 +2537,14 @@ void setInput(HybridACLossFunctionalIntegrator &integ,
    {
       integ.omega = input.getValue();
    }
+   else if (name == "fill-factor")
+   {
+      integ.fill_factor = input.getValue();
+   }
+   else if (name == "num-strands")
+   {
+      integ.n_strands = input.getValue();
+   }
 }
 
 double HybridACLossFunctionalIntegrator::GetElementEnergy(
@@ -2588,8 +2596,8 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
-
+      w = ip.weight * trans.Weight();
+      // std::cout << "weight: " << trans.Weight() << "\n";
       if ( dim == 3 )
       {
          el.CalcCurlShape(ip, curlshape);
@@ -2602,11 +2610,18 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       const double b_mag = b_vec.Norml2() / trans.Weight();
+      // std::cout << "b_mag: " << b_mag << "\n";
 
       const double sigma_val = sigma.Eval(trans, ip);
+      // std::cout << "sigma_val: " << sigma_val << "\n";
 
-      fun += std::pow(diam,2) * sigma_val * std::pow(omega*b_mag, 2) * w / 16.0;
+      const double loss = std::pow(diam, 2)
+                              * sigma_val * std::pow(omega * b_mag, 2) / 64.0;
+      // std::cout << "loss: " << loss << "\n";
+      fun += loss * fill_factor * w;
+         // std::pow(diam,2) * sigma_val * std::pow(omega*b_mag, 2) * w / 64.0;
    }
+   // std::cout << "fun: " << fun << "\n";
    return fun;
 }
 
