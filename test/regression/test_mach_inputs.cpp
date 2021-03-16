@@ -68,10 +68,10 @@ TEST_CASE("MachInputs Scalar Input Test",
    auto solver = createSolver<TestMachInputSolver>(options,
                                                    move(mesh));
    auto state = solver->getNewField();
-   solver->setInitialCondition(*state, 0.0);
+   solver->setFieldValue(*state, 0.0);
 
    auto test_field = solver->getNewField();
-   solver->setInitialCondition(*test_field, 0.0);
+   solver->setFieldValue(*test_field, 0.0);
 
    auto inputs = MachInputs({
       {"test_val", 2.0},
@@ -98,10 +98,10 @@ TEST_CASE("MachInputs Field Input Test",
    auto solver = createSolver<TestMachInputSolver>(options,
                                                    move(mesh));
    auto state = solver->getNewField();
-   solver->setInitialCondition(*state, 0.0);
+   solver->setFieldValue(*state, 0.0);
 
    auto test_field = solver->getNewField();
-   solver->setInitialCondition(*test_field, 0.0);
+   solver->setFieldValue(*test_field, 0.0);
 
    auto inputs = MachInputs({
       {"test_val", 0.0},
@@ -114,7 +114,7 @@ TEST_CASE("MachInputs Field Input Test",
    std::cout << "fun: " << fun << "\n";
    REQUIRE(fun == Approx(0.0).margin(1e-10));
 
-   solver->setInitialCondition(*test_field, -1.0);
+   solver->setFieldValue(*test_field, -1.0);
    fun = solver->calcOutput("testMachInput", inputs);
    std::cout << "fun: " << fun << "\n";
    REQUIRE(fun == Approx(-1.0).margin(1e-10));

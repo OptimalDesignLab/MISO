@@ -107,10 +107,11 @@ TEST_CASE("Thermal Cube Solver Steady Regression Test",
                return -x(0)*x(0) - x(1)*x(1) + temp0;
             };
 
-            solver->setInitialCondition(*state, u0);
+            solver->setFieldValue(*state, u0);
 
-            solver->solveForState(*state);
-            double l2_error = solver->calcL2Error(state.get(), u0);
+            MachInputs inputs;
+            solver->solveForState(inputs, *state);
+            double l2_error = solver->calcL2Error(*state, u0);
             std::cout << "l2_error: " << l2_error << "\n";
             REQUIRE(l2_error == Approx(target_error[ref-1]).margin(1e-10));
          }

@@ -212,6 +212,24 @@ public:
                                                mfem::Vector &)> &u_exact,
                       int entry = -1);
 
+   /// Returns the L2 error of a field and given exact solution.
+   /// \param[in] field - state vector to compute L2 error for
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \return L2 error
+   double calcL2Error(mfem::HypreParVector &field,
+                      const std::function<double(const mfem::Vector &)> &u_exact);
+   
+   /// Returns the L2 error of a field and given exact solution.
+   /// \param[in] field - state vector to compute L2 error for
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \return L2 error
+   double calcL2Error(mfem::HypreParVector &field,
+                      const std::function<void(const mfem::Vector &,
+                                               mfem::Vector &)> &u_exact,
+                      int entry = -1);
+
    /// Find the step size based on the options
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)

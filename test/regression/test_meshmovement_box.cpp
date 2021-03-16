@@ -90,21 +90,21 @@ TEST_CASE("Mesh Movement Box Regression Test",
          unique_ptr<Mesh> smesh = buildBoxMesh(nxy, nz);
          auto solver = createSolver<LEAnalogySolver>(options, move(smesh));
          auto coord_field = solver->getNewField();
-         solver->setInitialCondition(*coord_field, boxDisplacement);
-         solver->solveForState(*coord_field);
-         solver->printField("sol", *coord_field, "coords", 0);
+         solver->setFieldValue(*coord_field, boxDisplacement);
+         MachInputs inputs;
+         solver->solveForState(inputs, *coord_field);
+         // solver->printField("sol", *coord_field, "coords", 0);
 
          // Compute error and check against appropriate target
-         mfem::VectorFunctionCoefficient dispEx(3, boxDisplacement);
-         double l2_error = coord_field->ComputeL2Error(dispEx);
+         double l2_error = solver->calcL2Error(*coord_field, boxDisplacement);
          std::cout << "\n\nl2 error in field: " << l2_error << "\n\n\n";
          REQUIRE(l2_error == Approx(target_error[ref - 1]).margin(1e-10));
 
-         auto res_norm = solver->calcResidualNorm(*coord_field);
-         std::cout << "\n\n res_norm: " << res_norm << "\n";
-         auto &mesh_coords = solver->getMeshCoordinates();
-         mesh_coords.SetData(coord_field->GetData());
-         solver->printMesh("moved_box_mesh");
+         // auto res_norm = solver->calcResidualNorm(*coord_field);
+         // std::cout << "\n\n res_norm: " << res_norm << "\n";
+         // auto &mesh_coords = solver->getMeshCoordinates();
+         // mesh_coords.SetData(coord_field->GetData());
+         // solver->printMesh("moved_box_mesh");
       }
    }
 }

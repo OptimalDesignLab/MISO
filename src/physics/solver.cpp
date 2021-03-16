@@ -782,6 +782,23 @@ double AbstractSolver::calcL2Error(
    return sqrt(norm);
 }
 
+double AbstractSolver::calcL2Error(
+   mfem::HypreParVector &field,
+   const std::function<double(const mfem::Vector &)> &u_exact)
+{
+   *scratch = field;
+   return calcL2Error(scratch.get(), u_exact);
+}
+
+double AbstractSolver::calcL2Error(
+   mfem::HypreParVector &field,
+   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
+   int entry)
+{
+   *scratch = field;
+   return calcL2Error(scratch.get(), u_exact, entry);
+}
+
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
    GridFunType r(fes.get());

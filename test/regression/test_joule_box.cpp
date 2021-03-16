@@ -123,6 +123,7 @@ auto therm_options = R"(
       }
    },
    "problem-opts": {
+      "outflux-type": "test",
       "fill-factor": 1.0,
       "current-density": 1.0,
       "current": {
@@ -136,7 +137,6 @@ auto therm_options = R"(
    "bcs": {
       "outflux": [0, 0, 1, 0, 1, 0]
    },
-   "outflux-type": "test",
    "outputs": {
       "temp-agg": {}
    },
@@ -204,15 +204,20 @@ TEST_CASE("Joule Box Solver Regression Test",
             auto em_solver = createSolver<MagnetostaticSolver>(em_options, 
                                                                move(em_mesh));
             auto em_state = em_solver->getNewField();
-            em_solver->setInitialCondition(*em_state, aexact);
-            em_solver->solveForState(*em_state);
+            em_solver->setFieldValue(*em_state, aexact);
+            MachInputs em_inputs;
+            em_solver->solveForState(em_inputs, *em_state);
 
             auto therm_solver = createSolver<ThermalSolver>(therm_options, 
                                                             move(therm_mesh));
             auto therm_state = therm_solver->getNewField();
-            therm_solver->setResidualInput("mvp", *em_state);
-            therm_solver->setInitialCondition(*therm_state, initialTemp);
-            therm_solver->solveForState(*therm_state);
+            // therm_solver->setResidualInput("mvp", *em_state);
+            therm_solver->setFieldValue(*therm_state, initialTemp);
+
+            MachInputs therm_inputs = {
+               {"mvp", em_state->GetData()}
+            };
+            therm_solver->solveForState(therm_inputs, *therm_state);
 
             // solver->printSolution("thermal_final", 0);
             // double l2_error = solver->calcL2Error(exactSolution);
