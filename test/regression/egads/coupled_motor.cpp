@@ -324,8 +324,8 @@ TEST_CASE("Coupled Motor Solve",
 {
    auto em_solver = createSolver<MagnetostaticSolver>(em_options);
    auto em_state = em_solver->getNewField();
-   em_solver->setInitialCondition(*em_state,
-                                  [](const mfem::Vector &x, mfem::Vector &A)
+   em_solver->setFieldValue(*em_state,
+                            [](const mfem::Vector &x, mfem::Vector &A)
    {
       A = 0.0;
    });
@@ -345,7 +345,8 @@ TEST_CASE("Coupled Motor Solve",
    // });
    // therm_solver->setResidualInput("mvp", *em_state);
 
-   em_solver->solveForState(*em_state);
+   MachInputs inputs;
+   em_solver->solveForState(inputs, *em_state);
    // therm_solver->solveForState(*therm_state);
 
 }

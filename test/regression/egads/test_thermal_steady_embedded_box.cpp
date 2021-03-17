@@ -16,8 +16,8 @@ auto current_options = R"(
 {
    "print-options": false,
    "mesh": {
-      "file": "data/embedded_box.smb",
-      "model-file": "data/embedded_box.egads"
+      "file": "data/box_pumi.smb",
+      "model-file": "data/box_pumi.egads"
    },
    "space-dis": {
       "basis-type": "H1",
@@ -107,10 +107,10 @@ TEST_CASE("Thermal Solver Current Steady Regression Test",
             return -x(0)*x(0) - x(1)*x(1) + temp0;
          };
 
-         solver->setInitialCondition(*state, u0);
+         solver->setFieldValue(*state, u0);
 
          solver->solveForState(*state);
-         double l2_error = solver->calcL2Error(state.get(), u0);
+         double l2_error = solver->calcL2Error(*state, u0);
          std::cout << "l2_error: " << l2_error << "\n";
          REQUIRE(l2_error == Approx(target_error[order-1]).margin(1e-10));
       }
@@ -122,8 +122,8 @@ auto mag_options = R"(
 {
    "print-options": false,
    "mesh": {
-      "file": "data/embedded_box.smb",
-      "model-file": "data/embedded_box.egads"
+      "file": "data/box_pumi.smb",
+      "model-file": "data/box_pumi.egads"
    },
    "space-dis": {
       "basis-type": "H1",
@@ -187,8 +187,8 @@ auto em_opts = R"(
 {
    "print-options": false,
    "mesh": {
-      "file": "data/embedded_box.smb",
-      "model-file": "data/embedded_box.egads"
+      "file": "data/box_pumi.smb",
+      "model-file": "data/box_pumi.egads"
    },
    "space-dis": {
       "basis-type": "nedelec",
@@ -264,8 +264,9 @@ TEST_CASE("Thermal Solver Mag-Field Steady Regression Test",
       A(1) = 0.5*x(0);
       A(2) = 0.0;
    };
-   VectorFunctionCoefficient internalState(3, initState);
-   em_state->ProjectCoefficient(internalState);
+   // VectorFunctionCoefficient internalState(3, initState);
+   // em_state->ProjectCoefficient(internalState);
+   em_solver->setFieldValue(*em_state, initState);
 
    for (int order = 1; order <= 1; ++order)
    {
@@ -282,11 +283,13 @@ TEST_CASE("Thermal Solver Mag-Field Steady Regression Test",
             return -x(0)*x(0) - x(1)*x(1) + temp0;
          };
 
-         solver->setInitialCondition(*state, u0);
-         solver->setResidualInput("mvp", *em_state);
-
-         solver->solveForState(*state);
-         double l2_error = solver->calcL2Error(state.get(), u0);
+         solver->setFieldValue(*state, u0);
+         // solver->setResidualInput("mvp", *em_state);
+         MachInputs inputs = {
+            {"mvp", *em_state->GetData()}
+         };
+         solver->solveForState(inputs, *state);
+         double l2_error = solver->calcL2Error(*state, u0);
          std::cout << "l2_error: " << l2_error << "\n";
          REQUIRE(l2_error == Approx(target_error[order-1]).margin(1e-10));
       }

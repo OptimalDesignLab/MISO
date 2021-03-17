@@ -300,12 +300,18 @@ public:
    /// Default behavior is to return just the state `u`
    virtual std::vector<GridFunType*> getFields();
 
-   /// DEPRECIATED -> use version with inputs
+   /// DEPRECIATED -> use version with HypreParVector
    /// Solve for the state variables based on current mesh, solver, etc.
    virtual void solveForState() { solveForState(*u); };
 
-   /// DEPRECIATED -> use version with inputs
+   /// DEPRECIATED -> use version with HypreParVector
    virtual void solveForState(mfem::ParGridFunction &state);
+
+   inline virtual void solveForState(double *state)
+   { MachInputs inputs; solveForState(inputs, state); }
+
+   inline virtual void solveForState(mfem::HypreParVector &state)
+   { MachInputs inputs; solveForState(inputs, state); }
 
    virtual void solveForState(const MachInputs &inputs,
                               double *state);

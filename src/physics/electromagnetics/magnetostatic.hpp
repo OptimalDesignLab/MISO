@@ -57,6 +57,11 @@ public:
 
    void Update() override;
 
+   void setFieldValue(
+      mfem::HypreParVector &field,
+      const std::function<void(const mfem::Vector &,
+                               mfem::Vector&)> &u_init) override;
+
    /// TODO: rename this and other related functions to set BoundaryCondition
    /// Initializes the state vector to a given vector.
    /// \param[in] state - the state vector to initialize

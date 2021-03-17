@@ -22,10 +22,10 @@ set(TEST_SRCS
    test_acloss_functional
    test_meshmovement_egads_cyl
    test_joule_wire_egads
-   test_team13
+#   test_team13
    test_thermal_steady_embedded_box
    test_thermal_ring
-   coupled_motor
+#   coupled_motor
 )
 
 create_egads_tests("${TEST_SRCS}" "../regression_data.cpp")

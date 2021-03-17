@@ -163,7 +163,7 @@ TEST_CASE("Joule Wire Solver Regression Test",
    auto ex_state = therm_solver->getNewField();
    *ex_state = 308.69037774418;
 
-   ParGridFunction diff(*ex_state);
+   HypreParVector diff(*ex_state);
    diff -= *therm_state;
    REQUIRE(diff.Norml2() == Approx(0.0).margin(1e-10));
 }

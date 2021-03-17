@@ -82,7 +82,7 @@ TEST_CASE("Mesh Movement EGADS Cylinder Test",
 
       *surface_displacement += solver->getMeshCoordinates();
 
-      solver->setInitialCondition(*coord_field, *surface_displacement);
+      *coord_field = *surface_displacement;
       solver->solveForState(*coord_field);
       // solver->printSolution("final");
 

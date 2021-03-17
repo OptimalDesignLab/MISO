@@ -573,6 +573,16 @@ void MagnetostaticSolver::setEssentialBoundaries()
    AbstractSolver::setEssentialBoundaries();
 }
 
+void MagnetostaticSolver::setFieldValue(
+   HypreParVector &field,
+   const std::function<void(const Vector &, Vector&)> &u_init)
+{
+   VectorFunctionCoefficient u0(dim, u_init);
+   *scratch = field;
+   scratch->ProjectCoefficient(u0);
+   scratch->GetTrueDofs(field);
+}
+
 void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
 {
    double t = 0.0;

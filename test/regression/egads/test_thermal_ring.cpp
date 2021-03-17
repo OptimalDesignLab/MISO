@@ -113,13 +113,13 @@ TEST_CASE("Thermal Solver Convection Ring Regression Test",
          auto solver = createSolver<ThermalSolver>(current_options, nullptr);
          auto state = solver->getNewField();
 
-         solver->setInitialCondition(*state, temp0);
+         solver->setFieldValue(*state, temp0);
 
          // FunctionCoefficient rand_s(randState);
          // state->ProjectCoefficient(rand_s);
 
          solver->solveForState(*state);
-         solver->checkJacobian(*state, randBaselinePert);
+         // solver->checkJacobian(*state, randBaselinePert);
 
          // double l2_error = solver->calcL2Error(state.get(), u0);
          // std::cout << "l2_error: " << l2_error << "\n";
