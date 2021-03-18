@@ -825,7 +825,7 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
       addOutputDomainIntegrator(fun,
          new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0, 1.0));
    }
-   else if (fun == "DCloss")
+   else if (fun == "DCLoss")
    {
       addOutputDomainIntegrator(fun,
          new DCLossFunctionalIntegrator(*sigma, *current_coeff, 1.0, 1.0));

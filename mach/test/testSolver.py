@@ -381,6 +381,7 @@ class SolverRegressionTests(unittest.TestCase):
 
         solver = MachSolver("Magnetostatic", options)
         solver.createOutput("ACLoss");
+        solver.createOutput("DCLoss");
 
         state = solver.getNewField()
         zero = Vector(np.array([0.0, 0.0, 0.0]))
@@ -398,11 +399,21 @@ class SolverRegressionTests(unittest.TestCase):
             "fill-factor": 1.0,
             "state": state
         }
-        fun = solver.calcOutput("ACLoss", inputs);
+        acloss = solver.calcOutput("ACLoss", inputs);
         length = 0.001
-        print("ACLoss val: ", fun * 1.0 / length)
-        print("Analtyical loss: ", R_ac * (current ** 2))
-        print("delta: ", delta)
+        print("ACLoss val: ", acloss * 1.0 / length)
+        print("Analtyical AC loss: ", R_ac * (current ** 2))
+        # print("delta: ", delta)
+
+        inputs = {
+            "fill-factor": 1.0,
+            "current-density": current_density,
+            "state": state
+        }
+        dcloss = solver.calcOutput("DCLoss", inputs);
+        length = 0.001
+        print("DCLoss val: ", dcloss * 1.0 / length)
+        print("Analtyical DC loss: ", R_dc * (current ** 2))
 
         print(2*"\n")
 
