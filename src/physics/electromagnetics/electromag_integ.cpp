@@ -2525,6 +2525,73 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
+void setInput(DCLossFunctionalIntegrator &integ,
+              const std::string &name,
+              const MachInput &input)
+{
+   if (name == "current-density")
+   {
+      integ.current_density = input.getValue();
+   }
+   else if (name == "fill-factor")
+   {
+      integ.fill_factor = input.getValue();
+   }
+}
+
+double DCLossFunctionalIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+   const IntegrationRule *ir = NULL;
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   double current_vec_data[3];
+   Vector current_vec(current_vec_data, dimc);
+#else
+   current_vec.SetSize(dimc);
+#endif
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+
+      double w = ip.weight * trans.Weight();
+      
+      const double sigma_val = sigma.Eval(trans, ip);
+      current.Eval(current_vec, trans, ip);
+      current_vec *= current_density;
+      const double loss = (current_vec * current_vec) / sigma_val;
+      fun += loss * fill_factor * w;
+   }
+   return fun;
+}
+
 void setInput(HybridACLossFunctionalIntegrator &integ,
               const std::string &name,
               const MachInput &input)

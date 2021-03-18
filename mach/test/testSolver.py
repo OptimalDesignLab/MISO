@@ -285,19 +285,19 @@ class SolverRegressionTests(unittest.TestCase):
         # import Kelvin functions and derivatives
         from scipy.special import ber, bei, berp, beip
 
-        freq = 1e2
+        freq = 5e5
         mu_r = 1.0
         mu_0 = 4.0 * np.pi * 1e-7
-        sigma = 400.0
+        sigma = 58.14e6
 
-        d_c = 1.0
+        d_c = 0.002
         r = d_c / 2.0
 
         R_dc = 1.0 / (sigma * np.pi * r ** 2)
         print("R_dc: \t\t", R_dc)
 
         delta = 1 / np.sqrt(np.pi * freq * mu_r * mu_0 * sigma)
-        # print("delta: ", delta)
+        print("delta: ", delta)
 
         q = d_c / (np.sqrt(2.0) * delta)
         R_ac = (np.sqrt(2.0) / (np.pi * d_c * sigma * delta)
@@ -318,13 +318,16 @@ class SolverRegressionTests(unittest.TestCase):
         print("R_ac_approx2: \t", R_ac_approx2)
         print(2*"\n")
 
+        area = np.pi * r ** 2
+        current_density = 1e6
+        current = current_density * area
 
         options = {
             "silent": False,
             "print-options": False,
             "mesh": {
-                "file": "../../test/regression/egads/data/wire.smb",
-                "model-file": "../../test/regression/egads/data/wire.egads"
+                "file": "data/testSolver/wire.smb",
+                "model-file": "data/testSolver/wire.egads"
             },
             "space-dis": {
                 "basis-type": "nedelec",
@@ -384,21 +387,22 @@ class SolverRegressionTests(unittest.TestCase):
         solver.setFieldValue(state, zero);
 
         inputs = {
-            "current-density": 1.2732395447351627e7,
+            "current-density": current_density,
             "state": state
         }
         solver.solveForState(inputs, state)
 
-        print(state)
-
         inputs = {
             "diam": d_c,
             "omega": freq,
+            "fill-factor": 1.0,
             "state": state
         }
         fun = solver.calcOutput("ACLoss", inputs);
-
-        print("ACLoss val: ", fun)
+        length = 0.001
+        print("ACLoss val: ", fun * 1.0 / length)
+        print("Analtyical loss: ", R_ac * (current ** 2))
+        print("delta: ", delta)
 
         print(2*"\n")
 

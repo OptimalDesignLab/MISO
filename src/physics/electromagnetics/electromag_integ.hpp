@@ -737,6 +737,48 @@ private:
 #endif
 };
 
+/// Functional integrator to compute DC copper losses
+class DCLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// \brief allows changing the frequency and diameter of the strands for AC
+   /// loss calculation
+   friend void setInput(DCLossFunctionalIntegrator &integ,
+                        const std::string &name,
+                        const MachInput &input);
+
+   /// \brief - Compute DC copper losses in the domain
+   /// \param[in] sigma - the electrical conductivity coefficient
+   /// \param[in] current - the current density vector coefficient 
+   /// \param[in] current_density - the current density magnitude
+   /// \param[in] fill_factor - the density of strands in the bundle
+   DCLossFunctionalIntegrator(mfem::Coefficient &sigma,
+                              mfem::VectorCoefficient &current,
+                              double current_density,
+                              double fill_factor)
+   : sigma(sigma), current(current), current_density(current_density),
+      fill_factor(fill_factor)
+   { }
+
+   /// \brief - Compute DC copper losses in the domain
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the DC losses calculated over an element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   mfem::Coefficient &sigma;
+   mfem::VectorCoefficient &current;
+   double current_density;
+   double fill_factor;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector current_vec;
+#endif
+};
+
 /// Functional integrator to compute AC copper losses based on hybrid approach
 class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
