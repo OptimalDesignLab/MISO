@@ -5,6 +5,7 @@
 #include "mfem.hpp"
 
 #include "utils.hpp"
+#include "coefficient.hpp"
 #include "mach_load.hpp"
 #include "current_load.hpp"
 
