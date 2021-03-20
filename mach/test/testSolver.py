@@ -285,7 +285,8 @@ class SolverRegressionTests(unittest.TestCase):
         # import Kelvin functions and derivatives
         from scipy.special import ber, bei, berp, beip
 
-        freq = 5e5
+        # 26 gauge wire for real
+        freq = 1e3
         mu_r = 1.0
         mu_0 = 4.0 * np.pi * 1e-7
         sigma = 58.14e6
@@ -319,7 +320,7 @@ class SolverRegressionTests(unittest.TestCase):
         print(2*"\n")
 
         area = np.pi * r ** 2
-        current_density = 1e6
+        current_density = 11e6
         current = current_density * area
 
         options = {
@@ -331,7 +332,7 @@ class SolverRegressionTests(unittest.TestCase):
             },
             "space-dis": {
                 "basis-type": "nedelec",
-                "degree": 2
+                "degree": 1
             },
             "time-dis": {
                 "steady": True,
@@ -389,6 +390,7 @@ class SolverRegressionTests(unittest.TestCase):
 
         inputs = {
             "current-density": current_density,
+            "fill-factor": 1.0,
             "state": state
         }
         solver.solveForState(inputs, state)
@@ -415,6 +417,69 @@ class SolverRegressionTests(unittest.TestCase):
         print("DCLoss val: ", dcloss * 1.0 / length)
         print("Analtyical DC loss: ", R_dc * (current ** 2))
 
+        print(2*"\n")
+        print(20*"*")
+        print("litz loss")
+        print(20*"*")
+
+        # 3 strands in bundle
+        bundle_rad = r
+        strand_rad = float(1 / (1+2/np.sqrt(3)) * bundle_rad)
+        strand_area = np.pi * strand_rad ** 2
+        n = 3
+        strand_current = current_density * n*strand_area
+        fill_factor = float(n*strand_area / (np.pi*bundle_rad**2))
+        
+        inputs = {
+            "current-density": current_density,
+            "fill-factor": fill_factor,
+            "state": state
+        }
+        solver.solveForState(inputs, state)
+
+        inputs = {
+            "diam": strand_rad*2,
+            "omega": freq,
+            "fill-factor": fill_factor,
+            "state": state
+        }
+        acloss = solver.calcOutput("ACLoss", inputs);
+        length = 0.001
+        inputs = {
+            "fill-factor": fill_factor,
+            "current-density": current_density,
+            "state": state
+        }
+        dcloss = solver.calcOutput("DCLoss", inputs);
+        length = 0.001
+
+        # print("strand_rad: ", strand_rad)
+        X = 0.271*strand_rad*2*np.sqrt(freq*1e-6)
+        H = 0.0
+        K = 1.55
+        G = (strand_rad*2 * np.sqrt(freq) / 10.44) ** 4
+        Rac_Rdc = H + K * ((n * strand_rad / bundle_rad) ** 2) * G
+        print("Rac / Rdc,", Rac_Rdc)
+        R_dc_strand = 1.0 / (sigma * np.pi * strand_rad ** 2) # Ohm/meter
+
+        print("strand rad: ", strand_rad)
+        print("R_dc strand: ", R_dc_strand)
+        n_b = 1
+        n_c = 1
+        R_dc = R_dc_strand * ((1.015) ** n_b) * ((1.025) ** n_c) / n
+        # print("R_dc litz: ", R_dc)
+
+        print("\n")
+
+        print("FEM AC loss: ", acloss * 1.0 / length)
+        # print("FEM DC loss: ", dcloss * 1.0 / length)
+
+        # print("Litz wire DC loss: ", R_dc * strand_current ** 2)
+        R_ac = Rac_Rdc * R_dc
+        print("Litz wire AC loss: ", R_ac * strand_current ** 2)
+
+
+        litz_loss = 1.0
         print(2*"\n")
 
 

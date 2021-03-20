@@ -1051,6 +1051,8 @@ void AbstractSolver::solveForState(const MachInputs &inputs,
    state_gf.SetFromTrueVector();
    
    solveUnsteady(state_gf);
+   // this is not necessary if state_gf is unchanged after timestepping
+   // unnecessary communication
    state_gf.GetTrueDofs(state);
 }
 
@@ -1943,7 +1945,8 @@ void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
    if (input.isField())
    {
       auto &field = res_fields.at(name);
-      field.SetData(input.getField());
+      field.MakeTRef(field.ParFESpace(), input.getField());
+      field.SetFromTrueVector();
    }
    else if (input.isValue())
    {

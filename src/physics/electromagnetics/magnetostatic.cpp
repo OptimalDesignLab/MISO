@@ -636,8 +636,8 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
 
    // int max_iter = options["time-dis"]["max-iter"].get<int>();
    // double dlambda = 1.0/(max_iter-1);
-   std::vector<double> lambda = {0.0, 1./8, 1./3, 2./3, 3./4, 7./8, 15./16, 31./32, 63./64, 127./128, 1.0};
-   // std::vector<double> lambda = {1.0}; // just for a test
+   // std::vector<double> lambda = {0.0, 1./8, 1./3, 2./3, 3./4, 7./8, 15./16, 31./32, 63./64, 127./128, 1.0};
+   std::vector<double> lambda = {0.0}; // just for a test
    // for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    for (ti = 0; ti < lambda.size(); ++ti)
    {
@@ -649,9 +649,9 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
       *out << endl;
       iterationHook(ti, t, dt, state);
       // computeSecondaryFields(state);
-      HypreParVector *u_true = state.GetTrueDofs();
-      ode_solver->Step(*u_true, t, dt);
-      state = *u_true;
+      auto &u_true = state.GetTrueVector();
+      ode_solver->Step(u_true, t, dt);
+      state.SetFromTrueDofs(u_true);
 
       // if (paraview)
       // {
@@ -734,11 +734,12 @@ void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
    // dnfi[0] = new CurlCurlNLFIntegrator(nu.get());
    // AbstractSolver::solveUnsteady(state);
 
-   HypreParVector new_load(fes.get());
-   new_load = 0.0;
-   addLoad(*load, new_load);
+   // HypreParVector new_load(fes.get());
+   // new_load = 0.0;
+   // addLoad(*load, new_load);
 
    _solveUnsteady(state);
+   // AbstractSolver::solveUnsteady(state);
 }
 //    *out << "Tucker: please check if the code below is needed" << endl;
 //    // if (newton_solver == nullptr)

@@ -17,14 +17,11 @@ void setInputs(CurrentLoad &load,
    {
       if (input.first == "current-density")
       {
-         try
-         {
-            load.current_density = input.second.getValue();
-         }
-         catch (const MachException &e)
-         {
-            throw MachException("Current density should be a scalar!");
-         }
+         load.current_density = input.second.getValue();
+      }
+      else if (input.first == "fill-factor")
+      {
+         load.fill_factor = input.second.getValue();
       }
    }
    load.nd_mass.Update();
@@ -39,7 +36,8 @@ void addLoad(CurrentLoad &load,
       load.dirty = false;
       load.assembleLoad();
    }
-   add(tv, -load.current_density, load.load, tv);
+   const auto effective_cd = load.current_density * load.fill_factor;
+   add(tv, -effective_cd, load.load, tv);
 }
 
 CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
@@ -47,8 +45,9 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    : fes(pfes), h1_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    h1_fes(fes.GetParMesh(), &h1_coll),
    rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()), 
-   rt_fes(fes.GetParMesh(), &rt_coll), current_density(1.0), load(&fes),
-   scratch(&fes), nd_mass(&fes), J(&fes), j(&fes), div_free_current_vec(&fes),
+   rt_fes(fes.GetParMesh(), &rt_coll), current_density(1.0), fill_factor(1.0),
+   load(&fes), scratch(&fes), nd_mass(&fes), J(&fes), j(&fes),
+   div_free_current_vec(&fes),
    div_free_proj(h1_fes, fes, h1_fes.GetElementTransformation(0)->OrderW()
                                  + 2 * fes.GetFE(0)->GetOrder(),
                  NULL, NULL, NULL), dirty(true)

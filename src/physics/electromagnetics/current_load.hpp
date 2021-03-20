@@ -33,6 +33,7 @@ private:
    mfem::ParFiniteElementSpace rt_fes;
    
    double current_density;
+   double fill_factor;
    mfem::HypreParVector load;
    mfem::HypreParVector scratch;
 
