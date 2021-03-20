@@ -14,7 +14,7 @@ options = {
     },
     "space-dis": {
         "basis-type": "nedelec",
-        "degree": 1
+        "degree": 2
     },
     "time-dis": {
         "steady": True,
@@ -63,7 +63,9 @@ options = {
 }
 
 def getK(N):
-    if N == 3:
+    if N == 1:
+        return 1.0
+    elif N == 3:
         return 1.55
     elif N == 9:
         return 1.84
@@ -75,17 +77,15 @@ def getK(N):
 def calcLitzResistance(n, r_s, r_0, f, sigma = 58.14e6, H = 0.0, n_b = 1, n_c = 1):
     K = getK(n)
     G = (3.7163312378020414 * r_s*2 * np.sqrt(f) ) ** 4 # r_s in meters
-    print("G:",G)
     Rac_Rdc = H + K * ((n * r_s / r_0) ** 2) * G
-    print(K * ((n * r_s / r_0) ** 2) * G)
 
     R_dc_strand = 1.0 / (sigma * np.pi * r_s ** 2) # Ohm/meter
     R_dc = R_dc_strand * ((1.015) ** n_b) * ((1.025) ** n_c) / n
     R_ac = Rac_Rdc * R_dc
     return R_ac, R_dc
 
-def calcLitzLoss(current_density, fill_factor, n, r_s, r_0, f):
-    R_ac, R_dc = calcLitzResistance(n, r_s, r_0, f)
+def calcLitzLoss(current_density, fill_factor, n, r_s, r_0, f, H = 0.0, n_b = 1, n_c = 1):
+    R_ac, R_dc = calcLitzResistance(n, r_s, r_0, f, H=H, n_b=n_b, n_c=n_c)
 
     strand_area = np.pi * r_s ** 2
     litz_current = current_density * n*strand_area
@@ -94,7 +94,7 @@ def calcLitzLoss(current_density, fill_factor, n, r_s, r_0, f):
     return acloss, dcloss
 
 
-def calcFEMLoss(solver, state, current_density, fill_factor, r_s, freq):
+def calcFEMLoss(solver, state, current_density, fill_factor, n, r_s, freq):
     inputs = {
         "current-density": current_density,
         "fill-factor": fill_factor,
@@ -104,8 +104,9 @@ def calcFEMLoss(solver, state, current_density, fill_factor, r_s, freq):
 
     inputs = {
         "diam": r_s*2,
-        "omega": freq,
+        "frequency": freq,
         "fill-factor": fill_factor,
+        "num-strands": float(n),
         "state": state
     }
     acloss = solver.calcOutput("ACLoss", inputs);
@@ -134,8 +135,8 @@ if __name__ == "__main__":
     r_0 = d_0 / 2.0
     length = 0.001
 
-    nsamples = 5
-    freqs = np.logspace(0, 6, nsamples)
+    nsamples = 4
+    freqs = np.logspace(2, 4, nsamples)
     fem_ac = np.zeros(nsamples)
     litz_ac = np.zeros(nsamples)
     litz_Rac = np.zeros(nsamples)
@@ -150,10 +151,17 @@ if __name__ == "__main__":
         # # 3 strands in bundle
         # n = 3
         # r_s = float(1 / (1+2/np.sqrt(3)) * r_0)
+        # filename = "acloss3strand.png"
 
-        # 27 strands
-        n = 27 
-        r_s = 0.169307931135 * r_0
+        # # 27 strands
+        # n = 27 
+        # r_s = 0.169307931135 * r_0
+        # filename = "acloss27strand.png"
+
+        # 450 strands
+        n = 450
+        r_s = 0.043571578291 * r_0
+        filename = "acloss450strand.png"
 
         strand_area = np.pi * r_s ** 2
         fill_factor = float(n*strand_area / (np.pi*r_0**2))
@@ -161,8 +169,8 @@ if __name__ == "__main__":
         R_ac, R_dc = calcLitzResistance(n, r_s, r_0, freq)
         litz_Rac[i] = R_ac
 
-        litzacloss, litzdcloss = calcLitzLoss(current_density, fill_factor, n, r_s, r_0, freq)
-        acloss, dcloss = calcFEMLoss(solver, state, current_density, fill_factor, r_s, freq)
+        litzacloss, litzdcloss = calcLitzLoss(current_density, fill_factor, n, r_s, r_0, freq, n_b = 0, n_c = 0)
+        acloss, dcloss = calcFEMLoss(solver, state, current_density, fill_factor, n, r_s, freq)
 
         fem_ac[i] = acloss / length
         litz_ac[i] = litzacloss
@@ -176,6 +184,9 @@ if __name__ == "__main__":
 
     print(fem_ac)
     print(litz_ac)
+    print(freqs)
+
+    print(fem_ac / litz_ac)
 
     fig, ax = plt.subplots()
     ax.loglog(freqs, fem_ac, label="Hybrid-FEM")
@@ -184,8 +195,9 @@ if __name__ == "__main__":
     ax.set(xlabel='frequency (Hz)', ylabel='AC Loss (W)')
     ax.grid()
     ax.legend()
+    plt.ylim((1e-7, 1e0))
 
-    fig.savefig("acloss.png")
+    fig.savefig(filename)
     # plt.show()
 
     # fig, ax = plt.subplots()
@@ -195,16 +207,19 @@ if __name__ == "__main__":
     # fig.savefig("resistance.png")
     # plt.show()
 
-    n_b = 2
-    n_c = 1
-    r_s = 3.995e-5 # 40 AWG
-    r_0 = 0.0011938
-    n = 450
-    f = 100 * 1e3
+    #######################################################
+    # This is the example from the New England Wire site
+    #######################################################
+    # n_b = 2
+    # n_c = 1
+    # r_s = 3.995e-5 # 40 AWG
+    # r_0 = 0.0011938
+    # n = 450
+    # f = 100 * 1e3
 
-    R_ac, R_dc = calcLitzResistance(n, r_s, r_0, f, n_b=n_b, n_c=n_c, H=1.0, sigma=5.275528344750871e7)
+    # R_ac, R_dc = calcLitzResistance(n, r_s, r_0, f, n_b=n_b, n_c=n_c, H=1.0, sigma=5.275528344750871e7)
 
-    print(R_dc * 304.8)
-    print(R_ac * 304.8)
+    # print(R_dc * 304.8)
+    # print(R_ac * 304.8)
 
 

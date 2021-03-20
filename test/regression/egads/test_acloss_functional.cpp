@@ -94,18 +94,18 @@ TEST_CASE("HybridACLossFunctionalIntegrator::GetEnergy",
    // auto sigma_val = 58.14e6;
    auto sigma_val = 1.0;
    ConstantCoefficient sigma(sigma_val); // conductivity
-   auto omega = 1000.0; // frequency
+   auto frequency = 1000.0; // frequency
    auto d = 0.348189415; // diameter of a strand
    auto fill_factor = 0.6466; 
    auto l = 2.50; // length
    int n = 3;
 
    functional.AddDomainIntegrator(
-      new mach::HybridACLossFunctionalIntegrator(sigma, omega, d, fill_factor, n));
+      new mach::HybridACLossFunctionalIntegrator(sigma, frequency, d, fill_factor));
 
    const auto b_mag = 1.0;
    const auto loss = n * M_PI * l * std::pow(d, 4) * sigma_val
-                  * std::pow(omega * b_mag, 2) / 64.0;
+                  * std::pow(2 * M_PI * frequency * b_mag, 2) / 64.0;
    
    const double loss_fe = functional.GetEnergy(A);
    std::cout << "functional loss: " << loss_fe << "\n";

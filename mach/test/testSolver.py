@@ -397,7 +397,7 @@ class SolverRegressionTests(unittest.TestCase):
 
         inputs = {
             "diam": d_c,
-            "omega": freq,
+            "frequency": freq,
             "fill-factor": 1.0,
             "state": state
         }
@@ -439,7 +439,7 @@ class SolverRegressionTests(unittest.TestCase):
 
         inputs = {
             "diam": strand_rad*2,
-            "omega": freq,
+            "frequency": freq,
             "fill-factor": fill_factor,
             "state": state
         }

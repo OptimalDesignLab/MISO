@@ -792,17 +792,14 @@ public:
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
    /// \param[in] sigma - the electrical conductivity coefficient
-   /// \param[in] omega - the electrical excitation frequency 
+   /// \param[in] freq - the electrical excitation frequency 
    /// \param[in] diam - the diameter of a strand in the bundle
    /// \param[in] fill_factor - the density of strands in the bundle
-   /// \param[in] n_strands - number of strands in the bundle
    HybridACLossFunctionalIntegrator(mfem::Coefficient &sigma,
-                                    const double omega,
+                                    const double freq,
                                     const double diam,
-                                    const double fill_factor,
-                                    const double n_strands = 1.0)
-   : sigma(sigma), omega(omega), diam(diam), fill_factor(fill_factor),
-      n_strands(n_strands)
+                                    const double fill_factor)
+   : sigma(sigma), freq(freq), diam(diam), fill_factor(fill_factor)
    { }
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
@@ -817,10 +814,9 @@ public:
 
 private:
    mfem::Coefficient &sigma;
-   double omega;
+   double freq;
    double diam;
    double fill_factor;
-   double n_strands;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt;
