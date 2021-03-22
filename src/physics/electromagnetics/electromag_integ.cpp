@@ -2679,7 +2679,7 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
       const double sigma_val = sigma.Eval(trans, ip);
 
       const double loss = std::pow(diam, 2) * sigma_val
-                           * std::pow(2*M_PI * freq * b_mag, 2) / 64.0;
+                           * std::pow(2*M_PI * freq * b_mag, 2) / 128.0;
       fun += loss * fill_factor * w;
    }
    return fun;

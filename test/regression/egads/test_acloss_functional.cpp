@@ -105,7 +105,7 @@ TEST_CASE("HybridACLossFunctionalIntegrator::GetEnergy",
 
    const auto b_mag = 1.0;
    const auto loss = n * M_PI * l * std::pow(d, 4) * sigma_val
-                  * std::pow(2 * M_PI * frequency * b_mag, 2) / 64.0;
+                  * std::pow(2 * M_PI * frequency * b_mag, 2) / 128.0;
    
    const double loss_fe = functional.GetEnergy(A);
    std::cout << "functional loss: " << loss_fe << "\n";
