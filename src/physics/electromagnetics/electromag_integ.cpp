@@ -1796,7 +1796,7 @@ double BNormIntegrator::GetElementEnergy(
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
+      w = ip.weight * trans.Weight();
 
       if ( dim == 3 )
       {
@@ -1809,7 +1809,8 @@ double BNormIntegrator::GetElementEnergy(
       }
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      fun += b_vec.Norml2() * w;
+      const double b_mag = b_vec.Norml2() / trans.Weight();
+      fun += b_mag * w;
    }
    return fun;
 }
@@ -1880,7 +1881,7 @@ void BNormIntegrator::AssembleElementVector(
       }
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      double b_mag = b_vec.Norml2();
+      double b_mag = b_vec.Norml2() / trans.Weight();
 
       /// temp_vec = curl(N_i) dot curl(A)
       temp_vec = 0.0;

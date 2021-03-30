@@ -1063,6 +1063,54 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementRHSVect",
    }
 }
 
+TEST_CASE("BNormIntegrator::GetElementEnergy",
+          "[BNormIntegrator]")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 2.0, 2.0, 1.0, true));
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+            new ND_FECollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+            mesh.get(), fec.get()));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction A(fes.get());
+         VectorFunctionCoefficient A_fun(3, [](const Vector &x, Vector &a)
+         {
+            a(0) = 1.5*x(1);
+            a(1) = -0.5*x(0);
+            a(2) = 0.0;
+         });
+         A.ProjectCoefficient(A_fun);
+
+         NonlinearForm functional(fes.get());
+         functional.AddDomainIntegrator(
+            new mach::BNormIntegrator());
+
+
+         const double fun = functional.GetEnergy(A);
+         const double b_mag = 2.0;
+         const double vol = 4.0;
+         REQUIRE(fun == Approx(b_mag * vol));
+      }
+   }
+}
+
 TEST_CASE("BNormIntegrator::AssembleElementVector",
           "[BNormIntegrator]")
 {

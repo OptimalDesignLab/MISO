@@ -523,17 +523,16 @@ inline void setInput(MagneticCoenergyIntegrator &integ,
    // do nothing yet
 }
 
-/// Integrator to compute the magnetic co-energy
+/// Integrator to compute the norm of the magnetic field
 class BNormIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// \param[in] nu - model describing reluctivity
    BNormIntegrator() {};
 
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
-   /// \returns the magnetic co-energy calculated over an element
+   /// \returns the norm of the magnetic field calculated over an element
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
