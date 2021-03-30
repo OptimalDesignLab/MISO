@@ -1,9 +1,69 @@
-// #ifndef MFEM_GALER_DIFF
-// #define MFEM_GALER_DIFF
-// #include "mfem.hpp"
-// #include "solver.hpp"
-// #include "mach_types.hpp"
-// #include "pumi.h"
+#ifndef MFEM_GALER_DIFF
+#define MFEM_GALER_DIFF
+#include "mfem.hpp"
+#include "solver.hpp"
+#include "mach_types.hpp"
+#include "pumi.h"
+
+namespace mfem
+{
+
+class ParGDSpace : public ParFiniteElementSpace
+{
+public:
+	/// Class constructor
+	/// \param[in] apf_mesh - the apf mesh object that
+	/// \param[in] parmesh - the parallel mesh created from apf mesh
+	/// \param[in] f - the finite element space
+	/// \param[in] vdim - number of state variables
+	/// \param[in] ordering - method for ordering the dofs, usually is byVDIM
+	/// \param[in] de - prolongation operator degree
+	ParGDSpace(apf::Mesh2 *apf_mesh, mfem::ParMesh *pm, const mfem::FiniteElementCollection *f,
+				  int vdim = 1, int ordiering = mfem::Ordering::byVDIM, int de = 1);
+
+	/// Construct the parallel prolongation operator
+	void BuildProlongationOperator();
+
+	/// Constructs the patch for given element id
+	/// \param[in] id - element id
+	/// \param[in] req_n - number of required elemment in patch
+	/// \param[in,out] els_id - elements id(s) in patch for id th element
+	void GetNeighbourSet(int id, int req_n, mfem::Array<int> &els_id);
+
+	/// Constructs the matrices for element quadrature points and centers
+	/// \param[in] els_id - element ids in patch
+	/// \param[in,out] mat_cent - matrix holding element centers coordinates
+	/// \param[in,out] mat_quad - matrix holding quadrature poinst coordinates
+	void GetNeighbourMat(mfem::Array<int> &els_id, mfem::DenseMatrix &mat_cent,
+						 mfem::DenseMatrix &mat_quad) const;
+
+	/// Get the element bary center coordinate
+	/// \param[in] id - element id
+	/// \param[in,out] cent - element center coordinate
+	void GetElementCenter(int id, mfem::Vector &cent) const;
+
+	/// Assemble the local prolongation matrix to parallel hypreIJMatrix
+	/// \param[in] els_id - element ids in patch
+	/// \param[in] local_mat - local prolongation matrix
+	void AssembleProlongationMatrix(const mfem::Array<int> &els_id,
+											  const mfem::DenseMatrix &local_mat);
+
+private:
+   /// the pumi mesh object
+   apf::Mesh2 *pumi_mesh; 
+
+	/// mesh dimenstion
+	int dim;
+   /// degree of the prolongation operator
+   int degree;
+
+	/// the actual prolongation matrix
+	mfem::HypreParMatrix Prolong;
+};
+
+} // end of namespace
+
+#endif 
 
 // namespace mfem
 // {
