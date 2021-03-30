@@ -1181,7 +1181,7 @@ TEST_CASE("BNormdJdX::AssembleRHSElementVect",
    double delta = 1e-5;
 
    // generate a 2 element mesh
-   int num_edge = 2;
+   int num_edge = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
    mesh->ReorientTetMesh();
@@ -1202,9 +1202,9 @@ TEST_CASE("BNormdJdX::AssembleRHSElementVect",
          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
          // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
+         GridFunction A(fes.get());
          VectorFunctionCoefficient pert(3, randVectorState);
-         q.ProjectCoefficient(pert);
+         A.ProjectCoefficient(pert);
 
          // initialize the vector that dJdx multiplies
          GridFunction v(mesh_fes);
@@ -1215,7 +1215,7 @@ TEST_CASE("BNormdJdX::AssembleRHSElementVect",
          // GridFunction dJdx(*x_nodes);
          LinearForm dJdx(mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::BNormdJdx(q));
+            new mach::BNormdJdx(A));
          dJdx.Assemble();
          double dJdx_dot_v = dJdx * v;
 
@@ -1229,11 +1229,11 @@ TEST_CASE("BNormdJdX::AssembleRHSElementVect",
          x_pert.Add(-delta, v);
          mesh->SetNodes(x_pert);
          fes->Update();
-         double dJdx_dot_v_fd = -functional.GetEnergy(q);
+         double dJdx_dot_v_fd = -functional.GetEnergy(A);
          x_pert.Add(2 * delta, v);
          mesh->SetNodes(x_pert);
          fes->Update();
-         dJdx_dot_v_fd += functional.GetEnergy(q);
+         dJdx_dot_v_fd += functional.GetEnergy(A);
          dJdx_dot_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
          fes->Update();

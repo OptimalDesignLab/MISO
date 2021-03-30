@@ -565,7 +565,6 @@ public:
    BNormdJdx(mfem::GridFunction &_state)
       : LinearFormIntegrator(), state(_state) {}
 
-
    /// \brief - assemble an element's contribution to \frac{\partial J}{\partial X}
    /// \param[in] el - the finite element that describes the mesh element
    /// \param[in] trans - the transformation between reference and physical space
