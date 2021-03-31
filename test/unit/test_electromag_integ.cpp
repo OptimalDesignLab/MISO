@@ -1513,6 +1513,136 @@ TEST_CASE("DCLossFunctionalIntegrator::GetEnergy",
    }
 }
 
+namespace mach
+{
+/// function defined in electromag_integ.cpp but not in a header
+double calcMagneticEnergy(
+   mfem::ElementTransformation &trans,
+   const mfem::IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B);
+
+double calcMagneticEnergyDot(
+   mfem::ElementTransformation &trans,
+   const mfem::IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B);
+
+double calcMagneticEnergyFD(
+   mfem::ElementTransformation &trans,
+   const mfem::IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B);
+
+double calcMagneticEnergyCD(
+   mfem::ElementTransformation &trans,
+   const mfem::IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B);
+}
+
+TEST_CASE("calcMagneticEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
+   const double lin_nu_val = 0.42;
+   std::unique_ptr<mach::StateCoefficient> lin_nu(new LinearCoefficient(lin_nu_val));
+   std::unique_ptr<mach::StateCoefficient> nu(new NonLinearCoefficient());
+
+   /// construct elements
+   int p = 1;
+   ND_FECollection fec(p, dim);
+   FiniteElementSpace fes(mesh.get(), &fec);
+
+   const double B_mag = 1.3;
+
+   auto nonlin_energy = [](double B) { return 1.0/3.0 * (sqrt(B+1) * (B-2) + 2); };
+
+   for (int j = 0; j < fes.GetNE(); j++)
+   {
+      const FiniteElement &el = *fes.GetFE(j);
+
+      IsoparametricTransformation trans;
+      mesh->GetElementTransformation(j, &trans);
+
+      int order = trans.OrderW() + 2 * el.GetOrder();
+      const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+
+      for (int i = 0; i < ir->GetNPoints(); i++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(i);
+         trans.SetIntPoint(&ip);
+
+         double lin_en = mach::calcMagneticEnergy(trans, ip, *lin_nu, B_mag);
+         REQUIRE(lin_en == Approx(0.5*pow(B_mag, 2)*lin_nu_val).epsilon(1e-8));
+
+         double en = mach::calcMagneticEnergy(trans, ip, *nu, B_mag);
+         REQUIRE(en == Approx(nonlin_energy(B_mag)).epsilon(1e-8));
+         std::cout << "lin_en: " << lin_en << " en: " << en << "\n";
+      }
+   }
+}
+
+TEST_CASE("calcMagneticEnergyDot")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
+   // std::unique_ptr<mach::StateCoefficient> nu(new LinearCoefficient(0.75));
+   std::unique_ptr<mach::StateCoefficient> nu(new NonLinearCoefficient());
+
+   /// construct elements
+   int p = 1;
+   ND_FECollection fec(p, dim);
+   FiniteElementSpace fes(mesh.get(), &fec);
+
+   const double B_mag = 0.5;
+
+   for (int j = 0; j < fes.GetNE(); j++)
+   {
+      const FiniteElement &el = *fes.GetFE(j);
+
+      IsoparametricTransformation trans;
+      mesh->GetElementTransformation(j, &trans);
+
+      int order = trans.OrderW() + 2 * el.GetOrder();
+      const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+
+      for (int i = 0; i < ir->GetNPoints(); i++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(i);
+         trans.SetIntPoint(&ip);
+
+         double dWdB = mach::calcMagneticEnergyDot(trans, ip, *nu, B_mag);
+         double dWdB_fd = mach::calcMagneticEnergyFD(trans, ip, *nu, B_mag);
+         double dWdB_cd = mach::calcMagneticEnergyCD(trans, ip, *nu, B_mag);
+         std::cout << "dWdB: " << dWdB << " fd: " << dWdB_fd << " cd: " << dWdB_cd << "\n";
+         REQUIRE(dWdB == Approx(dWdB_cd).epsilon(1e-10));
+      }
+   }
+}
+
 /// commenting out because I removed support for nonlinear magnets for now
 // TEST_CASE("MagnetizationIntegrator::AssembleElementGrad - Nonlinear", "[MagnetizationIntegrator]")
 // {

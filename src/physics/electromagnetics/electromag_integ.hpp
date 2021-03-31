@@ -395,14 +395,7 @@ class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
 public:
    /// \param[in] nu - model describing reluctivity
    MagneticEnergyIntegrator(StateCoefficient *_nu)
-   : nu(_nu), J(nullptr)
-   { }
-
-   /// \param[in] nu - model describing reluctivity
-   /// \param[in] J - current load vector
-   MagneticEnergyIntegrator(StateCoefficient *_nu,
-                            mfem::GridFunction *_J)
-   : nu(_nu), J(_J)
+   : nu(_nu)
    { }
 
    /// \param[in] el - the finite element
@@ -426,19 +419,29 @@ public:
 private:
    /// material (thus mesh) dependent model describing reluctivity
    StateCoefficient *nu;
-   /// Current source load vector -- if exists, functional is W - J \cdot A
-   mfem::GridFunction *J;
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
    mfem::Vector b_vec;
 #endif
 
    /// integrate H dB (nuB dB)
-   double integrateHdB(const mfem::IntegrationRule *ir,
+   double integrateHB(const mfem::IntegrationRule *ir,
                       mfem::ElementTransformation &trans,
                       const mfem::IntegrationPoint &old_ip,
                       double lower_bound,
                       double upper_bound);
+
+   double FDintegrateHB(const mfem::IntegrationRule *ir,
+                        mfem::ElementTransformation &trans,
+                        const mfem::IntegrationPoint &old_ip,
+                        double lower_bound,
+                        double upper_bound);
+
+   double RevADintegrateHB(const mfem::IntegrationRule *ir,
+                           mfem::ElementTransformation &trans,
+                           const mfem::IntegrationPoint &old_ip,
+                           double lower_bound,
+                           double upper_bound);
 };
 
 /// Integrator to compute the magnetic co-energy
@@ -510,10 +513,10 @@ private:
                         double upper_bound);
 
    double RevADintegrateBH(const mfem::IntegrationRule *ir,
-                        mfem::ElementTransformation &trans,
-                        const mfem::IntegrationPoint &old_ip,
-                        double lower_bound,
-                        double upper_bound);
+                           mfem::ElementTransformation &trans,
+                           const mfem::IntegrationPoint &old_ip,
+                           double lower_bound,
+                           double upper_bound);
 };
 
 inline void setInput(MagneticCoenergyIntegrator &integ,

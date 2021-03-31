@@ -13,10 +13,149 @@
 
 
 using namespace mfem;
-using namespace std;
 
 namespace mach
 {
+
+/// Compute the integral of HdB from 0 to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the magnetic energy
+double calcMagneticEnergy(
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B)
+{
+   /// TODO: use a composite rule instead or find a way to just directly
+   /// integrate B-H curve
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
+
+   /// compute int_0^{B} \nuB dB
+   double en = 0.0;
+   for (int j = 0; j < ir->GetNPoints(); j++)
+   {
+      const IntegrationPoint &segment_ip = ir->IntPoint(j);
+      double xi = segment_ip.x * B;
+      en += segment_ip.weight * xi * nu.Eval(trans, ip, xi);
+   }
+   en *= B;
+   return en;
+}
+
+/// Compute the derivative of the magnetic energy with respect to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the derivative of the magnetic energy with respect to B
+double calcMagneticEnergyDot(
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B)
+{
+   /// TODO: use a composite rule instead or find a way to just directly
+   /// integrate B-H curve
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
+
+   /// compute int_0^{B} \nuB dB
+   double en = 0.0;
+   double dendB = 0.0;
+   for (int j = 0; j < ir->GetNPoints(); j++)
+   {
+      const IntegrationPoint &segment_ip = ir->IntPoint(j);
+      double xi = segment_ip.x * B;
+      double dxidB = segment_ip.x;
+      en += segment_ip.weight * xi * nu.Eval(trans, ip, xi);
+
+      // dendB = penpB + penpxi * dxidB
+      // double penpB = segment_ip.weight * xi * nu.Eval(trans, ip, xi);
+      // penpxi = w * dnudxi(xi));
+      double penpxi = segment_ip.weight * (nu.Eval(trans, ip, xi)
+                     +  xi * nu.EvalStateDeriv(trans, ip, xi));// * B;
+
+      // dendB += penpB + penpxi * dxidB;
+      dendB += penpxi * dxidB;
+   }
+   dendB *= B;
+   dendB += en;
+   std::cout << "en: " << en << "\n";
+   std::cout << "dendB: " << dendB << "\n";
+   return dendB;
+}
+// {
+//    /// TODO: use a composite rule instead or find a way to just directly
+//    /// integrate B-H curve
+//    const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
+
+//    /// compute int_0^{B} \nuB dB
+//    double en = 0.0;
+//    for (int j = 0; j < ir->GetNPoints(); j++)
+//    {
+//       const IntegrationPoint &segment_ip = ir->IntPoint(j);
+//       double xi = segment_ip.x * B;
+//       en += segment_ip.weight * xi * nu.Eval(trans, ip, xi);
+//    }
+
+//    /// start reverse mode for int_0^{B} \nuB dB
+//    double B_bar = en;
+//    double en_bar = B;
+//    for (int j = 0; j < ir->GetNPoints(); j++)
+//    {
+//       const IntegrationPoint &segment_ip = ir->IntPoint(j);
+//       double xi = ip.x * B;
+//       // en += segment_ip.weight * xi * nu.Eval(trans, ip, xi);
+//       double xi_bar = en_bar * ip.weight * nu.Eval(trans, ip, xi);
+//       xi_bar += (en_bar * segment_ip.weight * xi * nu.EvalStateDeriv(trans, ip, xi));
+//       // double xi = segment_ip.x * B;
+//       B_bar += segment_ip.x * xi_bar;
+//    }
+//    return B_bar;
+// }
+
+/// Compute the finite-difference approximation of the derivative of the
+/// magnetic energy with respect to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the derivative of the magnetic energy with respect to B
+double calcMagneticEnergyCD(
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B)
+{
+   double delta = 1e-5;
+
+   double fd_val;
+   fd_val = calcMagneticEnergy(trans, ip, nu, B + delta);
+   fd_val -= calcMagneticEnergy(trans, ip, nu, B - delta);
+   return fd_val / (2*delta);
+}
+
+/// Compute the finite-difference approximation of the derivative of the
+/// magnetic energy with respect to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the derivative of the magnetic energy with respect to B
+double calcMagneticEnergyFD(
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B)
+{
+   double delta = 1e-7;
+
+   double fd_val = calcMagneticEnergy(trans, ip, nu, B + delta);
+   fd_val -= calcMagneticEnergy(trans, ip, nu, B);
+   return fd_val / (delta);
+}
 
 void CurlCurlNLFIntegrator::AssembleElementVector(
    const FiniteElement &el,
@@ -1159,7 +1298,7 @@ double LoadEnergyIntegrator::GetElementEnergy(
    return fun;
 }
 
-double MagneticEnergyIntegrator::integrateHdB(
+double MagneticEnergyIntegrator::integrateHB(
    const IntegrationRule *ir,
    ElementTransformation &trans,
    const IntegrationPoint &old_ip,
@@ -1186,15 +1325,6 @@ double MagneticEnergyIntegrator::GetElementEnergy(
    /// number of degrees of freedom
    int ndof = el.GetDof();
    int dim = el.GetDim();
-
-   Vector j; 
-   if (J)
-   {
-      Array<int> j_vdofs;
-      int element = trans.ElementNo;
-      J->FESpace()->GetElementVDofs(element, j_vdofs);
-      J->GetSubVector(j_vdofs, j);
-   }
 
    /// I believe this takes advantage of a 2D problem not having
    /// a properly defined curl? Need more investigation
@@ -1263,22 +1393,8 @@ double MagneticEnergyIntegrator::GetElementEnergy(
       double lower_bound = 0.0;
       double upper_bound = b_vec.Norml2();
 
-      double qp_en = integrateHdB(segment_ir, trans, ip,
-                                  lower_bound, upper_bound);
-
-      if (J)
-      {
-         DenseMatrix vshape(ndof, dimc);
-         // DenseMatrix vshape_dFt(ndof, dimc);
-         el.CalcVShape(ip, vshape);
-         // MultABt(vshape, trans.Jacobian(), vshape_dFt);
-
-         Vector A(dimc);
-         Vector J_ip(dimc);
-         vshape.MultTranspose(elfun, A);
-         vshape.MultTranspose(j, J_ip);
-         qp_en -= J_ip * A;// / pow(trans.Weight(),1);
-      }
+      double qp_en = integrateHB(segment_ir, trans, ip,
+                                 lower_bound, upper_bound);
 
       fun += qp_en * w * trans.Weight();
    }
