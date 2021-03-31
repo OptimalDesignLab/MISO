@@ -17,12 +17,6 @@ using namespace mfem;
 namespace mach
 {
 
-/// Compute the integral of HdB from 0 to B
-/// \param[in] trans - element transformation for where to evaluate `nu`
-/// \param[in] ip - integration point for where to evaluate `nu`
-/// \param[in] nu - material dependent model describing reluctivity
-/// \param[in] B - upper bound for integration
-/// \return the magnetic energy
 double calcMagneticEnergy(
    ElementTransformation &trans,
    const IntegrationPoint &ip,
@@ -45,12 +39,6 @@ double calcMagneticEnergy(
    return en;
 }
 
-/// Compute the derivative of the magnetic energy with respect to B
-/// \param[in] trans - element transformation for where to evaluate `nu`
-/// \param[in] ip - integration point for where to evaluate `nu`
-/// \param[in] nu - material dependent model describing reluctivity
-/// \param[in] B - upper bound for integration
-/// \return the derivative of the magnetic energy with respect to B
 double calcMagneticEnergyDot(
    ElementTransformation &trans,
    const IntegrationPoint &ip,
@@ -1154,94 +1142,6 @@ void GridFuncMeshSensIntegrator::AssembleRHSElementVect(
    }  
 }
 
-double LoadEnergyIntegrator::GetElementEnergy(
-   const FiniteElement &el,
-   ElementTransformation &trans,
-   const Vector &elfun)
-{
-   /// number of degrees of freedom
-   int ndof = el.GetDof();
-   int dim = el.GetDim();
-
-   Vector j; 
-   Array<int> j_vdofs;
-   int element = trans.ElementNo;
-   J->FESpace()->GetElementVDofs(element, j_vdofs);
-   J->GetSubVector(j_vdofs, j);
-
-   /// I believe this takes advantage of a 2D problem not having
-   /// a properly defined curl? Need more investigation
-   int dimc = (dim == 3) ? 3 : 1;
-
-   /// holds quadrature weight
-   double w;
-
-#ifdef MFEM_THREAD_SAFE
-   DenseMatrix vshape(ndof,dimc), vshape_dFt(ndof,dimc), M;
-#else
-   vshape.SetSize(ndof,dimc);
-   vshape_dFt.SetSize(ndof,dimc);
-   b_vec.SetSize(dimc);
-#endif
-
-   const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
-   {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
-      {
-         order = 2*el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2*el.GetOrder();
-      }
-
-      ir = &IntRules.Get(el.GetGeomType(), order);
-   }
-
-   double fun = 0.0;
-
-   // for (int i = 0; i < ir->GetNPoints(); i++)
-   // {
-   //    const IntegrationPoint &ip = ir->IntPoint(i);
-
-   //    trans.SetIntPoint(&ip);
-
-   //    w = ip.weight;
-
-   //    el.CalcVShape(trans, vshape);
-
-   //    Vector A(dimc);
-   //    Vector J_ip(dimc);
-   //    vshape.MultTranspose(elfun, A);
-   //    vshape.MultTranspose(j, J_ip);
-   //    fun -= w * (J_ip * A);// / trans.Weight();
-   // }
-   fun = j * elfun;
-
-   return fun;
-}
-
-double MagneticEnergyIntegrator::integrateHB(
-   const IntegrationRule *ir,
-   ElementTransformation &trans,
-   const IntegrationPoint &old_ip,
-   double lower_bound,
-   double upper_bound)
-{
-   /// compute int_0^{B} \nuB dB
-   double qp_en = 0.0;
-   for (int j = 0; j < ir->GetNPoints(); j++)
-   {
-      const IntegrationPoint &ip = ir->IntPoint(j);
-      double xi = ip.x * (upper_bound - lower_bound);
-      qp_en += ip.weight * xi * nu->Eval(trans, old_ip, xi);
-   }
-   qp_en *= (upper_bound - lower_bound);
-   return qp_en;
-}
-
 double MagneticEnergyIntegrator::GetElementEnergy(
    const FiniteElement &el,
    ElementTransformation &trans,
@@ -1254,9 +1154,6 @@ double MagneticEnergyIntegrator::GetElementEnergy(
    /// I believe this takes advantage of a 2D problem not having
    /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
-
-   /// holds quadrature weight
-   double w;
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
@@ -1283,24 +1180,14 @@ double MagneticEnergyIntegrator::GetElementEnergy(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
-   /// TODO: use a composite rule instead or find a way to just directly
-   /// integrate B-H curve
-   const IntegrationRule *segment_ir = NULL;
-   if (segment_ir == NULL)
-   {
-      segment_ir = &IntRules.Get(Geometry::Type::SEGMENT, 40);
-   }
-
    double fun = 0.0;
-
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      b_vec = 0.0;
       const IntegrationPoint &ip = ir->IntPoint(i);
-
       trans.SetIntPoint(&ip);
 
-      w = ip.weight;
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
 
       if ( dim == 3 )
       {
@@ -1312,16 +1199,12 @@ double MagneticEnergyIntegrator::GetElementEnergy(
          el.CalcCurlShape(ip, curlshape_dFt);
       }
 
+      b_vec = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      b_vec /= trans.Weight();
+      const double b_mag = b_vec.Norml2() / trans.Weight();
 
-      double lower_bound = 0.0;
-      double upper_bound = b_vec.Norml2();
-
-      double qp_en = integrateHB(segment_ir, trans, ip,
-                                 lower_bound, upper_bound);
-
-      fun += qp_en * w * trans.Weight();
+      const double qp_en = calcMagneticEnergy(trans, ip, *nu, b_mag);
+      fun += qp_en * w;
    }
 
 

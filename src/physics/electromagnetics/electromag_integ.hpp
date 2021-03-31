@@ -14,6 +14,28 @@ namespace mach
 class AbstractSolver;
 class StateCoefficient;
 
+/// Compute the integral of HdB from 0 to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the magnetic energy
+double calcMagneticEnergy(mfem::ElementTransformation &trans,
+                          const mfem::IntegrationPoint &ip,
+                          StateCoefficient &nu,
+                          double B);
+
+/// Compute the derivative of the magnetic energy with respect to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the derivative of the magnetic energy with respect to B
+double calcMagneticEnergyDot(mfem::ElementTransformation &trans,
+                             const mfem::IntegrationPoint &ip,
+                             StateCoefficient &nu,
+                             double B);
+
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
 class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator,
                               public mfem::LinearFormIntegrator
@@ -364,31 +386,6 @@ private:
 
 };
 
-class LoadEnergyIntegrator: public mfem::NonlinearFormIntegrator
-{
-public:
-   /// \param[in] J - current load vector
-   LoadEnergyIntegrator(mfem::GridFunction *_J)
-   : J(_J)
-   { }
-
-   /// \param[in] el - the finite element
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - state vector of the element
-   double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &trans,
-                           const mfem::Vector &elfun) override;
-
-private:
-   /// Current source load vector
-   mfem::GridFunction *J;
-#ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix vshape, vshape_dFt, M;
-   mfem::Vector b_vec;
-#endif
-
-};
-
 /// Integrator to compute the magnetic energy
 class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -423,25 +420,6 @@ private:
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
    mfem::Vector b_vec;
 #endif
-
-   /// integrate H dB (nuB dB)
-   double integrateHB(const mfem::IntegrationRule *ir,
-                      mfem::ElementTransformation &trans,
-                      const mfem::IntegrationPoint &old_ip,
-                      double lower_bound,
-                      double upper_bound);
-
-   double FDintegrateHB(const mfem::IntegrationRule *ir,
-                        mfem::ElementTransformation &trans,
-                        const mfem::IntegrationPoint &old_ip,
-                        double lower_bound,
-                        double upper_bound);
-
-   double RevADintegrateHB(const mfem::IntegrationRule *ir,
-                           mfem::ElementTransformation &trans,
-                           const mfem::IntegrationPoint &old_ip,
-                           double lower_bound,
-                           double upper_bound);
 };
 
 /// Integrator to compute the magnetic co-energy

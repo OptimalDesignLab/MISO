@@ -151,7 +151,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10) );
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-8) );
          }
       }
    }
@@ -216,7 +216,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10) );
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6) );
          }
       }
    }
@@ -305,7 +305,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleRHSElementVect",
          // std::cout << "dfdx_v = " << dfdx_v << "\n";
          // std::cout << "dfdx_v_fd = " << dfdx_v_fd << "\n";
 
-         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }
@@ -416,7 +416,7 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          // std::cout << "dfdx_v " << dfdx_v << "\n";
          // std::cout << "dfdx_v_fd " << dfdx_v_fd << "\n";
 
-         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }
@@ -512,7 +512,7 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
          dfdx_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
 
-         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }
@@ -617,7 +617,7 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
          dfdx_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
 
-         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }
@@ -701,7 +701,7 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
          dfdx_v_fd /= (2 * delta);
          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
 
-         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }
@@ -783,74 +783,10 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
 //          dfdx_v_fd /= (2 * delta);
 //          mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
 
-//          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+//          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
 //       }
 //    }
 // }
-
-TEST_CASE("LoadEnergyIntegrator::GetEnergy",
-          "[LoadEnergyIntegrator]")
-{
-   using namespace mfem;
-   using namespace electromag_data;
-
-   const int dim = 3; // templating is hard here because mesh constructors
-   double delta = 1e-5;
-
-   // generate a 6 element mesh
-   int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                                       Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0,
-                                       true));
-   mesh->ReorientTetMesh();
-   mesh->EnsureNodes();
-
-   for (int p = 1; p <= 4; ++p)
-   {
-      DYNAMIC_SECTION("...for degree p = " << p)
-      {
-         std::unique_ptr<FiniteElementCollection> fec(
-            new ND_FECollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-            mesh.get(), fec.get()));
-
-         NonlinearForm functional(fes.get());
-
-         // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(3, randVectorState);
-         q.ProjectCoefficient(pert);
-
-         GridFunction load(fes.get());
-         load.ProjectCoefficient(pert);
-
-         functional.AddDomainIntegrator(
-            new mach::LoadEnergyIntegrator(&load));
-
-         // initialize the vector that dJdu multiplies
-         GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(3, randVectorState);
-         v.ProjectCoefficient(v_rand);
-
-         // evaluate product of load and v
-         GridFunction dJdu(load);
-         dJdu *= -1.0;
-         double dJdu_dot_v = InnerProduct(dJdu, v);
-
-         // now compute the finite-difference approximation...
-         GridFunction q_pert(q);
-         q_pert.Add(-delta, v);
-         double dJdu_dot_v_fd = -functional.GetEnergy(q_pert);
-         q_pert.Add(2 * delta, v);
-         dJdu_dot_v_fd += functional.GetEnergy(q_pert);
-         dJdu_dot_v_fd /= (2 * delta);
-         std::cout << "dJdu_dot_v: " << dJdu_dot_v << "\n";         
-         std::cout << "dJdu_dot_v_fd: " << dJdu_dot_v_fd << "\n";
-         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
-      }
-   }
-}
 
 TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
           "[MagneticEnergyIntegrator]")
@@ -865,7 +801,7 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                                        Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0,
+                                       true /* gen. edges */, 2.0, 2.0, 1.0,
                                        true));
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
@@ -874,53 +810,38 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
+
+         auto nonlin_energy = [](double B) { return 1.0/3.0 * (sqrt(B+1) * (B-2) + 2); };
+
          std::unique_ptr<FiniteElementCollection> fec(
             new ND_FECollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
             mesh.get(), fec.get()));
 
-         NonlinearForm res(fes.get());
-         NonlinearForm functional(fes.get());
 
          // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
-         VectorFunctionCoefficient pert(3, randVectorState);
-         q.ProjectCoefficient(pert);
-
-         GridFunction load(fes.get());
-         load.ProjectCoefficient(pert);
+         GridFunction A(fes.get());
+         VectorFunctionCoefficient pert(3, [](const Vector &x, Vector &a)
+         {
+            a(0) = 1.5*x(1);
+            a(1) = -0.5*x(0);
+            a(2) = 0.0;
+         });
+         A.ProjectCoefficient(pert);
 
          std::unique_ptr<mach::StateCoefficient> nu(
-            // new LinearCoefficient());
             new NonLinearCoefficient());
 
-         res.AddDomainIntegrator(
-            new mach::CurlCurlNLFIntegrator(nu.get()));
-
+         NonlinearForm functional(fes.get());
          functional.AddDomainIntegrator(
             new mach::MagneticEnergyIntegrator(nu.get()));
 
-         // initialize the vector that dJdu multiplies
-         GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(3, randVectorState);
-         v.ProjectCoefficient(v_rand);
-
-         // evaluate dJdu and compute its product with v
-         GridFunction dJdu(fes.get());
-         res.Mult(q, dJdu);
-         dJdu -= load;
-         double dJdu_dot_v = InnerProduct(dJdu, v);
-
-         // now compute the finite-difference approximation...
-         GridFunction q_pert(q);
-         q_pert.Add(-delta, v);
-         double dJdu_dot_v_fd = -(functional.GetEnergy(q_pert) - load * q_pert);
-         q_pert.Add(2 * delta, v);
-         dJdu_dot_v_fd += functional.GetEnergy(q_pert) - load * q_pert;
-         dJdu_dot_v_fd /= (2 * delta);
-         std::cout << "dJdu_dot_v: " << dJdu_dot_v << "\n";         
-         std::cout << "dJdu_dot_v_fd: " << dJdu_dot_v_fd << "\n";
-         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
+         const double fun = functional.GetEnergy(A);
+         const double b_mag = 2.0;
+         const double energy = nonlin_energy(b_mag);
+         const double vol = 4.0;
+         // std::cout << "fun: " << fun << " energy * vol: " << energy*vol << "\n";
+         REQUIRE(fun == Approx(energy * vol));
       }
    }
 }
@@ -1505,8 +1426,8 @@ TEST_CASE("DCLossFunctionalIntegrator::GetEnergy",
          const auto loss = std::pow(current_density * fill_factor, 2) * R_dc;
          
          const double loss_fe = functional.GetEnergy(A);
-         std::cout << "functional loss: " << loss_fe << "\n";
-         std::cout << "analytical loss: " << loss << "\n";
+         // std::cout << "functional loss: " << loss_fe << "\n";
+         // std::cout << "analytical loss: " << loss << "\n";
          const double loss_ratio = loss_fe / loss;
          REQUIRE(loss_ratio == Approx(1.0).epsilon(1e-1));
       }
@@ -1515,19 +1436,6 @@ TEST_CASE("DCLossFunctionalIntegrator::GetEnergy",
 
 namespace mach
 {
-/// function defined in electromag_integ.cpp but not in a header
-double calcMagneticEnergy(
-   mfem::ElementTransformation &trans,
-   const mfem::IntegrationPoint &ip,
-   StateCoefficient &nu,
-   double B);
-
-double calcMagneticEnergyDot(
-   mfem::ElementTransformation &trans,
-   const mfem::IntegrationPoint &ip,
-   StateCoefficient &nu,
-   double B);
-
 /// Compute the finite-difference approximation of the derivative of the
 /// magnetic energy with respect to B
 /// \param[in] trans - element transformation for where to evaluate `nu`
@@ -1599,7 +1507,7 @@ TEST_CASE("calcMagneticEnergy")
 
          double en = mach::calcMagneticEnergy(trans, ip, *nu, B_mag);
          REQUIRE(en == Approx(nonlin_energy(B_mag)).epsilon(1e-8));
-         std::cout << "lin_en: " << lin_en << " en: " << en << "\n";
+         // std::cout << "lin_en: " << lin_en << " en: " << en << "\n";
       }
    }
 }
