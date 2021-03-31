@@ -1528,17 +1528,27 @@ double calcMagneticEnergyDot(
    StateCoefficient &nu,
    double B);
 
+/// Compute the finite-difference approximation of the derivative of the
+/// magnetic energy with respect to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the derivative of the magnetic energy with respect to B
 double calcMagneticEnergyFD(
    mfem::ElementTransformation &trans,
    const mfem::IntegrationPoint &ip,
    StateCoefficient &nu,
-   double B);
+   double B)
+{
+   double delta = 1e-5;
 
-double calcMagneticEnergyCD(
-   mfem::ElementTransformation &trans,
-   const mfem::IntegrationPoint &ip,
-   StateCoefficient &nu,
-   double B);
+   double fd_val;
+   fd_val = calcMagneticEnergy(trans, ip, nu, B + delta);
+   fd_val -= calcMagneticEnergy(trans, ip, nu, B - delta);
+   return fd_val / (2*delta);
+}
+
 }
 
 TEST_CASE("calcMagneticEnergy")
@@ -1636,9 +1646,7 @@ TEST_CASE("calcMagneticEnergyDot")
 
          double dWdB = mach::calcMagneticEnergyDot(trans, ip, *nu, B_mag);
          double dWdB_fd = mach::calcMagneticEnergyFD(trans, ip, *nu, B_mag);
-         double dWdB_cd = mach::calcMagneticEnergyCD(trans, ip, *nu, B_mag);
-         std::cout << "dWdB: " << dWdB << " fd: " << dWdB_fd << " cd: " << dWdB_cd << "\n";
-         REQUIRE(dWdB == Approx(dWdB_cd).epsilon(1e-10));
+         REQUIRE(dWdB == Approx(dWdB_fd).epsilon(1e-10));
       }
    }
 }
