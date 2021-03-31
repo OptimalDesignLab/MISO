@@ -803,6 +803,39 @@ private:
 #endif
 };
 
+/// Functional integrator to compute forces/torques based on the virtual work method
+class ForceIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// \brief - Compute forces/torques based on the virtual work method
+   /// \param[in] nu - model describing reluctivity
+   /// \param[in] v - the grid function containing virtual displacements for
+   ///                each mesh node
+   ForceIntegrator(StateCoefficient &nu, mfem::GridFunction &v)
+   : nu(nu), v(v)
+   { }
+
+   /// \brief - Compute element contribution to global force/torque
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global force/torque
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// material dependent model describing reluctivity
+   StateCoefficient &nu;
+   /// grid function containing virtual displacements for each mesh node
+   mfem::GridFunction &v;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape, curlshape, curlshape_dFt, dBdX;
+   mfem::Vector b_vec, b_hat;
+#endif
+};
+
 // /// Integrator for forces due to electromagnetic fields
 // /// \note - Requires PUMI
 // class ForceIntegrator : public mfem::NonlinearFormIntegrator

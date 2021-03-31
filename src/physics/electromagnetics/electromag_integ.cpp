@@ -2581,6 +2581,120 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
    return fun;
 }
 
+double ForceIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   /// get the proper element, transformation, and v vector
+   Array<int> vdofs; Vector vfun; 
+   int element = trans.ElementNo;
+   const auto &v_el = *v.FESpace()->GetFE(element);
+   auto &v_trans = v.FESpace()->GetElementTransformation(element);
+   v.FESpace()->GetElementVDofs(element, vdofs);
+   v.GetSubVector(vdofs, vfun);
+   DenseMatrix dXds(vfun.GetData(), v_el.GetDof(), v_el.GetDim());
+
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape(v_el.GetDof(), v_el.GetDim());
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc);
+   DenseMatrix dBdX(v_el.GetDof(), v_el.GetDim());
+   Vector b_vec(dimc), b_hat(dimc);
+#else
+   dshape.SetSize(v_el.GetDof(), v_el.GetDim());
+   curlshape.SetSize(ndof, dimc);
+   curlshape_dFt.SetSize(ndof, dimc);
+   dBdX.SetSize(v_el.GetDof(), v_el.GetDim());
+   b_vec.SetSize(dimc);
+   b_hat.SetSize(dimc)
+#endif
+
+   const IntegrationRule *ir = NULL;
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      b_vec = 0.0;
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      const double b_mag = b_vec.Norml2() / trans.Weight();
+
+      // const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+
+      /// the following computes `\partial (||B||/|J|) / \partial X`
+      dBdX = 0.0;      
+      double weight_bar = -b_vec.Norml2() / pow(trans->Weight(), 2.0);
+      isotrans.WeightRevDiff(dBdX);
+      dBdX *= weight_bar;
+
+      b_hat = 0.0;
+      curlshape.AddMultTranspose(elfun, b_hat);
+      DenseMatrix BB_hatT(3);
+      MultVWt(b_vec, b_hat, BB_hatT);
+      BB_hatT *= 1.0 / (trans->Weight() * b_vec.Norml2());
+      isotrans.JacobianRevDiff(BB_hatT, dBdX);
+      
+      double force = 0.0;
+      for (int j = 0; j < v_el.GetDof() ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            force += dBdX(d, j) * dXds(d, j);
+         }
+      }
+      force *= energy_dot;
+
+      // CalcDShape
+      v_el.CalcDShape(ip, dshape);
+
+      DenseMatrix JinvdJds(3);
+      DenseMatrix dJds(3);
+      MultTranspose(dXds, dshape, dJds);
+      Mult(trans.JacobianInv(), dJds, JinvdJds);
+
+      force += energy * JinvdJds.Trace();
+
+      fun += force * w;
+   }
+   return fun;
+}
+
 // ForceIntegrator::ForceIntegrator(AbstractSolver *_solver,
 //                                  std::unordered_set<int> _regions,
 //                                  std::unordered_set<int> _free_regions,
