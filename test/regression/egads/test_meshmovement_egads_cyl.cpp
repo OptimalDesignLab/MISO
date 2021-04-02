@@ -20,7 +20,7 @@ auto options = R"(
    "print-options": false,
    "mesh": {
       "file": "data/cyl.smb",
-      "model-file": "data/cyl.egadslite"
+      "model-file": "data/cyl.egads"
    },
    "space-dis": {
       "basis-type": "H1",
