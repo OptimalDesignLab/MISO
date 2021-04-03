@@ -1,5 +1,5 @@
-![master](https://github.com/OptimalDesignLab/mach/actions/workflows/build.yml/badge.svg?branch=master)
-![dev](https://github.com/OptimalDesignLab/mach/actions/workflows/build.yml/badge.svg?branch=dev)
+master ![master](https://github.com/OptimalDesignLab/mach/actions/workflows/build.yml/badge.svg?branch=master)
+dev ![dev](https://github.com/OptimalDesignLab/mach/actions/workflows/build.yml/badge.svg?branch=dev)
 # ODL Mach #
 
 Mach is a C++ library for multi-physics finite-element simulations based on LLNL's [MFEM](https://github.com/mfem/mfem).

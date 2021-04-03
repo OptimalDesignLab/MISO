@@ -125,7 +125,7 @@ jobs:
       shell: bash
       working-directory: ${{runner.workspace}}/.deps/hypre/build
       run: |
-        cmake ${GITHUB_WORKSPACE}/.deps/hypre \
+        cmake ${GITHUB_WORKSPACE}/.deps/hypre/src \
          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
          -DCMAKE_POSITION_INDEPENDENT_CODE=YES \
          -DCMAKE_INSTALL_PREFIX="$PWD /../.."
