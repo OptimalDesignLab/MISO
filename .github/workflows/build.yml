@@ -136,7 +136,7 @@ jobs:
 
     - name: Install Hypre
       working-directory: ${{runner.workspace}}/.deps/hypre/build
-      run: cmake --build . --config $BUILD_TYPE
+      run: cmake --build . --config $BUILD_TYPE --target install
 
     - name: Download MFEM
       uses: actions/checkout@v2
