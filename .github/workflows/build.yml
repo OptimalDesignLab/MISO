@@ -109,7 +109,34 @@ jobs:
 
     - name: Brew install MFEM dependencies
       # if: steps.cache-brew.outputs.cache-hit != 'true'
-      run: brew install open-mpi metis hypre
+      run: brew install open-mpi metis
+
+    - name: Download Hypre
+      uses: actions/checkout@v2
+      with:
+        repository: 'hypre-space/hypre'
+        ref: 'master'
+        path: .deps/hypre
+  
+    - name: Create Hypre Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/.deps/hypre/build
+
+    - name: Configure Hypre
+      shell: bash
+      working-directory: ${{runner.workspace}}/.deps/hypre/build
+      run: |
+        cmake ${GITHUB_WORKSPACE}/.deps/hypre \
+         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+         -DCMAKE_POSITION_INDEPENDENT_CODE=YES \
+         -DCMAKE_INSTALL_PREFIX="$PWD /../.."
+    
+    - name: Build Hypre
+      working-directory: ${{runner.workspace}}/.deps/hypre/build
+      run: cmake --build . --parallel 2 --config $BUILD_TYPE
+
+    - name: Install Hypre
+      working-directory: ${{runner.workspace}}/.deps/hypre/build
+      run: cmake --build . --config $BUILD_TYPE
 
     - name: Download MFEM
       uses: actions/checkout@v2
@@ -129,7 +156,7 @@ jobs:
          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
          -DMFEM_USE_MPI=YES \
          -DMFEM_USE_METIS_5=YES \
-         -DHYPRE_DIR="$(brew --prefix hypre)" \
+         -DHYPRE_DIR="$PWD /../../ hypre" \
          -DMETIS_DIR="$(brew --prefix metis)" \
          -DMFEM_ENABLE_EXAMPLES=NO \
          -DMFEM_ENABLE_MINIAPPS=NO
