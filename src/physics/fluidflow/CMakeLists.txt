@@ -5,6 +5,7 @@ target_sources(mach
       euler_fluxes.hpp
       euler_integ_def.hpp
       euler_integ.hpp
+      euler_integ_DG.hpp
       euler.cpp
       euler.hpp
       fluidflow.hpp

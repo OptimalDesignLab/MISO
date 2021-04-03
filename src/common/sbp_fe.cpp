@@ -157,7 +157,7 @@ double SBPFiniteElement::getQEntry(int di, int i, int j,
 
 void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
 {
-   MFEM_ASSERT( P.Size() == Dof, "");
+   MFEM_ASSERT( P.Size() == dof, "");
    // Set lps = I - V*V'*H
    MultAAt(V, P);
    P.RightScaling(H);
@@ -170,8 +170,8 @@ void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
 
 double SBPFiniteElement::getProjOperatorEntry(int i, int j) const
 {
-   MFEM_ASSERT( i < Dof, "");
-   MFEM_ASSERT( j < Dof, "");
+   MFEM_ASSERT( i < dof, "");
+   MFEM_ASSERT( j < dof, "");
    double Pij = (i == j) ? 1.0 : 0.0;
    // loop over the polynomial basis functions
    for (int k = 0; k < V.Width(); ++k)

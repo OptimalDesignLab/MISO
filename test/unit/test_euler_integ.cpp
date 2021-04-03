@@ -5,7 +5,7 @@
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
 #include "euler_test_data.hpp"
-
+#include "euler_integ_DG.hpp"
 TEMPLATE_TEST_CASE_SIG("Euler flux jacobian", "[euler_flux_jac]",
                        ((int dim), dim), 1, 2, 3)
 {
@@ -589,7 +589,8 @@ TEMPLATE_TEST_CASE_SIG("Mass integrator calcMatVec Jacobians",
    adept::Stack diff_stack;
    mfem::GridFunction state; // not used here
    double dt = 0.5; // not used here
-   mach::MassIntegrator<dim, true> mass_integ(diff_stack, state, dt);
+   //mach::MassIntegrator<dim, true> mass_integ(diff_stack, state, dt);
+   mach::MassIntegrator<dim, true> mass_integ(diff_stack);
 
    SECTION("calcMatVec Jacobian w.r.t state is correct")
    {

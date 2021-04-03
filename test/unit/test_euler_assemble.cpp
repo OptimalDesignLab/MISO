@@ -601,9 +601,10 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
 
          NonlinearForm res(fes.get());
          double dt = 0.5; // dt is chosen arbitraily here
+         // res.AddDomainIntegrator(
+         //     new mach::MassIntegrator<2, entvar>(diff_stack, q, dt));
          res.AddDomainIntegrator(
-             new mach::MassIntegrator<2, entvar>(diff_stack, q, dt));
-
+             new mach::MassIntegrator<2, entvar>(diff_stack));
          // evaluate the Jacobian and compute its product with v
          Operator &Jac = res.GetGradient(k);
          GridFunction jac_v(fes.get());
@@ -644,9 +645,10 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
 
          NonlinearForm res(fes.get());
          double dt = 0.5; // dt is chosen arbitraily here
+         // res.AddDomainIntegrator(
+         //     new mach::MassIntegrator<2, entvar>(diff_stack, q, dt));
          res.AddDomainIntegrator(
-             new mach::MassIntegrator<2, entvar>(diff_stack, q, dt));
-
+             new mach::MassIntegrator<2, entvar>(diff_stack));
          // evaluate the Jacobian and compute its product with v
          Operator &Jac = res.GetGradient(k);
          GridFunction jac_v(fes.get());

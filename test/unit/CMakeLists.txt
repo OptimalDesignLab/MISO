@@ -23,6 +23,8 @@ set(FLUID_TEST_SRCS
    test_sbp_fe
    test_viscous_integ
    test_utils
+   test_euler_integ_DG
+   test_euler_assemble_DG
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
