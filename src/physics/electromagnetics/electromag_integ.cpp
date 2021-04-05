@@ -1203,7 +1203,7 @@ double MagneticEnergyIntegrator::GetElementEnergy(
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       const double b_mag = b_vec.Norml2() / trans.Weight();
 
-      const double qp_en = calcMagneticEnergy(trans, ip, *nu, b_mag);
+      const double qp_en = calcMagneticEnergy(trans, ip, nu, b_mag);
       fun += qp_en * w;
    }
 
@@ -2606,13 +2606,13 @@ double ForceIntegrator::GetElementEnergy(
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix dshape(v_el.GetDof(), v_el.GetDim());
    DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc);
-   DenseMatrix dBdX(v_el.GetDof(), v_el.GetDim());
+   DenseMatrix dBdX(v_el.GetDim(), v_el.GetDof());
    Vector b_vec(dimc), b_hat(dimc);
 #else
    dshape.SetSize(v_el.GetDof(), v_el.GetDim());
    curlshape.SetSize(ndof, dimc);
    curlshape_dFt.SetSize(ndof, dimc);
-   dBdX.SetSize(v_el.GetDof(), v_el.GetDim());
+   dBdX.SetSize(v_el.GetDim(), v_el.GetDof());
    b_vec.SetSize(dimc);
    b_hat.SetSize(dimc);
 #endif
@@ -2678,7 +2678,7 @@ double ForceIntegrator::GetElementEnergy(
       {
          for (int d = 0; d < dimc; ++d)
          {
-            force += dBdX(d, j) * dXds(d, j);
+            force += dBdX(d, j) * dXds(j, d);
          }
       }
       force *= energy_dot;

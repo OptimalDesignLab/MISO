@@ -814,7 +814,7 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
    if (fun == "energy")
    { 
       addOutputDomainIntegrator(fun,
-                                new MagneticEnergyIntegrator(nu.get()));
+                                new MagneticEnergyIntegrator(*nu));
    }
    else if (fun == "co-energy")
    {
@@ -1274,7 +1274,7 @@ void MagnetostaticSolver::assembleLoadVector(double alpha)
 
 void MagnetostaticSolver::addEntVolumeIntegrators()
 {
-   ent->AddDomainIntegrator(new MagneticEnergyIntegrator(nu.get()));
+   ent->AddDomainIntegrator(new MagneticEnergyIntegrator(*nu));
 }
 
 void MagnetostaticSolver::setStaticMembers()

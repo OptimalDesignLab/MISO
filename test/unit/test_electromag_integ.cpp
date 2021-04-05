@@ -834,7 +834,7 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
 
          NonlinearForm functional(fes.get());
          functional.AddDomainIntegrator(
-            new mach::MagneticEnergyIntegrator(nu.get()));
+            new mach::MagneticEnergyIntegrator(*nu));
 
          const double fun = functional.GetEnergy(A);
          const double b_mag = 2.0;
@@ -1555,6 +1555,66 @@ TEST_CASE("calcMagneticEnergyDot")
          double dWdB = mach::calcMagneticEnergyDot(trans, ip, *nu, B_mag);
          double dWdB_fd = mach::calcMagneticEnergyFD(trans, ip, *nu, B_mag);
          REQUIRE(dWdB == Approx(dWdB_fd).epsilon(1e-10));
+      }
+   }
+}
+
+TEST_CASE("ForceIntegrator::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true);
+   mesh.ReorientTetMesh();
+   mesh.EnsureNodes();
+
+   std::unique_ptr<mach::StateCoefficient> nu(new NonLinearCoefficient());
+
+   /// construct elements
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         ND_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient pert(3, randVectorState);
+         v.ProjectCoefficient(pert);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction A(&fes);
+         A.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::ForceIntegrator(*nu, v));
+
+         auto force = functional.GetEnergy(A);
+
+         NonlinearForm energy(&fes);
+         energy.AddDomainIntegrator(
+            new mach::MagneticEnergyIntegrator(*nu));
+         
+         add(x_nodes, -delta, v, x_nodes);
+         auto dWds = -energy.GetEnergy(A);
+         add(x_nodes, 2*delta, v, x_nodes);
+         dWds += energy.GetEnergy(A);
+         dWds /= 2*delta;
+
+         std::cout << "dWds: " << dWds << " Force: " << force << "\n";
+         REQUIRE(force == Approx(dWds));
       }
    }
 }

@@ -391,8 +391,8 @@ class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// \param[in] nu - model describing reluctivity
-   MagneticEnergyIntegrator(StateCoefficient *_nu)
-   : nu(_nu)
+   MagneticEnergyIntegrator(StateCoefficient &nu)
+   : nu(nu)
    { }
 
    /// \param[in] el - the finite element
@@ -415,7 +415,7 @@ public:
 
 private:
    /// material (thus mesh) dependent model describing reluctivity
-   StateCoefficient *nu;
+   StateCoefficient &nu;
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt, M;
    mfem::Vector b_vec;
