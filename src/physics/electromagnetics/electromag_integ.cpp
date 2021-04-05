@@ -2590,7 +2590,7 @@ double ForceIntegrator::GetElementEnergy(
    Array<int> vdofs; Vector vfun; 
    int element = trans.ElementNo;
    const auto &v_el = *v.FESpace()->GetFE(element);
-   auto &v_trans = v.FESpace()->GetElementTransformation(element);
+   auto &v_trans = *v.FESpace()->GetElementTransformation(element);
    v.FESpace()->GetElementVDofs(element, vdofs);
    v.GetSubVector(vdofs, vfun);
    DenseMatrix dXds(vfun.GetData(), v_el.GetDof(), v_el.GetDim());
@@ -2614,8 +2614,11 @@ double ForceIntegrator::GetElementEnergy(
    curlshape_dFt.SetSize(ndof, dimc);
    dBdX.SetSize(v_el.GetDof(), v_el.GetDim());
    b_vec.SetSize(dimc);
-   b_hat.SetSize(dimc)
+   b_hat.SetSize(dimc);
 #endif
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation&>(trans);
 
    const IntegrationRule *ir = NULL;
    {
@@ -2654,12 +2657,12 @@ double ForceIntegrator::GetElementEnergy(
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       const double b_mag = b_vec.Norml2() / trans.Weight();
 
-      // const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
       const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
 
       /// the following computes `\partial (||B||/|J|) / \partial X`
       dBdX = 0.0;      
-      double weight_bar = -b_vec.Norml2() / pow(trans->Weight(), 2.0);
+      double weight_bar = -b_vec.Norml2() / pow(trans.Weight(), 2.0);
       isotrans.WeightRevDiff(dBdX);
       dBdX *= weight_bar;
 
@@ -2667,7 +2670,7 @@ double ForceIntegrator::GetElementEnergy(
       curlshape.AddMultTranspose(elfun, b_hat);
       DenseMatrix BB_hatT(3);
       MultVWt(b_vec, b_hat, BB_hatT);
-      BB_hatT *= 1.0 / (trans->Weight() * b_vec.Norml2());
+      BB_hatT *= 1.0 / (trans.Weight() * b_vec.Norml2());
       isotrans.JacobianRevDiff(BB_hatT, dBdX);
       
       double force = 0.0;
@@ -2685,8 +2688,8 @@ double ForceIntegrator::GetElementEnergy(
 
       DenseMatrix JinvdJds(3);
       DenseMatrix dJds(3);
-      MultTranspose(dXds, dshape, dJds);
-      Mult(trans.JacobianInv(), dJds, JinvdJds);
+      MultAtB(dXds, dshape, dJds);
+      Mult(trans.InverseJacobian(), dJds, JinvdJds);
 
       force += energy * JinvdJds.Trace();
 
