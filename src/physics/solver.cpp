@@ -1252,7 +1252,11 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    {
       throw MachException("Unsupported iterative solver type!\n"
                "\tavilable options are: HypreGMRES, HypreFGMRES, GMRESSolver,\n"
-               "\tHyprePCG, CGSolver");
+               "\tHyprePCG, CGSolver"
+#ifdef MFEM_USE_SUPERLU
+               ", SuperLU"
+#endif
+               "\n");
    }
    return lin_solver;
 }
@@ -1332,7 +1336,7 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    else
    {
       throw MachException("Unsupported nonlinear solver type!\n"
-         "\tavilable options are: newton\n");
+         "\tavilable options are: Newton, InexactNewton\n");
    }
    //double eta = 1e-1;
    //newton_solver.reset(new InexactNewton(comm, eta));
