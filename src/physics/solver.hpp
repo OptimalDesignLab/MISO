@@ -300,6 +300,9 @@ public:
    /// Default behavior is to return just the state `u`
    virtual std::vector<GridFunType*> getFields();
 
+   mfem::ParGridFunction& getField(std::string field)
+   { return res_fields.at(field); };
+
    /// DEPRECIATED -> use version with HypreParVector
    /// Solve for the state variables based on current mesh, solver, etc.
    virtual void solveForState() { solveForState(*u); };

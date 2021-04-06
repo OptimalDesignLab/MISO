@@ -831,6 +831,14 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
       addOutputDomainIntegrator(fun,
          new DCLossFunctionalIntegrator(*sigma, *current_coeff, 1.0, 1.0));
    }
+   else if (fun == "force")
+   {
+      /// create displacement field V that uses the same FES as the mesh
+      auto &mesh_gf = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
+      res_fields.emplace("v", mesh_gf.ParFESpace());
+      addOutputDomainIntegrator(fun,
+         new ForceIntegrator(*nu, res_fields.at("v")));
+   }
    else
    {
       throw MachException("Output with name " + fun + " not supported by "
