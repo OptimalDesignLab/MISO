@@ -170,6 +170,9 @@ private:
    void addOutputIntegrators(const std::string &fun,
                              const nlohmann::json &options) override;
 
+   void setOutputOptions(const std::string &fun,
+                         const nlohmann::json &options) override;
+
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
    void solveUnsteady(mfem::ParGridFunction &state) override;
    void _solveUnsteady(mfem::ParGridFunction &state);

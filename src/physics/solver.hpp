@@ -376,6 +376,14 @@ public:
    /// \return scalar value of estimated functional value
    double calcOutput(const std::string &fun,
                      const MachInputs &inputs);
+
+   /// Sets options for the output functional specifed by `fun`
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] options - options needed for calculating functional
+   /// \note will only have an effect if a subclass supports setting options
+   ///       for the functional
+   virtual void setOutputOptions(const std::string &fun,
+                                 const nlohmann::json &options) { }; 
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`

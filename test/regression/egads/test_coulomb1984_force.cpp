@@ -70,6 +70,7 @@ auto em_options = R"(
    }
 })"_json;
 
+/// exact force is 0.078 N
 TEST_CASE("Force Regression Test Coulomb 1984 Paper")
 {
    auto em_solver = createSolver<MagnetostaticSolver>(em_options);
@@ -84,20 +85,32 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
    };
    em_solver->solveForState(inputs, *em_state);
 
-   auto force_options = R"(
-   {
-      "attrs": [1]
-   })"_json;
+   nlohmann::json force_options = {
+      {"attributes", {1}},
+      {"axis", {0, 0, 1}}
+   };
    em_solver->createOutput("force", force_options);
-   auto &v = em_solver->getField("v");
-   v = 0.0;
-
-   double ring1_data[] = {0.0, 0.0, 1.0};
-   VectorConstantCoefficient v_ring1(Vector{ring1_data, 3});
-   v.ProjectCoefficient(v_ring1, 1);
 
    double force = em_solver->calcOutput("force", inputs);
-
-   /// exact solution is 0.078
    REQUIRE(force == Approx(-0.0791988853).margin(1e-10));
+
+   force_options["attributes"] = {2};
+   em_solver->setOutputOptions("force", force_options);
+
+   force = em_solver->calcOutput("force", inputs);
+   REQUIRE(force == Approx(0.0781336686).margin(1e-10));
+
+   nlohmann::json torque_options = {
+      {"attributes", {1}},
+      {"axis", {0, 0, 1}},
+      {"about", {0.0, 0.0, 0.0}}
+   };
+   em_solver->createOutput("torque", torque_options);
+
+   auto &v = em_solver->getField("vtorque");
+   em_solver->printField("v", v, "v", 0);
+
+   double torque = em_solver->calcOutput("torque", inputs);
+   REQUIRE(torque == Approx(0.0000104977).margin(1e-10));
+
 }
