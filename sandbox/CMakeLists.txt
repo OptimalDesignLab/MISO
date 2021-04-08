@@ -14,24 +14,24 @@ function(create_sandbox source_list)
 endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
-   advection2d
+   #advection2d
    steady_vortex
    steady_vortex_adjoint
    unsteady_vortex
    viscous_shock
    airfoil_steady
    airfoil_chaotic
-   magnetostatic_box
-   magnetostatic_motor
-   magnetostatic_wire
+   #magnetostatic_box
+   #magnetostatic_motor
+   #magnetostatic_wire
    navier_stokes_mms
-   thermal_square
+   ex14_mfem
+   #thermal_square
    # joule_wire
-   joule_box
-   mesh_move
-   mesh_move_2
+   #joule_box
+   #mesh_move
+   #mesh_move_2
    surface_distance
-   joule_wire
 )
 
 create_sandbox("${SANDBOX_SRCS}")
