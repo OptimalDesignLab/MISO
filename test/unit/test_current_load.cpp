@@ -77,7 +77,7 @@ TEST_CASE("CurrentLoad Test",
    MachLoad ml(load);
 
    auto inputs = MachInputs({
-      {"current_density", 1.0}
+      {"current-density", 1.0}
    });
 
    std::unique_ptr<HypreParVector> tv(fes.NewTrueDofVector());
@@ -92,7 +92,7 @@ TEST_CASE("CurrentLoad Test",
 
    REQUIRE(norm == Approx(0.3186887196).margin(1e-10));
 
-   inputs.at("current_density") = 2.0;
+   inputs.at("current-density") = 2.0;
    setInputs(ml, inputs);
 
    *tv = 0.0;
