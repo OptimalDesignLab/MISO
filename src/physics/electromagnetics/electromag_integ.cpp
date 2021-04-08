@@ -1206,8 +1206,6 @@ double MagneticEnergyIntegrator::GetElementEnergy(
       const double qp_en = calcMagneticEnergy(trans, ip, nu, b_mag);
       fun += qp_en * w;
    }
-
-
    return fun;
 }
 
@@ -2440,12 +2438,9 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
    ElementTransformation &trans,
    const Vector &elfun)
 {
-   /// number of degrees of freedom
-   int ndof = el.GetDof();
-   int dim = el.GetDim();
-
    /// I believe this takes advantage of a 2D problem not having
    /// a properly defined curl? Need more investigation
+   int dim = el.GetDim();
    int dimc = (dim == 3) ? 3 : 1;
 
    const IntegrationRule *ir = NULL;
@@ -2586,15 +2581,21 @@ double ForceIntegrator::GetElementEnergy(
    ElementTransformation &trans,
    const Vector &elfun)
 {
+   if (attrs.count(trans.Attribute) == 1)
+   {
+      return 0.0;
+   }
    /// get the proper element, transformation, and v vector
    Array<int> vdofs; Vector vfun; 
    int element = trans.ElementNo;
    const auto &v_el = *v.FESpace()->GetFE(element);
-   auto &v_trans = *v.FESpace()->GetElementTransformation(element);
    v.FESpace()->GetElementVDofs(element, vdofs);
    v.GetSubVector(vdofs, vfun);
    DenseMatrix dXds(vfun.GetData(), v_el.GetDof(), v_el.GetDim());
-
+   if (vfun.Normlinf() < 1e-14)
+   {
+      return 0.0;
+   }
    /// number of degrees of freedom
    int ndof = el.GetDof();
    int dim = el.GetDim();
@@ -2693,7 +2694,7 @@ double ForceIntegrator::GetElementEnergy(
 
       force += energy * JinvdJds.Trace();
 
-      fun += force * w;
+      fun -= force * w;
    }
    return fun;
 }

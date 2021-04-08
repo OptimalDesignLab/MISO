@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <set>
 
 #include "catch.hpp"
 #include "json.hpp"
@@ -16,7 +17,8 @@ auto em_options = R"(
 {
    "mesh": {
       "file": "data/coulomb1984.smb",
-      "model-file": "data/coulomb1984.egads"
+      "model-file": "data/coulomb1984.egads",
+      "refine": 0
    },
    "space-dis": {
       "basis-type": "nedelec",
@@ -82,25 +84,20 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
    };
    em_solver->solveForState(inputs, *em_state);
 
-   em_solver->createOutput("force");
+   auto force_options = R"(
+   {
+      "attrs": [1]
+   })"_json;
+   em_solver->createOutput("force", force_options);
    auto &v = em_solver->getField("v");
+   v = 0.0;
 
    double ring1_data[] = {0.0, 0.0, 1.0};
-   std::unique_ptr<VectorConstantCoefficient> v_ring1(
-      new VectorConstantCoefficient( Vector{ring1_data, 3} ));
-
-   double ring2_data[] = {0.0, 0.0, 0.0};
-   std::unique_ptr<VectorConstantCoefficient> v_ring2(
-      new VectorConstantCoefficient( Vector{ring2_data, 3} ));
-
-   VectorMeshDependentCoefficient v_coeff;
-   v_coeff.addCoefficient(1, move(v_ring1));
-   v_coeff.addCoefficient(2, move(v_ring2));
-
-   v.ProjectCoefficient(v_coeff);
-
-   em_solver->printField("v", v, "v");   
+   VectorConstantCoefficient v_ring1(Vector{ring1_data, 3});
+   v.ProjectCoefficient(v_ring1, 1);
 
    double force = em_solver->calcOutput("force", inputs);
-   REQUIRE(force == Approx(78e-3).margin(1e-10));
+
+   /// exact solution is 0.078
+   REQUIRE(force == Approx(-0.0791988853).margin(1e-10));
 }

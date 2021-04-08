@@ -801,7 +801,7 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                                        Element::TETRAHEDRON,
-                                       true /* gen. edges */, 2.0, 2.0, 1.0,
+                                       true /* gen. edges */, 2.0, 3.0, 1.0,
                                        true));
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
@@ -839,7 +839,7 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
          const double fun = functional.GetEnergy(A);
          const double b_mag = 2.0;
          const double energy = nonlin_energy(b_mag);
-         const double vol = 4.0;
+         const double vol = 6.0;
          // std::cout << "fun: " << fun << " energy * vol: " << energy*vol << "\n";
          REQUIRE(fun == Approx(energy * vol));
       }
@@ -1568,13 +1568,13 @@ TEST_CASE("ForceIntegrator::GetElementEnergy")
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true);
+             true /* gen. edges */, 2.0, 3.0, 1.0, true);
    mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
-   std::unique_ptr<mach::StateCoefficient> nu(new NonLinearCoefficient());
+   NonLinearCoefficient nu;
 
    /// construct elements
    for (int p = 1; p <= 4; ++p)
@@ -1599,13 +1599,13 @@ TEST_CASE("ForceIntegrator::GetElementEnergy")
 
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(
-            new mach::ForceIntegrator(*nu, v));
+            new mach::ForceIntegrator(nu, v));
 
          auto force = functional.GetEnergy(A);
 
          NonlinearForm energy(&fes);
          energy.AddDomainIntegrator(
-            new mach::MagneticEnergyIntegrator(*nu));
+            new mach::MagneticEnergyIntegrator(nu));
          
          add(x_nodes, -delta, v, x_nodes);
          auto dWds = -energy.GetEnergy(A);
@@ -1613,8 +1613,8 @@ TEST_CASE("ForceIntegrator::GetElementEnergy")
          dWds += energy.GetEnergy(A);
          dWds /= 2*delta;
 
-         std::cout << "dWds: " << dWds << " Force: " << force << "\n";
-         REQUIRE(force == Approx(dWds));
+         std::cout << "-dWds: " << -dWds << " Force: " << force << "\n";
+         REQUIRE(force == Approx(-dWds));
       }
    }
 }

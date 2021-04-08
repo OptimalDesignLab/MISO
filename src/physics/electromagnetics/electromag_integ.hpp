@@ -811,8 +811,20 @@ public:
    /// \param[in] nu - model describing reluctivity
    /// \param[in] v - the grid function containing virtual displacements for
    ///                each mesh node
-   ForceIntegrator(StateCoefficient &nu, mfem::GridFunction &v)
+   ForceIntegrator(StateCoefficient &nu,
+                   mfem::GridFunction &v)
    : nu(nu), v(v)
+   { }
+
+   /// \brief - Compute forces/torques based on the virtual work method
+   /// \param[in] nu - model describing reluctivity
+   /// \param[in] v - the grid function containing virtual displacements for
+   ///                each mesh node
+   /// \param[in] attrs - the regions the force is acting on
+   ForceIntegrator(StateCoefficient &nu,
+                   mfem::GridFunction &v,
+                   std::unordered_set<int> attrs)
+   : nu(nu), v(v), attrs(std::move(attrs))
    { }
 
    /// \brief - Compute element contribution to global force/torque
@@ -829,6 +841,8 @@ private:
    StateCoefficient &nu;
    /// grid function containing virtual displacements for each mesh node
    mfem::GridFunction &v;
+   /// set of attributes the force is acting on
+   std::unordered_set<int> attrs;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshape, curlshape, curlshape_dFt, dBdX;

@@ -833,11 +833,12 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
    }
    else if (fun == "force")
    {
+      auto force_attrs = options["attrs"].get<unordered_set<int>>();
       /// create displacement field V that uses the same FES as the mesh
       auto &mesh_gf = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
       res_fields.emplace("v", mesh_gf.ParFESpace());
       addOutputDomainIntegrator(fun,
-         new ForceIntegrator(*nu, res_fields.at("v")));
+         new ForceIntegrator(*nu, res_fields.at("v"), force_attrs));
    }
    else
    {
