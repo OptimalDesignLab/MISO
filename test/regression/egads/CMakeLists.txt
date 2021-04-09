@@ -27,6 +27,7 @@ set(TEST_SRCS
    test_thermal_ring
 #   coupled_motor
    test_coulomb1984_force
+   test_torque_loop
 )
 
 create_egads_tests("${TEST_SRCS}" "../regression_data.cpp")
