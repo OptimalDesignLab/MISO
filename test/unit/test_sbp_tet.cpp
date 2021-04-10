@@ -69,7 +69,7 @@ TEST_CASE( "Segment SBP difference operator is accurate...", "[sbp-seg-D]")
    } // loop over p
 }
 
-TEST_CASE( "Tetrahedron SBP difference operator is accurate...", "[sbp-tri-D]") //Changed to Tetrahedraon SBP difference operator is accurate
+TEST_CASE( "Tetrahedron SBP difference operator is accurate...", "[sbp-tet-D]") //Changed to Tetrahedraon SBP difference operator is accurate
 {
    int dim = 3; //changed dim to 3 from 2
    for (int p = 1; p <= 4; ++p)
