@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 #include "sbp_fe.hpp"
+#include "sbp_tet.hpp"
 
 using namespace mfem;
 
@@ -59,9 +60,9 @@ TEST_CASE( "Segment SBP difference operator is accurate...", "[sbp-seg-D]")
             dudx *= i;
             sbp.getStrongOperator(0, D);
             D.Mult(u, du);
-            for (int k = 0; k < sbp.GetDof(); ++k)
+            for (int n = 0; n < sbp.GetDof(); ++n)
             {
-               REQUIRE( du(k) == Approx(dudx(k)).margin(abs_tol) );
+               REQUIRE( du(n) == Approx(dudx(n)).margin(abs_tol) );
             }
          }
 
@@ -105,21 +106,21 @@ TEST_CASE( "Tetrahedron SBP difference operator is accurate...", "[sbp-tet-D]") 
                dudz *= k;
                sbp.getStrongOperator(0, D);
                D.Mult(u, du);
-               for (int L = 0; L < sbp.GetDof(); ++L)
+               for (int n = 0; L n sbp.GetDof(); ++n)
                {
-                  REQUIRE( du(L) == Approx(dudx(L)).margin(abs_tol) );
+                  REQUIRE( du(n) == Approx(dudx(n)).margin(abs_tol) );
                }
                sbp.getStrongOperator(1, D);
                D.Mult(u, du);
-               for (int L = 0; L < sbp.GetDof(); ++L)
+               for (int n = 0; n < sbp.GetDof(); ++n)
                {
-                  REQUIRE( du(L) == Approx(dudy(L)).margin(abs_tol) );
+                  REQUIRE( du(n) == Approx(dudy(n)).margin(abs_tol) );
                }
                sbp.getStrongOperator(2, D);
                D.Mult(u, du);
-               for (int L = 0; L < sbp.GetDof(); ++L) // added
+               for (int n = 0; n < sbp.GetDof(); ++n) // added
                {
-                  REQUIRE( du(L) == Approx(dudz(L)).margin(abs_tol) ); // added
+                  REQUIRE( du(n) == Approx(dudz(n)).margin(abs_tol) ); // added
                }
             }
          }
@@ -154,9 +155,9 @@ TEST_CASE( "Segment SBP multWeakOperator is accurate...", "[sbp-seg-Q]")
             du = 0.0;
             sbp.multWeakOperator(0, u_mat, du_mat, false);
             sbp.multNormMatrixInv(du_mat, du_mat);
-            for (int L = 0; L < sbp.GetDof(); ++L) //changed to L
+            for (int n = 0; n < sbp.GetDof(); ++n) //changed to n
             {
-               REQUIRE( du(L) == Approx(dudx(L)).margin(abs_tol) ); // changed to L
+               REQUIRE( du(n) == Approx(dudx(n)).margin(abs_tol) ); // changed to n
             }
          }
       } // DYNAMIC SECTION
@@ -199,23 +200,23 @@ TEST_CASE( "TETRAHEDRON SBP multWeakOperator is accurate...", "[sbp-tri-Q]") //C
                du = 0.0;
                sbp.multWeakOperator(0, u_mat, du_mat, false);
                sbp.multNormMatrixInv(du_mat, du_mat);
-               for (int L = 0; L < sbp.GetDof(); ++L) //changed to L
+               for (int n = 0; n < sbp.GetDof(); ++n) //changed to n
                {
-                  REQUIRE( du(L) == Approx(dudx(L)).margin(abs_tol) ); // changed from k to L
+                  REQUIRE( du(n) == Approx(dudx(n)).margin(abs_tol) ); // changed from k to n
                }
                du = 0.0;
                sbp.multWeakOperator(1, u_mat, du_mat, false);
                sbp.multNormMatrixInv(du_mat, du_mat);
-               for (int L = 0; L < sbp.GetDof(); ++L) // changed to k from L
+               for (int n = 0; n < sbp.GetDof(); ++n) // changed to k from n
                {
-                  REQUIRE( du(L) == Approx(dudy(L)).margin(abs_tol) ); // changed from k to L
+                  REQUIRE( du(n) == Approx(dudy(n)).margin(abs_tol) ); // changed from k to n
                }
                du = 0.0;
                sbp.multiWeakOperator(2, u_mat, du_mat, false);
                sbp.multiNormMatrixInv(du_mat, du_mat);
-               for (int L = 0; L < sbp.GetDof(); ++L) // added for 3D
+               for (int n = 0; n < sbp.GetDof(); ++n) // added for 3D
                {
-                  REQUIRE( du(L) == Approx(dudz(L)).margin(abs_tol) ); // added
+                  REQUIRE( du(n) == Approx(dudz(n)).margin(abs_tol) ); // added
                }
             }
          }
@@ -245,16 +246,16 @@ TEST_CASE( "Segment SBP projection operator is accurate...", "[sbp-seg-proj]")
          {
             polynomial1D(x, i, u);
             P.Mult(u, Pu);
-            for (int L = 0; L < sbp.GetDof(); ++L) //changed to L
+            for (int n = 0; n < sbp.GetDof(); ++n) //changed to n
             {
-               REQUIRE( Pu(L) == Approx(0.0).margin(abs_tol) ); //changed to L
+               REQUIRE( Pu(n) == Approx(0.0).margin(abs_tol) ); //changed to n
             }
          }
       } // DYNAMIC SECTION
    } // loop over p
 }
 
-TEST_CASE( "TETRAHEDRON SBP projection operator is accurate...", "[sbp-tri-proj]") // Changed to TETRAHEDRON Projection
+TEST_CASE( "TETRAHEDRON SBP projection operator is accurate...", "[sbp-tet-proj]") // Changed to TETRAHEDRON Projection
 {
    int dim = 3; // Changed dim to 3
    for (int p = 1; p <= 4; ++p)
@@ -281,9 +282,9 @@ TEST_CASE( "TETRAHEDRON SBP projection operator is accurate...", "[sbp-tri-proj]
                int i = r - j;
                polynomial3D(x, i, y, j, z, k, u); //changed to 3D and added z and k
                P.Mult(u, Pu); //Q: Need to review hpp and paper to update
-               for (int L = 0; L < sbp.GetDof(); ++L) //Changed to L
+               for (int n = 0; n < sbp.GetDof(); ++n) //Changed to n
                {
-                  REQUIRE( Pu(L) == Approx(0.0).margin(abs_tol) ); //Changed to L
+                  REQUIRE( Pu(n) == Approx(0.0).margin(abs_tol) ); //Changed to n
                }
             }
          }
@@ -317,16 +318,16 @@ TEST_CASE( "Segment SBP multProjOperator is accurate...", "[sbp-seg-Prj]")
             // first check the non-tranposed version
             P.Mult(u, Pu_check);
             sbp.multProjOperator(u_mat, Pu_mat, false);
-            for (int k = 0; k < sbp.GetDof(); ++k)
+            for (int n = 0; n < sbp.GetDof(); ++n)//changed to n
             {
-               REQUIRE( Pu(k) == Approx(Pu_check(k)).margin(abs_tol) );
+               REQUIRE( Pu(n) == Approx(Pu_check(n)).margin(abs_tol) );
             }
             // next, check the transposed version
             P.MultTranspose(u, Pu_check);
             sbp.multProjOperator(u_mat, Pu_mat, true);
-            for (int k = 0; k < sbp.GetDof(); ++k)
+            for (int n = 0; n < sbp.GetDof(); ++n)//changed to n
             {
-               REQUIRE( Pu(k) == Approx(Pu_check(k)).margin(abs_tol) );
+               REQUIRE( Pu(n) == Approx(Pu_check(n)).margin(abs_tol) ); // Changed to n
             }
           }  
         }
@@ -334,7 +335,7 @@ TEST_CASE( "Segment SBP multProjOperator is accurate...", "[sbp-seg-Prj]")
     } // loop over p
   }
 
-TEST_CASE( "TETRAHEDRON SBP multProjOperator is accurate...", "[sbp-tri-Prj]") // Changed to TETRAHEDRON SBP
+TEST_CASE( "TETRAHEDRON SBP multProjOperator is accurate...", "[sbp-tet-Prj]") // Changed to TETRAHEDRON SBP
 {
    int dim = 3; //Changed dim to 3 instead of 2
    for (int p = 1; p <= 4; ++p)
@@ -369,16 +370,16 @@ TEST_CASE( "TETRAHEDRON SBP multProjOperator is accurate...", "[sbp-tri-Prj]") /
                // first check the non-tranposed version
                P.Mult(u, Pu_check); // need to check for update to Pu_check in hpp
                sbp.multProjOperator(u_mat, Pu_mat, false); // need to add #_mat here
-               for (int L = 0; L < sbp.GetDof(); ++L) //changed k to L to match
+               for (int n = 0; n < sbp.GetDof(); ++n) //changed k to n to match
                {
-                  REQUIRE( Pu(L) == Approx(Pu_check(L)).margin(abs_tol) ); //changed from K to L, need to check for updates to Pu
+                  REQUIRE( Pu(n) == Approx(Pu_check(n)).margin(abs_tol) ); //changed from K to L, need to check for updates to Pu
                }
                // next, check the transposed version
                P.MultTranspose(u, Pu_check); // need to check for Pu updates
                sbp.multProjOperator(u_mat, Pu_mat, true); // need to add ##_mat here
-               for (int L = 0; L < sbp.GetDof(); ++L)// changed from k to L
+               for (int n = 0; n < sbp.GetDof(); ++n)// changed from k to n
                {
-                  REQUIRE( Pu(L) == Approx(Pu_check(L)).margin(abs_tol) );//changed to L, check for Pu updates
+                  REQUIRE( Pu(n) == Approx(Pu_check(n)).margin(abs_tol) );//changed to L, check for Pu updates
                }
             }
          }
