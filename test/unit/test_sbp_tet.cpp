@@ -241,7 +241,7 @@ TEST_CASE( "Segment SBP projection operator is accurate...", "[sbp-seg-proj]")
          sbp.getNodeCoords(0, x);
          Vector u(sbp.GetDof());
          Vector Pu(sbp.GetDof());
-         // Need to update for Vector ##(sbp.GetDof());
+         // Need to update for Vector ##(sbp.GetDof())
          for (int i = 0; i <= p; ++i)
          {
             polynomial1D(x, i, u);
