@@ -1160,9 +1160,12 @@ DSBPCollection::~DSBPCollection()
       delete Tr_SBPElements[g];
    }
 }
-  //Tet_Element
-SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
-   : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree)
+  //TET_ELEMENT
+  
+  
+  
+SBPTetrahedralElement::SBPTetrahedralElement(const int degree, const int num_nodes)
+   : SBPFiniteElement(2, Geometry::TETRAHEDRAL, num_nodes, degree)
 {
    /// Header file including SBP Dx and Dy matrix data
    #include "sbp_operators.hpp"
@@ -1170,7 +1173,7 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    Q[1].SetSize(num_nodes);
    
    // Populate the Q[i] matrices and create the element's Nodes
-   switch (degree)
+   switch (degree) //changed all nodes to match Q(x,y,z) rows in tet file
    {
       case 0:
          Q[0] = p0Qx_tri;
