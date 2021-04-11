@@ -1165,116 +1165,48 @@ DSBPCollection::~DSBPCollection()
   
   
 SBPTetrahedralElement::SBPTetrahedralElement(const int degree, const int num_nodes)
-   : SBPFiniteElement(2, Geometry::TETRAHEDRAL, num_nodes, degree)
+   : SBPFiniteElement(2, Geometry::TETRAHEDRAL, num_nodes, degree) // need to make sure 2 does not need to changed to 3 here
 {
    /// Header file including SBP Dx and Dy matrix data
    #include "sbp_operators.hpp"
    Q[0].SetSize(num_nodes);
    Q[1].SetSize(num_nodes);
+   Q[2].SetSize(num_nodes);//added this for 3D elements
    
    // Populate the Q[i] matrices and create the element's Nodes
    switch (degree) //changed all nodes to match Q(x,y,z) rows in tet file
    {
       case 0:
-         Q[0] = p0Qx_tri;
-         Q[1] = p0Qy_tri;
+         Q[0] = p0Qx_tet; // changed to tet
+         Q[1] = p0Qy_tet;// changed to tet
+         Q[2] = p0Qz_tet;// added for tetrahedron
          // vertices
-         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.16666666666666666);
-         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.16666666666666666);
-         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.16666666666666666);
+         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.0);//adjusted for tet elements
+         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.0); //adjusted for tet elements
+         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.0); // adjusted for tet elements
+         Nodes.IntPoint(3).Set2w(0.0, 0.0, 1.0); // added for tetrahedron
          break;
       case 1:
-         Q[0] = p1Qx_tri;
-         Q[1] = p1Qy_tri;
+         Q[0] = p1Qx_tet;// adjusted for tet
+         Q[1] = p1Qy_tet;// adjusted for tet
+         Q[2] = p1Qz_tet;// adjusted for tet
          // vertices
-         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.024999999999999998);
-         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.024999999999999998);
-         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.024999999999999998);
+         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.0);//adjusted to tet
+         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.0);//adjusted to tet
+         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.0);//adjusted to tet
+         Nodes.IntPoint(3).Set2w(0.0, 0.0, 1.0);//added
          // edges
-         Nodes.IntPoint(3).Set2w(0.5, 0.0, 0.06666666666666667);
-         Nodes.IntPoint(4).Set2w(0.5, 0.5, 0.06666666666666667);
-         Nodes.IntPoint(5).Set2w(0.0, 0.5, 0.06666666666666667);
+         Nodes.IntPoint(3).Set2w(0.5, 0.0, 0.0);//adjusted to tet
+         Nodes.IntPoint(4).Set2w(0.5, 0.5, 0.0);//adjisted to tet
+         Nodes.IntPoint(5).Set2w(0.0, 0.5, 0.0);//adjusted to tet
+         Nodes.IntPoint(6).Set2w(0.0, 0.0, 0.5);//added for tet
+         Nodes.IntPoint(7).Set2w(0.5, 0.0, 0.5);//added for tet
+         Nodes.IntPoint(8).Set2w(0.0, 0.5, 0.5);//added for tet
          // interior
-         Nodes.IntPoint(6).Set2w(0.3333333333333333, 0.3333333333333333, 0.22500000000000006);
-         break;
-      case 2:
-         Q[0] = p2Qx_tri;
-         Q[1] = p2Qy_tri;
-         // vertices
-         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.006261126504899741);
-         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.006261126504899741);
-         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.006261126504899741);
-         // edges
-         Nodes.IntPoint(3).Set2w(0.27639320225002106, 0.0, 0.026823800250389242);
-         Nodes.IntPoint(4).Set2w(0.7236067977499789, 0.0, 0.026823800250389242);
-         Nodes.IntPoint(5).Set2w(0.7236067977499789, 0.27639320225002106, 0.026823800250389242);
-         Nodes.IntPoint(6).Set2w(0.27639320225002106, 0.7236067977499789, 0.026823800250389242);
-         Nodes.IntPoint(7).Set2w(0.0, 0.7236067977499789, 0.026823800250389242);
-         Nodes.IntPoint(8).Set2w(0.0, 0.27639320225002106, 0.026823800250389242);
-         // interior
-         Nodes.IntPoint(9).Set2w(0.21285435711180825, 0.5742912857763836, 0.10675793966098839);
-         Nodes.IntPoint(10).Set2w(0.21285435711180825, 0.21285435711180825, 0.10675793966098839);
-         Nodes.IntPoint(11).Set2w(0.5742912857763836, 0.21285435711180825, 0.10675793966098839);
-         break;
-      case 3:
-         Q[0] = p3Qx_tri;
-         Q[1] = p3Qy_tri;
-         // vertices
-         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.0022825661430496253);
-         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.0022825661430496253);
-         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.0022825661430496253);
-         // edges
-         Nodes.IntPoint(3).Set2w(0.5, 0.0, 0.015504052643022513);
-         Nodes.IntPoint(4).Set2w(0.17267316464601146, 0.0, 0.011342592592592586);
-         Nodes.IntPoint(5).Set2w(0.8273268353539885, 0.0, 0.011342592592592586);
-         Nodes.IntPoint(6).Set2w(0.5, 0.5, 0.015504052643022513);
-         Nodes.IntPoint(7).Set2w(0.8273268353539885, 0.17267316464601146, 0.011342592592592586);
-         Nodes.IntPoint(8).Set2w(0.17267316464601146, 0.8273268353539885, 0.011342592592592586);
-         Nodes.IntPoint(9).Set2w(0.0, 0.5, 0.015504052643022513);
-         Nodes.IntPoint(10).Set2w(0.0, 0.8273268353539885, 0.011342592592592586);
-         Nodes.IntPoint(11).Set2w(0.0, 0.17267316464601146, 0.011342592592592586);
-         // interior
-         Nodes.IntPoint(12).Set2w(0.4243860251718814, 0.1512279496562372, 0.07467669469983994);
-         Nodes.IntPoint(13).Set2w(0.4243860251718814, 0.4243860251718814, 0.07467669469983994);
-         Nodes.IntPoint(14).Set2w(0.1512279496562372, 0.4243860251718814, 0.07467669469983994);
-         Nodes.IntPoint(15).Set2w(0.14200508409677795, 0.7159898318064442, 0.051518167995569394);
-         Nodes.IntPoint(16).Set2w(0.14200508409677795, 0.14200508409677795, 0.051518167995569394);
-         Nodes.IntPoint(17).Set2w(0.7159898318064442, 0.14200508409677795, 0.051518167995569394);
-         break;
-      case 4:
-         Q[0] = p4Qx_tri;
-         Q[1] = p4Qy_tri; 
-
-         // vertices
-         Nodes.IntPoint(0).Set2w(0.000000000000000000,0.000000000000000000,0.001090393904993471);
-         Nodes.IntPoint(1).Set2w(1.000000000000000000,0.000000000000000000,0.001090393904993471);
-         Nodes.IntPoint(2).Set2w(0.000000000000000000,1.000000000000000000,0.001090393904993471);
-         // edges
-         Nodes.IntPoint(3).Set2w(0.357384241759677534,0.000000000000000000,0.006966942871463700);
-         Nodes.IntPoint(4).Set2w(0.642615758240322466,0.000000000000000000,0.006966942871463700);
-         Nodes.IntPoint(5).Set2w(0.117472338035267576,0.000000000000000000,0.005519747637357106);
-         Nodes.IntPoint(6).Set2w(0.882527661964732424,0.000000000000000000,0.005519747637357106);
-         Nodes.IntPoint(7).Set2w(0.642615758240322466,0.357384241759677534,0.006966942871463700);
-         Nodes.IntPoint(8).Set2w(0.357384241759677534,0.642615758240322466,0.006966942871463700);
-         Nodes.IntPoint(9).Set2w(0.882527661964732424,0.117472338035267576,0.005519747637357106);
-         Nodes.IntPoint(10).Set2w(0.117472338035267576,0.882527661964732424,0.005519747637357106);
-         Nodes.IntPoint(11).Set2w(0.000000000000000000,0.642615758240322466,0.006966942871463700);
-         Nodes.IntPoint(12).Set2w(0.000000000000000000,0.357384241759677534,0.006966942871463700);
-         Nodes.IntPoint(13).Set2w(0.000000000000000000,0.882527661964732424,0.005519747637357106);
-         Nodes.IntPoint(14).Set2w(0.000000000000000000,0.117472338035267576,0.005519747637357106);
-         // interior
-         Nodes.IntPoint(15).Set2w(0.103677508142805172,0.792644983714389628,0.028397190663911491);
-         Nodes.IntPoint(16).Set2w(0.103677508142805172,0.103677508142805172,0.028397190663911491);
-         Nodes.IntPoint(17).Set2w(0.792644983714389628,0.103677508142805172,0.028397190663911491);
-         Nodes.IntPoint(18).Set2w(0.265331380484209678,0.469337239031580644,0.039960048027851809);
-         Nodes.IntPoint(19).Set2w(0.265331380484209678,0.265331380484209678,0.039960048027851809);
-         Nodes.IntPoint(20).Set2w(0.469337239031580644,0.265331380484209678,0.039960048027851809);
-         Nodes.IntPoint(21).Set2w(0.587085567133367348,0.088273960601581103,0.036122826526134168);
-         Nodes.IntPoint(22).Set2w(0.324640472265051494,0.088273960601581103,0.036122826526134168);
-         Nodes.IntPoint(23).Set2w(0.324640472265051494,0.587085567133367348,0.036122826526134168);
-         Nodes.IntPoint(24).Set2w(0.587085567133367348,0.324640472265051494,0.036122826526134168);
-         Nodes.IntPoint(25).Set2w(0.088273960601581103,0.324640472265051494,0.036122826526134168);
-         Nodes.IntPoint(26).Set2w(0.088273960601581103,0.587085567133367348,0.036122826526134168);
+         Node.IntPoint(9).Set2w(0.3333333333333333, 0.3333333333333333, 0.0);//edited for tet
+         Node.Intpoint(10).Set2w(0.3333333333333333, 0.0, 0.3333333333333333);//edited for tet
+         Node.IntPoint(11).Set2w(0.3333333333333333, 0.3333333333333333,0.3333333333333333);//added for tet
+         Node.IntPoint(12).Set2w(0.0, 0.3333333333333333, 0.3333333333333333);//added for tet
          break;
       default:
          mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
