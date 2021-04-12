@@ -4,6 +4,8 @@
 #include "solver.hpp"
 #include "mach_types.hpp"
 #include "pumi.h"
+#include "apfMDS.h"
+#include "HYPRE.h"
 
 namespace mfem
 {
@@ -47,7 +49,6 @@ public:
 	/// \param[in] local_mat - local prolongation matrix
 	void AssembleProlongationMatrix(const mfem::Array<int> &els_id,
 											  const mfem::DenseMatrix &local_mat);
-
 private:
    /// the pumi mesh object
    apf::Mesh2 *pumi_mesh; 
@@ -56,9 +57,16 @@ private:
 	int dim;
    /// degree of the prolongation operator
    int degree;
+	/// the start and end row index of each local prolongation operator
+	/// what is the index exceed the limit?
+	int dof_offset, dof_offset_next;
+	/// the start and end colume index of each local prolongation operator
+	int el_offset, el_offset_next;
 
 	/// the actual prolongation matrix
-	mfem::HypreParMatrix Prolong;
+	//mfem::HypreParMatrix prolong;
+	HYPRE_ParCSRMatrix prolong;
+	HYPRE_IJMatrix ij_matrix;
 };
 
 } // end of namespace
