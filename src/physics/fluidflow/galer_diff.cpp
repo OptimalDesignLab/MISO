@@ -91,7 +91,7 @@ void ParGDSpace::BuildProlongationOperator()
    // finialize the hypre parmatrix
    HYPRE_IJMatrixAssemble(ij_matrix);
    HYPRE_IJMatrixGetObject(ij_matrix, (void**)&prolong);
-   // P = (HypreParMatrix)(&prolong);
+   P = new HypreParMatrix((hypre_ParCSRMatrix*)(prolong), true);
 }
 
 void ParGDSpace::GetNeighbourSet(int id, int req_n, Array<int> &nels)
