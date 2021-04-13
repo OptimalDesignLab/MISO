@@ -285,12 +285,21 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
+      double dt = 0.0;
+      // run a start-up period at constant dt until a threshold is reached
+      // if (start_up)
+      // {
+      //    //dt = options["time-dis"]["dt"].template get<double>();
+
+      //    return dt_old;
+      // }
+
       // ramp up time step for pseudo-transient continuation
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm(state);
       double exponent = options["time-dis"]["res-exp"];
-      double dt = options["time-dis"]["dt"].template get<double>() *
+      dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
       return max(dt, dt_old);
    }
@@ -372,7 +381,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    // This lambda function computes the error at a node
    // Beware: this is not particularly efficient, given the conditionals
    // Also **NOT thread safe!**
-   Vector qdiscrete(dim+2), qexact(dim+2); // define here to avoid reallocation
+   Vector qdiscrete(num_state), qexact(num_state); // define here to avoid reallocation
    auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
    {
       if (entvar)
@@ -389,7 +398,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
       double err = 0.0;
       if (entry < 0)
       {
-         for (int i = 0; i < dim+2; ++i)
+         for (int i = 0; i < num_state; ++i)
          {
             double dq = qdiscrete(i) - qexact(i);
             err += dq*dq;

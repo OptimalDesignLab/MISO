@@ -195,6 +195,16 @@ double SBPFiniteElement::getSymEntry(int di, int i,
    return Eij;
 }
 
+void SBPFiniteElement::getSymEntryRevDiff(int di, int i, double Sij_bar,
+                                           mfem::DenseMatrix &adjJ_i_bar) const
+{
+   for (int k = 0; k < GetDim(); ++k)
+   {
+      //Eij += adjJ_i(k,di)*Q[k](i,i);
+      adjJ_i_bar(k,di) += Sij_bar*Q[k](i,i);
+   }
+}
+
 double SBPFiniteElement::getQEntry(int di, int i, int j,
                                    const mfem::DenseMatrix &adjJ_i,
                                    const mfem::DenseMatrix &adjJ_j) const
@@ -206,6 +216,23 @@ double SBPFiniteElement::getQEntry(int di, int i, int j,
    else
    {
       return 0.5*getSkewEntry(di, i, j, adjJ_i, adjJ_j);
+   }
+}
+
+void SBPFiniteElement::getQEntryRevDiff(int di, int i, int j, double Sij_bar,
+                                           mfem::DenseMatrix &adjJ_i_bar,
+                                           mfem::DenseMatrix &adjJ_j_bar) const
+{
+   if (i == j)
+   {
+      getSymEntryRevDiff(di, i, Sij_bar, adjJ_i_bar);
+      //adjJ_j_bar *= 0.0;
+   }
+   else
+   {
+      getSkewEntryRevDiff(di, i, j, 0.5*Sij_bar, adjJ_i_bar, adjJ_j_bar);
+      // adjJ_i_bar *= 0.5;
+      // adjJ_j_bar *= 0.5;
    }
 }
 

@@ -188,7 +188,6 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
                             jac_term2(sk, sj);
                      }
                   }
-
                } // loop over space dimension d2
             } // loop over the element nodes j
          } // loop over element nodes k

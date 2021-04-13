@@ -31,6 +31,7 @@ set(FLUID_TEST_SRCS
    test_inexact_newton
    test_navier_stokes_fluxes
    test_navier_stokes_integ
+   #test_navier_stokes_sens_integ
    test_navier_stokes_assemble
    test_reconstruction
    test_sbp_fe
@@ -39,6 +40,8 @@ set(FLUID_TEST_SRCS
    test_utils
    test_thermal_integ
    test_res_integ
+   test_rans_fluxes
+   test_rans_integ
 )
 
 # group EM tests

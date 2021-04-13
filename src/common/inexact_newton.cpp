@@ -1,5 +1,6 @@
 #include "inexact_newton.hpp"
-
+#include <fstream>
+#include <iostream>
 #include "utils.hpp"
 
 using namespace std;
@@ -99,6 +100,9 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
    int it;
    double norm0, norm, norm_goal;
    const bool have_b = (b.Size() == Height());
+     
+   Vector scaled_r(r.Size());
+   Vector scaling_v(r.Size());
    if (!iterative_mode)
    {
       x = 0.0;
@@ -145,8 +149,36 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
       }
 
       jac = &oper->GetGradient(x);
+
+      /// scaling stuff
+      // for(int k = 0; k < r.Size(); k++)
+      // {
+      //    scaling_v(k) = 1/r(k);
+      // }
+
+      //scaling_m = new SparseMatrix(scaling_v);
+      //jac_scaled = new ProductOperator(scaling_m, jac, false, false);
+      //HypreParMatrix* jac_scaled(jac);
+      //jac_scaled->ScaleRows(scaling_v);
+
+      // if (it == 12)
+      // {
+      //    stringstream nssolname; stringstream nssolname2;
+      //    nssolname << "jac_" <<it<<"";
+      //    nssolname2 << "jac_s_" <<it<<"";
+      //    std::ofstream matlab(nssolname.str()); matlab.precision(15);
+      //    std::ofstream matlab2(nssolname2.str()); matlab2.precision(15);
+      //    jac->PrintMatlab(matlab);
+      //    //jac_scaled->PrintMatlab(matlab2);
+      // }
+      // stringstream nssolname;
+      // nssolname << "jac_" <<it<<"";
+      // std::ofstream matlab(nssolname.str()); matlab.precision(15);
+      // jac->PrintMatlab(matlab);
       // std::cout << "Get the jacobian matrix.\n";
+      
       prec->SetOperator(*jac);
+      //scaling_m->Mult(r, scaled_r);
       //std::cout << "jac is set as one operator.\n";
       prec->Mult(r, c);  // c = [DF(x_i)]^{-1} [F(x_i)-b]
       // std::cout << "Solve for the newton step.\n";

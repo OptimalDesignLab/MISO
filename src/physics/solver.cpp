@@ -1241,11 +1241,22 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
       cg->SetPrintLevel(ptl);
       cg->SetPreconditioner(dynamic_cast<Solver&>(_prec));
    }
+#ifdef MFEM_USE_SUPERLU
+   else if (solver_type == "superlu")
+   {
+      lin_solver.reset(new SuperLUSolver(comm));
+      SuperLUSolver *slu = dynamic_cast<SuperLUSolver*>(lin_solver.get());
+   }
+#endif
    else
    {
       throw MachException("Unsupported iterative solver type!\n"
                "\tavilable options are: HypreGMRES, HypreFGMRES, GMRESSolver,\n"
-               "\tHyprePCG, CGSolver");
+               "\tHyprePCG, CGSolver"
+#ifdef MFEM_USE_SUPERLU
+               ", SuperLU"
+#endif
+               "\n");
    }
    return lin_solver;
 }
@@ -1318,10 +1329,14 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    {
       nonlin_solver.reset(new mfem::NewtonSolver(comm));
    }
+   else if (solver_type == "inexact-newton")
+   {
+      nonlin_solver.reset(new InexactNewton(comm));
+   }
    else
    {
       throw MachException("Unsupported nonlinear solver type!\n"
-         "\tavilable options are: newton\n");
+         "\tavilable options are: Newton, InexactNewton\n");
    }
    //double eta = 1e-1;
    //newton_solver.reset(new InexactNewton(comm, eta));
