@@ -18,6 +18,8 @@ target_sources(mach
       sbp_fe.cpp
       sbp_fe.hpp
       surface.hpp
+		parcentgridfunc.cpp
+		parcentgridfunc.hpp
 )
 
 target_include_directories(mach

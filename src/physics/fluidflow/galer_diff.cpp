@@ -209,6 +209,8 @@ void ParGDSpace::AssembleProlongationMatrix(const Array<int> &els_id,
    const Element *el = GetParMesh()->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
+   // need to transpose the local_mat
+   // local_mat.Transpose();
    
    int nel = els_id.Size();
    Array<int> el_dofs;
