@@ -1,337 +1,366 @@
-// /// Solve the steady isentropic vortex problem on a quarter annulus
+/// Solve the steady isentropic vortex problem on a quarter annulus
 
-// // set this const expression to true in order to use entropy variables for state
-// constexpr bool entvar = false;
-// #include "mfem.hpp"
-// #include <fstream>
-// #include <iostream>
-// #include <random>
-// #include "euler_integ_DG.hpp"
-// #include "evolver_GD.hpp"
-// #include "gd_def.hpp"
-// #include "gd.hpp"
-// using namespace std;
-// using namespace mfem;
-// using namespace mach;
-// std::default_random_engine gen(std::random_device{}());
-// std::uniform_real_distribution<double> normal_rand(-1.0, 1.0);
-// static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
-// const double rho = 0.9856566615165173;
-// const double rhoe = 2.061597236955558;
-// const double rhou[3] = {0.09595562550099601, -0.030658751626551423, -0.13471469906596886};
+// set this const expression to true in order to use entropy variables for state
+constexpr bool entvar = false;
+#include "mfem.hpp"
+#include <fstream>
+#include <iostream>
+#include <random>
+#include "euler_integ_DG.hpp"
+#include "evolver_GD.hpp"
+#include "gd_def.hpp"
+#include "gd.hpp"
+using namespace std;
+using namespace mfem;
+using namespace mach;
+std::default_random_engine gen(std::random_device{}());
+std::uniform_real_distribution<double> normal_rand(-1.0, 1.0);
+static std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
+const double rho = 0.9856566615165173;
+const double rhoe = 2.061597236955558;
+const double rhou[3] = {0.09595562550099601, -0.030658751626551423, -0.13471469906596886};
 
-// template <int dim>
-// void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
-// {
+void print_par_matrix_matlab(HypreParMatrix &A, const string &filename, int myid)
+{
+    hypre_CSRMatrix *A_serial = hypre_ParCSRMatrixToCSRMatrixAll(A);
 
-//    const double scale = 0.01;
-//    u(0) = rho * (1.0 + scale * uniform_rand(gen));
-//    u(dim + 1) = rhoe * (1.0 + scale * uniform_rand(gen));
-//    for (int di = 0; di < dim; ++di)
-//    {
-//       u(di + 1) = rhou[di] * (1.0 + scale * uniform_rand(gen));
-//    }
-// }
+    mfem::SparseMatrix A_sparse(
+        hypre_CSRMatrixI(A_serial), hypre_CSRMatrixJ(A_serial), hypre_CSRMatrixData(A_serial),
+        hypre_CSRMatrixNumRows(A_serial), hypre_CSRMatrixNumCols(A_serial),
+        false, false, true);
 
-// double calcDrag(mfem::FiniteElementSpace *fes, mfem::GridFunction u,
-//                 int num_state, double alpha)
-// {
-//    /// check initial drag value
-//    mfem::Vector drag_dir(2);
+    if (myid == 0)
+    {
+        ofstream out(filename.c_str());
+        MFEM_VERIFY(out, "Cannot open file " << filename);
+        A_sparse.PrintMatlab(out);
+    }
 
-//    drag_dir = 0.0;
-//    int iroll = 0;
-//    int ipitch = 1;
-//    double aoa_fs = 0.0;
-//    double mach_fs = 1.0;
+    hypre_CSRMatrixDestroy(A_serial);
+}
 
-//    drag_dir(iroll) = cos(aoa_fs);
-//    drag_dir(ipitch) = sin(aoa_fs);
-//    drag_dir *= 1.0 / pow(mach_fs, 2.0); // to get non-dimensional Cd
 
-//    Array<int> bndry_marker_drag;
-//    bndry_marker_drag.Append(0);
-//    bndry_marker_drag.Append(0);
-//    bndry_marker_drag.Append(0);
-//    bndry_marker_drag.Append(1);
-//    NonlinearForm *dragf = new NonlinearForm(fes);
+template <int dim>
+void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
+{
 
-//    dragf->AddBdrFaceIntegrator(
-//        new DG_PressureForce<2, entvar>(drag_dir, num_state, alpha),
-//        bndry_marker_drag);
+   const double scale = 0.01;
+   u(0) = rho * (1.0 + scale * uniform_rand(gen));
+   u(dim + 1) = rhoe * (1.0 + scale * uniform_rand(gen));
+   for (int di = 0; di < dim; ++di)
+   {
+      u(di + 1) = rhou[di] * (1.0 + scale * uniform_rand(gen));
+   }
+}
 
-//    double drag = dragf->GetEnergy(u);
-//    return drag;
-// }
+double calcDrag(mach::SpaceType *fes, mfem::GridFunction u,
+                int num_state, double alpha)
+{
+   /// check initial drag value
+   mfem::Vector drag_dir(2);
 
-// /// function to calculate conservative variables l2error
-// template <int dim, bool entvar>
-// double calcConservativeVarsL2Error(
-//     void (*u_exact)(const mfem::Vector &, mfem::Vector &), GridFunction *u, mfem::FiniteElementSpace *fes,
-//     int num_state, int entry)
-// {
-//    // This lambda function computes the error at a node
-//    // Beware: this is not particularly efficient, given the conditionals
-//    // Also **NOT thread safe!**
-//    Vector qdiscrete(dim + 2), qexact(dim + 2); // define here to avoid reallocation
-//    auto node_error = [&](const Vector &discrete, const Vector &exact) -> double {
-//       if (entvar)
-//       {
-//          calcConservativeVars<double, dim>(discrete.GetData(),
-//                                    qdiscrete.GetData());
-//          calcConservativeVars<double, dim>(exact.GetData(), qexact.GetData());
-//       }
-//       else
-//       {
-//          qdiscrete = discrete;
-//          qexact = exact;
-//       }
-//       double err = 0.0;
-//       if (entry < 0)
-//       {
-//          for (int i = 0; i < dim + 2; ++i)
-//          {
-//             double dq = qdiscrete(i) - qexact(i);
-//             err += dq * dq;
-//          }
-//       }
-//       else
-//       {
-//          err = qdiscrete(entry) - qexact(entry);
-//          err = err * err;
-//       }
-//       return err;
-//    };
+   drag_dir = 0.0;
+   int iroll = 0;
+   int ipitch = 1;
+   double aoa_fs = 0.0;
+   double mach_fs = 1.0;
 
-//    VectorFunctionCoefficient exsol(num_state, u_exact);
-//    DenseMatrix vals, exact_vals;
-//    Vector u_j, exsol_j;
-//    double loc_norm = 0.0;
-//    for (int i = 0; i < fes->GetNE(); i++)
-//    {
-//       const FiniteElement *fe = fes->GetFE(i);
-//       const IntegrationRule *ir;
+   drag_dir(iroll) = cos(aoa_fs);
+   drag_dir(ipitch) = sin(aoa_fs);
+   drag_dir *= 1.0 / pow(mach_fs, 2.0); // to get non-dimensional Cd
 
-//       int intorder = 2 * fe->GetOrder() + 3;
-//       ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+   Array<int> bndry_marker_drag;
+   bndry_marker_drag.Append(0);
+   bndry_marker_drag.Append(0);
+   bndry_marker_drag.Append(0);
+   bndry_marker_drag.Append(1);
+   NonlinearForm *dragf = new NonlinearForm(fes);
 
-//       ElementTransformation *T = fes->GetElementTransformation(i);
-//       u->GetVectorValues(*T, *ir, vals);
-//       exsol.Eval(exact_vals, *T, *ir);
-//       for (int j = 0; j < ir->GetNPoints(); j++)
-//       {
-//          const IntegrationPoint &ip = ir->IntPoint(j);
-//          T->SetIntPoint(&ip);
-//          vals.GetColumnReference(j, u_j);
-//          exact_vals.GetColumnReference(j, exsol_j);
-//          loc_norm += ip.weight * T->Weight() * node_error(u_j, exsol_j);
-//       }
-//    }
+   dragf->AddBdrFaceIntegrator(
+       new DG_PressureForce<2, entvar>(drag_dir, num_state, alpha),
+       bndry_marker_drag);
 
-//    double norm = loc_norm;
-//    if (norm < 0.0) // This was copied from mfem...should not happen for us
-//    {
-//       return -sqrt(-norm);
-//    }
-//    return sqrt(norm);
-// }
+   double drag = dragf->GetEnergy(u);
+   return drag;
+}
 
-// void randState(const mfem::Vector &x, mfem::Vector &u)
-// {
-//    for (int i = 0; i < u.Size(); ++i)
-//    {
-//       u(i) = 2.0 * uniform_rand(gen) - 1.0;
-//    }
-// }
+/// function to calculate conservative variables l2error
+template <int dim, bool entvar>
+double calcConservativeVarsL2Error(
+    void (*u_exact)(const mfem::Vector &, mfem::Vector &), mach::GridFunType *u, mach::SpaceType *fes,
+    int num_state, int entry)
+{
+   // This lambda function computes the error at a node
+   // Beware: this is not particularly efficient, given the conditionals
+   // Also **NOT thread safe!**
+   Vector qdiscrete(dim + 2), qexact(dim + 2); // define here to avoid reallocation
+   auto node_error = [&](const Vector &discrete, const Vector &exact) -> double {
+      if (entvar)
+      {
+         calcConservativeVars<double, dim>(discrete.GetData(),
+                                   qdiscrete.GetData());
+         calcConservativeVars<double, dim>(exact.GetData(), qexact.GetData());
+      }
+      else
+      {
+         qdiscrete = discrete;
+         qexact = exact;
+      }
+      double err = 0.0;
+      if (entry < 0)
+      {
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            double dq = qdiscrete(i) - qexact(i);
+            err += dq * dq;
+         }
+      }
+      else
+      {
+         err = qdiscrete(entry) - qexact(entry);
+         err = err * err;
+      }
+      return err;
+   };
 
-// double calcResidualNorm(NonlinearForm *res, FiniteElementSpace *fes, CentGridFunction &uc)
-// {
-//    CentGridFunction residual(fes);
-//    residual = 0.0;
-//    res->Mult(uc, residual);
-//    return residual.Norml2();
-// }
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   DenseMatrix vals, exact_vals;
+   Vector u_j, exsol_j;
+   double loc_norm = 0.0;
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      const FiniteElement *fe = fes->GetFE(i);
+      const IntegrationRule *ir;
 
-// /// get freestream state values for the far-field bcs
-// template <int dim, bool entvar>
-// void getFreeStreamState(mfem::Vector &q_ref)
-// {
-//    double mach_fs = 0.5;
-//    q_ref = 0.0;
-//    q_ref(0) = 1.0;
-//    q_ref(1) = q_ref(0) * mach_fs; // ignore angle of attack
-//    q_ref(2) = 0.0;
-//    q_ref(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
-// }
+      int intorder = 2 * fe->GetOrder() + 3;
+      ir = &(IntRules.Get(fe->GetGeomType(), intorder));
 
-// /// \brief Defines the random function for the jabocian check
-// /// \param[in] x - coordinate of the point at which the state is needed
-// /// \param[out] u - conservative variables stored as a 4-vector
-// void pert(const Vector &x, Vector &p);
+      ElementTransformation *T = fes->GetElementTransformation(i);
+      u->GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         vals.GetColumnReference(j, u_j);
+         exact_vals.GetColumnReference(j, exsol_j);
+         loc_norm += ip.weight * T->Weight() * node_error(u_j, exsol_j);
+      }
+   }
 
-// /// \brief Returns the value of the integrated math entropy over the domain
-// double calcEntropyTotalExact();
+   double norm = loc_norm;
+   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
+}
 
-// /// \brief Defines the exact solution for the steady isentropic vortex
-// /// \param[in] x - coordinate of the point at which the state is needed
-// /// \param[out] u - state variables stored as a 4-vector
-// void uexact(const Vector &x, Vector &u);
+void randState(const mfem::Vector &x, mfem::Vector &u)
+{
+   for (int i = 0; i < u.Size(); ++i)
+   {
+      u(i) = 2.0 * uniform_rand(gen) - 1.0;
+   }
+}
 
-// /// Generate quarter annulus mesh
-// /// \param[in] degree - polynomial degree of the mapping
-// /// \param[in] num_rad - number of nodes in the radial direction
-// /// \param[in] num_ang - number of nodes in the angular direction
-// std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
-//                                               int num_ang);
+double calcResidualNorm(mach::NonlinearFormType *res, mach::SpaceType *fes, ParCentGridFunction &uc)
+{
+   ParCentGridFunction residual(fes);
+   residual = 0.0;
+   res->Mult(uc, residual);
+   return residual.Norml2();
+}
 
-// // main
-// int main(int argc, char *argv[])
-// {
-//    // 1. Initialize MPI.
-//    MPI_Session mpi(argc, argv);
-//    // Parse command-line options
-//    OptionsParser args(argc, argv);
-//    int degree = 2;
-//    int nx = 5;
-//    int ny = 5;
-//    int order = 1;
-//    int ref_levels = -1;
-//    int nc_ref = -1;
-//    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
-//    args.AddOption(&order, "-o", "--order",
-//                   "Finite element order (polynomial degree) >= 0.");
-//    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
-//    args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
-//    args.AddOption(&ref_levels, "-ref", "--refine",
-//                   "refine levels");
+/// get freestream state values for the far-field bcs
+template <int dim, bool entvar>
+void getFreeStreamState(mfem::Vector &q_ref)
+{
+   double mach_fs = 0.5;
+   q_ref = 0.0;
+   q_ref(0) = 1.0;
+   q_ref(1) = q_ref(0) * mach_fs; // ignore angle of attack
+   q_ref(2) = 0.0;
+   q_ref(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+}
 
-//    args.Parse();
-//    if (!args.Good())
-//    {
-//       if (mpi.Root()) { args.PrintUsage(cout); }
-//       return 1;
-//    }
-//    if (mpi.Root()) { args.PrintOptions(cout); }
-//    static adept::Stack diff_stack;
-//    /// degree = p+1
-//    degree = order + 1;
-//    /// number of state variables
-//    int num_state = 4;
-//    // construct the mesh
-//    unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
-//    cout << "Number of elements " << mesh->GetNE() << '\n';
-//    /// dimension
-//    const int dim = mesh->Dimension();
-   
-//    for (int l = 0; l < nc_ref; ++l)
-//    {
-//       Array<int> marked_elements;
-//       for (int k = 0; k < mesh->GetNBE(); ++k)
-//       {
-//         if (mesh->GetBdrAttribute(k) == 4)
-//          {
-//          //cout << "bdr face: " <<  k << endl;
-//          FaceElementTransformations *trans;
-//          trans = mesh->GetBdrFaceTransformations(k);
-//         // cout << "bdr el: " << trans->Elem1No << endl;
-//          marked_elements.Append(trans->Elem1No);
-//          }
-//       }
-//       mesh->GeneralRefinement(marked_elements);
-//    }
+/// \brief Defines the random function for the jabocian check
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - conservative variables stored as a 4-vector
+void pert(const Vector &x, Vector &p);
 
-//    for (int l = 0; l < ref_levels; l++)
-//    {
-//       mesh->UniformRefinement();
-//    }
+/// \brief Returns the value of the integrated math entropy over the domain
+double calcEntropyTotalExact();
 
-//    cout << "Number of elements after refinement " << mesh->GetNE() << '\n';
-//    // save the initial mesh
-//    ofstream sol_ofs("steady_vortex_mesh_gd_nc.vtk");
-//    sol_ofs.precision(14);
-//    mesh->PrintVTK(sol_ofs, 1);
+/// \brief Defines the exact solution for the steady isentropic vortex
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - state variables stored as a 4-vector
+void uexact(const Vector &x, Vector &u);
 
-//   // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
-//    //    this mesh further in parallel to increase the resolution. Once the
-//    //    parallel mesh is defined, the serial mesh can be deleted.
-//    ParMesh pmesh(MPI_COMM_WORLD, mesh);
-//    mesh->Clear();
+/// Generate quarter annulus mesh
+/// \param[in] degree - polynomial degree of the mapping
+/// \param[in] num_rad - number of nodes in the radial direction
+/// \param[in] num_ang - number of nodes in the angular direction
+std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
+                                              int num_ang);
+
+// main
+int main(int argc, char *argv[])
+{
+   // 1. Initialize MPI.
+    int num_procs, myid;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+   // Parse command-line options
+   OptionsParser args(argc, argv);
+   int degree = 2;
+   int nx = 5;
+   int ny = 5;
+   int order = 1;
+   int ref_levels = -1;
+   int nc_ref = -1;
+   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
+   args.AddOption(&order, "-o", "--order",
+                  "Finite element order (polynomial degree) >= 0.");
+   args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
+   args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
+   args.AddOption(&ref_levels, "-ref", "--refine",
+                  "refine levels");
+
+   args.Parse();
+   if (!args.Good())
+   {
+       if (myid == 0)
+       {
+           args.PrintUsage(cout);
+       }
+       MPI_Finalize();
+       return 1;
+   }
+   if (myid==0) { args.PrintOptions(cout); }
+   static adept::Stack diff_stack;
+   /// degree = p+1
+   degree = order + 1;
+   /// number of state variables
+   int num_state = 4;
+   // construct the mesh
+   unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
+   cout << "Number of elements " << mesh->GetNE() << '\n';
+   /// dimension
+   const int dim = mesh->Dimension();
+
+   for (int l = 0; l < nc_ref; ++l)
+   {
+      Array<int> marked_elements;
+      for (int k = 0; k < mesh->GetNBE(); ++k)
+      {
+        if (mesh->GetBdrAttribute(k) == 4)
+         {
+         //cout << "bdr face: " <<  k << endl;
+         FaceElementTransformations *trans;
+         trans = mesh->GetBdrFaceTransformations(k);
+        // cout << "bdr el: " << trans->Elem1No << endl;
+         marked_elements.Append(trans->Elem1No);
+         }
+      }
+      mesh->GeneralRefinement(marked_elements);
+   }
+
+   for (int l = 0; l < ref_levels; l++)
+   {
+      mesh->UniformRefinement();
+   }
+
+   cout << "Number of elements after refinement " << mesh->GetNE() << '\n';
+   // save the initial mesh
+   ofstream sol_ofs("steady_vortex_mesh_gd_nc.vtk");
+   sol_ofs.precision(14);
+   mesh->PrintVTK(sol_ofs, 1);
+   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh.get());
+  // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
+   //    this mesh further in parallel to increase the resolution. Once the
+   //    parallel mesh is defined, the serial mesh can be deleted.
+
 //    for (int lev = 0; lev < par_ref_levels; lev++)
 //    {
 //       pmesh.UniformRefinement();
 //    }
-//    // finite element collection
-//    ParFiniteElementCollection *fec = new DG_FECollection(order, dim);
+   // finite element collection
+   FiniteElementCollection *fec = new DG_FECollection(order, dim);
 
-//    // finite element space
-//    ParFiniteElementSpace *fes = new FiniteElementSpace(pmesh, fec, num_state,
-//                                                     Ordering::byVDIM);
+   // finite element space
+   ParFiniteElementSpace *fes = new ParFiniteElementSpace(pmesh, fec, num_state,
+                                                    Ordering::byVDIM);
 
-//    // GD finite element space
-//    ParFiniteElementSpace *fes_GD = new GalerkinDifference(pmesh,
-//                                                        fec, num_state, Ordering::byVDIM, order);
-//    HYPRE_Int glob_size = vfes.GlobalTrueVSize();
-//    if (mpi.Root()) { cout << "Number of unknowns: " << glob_size << endl; }
-//    cout << "Number of finite element unknowns in GD: "
-//         << fes_GD->GetTrueVSize() << endl;
+   // GD finite element space
+   ParFiniteElementSpace *fes_GD = new GalerkinDifference(pmesh,
+                                                       fec, num_state, Ordering::byVDIM, order, fes->GetComm());
+   // cout << "dof offsets " << fes_GD->GetDofOffsets() << endl;
+   HYPRE_Int glob_size = fes->GlobalTrueVSize();
+   cout << "Number of unknowns: " << glob_size << endl; 
+   // cout << "Number of finite element unknowns in GD: "
+   //      << fes_GD->GetTrueVSize() << endl;
 
-//    cout << "Number of finite element unknowns: "
-//         << fes->GetTrueVSize() << endl;
+   cout << "Number of finite element unknowns: "
+        << fes->GetTrueVSize() << endl;
+   //cout << "Number of finite element unknowns in GD global: " << fes_GD->GlobalTrueVSize() << endl;
 
-//    /// `bndry_marker_*` lists the boundaries associated with a particular BC
-//    Array<int> bndry_marker_isentropic;
-//    Array<int> bndry_marker_slipwall;
+   /// `bndry_marker_*` lists the boundaries associated with a particular BC
+   Array<int> bndry_marker_isentropic;
+   Array<int> bndry_marker_slipwall;
 
-//    bndry_marker_isentropic.Append(1);
-//    bndry_marker_isentropic.Append(1);
-//    bndry_marker_isentropic.Append(1);
-//    bndry_marker_isentropic.Append(0);
+   bndry_marker_isentropic.Append(1);
+   bndry_marker_isentropic.Append(1);
+   bndry_marker_isentropic.Append(1);
+   bndry_marker_isentropic.Append(0);
 
-//    bndry_marker_slipwall.Append(0);
-//    bndry_marker_slipwall.Append(0);
-//    bndry_marker_slipwall.Append(0);
-//    bndry_marker_slipwall.Append(1);
+   bndry_marker_slipwall.Append(0);
+   bndry_marker_slipwall.Append(0);
+   bndry_marker_slipwall.Append(0);
+   bndry_marker_slipwall.Append(1);
 
-//    Vector qfs(dim + 2);
+   Vector qfs(dim + 2);
 
-//    getFreeStreamState<2, 0>(qfs);
-//    double alpha = 1.0;
+   getFreeStreamState<2, 0>(qfs);
+   double alpha = 1.0;
 
-//    /// nonlinearform
-//    ParNonlinearForm *res = new ParNonlinearForm(fes_GD);
-//    res->AddDomainIntegrator(new EulerDomainIntegrator<2>(diff_stack, num_state, alpha));
-//    res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 1, 0>(diff_stack, fec, num_state, qfs, alpha),
-//                              bndry_marker_isentropic);
-//    res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 2, 0>(diff_stack, fec, num_state, qfs, alpha),
-//                              bndry_marker_slipwall);
-//    res->AddInteriorFaceIntegrator(new EulerFaceIntegrator<2>(diff_stack, fec, 1.0, num_state, alpha));
+   /// nonlinearform
+   ParNonlinearForm *res = new ParNonlinearForm(fes_GD);
+   res->AddDomainIntegrator(new EulerDomainIntegrator<2>(diff_stack, num_state, alpha));
+   res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 1, 0>(diff_stack, fec, num_state, qfs, alpha),
+                             bndry_marker_isentropic);
+   res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 2, 0>(diff_stack, fec, num_state, qfs, alpha),
+                             bndry_marker_slipwall);
+   res->AddInteriorFaceIntegrator(new EulerFaceIntegrator<2>(diff_stack, fec, 1.0, num_state, alpha));
 
-//    /// check if the integrators are correct
-//    double delta = 1e-5;
+   // check if the integrators are correct
+   // double delta = 1e-5;
+   
+   // // initialize state; here we randomly perturb a constant state
+   // ParCentGridFunction q(fes_GD);
+   // VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+   // q.ProjectCoefficient(pert);
+   // // initialize the vector that the Jacobian multiplies
+   // ParCentGridFunction v(fes_GD);
+   // VectorFunctionCoefficient v_rand(num_state, randState);
+   // v.ProjectCoefficient(v_rand);
+   // // evaluate the Jacobian and compute its product with v
+   // Operator &Jac = res->GetGradient(q);
+   //       cout << "problem here " << endl;
+   // ParCentGridFunction jac_v(fes_GD);
 
-//    // initialize state; here we randomly perturb a constant state
-//    CentGridFunction q(fes_GD);
-//    VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
-//    q.ProjectCoefficient(pert);
-
-//    // initialize the vector that the Jacobian multiplies
-//    CentGridFunction v(fes_GD);
-//    VectorFunctionCoefficient v_rand(num_state, randState);
-//    v.ProjectCoefficient(v_rand);
-
-//    // evaluate the Jacobian and compute its product with v
-//    Operator &Jac = res->GetGradient(q);
-//    CentGridFunction jac_v(fes_GD);
-//    Jac.Mult(v, jac_v);
-
-//    // now compute the finite-difference approximation...
-//    CentGridFunction q_pert(q), r(fes), jac_v_fd(fes_GD);
-//    q_pert.Add(-delta, v);
-//    res->Mult(q_pert, r);
-//    q_pert.Add(2.0 * delta, v);
-//    res->Mult(q_pert, jac_v_fd);
-//    jac_v_fd -= r;
-//    jac_v_fd /= (2.0 * delta);
+   // cout << "Jac.Size() " << jac_v.Size() << endl;
+   // Jac.Mult(v, jac_v);
+   // cout << "done here " << endl;
+   // // now compute the finite-difference approximation...
+   // ParCentGridFunction q_pert(q), r(fes_GD), jac_v_fd(fes_GD);
+   // q_pert.Add(-delta, v);
+   // res->Mult(q_pert, r);
+   // q_pert.Add(2.0 * delta, v);
+   // res->Mult(q_pert, jac_v_fd);
+   // jac_v_fd -= r;
+   // jac_v_fd /= (2.0 * delta);
 
 //    for (int i = 0; i < jac_v.Size(); ++i)
 //    {
@@ -339,211 +368,241 @@
 //       MFEM_ASSERT(abs(jac_v(i) - (jac_v_fd(i))) <= 1e-09, "jacobian is incorrect");
 //    }
 
-//    /// bilinear form
-//    BilinearForm *mass = new BilinearForm(fes);
+   /// bilinear form
+   ParBilinearForm *mass = new ParBilinearForm(fes);
 
-//    /// set up the mass matrix
-//    mass->AddDomainIntegrator(new EulerMassIntegrator(num_state));
-//    mass->Assemble();
-//    mass->Finalize();
+   /// set up the mass matrix
+   mass->AddDomainIntegrator(new EulerMassIntegrator(num_state));
+   mass->Assemble();
+   mass->Finalize();
 //    SparseMatrix &mass_old = mass->SpMat();
 //    SparseMatrix *cp = dynamic_cast<GalerkinDifference *>(fes_GD)->GetCP();
 //    SparseMatrix *p = RAP(*cp, mass_old, *cp);
 //    SparseMatrix &M = *p;
-//    // auto mass_integ = new VectorMassIntegrator();
-//    // mass_integ->SetVDim(dim + 2);
-//    // mass->AddDomainIntegrator(mass_integ);
-//    // mass->Assemble();
-//    // mass->Finalize();
+#if 0
+    HYPRE_Int mat_size = Ap.Height();
+    HYPRE_Int mat_row_idx[2] = {0, Ap.Height()};
+    HYPRE_Int mat_col_idx[2] = {0, Ap.Width()};
+    HypreParMatrix A(fes_GD->GetComm(), mat_size, mat_col_idx,
+                     &Ap);
+    HYPRE_Int glob_vsize = bnew.Size();
+    HYPRE_Int b_row_idx[2] = {0, glob_vsize};
+    HYPRE_Int y_row_idx[2] = {0, y.Size()};
+    HypreParVector B(fes_GD->GetComm(), glob_vsize, bnew.GetData(),
+                     b_row_idx);
+    HypreParVector Y(fes_GD->GetComm(), y.Size(), y.GetData(),
+                     y_row_idx);
+    ostringstream oss;
+    oss << "a_mat_nproc" << 1 << ".dat";
+    print_par_matrix_matlab(A, oss.str(), 0);
+#endif
+   /// using namespace std;
+   HypreParMatrix *R;
+   R = fes_GD->Dof_TrueDof_Matrix();
+   cout << "R " << R->Height() << " x " << R->Width() << endl;
+   cout << "#nnz in R " << R->NNZ() << endl;
+   cout << "warning from above " << endl;
+//   // cout << "hypre_CSRMatrixNumNonzeros(R) " << hypre_CSRMatrixNumNonzeros(R) << endl;
+   HypreParMatrix *rap = mfem::RAP(R, R);
+   cout << " *********************************************************************************** " << endl;
+   cout << "rap size in euler code " << rap->Height() << " x " << rap->Width() << endl;
+   cout << " *********************************************************************************** " << endl;
+   /// grid function
+   ParGridFunction u(fes);
+   VectorFunctionCoefficient u0(num_state, uexact);
+   ParGridFunction u_test(fes);
+   u_test.ProjectCoefficient(u0);
+   // cout << "exact solution " << endl;
+   // u_test.Print();
+   cout << "#dof " << res->FESpace()->GetFE(0)->GetDof() << endl;
+   /// GD grid function
+   ParCentGridFunction uc(fes_GD);
+   uc.ProjectCoefficient(u0);
+   // HypreParMatrix *P = fes_GD->Dof_TrueDof_Matrix();
+   
+   // cout << "#globalcols " <<  P->N() << endl;
+   //fes_GD->GetProlongationMatrix()->Mult(uc, u);
+   // cout << "uc " << endl;
+   // uc.Print();
+   //P->Mult(uc, u );
+   // cout << "u " << endl;
+   // u.Print();
+   u_test -= u;
+   cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+   double res_norm0 = calcResidualNorm(res, fes_GD, uc);
+   std::cout << "initial residual norm: " << res_norm0 << "\n";
+   #if 0
+   /// time-marching method
+   std::unique_ptr<mfem::ODESolver> ode_solver;
+   //ode_solver.reset(new RK4Solver);
+   ode_solver.reset(new BackwardEulerSolver);
+   cout << "ode_solver set " << endl;
+   prec = constructPreconditioner(options["lin-prec"]);
+   solver = constructLinearSolver(options["lin-solver"], *prec);
+   newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
+   constructEvolver();
+   // TimeDependentOperator
+   unique_ptr<mfem::TimeDependentOperator> evolver(new mfem::EulerEvolver(M, res,
+                                                                          0.0, TimeDependentOperator::Type::IMPLICIT));
+   /// set up the evolver
+   auto t = 0.0;
+   evolver->SetTime(t);
+   ode_solver->Init(*evolver);
 
-//    /// grid function
-//    GridFunction u(fes);
-//    VectorFunctionCoefficient u0(num_state, uexact);
+   // solve the ode problem
+   double res_norm0 = calcResidualNorm(res, fes_GD, uc);
+   double t_final = 1000;
+   std::cout << "initial residual norm: " << res_norm0 << "\n";
+   double dt_init = 5.0;
+   double dt_old;
 
-//    GridFunction u_test(fes);
-//    u_test.ProjectCoefficient(u0);
-//    // cout << "exact solution " << endl;
-//    // u_test.Print();
-//    cout << "#dof " << res->FESpace()->GetFE(0)->GetDof() << endl;
-//    /// GD grid function
-//    CentGridFunction uc(fes_GD);
-//    uc.ProjectCoefficient(u0);
-//    fes_GD->GetProlongationMatrix()->Mult(uc, u);
-//    ofstream projection("initial_projection.vtk");
-//    projection.precision(14);
-//    mesh->PrintVTK(projection, 0);
-//    u.SaveVTK(projection, "projection", 0);
-//    projection.close();
-//    u_test -= u;
-//    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
-//    ofstream proj_ofs("projection_error.vtk");
-//    proj_ofs.precision(14);
-//    mesh->PrintVTK(proj_ofs, 0);
-//    u.SaveVTK(proj_ofs, "project_error", 0);
-//    proj_ofs.close();
+   //initial l2_err
+   double l2_err_init = calcConservativeVarsL2Error<2, 0>(uexact, &u, fes,
+                                                          num_state, 0);
+   cout << "l2_err_init " << l2_err_init << endl;
 
-//    /// time-marching method
-//    std::unique_ptr<mfem::ODESolver> ode_solver;
-//    //ode_solver.reset(new RK4Solver);
-//    ode_solver.reset(new BackwardEulerSolver);
-//    cout << "ode_solver set " << endl;
+   double dt = 0.0;
+   double res_norm;
+   int exponent = 2;
 
-//    // TimeDependentOperator
-//    unique_ptr<mfem::TimeDependentOperator> evolver(new mfem::EulerEvolver(M, res,
-//                                                                           0.0, TimeDependentOperator::Type::IMPLICIT));
-//    /// set up the evolver
-//    auto t = 0.0;
-//    evolver->SetTime(t);
-//    ode_solver->Init(*evolver);
+   for (auto ti = 0; ti < 300; ++ti)
+   {
+      /// calculate timestep
+      res_norm = calcResidualNorm(res, fes_GD, uc);
+      dt_old = dt;
+      dt = dt_init * pow(res_norm0 / res_norm, exponent);
+      dt = max(dt, dt_old);
+      // print iterations
+      std::cout << "iter " << ti << ": time = " << t << ": dt = " << dt << endl;
+      //   std::cout << " (" << round(100 * t / t_final) << "% complete)";
 
-//    // solve the ode problem
-//    double res_norm0 = calcResidualNorm(res, fes_GD, uc);
-//    double t_final = 1000;
-//    std::cout << "initial residual norm: " << res_norm0 << "\n";
-//    double dt_init = 5.0;
-//    double dt_old;
+      if (res_norm <= 1e-11)
+         break;
 
-//    //initial l2_err
-//    double l2_err_init = calcConservativeVarsL2Error<2, 0>(uexact, &u, fes,
-//                                                           num_state, 0);
-//    cout << "l2_err_init " << l2_err_init << endl;
+      if (isnan(res_norm))
+         break;
 
-//    double dt = 0.0;
-//    double res_norm;
-//    int exponent = 2;
+      ode_solver->Step(uc, t, dt);
+   }
 
-//    for (auto ti = 0; ti < 300; ++ti)
-//    {
-//       /// calculate timestep
-//       res_norm = calcResidualNorm(res, fes_GD, uc);
-//       dt_old = dt;
-//       dt = dt_init * pow(res_norm0 / res_norm, exponent);
-//       dt = max(dt, dt_old);
-//       // print iterations
-//       std::cout << "iter " << ti << ": time = " << t << ": dt = " << dt << endl;
-//       //   std::cout << " (" << round(100 * t / t_final) << "% complete)";
+   fes_GD->GetProlongationMatrix()->Mult(uc, u);
 
-//       if (res_norm <= 1e-11)
-//          break;
+   cout << "=========================================" << endl;
+   std::cout << "final residual norm: " << res_norm << "\n";
+   double drag = calcDrag(fes, u, num_state, alpha);
+   double drag_err = abs(drag - (-1 / 1.4));
+   cout << "drag: " << drag << endl;
+   cout << "drag_error: " << drag_err << endl;
+   ofstream finalsol_ofs("final_sol_vortex.vtk");
+   finalsol_ofs.precision(14);
+   mesh->PrintVTK(finalsol_ofs, 1);
+   u.SaveVTK(finalsol_ofs, "Solution", 1);
+   finalsol_ofs.close();
 
-//       if (isnan(res_norm))
-//          break;
+   //calculate final solution error
+   double l2_err_rho = calcConservativeVarsL2Error<2, 0>(uexact, &u, fes,
+                                                         num_state, 0);
+   cout << "|| rho_h - rho ||_{L^2} = " << l2_err_rho << endl;
+   cout << "=========================================" << endl;
+   #endif
+   delete pmesh;
+   delete fes;
+   delete fec;
+   MPI_Finalize();
+   return 0;
+}
 
-//       ode_solver->Step(uc, t, dt);
-//    }
+// perturbation function used to check the jacobian in each iteration
+void pert(const Vector &x, Vector &p)
+{
+   p.SetSize(4);
+   for (int i = 0; i < 4; i++)
+   {
+      p(i) = normal_rand(gen);
+   }
+}
 
-//    fes_GD->GetProlongationMatrix()->Mult(uc, u);
+// Returns the exact total entropy value over the quarter annulus
+// Note: the number 8.74655... that appears below is the integral of r*rho over the radii
+// from 1 to 3.  It was approixmated using a degree 51 Gaussian quadrature.
+double calcEntropyTotalExact()
+{
+   double rhoi = 2.0;
+   double prsi = 1.0 / euler::gamma;
+   double si = log(prsi / pow(rhoi, euler::gamma));
+   return -si * 8.746553803443305 * M_PI * 0.5 / 0.4;
+}
 
-//    cout << "=========================================" << endl;
-//    std::cout << "final residual norm: " << res_norm << "\n";
-//    double drag = calcDrag(fes, u, num_state, alpha);
-//    double drag_err = abs(drag - (-1 / 1.4));
-//    cout << "drag: " << drag << endl;
-//    cout << "drag_error: " << drag_err << endl;
-//    ofstream finalsol_ofs("final_sol_vortex.vtk");
-//    finalsol_ofs.precision(14);
-//    mesh->PrintVTK(finalsol_ofs, 1);
-//    u.SaveVTK(finalsol_ofs, "Solution", 1);
-//    finalsol_ofs.close();
+// Exact solution; note that I reversed the flow direction to be clockwise, so
+// the problem and mesh are consistent with the LPS paper (that is, because the
+// triangles are subdivided from the quads using the opposite diagonal)
+void uexact(const Vector &x, Vector &q)
+{
+   q.SetSize(4);
+   Vector u(4);
+   double ri = 1.0;
+   double Mai = 0.5; //0.95
+   double rhoi = 2.0;
+   double prsi = 1.0 / euler::gamma;
+   double rinv = ri / sqrt(x(0) * x(0) + x(1) * x(1));
+   double rho = rhoi * pow(1.0 + 0.5 * euler::gami * Mai * Mai * (1.0 - rinv * rinv),
+                           1.0 / euler::gami);
+   double Ma = sqrt((2.0 / euler::gami) * ((pow(rhoi / rho, euler::gami)) *
+                                               (1.0 + 0.5 * euler::gami * Mai * Mai) -
+                                           1.0));
+   double theta;
+   if (x(0) > 1e-15)
+   {
+      theta = atan(x(1) / x(0));
+   }
+   else
+   {
+      theta = M_PI / 2.0;
+   }
+   double press = prsi * pow((1.0 + 0.5 * euler::gami * Mai * Mai) /
+                                 (1.0 + 0.5 * euler::gami * Ma * Ma),
+                             euler::gamma / euler::gami);
+   double a = sqrt(euler::gamma * press / rho);
 
-//    //calculate final solution error
-//    double l2_err_rho = calcConservativeVarsL2Error<2, 0>(uexact, &u, fes,
-//                                                          num_state, 0);
-//    cout << "|| rho_h - rho ||_{L^2} = " << l2_err_rho << endl;
-//    cout << "=========================================" << endl;
-// }
+   u(0) = rho;
+   u(1) = -rho * a * Ma * sin(theta);
+   u(2) = rho * a * Ma * cos(theta);
+   u(3) = press / euler::gami + 0.5 * rho * a * a * Ma * Ma;
 
-// // perturbation function used to check the jacobian in each iteration
-// void pert(const Vector &x, Vector &p)
-// {
-//    p.SetSize(4);
-//    for (int i = 0; i < 4; i++)
-//    {
-//       p(i) = normal_rand(gen);
-//    }
-// }
+  // q = u;
+   double mach_fs = 0.3;
+   q(0) = 1.0;
+   q(1) = q(0) * mach_fs; // ignore angle of attack
+   q(2) = 0.0;
+   q(3) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+}
 
-// // Returns the exact total entropy value over the quarter annulus
-// // Note: the number 8.74655... that appears below is the integral of r*rho over the radii
-// // from 1 to 3.  It was approixmated using a degree 51 Gaussian quadrature.
-// double calcEntropyTotalExact()
-// {
-//    double rhoi = 2.0;
-//    double prsi = 1.0 / euler::gamma;
-//    double si = log(prsi / pow(rhoi, euler::gamma));
-//    return -si * 8.746553803443305 * M_PI * 0.5 / 0.4;
-// }
+unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
+{
+   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_rad, num_ang,
+                                             Element::QUADRILATERAL, true /* gen. edges */,
+                                             2.0, M_PI * 0.5, true));
+   // strategy:
+   // 1) generate a fes for Lagrange elements of desired degree
+   // 2) create a Grid Function using a VectorFunctionCoefficient
+   // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
 
-// // Exact solution; note that I reversed the flow direction to be clockwise, so
-// // the problem and mesh are consistent with the LPS paper (that is, because the
-// // triangles are subdivided from the quads using the opposite diagonal)
-// void uexact(const Vector &x, Vector &q)
-// {
-//    q.SetSize(4);
-//    Vector u(4);
-//    double ri = 1.0;
-//    double Mai = 0.5; //0.95
-//    double rhoi = 2.0;
-//    double prsi = 1.0 / euler::gamma;
-//    double rinv = ri / sqrt(x(0) * x(0) + x(1) * x(1));
-//    double rho = rhoi * pow(1.0 + 0.5 * euler::gami * Mai * Mai * (1.0 - rinv * rinv),
-//                            1.0 / euler::gami);
-//    double Ma = sqrt((2.0 / euler::gami) * ((pow(rhoi / rho, euler::gami)) *
-//                                                (1.0 + 0.5 * euler::gami * Mai * Mai) -
-//                                            1.0));
-//    double theta;
-//    if (x(0) > 1e-15)
-//    {
-//       theta = atan(x(1) / x(0));
-//    }
-//    else
-//    {
-//       theta = M_PI / 2.0;
-//    }
-//    double press = prsi * pow((1.0 + 0.5 * euler::gami * Mai * Mai) /
-//                                  (1.0 + 0.5 * euler::gami * Ma * Ma),
-//                              euler::gamma / euler::gami);
-//    double a = sqrt(euler::gamma * press / rho);
+   // Problem: fes does not own fec, which is generated in this function's scope
+   // Solution: the grid function can own both the fec and fes
+   H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
+   FiniteElementSpace *fes = new FiniteElementSpace(mesh_ptr.get(), fec, 2,
+                                                    Ordering::byVDIM);
 
-//    u(0) = rho;
-//    u(1) = -rho * a * Ma * sin(theta);
-//    u(2) = rho * a * Ma * cos(theta);
-//    u(3) = press / euler::gami + 0.5 * rho * a * a * Ma * Ma;
+   // This lambda function transforms from (r,\theta) space to (x,y) space
+   auto xy_fun = [](const Vector &rt, Vector &xy) {
+      xy(0) = (rt(0) + 1.0) * cos(rt(1)); // need + 1.0 to shift r away from origin
+      xy(1) = (rt(0) + 1.0) * sin(rt(1));
+   };
+   VectorFunctionCoefficient xy_coeff(2, xy_fun);
+   GridFunction *xy = new GridFunction(fes);
+   xy->MakeOwner(fec);
+   xy->ProjectCoefficient(xy_coeff);
 
-//    q = u;
-//    // double mach_fs = 0.3;
-//    // q(0) = 1.0;
-//    // q(1) = q(0) * mach_fs; // ignore angle of attack
-//    // q(2) = 0.0;
-//    // q(3) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
-// }
-
-// unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
-// {
-//    auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_rad, num_ang,
-//                                              Element::QUADRILATERAL, true /* gen. edges */,
-//                                              2.0, M_PI * 0.5, true));
-//    // strategy:
-//    // 1) generate a fes for Lagrange elements of desired degree
-//    // 2) create a Grid Function using a VectorFunctionCoefficient
-//    // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
-
-//    // Problem: fes does not own fec, which is generated in this function's scope
-//    // Solution: the grid function can own both the fec and fes
-//    H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
-//    FiniteElementSpace *fes = new FiniteElementSpace(mesh_ptr.get(), fec, 2,
-//                                                     Ordering::byVDIM);
-
-//    // This lambda function transforms from (r,\theta) space to (x,y) space
-//    auto xy_fun = [](const Vector &rt, Vector &xy) {
-//       xy(0) = (rt(0) + 1.0) * cos(rt(1)); // need + 1.0 to shift r away from origin
-//       xy(1) = (rt(0) + 1.0) * sin(rt(1));
-//    };
-//    VectorFunctionCoefficient xy_coeff(2, xy_fun);
-//    GridFunction *xy = new GridFunction(fes);
-//    xy->MakeOwner(fec);
-//    xy->ProjectCoefficient(xy_coeff);
-
-//    mesh_ptr->NewNodes(*xy, true);
-//    return mesh_ptr;
-// }
+   mesh_ptr->NewNodes(*xy, true);
+   return mesh_ptr;
+}

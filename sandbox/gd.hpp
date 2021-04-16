@@ -3,10 +3,11 @@
 #include "mach_types.hpp"
 #include "mfem.hpp"
 using namespace mfem;
-
+using namespace std;
 namespace mfem
 {
-   /// Abstract class for Galerkin difference method using patch construction
+    
+    /// Abstract class for Galerkin difference method using patch construction
     class GalerkinDifference : public ParFiniteElementSpace
     {
 
@@ -16,7 +17,7 @@ namespace mfem
 
         GalerkinDifference(mach::MeshType *pm, const mfem::FiniteElementCollection *f,
                            int vdim = 1, int ordering = mfem::Ordering::byVDIM,
-                           int degree = 0);
+                           int degree = 0, MPI_Comm _comm = MPI_COMM_WORLD);
 
         /// constructs the neighbour matrices for all mesh elements.
         /// and second neighbours (shared vertices).
@@ -36,6 +37,24 @@ namespace mfem
         void GetElementCenter(int id, mfem::Vector &cent) const;
 
         SparseMatrix *GetCP() { return cP; }
+        HypreParMatrix *GetP() { return Q; }
+
+        virtual HYPRE_Int GlobalVSize() const 
+        {
+            cout << "this is called " << endl;
+            return Dof_TrueDof_Matrix()->GetGlobalNumRows();
+        }
+
+        virtual HYPRE_Int GlobalTrueVSize() const
+        {
+            cout << "this is called ? " << endl;
+            return Dof_TrueDof_Matrix()->GetGlobalNumCols();
+        }
+
+        virtual void Build_Dof_TrueDof_Matrix() const;
+
+        virtual HypreParMatrix *Dof_TrueDof_Matrix() const;
+
         /// Get the prolongation matrix in GD method
         virtual const Operator *GetProlongationMatrix() const
         {
@@ -46,9 +65,14 @@ namespace mfem
             }
             else
             {
-                return cP;
+                if (!Q)
+                {
+                    Build_Dof_TrueDof_Matrix();
+                }
+                return Q;
             }
         }
+
 
         void checkpcp()
         {
@@ -75,6 +99,10 @@ namespace mfem
 
         virtual int GetTrueVSize() const { return nEle * vdim; }
 
+        
+    private:
+        /// Prolongation operator
+        mutable HypreParMatrix *Q;
     protected:
         /// mesh dimension
         int dim;
@@ -82,7 +110,9 @@ namespace mfem
         int nEle;
         /// degree of lagrange interpolation
         int degree;
-
+        /// communicator
+        MPI_Comm comm;
+        /// finite element collection
         const mfem::FiniteElementCollection *fec; // not owned
     };
 } // end of namespace mfem

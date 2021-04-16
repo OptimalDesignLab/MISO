@@ -23,16 +23,63 @@ dgecon_(char *, int *, double *, int *, double *,
                               const DenseMatrix &x_quad, DenseMatrix &interp);
 
 GalerkinDifference::GalerkinDifference(mach::MeshType *pm, const FiniteElementCollection *f,
-   int vdim, int ordering, int de)
+   int vdim, int ordering, int de, MPI_Comm _comm)
    : ParFiniteElementSpace(pm, f, vdim, ordering)
 {
    degree = de;
    nEle = pm->GetNE();
    dim = pm->Dimension();
    fec = f;
+   comm = _comm;
    BuildGDProlongation();
+   //Build_Dof_TrueDof_Matrix();
 }
 
+void GalerkinDifference::Build_Dof_TrueDof_Matrix() const
+{
+   if (Q) { return; }
+   HYPRE_Int mat_size = cP->Height();
+   HYPRE_Int mat_row_idx[2] = {0, cP->Height()};
+   HYPRE_Int mat_col_idx[2] = {0, cP->Width()};
+   Q = new HypreParMatrix(comm, mat_size, cP->Width(), mat_row_idx,
+                          mat_col_idx, cP);
+   cout << "#nnz in Q in GD " << Q->NNZ() << endl;
+   HypreParMatrix *rap = mfem::RAP(Q, Q);
+   cout << "rap size " << rap->Height() << " x " << rap->Width() << endl;
+   cout << "Check Q size: " << Q->Height() << " x " << Q->Width() << '\n';
+   // HypreParMatrix *R = Q;
+   // HypreParMatrix *rapR = mfem::RAP(Q, Q);
+   // cout << "rapR size " << rapR->Height() << " x " << rapR->Width() << endl;
+   // cout << "Check R size: " << R->Height() << " x " << R->Width() << '\n';
+}
+HypreParMatrix *GalerkinDifference::Dof_TrueDof_Matrix() const
+{
+   cout << "Dof_TrueDof_Matrix() called " << endl;
+   delete Q; Q = NULL;
+   HYPRE_Int mat_size = cP->Height();
+   HYPRE_Int mat_row_idx[2] = {0, cP->Height()};
+   HYPRE_Int mat_col_idx[2] = {0, cP->Width()};
+   Q = new HypreParMatrix(comm, mat_size, cP->Width(), mat_row_idx,
+                          mat_col_idx, cP);
+   cout << "#nnz in Q in GD " << Q->NNZ() << endl;
+   // delete Q; Q = NULL;
+   // if (!Q)
+   // {
+   //    Build_Dof_TrueDof_Matrix();
+   //    cout << "build is done " << endl;
+   // }
+   const char *file_n = "testR";
+   cout << "#nnz " << Q->NNZ() << endl;
+   cout << "Check Q size Dof_TrueDof_Matrix(): " << Q->Height() << " x " << Q->Width() << '\n';
+   HypreParMatrix *rapR = mfem::RAP(Q, Q);
+   HypreParMatrix *R = new HypreParMatrix(*Q);
+   R->Print(file_n);
+   cout << "Check R size Dof_TrueDof_Matrix(): " << R->Height() << " x " << R->Width() << '\n';
+   //HypreParMatrix *rapR = mfem::RAP(R, R);
+   cout << "rapR size in Dof_TrueDof_Matrix() " << rapR->Height() << " x " << rapR->Width() << endl;
+   delete R;
+   return Q;
+}
 // an overload function of previous one (more doable?)
 void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
                                            mfem::DenseMatrix &mat_cent,
@@ -214,6 +261,7 @@ void GalerkinDifference::BuildGDProlongation() const
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
+   
    // ofstream cp_save("cP.txt");
    // cP->PrintMatlab(cp_save);
    // cp_save.close();
