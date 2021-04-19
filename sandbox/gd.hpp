@@ -51,8 +51,8 @@ namespace mfem
             return Dof_TrueDof_Matrix()->GetGlobalNumCols();
         }
 
-        virtual void Build_Dof_TrueDof_Matrix() const;
-
+        void Build_Dof_Matrix(HypreParMatrix &P) const;
+        void Build_Dof_TrueDof_Matrix() const;
         virtual HypreParMatrix *Dof_TrueDof_Matrix() const;
 
         /// Get the prolongation matrix in GD method

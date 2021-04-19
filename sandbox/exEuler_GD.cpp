@@ -250,23 +250,6 @@ int main(int argc, char *argv[])
    /// dimension
    const int dim = mesh->Dimension();
 
-   for (int l = 0; l < nc_ref; ++l)
-   {
-      Array<int> marked_elements;
-      for (int k = 0; k < mesh->GetNBE(); ++k)
-      {
-        if (mesh->GetBdrAttribute(k) == 4)
-         {
-         //cout << "bdr face: " <<  k << endl;
-         FaceElementTransformations *trans;
-         trans = mesh->GetBdrFaceTransformations(k);
-        // cout << "bdr el: " << trans->Elem1No << endl;
-         marked_elements.Append(trans->Elem1No);
-         }
-      }
-      mesh->GeneralRefinement(marked_elements);
-   }
-
    for (int l = 0; l < ref_levels; l++)
    {
       mesh->UniformRefinement();
@@ -278,14 +261,6 @@ int main(int argc, char *argv[])
    sol_ofs.precision(14);
    mesh->PrintVTK(sol_ofs, 1);
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh.get());
-  // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
-   //    this mesh further in parallel to increase the resolution. Once the
-   //    parallel mesh is defined, the serial mesh can be deleted.
-
-//    for (int lev = 0; lev < par_ref_levels; lev++)
-//    {
-//       pmesh.UniformRefinement();
-//    }
    // finite element collection
    FiniteElementCollection *fec = new DG_FECollection(order, dim);
 
@@ -297,13 +272,13 @@ int main(int argc, char *argv[])
    ParFiniteElementSpace *fes_GD = new GalerkinDifference(pmesh,
                                                        fec, num_state, Ordering::byVDIM, order, fes->GetComm());
    // cout << "dof offsets " << fes_GD->GetDofOffsets() << endl;
-   HYPRE_Int glob_size = fes->GlobalTrueVSize();
-   cout << "Number of unknowns: " << glob_size << endl; 
+   // HYPRE_Int glob_size = fes->GlobalTrueVSize();
+   // cout << "Number of unknowns: " << glob_size << endl; 
    // cout << "Number of finite element unknowns in GD: "
    //      << fes_GD->GetTrueVSize() << endl;
 
-   cout << "Number of finite element unknowns: "
-        << fes->GetTrueVSize() << endl;
+   // cout << "Number of finite element unknowns: "
+   //      << fes->GetTrueVSize() << endl;
    //cout << "Number of finite element unknowns in GD global: " << fes_GD->GlobalTrueVSize() << endl;
 
    /// `bndry_marker_*` lists the boundaries associated with a particular BC
@@ -326,13 +301,13 @@ int main(int argc, char *argv[])
    double alpha = 1.0;
 
    /// nonlinearform
-   ParNonlinearForm *res = new ParNonlinearForm(fes_GD);
-   res->AddDomainIntegrator(new EulerDomainIntegrator<2>(diff_stack, num_state, alpha));
-   res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 1, 0>(diff_stack, fec, num_state, qfs, alpha),
-                             bndry_marker_isentropic);
-   res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 2, 0>(diff_stack, fec, num_state, qfs, alpha),
-                             bndry_marker_slipwall);
-   res->AddInteriorFaceIntegrator(new EulerFaceIntegrator<2>(diff_stack, fec, 1.0, num_state, alpha));
+   // ParNonlinearForm *res = new ParNonlinearForm(fes_GD);
+   // res->AddDomainIntegrator(new EulerDomainIntegrator<2>(diff_stack, num_state, alpha));
+   // res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 1, 0>(diff_stack, fec, num_state, qfs, alpha),
+   //                           bndry_marker_isentropic);
+   // res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 2, 0>(diff_stack, fec, num_state, qfs, alpha),
+   //                           bndry_marker_slipwall);
+   // res->AddInteriorFaceIntegrator(new EulerFaceIntegrator<2>(diff_stack, fec, 1.0, num_state, alpha));
 
    // check if the integrators are correct
    // double delta = 1e-5;
@@ -362,19 +337,19 @@ int main(int argc, char *argv[])
    // jac_v_fd -= r;
    // jac_v_fd /= (2.0 * delta);
 
-//    for (int i = 0; i < jac_v.Size(); ++i)
-//    {
-//       //std::cout << std::abs(jac_v(i) - (jac_v_fd(i))) << "\n";
-//       MFEM_ASSERT(abs(jac_v(i) - (jac_v_fd(i))) <= 1e-09, "jacobian is incorrect");
-//    }
+   // for (int i = 0; i < jac_v.Size(); ++i)
+   // {
+   //    //std::cout << std::abs(jac_v(i) - (jac_v_fd(i))) << "\n";
+   //    MFEM_ASSERT(abs(jac_v(i) - (jac_v_fd(i))) <= 1e-09, "jacobian is incorrect");
+   // }
 
    /// bilinear form
-   ParBilinearForm *mass = new ParBilinearForm(fes);
+   // ParBilinearForm *mass = new ParBilinearForm(fes);
 
-   /// set up the mass matrix
-   mass->AddDomainIntegrator(new EulerMassIntegrator(num_state));
-   mass->Assemble();
-   mass->Finalize();
+   // /// set up the mass matrix
+   // mass->AddDomainIntegrator(new EulerMassIntegrator(num_state));
+   // mass->Assemble();
+   // mass->Finalize();
 //    SparseMatrix &mass_old = mass->SpMat();
 //    SparseMatrix *cp = dynamic_cast<GalerkinDifference *>(fes_GD)->GetCP();
 //    SparseMatrix *p = RAP(*cp, mass_old, *cp);
@@ -398,14 +373,23 @@ int main(int argc, char *argv[])
 #endif
    /// using namespace std;
    HypreParMatrix *R;
-   R = fes_GD->Dof_TrueDof_Matrix();
-   cout << "R " << R->Height() << " x " << R->Width() << endl;
-   cout << "#nnz in R " << R->NNZ() << endl;
-   cout << "warning from above " << endl;
+   R = new HypreParMatrix(*fes_GD->Dof_TrueDof_Matrix());
+  // R = fes_GD->Dof_TrueDof_Matrix();
+   // dynamic_cast<GalerkinDifference *>(fes_GD)->Build_Dof_Matrix(R);
+   // cout << "R " << R.Height() << " x " << R.Width() << endl;
+   // cout << "#nnz in R " << R.NNZ() << endl;
+   // cout << "warning from above " << endl;
+   // HypreParMatrix *P = &R;
+   
+   SparseMatrix *cP = dynamic_cast<SparseMatrix *>(R);
+   if (!cP)
+   {
+      cout << "cP is not built here " << endl;
+   }
 //   // cout << "hypre_CSRMatrixNumNonzeros(R) " << hypre_CSRMatrixNumNonzeros(R) << endl;
    HypreParMatrix *rap = mfem::RAP(R, R);
    cout << " *********************************************************************************** " << endl;
-   cout << "rap size in euler code " << rap->Height() << " x " << rap->Width() << endl;
+   cout << "cP size in euler code " << rap->Height() << " x " << rap->Width() << endl;
    cout << " *********************************************************************************** " << endl;
    /// grid function
    ParGridFunction u(fes);
@@ -414,7 +398,7 @@ int main(int argc, char *argv[])
    u_test.ProjectCoefficient(u0);
    // cout << "exact solution " << endl;
    // u_test.Print();
-   cout << "#dof " << res->FESpace()->GetFE(0)->GetDof() << endl;
+   // cout << "#dof " << res->FESpace()->GetFE(0)->GetDof() << endl;
    /// GD grid function
    ParCentGridFunction uc(fes_GD);
    uc.ProjectCoefficient(u0);
@@ -424,13 +408,13 @@ int main(int argc, char *argv[])
    //fes_GD->GetProlongationMatrix()->Mult(uc, u);
    // cout << "uc " << endl;
    // uc.Print();
-   //P->Mult(uc, u );
+   R->Mult(uc, u );
    // cout << "u " << endl;
    // u.Print();
    u_test -= u;
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
-   double res_norm0 = calcResidualNorm(res, fes_GD, uc);
-   std::cout << "initial residual norm: " << res_norm0 << "\n";
+   // double res_norm0 = calcResidualNorm(res, fes_GD, uc);
+   // std::cout << "initial residual norm: " << res_norm0 << "\n";
    #if 0
    /// time-marching method
    std::unique_ptr<mfem::ODESolver> ode_solver;
