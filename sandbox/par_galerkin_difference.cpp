@@ -27,6 +27,7 @@ using namespace mach;
 void u_const(const mfem::Vector &x, mfem::Vector &u);
 void u_poly(const mfem::Vector &x, mfem::Vector &u);
 void u_exact(const mfem::Vector &x, mfem::Vector &u);
+void u_const_single(const mfem::Vector &x, mfem::Vector &u);
 
 
 // This function will be used to check the local R and the assembled prolongation matrix
@@ -39,20 +40,22 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options
-	const char *mesh_file = "./annulus_1/annulus.smb";
-	const char *model_file ="./annulus_1/annulus.dmg";
+	const char *mesh_file = "./annulus_coarse/annulus.smb";
+	const char *model_file ="./annulus_coarse/annulus.dmg";
 
    OptionsParser args(argc, argv);
    int p = 1;
 	int o = 1;
    int rf = 0;
 	int pr = 0;
+	int vdim = 1;
 	args.AddOption(&o, "-o", "--order", "order of prolongation matrix");
    args.AddOption(&p,  "-p", "--problem", "which problem to test");
 	args.AddOption(&mesh_file, "-m", "--mesh", "mesh file to use");
 	args.AddOption(&model_file, "-mo", "--model", "model file to use");
    args.AddOption(&rf, "-r", "--refine", "level of refinement");
 	args.AddOption(&pr, "-pr", "--processor", "processor to check info");
+	args.AddOption(&vdim, "-vd", "--vdim", "processor to check info");
    args.Parse();
 
    if (!args.Good())
@@ -77,7 +80,7 @@ int main(int argc, char *argv[])
 		mfem::ParMesh *pmesh = new ParPumiMesh(MPI_COMM_WORLD, pumi_mesh);
 
 		// save the mesh
-		string path("/Users/geyan/workspace/mach_dev/build/sandbox");
+		string path("/Users/geyan/workspace/mach_dev/build/sandbox/annulus");
       pmesh->PrintVTU(path);
 
 		if (pr == myid)
@@ -94,8 +97,8 @@ int main(int argc, char *argv[])
 
 		// 4. create parallel gd space and regular fespace
 		DSBPCollection fec(o, dim);
-		ParGDSpace gd(pumi_mesh, pmesh, &fec, dim+2, mfem::Ordering::byVDIM, o, pr);
-		ParFiniteElementSpace pfes(pmesh, &fec, dim+2, mfem::Ordering::byVDIM);
+		ParGDSpace gd(pumi_mesh, pmesh, &fec, vdim, mfem::Ordering::byVDIM, o, pr);
+		ParFiniteElementSpace pfes(pmesh, &fec, vdim, mfem::Ordering::byVDIM);
 
 		// 5. create the gridfucntions
 		mfem::ParCentGridFunction x_cent(&gd);
@@ -104,10 +107,21 @@ int main(int argc, char *argv[])
 		HypreParMatrix *prolong = gd.Dof_TrueDof_Matrix();
 		if (1 == p)
 		{
-			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_const);
-			//x_exact.ProjectCoefficient(u0_fun);
-			x_cent.ProjectCoefficient(u0_fun);
-			x = 0.0;
+			if( 1 == vdim)
+			{
+				mfem::VectorFunctionCoefficient u0_fun(1, u_const_single);
+				//x_exact.ProjectCoefficient(u0_fun);
+				x_cent.ProjectCoefficient(u0_fun);
+				x = 0.0;
+			}
+			else
+			{
+				mfem::VectorFunctionCoefficient u0_fun(dim+2, u_const);
+				//x_exact.ProjectCoefficient(u0_fun);
+				x_cent.ProjectCoefficient(u0_fun);
+				x = 0.0;
+			}
+
 		}
 		// else if (2 == p)
 		// {
@@ -182,6 +196,7 @@ void u_exact(const mfem::Vector &x, mfem::Vector &q)
 {
 	int dim = x.Size();
 	mfem::Vector u(dim+2);
+	q.SetSize(dim+2);
 
    double ri = 1.0;
    double Mai = 0.5; //0.95 
@@ -222,6 +237,7 @@ void u_exact(const mfem::Vector &x, mfem::Vector &q)
 
 void u_const(const mfem::Vector &x, mfem::Vector &u)
 {
+	u.SetSize(x.Size()+2);
 	u(0) = 1.0;
 	u(1) = 2.0;
 	u(2) = 3.0;
@@ -230,6 +246,7 @@ void u_const(const mfem::Vector &x, mfem::Vector &u)
 
 void u_poly(const mfem::Vector &x, mfem::Vector &u)
 {
+	u.SetSize(x.Size()+2);
    u = 0.0;
    for (int i = 2; i >= 0; i--)
    {
@@ -238,4 +255,10 @@ void u_poly(const mfem::Vector &x, mfem::Vector &u)
 		u(2) += pow(x(0) + x(1), i);
 		u(3) += pow(x(0) - x(1), i);
    }
+}
+
+void u_const_single(const mfem::Vector &x, mfem::Vector &u)
+{
+	u.SetSize(1);
+	u(0) = 1.0;
 }

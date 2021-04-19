@@ -13,14 +13,6 @@ ParGDSpace::ParGDSpace(Mesh2 *apf_mesh, ParMesh *pm, const FiniteElementCollecti
                     	  int vdim, int ordering, int de, int p)
    : pr(p), SpaceType(pm, f, vdim, ordering)
 {
-   cout << "Before initialize GD space, check element vdofs:\n";
-   Array<int> dof_temp;
-   for (int i = 0; i < GetParMesh()->GetNE(); i++)
-   {
-      cout << "Element " << i << ": ";
-      GetElementVDofs(i, dof_temp);
-      dof_temp.Print(cout, dof_temp.Size());
-   }
    pumi_mesh = apf_mesh;
    dim = pm->Dimension();
    degree = de;
@@ -99,8 +91,8 @@ void ParGDSpace::BuildProlongationOperator()
    {
       // 1. construct the patch the patch
       GetNeighbourSet(i, nelmt, elmt_id);
-      cout << "Element id in patch " << i << ": ";
-      elmt_id.Print(cout, elmt_id.Size());
+      // cout << "Element id in patch " << i << ": ";
+      // elmt_id.Print(cout, elmt_id.Size());
       
       // 2. build the quadrature and barycenter coordinate matrices
       GetNeighbourMat(elmt_id, cent_mat, quad_mat);
@@ -110,10 +102,11 @@ void ParGDSpace::BuildProlongationOperator()
       // cout << "Quadrature points id matrix:\n";
       // quad_mat.Print(cout, quad_mat.Width());
       // cout << endl;
-      cout << "quad_mat width is " << quad_mat.Width() << '\n';
+      // cout << "quad_mat width is " << quad_mat.Width() << '\n';
 
       // 3. buil the loacl reconstruction matrix
       buildLSInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
+      // buildInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
       // cout << "Local reconstruction matrix R:\n";
       // local_mat.Print(cout, local_mat.Width());
       // cout << "row-wise? " << *(local_mat.GetData()) << ' ' << *(local_mat.GetData()+1) << '\n'; 
@@ -246,24 +239,25 @@ void ParGDSpace::GetNeighbourSet(int id, int req_n, Array<int> &nels)
 void ParGDSpace::GetNeighbourMat(Array<int> &els_id, DenseMatrix &mat_cent,
                                 DenseMatrix &mat_quad) const
 {
-   // resize the DenseMatrices and clean the data
-   int num_el = els_id.Size();
-   mat_cent.Clear(); 
-   mat_cent.SetSize(dim, num_el);
-
    // assume the mesh only contains only 1 type of element
    const Element* el = GetParMesh()->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
+
+   // resize the DenseMatrices and clean the data
+   int num_el = els_id.Size();
+   mat_cent.Clear(); 
+   mat_cent.SetSize(dim, num_el);
+   mat_quad.Clear();
+   mat_quad.SetSize(dim, num_dofs);
    // vectors that hold coordinates of quadrature points
    // used for duplication tests
    vector<double> quad_data;
    Vector quad_coord(dim); // used to store quadrature coordinate temperally
-   ElementTransformation *eltransf;
+   Vector cent_coord(dim);
    for(int j = 0; j < num_el; j++)
    {
       // Get and store the element center
-      mfem::Vector cent_coord(dim);
       GetElementCenter(els_id[j], cent_coord);
       for(int i = 0; i < dim; i++)
       {
@@ -271,27 +265,41 @@ void ParGDSpace::GetNeighbourMat(Array<int> &els_id, DenseMatrix &mat_cent,
       }
       
       // deal with quadrature points
-      eltransf = mesh->GetElementTransformation(els_id[j]);
-      for(int k = 0; k < num_dofs; k++)
-      {
-         eltransf->Transform(fe->GetNodes().IntPoint(k), quad_coord);
-         for(int di = 0; di < dim; di++)
-         {
-            quad_data.push_back(quad_coord(di));
-         }
-      }
+      // following commented on Apr 19 2021
+      // eltransf = mesh->GetElementTransformation(els_id[j]);
+      // for(int k = 0; k < num_dofs; k++)
+      // {
+      //    eltransf->Transform(fe->GetNodes().IntPoint(k), quad_coord);
+      //    for(int di = 0; di < dim; di++)
+      //    {
+      //       quad_data.push_back(quad_coord(di));
+      //    }
+      // }
    }
-   // reset the quadrature point matrix
-   mat_quad.Clear();
-   int num_col = quad_data.size()/dim;
-   mat_quad.SetSize(dim, num_col);
-   for(int i = 0; i < num_col; i++)
+
+   // deal with quad points
+   ElementTransformation *eltransf = GetParMesh()->GetElementTransformation(els_id[0]);
+   for (int j = 0; j < num_dofs; j++)
    {
-      for(int j = 0; j < dim; j++)
+      eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
+      for (int i = 0; i < dim; i++)
       {
-         mat_quad(j,i) = quad_data[i*dim+j];
+         mat_quad(i, j) = quad_coord(i);
       }
    }
+
+   // reset the quadrature point matrix
+   // following comment on Apr 19 2021
+   // mat_quad.Clear();
+   // int num_col = quad_data.size()/dim;
+   // mat_quad.SetSize(dim, num_col);
+   // for(int i = 0; i < num_col; i++)
+   // {
+   //    for(int j = 0; j < dim; j++)
+   //    {
+   //       mat_quad(j,i) = quad_data[i*dim+j];
+   //    }
+   // }
 }
 
 void ParGDSpace::GetElementCenter(int id, Vector &cent) const
@@ -309,41 +317,40 @@ void ParGDSpace::AssembleProlongationMatrix(const Array<int> &els_id,
    const Element *el = GetParMesh()->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
-   cout << "number of dof is " << num_dofs << '\n';
    // need to transpose the local_mat
    // cout << "In assembleprolongationmatrix, now local prolong becomes:";
-   //local_mat.Transpose();
+   local_mat.Transpose();
    //local_mat.Print(cout, local_mat.Width());
    
    int nel = els_id.Size();
    Array<int> el_dofs;
-   Array<int> col_index(nel);
+   Array<int> col_index(nel*num_dofs);
    Array<int> row_index(num_dofs);
  
    int el_id = els_id[0];
    GetElementVDofs(el_id, el_dofs);
-   cout << "Element dofs: ";
-   el_dofs.Print(cout, el_dofs.Size());
-   col_index.SetSize(nel);
    Array<int> ncols(num_dofs);
    ncols = nel;
-   cout << "ncols is: "; ncols.Print(cout, ncols.Size());
-   cout << "mat size is " << local_mat.Height() << " x " << local_mat.Width() << '\n';
-   for (int e = 0; e < nel; e++)
+   // cout << "ncols is: "; ncols.Print(cout, ncols.Size());
+   // cout << "mat size is " << local_mat.Height() << " x " << local_mat.Width() << '\n';
+   // cout << "col_index size is " << col_index.Size() << '\n';
+   for (int d = 0; d < num_dofs; d++)
    {
-      col_index[e] = vdim * els_id[e];
+      for (int e = 0; e < nel; e++)
+      {
+         col_index[d * nel + e] = vdim * els_id[e];
+      }
    }
    for (int v = 0; v < vdim; v++)
    {
       el_dofs.GetSubArray(v * num_dofs, num_dofs, row_index);
-      cout << '\t' <<  v << " assemble location:\n";
-      cout << "\t\tRow:"; row_index.Print(cout, row_index.Size());
-      cout << "\t\tCol:"; col_index.Print(cout, col_index.Size());
-
+      // cout << '\t' <<  v << " assemble location:\n";
+      // cout << "\t\tRow:"; row_index.Print(cout, row_index.Size());
+      // cout << "\t\tCol:"; col_index.Print(cout, col_index.Size());
       HYPRE_IJMatrixSetValues(ij_matrix, num_dofs, ncols.GetData(), row_index.GetData(),
                              col_index.GetData(), local_mat.GetData());
       row_index.LoseData();
-      for (int e = 0; e < nel; e++)
+      for (int e = 0; e < nel * num_dofs; e++)
       {
          col_index[e]++;
       }
