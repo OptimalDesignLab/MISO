@@ -6,7 +6,7 @@
 #include "pumi.h"
 #include "apfMDS.h"
 #include "HYPRE.h"
-
+#include <iostream>
 namespace mfem
 {
 
@@ -21,7 +21,7 @@ public:
 	/// \param[in] ordering - method for ordering the dofs, usually is byVDIM
 	/// \param[in] de - prolongation operator degree
 	ParGDSpace(apf::Mesh2 *apf_mesh, mfem::ParMesh *pm, const mfem::FiniteElementCollection *f,
-				  int vdim = 1, int ordiering = mfem::Ordering::byVDIM, int de = 1);
+				  int vdim = 1, int ordiering = mfem::Ordering::byVDIM, int de = 1, int p = 0);
 
 	/// Construct the parallel prolongation operator
 	void BuildProlongationOperator();
@@ -48,7 +48,12 @@ public:
 	/// \param[in] els_id - element ids in patch
 	/// \param[in] local_mat - local prolongation matrix
 	void AssembleProlongationMatrix(const mfem::Array<int> &els_id,
-											  const mfem::DenseMatrix &local_mat);
+									mfem::DenseMatrix &local_mat);
+
+	// HYPRE_Int GlobalTrueVSize() const
+	// { return total_tdof;}
+
+	//mfem::HypreParVector *NewTrueDofVector();
 private:
    /// the pumi mesh object
    apf::Mesh2 *pumi_mesh; 
@@ -59,12 +64,17 @@ private:
    int degree;
 	/// the start and end row index of each local prolongation operator
 	/// what is the index exceed the limit?
-	int dof_offset, dof_offset_next;
+	int dof_start, dof_end;
 	/// the start and end colume index of each local prolongation operator
-	int el_offset, el_offset_next;
+	int el_start, el_end;
+	int pr;
 
+	/// total number of element
+	HYPRE_Int local_tdof;
+	HYPRE_Int total_tdof;
+
+	// use HYPRE_IJMATRIX interface to construct the 
 	/// the actual prolongation matrix
-	//mfem::HypreParMatrix prolong;
 	HYPRE_ParCSRMatrix prolong;
 	HYPRE_IJMatrix ij_matrix;
 };

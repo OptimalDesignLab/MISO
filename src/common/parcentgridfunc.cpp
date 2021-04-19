@@ -9,9 +9,9 @@ namespace mfem
 
 ParCentGridFunction::ParCentGridFunction(ParFiniteElementSpace *pf)
 {
-    fes = pfes = pf;
-    fec = NULL;
-    SetSize(pf->GetVDim() * pf->GetNE());
+   fes = pfes = pf;
+   fec = NULL;
+   SetSize(pf->GetVDim() * pf->GetNE());
 }
 
 void ParCentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
@@ -45,6 +45,15 @@ void ParCentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
       SetSubVector(vdofs, vals);
    }
 }
+
+// HypreParVector *ParCentGridFunction::GetTrueDofs() const
+// {
+//    std::cout << "ParCentGridFunction::GetTruedofs is called. ";
+//    HypreParVector *tv = dynamic_cast<ParGDSpace*>(pfes)->NewTrueDofVector();
+//    std::cout << "tv size is " << tv->Size() << '\n';
+//    GridFunction::GetTrueDofs(*tv);
+//    return tv;
+// }
 
 ParCentGridFunction &ParCentGridFunction::operator=(const Vector &v)
 {

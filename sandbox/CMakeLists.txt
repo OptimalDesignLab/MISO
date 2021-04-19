@@ -21,6 +21,7 @@ set(SANDBOX_SRCS
    viscous_shock
    airfoil_steady
    airfoil_chaotic
+	par_galerkin_difference
 	#magnetostatic_box
 	#magnetostatic_motor
 	#magnetostatic_wire
