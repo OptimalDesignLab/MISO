@@ -46,14 +46,13 @@ void ParCentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
    }
 }
 
-// HypreParVector *ParCentGridFunction::GetTrueDofs() const
-// {
-//    std::cout << "ParCentGridFunction::GetTruedofs is called. ";
-//    HypreParVector *tv = dynamic_cast<ParGDSpace*>(pfes)->NewTrueDofVector();
-//    std::cout << "tv size is " << tv->Size() << '\n';
-//    GridFunction::GetTrueDofs(*tv);
-//    return tv;
-// }
+HypreParVector *ParCentGridFunction::GetTrueDofs() const
+{
+   std::cout << "ParCentGridFunction::GetTruedofs is called. ";
+   HypreParVector *tv = dynamic_cast<ParGDSpace*>(pfes)->NewTrueDofVector();
+   GridFunction::GetTrueDofs(*tv);
+   return tv;
+}
 
 ParCentGridFunction &ParCentGridFunction::operator=(const Vector &v)
 {

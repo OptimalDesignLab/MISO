@@ -117,7 +117,12 @@ void ParGDSpace::BuildProlongationOperator()
    // finialize the hypre parmatrix
    HYPRE_IJMatrixAssemble(ij_matrix);
    HYPRE_IJMatrixGetObject(ij_matrix, (void**)&prolong);
+
    P = new HypreParMatrix((hypre_ParCSRMatrix*)(prolong), true);
+
+   Vector diag(local_tdof);
+   diag = 1.0;
+   R = new SparseMatrix(diag);
 
 }
 
@@ -317,10 +322,8 @@ void ParGDSpace::AssembleProlongationMatrix(const Array<int> &els_id,
    const Element *el = GetParMesh()->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
-   // need to transpose the local_mat
-   // cout << "In assembleprolongationmatrix, now local prolong becomes:";
+   // need to transpose the local_mat given the data format
    local_mat.Transpose();
-   //local_mat.Print(cout, local_mat.Width());
    
    int nel = els_id.Size();
    Array<int> el_dofs;

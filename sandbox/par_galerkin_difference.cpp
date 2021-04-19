@@ -103,21 +103,20 @@ int main(int argc, char *argv[])
 		// 5. create the gridfucntions
 		mfem::ParCentGridFunction x_cent(&gd);
 		mfem::ParGridFunction x(&pfes);
-		//mfem::ParGridFunction x_exact(&pfes);
-		HypreParMatrix *prolong = gd.Dof_TrueDof_Matrix();
+		mfem::ParGridFunction x_exact(&pfes);
 		if (1 == p)
 		{
 			if( 1 == vdim)
 			{
 				mfem::VectorFunctionCoefficient u0_fun(1, u_const_single);
-				//x_exact.ProjectCoefficient(u0_fun);
+				x_exact.ProjectCoefficient(u0_fun);
 				x_cent.ProjectCoefficient(u0_fun);
 				x = 0.0;
 			}
 			else
 			{
 				mfem::VectorFunctionCoefficient u0_fun(dim+2, u_const);
-				//x_exact.ProjectCoefficient(u0_fun);
+				x_exact.ProjectCoefficient(u0_fun);
 				x_cent.ProjectCoefficient(u0_fun);
 				x = 0.0;
 			}
@@ -139,28 +138,29 @@ int main(int argc, char *argv[])
 		// }
 
 		// 6. Prolong the solution to real quadrature points
-		HypreParMatrix *prolong1 = gd.Dof_TrueDof_Matrix();
+		HypreParMatrix *prolong = gd.Dof_TrueDof_Matrix();
 		cout << "Get Prolongation matrix, the size is "
 			  << prolong->Height() << " x " << prolong->Width() << "\n\n";
+		
+		cout << "x_cent ParCentGridFunction size is: " << x_cent.Size()<<'\n';
+		HypreParVector *x_cent_true = x_cent.GetTrueDofs();
+		cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n' << '\n';
+		const char *f1 = "x_cent_true";
+		x_cent_true->Print(f1);
 
-		// HypreParVector *x_true = x.GetTrueDofs();
-		// cout << "x_true size is " << x_true->Size() << '\n' << '\n';
+		HypreParVector *x_true = x.GetTrueDofs();
+		cout << "x_true size is " << x_true->Size() << '\n' << '\n';
 
 
-		// cout << "x_cent ParCentGridFunction size is: " << x_cent.Size()<<'\n';
-		// x_cent.Print(cout, 4);
-		// HypreParVector *x_cent_true = x_cent.GetTrueDofs();
-		// cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n' << '\n';
-		// const char *f1 = "x_cent_true";
-		// x_cent_true->Print(f1);
+		HypreParVector *x_exact_true = x_exact.GetTrueDofs();
+		cout << "x_exact_true size is " << x_exact_true->Size() << '\n'<<'\n';
+		const char *f2 = "x_exact_true";
+		x_exact_true->Print(f2);
 
-		//HypreParVector *x_exact_true = x_exact.GetTrueDofs();
-		//cout << "x_exact_true size is " << x_exact_true->Size() << '\n'<<'\n';
-		//const char *f2 = "x_exact_true";
-		//x_exact_true->Print(f2);
-
-		// prolong->Mult(*x_cent_true, *x_true);
-		// cout << "prolonged.\n";
+		prolong->Mult(*x_cent_true, *x_true);
+		cout << "prolonged.\n";
+		const char *f3 = "x_true";
+		x_true->Print(f3);
 		// 7. compute the difference
 		// double norm;
 		// double loc_norm = (*diff) * (*diff);

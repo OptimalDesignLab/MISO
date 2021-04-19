@@ -53,7 +53,17 @@ public:
 	// HYPRE_Int GlobalTrueVSize() const
 	// { return total_tdof;}
 
-	//mfem::HypreParVector *NewTrueDofVector();
+   HypreParVector *NewTrueDofVector()
+   {
+      std::cout << "ParGDSpace::NewTrueDofVector is called.\n";
+		Array<HYPRE_Int> fake_dofs(2);
+		fake_dofs[0] = GetParMesh()->GetElementOffset();
+		fake_dofs[1] = fake_dofs[0] + local_tdof;
+      std::cout << "GlobalTrueVSize is " << GlobalTrueVSize() << ". ";
+      std::cout << "True dof offset is " <<  fake_dofs[0]
+                << ' ' << fake_dofs[1] << '\n';
+      return (new HypreParVector(GetComm(), GlobalTrueVSize(), fake_dofs.GetData()));
+    }
 private:
    /// the pumi mesh object
    apf::Mesh2 *pumi_mesh; 
