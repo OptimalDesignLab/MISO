@@ -10,6 +10,9 @@ constexpr bool entvar = false;
 #include "evolver_GD.hpp"
 #include "gd_def.hpp"
 #include "gd.hpp"
+#include "json.hpp"
+#include "default_options.hpp"
+#include "mfem_extensions.hpp"
 using namespace std;
 using namespace mfem;
 using namespace mach;
@@ -22,23 +25,180 @@ const double rhou[3] = {0.09595562550099601, -0.030658751626551423, -0.134714699
 
 void print_par_matrix_matlab(HypreParMatrix &A, const string &filename, int myid)
 {
-    hypre_CSRMatrix *A_serial = hypre_ParCSRMatrixToCSRMatrixAll(A);
+   hypre_CSRMatrix *A_serial = hypre_ParCSRMatrixToCSRMatrixAll(A);
 
-    mfem::SparseMatrix A_sparse(
-        hypre_CSRMatrixI(A_serial), hypre_CSRMatrixJ(A_serial), hypre_CSRMatrixData(A_serial),
-        hypre_CSRMatrixNumRows(A_serial), hypre_CSRMatrixNumCols(A_serial),
-        false, false, true);
+   mfem::SparseMatrix A_sparse(
+       hypre_CSRMatrixI(A_serial), hypre_CSRMatrixJ(A_serial), hypre_CSRMatrixData(A_serial),
+       hypre_CSRMatrixNumRows(A_serial), hypre_CSRMatrixNumCols(A_serial),
+       false, false, true);
 
-    if (myid == 0)
-    {
-        ofstream out(filename.c_str());
-        MFEM_VERIFY(out, "Cannot open file " << filename);
-        A_sparse.PrintMatlab(out);
-    }
+   if (myid == 0)
+   {
+      ofstream out(filename.c_str());
+      MFEM_VERIFY(out, "Cannot open file " << filename);
+      A_sparse.PrintMatlab(out);
+   }
 
-    hypre_CSRMatrixDestroy(A_serial);
+   hypre_CSRMatrixDestroy(A_serial);
+}
+unique_ptr<Solver> constructLinearSolver(
+    nlohmann::json &_options, mfem::Solver &_prec, MPI_Comm comm)
+{
+   std::string solver_type = _options["type"].get<std::string>();
+   double reltol = _options["reltol"].get<double>();
+   int maxiter = _options["maxiter"].get<int>();
+   int ptl = _options["printlevel"].get<int>();
+   int kdim = _options.value("kdim", -1);
+
+   unique_ptr<Solver> lin_solver;
+   if (solver_type == "hypregmres")
+   {
+      lin_solver.reset(new HypreGMRES(comm));
+      HypreGMRES *gmres = dynamic_cast<HypreGMRES *>(lin_solver.get());
+      gmres->SetTol(reltol);
+      gmres->SetMaxIter(maxiter);
+      gmres->SetPrintLevel(ptl);
+      gmres->SetPreconditioner(dynamic_cast<HypreSolver &>(_prec));
+      if (kdim != -1)
+         gmres->SetKDim(kdim); // set GMRES subspace size
+   }
+   else if (solver_type == "hyprefgmres")
+   {
+      lin_solver.reset(new HypreFGMRES(comm));
+      HypreFGMRES *fgmres = dynamic_cast<HypreFGMRES *>(lin_solver.get());
+      fgmres->SetTol(reltol);
+      fgmres->SetMaxIter(maxiter);
+      fgmres->SetPrintLevel(ptl);
+      fgmres->SetPreconditioner(dynamic_cast<HypreSolver &>(_prec));
+      if (kdim != -1)
+         fgmres->SetKDim(kdim); // set FGMRES subspace size
+   }
+   else if (solver_type == "gmressolver")
+   {
+      lin_solver.reset(new GMRESSolver(comm));
+      GMRESSolver *gmres = dynamic_cast<GMRESSolver *>(lin_solver.get());
+      gmres->SetRelTol(reltol);
+      gmres->SetMaxIter(maxiter);
+      gmres->SetPrintLevel(ptl);
+      gmres->SetPreconditioner(dynamic_cast<Solver &>(_prec));
+      if (kdim != -1)
+         gmres->SetKDim(kdim); // set GMRES subspace size
+   }
+   else if (solver_type == "hyprepcg")
+   {
+      lin_solver.reset(new HyprePCG(comm));
+      HyprePCG *pcg = static_cast<HyprePCG *>(lin_solver.get());
+      pcg->SetTol(reltol);
+      pcg->SetMaxIter(maxiter);
+      pcg->SetPrintLevel(ptl);
+      pcg->SetPreconditioner(dynamic_cast<HypreSolver &>(_prec));
+   }
+   else if (solver_type == "cgsolver")
+   {
+      lin_solver.reset(new CGSolver(comm));
+      CGSolver *cg = dynamic_cast<CGSolver *>(lin_solver.get());
+      cg->SetRelTol(reltol);
+      cg->SetMaxIter(maxiter);
+      cg->SetPrintLevel(ptl);
+      cg->SetPreconditioner(dynamic_cast<Solver &>(_prec));
+   }
+   else
+   {
+      throw MachException("Unsupported iterative solver type!\n"
+                          "\tavilable options are: HypreGMRES, HypreFGMRES, GMRESSolver,\n"
+                          "\tHyprePCG, CGSolver");
+   }
+   cout << "Linear solver " << solver_type << " is set " << endl;
+   return lin_solver;
 }
 
+unique_ptr<NewtonSolver> constructNonlinearSolver(
+    nlohmann::json &_options, mfem::Solver &_lin_solver, MPI_Comm comm)
+{
+   std::string solver_type = _options["type"].get<std::string>();
+   double abstol = _options["abstol"].get<double>();
+   double reltol = _options["reltol"].get<double>();
+   int maxiter = _options["maxiter"].get<int>();
+   int ptl = _options["printlevel"].get<int>();
+   unique_ptr<NewtonSolver> nonlin_solver;
+   if (solver_type == "newton")
+   {
+      nonlin_solver.reset(new mfem::NewtonSolver(comm));
+   }
+   else
+   {
+      throw MachException("Unsupported nonlinear solver type!\n"
+                          "\tavilable options are: newton\n");
+   }
+   //double eta = 1e-1;
+   //newton_solver.reset(new InexactNewton(comm, eta));
+
+   nonlin_solver->iterative_mode = true;
+   nonlin_solver->SetSolver(dynamic_cast<Solver &>(_lin_solver));
+   nonlin_solver->SetPrintLevel(ptl);
+   nonlin_solver->SetRelTol(reltol);
+   nonlin_solver->SetAbsTol(abstol);
+   nonlin_solver->SetMaxIter(maxiter);
+   cout << solver_type << " solver is set " << endl;
+   return nonlin_solver;
+}
+
+unique_ptr<Solver> constructPreconditioner(
+    nlohmann::json &_options, mach::SpaceType *fes, MPI_Comm comm)
+{
+   std::string prec_type = _options["type"].get<std::string>();
+   unique_ptr<Solver> precond;
+   if (prec_type == "hypreeuclid")
+   {
+      precond.reset(new HypreEuclid(comm));
+      // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
+      cout << "WARNING! Euclid fill level is hard-coded"
+           << "(see AbstractSolver::constructLinearSolver() for details)" << endl;
+      //int fill = options["lin-solver"]["filllevel"].get<int>();
+      //HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(precond.get())->GetPrec(), fill);
+   }
+   else if (prec_type == "hypreilu")
+   {
+      precond.reset(new HypreILU());
+      HypreILU *ilu = dynamic_cast<HypreILU *>(precond.get());
+      HYPRE_ILUSetType(*ilu, _options["ilu-type"].get<int>());
+      HYPRE_ILUSetLevelOfFill(*ilu, _options["lev-fill"].get<int>());
+      HYPRE_ILUSetLocalReordering(*ilu, _options["ilu-reorder"].get<int>());
+      HYPRE_ILUSetPrintLevel(*ilu, _options["printlevel"].get<int>());
+// Just listing the options below in case we need them in the future
+#if 0
+      HYPRE_ILUSetSchurMaxIter(ilu, schur_max_iter);
+      HYPRE_ILUSetNSHDropThreshold(ilu, nsh_thres); needs type = 20,21
+      HYPRE_ILUSetDropThreshold(ilu, drop_thres);
+      HYPRE_ILUSetMaxNnzPerRow(ilu, nz_max);
+#endif
+   }
+   else if (prec_type == "hypreams")
+   {
+      precond.reset(new HypreAMS(fes));
+      HypreAMS *ams = dynamic_cast<HypreAMS *>(precond.get());
+      ams->SetPrintLevel(_options["printlevel"].get<int>());
+      ams->SetSingularProblem();
+   }
+   else if (prec_type == "hypreboomeramg")
+   {
+      precond.reset(new HypreBoomerAMG());
+      HypreBoomerAMG *amg = dynamic_cast<HypreBoomerAMG *>(precond.get());
+      amg->SetPrintLevel(_options["printlevel"].get<int>());
+   }
+   else if (prec_type == "blockilu")
+   {
+      precond.reset(new BlockILU(4));
+   }
+   else
+   {
+      throw MachException("Unsupported preconditioner type!\n"
+                          "\tavilable options are: HypreEuclid, HypreILU, HypreAMS,"
+                          " HypreBoomerAMG.\n");
+   }
+   cout << prec_type << " Preconditioner is set " << endl;
+   return precond;
+}
 
 template <int dim>
 void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
@@ -98,7 +258,7 @@ double calcConservativeVarsL2Error(
       if (entvar)
       {
          calcConservativeVars<double, dim>(discrete.GetData(),
-                                   qdiscrete.GetData());
+                                           qdiscrete.GetData());
          calcConservativeVars<double, dim>(exact.GetData(), qexact.GetData());
       }
       else
@@ -208,10 +368,11 @@ std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI.
-    int num_procs, myid;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+   int num_procs, rank;
+   MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   ostream *out = getOutStream(rank);
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 2;
@@ -231,22 +392,38 @@ int main(int argc, char *argv[])
    args.Parse();
    if (!args.Good())
    {
-       if (myid == 0)
-       {
-           args.PrintUsage(cout);
-       }
-       MPI_Finalize();
-       return 1;
+      if (rank == 0)
+      {
+         args.PrintUsage(cout);
+      }
+      MPI_Finalize();
+      return 1;
    }
-   if (myid==0) { args.PrintOptions(cout); }
+   if (rank == 0)
+   {
+      args.PrintOptions(cout);
+   }
+
+   /// solver options
+   const char *options_file = "exEuler_GD_options.json";
+   string opt_file_name(options_file);
+   nlohmann::json file_options;
+   std::ifstream options_file1(opt_file_name);
+   options_file1 >> file_options;
+   nlohmann::json options;
+   options = default_options;
+   options.merge_patch(file_options);
    static adept::Stack diff_stack;
+
    /// degree = p+1
    degree = order + 1;
    /// number of state variables
    int num_state = 4;
-   // construct the mesh
+
+   /// construct the mesh
    unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
    cout << "Number of elements " << mesh->GetNE() << '\n';
+
    /// dimension
    const int dim = mesh->Dimension();
 
@@ -266,20 +443,15 @@ int main(int argc, char *argv[])
 
    // finite element space
    ParFiniteElementSpace *fes = new ParFiniteElementSpace(pmesh, fec, num_state,
-                                                    Ordering::byVDIM);
+                                                          Ordering::byVDIM);
 
    // GD finite element space
    ParFiniteElementSpace *fes_GD = new GalerkinDifference(pmesh,
-                                                       fec, num_state, Ordering::byVDIM, order, fes->GetComm());
-   // cout << "dof offsets " << fes_GD->GetDofOffsets() << endl;
-   // HYPRE_Int glob_size = fes->GlobalTrueVSize();
-   // cout << "Number of unknowns: " << glob_size << endl; 
-   // cout << "Number of finite element unknowns in GD: "
-   //      << fes_GD->GetTrueVSize() << endl;
-
-   // cout << "Number of finite element unknowns: "
-   //      << fes->GetTrueVSize() << endl;
-   //cout << "Number of finite element unknowns in GD global: " << fes_GD->GlobalTrueVSize() << endl;
+                                                          fec, num_state, Ordering::byVDIM, order, fes->GetComm());
+   HYPRE_Int glob_size = fes->GlobalTrueVSize();
+   cout << "Number of unknowns: " << glob_size << endl;
+   cout << "Number of finite element unknowns in GD: "
+        << fes_GD->GetTrueVSize() << endl;
 
    /// `bndry_marker_*` lists the boundaries associated with a particular BC
    Array<int> bndry_marker_isentropic;
@@ -301,133 +473,113 @@ int main(int argc, char *argv[])
    double alpha = 1.0;
 
    /// nonlinearform
-   // ParNonlinearForm *res = new ParNonlinearForm(fes_GD);
-   // res->AddDomainIntegrator(new EulerDomainIntegrator<2>(diff_stack, num_state, alpha));
-   // res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 1, 0>(diff_stack, fec, num_state, qfs, alpha),
-   //                           bndry_marker_isentropic);
-   // res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 2, 0>(diff_stack, fec, num_state, qfs, alpha),
-   //                           bndry_marker_slipwall);
-   // res->AddInteriorFaceIntegrator(new EulerFaceIntegrator<2>(diff_stack, fec, 1.0, num_state, alpha));
+   ParNonlinearForm *res = new ParNonlinearForm(fes_GD);
+   res->AddDomainIntegrator(new EulerDomainIntegrator<2>(diff_stack, num_state, alpha));
+   res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 1, 0>(diff_stack, fec, num_state, qfs, alpha),
+                             bndry_marker_isentropic);
+   res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 2, 0>(diff_stack, fec, num_state, qfs, alpha),
+                             bndry_marker_slipwall);
+   res->AddInteriorFaceIntegrator(new EulerFaceIntegrator<2>(diff_stack, fec, 1.0, num_state, alpha));
 
-   // check if the integrators are correct
-   // double delta = 1e-5;
-   
-   // // initialize state; here we randomly perturb a constant state
-   // ParCentGridFunction q(fes_GD);
-   // VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
-   // q.ProjectCoefficient(pert);
-   // // initialize the vector that the Jacobian multiplies
-   // ParCentGridFunction v(fes_GD);
-   // VectorFunctionCoefficient v_rand(num_state, randState);
-   // v.ProjectCoefficient(v_rand);
-   // // evaluate the Jacobian and compute its product with v
-   // Operator &Jac = res->GetGradient(q);
-   //       cout << "problem here " << endl;
-   // ParCentGridFunction jac_v(fes_GD);
+   /// check if the integrators are correct
+   double delta = 1e-5;
 
-   // cout << "Jac.Size() " << jac_v.Size() << endl;
-   // Jac.Mult(v, jac_v);
-   // cout << "done here " << endl;
-   // // now compute the finite-difference approximation...
-   // ParCentGridFunction q_pert(q), r(fes_GD), jac_v_fd(fes_GD);
-   // q_pert.Add(-delta, v);
-   // res->Mult(q_pert, r);
-   // q_pert.Add(2.0 * delta, v);
-   // res->Mult(q_pert, jac_v_fd);
-   // jac_v_fd -= r;
-   // jac_v_fd /= (2.0 * delta);
+   // initialize state; here we randomly perturb a constant state
+   ParCentGridFunction q(fes_GD);
+   VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
+   q.ProjectCoefficient(pert);
+   // initialize the vector that the Jacobian multiplies
+   ParCentGridFunction v(fes_GD);
+   VectorFunctionCoefficient v_rand(num_state, randState);
+   v.ProjectCoefficient(v_rand);
+   // evaluate the Jacobian and compute its product with v
+   Operator &Jac = res->GetGradient(q);
+   ParCentGridFunction jac_v(fes_GD);
+   Jac.Mult(v, jac_v);
+   // now compute the finite-difference approximation...
+   ParCentGridFunction q_pert(q), r(fes_GD), jac_v_fd(fes_GD);
+   q_pert.Add(-delta, v);
+   res->Mult(q_pert, r);
+   q_pert.Add(2.0 * delta, v);
+   res->Mult(q_pert, jac_v_fd);
+   jac_v_fd -= r;
+   jac_v_fd /= (2.0 * delta);
 
-   // for (int i = 0; i < jac_v.Size(); ++i)
-   // {
-   //    //std::cout << std::abs(jac_v(i) - (jac_v_fd(i))) << "\n";
-   //    MFEM_ASSERT(abs(jac_v(i) - (jac_v_fd(i))) <= 1e-09, "jacobian is incorrect");
-   // }
+   for (int i = 0; i < jac_v.Size(); ++i)
+   {
+      //std::cout << std::abs(jac_v(i) - (jac_v_fd(i))) << "\n";
+      MFEM_ASSERT(abs(jac_v(i) - (jac_v_fd(i))) <= 1e-09, "jacobian is incorrect");
+   }
 
    /// bilinear form
-   // ParBilinearForm *mass = new ParBilinearForm(fes);
+   ParBilinearForm *mass = new ParBilinearForm(fes_GD);
+   mass->AddDomainIntegrator(new EulerMassIntegrator(num_state));
+   mass->Assemble();
+   mass->Finalize();
 
-   // /// set up the mass matrix
-   // mass->AddDomainIntegrator(new EulerMassIntegrator(num_state));
-   // mass->Assemble();
-   // mass->Finalize();
-//    SparseMatrix &mass_old = mass->SpMat();
-//    SparseMatrix *cp = dynamic_cast<GalerkinDifference *>(fes_GD)->GetCP();
-//    SparseMatrix *p = RAP(*cp, mass_old, *cp);
-//    SparseMatrix &M = *p;
-#if 0
-    HYPRE_Int mat_size = Ap.Height();
-    HYPRE_Int mat_row_idx[2] = {0, Ap.Height()};
-    HYPRE_Int mat_col_idx[2] = {0, Ap.Width()};
-    HypreParMatrix A(fes_GD->GetComm(), mat_size, mat_col_idx,
-                     &Ap);
-    HYPRE_Int glob_vsize = bnew.Size();
-    HYPRE_Int b_row_idx[2] = {0, glob_vsize};
-    HYPRE_Int y_row_idx[2] = {0, y.Size()};
-    HypreParVector B(fes_GD->GetComm(), glob_vsize, bnew.GetData(),
-                     b_row_idx);
-    HypreParVector Y(fes_GD->GetComm(), y.Size(), y.GetData(),
-                     y_row_idx);
-    ostringstream oss;
-    oss << "a_mat_nproc" << 1 << ".dat";
-    print_par_matrix_matlab(A, oss.str(), 0);
-#endif
-   /// using namespace std;
    HypreParMatrix *R;
-   R = new HypreParMatrix(*fes_GD->Dof_TrueDof_Matrix());
-  // R = fes_GD->Dof_TrueDof_Matrix();
+   R = fes_GD->Dof_TrueDof_Matrix();
+
+#if 0
    // dynamic_cast<GalerkinDifference *>(fes_GD)->Build_Dof_Matrix(R);
-   // cout << "R " << R.Height() << " x " << R.Width() << endl;
-   // cout << "#nnz in R " << R.NNZ() << endl;
-   // cout << "warning from above " << endl;
-   // HypreParMatrix *P = &R;
-   
-   SparseMatrix *cP = dynamic_cast<SparseMatrix *>(R);
-   if (!cP)
-   {
-      cout << "cP is not built here " << endl;
-   }
-//   // cout << "hypre_CSRMatrixNumNonzeros(R) " << hypre_CSRMatrixNumNonzeros(R) << endl;
+   cout << "R " << R->Height() << " x " << R->Width() << endl;
+   cout << "#nnz in R " << R->NNZ() << endl;
    HypreParMatrix *rap = mfem::RAP(R, R);
    cout << " *********************************************************************************** " << endl;
-   cout << "cP size in euler code " << rap->Height() << " x " << rap->Width() << endl;
+   cout << "RAP size in euler code " << rap->Height() << " x " << rap->Width() << endl;
    cout << " *********************************************************************************** " << endl;
+#endif
+
    /// grid function
    ParGridFunction u(fes);
    VectorFunctionCoefficient u0(num_state, uexact);
    ParGridFunction u_test(fes);
    u_test.ProjectCoefficient(u0);
-   // cout << "exact solution " << endl;
-   // u_test.Print();
-   // cout << "#dof " << res->FESpace()->GetFE(0)->GetDof() << endl;
    /// GD grid function
    ParCentGridFunction uc(fes_GD);
    uc.ProjectCoefficient(u0);
-   // HypreParMatrix *P = fes_GD->Dof_TrueDof_Matrix();
-   
-   // cout << "#globalcols " <<  P->N() << endl;
-   //fes_GD->GetProlongationMatrix()->Mult(uc, u);
-   // cout << "uc " << endl;
-   // uc.Print();
-   R->Mult(uc, u );
-   // cout << "u " << endl;
-   // u.Print();
+   R->Mult(uc, u);
    u_test -= u;
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+
    // double res_norm0 = calcResidualNorm(res, fes_GD, uc);
    // std::cout << "initial residual norm: " << res_norm0 << "\n";
-   #if 0
+
+   /// newton solver for the steady problem
+   std::unique_ptr<mfem::NewtonSolver> newton_solver;
+   /// linear system solver used in newton solver
+   std::unique_ptr<mfem::Solver> solver;
+   /// linear system preconditioner for solver in newton solver and adjoint
+   std::unique_ptr<mfem::Solver> prec;
+
    /// time-marching method
    std::unique_ptr<mfem::ODESolver> ode_solver;
-   //ode_solver.reset(new RK4Solver);
-   ode_solver.reset(new BackwardEulerSolver);
-   cout << "ode_solver set " << endl;
-   prec = constructPreconditioner(options["lin-prec"]);
-   solver = constructLinearSolver(options["lin-solver"], *prec);
-   newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
-   constructEvolver();
-   // TimeDependentOperator
-   unique_ptr<mfem::TimeDependentOperator> evolver(new mfem::EulerEvolver(M, res,
-                                                                          0.0, TimeDependentOperator::Type::IMPLICIT));
+   ode_solver = NULL;
+   *out << "ode-solver type = "
+        << options["time-dis"]["ode-solver"].template get<string>() << endl;
+   ode_solver.reset(new PseudoTransientSolver(out));
+   cout << "ode_solver is set " << endl;
+   prec = constructPreconditioner(options["lin-prec"], fes_GD, fes->GetComm());
+   solver = constructLinearSolver(options["lin-solver"], *prec, fes->GetComm());
+   newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver, fes->GetComm());
+   *out << "No essential BCs" << endl;
+   /// Array that marks boundaries as essential
+   mfem::Array<int> ess_bdr;
+   if (mesh->bdr_attributes) // some meshes may not have boundary attributes
+   {
+      *out << "mesh with boundary attributes" << endl;
+      ess_bdr.SetSize(mesh->bdr_attributes.Max());
+      ess_bdr = 0;
+   }
+   Array<int> ess_tdof_list;
+   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   /// TimeDependentOperator
+   unique_ptr<mfem::TimeDependentOperator> evolver(new mfem::EulerEvolver(ess_bdr, mass,
+                                 res, *out, 0.0,
+                                 TimeDependentOperator::Type::IMPLICIT));
+   // evolver->SetNewtonSolver(newton_solver.get());
+#if 0
+
    /// set up the evolver
    auto t = 0.0;
    evolver->SetTime(t);
@@ -488,7 +640,8 @@ int main(int argc, char *argv[])
                                                          num_state, 0);
    cout << "|| rho_h - rho ||_{L^2} = " << l2_err_rho << endl;
    cout << "=========================================" << endl;
-   #endif
+#endif
+
    delete pmesh;
    delete fes;
    delete fec;
@@ -553,7 +706,7 @@ void uexact(const Vector &x, Vector &q)
    u(2) = rho * a * Ma * cos(theta);
    u(3) = press / euler::gami + 0.5 * rho * a * a * Ma * Ma;
 
-  // q = u;
+   // q = u;
    double mach_fs = 0.3;
    q(0) = 1.0;
    q(1) = q(0) * mach_fs; // ignore angle of attack

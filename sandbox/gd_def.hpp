@@ -7,24 +7,23 @@ using namespace std;
 using namespace mfem;
 extern "C" void
 dgecon_(char *, int *, double *, int *, double *,
-            double *, double *, int *, int *);
+        double *, double *, int *, int *);
 
-    extern "C" void
-    dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
-            double *, int *, double *, int *, int *);
-    extern "C" void
-    dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
-           int *, int *);
+extern "C" void
+dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
+        double *, int *, double *, int *, int *);
+extern "C" void
+dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
+       int *, int *);
 
-    extern "C" void
-    dgelsy_(int *, int *, int *, double *, int *, double *, int *, int *, double *,
-            int *, double *, int *, int *);
-    void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
-                              const DenseMatrix &x_quad, DenseMatrix &interp);
+extern "C" void
+dgelsy_(int *, int *, int *, double *, int *, double *, int *, int *, double *,
+        int *, double *, int *, int *);
+
 
 GalerkinDifference::GalerkinDifference(mach::MeshType *pm, const FiniteElementCollection *f,
-   int vdim, int ordering, int de, MPI_Comm _comm)
-   : ParFiniteElementSpace(pm, f, vdim, ordering)
+                                       int vdim, int ordering, int de, MPI_Comm _comm)
+    : ParFiniteElementSpace(pm, f, vdim, ordering)
 {
    degree = de;
    nEle = pm->GetNE();
@@ -32,45 +31,34 @@ GalerkinDifference::GalerkinDifference(mach::MeshType *pm, const FiniteElementCo
    fec = f;
    comm = _comm;
    BuildGDProlongation();
-  // Build_Dof_TrueDof_Matrix();
 }
 
-void GalerkinDifference::Build_Dof_Matrix(HypreParMatrix &P) const
-{
-   if (P) { return; }
-   HypreParMatrix *R;
-   HYPRE_Int mat_size = cP->Height();
-   HYPRE_Int mat_row_idx[2] = {0, cP->Height()};
-   HYPRE_Int mat_col_idx[2] = {0, cP->Width()};
-   R = new HypreParMatrix(comm, mat_row_idx,
-                          mat_col_idx, cP);
-   P = *R;
-}
 void GalerkinDifference::Build_Dof_TrueDof_Matrix() const
 {
-   if (Q) { return; }
-   HYPRE_Int mat_size = cP->Height();
-   HYPRE_Int mat_row_idx[2] = {0, cP->Height()};
-   HYPRE_Int mat_col_idx[2] = {0, cP->Width()};
-   Q = new HypreParMatrix(comm, mat_row_idx,
+   if (!cP)
+   {
+      BuildGDProlongation();
+   }
+   HYPRE_Int row_size = cP->Height();
+   HYPRE_Int col_size = cP->Width();
+   mat_row_idx = new HYPRE_Int[2];
+   mat_col_idx = new HYPRE_Int[2];
+   mat_row_idx[0] = 0;
+   mat_row_idx[1] = cP->Height();
+   mat_col_idx[0] = 0;
+   mat_col_idx[1] = cP->Width();
+   P = new HypreParMatrix(comm, mat_row_idx,
                           mat_col_idx, cP);
-   HypreParMatrix *rap = mfem::RAP(Q, Q);
-   cout << " *********************************************************************************** " << endl;
-   cout << "rap size in Build_Dof_TrueDof_Matrix() " << rap->Height() << " x " << rap->Width() << endl;
-   cout << " *********************************************************************************** " << endl;
+   cout << "P size " << P->Height() << " x " << P->Width() << endl;
 }
 
 HypreParMatrix *GalerkinDifference::Dof_TrueDof_Matrix() const
 {
-   cout << "Dof_TrueDof_Matrix() called " << endl;
-   if (!Q)
+   if(!P)
    {
       Build_Dof_TrueDof_Matrix();
-      cout << "build is done " << endl;
    }
-   cout << "#nnz " << Q->NNZ() << endl;
-   cout << "Check Q size Dof_TrueDof_Matrix(): " << Q->Height() << " x " << Q->Width() << '\n';
-   return Q;
+   return P;
 }
 
 // an overload function of previous one (more doable?)
@@ -80,11 +68,11 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
 {
    // resize the DenseMatrices and clean the data
    int num_el = elmt_id.Size();
-   mat_cent.Clear(); 
+   mat_cent.Clear();
    mat_cent.SetSize(dim, num_el);
 
    // assume the mesh only contains only 1 type of element
-   const Element* el = mesh->GetElement(0);
+   const Element *el = mesh->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
    // vectors that hold coordinates of quadrature points
@@ -94,41 +82,41 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    ElementTransformation *eltransf;
    eltransf = mesh->GetElementTransformation(elmt_id[0]);
 
-   for(int k = 0; k < num_dofs; k++)
+   for (int k = 0; k < num_dofs; k++)
    {
-    eltransf->Transform(fe->GetNodes().IntPoint(k), quad_coord);
-    for(int di = 0; di < dim; di++)
-    {
-       quad_data.push_back(quad_coord(di));
-    }
+      eltransf->Transform(fe->GetNodes().IntPoint(k), quad_coord);
+      for (int di = 0; di < dim; di++)
+      {
+         quad_data.push_back(quad_coord(di));
+      }
    }
 
-   for(int j = 0; j < num_el; j++)
+   for (int j = 0; j < num_el; j++)
    {
       // Get and store the element center
       mfem::Vector cent_coord(dim);
       GetElementCenter(elmt_id[j], cent_coord);
-      for(int i = 0; i < dim; i++)
+      for (int i = 0; i < dim; i++)
       {
-         mat_cent(i,j) = cent_coord(i);
+         mat_cent(i, j) = cent_coord(i);
       }
    }
 
    // reset the quadrature point matrix
    mat_quad.Clear();
-   int num_col = quad_data.size()/dim;
+   int num_col = quad_data.size() / dim;
    mat_quad.SetSize(dim, num_col);
-   for(int i = 0; i < num_col; i++)
+   for (int i = 0; i < num_col; i++)
    {
-      for(int j = 0; j < dim; j++)
+      for (int j = 0; j < dim; j++)
       {
-         mat_quad(j,i) = quad_data[i*dim+j];
+         mat_quad(j, i) = quad_data[i * dim + j];
       }
    }
 }
 
 void GalerkinDifference::GetNeighbourSet(int id, int req_n,
-                                    mfem::Array<int> &nels) const
+                                         mfem::Array<int> &nels) const
 {
    // using mfem mesh object to construct the element patch
    // initialize the patch list
@@ -139,17 +127,17 @@ void GalerkinDifference::GetNeighbourSet(int id, int req_n,
    Array<int> adj, cand, cand_adj, cand_next;
    mesh->ElementToElementTable().GetRow(id, adj);
    cand.Append(adj);
-//    cout << "List is initialized as: ";
-//    nels.Print(cout, nels.Size());
+   //    cout << "List is initialized as: ";
+   //    nels.Print(cout, nels.Size());
    // cout << "Initial candidates: ";
    // cand.Print(cout, cand.Size());
-   while(nels.Size() < req_n)
+   while (nels.Size() < req_n)
    {
-      for(int i = 0; i < adj.Size(); i++)
+      for (int i = 0; i < adj.Size(); i++)
       {
          if (-1 == nels.Find(adj[i]))
          {
-            nels.Append(adj[i]); 
+            nels.Append(adj[i]);
          }
       }
       //cout << "List now is: ";
@@ -161,7 +149,7 @@ void GalerkinDifference::GetNeighbourSet(int id, int req_n,
          mesh->ElementToElementTable().GetRow(cand[i], cand_adj);
          //cout << "'s adj are ";
          //cand_adj.Print(cout, cand_adj.Size());
-         for(int j = 0; j < cand_adj.Size(); j++)
+         for (int j = 0; j < cand_adj.Size(); j++)
          {
             if (-1 == nels.Find(cand_adj[j]))
             {
@@ -191,7 +179,7 @@ void GalerkinDifference::GetElementCenter(int id, mfem::Vector &cent) const
 void GalerkinDifference::BuildGDProlongation() const
 {
    // assume the mesh only contains only 1 type of element
-   const Element* el = mesh->GetElement(0);
+   const Element *el = mesh->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
    // allocate the space for the prolongation matrix
@@ -201,28 +189,28 @@ void GalerkinDifference::BuildGDProlongation() const
    cP = new mfem::SparseMatrix(GetVSize(), vdim * nEle);
    // determine the minimum # of element in each patch
    int nelmt;
-   switch(dim)
+   switch (dim)
    {
-      case 1: nelmt = degree + 1; break;
-      case 2: nelmt = (degree+1) * (degree+2) / 2; 
-      // if (degree % 2 != 0)
-      // {
-      //    nelmt = 2 * (degree + 1) + 1;
-      // }
-      // else
-      // {
-      //    nelmt = (2 * degree) + 1;
-      // } 
+   case 1:
+      nelmt = degree + 1;
       break;
-      case 3: cout << "Not implemeneted yet.\n" << endl; break;
-      default: cout << "dim must be 1, 2 or 3.\n" << endl;
+   case 2:
+      nelmt = (degree + 1) * (degree + 2) / 2;
+      break;
+   case 3:
+      cout << "Not implemeneted yet.\n"
+           << endl;
+      break;
+   default:
+      cout << "dim must be 1, 2 or 3.\n"
+           << endl;
    }
    // cout << "Number of required element: " << nelmt << '\n';
    // loop over all the element:
    // 1. build the patch for each element,
    // 2. construct the local reconstruction operator
    // 3. assemble local reconstruction operator
-   
+
    // vector that contains element id (resize to zero )
    mfem::Array<int> elmt_id;
    mfem::DenseMatrix cent_mat, quad_mat, local_mat;
@@ -233,7 +221,7 @@ void GalerkinDifference::BuildGDProlongation() const
       GetNeighbourSet(i, nelmt, elmt_id);
       // cout << "Elements id(s) in patch " << i << ": ";
       // elmt_id.Print(cout, elmt_id.Size());
-      
+
       // 2. build the quadrature and barycenter coordinate matrices
       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
       // cout << "The element center matrix:\n";
@@ -254,20 +242,20 @@ void GalerkinDifference::BuildGDProlongation() const
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-   
+
    // ofstream cp_save("cP.txt");
    // cP->PrintMatlab(cp_save);
    // cp_save.close();
 }
 
 void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
-                                            const DenseMatrix &local_mat) const
+                                                    const DenseMatrix &local_mat) const
 {
    // element id coresponds to the column indices
    // dofs id coresponds to the row indices
    // the local reconstruction matrix needs to be assembled `vdim` times
    // assume the mesh only contains only 1 type of element
-   const Element* el = mesh->GetElement(0);
+   const Element *el = mesh->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
 
@@ -285,7 +273,7 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
    // cout << endl;
    //cout << "local mat size is " << el_mat.Height() << ' ' << el_mat.Width() << '\n';
    col_index.SetSize(nel);
-   for(int e = 0; e < nel; e++)
+   for (int e = 0; e < nel; e++)
    {
       col_index[e] = vdim * id[e];
    }
@@ -305,7 +293,11 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
       }
    }
 }
-
+namespace mfem
+{
+   void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
+                          const DenseMatrix &x_quad, DenseMatrix &interp);
+}
 void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
                           const DenseMatrix &x_quad, DenseMatrix &interp)
 {
@@ -329,7 +321,8 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
    }
    else
    {
-      cout << "buildLSInterpolation: dim must be 3 or less.\n" << endl;
+      cout << "buildLSInterpolation: dim must be 3 or less.\n"
+           << endl;
    }
 
    // Construct the generalized Vandermonde matrix
@@ -341,7 +334,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
          double dx = x_center(0, i) - x_center(0, 0);
          for (int p = 0; p <= degree; ++p)
          {
-            V(i,p) = pow(dx, p);
+            V(i, p) = pow(dx, p);
          }
       }
    }
@@ -356,7 +349,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
          {
             for (int q = 0; q <= p; ++q)
             {
-               V(i, col) = pow(dx, p - q)*pow(dy, q);
+               V(i, col) = pow(dx, p - q) * pow(dy, q);
                ++col;
             }
          }
@@ -376,7 +369,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
             {
                for (int r = 0; r <= p - q; ++r)
                {
-                  V(i, col) = pow(dx, p - q - r)*pow(dy, r)*pow(dz, q);
+                  V(i, col) = pow(dx, p - q - r) * pow(dy, r) * pow(dz, q);
                   ++col;
                }
             }
@@ -403,7 +396,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
    // dgels_(&TRANS, &num_elem, &num_basis, &num_elem, V.GetData(), &num_elem,
    //        coeff.GetData(), &num_elem, work, &lwork, &info);
    // MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
-   
+
    // -------------------------------------------------------------------------------
 
    /// use this for quad elements
@@ -415,7 +408,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
    coeff = 0.0;
    for (int i = 0; i < LDB; ++i)
    {
-      coeff(i,i) = 1.0;
+      coeff(i, i) = 1.0;
    }
 
    // Set-up and solve the least-squares problem using LAPACK's dgels
@@ -449,7 +442,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
          {
             for (int p = 0; p <= degree; ++p)
             {
-               interp(j, i) += pow(dx, p)*coeff(p, i);
+               interp(j, i) += pow(dx, p) * coeff(p, i);
             }
          }
       }
@@ -475,7 +468,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
             }
          }
       }
-     // loop over quadrature points
+      // loop over quadrature points
       for (int j = 0; j < num_quad; ++j)
       {
          for (int p = 0; p <= degree; ++p)
@@ -495,9 +488,9 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
                //           << q << ") = " << fabs(exact - poly_at_quad) << endl;
                // if ((p == 0) && (q == 0))
                // {
-               MFEM_ASSERT(fabs(exact - poly_at_quad) <= 1e-12, " p = " << p << " , q = " << q << ", " << fabs(exact - poly_at_quad) << " : " 
-                                                                           << "Interpolation operator does not interpolate exactly!\n");
-              // }
+               MFEM_ASSERT(fabs(exact - poly_at_quad) <= 1e-12, " p = " << p << " , q = " << q << ", " << fabs(exact - poly_at_quad) << " : "
+                                                                        << "Interpolation operator does not interpolate exactly!\n");
+               // }
             }
          }
       }
@@ -520,8 +513,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
                {
                   for (int r = 0; r <= p - q; ++r)
                   {
-                     interp(j, i) += pow(dx, p - q - r) * pow(dy, r) 
-                                       * pow(dz, q) * coeff(col, i);
+                     interp(j, i) += pow(dx, p - q - r) * pow(dy, r) * pow(dz, q) * coeff(col, i);
                      ++col;
                   }
                }
@@ -596,9 +588,3 @@ ParCentGridFunction &ParCentGridFunction::operator=(double value)
 //     ParCentGridFunction(ParFiniteElementSpace *pf) : CentGridFunction(pf), pfes(pf)
 //     { }
 // };
-
-
-
-
-
-

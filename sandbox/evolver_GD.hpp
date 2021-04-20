@@ -2,7 +2,10 @@
 #define MFEM_LINEAR_EVOLVER_GD
 
 #include "mfem.hpp"
+#include "adept.h"
+#include "mach_types.hpp"
 
+using namespace mach;
 namespace mfem
 {
 
@@ -15,6 +18,7 @@ namespace mfem
     public:
         /// Serves as an base class for linear/nonlinear explicit/implicit time
         /// marching problems
+        /// \param[in] ess_bdr - flags for essential boundary
         /// \param[in] mass - bilinear form for mass matrix (not owned)
         /// \param[in] res - nonlinear residual operator (not owned)
         /// \param[in] start_time - time to start integration from
@@ -22,9 +26,9 @@ namespace mfem
         /// \param[in] type - solver type; explicit or implicit
         /// \note supports partial assembly of mass and stiffness matrices for
         ///       explicit time marching
-        EulerEvolver(SparseMatrix &mass,
-                     NonlinearForm *res,
-                     double start_time,
+        EulerEvolver(mfem::Array<int> &ess_bdr, BilinearFormType *mass,
+                     NonlinearFormType *res,
+                     std::ostream &outstream, double start_time,
                      mfem::TimeDependentOperator::Type type = EXPLICIT);
 
         /// Perform the action of the operator: y = k = f(x, t), where k solves
@@ -46,6 +50,13 @@ namespace mfem
         /// \note This may need to be generalized further
         void ImplicitSolve(const double dt_stage, const double dt,
                            const mfem::Vector &x, mfem::Vector &k);
+        /// Set the linear solver to be used for implicit methods
+        /// \param[in] linsolver - pointer to configured linear solver (not owned)
+        void SetLinearSolver(mfem::Solver *linsolver);
+
+        /// Set the newton solver to be used for implicit methods
+        /// \param[in] newton - pointer to configured newton solver (not owned)
+        void SetNewtonSolver(mfem::NewtonSolver *newton);
 
         /// Return a reference to the Jacobian of the combined operator
         /// \param[in] x - the current state
@@ -57,25 +68,23 @@ namespace mfem
 
     protected:
         /// pointer to mass bilinear form (not owned)
-        SparseMatrix &mass;
+        mfem::OperatorHandle mass;
         /// pointer to nonlinear form (not owned)
-        NonlinearForm *res;
-
-/// solver for inverting mass matrix for explicit solves
-/// \note supports partially assembled mass bilinear form
-#ifdef MFEM_USE_SUITESPARSE
-        // If MFEM was compiled with SuiteSparse, use UMFPACK to solve the system.
-        UMFPackSolver mass_solver;
-#else
-        //mfem::CGSolver mass_solver;
+        NonlinearFormType *res;
+        /// outstream for printing
+        std::ostream &out;
+        /// solver for inverting mass matrix for explicit solves
+        /// \note supports partially assembled mass bilinear form
         mfem::GMRESSolver mass_solver;
-#endif
         /// preconditioner for inverting mass matrix
-        //DSmoother mass_prec;
-        Solver *mass_prec;
-        BlockILU prec;
+        std::unique_ptr<mfem::Solver> mass_prec;
+        /// Linear solver for implicit problems (not owned)
+        mfem::Solver *linsolver;
         /// Newton solver for implicit problems (not owned)
-        mfem::NewtonSolver newton_solver;
+        mfem::NewtonSolver *newton;
+        /// essential degrees of freedom
+        mfem::Array<int> ess_tdof_list;
+
         /// pointer-to-implementation idiom
         /// Hides implementation details of this operator, and because it's private,
         /// it doesn't pollute the mach namespace
@@ -108,13 +117,16 @@ namespace mfem
         /// \note The mfem::NewtonSolver class requires the operator's width and
         /// height to be the same; here we use `GetTrueVSize()` to find the process
         /// local height=width
-        SystemOperator(SparseMatrix &_mass, NonlinearForm *_res)
-            : Operator(_mass.Height()),
+        SystemOperator(Array<int> &ess_bdr, BilinearFormType *_mass, NonlinearFormType *_res)
+            : Operator(_mass->FESpace()->GetTrueVSize()),
               mass(_mass),
-              res(_res), Jacobian(NULL), prec(4,
-              BlockILU::Reordering::MINIMUM_DISCARDED_FILL),
+              res(_res), jac(nullptr),
               dt(0.0), x(NULL), x_work(width), r_work(height)
         {
+            if (_mass)
+            {
+                _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+            }
         }
 
         /// Compute r = N(x + dt_stage*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) + K@(x+dt*k) + l
@@ -127,9 +139,16 @@ namespace mfem
             r = 0.0;
             // x_work = x + dt*k = x + dt*dx/dt = x + dx
             add(1.0, *x, dt, k, x_work);
-            res->Mult(x_work, r_work);
-            r += r_work;
-            mass.AddMult(k, r);
+            if (res)
+            {
+                res->Mult(x_work, r_work);
+                r += r_work;
+            }
+            if (mass)
+            {
+                mass->TrueAddMult(k, r);
+                r.SetSubVector(ess_tdof_list, 0.0);
+            }
         }
 
         /// Compute J = grad(N(x + dt_stage*k)) + M + dt * grad(R(x + dt*k, t)) + dt * K
@@ -137,12 +156,23 @@ namespace mfem
         mfem::Operator &GetGradient(const mfem::Vector &k) const override
         {
 
-            SparseMatrix *jac = nullptr;
-
+            delete jac;
+            jac = nullptr;
+            if (mass)
+                jac = mass->ParallelAssemble();
             // x_work = x + dt*k = x + dt*dx/dt = x + dx
             add(1.0, *x, dt, k, x_work);
-            jac = Add(1.0, mass,
-                      dt, *dynamic_cast<const SparseMatrix *>(&res->GetGradient(x_work)));
+            if (res)
+            {
+                // x_work = x + dt*k = x + dt*dx/dt = x + dx
+                add(1.0, *x, dt, k, x_work);
+                MatrixType *resjac =
+                    dynamic_cast<MatrixType *>(&res->GetGradient(x_work));
+                *resjac *= dt;
+                jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
+            }
+            HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
+            delete Je;
             return *jac;
         }
 
@@ -159,18 +189,15 @@ namespace mfem
             dt_stage = _dt_stage;
         };
 
-        ~SystemOperator() { delete Jacobian; };
+        ~SystemOperator() { delete jac; };
 
     private:
-        NonlinearForm *nonlinear_mass; // not used
-        //DSmoother mass_prec;
-        Solver *mass_prec;
-        BlockILU prec;
-        SparseMatrix &mass;
-        NonlinearForm *res;
-        BilinearForm *stiff; // not used
+        NonlinearFormType *nonlinear_mass; // not used
+        BilinearFormType *mass;
+        NonlinearFormType *res;
+        BilinearFormType *stiff; // not used
 
-        mutable SparseMatrix *Jacobian;
+        mutable MatrixType *jac;
 
         double dt;
         double dt_stage;
@@ -179,47 +206,76 @@ namespace mfem
 
         mutable mfem::Vector x_work;
         mutable mfem::Vector r_work;
+
+        Array<int> ess_tdof_list;
     };
 
-    EulerEvolver::EulerEvolver(SparseMatrix &_mass, NonlinearForm *_res,
+    EulerEvolver::EulerEvolver(mfem::Array<int> &ess_bdr, 
+                               BilinearFormType *_mass, NonlinearFormType *_res,
+                               std::ostream &outstream,
                                double start_time, TimeDependentOperator::Type type)
-        : TimeDependentOperator(_mass.Height(),
+        : TimeDependentOperator(_mass->FESpace()->GetTrueVSize(),
                                 start_time, type),
-          mass(_mass), res(_res), prec(4,
-              BlockILU::Reordering::MINIMUM_DISCARDED_FILL), x_work(width), r_work1(mass.Height()), r_work2(height)
+          mass(_mass), res(_res), out(outstream),
+          x_work(width), r_work1(height), r_work2(height)
     {
-        combined_oper.reset(new SystemOperator(_mass, _res));
-        cout << "combined_oper set " << endl;
-#ifdef MFEM_USE_SUITESPARSE
-            mass_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-            mass_solver.SetOperator(mass);
-#else
-            mass_prec = new DSmoother(1);
-            //mass_solver.SetPreconditioner(*mass_prec);
-            mass_solver.SetPreconditioner(prec);
-            mass_solver.SetOperator(mass);
-            mass_solver.iterative_mode = false;
-            mass_solver.SetRelTol(1e-3);
+
+        if (_mass != nullptr)
+        {
+            Array<int> mass_ess_tdof_list;
+            _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, mass_ess_tdof_list);
+
+            AssemblyLevel mass_assem;
+            mass_assem = _mass->GetAssemblyLevel();
+            if (mass_assem == AssemblyLevel::PARTIAL)
+            {
+                mass.Reset(_mass, false);
+                mass_prec.reset(new OperatorJacobiSmoother(*_mass, ess_tdof_list));
+            }
+            else if (mass_assem == AssemblyLevel::LEGACYFULL)
+            {
+                auto *Mmat = _mass->ParallelAssemble();
+                auto *Me = Mmat->EliminateRowsCols(ess_tdof_list);
+                delete Me;
+                mass.Reset(Mmat, true);
+                mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
+                                                  HypreSmoother::Jacobi));
+            }
+            else
+            {
+                throw MachException("Unsupported assembly level for mass matrix!");
+            }
+            mass_solver = GMRESSolver(_mass->ParFESpace()->GetComm());
+            mass_solver.SetPreconditioner(*mass_prec);
+            mass_solver.SetOperator(*mass);
+            mass_solver.SetRelTol(1e-9);
             mass_solver.SetAbsTol(0.0);
-            mass_solver.SetMaxIter(500);
-            mass_solver.SetPrintLevel(-1);
-#endif
+            mass_solver.SetMaxIter(100);
+            mass_solver.SetPrintLevel(0);
+        }
         cout << "mass_solver is set " << endl;
-        newton_solver.iterative_mode = false;
-        newton_solver.SetSolver(mass_solver);
-        newton_solver.SetOperator(*combined_oper);
-        newton_solver.SetPrintLevel(1); // print Newton iterations
-        newton_solver.SetRelTol(1e-9);
-        newton_solver.SetAbsTol(1e-11);
-        newton_solver.SetMaxIter(1000);
-        cout << "newton_solver is set " << endl;
+
+        combined_oper.reset(new SystemOperator(ess_bdr, _mass, _res));
+        cout << "combined_oper set " << endl;
+
+        // newton_solver.iterative_mode = false;
+        // newton_solver.SetSolver(mass_solver);
+        // newton_solver.SetOperator(*combined_oper);
+        // newton_solver.SetPrintLevel(1); // print Newton iterations
+        // newton_solver.SetRelTol(1e-9);
+        // newton_solver.SetAbsTol(1e-11);
+        // newton_solver.SetMaxIter(1000);
+        // cout << "newton_solver is set " << endl;
     }
 
     EulerEvolver::~EulerEvolver() = default;
 
     void EulerEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
     {
-        res->Mult(x, r_work1);
+        if (res)
+        {
+            res->Mult(x, r_work1);
+        }
         mass_solver.Mult(r_work1, y);
         y *= -1.0;
     }
@@ -230,9 +286,13 @@ namespace mfem
         cout << "ImplicitSolve is called " << endl;
         setOperParameters(dt, &x);
         Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-        k = 0.0;     // In case iterative mode is set to true
-        newton_solver.Mult(zero, k);
-        MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge!");
+                     // set iterative mode to false so k is only zeroed once, but set back after
+        auto iter_mode = newton->iterative_mode;
+        newton->iterative_mode = false;
+        newton->Mult(zero, k);
+        newton->iterative_mode = iter_mode;
+
+        MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
     }
 
     void EulerEvolver::ImplicitSolve(const double dt_stage, const double dt,
@@ -241,8 +301,19 @@ namespace mfem
         setOperParameters(dt, &x, dt_stage);
         Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
         k = 0.0;     // In case iterative mode is set to true
-        newton_solver.Mult(zero, k);
-        MFEM_VERIFY(newton_solver.GetConverged(), "Newton solver did not converge!");
+        newton->Mult(zero, k);
+        MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+    }
+
+    void EulerEvolver::SetLinearSolver(Solver *_linsolver)
+    {
+        linsolver = _linsolver;
+    }
+
+    void EulerEvolver::SetNewtonSolver(NewtonSolver *_newton)
+    {
+        newton = _newton;
+        newton->SetOperator(*combined_oper);
     }
 
     mfem::Operator &EulerEvolver::GetGradient(const mfem::Vector &x) const

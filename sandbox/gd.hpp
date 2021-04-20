@@ -6,7 +6,6 @@ using namespace mfem;
 using namespace std;
 namespace mfem
 {
-    
     /// Abstract class for Galerkin difference method using patch construction
     class GalerkinDifference : public ParFiniteElementSpace
     {
@@ -37,53 +36,37 @@ namespace mfem
         void GetElementCenter(int id, mfem::Vector &cent) const;
 
         SparseMatrix *GetCP() { return cP; }
-        HypreParMatrix *GetP() { return Q; }
+        HypreParMatrix *GetP() { return P; }
 
-        virtual HYPRE_Int GlobalVSize() const 
+        virtual HYPRE_Int GlobalVSize() const
         {
-            cout << "this is called " << endl;
             return Dof_TrueDof_Matrix()->GetGlobalNumRows();
         }
 
         virtual HYPRE_Int GlobalTrueVSize() const
         {
-            cout << "this is called ? " << endl;
             return Dof_TrueDof_Matrix()->GetGlobalNumCols();
         }
 
-        void Build_Dof_Matrix(HypreParMatrix &P) const;
         void Build_Dof_TrueDof_Matrix() const;
+
         virtual HypreParMatrix *Dof_TrueDof_Matrix() const;
 
         /// Get the prolongation matrix in GD method
         virtual const Operator *GetProlongationMatrix() const
         {
-            if (!cP)
+            if (!P)
             {
-                BuildGDProlongation();
-                return cP;
+                Build_Dof_TrueDof_Matrix();
             }
-            else
-            {
-                if (!Q)
-                {
-                    Build_Dof_TrueDof_Matrix();
-                }
-                return Q;
-            }
+            return P;
         }
-
 
         void checkpcp()
         {
             if (cP)
             {
                 std::cout << "cP is set.\n";
-            }
-            mfem::SparseMatrix *P = dynamic_cast<mfem::SparseMatrix *>(cP);
-            if (P)
-            {
-                std::cout << "convert succeeded.\n";
             }
         }
 
@@ -99,10 +82,9 @@ namespace mfem
 
         virtual int GetTrueVSize() const { return nEle * vdim; }
 
-        
     private:
         /// Prolongation operator
-        mutable HypreParMatrix *Q;
+        // mutable HypreParMatrix *Q;
     protected:
         /// mesh dimension
         int dim;
@@ -112,6 +94,9 @@ namespace mfem
         int degree;
         /// communicator
         MPI_Comm comm;
+        /// col and row partition arrays
+        mutable HYPRE_Int *mat_col_idx;
+        mutable HYPRE_Int *mat_row_idx;
         /// finite element collection
         const mfem::FiniteElementCollection *fec; // not owned
     };
