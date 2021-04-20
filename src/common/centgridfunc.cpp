@@ -61,9 +61,4 @@ CentGridFunction & CentGridFunction::operator=(double value)
    return *this;
 }
 
-void CentGridFunction::SaveVTK(std::ostream &out, const std::string &field_name, int ref)
-{
-   
-}
-
 } // end of namespace mfem

@@ -18,8 +18,6 @@ public:
    CentGridFunction &operator=(const Vector &v);
    CentGridFunction &operator=(double value);
 
-   void SaveVTK(std::ostream &out, const std::string &field_name, int ref);
-
    // mfem::HypreParVector *GetTrueDofs()
    // {
    //    mfem::HypreParVector *tv = new HypreParVector(comm,GlobalTrueVSize(),GetTrueDofOffsets()));

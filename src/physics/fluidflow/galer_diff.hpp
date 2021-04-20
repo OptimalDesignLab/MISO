@@ -81,11 +81,7 @@ public:
    /// \param[in] id - vector of element id in patch
    /// \param[in] local_mat - the local reconstruction matrix
    /// problem to be solved: how the ensure the oder of dofs consistent with other forms?
-   void AssembleProlongationMatrix(const Array<int> &id,
-                           const DenseMatrix &local_mat) const;
-
-   /// check the duplication of quadrature points in the quad matrix
-   bool duplicated(const mfem::Vector quad, const std::vector<double> data);
+   void AssembleProlongationMatrix(const Array<int> &id, const DenseMatrix &local_mat) const;
 
    virtual int GetTrueVSize() const {return nEle * vdim; }
 

@@ -1,10 +1,10 @@
 {
    "space-dis": {
-      "GD": false,
+      "GD": true,
       "GD-degree": 1,
       "degree": 1,
       "lps-coeff": 1.0,
-      "basis-type": "csbp"
+      "basis-type": "dsbp"
    },
    "steady": true,
    "time-dis": {
