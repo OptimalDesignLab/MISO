@@ -122,27 +122,27 @@ int main(int argc, char *argv[])
 			}
 
 		}
-		// else if (2 == p)
-		// {
-		// 	mfem::VectorFunctionCoefficient u0_fun(dim+2, u_poly);
-		// 	x_exact.ProjectCoefficient(u0_fun);
-		// 	x_cent.ProjectCoefficient(u0_fun);
-		// 	x = 0.0;
-		// }
-		// else if(3 == p)
-		// {
-		// 	mfem::VectorFunctionCoefficient u0_fun(dim+2, u_exact);
-		// 	x_exact.ProjectCoefficient(u0_fun);
-		// 	x_cent.ProjectCoefficient(u0_fun);
-		// 	x = 0.0;
-		// }
+		else if (2 == p)
+		{
+			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_poly);
+			x_exact.ProjectCoefficient(u0_fun);
+			x_cent.ProjectCoefficient(u0_fun);
+			x = 0.0;
+		}
+		else if(3 == p)
+		{
+			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_exact);
+			x_exact.ProjectCoefficient(u0_fun);
+			x_cent.ProjectCoefficient(u0_fun);
+			x = 0.0;
+		}
 
 		// 6. Prolong the solution to real quadrature points
 		HypreParMatrix *prolong = gd.Dof_TrueDof_Matrix();
 		cout << "Get Prolongation matrix, the size is "
 			  << prolong->Height() << " x " << prolong->Width() << "\n\n";
 		
-		cout << "x_cent ParCentGridFunction size is: " << x_cent.Size()<<'\n';
+		cout << "x_cent size is: " << x_cent.Size()<<'\n';
 		HypreParVector *x_cent_true = x_cent.GetTrueDofs();
 		cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n' << '\n';
 		const char *f1 = "x_cent_true";
@@ -161,17 +161,20 @@ int main(int argc, char *argv[])
 		cout << "prolonged.\n";
 		const char *f3 = "x_true";
 		x_true->Print(f3);
-		// 7. compute the difference
-		// double norm;
-		// double loc_norm = (*diff) * (*diff);
-		// MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-		// norm = sqrt(norm);
 
-		// if ( 0 == myid)
-		// {
-		// 	cout << "The projection norm is " << norm << '\n';
-		// }
-       delete pmesh;
+		// 7. compute the difference
+		x.SetFromTrueDofs(*x_true);
+		x_exact.Add(-1.0, x);
+		double loc_norm = x_exact.Norml2();
+		double norm;
+		MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+		if ( 0 == myid)
+		{
+			cout << "The projection norm is " << norm << '\n';
+		}
+
+      delete pmesh;
 	   pumi_mesh->destroyNative();
 		apf::destroyMesh(pumi_mesh);
 		PCU_Comm_Free();
@@ -260,5 +263,5 @@ void u_poly(const mfem::Vector &x, mfem::Vector &u)
 void u_const_single(const mfem::Vector &x, mfem::Vector &u)
 {
 	u.SetSize(1);
-	u(0) = 1.0;
+	u(0) = 5.0;
 }

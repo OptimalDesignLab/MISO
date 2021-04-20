@@ -17,7 +17,9 @@ ParGDSpace::ParGDSpace(Mesh2 *apf_mesh, ParMesh *pm, const FiniteElementCollecti
    dim = pm->Dimension();
    degree = de;
    local_tdof = vdim * GetParMesh()->GetNE();
-   // GetParMesh()->ComputeGlobalElementOffset(); // something wrong here, for 1 processor probably works.
+   cout << "Before calculate element offsts.\n";
+   GetParMesh()->ComputeGlobalElementOffset(); // something wrong here, for 1 processor probably works.
+   cout << "After calculate element offsts.\n";
    MPI_Allreduce(&local_tdof, &total_tdof, 1, HYPRE_MPI_INT, MPI_SUM, GetComm());
    // dimension set up of the prolongation operator
    dof_start = (GetTrueDofOffsets())[0];
@@ -91,8 +93,8 @@ void ParGDSpace::BuildProlongationOperator()
    {
       // 1. construct the patch the patch
       GetNeighbourSet(i, nelmt, elmt_id);
-      // cout << "Element id in patch " << i << ": ";
-      // elmt_id.Print(cout, elmt_id.Size());
+      cout << "Element id in patch " << i << ": ";
+      elmt_id.Print(cout, elmt_id.Size());
       
       // 2. build the quadrature and barycenter coordinate matrices
       GetNeighbourMat(elmt_id, cent_mat, quad_mat);
@@ -102,7 +104,6 @@ void ParGDSpace::BuildProlongationOperator()
       // cout << "Quadrature points id matrix:\n";
       // quad_mat.Print(cout, quad_mat.Width());
       // cout << endl;
-      // cout << "quad_mat width is " << quad_mat.Width() << '\n';
 
       // 3. buil the loacl reconstruction matrix
       buildLSInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
@@ -123,7 +124,6 @@ void ParGDSpace::BuildProlongationOperator()
    Vector diag(local_tdof);
    diag = 1.0;
    R = new SparseMatrix(diag);
-
 }
 
 // version 2 that use sparse matrix to construct the parallel gd matrix
@@ -347,9 +347,9 @@ void ParGDSpace::AssembleProlongationMatrix(const Array<int> &els_id,
    for (int v = 0; v < vdim; v++)
    {
       el_dofs.GetSubArray(v * num_dofs, num_dofs, row_index);
-      // cout << '\t' <<  v << " assemble location:\n";
-      // cout << "\t\tRow:"; row_index.Print(cout, row_index.Size());
-      // cout << "\t\tCol:"; col_index.Print(cout, col_index.Size());
+      cout << '\t' <<  v << " assemble location:\n";
+      cout << "\t\tRow:"; row_index.Print(cout, row_index.Size());
+      cout << "\t\tCol:"; col_index.Print(cout, col_index.Size());
       HYPRE_IJMatrixSetValues(ij_matrix, num_dofs, ncols.GetData(), row_index.GetData(),
                              col_index.GetData(), local_mat.GetData());
       row_index.LoseData();
