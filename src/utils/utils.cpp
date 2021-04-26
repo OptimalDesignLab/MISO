@@ -475,7 +475,7 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
 } // end of constructing interp
 #endif
 
-#ifdef MFEM_USE_LAPACK
+#ifndef MFEM_USE_LAPACK
 void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
                           const DenseMatrix &x_quad, DenseMatrix &interp)
 {

@@ -12,6 +12,12 @@ target_sources(mach
       fluidflow.hpp
       galer_diff.cpp
       galer_diff.hpp
+      dgdsolver.cpp
+      dgdsolver.hpp
+      pcentgridfunc.hpp
+      pcentgridfunc.cpp
+      gd.hpp
+      gd.cpp
       inviscid_integ_def.hpp
       inviscid_integ.hpp
       navier_stokes_fluxes.hpp

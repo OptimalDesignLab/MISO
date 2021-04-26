@@ -8,10 +8,10 @@
 #include "adept.h"
 #include "json.hpp"
 #include "mfem.hpp"
-
 #include "mach_types.hpp"
 #include "utils.hpp"
-
+#include "pcentgridfunc.hpp"
+#include "gd.hpp"
 #ifdef MFEM_USE_PUMI
 namespace apf
 {
@@ -94,6 +94,15 @@ public:
       const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
    { setInitialCondition(*u, u_init); };
 
+   /// Initializes the state vector to a given function.
+   /// \param[in] u_init - function that defines the initial condition
+   /// \note The second argument in the function `u_init` is the initial condition
+   /// value.  This may be a vector of length 1 for scalar.
+   inline virtual void setGDInitialCondition(
+       const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+   {
+      setInitialCondition(*uc, u_init);
+   };
    /// Initializes the state variable to a given constant
    /// \param[in] u_init - value that defines the initial condition
    inline virtual void setInitialCondition(const double u_init)
@@ -126,6 +135,15 @@ public:
    /// value.  This may be a vector of length 1 for scalar.
    virtual void setInitialCondition(
       mfem::ParGridFunction &state,
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
+   
+   /// Initializes the state vector to a given function.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - function that defines the initial condition
+   /// \note The second argument in the function `u_init` is the initial condition
+   /// value.  This may be a vector of length 1 for scalar.
+   virtual void setInitialCondition(
+      mfem::ParCentGridFunction &state,
       const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
 
    /// Initializes the state variable to a given constant
@@ -192,7 +210,21 @@ public:
    virtual double calcStepSize(int iter, double t, double t_final,
                                double dt_old,
                                const mfem::ParGridFunction &state) const;
-
+   /// Find the global time step size
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt_old - the step size that was just taken
+   /// \param[in] state - the current state
+   /// \returns dt - appropriate step size
+   /// \note If "const-cfl" option is invoked, this uses the average spectral
+   /// radius to estimate the largest wave speed, and uses the minimum distance
+   /// between nodes for the length in the CFL number.
+   /// \note If "steady" option is involved, the time step will increase based
+   /// on the baseline value of "dt" and the inverse residual norm.
+   virtual double calcStepSize(int iter, double t, double t_final,
+                               double dt_old,
+                               const mfem::ParCentGridFunction &state){};
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] refine - if >=0, indicates the number of refinements to make
@@ -254,7 +286,12 @@ public:
    virtual void solveForState() { solveForState(*u); };
 
    virtual void solveForState(mfem::ParGridFunction &state);
-   
+
+   virtual void solveForState(ParCentGridFunction &state)
+   {
+      solveUnsteady(state);
+   }
+
    /// Solve for the adjoint based on current mesh, solver, etc.
    /// \param[in] fun - specifies the functional corresponding to the adjoint
    virtual void solveForAdjoint(const std::string &fun);
@@ -289,6 +326,9 @@ public:
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm(const mfem::ParGridFunction &state) const;
 
+   /// Compute the residual norm based on the input `state`
+   /// \returns the l2 (discrete) norm of the residual evaluated at `u`
+   double calcResidualNorm(const mfem::ParCentGridFunction &state) const;
    /// Return a state sized vector constructed from an externally allocated array
    /// \param[in] data - external data array
    /// \note If `data` is nullptr a new array will be allocated. If `data` is 
@@ -379,14 +419,21 @@ protected:
 
    //--------------------------------------------------------------------------
    // Members associated with fields
+   using GDGridFunType = mfem::ParCentGridFunction;
+
+   using GDSpaceType = mfem::ParGalerkinDifference;
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
+   // discrete finite element space
+   std::unique_ptr<SpaceType> fes_GD;
    /// pointer to mesh's underlying finite element space
    SpaceType *mesh_fes;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   /// state variable at centres
+   std::unique_ptr<GDGridFunType> uc;
    /// initial state variable
    std::unique_ptr<GridFunType> u_init;
    /// prior state variable
@@ -535,6 +582,9 @@ protected:
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady(mfem::ParGridFunction &state);
    
+   /// Solve for a transient (GD) state using a selected time-marching scheme
+   virtual void solveUnsteady(ParCentGridFunction &state);
+
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
    virtual void initialHook(const mfem::ParGridFunction &state) {};
@@ -555,6 +605,16 @@ protected:
    /// \param[in] state - the current state
    virtual bool iterationExit(int iter, double t, double t_final, double dt,
                               const mfem::ParGridFunction &state );
+   
+
+   /// Determines when to exit the time stepping loop
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (after the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt - the step size that was just taken
+   /// \param[in] state - the current state
+   virtual bool iterationExit(int iter, double t, double t_final, double dt,
+                              const mfem::ParCentGridFunction &state ){};
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration

@@ -7,14 +7,14 @@ using namespace std;
 namespace mfem
 {
     /// Abstract class for Galerkin difference method using patch construction
-    class GalerkinDifference : public ParFiniteElementSpace
+    class ParGalerkinDifference : public ParFiniteElementSpace
     {
 
     public:
         /// Class constructor.
         /// \param[in] opt_file_name - file where options are stored
 
-        GalerkinDifference(mach::MeshType *pm, const mfem::FiniteElementCollection *f,
+        ParGalerkinDifference(mach::MeshType *pm, const mfem::FiniteElementCollection *f,
                            int vdim = 1, int ordering = mfem::Ordering::byVDIM,
                            int degree = 0, MPI_Comm _comm = MPI_COMM_WORLD);
 
@@ -62,6 +62,13 @@ namespace mfem
             return P;
         }
 
+        /// Get the R matrix which restricts a local dof vector to true dof vector.
+        virtual const SparseMatrix *GetRestrictionMatrix() const
+        {
+            Dof_TrueDof_Matrix();
+            return R;
+        }
+
         void checkpcp()
         {
             if (cP)
@@ -82,6 +89,25 @@ namespace mfem
 
         virtual int GetTrueVSize() const { return nEle * vdim; }
 
+        using ParFiniteElementSpace::GetTrueDofOffsets;
+
+        /** Create and return a new HypreParVector on the true dofs, which is
+        owned by (i.e. it must be destroyed by) the calling function. */
+        virtual HypreParVector *NewTrueDofVector()
+        {
+            HYPRE_Int vec_col_idx[2] = {0, GlobalTrueVSize()};
+            return (new HypreParVector(comm, GlobalTrueVSize(),  vec_col_idx));
+        }
+
+        virtual void GetEssentialTrueDofs(const Array<int> &bdr_attr_is_ess,
+                                          Array<int> &ess_tdof_list,
+                                          int component = -1)
+        {
+            ParFiniteElementSpace::GetEssentialTrueDofs(bdr_attr_is_ess,
+                                                        ess_tdof_list,
+                                                        component);
+        }
+
     private:
         /// Prolongation operator
         // mutable HypreParMatrix *Q;
@@ -101,4 +127,4 @@ namespace mfem
         const mfem::FiniteElementCollection *fec; // not owned
     };
 } // end of namespace mfem
-#endif // end of GALERKIN DIFF
+#endif // end of ParGALERKIN DIFF

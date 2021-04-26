@@ -27,6 +27,12 @@ set(SANDBOX_SRCS
    navier_stokes_mms
    ex14_mfem
    exEuler_GD
+   exEllipse
+   exEllipse_DG
+   exVortex_DG
+   ellipse_GD
+   vortex_GD
+   steadyvortex_DGD
    #thermal_square
    # joule_wire
    #joule_box

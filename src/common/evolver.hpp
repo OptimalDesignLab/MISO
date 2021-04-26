@@ -139,7 +139,7 @@ protected:
    std::ostream &out;
    /// solver for inverting mass matrix for explicit solves
    /// \note supports partially assembled mass bilinear form
-   mfem::CGSolver mass_solver;
+   mfem::GMRESSolver mass_solver;
    /// preconditioner for inverting mass matrix
    std::unique_ptr<mfem::Solver> mass_prec;
    /// Linear solver for implicit problems (not owned)

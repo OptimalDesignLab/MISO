@@ -1,8 +1,8 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "gd_def.hpp"
 #include "gd.hpp"
+#include "pcentgridfunc.hpp"
 #include <chrono>
 using namespace std::chrono;
 using namespace std;
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     int num_state = 1;
 
     ///  GD finite element space
-    ParFiniteElementSpace *fes_GD = new GalerkinDifference(pmesh, fec, num_state, Ordering::byVDIM, order, fespace->GetComm());
+    ParFiniteElementSpace *fes_GD = new ParGalerkinDifference(pmesh, fec, num_state, Ordering::byVDIM, order, fespace->GetComm());
     cout << "Number of GD unknowns: " << fes_GD->GetTrueVSize() << endl;
     cout << "#dofs " << fes_GD->GetNDofs() << endl;
 
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
     /// Apply Prolongation matrix
     // P`A P
     SparseMatrix &Aold = a->SpMat();
-    SparseMatrix *cp = dynamic_cast<GalerkinDifference *>(fes_GD)->GetCP();
+    SparseMatrix *cp = dynamic_cast<ParGalerkinDifference *>(fes_GD)->GetCP();
     SparseMatrix *p = RAP(*cp, Aold, *cp);
     SparseMatrix &Ap = *p;
     cout << "Ap.Size() " << Ap.Size() << endl;

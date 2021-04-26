@@ -35,7 +35,7 @@ public:
    {
       if (_mass)
       {
-         _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+        // _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       }
       else if (_stiff)
       {
@@ -78,7 +78,7 @@ public:
       if (mass)
       {
          mass->TrueAddMult(k, r);
-         r.SetSubVector(ess_tdof_list, 0.0);
+        // r.SetSubVector(ess_tdof_list, 0.0);
       }
    }
 
@@ -112,8 +112,8 @@ public:
          *resjac *= dt;
          jac == nullptr ? jac = resjac : jac = ParAdd(jac, resjac);
       }
-      HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
-      delete Je;
+      // HypreParMatrix *Je = jac->EliminateRowsCols(ess_tdof_list);
+      // delete Je;
 
       return *jac;
    }
@@ -193,7 +193,7 @@ MachEvolver::MachEvolver(
       {
          throw MachException("Unsupported assembly level for mass matrix!");
       }
-      mass_solver = CGSolver(_mass->ParFESpace()->GetComm());
+      mass_solver = GMRESSolver(_mass->ParFESpace()->GetComm());
       mass_solver.SetPreconditioner(*mass_prec);
       mass_solver.SetOperator(*mass);
       mass_solver.SetRelTol(1e-9);

@@ -2,7 +2,7 @@
 #include "gd.hpp"
 #include <fstream>
 #include <iostream>
-#include "centgridfunc.hpp"
+#include "pcentgridfunc.hpp"
 using namespace std;
 using namespace mfem;
 extern "C" void
@@ -20,8 +20,13 @@ extern "C" void
 dgelsy_(int *, int *, int *, double *, int *, double *, int *, int *, double *,
         int *, double *, int *, int *);
 
+namespace mfem
+{
+   void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
+                             const DenseMatrix &x_quad, DenseMatrix &interp);
+}
 
-GalerkinDifference::GalerkinDifference(mach::MeshType *pm, const FiniteElementCollection *f,
+ParGalerkinDifference::ParGalerkinDifference(mach::MeshType *pm, const FiniteElementCollection *f,
                                        int vdim, int ordering, int de, MPI_Comm _comm)
     : ParFiniteElementSpace(pm, f, vdim, ordering)
 {
@@ -33,7 +38,7 @@ GalerkinDifference::GalerkinDifference(mach::MeshType *pm, const FiniteElementCo
    BuildGDProlongation();
 }
 
-void GalerkinDifference::Build_Dof_TrueDof_Matrix() const
+void ParGalerkinDifference::Build_Dof_TrueDof_Matrix() const
 {
    if (!cP)
    {
@@ -50,11 +55,14 @@ void GalerkinDifference::Build_Dof_TrueDof_Matrix() const
    P = new HypreParMatrix(comm, mat_row_idx,
                           mat_col_idx, cP);
    cout << "P size " << P->Height() << " x " << P->Width() << endl;
+   SparseMatrix Pdiag;
+   P->GetDiag(Pdiag);
+   R = Transpose(Pdiag);
 }
 
-HypreParMatrix *GalerkinDifference::Dof_TrueDof_Matrix() const
+HypreParMatrix *ParGalerkinDifference::Dof_TrueDof_Matrix() const
 {
-   if(!P)
+   if (!P)
    {
       Build_Dof_TrueDof_Matrix();
    }
@@ -62,7 +70,7 @@ HypreParMatrix *GalerkinDifference::Dof_TrueDof_Matrix() const
 }
 
 // an overload function of previous one (more doable?)
-void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
+void ParGalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
                                            mfem::DenseMatrix &mat_cent,
                                            mfem::DenseMatrix &mat_quad) const
 {
@@ -115,7 +123,7 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    }
 }
 
-void GalerkinDifference::GetNeighbourSet(int id, int req_n,
+void ParGalerkinDifference::GetNeighbourSet(int id, int req_n,
                                          mfem::Array<int> &nels) const
 {
    // using mfem mesh object to construct the element patch
@@ -168,7 +176,7 @@ void GalerkinDifference::GetNeighbourSet(int id, int req_n,
    }
 }
 
-void GalerkinDifference::GetElementCenter(int id, mfem::Vector &cent) const
+void ParGalerkinDifference::GetElementCenter(int id, mfem::Vector &cent) const
 {
    cent.SetSize(mesh->Dimension());
    int geom = mesh->GetElement(id)->GetGeometryType();
@@ -176,7 +184,7 @@ void GalerkinDifference::GetElementCenter(int id, mfem::Vector &cent) const
    eltransf->Transform(Geometries.GetCenter(geom), cent);
 }
 
-void GalerkinDifference::BuildGDProlongation() const
+void ParGalerkinDifference::BuildGDProlongation() const
 {
    // assume the mesh only contains only 1 type of element
    const Element *el = mesh->GetElement(0);
@@ -248,7 +256,7 @@ void GalerkinDifference::BuildGDProlongation() const
    // cp_save.close();
 }
 
-void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
+void ParGalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
                                                     const DenseMatrix &local_mat) const
 {
    // element id coresponds to the column indices
@@ -293,12 +301,8 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
       }
    }
 }
-namespace mfem
-{
-   void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
-                          const DenseMatrix &x_quad, DenseMatrix &interp);
-}
-void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
+
+void mfem::buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
                           const DenseMatrix &x_quad, DenseMatrix &interp)
 {
    // get the number of quadrature points and elements.
@@ -523,68 +527,4 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
    }
 }
 
-/// functions related to centgridfunction
-ParCentGridFunction::ParCentGridFunction(ParFiniteElementSpace *pf)
-{
-   SetSize(pf->GetVDim() * pf->GetNE());
-   fes = pf;
-   fec = NULL;
-   sequence = pf->GetSequence();
-   UseDevice(true);
-}
 
-void ParCentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
-{
-   int vdim = fes->GetVDim();
-   Array<int> vdofs(vdim);
-   Vector vals;
-   int geom = fes->GetMesh()->GetElement(0)->GetGeometryType();
-   const IntegrationPoint &cent = Geometries.GetCenter(geom);
-   const FiniteElement *fe;
-   ElementTransformation *eltransf;
-   for (int i = 0; i < fes->GetNE(); i++)
-   {
-      fe = fes->GetFE(i);
-      // Get the indices of dofs
-      for (int j = 0; j < vdim; j++)
-      {
-         vdofs[j] = i * vdim + j;
-      }
-
-      eltransf = fes->GetElementTransformation(i);
-      eltransf->SetIntPoint(&cent);
-      vals.SetSize(vdofs.Size());
-      coeff.Eval(vals, *eltransf, cent);
-
-      if (fe->GetMapType() == 1)
-      {
-         vals(i) *= eltransf->Weight();
-      }
-      SetSubVector(vdofs, vals);
-   }
-}
-
-ParCentGridFunction &ParCentGridFunction::operator=(const Vector &v)
-{
-   std::cout << "cent = is called.\n";
-   MFEM_ASSERT(fes && v.Size() == fes->GetTrueVSize(), "");
-   Vector::operator=(v);
-   return *this;
-}
-
-ParCentGridFunction &ParCentGridFunction::operator=(double value)
-{
-   Vector::operator=(value);
-   return *this;
-}
-
-/// functions related to Parallel centgridfunction
-// class ParCentGridFunction : public CentGridFunction
-// {
-// protected:
-//     ParFiniteElementSpace *pfes;
-
-// public:
-//     ParCentGridFunction(ParFiniteElementSpace *pf) : CentGridFunction(pf), pfes(pf)
-//     { }
-// };

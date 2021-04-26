@@ -224,24 +224,22 @@ void randBaselinePert(const mfem::Vector &x, mfem::Vector &u)
 double calcDrag(mach::SpaceType *fes, mfem::GridFunction u,
                 int num_state, double alpha)
 {
-   /// check initial drag value
+     /// check initial drag value
    mfem::Vector drag_dir(2);
 
    drag_dir = 0.0;
    int iroll = 0;
    int ipitch = 1;
    double aoa_fs = 0.0;
-   double mach_fs = 1.0;
+   double mach_fs = 0.5;
 
    drag_dir(iroll) = cos(aoa_fs);
    drag_dir(ipitch) = sin(aoa_fs);
    drag_dir *= 1.0 / pow(mach_fs, 2.0); // to get non-dimensional Cd
 
    Array<int> bndry_marker_drag;
-   bndry_marker_drag.Append(0);
-   bndry_marker_drag.Append(0);
-   bndry_marker_drag.Append(0);
    bndry_marker_drag.Append(1);
+   bndry_marker_drag.Append(0);
    NonlinearForm *dragf = new NonlinearForm(fes);
 
    dragf->AddBdrFaceIntegrator(
@@ -346,7 +344,7 @@ double calcResidualNorm(mach::NonlinearFormType *res, mach::SpaceType *fes, ParC
 template <int dim, bool entvar>
 void getFreeStreamState(mfem::Vector &q_ref)
 {
-   double mach_fs = 0.3;
+   double mach_fs = 0.5;
    q_ref = 0.0;
    q_ref(0) = 1.0;
    q_ref(1) = q_ref(0) * mach_fs; // ignore angle of attack
@@ -415,14 +413,15 @@ int main(int argc, char *argv[])
    }
 
    /// solver options
-   const char *options_file = "exEuler_GD_options.json";
+   const char *options_file = "exEllipse_options.json";
    string opt_file_name(options_file);
    nlohmann::json file_options;
    std::ifstream options_file1(opt_file_name);
    options_file1 >> file_options;
    nlohmann::json options;
-   options = default_options;
-   options.merge_patch(file_options);
+   options = file_options;
+//    options = default_options;
+//    options.merge_patch(file_options);
    static adept::Stack diff_stack;
 
    /// degree = p+1
@@ -463,19 +462,15 @@ int main(int argc, char *argv[])
    cout << "Number of finite element unknowns in GD: "
         << fes_GD->GetTrueVSize() << endl;
 
-   /// `bndry_marker_*` lists the boundaries associated with a particular BC
-   Array<int> bndry_marker_isentropic;
+    /// `bndry_marker_*` lists the boundaries associated with a particular BC
    Array<int> bndry_marker_slipwall;
+   Array<int> bndry_marker_farfield;
 
-   bndry_marker_isentropic.Append(1);
-   bndry_marker_isentropic.Append(1);
-   bndry_marker_isentropic.Append(1);
-   bndry_marker_isentropic.Append(0);
+   bndry_marker_farfield.Append(0);
+   bndry_marker_farfield.Append(1);
 
-   bndry_marker_slipwall.Append(0);
-   bndry_marker_slipwall.Append(0);
-   bndry_marker_slipwall.Append(0);
    bndry_marker_slipwall.Append(1);
+   bndry_marker_slipwall.Append(0);
 
    Vector qfs(dim + 2);
 
@@ -485,10 +480,10 @@ int main(int argc, char *argv[])
    /// nonlinearform
    ParNonlinearForm *res = new ParNonlinearForm(fes_GD);
    res->AddDomainIntegrator(new EulerDomainIntegrator<2>(diff_stack, num_state, alpha));
-   res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 1, 0>(diff_stack, fec, num_state, qfs, alpha),
-                             bndry_marker_isentropic);
    res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 2, 0>(diff_stack, fec, num_state, qfs, alpha),
                              bndry_marker_slipwall);
+   res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 3, 0>(diff_stack, fec, num_state, qfs, alpha),
+                             bndry_marker_farfield);
    res->AddInteriorFaceIntegrator(new EulerFaceIntegrator<2>(diff_stack, fec, 1.0, num_state, alpha));
 
    /// check if the integrators are correct
@@ -518,7 +513,7 @@ int main(int argc, char *argv[])
    for (int i = 0; i < jac_v.Size(); ++i)
    {
       //std::cout << std::abs(jac_v(i) - (jac_v_fd(i))) << "\n";
-      MFEM_ASSERT(abs(jac_v(i) - (jac_v_fd(i))) <= 1e-09, "jacobian is incorrect");
+      //MFEM_ASSERT(abs(jac_v(i) - (jac_v_fd(i))) <= 1e-09, "jacobian is incorrect");
    }
 
    /// bilinear form
@@ -589,29 +584,31 @@ int main(int argc, char *argv[])
    cout << "l2_err_init " << l2_err_init << endl;
 
    double res_norm;
-   int exponent = 2;
+   int exponent = options["time-dis"]["res-exp"].template get<double>();
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
    int ti;
    bool done = false;
    double dt = 0.0;
-   double dt_init = 5.0;
+   double dt_init = options["time-dis"]["dt"].template get<double>();
    double dt_old;
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
       /// calculate timestep
       res_norm = calcResidualNorm(res, fes_GD, uc);
       dt_old = dt;
+      cout << "res_norm " << res_norm << endl;
+      cout << "rel res_norm " << res_norm / res_norm0  << endl;
       dt = dt_init * pow(res_norm0 / res_norm, exponent);
       dt = max(dt, dt_old);
       /// print iterations
       std::cout << "iter " << ti << ": time = " << t << ": dt = " << dt << endl;
-      if (!options["time-dis"]["steady"].get<bool>())
-         *out << " (" << round(100 * t / t_final) << "% complete)";
-      *out << endl;
+      //   if (!options["time-dis"]["steady"].get<bool>())
+      //      *out << " (" << round(100 * t / t_final) << "% complete)";
+      //   *out << endl;
       HypreParVector *u_true = uc.GetTrueDofs();
       if (res_norm <= 1e-11)
-         break;
+        break;
 
       if (isnan(res_norm))
          break;
@@ -622,7 +619,7 @@ int main(int argc, char *argv[])
    cout << "=========================================" << endl;
    std::cout << "final residual norm: " << res_norm << "\n";
    double drag = calcDrag(fes, u, num_state, alpha);
-   double drag_err = abs(drag - (-1 / 1.4));
+   double drag_err = abs(drag);
    cout << "drag: " << drag << endl;
    cout << "drag_error: " << drag_err << endl;
    ofstream finalsol_ofs("final_sol_vortex_parGD.vtk");
@@ -632,9 +629,9 @@ int main(int argc, char *argv[])
    finalsol_ofs.close();
 
    /// calculate final solution error
-   double l2_err_rho = calcConservativeVarsL2Error<2, 0>(uexact, &u, fes,
-                                                         num_state, 0);
-   cout << "|| rho_h - rho ||_{L^2} = " << l2_err_rho << endl;
+//    double l2_err_rho = calcConservativeVarsL2Error<2, 0>(uexact, &u, fes,
+//                                                          num_state, 0);
+//    cout << "|| rho_h - rho ||_{L^2} = " << l2_err_rho << endl;
    cout << "=========================================" << endl;
    delete pmesh;
    delete fes;
@@ -670,49 +667,25 @@ double calcEntropyTotalExact()
 void uexact(const Vector &x, Vector &q)
 {
    q.SetSize(4);
-   Vector u(4);
-   double ri = 1.0;
-   double Mai = 0.5; //0.95
-   double rhoi = 2.0;
-   double prsi = 1.0 / euler::gamma;
-   double rinv = ri / sqrt(x(0) * x(0) + x(1) * x(1));
-   double rho = rhoi * pow(1.0 + 0.5 * euler::gami * Mai * Mai * (1.0 - rinv * rinv),
-                           1.0 / euler::gami);
-   double Ma = sqrt((2.0 / euler::gami) * ((pow(rhoi / rho, euler::gami)) *
-                                               (1.0 + 0.5 * euler::gami * Mai * Mai) -
-                                           1.0));
-   double theta;
-   if (x(0) > 1e-15)
-   {
-      theta = atan(x(1) / x(0));
-   }
-   else
-   {
-      theta = M_PI / 2.0;
-   }
-   double press = prsi * pow((1.0 + 0.5 * euler::gami * Mai * Mai) /
-                                 (1.0 + 0.5 * euler::gami * Ma * Ma),
-                             euler::gamma / euler::gami);
-   double a = sqrt(euler::gamma * press / rho);
-
-   u(0) = rho;
-   u(1) = -rho * a * Ma * sin(theta);
-   u(2) = rho * a * Ma * cos(theta);
-   u(3) = press / euler::gami + 0.5 * rho * a * a * Ma * Ma;
-
-   q = u;
-   // double mach_fs = 0.3;
-   // q(0) = 1.0;
-   // q(1) = q(0) * mach_fs; // ignore angle of attack
-   // q(2) = 0.0;
-   // q(3) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+   double mach_fs = 0.5;
+   q(0) = 1.0;
+   q(1) = q(0) * mach_fs; // ignore angle of attack
+   q(2) = 0.0;
+   q(3) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {
-   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_rad, num_ang,
-                                             Element::QUADRILATERAL, true /* gen. edges */,
-                                             2.0, M_PI * 0.5, true));
+   int ref_levels = 5;
+   const char *mesh_file = "periodic_rectangle_2.mesh";
+   //const char *mesh_file = "periodic_rectangle_tri.mesh";
+   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(mesh_file, 1, 1));
+
+   for (int l = 0; l < ref_levels; l++)
+   {
+      mesh_ptr->UniformRefinement();
+   }
+   cout << "Number of elements " << mesh_ptr->GetNE() << '\n';
    // strategy:
    // 1) generate a fes for Lagrange elements of desired degree
    // 2) create a Grid Function using a VectorFunctionCoefficient
@@ -724,10 +697,35 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
    FiniteElementSpace *fes = new FiniteElementSpace(mesh_ptr.get(), fec, 2,
                                                     Ordering::byVDIM);
 
+  
    // This lambda function transforms from (r,\theta) space to (x,y) space
    auto xy_fun = [](const Vector &rt, Vector &xy) {
-      xy(0) = (rt(0) + 1.0) * cos(rt(1)); // need + 1.0 to shift r away from origin
-      xy(1) = (rt(0) + 1.0) * sin(rt(1));
+     
+      // double r_far = 20.0;
+      // double a0 = 0.5;
+      // double b0 = a0 / 10.0;
+      // double delta = 3.00; // We will have to experiment with this
+      // double r = 1.0 + tanh(delta * (rt(0) / r_far - 1.0)) / tanh(delta);
+      // double theta = rt(1);
+      // double b = b0 + (a0 - b0) * r;
+      // xy(0) = a0 * (r * r_far + 1.0) * cos(theta) + 10.0;
+      // xy(1) = b * (r * r_far + 1.0) * sin(theta) + 10.0;
+      /// using conformal mapping 
+      double r_far = 60.0;
+      double r = rt(0);
+      double theta = rt(1);
+      double ratio = 10.0;
+      double delta = 3.0; // We will have to experiment with this
+      double rf = 1.0 + tanh(delta * (rt(0) / r_far - 1.0)) / tanh(delta);
+      double a = sqrt((1 + ratio) / (ratio - 1));
+      xy(0) = a * (rf * r_far + 1) * cos(theta); // need +a to shift r away from origin
+      xy(1) = a * (rf * r_far + 1) * sin(theta);
+      /// using conformal mapping
+      double rs = sqrt((xy(0) * xy(0)) + (xy(1) * xy(1)));
+      double ax = (rs + 1.0 / rs);
+      double ay = (rs - 1.0 / rs);
+      xy(0) = (ax * cos(theta)) / 4.0 + 20.0;
+      xy(1) = (ay * sin(theta)) / 4.0 + 20.0;
    };
    VectorFunctionCoefficient xy_coeff(2, xy_fun);
    GridFunction *xy = new GridFunction(fes);
