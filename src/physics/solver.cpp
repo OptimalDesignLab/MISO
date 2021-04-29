@@ -199,7 +199,7 @@ namespace mach
       int dim = mesh->Dimension();
       int fe_order = options["space-dis"]["degree"].template get<int>();
       std::string basis_type = options["space-dis"]["basis-type"].template get<string>();
-      bool galerkin_diff = options["space-dis"].value("GD", false);
+      bool gd = options["space-dis"].value("GD", false);
       // Define the SBP elements and finite-element space; eventually, we will want
       // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
       // and here it is for first two
@@ -231,10 +231,11 @@ namespace mach
       fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                               Ordering::byVDIM));
       u.reset(new GridFunType(fes.get()));
-      if (galerkin_diff)
+      if (gd)
       {
-         fes_GD.reset(new GDSpaceType(mesh.get(), fec.get(), num_state,
-                                      Ordering::byVDIM));
+         cout << "fe_order " << fe_order << endl;
+         fes_GD.reset(new GDSpaceType(mesh.get(), fec.get(), num_state, 
+                                      Ordering::byVDIM, fe_order, comm));
          uc.reset(new GDGridFunType(fes_GD.get()));
          *out << "Number of finite element unknowns in GD: " << fes_GD->GlobalTrueVSize() << endl;
       }
@@ -543,7 +544,15 @@ namespace mach
    {
       VectorFunctionCoefficient u0(num_state, u_init);
       state.ProjectCoefficient(u0);
-      fes_GD->GetProlongationMatrix()->Mult(state, *u);
+      // cout << "uc " << endl;
+      // uc->Print();
+      GridFunType u_test(fes.get());
+      u_test.ProjectCoefficient(u0);
+      HypreParMatrix *Q;
+      Q = fes_GD->Dof_TrueDof_Matrix();
+      Q->Mult(state, *u);
+      u_test -= *u;
+      cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
    }
 
    void AbstractSolver::setInitialCondition(ParGridFunction &state,
@@ -1196,8 +1205,8 @@ namespace mach
 
       int ti;
       bool done = false;
-      double dt = 0.0;
-      // initialHook(state);
+      double dt = options["time-dis"]["dt"].template get<double>();
+      initialHook(state);
       for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
       {
          dt = calcStepSize(ti, t, t_final, dt, state);
@@ -1481,7 +1490,7 @@ namespace mach
          u_plus.Add(delta, pert_vec);
          u_minus.Add(-delta, pert_vec);
 
-         // Get the product using a 2nd-order finite-difference approximation
+         /// Get the product using a 2nd-order finite-difference approximation
          GDGridFunType res_plus(fes_GD.get());
          GDGridFunType res_minus(fes_GD.get());
          HypreParVector *u_p = u_plus.GetTrueDofs();

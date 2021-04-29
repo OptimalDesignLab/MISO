@@ -8,8 +8,6 @@ constexpr bool entvar = false;
 #include <random>
 #include "euler_integ_DG.hpp"
 #include "evolver.hpp"
-#include "gd.hpp"
-#include "pcentgridfunc.hpp"
 #include "json.hpp"
 #include "default_options.hpp"
 #include "mfem_extensions.hpp"
@@ -332,9 +330,9 @@ void randState(const mfem::Vector &x, mfem::Vector &u)
    }
 }
 
-double calcResidualNorm(mach::NonlinearFormType *res, mach::SpaceType *fes, ParCentGridFunction &uc)
+double calcResidualNorm(mach::NonlinearFormType *res, mach::SpaceType *fes, ParGridFunction &uc)
 {
-   ParCentGridFunction residual(fes);
+   ParGridFunction residual(fes);
    auto *u_true = uc.GetTrueDofs();
    res->Mult(*u_true, residual);
    // residual = 0.0;
@@ -415,7 +413,7 @@ int main(int argc, char *argv[])
    }
 
    /// solver options
-   const char *options_file = "exEuler_GD_options.json";
+   const char *options_file = "exVortex_DG_options.json";
    string opt_file_name(options_file);
    nlohmann::json file_options;
    std::ifstream options_file1(opt_file_name);
@@ -448,20 +446,16 @@ int main(int argc, char *argv[])
    sol_ofs.precision(14);
    mesh->PrintVTK(sol_ofs, 1);
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh.get());
-   /// finite element collection
+   // finite element collection
    FiniteElementCollection *fec = new DG_FECollection(order, dim);
 
-   /// finite element space
+   // finite element space
    ParFiniteElementSpace *fes = new ParFiniteElementSpace(pmesh, fec, num_state,
                                                           Ordering::byVDIM);
 
-   /// GD finite element space
-   ParFiniteElementSpace *fes_GD = new ParGalerkinDifference(pmesh,
-                                                          fec, num_state, Ordering::byVDIM, order, fes->GetComm());
    HYPRE_Int glob_size = fes->GlobalTrueVSize();
    cout << "Number of unknowns: " << glob_size << endl;
-   cout << "Number of finite element unknowns in GD: "
-        << fes_GD->GetTrueVSize() << endl;
+
 
    /// `bndry_marker_*` lists the boundaries associated with a particular BC
    Array<int> bndry_marker_isentropic;
@@ -483,7 +477,7 @@ int main(int argc, char *argv[])
    double alpha = 1.0;
 
    /// nonlinearform
-   ParNonlinearForm *res = new ParNonlinearForm(fes_GD);
+   ParNonlinearForm *res = new ParNonlinearForm(fes);
    res->AddDomainIntegrator(new EulerDomainIntegrator<2>(diff_stack, num_state, alpha));
    res->AddBdrFaceIntegrator(new EulerBoundaryIntegrator<2, 1, 0>(diff_stack, fec, num_state, qfs, alpha),
                              bndry_marker_isentropic);
@@ -495,19 +489,19 @@ int main(int argc, char *argv[])
    double delta = 1e-5;
 
    // initialize state; here we randomly perturb a constant state
-   ParCentGridFunction q(fes_GD);
+   ParGridFunction q(fes);
    VectorFunctionCoefficient pert(num_state, randBaselinePert<2>);
    q.ProjectCoefficient(pert);
    // initialize the vector that the Jacobian multiplies
-   ParCentGridFunction v(fes_GD);
+   ParGridFunction v(fes);
    VectorFunctionCoefficient v_rand(num_state, randState);
    v.ProjectCoefficient(v_rand);
    // evaluate the Jacobian and compute its product with v
    Operator &Jac = res->GetGradient(q);
-   ParCentGridFunction jac_v(fes_GD);
+   ParGridFunction jac_v(fes);
    Jac.Mult(v, jac_v);
    // now compute the finite-difference approximation...
-   ParCentGridFunction q_pert(q), r(fes_GD), jac_v_fd(fes_GD);
+   ParGridFunction q_pert(q), r(fes), jac_v_fd(fes);
    q_pert.Add(-delta, v);
    res->Mult(q_pert, r);
    q_pert.Add(2.0 * delta, v);
@@ -522,31 +516,17 @@ int main(int argc, char *argv[])
    }
 
    /// bilinear form
-   ParBilinearForm *mass = new ParBilinearForm(fes_GD);
+   ParBilinearForm *mass = new ParBilinearForm(fes);
    mass->AddDomainIntegrator(new EulerMassIntegrator(num_state));
    mass->Assemble();
    mass->Finalize();
 
-   HypreParMatrix *R;
-   R = fes_GD->Dof_TrueDof_Matrix();
-   const char *file = "R.txt";
-   R->Print(file);
+
+
    /// grid function
    ParGridFunction u(fes);
    VectorFunctionCoefficient u0(num_state, uexact);
-   ParGridFunction u_test(fes);
-   u_test.ProjectCoefficient(u0);
-   /// GD grid function
-   ParCentGridFunction uc(fes_GD);
-   uc.ProjectCoefficient(u0);
-   cout << "uc " << endl;
-   uc.Print();
-   SparseMatrix *cp = dynamic_cast<ParGalerkinDifference *>(fes_GD)->GetCP();
-   cp->Mult(uc, u);
-   cout << "u " << endl;
-   u.Print();
-   u_test -= u;
-   cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+   u.ProjectCoefficient(u0);
 
    /// newton solver for the steady problem
    std::unique_ptr<mfem::NewtonSolver> newton_solver;
@@ -560,11 +540,12 @@ int main(int argc, char *argv[])
    ode_solver = NULL;
    *out << "ode-solver type = "
         << options["time-dis"]["ode-solver"].template get<string>() << endl;
-   ode_solver.reset(new PseudoTransientSolver(out));
+   //ode_solver.reset(new PseudoTransientSolver(out));
+   ode_solver.reset(new BackwardEulerSolver);
    cout << "ode_solver is set " << endl;
-   prec = constructPreconditioner(options["lin-prec"], fes_GD, fes_GD->GetComm());
-   solver = constructLinearSolver(options["lin-solver"], *prec, fes_GD->GetComm());
-   newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver, fes_GD->GetComm());
+   prec = constructPreconditioner(options["lin-prec"], fes, fes->GetComm());
+   solver = constructLinearSolver(options["lin-solver"], *prec, fes->GetComm());
+   newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver, fes->GetComm());
    *out << "No essential BCs" << endl;
    /// Array that marks boundaries as essential
    mfem::Array<int> ess_bdr;
@@ -586,7 +567,7 @@ int main(int argc, char *argv[])
    ode_solver->Init(*evolver);
 
    // solve the ode problem
-   double res_norm0 = calcResidualNorm(res, fes_GD, uc);
+   double res_norm0 = calcResidualNorm(res, fes, u);
    std::cout << "initial residual norm: " << res_norm0 << "\n";
 
    /// initial l2_err
@@ -601,12 +582,12 @@ int main(int argc, char *argv[])
    int ti;
    bool done = false;
    double dt = 0.0;
-   double dt_init = 5.0;
+   double dt_init = options["time-dis"]["dt"].template get<double>();
    double dt_old;
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
       /// calculate timestep
-      res_norm = calcResidualNorm(res, fes_GD, uc);
+      res_norm = calcResidualNorm(res, fes, u);
       dt_old = dt;
       dt = dt_init * pow(res_norm0 / res_norm, exponent);
       dt = max(dt, dt_old);
@@ -615,7 +596,7 @@ int main(int argc, char *argv[])
       if (!options["time-dis"]["steady"].get<bool>())
          *out << " (" << round(100 * t / t_final) << "% complete)";
       *out << endl;
-      HypreParVector *u_true = uc.GetTrueDofs();
+      HypreParVector *u_true = u.GetTrueDofs();
       if (res_norm <= 1e-11)
          break;
 
@@ -623,7 +604,6 @@ int main(int argc, char *argv[])
          break;
       ode_solver->Step(*u_true, t, dt);
    }
-   fes_GD->GetProlongationMatrix()->Mult(uc, u);
 
    cout << "=========================================" << endl;
    std::cout << "final residual norm: " << res_norm << "\n";

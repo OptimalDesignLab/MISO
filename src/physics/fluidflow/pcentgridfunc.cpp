@@ -51,7 +51,6 @@ HypreParVector *ParCentGridFunction::GetTrueDofs() const
 
 ParCentGridFunction &ParCentGridFunction::operator=(const Vector &v)
 {
-   std::cout << "cent = is called.\n";
    MFEM_ASSERT(fes && v.Size() == fes->GetTrueVSize(), "");
    Vector::operator=(v);
    return *this;

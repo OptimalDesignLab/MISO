@@ -1,5 +1,5 @@
-#ifndef MACH_DGDSOLVER
-#define MACH_DGDSOLVER
+#ifndef MACH_DG_SOLVER
+#define MACH_DG_SOLVER
 
 //#include <fstream>
 
@@ -17,7 +17,7 @@ namespace mach
 /// dim - number of spatial dimensions (1, 2, or 3)
 /// entvar - if true, the entropy variables are used in the integrators
 template <int dim, bool entvar = false>
-class DGDSolver : public AbstractSolver
+class DGSolver : public AbstractSolver
 {
 public:
    /// Find the global time step size
@@ -34,7 +34,7 @@ public:
    /// on the baseline value of "dt" and the inverse residual norm.
    virtual double calcStepSize(int iter, double t, double t_final,
                                double dt_old,
-                               const mfem::ParCentGridFunction &state) override;
+                               const mfem::ParGridFunction &state) const override;
 
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);
@@ -78,7 +78,7 @@ protected:
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   DGDSolver(const nlohmann::json &json_options,
+   DGSolver(const nlohmann::json &json_options,
                std::unique_ptr<mfem::Mesh> smesh,
                MPI_Comm comm);
 
@@ -116,7 +116,7 @@ protected:
   
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
-   virtual void initialHook(const mfem::ParCentGridFunction &state) override;
+   virtual void initialHook(const mfem::ParGridFunction &state);
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
@@ -124,7 +124,7 @@ protected:
    /// \param[in] dt - the step size that will be taken
    /// \param[in] state - the current state
    virtual void iterationHook(int iter, double t, double dt,
-                              const mfem::ParCentGridFunction &state){};
+                              const mfem::ParGridFunction &state){};
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration
@@ -134,19 +134,19 @@ protected:
    /// \param[in] state - the current state
    virtual bool iterationExit(int iter, double t, double t_final, 
                               double dt,
-                              const mfem::ParCentGridFunction &state) override;
+                              const mfem::ParGridFunction &state) override;
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
    /// \param[in] state - the current state
    virtual void terminalHook(int iter, double t_final,
-                             const mfem::ParCentGridFunction &state){};
+                             const mfem::ParGridFunction &state){};
 
    /// Solve for the state variables based on current mesh, solver, etc.
-   virtual void solveForState() { solveUnsteady(*uc); } 
+   virtual void solveForState() { solveUnsteady(*u); } 
    
-   friend SolverPtr createSolver<DGDSolver<dim, entvar>>(
+   friend SolverPtr createSolver<DGSolver<dim, entvar>>(
        const nlohmann::json &json_options,
        std::unique_ptr<mfem::Mesh> smesh,
        MPI_Comm comm);

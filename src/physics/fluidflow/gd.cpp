@@ -27,7 +27,7 @@ namespace mfem
 }
 
 ParGalerkinDifference::ParGalerkinDifference(mach::MeshType *pm, const FiniteElementCollection *f,
-                                       int vdim, int ordering, int de, MPI_Comm _comm)
+                                             int vdim, int ordering, int de, MPI_Comm _comm)
     : ParFiniteElementSpace(pm, f, vdim, ordering)
 {
    degree = de;
@@ -40,6 +40,7 @@ ParGalerkinDifference::ParGalerkinDifference(mach::MeshType *pm, const FiniteEle
 
 void ParGalerkinDifference::Build_Dof_TrueDof_Matrix() const
 {
+
    if (!cP)
    {
       BuildGDProlongation();
@@ -71,8 +72,8 @@ HypreParMatrix *ParGalerkinDifference::Dof_TrueDof_Matrix() const
 
 // an overload function of previous one (more doable?)
 void ParGalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
-                                           mfem::DenseMatrix &mat_cent,
-                                           mfem::DenseMatrix &mat_quad) const
+                                              mfem::DenseMatrix &mat_cent,
+                                              mfem::DenseMatrix &mat_quad) const
 {
    // resize the DenseMatrices and clean the data
    int num_el = elmt_id.Size();
@@ -124,7 +125,7 @@ void ParGalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
 }
 
 void ParGalerkinDifference::GetNeighbourSet(int id, int req_n,
-                                         mfem::Array<int> &nels) const
+                                            mfem::Array<int> &nels) const
 {
    // using mfem mesh object to construct the element patch
    // initialize the patch list
@@ -135,10 +136,11 @@ void ParGalerkinDifference::GetNeighbourSet(int id, int req_n,
    Array<int> adj, cand, cand_adj, cand_next;
    mesh->ElementToElementTable().GetRow(id, adj);
    cand.Append(adj);
-   //    cout << "List is initialized as: ";
-   //    nels.Print(cout, nels.Size());
+   // cout << "List is initialized as: ";
+   // nels.Print(cout, nels.Size());
    // cout << "Initial candidates: ";
    // cand.Print(cout, cand.Size());
+   // cout << "req_n " << req_n << endl;
    while (nels.Size() < req_n)
    {
       for (int i = 0; i < adj.Size(); i++)
@@ -148,8 +150,8 @@ void ParGalerkinDifference::GetNeighbourSet(int id, int req_n,
             nels.Append(adj[i]);
          }
       }
-      //cout << "List now is: ";
-      //nels.Print(cout, nels.Size());
+      // cout << "List now is: ";
+      // nels.Print(cout, nels.Size());
       adj.LoseData();
       for (int i = 0; i < cand.Size(); i++)
       {
@@ -250,14 +252,17 @@ void ParGalerkinDifference::BuildGDProlongation() const
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-
+   // cout << "initial cP " << endl;
+   // cout << " ------------------------------------------- " << endl;
+   // cP->PrintMatlab();
+   // cout << " ------------------------------------------- " << endl;
    // ofstream cp_save("cP.txt");
    // cP->PrintMatlab(cp_save);
    // cp_save.close();
 }
 
 void ParGalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
-                                                    const DenseMatrix &local_mat) const
+                                                       const DenseMatrix &local_mat) const
 {
    // element id coresponds to the column indices
    // dofs id coresponds to the row indices
@@ -303,7 +308,7 @@ void ParGalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &i
 }
 
 void mfem::buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
-                          const DenseMatrix &x_quad, DenseMatrix &interp)
+                                const DenseMatrix &x_quad, DenseMatrix &interp)
 {
    // get the number of quadrature points and elements.
    int num_quad = x_quad.Width();
@@ -526,5 +531,3 @@ void mfem::buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center
       }
    }
 }
-
-

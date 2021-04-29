@@ -1,5 +1,5 @@
 #include <memory>
-#include "dgdsolver.hpp"
+#include "dg_solver.hpp"
 #include "euler_integ_DG.hpp"
 using namespace mfem;
 using namespace std;
@@ -8,7 +8,7 @@ namespace mach
 {
 
     template <int dim, bool entvar>
-    DGDSolver<dim, entvar>::DGDSolver(
+    DGSolver<dim, entvar>::DGSolver(
         const nlohmann::json &json_options,
         unique_ptr<mfem::Mesh> smesh,
         MPI_Comm comm)
@@ -42,37 +42,37 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::constructForms()
+    void DGSolver<dim, entvar>::constructForms()
     {
-        res.reset(new NonlinearFormType(fes_GD.get()));
+        res.reset(new NonlinearFormType(fes.get()));
         if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
         {
-            nonlinear_mass.reset(new NonlinearFormType(fes_GD.get()));
+            nonlinear_mass.reset(new NonlinearFormType(fes.get()));
             mass.reset();
         }
         else
         {
-            mass.reset(new BilinearFormType(fes_GD.get()));
+            mass.reset(new BilinearFormType(fes.get()));
             nonlinear_mass.reset();
         }
-        ent.reset(new NonlinearFormType(fes_GD.get()));
+        ent.reset(new NonlinearFormType(fes.get()));
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::addMassIntegrators(double alpha)
+    void DGSolver<dim, entvar>::addMassIntegrators(double alpha)
     {
         mass->AddDomainIntegrator(new EulerMassIntegrator(num_state));
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
+    void DGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
     {
         nonlinear_mass->AddDomainIntegrator(
             new MassIntegrator<dim, entvar>(diff_stack, alpha));
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
+    void DGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
     {
         // TODO: should decide between one-point and two-point fluxes using options
         res->AddDomainIntegrator(
@@ -80,7 +80,7 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
+    void DGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
     {
         auto &bcs = options["bcs"];
         int idx = 0;
@@ -127,7 +127,7 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
+    void DGSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
     {
         // add the integrators based on if discretization is continuous or discrete
         if (options["space-dis"]["basis-type"].template get<string>() == "DG")
@@ -138,22 +138,25 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::addEntVolumeIntegrators()
+    void DGSolver<dim, entvar>::addEntVolumeIntegrators()
     {
         ent->AddDomainIntegrator(new EntropyIntegrator<dim, entvar>(diff_stack));
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::initialHook(const ParCentGridFunction &state)
+    void DGSolver<dim, entvar>::initialHook(const ParGridFunction &state)
     {
-        // res_norm0 is used to compute the time step in PTC
-        res_norm0 = calcResidualNorm(state);
+        if (options["time-dis"]["steady"].template get<bool>())
+        {
+            // res_norm0 is used to compute the time step in PTC
+            res_norm0 = calcResidualNorm(state);
+        }
     }
 
     template <int dim, bool entvar>
-    bool DGDSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
+    bool DGSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
                                                double dt,
-                                               const ParCentGridFunction &state)
+                                               const ParGridFunction &state)
     {
         // use tolerance options for Newton's method
         double norm = calcResidualNorm(state);
@@ -164,7 +167,7 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::addOutputs()
+    void DGSolver<dim, entvar>::addOutputs()
     {
         auto &fun = options["outputs"];
         int idx = 0;
@@ -226,23 +229,23 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    double DGDSolver<dim, entvar>::calcStepSize(int iter, double t,
+    double DGSolver<dim, entvar>::calcStepSize(int iter, double t,
                                                 double t_final,
                                                 double dt_old,
-                                                const ParCentGridFunction &state)
+                                                const ParGridFunction &state) const
     {
         // ramp up time step for pseudo-transient continuation
         // TODO: the l2 norm of the weak residual is probably not ideal here
         // A better choice might be the l1 norm
         double res_norm = calcResidualNorm(state);
-        double exponent = options["time-dis"]["res-exp"].template get<double>();
-        double dt = options["time-dis"]["dt"].template get<double>();
-        dt = dt * pow(res_norm0 / res_norm, exponent);
+        double exponent = options["time-dis"]["res-exp"];
+        double dt = options["time-dis"]["dt"].template get<double>() *
+                    pow(res_norm0 / res_norm, exponent);
         return max(dt, dt_old);
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
+    void DGSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
     {
         q_ref = 0.0;
         q_ref(0) = 1.0;
@@ -259,7 +262,7 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    double DGDSolver<dim, entvar>::calcConservativeVarsL2Error(
+    double DGSolver<dim, entvar>::calcConservativeVarsL2Error(
         void (*u_exact)(const mfem::Vector &, mfem::Vector &), int entry)
     {
         // This lambda function computes the error at a node
@@ -327,7 +330,7 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
+    void DGSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
     {
         if (entvar)
         {
@@ -359,7 +362,7 @@ namespace mach
     }
 
     template <int dim, bool entvar>
-    void DGDSolver<dim, entvar>::setSolutionError(
+    void DGSolver<dim, entvar>::setSolutionError(
         void (*u_exact)(const mfem::Vector &, mfem::Vector &))
     {
         VectorFunctionCoefficient exsol(num_state, u_exact);
@@ -373,11 +376,11 @@ namespace mach
     }
 
     // explicit instantiation
-    template class DGDSolver<1, true>;
-    template class DGDSolver<1, false>;
-    template class DGDSolver<2, true>;
-    template class DGDSolver<2, false>;
-    template class DGDSolver<3, true>;
-    template class DGDSolver<3, false>;
+    template class DGSolver<1, true>;
+    template class DGSolver<1, false>;
+    template class DGSolver<2, true>;
+    template class DGSolver<2, false>;
+    template class DGSolver<3, true>;
+    template class DGSolver<3, false>;
 
 } // namespace mach

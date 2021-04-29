@@ -320,7 +320,18 @@ public:
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
-   double calcResidualNorm() const { return calcResidualNorm(*u); };
+   double calcResidualNorm() const
+   {
+      bool gd = options["space-dis"].value("GD", false);
+      if (gd)
+      {
+         return calcResidualNorm(*uc);
+      }
+      else
+      {
+         return calcResidualNorm(*u);
+      }
+   };
 
    /// Compute the residual norm based on the input `state`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
@@ -420,14 +431,13 @@ protected:
    //--------------------------------------------------------------------------
    // Members associated with fields
    using GDGridFunType = mfem::ParCentGridFunction;
-
    using GDSpaceType = mfem::ParGalerkinDifference;
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
    // discrete finite element space
-   std::unique_ptr<SpaceType> fes_GD;
+   std::unique_ptr<GDSpaceType> fes_GD;
    /// pointer to mesh's underlying finite element space
    SpaceType *mesh_fes;
    /// state variable
@@ -588,6 +598,10 @@ protected:
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
    virtual void initialHook(const mfem::ParGridFunction &state) {};
+   
+   /// For code that should be executed before the time stepping begins
+   /// \param[in] state - the current state
+   virtual void initialHook(const mfem::ParCentGridFunction &state){};
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration

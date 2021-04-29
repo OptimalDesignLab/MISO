@@ -14,6 +14,8 @@ target_sources(mach
       galer_diff.hpp
       dgdsolver.cpp
       dgdsolver.hpp
+      dg_solver.cpp
+      dg_solver.hpp
       pcentgridfunc.hpp
       pcentgridfunc.cpp
       gd.hpp

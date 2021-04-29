@@ -31,6 +31,7 @@ set(SANDBOX_SRCS
    exEllipse_DG
    exVortex_DG
    ellipse_GD
+   ellipse_DG
    vortex_GD
    steadyvortex_DGD
    #thermal_square
