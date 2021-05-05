@@ -985,26 +985,44 @@ void AbstractSolver::printResidual(const std::string &file_name,
 void AbstractSolver::printFields(const std::string &file_name,
                                  std::vector<ParGridFunction *> fields,
                                  std::vector<std::string> names,
-                                 int refine)
+                                 int refine,
+                                 int cycle)
 {
    if (fields.size() != names.size())
    {
       throw MachException(
          "Must supply a name for each grid function to print!");
    }
-   // TODO: These mfem functions do not appear to be parallelized
-   ofstream sol_ofs(file_name + ".vtk");
-   sol_ofs.precision(14);
+   ParaViewDataCollection paraview_dc(file_name, mesh.get());
+   paraview_dc.SetPrefixPath("ParaView");
    if (refine == -1)
    {
       refine = options["space-dis"]["degree"].get<int>() + 1;
    }
-   mesh->PrintVTK(sol_ofs, refine);
+   paraview_dc.SetLevelsOfDetail(1);
+   paraview_dc.SetCycle(cycle);
+   paraview_dc.SetDataFormat(VTKFormat::BINARY);
+   paraview_dc.SetHighOrderOutput(true);
+   paraview_dc.SetTime((double)cycle); // set the time
    for (unsigned i = 0; i < fields.size(); ++i)
    {
-      fields[i]->SaveVTK(sol_ofs, names[i], refine);
+      paraview_dc.RegisterField(names[i], fields[i]);
    }
-   sol_ofs.close();
+   paraview_dc.Save();
+
+   // // TODO: These mfem functions do not appear to be parallelized
+   // ofstream sol_ofs(file_name + ".vtk");
+   // sol_ofs.precision(14);
+   // if (refine == -1)
+   // {
+   //    refine = options["space-dis"]["degree"].get<int>() + 1;
+   // }
+   // mesh->PrintVTK(sol_ofs, refine);
+   // for (unsigned i = 0; i < fields.size(); ++i)
+   // {
+   //    fields[i]->SaveVTK(sol_ofs, names[i], refine);
+   // }
+   // sol_ofs.close();
 }
 
 std::vector<GridFunType*> AbstractSolver::getFields()
@@ -1241,11 +1259,21 @@ void AbstractSolver::setEssentialBoundaries()
    if (bcs.find("essential") != bcs.end())
    {
       ess_bdr = 0;
-      auto tmp = bcs["essential"].get<vector<int>>();
-      for (auto &bdr : tmp)
+      try
       {
-         ess_bdr[bdr-1] = 1;
+         auto tmp = bcs["essential"].get<std::vector<int>>();
+         for (auto &bdr : tmp)
+         {
+            ess_bdr[bdr-1] = 1;
+         }
       }
+      catch (nlohmann::json::type_error& e)
+      {
+         auto all = bcs["essential"].get<std::string>();
+         if (all == "all")
+            ess_bdr = 1;
+      }
+      
       // *out << "ess_bdr: "; ess_bdr.Print(*out);
    }
    /// otherwise mark all attributes as nonessential

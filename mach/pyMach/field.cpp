@@ -14,4 +14,5 @@ using namespace mfem;
 void initField(py::module &m)
 {
    py::class_<HypreParVector, Vector>(m, "Field");
+   py::class_<ParGridFunction, Vector>(m, "GridFunction");
 }

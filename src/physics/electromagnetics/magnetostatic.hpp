@@ -83,32 +83,34 @@ public:
                        const mfem::ParGridFunction &state) const override;
 
 private:
-   // /// Nedelec finite element collection
-   // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
-   /// Raviart-Thomas finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
-   /// H1 finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h1_coll;
-   ///L2 finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> l2_coll;
+   // // /// Nedelec finite element collection
+   // // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
+   // /// Raviart-Thomas finite element collection
+   // std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
+   // /// H1 finite element collection
+   // std::unique_ptr<mfem::FiniteElementCollection> h1_coll;
+   // ///L2 finite element collection
+   // std::unique_ptr<mfem::FiniteElementCollection> l2_coll;
 
-   // /// H(Curl) finite element space
-   // std::unique_ptr<SpaceType> h_curl_space;
-   /// H(Div) finite element space
-   std::unique_ptr<SpaceType> h_div_space;
-   /// H1 finite element space
-   std::unique_ptr<SpaceType> h1_space;
-   /// L2 finite element space
-   std::unique_ptr<SpaceType> l2_space;
+   // // /// H(Curl) finite element space
+   // // std::unique_ptr<SpaceType> h_curl_space;
+   // /// H(Div) finite element space
+   // std::unique_ptr<SpaceType> h_div_space;
+   // /// H1 finite element space
+   // std::unique_ptr<SpaceType> h1_space;
+   // /// L2 finite element space
+   // std::unique_ptr<SpaceType> l2_space;
 
-   // /// Magnetic vector potential A grid function
-   // std::unique_ptr<GridFunType> A;
-   /// Magnetic flux density B = curl(A) grid function
-   std::unique_ptr<GridFunType> B;
-   /// Magnetic flux density B = curl(A) grid function in H(curl) space
-   std::unique_ptr<GridFunType> B_dual;
-   /// Magnetization grid function
-   std::unique_ptr<GridFunType> M;
+   // // /// Magnetic vector potential A grid function
+   // // std::unique_ptr<GridFunType> A;
+
+   /// alias to magnetic flux density grid function stored in res_fields
+   mfem::ParGridFunction *B;
+   
+   // /// Magnetic flux density B = curl(A) grid function in H(curl) space
+   // std::unique_ptr<GridFunType> B_dual;
+   // /// Magnetization grid function
+   // std::unique_ptr<GridFunType> M;
 
    std::unique_ptr<MagnetostaticLoad> magnetostatic_load;
 
@@ -347,7 +349,7 @@ private:
                                          const mfem::Vector &V_bar,
                                          mfem::Vector &x_bar);
 
-   /// function defining current density aligned with the x axis
+   /// function defining current density aligned with the z axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
    static void zAxisCurrentSource(const mfem::Vector &x,
@@ -356,6 +358,16 @@ private:
    static void zAxisCurrentSourceRevDiff(const mfem::Vector &x,
                                          const mfem::Vector &V_bar,
                                          mfem::Vector &x_bar);
+
+   /// function defining current density aligned with the -z axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void nzAxisCurrentSource(const mfem::Vector &x,
+                                   mfem::Vector &J);
+
+   static void nzAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                                          const mfem::Vector &V_bar,
+                                          mfem::Vector &x_bar);
 
    /// function defining current density aligned in a ring around the z axis
    /// \param[in] x - position x in space of evaluation

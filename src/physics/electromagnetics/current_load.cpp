@@ -81,7 +81,7 @@ void CurrentLoad::assembleLoad()
 
    HyprePCG pcg(M);
    pcg.SetTol(1e-12);
-   pcg.SetMaxIter(200);
+   pcg.SetMaxIter(500);
    pcg.SetPrintLevel(2);
    pcg.SetPreconditioner(amg);
    pcg.Mult(RHS, X);
@@ -93,6 +93,16 @@ void CurrentLoad::assembleLoad()
    div_free_proj.Mult(j, div_free_current_vec);
 
    std::cout << "div free norm new load: " << div_free_current_vec.Norml2() << "\n\n";
+   // 15. Save data in the ParaView format
+   ParaViewDataCollection paraview_dc("current", div_free_current_vec.FESpace()->GetMesh());
+   paraview_dc.SetPrefixPath("ParaView");
+   paraview_dc.SetLevelsOfDetail(1);
+   paraview_dc.SetCycle(0);
+   paraview_dc.SetDataFormat(VTKFormat::BINARY);
+   paraview_dc.SetHighOrderOutput(true);
+   paraview_dc.SetTime(0.0); // set the time
+   paraview_dc.RegisterField("current",&div_free_current_vec);
+   paraview_dc.Save();
 
    /// get the div_free_current_vec's true dofs
    div_free_current_vec.ParallelAssemble(scratch);

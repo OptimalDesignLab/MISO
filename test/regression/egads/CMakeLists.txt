@@ -28,6 +28,9 @@ set(TEST_SRCS
 #   coupled_motor
    test_coulomb1984_force
    test_torque_loop
+   test_magnet_force
+   test_magnet_box
+   test_femm_tutorial
 )
 
 create_egads_tests("${TEST_SRCS}" "../regression_data.cpp")

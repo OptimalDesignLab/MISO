@@ -336,13 +336,18 @@ void initSolver(py::module &m)
          py::arg("filename"),
          py::arg("field"),
          py::arg("name"),
-         py::arg("refine") = -1)
+         py::arg("refine") = -1,
+         py::arg("cycle") = 0)
 
       .def("printFields", &AbstractSolver::printFields,
          py::arg("filename"),
          py::arg("fields"),
          py::arg("names"),
-         py::arg("refine") = -1)
+         py::arg("refine") = -1,
+         py::arg("cycle") = 0)
+
+      .def("getField", &AbstractSolver::getField,
+         py::arg("field_name"))
 
       .def("calcResidual", [](AbstractSolver &self,
                               const py::dict &py_inputs,
@@ -371,12 +376,19 @@ void initSolver(py::module &m)
                             const std::string &fun,
                             const py::dict &py_inputs)
          {
-            
             return self.calcOutput(fun, pyDictToMachInputs(py_inputs));
          })
          // py::arg("fun"),
          // py::arg("keys"),
          // py::arg("values"))
+      
+      .def("setOutputOptions",
+         static_cast<void (AbstractSolver::*)(const std::string &fun,
+                                              const nlohmann::json &options)>
+         (&AbstractSolver::setOutputOptions),
+         "Set options for the output functional specified by \"fun\"",
+         py::arg("fun"),
+         py::arg("options"))
 
       .def("getStateSize", &AbstractSolver::getStateSize)
       .def("getFieldSize", &AbstractSolver::getFieldSize)

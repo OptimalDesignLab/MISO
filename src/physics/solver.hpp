@@ -267,34 +267,35 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printResidual(const std::string &file_name, int refine = -1);
 
-
-   /// TODO: make this work for parallel!
    /// Write the mesh and an initializer list to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] field - grid function to print
    /// \param[in] name - name to use for the printed grid function
    /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \param[in] cycle - cycle to write to vtk file
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printField(const std::string &file_name,
                    mfem::ParGridFunction &field,
                    const std::string &name,
-                   int refine = -1)
-   { printFields(file_name, {&field}, {name}, refine); };
+                   int refine = -1,
+                   int cycle = 0)
+   { printFields(file_name, {&field}, {name}, refine, cycle); };
 
-   /// TODO: make this work for parallel!
    /// Write the mesh and an initializer list to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] fields - list of grid functions to print, passed as an
    ///                     initializer list
    /// \param[in] names - list of names to use for each grid function printed
    /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \param[in] cycle - cycle to write to vtk file
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printFields(const std::string &file_name,
                       std::vector<mfem::ParGridFunction *> fields,
                       std::vector<std::string> names,
-                      int refine = -1);
+                      int refine = -1,
+                      int cycle = 0);
 
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// Default behavior is to return just the state `u`

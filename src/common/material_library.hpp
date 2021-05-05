@@ -71,6 +71,17 @@ nlohmann::json material_library
       {"kappae", 1},
       {"sigma", 1},
 	}},
+   {"ideal", {
+      {"mu_r", 1e8},
+      {"rho", 8120.0},
+      {"cv", 0.420}, 
+      {"kappa", 20},
+      // {"kh", 0.02},
+      // {"ke", 0.0001},
+      {"ks", 0.0044},
+      {"beta", 1.76835},
+      {"alpha", 1.286}
+   }},
    {"hiperco50", {
       {"B",
       {

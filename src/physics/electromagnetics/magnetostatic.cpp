@@ -104,11 +104,11 @@ void phase_a_current(const xdouble &current_density,
    J[2] = 0.0;
 
    // example of needed geometric parameters, this should be all you need
-   xdouble n_s = 24; // number of slots
+   xdouble n_s = 6; // number of slots
    // xdouble zb = -0.03450/2; // bottom of stator
    // xdouble zt = 0.03450/2; // top of stator
-   xdouble zb = -0.001/2; // bottom of stator
-   xdouble zt = 0.001/2; // top of stator
+   xdouble zb = -0.002/2; // bottom of stator
+   xdouble zt = 0.002/2; // top of stator
 
 
    // compute theta from x and y
@@ -175,11 +175,11 @@ void phase_b_current(const xdouble &current_density,
    J[2] = 0.0;
 
    // example of needed geometric parameters, this should be all you need
-   xdouble n_s = 24; // number of slots
+   xdouble n_s = 6; // number of slots
    // xdouble zb = -0.03450/2; // bottom of stator
    // xdouble zt = 0.03450/2; // top of stator
-   xdouble zb = -0.001/2; // bottom of stator
-   xdouble zt = 0.001/2; // top of stator
+   xdouble zb = -0.002/2; // bottom of stator
+   xdouble zt = 0.002/2; // top of stator
 
 
    // compute theta from x and y
@@ -322,14 +322,15 @@ void y_axis_current(const xdouble &current_density,
    J[2] = 0.0;
 }
 
-template <typename xdouble = double>
+template <typename xdouble = double,
+          int sign = 1>
 void z_axis_current(const xdouble &current_density,
                     const xdouble *x,
                     xdouble *J)
 {
    J[0] = 0.0;
    J[1] = 0.0;
-   J[2] = current_density;
+   J[2] = sign * current_density;
 }
 
 template <typename xdouble = double>
@@ -522,22 +523,30 @@ MagnetostaticSolver::MagnetostaticSolver(
    mesh->ReorientTetMesh();
    mesh->RemoveInternalBoundaries();
 
-   /// Create the H(Div) finite element collection
-   h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H1 finite element collection
-   h1_coll.reset(new H1_FECollection(order, dim));
-   /// Create the L2 finite element collection
-   l2_coll.reset(new L2_FECollection(order, dim));
+   // /// Create the H(Div) finite element collection
+   // // h_div_coll.reset(new RT_FECollection(order, dim));
+   // /// Create the H1 finite element collection
+   // h1_coll.reset(new H1_FECollection(order, dim));
+   // /// Create the L2 finite element collection
+   // l2_coll.reset(new L2_FECollection(order, dim));
 
-   /// Create the H(Div) finite element space
-   h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create the H1 finite element space
-   h1_space.reset(new SpaceType(mesh.get(), h1_coll.get()));
-   /// Create the L2 finite element space
-   l2_space.reset(new SpaceType(mesh.get(), l2_coll.get()));
+   // /// Create the H(Div) finite element space
+   // // h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
+   // /// Create the H1 finite element space
+   // h1_space.reset(new SpaceType(mesh.get(), h1_coll.get()));
+   // /// Create the L2 finite element space
+   // l2_space.reset(new SpaceType(mesh.get(), l2_coll.get()));
 
-   /// Create magnetic flux grid function
-   B.reset(new GridFunType(h_div_space.get()));
+   /// Create magnetic flux density grid function
+   // B.reset(new GridFunType(h_div_space.get()));
+
+   auto *h_div_coll = new RT_FECollection(order, dim);
+   auto *h_div_space = new ParFiniteElementSpace(mesh.get(), 
+                                                 h_div_coll);
+   res_fields.emplace("B", h_div_space);
+   res_fields.at("B").MakeOwner(h_div_coll);
+
+   B = &res_fields.at("B");
 }
 
 MagnetostaticSolver::~MagnetostaticSolver() = default;
@@ -546,7 +555,7 @@ void MagnetostaticSolver::printSolution(const std::string &file_name,
                                        int refine)
 {
    printFields(file_name,
-               {u.get(), B.get()},
+               {u.get(), B},
                {"MVP", "Magnetic_Flux_Density"},
                refine);
 }
@@ -610,7 +619,7 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
    //    pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
    //    pd->SetPrefixPath("ParaView");
    //    pd->RegisterField("state", &state);
-   //    pd->RegisterField("B", B.get());
+   //    pd->RegisterField("B", B);
    //    pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
    //    pd->SetDataFormat(VTKFormat::BINARY);
    //    pd->SetHighOrderOutput(true);
@@ -637,7 +646,8 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
    // int max_iter = options["time-dis"]["max-iter"].get<int>();
    // double dlambda = 1.0/(max_iter-1);
    // std::vector<double> lambda = {0.0, 1./8, 1./3, 2./3, 3./4, 7./8, 15./16, 31./32, 63./64, 127./128, 1.0};
-   std::vector<double> lambda = {0.0}; // just for a test
+   // std::vector<double> lambda = {0.0, 0.67, 1.0}; // just for a test
+   std::vector<double> lambda = {1.0}; // just for a test
    // for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    for (ti = 0; ti < lambda.size(); ++ti)
    {
@@ -879,9 +889,9 @@ void MagnetostaticSolver::setOutputOptions(const std::string &fun,
       [&axis_vector, &about_vector, &r](const Vector &x, Vector &v)
       {
          subtract(x, about_vector, r);
-         v(0) = axis_vector(1) * r(2) - axis_vector(2)*r(1);
-         v(1) = axis_vector(2) * r(0) - axis_vector(0)*r(2);
-         v(2) = axis_vector(0) * r(1) - axis_vector(1)*r(0);
+         v(0) = axis_vector(1)*r(2) - axis_vector(2)*r(1);
+         v(1) = axis_vector(2)*r(0) - axis_vector(0)*r(2);
+         v(2) = axis_vector(0)*r(1) - axis_vector(1)*r(0);
       });
 
       auto &v = res_fields.at("v"+fun);
@@ -890,13 +900,14 @@ void MagnetostaticSolver::setOutputOptions(const std::string &fun,
       {
          v.ProjectCoefficient(v_vector, attr);
       }
-   }
 
+      printField("v", v, "v", 0);
+   }
 }
 
 std::vector<GridFunType*> MagnetostaticSolver::getFields(void)
 {
-   return {u.get(), B.get()};
+   return {u.get(), B};
 }
 
 void MagnetostaticSolver::constructForms()
@@ -1125,13 +1136,13 @@ void MagnetostaticSolver::verifyMeshSensitivities()
 void MagnetostaticSolver::Update()
 {
    fes->Update();
-   h_div_space->Update();
-   h1_space->Update();
+   // h_div_space->Update();
+   // h1_space->Update();
 
    u->Update();
    adj->Update();
-   B->Update();
-   M->Update();
+   // B->Update();
+   // M->Update();
    // load->Update();
    // auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
    // load_gf->Update();
@@ -1225,8 +1236,8 @@ void MagnetostaticSolver::terminalHook(int iter, double t_final,
 {
    computeSecondaryFields(state);
 
-   auto *state_gf = const_cast<ParGridFunction*>(&state);
-   printFields("em_state", {state_gf, B.get()}, {"mvp", "B"});
+   // auto *state_gf = const_cast<ParGridFunction*>(&state);
+   // printFields("em_state", {state_gf, B}, {"mvp", "B"});
 
 }
 
@@ -1341,6 +1352,7 @@ void MagnetostaticSolver::setStaticMembers()
       std::string material = magnets["material"].get<std::string>();
       remnant_flux = materials[material]["B_r"].get<double>();
       mag_mu_r = materials[material]["mu_r"].get<double>();
+      std::cout << "B_r = " << remnant_flux << "\n";
    }
    fill_factor = options["problem-opts"].value("fill-factor", 1.0);
    current_density = options["problem-opts"].value("current-density", 1.0);
@@ -1556,6 +1568,18 @@ void MagnetostaticSolver::constructCurrent()
             current_coeff->addCoefficient(attr, move(temp_coeff));
          }
       }
+      if (current.contains("-z"))
+      {
+         auto attrs = current["-z"].get<std::vector<int>>();
+         for (auto& attr : attrs)
+         {
+            std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+                  new VectorFunctionCoefficient(dim,
+                                                nzAxisCurrentSource,
+                                                nzAxisCurrentSourceRevDiff));
+            current_coeff->addCoefficient(attr, move(temp_coeff));
+         }
+      }
       if (current.contains("ring"))
       {
          auto attrs = current["ring"].get<std::vector<int>>();
@@ -1641,266 +1665,266 @@ void MagnetostaticSolver::constructSigma()
 
 void MagnetostaticSolver::assembleCurrentSource()
 {
-   int fe_order = options["space-dis"]["degree"].get<int>();
+   // int fe_order = options["space-dis"]["degree"].get<int>();
 
-   /// get int rule (approach followed my MFEM Tesla Miniapp)
-   int irOrder = h1_space->GetElementTransformation(0)->OrderW()
-               + 2 * fe_order;
-   int geom = h1_space->GetFE(0)->GetGeomType();
-   const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
+   // /// get int rule (approach followed my MFEM Tesla Miniapp)
+   // int irOrder = h1_space->GetElementTransformation(0)->OrderW()
+   //             + 2 * fe_order;
+   // int geom = h1_space->GetFE(0)->GetGeomType();
+   // const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
 
-   /// Create a H(curl) mass matrix for integrating grid functions
-   BilinearFormIntegrator *h_curl_mass_integ = new VectorFEMassIntegrator;
-   h_curl_mass_integ->SetIntRule(ir);
-   ParBilinearForm h_curl_mass(fes.get());
-   h_curl_mass.AddDomainIntegrator(h_curl_mass_integ);
-   // assemble mass matrix
-   h_curl_mass.Assemble();
-   h_curl_mass.Finalize();
+   // /// Create a H(curl) mass matrix for integrating grid functions
+   // BilinearFormIntegrator *h_curl_mass_integ = new VectorFEMassIntegrator;
+   // h_curl_mass_integ->SetIntRule(ir);
+   // ParBilinearForm h_curl_mass(fes.get());
+   // h_curl_mass.AddDomainIntegrator(h_curl_mass_integ);
+   // // assemble mass matrix
+   // h_curl_mass.Assemble();
+   // h_curl_mass.Finalize();
 
-   ParLinearForm J(fes.get());
-   J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(*current_coeff));
-   J.Assemble();
+   // ParLinearForm J(fes.get());
+   // J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(*current_coeff));
+   // J.Assemble();
 
-   ParGridFunction j(fes.get());
-   // j = 0.0;
-   j.ProjectCoefficient(*current_coeff);
-   ParGridFunction jhdiv(h_div_space.get());
-   jhdiv.ProjectCoefficient(*current_coeff);
-   // printFields("jproj", {&j, &jhdiv}, {"jhcurl", "jhdiv"});
-   {
-      HypreParMatrix M;
-      Vector X, RHS;
-      Array<int> ess_tdof_list;
-      // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-      h_curl_mass.FormLinearSystem(ess_tdof_list, j, J, M, X, RHS);
-      *out << "solving for j in H(curl)\n";
-      HypreBoomerAMG amg(M);
-      amg.SetPrintLevel(-1);
-      // HypreGMRES gmres(M);
-      // gmres.SetTol(1e-12);
-      // gmres.SetMaxIter(200);
-      // gmres.SetPrintLevel(3);
-      // gmres.SetPreconditioner(amg);
-      // gmres.Mult(RHS, X);
+   // ParGridFunction j(fes.get());
+   // // j = 0.0;
+   // j.ProjectCoefficient(*current_coeff);
+   // ParGridFunction jhdiv(h_div_space.get());
+   // jhdiv.ProjectCoefficient(*current_coeff);
+   // // printFields("jproj", {&j, &jhdiv}, {"jhcurl", "jhdiv"});
+   // {
+   //    HypreParMatrix M;
+   //    Vector X, RHS;
+   //    Array<int> ess_tdof_list;
+   //    // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   //    h_curl_mass.FormLinearSystem(ess_tdof_list, j, J, M, X, RHS);
+   //    *out << "solving for j in H(curl)\n";
+   //    HypreBoomerAMG amg(M);
+   //    amg.SetPrintLevel(-1);
+   //    // HypreGMRES gmres(M);
+   //    // gmres.SetTol(1e-12);
+   //    // gmres.SetMaxIter(200);
+   //    // gmres.SetPrintLevel(3);
+   //    // gmres.SetPreconditioner(amg);
+   //    // gmres.Mult(RHS, X);
 
-      HyprePCG pcg(M);
-      pcg.SetTol(1e-12);
-      pcg.SetMaxIter(200);
-      pcg.SetPrintLevel(2);
-      pcg.SetPreconditioner(amg);
-      pcg.Mult(RHS, X);
+   //    HyprePCG pcg(M);
+   //    pcg.SetTol(1e-12);
+   //    pcg.SetMaxIter(200);
+   //    pcg.SetPrintLevel(2);
+   //    pcg.SetPreconditioner(amg);
+   //    pcg.Mult(RHS, X);
 
-      h_curl_mass.RecoverFEMSolution(X, J, j);
-   }
-   h_curl_mass.Assemble();
-   h_curl_mass.Finalize();
+   //    h_curl_mass.RecoverFEMSolution(X, J, j);
+   // }
+   // h_curl_mass.Assemble();
+   // h_curl_mass.Finalize();
 
-   /// compute the divergence free current source
-   auto div_free_proj = mfem::common::DivergenceFreeProjector(*h1_space, *fes,
-                                             irOrder, NULL, NULL, NULL);
+   // /// compute the divergence free current source
+   // auto div_free_proj = mfem::common::DivergenceFreeProjector(*h1_space, *fes,
+   //                                           irOrder, NULL, NULL, NULL);
 
-   // Compute the discretely divergence-free portion of j
-   *div_free_current_vec = 0.0;
-   div_free_proj.Mult(j, *div_free_current_vec);
+   // // Compute the discretely divergence-free portion of j
+   // *div_free_current_vec = 0.0;
+   // div_free_proj.Mult(j, *div_free_current_vec);
 
-   std::cout << "div free norm old load: " << div_free_current_vec->Norml2() << "\n\n";
+   // std::cout << "div free norm old load: " << div_free_current_vec->Norml2() << "\n\n";
 
 
-   // printFields("current", {&j, div_free_current_vec.get()}, {"jhcurl", "jdivfree"});
+   // // printFields("current", {&j, div_free_current_vec.get()}, {"jhcurl", "jdivfree"});
    
-   // *old_load = 0.0;
-   // h_curl_mass.AddMult(*div_free_current_vec, *old_load);
-   // *old_load *= -1.0;
-   // printField("current_source", *dynamic_cast<ParGridFunction*>(old_load.get()), "current", 5);
-   *out << "below h_curl add mult\n";
+   // // *old_load = 0.0;
+   // // h_curl_mass.AddMult(*div_free_current_vec, *old_load);
+   // // *old_load *= -1.0;
+   // // printField("current_source", *dynamic_cast<ParGridFunction*>(old_load.get()), "current", 5);
+   // *out << "below h_curl add mult\n";
 }
 
 void MagnetostaticSolver::getCurrentSourceMeshSens(
    const mfem::GridFunction &psi_a,
    mfem::Vector &mesh_sens)
 {
-   Array<int> ess_bdr, ess_bdr_tdofs;
-   ess_bdr.SetSize(h1_space->GetParMesh()->bdr_attributes.Max());
-   ess_bdr = 1;
-   h1_space->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
+   // Array<int> ess_bdr, ess_bdr_tdofs;
+   // ess_bdr.SetSize(h1_space->GetParMesh()->bdr_attributes.Max());
+   // ess_bdr = 1;
+   // h1_space->GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
 
-   /// compute \psi_k
-   /// D \psi_k = G^T M^T \psi_A (\psi_j_hat = -M^T \psi_A)
-   ParBilinearForm h_curl_mass(fes.get());
-   h_curl_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
-   // assemble mass matrix
-   h_curl_mass.Assemble();
-   h_curl_mass.Finalize();
+   // /// compute \psi_k
+   // /// D \psi_k = G^T M^T \psi_A (\psi_j_hat = -M^T \psi_A)
+   // ParBilinearForm h_curl_mass(fes.get());
+   // h_curl_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
+   // // assemble mass matrix
+   // h_curl_mass.Assemble();
+   // h_curl_mass.Finalize();
 
-   /// compute \psi_j_hat
-   /// \psi_j_hat = -\psi_A
-   ParGridFunction psi_j_hat(fes.get());
-   psi_j_hat = 0.0;
-   h_curl_mass.MultTranspose(psi_a, psi_j_hat);
-   psi_j_hat *= -1.0; // (\psi_j_hat = -M^T \psi_A)
+   // /// compute \psi_j_hat
+   // /// \psi_j_hat = -\psi_A
+   // ParGridFunction psi_j_hat(fes.get());
+   // psi_j_hat = 0.0;
+   // h_curl_mass.MultTranspose(psi_a, psi_j_hat);
+   // psi_j_hat *= -1.0; // (\psi_j_hat = -M^T \psi_A)
 
-   mfem::common::ParDiscreteGradOperator grad(h1_space.get(), fes.get());
-   grad.Assemble();
-   grad.Finalize();
+   // mfem::common::ParDiscreteGradOperator grad(h1_space.get(), fes.get());
+   // grad.Assemble();
+   // grad.Finalize();
 
-   ParGridFunction GTMTpsi_a(h1_space.get());
-   GTMTpsi_a = 0.0;
-   grad.MultTranspose(*adj, GTMTpsi_a);
+   // ParGridFunction GTMTpsi_a(h1_space.get());
+   // GTMTpsi_a = 0.0;
+   // grad.MultTranspose(*adj, GTMTpsi_a);
 
-   ParBilinearForm D(h1_space.get());
-   D.AddDomainIntegrator(new DiffusionIntegrator);
-   D.Assemble();
-   D.Finalize();
+   // ParBilinearForm D(h1_space.get());
+   // D.AddDomainIntegrator(new DiffusionIntegrator);
+   // D.Assemble();
+   // D.Finalize();
    
-   auto *Dmat = new HypreParMatrix;
+   // auto *Dmat = new HypreParMatrix;
 
-   ParGridFunction psi_k(h1_space.get());
-   psi_k = 0.0;
-   {
-      Vector PSIK;
-      Vector RHS;
-      D.FormLinearSystem(ess_bdr_tdofs, psi_k, GTMTpsi_a, *Dmat, PSIK, RHS);
-      /// Diffusion matrix is symmetric, no need to transpose
-      // auto *DmatT = Dmat->Transpose();
-      HypreBoomerAMG amg(*Dmat);
-      amg.SetPrintLevel(0);
-      HypreGMRES gmres(*Dmat);
-      gmres.SetTol(1e-14);
-      gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(-1);
-      gmres.SetPreconditioner(amg);
-      gmres.Mult(RHS, PSIK);
+   // ParGridFunction psi_k(h1_space.get());
+   // psi_k = 0.0;
+   // {
+   //    Vector PSIK;
+   //    Vector RHS;
+   //    D.FormLinearSystem(ess_bdr_tdofs, psi_k, GTMTpsi_a, *Dmat, PSIK, RHS);
+   //    /// Diffusion matrix is symmetric, no need to transpose
+   //    // auto *DmatT = Dmat->Transpose();
+   //    HypreBoomerAMG amg(*Dmat);
+   //    amg.SetPrintLevel(0);
+   //    HypreGMRES gmres(*Dmat);
+   //    gmres.SetTol(1e-14);
+   //    gmres.SetMaxIter(200);
+   //    gmres.SetPrintLevel(-1);
+   //    gmres.SetPreconditioner(amg);
+   //    gmres.Mult(RHS, PSIK);
 
-      D.RecoverFEMSolution(PSIK, GTMTpsi_a, psi_k);
-   }
+   //    D.RecoverFEMSolution(PSIK, GTMTpsi_a, psi_k);
+   // }
 
-   /// compute psi_j
-   /// M^T \psi_j = W^T \psi_k - M \psi_a
-   ParMixedBilinearForm weakDiv(fes.get(), h1_space.get());
-   weakDiv.AddDomainIntegrator(new VectorFEWeakDivergenceIntegrator);
-   weakDiv.Assemble();
-   weakDiv.Finalize();
+   // /// compute psi_j
+   // /// M^T \psi_j = W^T \psi_k - M \psi_a
+   // ParMixedBilinearForm weakDiv(fes.get(), h1_space.get());
+   // weakDiv.AddDomainIntegrator(new VectorFEWeakDivergenceIntegrator);
+   // weakDiv.Assemble();
+   // weakDiv.Finalize();
 
-   ParGridFunction WTpsik(fes.get());
-   WTpsik = 0.0;
-   weakDiv.MultTranspose(psi_k, WTpsik);
+   // ParGridFunction WTpsik(fes.get());
+   // WTpsik = 0.0;
+   // weakDiv.MultTranspose(psi_k, WTpsik);
 
-   ParGridFunction Mpsia(fes.get());
-   Mpsia = 0.0;
-   h_curl_mass.Mult(*adj, Mpsia);
-   WTpsik.Add(-1.0, Mpsia);
+   // ParGridFunction Mpsia(fes.get());
+   // Mpsia = 0.0;
+   // h_curl_mass.Mult(*adj, Mpsia);
+   // WTpsik.Add(-1.0, Mpsia);
 
-   ParGridFunction psi_j(fes.get());
-   psi_j = 0.0;
-   {
-      Vector PSIJ;
-      Vector RHS;
-      auto *M = new HypreParMatrix;
-      Array<int> ess_tdof_list;
-      h_curl_mass.FormLinearSystem(ess_tdof_list, psi_j, WTpsik,
-                                   *M, PSIJ, RHS);
+   // ParGridFunction psi_j(fes.get());
+   // psi_j = 0.0;
+   // {
+   //    Vector PSIJ;
+   //    Vector RHS;
+   //    auto *M = new HypreParMatrix;
+   //    Array<int> ess_tdof_list;
+   //    h_curl_mass.FormLinearSystem(ess_tdof_list, psi_j, WTpsik,
+   //                                 *M, PSIJ, RHS);
 
-      HypreBoomerAMG amg(*M);
-      amg.SetPrintLevel(0);
-      HypreGMRES gmres(*M);
-      gmres.SetTol(1e-14);
-      gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(-1);
-      gmres.SetPreconditioner(amg);
-      gmres.Mult(RHS, PSIJ);
+   //    HypreBoomerAMG amg(*M);
+   //    amg.SetPrintLevel(0);
+   //    HypreGMRES gmres(*M);
+   //    gmres.SetTol(1e-14);
+   //    gmres.SetMaxIter(200);
+   //    gmres.SetPrintLevel(-1);
+   //    gmres.SetPreconditioner(amg);
+   //    gmres.Mult(RHS, PSIJ);
 
-      h_curl_mass.RecoverFEMSolution(PSIJ, WTpsik, psi_j);
-   }
+   //    h_curl_mass.RecoverFEMSolution(PSIJ, WTpsik, psi_j);
+   // }
 
-   /// compute j
-   LinearFormType J(fes.get());
-   J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(*current_coeff));
-   J.Assemble();
+   // /// compute j
+   // LinearFormType J(fes.get());
+   // J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(*current_coeff));
+   // J.Assemble();
 
-   GridFunType j(fes.get());
-   j = 0.0;
-   // j.ProjectCoefficient(*current_coeff);
-   {
-      auto *M = new HypreParMatrix;
-      Vector X, RHS;
-      Array<int> ess_tdof_list;
-      h_curl_mass.FormLinearSystem(ess_tdof_list, j, J, *M, X, RHS);
-      HypreBoomerAMG amg(*M);
-      amg.SetPrintLevel(0);
-      HypreGMRES gmres(*M);
-      gmres.SetTol(1e-12);
-      gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(0);
-      gmres.SetPreconditioner(amg);
-      gmres.Mult(RHS, X);
+   // GridFunType j(fes.get());
+   // j = 0.0;
+   // // j.ProjectCoefficient(*current_coeff);
+   // {
+   //    auto *M = new HypreParMatrix;
+   //    Vector X, RHS;
+   //    Array<int> ess_tdof_list;
+   //    h_curl_mass.FormLinearSystem(ess_tdof_list, j, J, *M, X, RHS);
+   //    HypreBoomerAMG amg(*M);
+   //    amg.SetPrintLevel(0);
+   //    HypreGMRES gmres(*M);
+   //    gmres.SetTol(1e-12);
+   //    gmres.SetMaxIter(200);
+   //    gmres.SetPrintLevel(0);
+   //    gmres.SetPreconditioner(amg);
+   //    gmres.Mult(RHS, X);
 
-      h_curl_mass.RecoverFEMSolution(X, J, j);
-   }
+   //    h_curl_mass.RecoverFEMSolution(X, J, j);
+   // }
 
-   /// compute k
-   ParGridFunction Wj(h1_space.get());
-   Wj = 0.0;
-   weakDiv.Mult(j, Wj);
+   // /// compute k
+   // ParGridFunction Wj(h1_space.get());
+   // Wj = 0.0;
+   // weakDiv.Mult(j, Wj);
 
-   ParGridFunction k(h1_space.get());
-   k = 0.0;
-   {
-      Vector K;
-      Vector RHS;
-      D.FormLinearSystem(ess_bdr_tdofs, k, Wj, *Dmat, K, RHS);
+   // ParGridFunction k(h1_space.get());
+   // k = 0.0;
+   // {
+   //    Vector K;
+   //    Vector RHS;
+   //    D.FormLinearSystem(ess_bdr_tdofs, k, Wj, *Dmat, K, RHS);
 
-      HypreBoomerAMG amg(*Dmat);
-      amg.SetPrintLevel(0);
-      HypreGMRES gmres(*Dmat);
-      gmres.SetTol(1e-14);
-      gmres.SetMaxIter(200);
-      gmres.SetPrintLevel(-1);
-      gmres.SetPreconditioner(amg);
-      gmres.Mult(RHS, K);
+   //    HypreBoomerAMG amg(*Dmat);
+   //    amg.SetPrintLevel(0);
+   //    HypreGMRES gmres(*Dmat);
+   //    gmres.SetTol(1e-14);
+   //    gmres.SetMaxIter(200);
+   //    gmres.SetPrintLevel(-1);
+   //    gmres.SetPreconditioner(amg);
+   //    gmres.Mult(RHS, K);
 
-      D.RecoverFEMSolution(K, Wj, k);
-   }
+   //    D.RecoverFEMSolution(K, Wj, k);
+   // }
 
-   SpaceType *mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
+   // SpaceType *mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
 
-   ParLinearForm Rk_mesh_sens(mesh_fes);
-   /// add integrators R_k = Dk - Wj = 0
-   /// \psi_k^T Dk
-   ConstantCoefficient one(1.0);
-   Rk_mesh_sens.AddDomainIntegrator(
-      new DiffusionResIntegrator(one, &k, &psi_k));
-   /// -\psi_k^T W j 
-   Rk_mesh_sens.AddDomainIntegrator(
-      new VectorFEWeakDivergencedJdXIntegrator(&j, &psi_k, nullptr, -1.0));
-   Rk_mesh_sens.Assemble();
+   // ParLinearForm Rk_mesh_sens(mesh_fes);
+   // /// add integrators R_k = Dk - Wj = 0
+   // /// \psi_k^T Dk
+   // ConstantCoefficient one(1.0);
+   // Rk_mesh_sens.AddDomainIntegrator(
+   //    new DiffusionResIntegrator(one, &k, &psi_k));
+   // /// -\psi_k^T W j 
+   // Rk_mesh_sens.AddDomainIntegrator(
+   //    new VectorFEWeakDivergencedJdXIntegrator(&j, &psi_k, nullptr, -1.0));
+   // Rk_mesh_sens.Assemble();
 
-   /// Add integrators R_{\hat{j}} = \hat{j} - MGk - Mj = 0
-   ParLinearForm Rjhat_mesh_sens(mesh_fes);
-   ParGridFunction Gk(fes.get());
-   Gk = 0.0;
-   grad.Mult(k, Gk);
+   // /// Add integrators R_{\hat{j}} = \hat{j} - MGk - Mj = 0
+   // ParLinearForm Rjhat_mesh_sens(mesh_fes);
+   // ParGridFunction Gk(fes.get());
+   // Gk = 0.0;
+   // grad.Mult(k, Gk);
 
-   /// NOTE: Not using -1.0 here even though there are - signs in the residual
-   /// because we're using adj, not psi_j_hat, which would be -adj
-   Rjhat_mesh_sens.AddDomainIntegrator(
-      new VectorFEMassdJdXIntegerator(&Gk, &psi_a));
-   Rjhat_mesh_sens.AddDomainIntegrator(
-      new VectorFEMassdJdXIntegerator(&j, &psi_a));
-   Rjhat_mesh_sens.Assemble();
+   // /// NOTE: Not using -1.0 here even though there are - signs in the residual
+   // /// because we're using adj, not psi_j_hat, which would be -adj
+   // Rjhat_mesh_sens.AddDomainIntegrator(
+   //    new VectorFEMassdJdXIntegerator(&Gk, &psi_a));
+   // Rjhat_mesh_sens.AddDomainIntegrator(
+   //    new VectorFEMassdJdXIntegerator(&j, &psi_a));
+   // Rjhat_mesh_sens.Assemble();
 
-   /// add integrators R_j = Mj - J = 0
-   ParLinearForm Rj_mesh_sens(mesh_fes);
+   // /// add integrators R_j = Mj - J = 0
+   // ParLinearForm Rj_mesh_sens(mesh_fes);
 
-   Rj_mesh_sens.AddDomainIntegrator(
-      new VectorFEMassdJdXIntegerator(&j, &psi_j));
-   Rj_mesh_sens.AddDomainIntegrator(
-      new VectorFEDomainLFMeshSensInteg(&psi_j, *current_coeff, -1.0));
-   Rj_mesh_sens.Assemble();
+   // Rj_mesh_sens.AddDomainIntegrator(
+   //    new VectorFEMassdJdXIntegerator(&j, &psi_j));
+   // Rj_mesh_sens.AddDomainIntegrator(
+   //    new VectorFEDomainLFMeshSensInteg(&psi_j, *current_coeff, -1.0));
+   // Rj_mesh_sens.Assemble();
 
-   mesh_sens.Add(1.0, *Rk_mesh_sens.ParallelAssemble());
-   mesh_sens.Add(1.0, *Rjhat_mesh_sens.ParallelAssemble());
-   mesh_sens.Add(1.0, *Rj_mesh_sens.ParallelAssemble());   
+   // mesh_sens.Add(1.0, *Rk_mesh_sens.ParallelAssemble());
+   // mesh_sens.Add(1.0, *Rjhat_mesh_sens.ParallelAssemble());
+   // mesh_sens.Add(1.0, *Rj_mesh_sens.ParallelAssemble());   
 }
 
 Vector* MagnetostaticSolver::getResidual()
@@ -1952,24 +1976,24 @@ double MagnetostaticSolver::getFunctionalCurrentDensitySensitivity(const std::st
 
 void MagnetostaticSolver::assembleMagnetizationSource(void)
 {
-   M.reset(new GridFunType(h_div_space.get()));
+   // M.reset(new GridFunType(h_div_space.get()));
 
-   auto weakCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), fes.get());
-   weakCurlMuInv_->AddDomainIntegrator(new VectorFECurlIntegrator(*nu));
+   // auto weakCurlMuInv_ = new ParMixedBilinearForm(h_div_space.get(), fes.get());
+   // weakCurlMuInv_->AddDomainIntegrator(new VectorFECurlIntegrator(*nu));
 
-   weakCurlMuInv_->Assemble();
-   weakCurlMuInv_->Finalize();
+   // weakCurlMuInv_->Assemble();
+   // weakCurlMuInv_->Finalize();
 
-   M->ProjectCoefficient(*mag_coeff);
-   // weakCurlMuInv_->AddMult(*M, *old_load, -1.0);
+   // M->ProjectCoefficient(*mag_coeff);
+   // // weakCurlMuInv_->AddMult(*M, *old_load, -1.0);
 
-   delete weakCurlMuInv_;
+   // delete weakCurlMuInv_;
 }
 
 void MagnetostaticSolver::computeSecondaryFields(const ParGridFunction &state)
 {
    // *out << "before curl constructed\n";
-   DiscreteCurlOperator curl(fes.get(), h_div_space.get());
+   DiscreteCurlOperator curl(fes.get(), B->ParFESpace());
    // *out << "curl constructed\n";
    curl.Assemble();
    curl.Finalize();
@@ -2477,6 +2501,34 @@ void MagnetostaticSolver::zAxisCurrentSourceRevDiff(const Vector &x,
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
    z_axis_current<adouble>(current_density, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void MagnetostaticSolver::nzAxisCurrentSource(const Vector &x,
+                                              Vector &J)
+{
+   z_axis_current<double, -1>(current_density, x.GetData(), J.GetData());
+}
+
+void MagnetostaticSolver::nzAxisCurrentSourceRevDiff(const Vector &x,
+                                                     const Vector &V_bar,
+                                                     Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   z_axis_current<adouble, -1>(current_density, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());

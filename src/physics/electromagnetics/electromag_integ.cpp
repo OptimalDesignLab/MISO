@@ -25,7 +25,7 @@ double calcMagneticEnergy(
 {
    /// TODO: use a composite rule instead or find a way to just directly
    /// integrate B-H curve
-   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 40);
 
    /// compute int_0^{B} \nuB dB
    double en = 0.0;
@@ -47,7 +47,7 @@ double calcMagneticEnergyDot(
 {
    /// TODO: use a composite rule instead or find a way to just directly
    /// integrate B-H curve
-   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 40);
 
    /// compute int_0^{B} \nuB dB
    double en = 0.0;
