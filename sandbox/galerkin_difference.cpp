@@ -98,8 +98,6 @@ int main(int argc, char *argv[])
    //============== and check the simple l2 norm error ================================
       gd.GetProlongationMatrix()->Mult(x_cent, x);
       x -= x_exact;
-      // cout << "\nCheck the nodal error:\n";
-      // x.Print(cout, num_state);
       cout << "Check the projection l2 error: " << x.Norml2() << '\n';
    }
 

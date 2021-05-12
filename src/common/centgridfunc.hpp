@@ -17,12 +17,6 @@ public:
    
    CentGridFunction &operator=(const Vector &v);
    CentGridFunction &operator=(double value);
-
-   // mfem::HypreParVector *GetTrueDofs()
-   // {
-   //    mfem::HypreParVector *tv = new HypreParVector(comm,GlobalTrueVSize(),GetTrueDofOffsets()));
-   // }
-
 };
 
 } // end of namespace mfem

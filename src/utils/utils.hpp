@@ -160,6 +160,12 @@ void buildLSInterpolation(int dim, int degree,
                           const mfem::DenseMatrix &x_center,
                           const mfem::DenseMatrix &x_quad,
                           mfem::DenseMatrix &interp);
+
+/// build the radial basis function basis coefficient given the W matrix
+void buildRBFLSInterpolation(int dim,
+                             const mfem::DenseMatrix &x_center,
+                             const mfem::DenseMatrix &x_quad,
+                             mfem::DenseMatrix &interp);
 #endif
 
 } // namespace mach
