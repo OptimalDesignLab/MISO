@@ -1,0 +1,31 @@
+{
+   "GD":{
+      "degree": 2
+   },
+   "mesh": {
+      "file": "kernel-lev-1.mesh",
+      "refine": 0
+   },
+   "model-file": "tri32.dmg",
+   "pumi-mesh": {
+      "file": "tri32.smb"
+   },
+   "space-dis": {
+      "degree": 1,
+      "lps-coeff": 1.0,
+      "basis-type": "dsbp"
+   },
+   "time-dis": {
+      "ode-solver": "RK4", 
+      "dt": 0.047619047619047616,
+      "t-final": 1.0
+   },
+   "petscsolver": {
+      "ksptype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-15,
+      "reltol": 1e-15,
+      "maxiter": 100,
+      "printlevel": 0
+   }
+}
