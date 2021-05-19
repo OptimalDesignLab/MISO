@@ -73,26 +73,26 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f, int nb,
    cout << "dim = " << dim << endl;
    cout << "num_basis = " << num_basis << endl;
    cout << "span = " << span << '\n';
-   cout << "Basis centers are:\n";
-   for (int j = 0; j < num_basis; j++)
-   {
-      cout << j << ": ";
-      for (int i = 0; i < dim; i++)
-      {
-         cout << basis_center(i, j) << ' ';
-      }
-      cout << endl;
-   }
-   cout << "lam are:\n";
-   for (int j = 0; j < num_basis; j++)
-   {
-      cout << j << ": ";
-      for (int i = 0; i < shape_param; i++)
-      {
-         cout << lam(i, j) << ' ';
-      }
-      cout << endl;
-   }
+   // cout << "Basis centers are:\n";
+   // for (int j = 0; j < num_basis; j++)
+   // {
+   //    cout << j << ": ";
+   //    for (int i = 0; i < dim; i++)
+   //    {
+   //       cout << basis_center(i, j) << ' ';
+   //    }
+   //    cout << endl;
+   // }
+   // cout << "lam are:\n";
+   // for (int j = 0; j < num_basis; j++)
+   // {
+   //    cout << j << ": ";
+   //    for (int i = 0; i < shape_param; i++)
+   //    {
+   //       cout << lam(i, j) << ' ';
+   //    }
+   //    cout << endl;
+   //}
    BuildRBFProlongation();
 }
 
@@ -107,36 +107,36 @@ void RBFSpace::BuildRBFProlongation() const
    
    for (int i = 0; i < mesh->GetNE(); i++)
    {
-      cout << "Element " << i << ":\n";
+      //cout << "Element " << i << ":\n";
       // 1. Get the basis patch
       SelectElementBasis(i, basis_selected, basis_coord, lam_selected);
-      cout << "Effective basis id: ";
-      basis_selected.Print(cout, basis_selected.Size());
-      cout << "Basis coords: ";
-      basis_coord.Print(cout, basis_coord.Width());
+      // cout << "Effective basis id: ";
+      // basis_selected.Print(cout, basis_selected.Size());
+      // cout << "Basis coords:\n";
+      // basis_coord.Print(cout, basis_coord.Width());
 
       // 2. Get the elements' center matrix and quadrature points
       GetElementInterPoints(i, inter_points);
-      cout << "Quadrature points are: \n";
-      inter_points.Print(cout, inter_points.Width());
+      // cout << "Quadrature points are: \n";
+      // inter_points.Print(cout, inter_points.Width());
       
 
       // 3. Solve the basis coefficients
       buildRBFLSInterpolation(dim, basis_coord, inter_points,
                               lam_selected, local_prolong);
-      cout << "local prolongation built.\n";
+      //cout << "local prolongation built.\n";
 
       // 4. Assemble local_prolong back to global prolongation matrix
       AssembleProlongationMatrix(i, basis_selected, local_prolong);
-      cout<< "local prolongation matrix is:\n";
-      local_prolong.Print(cout, local_prolong.Width());
+      // cout<< "local prolongation matrix is:\n";
+      // local_prolong.Print(cout, local_prolong.Width());
    }  
    cP->Finalize();
    cP_is_set = true;
    cout << "RBF prolongation matrix size: " << cP->Height() << " x " << cP->Width() << '\n';
-   ofstream cp_save("rfb_prolongation.txt");
-   cP->PrintMatlab(cp_save);
-   cp_save.close();
+   // ofstream cp_save("rfb_prolongation.txt");
+   // cP->PrintMatlab(cp_save);
+   // cp_save.close();
 }
 
 void RBFSpace::SelectElementBasis(const int id, 

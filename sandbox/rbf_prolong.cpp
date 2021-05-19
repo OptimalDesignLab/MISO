@@ -36,10 +36,12 @@ int main(int argc, char *argv[])
    int nx = 4;
    int ny = 4;
    int o = 1;
+   double sp = 1.0;
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
    args.AddOption(&p, "-p", "--problem", "projection operator degree");
    args.AddOption(&o, "-o", "--order", "level of refinement");
+   args.AddOption(&sp, "-sp", "--span", "level of refinement");
    args.Parse();
    if (!args.Good())
    {
@@ -65,7 +67,7 @@ int main(int argc, char *argv[])
       cout << "Construct the RBF fespace.\n";
       int nel = mesh->GetNE();
       DSBPCollection fec(o, dim);
-      RBFSpace rbf(mesh.get(), &fec, nel, num_state, 1.0, Ordering::byVDIM);
+      RBFSpace rbf(mesh.get(), &fec, nel, num_state, sp, Ordering::byVDIM);
       FiniteElementSpace fes(mesh.get(), &fec, num_state, Ordering::byVDIM);
 
    //================== Construct the gridfunction and apply the exact solution =======
