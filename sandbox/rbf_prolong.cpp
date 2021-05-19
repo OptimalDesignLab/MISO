@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
       int dim;
       int degree = o+1; // annulus mesh degree, should be p+1
       unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      ofstream sol_ofs("gd_test.vtk");
+      ofstream sol_ofs("rbf_test.vtk");
       sol_ofs.precision(14);
       mesh->PrintVTK(sol_ofs, 0);
       sol_ofs.close();

@@ -33,13 +33,13 @@ public:
    /// \param[in/out] basis_coord - coordinates of selected basis
    /// \param[in/out] lam_selected - the selected lambda coefficient matrix
    void SelectElementBasis(const int id, mfem::Array<int> &basis_id,
-                           mfem::Array<mfem::Vector> &basis_coord,
-                           mfem::Array<mfem::Vector> &lam_selected) const;
+                           mfem::DenseMatrix &basis_coord,
+                           mfem::DenseMatrix &lam_selected) const;
 
    /// extract the element interpolation points
    /// \param[in] id - element id
    /// \param[in/out] inter_points - interpolation points on element id
-   void GetElementInterPoints(const int id, mfem::Array<mfem::Vector> &inter_points) const;
+   void GetElementInterPoints(const int id, DenseMatrix &inter_points) const;
 
    /// Assemble the local prolongation matrix back to the global matrix
    /// \param[in] id - element id
@@ -68,19 +68,19 @@ protected:
    /// number of Radial functions basis
    int num_basis;
 
+   int shape_param;
+
    /// Array that hold the basis centers
    //std::unique_ptr<mfem::Array<mfem::Vector>> basis_center;
-   mfem::Array<mfem::Vector> basis_center;
+   mfem::DenseMatrix basis_center;
 
    /// range that RBF span
    /// This could be an array that holding difference values
    double span;
 
    /// Shape parameter
-   mfem::Array<mfem::Vector> lam;
+   mfem::DenseMatrix lam;
    // std::unique_prt<mfem::Array<mfem::Vector>> lam;
-   
-   std::unique_ptr<mfem::Array<mfem::Vector>> a_test;
 };
 
 } // end of namespace mfem 

@@ -17,12 +17,7 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f, int nb,
 {
    dim = mesh->Dimension();
    num_basis = nb;
-   lam.SetSize(num_basis);
-   basis_center.SetSize(num_basis);
-   a_test.reset(new Array<Vector>(num_basis));
-   cout << "a_test size is " << a_test->Size();
 
-   int shape_param;
    if (1 == dim)
    {
       shape_param = 1;
@@ -36,33 +31,39 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f, int nb,
       shape_param = 6;
    }
 
+   lam.SetSize(shape_param, num_basis);
+   basis_center.SetSize(dim, num_basis);
+   lam = 0.0;
    // initialize the basis centers and span
    int geom;
    ElementTransformation *eltransf;
-   Vector diff;
+   Vector diff(dim), cent(dim);
    double h = 0.0;
+
    for (int i = 0; i < num_basis; i++)
    {
-      lam[i].SetSize(shape_param);
-      lam[i] = 0.0;
       switch (dim)
       {
-         case 1: lam[i](0) = 1.0; break;
-         case 2: lam[i](0) = 1.0; lam[i](2) = 1.0; break;
-         case 3: lam[i](0) = 1.0; lam[i](3) = 1.0; lam[i](5) = 1.0; break;
+         case 1: lam(0, i) = 1.0; break;
+         case 2: lam(0, i) = 1.0; lam(2, i) = 1.0; break;
+         case 3: lam(0, i) = 1.0; lam(3, i) = 1.0; lam(5, i) = 1.0; break;
          default: throw MachException("dim must be 1, 2 or 3.\n");
       }
       
       geom = mesh->GetElement(i)->GetGeometryType();
       eltransf = mesh->GetElementTransformation(i);
-      eltransf->Transform(Geometries.GetCenter(geom), basis_center[i]);
+      eltransf->Transform(Geometries.GetCenter(geom), cent);
 
-      if (i > 0)
+      diff = 0.0;
+      for (int k = 0; k < dim; k++)
       {
-         diff = basis_center[i];
-         diff -= basis_center[i-1];
-         h += sqrt(diff.Norml2());
+         basis_center(k, i) = cent(k);
+         if (i > 0)
+         {
+            diff(k) = basis_center(k, i) - basis_center(k, i-1);
+         }
       }
+      h += sqrt(diff.Norml2()); 
    }
 
    // for now we use an uniform span
@@ -71,21 +72,27 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f, int nb,
    cout << "RBF Space initilize complete, check data:\n";
    cout << "dim = " << dim << endl;
    cout << "num_basis = " << num_basis << endl;
-   cout << "span = " << span << '\n'; 
-   cout << "basis_center:\n";
-   for (int i = 0; i < num_basis; i++)
+   cout << "span = " << span << '\n';
+   cout << "Basis centers are:\n";
+   for (int j = 0; j < num_basis; j++)
    {
-      cout << i << ": ";
-      basis_center[i].Print(cout, dim);
+      cout << j << ": ";
+      for (int i = 0; i < dim; i++)
+      {
+         cout << basis_center(i, j) << ' ';
+      }
+      cout << endl;
    }
-   cout << "lams are:\n";
-   for (int i = 0; i < num_basis; i++)
+   cout << "lam are:\n";
+   for (int j = 0; j < num_basis; j++)
    {
-      cout << i << ": ";
-      lam[i].Print(cout, shape_param);
+      cout << j << ": ";
+      for (int i = 0; i < shape_param; i++)
+      {
+         cout << lam(i, j) << ' ';
+      }
+      cout << endl;
    }
-   
-
    BuildRBFProlongation();
 }
 
@@ -96,30 +103,34 @@ void RBFSpace::BuildRBFProlongation() const
    cout << "cp initialize size " << cP->Height() << " x " <<  cP->Width() << '\n';
    // loop over each element to construct the prolongation operator
    Array<int> basis_selected;
-   Array<Vector> basis_coord, inter_points;
-   Array<Vector> lam_selected;
-   DenseMatrix local_prolong;
+   DenseMatrix basis_coord, inter_points, lam_selected, local_prolong;
    
    for (int i = 0; i < mesh->GetNE(); i++)
    {
+      cout << "Element " << i << ":\n";
       // 1. Get the basis patch
       SelectElementBasis(i, basis_selected, basis_coord, lam_selected);
-      cout << "Element " << i << ":\n";
       cout << "Effective basis id: ";
       basis_selected.Print(cout, basis_selected.Size());
-      cout << "Selected lambda: ";
-      //lam_selected.Print(cout, lam_selected.Size());
+      cout << "Basis coords: ";
+      basis_coord.Print(cout, basis_coord.Width());
 
       // 2. Get the elements' center matrix and quadrature points
       GetElementInterPoints(i, inter_points);
+      cout << "Quadrature points are: \n";
+      inter_points.Print(cout, inter_points.Width());
       
 
       // 3. Solve the basis coefficients
-      buildRBFLSInterpolation(dim, basis_coord, inter_points, lam, local_prolong);
+      buildRBFLSInterpolation(dim, basis_coord, inter_points,
+                              lam_selected, local_prolong);
+      cout << "local prolongation built.\n";
 
       // 4. Assemble local_prolong back to global prolongation matrix
       AssembleProlongationMatrix(i, basis_selected, local_prolong);
-   }
+      cout<< "local prolongation matrix is:\n";
+      local_prolong.Print(cout, local_prolong.Width());
+   }  
    cP->Finalize();
    cP_is_set = true;
    cout << "RBF prolongation matrix size: " << cP->Height() << " x " << cP->Width() << '\n';
@@ -128,15 +139,14 @@ void RBFSpace::BuildRBFProlongation() const
    cp_save.close();
 }
 
-void RBFSpace::SelectElementBasis(const int id, Array<int> &basis_selected,
-                                  Array<Vector> &basis_coord,
-                                  Array<Vector> &lam_selected) const
+void RBFSpace::SelectElementBasis(const int id, 
+                                  Array<int> &basis_selected,
+                                  DenseMatrix &basis_coord,
+                                  DenseMatrix &lam_selected) const
 {
-   cout << "In selectelement basis: \n";
    basis_selected.LoseData();
-   basis_coord.LoseData();
-   lam_selected.LoseData();
-   cout << "data losed, size is " << basis_selected.Size() << basis_coord.Size() <<  '\n';
+   basis_coord.Clear();
+   lam_selected.Clear();
 
    // Get the element center coordinate
    Vector cent(dim), diff(dim);
@@ -148,40 +158,52 @@ void RBFSpace::SelectElementBasis(const int id, Array<int> &basis_selected,
    for (int j = 0; j < num_basis; j++)
    {
       // compute the distance
-      diff = cent;
-      diff -= basis_center[j];
+      for (int i = 0; i < dim; i++)
+      {
+         diff(i) = cent(i) - basis_center(i,j);
+      }
       dist = diff.Norml2();
-      cout << "distance is " << dist << '\n';
       if ( dist <= span)
       {
          basis_selected.Append(j);
-         cout << "basis_selected size is " << basis_selected.Size() << endl;
-         basis_coord.Append(basis_center[j]);
-         cout << "basis_coord size is " << basis_coord.Size() << endl;
-         // lam_selected.Append(lam[j]);
-         // cout << "lam_selected size is " << lam_selected.Size() << endl;
-         // cout << "append lam.\n";
       }
    }
-   cout << "size of variables: " << basis_selected.Size() << ' '
-        << basis_coord.Size() << endl;
+   basis_coord.SetSize(dim, basis_selected.Size());
+   lam_selected.SetSize(shape_param, basis_selected.Size());
+   int i;
+   for (int j = 0; j < basis_selected.Size(); j++)
+   {
+      for (i = 0; i < dim; i ++)
+      {
+         basis_coord(i,j) = basis_center(i, basis_selected[j]);
+      }
+      for (i = 0; i < shape_param; i++)
+      {
+         lam_selected(i,j) = lam(i, basis_selected[j]);
+      }
+   }
+
 }
 
-void RBFSpace::GetElementInterPoints(const int id, Array<Vector> &inter_points) const
+void RBFSpace::GetElementInterPoints(const int id, DenseMatrix &inter_points) const
 {
-   inter_points.LoseData();
+   inter_points.Clear();
 
    // assume the mesh only contains only 1 type of element
    const Element* el = mesh->GetElement(id);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
 
+   inter_points.SetSize(dim, num_dofs);
    Vector quad_coord(dim);
    ElementTransformation *eltransf = mesh->GetElementTransformation(id);;
-   for(int i = 0; i < num_dofs; i++)
+   for(int j = 0; j < num_dofs; j++)
    {
-      eltransf->Transform(fe->GetNodes().IntPoint(i), quad_coord);
-      inter_points.Append(quad_coord);
+      eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
+      for (int i = 0; i < dim; i++)
+      {
+         inter_points(i,j) = quad_coord(i);
+      }
    }
 }
 

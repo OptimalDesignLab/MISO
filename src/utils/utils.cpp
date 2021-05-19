@@ -413,14 +413,14 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
 }
 
 void buildRBFLSInterpolation(const int dim,
-                             const Array<Vector> &b_center,
-                             const Array<Vector> &x_quad,
-                             const Array<Vector> &lam,
+                             const DenseMatrix &b_center,
+                             const DenseMatrix &x_quad,
+                             const DenseMatrix &lam,
                              DenseMatrix &interp)
 {
    interp.Clear();
-   int num_basis = b_center.Size();
-   int num_quad = x_quad.Size();
+   int num_basis = b_center.Width();
+   int num_quad = x_quad.Width();
 
    // solve for VC + WD = I
    // 1. solve for VC = I, which is a overdetermined system
@@ -441,90 +441,114 @@ void buildRBFLSInterpolation(const int dim,
    dgels_(&TRANS, &num_basis, &num_col, &num_basis, V.GetData(), &num_basis,
           rhs1.GetData(), &num_basis, work, &lwork, &info);
    MFEM_ASSERT(info == 0, "Fail to solve the overdetermined system.\n");
-
+   DenseMatrix C(num_col, num_basis);
+   for (int j = 0; j < num_basis; j++)
+   {
+      C(1, j) = rhs1(1,j);
+   }
+   cout << "Got C.\n";
    // 2. Solve WD = I - VC
 
    // form W and I - V*C
+   V = 1.0;
    DenseMatrix rhs2(num_basis, num_basis);
    DenseMatrix W(num_basis, num_basis);
-   Vector basis_coord_i(dim), basis_coord_j(dim), diff(dim);
+   Vector diff(dim);
    double factor;
    for (int j = 0; j < num_basis; j++)
    {
-      basis_coord_j = b_center[j];
       rhs2(j,j) = 1.0;
       for (int i = 0; i < num_basis; i++ )
       {
-         basis_coord_i = b_center[i];
-         diff = basis_coord_i - basis_coord_j;
+         for (int d = 0; d < dim; d++)
+         {
+            diff(d) = b_center(d,i) - b_center(d,j);
+         }
          switch (dim)
          {
-            case 1: factor = - diff(0) * lam[j](0) * diff(0);
+            case 1: factor = - diff(0) * lam(0,j) * diff(0);
                     break;
-            case 2: factor = - (diff(0) * lam[j](0) * diff(0)
-                              + diff(0) * lam[j](1) * diff(1)
-                              + diff(1) * lam[j](1) * diff(0)
-                              + diff(1) * lam[j](2) * diff(1)); break;
-            case 3: factor = - (diff(0) * lam[j](0) * diff(0)
-                              + diff(0) * lam[j](1) * diff(1)
-                              + diff(0) * lam[j](2) * diff(2)
-                              + diff(1) * lam[j](1) * diff(0)
-                              + diff(1) * lam[j](3) * diff(1)
-                              + diff(1) * lam[j](4) * diff(2)
-                              + diff(2) * lam[j](2) * diff(0)
-                              + diff(2) * lam[j](4) * diff(1)
-                              + diff(2) * lam[j](5) * diff(2)); break;
+            case 2: factor = - (diff(0) * lam(0,j) * diff(0)
+                              + diff(0) * lam(1,j) * diff(1)
+                              + diff(1) * lam(1,j) * diff(0)
+                              + diff(1) * lam(2,j) * diff(1)); break;
+            case 3: factor = - (diff(0) * lam(0,j) * diff(0)
+                              + diff(0) * lam(1,j) * diff(1)
+                              + diff(0) * lam(2,j) * diff(2)
+                              + diff(1) * lam(1,j) * diff(0)
+                              + diff(1) * lam(3,j) * diff(1)
+                              + diff(1) * lam(4,j) * diff(2)
+                              + diff(2) * lam(2,j) * diff(0)
+                              + diff(2) * lam(4,j) * diff(1)
+                              + diff(2) * lam(5,j) * diff(2)); break;
             default: throw MachException("buildLSInterpolation: dim must be 3 or less.\n");
          }
          //factor = -lam[j].InnerProduct(diff.GetData(), diff.GetData());
          W(i,j) = exp(factor);
       }
    }
-   
-   AddMult_a(-1.0, V, rhs1, rhs2); // rhs2 = I - V*C
+   DenseMatrix temp(num_basis, num_basis);
+   Mult(V, C, temp);
+   rhs2 -= temp; // rhs2 = I - V*C
    double work2[lwork];
    dgels_(&TRANS, &num_basis, &num_basis, &num_basis, W.GetData(), &num_basis,
           rhs2.GetData(), &num_basis, work2, &lwork, &info);
    MFEM_ASSERT(info == 0, "Fail to solve the overdetermined system.\n");
+   cout << "Got D.\n";
+
 
    // 3. Get the RBF prolongation
    // form V_h and W_h
    interp.SetSize(num_quad, num_basis);
    DenseMatrix V_h(num_quad, 1), W_h(num_quad, num_basis);
    V_h = 1.0;
-   Mult(V_h, rhs1, interp); // phi = V_h * C
+   cout << "W_h size is " << W_h.Height() << W_h.Width() << '\n';
+   cout << "V_h size is " << V_h.Height() << V_h.Width() << '\n';
+   cout << "C size is " << C.Height() << C.Width() << '\n';
+   Mult(V_h, C, interp); // phi = V_h * C
    for (int j = 0; j < num_basis; j++)
    {
-      basis_coord_j = b_center[j];
       for (int i = 0; i < num_quad; i++)
       {
-         basis_coord_i = x_quad[i];
-         diff = basis_coord_i - basis_coord_j;
+         for (int d = 0; d < dim; d++)
+         {
+            diff(d) = x_quad(d,i) - b_center(d,j);
+         }
          switch (dim)
          {
-            case 1: factor = - diff(0) * lam[j](0) * diff(0);
+            case 1: factor = - diff(0) * lam(0,j) * diff(0);
                     break;
-            case 2: factor = - (diff(0) * lam[j](0) * diff(0)
-                              + diff(0) * lam[j](1) * diff(1)
-                              + diff(1) * lam[j](1) * diff(0)
-                              + diff(1) * lam[j](2) * diff(1)); break;
-            case 3: factor = - (diff(0) * lam[j](0) * diff(0)
-                              + diff(0) * lam[j](1) * diff(1)
-                              + diff(0) * lam[j](2) * diff(2)
-                              + diff(1) * lam[j](1) * diff(0)
-                              + diff(1) * lam[j](3) * diff(1)
-                              + diff(1) * lam[j](4) * diff(2)
-                              + diff(2) * lam[j](2) * diff(0)
-                              + diff(2) * lam[j](4) * diff(1)
-                              + diff(2) * lam[j](5) * diff(2)); break;
+            case 2: factor = - (diff(0) * lam(0,j) * diff(0)
+                              + diff(0) * lam(1,j) * diff(1)
+                              + diff(1) * lam(1,j) * diff(0)
+                              + diff(1) * lam(2,j) * diff(1)); break;
+            case 3: factor = - (diff(0) * lam(0,j) * diff(0)
+                              + diff(0) * lam(1,j) * diff(1)
+                              + diff(0) * lam(2,j) * diff(2)
+                              + diff(1) * lam(1,j) * diff(0)
+                              + diff(1) * lam(3,j) * diff(1)
+                              + diff(1) * lam(4,j) * diff(2)
+                              + diff(2) * lam(2,j) * diff(0)
+                              + diff(2) * lam(4,j) * diff(1)
+                              + diff(2) * lam(5,j) * diff(2)); break;
             default: throw MachException("buildLSInterpolation: dim must be 3 or less.\n");
          }
          //factor = -lam[j].InnerProduct(diff.GetData(), diff.GetData());
          W_h(i,j) = exp(factor);
       }
    }
-
-   AddMult(W_h, rhs2, interp); // phi += w_h * D
+   cout << "Get W_h and V_h.\n";
+   cout << "interp size " << interp.Height() << interp.Width()<<endl;
+   cout << "W_h size " << W_h.Height() << W_h.Width() << endl;
+   cout << "rhs2 size" << rhs2.Height() << rhs2.Width() << endl;
+   DenseMatrix rbf(num_quad, num_basis);
+   Mult(W_h, rhs2, rbf);
+   cout << "Get rbf basis:\n";
+   rbf.Print(cout, rbf.Width());
+   cout << "interp is:\n";
+   interp.Print(cout, interp.Width());
+   interp += rbf;
+   //AddMult(W_h, rhs2, interp); // phi += w_h * D
 }
 
 

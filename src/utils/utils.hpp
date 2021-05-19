@@ -168,9 +168,9 @@ void buildLSInterpolation(int dim, int degree,
 /// \param[in] lam - array of RBF shape matrix
 /// \param[in/out] interp - the local prolongation matrix
 void buildRBFLSInterpolation(const int dim,
-                             const mfem::Array<mfem::Vector> &x_center,
-                             const mfem::Array<mfem::Vector> &x_quad,
-                             const mfem::Array<mfem::Vector> &lam,
+                             const mfem::DenseMatrix &x_center,
+                             const mfem::DenseMatrix &x_quad,
+                             const mfem::DenseMatrix &lam,
                              mfem::DenseMatrix &interp);
 #endif
 
