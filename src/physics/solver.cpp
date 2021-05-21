@@ -1125,8 +1125,8 @@ namespace mach
       }
 
       auto residual = ParGridFunction(fes.get());
-      calcResidual(state, residual);
-      printFields("init", {&residual, &state}, {"Residual", "Solution"});
+      // calcResidual(state, residual);
+      // printFields("init", {&residual, &state}, {"Residual", "Solution"});
 
       double t_final = options["time-dis"]["t-final"].template get<double>();
       *out << "t_final is " << t_final << '\n';
@@ -1223,13 +1223,13 @@ namespace mach
       }
       terminalHook(ti, t, state);
       fes_GD->GetProlongationMatrix()->Mult(state, *u);
-      // Save the final solution. This output can be viewed later using GLVis:
-      // glvis -m unitGridTestMesh.msh -g adv-final.gf".
-      // {
-      //    ofstream osol("final.gf");
-      //    osol.precision(precision);
-      //    state.Save(osol);
-      // }
+      // write the solution to vtk file
+      ofstream sol_ofs("ellipse.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
+      u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      // printField("final", state, "Solution");
    }
 
    void AbstractSolver::solveSteadyAdjoint(const std::string &fun)

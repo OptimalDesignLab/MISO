@@ -36,6 +36,7 @@ ParGalerkinDifference::ParGalerkinDifference(mach::MeshType *pm, const FiniteEle
    fec = f;
    comm = _comm;
    BuildGDProlongation();
+   Build_Dof_TrueDof_Matrix();
 }
 
 void ParGalerkinDifference::Build_Dof_TrueDof_Matrix() const
@@ -47,6 +48,7 @@ void ParGalerkinDifference::Build_Dof_TrueDof_Matrix() const
    }
    HYPRE_Int row_size = cP->Height();
    HYPRE_Int col_size = cP->Width();
+   cout << " row_size " << row_size << endl;
    mat_row_idx = new HYPRE_Int[2];
    mat_col_idx = new HYPRE_Int[2];
    mat_row_idx[0] = 0;
@@ -65,6 +67,7 @@ HypreParMatrix *ParGalerkinDifference::Dof_TrueDof_Matrix() const
 {
    if (!P)
    {
+      cout << "P not there " << endl;
       Build_Dof_TrueDof_Matrix();
    }
    return P;

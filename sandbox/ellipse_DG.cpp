@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
         solver->solveForState();
         res_error = solver->calcResidualNorm();
         double drag = solver->calcOutput("drag");
-        double drag_err = abs(drag - (-1 / mach::euler::gamma));
+        double drag_err = abs(drag);
         l2_error = (static_cast<DGSolver<2, entvar> &>(*solver)
                         .calcConservativeVarsL2Error(uexact, 0));
         cout << "======================================================= " << endl;

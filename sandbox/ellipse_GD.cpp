@@ -64,7 +64,8 @@ int main(int argc, char *argv[])
     args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
     args.AddOption(&ref_levels, "-ref", "--refine",
                    "refine levels");
-
+    args.AddOption(&nc_ref, "-ncr", "--ncrefine",
+                   "refine levels");
     args.Parse();
     if (!args.Good())
     {
@@ -94,13 +95,50 @@ int main(int argc, char *argv[])
 
         /// dimension
         const int dim = mesh->Dimension();
-
+        /// find the elements to refine
+        for (int l = 0; l < nc_ref; ++l)
+        {
+            Array<int> marked_elements;
+            for (int k = 0; k < mesh->GetNBE(); ++k)
+            {
+                if (mesh->GetBdrAttribute(k) == 1)
+                {
+                    //cout << "bdr face: " <<  k << endl;
+                    FaceElementTransformations *trans;
+                    trans = mesh->GetBdrFaceTransformations(k);
+                    // cout << "bdr el: " << trans->Elem1No << endl;
+                    marked_elements.Append(trans->Elem1No);
+                }
+            }
+            mesh->GeneralRefinement(marked_elements, 1);
+        }
         for (int l = 0; l < ref_levels; l++)
         {
             mesh->UniformRefinement();
         }
-
         cout << "Number of elements after refinement " << mesh->GetNE() << '\n';
+        /// save the initial mesh
+        ofstream sol_ofs("ellipse_mesh.vtk");
+        sol_ofs.precision(14);
+        mesh->PrintVTK(sol_ofs, 1);
+        #if 0
+        Array<int> ordering;
+        ordering.SetSize(mesh->GetNE());
+        for (int i = 0; i < mesh->GetNE(); ++i)
+        {
+            ordering[i] = i;
+            if (i == 23210)
+            {
+                ordering[i] = 0;
+                ordering[0] = i;
+            }
+        }
+        mesh->ReorderElements(ordering, true);
+        // save the initial mesh
+        ofstream mesh_ofs("ellipse_mesh_reordered.vtk");
+        mesh_ofs.precision(14);
+        mesh->PrintVTK(mesh_ofs, 1);
+        #endif
         // out->precision(15);
         // construct the solver and set initial conditions
         auto solver = createSolver<DGDSolver<2, entvar>>(opt_file_name,
@@ -117,13 +155,13 @@ int main(int argc, char *argv[])
         solver->solveForState();
         res_error = solver->calcResidualNorm();
         double drag = solver->calcOutput("drag");
-        double drag_err = abs(drag - (-1 / mach::euler::gamma));
+        double lift = solver->calcOutput("lift");
         l2_error = (static_cast<DGDSolver<2, entvar> &>(*solver)
                         .calcConservativeVarsL2Error(uexact, 0));
         cout << "======================================================= " << endl;
-        *out << "|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-        *out << "Drag is = " << drag << endl;
-        *out << "Drag error = " << drag_err << endl;
+        // *out << "|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+        *out << "Drag: " << drag << endl;
+        *out << "Lift: " << lift << endl;
         cout << "======================================================= " << endl;
     }
     catch (MachException &exception)
@@ -166,15 +204,17 @@ void uexact(const Vector &x, Vector &q)
 {
     q.SetSize(4);
     double mach_fs = 0.5;
+    double aoa = 0.0;
+    double aoa_fs = aoa * M_PI / 180;
     q(0) = 1.0;
-    q(1) = q(0) * mach_fs; // ignore angle of attack
-    q(2) = 0.0;
+    q(1) = q(0) * mach_fs * cos(aoa_fs);
+    q(2) = q(0) * mach_fs * sin(aoa_fs);
     q(3) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {
-    int ref_levels = 6;
+    int ref_levels = 3;
     const char *mesh_file = "periodic_rectangle_2.mesh";
     //const char *mesh_file = "periodic_rectangle_tri.mesh";
     auto mesh_ptr = unique_ptr<Mesh>(new Mesh(mesh_file, 1, 1));

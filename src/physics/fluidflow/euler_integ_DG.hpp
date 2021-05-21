@@ -913,7 +913,7 @@ namespace mach
                 trans.Elem1->Transform(el_ip, x);
                 el_bnd.CalcShape(el_ip, shape);
                 u.MultTranspose(shape, u_face);
-                // get the normal vector, and then add contribution to function
+                /// get the normal vector, and then add contribution to function
                 trans.Face->SetIntPoint(&face_ip);
                 CalcOrtho(trans.Face->Jacobian(), nrm);
                 fun += calcBndryFun(x, nrm, u_face) * face_ip.weight * alpha;

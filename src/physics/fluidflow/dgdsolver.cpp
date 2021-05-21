@@ -212,7 +212,7 @@ namespace mach
             }
             lift_dir *= 1.0 / pow(mach_fs, 2.0); // to get non-dimensional Cl
             output.at("lift").AddBdrFaceIntegrator(
-                new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+                new DG_PressureForce<dim, entvar>(lift_dir, num_state, 1.0),
                 output_bndry_marker[idx]);
             idx++;
         }
