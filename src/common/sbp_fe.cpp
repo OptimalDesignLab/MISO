@@ -1016,6 +1016,7 @@ const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
 SBPCollection::~SBPCollection()
 {
    delete [] SegDofOrd[0];
+   delete [] SegDofOrd[1];
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       delete SBPElements[g];
@@ -1156,6 +1157,7 @@ const int *DSBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
 DSBPCollection::~DSBPCollection()
 {
    delete [] SegDofOrd[0];
+   delete [] SegDofOrd[1];
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       delete DSBPElements[g];
