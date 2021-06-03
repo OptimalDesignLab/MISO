@@ -2581,10 +2581,10 @@ double ForceIntegrator::GetElementEnergy(
    ElementTransformation &trans,
    const Vector &elfun)
 {
-   if (attrs.count(trans.Attribute) == 1)
-   {
-      return 0.0;
-   }
+   // if (attrs.count(trans.Attribute) == 1)
+   // {
+   //    return 0.0;
+   // }
    /// get the proper element, transformation, and v vector
    Array<int> vdofs; Vector vfun; 
    int element = trans.ElementNo;
@@ -2592,10 +2592,10 @@ double ForceIntegrator::GetElementEnergy(
    v.FESpace()->GetElementVDofs(element, vdofs);
    v.GetSubVector(vdofs, vfun);
    DenseMatrix dXds(vfun.GetData(), v_el.GetDof(), v_el.GetDim());
-   if (vfun.Normlinf() < 1e-14)
-   {
-      return 0.0;
-   }
+   // if (vfun.Normlinf() < 1e-14)
+   // {
+   //    return 0.0;
+   // }
    /// number of degrees of freedom
    int ndof = el.GetDof();
    int dim = el.GetDim();

@@ -18,14 +18,20 @@ void setInputs(CurrentLoad &load,
       if (input.first == "current-density")
       {
          load.current_density = input.second.getValue();
+         load.dirty = true;
       }
       else if (input.first == "fill-factor")
       {
          load.fill_factor = input.second.getValue();
+         load.dirty = true;
+      }
+      else if (input.first == "mesh-coords")
+      {
+         load.nd_mass.Update();
+         load.dirty = true;
       }
    }
-   load.nd_mass.Update();
-   load.dirty = true;
+   load.current.SetAConst(load.current_density * load.fill_factor);
 }
 
 void addLoad(CurrentLoad &load,
@@ -33,21 +39,20 @@ void addLoad(CurrentLoad &load,
 {
    if (load.dirty)
    {
-      load.dirty = false;
       load.assembleLoad();
+      load.dirty = false;
    }
-   const auto effective_cd = load.current_density * load.fill_factor;
-   add(tv, -effective_cd, load.load, tv);
+   subtract(tv, load.load, tv);
 }
 
 CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
                          VectorCoefficient &current_coeff)
-   : fes(pfes), h1_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
+   : current_density(1.0), fill_factor(1.0), current(1.0, current_coeff),
+   fes(pfes), h1_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    h1_fes(fes.GetParMesh(), &h1_coll),
    rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()), 
-   rt_fes(fes.GetParMesh(), &rt_coll), current_density(1.0), fill_factor(1.0),
-   load(&fes), scratch(&fes), nd_mass(&fes), J(&fes), j(&fes),
-   div_free_current_vec(&fes),
+   rt_fes(fes.GetParMesh(), &rt_coll), nd_mass(&fes), J(&fes), j(&fes),
+   div_free_current_vec(&fes), scratch(&fes), load(&fes), 
    div_free_proj(h1_fes, fes, h1_fes.GetElementTransformation(0)->OrderW()
                                  + 2 * fes.GetFE(0)->GetOrder(),
                  NULL, NULL, NULL), dirty(true)
@@ -55,10 +60,7 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
 
-   J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(current_coeff));
-
-   // project current_coeff as initial guess for iterative solve
-   j.ProjectCoefficient(current_coeff);
+   J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(current));
 }
 
 void CurrentLoad::assembleLoad()
@@ -70,6 +72,21 @@ void CurrentLoad::assembleLoad()
    // assemble linear form
    J.Assemble();
 
+   // project current coeff as initial guess for iterative solve
+   j.ProjectCoefficient(current);
+   std::cout << "j load: " << j.Norml2() << "\n";
+
+   // {
+   //    ParaViewDataCollection paraview_dc("current_raw", j.FESpace()->GetMesh());
+   //    paraview_dc.SetPrefixPath("ParaView");
+   //    paraview_dc.SetLevelsOfDetail(fes.GetElementOrder(0));
+   //    paraview_dc.SetCycle(0);
+   //    paraview_dc.SetDataFormat(VTKFormat::BINARY);
+   //    paraview_dc.SetHighOrderOutput(true);
+   //    paraview_dc.SetTime(0.0); // set the time
+   //    paraview_dc.RegisterField("CurrentDensity", &j);
+   //    paraview_dc.Save();
+   // }
 
    HypreParMatrix M;
    Vector X, RHS;
@@ -89,26 +106,56 @@ void CurrentLoad::assembleLoad()
    nd_mass.RecoverFEMSolution(X, J, j);
 
    /// Compute the discretely divergence-free portion of j
-   ParGridFunction div_free_current_vec(&fes);
+   // ParGridFunction div_free_current_vec(&fes);
+   div_free_current_vec = 0.0;
    div_free_proj.Mult(j, div_free_current_vec);
 
-   std::cout << "div free norm new load: " << div_free_current_vec.Norml2() << "\n\n";
-   // 15. Save data in the ParaView format
-   ParaViewDataCollection paraview_dc("current", div_free_current_vec.FESpace()->GetMesh());
-   paraview_dc.SetPrefixPath("ParaView");
-   paraview_dc.SetLevelsOfDetail(1);
-   paraview_dc.SetCycle(0);
-   paraview_dc.SetDataFormat(VTKFormat::BINARY);
-   paraview_dc.SetHighOrderOutput(true);
-   paraview_dc.SetTime(0.0); // set the time
-   paraview_dc.RegisterField("current",&div_free_current_vec);
-   paraview_dc.Save();
+   std::cout << "div free norm new load: " << div_free_current_vec.Norml2() << "\n";
+   
+   /// Save divergence free current in the ParaView format
+   // ParaViewDataCollection paraview_dc("current", div_free_current_vec.FESpace()->GetMesh());
+   // paraview_dc.SetPrefixPath("ParaView");
+   // paraview_dc.SetLevelsOfDetail(fes.GetElementOrder(0));
+   // paraview_dc.SetCycle(0);
+   // paraview_dc.SetDataFormat(VTKFormat::BINARY);
+   // paraview_dc.SetHighOrderOutput(true);
+   // paraview_dc.SetTime(0.0); // set the time
+   // paraview_dc.RegisterField("CurrentDensity",&div_free_current_vec);
+   // paraview_dc.Save();
 
-   /// get the div_free_current_vec's true dofs
-   div_free_current_vec.ParallelAssemble(scratch);
+   /// Compute the dual of div_free_current_vec
+   // div_free_current_vec.ParallelAssemble(scratch);
+   // M.Mult(scratch, load);
 
-   /// integrate the divergence free current vec
-   M.Mult(scratch, load);
+   /// Compute the dual of div_free_current_vec
+   nd_mass.Assemble();
+   nd_mass.Finalize();
+   {
+      ParGridFunction test(&fes);
+      test = 1.0;
+      scratch = 0.0;
+      nd_mass.AddMult(test, scratch);
+      std::cout << "one's norm: " << scratch.Norml2() << "\n\n";
+   }
+   scratch = 0.0;
+   nd_mass.AddMult(div_free_current_vec, scratch);
+   // {
+   //    /// Save divergence free current in the ParaView format
+   //    ParaViewDataCollection paraview_dc("scratch", scratch.FESpace()->GetMesh());
+   //    paraview_dc.SetPrefixPath("ParaView");
+   //    paraview_dc.SetLevelsOfDetail(fes.GetElementOrder(0));
+   //    paraview_dc.SetCycle(0);
+   //    paraview_dc.SetDataFormat(VTKFormat::BINARY);
+   //    paraview_dc.SetHighOrderOutput(true);
+   //    paraview_dc.SetTime(0.0); // set the time
+   //    paraview_dc.RegisterField("CurrentDensity",&scratch);
+   //    paraview_dc.Save();
+   // }   
+   std::cout << "scratch norm: " << scratch.Norml2() << "\n\n";
+   scratch.GetTrueDofs(load);
+
+   std::cout << "load norm: " << load.Norml2() << "\n\n";
+
 }
 
 

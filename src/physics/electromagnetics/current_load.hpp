@@ -26,21 +26,25 @@ public:
                mfem::VectorCoefficient &current_coeff);
 
 private:
+   double current_density;
+   double fill_factor;
+   /// Coefficient to represent current_density*fill_factor*current_coeff
+   mfem::ScalarVectorProductCoefficient current;
+   /// Finite element spaces and collections needed for divergence cleaning
    mfem::ParFiniteElementSpace &fes;
    mfem::H1_FECollection h1_coll;
    mfem::ParFiniteElementSpace h1_fes;
    mfem::RT_FECollection rt_coll;
    mfem::ParFiniteElementSpace rt_fes;
    
-   double current_density;
-   double fill_factor;
-   mfem::HypreParVector load;
-   mfem::HypreParVector scratch;
-
    mfem::ParBilinearForm nd_mass;
    mfem::ParLinearForm J;
    mfem::ParGridFunction j;
    mfem::ParGridFunction div_free_current_vec;
+   mfem::ParGridFunction scratch;
+   // mfem::HypreParVector scratch;
+   mfem::HypreParVector load;
+
    mfem::common::DivergenceFreeProjector div_free_proj;
 
    /// flag to know if the load vector should be reassembled

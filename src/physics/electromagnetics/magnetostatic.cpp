@@ -94,8 +94,8 @@ constructReluctivityCoeff(nlohmann::json &component, nlohmann::json &materials)
 // }
 
 template <typename xdouble = double>
-void phase_a_current(const xdouble &current_density,
-                     const xdouble &fill_factor,
+void phase_a_current(const xdouble &n_slots,
+                     const xdouble &stack_length,
                      const xdouble *x,
                      xdouble *J)
 {
@@ -103,17 +103,12 @@ void phase_a_current(const xdouble &current_density,
    J[1] = 0.0;
    J[2] = 0.0;
 
-   // example of needed geometric parameters, this should be all you need
-   xdouble n_s = 6; // number of slots
-   // xdouble zb = -0.03450/2; // bottom of stator
-   // xdouble zt = 0.03450/2; // top of stator
-   xdouble zb = -0.002/2; // bottom of stator
-   xdouble zt = 0.002/2; // top of stator
-
+   xdouble zb = -stack_length / 2;  // bottom of stator
+   xdouble zt = stack_length / 2; // top of stator
 
    // compute theta from x and y
    xdouble tha = atan2(x[1], x[0]);
-   xdouble thw = 2 * M_PI / n_s; //total angle of slot
+   xdouble thw = 2 * M_PI / n_slots; // total angle of slot
 
    // check which winding we're in
    xdouble w = round(tha/thw); // current slot
@@ -159,14 +154,18 @@ void phase_a_current(const xdouble &current_density,
       J[1] /= norm_J;
       J[2] /= norm_J;
    }
-   J[0] *= current_density * fill_factor;
-   J[1] *= current_density * fill_factor;
-   J[2] *= current_density * fill_factor;
+   J[0] *= -1.0;
+   J[1] *= -1.0;
+   J[2] *= -1.0;
+
+   auto jmag = sqrt(J[0]*J[0] + J[1]*J[1] + J[2]*J[2]);
+   if (abs(jmag - 1.0) >= 1e-14)
+      std::cout << "J mag: " << sqrt(J[0]*J[0] + J[1]*J[1] + J[2]*J[2]) << "\n";
 }
 
 template <typename xdouble = double>
-void phase_b_current(const xdouble &current_density,
-                     const xdouble &fill_factor,
+void phase_b_current(const xdouble &n_slots,
+                     const xdouble &stack_length,
                      const xdouble *x,
                      xdouble *J)
 {
@@ -174,17 +173,12 @@ void phase_b_current(const xdouble &current_density,
    J[1] = 0.0;
    J[2] = 0.0;
 
-   // example of needed geometric parameters, this should be all you need
-   xdouble n_s = 6; // number of slots
-   // xdouble zb = -0.03450/2; // bottom of stator
-   // xdouble zt = 0.03450/2; // top of stator
-   xdouble zb = -0.002/2; // bottom of stator
-   xdouble zt = 0.002/2; // top of stator
-
+   xdouble zb = -stack_length / 2;  // bottom of stator
+   xdouble zt = stack_length / 2; // top of stator
 
    // compute theta from x and y
    xdouble tha = atan2(x[1], x[0]);
-   xdouble thw = 2 * M_PI / n_s; // total angle of slot
+   xdouble thw = 2 * M_PI / n_slots; // total angle of slot
 
    // check which winding we're in
    xdouble w = round(tha/thw); // current slot
@@ -230,14 +224,11 @@ void phase_b_current(const xdouble &current_density,
       J[1] /= norm_J;
       J[2] /= norm_J;
    }
-   J[0] *= -current_density * fill_factor;
-   J[1] *= -current_density * fill_factor;
-   J[2] *= -current_density * fill_factor;
 }
 
 template <typename xdouble = double>
-void phase_c_current(const xdouble &current_density,
-                     const xdouble &fill_factor,
+void phase_c_current(const xdouble &n_slots,
+                     const xdouble &stack_length,
                      const xdouble *x,
                      xdouble *J)
 {
@@ -302,40 +293,38 @@ void ccw_magnetization(const xdouble& remnant_flux,
    M[2] = 0.0;
 }
 
-template <typename xdouble = double>
-void x_axis_current(const xdouble &current_density,
-                    const xdouble *x,
+template <typename xdouble = double,
+          int sign = 1>
+void x_axis_current(const xdouble *x,
                     xdouble *J)
 {
-   J[0] = current_density;
+   J[0] = sign;
    J[1] = 0.0;
-   J[2] = 0.0;
-}
-
-template <typename xdouble = double>
-void y_axis_current(const xdouble &current_density,
-                    const xdouble *x,
-                    xdouble *J)
-{
-   J[0] = 0.0;
-   J[1] = current_density;
    J[2] = 0.0;
 }
 
 template <typename xdouble = double,
           int sign = 1>
-void z_axis_current(const xdouble &current_density,
-                    const xdouble *x,
+void y_axis_current(const xdouble *x,
+                    xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = sign;
+   J[2] = 0.0;
+}
+
+template <typename xdouble = double,
+          int sign = 1>
+void z_axis_current(const xdouble *x,
                     xdouble *J)
 {
    J[0] = 0.0;
    J[1] = 0.0;
-   J[2] = sign * current_density;
+   J[2] = sign;
 }
 
 template <typename xdouble = double>
-void ring_current(const xdouble &current_density,
-                  const xdouble *x,
+void ring_current(const xdouble *x,
                   xdouble *J)
 {
    for (int i = 0; i < 3; ++i)
@@ -348,8 +337,8 @@ void ring_current(const xdouble &current_density,
    xdouble norm_r = sqrt(r[0]*r[0] + r[1]*r[1]);
    r[0] /= norm_r;
    r[1] /= norm_r;
-   J[0] = -r[1] * current_density;
-   J[1] = r[0] * current_density;
+   J[0] = -r[1];
+   J[1] = r[0];
 }
 
 template <typename xdouble = double>
@@ -383,8 +372,7 @@ void z_axis_magnetization(const xdouble& remnant_flux,
 }
 
 template <typename xdouble = double>
-void box1_current(const xdouble &current_density,
-                  const xdouble *x,
+void box1_current(const xdouble *x,
                   xdouble *J)
 {
    for (int i = 0; i < 3; ++i)
@@ -395,13 +383,12 @@ void box1_current(const xdouble &current_density,
 	xdouble y = x[1] - .5;
 
    // J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   J[2] = -current_density*6*y;
+   J[2] = -6*y;
 
 }
 
 template <typename xdouble = double>
-void box2_current(const xdouble &current_density,
-                  const xdouble *x,
+void box2_current(const xdouble *x,
                   xdouble *J)
 {
    for (int i = 0; i < 3; ++i)
@@ -412,7 +399,7 @@ void box2_current(const xdouble &current_density,
 	xdouble y = x[1] - .5;
 
    // J[2] = current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
-   J[2] = current_density*6*y;
+   J[2] = 6*y;
 }
 
 /// function to get the sign of a number
@@ -423,8 +410,7 @@ int sgn(T val)
 }
 
 template <typename xdouble = double>
-void team13_current(const xdouble &current_density,
-                    const xdouble *X,
+void team13_current(const xdouble *X,
                     xdouble *J)
 {
    for (int i = 0; i < 3; ++i)
@@ -465,8 +451,8 @@ void team13_current(const xdouble &current_density,
 
    auto norm = sqrt(J[0]*J[0] + J[1]*J[1]);
 
-   J[0] *= current_density / norm;
-   J[1] *= current_density / norm;
+   J[0] /= norm;
+   J[1] /= norm;
 }
 
 // void func(const mfem::Vector &x, mfem::Vector &y)
@@ -2232,7 +2218,7 @@ void MagnetostaticSolver::computeSecondaryFields(const ParGridFunction &state)
 void MagnetostaticSolver::phaseACurrentSource(const Vector &x,
                                              Vector &J)
 {
-   phase_a_current(current_density, fill_factor, x.GetData(), J.GetData());
+   phase_a_current(24.0, 0.03450, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::phaseACurrentSourceRevDiff(const Vector &x,
@@ -2248,7 +2234,7 @@ void MagnetostaticSolver::phaseACurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   phase_a_current<adouble>(current_density, fill_factor, x_a.data(), J_a.data());
+   phase_a_current<adouble>(24.0, 0.03450, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2260,7 +2246,7 @@ void MagnetostaticSolver::phaseACurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::phaseBCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   phase_b_current(current_density, fill_factor, x.GetData(), J.GetData());
+   phase_b_current(24.0, 0.03450, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::phaseBCurrentSourceRevDiff(const Vector &x,
@@ -2276,7 +2262,7 @@ void MagnetostaticSolver::phaseBCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   phase_b_current<adouble>(current_density, fill_factor, x_a.data(), J_a.data());
+   phase_b_current<adouble>(24.0, 0.03450, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2288,7 +2274,7 @@ void MagnetostaticSolver::phaseBCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::phaseCCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   phase_c_current(current_density, fill_factor, x.GetData(), J.GetData());
+   phase_c_current(24.0, 0.03450, x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::phaseCCurrentSourceRevDiff(const Vector &x,
@@ -2304,7 +2290,7 @@ void MagnetostaticSolver::phaseCCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   phase_c_current<adouble>(current_density, fill_factor, x_a.data(), J_a.data());
+   phase_c_current<adouble>(24.0, 0.03450, x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2428,7 +2414,7 @@ void MagnetostaticSolver::ccwMagnetizationSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::xAxisCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   x_axis_current(current_density, x.GetData(), J.GetData());
+   x_axis_current(x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::xAxisCurrentSourceRevDiff(const Vector &x,
@@ -2444,7 +2430,7 @@ void MagnetostaticSolver::xAxisCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   x_axis_current<adouble>(current_density, x_a.data(), J_a.data());
+   x_axis_current<adouble>(x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2456,7 +2442,7 @@ void MagnetostaticSolver::xAxisCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::yAxisCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   y_axis_current(current_density, x.GetData(), J.GetData());
+   y_axis_current(x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::yAxisCurrentSourceRevDiff(const Vector &x,
@@ -2472,7 +2458,7 @@ void MagnetostaticSolver::yAxisCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   y_axis_current<adouble>(current_density, x_a.data(), J_a.data());
+   y_axis_current<adouble>(x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2484,7 +2470,7 @@ void MagnetostaticSolver::yAxisCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::zAxisCurrentSource(const Vector &x,
                                              Vector &J)
 {
-   z_axis_current(current_density, x.GetData(), J.GetData());
+   z_axis_current(x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::zAxisCurrentSourceRevDiff(const Vector &x,
@@ -2500,7 +2486,7 @@ void MagnetostaticSolver::zAxisCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   z_axis_current<adouble>(current_density, x_a.data(), J_a.data());
+   z_axis_current<adouble>(x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2512,7 +2498,7 @@ void MagnetostaticSolver::zAxisCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::nzAxisCurrentSource(const Vector &x,
                                               Vector &J)
 {
-   z_axis_current<double, -1>(current_density, x.GetData(), J.GetData());
+   z_axis_current<double, -1>(x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::nzAxisCurrentSourceRevDiff(const Vector &x,
@@ -2528,7 +2514,7 @@ void MagnetostaticSolver::nzAxisCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   z_axis_current<adouble, -1>(current_density, x_a.data(), J_a.data());
+   z_axis_current<adouble, -1>(x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2540,7 +2526,7 @@ void MagnetostaticSolver::nzAxisCurrentSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::ringCurrentSource(const Vector &x,
                                             Vector &J)
 {
-   ring_current(current_density, x.GetData(), J.GetData());
+   ring_current(x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::ringCurrentSourceRevDiff(const Vector &x,
@@ -2556,7 +2542,7 @@ void MagnetostaticSolver::ringCurrentSourceRevDiff(const Vector &x,
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   ring_current<adouble>(current_density, x_a.data(), J_a.data());
+   ring_current<adouble>(x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2652,7 +2638,7 @@ void MagnetostaticSolver::zAxisMagnetizationSourceRevDiff(const Vector &x,
 void MagnetostaticSolver::box1CurrentSource(const Vector &x,
                                             Vector &J)
 {
-   box1_current(current_density, x.GetData(), J.GetData());
+   box1_current(x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::box1CurrentSourceRevDiff(
@@ -2669,7 +2655,7 @@ void MagnetostaticSolver::box1CurrentSourceRevDiff(
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   box1_current<adouble>(current_density, x_a.data(), J_a.data());
+   box1_current<adouble>(x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2681,7 +2667,7 @@ void MagnetostaticSolver::box1CurrentSourceRevDiff(
 void MagnetostaticSolver::box2CurrentSource(const Vector &x,
                                       Vector &J)
 {
-   box2_current(current_density, x.GetData(), J.GetData());
+   box2_current(x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::box2CurrentSourceRevDiff(
@@ -2698,7 +2684,7 @@ void MagnetostaticSolver::box2CurrentSourceRevDiff(
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   box2_current<adouble>(current_density, x_a.data(), J_a.data());
+   box2_current<adouble>(x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
@@ -2710,7 +2696,7 @@ void MagnetostaticSolver::box2CurrentSourceRevDiff(
 void MagnetostaticSolver::team13CurrentSource(const Vector &x,
                                       Vector &J)
 {
-   team13_current(current_density, x.GetData(), J.GetData());
+   team13_current(x.GetData(), J.GetData());
 }
 
 void MagnetostaticSolver::team13CurrentSourceRevDiff(
@@ -2727,7 +2713,7 @@ void MagnetostaticSolver::team13CurrentSourceRevDiff(
    diff_stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> J_a(x.Size());
-   team13_current<adouble>(current_density, x_a.data(), J_a.data());
+   team13_current<adouble>(x_a.data(), J_a.data());
    // set the independent and dependent variable
    diff_stack.independent(x_a.data(), x.Size());
    diff_stack.dependent(J_a.data(), x.Size());
