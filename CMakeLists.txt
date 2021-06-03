@@ -14,6 +14,8 @@ endif (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 set(CMAKE_MODULE_PATH
    ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
+include(sanitizers)
+
 ### correctly handle rpath when installing
 ### From: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
 # use, i.e. don't skip the full RPATH for the build tree
