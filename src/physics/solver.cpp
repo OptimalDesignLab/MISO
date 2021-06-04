@@ -232,8 +232,9 @@ void AbstractSolver::initDerived()
    u.reset(new GridFunType(fes.get()));
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
    
-   /// initialize scratch work vector
+   /// initialize scratch work vectors
    scratch.reset(new ParGridFunction(fes.get()));
+   scratch_tv.reset(new HypreParVector(fes.get()));
 
    double alpha = 1.0;
 
@@ -801,11 +802,12 @@ double AbstractSolver::calcL2Error(
 
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
-   GridFunType r(fes.get());
-   calcResidual(state, r);
-   HypreParVector *r_true = r.GetTrueDofs();
-   return std::sqrt(InnerProduct(comm, *r_true, *r_true));
-   // return std::sqrt(calcInnerProduct(r, r));
+   MachInputs inputs {
+      {"state", state.GetTrueVector().GetData()}
+   };
+
+   calcResidual(inputs, *scratch_tv);
+   return std::sqrt(InnerProduct(comm, *scratch_tv, *scratch_tv));
 }
 
 // std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
@@ -881,7 +883,7 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
 }
 
 void AbstractSolver::calcResidual(const MachInputs &inputs,
-                                  double *res_buffer)
+                                  double *res_buffer) const
 {
    HypreParVector residual(fes->GetComm(),
                            fes->GlobalTrueVSize(),
@@ -891,7 +893,7 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
 }
 
 void AbstractSolver::calcResidual(const MachInputs &inputs,
-                                  HypreParVector &residual)
+                                  HypreParVector &residual) const
 {
    // setInputs(*res, inputs); // once I've added MachNonlinearForm
 
@@ -1162,6 +1164,7 @@ void AbstractSolver::removeInternalBoundaries()
 void AbstractSolver::setUpExternalFields()
 {
    res_fields.emplace("state", fes.get());
+   res_fields.emplace("residual", fes.get());
 
    if (options.contains("external-fields"))
    {
@@ -1430,9 +1433,9 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    std::cout.precision(16);
    std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
-   auto residual = ParGridFunction(fes.get());
+   auto &residual = res_fields.at("residual");
    calcResidual(state, residual);
-   printFields("init", {&residual, &state}, {"Residual", "Solution"});
+   // printFields("init", {&residual, &state}, {"Residual", "Solution"});
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';

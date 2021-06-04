@@ -422,14 +422,14 @@ public:
    ///                     evaluating residual
    /// \param[out] residual - the residual
    void calcResidual(const MachInputs &inputs,
-                     double *residual);
+                     double *residual) const;
 
    /// Compute the residual based on inputs and store the it in `residual`
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating residual
    /// \param[out] residual - the residual
    void calcResidual(const MachInputs &inputs,
-                     mfem::HypreParVector &residual);
+                     mfem::HypreParVector &residual) const;
    
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
@@ -554,6 +554,8 @@ protected:
    SpaceType *mesh_fes;
    /// state sized work vector
    std::unique_ptr<mfem::ParGridFunction> scratch;
+   /// state tdof sized work vector
+   mutable std::unique_ptr<mfem::HypreParVector> scratch_tv;
    /// state variable
    std::unique_ptr<GridFunType> u;
    /// initial state variable
