@@ -669,6 +669,7 @@ void ThermalSolver::addResVolumeIntegrators(double alpha)
 
 void ThermalSolver::addResBoundaryIntegrators(double alpha)
 {
+#ifdef MFEM_USE_PUMI
    if (convection)
    {
       auto &bcs = options["bcs"];
@@ -692,6 +693,7 @@ void ThermalSolver::addResBoundaryIntegrators(double alpha)
                                           pumi_mesh.get()));
       
    }
+#endif
 }
 
 void ThermalSolver::addLoadVolumeIntegrators(double alpha)

@@ -1,6 +1,7 @@
 #ifndef MACH_THERM_INTEG
 #define MACH_THERM_INTEG
 
+#ifdef MFEM_USE_PUMI
 #include <unordered_set>
 
 #include "mfem.hpp"
@@ -47,5 +48,7 @@ public:
 };
 
 } // namespace mach
+
+#endif
 
 #endif

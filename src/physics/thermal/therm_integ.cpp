@@ -1,3 +1,5 @@
+#ifdef MFEM_USE_PUMI
+
 #include "apfMDS.h"
 #include "mfem.hpp"
 
@@ -252,3 +254,5 @@ void InteriorBoundaryOutFluxInteg::AssembleFaceMatrix(
 }
 
 } // namespace mach
+
+#endif
