@@ -878,6 +878,7 @@ void MagnetostaticSolver::setOutputOptions(const std::string &fun,
          v(0) = axis_vector(1)*r(2) - axis_vector(2)*r(1);
          v(1) = axis_vector(2)*r(0) - axis_vector(0)*r(2);
          v(2) = axis_vector(0)*r(1) - axis_vector(1)*r(0);
+         v /= v.Norml2();
       });
 
       auto &v = res_fields.at("v"+fun);
