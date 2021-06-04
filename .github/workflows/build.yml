@@ -48,7 +48,7 @@ jobs:
             cc: "gcc", cxx: "g++",
             buildtype: "Debug",
             buildflags: "-fno-omit-frame-pointer -fsanitize=address,undefined",
-            testflags: "ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=${GITHUB_WORKSPACE}/mach/tools/lsan/suppressions.txt"
+            testflags: "ASAN_OPTIONS=detect_leaks=1\ LSAN_OPTIONS=suppressions=${GITHUB_WORKSPACE}/mach/tools/lsan/suppressions.txt"
           }
         # - {
         #     name: "Ubuntu Latest Clang (Debug)", artifact: "Linux.7z",
@@ -218,8 +218,9 @@ jobs:
       run: cmake --build . --parallel 2 --target build_tests --config $BUILD_TYPE
 
     - name: Test Mach
+      env:
       working-directory: ${{runner.workspace}}/mach/build
       shell: bash
       # Execute tests defined by the CMake configuration.  
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: $TEST_FLAGS ctest -C $BUILD_TYPE -V
+      run: echo $TEST_FLAGS ; ctest -C $BUILD_TYPE -V
