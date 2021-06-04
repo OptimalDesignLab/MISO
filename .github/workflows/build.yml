@@ -218,7 +218,6 @@ jobs:
       run: cmake --build . --parallel 2 --target build_tests --config $BUILD_TYPE
 
     - name: Test Mach
-      env:
       working-directory: ${{runner.workspace}}/mach/build
       shell: bash
       # Execute tests defined by the CMake configuration.  
