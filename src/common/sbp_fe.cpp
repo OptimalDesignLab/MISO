@@ -868,6 +868,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 SBPCollection::SBPCollection(const int p, const int dim)
+   : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
@@ -1015,6 +1016,7 @@ const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
 SBPCollection::~SBPCollection()
 {
    delete [] SegDofOrd[0];
+   delete [] SegDofOrd[1];
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       delete SBPElements[g];
@@ -1023,6 +1025,7 @@ SBPCollection::~SBPCollection()
 
 // From here thee DSBPCollection class 
 DSBPCollection::DSBPCollection(const int p, const int dim)
+   : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
@@ -1154,6 +1157,7 @@ const int *DSBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
 DSBPCollection::~DSBPCollection()
 {
    delete [] SegDofOrd[0];
+   delete [] SegDofOrd[1];
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       delete DSBPElements[g];

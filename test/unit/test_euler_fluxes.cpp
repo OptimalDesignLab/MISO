@@ -69,6 +69,18 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       }
    }  
    
+   SECTION( "Roe flux is consistent" )
+   {
+      int offset = div((dim+1)*(dim+2),2).quot - 3;
+      mfem::Vector flux_vec(flux_check + offset, dim + 2);
+      mach::calcRoeFaceFlux<double,dim>(nrm.GetData(), q.GetData(),
+                                        q.GetData(), flux.GetData());
+      for (int i = 0; i < dim+2; ++i)
+      {
+         REQUIRE( flux(i) == Approx(flux_vec(i)) );
+      }
+   }
+
    // load the data to test the IR flux function into an mfem DenseMatrix
    // TODO: I could not find an elegant way to do this
    mfem::DenseMatrix fluxIR_check;
