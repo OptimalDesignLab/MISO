@@ -47,8 +47,8 @@ jobs:
             os: ubuntu-latest,
             cc: "gcc", cxx: "g++",
             buildtype: "Debug",
-            buildflags: "\"-fno-omit-frame-pointer -fsanitize=address,undefined\"",
-            testflags: "\"ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=${GITHUB_WORKSPACE}/mach/tools/lsan/suppressions.txt\""
+            buildflags: "-fno-omit-frame-pointer -fsanitize=address,undefined",
+            testflags: "ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=${GITHUB_WORKSPACE}/mach/tools/lsan/suppressions.txt"
           }
         # - {
         #     name: "Ubuntu Latest Clang (Debug)", artifact: "Linux.7z",
@@ -168,7 +168,7 @@ jobs:
       run: |
         cmake ${GITHUB_WORKSPACE}/.deps/mfem \
          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-         -DCMAKE_CXX_FLAGS=$BUILD_FLAGS \
+         -DCMAKE_CXX_FLAGS="$BUILD_FLAGS" \
          -DMFEM_USE_MPI=YES \
          -DMFEM_USE_METIS_5=YES \
          -DHYPRE_DIR="${{runner.workspace}}/.deps/hypre" \
@@ -201,7 +201,7 @@ jobs:
       run: |
         cmake ${GITHUB_WORKSPACE}/mach \
          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-         -DCMAKE_CXX_FLAGS=$BUILD_FLAGS \
+         -DCMAKE_CXX_FLAGS="$BUILD_FLAGS" \
          -DMFEM_DIR="${{runner.workspace}}/.deps/mfem/build" \
          -DADEPT_DIR="${GITHUB_WORKSPACE}/.deps/adept/inst"
     # - name: ls
