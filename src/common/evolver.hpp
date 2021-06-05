@@ -34,6 +34,9 @@ public:
    virtual double EntropyChange(double dt, const mfem::Vector &state, 
                                 const mfem::Vector &k) = 0;
 
+
+   using mfem::TimeDependentOperator::ImplicitSolve;
+   
    /// Variant of `mfem::ImplicitSolve` for entropy constrained systems
    /// \param[in] dt_stage - the full step size 
    /// \param[in] dt - a partial step, `dt` < `dt_stage`.
@@ -88,7 +91,7 @@ public:
    /// \param[out] k - the desired slope
    /// \note This may need to be generalized further
    void ImplicitSolve(const double dt_stage, const double dt,
-                      const mfem::Vector &x, mfem::Vector &k);
+                      const mfem::Vector &x, mfem::Vector &k) override;
 
    /// Set the linear solver to be used for implicit methods
    /// \param[in] linsolver - pointer to configured linear solver (not owned)
@@ -146,6 +149,8 @@ protected:
    mfem::NewtonSolver *newton;
    /// essential degrees of freedom
    mfem::Array<int> ess_tdof_list;
+   /// work vectors
+   mutable mfem::Vector x_work, r_work1, r_work2;
    /// flag that determines if program should abort if Newton's method does not converge
    bool abort_on_no_converge;
 
@@ -156,9 +161,6 @@ protected:
    /// Operator that combines the linear/nonlinear spatial discretization with
    /// the load vector into one operator used for implicit solves
    std::unique_ptr<SystemOperator> combined_oper;
-
-   /// work vectors
-   mutable mfem::Vector x_work, r_work1, r_work2;
 
    /// sets the state and dt for the combined operator
    /// \param[in] dt - time increment
