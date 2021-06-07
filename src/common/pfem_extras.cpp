@@ -162,6 +162,11 @@ IrrotationalProjector::~IrrotationalProjector()
 
    delete s0_;
    delete weakDiv_;
+
+   if (ownsGrad_)
+   {
+      delete grad_;
+   }
 }
 
 void
