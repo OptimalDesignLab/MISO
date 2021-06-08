@@ -48,7 +48,7 @@ jobs:
             cc: "gcc", cxx: "g++",
             buildtype: "Debug",
             buildflags: "-fno-omit-frame-pointer -fsanitize=address,undefined",
-            testflags: "ASAN_OPTIONS=detect_leaks=1\ LSAN_OPTIONS=suppressions=${GITHUB_WORKSPACE}/mach/tools/lsan/suppressions.txt"
+            testflags: "ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=/home/runner/work/mach/tools/lsan/suppressions.txt"
           }
         # - {
         #     name: "Ubuntu Latest Clang (Debug)", artifact: "Linux.7z",
