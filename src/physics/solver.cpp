@@ -43,50 +43,6 @@
 using namespace std;
 using namespace mfem;
 
-/// anonymous namespace for this function so it's only available in this file
-#ifdef MFEM_USE_PUMI
-namespace
-{
-/// function to figure out if tet element is next to a model surface
-bool isBoundaryTet(apf::Mesh2* m, apf::MeshEntity* e)
-{
-   apf::MeshEntity* dfs[12];
-   int nfs = m->getDownward(e, 2, dfs);
-   for (int i = 0; i < nfs; i++)
-   {
-      int mtype = m->getModelType(m->toModel(dfs[i]));
-      if (mtype == 2)
-         return true;
-   }
-   return false;
-}
-} // anonymous namespace
-
-namespace mach
-{
-/// specifies how to delete a PUMI mesh so that the PUMI mesh can be stored in
-/// a unique_ptr and safely deleted
-/*struct pumiDeleter
-{
-   void operator()(apf::Mesh2* mesh) const
-   {
-      mesh->destroyNative();
-      apf::destroyMesh(mesh);
-      PCU_Comm_Free();
-#ifdef MFEM_USE_SIMMETRIX
-      gmi_sim_stop();
-      Sim_unregisterAllKeys();
-#endif // MFEM_USE_SIMMETRIX
-
-#ifdef MFEM_USE_EGADS
-      gmi_egads_stop();
-#endif // MFEM_USE_EGADS
-   }
-};
-*/
-} // namespace mach
-#endif
-
 namespace mach
 {
 
@@ -1441,7 +1397,6 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    *out << "t_final is " << t_final << '\n';
 
    int ti;
-   bool done = false;
    double dt = 0.0;
    initialHook(state);
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
@@ -1571,17 +1526,17 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
       if (kdim != -1)
          gmres->SetKDim(kdim); // set GMRES subspace size
    }
-   // else if (solver_type == "mhypregmres")
-   // {
-   //    lin_solver.reset(new MHypreGMRES(comm));
-   //    MHypreGMRES *gmres = dynamic_cast<MHypreGMRES*>(lin_solver.get());
-   //    gmres->SetTol(reltol);
-   //    gmres->SetMaxIter(maxiter);
-   //    gmres->SetPrintLevel(ptl);
-   //    gmres->SetPreconditioner(dynamic_cast<HypreSolver&>(_prec));
-   //    if (kdim != -1)
-   //       gmres->SetKDim(kdim); // set GMRES subspace size
-   // }
+   else if (solver_type == "gmres")
+   {
+      lin_solver.reset(new GMRESSolver(comm));
+      GMRESSolver *gmres = dynamic_cast<GMRESSolver*>(lin_solver.get());
+      gmres->SetRelTol(reltol);
+      gmres->SetMaxIter(maxiter);
+      gmres->SetPrintLevel(ptl);
+      gmres->SetPreconditioner(dynamic_cast<Solver&>(_prec));
+      if (kdim != -1)
+         gmres->SetKDim(kdim); // set GMRES subspace size
+   }
    else if (solver_type == "hyprefgmres")
    {
       lin_solver.reset(new HypreFGMRES(comm));
@@ -1593,17 +1548,6 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
       if (kdim != -1)
          fgmres->SetKDim(kdim); // set FGMRES subspace size
    }
-   else if (solver_type == "gmressolver")
-   {
-      lin_solver.reset(new GMRESSolver(comm));
-      GMRESSolver *gmres = dynamic_cast<GMRESSolver*>(lin_solver.get());
-      gmres->SetRelTol(reltol);
-      gmres->SetMaxIter(maxiter);
-      gmres->SetPrintLevel(ptl);
-      gmres->SetPreconditioner(dynamic_cast<Solver&>(_prec));
-      if (kdim != -1)
-         gmres->SetKDim(kdim); // set GMRES subspace size
-   }
    else if (solver_type == "hyprepcg")
    {
       lin_solver.reset(new HyprePCG(comm));
@@ -1613,14 +1557,23 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
       pcg->SetPrintLevel(ptl);
       pcg->SetPreconditioner(dynamic_cast<HypreSolver&>(_prec));
    }
-   else if (solver_type == "cgsolver")
+   else if (solver_type == "pcg")
    {
       lin_solver.reset(new CGSolver(comm));
-      CGSolver *cg = dynamic_cast<CGSolver*>(lin_solver.get());
-      cg->SetRelTol(reltol);
-      cg->SetMaxIter(maxiter);
-      cg->SetPrintLevel(ptl);
-      cg->SetPreconditioner(dynamic_cast<Solver&>(_prec));
+      CGSolver *pcg = dynamic_cast<CGSolver*>(lin_solver.get());
+      pcg->SetRelTol(reltol);
+      pcg->SetMaxIter(maxiter);
+      pcg->SetPrintLevel(ptl);
+      pcg->SetPreconditioner(dynamic_cast<Solver&>(_prec));
+   }
+   else if (solver_type == "minres")
+   {
+      lin_solver.reset(new MINRESSolver(comm));
+      MINRESSolver *minres = dynamic_cast<MINRESSolver*>(lin_solver.get());
+      minres->SetRelTol(reltol);
+      minres->SetMaxIter(maxiter);
+      minres->SetPrintLevel(ptl);
+      minres->SetPreconditioner(dynamic_cast<Solver&>(_prec));
    }
    else
    {
