@@ -548,10 +548,17 @@ namespace mach
       // uc->Print();
       GridFunType u_test(fes.get());
       u_test.ProjectCoefficient(u0);
+      // write the solution to vtk file
+      ofstream sol_ofs("airfoil_initial_sol.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
+      u_test.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
       HypreParMatrix *Q;
       Q = fes_GD->Dof_TrueDof_Matrix();
       Q->Mult(state, *u);
       u_test -= *u;
+
       cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
    }
 
@@ -1224,7 +1231,7 @@ namespace mach
       terminalHook(ti, t, state);
       fes_GD->GetProlongationMatrix()->Mult(state, *u);
       // write the solution to vtk file
-      ofstream sol_ofs("ellipse.vtk");
+      ofstream sol_ofs("airfoil_final.vtk");
       sol_ofs.precision(14);
       mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
       u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);

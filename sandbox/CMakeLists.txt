@@ -27,6 +27,7 @@ set(SANDBOX_SRCS
    navier_stokes_mms
    ex14_mfem
    exEuler_GD
+   exAirfoil_GD
    exEllipse
    exEllipse_DG
    exVortex_DG
