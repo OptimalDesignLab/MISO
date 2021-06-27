@@ -12,7 +12,6 @@ CentGridFunction::CentGridFunction(FiniteElementSpace *f)
    SetSize(f->GetVDim() * f->GetNE());
    fes = f;
    fec = NULL;
-   sequence = f->GetSequence();
    UseDevice(true);
 }
 

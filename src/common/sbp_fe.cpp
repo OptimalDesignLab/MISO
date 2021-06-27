@@ -814,6 +814,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 SBPCollection::SBPCollection(const int p, const int dim)
+   : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    //MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
@@ -969,10 +970,11 @@ SBPCollection::~SBPCollection()
 
 // From here thee DSBPCollection class 
 DSBPCollection::DSBPCollection(const int p, const int dim)
+ : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    //MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
-   snprintf(DSBPname, 32, "DSBP_%dD_P%d", dim, p);
+   snprintf(DSBPname, 32, "DSBP_%dD_P%d", dim, p); 
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       DSBPElements[g] = NULL;
