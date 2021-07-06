@@ -89,16 +89,10 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      int ref_levels = -1;
-      const char *mesh_file = "naca_0012_new_2.mesh";
+      //const char *mesh_file = "naca_0012_new_2.mesh";
       //const char *mesh_file = "periodic_rectangle_tri.mesh";
+      const char *mesh_file = "airfoil_tri.mesh";
       auto mesh = unique_ptr<Mesh>(new Mesh(mesh_file, 1, 1));
-
-      for (int l = 0; l < ref_levels; l++)
-      {
-         mesh->UniformRefinement();
-      }
-
       cout << "Number of elements " << mesh->GetNE() << '\n';
       cout << "attr size " << mesh->bdr_attributes.Size() << endl;
       /// dimension
@@ -211,7 +205,7 @@ void uexact(const Vector &x, Vector &q)
 {
    q.SetSize(4);
    double mach_fs = 0.5;
-   double aoa = 0.0;
+   double aoa = 2.0;
    double aoa_fs = aoa * M_PI / 180;
    q(0) = 1.0;
    q(1) = q(0) * mach_fs * cos(aoa_fs);
