@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
       solver->solveForAdjoint("co-energy");
       solver->printAdjoint("co-energy-adjoint");
       solver->printSolution("wire_out");
-      solver->verifyMeshSensitivities();
+      //solver->verifyMeshSensitivities();
    }
    catch (MachException &exception)
    {
