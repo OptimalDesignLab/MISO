@@ -84,8 +84,7 @@ void wexact(const Vector &x, Vector& w);
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_rad - number of nodes in the radial direction
 /// \param[in] num_ang - number of nodes in the angular direction
-std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
-                                              int num_ang);
+Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang);
 
 TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
                        "[Euler-Vortex]", ((bool entvar), entvar), true, false)
@@ -117,7 +116,8 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
       DYNAMIC_SECTION("...for mesh sizing nx = " << nx)
       {
          // construct the solver, set the initial condition, and solve
-         unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(mesh_degree, nx, nx);
+         unique_ptr<Mesh> smesh(new Mesh(
+            buildQuarterAnnulusMesh(mesh_degree, nx, nx)));
          auto solver = createSolver<EulerSolver<2,entvar>>(options,
                                                            move(smesh));
          solver->setInitialCondition(uexact);
@@ -180,11 +180,11 @@ void wexact(const Vector &x, Vector& w)
    calcEntropyVars<double, 2>(q.GetData(), w.GetData());
 }
 
-unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
+Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {
-   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_rad, num_ang,
-                                             Element::TRIANGLE, true /* gen. edges */,
-                                             2.0, M_PI*0.5, true));
+   Mesh mesh = Mesh::MakeCartesian2D(num_rad, num_ang, Element::TRIANGLE,
+                                     true /* gen. edges */, 2.0, M_PI * 0.5, 
+                                     true);
    // strategy:
    // 1) generate a fes for Lagrange elements of desired degree
    // 2) create a Grid Function using a VectorFunctionCoefficient
@@ -193,7 +193,7 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
    // Problem: fes does not own fec, which is generated in this function's scope
    // Solution: the grid function can own both the fec and fes
    H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
-   FiniteElementSpace *fes = new FiniteElementSpace(mesh_ptr.get(), fec, 2,
+   FiniteElementSpace *fes = new FiniteElementSpace(&mesh, fec, 2,
                                                     Ordering::byVDIM);
 
    // This lambda function transforms from (r,\theta) space to (x,y) space
@@ -207,6 +207,6 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
    xy->MakeOwner(fec);
    xy->ProjectCoefficient(xy_coeff);
 
-   mesh_ptr->NewNodes(*xy, true);
-   return mesh_ptr;
+   mesh.NewNodes(*xy, true);
+   return mesh;
 }
