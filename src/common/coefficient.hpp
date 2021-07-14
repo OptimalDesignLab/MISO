@@ -37,6 +37,10 @@ public:
    virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
                                  const mfem::IntegrationPoint &ip,
                                  const double state) = 0;
+
+   virtual double EvalState2ndDeriv(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state) {return 0.0;}
 };
 
 class ParameterContinuationCoefficient : public StateCoefficient

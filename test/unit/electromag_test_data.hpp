@@ -118,14 +118,21 @@ public:
    }
 
    double EvalStateDeriv(mfem::ElementTransformation &trans,
-                        const mfem::IntegrationPoint &ip,
-                        const double state) override
+                         const mfem::IntegrationPoint &ip,
+                         const double state) override
    {
       // mfem::Vector state;
       // stateGF->GetVectorValue(trans.ElementNo, ip, state);
       // double state_mag = state.Norml2();
       // return 3.0*pow(state, 2.0);
       return -0.25*pow(state+1, -1.5);
+   }
+
+   double EvalState2ndDeriv(mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            const double state) override
+   {
+      return 0.375*pow(state+1, -2.5);
    }
 };
 
