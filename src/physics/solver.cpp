@@ -1132,7 +1132,7 @@ void AbstractSolver::setUpExternalFields()
          std::string name = std::string(f.key());
 
          // special set up if the external field is the mesh coordinate field
-         if (name == "mesh-coords")
+         if (name == "mesh-coords" || name == "mesh_coords")
          {
             auto &mesh_gf = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
             ParFiniteElementSpace *mesh_fespace;
@@ -1578,8 +1578,8 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    else
    {
       throw MachException("Unsupported iterative solver type!\n"
-               "\tavilable options are: HypreGMRES, HypreFGMRES, GMRESSolver,\n"
-               "\tHyprePCG, CGSolver");
+               "\tavilable options are: hypregmres, gmres, hyprefgmres,\n"
+               "\thyprepcg, pcg, minres");
    }
    return lin_solver;
 }
@@ -1650,15 +1650,26 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    unique_ptr<NewtonSolver> nonlin_solver;
    if (solver_type == "newton")
    {
-      nonlin_solver.reset(new mfem::NewtonSolver(comm));
+      nonlin_solver.reset(new NewtonSolver(comm));
+   }
+   else if (solver_type == "inexactnewton")
+   {
+      nonlin_solver.reset(new NewtonSolver(comm));
+      NewtonSolver *newton = dynamic_cast<NewtonSolver*>(nonlin_solver.get());
+
+      /// use defaults from SetAdaptiveLinRtol unless specified
+      int type = _options.value("inexacttype", 2);
+      double rtol0 = _options.value("rtol0", 0.5);
+      double rtol_max = _options.value("rtol_max", 0.9);
+      double alpha = _options.value("alpha", (0.5) * ((1.0) + sqrt((5.0))));
+      double gamma = _options.value("gamma", 1.0);
+      newton->SetAdaptiveLinRtol(type, rtol0, rtol_max, alpha, gamma);
    }
    else
    {
       throw MachException("Unsupported nonlinear solver type!\n"
-         "\tavilable options are: newton\n");
+         "\tavilable options are: newton, inexactnewton\n");
    }
-   //double eta = 1e-1;
-   //newton_solver.reset(new InexactNewton(comm, eta));
 
    nonlin_solver->iterative_mode = true;
    nonlin_solver->SetSolver(dynamic_cast<Solver&>(_lin_solver));

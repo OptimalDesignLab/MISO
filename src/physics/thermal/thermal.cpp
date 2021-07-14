@@ -669,31 +669,31 @@ void ThermalSolver::addResVolumeIntegrators(double alpha)
 
 void ThermalSolver::addResBoundaryIntegrators(double alpha)
 {
-#ifdef MFEM_USE_PUMI
-   if (convection)
-   {
-      auto &bcs = options["bcs"];
-      auto conv_bdr = bcs["convection"].get<std::vector<int>>();
+// #ifdef MFEM_USE_PUMI
+//    if (convection)
+//    {
+//       auto &bcs = options["bcs"];
+//       auto conv_bdr = bcs["convection"].get<std::vector<int>>();
 
-      int source = conv_bdr[0];
-      std::unordered_set<int> conv_faces(conv_bdr.begin()+1, conv_bdr.end());
+//       int source = conv_bdr[0];
+//       std::unordered_set<int> conv_faces(conv_bdr.begin()+1, conv_bdr.end());
 
-      double ambient_temp = options["problem-opts"]["init-temp"].get<double>();
-      // res->AddBdrFaceIntegrator(new InteriorBoundaryOutFluxInteg(*kappa,
-      //                                                            *convection,
-      //                                                            source,
-      //                                                            ambient_temp),
-      //                                                            conv_faces);
-      res->AddInteriorFaceIntegrator(
-         new InteriorBoundaryOutFluxInteg(*kappa,
-                                          *convection,
-                                          source,
-                                          ambient_temp,
-                                          conv_faces,
-                                          pumi_mesh.get()));
+//       double ambient_temp = options["problem-opts"]["init-temp"].get<double>();
+//       // res->AddBdrFaceIntegrator(new InteriorBoundaryOutFluxInteg(*kappa,
+//       //                                                            *convection,
+//       //                                                            source,
+//       //                                                            ambient_temp),
+//       //                                                            conv_faces);
+//       res->AddInteriorFaceIntegrator(
+//          new InteriorBoundaryOutFluxInteg(*kappa,
+//                                           *convection,
+//                                           source,
+//                                           ambient_temp,
+//                                           conv_faces,
+//                                           pumi_mesh.get()));
       
-   }
-#endif
+//    }
+// #endif
 }
 
 void ThermalSolver::addLoadVolumeIntegrators(double alpha)

@@ -867,7 +867,7 @@ void MagnetostaticSolver::setOutputOptions(const std::string &fun,
       auto &&attrs = options["attributes"].get<unordered_set<int>>();
       auto &&axis = options["axis"].get<std::vector<double>>();
       auto &&about = options["about"].get<std::vector<double>>();
-      Vector axis_vector(&axis[0], dim);
+      Vector axis_vector(&axis[0], dim); axis_vector /= axis_vector.Norml2();
       Vector about_vector(&about[0], dim);
       double r_data[3];
       Vector r(r_data, dim);
@@ -875,10 +875,12 @@ void MagnetostaticSolver::setOutputOptions(const std::string &fun,
       [&axis_vector, &about_vector, &r](const Vector &x, Vector &v)
       {
          subtract(x, about_vector, r);
+         // r /= r.Norml2();
          v(0) = axis_vector(1)*r(2) - axis_vector(2)*r(1);
          v(1) = axis_vector(2)*r(0) - axis_vector(0)*r(2);
          v(2) = axis_vector(0)*r(1) - axis_vector(1)*r(0);
-         v /= v.Norml2();
+         // if (v.Norml2() > 1e-12)
+         //    v /= v.Norml2();
       });
 
       auto &v = res_fields.at("v"+fun);
@@ -1271,11 +1273,25 @@ unique_ptr<NewtonSolver> MagnetostaticSolver::constructNonlinearSolver(
       /// TODO: this needs to be a true vec in parallel
       // rnewton->SetLoad(load.get());
    }
-   else
-   {
-      throw MachException("Unsupported nonlinear solver type!\n"
-         "\tavilable options are: newton\n");
-   }
+else if (solver_type == "inexactnewton")
+{
+nonlin_solver.reset(new NewtonSolver(comm));
+NewtonSolver *newton = dynamic_cast<NewtonSolver*>(nonlin_solver.get());
+
+/// use defaults from SetAdaptiveLinRtol unless specified
+int type = _options.value("inexacttype", 2);
+double rtol0 = _options.value("rtol0", 0.5);
+double rtol_max = _options.value("rtol_max", 0.9);
+double alpha = _options.value("alpha", (0.5) * ((1.0) + sqrt((5.0))));
+double gamma = _options.value("gamma", 1.0);
+newton->SetAdaptiveLinRtol(type, rtol0, rtol_max, alpha, gamma);
+}
+else
+{
+throw MachException("Unsupported nonlinear solver type!\n"
+"\tavilable options are: newton, inexactnewton\n");
+}
+
    //double eta = 1e-1;
    //newton_solver.reset(new InexactNewton(comm, eta));
 

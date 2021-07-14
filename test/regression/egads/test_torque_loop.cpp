@@ -71,7 +71,7 @@ auto em_options = R"(
 })"_json;
 
 /// exact force is 0.078 N
-TEST_CASE("Force Regression Test Coulomb 1984 Paper")
+TEST_CASE("Torque Loop Regression Test")
 {
    auto em_solver = createSolver<MagnetostaticSolver>(em_options);
    auto em_state = em_solver->getNewField();

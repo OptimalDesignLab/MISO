@@ -31,7 +31,7 @@ auto options = R"(
       "max-iter": 5
    },
    "lin-solver": {
-      "type": "hypregmres",
+      "type": "minres",
       "printlevel": 0,
       "maxiter": 100,
       "abstol": 1e-14,
@@ -42,9 +42,9 @@ auto options = R"(
       "printlevel": 0
    },
    "nonlin-solver": {
-      "type": "newton",
+      "type": "inexactnewton",
       "printlevel": 3,
-      "maxiter": 5,
+      "maxiter": 15,
       "reltol": 1e-10,
       "abstol": 1e-9
    },

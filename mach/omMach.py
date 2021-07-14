@@ -52,6 +52,7 @@ class omMachState(om.ImplicitComponent):
         # self.options.declare('options_dict', types=dict)
         self.options.declare('solver', types=MachSolver)
         self.options.declare('initial_condition')
+        self.options.declare('depends', types=list)
         # self.options['distributed'] = True
 
     def setup(self):
@@ -64,9 +65,23 @@ class omMachState(om.ImplicitComponent):
         # self.add_input('fill_factor')
 
         solver_options = solver.getOptions()
-        if "external-fields" in solver_options:
-            for ext_field in solver_options["external-fields"]:
-                self.add_input(ext_field, shape=solver.getFieldSize(ext_field))
+        # if "external-fields" in solver_options:
+        #     for ext_field in solver_options["external-fields"]:
+        #         self.add_input(ext_field, shape=solver.getFieldSize(ext_field))
+
+        for input in self.options['depends']:
+            if "external-fields" in solver_options:
+                if input in solver_options["external-fields"]:
+                    self.add_input(input, shape=solver.getFieldSize(input))
+                elif input == "state":
+                    self.add_input(input, shape=solver.getStateSize())
+                else:
+                    self.add_input(input)
+            elif input == "state":
+                self.add_input(input, shape=solver.getStateSize())
+            else:
+                self.add_input(input)
+
 
         if self.comm.rank == 0:
             print('Adding state outputs')
@@ -101,22 +116,16 @@ class omMachState(om.ImplicitComponent):
         state = solver.getNewField(outputs['state'])
 
         u_init = self.options['initial_condition']
-        if isinstance(u_init, float):
-            solver.setInitialFieldValue(state, u_init)
-        elif isinstance(u_init, Vector):
-            solver.setInitialFieldVectorValue(state, u_init)
-        elif isinstance(u_init, FunctionType):
-            solver.setInitialFieldFunction(state, u_init)
+        solver.setFieldValue(state, u_init)
 
-        solver_options = solver.getOptions()
-        if "external-fields" in solver_options:
-            for field_name in solver_options["external-fields"]:
-                field = inputs[field_name]
-                solver.setResidualInput(field_name, field)
+        input_dict = { k:v for (k,v) in zip(inputs.keys(), inputs.values())}
+        print(input_dict)
+        solver.solveForState(input_dict, state)
+        # solver.printField("state", state, "state")
 
-        # solver.printMesh("mesh")
-        solver.solveForState(state)
-        solver.printField("state", state, "state")
+        B = solver.getField("B")
+        solver.printField("B", B, "B", 0)
+
 
     def linearize(self, inputs, outputs, residuals):
         """
@@ -170,6 +179,7 @@ class omMachFunctionals(om.ExplicitComponent):
         self.options.declare('solver', types=MachSolver)
         self.options.declare('func', types=str)
         self.options.declare('depends', types=list)
+        self.options.declare('options', types=dict, allow_none=True)
         # self.options['distributed'] = True
 
     def setup(self):
@@ -182,6 +192,7 @@ class omMachFunctionals(om.ExplicitComponent):
         for input in self.options['depends']:
             if "external-fields" in solver_options:
                 if input in solver_options["external-fields"]:
+                    print("adding input ", input)
                     self.add_input(input, shape=solver.getFieldSize(input))
                 elif input == "state":
                     self.add_input(input, shape=solver.getStateSize())
@@ -196,7 +207,10 @@ class omMachFunctionals(om.ExplicitComponent):
             print('Adding functional outputs')
 
         func = self.options['func']
-        solver.createOutput(func)
+        if self.options['options']:
+            solver.createOutput(func, self.options['options'])
+        else:
+            solver.createOutput(func)
         self.add_output(func)
 
     def compute(self, inputs, outputs):

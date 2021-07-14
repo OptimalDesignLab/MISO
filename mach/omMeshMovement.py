@@ -39,16 +39,17 @@ class omMeshMove(om.ImplicitComponent):
         """
         solver = self.options['solver']
 
-        print(inputs['surf_mesh_disp'])
+        # print(inputs['surf_mesh_disp'])
         surf_mesh_disp = inputs['surf_mesh_disp'] + np.array(solver.getMeshCoordinates(), copy=False)
-        vol_mesh_coords = outputs['vol_mesh_coords']
 
         # Get fields for the surface displacement and volume coords
         initial_condition = solver.getNewField(surf_mesh_disp)
-        state = solver.getNewField(vol_mesh_coords)
+        state = solver.getNewField(outputs['vol_mesh_coords'])
 
-        solver.setInitialField(state, initial_condition)
-        solver.solveForState(state)
+        solver.setField(state, initial_condition)
+
+        input_dict = { k:v for (k,v) in zip(inputs.keys(), inputs.values())}
+        solver.solveForState(input_dict, state)
 
         # # test displacement
         # mesh = Mesh(model_file='wire.egads', mesh_file='wire.smb')

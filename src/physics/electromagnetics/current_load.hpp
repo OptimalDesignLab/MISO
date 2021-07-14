@@ -27,8 +27,7 @@ public:
 
 private:
    double current_density;
-   double fill_factor;
-   /// Coefficient to represent current_density*fill_factor*current_coeff
+   /// Coefficient to represent current_density*current_coeff
    mfem::ScalarVectorProductCoefficient current;
    /// Finite element spaces and collections needed for divergence cleaning
    mfem::ParFiniteElementSpace &fes;
@@ -41,8 +40,8 @@ private:
    mfem::ParLinearForm J;
    mfem::ParGridFunction j;
    mfem::ParGridFunction div_free_current_vec;
-   mfem::ParGridFunction scratch;
-   // mfem::HypreParVector scratch;
+   // mfem::ParGridFunction scratch;
+   mfem::HypreParVector scratch;
    mfem::HypreParVector load;
 
    mfem::common::DivergenceFreeProjector div_free_proj;

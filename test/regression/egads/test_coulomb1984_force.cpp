@@ -100,17 +100,17 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
    force = em_solver->calcOutput("force", inputs);
    REQUIRE(force == Approx(0.0781336686).margin(1e-10));
 
-   nlohmann::json torque_options = {
-      {"attributes", {1}},
-      {"axis", {0, 0, 1}},
-      {"about", {0.0, 0.0, 0.0}}
-   };
-   em_solver->createOutput("torque", torque_options);
+   // nlohmann::json torque_options = {
+   //    {"attributes", {1}},
+   //    {"axis", {0, 0, 1}},
+   //    {"about", {0.0, 0.0, 0.0}}
+   // };
+   // em_solver->createOutput("torque", torque_options);
 
-   auto &v = em_solver->getField("vtorque");
-   em_solver->printField("v", v, "v", 0);
+   // auto &v = em_solver->getField("vtorque");
+   // em_solver->printField("v", v, "v", 0);
 
-   double torque = em_solver->calcOutput("torque", inputs);
-   REQUIRE(torque == Approx(0.0000104977).margin(1e-10));
+   // double torque = em_solver->calcOutput("torque", inputs);
+   // REQUIRE(torque == Approx(0.0000104977).margin(1e-10));
 
 }

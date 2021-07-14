@@ -2694,6 +2694,10 @@ double ForceIntegrator::GetElementEnergy(
 
       force += energy * JinvdJds.Trace();
 
+      if (!std::isfinite(force))
+      {
+         std::cout << "nonfinite!\n";
+      }
       fun -= force * w;
    }
    return fun;

@@ -246,6 +246,27 @@ void initSolver(py::module &m)
          self.setFieldValue(field, u_init);
       },
       "Sets the vector field to a given vector value.")
+      .def("setFieldValue", [](
+         AbstractSolver &self,
+         mfem::HypreParVector &field,
+         py::array_t<double> u_init_data)
+      {
+         py::buffer_info info = u_init_data.request();
+         /* Some sanity checks ... */
+         if (info.format != py::format_descriptor<double>::format())
+         {
+            throw std::runtime_error("Incompatible format:\n"
+                                       "\texpected a double array!");
+         }
+         if (info.ndim > 1)
+         {
+            throw std::runtime_error("Incompatible dimensions:\n"
+                                       "\texpected a 1D array!");
+         }
+         mfem::Vector u_init((double*)info.ptr, info.shape[0]);
+         self.setFieldValue(field, u_init);
+      },
+      "Sets the vector field to a given vector value.")
    
       .def("setFieldValue", [](
          AbstractSolver& self,

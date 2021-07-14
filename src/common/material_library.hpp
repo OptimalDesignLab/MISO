@@ -101,6 +101,9 @@ nlohmann::json material_library
       {"beta", 1.76835},
       {"alpha", 1.286}
    }},
+   {"ansys-steel", {
+      {"mu_r", 10000},
+   }},
    {"steel", {
       {"B",
       {
