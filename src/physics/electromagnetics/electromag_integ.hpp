@@ -402,16 +402,16 @@ public:
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
-   // /// \brief - assemble an element's contribution to
-   // ///          \frac{\partial J}{\partial u}, needed to solve for the adjoint
-   // /// \param[in] el - the finite element
-   // /// \param[in] trans - defines the reference to physical element mapping
-   // /// \param[in] elfun - state vector of the element
-   // /// \param[out] elvect - \partial J \partial u for this functional
-   // void AssembleElementVector(const mfem::FiniteElement &el, 
-   //                            mfem::ElementTransformation &trans,
-   //                            const mfem::Vector &elfun,
-   //                            mfem::Vector &elvect) override;
+   /// \brief - assemble an element's contribution to
+   ///          \frac{\partial J}{\partial u}, needed to solve for the adjoint
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \param[out] elvect - \partial J \partial u for this functional
+   void AssembleElementVector(const mfem::FiniteElement &el, 
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
 private:
    /// material (thus mesh) dependent model describing reluctivity
@@ -835,6 +835,16 @@ public:
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
+
+   /// \brief - Computes dJdu, for solving for the adjoint
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \param[out] elvect - \partial J \partial u for this functional
+   void AssembleElementVector(const mfem::FiniteElement &el, 
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
 private:
    /// material dependent model describing reluctivity

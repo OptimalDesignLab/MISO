@@ -846,6 +846,62 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy",
    }
 }
 
+TEST_CASE("MagneticEnergyIntegrator::AssembleElementVector")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3;
+   double delta = 1e-5;
+
+   int num_edge = 2;
+   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+             true /* gen. edges */, 2.0, 3.0, 1.0, true);
+   mesh.ReorientTetMesh();
+   mesh.EnsureNodes();
+
+   NonLinearCoefficient nu;
+
+   /// construct elements
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         ND_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction A(&fes);
+         VectorFunctionCoefficient pert(3, randVectorState);
+         A.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::MagneticEnergyIntegrator(nu));
+
+         // initialize the vector that dJdu multiplies
+         GridFunction p(&fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(&fes);
+         functional.Mult(A, dJdu);
+         double dJdu_dot_p = InnerProduct(dJdu, p);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(A);
+         q_pert.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+      }
+   }
+}
+
+
 TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
           "[MagneticCoenergyIntegrator]")
 {
