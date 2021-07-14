@@ -113,7 +113,8 @@ public:
       // mfem::Vector state;
       // stateGF->GetVectorValue(trans.ElementNo, ip, state);
       // double state_mag = state.Norml2();
-      // return pow(state, 3.0);
+      // return pow(state, 2.0);
+      // return state;
       return 0.5*pow(state+1, -0.5);
    }
 
@@ -124,7 +125,8 @@ public:
       // mfem::Vector state;
       // stateGF->GetVectorValue(trans.ElementNo, ip, state);
       // double state_mag = state.Norml2();
-      // return 3.0*pow(state, 2.0);
+      // return 2.0*pow(state, 1.0);
+      // return 1.0;
       return -0.25*pow(state+1, -1.5);
    }
 
@@ -132,6 +134,8 @@ public:
                             const mfem::IntegrationPoint &ip,
                             const double state) override
    {
+      // return 2.0;
+      // return 0.0;
       return 0.375*pow(state+1, -2.5);
    }
 };

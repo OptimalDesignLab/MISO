@@ -1513,6 +1513,27 @@ double calcMagneticEnergyFD(
    return fd_val / (2*delta);
 }
 
+/// Compute the finite-difference approximation of the second derivative of the
+/// magnetic energy with respect to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the second derivative of the magnetic energy with respect to B
+double calcMagneticEnergyDoubleFD(
+   mfem::ElementTransformation &trans,
+   const mfem::IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B)
+{
+   double delta = 1e-5;
+
+   double fd_val;
+   fd_val = calcMagneticEnergyDot(trans, ip, nu, B + delta);
+   fd_val -= calcMagneticEnergyDot(trans, ip, nu, B - delta);
+   return fd_val / (2*delta);
+}
+
 }
 
 TEST_CASE("calcMagneticEnergy")
@@ -1611,6 +1632,53 @@ TEST_CASE("calcMagneticEnergyDot")
          double dWdB = mach::calcMagneticEnergyDot(trans, ip, *nu, B_mag);
          double dWdB_fd = mach::calcMagneticEnergyFD(trans, ip, *nu, B_mag);
          REQUIRE(dWdB == Approx(dWdB_fd).epsilon(1e-10));
+      }
+   }
+}
+
+TEST_CASE("calcMagneticEnergyDoubleDot")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3; // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
+   // std::unique_ptr<mach::StateCoefficient> nu(new LinearCoefficient(0.75));
+   std::unique_ptr<mach::StateCoefficient> nu(new NonLinearCoefficient());
+
+   /// construct elements
+   int p = 1;
+   ND_FECollection fec(p, dim);
+   FiniteElementSpace fes(mesh.get(), &fec);
+
+   const double B_mag = 0.25;
+
+   for (int j = 0; j < fes.GetNE(); j++)
+   {
+      const FiniteElement &el = *fes.GetFE(j);
+
+      IsoparametricTransformation trans;
+      mesh->GetElementTransformation(j, &trans);
+
+      int order = trans.OrderW() + 2 * el.GetOrder();
+      const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(), order);
+
+      for (int i = 0; i < ir->GetNPoints(); i++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(i);
+         trans.SetIntPoint(&ip);
+
+         double d2WdB2 = mach::calcMagneticEnergyDoubleDot(trans, ip, *nu, B_mag);
+         double d2WdB2_fd = mach::calcMagneticEnergyDoubleFD(trans, ip, *nu, B_mag);
+         REQUIRE(d2WdB2 == Approx(d2WdB2_fd).epsilon(1e-10));
       }
    }
 }

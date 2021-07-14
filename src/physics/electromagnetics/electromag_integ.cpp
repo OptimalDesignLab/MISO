@@ -59,15 +59,41 @@ double calcMagneticEnergyDot(
       double dxidB = segment_ip.x;
       en += segment_ip.weight * xi * nu.Eval(trans, ip, xi);
 
-      // dendB = penpB + penpxi * dxidB
-      double penpxi = segment_ip.weight * (nu.Eval(trans, ip, xi)
-                     +  xi * nu.EvalStateDeriv(trans, ip, xi));
-
-      dendB += penpxi * dxidB;
+      dendB += segment_ip.weight * (nu.Eval(trans, ip, xi)
+                     +  xi * nu.EvalStateDeriv(trans, ip, xi)) * dxidB;
    }
    dendB *= B;
    dendB += en;
    return dendB;
+}
+
+double calcMagneticEnergyDoubleDot(
+   ElementTransformation &trans,
+   const IntegrationPoint &ip,
+   StateCoefficient &nu,
+   double B)
+{
+   /// TODO: use a composite rule instead or find a way to just directly
+   /// integrate B-H curve
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 40);
+
+   /// compute int_0^{B} \nuB dB
+   double d2endB2 = 0.0;
+   for (int j = 0; j < ir->GetNPoints(); j++)
+   {
+      const IntegrationPoint &segment_ip = ir->IntPoint(j);
+      const double w = segment_ip.weight;
+      const double xi = segment_ip.x * B;
+      const double dxidB = segment_ip.x;
+
+      const double nu_val = nu.Eval(trans, ip, xi);
+      const double dnudB = nu.EvalStateDeriv(trans, ip, xi);
+      const double d2nudB2 = nu.EvalState2ndDeriv(trans, ip, xi);
+
+      d2endB2 += w * (2*((dxidB * nu_val)+(xi * dnudB * dxidB)+(dxidB * dxidB * dnudB * B))
+                     + xi * d2nudB2*dxidB*dxidB * B);
+   }
+   return d2endB2;
 }
 
 void CurlCurlNLFIntegrator::AssembleElementVector(

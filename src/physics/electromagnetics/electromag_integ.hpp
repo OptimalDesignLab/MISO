@@ -36,6 +36,17 @@ double calcMagneticEnergyDot(mfem::ElementTransformation &trans,
                              StateCoefficient &nu,
                              double B);
 
+/// Compute the second derivative of the magnetic energy with respect to B
+/// \param[in] trans - element transformation for where to evaluate `nu`
+/// \param[in] ip - integration point for where to evaluate `nu`
+/// \param[in] nu - material dependent model describing reluctivity
+/// \param[in] B - upper bound for integration
+/// \return the second derivative of the magnetic energy with respect to B
+double calcMagneticEnergyDoubleDot(mfem::ElementTransformation &trans,
+                             const mfem::IntegrationPoint &ip,
+                             StateCoefficient &nu,
+                             double B);
+
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
 class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator,
                               public mfem::LinearFormIntegrator
