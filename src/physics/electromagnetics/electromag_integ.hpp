@@ -868,6 +868,7 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshape, curlshape, curlshape_dFt, dBdX;
    mfem::Vector b_vec, b_hat;
+   mfem::Vector dBmdA;
 #endif
 };
 

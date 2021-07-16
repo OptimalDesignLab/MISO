@@ -2668,44 +2668,47 @@ double ForceIntegrator::GetElementEnergy(
 
       b_vec = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      const double b_mag = b_vec.Norml2() / trans.Weight();
+      const double b_vec_norm = b_vec.Norml2();
+      const double b_mag = b_vec_norm / trans.Weight();
 
-      const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      // /// the following computes `\partial (||B||/|J|) / \partial X`
+      // dBdX = 0.0;      
+      // double weight_bar = -b_vec_norm / pow(trans.Weight(), 2.0);
+      // isotrans.WeightRevDiff(dBdX);
+      // dBdX *= weight_bar;
+
+      // b_hat = 0.0;
+      // curlshape.AddMultTranspose(elfun, b_hat);
+      // DenseMatrix BB_hatT(3);
+      // MultVWt(b_vec, b_hat, BB_hatT);
+      // BB_hatT *= 1.0 / (trans.Weight() * b_vec_norm);
+      // isotrans.JacobianRevDiff(BB_hatT, dBdX);
+
+      // double force = 0.0;
+      // for (int j = 0; j < v_el.GetDof() ; ++j)
+      // {
+      //    for (int d = 0; d < dimc; ++d)
+      //    {
+      //       force += dBdX(d, j) * dXds(j, d);
+      //    }
+      // }
       const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+      // force *= energy_dot;
+      double force = energy_dot;
 
-      /// the following computes `\partial (||B||/|J|) / \partial X`
-      dBdX = 0.0;      
-      double weight_bar = -b_vec.Norml2() / pow(trans.Weight(), 2.0);
-      isotrans.WeightRevDiff(dBdX);
-      dBdX *= weight_bar;
-
-      b_hat = 0.0;
-      curlshape.AddMultTranspose(elfun, b_hat);
-      DenseMatrix BB_hatT(3);
-      MultVWt(b_vec, b_hat, BB_hatT);
-      BB_hatT *= 1.0 / (trans.Weight() * b_vec.Norml2());
-      isotrans.JacobianRevDiff(BB_hatT, dBdX);
-      
-      double force = 0.0;
-      for (int j = 0; j < v_el.GetDof() ; ++j)
-      {
-         for (int d = 0; d < dimc; ++d)
-         {
-            force += dBdX(d, j) * dXds(j, d);
-         }
-      }
-      force *= energy_dot;
-
+      /// This and below to force2 has been verified
       // CalcDShape
       v_el.CalcDShape(ip, dshape);
-
       DenseMatrix JinvdJds(3);
       DenseMatrix dJds(3);
       MultAtB(dXds, dshape, dJds);
       Mult(trans.InverseJacobian(), dJds, JinvdJds);
 
-      force += energy * JinvdJds.Trace();
-      fun -= force * w;
+      const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      double force2 = energy * JinvdJds.Trace();
+      fun -= (force + force2) * w;
+      // fun -= force2 * w;
+      // fun -= force * w;
    }
    return fun;
 }
@@ -2745,6 +2748,7 @@ void ForceIntegrator::AssembleElementVector(
    DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc);
    DenseMatrix dBdX(v_el.GetDim(), v_el.GetDof());
    Vector b_vec(dimc), b_hat(dimc);
+   Vector dBmdA(ndof);
 #else
    dshape.SetSize(v_el.GetDof(), v_el.GetDim());
    curlshape.SetSize(ndof, dimc);
@@ -2752,6 +2756,7 @@ void ForceIntegrator::AssembleElementVector(
    dBdX.SetSize(v_el.GetDim(), v_el.GetDof());
    b_vec.SetSize(dimc);
    b_hat.SetSize(dimc);
+   dBmdA.SetSize(ndof);
 #endif
 
    // cast the ElementTransformation
@@ -2772,9 +2777,9 @@ void ForceIntegrator::AssembleElementVector(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
-   double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
+      /// forward pass
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
 
@@ -2792,44 +2797,129 @@ void ForceIntegrator::AssembleElementVector(
 
       b_vec = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      const double b_mag = b_vec.Norml2() / trans.Weight();
+      const double b_vec_norm = b_vec.Norml2();
+      const double b_mag = b_vec_norm / trans.Weight();
 
-      const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      // /// the following computes `\partial (||B||/|J|) / \partial X`
+      // dBdX = 0.0;      
+      // double weight_bar = -b_vec_norm / pow(trans.Weight(), 2.0);
+      // isotrans.WeightRevDiff(dBdX);
+      // dBdX *= weight_bar;
+
+      // b_hat = 0.0;
+      // curlshape.AddMultTranspose(elfun, b_hat);
+      // DenseMatrix BB_hatT(3);
+      // MultVWt(b_vec, b_hat, BB_hatT);
+      // BB_hatT *= 1.0 / (trans.Weight() * b_vec_norm);
+      // isotrans.JacobianRevDiff(BB_hatT, dBdX);
+
+      // double force = 0.0;
+      // for (int j = 0; j < v_el.GetDof() ; ++j)
+      // {
+      //    for (int d = 0; d < dimc; ++d)
+      //    {
+      //       force += dBdX(d, j) * dXds(j, d);
+      //    }
+      // }
       const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+      // force *= energy_dot;
+      double force = energy_dot;
 
-      /// the following computes `\partial (||B||/|J|) / \partial X`
-      dBdX = 0.0;      
-      double weight_bar = -b_vec.Norml2() / pow(trans.Weight(), 2.0);
-      isotrans.WeightRevDiff(dBdX);
-      dBdX *= weight_bar;
-
-      b_hat = 0.0;
-      curlshape.AddMultTranspose(elfun, b_hat);
-      DenseMatrix BB_hatT(3);
-      MultVWt(b_vec, b_hat, BB_hatT);
-      BB_hatT *= 1.0 / (trans.Weight() * b_vec.Norml2());
-      isotrans.JacobianRevDiff(BB_hatT, dBdX);
-      
-      double force = 0.0;
-      for (int j = 0; j < v_el.GetDof() ; ++j)
-      {
-         for (int d = 0; d < dimc; ++d)
-         {
-            force += dBdX(d, j) * dXds(j, d);
-         }
-      }
-      force *= energy_dot;
-
-      // CalcDShape
       v_el.CalcDShape(ip, dshape);
-
       DenseMatrix JinvdJds(3);
       DenseMatrix dJds(3);
       MultAtB(dXds, dshape, dJds);
       Mult(trans.InverseJacobian(), dJds, JinvdJds);
 
-      force += energy * JinvdJds.Trace();
-      fun -= force * w;
+      const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      double force2 = energy * JinvdJds.Trace();
+      
+      // fun -= (force + force2) * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+      double force_bar = 0.0;
+      double force2_bar = 0.0;
+
+      /// fun -= (force + force2) * w;
+      force_bar -= fun_bar * w;
+      force2_bar -= fun_bar * w;
+
+      /// double force2 = energy * JinvdJds.Trace();
+      double energy_bar = 0.0;
+      /// double JinvdJdsTrace_bar = 0.0; // not needed for state derivative
+      energy_bar += JinvdJds.Trace() * force2_bar;
+      /// JinvdJdsTrace_bar += JinvdJdsTrace_bar + energy * force2_bar; // not needed for state derivative
+
+      /// const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      double b_mag_bar = 0.0;
+      b_mag_bar += energy_bar * energy_dot;
+
+      /// force *= energy_dot;
+      /// force = energy_dot;
+      double energy_dot_bar = force_bar;
+      // double energy_dot_bar = force_bar * force;
+      force_bar *= energy_dot;
+
+      /// const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+      auto energy_double_dot = calcMagneticEnergyDoubleDot(trans, ip, nu, b_mag);
+      b_mag_bar += energy_dot_bar * energy_double_dot;
+
+      // DenseMatrix dBdX_bar(v_el.GetDim(), v_el.GetDof());
+      // dBdX_bar = 0.0; // same shape as dBdX
+      // for (int j = 0; j < v_el.GetDof() ; ++j)
+      // {
+      //    for (int d = 0; d < dimc; ++d)
+      //    {
+      //       // force += dBdX(d, j) * dXds(j, d);
+      //       dBdX_bar(d, j) += force_bar * dXds(j, d);
+      //    }
+      // }
+
+      // /// isotrans.JacobianRevDiff(BB_hatT, dBdX);
+      // DenseMatrix BB_hatT_bar(dimc);
+      // BB_hatT_bar = 0.0;
+      // /// isotrans.JacobianRevDiffRevDiff(dBdX_bar, BB_hatT_bar);
+      // /// this is from looking at code for JacobianRevDiff and replacing it with
+      // /// multiplication by `dshape`
+      // AddMult(dBdX_bar, dshape, BB_hatT_bar);
+
+      // /// BB_hatT *= 1.0 / (trans.Weight() * b_vec_norm);
+      // /// BB_hatT_temp = BB_hatT / (trans.Weight() * b_vec_norm);
+      double b_vec_norm_bar = 0.0;
+      // for (int j = 0; j < dimc ; ++j)
+      // {
+      //    for (int d = 0; d < dimc; ++d)
+      //    {
+      //       b_vec_norm_bar += BB_hatT_bar(j,d) * BB_hatT(j, d);
+      //    }
+      // }
+      // b_vec_norm_bar *= - 1.0 / (trans.Weight() * pow(b_vec_norm, 2));
+
+      // /// MultVWt(b_vec, b_hat, BB_hatT);
+      // Vector b_bar(dimc), b_hat_bar(dimc);
+      // BB_hatT_bar.Mult(b_hat, b_bar);
+      // BB_hatT_bar.Mult(b_vec, b_hat_bar);
+
+      // /// curlshape.AddMultTranspose(elfun, b_hat);
+      // curlshape.AddMult(b_hat_bar, elvect);
+
+      // /// dBdX *= weight_bar;
+      // dBdX_bar *= weight_bar;
+
+      // /// isotrans.WeightRevDiff(dBdX); // no input from state
+      // /// double weight_bar = -b_vec_norm / pow(trans.Weight(), 2.0);
+      // b_vec_norm_bar +=  -weight_bar / pow(trans.Weight(), 2);
+
+      /// const double b_mag = b_vec_norm / trans.Weight();   
+      b_vec_norm_bar += b_mag_bar / trans.Weight();
+
+      /// const double b_vec_norm = b_vec.Norml2();
+      auto b_vec_bar = b_vec;
+      b_vec_bar *= b_vec_norm_bar / b_vec_norm;
+
+      /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      curlshape_dFt.AddMult(b_vec_bar, elvect);
    }
    return;
 }
