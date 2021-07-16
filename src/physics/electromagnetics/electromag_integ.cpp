@@ -2924,4 +2924,285 @@ void ForceIntegrator::AssembleElementVector(
    return;
 }
 
+double dBdsIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   /// get the proper element, transformation, and v vector
+   Array<int> vdofs; Vector vfun; 
+   int element = trans.ElementNo;
+   const auto &v_el = *v.FESpace()->GetFE(element);
+   v.FESpace()->GetElementVDofs(element, vdofs);
+   v.GetSubVector(vdofs, vfun);
+   DenseMatrix dXds(vfun.GetData(), v_el.GetDof(), v_el.GetDim());
+
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape(v_el.GetDof(), v_el.GetDim());
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc);
+   DenseMatrix dBdX(v_el.GetDim(), v_el.GetDof());
+   Vector b_vec(dimc), b_hat(dimc);
+#else
+   dshape.SetSize(v_el.GetDof(), v_el.GetDim());
+   curlshape.SetSize(ndof, dimc);
+   curlshape_dFt.SetSize(ndof, dimc);
+   dBdX.SetSize(v_el.GetDim(), v_el.GetDof());
+   b_vec.SetSize(dimc);
+   b_hat.SetSize(dimc);
+#endif
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation&>(trans);
+
+   const IntegrationRule *ir = NULL;
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      b_vec = 0.0;
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      const double b_vec_norm = b_vec.Norml2();
+
+      /// the following computes `\partial (||B||/|J|) / \partial J`
+      b_hat = 0.0;
+      curlshape.AddMultTranspose(elfun, b_hat);
+      DenseMatrix BB_hatT(3);
+      MultVWt(b_vec, b_hat, BB_hatT);
+
+      DenseMatrix dBmdJ(dimc);
+      DenseMatrix inv_jac_transposed = trans.InverseJacobian();
+      inv_jac_transposed.Transpose();
+
+      BB_hatT = 0.0;
+      inv_jac_transposed = 0.0; // but changing it here does...
+      Add(1.0 / (trans.Weight() * b_vec_norm), BB_hatT,
+          -b_vec_norm / trans.Weight(), inv_jac_transposed, dBmdJ);
+
+      /// and then contracts with \partial J / \partial X
+      dBdX = 0.0;
+      isotrans.JacobianRevDiff(dBmdJ, dBdX);
+
+      double dBds = 0.0;
+      for (int j = 0; j < v_el.GetDof() ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            dBds += dBdX(d, j) * dXds(j, d);
+         }
+      }
+
+      fun -= dBds * w;
+   }
+   return fun;
+}
+
+void dBdsIntegrator::AssembleElementVector(
+   const mfem::FiniteElement &el, 
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun,
+   mfem::Vector &elvect)
+{
+   /// number of degrees of freedom
+   const int ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int dimc = (dim == 3) ? 3 : 1;
+
+   elvect.SetSize(ndof);
+   elvect = 0.0;
+
+   /// get the proper element, transformation, and v vector
+   Array<int> vdofs; Vector vfun; 
+   const int element = trans.ElementNo;
+   const auto &v_el = *v.FESpace()->GetFE(element);
+   v.FESpace()->GetElementVDofs(element, vdofs);
+   v.GetSubVector(vdofs, vfun);
+   DenseMatrix dXds(vfun.GetData(), v_el.GetDof(), v_el.GetDim());
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape(v_el.GetDof(), v_el.GetDim());
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc);
+   DenseMatrix dBdX(v_el.GetDim(), v_el.GetDof());
+   Vector b_vec(dimc), b_hat(dimc);
+   Vector dBmdA(ndof);
+#else
+   dshape.SetSize(v_el.GetDof(), v_el.GetDim());
+   curlshape.SetSize(ndof, dimc);
+   curlshape_dFt.SetSize(ndof, dimc);
+   dBdX.SetSize(v_el.GetDim(), v_el.GetDof());
+   b_vec.SetSize(dimc);
+   b_hat.SetSize(dimc);
+   dBmdA.SetSize(ndof);
+#endif
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation&>(trans);
+
+   const IntegrationRule *ir = NULL;
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      /// forward pass
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      b_vec = 0.0;
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      const double b_vec_norm = b_vec.Norml2();
+      const double b_mag = b_vec_norm / trans.Weight();
+
+      /// the following computes `\partial (||B||/|J|) / \partial J`
+      b_hat = 0.0;
+      curlshape.AddMultTranspose(elfun, b_hat);
+      DenseMatrix BB_hatT(3);
+      MultVWt(b_vec, b_hat, BB_hatT);
+
+      DenseMatrix dBmdJ(dimc);
+      DenseMatrix inv_jac_transposed = trans.InverseJacobian();
+      inv_jac_transposed.Transpose();
+
+      BB_hatT = 0.0;
+      inv_jac_transposed = 0.0; // changing this does not affect derivative output...
+      Add(1.0 / (trans.Weight() * b_vec_norm), BB_hatT,
+          -b_vec_norm / trans.Weight(), inv_jac_transposed, dBmdJ);
+
+      dBmdJ.Print();
+      /// and then contracts with \partial J / \partial X
+      dBdX = 0.0;
+      isotrans.JacobianRevDiff(dBmdJ, dBdX);
+
+      double dBds = 0.0;
+      for (int j = 0; j < v_el.GetDof() ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            dBds += dBdX(d, j) * dXds(j, d);
+         }
+      }
+      
+      // fun -= dBds * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+      double dBds_bar = 0.0;
+
+      /// fun -= dBds * w;
+      dBds_bar -= fun_bar * w;
+
+      DenseMatrix dBdX_bar(v_el.GetDim(), v_el.GetDof());
+      dBdX_bar = 0.0; // same shape as dBdX
+      for (int j = 0; j < v_el.GetDof() ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            // dBds += dBdX(d, j) * dXds(j, d);
+            dBdX_bar(d, j) += dBds_bar * dXds(j, d);
+         }
+      }
+
+      /// isotrans.JacobianRevDiff(dBmdJ, dBdX);
+      DenseMatrix dBmdJ_bar(dimc);
+      dBmdJ_bar = 0.0;
+      /// this is from looking at code for JacobianRevDiff and replacing it with
+      /// multiplication by `dshape`
+      v_el.CalcDShape(ip, dshape);
+      AddMult(dBdX_bar, dshape, dBmdJ_bar);
+
+      /// Add(1.0 / (trans.Weight() * b_vec_norm), BB_hatT,
+      ///     -b_vec_norm / trans.Weight(), inv_jac_transposed, dBmdJ);
+
+      DenseMatrix BB_hatT_bar(dBmdJ_bar);
+      BB_hatT_bar *= -1.0 / (trans.Weight() * b_vec_norm);
+
+      double b_vec_norm_bar = 0.0;
+      for (int j = 0; j < dimc ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            b_vec_norm_bar -= dBmdJ_bar(j,d) * 
+                              (BB_hatT(j, d) / (trans.Weight() * pow(b_vec_norm, 2)
+                              + inv_jac_transposed(j,d) / trans.Weight()));
+         }
+      }
+
+      /// MultVWt(b_vec, b_hat, BB_hatT);
+      Vector b_bar(dimc), b_hat_bar(dimc);
+      BB_hatT_bar.Mult(b_hat, b_bar);
+      BB_hatT_bar.Mult(b_vec, b_hat_bar);
+
+      /// curlshape.AddMultTranspose(elfun, b_hat);
+      curlshape.AddMult(b_hat_bar, elvect);
+      // elvect.Print();
+
+      /// const double b_vec_norm = b_vec.Norml2();
+      auto b_vec_bar = b_vec;
+      b_vec_bar *= b_vec_norm_bar / b_vec_norm;
+
+      /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      curlshape_dFt.AddMult(b_vec_bar, elvect);
+      // elvect.Print();
+   }
+   return;
+}
+
 } // namespace mach

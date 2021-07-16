@@ -1807,6 +1807,70 @@ TEST_CASE("ForceIntegrator::AssembleElementVector")
    }
 }
 
+TEST_CASE("dBdsIntegrator::AssembleElementVector")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3;
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+             true /* gen. edges */, 2.0, 3.0, 1.0, true);
+   mesh.ReorientTetMesh();
+   mesh.EnsureNodes();
+
+   NonLinearCoefficient nu;
+
+   /// construct elements
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         ND_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient pert(3, randVectorState);
+         v.ProjectCoefficient(pert);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction A(&fes);
+         A.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::dBdsIntegrator(nu, v));
+
+         // initialize the vector that dJdu multiplies
+         GridFunction p(&fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(&fes);
+         functional.Mult(A, dJdu);
+         double dJdu_dot_p = InnerProduct(dJdu, p);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(A);
+         q_pert.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+      }
+   }
+}
+
 /// commenting out because I removed support for nonlinear magnets for now
 // TEST_CASE("MagnetizationIntegrator::AssembleElementGrad - Nonlinear", "[MagnetizationIntegrator]")
 // {
