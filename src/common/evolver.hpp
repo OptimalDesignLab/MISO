@@ -6,6 +6,7 @@
 #include "adept.h"
 #include "mach_types.hpp"
 #include "inexact_newton.hpp"
+#include <iostream>
 
 namespace mach
 {
@@ -155,10 +156,11 @@ public:
    /// \param[in] dt_ - time step
    /// \param[in] x_ - current state variable
    void SetParameters(const double dt_, const mfem::Vector &x_)
-   { 
+   {
       dt = dt_;
       x = x_;
    }
+
    /// check evolver jacobian
    void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
 
@@ -230,7 +232,7 @@ public:
    /// \param[in] dt_ - time step
    /// \param[in] x_ - current state variable
    void SetParameters(const double dt_, const mfem::Vector x_)
-   { 
+   {
       x = x_;
       dt = dt_;
    }
@@ -255,7 +257,7 @@ private:
    /// the time step
    double dt;
    /// Vector that hould the current state
-   mfem::CentGridFunction x;
+   mfem::Vector x;
    //mfem::CentGridFunction uc;
    /// Solver for the implicit time marching
    std::unique_ptr<mfem::NewtonSolver> newton_solver;

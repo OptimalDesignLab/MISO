@@ -55,6 +55,10 @@ public:
    /// value.  This may be a vector of length 1 for scalar.
    void setInitialCondition(void (*u_init)(const mfem::Vector &,
                                            mfem::Vector &));
+
+   void setMinL2ErrorInitialCondition(void (*u_init)(const mfem::Vector &,
+                                           mfem::Vector &)); 
+
    void setInverseInitialCondition(void (*u_init)(const mfem::Vector &,
                                            mfem::Vector &));
 

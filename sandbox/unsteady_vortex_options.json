@@ -4,12 +4,12 @@
       "refine": 0
    },
    "space-dis": {
-      "GD": false,
-	   "GD-degree": 1,
+      "GD": true,
+      "GD-degree": 1,
       "degree": 1,
       "lps-coeff": 1.0,
       "iface-coeff": 1.0,
-      "basis-type": "csbp"
+      "basis-type": "dsbp"
    },
    "petscsolver": {
       "ksptype": "gmres",
@@ -24,10 +24,10 @@
       "entropy": true
    },
    "time-dis": {
-      "ode-solver": "RK4",
+      "ode-solver": "RRK",
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.002,
-      "t-final": 0.2
+      "t-final": 0.067
    }
 }
