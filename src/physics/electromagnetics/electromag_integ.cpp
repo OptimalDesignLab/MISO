@@ -2684,6 +2684,24 @@ double ForceIntegrator::GetElementEnergy(
       // BB_hatT *= 1.0 / (trans.Weight() * b_vec_norm);
       // isotrans.JacobianRevDiff(BB_hatT, dBdX);
 
+      // /// New way
+      // /// the following computes `\partial (||B||/|J|) / \partial J`
+      // b_hat = 0.0;
+      // curlshape.AddMultTranspose(elfun, b_hat);
+      // DenseMatrix BB_hatT(3);
+      // MultVWt(b_vec, b_hat, BB_hatT);
+
+      // DenseMatrix dBmdJ(dimc);
+      // DenseMatrix inv_jac_transposed = trans.InverseJacobian();
+      // inv_jac_transposed.Transpose();
+
+      // Add(1.0 / (trans.Weight() * b_vec_norm), BB_hatT,
+      //     -b_vec_norm / trans.Weight(), inv_jac_transposed, dBmdJ);
+
+      // /// and then contracts with \partial J / \partial X
+      // dBdX = 0.0;
+      // isotrans.JacobianRevDiff(dBmdJ, dBdX);
+
       // double force = 0.0;
       // for (int j = 0; j < v_el.GetDof() ; ++j)
       // {
@@ -3000,17 +3018,15 @@ double dBdsIntegrator::GetElementEnergy(
       const double b_vec_norm = b_vec.Norml2();
 
       /// the following computes `\partial (||B||/|J|) / \partial J`
+      DenseMatrix dBmdJ(dimc);
       b_hat = 0.0;
       curlshape.AddMultTranspose(elfun, b_hat);
-      DenseMatrix BB_hatT(3);
+      DenseMatrix BB_hatT(dimc);
       MultVWt(b_vec, b_hat, BB_hatT);
 
-      DenseMatrix dBmdJ(dimc);
-      DenseMatrix inv_jac_transposed = trans.InverseJacobian();
+      auto inv_jac_transposed = trans.InverseJacobian();
       inv_jac_transposed.Transpose();
 
-      BB_hatT = 0.0;
-      inv_jac_transposed = 0.0; // but changing it here does...
       Add(1.0 / (trans.Weight() * b_vec_norm), BB_hatT,
           -b_vec_norm / trans.Weight(), inv_jac_transposed, dBmdJ);
 
@@ -3036,15 +3052,15 @@ void dBdsIntegrator::AssembleElementVector(
    const mfem::FiniteElement &el, 
    mfem::ElementTransformation &trans,
    const mfem::Vector &elfun,
-   mfem::Vector &elvect)
+   mfem::Vector &elfun_bar)
 {
    /// number of degrees of freedom
    const int ndof = el.GetDof();
    const int dim = el.GetDim();
    const int dimc = (dim == 3) ? 3 : 1;
 
-   elvect.SetSize(ndof);
-   elvect = 0.0;
+   elfun_bar.SetSize(ndof);
+   elfun_bar = 0.0;
 
    /// get the proper element, transformation, and v vector
    Array<int> vdofs; Vector vfun; 
@@ -3112,21 +3128,18 @@ void dBdsIntegrator::AssembleElementVector(
       const double b_mag = b_vec_norm / trans.Weight();
 
       /// the following computes `\partial (||B||/|J|) / \partial J`
+      DenseMatrix dBmdJ(dimc);
       b_hat = 0.0;
       curlshape.AddMultTranspose(elfun, b_hat);
-      DenseMatrix BB_hatT(3);
+      DenseMatrix BB_hatT(dimc);
       MultVWt(b_vec, b_hat, BB_hatT);
 
-      DenseMatrix dBmdJ(dimc);
-      DenseMatrix inv_jac_transposed = trans.InverseJacobian();
+      auto inv_jac_transposed = trans.InverseJacobian();
       inv_jac_transposed.Transpose();
 
-      BB_hatT = 0.0;
-      inv_jac_transposed = 0.0; // changing this does not affect derivative output...
       Add(1.0 / (trans.Weight() * b_vec_norm), BB_hatT,
           -b_vec_norm / trans.Weight(), inv_jac_transposed, dBmdJ);
 
-      dBmdJ.Print();
       /// and then contracts with \partial J / \partial X
       dBdX = 0.0;
       isotrans.JacobianRevDiff(dBmdJ, dBdX);
@@ -3155,16 +3168,15 @@ void dBdsIntegrator::AssembleElementVector(
       {
          for (int d = 0; d < dimc; ++d)
          {
-            // dBds += dBdX(d, j) * dXds(j, d);
+            /// dBds += dBdX(d, j) * dXds(j, d);
             dBdX_bar(d, j) += dBds_bar * dXds(j, d);
          }
       }
 
       /// isotrans.JacobianRevDiff(dBmdJ, dBdX);
+      /// aka AddMultABt(dBmdJ, dshape, dBdX);
       DenseMatrix dBmdJ_bar(dimc);
       dBmdJ_bar = 0.0;
-      /// this is from looking at code for JacobianRevDiff and replacing it with
-      /// multiplication by `dshape`
       v_el.CalcDShape(ip, dshape);
       AddMult(dBdX_bar, dshape, dBmdJ_bar);
 
@@ -3172,35 +3184,35 @@ void dBdsIntegrator::AssembleElementVector(
       ///     -b_vec_norm / trans.Weight(), inv_jac_transposed, dBmdJ);
 
       DenseMatrix BB_hatT_bar(dBmdJ_bar);
-      BB_hatT_bar *= -1.0 / (trans.Weight() * b_vec_norm);
+      BB_hatT_bar *= 1.0 / (trans.Weight() * b_vec_norm);
 
       double b_vec_norm_bar = 0.0;
       for (int j = 0; j < dimc ; ++j)
       {
          for (int d = 0; d < dimc; ++d)
          {
-            b_vec_norm_bar -= dBmdJ_bar(j,d) * 
-                              (BB_hatT(j, d) / (trans.Weight() * pow(b_vec_norm, 2)
-                              + inv_jac_transposed(j,d) / trans.Weight()));
+            /// I don't think dBmdJ_bar should be transposed, but I'm not positive
+            b_vec_norm_bar -= dBmdJ_bar(j, d) * 
+                              (BB_hatT(j, d) / (trans.Weight() * pow(b_vec_norm, 2))
+                              + inv_jac_transposed(j, d) / trans.Weight());
          }
       }
 
       /// MultVWt(b_vec, b_hat, BB_hatT);
-      Vector b_bar(dimc), b_hat_bar(dimc);
-      BB_hatT_bar.Mult(b_hat, b_bar);
-      BB_hatT_bar.Mult(b_vec, b_hat_bar);
+      Vector b_vec_bar(dimc), b_hat_bar(dimc);
+      BB_hatT_bar.Mult(b_hat, b_vec_bar);
+      BB_hatT_bar.MultTranspose(b_vec, b_hat_bar);
 
       /// curlshape.AddMultTranspose(elfun, b_hat);
-      curlshape.AddMult(b_hat_bar, elvect);
-      // elvect.Print();
+      curlshape.AddMult(b_hat_bar, elfun_bar);
 
       /// const double b_vec_norm = b_vec.Norml2();
-      auto b_vec_bar = b_vec;
-      b_vec_bar *= b_vec_norm_bar / b_vec_norm;
+      // auto b_vec_bar = b_vec;
+      // b_vec_bar *= b_vec_norm_bar / b_vec_norm;
+      add(b_vec_bar, b_vec_norm_bar / b_vec_norm, b_vec, b_vec_bar);
 
       /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      curlshape_dFt.AddMult(b_vec_bar, elvect);
-      // elvect.Print();
+      curlshape_dFt.AddMult(b_vec_bar, elfun_bar);
    }
    return;
 }
