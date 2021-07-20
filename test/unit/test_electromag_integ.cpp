@@ -1816,7 +1816,7 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
              true /* gen. edges */, 2.0, 3.0, 1.0, true);
    mesh.ReorientTetMesh();
@@ -1824,7 +1824,7 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
 
    NonLinearCoefficient nu;
 
-   for (int p = 1; p <= 2; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
@@ -1856,78 +1856,6 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
          LinearForm dJdx(&mesh_fes);
          dJdx.AddDomainIntegrator(
             new mach::ForceIntegratorMeshSens(A, nu, v));
-         dJdx.Assemble();
-         double dJdx_dot_p = dJdx * p;
-
-         // now compute the finite-difference approximation...
-         double delta = 1e-5;
-         GridFunction x_pert(x_nodes);
-         x_pert.Add(-delta, p);
-         mesh.SetNodes(x_pert);
-         fes.Update();
-         double dJdx_dot_p_fd = -functional.GetEnergy(A);
-         x_pert.Add(2 * delta, p);
-         mesh.SetNodes(x_pert);
-         fes.Update();
-         dJdx_dot_p_fd += functional.GetEnergy(A);
-         dJdx_dot_p_fd /= (2 * delta);
-         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
-         fes.Update();
-
-         REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
-      }
-   }
-}
-
-TEST_CASE("TestIntegratorMeshSens::AssembleRHSElementVect")
-{
-   using namespace mfem;
-   using namespace electromag_data;
-
-   const int dim = 3;
-   double delta = 1e-5;
-
-   // generate a 6 element mesh
-   int num_edge = 1;
-   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-             true /* gen. edges */, 2.0, 3.0, 1.0, true);
-   mesh.ReorientTetMesh();
-   mesh.EnsureNodes();
-
-   NonLinearCoefficient nu;
-
-   for (int p = 1; p <= 2; ++p)
-   {
-      DYNAMIC_SECTION("...for degree p = " << p)
-      {
-         ND_FECollection fec(p, dim);
-         FiniteElementSpace fes(&mesh, &fec);
-
-         // extract mesh nodes and get their finite-element space
-         auto &x_nodes = *mesh.GetNodes();
-         auto &mesh_fes = *x_nodes.FESpace();
-
-         // create v displacement field
-         GridFunction v(&mesh_fes);
-         VectorFunctionCoefficient pert(3, randVectorState);
-         v.ProjectCoefficient(pert);
-
-         // initialize state; here we randomly perturb a constant state
-         GridFunction A(&fes);
-         A.ProjectCoefficient(pert);
-
-         NonlinearForm functional(&fes);
-         functional.AddDomainIntegrator(
-            new mach::TestIntegrator(nu, v));
-
-         // initialize the vector that dJdx multiplies
-         GridFunction p(&mesh_fes);
-         p.ProjectCoefficient(pert);
-
-         // evaluate dJdx and compute its product with p
-         LinearForm dJdx(&mesh_fes);
-         dJdx.AddDomainIntegrator(
-            new mach::TestIntegratorMeshSens(A, nu, v));
          dJdx.Assemble();
          double dJdx_dot_p = dJdx * p;
 
