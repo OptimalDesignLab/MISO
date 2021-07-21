@@ -378,6 +378,42 @@ public:
    double calcOutput(const std::string &fun,
                      const MachInputs &inputs);
 
+   /// Evaluates and returns the partial derivative of output functional
+   /// specifed by `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired functional
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating functional
+   /// \param[out] partial - the partial with respect to a scalar-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          double &partial);
+
+   /// Evaluates and returns the partial derivative of output functional
+   /// specifed by `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired functional
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating functional
+   /// \param[out] partial - the partial with respect to a vector-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          double *partial);
+
+   /// Evaluates and returns the partial derivative of output functional
+   /// specifed by `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired functional
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating functional
+   /// \param[out] partial - the partial with respect to a vector-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          mfem::HypreParVector &partial);
+
    /// Sets options for the output functional specifed by `fun`
    /// \param[in] fun - specifies the desired functional
    /// \param[in] options - options needed for calculating functional
@@ -637,7 +673,9 @@ protected:
    /// map of output functionals
    std::map<std::string, NonlinearFormType> output;
    /// collection of integrators for each functional
-   std::unordered_map<std::string, std::vector<MachIntegrator>> fun_integrators;
+   std::map<std::string, std::vector<MachIntegrator>> fun_integrators;
+   /// map of output functional sensitivities
+   std::map<std::string, std::map<std::string, mfem::ParLinearForm>> output_sens;
    /// map of fractional functionals - a funtional that is a fraction of others
    std::unordered_map<std::string, std::vector<std::string>> fractional_output;
    /// output_bndry_marker[fun] lists the boundaries associated with output fun
@@ -849,6 +887,9 @@ protected:
    {
       output.at(fun).AddDomainIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
+      mach::addOutputSensitivityIntegrators(integrator,
+                                            res_fields,
+                                            output_sens.at(fun));
    }
 
    /// Adds interface integrator to the nonlinear form for `fun`, and adds
@@ -862,6 +903,9 @@ protected:
    {
       output.at(fun).AddInteriorFaceIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
+      mach::addOutputSensitivityIntegrators(integrator,
+                                            res_fields,
+                                            output_sens.at(fun));
    }
 
    /// Adds boundary integrator to the nonlinear form for `fun`, and adds
@@ -876,6 +920,9 @@ protected:
    {
       output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
       fun_integrators.at(fun).emplace_back(*integrator);
+      mach::addOutputSensitivityIntegrators(integrator,
+                                            res_fields,
+                                            output_sens.at(fun));
    }
 
 private:

@@ -100,6 +100,17 @@ void setInput(mfem::LinearFormIntegrator &integ,
               const std::string &name,
               const MachInput &input);
 
+/// Function meant to be specialized to allow a output sensitivity integrators
+/// to be associated with the forward version of the integrator
+/// \param[in] primal_integ - integrator used for functional evaluation
+/// \param[in] res_fields - map of fields solver depends on
+/// \param[inout] output_sens - map of sens to linear form that will assemble the sensitivity
+template <typename T>
+inline void addOutputSensitivityIntegrators(
+   T *primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+   std::map<std::string, mfem::ParLinearForm> &output_sens) { };
+
 } // namespace mach
 
 #endif

@@ -3,7 +3,7 @@ import numpy as np
 import tempfile
 import os
 
-from mach import omMachFunctionals, Mesh, Vector, MachSolver
+from mach import omMachFunctional, Mesh, Vector, MachSolver
 import openmdao.api as om
 
 # options = {
@@ -278,7 +278,7 @@ class TestMachFunctionals(unittest.TestCase):
         model = problem.model
 
         model.add_subsystem('functional',
-                            omMachFunctionals(solver=solver,
+                            omMachFunctional(solver=solver,
                                               func="testMachInput",
                                               depends=["test_val", "test_field", "state"]),
                             promotes_inputs=['*'],

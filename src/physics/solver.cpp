@@ -1763,6 +1763,51 @@ double AbstractSolver::calcOutput(const std::string &fun,
    }
 }
 
+void AbstractSolver::calcOutputPartial(const std::string &of,
+                                       const std::string &wrt,
+                                       const MachInputs &inputs,
+                                       double &partial)
+{
+
+}
+
+void AbstractSolver::calcOutputPartial(const std::string &of,
+                                       const std::string &wrt,
+                                       const MachInputs &inputs,
+                                       double *partial_buffer)
+{
+   /// get FESpace for field we're taking partial with respect to
+   auto wrt_fes = res_fields.at(wrt).ParFESpace();
+   HypreParVector partial(wrt_fes->GetComm(),
+                          wrt_fes->GlobalTrueVSize(),
+                          partial_buffer,
+                          wrt_fes->GetTrueDofOffsets());
+   calcOutputPartial(of, wrt, inputs, partial);
+}
+
+void AbstractSolver::calcOutputPartial(const std::string &of,
+                                       const std::string &wrt,
+                                       const MachInputs &inputs,
+                                       HypreParVector &partial)
+{
+   auto &integrators = fun_integrators.at(of);
+   setInputs(integrators, inputs);
+
+   if (wrt == "state")
+   {
+      HypreParVector state(fes->GetComm(),
+                           fes->GlobalTrueVSize(),
+                           inputs.at("state").getField(),
+                           fes->GetTrueDofOffsets());
+      output.at(of).Mult(state, partial);
+   }
+   else
+   {
+      output_sens.at(of).at(wrt).Assemble();
+      output_sens.at(of).at(wrt).ParallelAssemble(partial);
+   }
+}
+
 void AbstractSolver::checkJacobian(
    const ParGridFunction &state,
    std::function<double(const Vector &)> pert_fun)

@@ -7,6 +7,7 @@
 
 #include "mach_types.hpp"
 #include "mach_input.hpp"
+#include "mach_integrator.hpp"
 
 namespace mach
 {
@@ -927,6 +928,19 @@ private:
    mfem::Vector elfun, vfun;
 #endif
 };
+
+template <>
+inline void addOutputSensitivityIntegrators<ForceIntegrator>(
+   ForceIntegrator *primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+   std::map<std::string, mfem::ParLinearForm> &output_sens)
+{
+   auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
+   output_sens.emplace("mesh_coords", mesh_fes);
+   // output_sens.at("mesh_coords").AddDomainIntegrator(
+   //    new ForceIntegratorMeshSens(primal_integ));
+}
+
 
 } // namespace mach
 

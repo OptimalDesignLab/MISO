@@ -398,10 +398,43 @@ void initSolver(py::module &m)
                             const py::dict &py_inputs)
          {
             return self.calcOutput(fun, pyDictToMachInputs(py_inputs));
-         })
-         // py::arg("fun"),
-         // py::arg("keys"),
-         // py::arg("values"))
+         },
+         "Evaluates and returns the output functional specifed by `fun`",
+         py::arg("fun"),
+         py::arg("inputs"))
+
+      .def("calcOutputPartial", [](AbstractSolver &self,
+                            const std::string &of,
+                            const std::string &wrt,
+                            const py::dict &py_inputs,
+                            py::array_t<double> partial)
+         {
+            /* Request a buffer descriptor from Python */
+            py::buffer_info buffer = partial.request();
+
+            /* Some sanity checks ... */
+            if (buffer.format != py::format_descriptor<double>::format())
+               throw std::runtime_error("Incompatible format:\n"
+                                       "\texpected a double array!");
+            if (buffer.ndim != 1)
+               throw std::runtime_error("Incompatible dimensions:\n"
+                                       "\texpected a 1D array!");
+
+            if (buffer.shape[0] == 1)
+               self.calcOutputPartial(of, wrt,
+                                      pyDictToMachInputs(py_inputs),
+                                      *(double*)buffer.ptr);
+            else
+               self.calcOutputPartial(of, wrt,
+                                      pyDictToMachInputs(py_inputs),
+                                      (double*)buffer.ptr);
+         },
+         "Evaluates and returns the partial derivative of output functional "
+         "specifed by `of` with respect to the input specified by `wrt`",
+         py::arg("of"),
+         py::arg("wrt"),
+         py::arg("inputs"),
+         py::arg("partial"))
       
       .def("setOutputOptions",
          static_cast<void (AbstractSolver::*)(const std::string &fun,

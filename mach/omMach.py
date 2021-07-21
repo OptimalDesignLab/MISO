@@ -35,7 +35,7 @@ class omMach(om.Group):
                            promotes_inputs=['mesh-coords'])
 
         self.add_subsystem('functionals',
-                           omMachFunctionals(solver=self.solver),
+                           omMachFunctional(solver=self.solver),
                            promotes_inputs=['mesh-coords'],
                            promotes_outputs=['func'])
 
@@ -173,7 +173,7 @@ class omMachState(om.ImplicitComponent):
             raise NotImplementedError
         
 
-class omMachFunctionals(om.ExplicitComponent):
+class omMachFunctional(om.ExplicitComponent):
     """OpenMDAO component that computes functionals given the state variables"""
     def initialize(self):
         self.options.declare('solver', types=MachSolver)
@@ -213,7 +213,22 @@ class omMachFunctionals(om.ExplicitComponent):
             solver.createOutput(func)
         self.add_output(func)
 
+    def setup_partials(self):
+        func = self.options['func']
+        for input in self.options['depends']:
+            self.declare_partials(func, input)
+
     def compute(self, inputs, outputs):
         solver = self.options['solver']
         func = self.options['func']
         outputs[func] = solver.calcOutput(func, dict(zip(inputs.keys(), inputs.values())))
+
+    def compute_partials(self, inputs, partials):
+        solver = self.options['solver']
+        func = self.options['func']
+
+        inputDict = dict(zip(inputs.keys(), inputs.values()))
+        for input in inputs:
+            solver.calcOutputPartial(of=func, wrt=input,
+                                     inputs=inputDict,
+                                     partial=partials[func, input])
