@@ -415,15 +415,17 @@ void initSolver(py::module &m)
             /* Some sanity checks ... */
             if (buffer.format != py::format_descriptor<double>::format())
                throw std::runtime_error("Incompatible format:\n"
-                                       "\texpected a double array!");
+                                       "\texpected a double array!\n");
             if (buffer.ndim != 1)
                throw std::runtime_error("Incompatible dimensions:\n"
-                                       "\texpected a 1D array!");
+                                       "\texpected a 1D array!\n");
 
             if (buffer.shape[0] == 1)
-               self.calcOutputPartial(of, wrt,
-                                      pyDictToMachInputs(py_inputs),
-                                      *(double*)buffer.ptr);
+               // self.calcOutputPartial(of, wrt,
+               //                        pyDictToMachInputs(py_inputs),
+               //                        *(double*)buffer.ptr);
+               throw std::runtime_error("calcOutputPartial not supported for "
+                                        "scalar derivative!\n")
             else
                self.calcOutputPartial(of, wrt,
                                       pyDictToMachInputs(py_inputs),
