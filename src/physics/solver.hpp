@@ -887,7 +887,7 @@ protected:
    {
       output.at(fun).AddDomainIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrators(integrator,
+      mach::addOutputSensitivityIntegrators(*integrator,
                                             res_fields,
                                             output_sens.at(fun));
    }
@@ -903,7 +903,7 @@ protected:
    {
       output.at(fun).AddInteriorFaceIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrators(integrator,
+      mach::addOutputSensitivityIntegrators(*integrator,
                                             res_fields,
                                             output_sens.at(fun));
    }
@@ -920,7 +920,7 @@ protected:
    {
       output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrators(integrator,
+      mach::addOutputSensitivityIntegrators(*integrator,
                                             res_fields,
                                             output_sens.at(fun));
    }

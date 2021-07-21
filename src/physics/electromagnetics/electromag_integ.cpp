@@ -2926,10 +2926,16 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
    ElementTransformation &mesh_trans,
    Vector &mesh_coords_bar)
 {
+   auto &nu = force_integ.nu;
+   auto &v = force_integ.v;
+   auto &attrs = force_integ.attrs;
+
    /// get the proper element, transformation, and state vector
 #ifdef MFEM_THREAD_SAFE
    Array<int> vdofs; Vector elfun, vfun; 
 #endif
+   auto &vdofs = force_integ.vdofs;
+   auto &vfun = force_integ.vfun;
 
    const int element = mesh_trans.ElementNo;
    auto &el = *state.FESpace()->GetFE(element);
@@ -2967,6 +2973,12 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
    Vector b_vec(dimc), b_hat(dimc);
    DenseMatrix PointMat_bar(dimc, ndof);
 #else
+   auto &dshape = force_integ.dshape;
+   auto &curlshape = force_integ.curlshape;
+   auto &curlshape_dFt = force_integ.curlshape_dFt;
+   auto &dBdX = force_integ.dBdX;
+   auto &b_vec = force_integ.b_vec;
+   auto &b_hat = force_integ.b_hat;
    dshape.SetSize(v_el.GetDof(), v_el.GetDim());
    curlshape.SetSize(el_ndof, dimc);
    curlshape_dFt.SetSize(el_ndof, dimc);

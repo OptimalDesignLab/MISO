@@ -872,6 +872,8 @@ private:
    mfem::Array<int> vdofs;
    mfem::Vector vfun;
 #endif
+   /// class that implements mesh sensitivities for ForceIntegrator
+   friend class ForceIntegratorMeshSens;
 };
 
 /// Linear form integrator to assemble the vector dJdX for the ForceIntegrator
@@ -880,26 +882,10 @@ class ForceIntegratorMeshSens : public mfem::LinearFormIntegrator
 public:
    /// \brief - Compute forces/torques based on the virtual work method
    /// \param[in] state - the state vector to evaluate force at
-   /// \param[in] nu - model describing reluctivity
-   /// \param[in] v - the grid function containing virtual displacements for
-   ///                each mesh node
+   /// \param[in] integ - reference to primal integrator that holds inputs for integrators
    ForceIntegratorMeshSens(mfem::GridFunction &state,
-                           StateCoefficient &nu,
-                           mfem::GridFunction &v)
-   : state(state), nu(nu), v(v)
-   { }
-
-   /// \brief - Compute forces/torques based on the virtual work method
-   /// \param[in] state - the state vector to evaluate force at
-   /// \param[in] nu - model describing reluctivity
-   /// \param[in] v - the grid function containing virtual displacements for
-   ///                each mesh node
-   /// \param[in] attrs - the regions the force is acting on
-   ForceIntegratorMeshSens(mfem::GridFunction &state,
-                           StateCoefficient &nu,
-                           mfem::GridFunction &v,
-                           std::unordered_set<int> attrs)
-   : state(state), nu(nu), v(v), attrs(std::move(attrs))
+                           ForceIntegrator &integ)
+   : state(state), force_integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to dJdX
@@ -913,32 +899,25 @@ public:
 private:
    /// state vector for evaluating force
    mfem::GridFunction &state;
-   /// material dependent model describing reluctivity
-   StateCoefficient &nu;
-   /// grid function containing virtual displacements for each mesh node
-   mfem::GridFunction &v;
-   /// set of attributes the force is acting on
-   std::unordered_set<int> attrs;
+   /// reference to primal integrator
+   ForceIntegrator &force_integ;
 
 #ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix dshape, curlshape, curlshape_dFt, dBdX;
    mfem::DenseMatrix PointMat_bar;
-   mfem::Vector b_vec, b_hat;
-   mfem::Array<int> vdofs;
-   mfem::Vector elfun, vfun;
+   mfem::Vector elfun;
 #endif
 };
 
 template <>
 inline void addOutputSensitivityIntegrators<ForceIntegrator>(
-   ForceIntegrator *primal_integ,
+   ForceIntegrator &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
    std::map<std::string, mfem::ParLinearForm> &output_sens)
 {
    auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    output_sens.emplace("mesh_coords", mesh_fes);
-   // output_sens.at("mesh_coords").AddDomainIntegrator(
-   //    new ForceIntegratorMeshSens(primal_integ));
+   output_sens.at("mesh_coords").AddDomainIntegrator(
+      new ForceIntegratorMeshSens(res_fields.at("state"), primal_integ));
 }
 
 

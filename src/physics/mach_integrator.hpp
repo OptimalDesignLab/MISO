@@ -107,7 +107,7 @@ void setInput(mfem::LinearFormIntegrator &integ,
 /// \param[inout] output_sens - map of sens to linear form that will assemble the sensitivity
 template <typename T>
 inline void addOutputSensitivityIntegrators(
-   T *primal_integ,
+   T &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
    std::map<std::string, mfem::ParLinearForm> &output_sens) { };
 

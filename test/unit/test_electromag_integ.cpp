@@ -1844,9 +1844,9 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
          GridFunction A(&fes);
          A.ProjectCoefficient(pert);
 
+         auto *integ = new mach::ForceIntegrator(nu, v);
          NonlinearForm functional(&fes);
-         functional.AddDomainIntegrator(
-            new mach::ForceIntegrator(nu, v));
+         functional.AddDomainIntegrator(integ);
 
          // initialize the vector that dJdx multiplies
          GridFunction p(&mesh_fes);
@@ -1855,7 +1855,7 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
          // evaluate dJdx and compute its product with p
          LinearForm dJdx(&mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::ForceIntegratorMeshSens(A, nu, v));
+            new mach::ForceIntegratorMeshSens(A, *integ));
          dJdx.Assemble();
          double dJdx_dot_p = dJdx * p;
 
