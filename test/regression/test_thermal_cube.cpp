@@ -73,7 +73,7 @@ auto options = R"(
       "rho-agg": 10,
       "max-temp": 0.1,
       "init-temp": 300,
-      "current-density": 1,
+      "current_density": 1,
       "frequency": 1500
    }
 })"_json;

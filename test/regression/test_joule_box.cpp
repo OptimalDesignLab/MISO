@@ -63,7 +63,7 @@ auto em_options = R"(
    },
    "problem-opts": {
       "fill-factor": 1.0,
-      "current-density": 1.0,
+      "current_density": 1.0,
       "current": {
          "box1": [1],
          "box2": [2]
@@ -125,7 +125,7 @@ auto therm_options = R"(
    "problem-opts": {
       "outflux-type": "test",
       "fill-factor": 1.0,
-      "current-density": 1.0,
+      "current_density": 1.0,
       "current": {
          "box1": [1],
          "box2": [2]

@@ -64,7 +64,7 @@ auto em_options = R"(
    },
    "problem-opts": {
       "fill-factor": 1.0,
-      "current-density": 1.2732395447351627e7,
+      "current_density": 1.2732395447351627e7,
       "current": {
          "z": [1]
       }
@@ -118,7 +118,7 @@ auto therm_options = R"(
    },
    "problem-opts": {
       "fill-factor": 1.0,
-      "current-density": 1.2732395447351627e7,
+      "current_density": 1.2732395447351627e7,
       "frequency": 0,
       "current": {
          "z": [1]

@@ -116,7 +116,7 @@ auto em_options = R"(
    },
    "problem-opts": {
       "fill-factor": 0.6,
-      "current-density": 10.7e6,
+      "current_density": 10.7e6,
       "current" : {
          "Phase-A": [47, 48, 49, 50,
                      51, 52, 53, 54,
@@ -264,7 +264,7 @@ auto thermal_options = R"(
       "rho-agg": 10,
       "init-temp": 300,
       "fill-factor": 0.6,
-      "current-density": 12.7e6,
+      "current_density": 12.7e6,
       "frequency": 1000,
       "current" : {
          "Phase-A": [47, 48, 49, 50,

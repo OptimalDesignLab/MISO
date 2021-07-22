@@ -63,7 +63,7 @@ auto em_options = R"(
    },
    "problem-opts": {
       "fill-factor": 1.0,
-      "current-density": 1.0,
+      "current_density": 1.0,
       "current": {
          "ring": [3]
       }
@@ -92,7 +92,7 @@ TEST_CASE("Torque Loop Regression Test")
    constexpr auto current_density = M_1_PI * 1e7 * 1.5884635222882089;
 
    MachInputs inputs {
-      {"current-density", current_density},
+      {"current_density", current_density},
       {"fill-factor", 1.0},
       {"state", em_state->GetData()}
    };

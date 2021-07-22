@@ -184,7 +184,7 @@ nlohmann::json getBoxOptions(int order)
       }},
       {"problem-opts", {
          {"fill-factor", 1.0},
-         {"current-density", 1.0},
+         {"current_density", 1.0},
          {"current", {
             {"box1", {1}},
             {"box2", {2}}
@@ -291,7 +291,7 @@ nlohmann::json getWireOptions(int order)
       }},
       {"problem-opts", {
          {"fill-factor", 1.0},
-         {"current-density", 10000.0},
+         {"current_density", 10000.0},
          {"current", {
             {"z", {1, 3, 4, 5}},
          }},

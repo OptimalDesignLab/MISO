@@ -461,7 +461,7 @@ void ThermalSolver::constructJoule()
 
          std::string material = component["material"].get<std::string>();
 
-         auto current = options["problem-opts"]["current-density"].get<double>();
+         auto current = options["problem-opts"]["current_density"].get<double>();
          current *= options["problem-opts"].value("fill-factor", 1.0);
 
          double sigma = materials[material].value("sigma", 0.0);

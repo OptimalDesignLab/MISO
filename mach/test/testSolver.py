@@ -373,7 +373,7 @@ class SolverRegressionTests(unittest.TestCase):
             },
             "problem-opts": {
                 "fill-factor": 1.0,
-                "current-density": 1.0,
+                "current_density": 1.0,
                 "current": {
                     "z": [1]
                 }
@@ -389,7 +389,7 @@ class SolverRegressionTests(unittest.TestCase):
         solver.setFieldValue(state, zero);
 
         inputs = {
-            "current-density": current_density,
+            "current_density": current_density,
             "fill-factor": 1.0,
             "state": state
         }
@@ -409,7 +409,7 @@ class SolverRegressionTests(unittest.TestCase):
 
         inputs = {
             "fill-factor": 1.0,
-            "current-density": current_density,
+            "current_density": current_density,
             "state": state
         }
         dcloss = solver.calcOutput("DCLoss", inputs);
@@ -431,7 +431,7 @@ class SolverRegressionTests(unittest.TestCase):
         fill_factor = float(n*strand_area / (np.pi*bundle_rad**2))
         
         inputs = {
-            "current-density": current_density,
+            "current_density": current_density,
             "fill-factor": fill_factor,
             "state": state
         }
@@ -447,7 +447,7 @@ class SolverRegressionTests(unittest.TestCase):
         length = 0.001
         inputs = {
             "fill-factor": fill_factor,
-            "current-density": current_density,
+            "current_density": current_density,
             "state": state
         }
         dcloss = solver.calcOutput("DCLoss", inputs);

@@ -2573,7 +2573,7 @@ void setInput(DCLossFunctionalIntegrator &integ,
               const std::string &name,
               const MachInput &input)
 {
-   if (name == "current-density")
+   if (name == "current_density")
    {
       integ.current_density = input.getValue();
    }

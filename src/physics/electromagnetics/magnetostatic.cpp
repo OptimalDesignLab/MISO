@@ -1358,7 +1358,7 @@ void MagnetostaticSolver::setStaticMembers()
       std::cout << "B_r = " << remnant_flux << "\n";
    }
    fill_factor = options["problem-opts"].value("fill-factor", 1.0);
-   current_density = options["problem-opts"].value("current-density", 1.0);
+   current_density = options["problem-opts"].value("current_density", 1.0);
 }
 
 void MagnetostaticSolver::constructReluctivity()

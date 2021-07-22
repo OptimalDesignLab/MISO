@@ -52,7 +52,7 @@ auto options = R"(
    },
    "problem-opts": {
       "fill-factor": 1.0,
-      "current-density": 1.2732395447351627e7,
+      "current_density": 1.2732395447351627e7,
       "frequency": 0,
       "current": {
          "z": [1]
@@ -83,7 +83,7 @@ TEST_CASE("Thermal Cube Solver Steady Regression Test",
    auto kappa = 2.49;
    auto sigma = 58.14e6;
    auto current_density = std::sqrt(4*kappa*sigma);
-   options["problem-opts"]["current-density"] = current_density;
+   options["problem-opts"]["current_density"] = current_density;
 
    /// number of elements in Z direction
    auto nz = 2;

@@ -82,7 +82,7 @@ auto em_options = R"(
    },
    "problem-opts": {
       "fill-factor": 1.0,
-      "current-density": 400000,
+      "current_density": 400000,
       "current": {
          "team13": [3]
       }
@@ -94,7 +94,7 @@ auto em_options = R"(
       "co-energy": {}
    }
 })"_json;
-      // "current-density": 400000,
+      // "current_density": 400000,
 
 // area = 0.1 * 0.025
 // current = 1000 or 3000 AT

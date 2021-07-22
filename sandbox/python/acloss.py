@@ -55,7 +55,7 @@ options = {
     },
     "problem-opts": {
         "fill-factor": 1.0,
-        "current-density": 1.0,
+        "current_density": 1.0,
         "current": {
             "z": [1]
         }
@@ -96,7 +96,7 @@ def calcLitzLoss(current_density, fill_factor, n, r_s, r_0, f, H = 0.0, n_b = 1,
 
 def calcFEMLoss(solver, state, current_density, fill_factor, n, r_s, freq):
     inputs = {
-        "current-density": current_density,
+        "current_density": current_density,
         "fill-factor": fill_factor,
         "state": state
     }
@@ -113,7 +113,7 @@ def calcFEMLoss(solver, state, current_density, fill_factor, n, r_s, freq):
 
     inputs = {
         "fill-factor": fill_factor,
-        "current-density": current_density,
+        "current_density": current_density,
         "state": state
     }
     dcloss = solver.calcOutput("DCLoss", inputs);

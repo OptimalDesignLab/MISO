@@ -418,9 +418,9 @@
 //          // back step
 //          auto mesh = getMesh(mesh_el,2);
 //          nlohmann::json back_options = getBoxOptions(p);
-//          double J = back_options["problem-opts"]["current-density"].get<double>();
+//          double J = back_options["problem-opts"]["current_density"].get<double>();
 //          J -= delta;
-//          back_options["problem-opts"]["current-density"] = J;
+//          back_options["problem-opts"]["current_density"] = J;
 
 //          mach::MagnetostaticSolver back_solver(back_options, move(mesh));
 //          back_solver.initDerived();
@@ -433,7 +433,7 @@
 //          auto forward_mesh = getMesh(mesh_el,2);
 //          nlohmann::json forward_options = getBoxOptions(p);
 //          J += 2*delta;
-//          forward_options["problem-opts"]["current-density"] = J;
+//          forward_options["problem-opts"]["current_density"] = J;
 
 //          mach::MagnetostaticSolver forward_solver(forward_options, move(forward_mesh));
 //          forward_solver.initDerived();
@@ -484,9 +484,9 @@
 //          {
 //             auto mesh = getMesh(mesh_el,2);
 //             nlohmann::json back_options = getBoxOptions(p);
-//             double J = back_options["problem-opts"]["current-density"].get<double>();
+//             double J = back_options["problem-opts"]["current_density"].get<double>();
 //             J -= delta;
-//             back_options["problem-opts"]["current-density"] = J;
+//             back_options["problem-opts"]["current_density"] = J;
 
 //             mach::MagnetostaticSolver back_solver(back_options, move(mesh));
 //             back_solver.initDerived();
@@ -498,9 +498,9 @@
 //          {
 //             auto forward_mesh = getMesh(mesh_el,2);
 //             nlohmann::json forward_options = getBoxOptions(p);
-//             double J = forward_options["problem-opts"]["current-density"].get<double>();
+//             double J = forward_options["problem-opts"]["current_density"].get<double>();
 //             J += delta;
-//             forward_options["problem-opts"]["current-density"] = J;
+//             forward_options["problem-opts"]["current_density"] = J;
 
 //             mach::MagnetostaticSolver forward_solver(forward_options, move(forward_mesh));
 //             forward_solver.initDerived();

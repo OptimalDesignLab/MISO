@@ -64,7 +64,7 @@ auto current_options = R"(
    "problem-opts": {
       "keep-bndrys": [4, 5],
       "fill-factor": 1.0,
-      "current-density": 100000,
+      "current_density": 100000,
       "current": {
          "z": [3] 
       },
