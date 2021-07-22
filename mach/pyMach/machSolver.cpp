@@ -364,7 +364,22 @@ void initSolver(py::module &m)
 
       .def("printMesh", &AbstractSolver::printMesh)
 
-      .def("printField", &AbstractSolver::printField,
+      .def("printField", static_cast<void (AbstractSolver::*)(const std::string &,
+                                                              const std::string &,
+                                                              int,
+                                                              int)>
+         (&AbstractSolver::printField),
+         py::arg("filename"),
+         py::arg("fieldname"),
+         py::arg("refine") = -1,
+         py::arg("cycle") = 0)
+   
+      .def("printField", static_cast<void (AbstractSolver::*)(const std::string &,
+                                                              mfem::ParGridFunction &,
+                                                              const std::string &,
+                                                              int,
+                                                              int)>
+         (&AbstractSolver::printField),
          py::arg("filename"),
          py::arg("field"),
          py::arg("name"),

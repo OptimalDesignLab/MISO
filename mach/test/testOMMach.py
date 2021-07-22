@@ -194,120 +194,228 @@ import openmdao.api as om
 #                 print(drag[0])
 #                 self.assertAlmostEqual(drag[0], target_drag[nx-1])
 
-class TestMachFunctionals(unittest.TestCase):
-    def test_functional(self):
-        def buildMesh(nx, ny, nz, path):
-            """Generate simple 3D box mesh
+# class TestMachFunctionals(unittest.TestCase):
+    # def test_functional(self):
+    #     def buildMesh(nx, ny, nz, path):
+    #         """Generate simple 3D box mesh
 
-            Creates mesh for the parallelepiped [0,1]x[0,1]x[0,1], divided into
-            6 x `nx` x `ny` x 'nz' tetrahedrons and saves it to a file
-            specified by the path.
+    #         Creates mesh for the parallelepiped [0,1]x[0,1]x[0,1], divided into
+    #         6 x `nx` x `ny` x 'nz' tetrahedrons and saves it to a file
+    #         specified by the path.
 
-            Parameters
-            ----------
-            nx : int
-                number of nodes in the x direction
-            ny : int
-                number of nodes in the y direction
-            nz : int 
-                number of nodes in the z direction
-            path : str
-                the path to save the mesh file
-            """
-            mesh = Mesh(nx, ny, nz, 1.0, 1.0, 1.0)
-            mesh.Print(path)
+    #         Parameters
+    #         ----------
+    #         nx : int
+    #             number of nodes in the x direction
+    #         ny : int
+    #             number of nodes in the y direction
+    #         nz : int 
+    #             number of nodes in the z direction
+    #         path : str
+    #             the path to save the mesh file
+    #         """
+    #         mesh = Mesh(nx, ny, nz, 1.0, 1.0, 1.0)
+    #         mesh.Print(path)
 
-        # Provide the options explicitly for regression tests
-        options = {
+    #     # Provide the options explicitly for regression tests
+    #     options = {
+    #         "mesh": {
+    #         },
+    #         "print-options": False,
+    #         "space-dis": {
+    #             "degree": 1,
+    #             "basis-type": "H1"
+    #         },
+    #         "time-dis": {
+    #             "steady": True,
+    #             "steady-abstol": 1e-12,
+    #             "steady-restol": 1e-10,
+    #             "ode-solver": "PTC",
+    #             "t-final": 100,
+    #             "dt": 1e12,
+    #             "cfl": 1.0,
+    #             "res-exp": 2.0
+    #         },
+    #         "nonlin-solver": {
+    #             "printlevel": 1,
+    #             "maxiter": 5,
+    #             "reltol": 1e-12,
+    #             "abstol": 1e-12
+    #         },
+    #         "lin-solver": {
+    #             "printlevel": 0,
+    #             "filllevel": 3,
+    #             "maxiter": 100,
+    #             "reltol": 1e-2,
+    #             "abstol": 1e-12
+    #         },
+    #         "external-fields": {
+    #             "test_field": {
+    #                 "basis-type": "H1",
+    #                 "degree": 1,
+    #                 "num-states": 1
+    #             }
+    #         }
+    #     }
+
+    #     tmp = tempfile.gettempdir()
+    #     filepath = os.path.join(tmp, "qa")
+    #     mesh_degree = options["space-dis"]["degree"] + 1;
+    #     buildMesh(2, 2, 2, filepath)
+    #     options["mesh"]["file"] = filepath + ".mesh"
+
+    #     solver = MachSolver("TestMachInput", options)
+
+    #     state = solver.getNewField()
+    #     solver.setFieldValue(state, 0.0);
+    #     np_state = np.array(state, copy=False)
+
+    #     test_field = solver.getNewField();
+    #     solver.setFieldValue(test_field, 3.0);
+    #     np_test_field = np.array(test_field, copy=False)
+
+    #     problem = om.Problem()
+    #     model = problem.model
+
+    #     model.add_subsystem('functional',
+    #                         omMachFunctional(solver=solver,
+    #                                          func="testMachInput",
+    #                                          depends=["test_val", "test_field", "state"]),
+    #                         promotes_inputs=['*'],
+    #                         promotes_outputs=['*'])
+
+    #     problem.setup()
+
+    #     print(problem)
+    #     # problem['test_val'] = 1.0
+    #     # problem['test_field'] = np_test_field
+    #     # problem['state'] = np_state
+
+    #     problem.run_model()
+    #     fun = problem.get_val('testMachInput')
+    #     print(fun[0])
+    #     self.assertAlmostEqual(fun[0], 4.0)
+
+    #     problem['test_val'] = -2.0
+    #     problem.run_model()
+    #     fun = problem.get_val('testMachInput')
+    #     print(fun[0])
+    #     self.assertAlmostEqual(fun[0], 1.0)
+
+    #     solver.setFieldValue(test_field, 10.0);
+    #     problem['test_field'] = np_test_field
+    #     problem.run_model()
+    #     fun = problem.get_val('testMachInput')
+    #     print(fun[0])
+    #     self.assertAlmostEqual(fun[0], 8.0)
+
+class TestEMFunctionals(unittest.TestCase):
+    def test_energy_partials(self):
+        em_options = {
             "mesh": {
+                "file": "../../test/regression/egads/data/coulomb1984.smb",
+                "model-file": "../../test/regression/egads/data/coulomb1984.egads",
+                "refine": 0
             },
-            "print-options": False,
             "space-dis": {
-                "degree": 1,
-                "basis-type": "H1"
+                "basis-type": "nedelec",
+                "degree": 1
             },
             "time-dis": {
                 "steady": True,
                 "steady-abstol": 1e-12,
-                "steady-restol": 1e-10,
+                "steady-reltol": 1e-10,
                 "ode-solver": "PTC",
                 "t-final": 100,
                 "dt": 1e12,
-                "cfl": 1.0,
-                "res-exp": 2.0
-            },
-            "nonlin-solver": {
-                "printlevel": 1,
-                "maxiter": 5,
-                "reltol": 1e-12,
-                "abstol": 1e-12
+                "max-iter": 10
             },
             "lin-solver": {
+                "type": "minres",
                 "printlevel": 0,
-                "filllevel": 3,
                 "maxiter": 100,
-                "reltol": 1e-2,
+                "abstol": 1e-14,
+                "reltol": 1e-14
+            },
+            "lin-prec": {
+                "type": "hypreams",
+                "printlevel": 0
+            },
+            "nonlin-solver": {
+                "type": "newton",
+                "printlevel": 3,
+                "maxiter": 50,
+                "reltol": 1e-10,
                 "abstol": 1e-12
             },
-            "external-fields": {
-                "test_field": {
-                    "basis-type": "H1",
-                    "degree": 1,
-                    "num-states": 1
+            "components": {
+                "ring": {
+                    "material": "copperwire",
+                    "attrs": [1, 2],
+                    "linear": True
+                }
+            },
+            "bcs": {
+                "essential": [1, 3]
+            },
+            "problem-opts": {
+                "current": {
+                    "ring": [1, 2]
                 }
             }
         }
+        prob = om.Problem()
 
-        tmp = tempfile.gettempdir()
-        filepath = os.path.join(tmp, "qa")
-        mesh_degree = options["space-dis"]["degree"] + 1;
-        buildMesh(2, 2, 2, filepath)
-        options["mesh"]["file"] = filepath + ".mesh"
+        emSolver = MachSolver("Magnetostatic", em_options, prob.comm)
+        state_size = emSolver.getFieldSize("state")
+        state = np.zeros(state_size)
+        inputs = {
+            "current_density": 3e6,
+            "state": state
+        }
+        emSolver.solveForState(inputs, state)
 
-        solver = MachSolver("TestMachInput", options)
+        energy = prob.model.add_subsystem("energy",
+                                          omMachFunctional(solver=emSolver,
+                                                          func="energy",
+                                                          depends=["mesh_coords", "state"]),
+                                          promotes_inputs=["mesh_coords", "state"],
+                                          promotes_outputs=["energy"])
+        energy.set_check_partial_options(wrt="*", directional=True)
 
-        state = solver.getNewField()
-        solver.setInitialFieldValue(state, 0.0);
-        np_state = np.array(state, copy=False)
+        force_options = {
+            "attributes": [1],
+            "axis": [0, 0, 1]
+        }
+        force = prob.model.add_subsystem("force",
+                                         omMachFunctional(solver=emSolver,
+                                                         func="force",
+                                                         depends=["mesh_coords", "state"],
+                                                         options=force_options),
+                                         promotes_inputs=["mesh_coords", "state"],
+                                         promotes_outputs=["force"])
+        force.set_check_partial_options(wrt="*", directional=True)
 
-        test_field = solver.getNewField();
-        solver.setInitialFieldValue(test_field, 3.0);
-        np_test_field = np.array(test_field, copy=False)
+        torque_options = {
+            "attributes": [1],
+            "axis": [0, 0, 1],
+            "about": [0.0, 0.0, 0.0]
+        }
+        torque = prob.model.add_subsystem("torque",
+                                          omMachFunctional(solver=emSolver,
+                                                          func="torque",
+                                                          depends=["mesh_coords", "state"],
+                                                          options=torque_options),
+                                          promotes_inputs=["mesh_coords", "state"],
+                                          promotes_outputs=["torque"])
+        torque.set_check_partial_options(wrt="*", directional=True)
 
-        problem = om.Problem()
-        model = problem.model
+        prob.set_solver_print(level=0)
+        prob.setup()
+        prob["state"] = state
+        prob.run_model()
 
-        model.add_subsystem('functional',
-                            omMachFunctional(solver=solver,
-                                              func="testMachInput",
-                                              depends=["test_val", "test_field", "state"]),
-                            promotes_inputs=['*'],
-                            promotes_outputs=['*'])
-
-        problem.setup()
-
-        problem['test_val'] = 1.0
-        problem['test_field'] = np_test_field
-        problem['state'] = np_state
-
-        problem.run_model()
-        fun = problem.get_val('testMachInput')
-        print(fun[0])
-        self.assertAlmostEqual(fun[0], 4.0)
-
-        problem['test_val'] = -2.0
-        problem.run_model()
-        fun = problem.get_val('testMachInput')
-        print(fun[0])
-        self.assertAlmostEqual(fun[0], 1.0)
-
-        solver.setInitialFieldValue(test_field, 10.0);
-        problem['test_field'] = np_test_field
-        problem.run_model()
-        fun = problem.get_val('testMachInput')
-        print(fun[0])
-        self.assertAlmostEqual(fun[0], 8.0)
-
+        prob.check_partials(form="central", step=1e-5)
 
 if __name__ == '__main__':
     unittest.main()

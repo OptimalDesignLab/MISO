@@ -180,8 +180,7 @@ class omMachFunctional(om.ExplicitComponent):
         self.options.declare('solver', types=MachSolver)
         self.options.declare('func', types=str)
         self.options.declare('depends', types=list)
-        self.options.declare('options', types=dict, allow_none=True)
-        # self.options['distributed'] = True
+        self.options.declare('options', default=None, types=dict)
 
     def setup(self):
         solver = self.options['solver']
@@ -190,25 +189,19 @@ class omMachFunctional(om.ExplicitComponent):
             print('Adding functional inputs')
 
         solver_options = solver.getOptions()
+        ext_fields = "external-fields" in solver_options
         for input in self.options['depends']:
-            if "external-fields" in solver_options:
-                if input in solver_options["external-fields"]:
-                    print("adding input ", input)
-                    if input == "mesh_coords":
-                        mesh_size = solver.getFieldSize(input)
-                        print(mesh_size)
-                        mesh_coords = np.zeros(mesh_size)
-                        print(mesh_coords.shape)
-                        solver.getField(input, mesh_coords)
-                        self.add_input(input, mesh_coords)
-                    else:
-                        self.add_input(input, shape=solver.getFieldSize(input))
-                elif input == "state":
-                    self.add_input(input, shape=solver.getStateSize())
-                else:
-                    self.add_input(input)
-            elif input == "state":
+            print("adding input", input)
+            if input == "state":
                 self.add_input(input, shape=solver.getStateSize())
+            elif input == "mesh_coords":
+                mesh_size = solver.getFieldSize(input)
+                mesh_coords = np.zeros(mesh_size)
+                solver.getField(input, mesh_coords)
+                self.add_input(input, mesh_coords)
+            elif ext_fields:
+                if input in solver_options["external-fields"]:
+                    self.add_input(input, shape=solver.getFieldSize(input))
             else:
                 self.add_input(input)
 
@@ -220,6 +213,7 @@ class omMachFunctional(om.ExplicitComponent):
             solver.createOutput(func, self.options['options'])
         else:
             solver.createOutput(func)
+        print("adding output", func)
         self.add_output(func)
 
     def setup_partials(self):
@@ -230,10 +224,7 @@ class omMachFunctional(om.ExplicitComponent):
     def compute(self, inputs, outputs):
         solver = self.options['solver']
         func = self.options['func']
-        print("mesh_coords: ", inputs["mesh_coords"])
         outputs[func] = solver.calcOutput(func, dict(zip(inputs.keys(), inputs.values())))
-        print("mesh_coords: ", inputs["mesh_coords"])
-        print("torque: ", outputs[func])
 
     def compute_partials(self, inputs, partials):
         solver = self.options['solver']
@@ -241,13 +232,6 @@ class omMachFunctional(om.ExplicitComponent):
 
         inputDict = dict(zip(inputs.keys(), inputs.values()))
         for input in inputs:
-            print("calcOutputPartial: ")
-            print("\t of: ", func)
-            print("\t wrt: ", input)
-            print("\t inputs: ", inputDict)
-            print("\t partial: ", partials[func, input])
-            print("\t partial shape: ", partials[func, input].shape)
-            print("\t partial [0] shape: ", partials[func, input][0].shape)
             solver.calcOutputPartial(of=func, wrt=input,
                                      inputs=inputDict,
                                      partial=partials[func, input][0])
