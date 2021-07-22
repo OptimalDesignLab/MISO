@@ -429,10 +429,56 @@ private:
    /// material (thus mesh) dependent model describing reluctivity
    StateCoefficient &nu;
 #ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix curlshape, curlshape_dFt, M;
+   mfem::DenseMatrix curlshape, curlshape_dFt;
    mfem::Vector b_vec;
 #endif
+   /// class that implements mesh sensitivities for MagneticEnergyIntegrator
+   friend class MagneticEnergyIntegratorMeshSens;
 };
+
+class MagneticEnergyIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - Compute energy stored in magnetic field mesh sensitivity
+   /// \param[in] state - the state vector to evaluate force at
+   /// \param[in] integ - reference to primal integrator that holds inputs for integrators
+   MagneticEnergyIntegratorMeshSens(mfem::GridFunction &state,
+                                    MagneticEnergyIntegrator &integ)
+   : state(state), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// state vector for evaluating force
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   MagneticEnergyIntegrator &integ;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape_dFt_bar;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+};
+
+template <>
+inline void addOutputSensitivityIntegrators<MagneticEnergyIntegrator>(
+   MagneticEnergyIntegrator &primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+   std::map<std::string, mfem::ParLinearForm> &output_sens)
+{
+   auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
+   output_sens.emplace("mesh_coords", mesh_fes);
+   output_sens.at("mesh_coords").AddDomainIntegrator(
+      new MagneticEnergyIntegratorMeshSens(res_fields.at("state"), primal_integ));
+}
 
 /// Integrator to compute the magnetic co-energy
 class MagneticCoenergyIntegrator : public mfem::NonlinearFormIntegrator,
