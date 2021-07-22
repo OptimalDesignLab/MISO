@@ -34,7 +34,7 @@ auto em_options = R"(
       "max-iter": 10
    },
    "lin-solver": {
-      "type": "hypregmres",
+      "type": "minres",
       "printlevel": 0,
       "maxiter": 100,
       "abstol": 1e-14,
@@ -62,8 +62,6 @@ auto em_options = R"(
       "essential": [1, 3]
    },
    "problem-opts": {
-      "fill-factor": 1.0,
-      "current-density": 1.0,
       "current": {
          "ring": [1, 2]
       }
@@ -79,17 +77,18 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
 
    auto current_density = 3e6;
    MachInputs inputs {
-      {"current-density", current_density},
-      {"fill-factor", 1.0},
+      {"current_density", current_density},
       {"state", em_state->GetData()}
    };
    em_solver->solveForState(inputs, *em_state);
+   // em_solver->printField("B", "B");
 
    nlohmann::json force_options = {
       {"attributes", {1}},
       {"axis", {0, 0, 1}}
    };
    em_solver->createOutput("force", force_options);
+   // em_solver->printField("vforce", "vforce");
 
    double force = em_solver->calcOutput("force", inputs);
    REQUIRE(force == Approx(-0.0791988853).margin(1e-10));
@@ -100,17 +99,16 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
    force = em_solver->calcOutput("force", inputs);
    REQUIRE(force == Approx(0.0781336686).margin(1e-10));
 
-   // nlohmann::json torque_options = {
-   //    {"attributes", {1}},
-   //    {"axis", {0, 0, 1}},
-   //    {"about", {0.0, 0.0, 0.0}}
-   // };
-   // em_solver->createOutput("torque", torque_options);
+   nlohmann::json torque_options = {
+      {"attributes", {1}},
+      {"axis", {0, 0, 1}},
+      {"about", {0.0, 0.0, 0.0}}
+   };
+   em_solver->createOutput("torque", torque_options);
 
-   // auto &v = em_solver->getField("vtorque");
-   // em_solver->printField("v", v, "v", 0);
+   // em_solver->printField("vtorque", "vtorque");
 
-   // double torque = em_solver->calcOutput("torque", inputs);
-   // REQUIRE(torque == Approx(0.0000104977).margin(1e-10));
+   double torque = em_solver->calcOutput("torque", inputs);
+   REQUIRE(torque == Approx(0.0000104977).margin(1e-10));
 
 }

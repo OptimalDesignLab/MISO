@@ -267,6 +267,22 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printResidual(const std::string &file_name, int refine = -1);
 
+   /// Write the mesh and a field to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] field_name - name of field to print
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \param[in] cycle - cycle to write to vtk file
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printField(const std::string &file_name,
+                   const std::string &field_name,
+                   int refine = -1,
+                   int cycle = 0)
+   {
+      auto& field = res_fields.at(field_name);
+      printFields(file_name, {&field}, {field_name}, refine, cycle);
+   };
+
    /// Write the mesh and an initializer list to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] field - grid function to print
@@ -292,10 +308,10 @@ public:
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printFields(const std::string &file_name,
-                      std::vector<mfem::ParGridFunction *> fields,
-                      std::vector<std::string> names,
-                      int refine = -1,
-                      int cycle = 0);
+                    std::vector<mfem::ParGridFunction *> fields,
+                    std::vector<std::string> names,
+                    int refine = -1,
+                    int cycle = 0);
 
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// Default behavior is to return just the state `u`

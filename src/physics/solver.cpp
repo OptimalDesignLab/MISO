@@ -1136,6 +1136,37 @@ void AbstractSolver::setUpExternalFields()
 {
    res_fields.emplace("state", fes.get());
    res_fields.emplace("residual", fes.get());
+   // give the solver ownership over the mesh coords grid function, and store
+   // it in `res_fields` under key "mesh_coords"
+   {
+      auto &mesh_gf = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
+      ParFiniteElementSpace *mesh_fespace;
+      auto *mesh_fec = mesh_gf.OwnFEC();
+      // if the mesh GF owns its FESpace and FECollection
+      if (mesh_fec)
+      {
+         // steal them and tell the mesh GF it no longer owns them
+         mesh_fespace = mesh_gf.ParFESpace();
+         mesh_gf.MakeOwner(nullptr);
+      }
+      else
+      {
+         // else copy the FESpace and get its FECollection
+         mesh_fespace = new ParFiniteElementSpace(*mesh_gf.ParFESpace());
+         mesh_fec = const_cast<FiniteElementCollection*>(
+                                                mesh_fespace->FEColl());
+      }
+      // create a new GF for the mesh nodes with the new/stolen FESpace
+      res_fields.emplace("mesh_coords", mesh_fespace);
+
+      // tell the new GF it owns the FESpace and FECollection
+      res_fields.at("mesh_coords").MakeOwner(mesh_fec);
+      // get the values of the new GF to those of the mesh's old nodes
+      res_fields.at("mesh_coords") = mesh_gf;
+      // tell the mesh to use this GF for its Nodes
+      // (and that it doesn't own it)
+      mesh->NewNodes(res_fields.at("mesh_coords"), false);
+   }
 
    if (options.contains("external-fields"))
    {
@@ -1145,39 +1176,6 @@ void AbstractSolver::setUpExternalFields()
       {
          auto field = f.value();
          std::string name = std::string(f.key());
-
-         // special set up if the external field is the mesh coordinate field
-         if (name == "mesh-coords" || name == "mesh_coords")
-         {
-            auto &mesh_gf = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
-            ParFiniteElementSpace *mesh_fespace;
-            auto *mesh_fec = mesh_gf.OwnFEC();
-            // if the mesh GF owns its FESpace and FECollection
-            if (mesh_fec)
-            {
-               // steal them and tell the mesh GF it no longer owns them
-               mesh_fespace = mesh_gf.ParFESpace();
-               mesh_gf.MakeOwner(nullptr);
-            }
-            else
-            {
-               // else copy the FESpace and get its FECollection
-               mesh_fespace = new ParFiniteElementSpace(*mesh_gf.ParFESpace());
-               mesh_fec = const_cast<FiniteElementCollection*>(
-                                                      mesh_fespace->FEColl());
-            }
-            // create a new GF for the mesh nodes with the new/stolen FESpace
-            res_fields.emplace(name, mesh_fespace);
-
-            // tell the new GF it owns the FESpace and FECollection
-            res_fields.at(name).MakeOwner(mesh_fec);
-            // get the values of the new GF to those of the mesh's old nodes
-            res_fields.at(name) = mesh_gf;
-            // tell the mesh to use this GF for its Nodes
-            // (and that it doesn't own it)
-            mesh->NewNodes(res_fields.at(name), false);
-            continue;
-         }
 
          /// this approach will only work for fields on the same mesh
          auto order = field["degree"].get<int>();
