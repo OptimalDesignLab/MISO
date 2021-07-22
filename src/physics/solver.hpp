@@ -301,8 +301,11 @@ public:
    /// Default behavior is to return just the state `u`
    virtual std::vector<GridFunType*> getFields();
 
-   mfem::ParGridFunction& getField(std::string field)
-   { return res_fields.at(field); };
+   // mfem::ParGridFunction& getField(std::string field)
+   // { return res_fields.at(field); };
+   void getField(std::string name, double *field_buffer);
+
+   void getField(std::string name, mfem::HypreParVector &field);
 
    /// DEPRECIATED -> use version with HypreParVector
    /// Solve for the state variables based on current mesh, solver, etc.
@@ -501,7 +504,7 @@ public:
    inline int getMeshSize() { return mesh->GetNodes()->FESpace()->GetVSize(); }
    inline int getStateSize() { return fes->GetVSize(); }
    inline int getFieldSize(std::string field)
-   { return res_fields.at(field).FESpace()->GetVSize(); }
+   { return res_fields.at(field).ParFESpace()->GetTrueVSize(); }
 
    /// return the options dictionary with read-only access
    inline const nlohmann::json& getOptions() const { return options; }
@@ -889,7 +892,7 @@ protected:
       fun_integrators.at(fun).emplace_back(*integrator);
       mach::addOutputSensitivityIntegrators(*integrator,
                                             res_fields,
-                                            output_sens.at(fun));
+                                            output_sens[fun]);
    }
 
    /// Adds interface integrator to the nonlinear form for `fun`, and adds
@@ -905,7 +908,7 @@ protected:
       fun_integrators.at(fun).emplace_back(*integrator);
       mach::addOutputSensitivityIntegrators(*integrator,
                                             res_fields,
-                                            output_sens.at(fun));
+                                            output_sens[fun]);
    }
 
    /// Adds boundary integrator to the nonlinear form for `fun`, and adds
@@ -922,7 +925,7 @@ protected:
       fun_integrators.at(fun).emplace_back(*integrator);
       mach::addOutputSensitivityIntegrators(*integrator,
                                             res_fields,
-                                            output_sens.at(fun));
+                                            output_sens[fun]);
    }
 
 private:

@@ -988,6 +988,21 @@ std::vector<GridFunType*> AbstractSolver::getFields()
    return {u.get()};
 }
 
+void AbstractSolver::getField(std::string name, double *field_buffer)
+{
+   auto *field_fes = res_fields.at(name).ParFESpace();
+   HypreParVector field(field_fes->GetComm(),
+                        field_fes->GlobalTrueVSize(),
+                        field_buffer,
+                        field_fes->GetTrueDofOffsets());
+   getField(name, field);
+}
+
+void AbstractSolver::getField(std::string name, mfem::HypreParVector &field)
+{
+   res_fields.at(name).ParallelAssemble(field);
+}
+
 void AbstractSolver::solveForState(ParGridFunction &state)
 {
    HypreParVector state_true(fes.get());

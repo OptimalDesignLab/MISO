@@ -331,10 +331,21 @@ void initSolver(py::module &m)
 
       .def("solveForState", [](AbstractSolver &self,
                             const py::dict &py_inputs,
-                            mfem::HypreParVector &state)
+                            py::array_t<double> state)
          {
-            
-            return self.solveForState(pyDictToMachInputs(py_inputs), state);
+            /* Request a buffer descriptor from Python */
+            py::buffer_info buffer = state.request();
+
+            /* Some sanity checks ... */
+            if (buffer.format != py::format_descriptor<double>::format())
+               throw std::runtime_error("Incompatible format:\n"
+                                       "\texpected a double array!");
+            if (buffer.ndim != 1)
+               throw std::runtime_error("Incompatible dimensions:\n"
+                                       "\texpected a 1D array!");
+            self.solveForState(pyDictToMachInputs(py_inputs),
+                              (double*)buffer.ptr);
+            return;
          },
          py::arg("inputs"),
          py::arg("state"))
@@ -367,8 +378,24 @@ void initSolver(py::module &m)
          py::arg("refine") = -1,
          py::arg("cycle") = 0)
 
-      .def("getField", &AbstractSolver::getField,
-         py::arg("field_name"))
+      .def("getField", [](AbstractSolver &self,
+                          std::string name,
+                          py::array_t<double> field)
+         {
+            /* Request a buffer descriptor from Python */
+            py::buffer_info buffer = field.request();
+
+            /* Some sanity checks ... */
+            if (buffer.format != py::format_descriptor<double>::format())
+               throw std::runtime_error("Incompatible format:\n"
+                                       "\texpected a double array!\n");
+            if (buffer.ndim != 1)
+               throw std::runtime_error("Incompatible dimensions:\n"
+                                       "\texpected a 1D array!\n");
+            self.getField(name, (double*)buffer.ptr);
+         },
+         py::arg("name"),
+         py::arg("field"))
 
       .def("calcResidual", [](AbstractSolver &self,
                               const py::dict &py_inputs,
@@ -425,7 +452,7 @@ void initSolver(py::module &m)
                //                        pyDictToMachInputs(py_inputs),
                //                        *(double*)buffer.ptr);
                throw std::runtime_error("calcOutputPartial not supported for "
-                                        "scalar derivative!\n")
+                                        "scalar derivative!\n");
             else
                self.calcOutputPartial(of, wrt,
                                       pyDictToMachInputs(py_inputs),
