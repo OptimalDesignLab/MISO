@@ -5,46 +5,6 @@ import numpy as np
 
 from .pyMach import MachSolver, Vector
 
-class omMach(om.Group):
-    """
-    Group that combines the components for the state variables and functionals
-    """
-    def initialize(self):
-        self.options.declare('options_file', types=str, default=None, allow_none=True)
-        self.options.declare('options_dict', types=dict, default=None, allow_none=True)
-        self.options.declare('solver_type', types=str)
-        self.options.declare('initial_condition', types=FunctionType)
-
-    def setup(self):
-        # indeps = self.add_subsystem('indeps', om.IndepVarComp(), promotes=['*'])
-        # indeps.add_output('current_density', 10000)
-        # indeps.add_output('fill_factor', 0.5)
-
-        if self.options['options_file']:
-            solver_opts = self.options['options_file']
-        elif self.options['options_dict']:
-            solver_opts = self.options['options_dict']
-        
-        solver_type = self.options['solver_type']
-        self.solver = MachSolver(solver_type, solver_opts, self.comm)
-
-        initial_condition = self.options['initial_condition']
-
-        self.add_subsystem('state',
-                           omMachState(solver=self.solver,
-                                       initial_condition=initial_condition),
-                           promotes_inputs=['mesh-coords'])
-
-        self.add_subsystem('functionals',
-                           omMachFunctional(solver=self.solver),
-                           promotes_inputs=['mesh-coords'],
-                           promotes_outputs=['func'])
-
-        # self.connect('current_density', ['state.current_density', 'functionals.current_density'])
-        # self.connect('fill_factor', ['state.fill_factor', 'functionals.fill_factor'])
-        self.connect('state.state', 'functionals.state')
-
-
 class omMachState(om.ImplicitComponent):
     """OpenMDAO component that converges the state variables"""
 
