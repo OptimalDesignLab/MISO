@@ -506,6 +506,14 @@ void AbstractSolver::setFieldValue(HypreParVector &field,
 }
 
 void AbstractSolver::setFieldValue(
+   double *field_buffer,
+   const double u_init)
+{
+   auto field = bufferToHypreParVector(field_buffer);
+   setFieldValue(field, u_init);
+}
+
+void AbstractSolver::setFieldValue(
    HypreParVector &field,
    const std::function<double(const Vector &)> &u_init)
 {
@@ -513,6 +521,14 @@ void AbstractSolver::setFieldValue(
    *scratch = field;
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
+}
+
+void AbstractSolver::setFieldValue(
+   double *field_buffer,
+   const std::function<double(const mfem::Vector &)> &u_init)
+{
+   auto field = bufferToHypreParVector(field_buffer);
+   setFieldValue(field, u_init);
 }
 
 void AbstractSolver::setFieldValue(HypreParVector &field,
@@ -525,6 +541,14 @@ void AbstractSolver::setFieldValue(HypreParVector &field,
 }
 
 void AbstractSolver::setFieldValue(
+   double *field_buffer,
+   const mfem::Vector &u_init)
+{
+   auto field = bufferToHypreParVector(field_buffer);
+   setFieldValue(field, u_init);
+}
+
+void AbstractSolver::setFieldValue(
    HypreParVector &field,
    const std::function<void(const Vector &, Vector&)> &u_init)
 {
@@ -532,6 +556,14 @@ void AbstractSolver::setFieldValue(
    *scratch = field;
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
+}
+
+void AbstractSolver::setFieldValue(
+   double *field_buffer,
+   const std::function<void(const mfem::Vector &, mfem::Vector&)> &u_init)
+{
+   auto field = bufferToHypreParVector(field_buffer);
+   setFieldValue(field, u_init);
 }
 
 double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType &y) const
@@ -841,10 +873,7 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
 void AbstractSolver::calcResidual(const MachInputs &inputs,
                                   double *res_buffer) const
 {
-   HypreParVector residual(fes->GetComm(),
-                           fes->GlobalTrueVSize(),
-                           res_buffer,
-                           fes->GetTrueDofOffsets());
+   auto residual = bufferToHypreParVector(res_buffer);
    calcResidual(inputs, residual);
 }
 
@@ -862,10 +891,7 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
 
    // this only communicates once inside of res->Mult to distribute state
    // create HypreParVector that contains the data from the state input
-   HypreParVector state(fes->GetComm(),
-                        fes->GlobalTrueVSize(),
-                        inputs.at("state").getField(),
-                        fes->GetTrueDofOffsets());
+   auto state = bufferToHypreParVector(inputs.at("state").getField());
 
    res->Mult(state, residual);
 
@@ -873,6 +899,41 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
    {
       mach::setInputs(*load, inputs);
       mach::addLoad(*load, residual);
+   }
+}
+
+void AbstractSolver::linearize(const MachInputs &inputs)
+{
+   /// setInputs(res_integ, inputs);
+   if (load)
+   {
+      mach::setInputs(*load, inputs);
+   }
+
+   /// something like this...
+   // state_jac = evolver->GetGradient();
+}
+
+double AbstractSolver::vectorJacobianProduct(double *residual_bar,
+                                             std::string wrt)
+{
+   throw std::runtime_error("vectorJacobianProduct not supported for "
+                            "scalar derivative!\n");
+}
+
+void AbstractSolver::vectorJacobianProduct(double *residual_bar,
+                                           std::string wrt,
+                                           double *wrt_bar)
+{
+   if (wrt == "state")
+   {
+      // state_jac.AddMultTranspose(res_bar, wrt_bar);
+   }
+   else
+   {
+      /// set res_bar GF from residual_bar
+      /// res_sens.at(wrt).Assemble()
+      /// res_sens.at(wrt).ParallelAssemble(wrt_bar) // make sure this adds to wrt_bar
    }
 }
 
@@ -1964,23 +2025,23 @@ mfem::Vector* AbstractSolver::getMeshSensitivities()
                        "\tnot implemented yet!");
 }
 
-HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
-                                                      ParGridFunction &seed)
-{
-   res_sens_integ.emplace(field, res_fields.at(field).ParFESpace());
-   addResFieldSensIntegrators(field, seed);
-   return res_sens_integ.at(field).ParallelAssemble();
-}
+// HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
+//                                                       ParGridFunction &seed)
+// {
+//    res_sens_integ.emplace(field, res_fields.at(field).ParFESpace());
+//    addResFieldSensIntegrators(field, seed);
+//    return res_sens_integ.at(field).ParallelAssemble();
+// }
 
-/// TODO: do something for compound functionals
-HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
-                                                       std::string field)
-{
-   func_sens_integ.at(fun).emplace(field,
-                                 func_fields.at(fun).at(field)->ParFESpace());
-   addFuncFieldSensIntegrators(fun, field);
-   return func_sens_integ.at(fun).at(field).ParallelAssemble();
-}
+// /// TODO: do something for compound functionals
+// HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
+//                                                        std::string field)
+// {
+//    func_sens_integ.at(fun).emplace(field,
+//                                  func_fields.at(fun).at(field)->ParFESpace());
+//    addFuncFieldSensIntegrators(fun, field);
+//    return func_sens_integ.at(fun).at(field).ParallelAssemble();
+// }
 
 void AbstractSolver::setInputs(std::vector<MachIntegrator> &integrators,
                                const MachInputs &inputs)
@@ -2007,24 +2068,33 @@ void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
    }
 }
 
-void AbstractSolver::setResidualInput(std::string name,
-                                      ParGridFunction &field)
+HypreParVector AbstractSolver::bufferToHypreParVector(double *buffer) const
 {
-   res_fields.at(name).SetData(field.GetData());
+   return HypreParVector(fes->GetComm(),
+                         fes->GlobalTrueVSize(),
+                         buffer,
+                         fes->GetTrueDofOffsets());
 }
 
-void AbstractSolver::setResidualInput(std::string name,
-                                      double *field)
-{
-   res_fields.at(name).SetData(field);
-}
 
-void AbstractSolver::setFunctionalInput(std::string fun,
-                                        std::string name,
-                                        ParGridFunction &field)
-{
-   func_fields.at(fun).at(name) = &field;
-}
+// void AbstractSolver::setResidualInput(std::string name,
+//                                       ParGridFunction &field)
+// {
+//    res_fields.at(name).SetData(field.GetData());
+// }
+
+// void AbstractSolver::setResidualInput(std::string name,
+//                                       double *field)
+// {
+//    res_fields.at(name).SetData(field);
+// }
+
+// void AbstractSolver::setFunctionalInput(std::string fun,
+//                                         std::string name,
+//                                         ParGridFunction &field)
+// {
+//    func_fields.at(fun).at(name) = &field;
+// }
 
 double AbstractSolver::calcFractionalOutput(const ParGridFunction &state,
                                             const std::string &fun)

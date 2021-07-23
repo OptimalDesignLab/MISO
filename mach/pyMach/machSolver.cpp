@@ -27,24 +27,7 @@
 namespace py = pybind11;
 
 using namespace mfem;
-// using namespace nlohmann;
 using namespace mach;
-
-
-/// should getNewField create an entry in `res_fields`?
-/// would need to specify name of field
-/// could have optional options input to construct different fes/fec for the field
-/// 
-/// this does not address that integrators need to have a reference to the field
-/// when they're constructed
-/// what about getting reference to named field?
-///
-/// I think in general this is a bad idea
-/// -- just make a field implicitly convertable to a buffer
-/// or should getNewField just return the buffer with no gf?
-///   -- anywhere that would use it would need to know its size a priori
-///   ^ we could not use mfem functions without the gf object
-/// ** just make implicitly castable to buffer (not from) **
 
 namespace
 {
@@ -99,6 +82,37 @@ SolverPtr initSolver(const std::string &type,
    }
 }
 
+double* npBufferToDoubleArray(py::array_t<double> arr,
+                              int &ndim,
+                              std::vector<pybind11::ssize_t> &shape,
+                              int expected_dim = 1)
+{
+   auto info = arr.request();
+
+   /* Some sanity checks ... */
+   if (info.format != py::format_descriptor<double>::format())
+   {
+      throw std::runtime_error("Incompatible format:\n"
+                                 "\texpected a double array!");
+   }
+   if (info.ndim != expected_dim)
+   {
+      throw std::runtime_error("Incompatible dimensions:\n"
+                                 "\texpected a 1D array!");
+   }
+   ndim = info.ndim;
+   shape = std::move(info.shape);
+   return (double*)info.ptr;
+}
+
+double* npBufferToDoubleArray(py::array_t<double> arr,
+                              int expected_dim = 1)
+{
+   int ndim;
+   std::vector<pybind11::ssize_t> shape;
+   return npBufferToDoubleArray(arr, ndim, shape, expected_dim);
+}
+
 MachInputs pyDictToMachInputs(const py::dict &py_inputs)
 {
    MachInputs inputs(py_inputs.size());
@@ -116,22 +130,15 @@ MachInputs pyDictToMachInputs(const py::dict &py_inputs)
       }
       else
       {
-         const auto &value = input.second.cast<py::buffer>();
-         /* Request a buffer descriptor from Python */
-         py::buffer_info buffer = value.request();
+         const auto &value_buffer = input.second.cast<py::array_t<double>>();
+         int ndim;
+         std::vector<pybind11::ssize_t> shape;
+         auto *value = npBufferToDoubleArray(value_buffer, ndim, shape);
 
-         /* Some sanity checks ... */
-         if (buffer.format != py::format_descriptor<double>::format())
-            throw std::runtime_error("Incompatible format:\n"
-                                    "\texpected a double array!");
-         if (buffer.ndim != 1)
-            throw std::runtime_error("Incompatible dimensions:\n"
-                                    "\texpected a 1D array!");
-
-         if (buffer.shape[0] == 1)
-            inputs.emplace(key, *(double*)buffer.ptr);
+         if (shape[0] == 1)
+            inputs.emplace(key, *value);
          else
-            inputs.emplace(key, (double*)buffer.ptr);
+            inputs.emplace(key, value);
       }
    }
    return inputs;
@@ -177,103 +184,89 @@ void initSolver(py::module &m)
          return self.getOptions();
       })
 
-      .def("getMeshSize", &AbstractSolver::getMeshSize)
-      .def("getMeshCoordinates", &AbstractSolver::getMeshCoordinates,
-            py::return_value_policy::reference)
-      .def("setResidualInput", [](
-         AbstractSolver &self,
-         const std::string &field,
-         py::array_t<double> data)
-      {
-         py::buffer_info info = data.request();
+      // .def("getMeshSize", &AbstractSolver::getMeshSize)
+      // .def("getMeshCoordinates", &AbstractSolver::getMeshCoordinates,
+      //       py::return_value_policy::reference)
+      // .def("setResidualInput", [](
+      //    AbstractSolver &self,
+      //    const std::string &field,
+      //    py::array_t<double> data)
+      // {
+      //    py::buffer_info info = data.request();
 
-         /* Some sanity checks ... */
-         if (info.format != py::format_descriptor<double>::format())
-         {
-            throw std::runtime_error("Incompatible format:\n"
-                                       "\texpected a double array!");
-         }
-         if (info.ndim != 1)
-         {
-            throw std::runtime_error("Incompatible dimensions:\n"
-                                       "\texpected a 1D array!");
-         }
+      //    /* Some sanity checks ... */
+      //    if (info.format != py::format_descriptor<double>::format())
+      //    {
+      //       throw std::runtime_error("Incompatible format:\n"
+      //                                  "\texpected a double array!");
+      //    }
+      //    if (info.ndim != 1)
+      //    {
+      //       throw std::runtime_error("Incompatible dimensions:\n"
+      //                                  "\texpected a 1D array!");
+      //    }
          
-         if (info.shape[0] != self.getFieldSize(field))
-         {
-            std::string err("Incompatible size:\n"
-            "\tattempting to set field \"");
-            err += field;
-            err += "\" (size: ";
-            err += self.getFieldSize(field);
-            err += ") with numpy vector of size: ";
-            err += info.shape[0];
-            throw std::runtime_error(err);
-         }
-         return self.setResidualInput(field, (double*)info.ptr);
-      })
+      //    if (info.shape[0] != self.getFieldSize(field))
+      //    {
+      //       std::string err("Incompatible size:\n"
+      //       "\tattempting to set field \"");
+      //       err += field;
+      //       err += "\" (size: ";
+      //       err += self.getFieldSize(field);
+      //       err += ") with numpy vector of size: ";
+      //       err += info.shape[0];
+      //       throw std::runtime_error(err);
+      //    }
+      //    return self.setResidualInput(field, (double*)info.ptr);
+      // })
 
       .def("setFieldValue", [](
          AbstractSolver &self,
-         mfem::HypreParVector &state,
+         py::array_t<double> field,
          const double u_init)
       {
-         self.setFieldValue(state, u_init);
+         self.setFieldValue(npBufferToDoubleArray(field), u_init);
 
       },
       "Sets the field to a given value.")
 
-      // .def("setFieldValue",
-      // (void (AbstractSolver::*)
-      //    (mfem::HypreParVector &field, 
-      //    const std::function<double(const mfem::Vector &)>&))
-      // &AbstractSolver::setInitialCondition,
-      // "Sets the field to a given scalar function.")
       .def("setFieldValue", [](
          AbstractSolver &self,
-         mfem::HypreParVector &state,
+         py::array_t<double> field,
          const std::function<double(const mfem::Vector &)> &u_init)
       {
-         self.setFieldValue(state, u_init);
+         self.setFieldValue(npBufferToDoubleArray(field), u_init);
       },
       "Sets the field to a given scalar function.")
 
       .def("setFieldValue", [](
          AbstractSolver &self,
-         mfem::HypreParVector &field,
+         py::array_t<double> field,
          const mfem::Vector &u_init)
       {
-         self.setFieldValue(field, u_init);
+         self.setFieldValue(npBufferToDoubleArray(field), u_init);
       },
       "Sets the vector field to a given vector value.")
       .def("setFieldValue", [](
          AbstractSolver &self,
-         mfem::HypreParVector &field,
+         py::array_t<double> field,
          py::array_t<double> u_init_data)
       {
-         py::buffer_info info = u_init_data.request();
-         /* Some sanity checks ... */
-         if (info.format != py::format_descriptor<double>::format())
-         {
-            throw std::runtime_error("Incompatible format:\n"
-                                       "\texpected a double array!");
-         }
-         if (info.ndim > 1)
-         {
-            throw std::runtime_error("Incompatible dimensions:\n"
-                                       "\texpected a 1D array!");
-         }
-         mfem::Vector u_init((double*)info.ptr, info.shape[0]);
-         self.setFieldValue(field, u_init);
+         int ndim;
+         std::vector<pybind11::ssize_t> shape;
+         auto u_init_buffer = npBufferToDoubleArray(field, ndim, shape);
+         mfem::Vector u_init(u_init_buffer, shape[0]);
+         self.setFieldValue(npBufferToDoubleArray(field), u_init);
       },
       "Sets the vector field to a given vector value.")
    
       .def("setFieldValue", [](
          AbstractSolver& self,
-         mfem::HypreParVector &field,
+         py::array_t<double> field,
          std::function<void(const mfem::Vector &, mfem::Vector *const)> u_init)
       {
-         self.setFieldValue(field, [u_init](const mfem::Vector &x, mfem::Vector &u)
+         self.setFieldValue(npBufferToDoubleArray(field),
+                            [u_init](const mfem::Vector &x, mfem::Vector &u)
          {
             u_init(x, &u);
          });
@@ -282,11 +275,18 @@ void initSolver(py::module &m)
 
       .def("setField", [](
          AbstractSolver& self,
-         mfem::HypreParVector &field,
-         const mfem::HypreParVector &u_init)
+         py::array_t<double> field,
+         py::array_t<double> u_init)
       {
-         // self.setInitialCondition(state, u_init);
+         int ndim;
+         std::vector<pybind11::ssize_t> shape;
+         auto field_buffer = npBufferToDoubleArray(field, ndim, shape);
+         auto u_init_buffer = npBufferToDoubleArray(u_init);
          field = u_init;
+         for (pybind11::ssize_t i = 0; i < shape[0]; ++i)
+         {
+            field_buffer[i] = u_init_buffer[i];
+         }
       },
       "Sets the field to equal a given field.")
 
@@ -333,22 +333,44 @@ void initSolver(py::module &m)
                             const py::dict &py_inputs,
                             py::array_t<double> state)
          {
-            /* Request a buffer descriptor from Python */
-            py::buffer_info buffer = state.request();
-
-            /* Some sanity checks ... */
-            if (buffer.format != py::format_descriptor<double>::format())
-               throw std::runtime_error("Incompatible format:\n"
-                                       "\texpected a double array!");
-            if (buffer.ndim != 1)
-               throw std::runtime_error("Incompatible dimensions:\n"
-                                       "\texpected a 1D array!");
             self.solveForState(pyDictToMachInputs(py_inputs),
-                              (double*)buffer.ptr);
+                               npBufferToDoubleArray(state));
             return;
          },
          py::arg("inputs"),
          py::arg("state"))
+
+      .def("linearize", [](AbstractSolver &self,
+                           const py::dict &py_inputs)
+         {
+            self.linearize(pyDictToMachInputs(py_inputs));
+            return;
+         },
+         py::arg("inputs"))
+
+      .def("vectorJacobianProduct", [](AbstractSolver &self,
+                                       py::array_t<double> res_bar_buffer,
+                                       std::string wrt,
+                                       py::array_t<double> wrt_bar_buffer)
+         {
+            auto *res_bar = npBufferToDoubleArray(res_bar_buffer);
+
+            int ndim;
+            std::vector<pybind11::ssize_t> shape;
+            auto *wrt_bar = npBufferToDoubleArray(wrt_bar_buffer, ndim, shape);
+            if (shape[0] == 1)
+            {
+               *wrt_bar = self.vectorJacobianProduct(res_bar, wrt);
+            }
+            else
+            {
+               self.vectorJacobianProduct(res_bar, wrt, wrt_bar);
+            }
+            return;
+         },
+         py::arg("res_bar"),
+         py::arg("wrt"),
+         py::arg("wrt_bar"))
 
       .def("calcL2Error", [](
          AbstractSolver &self,
@@ -395,28 +417,19 @@ void initSolver(py::module &m)
 
       .def("getField", [](AbstractSolver &self,
                           std::string name,
-                          py::array_t<double> field)
+                          py::array_t<double> field_buffer)
          {
-            /* Request a buffer descriptor from Python */
-            py::buffer_info buffer = field.request();
-
-            /* Some sanity checks ... */
-            if (buffer.format != py::format_descriptor<double>::format())
-               throw std::runtime_error("Incompatible format:\n"
-                                       "\texpected a double array!\n");
-            if (buffer.ndim != 1)
-               throw std::runtime_error("Incompatible dimensions:\n"
-                                       "\texpected a 1D array!\n");
-            self.getField(name, (double*)buffer.ptr);
+            self.getField(name, npBufferToDoubleArray(field_buffer));
          },
          py::arg("name"),
          py::arg("field"))
 
       .def("calcResidual", [](AbstractSolver &self,
                               const py::dict &py_inputs,
-                              mfem::HypreParVector &residual)
+                              py::array_t<double> residual)
          {
-            self.calcResidual(pyDictToMachInputs(py_inputs), residual);
+            self.calcResidual(pyDictToMachInputs(py_inputs),
+                              npBufferToDoubleArray(residual));
          },
          py::arg("inputs"),
          py::arg("residual"))
@@ -449,29 +462,23 @@ void initSolver(py::module &m)
                             const std::string &of,
                             const std::string &wrt,
                             const py::dict &py_inputs,
-                            py::array_t<double> partial)
+                            py::array_t<double> partial_buffer)
          {
-            /* Request a buffer descriptor from Python */
-            py::buffer_info buffer = partial.request();
+            int ndim;
+            std::vector<pybind11::ssize_t> shape;
+            auto *partial = npBufferToDoubleArray(partial_buffer, ndim, shape);
 
-            /* Some sanity checks ... */
-            if (buffer.format != py::format_descriptor<double>::format())
-               throw std::runtime_error("Incompatible format:\n"
-                                       "\texpected a double array!\n");
-            if (buffer.ndim != 1)
-               throw std::runtime_error("Incompatible dimensions:\n"
-                                       "\texpected a 1D array!\n");
-
-            if (buffer.shape[0] == 1)
-               // self.calcOutputPartial(of, wrt,
-               //                        pyDictToMachInputs(py_inputs),
-               //                        *(double*)buffer.ptr);
+            auto inputs = pyDictToMachInputs(py_inputs);
+            if (shape[0] == 1)
+            {
+               // *partial = self.calcOutputPartial(of, wrt, inputs);
                throw std::runtime_error("calcOutputPartial not supported for "
                                         "scalar derivative!\n");
+            }
             else
-               self.calcOutputPartial(of, wrt,
-                                      pyDictToMachInputs(py_inputs),
-                                      (double*)buffer.ptr);
+            {
+               self.calcOutputPartial(of, wrt, inputs, partial);
+            }
          },
          "Evaluates and returns the partial derivative of output functional "
          "specifed by `of` with respect to the input specified by `wrt`",

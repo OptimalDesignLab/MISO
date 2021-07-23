@@ -153,13 +153,27 @@ public:
       mfem::HypreParVector &field,
       const double u_init);
 
+   /// Initializes the field to a given constant
+   /// \param[in] field_buffer - the field to set
+   /// \param[in] u_init - constant to set the field to
+   virtual void setFieldValue(
+      double *field_buffer,
+      const double u_init);
+
    /// Initializes the field to a given scalar function
    /// \param[in] field - the field to set
    /// \param[in] u_init - function that defines spatially varying field
    virtual void setFieldValue(
       mfem::HypreParVector &field,
       const std::function<double(const mfem::Vector &)> &u_init);
-      
+
+   /// Initializes the field to a given scalar function
+   /// \param[in] field_buffer - the field to set
+   /// \param[in] u_init - function that defines spatially varying field
+   virtual void setFieldValue(
+      double *field_buffer,
+      const std::function<double(const mfem::Vector &)> &u_init);
+
    /// Initializes the vector field to a given constant vector
    /// \param[in] field - the vector field to set
    /// \param[in] u_init - vector to set the field to
@@ -167,11 +181,25 @@ public:
       mfem::HypreParVector &field,
       const mfem::Vector &u_init);
 
+   /// Initializes the vector field to a given constant vector
+   /// \param[in] field_buffer - the field to set
+   /// \param[in] u_init - vector to set the field to
+   virtual void setFieldValue(
+      double *field_buffer,
+      const mfem::Vector &u_init);
+
    /// Sets the vector field to a given vector-valued function.
    /// \param[in] field - the vector field to set
    /// \param[in] u_init - function that defines spatially varying vector field
    virtual void setFieldValue(
       mfem::HypreParVector &field,
+      const std::function<void(const mfem::Vector &, mfem::Vector&)> &u_init);
+
+   /// Sets the vector field to a given vector-valued function.
+   /// \param[in] field_buffer - the field to set
+   /// \param[in] u_init - function that defines spatially varying vector field
+   virtual void setFieldValue(
+      double *field_buffer,
       const std::function<void(const mfem::Vector &, mfem::Vector&)> &u_init);
 
    /// TODO move to protected?
@@ -485,7 +513,24 @@ public:
    /// \param[out] residual - the residual
    void calcResidual(const MachInputs &inputs,
                      mfem::HypreParVector &residual) const;
-   
+
+   /// Set inputs for residual integrators and assemble state jacobian
+   void linearize(const MachInputs &inputs);
+
+   /// Compute vector jacobian product for derivative with respect to a scalar
+   /// \param[in] residual_bar - multiplies jacobian on the left hand side
+   /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   double vectorJacobianProduct(double *residual_bar,
+                                std::string wrt);
+
+   /// Compute vector jacobian product for derivative with respect to a vector
+   /// \param[in] residual_bar - multiplies jacobian on the left hand side
+   /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   /// \param[out] wrt_bar - result of vector jacobian product
+   void vectorJacobianProduct(double *residual_bar,
+                              std::string wrt,
+                              double *wrt_bar);
+
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
 
@@ -533,42 +578,42 @@ public:
    /// Tell the underling forms that the mesh has changed;
    virtual void Update() {fes->Update();};
 
-   /// Set the data for the input field
-   /// \param[in] name - name of the field
-   /// \param[in] field - reference the existing field
-   /// \note it is assumed that this external grid function is defined on the
-   /// same mesh the solver uses
-   void setResidualInput(std::string name,
-                         mfem::ParGridFunction &field);
+   // /// Set the data for the input field
+   // /// \param[in] name - name of the field
+   // /// \param[in] field - reference the existing field
+   // /// \note it is assumed that this external grid function is defined on the
+   // /// same mesh the solver uses
+   // void setResidualInput(std::string name,
+   //                       mfem::ParGridFunction &field);
 
-   /// Set the data for the input field
-   /// \param[in] name - name of the field
-   /// \param[in] field - data buffer for an external grid function
-   /// \note it is assumed that this external grid function is defined on the
-   /// same mesh the solver uses
-   void setResidualInput(std::string name,
-                         double *field);
+   // /// Set the data for the input field
+   // /// \param[in] name - name of the field
+   // /// \param[in] field - data buffer for an external grid function
+   // /// \note it is assumed that this external grid function is defined on the
+   // /// same mesh the solver uses
+   // void setResidualInput(std::string name,
+   //                       double *field);
 
-   /// Compute seed^T \frac{\partial R}{\partial field}
-   /// \param[in] field - name of the field to differentiate with respect to
-   /// \param[in] seed - the field to contract with (usually the adjoint)
-   mfem::HypreParVector* vectorJacobianProduct(std::string field,
-                                               mfem::ParGridFunction &seed);
+   // /// Compute seed^T \frac{\partial R}{\partial field}
+   // /// \param[in] field - name of the field to differentiate with respect to
+   // /// \param[in] seed - the field to contract with (usually the adjoint)
+   // mfem::HypreParVector* vectorJacobianProduct(std::string field,
+   //                                             mfem::ParGridFunction &seed);
 
-   /// Register a functional's dependence on a field
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] name - name of the field
-   /// \param[in] field - reference the existing field
-   /// \note field/name pairs are stored in `external_fields`
-   void setFunctionalInput(std::string fun,
-                           std::string name,
-                           mfem::ParGridFunction &field);
+   // /// Register a functional's dependence on a field
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] name - name of the field
+   // /// \param[in] field - reference the existing field
+   // /// \note field/name pairs are stored in `external_fields`
+   // void setFunctionalInput(std::string fun,
+   //                         std::string name,
+   //                         mfem::ParGridFunction &field);
 
-   /// Compute \frac{\partial J}{\partial field}
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] field - name of the field to differentiate with respect to
-   mfem::HypreParVector* calcFunctionalGradient(std::string fun,
-                                                std::string field);
+   // /// Compute \frac{\partial J}{\partial field}
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] field - name of the field to differentiate with respect to
+   // mfem::HypreParVector* calcFunctionalGradient(std::string fun,
+   //                                              std::string field);
 
 protected:
    /// communicator used by MPI group for communication
@@ -894,6 +939,10 @@ protected:
    void setInput(std::vector<MachIntegrator> &integrators,
                  const std::string &name,
                  const MachInput &input);
+
+   /// Construct a HypreParVector on the state FES using external data
+   /// \param[in] buffer - external data for HypreParVector
+   mfem::HypreParVector bufferToHypreParVector(double *buffer) const;
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
    /// reference to it to in fun_integrators as a MachIntegrator
