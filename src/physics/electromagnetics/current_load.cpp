@@ -18,15 +18,14 @@ void setInputs(CurrentLoad &load,
       if (input.first == "current_density")
       {
          load.current_density = input.second.getValue();
+         load.current.SetAConst(load.current_density);
          load.dirty = true;
       }
       else if (input.first == "mesh_coords")
       {
-         load.nd_mass.Update();
          load.dirty = true;
       }
    }
-   load.current.SetAConst(load.current_density);
 }
 
 void addLoad(CurrentLoad &load,
@@ -34,6 +33,7 @@ void addLoad(CurrentLoad &load,
 {
    if (load.dirty)
    {
+      load.nd_mass.Update();
       load.assembleLoad();
       load.dirty = false;
    }
