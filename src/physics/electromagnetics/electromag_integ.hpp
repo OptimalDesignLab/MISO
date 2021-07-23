@@ -87,7 +87,8 @@ private:
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt;
-   mfem::Vector b_vec, b_hat, temp_vec;
+   // mfem::Vector b_vec, b_hat, temp_vec;
+   mfem::Vector scratch;
 #endif
    friend class CurlCurlNLFIntegratorMeshSens;
 };

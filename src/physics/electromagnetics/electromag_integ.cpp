@@ -104,24 +104,21 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
    /// number of degrees of freedom
    int ndof = el.GetDof();
    int dim = el.GetDim();
-
-   /// I believe this takes advantage of a 2D problem not having
-   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
-
-   /// holds quadrature weight
-   double w;
+   elvect.SetSize(ndof);   
+   elvect = 0.0;
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
-   Vector b_vec(dimc);
+   // Vector b_vec(dimc);
 #else
    curlshape.SetSize(ndof,dimc);
    curlshape_dFt.SetSize(ndof,dimc);
-   b_vec.SetSize(dimc);
+   // b_vec.SetSize(dimc);
 #endif
 
-   elvect.SetSize(ndof);
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, dim);
 
    const IntegrationRule *ir = NULL;
    {
@@ -138,8 +135,6 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
-   elvect = 0.0;
-
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       b_vec = 0.0;
@@ -147,7 +142,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
+      double w = ip.weight / trans.Weight();
       w *= alpha;
 
       if ( dim == 3 )
@@ -180,25 +175,21 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    /// number of degrees of freedom
    int ndof = el.GetDof();
    int dim = el.GetDim();
-
-   /// I believe this takes advantage of a 2D problem not having
-   /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
-
-   /// holds quadrature weight
-   double w;
+   elmat.SetSize(ndof);
+   elmat = 0.0;
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc);
-   Vector b_vec(dimc), temp_vec(ndof);
+   Vector scratch(ndof);
 #else
    curlshape.SetSize(ndof,dimc);
    curlshape_dFt.SetSize(ndof,dimc);
-   b_vec.SetSize(dimc);
-   temp_vec.SetSize(ndof);
+   scratch.SetSize(ndof);
 #endif
 
-   elmat.SetSize(ndof);
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, dim);
 
    const IntegrationRule *ir = NULL;
    {
@@ -215,14 +206,13 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
-   elmat = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
+      double w = ip.weight / trans.Weight();
       w *= alpha;
 
       if ( dim == 3 )
@@ -258,12 +248,10 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /////////////////////////////////////////////////////////////////////////
       if (abs(b_mag) > 1e-14)
       {
-         /// TODO: is this thread safe?
          /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so we
          /// can take outer product of result to generate matrix
-         temp_vec = 0.0;
-         curlshape_dFt.Mult(b_vec, temp_vec);
-         // DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
+         scratch = 0.0;
+         curlshape_dFt.Mult(b_vec, scratch);
 
          /// evaluate the derivative of the material model with respect to the
          /// norm of the grid function associated with the model at the point
@@ -274,7 +262,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       
          /// add second term to elmat
          // AddMult_a_AAt(model_deriv, temp_matrix, elmat);
-         AddMult_a_VVt(model_deriv, temp_vec, elmat);
+         AddMult_a_VVt(model_deriv, scratch, elmat);
 
          // for (int i = 0; i < ndof; ++i)
          // {
@@ -364,11 +352,6 @@ void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
 
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      PointMat_bar = 0.0;
-      curlshape_dFt_bar = 0.0;
-      b_vec = 0.0;
-      curl_psi = 0.0;
-
       const IntegrationPoint &ip = ir->IntPoint(i);
       isotrans.SetIntPoint(&ip);
 
@@ -384,6 +367,8 @@ void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
          el.CalcCurlShape(ip, curlshape_dFt);
       }
 
+      b_vec = 0.0;
+      curl_psi = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       curlshape_dFt.AddMultTranspose(psi, curl_psi);
       const double curl_psi_dot_b = curl_psi * b_vec;
@@ -416,21 +401,25 @@ void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
       trans_weight_bar -= b_mag_bar * b_vec_norm / pow(trans.Weight(), 2);
 
       /// const double b_vec_norm = b_vec.Norml2();
-      Vector b_vec_bar(dimc); b_vec_bar = 0.0;
+      double b_vec_bar_buffer[3];
+      Vector b_vec_bar(b_vec_bar_buffer, dim); b_vec_bar = 0.0;
       add(b_vec_bar, b_vec_norm_bar / b_vec_norm, b_vec, b_vec_bar);
 
       /// const double curl_psi_dot_b = curl_psi * b_vec;
-      Vector curl_psi_bar(dimc); curl_psi_bar = 0.0;
+      double curl_psi_bar_buffer[3];
+      Vector curl_psi_bar(curl_psi_bar_buffer, dim); curl_psi_bar = 0.0;
       add(curl_psi_bar, curl_psi_dot_b_bar, b_vec, curl_psi_bar);
       add(b_vec_bar, curl_psi_dot_b_bar, curl_psi, b_vec_bar);
 
+      curlshape_dFt_bar = 0.0;
       /// curlshape_dFt.AddMultTranspose(psi, curl_psi);
       AddMultVWt(curl_psi_bar, psi, curlshape_dFt_bar);
       /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
       AddMultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
       /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-      DenseMatrix jac_bar(dimc); jac_bar = 0.0;
+      double jac_bar_buffer[9];
+      DenseMatrix jac_bar(jac_bar_buffer, dim, dim); jac_bar = 0.0;
       AddMult(curlshape_dFt_bar, curlshape, jac_bar);
 
       /// const double w = ip.weight / trans.Weight();
