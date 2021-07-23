@@ -49,8 +49,7 @@ double calcMagneticEnergyDoubleDot(mfem::ElementTransformation &trans,
                              double B);
 
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
-class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator,
-                              public mfem::LinearFormIntegrator
+class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Construct a curl curl nonlinear form integrator for Nedelec elements
@@ -59,17 +58,6 @@ public:
    CurlCurlNLFIntegrator(StateCoefficient *m,
                         double a = 1.0)
       : model(m), alpha(a) {}
-
-   /// Construct a curl curl nonlinear form integrator for Nedelec elements
-   /// \param[in] m - model describing nonlinear material parameter
-   /// \param[in] state - the state to use when evaluating
-   ///                    \frac{\partial psi^T R}{\partial X}
-   /// \param[in] adjoint - the adjoint to use when evaluating
-   ///                      \frac{\partial psi^T R}{\partial X}
-   /// \param[in] a - used to move to lhs or rhs
-   CurlCurlNLFIntegrator(StateCoefficient *m, mfem::GridFunction *_state,
-                         mfem::GridFunction *_adjoint, double a = 1.0)
-      : model(m), state(_state), adjoint(_adjoint), alpha(a) {}
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -91,42 +79,55 @@ public:
                             const mfem::Vector &elfun,
                             mfem::DenseMatrix &elmat) override;
 
-   /// \brief calculate the functional \psi^T R(u)
-   /// \param[in] el - the finite element
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - state vector of the element
-   double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &trans,
-                           const mfem::Vector &elfun) override;
-
-   /// \brief - assemble an element's contribution to
-   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
-   ///          derivative of a functional with respect to the mesh nodes
-   /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
-   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
-   /// \note this is the `LinearFormIntegrator` component, the LinearForm that
-   ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
-   ///       nodal finite element space
-   void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                               mfem::ElementTransformation &trans,
-                               mfem::Vector &elvect) override;
-
 private:
 	/// material (thus mesh) dependent model describing electromagnetic behavior
 	StateCoefficient *model;
-   /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
-   mfem::GridFunction *state;
-   /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
-   mfem::GridFunction *adjoint;
    /// scales the terms; can be used to move to rhs/lhs
 	double alpha;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt;
-   mfem::Vector b_vec, b_hat, curl_psi, curl_psi_hat, temp_vec;
+   mfem::Vector b_vec, b_hat, temp_vec;
 #endif
+   friend class CurlCurlNLFIntegratorMeshSens;
+};
 
+/// Integrator to assemble d(psi^T R)/dX for the CurlCurlNLFIntegrator
+class CurlCurlNLFIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   CurlCurlNLFIntegratorMeshSens(mfem::GridFunction &state,
+                                 mfem::GridFunction &adjoint,
+                                 CurlCurlNLFIntegrator &integ)
+   : state(state), adjoint(adjoint), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   CurlCurlNLFIntegrator &integ;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape_dFt_bar;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+#endif
 };
 
 /// Integrator for (\nu(u) M, curl v) for Nedelec Elements

@@ -147,7 +147,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight;
+      w = ip.weight / trans.Weight();
       w *= alpha;
 
       if ( dim == 3 )
@@ -160,9 +160,10 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
          el.CalcCurlShape(ip, curlshape_dFt);
       }
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      b_vec /= trans.Weight();
+      const double b_vec_norm = b_vec.Norml2();
+      const double b_mag = b_vec_norm / trans.Weight();
 
-      double model_val = model->Eval(trans, ip, b_vec.Norml2());
+      double model_val = model->Eval(trans, ip, b_mag);
       model_val *= w;
       b_vec *= model_val;
 
@@ -296,18 +297,57 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    }
 }
 
-double CurlCurlNLFIntegrator::GetElementEnergy(
-   const mfem::FiniteElement &el,
-   mfem::ElementTransformation &trans,
-   const mfem::Vector &elfun)
+void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
+   const FiniteElement &mesh_el,
+   ElementTransformation &mesh_trans,
+   Vector &mesh_coords_bar)
 {
    /// get the proper element, transformation, and state vector
-   Array<int> vdofs;
-   Vector psi; 
-   int element = trans.ElementNo;
-   state->FESpace()->GetElementVDofs(element, vdofs);
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+#endif
+   int element = mesh_trans.ElementNo;
+   auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
 
-   const IntegrationRule *ir = NULL;
+   const int ndof = mesh_el.GetDof();
+   const int el_ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int dimc = (dim == 3) ? 3 : 1;
+   mesh_coords_bar.SetSize(ndof*dimc);
+   mesh_coords_bar = 0.0;
+
+   state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   adjoint.GetSubVector(vdofs, psi);
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(el_ndof,dimc), curlshape_dFt(el_ndof,dimc);
+   DenseMatrix curlshape_dFt_bar(dimc, el_ndof); // transposed dimensions of curlshape_dFt so I don't have to transpose J later
+   DenseMatrix PointMat_bar(dimc, ndof);
+#else
+   auto &curlshape = integ.curlshape;
+   auto &curlshape_dFt = integ.curlshape_dFt;
+   curlshape.SetSize(el_ndof,dimc);
+   curlshape_dFt.SetSize(el_ndof,dimc);
+   curlshape_dFt_bar.SetSize(dimc, el_ndof); // transposed dimensions of curlshape_dFt so I don't have to transpose J later
+   PointMat_bar.SetSize(dimc, ndof);
+#endif
+   auto &nu = *integ.model;
+
+   /// these vector's size is the spatial dimension we can stack allocate
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, dim);
+   double curl_psi_buffer[3];
+   Vector curl_psi(curl_psi_buffer, dim);
+   
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
    {
       int order;
       if (el.Space() == FunctionSpace::Pk)
@@ -322,42 +362,22 @@ double CurlCurlNLFIntegrator::GetElementEnergy(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
-   adjoint->GetSubVector(vdofs, psi);
-
-   int ndof = el.GetDof();
-   int dim = el.GetDim();
-   int dimc = (dim == 3) ? 3 : 1;
-#ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(el_ndof,dimc);
-   Vector b_vec(dimc), curl_psi(dimc);
-#else
-   curlshape.SetSize(ndof,dimc);
-   curlshape_dFt.SetSize(ndof,dimc);
-   b_vec.SetSize(dimc);
-   curl_psi.SetSize(dimc);
-#endif
-
-   /// holds quadrature weight
-   double w;
-
-
-   double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
+      PointMat_bar = 0.0;
+      curlshape_dFt_bar = 0.0;
       b_vec = 0.0;
       curl_psi = 0.0;
 
       const IntegrationPoint &ip = ir->IntPoint(i);
+      isotrans.SetIntPoint(&ip);
 
-      trans.SetIntPoint(&ip);
-
-      w = ip.weight / trans.Weight();
-      w *= alpha;
+      const double w = ip.weight / trans.Weight();
 
       if ( dim == 3 )
       {
          el.CalcCurlShape(ip, curlshape);
-         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         MultABt(curlshape, isotrans.Jacobian(), curlshape_dFt);
       }
       else
       {
@@ -366,125 +386,68 @@ double CurlCurlNLFIntegrator::GetElementEnergy(
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       curlshape_dFt.AddMultTranspose(psi, curl_psi);
+      const double curl_psi_dot_b = curl_psi * b_vec;
 
-      double b_mag = b_vec.Norml2();
-      double model_val = model->Eval(trans, ip, b_mag);
+      const double b_vec_norm = b_vec.Norml2();
+      const double b_mag = b_vec_norm / trans.Weight();
 
-      fun += model_val * (curl_psi * b_vec) * w;
-      // fun += (curl_psi * b_vec) * ip.weight;
-   }
-   return fun;
-}
+      const double nu_val = nu.Eval(isotrans, ip, b_mag);
 
-void CurlCurlNLFIntegrator::AssembleRHSElementVect(
-   const FiniteElement &mesh_el,
-   ElementTransformation &mesh_trans,
-   Vector &elvect)
-{
-   /// get the proper element, transformation, and state vector
-   Array<int> vdofs;
-   Vector elfun, psi; 
-   int element = mesh_trans.ElementNo;
-   const FiniteElement *el = state->FESpace()->GetFE(element);
-   ElementTransformation *trans = state->FESpace()->GetElementTransformation(element);
-   state->FESpace()->GetElementVDofs(element, vdofs);
+      /// dummy functional for adjoint-weighted residual
+      // fun += nu_val * curl_psi_dot_b * w;
 
-   const IntegrationRule *ir = NULL;
-   {
-      int order;
-      if (el->Space() == FunctionSpace::Pk)
-      {
-         order = 2*el->GetOrder() - 1;
-      }
-      else
-      {
-         order = 2*el->GetOrder();
-      }
+      /// start reverse pass
+      double fun_bar = 1.0;
 
-      ir = &IntRules.Get(el->GetGeomType(), order);
-   }
+      /// fun += nu_val * curl_psi_dot_b * w;
+      double nu_val_bar = fun_bar * curl_psi_dot_b * w;
+      double curl_psi_dot_b_bar = fun_bar * nu_val * w;
+      double w_bar = fun_bar * nu_val * curl_psi_dot_b;
 
-   state->GetSubVector(vdofs, elfun);
-   adjoint->GetSubVector(vdofs, psi);
+      /// double nu_val = nu.Eval(isotrans, ip, b_mag);
+      double b_mag_bar = 0.0;
+      const double dnudb = nu.EvalStateDeriv(isotrans, ip, b_mag);
+      b_mag_bar += nu_val_bar * dnudb;
 
-   int ndof = mesh_el.GetDof();
-   int el_ndof = el->GetDof();
-   int dim = el->GetDim();
-   int dimc = (dim == 3) ? 3 : 1;
-   elvect.SetSize(ndof*dimc);
-   elvect = 0.0;
-#ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshape(el_ndof,dimc), curlshape_dFt(el_ndof,dimc);
-   Vector b_vec(dimc), b_hat(dimc), curl_psi(dimc), curl_psi_hat(dimc);
-#else
-   curlshape.SetSize(el_ndof,dimc);
-   curlshape_dFt.SetSize(el_ndof,dimc);
-   b_vec.SetSize(dimc);
-   b_hat.SetSize(dimc);
-   curl_psi.SetSize(dimc);
-   curl_psi_hat.SetSize(dimc);
-#endif
-   DenseMatrix PointMat_bar(dimc, ndof);
-   
-   // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-   dynamic_cast<IsoparametricTransformation&>(*trans);
+      /// const double b_mag = b_vec_norm / trans.Weight();   
+      double b_vec_norm_bar = 0.0;
+      double trans_weight_bar = 0.0;
+      b_vec_norm_bar += b_mag_bar / trans.Weight();
+      trans_weight_bar -= b_mag_bar * b_vec_norm / pow(trans.Weight(), 2);
 
-   for (int i = 0; i < ir->GetNPoints(); i++)
-   {
+      /// const double b_vec_norm = b_vec.Norml2();
+      Vector b_vec_bar(dimc); b_vec_bar = 0.0;
+      add(b_vec_bar, b_vec_norm_bar / b_vec_norm, b_vec, b_vec_bar);
+
+      /// const double curl_psi_dot_b = curl_psi * b_vec;
+      Vector curl_psi_bar(dimc); curl_psi_bar = 0.0;
+      add(curl_psi_bar, curl_psi_dot_b_bar, b_vec, curl_psi_bar);
+      add(b_vec_bar, curl_psi_dot_b_bar, curl_psi, b_vec_bar);
+
+      /// curlshape_dFt.AddMultTranspose(psi, curl_psi);
+      AddMultVWt(curl_psi_bar, psi, curlshape_dFt_bar);
+      /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      AddMultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
+
+      /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      DenseMatrix jac_bar(dimc); jac_bar = 0.0;
+      AddMult(curlshape_dFt_bar, curlshape, jac_bar);
+
+      /// const double w = ip.weight / trans.Weight();
+      trans_weight_bar -= w_bar * ip.weight / pow(trans.Weight(), 2);
+
       PointMat_bar = 0.0;
-      b_hat = 0.0;
-      b_vec = 0.0;
-      curl_psi_hat = 0.0;
-      curl_psi = 0.0;
-
-      const IntegrationPoint &ip = ir->IntPoint(i);
-
-      isotrans.SetIntPoint(&ip);
-
-      if ( dim == 3 )
-      {
-         el->CalcCurlShape(ip, curlshape);
-         MultABt(curlshape, isotrans.Jacobian(), curlshape_dFt);
-      }
-      else
-      {
-         el->CalcCurlShape(ip, curlshape_dFt);
-      }
-
-      curlshape.AddMultTranspose(elfun, b_hat);
-      curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      curlshape.AddMultTranspose(psi, curl_psi_hat);
-      curlshape_dFt.AddMultTranspose(psi, curl_psi);
-
-      double b_mag = b_vec.Norml2();
-      double model_val = model->Eval(isotrans, ip, b_mag);
-      double model_deriv = model->EvalStateDeriv(isotrans, ip, b_mag);
-
-      double curl_psi_dot_b = curl_psi * b_vec;
-
-      // nu * (\partial a^T b / \partial J) / |J|
-      DenseMatrix Jac_bar(3);
-      MultVWt(b_vec, curl_psi_hat, Jac_bar);
-      AddMultVWt(curl_psi, b_hat, Jac_bar);
-      Jac_bar *= model_val / isotrans.Weight();
-
-      // (\partial nu / \partial J) * a^T b / |J|
-      // (\partial nu / \partial ||B||) * B / ||B|| * B_hat * a^T b
-      AddMult_a_VWt(model_deriv * curl_psi_dot_b / (b_mag * isotrans.Weight()),
-                    b_vec, b_hat, Jac_bar);
-
-      // (- nu * a^T b / |J|^2)  * \partial |J| / \partial X
       isotrans.WeightRevDiff(PointMat_bar);
-      PointMat_bar *= -model_val * curl_psi_dot_b / pow(trans->Weight(), 2.0);
+      PointMat_bar *= trans_weight_bar;
 
-      isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
+      isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
 
+      // code to insert PointMat_bar into mesh_coords_bar;
       for (int j = 0; j < ndof ; ++j)
       {
          for (int d = 0; d < dimc; ++d)
          {
-            elvect(d*ndof + j) += ip.weight * PointMat_bar(d,j);
+            mesh_coords_bar(d*ndof + j) += PointMat_bar(d, j);
          }
       }
    }
