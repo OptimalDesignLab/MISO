@@ -480,6 +480,7 @@ inline void addOutputSensitivityIntegrators<MagneticEnergyIntegrator>(
       new MagneticEnergyIntegratorMeshSens(res_fields.at("state"), primal_integ));
 }
 
+/** commenting out co-energy stuff since I'm stopping maintaining it
 /// Integrator to compute the magnetic co-energy
 class MagneticCoenergyIntegrator : public mfem::NonlinearFormIntegrator,
                                    public mfem::LinearFormIntegrator
@@ -561,6 +562,7 @@ inline void setInput(MagneticCoenergyIntegrator &integ,
 {
    // do nothing yet
 }
+*/
 
 /// Integrator to compute the norm of the magnetic field
 class BNormIntegrator : public mfem::NonlinearFormIntegrator

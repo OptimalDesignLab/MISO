@@ -1444,6 +1444,7 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
    return;
 }
 
+/** commenting out co-energy stuff since I'm stopping maintaining it
 double MagneticCoenergyIntegrator::GetElementEnergy(
    const FiniteElement &el,
    ElementTransformation &trans,
@@ -1817,6 +1818,7 @@ void MagneticCoenergyIntegrator::AssembleRHSElementVect(
       }
    }
 }
+*/
 
 double BNormIntegrator::GetElementEnergy(
    const FiniteElement &el,

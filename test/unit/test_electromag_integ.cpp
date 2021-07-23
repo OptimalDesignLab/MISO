@@ -972,6 +972,7 @@ TEST_CASE("MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect")
    }
 }
 
+/** commenting out co-energy stuff since I'm stopping maintaining it
 TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
           "[MagneticCoenergyIntegrator]")
 {
@@ -984,7 +985,7 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
    // generate a 6 element mesh
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+                                       true, 1.0, 1.0, 1.0, true));
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
@@ -1047,7 +1048,7 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementRHSVect",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                                        Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+                                       true, 1.0, 1.0, 1.0, true));
    mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
@@ -1109,6 +1110,7 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementRHSVect",
       }
    }
 }
+*/
 
 TEST_CASE("BNormIntegrator::GetElementEnergy",
           "[BNormIntegrator]")

@@ -812,11 +812,11 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
       addOutputDomainIntegrator(fun,
                                 new MagneticEnergyIntegrator(*nu));
    }
-   else if (fun == "co-energy")
-   {
-      addOutputDomainIntegrator(fun,
-                                new MagneticCoenergyIntegrator(*u, nu.get()));
-   }
+   // else if (fun == "co-energy")
+   // {
+   //    addOutputDomainIntegrator(fun,
+   //                              new MagneticCoenergyIntegrator(*u, nu.get()));
+   // }
    else if (fun == "ACLoss")
    {
       addOutputDomainIntegrator(fun,
