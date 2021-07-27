@@ -140,7 +140,7 @@ void calcRoeFaceFlux(const xdouble *dir, const xdouble *qL,
    using std::max;
 
    // Define some constants
-   const xdouble sat_Vn = 0.025;
+   const xdouble sat_Vn = 0.025; // 0.25 (with shocks)
    const xdouble sat_Vl = 0.025;
 
    // Define the Roe-average state 
