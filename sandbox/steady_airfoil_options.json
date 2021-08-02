@@ -19,6 +19,7 @@
        "ode-solver": "PTC",
        "t-final": 100,
        "dt": 0.1,
+       "res-exp": 2,
        "cfl": 1.0
     },
      "model-file": "annulus.dmg",
@@ -57,7 +58,7 @@
     "lin-prec": {
         "type": "hypreilu",
         "lev-fill": 3,
-        "ilu-type": 2,
+        "ilu-type": 0,
         "ilu-reorder": 1,
         "printlevel": 0
     },

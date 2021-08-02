@@ -6,7 +6,7 @@ ParCentGridFunction::ParCentGridFunction(ParFiniteElementSpace *pf)
    SetSize(pf->GetVDim() * pf->GetNE());
    fes = pf;
    fec = NULL;
-   sequence = pf->GetSequence();
+   fes_sequence = pf->GetSequence();
    UseDevice(true);
 }
 

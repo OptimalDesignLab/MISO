@@ -16,6 +16,7 @@ endfunction(create_sandbox)
 set(SANDBOX_SRCS
    #advection2d
    steady_vortex
+   steady_airfoil
    steady_vortex_adjoint
    unsteady_vortex
    viscous_shock

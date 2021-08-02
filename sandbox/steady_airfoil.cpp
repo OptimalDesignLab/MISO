@@ -1,7 +1,7 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
 
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = false;
+constexpr bool entvar = true;
 
 #include<random>
 #include "adept.h"
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
    {
       // construct the mesh
       string opt_file_name(options_file);
-      const char *mesh_file = "airfoil_0012_tr_new_coarse_FF.mesh";
+      const char *mesh_file = "airfoil_0012_tr_new_medium_FF.mesh";
       auto smesh = unique_ptr<Mesh>(new Mesh(mesh_file, 1, 1));
       *out << "Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_airfoil_mesh.vtk");
