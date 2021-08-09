@@ -97,12 +97,11 @@ class omMachState(om.ImplicitComponent):
             raise NotImplementedError
 
     def solve_linear(self, d_outputs, d_residuals, mode):
-
         solver = self.options["solver"]
 
         if mode == "rev":
-            if "state" in d_residuals: 
-                if "state" in d_outputs: 
+            if "state" in d_residuals:
+                if "state" in d_outputs:
                     d_residuals["state"] = solver.invertStateJacTranspose(d_outputs["state"])
 
         elif mode == "fwd":

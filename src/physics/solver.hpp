@@ -531,6 +531,14 @@ public:
                               std::string wrt,
                               double *wrt_bar);
 
+   /// Compute vector jacobian product for derivative with respect to a vector
+   /// \param[in] residual_bar - multiplies jacobian on the left hand side
+   /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   /// \param[out] wrt_bar - result of vector jacobian product
+   void vectorJacobianProduct(const mfem::HypreParVector &res_bar,
+                              std::string wrt,
+                              mfem::HypreParVector &wrt_bar);
+
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
 
@@ -690,22 +698,14 @@ protected:
    // Members associated with external inputs
    /// map of external fields the residual depends on
    std::unordered_map<std::string, mfem::ParGridFunction> res_fields;
+   /// map of external true vectors, used primarily for accumulating bar variables
+   std::map<std::string, mfem::HypreParVector> ext_tvs;
+   /// collection of integrators for the residual
+   std::vector<MachIntegrator> res_integrators;
    /// map of linear forms that will compute
    /// \psi^T \frac{\partial R}{\partial field}
    /// for each field the residual depends on
-   std::unordered_map<std::string, mfem::ParLinearForm> res_sens_integ;
-   /// map of external fields each functional depends on
-   std::unordered_map<std::string,
-                      std::unordered_map<std::string,
-                                         mfem::ParGridFunction*>> func_fields;
-   /// map of linear forms that will compute \frac{\partial J}{\partial field}
-   /// for each functional and field the functional depends on
-   std::unordered_map<std::string,
-                      std::unordered_map<std::string,
-                                         mfem::ParLinearForm>> func_sens_integ;
-
-   // /// derivative of psi^T res w.r.t the mesh nodes
-   // std::unique_ptr<NonlinearFormType> res_mesh_sens;
+   std::map<std::string, mfem::ParLinearForm> res_sens;
 
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
@@ -940,9 +940,58 @@ protected:
                  const std::string &name,
                  const MachInput &input);
 
-   /// Construct a HypreParVector on the state FES using external data
+   /// Construct a HypreParVector on the a given FES using external data
    /// \param[in] buffer - external data for HypreParVector
-   mfem::HypreParVector bufferToHypreParVector(double *buffer) const;
+   /// \param[in] fes - finite element space to construct vector on
+   mfem::HypreParVector bufferToHypreParVector(
+      double *buffer,
+      const mfem::ParFiniteElementSpace &fes) const;
+
+   /// Adds domain integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addResidualDomainIntegrator(T *integrator)
+   {
+      res->AddDomainIntegrator(integrator);
+      res_integrators.emplace_back(*integrator);
+      mach::addResidualSensitivityIntegrator(*integrator,
+                                             res_fields,
+                                             res_sens);
+   }
+
+   /// Adds interface integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator   
+   template <typename T>
+   void addResidualInteriorFaceIntegrator(T *integrator)
+   {
+      res->AddInteriorFaceIntegrator(integrator);
+      res_integrators.emplace_back(*integrator);
+      mach::addResidualSensitivityIntegrator(*integrator,
+                                             res_fields,
+                                             res_sens);
+   }
+
+   /// Adds boundary integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addResidualBdrFaceIntegrator(T *integrator,
+                                     mfem::Array<int> &bdr_marker)
+   {
+      res->AddBdrFaceIntegrator(integrator, bdr_marker);
+      res_integrators.emplace_back(*integrator);
+      mach::addResidualSensitivityIntegrator(*integrator,
+                                             res_fields,
+                                             res_sens);
+   }
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
    /// reference to it to in fun_integrators as a MachIntegrator
@@ -955,9 +1004,9 @@ protected:
    {
       output.at(fun).AddDomainIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrators(*integrator,
-                                            res_fields,
-                                            output_sens[fun]);
+      mach::addOutputSensitivityIntegrator(*integrator,
+                                           res_fields,
+                                           output_sens[fun]);
    }
 
    /// Adds interface integrator to the nonlinear form for `fun`, and adds
@@ -971,9 +1020,9 @@ protected:
    {
       output.at(fun).AddInteriorFaceIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrators(*integrator,
-                                            res_fields,
-                                            output_sens[fun]);
+      mach::addOutputSensitivityIntegrator(*integrator,
+                                           res_fields,
+                                           output_sens[fun]);
    }
 
    /// Adds boundary integrator to the nonlinear form for `fun`, and adds
@@ -988,9 +1037,9 @@ protected:
    {
       output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrators(*integrator,
-                                            res_fields,
-                                            output_sens[fun]);
+      mach::addOutputSensitivityIntegrator(*integrator,
+                                           res_fields,
+                                           output_sens[fun]);
    }
 
 private:

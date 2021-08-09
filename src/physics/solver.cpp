@@ -509,7 +509,7 @@ void AbstractSolver::setFieldValue(
    double *field_buffer,
    const double u_init)
 {
-   auto field = bufferToHypreParVector(field_buffer);
+   auto field = bufferToHypreParVector(field_buffer, *fes);
    setFieldValue(field, u_init);
 }
 
@@ -527,7 +527,7 @@ void AbstractSolver::setFieldValue(
    double *field_buffer,
    const std::function<double(const mfem::Vector &)> &u_init)
 {
-   auto field = bufferToHypreParVector(field_buffer);
+   auto field = bufferToHypreParVector(field_buffer, *fes);
    setFieldValue(field, u_init);
 }
 
@@ -544,7 +544,7 @@ void AbstractSolver::setFieldValue(
    double *field_buffer,
    const mfem::Vector &u_init)
 {
-   auto field = bufferToHypreParVector(field_buffer);
+   auto field = bufferToHypreParVector(field_buffer, *fes);
    setFieldValue(field, u_init);
 }
 
@@ -562,7 +562,7 @@ void AbstractSolver::setFieldValue(
    double *field_buffer,
    const std::function<void(const mfem::Vector &, mfem::Vector&)> &u_init)
 {
-   auto field = bufferToHypreParVector(field_buffer);
+   auto field = bufferToHypreParVector(field_buffer, *fes);
    setFieldValue(field, u_init);
 }
 
@@ -873,7 +873,7 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
 void AbstractSolver::calcResidual(const MachInputs &inputs,
                                   double *res_buffer) const
 {
-   auto residual = bufferToHypreParVector(res_buffer);
+   auto residual = bufferToHypreParVector(res_buffer, *fes);
    calcResidual(inputs, residual);
 }
 
@@ -891,7 +891,8 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
 
    // this only communicates once inside of res->Mult to distribute state
    // create HypreParVector that contains the data from the state input
-   auto state = bufferToHypreParVector(inputs.at("state").getField());
+   auto state = bufferToHypreParVector(inputs.at("state").getField(),
+                                       *fes);
 
    res->Mult(state, residual);
 
@@ -921,19 +922,40 @@ double AbstractSolver::vectorJacobianProduct(double *residual_bar,
                             "scalar derivative!\n");
 }
 
-void AbstractSolver::vectorJacobianProduct(double *residual_bar,
+void AbstractSolver::vectorJacobianProduct(double *res_bar_buffer,
                                            std::string wrt,
-                                           double *wrt_bar)
+                                           double *wrt_bar_buffer)
 {
+   auto res_bar = bufferToHypreParVector(res_bar_buffer, *fes);
+
+   auto &wrt_fes = *res_fields.at(wrt).ParFESpace();
+   auto wrt_bar = bufferToHypreParVector(wrt_bar_buffer, wrt_fes);
+
+   vectorJacobianProduct(res_bar, wrt, wrt_bar);
+}
+
+void AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
+                                           std::string wrt,
+                                           HypreParVector &wrt_bar)
+{
+   res_fields.at("res_bar") = res_bar;
+
    if (wrt == "state")
    {
-      // state_jac.AddMultTranspose(res_bar, wrt_bar);
+      throw std::runtime_error("vectorJacobianProduct not supported for "
+                               "state derivative!\n");
    }
    else
    {
-      /// set res_bar GF from residual_bar
-      /// res_sens.at(wrt).Assemble()
-      /// res_sens.at(wrt).ParallelAssemble(wrt_bar) // make sure this adds to wrt_bar
+      res_sens.at(wrt).Assemble();
+
+      /// ParallelAssemble overwrites its argument, so to accumulate into
+      /// wrt_bar we need a second vector stored in ext_tv to assemble into,
+      /// then we add it to wrt_bar
+      ext_tvs.emplace(wrt+"_bar", res_fields.at(wrt).ParFESpace());
+      auto &temp_wrt_bar = ext_tvs.at(wrt+"_bar");
+      res_sens.at(wrt).ParallelAssemble(temp_wrt_bar);
+      wrt_bar += temp_wrt_bar;
    }
 }
 
@@ -1228,6 +1250,8 @@ void AbstractSolver::setUpExternalFields()
       // (and that it doesn't own it)
       mesh->NewNodes(res_fields.at("mesh_coords"), false);
    }
+   /// allocate field for adjoint/res_bar for sensitivity integrators to use
+   res_fields.emplace("res_bar", fes.get());
 
    if (options.contains("external-fields"))
    {
@@ -2068,12 +2092,14 @@ void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
    }
 }
 
-HypreParVector AbstractSolver::bufferToHypreParVector(double *buffer) const
+HypreParVector AbstractSolver::bufferToHypreParVector(
+   double *buffer,
+   const ParFiniteElementSpace &fes) const
 {
-   return HypreParVector(fes->GetComm(),
-                         fes->GlobalTrueVSize(),
+   return HypreParVector(fes.GetComm(),
+                         fes.GlobalTrueVSize(),
                          buffer,
-                         fes->GetTrueDofOffsets());
+                         fes.GetTrueDofOffsets());
 }
 
 

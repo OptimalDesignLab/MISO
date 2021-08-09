@@ -131,6 +131,21 @@ private:
 #endif
 };
 
+template <>
+inline void addResidualSensitivityIntegrator<CurlCurlNLFIntegrator>(
+   CurlCurlNLFIntegrator &primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+   std::map<std::string, mfem::ParLinearForm> &res_sens)
+{
+   auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
+   res_sens.emplace("mesh_coords", mesh_fes);
+   res_sens.at("mesh_coords").AddDomainIntegrator(
+      new CurlCurlNLFIntegratorMeshSens(res_fields.at("state"),
+                                        res_fields.at("res_bar"),
+                                        primal_integ));
+};
+
+
 /// Integrator for (\nu(u) M, curl v) for Nedelec Elements
 class MagnetizationIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -471,7 +486,7 @@ private:
 };
 
 template <>
-inline void addOutputSensitivityIntegrators<MagneticEnergyIntegrator>(
+inline void addOutputSensitivityIntegrator<MagneticEnergyIntegrator>(
    MagneticEnergyIntegrator &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
    std::map<std::string, mfem::ParLinearForm> &output_sens)
@@ -959,7 +974,7 @@ private:
 };
 
 template <>
-inline void addOutputSensitivityIntegrators<ForceIntegrator>(
+inline void addOutputSensitivityIntegrator<ForceIntegrator>(
    ForceIntegrator &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
    std::map<std::string, mfem::ParLinearForm> &output_sens)

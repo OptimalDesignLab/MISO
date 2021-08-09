@@ -58,13 +58,13 @@ private:
    class model : public concept_t
    {
    public:
-      model(T &x) : data_(x) { }
+      model(T &x) : integ(x) { }
       concept_t* copy_() const override { return new model(*this); }
       void setInput_(const std::string &name,
                      const MachInput &input) const override
-      { setInput(data_, name, input); }
+      { setInput(integ, name, input); }
 
-      T &data_;
+      T &integ;
    };
 
    std::unique_ptr<concept_t> self_;
@@ -89,16 +89,27 @@ void setInput(MachIntegrator &integ,
 /// Default implementation of setInput for a NonlinearFormIntegrator that does
 /// nothing but allows each child class of NonlinearFormIntegrator to be a
 /// `MachIntegrator`
-void setInput(mfem::NonlinearFormIntegrator &integ,
-              const std::string &name,
-              const MachInput &input);
+inline void setInput(mfem::NonlinearFormIntegrator &integ,
+                     const std::string &name,
+                     const MachInput &input) { };
 
 /// Default implementation of setInput for a LinearFormIntegrator that does
 /// nothing but allows each child class of LinearFormIntegrator to be a
 /// `MachIntegrator`
-void setInput(mfem::LinearFormIntegrator &integ,
-              const std::string &name,
-              const MachInput &input);
+inline void setInput(mfem::LinearFormIntegrator &integ,
+                     const std::string &name,
+                     const MachInput &input) { };
+
+/// Function meant to be specialized to allow residual sensitivity integrators
+/// to be associated with the forward version of the integrator
+/// \param[in] primal_integ - integrator used in residual evaluation
+/// \param[in] res_fields - map of fields solver depends on
+/// \param[inout] res_sens - map of sens to linear form that will assemble the sensitivity
+template <typename T>
+inline void addResidualSensitivityIntegrator(
+   T &primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+   std::map<std::string, mfem::ParLinearForm> &res_sens) { };
 
 /// Function meant to be specialized to allow a output sensitivity integrators
 /// to be associated with the forward version of the integrator
@@ -106,7 +117,7 @@ void setInput(mfem::LinearFormIntegrator &integ,
 /// \param[in] res_fields - map of fields solver depends on
 /// \param[inout] output_sens - map of sens to linear form that will assemble the sensitivity
 template <typename T>
-inline void addOutputSensitivityIntegrators(
+inline void addOutputSensitivityIntegrator(
    T &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
    std::map<std::string, mfem::ParLinearForm> &output_sens) { };
