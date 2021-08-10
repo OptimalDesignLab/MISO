@@ -918,8 +918,11 @@ void AbstractSolver::linearize(const MachInputs &inputs)
 double AbstractSolver::vectorJacobianProduct(double *residual_bar,
                                              std::string wrt)
 {
-   throw std::runtime_error("vectorJacobianProduct not supported for "
-                            "scalar derivative!\n");
+   // throw std::runtime_error("vectorJacobianProduct not supported for "
+   //                          "scalar derivative!\n");
+   std::cerr << "WARNING: vectorJacobianProduct not supported for ";
+   std::cerr << "scalar derivative!\n";
+   return 0.0;
 }
 
 void AbstractSolver::vectorJacobianProduct(double *res_bar_buffer,
@@ -942,8 +945,10 @@ void AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
 
    if (wrt == "state")
    {
-      throw std::runtime_error("vectorJacobianProduct not supported for "
-                               "state derivative!\n");
+      // throw std::runtime_error("vectorJacobianProduct not supported for "
+      //                          "state derivative!\n");
+      std::cerr << "WARNING: vectorJacobianProduct not supported for ";
+      std::cerr << "state derivative!\n";
    }
    else
    {

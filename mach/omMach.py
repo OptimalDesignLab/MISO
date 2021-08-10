@@ -43,9 +43,10 @@ class omMachState(om.ImplicitComponent):
         local_state_size = solver.getStateSize()
         self.add_output("state", shape=local_state_size)
 
-    def setup_partials(self):
-        for input in self.options["depends"]:
-            self.declare_partials("state", input)
+    # def setup_partials(self):
+        # for input in self.options["depends"]:
+            # self.declare_partials("state", input)
+        # self.declare_partials("state", "state")
 
     def apply_nonlinear(self, inputs, outputs, residuals):
         solver = self.options["solver"]
@@ -53,14 +54,14 @@ class omMachState(om.ImplicitComponent):
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(dict(zip(outputs.keys(), outputs.values())))
 
-        residual = residuals["state"][0]
+        residual = residuals["state"]
         solver.calcResidual(input_dict, residual)
 
     def solve_nonlinear(self, inputs, outputs):
         solver = self.options["solver"]
 
-        state = outputs["state"][0]
-        if self.options["initial_condition"]:
+        state = outputs["state"]
+        if (self.options["initial_condition"] is not None):
             u_init = self.options["initial_condition"]
             solver.setFieldValue(state, u_init)
 
@@ -94,7 +95,8 @@ class omMachState(om.ImplicitComponent):
                                                  wrt_bar=d_inputs[input])
 
         elif mode == "fwd":
-            raise NotImplementedError
+            pass
+            # raise NotImplementedError
 
     def solve_linear(self, d_outputs, d_residuals, mode):
         solver = self.options["solver"]
