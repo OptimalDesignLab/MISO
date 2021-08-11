@@ -520,13 +520,21 @@ public:
    /// Compute vector jacobian product for derivative with respect to a scalar
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   /// \return result of vector jacobian product
    double vectorJacobianProduct(double *residual_bar,
+                                std::string wrt);
+
+   /// Compute vector jacobian product for derivative with respect to a scalar
+   /// \param[in] residual_bar - multiplies jacobian on the left hand side
+   /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   /// \return result of vector jacobian product
+   double vectorJacobianProduct(const mfem::HypreParVector &res_bar,
                                 std::string wrt);
 
    /// Compute vector jacobian product for derivative with respect to a vector
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with respect to
-   /// \param[out] wrt_bar - result of vector jacobian product
+   /// \param[inout] wrt_bar - result of vector jacobian product added to wrt_bar
    void vectorJacobianProduct(double *residual_bar,
                               std::string wrt,
                               double *wrt_bar);
@@ -534,7 +542,7 @@ public:
    /// Compute vector jacobian product for derivative with respect to a vector
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with respect to
-   /// \param[out] wrt_bar - result of vector jacobian product
+   /// \param[inout] wrt_bar - result of vector jacobian product added to wrt_bar
    void vectorJacobianProduct(const mfem::HypreParVector &res_bar,
                               std::string wrt,
                               mfem::HypreParVector &wrt_bar);
@@ -706,6 +714,10 @@ protected:
    /// \psi^T \frac{\partial R}{\partial field}
    /// for each field the residual depends on
    std::map<std::string, mfem::ParLinearForm> res_sens;
+   /// map of nonlinear forms that will compute
+   /// \psi^T \frac{\partial R}{\partial scalar}
+   /// for each scalar the residual depends on
+   std::map<std::string, mfem::ParNonlinearForm> res_scalar_sens;
 
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
@@ -959,7 +971,8 @@ protected:
       res_integrators.emplace_back(*integrator);
       mach::addResidualSensitivityIntegrator(*integrator,
                                              res_fields,
-                                             res_sens);
+                                             res_sens,
+                                             res_scalar_sens);
    }
 
    /// Adds interface integrator to the nonlinear form for `fun`, and adds
@@ -974,7 +987,8 @@ protected:
       res_integrators.emplace_back(*integrator);
       mach::addResidualSensitivityIntegrator(*integrator,
                                              res_fields,
-                                             res_sens);
+                                             res_sens,
+                                             res_scalar_sens);
    }
 
    /// Adds boundary integrator to the nonlinear form for `fun`, and adds
@@ -990,7 +1004,8 @@ protected:
       res_integrators.emplace_back(*integrator);
       mach::addResidualSensitivityIntegrator(*integrator,
                                              res_fields,
-                                             res_sens);
+                                             res_sens,
+                                             res_scalar_sens);
    }
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds

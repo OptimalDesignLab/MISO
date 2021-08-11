@@ -13,8 +13,11 @@ namespace mach
 void setInputs(MagneticLoad &load,
                const MachInputs &inputs)
 {
-   load.weakCurlMuInv.Update();
-   load.dirty = true;
+   auto it = inputs.find("mesh_coords");
+   if (it != inputs.end())
+   {
+      load.dirty = true;
+   }
 }
 
 void addLoad(MagneticLoad &load,
@@ -22,10 +25,17 @@ void addLoad(MagneticLoad &load,
 {
    if (load.dirty)
    {
-      load.dirty = false;
       load.assembleLoad();
+      load.dirty = false;
    }
    add(tv, -1.0, load.load, tv);
+}
+
+double vectorJacobianProduct(MagneticLoad &load,
+                             const mfem::Vector &res_bar,
+                             std::string wrt)
+{
+   return 0.0;
 }
 
 MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
@@ -42,6 +52,7 @@ MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
 
 void MagneticLoad::assembleLoad()
 {
+   weakCurlMuInv.Update();
    weakCurlMuInv.Assemble();
    weakCurlMuInv.Finalize();
 

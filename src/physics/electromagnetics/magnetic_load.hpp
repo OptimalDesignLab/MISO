@@ -23,6 +23,10 @@ public:
    friend void addLoad(MagneticLoad &load,
                        mfem::Vector &tv);
 
+   friend double vectorJacobianProduct(MagneticLoad &load,
+                                       const mfem::Vector &res_bar,
+                                       std::string wrt);
+
    MagneticLoad(mfem::ParFiniteElementSpace &pfes,
                 mfem::VectorCoefficient &mag_coeff,
                 mfem::Coefficient &nu);

@@ -22,6 +22,10 @@ public:
    friend void addLoad(CurrentLoad &load,
                        mfem::Vector &tv);
 
+   friend double vectorJacobianProduct(CurrentLoad &load,
+                                       const mfem::Vector &res_bar,
+                                       std::string wrt);
+
    CurrentLoad(mfem::ParFiniteElementSpace &pfes,
                mfem::VectorCoefficient &current_coeff);
 

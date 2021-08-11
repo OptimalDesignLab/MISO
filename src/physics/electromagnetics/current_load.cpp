@@ -9,22 +9,22 @@ using namespace mfem;
 namespace mach
 {
 
-/// set inputs should include fields, so things can check it they're "dirty"
+/// set inputs should include fields, so things can check if they're "dirty"
 void setInputs(CurrentLoad &load,
                const MachInputs &inputs)
 {
-   for (auto &input : inputs)
+   auto it = inputs.find("current_density");
+   if (it != inputs.end())
    {
-      if (input.first == "current_density")
-      {
-         load.current_density = input.second.getValue();
-         load.current.SetAConst(load.current_density);
-         load.dirty = true;
-      }
-      else if (input.first == "mesh_coords")
-      {
-         load.dirty = true;
-      }
+      load.current_density = it->second.getValue();
+      load.current.SetAConst(load.current_density);
+      load.dirty = true;
+   }
+
+   it = inputs.find("mesh_coords");
+   if (it != inputs.end())
+   {
+      load.dirty = true;
    }
 }
 
@@ -33,11 +33,26 @@ void addLoad(CurrentLoad &load,
 {
    if (load.dirty)
    {
-      load.nd_mass.Update();
       load.assembleLoad();
       load.dirty = false;
    }
    subtract(tv, load.load, tv);
+}
+
+double vectorJacobianProduct(CurrentLoad &load,
+                             const mfem::Vector &res_bar,
+                             std::string wrt)
+{
+   if (wrt == "current_density")
+   {
+      load.current.SetAConst(1.0);
+      load.nd_mass.Update();
+      load.assembleLoad();
+      load.current.SetAConst(load.current_density);
+      load.dirty = true;
+
+      return -(load.load * res_bar);
+   }
 }
 
 CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
@@ -61,6 +76,7 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
 void CurrentLoad::assembleLoad()
 {
    // assemble mass matrix
+   nd_mass.Update();
    nd_mass.Assemble();
    nd_mass.Finalize();
 

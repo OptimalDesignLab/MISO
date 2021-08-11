@@ -135,7 +135,8 @@ template <>
 inline void addResidualSensitivityIntegrator<CurlCurlNLFIntegrator>(
    CurlCurlNLFIntegrator &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &res_sens)
+   std::map<std::string, mfem::ParLinearForm> &res_sens,
+   std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens)
 {
    auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    res_sens.emplace("mesh_coords", mesh_fes);

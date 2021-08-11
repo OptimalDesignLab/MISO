@@ -25,4 +25,11 @@ void addLoad(MachLinearForm &load,
    add(tv, load.scratch, tv);
 }
 
+double vectorJacobianProduct(MachLinearForm &load,
+                             const mfem::Vector &res_bar,
+                             std::string wrt)
+{
+   throw std::logic_error("vectorJacobianProduct not implemented for MachLinearForm!\n");
+}
+
 } // namespace mach

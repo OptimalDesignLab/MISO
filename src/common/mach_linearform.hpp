@@ -64,6 +64,12 @@ public:
    friend void setInputs(MachLinearForm &lf,
                          const MachInputs &inputs);
 
+   /// Assemble the linear form's sensitivity to a scalar and contract it with
+   /// res_bar
+   friend double vectorJacobianProduct(MachLinearForm &load,
+                                       const mfem::Vector &res_bar,
+                                       std::string wrt);
+
    MachLinearForm(mfem::ParFiniteElementSpace *pfes)
    : lf(pfes), scratch(pfes)
    { }

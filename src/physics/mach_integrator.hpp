@@ -109,7 +109,8 @@ template <typename T>
 inline void addResidualSensitivityIntegrator(
    T &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &res_sens) { };
+   std::map<std::string, mfem::ParLinearForm> &res_sens,
+   std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens) { };
 
 /// Function meant to be specialized to allow a output sensitivity integrators
 /// to be associated with the forward version of the integrator

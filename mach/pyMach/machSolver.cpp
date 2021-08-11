@@ -360,7 +360,7 @@ void initSolver(py::module &m)
             auto *wrt_bar = npBufferToDoubleArray(wrt_bar_buffer, ndim, shape);
             if (shape[0] == 1)
             {
-               *wrt_bar = self.vectorJacobianProduct(res_bar, wrt);
+               *wrt_bar += self.vectorJacobianProduct(res_bar, wrt);
             }
             else
             {

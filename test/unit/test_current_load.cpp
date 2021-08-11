@@ -40,8 +40,7 @@ using namespace mfem;
 std::unique_ptr<Mesh> buildMesh(int nxy,
                                 int nz);
 
-TEST_CASE("CurrentLoad Test",
-          "[CurrentLoad]")
+TEST_CASE("CurrentLoad setInputs")
 {
 
    std::unique_ptr<Mesh> smesh = buildMesh(4, 4);
@@ -103,6 +102,78 @@ TEST_CASE("CurrentLoad Test",
 
    REQUIRE(norm == Approx(0.6373774392).margin(1e-10));
 
+}
+
+TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
+{
+   std::unique_ptr<Mesh> smesh = buildMesh(1, 1);
+   std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
+   mesh->ReorientTetMesh();
+
+   auto p = 2;
+   const auto dim = mesh->Dimension();
+
+   // get the finite-element space for the state
+   ND_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(mesh.get(), &fec);
+
+   // create current_coeff coefficient
+   VectorMeshDependentCoefficient current_coeff;
+   {
+      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+         new VectorFunctionCoefficient(dim,
+                                       box1CurrentSource,
+                                       box1CurrentSourceRevDiff));
+      current_coeff.addCoefficient(1, move(temp_coeff));
+   }
+   {
+      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+         new VectorFunctionCoefficient(dim,
+                                       box2CurrentSource,
+                                       box2CurrentSourceRevDiff));
+      current_coeff.addCoefficient(2, move(temp_coeff));
+   }
+
+   CurrentLoad load(fes, current_coeff);
+
+   MachLoad ml(load);
+
+   auto current_density = 1e6;
+   auto inputs = MachInputs({
+      {"current_density", current_density}
+   });
+   setInputs(ml, inputs);
+
+   HypreParVector res_bar(&fes);
+   {
+      std::default_random_engine gen;
+      std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+      for (int i = 0; i < res_bar.Size(); ++i)
+      {
+         res_bar(i) = uniform_rand(gen);
+      }
+   }
+   double wrt_bar = vectorJacobianProduct(ml, res_bar, "current_density");
+
+   /// somewhat large step size since the magnitude of current density is large
+   auto delta = 1e-2;
+   HypreParVector tv(&fes);
+   inputs.at("current_density") = current_density + delta;
+   setInputs(ml, inputs);
+   tv = 0.0;
+   addLoad(ml, tv);
+   double wrt_bar_fd = res_bar * tv;
+
+   inputs.at("current_density") = current_density - delta;
+   setInputs(ml, inputs);
+   tv = 0.0;
+   addLoad(ml, tv);
+   wrt_bar_fd -= res_bar * tv;
+   wrt_bar_fd /= 2*delta;
+
+   // std::cout << "wrt_bar: " << wrt_bar << "\n";
+   // std::cout << "wrt_bar_fd: " << wrt_bar_fd << "\n";
+   REQUIRE(wrt_bar == Approx(wrt_bar_fd));
 }
 
 std::unique_ptr<Mesh> buildMesh(int nxy, int nz)

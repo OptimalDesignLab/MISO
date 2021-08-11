@@ -905,7 +905,7 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
 
 void AbstractSolver::linearize(const MachInputs &inputs)
 {
-   /// setInputs(res_integ, inputs);
+   setInputs(res_integrators, inputs);
    if (load)
    {
       mach::setInputs(*load, inputs);
@@ -915,14 +915,23 @@ void AbstractSolver::linearize(const MachInputs &inputs)
    // state_jac = evolver->GetGradient();
 }
 
-double AbstractSolver::vectorJacobianProduct(double *residual_bar,
+double AbstractSolver::vectorJacobianProduct(double *res_bar_buffer,
                                              std::string wrt)
 {
-   // throw std::runtime_error("vectorJacobianProduct not supported for "
-   //                          "scalar derivative!\n");
-   std::cerr << "WARNING: vectorJacobianProduct not supported for ";
-   std::cerr << "scalar derivative!\n";
-   return 0.0;
+   auto res_bar = bufferToHypreParVector(res_bar_buffer, *fes);
+   return vectorJacobianProduct(res_bar, wrt);
+}
+
+double AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
+                                             std::string wrt)
+{
+   auto &state = res_fields.at("state");
+   auto wrt_bar = res_scalar_sens.at(wrt).GetEnergy(state);
+   if (load)
+   {
+      wrt_bar += mach::vectorJacobianProduct(*load, res_bar, wrt);
+   }
+   return wrt_bar;
 }
 
 void AbstractSolver::vectorJacobianProduct(double *res_bar_buffer,

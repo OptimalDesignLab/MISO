@@ -17,7 +17,7 @@ endfunction(create_egads_tests)
 set(TEST_SRCS
    test_acloss_functional
    test_meshmovement_egads_cyl
-   test_joule_wire_egads
+#   test_joule_wire_egads
 #   test_team13
 #   test_thermal_steady_embedded_box
    test_thermal_ring

@@ -483,6 +483,10 @@ public:
    
    friend void addLoad(MagnetostaticLoad &load,
                        mfem::Vector &tv);
+
+   friend double vectorJacobianProduct(MagnetostaticLoad &load,
+                                       const mfem::Vector &res_bar,
+                                       std::string wrt);
    
    MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
                      mfem::VectorCoefficient &current_coeff,
@@ -2787,6 +2791,16 @@ void addLoad(MagnetostaticLoad &load,
 {
    addLoad(load.current_load, tv);
    addLoad(load.magnetic_load, tv);
+}
+
+double vectorJacobianProduct(MagnetostaticLoad &load,
+                             const mfem::Vector &res_bar,
+                             std::string wrt)
+{
+   throw std::logic_error("vectorJacobianProduct not implemented for MagnetostaticLoad!\n");
+   double wrt_bar = 0.0;
+   wrt_bar += vectorJacobianProduct(load.current_load, res_bar, wrt);
+   wrt_bar += vectorJacobianProduct(load.magnetic_load, res_bar, wrt);
 }
 
 } // namespace mach

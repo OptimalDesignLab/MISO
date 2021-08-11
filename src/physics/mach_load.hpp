@@ -33,6 +33,12 @@ public:
    /// Assemble the load vector on the true dofs and add it to tv
    friend void addLoad(MachLoad &load,
                        mfem::Vector &tv);
+   
+   /// Assemble the load vector's sensitivity to a scalar and contract it with
+   /// res_bar
+   friend double vectorJacobianProduct(MachLoad &load,
+                                       const mfem::Vector &res_bar,
+                                       std::string wrt);
 
    template <typename T>
    MachLoad(T &x) : self_(new model<T>(x))
@@ -53,6 +59,8 @@ private:
       virtual concept_t* copy_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) const = 0;
       virtual void addLoad_(mfem::Vector &tv) = 0;
+      virtual double vectorJacobianProduct_(const mfem::Vector &res_bar,
+                                            std::string wrt) = 0;
    };
 
    template <typename T>
@@ -65,6 +73,9 @@ private:
       { setInputs(data_, inputs); }
       void addLoad_(mfem::Vector &tv) override
       { addLoad(data_, tv); }
+      double vectorJacobianProduct_(const mfem::Vector &res_bar,
+                                    std::string wrt) override
+      { return vectorJacobianProduct(data_, res_bar, wrt); }
 
       T &data_;
    };
@@ -82,6 +93,13 @@ inline void addLoad(MachLoad &load,
                     mfem::Vector &tv)
 {
    load.self_->addLoad_(tv);
+}
+
+inline double vectorJacobianProduct(MachLoad &load,
+                                    const mfem::Vector &res_bar,
+                                    std::string wrt)
+{
+   return load.self_->vectorJacobianProduct_(res_bar, wrt);
 }
 
 } // namespace mach
