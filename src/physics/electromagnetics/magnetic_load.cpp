@@ -32,10 +32,18 @@ void addLoad(MagneticLoad &load,
 }
 
 double vectorJacobianProduct(MagneticLoad &load,
-                             const mfem::Vector &res_bar,
+                             const mfem::HypreParVector &res_bar,
                              std::string wrt)
 {
    return 0.0;
+}
+
+void vectorJacobianProduct(MagneticLoad &load,
+                           const mfem::HypreParVector &res_bar,
+                           std::string wrt,
+                           mfem::HypreParVector &wrt_bar)
+{
+   throw std::logic_error("vectorJacobianProduct not implemented for MagneticLoad!\n");
 }
 
 MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,

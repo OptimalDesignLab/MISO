@@ -26,8 +26,16 @@ void addLoad(MachLinearForm &load,
 }
 
 double vectorJacobianProduct(MachLinearForm &load,
-                             const mfem::Vector &res_bar,
+                             const mfem::HypreParVector &res_bar,
                              std::string wrt)
+{
+   throw std::logic_error("vectorJacobianProduct not implemented for MachLinearForm!\n");
+}
+
+void vectorJacobianProduct(MachLinearForm &load,
+                           const mfem::HypreParVector &res_bar,
+                           std::string wrt,
+                           mfem::HypreParVector &wrt_bar)
 {
    throw std::logic_error("vectorJacobianProduct not implemented for MachLinearForm!\n");
 }

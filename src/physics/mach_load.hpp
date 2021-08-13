@@ -21,7 +21,7 @@ namespace mach
 /// We use this class as a way to achieve polymorphism without needing to rely
 /// on inheritance This approach is based on the example in Sean Parent's talk:
 /// ``Inheritance is the base class of evil''
-class MachLoad
+class MachLoad final
 {
 public:
    /// Used to set scalar inputs in the underlying load type
@@ -37,8 +37,15 @@ public:
    /// Assemble the load vector's sensitivity to a scalar and contract it with
    /// res_bar
    friend double vectorJacobianProduct(MachLoad &load,
-                                       const mfem::Vector &res_bar,
+                                       const mfem::HypreParVector &res_bar,
                                        std::string wrt);
+
+   /// Assemble the load vector's sensitivity to a field and contract it with
+   /// res_bar
+   friend void vectorJacobianProduct(MachLoad &load,
+                                     const mfem::HypreParVector &res_bar,
+                                     std::string wrt,
+                                     mfem::HypreParVector &wrt_bar);
 
    template <typename T>
    MachLoad(T &x) : self_(new model<T>(x))
@@ -59,8 +66,11 @@ private:
       virtual concept_t* copy_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) const = 0;
       virtual void addLoad_(mfem::Vector &tv) = 0;
-      virtual double vectorJacobianProduct_(const mfem::Vector &res_bar,
+      virtual double vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
                                             std::string wrt) = 0;
+      virtual void vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
+                                          std::string wrt,
+                                          mfem::HypreParVector &wrt_bar) = 0;
    };
 
    template <typename T>
@@ -73,9 +83,14 @@ private:
       { setInputs(data_, inputs); }
       void addLoad_(mfem::Vector &tv) override
       { addLoad(data_, tv); }
-      double vectorJacobianProduct_(const mfem::Vector &res_bar,
+      double vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
                                     std::string wrt) override
       { return vectorJacobianProduct(data_, res_bar, wrt); }
+      void vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
+                                  std::string wrt,
+                                  mfem::HypreParVector &wrt_bar) override
+      { vectorJacobianProduct(data_, res_bar, wrt, wrt_bar); }
+
 
       T &data_;
    };
@@ -96,10 +111,18 @@ inline void addLoad(MachLoad &load,
 }
 
 inline double vectorJacobianProduct(MachLoad &load,
-                                    const mfem::Vector &res_bar,
+                                    const mfem::HypreParVector &res_bar,
                                     std::string wrt)
 {
    return load.self_->vectorJacobianProduct_(res_bar, wrt);
+}
+
+inline void vectorJacobianProduct(MachLoad &load,
+                                  const mfem::HypreParVector &res_bar,
+                                  std::string wrt,
+                                  mfem::HypreParVector &wrt_bar)
+{
+   load.self_->vectorJacobianProduct_(res_bar, wrt, wrt_bar);
 }
 
 } // namespace mach

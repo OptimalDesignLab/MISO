@@ -11,7 +11,7 @@
 namespace mach
 {
 
-class MachLinearForm
+class MachLinearForm final
 {
 public:
    /// Adds domain integrator to linear form
@@ -67,8 +67,13 @@ public:
    /// Assemble the linear form's sensitivity to a scalar and contract it with
    /// res_bar
    friend double vectorJacobianProduct(MachLinearForm &load,
-                                       const mfem::Vector &res_bar,
+                                       const mfem::HypreParVector &res_bar,
                                        std::string wrt);
+
+   friend void vectorJacobianProduct(MachLinearForm &load,
+                                     const mfem::HypreParVector &res_bar,
+                                     std::string wrt,
+                                     mfem::HypreParVector &wrt_bar);
 
    MachLinearForm(mfem::ParFiniteElementSpace *pfes)
    : lf(pfes), scratch(pfes)

@@ -10,7 +10,7 @@
 namespace mach
 {
 
-class MagneticLoad
+class MagneticLoad final
 {
 public:
    /// Used to set scalar inputs in the underlying load type
@@ -24,8 +24,13 @@ public:
                        mfem::Vector &tv);
 
    friend double vectorJacobianProduct(MagneticLoad &load,
-                                       const mfem::Vector &res_bar,
+                                       const mfem::HypreParVector &res_bar,
                                        std::string wrt);
+
+   friend void vectorJacobianProduct(MagneticLoad &load,
+                                     const mfem::HypreParVector &res_bar,
+                                     std::string wrt,
+                                     mfem::HypreParVector &wrt_bar);
 
    MagneticLoad(mfem::ParFiniteElementSpace &pfes,
                 mfem::VectorCoefficient &mag_coeff,

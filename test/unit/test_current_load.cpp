@@ -31,6 +31,9 @@ void box2CurrentSourceRevDiff(const mfem::Vector &x,
                               const mfem::Vector &V_bar,
                               mfem::Vector &x_bar);
 
+static std::default_random_engine gen;
+static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+
 using namespace mach;
 using namespace mfem;
 
@@ -146,8 +149,8 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
 
    HypreParVector res_bar(&fes);
    {
-      std::default_random_engine gen;
-      std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+      // std::default_random_engine gen;
+      // std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
       for (int i = 0; i < res_bar.Size(); ++i)
       {
          res_bar(i) = uniform_rand(gen);
@@ -174,6 +177,109 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
    // std::cout << "wrt_bar: " << wrt_bar << "\n";
    // std::cout << "wrt_bar_fd: " << wrt_bar_fd << "\n";
    REQUIRE(wrt_bar == Approx(wrt_bar_fd));
+}
+
+TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
+{
+   std::unique_ptr<Mesh> smesh = buildMesh(1, 1);
+   std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
+   mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
+
+   auto p = 2;
+   const auto dim = mesh->Dimension();
+
+   // get the finite-element space for the state
+   ND_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(mesh.get(), &fec);
+
+   // create current_coeff coefficient
+   VectorMeshDependentCoefficient current_coeff;
+   {
+      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+         new VectorFunctionCoefficient(dim,
+                                       box1CurrentSource,
+                                       box1CurrentSourceRevDiff));
+      current_coeff.addCoefficient(1, move(temp_coeff));
+   }
+   {
+      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+         new VectorFunctionCoefficient(dim,
+                                       box2CurrentSource,
+                                       box2CurrentSourceRevDiff));
+      current_coeff.addCoefficient(2, move(temp_coeff));
+   }
+
+   CurrentLoad load(fes, current_coeff);
+   MachLoad ml(load);
+
+   // extract mesh nodes and get their finite-element space
+   auto &x_nodes = *dynamic_cast<mfem::ParGridFunction*>(mesh->GetNodes());
+   auto &mesh_fes = *x_nodes.ParFESpace();
+
+   auto current_density = 1e6;
+   auto inputs = MachInputs({
+      {"current_density", current_density},
+      {"mesh_coords", x_nodes.GetData()}
+   });
+   setInputs(ml, inputs);
+
+   HypreParVector res_bar(&fes);
+   {
+      for (int i = 0; i < res_bar.Size(); ++i)
+      {
+         res_bar(i) = uniform_rand(gen);
+      }
+   }
+
+   HypreParVector wrt_bar(&mesh_fes);
+   wrt_bar = 0.0;
+   vectorJacobianProduct(ml, res_bar, "mesh_coords", wrt_bar);
+
+   // initialize the vector that we use to perturb the mesh nodes
+   ParGridFunction v(&mesh_fes);
+   VectorFunctionCoefficient pert(3, [](const mfem::Vector &x, mfem::Vector &u)
+   {
+      for (int i = 0; i < u.Size(); ++i)
+         u(i) = uniform_rand(gen);
+   });
+   v.ProjectCoefficient(pert);
+   HypreParVector v_tv(&mesh_fes);
+   v.ParallelAssemble(v_tv);
+
+   double dJdx_v = wrt_bar * v_tv;
+
+   // now compute the finite-difference approximation...
+   auto delta = 1e-5;
+
+   HypreParVector load_vec(&fes);
+   ParGridFunction x_pert(x_nodes);
+   x_pert.Add(delta, v);
+   mesh->SetNodes(x_pert);
+   fes.Update();
+   inputs.at("mesh_coords") = x_pert.GetData();
+   setInputs(ml, inputs);
+   load_vec = 0.0;
+   addLoad(ml, load_vec);
+   double dJdx_v_fd = res_bar * load_vec;
+
+   x_pert.Add(-2 * delta, v);
+   mesh->SetNodes(x_pert);
+   fes.Update();
+   inputs.at("mesh_coords") = x_pert.GetData();
+   setInputs(ml, inputs);
+   load_vec = 0.0;
+   addLoad(ml, load_vec);
+   dJdx_v_fd -= res_bar * load_vec;
+   dJdx_v_fd /= 2*delta;
+
+   mesh->SetNodes(x_nodes); // remember to reset the mesh nodes
+   fes.Update();
+
+   std::cout << "dJdx_v: " << dJdx_v << "\n";
+   std::cout << "dJdx_v_fd: " << dJdx_v_fd << "\n";
+
+   REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
 }
 
 std::unique_ptr<Mesh> buildMesh(int nxy, int nz)

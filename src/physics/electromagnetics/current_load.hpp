@@ -3,13 +3,14 @@
 
 #include "mfem.hpp"
 
+#include "utils.hpp"
 #include "pfem_extras.hpp"
 #include "mach_input.hpp"
 
 namespace mach
 {
 
-class CurrentLoad
+class CurrentLoad final
 {
 public:
    /// Used to set scalar inputs in the underlying load type
@@ -23,8 +24,13 @@ public:
                        mfem::Vector &tv);
 
    friend double vectorJacobianProduct(CurrentLoad &load,
-                                       const mfem::Vector &res_bar,
+                                       const mfem::HypreParVector &res_bar,
                                        std::string wrt);
+
+   friend void vectorJacobianProduct(CurrentLoad &load,
+                                     const mfem::HypreParVector &res_bar,
+                                     std::string wrt,
+                                     mfem::HypreParVector &wrt_bar);
 
    CurrentLoad(mfem::ParFiniteElementSpace &pfes,
                mfem::VectorCoefficient &current_coeff);
@@ -48,7 +54,8 @@ private:
    mfem::HypreParVector scratch;
    mfem::HypreParVector load;
 
-   mfem::common::DivergenceFreeProjector div_free_proj;
+   DivergenceFreeProjector div_free_proj;
+   // mfem::common::DivergenceFreeProjector div_free_proj;
 
    /// flag to know if the load vector should be reassembled
    bool dirty;
