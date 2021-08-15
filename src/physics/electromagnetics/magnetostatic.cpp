@@ -8,7 +8,7 @@
 #include "solver.hpp"
 #include "evolver.hpp"
 #include "electromag_integ.hpp"
-#include "res_integ.hpp"
+#include "mfem_common_integ.hpp"
 #include "mfem_extensions.hpp"
 #include "current_load.hpp"
 #include "magnetic_load.hpp"

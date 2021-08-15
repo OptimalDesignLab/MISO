@@ -9,7 +9,7 @@
 #include "coefficient.hpp"
 #include "therm_integ.hpp"
 #include "temp_integ.hpp"
-#include "res_integ.hpp"
+#include "mfem_common_integ.hpp"
 #include "mesh_movement.hpp"
 
 #include <limits>

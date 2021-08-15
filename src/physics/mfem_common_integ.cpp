@@ -1,4 +1,4 @@
-#include "res_integ.hpp"
+#include "mfem_common_integ.hpp"
 
 using namespace mfem;
 using namespace std;

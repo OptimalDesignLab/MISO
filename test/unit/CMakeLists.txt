@@ -47,7 +47,7 @@ set(EM_TEST_SRCS
 
 # group fluid MPI tests
 set(FLUID_MPI_TEST_SRCS
-   test_res_integ
+   test_mfem_common_integ
 )
 
 # group EM MPI tests

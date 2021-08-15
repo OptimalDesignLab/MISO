@@ -7,11 +7,11 @@ target_sources(mach
       mach_integrator.cpp
       mach_integrator.hpp
       mach_load.hpp
+      mfem_common_integ.cpp
+      mfem_common_integ.hpp
       physics.hpp
       solver.cpp
       solver.hpp
-      res_integ.cpp
-      res_integ.hpp
 )
 
 target_include_directories(mach
