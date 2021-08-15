@@ -52,6 +52,7 @@ set(FLUID_MPI_TEST_SRCS
 
 # group EM MPI tests
 set(EM_MPI_TEST_SRCS
+   test_irrotational_projector
    test_magnetostatic_solver
    test_steinmetz_integ
    test_coefficient

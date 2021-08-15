@@ -95,87 +95,103 @@ inline xdouble dot(const xdouble *a, const xdouble *b)
 
 std::ostream *getOutStream(int rank, bool silent = false);
 
-/// The following are adapted from MFEM's pfem_extras.xpp
-class DiscreteGradOperator : public mfem::ParDiscreteLinearOperator
-{
-public:
-   DiscreteGradOperator(mfem::ParFiniteElementSpace *dfes,
-                        mfem::ParFiniteElementSpace *rfes);
-};
+// /// The following are adapted from MFEM's pfem_extras.xpp
+// class DiscreteGradOperator : public mfem::ParDiscreteLinearOperator
+// {
+// public:
+//    DiscreteGradOperator(mfem::ParFiniteElementSpace *dfes,
+//                         mfem::ParFiniteElementSpace *rfes);
+// };
 
-class DiscreteCurlOperator : public mfem::ParDiscreteLinearOperator
-{
-public:
-   DiscreteCurlOperator(mfem::ParFiniteElementSpace *dfes,
-                        mfem::ParFiniteElementSpace *rfes);
-};
+// class DiscreteCurlOperator : public mfem::ParDiscreteLinearOperator
+// {
+// public:
+//    DiscreteCurlOperator(mfem::ParFiniteElementSpace *dfes,
+//                         mfem::ParFiniteElementSpace *rfes);
+// };
 
-class DiscreteDivOperator : public mfem::ParDiscreteLinearOperator
-{
-public:
-   DiscreteDivOperator(mfem::ParFiniteElementSpace *dfes,
-                       mfem::ParFiniteElementSpace *rfes);
-};
+// class DiscreteDivOperator : public mfem::ParDiscreteLinearOperator
+// {
+// public:
+//    DiscreteDivOperator(mfem::ParFiniteElementSpace *dfes,
+//                        mfem::ParFiniteElementSpace *rfes);
+// };
 
-/// This class computes the irrotational portion of a vector field.
-/// This vector field must be discretized using Nedelec basis
-/// functions.
-class IrrotationalProjector : public mfem::Operator
-{
-public:
-   IrrotationalProjector(mfem::ParFiniteElementSpace &H1FESpace,
-                         mfem::ParFiniteElementSpace &HCurlFESpace,
-                         const int &irOrder);
+// /// This class computes the irrotational portion of a vector field.
+// /// This vector field must be discretized using Nedelec basis
+// /// functions.
+// class IrrotationalProjector : public mfem::Operator
+// {
+// public:
+//    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
+//    // compute the Nedelec DoFs of the irrotational portion, 'y', of
+//    // this vector field.  The resulting GridFunction will satisfy Curl y = 0
+//    // to machine precision.
+//    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
-   // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
-   // compute the Nedelec DoFs of the irrotational portion, 'y', of
-   // this vector field.  The resulting GridFunction will satisfy Curl y = 0
-   // to machine precision.
-   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
+//    /// \brief Reverse-mode differentiation of IrrotationalProjector::Mult
+//    /// \param[in] proj_bar - derivative of some output w.r.t. the projection
+//    /// \param[in] wrt - string indicating what to take the derivative w.r.t.
+//    /// \param[inout] wrt_bar - accumulated sensitivity of output w.r.t. @a wrt
+//    void vectorJacobianProduct(const mfem::ParGridFunction &proj_bar,
+//                               std::string wrt,
+//                               mfem::ParGridFunction &wrt_bar);
 
-   void Update();
+//    IrrotationalProjector(mfem::ParFiniteElementSpace &h1_fes,
+//                          mfem::ParFiniteElementSpace &nd_fes,
+//                          const int &ir_order);
 
-private:
-   void InitSolver() const;
+//    void Update();
 
-   mfem::ParFiniteElementSpace &h1_fes;
-   mfem::ParFiniteElementSpace &nd_fes;
+// private:
+//    void InitSolver() const;
 
-   mutable mfem::ParBilinearForm s0;
-   mfem::ParMixedBilinearForm weakDiv;
-   DiscreteGradOperator grad;
+//    mfem::ParFiniteElementSpace &h1_fes;
+//    mfem::ParFiniteElementSpace &nd_fes;
 
-   mutable mfem::ParGridFunction psi;
-   mutable mfem::ParGridFunction xDiv;
+//    mutable mfem::ParBilinearForm s0;
+//    mfem::ParMixedBilinearForm weakDiv;
+//    DiscreteGradOperator grad;
 
-   mutable mfem::HypreParMatrix S0;
-   mutable mfem::Vector Psi;
-   mutable mfem::Vector RHS;
+//    mutable mfem::ParGridFunction psi;
+//    mutable mfem::ParGridFunction xDiv;
 
-   mutable mfem::HypreBoomerAMG amg;
-   mutable mfem::HyprePCG pcg;
+//    mutable mfem::HypreParMatrix S0;
+//    mutable mfem::Vector Psi;
+//    mutable mfem::Vector RHS;
 
-   mfem::Array<int> ess_bdr, ess_bdr_tdofs;
-};
+//    mutable mfem::HypreBoomerAMG amg;
+//    mutable mfem::HyprePCG pcg;
 
-/// This class computes the divergence free portion of a vector field.
-/// This vector field must be discretized using Nedelec basis
-/// functions.
-class DivergenceFreeProjector : public IrrotationalProjector
-{
-public:
-   DivergenceFreeProjector(mfem::ParFiniteElementSpace &H1FESpace,
-                           mfem::ParFiniteElementSpace &HCurlFESpace,
-                           const int &irOrder);
+//    mfem::Array<int> ess_bdr, ess_bdr_tdofs;
+// };
 
-   // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
-   // compute the Nedelec DoFs of the divergence free portion, 'y', of
-   // this vector field.  The resulting GridFunction will satisfy Div y = 0
-   // in a weak sense.
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+// /// This class computes the divergence free portion of a vector field.
+// /// This vector field must be discretized using Nedelec basis
+// /// functions.
+// class DivergenceFreeProjector : public IrrotationalProjector
+// {
+// public:
+//    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
+//    // compute the Nedelec DoFs of the divergence free portion, 'y', of
+//    // this vector field.  The resulting GridFunction will satisfy Div y = 0
+//    // in a weak sense.
+//    virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
 
-   void Update();
-};
+//    /// \brief Reverse-mode differentiation of DivergenceFreeProjector::Mult
+//    /// \param[in] proj_bar - derivative of some output w.r.t. the projection
+//    /// \param[in] wrt - string indicating what to take the derivative w.r.t.
+//    /// \param[inout] wrt_bar - accumulated sensitivity of output w.r.t. @a wrt
+//    void vectorJacobianProduct(const mfem::ParGridFunction &proj_bar,
+//                               std::string wrt,
+//                               mfem::ParGridFunction &wrt_bar);
+
+//    DivergenceFreeProjector(mfem::ParFiniteElementSpace &h1_fes,
+//                            mfem::ParFiniteElementSpace &nd_fes,
+//                            const int &ir_order);
+
+//    void Update();
+// };
 
 /// Find root of `func` using bisection
 /// \param[in] func - function to find root of 
