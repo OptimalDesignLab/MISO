@@ -5,11 +5,14 @@ using namespace mfem;
 namespace mach
 {
 
-DivergenceFreeProjector::DivergenceFreeProjector(ParFiniteElementSpace &h1_fes,
-                                                 ParFiniteElementSpace &nd_fes,
-                                                 const int &ir_order)
-   : IrrotationalProjector(h1_fes, nd_fes, ir_order)
-{}
+void setInputs(DivergenceFreeProjector &op, const MachInputs &inputs)
+{
+   auto it = inputs.find("mesh_coords");
+   if (it != inputs.end())
+   {
+      op.dirty = true;
+   }
+}
 
 void DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
 {
@@ -19,13 +22,21 @@ void DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
 }
 
 void DivergenceFreeProjector::vectorJacobianProduct(
-   const mfem::ParGridFunction &proj_bar,
+   const mfem::Vector &x,
+   const mfem::Vector &proj_bar,
    std::string wrt,
-   mfem::ParGridFunction &wrt_bar)
+   mfem::Vector &wrt_bar)
 {
-   if (wrt == "wrt")
+   if (wrt == "in")
    {
-
+      psi_irrot = proj_bar; psi_irrot *= -1.0;
+      this->IrrotationalProjector::vectorJacobianProduct(x, psi_irrot, wrt, wrt_bar);
+      wrt_bar += proj_bar;
+   }
+   else if (wrt == "mesh_coords")
+   {
+      psi_irrot = proj_bar; psi_irrot *= -1.0;
+      this->IrrotationalProjector::vectorJacobianProduct(x, psi_irrot, wrt, wrt_bar);
    }
 }
 

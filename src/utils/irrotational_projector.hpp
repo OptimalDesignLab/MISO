@@ -73,6 +73,8 @@ public:
 protected:
    /// Update the bilinear forms and reassemble them
    void update() const;
+   /// flag indicating if the bilinear forms need to be reassembled
+   mutable bool dirty;
 
 private:
    mfem::ParFiniteElementSpace &h1_fes;
@@ -96,7 +98,6 @@ private:
    mutable mfem::HyprePCG pcg;
 
    mfem::Array<int> ess_bdr, ess_bdr_tdofs;
-   mutable bool dirty;
 };
 
 } // namespace mach
