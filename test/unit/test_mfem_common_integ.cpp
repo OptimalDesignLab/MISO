@@ -83,7 +83,6 @@ TEST_CASE("DiffusionIntegratorMeshSens::AssembleRHSElementVect")
          // now compute the finite-difference approximation...
          Vector res(A.Size());
          ParGridFunction x_pert(x_nodes);
-         ParGridFunction r(&fes);
          x_pert.Add(delta, v);
          mesh.SetNodes(x_pert);
          A.Assemble();
@@ -96,6 +95,89 @@ TEST_CASE("DiffusionIntegratorMeshSens::AssembleRHSElementVect")
          A.Assemble();
          A.Finalize();
          A.Mult(state, res);
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2*delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+
+         // std::cout << "dfdx_v: " << dfdx_v << "\n";
+         // std::cout << "dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+      }
+   }
+}
+
+TEST_CASE("VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3;
+   double delta = 1e-5;
+
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                      Element::TETRAHEDRON,
+                                      1.0, 1.0, 1.0, true);
+
+   ParMesh mesh(MPI_COMM_WORLD, smesh); 
+   mesh.ReorientTetMesh();
+   mesh.EnsureNodes();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection h1_fec(p, dim);
+         ParFiniteElementSpace h1_fes(&mesh, &h1_fec);
+
+         ND_FECollection nd_fec(p, dim);
+         ParFiniteElementSpace nd_fes(&mesh, &nd_fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
+         auto &mesh_fes = *x_nodes.ParFESpace();
+
+         // we use A for finite-difference approximation
+         ParMixedBilinearForm W(&nd_fes, &h1_fes);
+         W.AddDomainIntegrator(new VectorFEWeakDivergenceIntegrator);
+
+         // initialize state and adjoint; here we randomly perturb a constant state
+         ParGridFunction state(&nd_fes), adjoint(&h1_fes);
+         FunctionCoefficient pert(randState);
+         VectorFunctionCoefficient v_pert(3, randVectorState);
+         state.ProjectCoefficient(v_pert);
+         adjoint.ProjectCoefficient(pert);
+
+         // build the nonlinear form for d(psi^T R)/dx 
+         ParLinearForm dfdx(&mesh_fes);
+         auto integ = new mach::VectorFEWeakDivergenceIntegratorMeshSens;
+         integ->setState(state);
+         integ->setAdjoint(adjoint);
+         dfdx.AddDomainIntegrator(integ);
+
+         // initialize the vector that we use to perturb the mesh nodes
+         ParGridFunction v(&mesh_fes);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate df/dx and contract with v
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         Vector res(adjoint.Size());
+         ParGridFunction x_pert(x_nodes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         W.Assemble();
+         W.Finalize();
+         W.Mult(state, res);
+         double dfdx_v_fd = adjoint * res;
+         x_pert.Add(-2*delta, v);
+         mesh.SetNodes(x_pert);
+         W.Update();
+         W.Assemble();
+         W.Finalize();
+         W.Mult(state, res);
          dfdx_v_fd -= adjoint * res;
          dfdx_v_fd /= (2*delta);
          mesh.SetNodes(x_nodes); // remember to reset the mesh nodes

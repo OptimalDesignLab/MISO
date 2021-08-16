@@ -2,6 +2,7 @@
 #define MACH_RES_INTEGRATOR
 
 #include "mfem.hpp"
+
 #include "solver.hpp"
 
 using namespace mfem;
@@ -38,11 +39,8 @@ private:
    /// the adjoint to use when evaluating d(psi^T D u)/dX
    mfem::GridFunction *adjoint;
 #ifndef MFEM_THREAD_SAFE
-   DenseMatrix dshape, dshapedxt, invdfdx, mq;
-   DenseMatrix te_dshape, te_dshapedxt;
-   Vector D;
-   mfem::DenseMatrix curlshape_dFt_bar;
-   mfem::DenseMatrix PointMat_bar;
+   DenseMatrix dshape, dshapedxt;
+   mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
    mfem::Array<int> vdofs;
    mfem::Vector elfun, psi;
 #endif
@@ -79,10 +77,8 @@ private:
    /// the adjoint to use when evaluating d(psi^T W u)/dX
    mfem::GridFunction *adjoint;
 #ifndef MFEM_THREAD_SAFE
-   DenseMatrix dshape, dshapedxt, invdfdx, mq;
-   DenseMatrix te_dshape, te_dshapedxt;
-   Vector D;
-   mfem::DenseMatrix PointMat_bar;
+   mfem::DenseMatrix dshape, dshapedxt, vshape, vshapedxt;
+   mfem::DenseMatrix dshapedxt_bar, vshapedxt_bar, PointMat_bar;
    mfem::Array<int> vdofs;
    mfem::Vector elfun, psi;
 #endif

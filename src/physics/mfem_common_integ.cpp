@@ -34,10 +34,15 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
    adjoint->GetSubVector(vdofs, psi);
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix dshape(el_ndof, dim), dshapedxt(el_ndof, spaceDim);
+   DenseMatrix dshape(el_ndof, dim),
+   DenseMatrix dshapedxt(el_ndof, spaceDim);
+   DenseMatrix dshapedxt_bar(el_ndof, dim);
+   DenseMatrix PointMat_bar(dim, ndof);
 #else
    dshape.SetSize(el_ndof, dim);
    dshapedxt.SetSize(el_ndof, spaceDim);
+   dshapedxt_bar.SetSize(el_ndof, dim);
+   PointMat_bar.SetSize(dim ,ndof);
 #endif
 
    /// these vector's size is the spatial dimension we can stack allocate
@@ -45,6 +50,14 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
    Vector DT_state(DT_state_buffer, dim);
    double DT_psi_buffer[3];
    Vector DT_psi(DT_psi_buffer, dim);
+
+   double DT_state_bar_buffer[3];
+   Vector DT_state_bar(DT_state_bar_buffer, dim);
+   double DT_psi_bar_buffer[3];
+   Vector DT_psi_bar(DT_psi_bar_buffer, dim);
+
+   double adj_jac_bar_buffer[9];
+   DenseMatrix adj_jac_bar(adj_jac_bar_buffer, dim, dim);
 
    // cast the ElementTransformation
    IsoparametricTransformation &isotrans =
@@ -99,35 +112,25 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
       double w_bar = fun_bar * DT_state_dot_DT_psi;
 
       /// const double DT_state_dot_DT_psi = DT_state * DT_psi;
-      double DT_state_bar_buffer[3];
-      Vector DT_state_bar(DT_state_bar_buffer, dim); DT_state_bar = 0.0;
-      double DT_psi_bar_buffer[3];
-      Vector DT_psi_bar(DT_psi_bar_buffer, dim); DT_psi_bar = 0.0;
-      
+      DT_state_bar = 0.0;
+      DT_psi_bar = 0.0;
       add(DT_psi_bar, DT_state_dot_DT_psi_bar, DT_state, DT_psi_bar);
       add(DT_state_bar, DT_state_dot_DT_psi_bar, DT_psi, DT_state_bar);
       
-      DenseMatrix dshapedxt_bar(el_ndof, dim);
-      // DenseMatrix dshapedxt_bar(dim, el_ndof);
       dshapedxt_bar = 0.0;
       /// dshapedxt.MultTranspose(psi, DT_psi);
       AddMultVWt(psi, DT_psi_bar, dshapedxt_bar);
-      // AddMultVWt(DT_psi_bar, psi, dshapedxt_bar);
 
       /// dshapedxt.MultTranspose(elfun, DT_state);
       AddMultVWt(elfun, DT_state_bar, dshapedxt_bar);
-      // AddMultVWt(DT_state_bar, elfun, dshapedxt_bar);
 
       /// Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
-      double adj_jac_bar_buffer[9];
-      DenseMatrix adj_jac_bar(adj_jac_bar_buffer, dim, dim); adj_jac_bar = 0.0;
-      // AddMultABt(dshapedxt_bar, dshape, adj_jac_bar);
+      adj_jac_bar = 0.0;
       MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
 
       /// w = ip.weight / trans.Weight();
       double trans_weight_bar = -w_bar * ip.weight / pow(trans.Weight(), 2);
 
-      DenseMatrix PointMat_bar(dim, ndof);
       PointMat_bar = 0.0;
       isotrans.WeightRevDiff(PointMat_bar);
       PointMat_bar *= trans_weight_bar;
@@ -145,11 +148,144 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
 }
 
 void VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect(
-   const mfem::FiniteElement &el,
-   mfem::ElementTransformation &trans,
+   const mfem::FiniteElement &mesh_el,
+   mfem::ElementTransformation &mesh_trans,
    mfem::Vector &mesh_coords_bar)
 {
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+#endif
+   int element = mesh_trans.ElementNo;
+   auto &nd_el = *state->FESpace()->GetFE(element);
+   auto &h1_el = *adjoint->FESpace()->GetFE(element);
 
+   const int ndof = mesh_el.GetDof();
+   const int dim = mesh_el.GetDim();
+   const int nd_ndof = nd_el.GetDof();
+   const int h1_ndof = h1_el.GetDof();
+   mesh_coords_bar.SetSize(ndof*dim);
+   mesh_coords_bar = 0.0;
+
+   state->FESpace()->GetElementVDofs(element, vdofs);
+   state->GetSubVector(vdofs, elfun);
+   adjoint->FESpace()->GetElementDofs(element, vdofs);
+   adjoint->GetSubVector(vdofs, psi);
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape(h1_ndof, dim);
+   DenseMatrix dshapedxt(h1_ndof, dim);
+   DenseMatrix vshape(nd_ndof, dim);
+   DenseMatrix vshapedxt(nd_ndof, dim);
+   DenseMatrix dshapedxt_bar(h1_ndof, dim);
+   DenseMatrix vshapedxt_bar(nd_ndof, dim);
+   DenseMatrix PointMat_bar(dim, ndof);
+#else
+   dshape.SetSize(h1_ndof, dim);
+   dshapedxt.SetSize(h1_ndof, dim);
+   vshape.SetSize(nd_ndof, dim);
+   vshapedxt.SetSize(nd_ndof, dim);
+   dshapedxt_bar.SetSize(h1_ndof, dim);
+   vshapedxt_bar.SetSize(nd_ndof, dim);
+   PointMat_bar.SetSize(dim, ndof);
+#endif
+
+   /// these vector's size is the spatial dimension we can stack allocate
+   double VT_state_buffer[3];
+   Vector VT_state(VT_state_buffer, dim);
+   double DT_psi_buffer[3];
+   Vector DT_psi(DT_psi_buffer, dim);
+
+   double VT_state_bar_buffer[3];
+   Vector VT_state_bar(VT_state_bar_buffer, dim);
+   double DT_psi_bar_buffer[3];
+   Vector DT_psi_bar(DT_psi_bar_buffer, dim);
+
+   double adj_jac_bar_buffer[9];
+   DenseMatrix adj_jac_bar(adj_jac_bar_buffer, dim, dim); 
+   double adj_jac_bar_buffer_temp[9];
+   DenseMatrix adj_jac_bar_temp(adj_jac_bar_buffer_temp, dim, dim);
+
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(mesh_trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int ir_order = (nd_el.Space() == FunctionSpace::Pk) ?
+                     (nd_el.GetOrder() + h1_el.GetOrder() - 1) :
+                     (nd_el.GetOrder() + h1_el.GetOrder() + 2*(dim-2));
+      ir = &IntRules.Get(nd_el.GetGeomType(), ir_order);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      h1_el.CalcDShape(ip, dshape);
+
+      mesh_trans.SetIntPoint(&ip);
+      double w = ip.weight / mesh_trans.Weight();
+
+      Mult(dshape, mesh_trans.AdjugateJacobian(), dshapedxt);
+
+      nd_el.CalcVShape(ip, vshape);
+      Mult(vshape, mesh_trans.AdjugateJacobian(), vshapedxt);
+
+      /// dummy functional for adjoint-weighted residual...
+      /// AddMultABt(dshapedxt, vshape, elmat);
+      vshapedxt.MultTranspose(elfun, VT_state);
+      dshapedxt.MultTranspose(psi, DT_psi);
+      const double VT_state_dot_DT_psi = VT_state * DT_psi;
+      // fun -= VT_state_dot_DT_psi * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun -= VT_state_dot_DT_psi * w;
+      double VT_state_dot_DT_psi_bar = -fun_bar * w;
+      double w_bar = -fun_bar * VT_state_dot_DT_psi;
+
+      /// const double VT_state_dot_DT_psi = VT_state * DT_psi;
+      VT_state_bar = 0.0;
+      DT_psi_bar = 0.0;
+      add(VT_state_bar, VT_state_dot_DT_psi_bar, DT_psi, VT_state_bar);
+      add(DT_psi_bar, VT_state_dot_DT_psi_bar, VT_state, DT_psi_bar);
+      
+      /// dshapedxt.MultTranspose(psi, DT_psi);
+      dshapedxt_bar = 0.0;
+      AddMultVWt(psi, DT_psi_bar, dshapedxt_bar);
+
+      /// vshapedxt.MultTranspose(elfun, VT_state);
+      vshapedxt_bar = 0.0;
+      AddMultVWt(elfun, VT_state_bar, vshapedxt_bar);
+
+      /// Mult(vshape, mesh_trans.AdjugateJacobian(), vshapedxt);
+      adj_jac_bar = 0.0;
+      MultAtB(vshape, vshapedxt_bar, adj_jac_bar);
+
+      /// Mult(dshape, mesh_trans.AdjugateJacobian(), dshapedxt);
+      adj_jac_bar_temp = 0.0;
+      MultAtB(dshape, dshapedxt_bar, adj_jac_bar_temp);
+      adj_jac_bar += adj_jac_bar_temp;
+
+      /// w = ip.weight / mesh_trans.Weight();
+      double trans_weight_bar = -w_bar * ip.weight / pow(mesh_trans.Weight(), 2);
+      PointMat_bar = 0.0;
+      isotrans.WeightRevDiff(PointMat_bar);
+      PointMat_bar *= trans_weight_bar;
+
+      isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar);
+      // code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dim; ++d)
+         {
+            mesh_coords_bar(d*ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 double TestLFIntegrator::GetElementEnergy(
