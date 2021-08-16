@@ -85,6 +85,43 @@ private:
 
 };
 
+class VectorFEMassIntegratorMeshSens final : public mfem::LinearFormIntegrator
+{
+public:
+   VectorFEMassIntegratorMeshSens()
+      : state(nullptr), adjoint(nullptr)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T M u)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] mesh_coords_bar - d(psi^T M u)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   void setState(const mfem::GridFunction &u)
+   { state = &u; }
+
+   void setAdjoint(const mfem::GridFunction &psi)
+   { adjoint = &psi; }
+
+private:
+   /// the state to use when evaluating d(psi^T M u)/dX
+   const mfem::GridFunction *state;
+   /// the adjoint to use when evaluating d(psi^T M u)/dX
+   const mfem::GridFunction *adjoint;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix vshape, vshapedxt;
+   mfem::DenseMatrix vshapedxt_bar, PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+#endif
+
+};
+
 class TestLFIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:

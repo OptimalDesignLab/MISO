@@ -55,7 +55,6 @@ private:
    mfem::HypreParVector load;
 
    DivergenceFreeProjector div_free_proj;
-   // mfem::common::DivergenceFreeProjector div_free_proj;
 
    /// flag to know if the load vector should be reassembled
    bool dirty;
