@@ -2,10 +2,11 @@
 
 #include "catch.hpp"
 #include "mfem.hpp"
+
 #include "coefficient.hpp"
-#include "mfem_common_integ.hpp"
 #include "euler_test_data.hpp"
 #include "electromag_test_data.hpp"
+#include "mfem_common_integ.hpp"
 
 namespace
 {
@@ -24,6 +25,87 @@ void funcRevDiff(const Vector &x, const double Q_bar, Vector &x_bar)
 }
 
 } // namespace
+
+TEST_CASE("DiffusionIntegratorMeshSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 3;
+   double delta = 1e-5;
+
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                      Element::TETRAHEDRON,
+                                      1.0, 1.0, 1.0, true);
+
+   ParMesh mesh(MPI_COMM_WORLD, smesh); 
+   mesh.ReorientTetMesh();
+   mesh.EnsureNodes();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         ParFiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
+         auto &mesh_fes = *x_nodes.ParFESpace();
+
+         // we use A for finite-difference approximation
+         ParBilinearForm A(&fes);
+         A.AddDomainIntegrator(new DiffusionIntegrator());
+
+         // initialize state and adjoint; here we randomly perturb a constant state
+         ParGridFunction state(&fes), adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         // build the nonlinear form for d(psi^T R)/dx 
+         ParLinearForm dfdx(&mesh_fes);
+         auto integ = new mach::DiffusionIntegratorMeshSens;
+         integ->setState(state);
+         integ->setAdjoint(adjoint);
+         dfdx.AddDomainIntegrator(integ);
+
+         // initialize the vector that we use to perturb the mesh nodes
+         ParGridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate df/dx and contract with v
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         Vector res(A.Size());
+         ParGridFunction x_pert(x_nodes);
+         ParGridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         A.Assemble();
+         A.Finalize();
+         A.Mult(state, res);
+         double dfdx_v_fd = adjoint * res;
+         x_pert.Add(-2*delta, v);
+         mesh.SetNodes(x_pert);
+         A.Update();
+         A.Assemble();
+         A.Finalize();
+         A.Mult(state, res);
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2*delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+
+         // std::cout << "dfdx_v: " << dfdx_v << "\n";
+         // std::cout << "dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
+      }
+   }
+}
 
 TEST_CASE("TestLFMeshSensIntegrator::AssembleRHSElementVect",
           "[TestLFMeshSensIntegrator]")

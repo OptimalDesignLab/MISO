@@ -1,3 +1,4 @@
+#include "mfem_common_integ.hpp"
 #include "irrotational_projector.hpp"
 
 using namespace mfem;
@@ -27,6 +28,15 @@ IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
    BilinearFormIntegrator *wdivInteg = new VectorFEWeakDivergenceIntegrator;
    wdivInteg->SetIntRule(ir);
    weak_div.AddDomainIntegrator(wdivInteg);
+
+   auto &mesh = *h1_fes.GetParMesh();
+   auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
+   auto &mesh_fes = *x_nodes.ParFESpace();
+   mesh_sens.Update(&mesh_fes);
+   diff_mesh_sens = new DiffusionIntegratorMeshSens;
+   mesh_sens.AddDomainIntegrator(diff_mesh_sens);
+   div_mesh_sens = new VectorFEWeakDivergenceIntegratorMeshSens;
+   mesh_sens.AddDomainIntegrator(div_mesh_sens);
 }
 
 void setInputs(IrrotationalProjector &op, const MachInputs &inputs)

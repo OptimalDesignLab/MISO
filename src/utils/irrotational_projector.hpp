@@ -8,6 +8,10 @@
 namespace mach
 {
 
+/// Forward declarations of mesh sens integrators
+class DiffusionIntegratorMeshSens;
+class VectorFEWeakDivergenceIntegratorMeshSens;
+
 /// The following are adapted from MFEM's pfem_extras.xpp
 class DiscreteGradOperator final : public mfem::ParDiscreteLinearOperator
 {
@@ -76,8 +80,9 @@ private:
    mutable mfem::ParMixedBilinearForm weak_div;
    mutable DiscreteGradOperator grad;
 
-   mfem::ParLinearForm diffusion_mesh_sens;
-   mfem::ParLinearForm weak_div_mesh_sens;
+   mfem::ParLinearForm mesh_sens;
+   DiffusionIntegratorMeshSens *diff_mesh_sens;
+   VectorFEWeakDivergenceIntegratorMeshSens *div_mesh_sens;
 
    mutable mfem::ParGridFunction psi;
    mutable mfem::ParGridFunction div_x;

@@ -9,6 +9,86 @@ using namespace mfem;
 namespace mach
 {
 
+class DiffusionIntegratorMeshSens final : public mfem::LinearFormIntegrator
+{
+public:
+   DiffusionIntegratorMeshSens()
+      : state(nullptr), adjoint(nullptr)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T D u)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] mesh_coords_bar - d(psi^T D u)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   void setState(mfem::GridFunction &u)
+   { state = &u; }
+
+   void setAdjoint(mfem::GridFunction &psi)
+   { adjoint = &psi; }
+
+private:
+   /// the state to use when evaluating d(psi^T D u)/dX
+   mfem::GridFunction *state;
+   /// the adjoint to use when evaluating d(psi^T D u)/dX
+   mfem::GridFunction *adjoint;
+#ifndef MFEM_THREAD_SAFE
+   DenseMatrix dshape, dshapedxt, invdfdx, mq;
+   DenseMatrix te_dshape, te_dshapedxt;
+   Vector D;
+   mfem::DenseMatrix curlshape_dFt_bar;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+#endif
+
+};
+
+class VectorFEWeakDivergenceIntegratorMeshSens final
+   : public mfem::LinearFormIntegrator
+{
+public:
+   VectorFEWeakDivergenceIntegratorMeshSens()
+      : state(nullptr), adjoint(nullptr)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T W u)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] mesh_coords_bar - d(psi^T W u)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   void setState(mfem::GridFunction &u)
+   { state = &u; }
+
+   void setAdjoint(mfem::GridFunction &psi)
+   { adjoint = &psi; }
+
+private:
+   /// the state to use when evaluating d(psi^T W u)/dX
+   mfem::GridFunction *state;
+   /// the adjoint to use when evaluating d(psi^T W u)/dX
+   mfem::GridFunction *adjoint;
+#ifndef MFEM_THREAD_SAFE
+   DenseMatrix dshape, dshapedxt, invdfdx, mq;
+   DenseMatrix te_dshape, te_dshapedxt;
+   Vector D;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+#endif
+
+};
+
 class TestLFIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
