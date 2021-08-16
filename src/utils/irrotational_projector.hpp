@@ -57,12 +57,14 @@ public:
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
    /// \brief Reverse-mode differentiation of IrrotationalProjector::Mult
+   /// \param[in] x - GridFunction 'x' that would be input to Mult
    /// \param[in] proj_bar - derivative of some output w.r.t. the projection
    /// \param[in] wrt - string indicating what to take the derivative w.r.t.
    /// \param[inout] wrt_bar - accumulated sensitivity of output w.r.t. @a wrt
-   void vectorJacobianProduct(const mfem::ParGridFunction &proj_bar,
+   void vectorJacobianProduct(const mfem::Vector &x,
+                              const mfem::Vector &proj_bar,
                               std::string wrt,
-                              mfem::ParGridFunction &wrt_bar);
+                              mfem::Vector &wrt_bar);
 
    IrrotationalProjector(mfem::ParFiniteElementSpace &h1_fes,
                          mfem::ParFiniteElementSpace &nd_fes,

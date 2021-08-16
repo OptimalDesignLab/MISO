@@ -24,7 +24,7 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt in")
    mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -53,7 +53,7 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt in")
 
          // evaluate the vectorJacobian product and compute its product with v
          ParGridFunction pJac(&fes); pJac = 0.0;
-         op.vectorJacobianProduct(p, "in", pJac);
+         op.vectorJacobianProduct(J, p, "in", pJac);
          double pJacv = pJac * v;
 
          // now compute the finite-difference approximation...
@@ -88,7 +88,7 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt mesh_coords")
    mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -124,7 +124,7 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt mesh_coords")
 
          // evaluate the vectorJacobian product and compute its product with v
          ParGridFunction pJac(&mesh_fes); pJac = 0.0;
-         op.vectorJacobianProduct(p, "mesh_coords", pJac);
+         op.vectorJacobianProduct(J, p, "mesh_coords", pJac);
          double pJacv = pJac * v;
 
          // now compute the finite-difference approximation...
@@ -140,6 +140,8 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt mesh_coords")
          pJacv_fd /= (2*delta);
          x_nodes.Add(delta, v); // remember to reset the mesh nodes
 
+         std::cout << "pJacv: " << pJacv << "\n";
+         std::cout << "pJacv_fd: " << pJacv_fd << "\n";
          REQUIRE(pJacv == Approx(pJacv_fd));
       }
    }

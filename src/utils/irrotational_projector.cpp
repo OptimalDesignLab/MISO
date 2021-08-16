@@ -84,9 +84,10 @@ void IrrotationalProjector::Mult(const Vector &x, Vector &y) const
 }
 
 void IrrotationalProjector::vectorJacobianProduct(
-   const mfem::ParGridFunction &out_bar,
+   const mfem::Vector &x,
+   const mfem::Vector &out_bar,
    std::string wrt,
-   mfem::ParGridFunction &wrt_bar)
+   mfem::Vector &wrt_bar)
 {
    if (wrt == "in")
    {
@@ -125,7 +126,65 @@ void IrrotationalProjector::vectorJacobianProduct(
    }
    else if (wrt == "mesh_coords")
    {
+      if (dirty)
+      {
+         update();
+         dirty = false;
+      }
+      // Compute the divergence of x
+      weak_div.Mult(x, div_x); div_x *= -1.0;
 
+      // Apply essential BC and form linear system
+      psi = 0.0;
+      HypreParMatrix D_mat;
+      diffusion.FormLinearSystem(ess_bdr_tdofs, psi, div_x, D_mat, Psi, RHS);
+
+      amg.SetOperator(D_mat);
+      amg.SetPrintLevel(0);
+
+      pcg.SetOperator(D_mat);
+      pcg.SetTol(1e-14);
+      pcg.SetMaxIter(200);
+      pcg.SetPrintLevel(0);
+      pcg.SetPreconditioner(amg);
+
+      // Solve the linear system for Psi
+      pcg.Mult(RHS, Psi);
+
+      // Compute the parallel grid function correspoinding to Psi
+      diffusion.RecoverFEMSolution(Psi, div_x, psi);
+
+      /// start reverse pass
+      ParGridFunction GTout_bar(&h1_fes);
+      grad.MultTranspose(out_bar, GTout_bar);
+      GTout_bar *= -1.0;
+
+      // Apply essential BC and form linear system
+      ParGridFunction psi_bar(psi); psi_bar = 0.0;
+      diffusion.FormLinearSystem(ess_bdr_tdofs, psi_bar, GTout_bar, D_mat, Psi, RHS);
+      auto D_matT = std::unique_ptr<HypreParMatrix>(D_mat.Transpose());
+      amg.SetOperator(*D_matT);
+      amg.SetPrintLevel(0);
+
+      pcg.SetOperator(*D_matT);
+      pcg.SetTol(1e-14);
+      pcg.SetMaxIter(200);
+      pcg.SetPrintLevel(0);
+      pcg.SetPreconditioner(amg);
+
+      // Solve the linear system for Psi
+      pcg.Mult(RHS, Psi);
+
+      // Compute the parallel grid function correspoinding to Psi
+      diffusion.RecoverFEMSolution(Psi, GTout_bar, psi_bar);
+
+      const auto &x_gf = dynamic_cast<const mfem::GridFunction&>(x);
+      diff_mesh_sens->setState(psi);
+      diff_mesh_sens->setAdjoint(psi_bar);
+      div_mesh_sens->setState(x_gf);
+      div_mesh_sens->setAdjoint(psi_bar);
+      mesh_sens.Assemble();
+      wrt_bar += mesh_sens;
    }
 }
 

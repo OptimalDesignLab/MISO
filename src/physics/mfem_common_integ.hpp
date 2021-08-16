@@ -27,17 +27,17 @@ public:
                                mfem::ElementTransformation &trans,
                                mfem::Vector &mesh_coords_bar) override;
 
-   void setState(mfem::GridFunction &u)
+   void setState(const mfem::GridFunction &u)
    { state = &u; }
 
-   void setAdjoint(mfem::GridFunction &psi)
+   void setAdjoint(const mfem::GridFunction &psi)
    { adjoint = &psi; }
 
 private:
    /// the state to use when evaluating d(psi^T D u)/dX
-   mfem::GridFunction *state;
+   const mfem::GridFunction *state;
    /// the adjoint to use when evaluating d(psi^T D u)/dX
-   mfem::GridFunction *adjoint;
+   const mfem::GridFunction *adjoint;
 #ifndef MFEM_THREAD_SAFE
    DenseMatrix dshape, dshapedxt;
    mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
@@ -65,17 +65,17 @@ public:
                                mfem::ElementTransformation &trans,
                                mfem::Vector &mesh_coords_bar) override;
 
-   void setState(mfem::GridFunction &u)
+   void setState(const mfem::GridFunction &u)
    { state = &u; }
 
-   void setAdjoint(mfem::GridFunction &psi)
+   void setAdjoint(const mfem::GridFunction &psi)
    { adjoint = &psi; }
 
 private:
    /// the state to use when evaluating d(psi^T W u)/dX
-   mfem::GridFunction *state;
+   const mfem::GridFunction *state;
    /// the adjoint to use when evaluating d(psi^T W u)/dX
-   mfem::GridFunction *adjoint;
+   const mfem::GridFunction *adjoint;
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshape, dshapedxt, vshape, vshapedxt;
    mfem::DenseMatrix dshapedxt_bar, vshapedxt_bar, PointMat_bar;
