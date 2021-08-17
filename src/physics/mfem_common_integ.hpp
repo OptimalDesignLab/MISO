@@ -125,8 +125,8 @@ private:
 class VectorFEDomainLFIntegratorMeshSens : public mfem::LinearFormIntegrator
 {
 public:
-   VectorFEDomainLFIntegratorMeshSens(mfem::VectorCoefficient &F)
-      : F(F), adjoint(nullptr)
+   VectorFEDomainLFIntegratorMeshSens(mfem::VectorCoefficient &F, double alpha = 1.0)
+      : F(F), adjoint(nullptr), alpha(alpha)
    { }
 
    /// \brief - assemble an element's contribution to d(psi^T f)/dX
@@ -147,6 +147,8 @@ private:
    mfem::VectorCoefficient &F;
    /// the adjoint to use when evaluating d(psi^T f)/dX
    const mfem::GridFunction *adjoint;
+   /// scaling term if the linear form has a negative sign in the residual
+   const double alpha;
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix vshape, vshapedxt;
    mfem::DenseMatrix vshapedxt_bar, PointMat_bar;

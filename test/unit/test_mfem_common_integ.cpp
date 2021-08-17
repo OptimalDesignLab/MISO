@@ -335,8 +335,8 @@ TEST_CASE("VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect")
          dfdx_v_fd /= (2*delta);
          mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
 
-         std::cout << "dfdx_v: " << dfdx_v << "\n";
-         std::cout << "dfdx_v_fd: " << dfdx_v_fd << "\n";
+         // std::cout << "dfdx_v: " << dfdx_v << "\n";
+         // std::cout << "dfdx_v_fd: " << dfdx_v_fd << "\n";
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }
    }

@@ -480,7 +480,7 @@ void VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect(
       const IntegrationPoint &ip = ir->IntPoint(i);
 
       trans.SetIntPoint(&ip);
-      double w = ip.weight;
+      double w = ip.weight * alpha;
 
       el.CalcVShape(ip, vshape);
       Mult(vshape, mesh_trans.AdjugateJacobian(), vshapedxt);
@@ -518,7 +518,7 @@ void VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect(
       adj_jac_bar = 0.0;
       MultAtB(vshape, vshapedxt_bar, adj_jac_bar);
 
-      /// w = ip.weight;
+      /// w = ip.weight * alpha;
 
       isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar);
       // code to insert PointMat_bar into mesh_coords_bar;
