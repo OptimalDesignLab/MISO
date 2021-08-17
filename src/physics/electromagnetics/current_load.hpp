@@ -10,6 +10,8 @@
 namespace mach
 {
 
+class VectorFEMassIntegratorMeshSens;
+
 class CurrentLoad final
 {
 public:
@@ -24,11 +26,11 @@ public:
                        mfem::Vector &tv);
 
    friend double vectorJacobianProduct(CurrentLoad &load,
-                                       const mfem::HypreParVector &res_bar,
+                                       const mfem::HypreParVector &load_bar,
                                        std::string wrt);
 
    friend void vectorJacobianProduct(CurrentLoad &load,
-                                     const mfem::HypreParVector &res_bar,
+                                     const mfem::HypreParVector &load_bar,
                                      std::string wrt,
                                      mfem::HypreParVector &wrt_bar);
 
@@ -55,6 +57,9 @@ private:
    mfem::HypreParVector load;
 
    DivergenceFreeProjector div_free_proj;
+
+   mfem::ParLinearForm mesh_sens;
+   VectorFEMassIntegratorMeshSens *mass_mesh_sens;
 
    /// flag to know if the load vector should be reassembled
    bool dirty;

@@ -1,3 +1,5 @@
+#include "mfem.hpp"
+
 #include "mfem_common_integ.hpp"
 #include "irrotational_projector.hpp"
 

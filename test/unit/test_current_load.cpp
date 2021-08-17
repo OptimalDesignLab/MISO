@@ -49,6 +49,7 @@ TEST_CASE("CurrentLoad setInputs")
    std::unique_ptr<Mesh> smesh = buildMesh(4, 4);
    std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
    mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
 
    auto p = 2;
    const auto dim = mesh->Dimension();
@@ -112,6 +113,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
    std::unique_ptr<Mesh> smesh = buildMesh(1, 1);
    std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
    mesh->ReorientTetMesh();
+   mesh->EnsureNodes();
 
    auto p = 2;
    const auto dim = mesh->Dimension();
