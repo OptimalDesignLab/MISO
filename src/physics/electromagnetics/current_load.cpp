@@ -1,3 +1,5 @@
+#include <random>
+
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
@@ -14,6 +16,8 @@ namespace mach
 void setInputs(CurrentLoad &load,
                const MachInputs &inputs)
 {
+   setInputs(load.div_free_proj, inputs);
+
    auto it = inputs.find("current_density");
    if (it != inputs.end())
    {
@@ -70,20 +74,25 @@ void vectorJacobianProduct(CurrentLoad &load,
          load.dirty = false;
       }
       /// begin reverse pass
-      ParGridFunction psi_L(&load.fes);
-      psi_L = load_bar;
+      ParGridFunction psi_l(&load.fes);
+      psi_l = load_bar;
 
       load.nd_mass.Update();
       load.nd_mass.Assemble();
       load.nd_mass.Finalize();
 
-      ParGridFunction psi_k(&load.fes);
-      load.nd_mass.MultTranspose(psi_L, psi_k);
+      ParGridFunction psi_k(&load.fes); psi_k = 0.0;
+      load.nd_mass.MultTranspose(psi_l, psi_k);
+      // psi_k = load_bar;
 
       ParGridFunction rhs(&load.fes); rhs = 0.0;
+      // load.nd_mass.MultTranspose(psi_l, rhs);
+      // rhs = load_bar;
       load.div_free_proj.vectorJacobianProduct(load.j, psi_k, "in", rhs);
+      rhs *= -1.0;
 
       ParGridFunction psi_j(&load.fes); psi_j = 0.0;
+      // psi_j = load_bar;
 
       HypreParMatrix M;
       Vector X, RHS;
@@ -102,28 +111,26 @@ void vectorJacobianProduct(CurrentLoad &load,
 
       load.nd_mass.RecoverFEMSolution(X, rhs, psi_j);
 
-      load.mass_mesh_sens->setState(load.j);
-      load.mass_mesh_sens->setAdjoint(psi_j);
+      load.m_j_mesh_sens->setState(load.j);
+      load.m_j_mesh_sens->setAdjoint(psi_j);
+      load.J_mesh_sens->setAdjoint(psi_j);
 
-      load.mesh_sens.Assemble();
-      load.mesh_sens.ParallelAssemble(load.scratch);
-      wrt_bar += load.scratch;
-
-      load.mass_mesh_sens->setState(load.div_free_current_vec);
-      load.mass_mesh_sens->setAdjoint(psi_L);
-      load.mesh_sens.Assemble();
-      load.mesh_sens.ParallelAssemble(load.scratch);
-      wrt_bar += load.scratch;
+      load.m_l_mesh_sens->setState(load.div_free_current_vec);
+      load.m_l_mesh_sens->setAdjoint(psi_l);
 
       auto &mesh = *load.h1_fes.GetParMesh();
       auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
       auto &mesh_fes = *x_nodes.ParFESpace();
+      HypreParVector scratch_tv(&mesh_fes); scratch_tv = 0.0;
 
-      ParGridFunction scratch(&mesh_fes);
-      HypreParVector scratch_tv(&mesh_fes);
+      load.mesh_sens.Assemble();
+      load.mesh_sens.ParallelAssemble(scratch_tv);
+      wrt_bar -= scratch_tv;
+
+      ParGridFunction scratch(&mesh_fes); scratch = 0.0;
       load.div_free_proj.vectorJacobianProduct(load.j, psi_k, wrt, scratch);
       scratch.ParallelAssemble(scratch_tv);
-      wrt_bar += load.scratch;
+      wrt_bar -= scratch_tv;
    }
 }
 
@@ -137,9 +144,6 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    div_free_current_vec(&fes), scratch(&fes), load(&fes),
    div_free_proj(h1_fes, fes, h1_fes.GetElementTransformation(0)->OrderW()
                                  + 2 * fes.GetFE(0)->GetOrder()), dirty(true)
-   // div_free_proj(h1_fes, fes, h1_fes.GetElementTransformation(0)->OrderW()
-   //                               + 2 * fes.GetFE(0)->GetOrder(),
-   //               NULL, NULL, NULL), dirty(true)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
@@ -150,35 +154,37 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
    auto &mesh_fes = *x_nodes.ParFESpace();
    mesh_sens.Update(&mesh_fes);
-   mass_mesh_sens = new VectorFEMassIntegratorMeshSens;
-   mesh_sens.AddDomainIntegrator(mass_mesh_sens);
+
+   m_j_mesh_sens = new VectorFEMassIntegratorMeshSens(1.0);
+   mesh_sens.AddDomainIntegrator(m_j_mesh_sens);
+   J_mesh_sens = new VectorFEDomainLFIntegratorMeshSens(current, -1.0);
+   mesh_sens.AddDomainIntegrator(J_mesh_sens);
+   m_l_mesh_sens = new VectorFEMassIntegratorMeshSens(1.0);
+   mesh_sens.AddDomainIntegrator(m_l_mesh_sens);
+
+   std::default_random_engine generator; generator.seed(1);
+   std::uniform_real_distribution<double> distribution(-1.0,1.0);
+   for (int i = 0; i < div_free_current_vec.Size(); ++i)
+   {
+      auto val = distribution(generator);
+      // std::cout << "val: " << val << "i: " << i << "\n";
+      // div_free_current_vec(i) = val;
+      // dynamic_cast<Vector&>(J)(i) = val;
+   }
 }
 
 void CurrentLoad::assembleLoad()
 {
-   // assemble mass matrix
+   /// assemble mass matrix
    nd_mass.Update();
    nd_mass.Assemble();
    nd_mass.Finalize();
 
-   // assemble linear form
+   /// assemble linear form
    J.Assemble();
 
-   // project current coeff as initial guess for iterative solve
-   j.ProjectCoefficient(current);
-   // std::cout << "j load: " << j.Norml2() << "\n";
-
-   // {
-   //    ParaViewDataCollection paraview_dc("current_raw", j.FESpace()->GetMesh());
-   //    paraview_dc.SetPrefixPath("ParaView");
-   //    paraview_dc.SetLevelsOfDetail(fes.GetElementOrder(0));
-   //    paraview_dc.SetCycle(0);
-   //    paraview_dc.SetDataFormat(VTKFormat::BINARY);
-   //    paraview_dc.SetHighOrderOutput(true);
-   //    paraview_dc.SetTime(0.0); // set the time
-   //    paraview_dc.RegisterField("CurrentDensity", &j);
-   //    paraview_dc.Save();
-   // }
+   /// project current coeff as initial guess for iterative solve
+   // j.ProjectCoefficient(current);
 
    HypreParMatrix M;
    Vector X, RHS;
@@ -196,59 +202,28 @@ void CurrentLoad::assembleLoad()
    pcg.Mult(RHS, X);
 
    nd_mass.RecoverFEMSolution(X, J, j);
+   /** sensitivity debugging */
+   // j.ParallelAssemble(load);
+   // J.ParallelAssemble(load);
 
    /// Compute the discretely divergence-free portion of j
-   // ParGridFunction div_free_current_vec(&fes);
    div_free_current_vec = 0.0;
    div_free_proj.Mult(j, div_free_current_vec);
+   // div_free_current_vec = j;
 
-   // std::cout << "div free norm new load: " << div_free_current_vec.Norml2() << "\n";
-   
-   /// Save divergence free current in the ParaView format
-   // ParaViewDataCollection paraview_dc("current", div_free_current_vec.FESpace()->GetMesh());
-   // paraview_dc.SetPrefixPath("ParaView");
-   // paraview_dc.SetLevelsOfDetail(fes.GetElementOrder(0));
-   // paraview_dc.SetCycle(0);
-   // paraview_dc.SetDataFormat(VTKFormat::BINARY);
-   // paraview_dc.SetHighOrderOutput(true);
-   // paraview_dc.SetTime(0.0); // set the time
-   // paraview_dc.RegisterField("CurrentDensity",&div_free_current_vec);
-   // paraview_dc.Save();
-
-   /// Compute the dual of div_free_current_vec
-   div_free_current_vec.ParallelAssemble(scratch);
-   M.Mult(scratch, load);
+   // /** sensitivity debugging */
+   // div_free_current_vec.ParallelAssemble(load);
 
    // /// Compute the dual of div_free_current_vec
-   // nd_mass.Assemble();
-   // nd_mass.Finalize();
-   // {
-   //    ParGridFunction test(&fes);
-   //    test = 1.0;
-   //    scratch = 0.0;
-   //    nd_mass.AddMult(test, scratch);
-   //    std::cout << "one's norm: " << scratch.Norml2() << "\n\n";
-   // }
-   // scratch = 0.0;
-   // nd_mass.AddMult(div_free_current_vec, scratch);
-   // // {
-   // //    /// Save divergence free current in the ParaView format
-   // //    ParaViewDataCollection paraview_dc("scratch", scratch.FESpace()->GetMesh());
-   // //    paraview_dc.SetPrefixPath("ParaView");
-   // //    paraview_dc.SetLevelsOfDetail(fes.GetElementOrder(0));
-   // //    paraview_dc.SetCycle(0);
-   // //    paraview_dc.SetDataFormat(VTKFormat::BINARY);
-   // //    paraview_dc.SetHighOrderOutput(true);
-   // //    paraview_dc.SetTime(0.0); // set the time
-   // //    paraview_dc.RegisterField("CurrentDensity",&scratch);
-   // //    paraview_dc.Save();
-   // // }   
-   // std::cout << "scratch norm: " << scratch.Norml2() << "\n\n";
-   // scratch.GetTrueDofs(load);
-
-   // std::cout << "load norm: " << load.Norml2() << "\n\n";
-
+   // // div_free_current_vec.ParallelAssemble(scratch);
+   // // M.Mult(scratch, load);
+   
+   /// Compute the dual of div_free_current_vec
+   nd_mass.Update();
+   nd_mass.Assemble();
+   nd_mass.Finalize();
+   nd_mass.Mult(div_free_current_vec, scratch);
+   scratch.ParallelAssemble(load);
 }
-
 
 } // namespace mach

@@ -1,5 +1,6 @@
 #include <iostream>
 
+// #include "adept.h"
 #include "catch.hpp"
 #include "json.hpp"
 #include "mfem.hpp"
@@ -8,6 +9,13 @@
 #include "coefficient.hpp"
 #include "mach_load.hpp"
 #include "current_load.hpp"
+
+void simpleCurrent(const mfem::Vector &x,
+                   mfem::Vector &J);
+
+void simpleCurrentRevDiff(const mfem::Vector &x,
+                          const mfem::Vector &J_bar,
+                          mfem::Vector &x_bar);
 
 template <typename xdouble = double>
 void box1_current(const xdouble *x,
@@ -36,6 +44,8 @@ static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
 using namespace mach;
 using namespace mfem;
+// using adept::adouble;
+// static adept::Stack diff_stack;
 
 /// Generate mesh 
 /// \param[in] nxy - number of nodes in the x and y directions
@@ -149,16 +159,16 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
    });
    setInputs(ml, inputs);
 
-   HypreParVector res_bar(&fes);
+   HypreParVector load_bar(&fes);
    {
       // std::default_random_engine gen;
       // std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
-      for (int i = 0; i < res_bar.Size(); ++i)
+      for (int i = 0; i < load_bar.Size(); ++i)
       {
-         res_bar(i) = uniform_rand(gen);
+         load_bar(i) = uniform_rand(gen);
       }
    }
-   double wrt_bar = vectorJacobianProduct(ml, res_bar, "current_density");
+   double wrt_bar = vectorJacobianProduct(ml, load_bar, "current_density");
 
    /// somewhat large step size since the magnitude of current density is large
    auto delta = 1e-2;
@@ -167,13 +177,13 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
    setInputs(ml, inputs);
    tv = 0.0;
    addLoad(ml, tv);
-   double wrt_bar_fd = res_bar * tv;
+   double wrt_bar_fd = load_bar * tv;
 
    inputs.at("current_density") = current_density - delta;
    setInputs(ml, inputs);
    tv = 0.0;
    addLoad(ml, tv);
-   wrt_bar_fd -= res_bar * tv;
+   wrt_bar_fd -= load_bar * tv;
    wrt_bar_fd /= 2*delta;
 
    // std::cout << "wrt_bar: " << wrt_bar << "\n";
@@ -195,22 +205,9 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
    ND_FECollection fec(p, dim);
    ParFiniteElementSpace fes(mesh.get(), &fec);
 
-   // create current_coeff coefficient
-   VectorMeshDependentCoefficient current_coeff;
-   {
-      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-         new VectorFunctionCoefficient(dim,
-                                       box1CurrentSource,
-                                       box1CurrentSourceRevDiff));
-      current_coeff.addCoefficient(1, move(temp_coeff));
-   }
-   {
-      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-         new VectorFunctionCoefficient(dim,
-                                       box2CurrentSource,
-                                       box2CurrentSourceRevDiff));
-      current_coeff.addCoefficient(2, move(temp_coeff));
-   }
+   VectorFunctionCoefficient current_coeff(dim,
+                                           simpleCurrent,
+                                           simpleCurrentRevDiff);
 
    CurrentLoad load(fes, current_coeff);
    MachLoad ml(load);
@@ -226,17 +223,16 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
    });
    setInputs(ml, inputs);
 
-   HypreParVector res_bar(&fes);
+   HypreParVector load_bar(&fes);
    {
-      for (int i = 0; i < res_bar.Size(); ++i)
+      for (int i = 0; i < load_bar.Size(); ++i)
       {
-         res_bar(i) = uniform_rand(gen);
+         load_bar(i) = uniform_rand(gen);
       }
    }
 
-   HypreParVector wrt_bar(&mesh_fes);
-   wrt_bar = 0.0;
-   vectorJacobianProduct(ml, res_bar, "mesh_coords", wrt_bar);
+   HypreParVector wrt_bar(&mesh_fes); wrt_bar = 0.0;
+   vectorJacobianProduct(ml, load_bar, "mesh_coords", wrt_bar);
 
    // initialize the vector that we use to perturb the mesh nodes
    ParGridFunction v(&mesh_fes);
@@ -263,7 +259,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
    setInputs(ml, inputs);
    load_vec = 0.0;
    addLoad(ml, load_vec);
-   double dJdx_v_fd = res_bar * load_vec;
+   double dJdx_v_fd = load_bar * load_vec;
 
    x_pert.Add(-2 * delta, v);
    mesh->SetNodes(x_pert);
@@ -272,7 +268,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
    setInputs(ml, inputs);
    load_vec = 0.0;
    addLoad(ml, load_vec);
-   dJdx_v_fd -= res_bar * load_vec;
+   dJdx_v_fd -= load_bar * load_vec;
    dJdx_v_fd /= 2*delta;
 
    mesh->SetNodes(x_nodes); // remember to reset the mesh nodes
@@ -324,6 +320,20 @@ std::unique_ptr<Mesh> buildMesh(int nxy, int nz)
       }
    }
    return mesh;
+}
+
+void simpleCurrent(const mfem::Vector &x,
+                   mfem::Vector &J)
+{
+   J = 0.0;
+   J[2] = 1.0;
+}
+
+void simpleCurrentRevDiff(const mfem::Vector &x,
+                          const mfem::Vector &J_bar,
+                          mfem::Vector &x_bar)
+{
+
 }
 
 template <typename xdouble>

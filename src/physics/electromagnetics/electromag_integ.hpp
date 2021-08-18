@@ -132,7 +132,7 @@ private:
 };
 
 template <>
-inline void addResidualSensitivityIntegrator<CurlCurlNLFIntegrator>(
+inline void addSensitivityIntegrator<CurlCurlNLFIntegrator>(
    CurlCurlNLFIntegrator &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
    std::map<std::string, mfem::ParLinearForm> &res_sens,
@@ -487,10 +487,11 @@ private:
 };
 
 template <>
-inline void addOutputSensitivityIntegrator<MagneticEnergyIntegrator>(
+inline void addSensitivityIntegrator<MagneticEnergyIntegrator>(
    MagneticEnergyIntegrator &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &output_sens)
+   std::map<std::string, mfem::ParLinearForm> &output_sens,
+   std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
 {
    auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    output_sens.emplace("mesh_coords", mesh_fes);
@@ -975,10 +976,11 @@ private:
 };
 
 template <>
-inline void addOutputSensitivityIntegrator<ForceIntegrator>(
+inline void addSensitivityIntegrator<ForceIntegrator>(
    ForceIntegrator &primal_integ,
    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &output_sens)
+   std::map<std::string, mfem::ParLinearForm> &output_sens,
+   std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
 {
    auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    output_sens.emplace("mesh_coords", mesh_fes);

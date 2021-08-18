@@ -750,8 +750,16 @@ protected:
    std::map<std::string, NonlinearFormType> output;
    /// collection of integrators for each functional
    std::map<std::string, std::vector<MachIntegrator>> fun_integrators;
-   /// map of output functional sensitivities
-   std::map<std::string, std::map<std::string, mfem::ParLinearForm>> output_sens;
+   /// map of linear forms that will compute \frac{\partial J}{\partial field}
+   /// for each field the functional depends on
+   std::map<std::string, std::map<std::string,
+                                  mfem::ParLinearForm>> output_sens;
+   /// map of nonlinear forms that will compute
+   /// \frac{\partial J}{\partial scalar} for each scalar the functional
+   /// depends on
+   std::map<std::string, std::map<std::string,
+                                  mfem::ParNonlinearForm>> output_scalar_sens;
+
    /// map of fractional functionals - a funtional that is a fraction of others
    std::unordered_map<std::string, std::vector<std::string>> fractional_output;
    /// output_bndry_marker[fun] lists the boundaries associated with output fun
@@ -969,10 +977,10 @@ protected:
    {
       res->AddDomainIntegrator(integrator);
       res_integrators.emplace_back(*integrator);
-      mach::addResidualSensitivityIntegrator(*integrator,
-                                             res_fields,
-                                             res_sens,
-                                             res_scalar_sens);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     res_sens,
+                                     res_scalar_sens);
    }
 
    /// Adds interface integrator to the nonlinear form for `fun`, and adds
@@ -985,10 +993,10 @@ protected:
    {
       res->AddInteriorFaceIntegrator(integrator);
       res_integrators.emplace_back(*integrator);
-      mach::addResidualSensitivityIntegrator(*integrator,
-                                             res_fields,
-                                             res_sens,
-                                             res_scalar_sens);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     res_sens,
+                                     res_scalar_sens);
    }
 
    /// Adds boundary integrator to the nonlinear form for `fun`, and adds
@@ -1002,10 +1010,10 @@ protected:
    {
       res->AddBdrFaceIntegrator(integrator, bdr_marker);
       res_integrators.emplace_back(*integrator);
-      mach::addResidualSensitivityIntegrator(*integrator,
-                                             res_fields,
-                                             res_sens,
-                                             res_scalar_sens);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     res_sens,
+                                     res_scalar_sens);
    }
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
@@ -1019,9 +1027,10 @@ protected:
    {
       output.at(fun).AddDomainIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrator(*integrator,
-                                           res_fields,
-                                           output_sens[fun]);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     output_sens[fun],
+                                     output_scalar_sens[fun]);
    }
 
    /// Adds interface integrator to the nonlinear form for `fun`, and adds
@@ -1035,9 +1044,10 @@ protected:
    {
       output.at(fun).AddInteriorFaceIntegrator(integrator);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrator(*integrator,
-                                           res_fields,
-                                           output_sens[fun]);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     output_sens[fun],
+                                     output_scalar_sens[fun]);
    }
 
    /// Adds boundary integrator to the nonlinear form for `fun`, and adds
@@ -1052,9 +1062,10 @@ protected:
    {
       output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
       fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addOutputSensitivityIntegrator(*integrator,
-                                           res_fields,
-                                           output_sens[fun]);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     output_sens[fun],
+                                     output_scalar_sens[fun]);
    }
 
 private:

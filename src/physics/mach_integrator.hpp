@@ -100,28 +100,19 @@ inline void setInput(mfem::LinearFormIntegrator &integ,
                      const std::string &name,
                      const MachInput &input) { };
 
-/// Function meant to be specialized to allow residual sensitivity integrators
+/// Function meant to be specialized to allow sensitivity integrators
 /// to be associated with the forward version of the integrator
-/// \param[in] primal_integ - integrator used in residual evaluation
-/// \param[in] res_fields - map of fields solver depends on
-/// \param[inout] res_sens - map of sens to linear form that will assemble the sensitivity
+/// \param[in] primal_integ - integrator used in forward evaluation
+/// \param[in] fields - map of fields solver depends on
+/// \param[inout] sens - map of linear forms that will assemble the sensitivity
+/// \param[inout] scalar_sens - map of nonlinear forms that will assemble the
+///                             scalar sensitivity
 template <typename T>
-inline void addResidualSensitivityIntegrator(
+inline void addSensitivityIntegrator(
    T &primal_integ,
-   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &res_sens,
-   std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens) { };
-
-/// Function meant to be specialized to allow a output sensitivity integrators
-/// to be associated with the forward version of the integrator
-/// \param[in] primal_integ - integrator used for functional evaluation
-/// \param[in] res_fields - map of fields solver depends on
-/// \param[inout] output_sens - map of sens to linear form that will assemble the sensitivity
-template <typename T>
-inline void addOutputSensitivityIntegrator(
-   T &primal_integ,
-   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &output_sens) { };
+   std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+   std::map<std::string, mfem::ParLinearForm> &sens,
+   std::map<std::string, mfem::ParNonlinearForm> &scalar_sens) { };
 
 } // namespace mach
 

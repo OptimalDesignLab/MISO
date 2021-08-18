@@ -47,6 +47,19 @@ private:
 
 };
 
+// template <>
+// inline void addSensitivityIntegrator<DiffusionIntegrator>(
+//    DiffusionIntegrator &primal_integ,
+//    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+//    std::map<std::string, mfem::ParLinearForm> &sens,
+//    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+// {
+//    auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+//    sens.emplace("mesh_coords", mesh_fes);
+//    sens.at("mesh_coords").AddDomainIntegrator(
+//       new DiffusionIntegratorMeshSens);
+// };
+
 class VectorFEWeakDivergenceIntegratorMeshSens final
    : public mfem::LinearFormIntegrator
 {
@@ -85,11 +98,24 @@ private:
 
 };
 
+// template <>
+// inline void addSensitivityIntegrator<VectorFEWeakDivergenceIntegrator>(
+//    VectorFEWeakDivergenceIntegrator &primal_integ,
+//    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+//    std::map<std::string, mfem::ParLinearForm> &sens,
+//    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+// {
+//    auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+//    sens.emplace("mesh_coords", mesh_fes);
+//    sens.at("mesh_coords").AddDomainIntegrator(
+//       new VectorFEWeakDivergenceIntegratorMeshSens);
+// };
+
 class VectorFEMassIntegratorMeshSens final : public mfem::LinearFormIntegrator
 {
 public:
-   VectorFEMassIntegratorMeshSens()
-      : state(nullptr), adjoint(nullptr)
+   VectorFEMassIntegratorMeshSens(double alpha = 1.0)
+      : state(nullptr), adjoint(nullptr), alpha(alpha)
    { }
 
    /// \brief - assemble an element's contribution to d(psi^T M u)/dX
@@ -113,6 +139,8 @@ private:
    const mfem::GridFunction *state;
    /// the adjoint to use when evaluating d(psi^T M u)/dX
    const mfem::GridFunction *adjoint;
+   /// scaling term if the bilinear form has a negative sign in the residual
+   const double alpha;
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix vshape, vshapedxt;
    mfem::DenseMatrix vshapedxt_bar, PointMat_bar;
@@ -121,6 +149,21 @@ private:
 #endif
 
 };
+
+// template <>
+// inline void addSensitivityIntegrator<VectorFEMassIntegrator>(
+//    VectorFEMassIntegrator &primal_integ,
+//    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+//    std::map<std::string, mfem::ParLinearForm> &sens,
+//    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+// {
+//    auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+//    sens.emplace("mesh_coords", mesh_fes);
+
+//    auto *integ = new VectorFEMassIntegratorMeshSens;
+//    integ->setState(fields.at(in));
+//    sens.at("mesh_coords").AddDomainIntegrator(integ);
+// };
 
 class VectorFEDomainLFIntegratorMeshSens : public mfem::LinearFormIntegrator
 {
@@ -156,6 +199,19 @@ private:
    mfem::Vector psi;
 #endif
 };
+
+// template <>
+// inline void addSensitivityIntegrator<VectorFEDomainLFIntegrator>(
+//    VectorFEDomainLFIntegrator &primal_integ,
+//    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+//    std::map<std::string, mfem::ParLinearForm> &sens,
+//    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+// {
+//    auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+//    sens.emplace("mesh_coords", mesh_fes);
+//    sens.at("mesh_coords").AddDomainIntegrator(
+//       new VectorFEDomainLFIntegratorMeshSens);
+// };
 
 class TestLFIntegrator : public mfem::NonlinearFormIntegrator
 {

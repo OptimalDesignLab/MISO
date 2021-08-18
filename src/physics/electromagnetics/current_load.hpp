@@ -11,6 +11,7 @@ namespace mach
 {
 
 class VectorFEMassIntegratorMeshSens;
+class VectorFEDomainLFIntegratorMeshSens;
 
 class CurrentLoad final
 {
@@ -52,14 +53,16 @@ private:
    mfem::ParLinearForm J;
    mfem::ParGridFunction j;
    mfem::ParGridFunction div_free_current_vec;
-   // mfem::ParGridFunction scratch;
-   mfem::HypreParVector scratch;
+   mfem::ParGridFunction scratch;
+   // mfem::HypreParVector scratch;
    mfem::HypreParVector load;
 
    DivergenceFreeProjector div_free_proj;
 
    mfem::ParLinearForm mesh_sens;
-   VectorFEMassIntegratorMeshSens *mass_mesh_sens;
+   VectorFEMassIntegratorMeshSens *m_j_mesh_sens;
+   VectorFEDomainLFIntegratorMeshSens *J_mesh_sens;
+   VectorFEMassIntegratorMeshSens *m_l_mesh_sens;
 
    /// flag to know if the load vector should be reassembled
    bool dirty;
