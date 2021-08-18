@@ -83,11 +83,8 @@ void vectorJacobianProduct(CurrentLoad &load,
 
       ParGridFunction psi_k(&load.fes); psi_k = 0.0;
       load.nd_mass.MultTranspose(psi_l, psi_k);
-      // psi_k = load_bar;
 
       ParGridFunction rhs(&load.fes); rhs = 0.0;
-      // load.nd_mass.MultTranspose(psi_l, rhs);
-      // rhs = load_bar;
       load.div_free_proj.vectorJacobianProduct(load.j, psi_k, "in", rhs);
       rhs *= -1.0;
 
@@ -155,22 +152,12 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    auto &mesh_fes = *x_nodes.ParFESpace();
    mesh_sens.Update(&mesh_fes);
 
-   m_j_mesh_sens = new VectorFEMassIntegratorMeshSens(1.0);
+   m_j_mesh_sens = new VectorFEMassIntegratorMeshSens;
    mesh_sens.AddDomainIntegrator(m_j_mesh_sens);
    J_mesh_sens = new VectorFEDomainLFIntegratorMeshSens(current, -1.0);
    mesh_sens.AddDomainIntegrator(J_mesh_sens);
-   m_l_mesh_sens = new VectorFEMassIntegratorMeshSens(1.0);
+   m_l_mesh_sens = new VectorFEMassIntegratorMeshSens;
    mesh_sens.AddDomainIntegrator(m_l_mesh_sens);
-
-   std::default_random_engine generator; generator.seed(1);
-   std::uniform_real_distribution<double> distribution(-1.0,1.0);
-   for (int i = 0; i < div_free_current_vec.Size(); ++i)
-   {
-      auto val = distribution(generator);
-      // std::cout << "val: " << val << "i: " << i << "\n";
-      // div_free_current_vec(i) = val;
-      // dynamic_cast<Vector&>(J)(i) = val;
-   }
 }
 
 void CurrentLoad::assembleLoad()
@@ -202,21 +189,15 @@ void CurrentLoad::assembleLoad()
    pcg.Mult(RHS, X);
 
    nd_mass.RecoverFEMSolution(X, J, j);
-   /** sensitivity debugging */
-   // j.ParallelAssemble(load);
-   // J.ParallelAssemble(load);
 
    /// Compute the discretely divergence-free portion of j
    div_free_current_vec = 0.0;
    div_free_proj.Mult(j, div_free_current_vec);
-   // div_free_current_vec = j;
 
-   // /** sensitivity debugging */
-   // div_free_current_vec.ParallelAssemble(load);
-
-   // /// Compute the dual of div_free_current_vec
-   // // div_free_current_vec.ParallelAssemble(scratch);
-   // // M.Mult(scratch, load);
+   /** alternative approaches for computing dual */
+   /// Compute the dual of div_free_current_vec
+   // div_free_current_vec.ParallelAssemble(scratch);
+   // M.Mult(scratch, load);
    
    /// Compute the dual of div_free_current_vec
    nd_mass.Update();
