@@ -204,6 +204,7 @@ protected:
    /// mass matrix
    std::unique_ptr<MatrixType> mass_matrix;
    std::unique_ptr<MatrixType> mass_matrix_gd;
+   std::unique_ptr<MatrixType> mass_lump;
    /// TimeDependentOperator (TODO: is this the best way?)
    std::unique_ptr<mfem::TimeDependentOperator> evolver;
    /// storage for algorithmic differentiation (shared by all solvers)

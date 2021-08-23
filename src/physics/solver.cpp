@@ -174,6 +174,28 @@ void AbstractSolver::initDerived()
    MatrixType *cp = dynamic_cast<GalerkinDifference*>(fes.get())->GetCP();
    MatrixType *p = RAP(*cp, *mass_matrix, *cp);
    mass_matrix_gd.reset(new MatrixType(*p));
+
+
+   // mass lumping
+   const bool lump = options["mass-matrix"]["lump"].get<bool>();
+   if (lump)
+   {
+      double *cols;
+      int num_in_row;
+      Vector diag(mass_matrix_gd->Height());
+      diag = 0.0;
+      for (int i = 0; i < mass_matrix_gd->Height(); i++)
+      {
+         cols = mass_matrix_gd->GetRowEntries(i);
+         num_in_row = mass_matrix_gd->RowSize(i);
+         for (int j = 0; j < num_in_row; j++)
+         {
+            diag(i) += cols[j];
+         }
+      }
+      mass_matrix_gd.reset(new MatrixType(diag));
+   }
+
 #endif
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    if (odes == "RK1" || odes == "RK4")
@@ -971,6 +993,7 @@ void AbstractSolver::solveUnsteady()
       ti++;
       done = (t >= t_final - 1e-8 * dt);
    }
+   *out << "Time steps are done, final time t = " << t << endl;
    entropy = calcOutput("entropy");
    entropylog << t << ' ' << entropy << '\n';
    clock_t end_t = clock();

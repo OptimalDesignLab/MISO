@@ -1,7 +1,7 @@
 {
    "mesh": {
       "file": "periodic_triangle1.mesh",
-      "refine": 0
+      "refine": 1
    },
    "space-dis": {
       "GD": true,
@@ -10,6 +10,9 @@
       "lps-coeff": 1.0,
       "iface-coeff": 1.0,
       "basis-type": "dsbp"
+   },
+   "mass-matrix":{
+      "lump": true
    },
    "petscsolver": {
       "ksptype": "gmres",
@@ -28,6 +31,6 @@
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.002,
-      "t-final": 0.067
+      "t-final": 0.066666666666666
    }
 }
