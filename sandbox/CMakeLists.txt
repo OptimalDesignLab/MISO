@@ -18,9 +18,10 @@ set(SANDBOX_SRCS
    viscous_shock
    airfoil_steady
    airfoil_chaotic
-	galerkin_difference
+   galerkin_difference
    steady_vortex_adjoint
    sod_shock
+   continuous_euler
 	)
 
 create_sandbox("${SANDBOX_SRCS}")

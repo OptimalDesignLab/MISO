@@ -1,0 +1,38 @@
+{
+    "mesh": {
+       "file": "periodic_segment.mesh",
+       "refine": 3
+    },
+    "space-dis": {
+       "GD": true,
+       "GD-degree": 1,
+       "degree": 1,
+       "lps-coeff": 1.0,
+       "iface-coeff": 1.0,
+       "basis-type": "dsbp"
+    },
+    "petscsolver": {
+       "ksptype": "gmres",
+       "pctype": "lu",
+       "abstol": 1e-15,
+       "reltol": 1e-15,
+       "maxiter": 100,
+       "printlevel": 2
+    },
+    "steady": false,
+    "bcs": {
+        "sod-shock-left": [1, 0],
+        "sod-shock-right": [0, 1]
+     },
+    "outputs":{
+       "entropy": true
+    },
+    "time-dis": {
+       "ode-solver": "RK4",
+       "const-cfl": true,
+       "cfl": 1.0,
+       "dt": 0.002,
+       "t-final": 0.2
+    }
+ }
+ 

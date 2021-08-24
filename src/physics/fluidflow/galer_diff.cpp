@@ -36,12 +36,45 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    mat_cent.Clear(); 
    mat_cent.SetSize(dim, num_el);
 
-   // used for duplication tests
    Vector cent_coord(dim);
+   int left_threshold = (nEle+1)/4;
+   int right_threshold = 3*(nEle+1)/4;
+   bool left, right;
+
+   if (elmt_id[0] < left_threshold)
+   {
+      left = true;
+      right = false;
+   }
+   else if (elmt_id[0] >= right_threshold)
+   {
+      left = false;
+      right = true;
+   }
+
    for(int j = 0; j < num_el; j++)
    {
       // Get and store the element center
       GetElementCenter(elmt_id[j], cent_coord);
+
+      // patch approach right elements from the left boundary
+      if (left)
+      {
+         if (elmt_id[j] >= right_threshold)
+         {
+            cent_coord(0) = -2.0 + cent_coord(0);
+         }
+      }
+
+      // patch approach left elements from the right boundary
+      if (right)
+      {
+         if (elmt_id[j] < left_threshold)
+         {
+            cent_coord(0) = 2.0 + cent_coord(0);
+         }
+      }
+
       for(int i = 0; i < dim; i++)
       {
          mat_cent(i,j) = cent_coord(i);
