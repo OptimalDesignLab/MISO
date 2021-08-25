@@ -520,9 +520,11 @@ void EulerSolver<dim, entvar>::PrintSodShockCenter(const std::string &file_name)
    cout << "In print sodshock center.\n";
    // prepare the file stream
    mfem::CentGridFunction state(fes.get());
-   state = *uc;
    cout << "state size is " << state.Size() << endl;
-   convertToConservCent(state);
+   cout << "uc size is " <<  uc->Size() <<endl;
+
+   // state = *uc;
+   // convertToConservCent(state);
    ofstream write_center(file_name+"_coord.txt");
    ofstream write_state(file_name+"_u.txt");
    write_state.precision(14);
@@ -538,7 +540,7 @@ void EulerSolver<dim, entvar>::PrintSodShockCenter(const std::string &file_name)
       write_center << cent(0) << std::endl;
       for (int j = 0; j < num_state; j++)
       {
-         write_state << state( i * num_state + j) << ' ';
+         write_state << (*uc)( i * num_state + j) << ' ';
       }
       write_state << std::endl;
    }

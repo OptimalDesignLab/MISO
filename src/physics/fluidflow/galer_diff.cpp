@@ -37,18 +37,17 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    mat_cent.SetSize(dim, num_el);
 
    Vector cent_coord(dim);
-   int left_threshold = (nEle+1)/4;
-   int right_threshold = 3*(nEle+1)/4;
-   bool left, right;
+   GetElementCenter(elmt_id[0], cent_coord);
+   double left_threshold = -0.5;
+   double right_threshold = 0.5;
+   bool left = false, right = false;
 
-   if (elmt_id[0] < left_threshold)
+   if (cent_coord(0) < left_threshold)
    {
       left = true;
-      right = false;
    }
-   else if (elmt_id[0] >= right_threshold)
+   else if (cent_coord(0) >= right_threshold)
    {
-      left = false;
       right = true;
    }
 
@@ -57,10 +56,10 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
       // Get and store the element center
       GetElementCenter(elmt_id[j], cent_coord);
 
-      // patch approach right elements from the left boundary
+      //patch approach right elements from the left boundary
       if (left)
       {
-         if (elmt_id[j] >= right_threshold)
+         if (cent_coord(0) >= right_threshold)
          {
             cent_coord(0) = -2.0 + cent_coord(0);
          }
@@ -69,7 +68,7 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
       // patch approach left elements from the right boundary
       if (right)
       {
-         if (elmt_id[j] < left_threshold)
+         if (cent_coord(0) < left_threshold)
          {
             cent_coord(0) = 2.0 + cent_coord(0);
          }
@@ -198,6 +197,8 @@ void GalerkinDifference::BuildGDProlongation() const
       buildLSInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
       // cout << "Local reconstruction matrix R:\n";
       // local_mat.Print(cout, local_mat.Width());
+      // cout << endl;
+      // cout << endl;
 
       // 4. assemble them back to prolongation matrix
       AssembleProlongationMatrix(elmt_id, local_mat);
