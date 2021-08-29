@@ -26,7 +26,7 @@ void u0_function(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "unsteady_vortex_options.json";
+   const char *options_file = "continuous_2d_euler_options.json";
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options",
@@ -80,31 +80,10 @@ void u0_function(const Vector &x, Vector& q)
 {
    q.SetSize(4);
    Vector u0(4);
-   double t = 0.0; // this could be an input...
-   double x0 = 0.5;
-   double y0 = 0.5;
-   // scale is used to reduce the size of the vortex; need to scale the
-   // velocity and pressure carefully to account for this
-   double scale = 15.0;
-   double xi = (x(0) - x0)*scale - t;
-   double eta = (x(1) - y0)*scale;
-   double M = 0.5;
-   double epsilon = 1.0; // the actual value should be 1.0
-   double f = 1.0 - (xi*xi + eta*eta);
-   // density
-   u0(0) = pow(1.0 - epsilon*epsilon*euler::gami*M*M*exp(f)/(8*M_PI*M_PI),
-               1.0/euler::gami);
-   // x velocity
-   u0(1) = 1.0 - epsilon*eta*exp(f*0.5)/(2*M_PI);
-   u0(1) *= scale*u0(0);
-   // y velocity
-   u0(2) = epsilon*xi*exp(f*0.5)/(2*M_PI);
-   u0(2) *= scale*u0(0);
-   // pressure, used to get the energy
-   double press = pow(u0(0), euler::gamma)/(euler::gamma*M*M);
-   press *= scale*scale;
-   u0(3) = press/euler::gami + 0.5*(u0(1)*u0(1) + u0(2)*u0(2))/u0(0);
-
+	u0(0) = 1.0 + 0.98*sin(2.*M_PI * (x(0)+x(1)) );
+	u0(1) = 0.1 * u0(0);
+	u0(2) = 0.0;
+	u0(3) = 20. / euler::gami + 0.5 * u0(0) * 0.01;
    if (entvar == false)
    {
       q = u0;
@@ -114,8 +93,6 @@ void u0_function(const Vector &x, Vector& q)
       calcEntropyVars<double, 2>(u0.GetData(), q.GetData());
    }
 }
-
-
 
 // perturbation function used to check the jacobian in each iteration
 void pert(const Vector &x, Vector& p)

@@ -229,6 +229,10 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    { // read in the serial mesh
       smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1));
    }
+   // ofstream sol_ofs("unsteady_vortex_mesh.vtk");
+   // sol_ofs.precision(14);
+   // smesh->PrintVTK(sol_ofs,0);
+   // sol_ofs.close();
 #endif
 #ifdef MFEM_USE_MPI
 #ifdef MFEM_USE_PUMI
@@ -939,7 +943,7 @@ void AbstractSolver::solveUnsteady()
    res->Mult(*uc, test);
    // printResidual("initial_cent");
    double inner = (*uc) * test;
-   cout << "The inner product is " << inner << '\n'; 
+   cout << "The inner product is " << test.Norml2() << '\n'; 
    // check the jacobian
    bool done = false;
    double t_final = options["time-dis"]["t-final"].get<double>();

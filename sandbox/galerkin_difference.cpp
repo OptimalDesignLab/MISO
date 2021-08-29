@@ -19,6 +19,7 @@ using namespace mach;
 void u_const(const mfem::Vector &x, mfem::Vector &u);
 void u_poly(const mfem::Vector &x, mfem::Vector &u);
 void u_exact(const mfem::Vector &x, mfem::Vector &u);
+void u_single(const mfem::Vector &x, mfem::Vector &u);
 
 /// Generate quarter annulus mesh
 /// \param[in] degree - polynomial degree of the mapping
@@ -26,6 +27,11 @@ void u_exact(const mfem::Vector &x, mfem::Vector &u);
 /// \param[in] num_ang - number of nodes in the angular direction
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
+
+
+/// print the center values and solution in txt files
+void PrintCentTXT(Mesh* mesh, GalerkinDifference *fes, Vector uc, int num_state);
+void PrintQuadTXT(Mesh* mesh, FiniteElementSpace *fes, Vector u, Vector u_exact, int num_state);
 
 // This function will be used to check the local R and the assembled prolongation matrix
 int main(int argc, char *argv[])
@@ -36,10 +42,12 @@ int main(int argc, char *argv[])
    int nx = 4;
    int ny = 4;
    int o = 1;
+   int r = 1;
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-thetat", "number of angular segments");
    args.AddOption(&p, "-p", "--problem", "projection operator degree");
-   args.AddOption(&o, "-o", "--order", "level of refinement");
+   args.AddOption(&o, "-o", "--order", "gd space order");
+   args.AddOption(&r, "-r", "--refine", "level of refinement");
    args.Parse();
    if (!args.Good())
    {
@@ -52,14 +60,20 @@ int main(int argc, char *argv[])
    //================== Multiply mesh files for testing ====================
       int dim;
       int degree = o+1; // annulus mesh degree, should be p+1
-      unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      // unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      unique_ptr<Mesh> mesh = (unique_ptr<Mesh>)(new Mesh("periodic_triangle.mesh", 1, 1));
+      for (int l = 0; l < r; l++)
+      {
+         mesh->UniformRefinement();
+      }
       ofstream sol_ofs("gd_test.vtk");
       sol_ofs.precision(14);
       mesh->PrintVTK(sol_ofs, 0);
       sol_ofs.close();
       std::cout << "Number of elements " << mesh->GetNE() << '\n';
       dim = mesh->Dimension();
-      int num_state = dim + 2;
+      // int num_state = dim + 2;
+      int num_state = 1;
 
    //================== Construct the gd and normal finite element spaces =========
       cout << "Construct the GD fespace.\n";
@@ -86,17 +100,28 @@ int main(int argc, char *argv[])
          x_exact.ProjectCoefficient(u0_fun);
          x = 0.0;
       }
-      else
+      else if(p == 3)
       {
          mfem::VectorFunctionCoefficient u0_fun(num_state, u_exact);
          x_cent.ProjectCoefficient(u0_fun);
          x_exact.ProjectCoefficient(u0_fun);
          x = 0.0;
       }
+      else
+      {
+         mfem::VectorFunctionCoefficient u0_fun(num_state, u_single);
+         x_cent.ProjectCoefficient(u0_fun);
+         x_exact.ProjectCoefficient(u0_fun);
+         x = 0.0;
+      }
+
+      
 
    //============== Prolong the solution to SBP nodes =================================
    //============== and check the simple l2 norm error ================================
       gd.GetProlongationMatrix()->Mult(x_cent, x);
+      PrintCentTXT(mesh.get(), &gd,x_cent, num_state);
+      PrintQuadTXT(mesh.get(),&fes,x,x_exact,num_state);
       x -= x_exact;
       // cout << "\nCheck the nodal error:\n";
       // x.Print(cout, num_state);
@@ -180,6 +205,13 @@ void u_poly(const mfem::Vector &x, mfem::Vector &u)
    }
 }
 
+void u_single(const mfem::Vector &x, mfem::Vector &u)
+{
+   u.SetSize(1);
+   u(0) = 1.0 + 0.98*sin(2.*M_PI*(x(0)+x(1)));
+   //u(0) = x(0)*x(0)*x(0) - 2.*x(1)*x(1) - 3.*x(0)*x(1) + x(1) +3.0; 
+}
+
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {
    auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_rad, num_ang,
@@ -208,4 +240,74 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 
    mesh_ptr->NewNodes(*xy, true);
    return mesh_ptr;
+}
+
+
+void PrintCentTXT(Mesh* mesh, GalerkinDifference *fes, Vector uc, int num_state)
+{
+   ofstream write_coord("gd_test_cent_coord.txt");
+   ofstream write_state("gd_test_cent_u.txt");
+   write_state.precision(14);
+   write_coord.precision(14);
+
+   Vector cent(num_state-2);
+   int geom = mesh->GetElement(0)->GetGeometryType();
+   ElementTransformation *eltransf;
+
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      eltransf = mesh->GetElementTransformation(i);
+      eltransf->Transform(Geometries.GetCenter(geom),cent);
+      write_coord << cent(0) << ' ' << cent(1) << endl;
+      for (int j = 0; j < num_state; j++)
+      {
+         write_state << uc(i*num_state +j) << ' ';
+      }
+      write_state << endl;
+   }
+   write_state.close();
+   write_coord.close();
+}
+
+
+void PrintQuadTXT(Mesh* mesh, FiniteElementSpace *fes, Vector u, Vector u_exact, int num_state)
+{
+   ofstream write_coord("gd_test_coord.txt");
+   ofstream write_state("gd_test_u.txt");
+   ofstream write_exact("gd_test_u_exact.txt");
+   write_state.precision(14);
+   write_coord.precision(14);
+   write_exact.precision(14);
+
+
+   Vector quad_coord(num_state-2);
+   int geom = mesh->GetElement(0)->GetGeometryType();
+   
+   ElementTransformation *eltransf;
+   Array<int> vdofs;
+   const FiniteElement *fe = fes->GetFE(0);
+   int num_dofs = fe->GetDof();
+
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      eltransf = mesh->GetElementTransformation(i);
+      eltransf->Transform(Geometries.GetCenter(geom),quad_coord);
+      
+      fes->GetElementVDofs(i,vdofs);
+      for (int j = 0; j < num_dofs; j++)
+      {
+         eltransf->Transform(fe->GetNodes().IntPoint(j), quad_coord);
+         write_coord << quad_coord(0) << ' ' << quad_coord(1) << endl;
+         for (int k = 0; k <num_state; k++)
+         {
+            write_state << u(vdofs[k*num_dofs+j]) << ' ';
+            write_exact << u_exact(vdofs[k*num_dofs+j]) << ' ';
+         }
+         write_state << endl;
+         write_exact << endl;
+      }
+   }
+   write_exact.close();
+   write_state.close();
+   write_coord.close();
 }

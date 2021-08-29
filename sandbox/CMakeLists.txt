@@ -22,6 +22,7 @@ set(SANDBOX_SRCS
    steady_vortex_adjoint
    sod_shock
    continuous_euler
+   continuous_2d_euler
 	)
 
 create_sandbox("${SANDBOX_SRCS}")

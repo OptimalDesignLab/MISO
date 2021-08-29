@@ -40,39 +40,120 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    GetElementCenter(elmt_id[0], cent_coord);
    double left_threshold = -0.5;
    double right_threshold = 0.5;
-   bool left = false, right = false;
+   double top_threshold = 0.5;
+   double bot_threshold = -0.5;
+   bool left = false, right = false, top = false, bot = false;
 
-   if (cent_coord(0) < left_threshold)
+   // bot
+   if (cent_coord(1) < bot_threshold)
+   {
+      bot = true;
+      if (cent_coord(0) < left_threshold)
+      {
+         left = true;
+      }
+      else if (cent_coord(0) > right_threshold)
+      {
+         right = true;
+      }
+      else
+      {
+         left = false;
+         right = false;
+      }
+   }
+
+   // top
+   if (cent_coord(1) > top_threshold)
+   {
+      top = true;
+      if (cent_coord(0) < left_threshold)
+      {
+         left = true;
+      }
+      else if (cent_coord(0) > right_threshold)
+      {
+         right = true;
+      }
+      else
+      {
+         right = false;
+         left = false;
+      }
+   }
+
+   // left middle
+   if ((cent_coord(0)<left_threshold) && (cent_coord(1)>bot_threshold) && (cent_coord(1) < top_threshold) )
    {
       left = true;
+      bot = false;
+      top = false;
    }
-   else if (cent_coord(0) >= right_threshold)
+   if ( (cent_coord(0)>right_threshold) && (cent_coord(1)>bot_threshold) && (cent_coord(1)<top_threshold))
    {
       right = true;
+      bot = false;
+      top = false;
    }
+
 
    for(int j = 0; j < num_el; j++)
    {
       // Get and store the element center
       GetElementCenter(elmt_id[j], cent_coord);
 
-      //patch approach right elements from the left boundary
-      if (left)
+      if (bot)
       {
-         if (cent_coord(0) >= right_threshold)
+         if (cent_coord(1) > top_threshold)
+         {
+            cent_coord(1) = -2.0 + cent_coord(1);
+         }
+
+         if (left && (cent_coord(0) > right_threshold))
+         {
+            cent_coord(0) = -2.0 + cent_coord(0);
+         }
+         
+         if (right && (cent_coord(0) < left_threshold))
+         {
+            cent_coord(0) = 2.0 + cent_coord(0);
+         }
+      }
+
+      if (top)
+      {
+         if (cent_coord(1) < bot_threshold)
+         {
+            cent_coord(1) = 2.0 + bot_threshold;
+         }
+
+         if (left && cent_coord(0) > right_threshold)
+         {
+            cent_coord(0) = -2.0 + cent_coord(0);
+         }
+         
+         if (right && cent_coord(0) < left_threshold)
+         {
+            cent_coord(0) = 2.0 + cent_coord(0);
+         }
+      }
+      
+      if (left && (top == false) && (bot==false))
+      {
+         if (cent_coord(0) > right_threshold)
          {
             cent_coord(0) = -2.0 + cent_coord(0);
          }
       }
 
-      // patch approach left elements from the right boundary
-      if (right)
+      if (right && (top==false) && (bot==false) )
       {
-         if (cent_coord(0) < left_threshold)
+         if (cent_coord(1) < left_threshold )
          {
             cent_coord(0) = 2.0 + cent_coord(0);
          }
       }
+
 
       for(int i = 0; i < dim; i++)
       {
