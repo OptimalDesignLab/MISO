@@ -14,6 +14,25 @@ namespace mach
 class MachLinearForm final
 {
 public:
+   /// Assemble the linear form on the true dofs and add it to tv
+   friend void addLoad(MachLinearForm &lf,
+                       mfem::Vector &tv);
+   
+   /// Set scalar inputs in all integrators used by the linear form
+   friend void setInputs(MachLinearForm &lf,
+                         const MachInputs &inputs);
+
+   /// Assemble the linear form's sensitivity to a scalar and contract it with
+   /// load_bar
+   friend double vectorJacobianProduct(MachLinearForm &load,
+                                       const mfem::HypreParVector &load_bar,
+                                       std::string wrt);
+
+   friend void vectorJacobianProduct(MachLinearForm &load,
+                                     const mfem::HypreParVector &load_bar,
+                                     std::string wrt,
+                                     mfem::HypreParVector &wrt_bar);
+
    /// Adds domain integrator to linear form
    /// \param[in] integrator - linear form integrator for domain
    /// \tparam T - type of integrator, used for constructing MachIntegrator
@@ -31,8 +50,8 @@ public:
    /// Adds boundary integrator to linear form restricted to the given boundary
    /// attributes.
    /// \param[in] integrator - linear form integrator for boundary
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
    /// \param[in] bdr_attr_marker - boundary attributes for integrator
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
@@ -50,79 +69,87 @@ public:
    /// boundary attributes.
    /// \param[in] integrator - face linear form integrator for boundary
    /// \param[in] bdr_attr_marker - boundary attributes for integrator
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
    void addBdrFaceIntegrator(T *integrator,
                              mfem::Array<int> &bdr_attr_marker);
 
-   /// Assemble the linear form on the true dofs and add it to tv
-   friend void addLoad(MachLinearForm &lf,
-                       mfem::Vector &tv);
-   
-   /// Set scalar inputs in all integrators used by the linear form
-   friend void setInputs(MachLinearForm &lf,
-                         const MachInputs &inputs);
-
-   /// Assemble the linear form's sensitivity to a scalar and contract it with
-   /// res_bar
-   friend double vectorJacobianProduct(MachLinearForm &load,
-                                       const mfem::HypreParVector &res_bar,
-                                       std::string wrt);
-
-   friend void vectorJacobianProduct(MachLinearForm &load,
-                                     const mfem::HypreParVector &res_bar,
-                                     std::string wrt,
-                                     mfem::HypreParVector &wrt_bar);
-
-   MachLinearForm(mfem::ParFiniteElementSpace *pfes)
-   : lf(pfes), scratch(pfes)
-   { }
+   MachLinearForm(mfem::ParFiniteElementSpace &pfes,
+                  std::unordered_map<std::string, mfem::ParGridFunction> &fields)
+   : lf(&pfes), scratch(&pfes), lf_fields(fields)
+   {
+      if (lf_fields.count("adjoint") == 0)
+         lf_fields.emplace("adjoint", &pfes);
+   }
 
 private:
+   /// underlying linear form object
    mfem::ParLinearForm lf;
+   /// work vector
    mfem::HypreParVector scratch;
 
-   /// Set of Domain Integrators to be applied.
-   std::vector<MachIntegrator> dlfi;
+   /// Collection of integrators to be applied.
+   std::vector<MachIntegrator> integs;
+   /// Collection of boundary markers for boundary integrators
+   std::vector<mfem::Array<int>> bdr_marker; 
 
-   /// Set of Boundary Integrators to be applied.
-   std::vector<MachIntegrator> blfi;
-   std::vector<mfem::Array<int>> blfi_marker; 
+   /// map of external fields the linear form depends on
+   std::unordered_map<std::string, mfem::ParGridFunction> &lf_fields;
 
-   /// Set of Boundary Face Integrators to be applied.
-   std::vector<MachIntegrator> flfi;
-   std::vector<mfem::Array<int>> flfi_marker;
+   /// map of linear forms that will compute d(psi^T F) / d(field)
+   /// for each field the linear form depends on
+   std::map<std::string, mfem::ParLinearForm> sens;
+   /// map of nonlinear forms that will compute d(psi^T F) / d(scalar)
+   /// for each scalar the linear form depends on
+   std::map<std::string, mfem::ParNonlinearForm> scalar_sens; 
 };
 
 template <typename T>
 void MachLinearForm::addDomainIntegrator(T *integrator)
 {
+   integs.emplace_back(*integrator);
    lf.AddDomainIntegrator(integrator);
-   dlfi.emplace_back(*integrator);
+   mach::addSensitivityIntegrator(*integrator,
+                                  lf_fields,
+                                  sens,
+                                  scalar_sens);
 }
 
 template <typename T>
 void MachLinearForm::addBoundaryIntegrator(T *integrator)
 {
+   integs.emplace_back(*integrator);
    lf.AddBoundaryIntegrator(integrator);
-   blfi.emplace_back(*integrator);
+   mach::addSensitivityIntegrator(*integrator,
+                                  lf_fields,
+                                  sens,
+                                  scalar_sens);
 }
 
 template <typename T>
 void MachLinearForm::addBoundaryIntegrator(T *integrator,
                                            mfem::Array<int> &bdr_attr_marker)
 {
-   blfi.emplace_back(*integrator);
-   blfi_marker.emplace_back(bdr_attr_marker);
-   lf.AddBoundaryIntegrator(integrator, blfi_marker.back());
+   integs.emplace_back(*integrator);
+   bdr_marker.emplace_back(bdr_attr_marker);
+   lf.AddBoundaryIntegrator(integrator, bdr_marker.back());
+   mach::addSensitivityIntegrator(*integrator,
+                                  lf_fields,
+                                  sens,
+                                  scalar_sens);
 }
 
 template <typename T>
 void MachLinearForm::addBdrFaceIntegrator(T *integrator)
 {
-   lf.AddBoundaryIntegrator(integrator);
-   flfi.emplace_back(*integrator);
+   integs.emplace_back(*integrator);
+   lf.AddBdrFaceIntegrator(integrator);
+   mach::addSensitivityIntegrator(*integrator,
+                                  lf_fields,
+                                  sens,
+                                  scalar_sens);
 
 }
 
@@ -130,9 +157,13 @@ template <typename T>
 void MachLinearForm::addBdrFaceIntegrator(T *integrator,
                                           mfem::Array<int> &bdr_attr_marker)
 {
-   flfi.emplace_back(*integrator);
-   flfi_marker.emplace_back(bdr_attr_marker);
-   lf.AddBoundaryIntegrator(integrator, flfi_marker.back());
+   integs.emplace_back(*integrator);
+   bdr_marker.emplace_back(bdr_attr_marker);
+   lf.AddBdrFaceIntegrator(integrator, bdr_marker.back());
+   mach::addSensitivityIntegrator(*integrator,
+                                  lf_fields,
+                                  sens,
+                                  scalar_sens);
 }
 
 } // namespace mach

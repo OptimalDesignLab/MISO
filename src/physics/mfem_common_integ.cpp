@@ -288,6 +288,233 @@ void VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect(
    }
 }
 
+/** Not differentiated, not needed since we use linear form version of MagneticLoad
+void VectorFECurlIntegratorMeshSens::AssembleRHSElementVect(
+   const mfem::FiniteElement &mesh_el,
+   mfem::ElementTransformation &mesh_trans,
+   mfem::Vector &mesh_coords_bar)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+#endif
+   int element = mesh_trans.ElementNo;
+   auto &state_el = *state->FESpace()->GetFE(element);
+   auto &adjoint_el = *adjoint->FESpace()->GetFE(element);
+   const FiniteElement *nd_el;
+   const FiniteElement *vec_el;
+   if (state_el.GetMapType() == mfem::FiniteElement::H_CURL)
+   {
+      nd_el = &state_el;
+      vec_el = &adjoint_el;
+   }
+   else
+   {
+      nd_el = &adjoint_el;
+      vec_el = &state_el;
+   }
+
+   const int ndof = mesh_el.GetDof();
+   const int dim = mesh_el.GetDim();
+   const int dimc = (dim == 3) ? 3 : 1;
+   const int nd_ndof = nd_el->GetDof();
+   const int vec_ndof = vec_el->GetDof();
+   mesh_coords_bar.SetSize(ndof*dim);
+   mesh_coords_bar = 0.0;
+
+   state->FESpace()->GetElementVDofs(element, vdofs);
+   state->GetSubVector(vdofs, elfun);
+   adjoint->FESpace()->GetElementDofs(element, vdofs);
+   adjoint->GetSubVector(vdofs, psi);
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(nd_ndof, dimc);
+   DenseMatrix curlshape_dFt(nd_ndof, dimc);
+   DenseMatrix vshape(vec_ndof, dimc);
+   DenseMatrix vshapedxt(vec_ndof, dimc);
+   DenseMatrix curlshape_dFt_bar(dimc, nd_ndof);  // transposed dimensions of curlshape_dFt so I don't have to transpose J later
+   // DenseMatrix vshape_bar(vec_ndof, dimc);
+   DenseMatrix vshapedxt_bar(vec_ndof, dimc);
+   DenseMatrix PointMat_bar(dim, ndofc);
+#else
+   curlshape.SetSize(nd_ndof, dimc);
+   curlshape_dFt.SetSize(nd_ndof, dimc);
+   vshape.SetSize(vec_ndof, dimc);
+   vshapedxt.SetSize(vec_ndof, dimc);
+   curlshape_dFt_bar.SetSize(dimc, nd_ndof);  // transposed dimensions of curlshape_dFt so I don't have to transpose J later
+   // vshape_bar.SetSize(vec_ndof, dimc);
+   vshapedxt_bar.SetSize(vec_ndof, dimc);
+   PointMat_bar.SetSize(dim, ndof);
+#endif
+   Vector shape(vshape.GetData(), vec_ndof);
+
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(mesh_trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = nd_el->GetOrder() + vec_el->GetOrder() - 1; // <--
+      ir = &IntRules.Get(nd_el->GetGeomType(), order);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      double w = ip.weight;
+      if (dim == 3)
+      {
+         // vec_el->CalcVShape(ip, vshape);
+         // vec_el->CalcVShape(isotrans, vshape);
+         vec_el->CalcVShape(ip, vshape);
+         MultABt(vshape, isotrans.Jacobian(), vshapedxt);
+         w /= isotrans.Weight();
+
+         // nd_el->CalcCurlShape(ip, curlshape);
+         // MultABt(curlshape, isotrans.Jacobian(), curlshape_dFt);
+         nd_el->CalcCurlShape(ip, curlshape_dFt);
+      }
+      else
+      {
+         vec_el->CalcShape(ip, shape);
+         nd_el->CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      // if (Q)
+      // {
+      //    w *= Q->Eval(isotrans, ip);
+      // }
+
+      // Note: shape points to the same data as vshape
+      PointMat_bar = 0.0;
+      double fun_bar = 1.0;
+      double w_bar = 0.0;
+      if (state_el.GetMapType() == mfem::FiniteElement::H_CURL)
+      {
+         double CT_state_buffer[3];
+         Vector CT_state(CT_state_buffer, dimc);
+         double VT_psi_buffer[3];
+         Vector VT_psi(VT_psi_buffer, dimc);
+
+         // AddMultABt(vshape, curlshape_dFt, elmat);
+         curlshape_dFt.MultTranspose(elfun, CT_state);
+         vshapedxt.MultTranspose(psi, VT_psi);
+         const double VT_psi_dot_CT_state = VT_psi * CT_state;
+         // fun += w * VT_psi_dot_CT_state;
+         /// start reverse pass
+
+         /// fun += w * VT_psi_dot_CT_state;
+         double VT_psi_dot_CT_state_bar = fun_bar * w;
+         w_bar += fun_bar * VT_psi_dot_CT_state;
+
+         /// const double VT_psi_dot_CT_state = VT_psi * CT_state;
+         double CT_state_bar_buffer[3];
+         Vector CT_state_bar(CT_state_bar_buffer, dimc); CT_state_bar = 0.0;
+         double VT_psi_bar_buffer[3];
+         Vector VT_psi_bar(VT_psi_bar_buffer, dimc); VT_psi_bar = 0.0;
+         add(CT_state_bar, VT_psi_dot_CT_state_bar, VT_psi, CT_state_bar);
+         add(VT_psi_bar, VT_psi_dot_CT_state_bar, CT_state, VT_psi_bar);
+
+         /// vshape.MultTranspose(psi, VT_psi);
+         vshapedxt_bar = 0.0;
+         AddMultVWt(psi, VT_psi_bar, vshapedxt_bar);
+
+         /// curlshape_dFt.MultTranspose(elfun, CT_state);
+         curlshape_dFt_bar = 0.0;
+         AddMultVWt(CT_state_bar, elfun, curlshape_dFt_bar);
+      }
+      else
+      {
+         double CT_psi_buffer[3];
+         Vector CT_psi(CT_psi_buffer, dimc);
+         double VT_state_buffer[3];
+         Vector VT_state(VT_state_buffer, dimc);
+         // AddMultABt(curlshape_dFt, vshape, elmat);
+         curlshape_dFt.MultTranspose(psi, CT_psi);
+         vshapedxt.MultTranspose(elfun, VT_state);
+         const double VT_state_dot_CT_psi = VT_state * CT_psi;
+         // fun += w * VT_state_dot_CT_psi;
+
+         double VT_state_dot_CT_psi_bar = fun_bar * w;
+         w_bar += fun_bar * VT_state_dot_CT_psi;
+
+         /// const double VT_state_dot_CT_psi = VT_state * CT_psi;
+         double VT_state_bar_buffer[3];
+         Vector VT_state_bar(VT_state_bar_buffer, dimc); VT_state_bar = 0.0;
+         double CT_psi_bar_buffer[3];
+         Vector CT_psi_bar(CT_psi_bar_buffer, dimc); CT_psi_bar = 0.0;
+         add(VT_state_bar, VT_state_dot_CT_psi_bar, CT_psi, VT_state_bar);
+         add(CT_psi_bar, VT_state_dot_CT_psi_bar, VT_state, CT_psi_bar);
+
+         /// vshape.MultTranspose(elfun, VT_state);
+         vshapedxt_bar = 0.0;
+         AddMultVWt(elfun, VT_state_bar, vshapedxt_bar);
+
+         /// curlshape_dFt.MultTranspose(psi, CT_psi);
+         curlshape_dFt_bar = 0.0;
+         AddMultVWt(CT_psi_bar, psi, curlshape_dFt_bar);
+      }
+
+      if (dim == 3)
+      {
+         // /// vec_el->CalcVShape(ip, vshape);
+         /// vec_el->CalcVShape(isotrans, vshape);
+         // vec_el->CalcVShapeRevDiff(isotrans, vshape_bar, PointMat_bar);
+
+
+         /// w /= isotrans.Weight();
+         double weight_bar = -w_bar * ip.weight / pow(isotrans.Weight(), 2);
+         isotrans.WeightRevDiff(weight_bar, PointMat_bar);
+
+         /// MultAtB(vshape, isotrans.Jacobian(), vshapedxt);
+         double jac_bar_buffer[9];
+         DenseMatrix jac_bar(jac_bar_buffer, dimc, dimc); jac_bar = 0.0;
+         MultAtB(vshapedxt_bar, vshape, jac_bar);
+         isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+
+
+
+         /// nd_el->CalcCurlShape(ip, curlshape_dFt);
+         // /// MultABt(curlshape, isotrans.Jacobian(), curlshape_dFt);
+         // double jac_bar_buffer[9];
+         // DenseMatrix jac_bar(jac_bar_buffer, dimc, dimc); jac_bar = 0.0;
+         // AddMult(curlshape_dFt_bar, curlshape, jac_bar);
+         // isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+
+         // /// nd_el->CalcCurlShape(ip, curlshape);
+      }
+      else
+      {
+         /// vec_el->CalcShape(ip, shape);
+         /// nd_el->CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      // if (Q)
+      // {
+      //    /// double w = ip.weight * Q->Eval(isotrans, ip);
+      //    double Q_bar = w_bar * ip.weight;
+      //    Q->EvalRevDiff(Q_bar, isotrans, ip, PointMat_bar);
+      // }
+      // else
+      // {
+      //    /// double w = ip.weight;
+      // }
+
+      // code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dimc; ++d)
+         {
+            mesh_coords_bar(d*ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
+}
+*/
+
 void VectorFEMassIntegratorMeshSens::AssembleRHSElementVect(
    const mfem::FiniteElement &mesh_el,
    mfem::ElementTransformation &mesh_trans,
@@ -521,6 +748,125 @@ void VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect(
       /// w = ip.weight * alpha;
 
       isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar);
+      // code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < ndof ; ++j)
+      {
+         for (int d = 0; d < dim; ++d)
+         {
+            mesh_coords_bar(d*ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
+}
+
+void VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect(
+   const mfem::FiniteElement &mesh_el,
+   mfem::ElementTransformation &mesh_trans,
+   mfem::Vector &mesh_coords_bar)
+{
+   /// get the proper element, transformation, and adjoint vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+   int element = mesh_trans.ElementNo;
+   auto &el = *adjoint->FESpace()->GetFE(element);
+   auto &trans = *adjoint->FESpace()->GetElementTransformation(element);
+
+   const int ndof = mesh_el.GetDof();
+   const int el_ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int dimc = (dim == 3) ? 3 : 1;
+
+   // const int spaceDim = trans.GetSpaceDim();
+   mesh_coords_bar.SetSize(ndof*dim);
+   mesh_coords_bar = 0.0;
+
+   adjoint->FESpace()->GetElementVDofs(element, vdofs);
+   adjoint->GetSubVector(vdofs, psi);
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(el_ndof,dimc);
+   DenseMatrix curlshape_bar(el_ndof,dimc);
+   DenseMatrix PointMat_bar(dim, ndof);
+#else
+   curlshape.SetSize(el_ndof, dimc);
+   curlshape_bar.SetSize(el_ndof, dimc);
+   PointMat_bar.SetSize(dim ,ndof);
+#endif
+   auto &F = integ.F;
+   auto &alpha = integ.alpha;
+
+   /// these vector's size is the spatial dimension we can stack allocate
+   double vec_buffer[3];
+   Vector vec(vec_buffer, dim);
+
+   double vec_bar_buffer[3];
+   Vector vec_bar(vec_bar_buffer, dim);
+
+   double CT_psi_buffer[3];
+   Vector CT_psi(CT_psi_buffer, dim);
+
+   double CT_psi_bar_buffer[3];
+   Vector CT_psi_bar(CT_psi_bar_buffer, dim);
+
+   // cast the ElementTransformation
+   IsoparametricTransformation &isotrans =
+   dynamic_cast<IsoparametricTransformation&>(trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      // int intorder = 2*el.GetOrder() - 1; // ok for O(h^{k+1}) conv. in L2
+      int intorder = 2*el.GetOrder();
+      ir = &IntRules.Get(el.GetGeomType(), intorder);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+      double w = ip.weight * trans.Weight() * alpha;
+
+      el.CalcPhysCurlShape(trans, curlshape);
+      curlshape.MultTranspose(psi, CT_psi);
+
+      F.Eval(vec, trans, ip);
+
+      /// dummy functional for adjoint-weighted residual
+      const double CT_psi_dot_vec = CT_psi * vec;
+
+      /// fun += CT_psi_dot_vec * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += CT_psi_dot_vec * w;
+      double CT_psi_dot_vec_bar = fun_bar * w;
+      double w_bar = fun_bar * CT_psi_dot_vec;
+
+      /// const double CT_psi_dot_vec = CT_psi * vec;
+      vec_bar = 0.0;
+      CT_psi_bar = 0.0;
+      add(CT_psi_bar, CT_psi_dot_vec_bar, vec, CT_psi_bar);
+      add(vec_bar, CT_psi_dot_vec_bar, CT_psi, vec_bar);
+
+      /// F.Eval(vec, trans, ip);
+      PointMat_bar = 0.0;
+      F.EvalRevDiff(vec_bar, trans, ip, PointMat_bar);
+
+      /// curlshape.MultTranspose(psi, CT_psi);
+      curlshape_bar = 0.0;
+      AddMultVWt(psi, CT_psi_bar, curlshape_bar);
+
+      /// el.CalcPhysCurlShape(trans, curlshape);
+      el.CalcPhysCurlShapeRevDiff(trans, curlshape_bar, PointMat_bar);
+
+      /// double w = ip.weight * trans.Weight() * alpha;
+      double weight_bar = w_bar * ip.weight * alpha;
+      isotrans.WeightRevDiff(weight_bar, PointMat_bar);
+
       // code to insert PointMat_bar into mesh_coords_bar;
       for (int j = 0; j < ndof ; ++j)
       {

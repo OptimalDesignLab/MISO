@@ -254,7 +254,7 @@ void initSolver(py::module &m)
       {
          int ndim;
          std::vector<pybind11::ssize_t> shape;
-         auto u_init_buffer = npBufferToDoubleArray(field, ndim, shape);
+         auto u_init_buffer = npBufferToDoubleArray(u_init_data, ndim, shape);
          mfem::Vector u_init(u_init_buffer, shape[0]);
          self.setFieldValue(npBufferToDoubleArray(field), u_init);
       },

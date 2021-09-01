@@ -12,7 +12,7 @@ class omMeshMove(om.ImplicitComponent):
     def setup(self):
         solver = self.options['solver']
 
-        local_mesh_size = solver.getMeshSize()
+        local_mesh_size = solver.getFieldSize("mesh_coords")
 
         self.add_input('surf_mesh_disp', shape=local_mesh_size)
         self.add_output('vol_mesh_coords', shape=local_mesh_size)
@@ -23,33 +23,44 @@ class omMeshMove(om.ImplicitComponent):
         """
         Compute the residual
         """
-        solver = self.options['solver']
+        solver = self.options["solver"]
 
-        surf_mesh_disp = inputs['surf_mesh_disp']
-        vol_mesh_coords = outputs['vol_mesh_coords']
+        # surf_mesh_disp = inputs['surf_mesh_disp']
+        # vol_mesh_coords = outputs['vol_mesh_coords']
         
-        state = solver.getNewField(vol_mesh_coords)
-        residual = solver.getNewField(residuals['vol_mesh_coords'])
+        # state = solver.getNewField(vol_mesh_coords)
+        # residual = solver.getNewField(residuals['vol_mesh_coords'])
 
-        solver.calcResidual(state, residual)
+        # solver.calcResidual(state, residual)
+
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        input_dict.update(dict(zip(outputs.keys(), outputs.values())))
+
+        residual = residuals["vol_mesh_coords"]
+        solver.calcResidual(input_dict, residual)
+
 
     def solve_nonlinear(self, inputs, outputs):
         """
         Converge the state
         """
-        solver = self.options['solver']
+        solver = self.options["solver"]
+        mesh_size = solver.getFieldSize("mesh_coords")
+        mesh_coords = np.zeros(mesh_size)
+        solver.getField("mesh_coords", mesh_coords)
+        outputs["vol_mesh_coords"] = mesh_coords
 
-        # print(inputs['surf_mesh_disp'])
-        surf_mesh_disp = inputs['surf_mesh_disp'] + np.array(solver.getMeshCoordinates(), copy=False)
+        # # print(inputs['surf_mesh_disp'])
+        # surf_mesh_disp = inputs['surf_mesh_disp'] + np.array(solver.getMeshCoordinates(), copy=False)
 
-        # Get fields for the surface displacement and volume coords
-        initial_condition = solver.getNewField(surf_mesh_disp)
-        state = solver.getNewField(outputs['vol_mesh_coords'])
+        # # Get fields for the surface displacement and volume coords
+        # initial_condition = solver.getNewField(surf_mesh_disp)
+        # state = solver.getNewField(outputs['vol_mesh_coords'])
 
-        solver.setField(state, initial_condition)
+        # solver.setField(state, initial_condition)
 
-        input_dict = { k:v for (k,v) in zip(inputs.keys(), inputs.values())}
-        solver.solveForState(input_dict, state)
+        # input_dict = { k:v for (k,v) in zip(inputs.keys(), inputs.values())}
+        # solver.solveForState(input_dict, state)
 
         # # test displacement
         # mesh = Mesh(model_file='wire.egads', mesh_file='wire.smb')

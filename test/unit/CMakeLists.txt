@@ -60,6 +60,7 @@ set(EM_MPI_TEST_SRCS
    test_mach_load
    test_current_load
    test_magnetic_load
+   test_magnetostatic_load
    test_mass_operator
 )
 

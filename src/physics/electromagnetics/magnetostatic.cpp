@@ -475,36 +475,6 @@ void team13_current(const xdouble *X,
 namespace mach
 {
 
-class MagnetostaticLoad final
-{
-public:
-   friend void setInputs(MagnetostaticLoad &load,
-                         const MachInputs &inputs);
-   
-   friend void addLoad(MagnetostaticLoad &load,
-                       mfem::Vector &tv);
-
-   friend double vectorJacobianProduct(MagnetostaticLoad &load,
-                                       const mfem::HypreParVector &res_bar,
-                                       std::string wrt);
-
-   friend void vectorJacobianProduct(MagnetostaticLoad &load,
-                                     const mfem::HypreParVector &res_bar,
-                                     std::string wrt,
-                                     mfem::HypreParVector &wrt_bar);
-   
-   MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
-                     mfem::VectorCoefficient &current_coeff,
-                     mfem::VectorCoefficient &mag_coeff,
-                     mfem::Coefficient &nu)
-   :  current_load(pfes, current_coeff), magnetic_load(pfes, mag_coeff, nu)
-   { }
-
-private:
-   CurrentLoad current_load;
-   MagneticLoad magnetic_load;
-};
-
 MagnetostaticSolver::MagnetostaticSolver(
    const nlohmann::json &json_options,
    std::unique_ptr<mfem::Mesh> smesh,
@@ -2802,10 +2772,10 @@ double vectorJacobianProduct(MagnetostaticLoad &load,
                              const mfem::HypreParVector &res_bar,
                              std::string wrt)
 {
-   // throw std::logic_error("vectorJacobianProduct not implemented for MagnetostaticLoad!\n");
    double wrt_bar = 0.0;
    wrt_bar += vectorJacobianProduct(load.current_load, res_bar, wrt);
    wrt_bar += vectorJacobianProduct(load.magnetic_load, res_bar, wrt);
+   return wrt_bar;
 }
 
 void vectorJacobianProduct(MagnetostaticLoad &load,

@@ -78,7 +78,6 @@ protected:
 
 private:
    mfem::ParFiniteElementSpace &h1_fes;
-   mfem::ParFiniteElementSpace &nd_fes;
 
    mutable mfem::ParBilinearForm diffusion;
    mutable mfem::ParMixedBilinearForm weak_div;

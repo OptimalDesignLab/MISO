@@ -12,9 +12,7 @@ namespace mach
 void setInputs(MachLinearForm &load,
                const MachInputs &inputs)
 {
-   setScalarInputs(load.dlfi, inputs);
-   setScalarInputs(load.blfi, inputs);
-   setScalarInputs(load.flfi, inputs);
+   setScalarInputs(load.integs, inputs);
 }
 
 void addLoad(MachLinearForm &load,
@@ -29,7 +27,17 @@ double vectorJacobianProduct(MachLinearForm &load,
                              const mfem::HypreParVector &res_bar,
                              std::string wrt)
 {
-   throw std::logic_error("vectorJacobianProduct not implemented for MachLinearForm!\n");
+   if (load.scalar_sens.count(wrt) != 0)
+   {
+      throw std::logic_error("vectorJacobianProduct not implemented for MachLinearForm!\n");
+      // auto &adjoint = load.lf_fields.at("adjoint");
+      // adjoint = res_bar;
+      // return load.scalar_sens.at(wrt).GetEnergy();
+   }
+   else
+   {
+      return 0.0;
+   }
 }
 
 void vectorJacobianProduct(MachLinearForm &load,
@@ -37,7 +45,14 @@ void vectorJacobianProduct(MachLinearForm &load,
                            std::string wrt,
                            mfem::HypreParVector &wrt_bar)
 {
-   throw std::logic_error("vectorJacobianProduct not implemented for MachLinearForm!\n");
+   if (load.sens.count(wrt) != 0)
+   {
+      auto &adjoint = load.lf_fields.at("adjoint");
+      adjoint = res_bar;
+      load.sens.at(wrt).Assemble();
+      load.sens.at(wrt).ParallelAssemble(load.scratch);
+      wrt_bar += load.scratch;
+   }
 }
 
 } // namespace mach

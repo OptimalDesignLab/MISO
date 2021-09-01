@@ -741,7 +741,7 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
          Vector P_bar(rt_ndof);
          vshape_dFt.Mult(curl_psi, P_bar);
          P_bar *= 1 / isotrans.Weight();
-         rt_el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+         rt_el.ProjectRevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
       }
 
       for (int j = 0; j < ndof ; ++j)
@@ -851,7 +851,7 @@ void VectorFEMassdJdXIntegerator::AssembleRHSElementVect(
          Vector P_bar(el_ndof);
          vshape_dFt.Mult(v_psi_vec, P_bar);
          P_bar *= 1 / isotrans.Weight();
-         el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+         el.ProjectRevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
       }
 
       for (int j = 0; j < ndof ; ++j)
@@ -972,7 +972,7 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
          Vector P_bar(nd_ndof);
          vshape_dFt.Mult(d_psi, P_bar);
          P_bar *= 1 / isotrans.Weight();
-         nd_el.Project_RevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
+         nd_el.ProjectRevDiff(P_bar, *vec_coeff, isotrans, PointMat_bar);
       }
 
       for (int j = 0; j < ndof ; ++j)
@@ -1109,7 +1109,7 @@ void GridFuncMeshSensIntegrator::AssembleRHSElementVect(
    dynamic_cast<IsoparametricTransformation&>(trans);
 
    PointMat_bar = 0.0;
-   el.Project_RevDiff(psi, *vec_coeff, isotrans, PointMat_bar);
+   el.ProjectRevDiff(psi, *vec_coeff, isotrans, PointMat_bar);
 
    for (int j = 0; j < ndof ; ++j)
    {

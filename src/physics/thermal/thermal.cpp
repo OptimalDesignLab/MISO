@@ -653,7 +653,7 @@ void ThermalSolver::constructForms()
 {
    mass.reset(new BilinearFormType(fes.get()));
    res.reset(new ParNonlinearForm(fes.get()));
-   therm_load.reset(new MachLinearForm(fes.get()));
+   therm_load.reset(new MachLinearForm(*fes, res_fields));
    load.reset(new MachLoad(*therm_load));
 }
 

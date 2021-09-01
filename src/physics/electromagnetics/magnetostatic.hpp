@@ -8,11 +8,42 @@
 
 #include "solver.hpp"
 #include "coefficient.hpp"
+#include "current_load.hpp"
+#include "magnetic_load.hpp"
 
 namespace mach
 {
 
-class MagnetostaticLoad;
+class MagnetostaticLoad final
+{
+public:
+   friend void setInputs(MagnetostaticLoad &load,
+                         const MachInputs &inputs);
+   
+   friend void addLoad(MagnetostaticLoad &load,
+                       mfem::Vector &tv);
+
+   friend double vectorJacobianProduct(MagnetostaticLoad &load,
+                                       const mfem::HypreParVector &res_bar,
+                                       std::string wrt);
+
+   friend void vectorJacobianProduct(MagnetostaticLoad &load,
+                                     const mfem::HypreParVector &res_bar,
+                                     std::string wrt,
+                                     mfem::HypreParVector &wrt_bar);
+   
+   MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
+                     mfem::VectorCoefficient &current_coeff,
+                     mfem::VectorCoefficient &mag_coeff,
+                     mfem::Coefficient &nu)
+   :  current_load(pfes, current_coeff), magnetic_load(pfes, mag_coeff, nu)
+   { }
+
+private:
+   CurrentLoad current_load;
+   MagneticLoad magnetic_load;
+   // LegacyMagneticLoad magnetic_load;
+};
 
 /// Solver for magnetostatic electromagnetic problems
 /// dim - number of spatial dimensions (only 3 supported)

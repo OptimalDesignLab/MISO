@@ -7,10 +7,17 @@
 
 #include "utils.hpp"
 #include "mach_load.hpp"
-#include "magnetic_load.hpp"
+#include "magnetostatic.hpp"
 
 using namespace mach;
 using namespace mfem;
+
+void simpleCurrent(const mfem::Vector &x,
+                   mfem::Vector &J);
+
+void simpleCurrentRevDiff(const mfem::Vector &x,
+                          const mfem::Vector &J_bar,
+                          mfem::Vector &x_bar);
 
 void northMagnetizationSource(const Vector &x,
                               Vector &M);
@@ -26,65 +33,7 @@ Mesh buildMesh(int nxy, int nz);
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
-TEST_CASE("LegacyMagneticLoad Value Test")
-{
-
-   Mesh smesh = buildMesh(10, 10);
-   ParMesh mesh(MPI_COMM_WORLD, smesh);
-   mesh.ReorientTetMesh();
-   mesh.EnsureNodes();
-
-   auto p = 2;
-   const auto dim = mesh.Dimension();
-
-   // get the finite-element space for the state
-   ND_FECollection fec(p, dim);
-   ParFiniteElementSpace fes(&mesh, &fec);
-
-   // create mag_coeff coefficient
-   VectorMeshDependentCoefficient mag_coeff(dim);
-   {
-      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-            new VectorFunctionCoefficient(dim,
-                                          northMagnetizationSource));
-      mag_coeff.addCoefficient(1, move(temp_coeff));
-   }
-   {
-      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-            new VectorFunctionCoefficient(dim,
-                                          southMagnetizationSource));
-      mag_coeff.addCoefficient(2, move(temp_coeff));
-   }
-
-   // create nu coeff
-   ConstantCoefficient nu(1.0);///(M_PI*4e-7));
-
-   LegacyMagneticLoad load(fes, mag_coeff, nu);
-   MachLoad ml(load);
-
-   HypreParVector tv(&fes);
-
-   MachInputs inputs;
-   setInputs(ml, inputs);
-   tv = 0.0;
-   addLoad(ml, tv);
-
-   auto norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
-   // std::cout << "norm: " << norm << "\n";
-
-   REQUIRE(norm == Approx(1.7583916468).margin(1e-10));
-
-   setInputs(ml, inputs);
-   tv = 0.0;
-   addLoad(ml, tv);
-
-   norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
-   // std::cout << "norm: " << norm << "\n";
-
-   REQUIRE(norm == Approx(1.7583916468).margin(1e-10));
-}
-
-TEST_CASE("MagneticLoad Value Test")
+TEST_CASE("MagnetostaticLoad Value Test")
 {
    Mesh smesh = buildMesh(3, 3);
    ParMesh mesh(MPI_COMM_WORLD, smesh);
@@ -98,6 +47,11 @@ TEST_CASE("MagneticLoad Value Test")
    ND_FECollection fec(p, dim);
    ParFiniteElementSpace fes(&mesh, &fec);
 
+   // create current_coeff coefficient
+   VectorFunctionCoefficient current_coeff(dim,
+                                           simpleCurrent,
+                                           simpleCurrentRevDiff);
+
    // create mag_coeff coefficient
    VectorMeshDependentCoefficient mag_coeff(dim);
    {
@@ -114,37 +68,51 @@ TEST_CASE("MagneticLoad Value Test")
    }
 
    // create nu coeff
-   ConstantCoefficient nu(1.0);///(M_PI*4e-7));
+   ConstantCoefficient nu(1.0);
 
-   MagneticLoad loadLF(fes, mag_coeff, nu);
-   MachLoad mlLF(loadLF);
+   MagnetostaticLoad load(fes, current_coeff, mag_coeff, nu);
+   MachLoad ml(load);
 
    HypreParVector tv(&fes);
 
-   MachInputs inputs;
+   auto inputs = MachInputs({
+      {"current_density", 1.0}
+   });
 
-   setInputs(mlLF, inputs);
+   setInputs(ml, inputs);
    tv = 0.0;
-   addLoad(mlLF, tv);
+   addLoad(ml, tv);
 
-   auto normLF = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
-   // std::cout << "normLF: " << normLF << "\n";
+   auto norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
+   std::cout << "norm: " << norm << "\n";
 
-   REQUIRE(normLF == Approx(1.8574135496).margin(1e-10));
+   REQUIRE(norm == Approx(1.8987543495).margin(1e-10));
 
-   setInputs(mlLF, inputs);
+   inputs.at("current_density") = 2.0;
+   setInputs(ml, inputs);
    tv = 0.0;
-   addLoad(mlLF, tv);
+   addLoad(ml, tv);
 
-   normLF = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
-   // std::cout << "normLF: " << normLF << "\n";
+   norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
+   // std::cout << "norm: " << norm << "\n";
 
-   REQUIRE(normLF == Approx(1.8574135496).margin(1e-10));
+   REQUIRE(norm == Approx(1.9785411644).margin(1e-10));
+
+   inputs.at("current_density") = 0.0;
+   setInputs(ml, inputs);
+   tv = 0.0;
+   addLoad(ml, tv);
+
+   norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
+   // std::cout << "norm: " << norm << "\n";
+
+   REQUIRE(norm == Approx(1.8574135496).margin(1e-10));
+
 }
 
-TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
+TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
 {
-   Mesh smesh = buildMesh(10, 10);
+   Mesh smesh = buildMesh(3, 3);
    ParMesh mesh(MPI_COMM_WORLD, smesh);
    mesh.ReorientTetMesh();
    mesh.EnsureNodes();
@@ -156,6 +124,78 @@ TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
    ND_FECollection fec(p, dim);
    ParFiniteElementSpace fes(&mesh, &fec);
 
+   // create current_coeff coefficient
+   VectorFunctionCoefficient current_coeff(dim,
+                                           simpleCurrent,
+                                           simpleCurrentRevDiff);
+
+   // create mag_coeff coefficient
+   Vector mag_const(3); mag_const = 1.0;
+   VectorConstantCoefficient mag_coeff(mag_const);
+
+   // create nu coeff
+   ConstantCoefficient nu(1.0);
+
+   MagnetostaticLoad load(fes, current_coeff, mag_coeff, nu);
+   MachLoad ml(load);
+
+   auto current_density = 1e6;
+   auto inputs = MachInputs({
+      {"current_density", current_density}
+   });
+   setInputs(ml, inputs);
+
+   HypreParVector load_bar(&fes);
+   {
+      // std::default_random_engine gen;
+      // std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+      for (int i = 0; i < load_bar.Size(); ++i)
+      {
+         load_bar(i) = uniform_rand(gen);
+      }
+   }
+   double wrt_bar = vectorJacobianProduct(ml, load_bar, "current_density");
+
+   /// somewhat large step size since the magnitude of current density is large
+   auto delta = 1e-2;
+   HypreParVector tv(&fes);
+   inputs.at("current_density") = current_density + delta;
+   setInputs(ml, inputs);
+   tv = 0.0;
+   addLoad(ml, tv);
+   double wrt_bar_fd = load_bar * tv;
+
+   inputs.at("current_density") = current_density - delta;
+   setInputs(ml, inputs);
+   tv = 0.0;
+   addLoad(ml, tv);
+   wrt_bar_fd -= load_bar * tv;
+   wrt_bar_fd /= 2*delta;
+
+   // std::cout << "wrt_bar: " << wrt_bar << "\n";
+   // std::cout << "wrt_bar_fd: " << wrt_bar_fd << "\n";
+   REQUIRE(wrt_bar == Approx(wrt_bar_fd));
+}
+
+TEST_CASE("MagnetostaticLoad vectorJacobianProduct wrt mesh_coords")
+{
+   Mesh smesh = buildMesh(3, 3);
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   mesh.ReorientTetMesh();
+   mesh.EnsureNodes();
+
+   auto p = 2;
+   const auto dim = mesh.Dimension();
+
+   // get the finite-element space for the state
+   ND_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(&mesh, &fec);
+
+   // create current_coeff coefficient
+   VectorFunctionCoefficient current_coeff(dim,
+                                           simpleCurrent,
+                                           simpleCurrentRevDiff);
+
    // create mag_coeff coefficient
    // VectorFunctionCoefficient mag_coeff(dim, northMagnetizationSource);
    Vector mag_const(3); mag_const = 1.0;
@@ -164,7 +204,7 @@ TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
    // create nu coeff
    ConstantCoefficient nu(1.0);
 
-   MagneticLoad load(fes, mag_coeff, nu);
+   MagnetostaticLoad load(fes, current_coeff, mag_coeff, nu);
    MachLoad ml(load);
 
    // extract mesh nodes and get their finite-element space
@@ -235,7 +275,7 @@ TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
 
 Mesh buildMesh(int nxy, int nz)
 {
-   /// generate a simple hex mesh
+   /// generate a simple tet mesh
    auto mesh = Mesh::MakeCartesian3D(nxy, nxy, nz,
                                      Element::TETRAHEDRON, 1.0,
                                      1.0, (double)nz / (double)nxy, true);
@@ -271,6 +311,20 @@ Mesh buildMesh(int nxy, int nz)
       }
    }
    return mesh;
+}
+
+void simpleCurrent(const mfem::Vector &x,
+                   mfem::Vector &J)
+{
+   J = 0.0;
+   J[2] = 1.0;
+}
+
+void simpleCurrentRevDiff(const mfem::Vector &x,
+                          const mfem::Vector &J_bar,
+                          mfem::Vector &x_bar)
+{
+
 }
 
 template <typename xdouble = double>

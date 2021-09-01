@@ -47,18 +47,18 @@ private:
 
 };
 
-// template <>
-// inline void addSensitivityIntegrator<DiffusionIntegrator>(
-//    DiffusionIntegrator &primal_integ,
-//    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-//    std::map<std::string, mfem::ParLinearForm> &sens,
-//    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
-// {
-//    auto mesh_fes = fields.at("mesh_coords").ParFESpace();
-//    sens.emplace("mesh_coords", mesh_fes);
-//    sens.at("mesh_coords").AddDomainIntegrator(
-//       new DiffusionIntegratorMeshSens);
-// };
+template <>
+inline void addSensitivityIntegrator<DiffusionIntegrator>(
+   DiffusionIntegrator &primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+   std::map<std::string, mfem::ParLinearForm> &sens,
+   std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+{
+   auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+   sens.emplace("mesh_coords", mesh_fes);
+   sens.at("mesh_coords").AddDomainIntegrator(
+      new DiffusionIntegratorMeshSens);
+};
 
 class VectorFEWeakDivergenceIntegratorMeshSens final
    : public mfem::LinearFormIntegrator
@@ -98,18 +98,64 @@ private:
 
 };
 
-// template <>
-// inline void addSensitivityIntegrator<VectorFEWeakDivergenceIntegrator>(
-//    VectorFEWeakDivergenceIntegrator &primal_integ,
-//    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-//    std::map<std::string, mfem::ParLinearForm> &sens,
-//    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
-// {
-//    auto mesh_fes = fields.at("mesh_coords").ParFESpace();
-//    sens.emplace("mesh_coords", mesh_fes);
-//    sens.at("mesh_coords").AddDomainIntegrator(
-//       new VectorFEWeakDivergenceIntegratorMeshSens);
-// };
+template <>
+inline void addSensitivityIntegrator<VectorFEWeakDivergenceIntegrator>(
+   VectorFEWeakDivergenceIntegrator &primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+   std::map<std::string, mfem::ParLinearForm> &sens,
+   std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+{
+   auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+   sens.emplace("mesh_coords", mesh_fes);
+   sens.at("mesh_coords").AddDomainIntegrator(
+      new VectorFEWeakDivergenceIntegratorMeshSens);
+};
+
+/** Not differentiated, not needed since we use linear form version of MagneticLoad
+class VectorFECurlIntegratorMeshSens final : public mfem::LinearFormIntegrator
+{
+public:
+   VectorFECurlIntegratorMeshSens(double alpha = 1.0)
+      : Q(nullptr), state(nullptr), adjoint(nullptr), alpha(alpha)
+   { }
+
+   VectorFECurlIntegratorMeshSens(mfem::Coefficient &Q, double alpha = 1.0)
+      : Q(&Q), state(nullptr), adjoint(nullptr), alpha(alpha)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T C u)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] mesh_coords_bar - d(psi^T C u)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   void setState(const mfem::GridFunction &u)
+   { state = &u; }
+
+   void setAdjoint(const mfem::GridFunction &psi)
+   { adjoint = &psi; }
+
+private:
+   /// coefficient used in primal integrator
+   mfem::Coefficient *Q;
+   /// the state to use when evaluating d(psi^T C u)/dX
+   const mfem::GridFunction *state;
+   /// the adjoint to use when evaluating d(psi^T C u)/dX
+   const mfem::GridFunction *adjoint;
+   /// scaling term if the bilinear form has a negative sign in the residual
+   const double alpha;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt, vshape, vshapedxt;
+   mfem::DenseMatrix curlshape_dFt_bar, vshapedxt_bar, PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+#endif
+};
+*/
 
 class VectorFEMassIntegratorMeshSens final : public mfem::LinearFormIntegrator
 {
@@ -147,23 +193,22 @@ private:
    mfem::Array<int> vdofs;
    mfem::Vector elfun, psi;
 #endif
-
 };
 
-// template <>
-// inline void addSensitivityIntegrator<VectorFEMassIntegrator>(
-//    VectorFEMassIntegrator &primal_integ,
-//    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-//    std::map<std::string, mfem::ParLinearForm> &sens,
-//    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
-// {
-//    auto mesh_fes = fields.at("mesh_coords").ParFESpace();
-//    sens.emplace("mesh_coords", mesh_fes);
+template <>
+inline void addSensitivityIntegrator<VectorFEMassIntegrator>(
+   VectorFEMassIntegrator &primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+   std::map<std::string, mfem::ParLinearForm> &sens,
+   std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+{
+   auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+   sens.emplace("mesh_coords", mesh_fes);
 
-//    auto *integ = new VectorFEMassIntegratorMeshSens;
-//    integ->setState(fields.at(in));
-//    sens.at("mesh_coords").AddDomainIntegrator(integ);
-// };
+   auto *integ = new VectorFEMassIntegratorMeshSens;
+   integ->setState(fields.at("in"));
+   sens.at("mesh_coords").AddDomainIntegrator(integ);
+};
 
 class VectorFEDomainLFIntegratorMeshSens : public mfem::LinearFormIntegrator
 {
@@ -212,6 +257,150 @@ private:
 //    sens.at("mesh_coords").AddDomainIntegrator(
 //       new VectorFEDomainLFIntegratorMeshSens);
 // };
+
+class VectorFEDomainLFCurlIntegrator final
+   : public mfem::VectorFEDomainLFCurlIntegrator
+{
+public:
+   VectorFEDomainLFCurlIntegrator(mfem::VectorCoefficient &V,
+                                  double alpha = 1.0)
+   : mfem::VectorFEDomainLFCurlIntegrator(V), F(V), alpha(alpha)
+   { }
+
+   inline void AssembleRHSElementVect(const FiniteElement &el,
+                                      ElementTransformation &trans,
+                                      Vector &elvect) override
+   {
+      mfem::VectorFEDomainLFCurlIntegrator::
+         AssembleRHSElementVect(el, trans, elvect);
+      if (alpha != 1.0)
+         elvect *= alpha;
+   }
+
+private:
+   /// vector coefficient from linear form
+   mfem::VectorCoefficient &F;
+   /// scaling term if the linear form has a negative sign in the residual
+   const double alpha;
+   /// class that implements mesh sensitivities for VectorFEDomainLFCurlIntegrator
+   friend class VectorFEDomainLFCurlIntegratorMeshSens;
+};
+
+class VectorFEDomainLFCurlIntegratorMeshSens final
+   : public mfem::LinearFormIntegrator
+{
+public:
+   VectorFEDomainLFCurlIntegratorMeshSens(
+      mach::VectorFEDomainLFCurlIntegrator &integ)
+   : integ(integ), adjoint(nullptr)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T f)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] mesh_coords_bar - d(psi^T f)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   inline void setAdjoint(const mfem::GridFunction &psi)
+   { adjoint = &psi; }
+
+private:
+   /// reference to primal integrator
+   mach::VectorFEDomainLFCurlIntegrator &integ;
+   /// the adjoint to use when evaluating d(psi^T f)/dX
+   const mfem::GridFunction *adjoint;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::DenseMatrix curlshape;
+   mfem::DenseMatrix curlshape_bar, PointMat_bar;
+#endif
+};
+
+template <>
+inline void addSensitivityIntegrator<VectorFEDomainLFCurlIntegrator>(
+   VectorFEDomainLFCurlIntegrator &primal_integ,
+   std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+   std::map<std::string, mfem::ParLinearForm> &sens,
+   std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+{
+   auto *mesh_fes = fields.at("mesh_coords").ParFESpace();
+   sens.emplace("mesh_coords", mesh_fes);
+   auto *sens_integ = new VectorFEDomainLFCurlIntegratorMeshSens(primal_integ);
+   sens_integ->setAdjoint(fields.at("adjoint"));
+   sens.at("mesh_coords").AddDomainIntegrator(sens_integ);
+};
+
+/** Not yet differentiated, class only needed if magnets are on the boundary
+    and not normal to boundary
+class VectorFEBoundaryTangentLFIntegrator final
+   : public mfem::VectorFEBoundaryTangentLFIntegrator
+{
+public:
+   VectorFEBoundaryTangentLFIntegrator(mfem::VectorCoefficient &V,
+                                       double alpha = 1.0)
+   : mfem::VectorFEBoundaryTangentLFIntegrator(V), F(V), alpha(alpha)
+   { }
+
+   inline void AssembleRHSElementVect(const FiniteElement &el,
+                                      ElementTransformation &trans,
+                                      Vector &elvect) override
+   {
+      mfem::VectorFEBoundaryTangentLFIntegrator::
+         AssembleRHSElementVect(el, trans, elvect);
+      if (alpha != 1.0)
+         elvect *= alpha;
+   }
+
+private:
+   /// vector coefficient from linear form
+   mfem::VectorCoefficient &F;
+   /// scaling term if the linear form has a negative sign in the residual
+   const double alpha;
+   /// class that implements mesh sensitivities for VectorFEBoundaryTangentLFIntegrator
+   friend class VectorFEBoundaryTangentLFIntegratorMeshSens;
+};
+
+/// Not yet differentiated
+class VectorFEBoundaryTangentLFIntegratorMeshSens final
+   : public mfem::LinearFormIntegrator
+{
+public:
+   VectorFEBoundaryTangentLFIntegratorMeshSens(
+      mach::VectorFEBoundaryTangentLFIntegrator &integ)
+   : integ(integ), adjoint(nullptr)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T f)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[out] mesh_coords_bar - d(psi^T f)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   ///       MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   inline void setAdjoint(const mfem::GridFunction &psi)
+   { adjoint = &psi; }
+
+private:
+   /// reference to primal integrator
+   mach::VectorFEBoundaryTangentLFIntegrator &integ;
+   /// the adjoint to use when evaluating d(psi^T f)/dX
+   const mfem::GridFunction *adjoint;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::DenseMatrix vshape;
+   mfem::DenseMatrix vshape_bar, PointMat_bar;
+#endif
+};
+*/
 
 class TestLFIntegrator : public mfem::NonlinearFormIntegrator
 {

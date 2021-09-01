@@ -11,9 +11,9 @@ namespace mach
 IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
                                              ParFiniteElementSpace &nd_fes,
                                              const int &ir_order)
-   : h1_fes(h1_fes), nd_fes(nd_fes), diffusion(&h1_fes),
+   : dirty(true), h1_fes(h1_fes), diffusion(&h1_fes),
    weak_div(&nd_fes, &h1_fes), grad(&h1_fes, &nd_fes), psi(&h1_fes),
-   div_x(&h1_fes), pcg(h1_fes.GetComm()), dirty(true)
+   div_x(&h1_fes), pcg(h1_fes.GetComm())
 {
    /// not sure if theres a better way to handle this
    ess_bdr.SetSize(h1_fes.GetParMesh()->bdr_attributes.Max());

@@ -91,7 +91,8 @@ TEST_CASE("MachInputs Scalar Input Test",
    auto fec = H1_FECollection(p, mesh->Dimension());
    ParFiniteElementSpace fes(mesh.get(), &fec);
 
-   MachLinearForm lf(&fes);
+   std::unordered_map<std::string, mfem::ParGridFunction> fields;
+   MachLinearForm lf(fes, fields);
    lf.addDomainIntegrator(new TestMachLoadIntegrator);
 
    MachLoad ml(lf);
