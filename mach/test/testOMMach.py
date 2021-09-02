@@ -608,12 +608,13 @@ class TestEMResiduals(unittest.TestCase):
 
         emSolver = MachSolver("Magnetostatic", em_options, prob.comm)
 
-        prob.model.add_subsystem("em_solver",
+        solver = prob.model.add_subsystem("em_solver",
                                  omMachState(solver=emSolver, 
                                             #  initial_condition=np.array([0.0, 0.0, 0.0]),
                                              depends=["current_density", "mesh_coords"]),
                                  promotes_inputs=["current_density", "mesh_coords"],
                                  promotes_outputs=["state"])
+        solver.set_check_partial_options(wrt="*", directional=True)
 
         prob.set_solver_print(level=0)
         prob.setup()

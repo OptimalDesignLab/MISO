@@ -61,7 +61,7 @@ set(EM_MPI_TEST_SRCS
    test_current_load
    test_magnetic_load
    test_magnetostatic_load
-   test_mass_operator
+   #test_mass_operator
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)

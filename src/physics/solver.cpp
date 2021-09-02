@@ -925,8 +925,12 @@ double AbstractSolver::vectorJacobianProduct(double *res_bar_buffer,
 double AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
                                              std::string wrt)
 {
-   auto &state = res_fields.at("state");
-   auto wrt_bar = res_scalar_sens.at(wrt).GetEnergy(state);
+   double wrt_bar = 0.0;
+   if (res_scalar_sens.count(wrt) != 0)
+   {
+      auto &state = res_fields.at("state");
+      wrt_bar += res_scalar_sens.at(wrt).GetEnergy(state);
+   }
    if (load)
    {
       wrt_bar += mach::vectorJacobianProduct(*load, res_bar, wrt);
