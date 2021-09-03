@@ -40,9 +40,7 @@ ThermalSolver::ThermalSolver(const nlohmann::json &options,
                              std::unique_ptr<mfem::Mesh> smesh,
                              MPI_Comm comm)
    : AbstractSolver(options, move(smesh), comm)
-{
-	// mesh->ReorientTetMesh();   
-}
+{ }
 
 void ThermalSolver::initDerived()
 {

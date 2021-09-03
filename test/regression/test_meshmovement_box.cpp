@@ -123,8 +123,6 @@ unique_ptr<Mesh> buildBoxMesh(int nxy, int nz)
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, (double)nz / (double)nxy, true));
 
-   mesh->ReorientTetMesh();
-
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh->GetNE(); ++i)
    {

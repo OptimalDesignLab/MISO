@@ -41,7 +41,6 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
    std::unique_ptr<Mesh> mesh = electromag_data::getMesh(2, 1);
                               //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                               //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)

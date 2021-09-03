@@ -58,7 +58,6 @@ TEST_CASE("CurrentLoad setInputs")
 
    std::unique_ptr<Mesh> smesh = buildMesh(4, 4);
    std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    auto p = 2;
@@ -122,7 +121,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
 {
    std::unique_ptr<Mesh> smesh = buildMesh(1, 1);
    std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
-   mesh->ReorientTetMesh();
+   
    mesh->EnsureNodes();
 
    auto p = 2;
@@ -195,7 +194,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
 {
    std::unique_ptr<Mesh> smesh = buildMesh(1, 1);
    std::unique_ptr<ParMesh> mesh(new ParMesh(MPI_COMM_WORLD, *smesh));
-   mesh->ReorientTetMesh();
+   
    mesh->EnsureNodes();
 
    auto p = 2;
@@ -287,7 +286,7 @@ std::unique_ptr<Mesh> buildMesh(int nxy, int nz)
                               Element::HEXAHEDRON, true, 1.0,
                               1.0, (double)nz / (double)nxy, true));
 
-   mesh->ReorientTetMesh();
+   
 
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh->GetNE(); ++i)

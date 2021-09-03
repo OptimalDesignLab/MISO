@@ -332,7 +332,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       constructPumiMesh();
    }
    mesh->EnsureNodes();
-   mesh->ReorientTetMesh();
+
    removeInternalBoundaries();
    *out << "bdr_attr: "; mesh->bdr_attributes.Print(*out);
 }

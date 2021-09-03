@@ -20,7 +20,6 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -92,7 +91,6 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -172,7 +170,6 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear",
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -308,7 +305,6 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
    // generate a 6 element mesh
    int num_edge = 2;
    auto mesh = getMesh(num_edge, num_edge);
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -419,7 +415,6 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
    // generate a 6 element mesh
    int num_edge = 2;
    auto mesh = getMesh(num_edge, num_edge);
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -514,7 +509,6 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
    // generate a 6 element mesh
    int num_edge = 2;
    auto mesh = getMesh(num_edge, num_edge);
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -620,7 +614,6 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
    // generate a 6 element mesh
    int num_edge = 2;
    auto mesh = getMesh(num_edge, num_edge);
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -706,7 +699,6 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
 //    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
 //                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
 //                               1.0, 1.0, true));
-//    mesh->ReorientTetMesh();
 //    mesh->EnsureNodes();
 //    for (int p = 1; p <= 4; ++p)
 //    {
@@ -787,7 +779,6 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy")
                                        Element::TETRAHEDRON,
                                        true /* gen. edges */, 2.0, 3.0, 1.0,
                                        true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -971,7 +962,6 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1034,7 +1024,6 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementRHSVect",
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
                                        Element::TETRAHEDRON,
                                        true, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1110,7 +1099,6 @@ TEST_CASE("BNormIntegrator::GetElementEnergy",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 2.0, 2.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1158,7 +1146,6 @@ TEST_CASE("BNormIntegrator::AssembleElementVector",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1218,7 +1205,6 @@ TEST_CASE("BNormdJdX::AssembleRHSElementVect",
    int num_edge = 3;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1290,7 +1276,6 @@ TEST_CASE("nuBNormIntegrator::AssembleElementVector",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1353,7 +1338,6 @@ TEST_CASE("nuBNormdJdX::AssembleRHSElementVect",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1428,7 +1412,6 @@ TEST_CASE("nuFuncIntegrator::AssembleRHSElementVect",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1605,7 +1588,6 @@ TEST_CASE("calcMagneticEnergy")
    int num_edge = 1;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    const double lin_nu_val = 0.42;
@@ -1658,7 +1640,6 @@ TEST_CASE("calcMagneticEnergyDot")
    int num_edge = 1;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    // std::unique_ptr<mach::StateCoefficient> nu(new LinearCoefficient(0.75));
@@ -1705,7 +1686,6 @@ TEST_CASE("calcMagneticEnergyDoubleDot")
    int num_edge = 1;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                        true /* gen. edges */, 1.0, 1.0, 1.0, true));
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    // std::unique_ptr<mach::StateCoefficient> nu(new LinearCoefficient(0.75));

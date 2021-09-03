@@ -485,7 +485,6 @@ MagnetostaticSolver::MagnetostaticSolver(
    int order = options["space-dis"]["degree"].get<int>();
    // num_state = dim;
 
-   mesh->ReorientTetMesh();
    mesh->RemoveInternalBoundaries();
 
    // /// Create the H(Div) finite element collection

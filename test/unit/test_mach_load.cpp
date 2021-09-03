@@ -121,8 +121,6 @@ std::unique_ptr<Mesh> buildMesh(int nxy, int nz)
                               Element::TETRAHEDRON, true, 1.0,
                               1.0, (double)nz / (double)nxy, true));
 
-   mesh->ReorientTetMesh();
-
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh->GetNE(); ++i)
    {

@@ -676,7 +676,6 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //                                        Element::TETRAHEDRON,
 //                                        true /* gen. edges */, 1.0, 1.0, 1.0, 
 //                                        true));
-//    mesh->ReorientTetMesh();
 //    mesh->EnsureNodes();
 //    for (int p = 1; p <= 4; ++p)
 //    {

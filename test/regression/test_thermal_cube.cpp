@@ -108,7 +108,6 @@ TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
                                     Element::HEXAHEDRON, true /* gen. edges */, 1.0,
                                     1.0, 1.0, true));
 
-         mesh->ReorientTetMesh();
          std::cout << "Number of Boundary Attributes: "<< mesh->bdr_attributes.Size() <<std::endl;
          // assign attributes to top and bottom sides
          for (int i = 0; i < mesh->GetNE(); ++i)
