@@ -26,7 +26,10 @@ public:
        : InviscidIntegrator<EulerIntegrator<dim>>(diff_stack, dim + 2, a) {}
 
    /// Not used by this integrator
-   double calcVolFun(const mfem::Vector &x, const mfem::Vector &u) {}
+   double calcVolFun(const mfem::Vector &x, const mfem::Vector &u)
+   {
+      return 0.0;
+   }
 
    /// Euler flux function in a given (scaled) direction
    /// \param[in] dir - direction in which the flux is desired

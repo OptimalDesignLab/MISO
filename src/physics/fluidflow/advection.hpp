@@ -8,6 +8,21 @@
 namespace mach
 {
 
+/// Defines the velocity field used by the AdvectionSolver class
+/// \param[in] x - location at which to evaluate the velocity 
+/// \param[out] v - velocity at `x`.
+/// This should be provided as an input to the class, but the current API makes 
+/// this difficult.  Since advection is of minor importance, this is fine for 
+/// now.
+void velocity_function(const mfem::Vector &x, mfem::Vector &v)
+{
+   // Simply advection to corner
+   for (int i = 0; i < v.Size(); ++i)
+   {
+      v(i) = 1.0;
+   }
+}
+
 /// Linear advection integrator specialized to SBP operators
 class AdvectionIntegrator : public mfem::BilinearFormIntegrator
 {

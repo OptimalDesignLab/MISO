@@ -1000,7 +1000,8 @@ const FiniteElement *SBPCollection::FiniteElementForGeometry(
    else
    {
       MFEM_ABORT("Unsupported geometry type " << GeomType);
-   }  
+      return nullptr;
+   }
 }
 
 const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,

@@ -64,7 +64,7 @@ auto options = R"(
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_x - number of nodes in the x direction
 /// \param[in] num_y - number of nodes in the y direction
-std::unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y);
+Mesh buildCurvilinearMesh(int degree, int num_x, int num_y);
 
 /// \brief Defines the exact solution for the manufactured solution
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -97,7 +97,7 @@ TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
          // std::cout << setw(3) << options << std::endl;
          
          // construct the mesh
-         unique_ptr<Mesh> smesh = buildCurvilinearMesh(p+1, nx, nx);
+         unique_ptr<Mesh> smesh(new Mesh(buildCurvilinearMesh(p+1, nx, nx)));
          //std::cout << "Number of elements " << smesh->GetNE() << '\n';
 
          // construct the solver, set the initial condition, and solve
@@ -123,17 +123,16 @@ TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
    }
 }
 
-std::unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y)
+Mesh buildCurvilinearMesh(int degree, int num_x, int num_y)
 {
-   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_x, num_y,
-                                             Element::TRIANGLE, true /* gen. edges */,
-                                             1.0, 1.0, true));
+   Mesh mesh = Mesh::MakeCartesian2D(num_x, num_y, Element::TRIANGLE, 
+                                     true /* gen. edges */, 1.0, 1.0, true);
    // strategy:
    // 1) generate a fes for Lagrange elements of desired degree
    // 2) create a Grid Function using a VectorFunctionCoefficient
    // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
    H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
-   FiniteElementSpace *fes = new FiniteElementSpace(mesh_ptr.get(), fec, 2,
+   FiniteElementSpace *fes = new FiniteElementSpace(&mesh, fec, 2,
                                                     Ordering::byVDIM);
 
    auto xy_fun = [](const Vector& xi, Vector &x)
@@ -145,8 +144,8 @@ std::unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y)
    GridFunction *xy = new GridFunction(fes);
    xy->MakeOwner(fec);
    xy->ProjectCoefficient(xy_coeff);
-   mesh_ptr->NewNodes(*xy, true);
-   return mesh_ptr;
+   mesh.NewNodes(*xy, true);
+   return mesh;
 }
 
 void uexact(const Vector &x, Vector& q)

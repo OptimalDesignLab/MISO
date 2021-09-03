@@ -21,9 +21,9 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
 
    // generate a 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
-   mesh->EnsureNodes();
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
+   mesh.EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          // we use res for finite-difference approximation
          NonlinearForm res(fes.get());
@@ -46,7 +46,7 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
          adjoint.ProjectCoefficient(pert);
 
          // extract mesh nodes and get their finite-element space
-         GridFunction *x_nodes = mesh->GetNodes();
+         GridFunction *x_nodes = mesh.GetNodes();
          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
          // build the linear form for d(psi^T R)/dx 
@@ -68,15 +68,15 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
          GridFunction x_pert(*x_nodes);
          GridFunction r(fes.get());
          x_pert.Add(delta, v);
-         mesh->SetNodes(x_pert);
+         mesh.SetNodes(x_pert);
          res.Mult(state, r);
          double dfdx_v_fd = adjoint * r;
          x_pert.Add(-2 * delta, v);
-         mesh->SetNodes(x_pert);
+         mesh.SetNodes(x_pert);
          res.Mult(state, r);
          dfdx_v_fd -= adjoint * r;
          dfdx_v_fd /= (2 * delta);
-         mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
+         mesh.SetNodes(*x_nodes); // remember to reset the mesh nodes
 
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }
@@ -97,9 +97,9 @@ TEMPLATE_TEST_CASE_SIG("SlipWallBCMeshSens::AssembleRHSElementVect",
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
-   mesh->EnsureNodes();
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
+   mesh.EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -108,7 +108,7 @@ TEMPLATE_TEST_CASE_SIG("SlipWallBCMeshSens::AssembleRHSElementVect",
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          // we use res for finite-difference approximation
          NonlinearForm res(fes.get());
@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE_SIG("SlipWallBCMeshSens::AssembleRHSElementVect",
          adjoint.ProjectCoefficient(pert);
 
          // extract mesh nodes and get their finite-element space
-         GridFunction *x_nodes = mesh->GetNodes();
+         GridFunction *x_nodes = mesh.GetNodes();
          FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 
          // build the linear form for d(psi^T R)/dx 
@@ -144,15 +144,15 @@ TEMPLATE_TEST_CASE_SIG("SlipWallBCMeshSens::AssembleRHSElementVect",
          GridFunction x_pert(*x_nodes);
          GridFunction r(fes.get());
          x_pert.Add(delta, v);
-         mesh->SetNodes(x_pert);
+         mesh.SetNodes(x_pert);
          res.Mult(state, r);
          double dfdx_v_fd = adjoint * r;
          x_pert.Add(-2 * delta, v);
-         mesh->SetNodes(x_pert);
+         mesh.SetNodes(x_pert);
          res.Mult(state, r);
          dfdx_v_fd -= adjoint * r;
          dfdx_v_fd /= (2 * delta);
-         mesh->SetNodes(*x_nodes); // remember to reset the mesh nodes
+         mesh.SetNodes(*x_nodes); // remember to reset the mesh nodes
 
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-10));
       }

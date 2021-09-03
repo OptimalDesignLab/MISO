@@ -177,7 +177,7 @@ protected:
    /// node coordinates of the reference element (0,0), (1,0), (0,1)
    mutable DenseMatrix x;
    /// difference operator(s); the transposed operators are stored in practice
-   mutable Array<DenseMatrix> Q;
+   mutable std::vector<DenseMatrix> Q;
    /// generalized Vandermonde matrix; used for the projection operator in LPS
    mutable DenseMatrix V;
 };

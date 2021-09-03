@@ -22,13 +22,13 @@ TEMPLATE_TEST_CASE_SIG("ViscousIntegrator::AssembleElementVector",
 
     // generate a 2 element mesh
     int num_edge = 1;
-    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                        true /* gen. edges */, 1.0, 1.0, true));
+    Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                    true /* gen. edges */, 1.0, 1.0, true));
 
     std::unique_ptr<FiniteElementCollection> fec(
         new SBPCollection(p, dim));
     std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-        mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+        &mesh, fec.get(), num_state, Ordering::byVDIM));
 
     NonlinearForm res(fes.get());
     res.AddDomainIntegrator(new mach::LaplaceIntegrator<2>(diff_stack));
