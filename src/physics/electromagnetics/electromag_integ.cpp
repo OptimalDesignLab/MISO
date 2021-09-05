@@ -158,7 +158,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(
       const double b_vec_norm = b_vec.Norml2();
       const double b_mag = b_vec_norm / trans.Weight();
 
-      double model_val = model->Eval(trans, ip, b_mag);
+      double model_val = model.Eval(trans, ip, b_mag);
       model_val *= w;
       b_vec *= model_val;
 
@@ -236,7 +236,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /////////////////////////////////////////////////////////////////////////
 
       /// evaluate material model at ip
-      double model_val = model->Eval(trans, ip, b_mag);
+      double model_val = model.Eval(trans, ip, b_mag);
       /// multiply material value by integration weight
       model_val *= w;
       /// add first term to elmat
@@ -256,7 +256,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
          /// evaluate the derivative of the material model with respect to the
          /// norm of the grid function associated with the model at the point
          /// defined by ip, and scale by integration point weight
-         double model_deriv = model->EvalStateDeriv(trans, ip, b_mag);
+         double model_deriv = model.EvalStateDeriv(trans, ip, b_mag);
          model_deriv *= w;
          model_deriv /= b_mag;
       
@@ -322,7 +322,7 @@ void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
    curlshape_dFt_bar.SetSize(dimc, el_ndof); // transposed dimensions of curlshape_dFt so I don't have to transpose J later
    PointMat_bar.SetSize(dimc, ndof);
 #endif
-   auto &nu = *integ.model;
+   auto &nu = integ.model;
 
    /// these vector's size is the spatial dimension we can stack allocate
    double b_vec_buffer[3];

@@ -29,9 +29,12 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(ndof*dim);
    mesh_coords_bar = 0.0;
 
-   state->FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
+   dof_tr = adjoint->FESpace()->GetElementVDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
+   if (dof_tr) {dof_tr->InvTransformPrimal(psi); }
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix dshape(el_ndof, dim),
@@ -168,10 +171,12 @@ void VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(ndof*dim);
    mesh_coords_bar = 0.0;
 
-   state->FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
-   adjoint->FESpace()->GetElementDofs(element, vdofs);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
+   dof_tr = adjoint->FESpace()->GetElementDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
+   if (dof_tr) {dof_tr->InvTransformPrimal(psi); }
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix dshape(h1_ndof, dim);
@@ -323,10 +328,12 @@ void VectorFECurlIntegratorMeshSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(ndof*dim);
    mesh_coords_bar = 0.0;
 
-   state->FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
-   adjoint->FESpace()->GetElementDofs(element, vdofs);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
+   dof_tr = adjoint->FESpace()->GetElementDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
+   if (dof_tr) {dof_tr->InvTransformPrimal(psi); }
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(nd_ndof, dimc);
@@ -536,9 +543,12 @@ void VectorFEMassIntegratorMeshSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(ndof*dim);
    mesh_coords_bar = 0.0;
 
-   state->FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
+   dof_tr = adjoint->FESpace()->GetElementVDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
+   if (dof_tr) {dof_tr->InvTransformPrimal(psi); }
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix vshape(el_ndof, dim),
@@ -661,8 +671,9 @@ void VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(ndof*dim);
    mesh_coords_bar = 0.0;
 
-   adjoint->FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = adjoint->FESpace()->GetElementVDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
+   if (dof_tr) {dof_tr->InvTransformPrimal(psi); }
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix vshape(el_ndof, dim),
@@ -782,8 +793,9 @@ void VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(ndof*dim);
    mesh_coords_bar = 0.0;
 
-   adjoint->FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = adjoint->FESpace()->GetElementVDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
+   if (dof_tr) {dof_tr->InvTransformPrimal(psi); }
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(el_ndof,dimc);

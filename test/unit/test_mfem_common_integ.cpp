@@ -40,7 +40,6 @@ TEST_CASE("DiffusionIntegratorMeshSens::AssembleRHSElementVect")
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -120,7 +119,6 @@ TEST_CASE("VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect")
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -204,7 +202,6 @@ TEST_CASE("VectorFECurlIntegratorMeshSens::AssembleRHSElementVect - (u, curl v)"
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -280,13 +277,12 @@ TEST_CASE("VectorFECurlIntegratorMeshSens::AssembleRHSElementVect - (curl u, v)"
    const int dim = 3;
    double delta = 1e-5;
 
-   int num_edge = 1;
+   int num_edge = 2;
    auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
                                       Element::TETRAHEDRON,
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -369,7 +365,6 @@ TEST_CASE("VectorFEMassIntegratorMeshSens::AssembleRHSElementVect")
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -448,7 +443,6 @@ TEST_CASE("VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect")
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -522,7 +516,6 @@ TEST_CASE("VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect")
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -599,7 +592,6 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -671,7 +663,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //    double delta = 1e-5;
 
 //    // generate a 2 element mesh
-//    int num_edge = 1;
+//    int num_edge = 2;
 //    std::unique_ptr<Mesh> mesh(new Mesh(2, num_edge, num_edge,
 //                                        Element::TETRAHEDRON,
 //                                        true /* gen. edges */, 1.0, 1.0, 1.0, 

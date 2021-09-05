@@ -12,63 +12,59 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
    using namespace mfem;
    using namespace electromag_data;
 
-   const int dim = 3;  // templating is hard here because mesh constructors
-   // static adept::Stack diff_stack;
+   const int dim = 3;
    double delta = 1e-5;
 
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
-   mesh->EnsureNodes();
+   auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                      Element::TETRAHEDRON,
+                                      1.0, 1.0, 1.0, true);
+
+   ParMesh mesh(MPI_COMM_WORLD, smesh); 
+   mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
-         std::unique_ptr<FiniteElementCollection> fec(
-            new ND_FECollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-            mesh.get(), fec.get()));
+         ND_FECollection nd_fec(p, dim);
+         ParFiniteElementSpace fes(&mesh, &nd_fec);
 
-         NonlinearForm res(fes.get());
+         ParNonlinearForm res(&fes);
 
-         std::unique_ptr<mach::StateCoefficient> nu(
-            new LinearCoefficient(1.0));
+         LinearCoefficient nu(1.0);
 
-         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
+         res.AddDomainIntegrator(
+            new mach::CurlCurlNLFIntegrator(nu));
 
          // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
-         // I think this should be 1? Only have one DOF per "node"
-         VectorFunctionCoefficient pert(1, randBaselineVectorPert);
-         q.ProjectCoefficient(pert);
+         ParGridFunction A(&fes);
+         VectorFunctionCoefficient pert(3, randVectorState);
+         A.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies
-         GridFunction v(fes.get());
-         VectorFunctionCoefficient v_rand(1, randVectorState);
-         v.ProjectCoefficient(v_rand);
+         ParGridFunction v(&fes);
+         v.ProjectCoefficient(pert);
 
          // evaluate the Jacobian and compute its product with v
-         Operator& Jac = res.GetGradient(q);
-         GridFunction jac_v(fes.get());
+         Operator& Jac = res.GetGradient(A);
+         ParGridFunction jac_v(&fes);
          Jac.Mult(v, jac_v);
 
-         GridFunction res_v(fes.get());
+         ParGridFunction res_v(&fes);
          res.Mult(v, res_v);
 
-         std::unique_ptr<mfem::Coefficient> nu_linear(
-            new ConstantCoefficient(1.0));
-         /// Bilinear Form
-         BilinearForm blf(fes.get());
-         blf.AddDomainIntegrator(new CurlCurlIntegrator(*nu_linear));
-
+         ConstantCoefficient nu_linear(1.0);
+         ParBilinearForm blf(&fes);
+         blf.AddDomainIntegrator(new CurlCurlIntegrator(nu_linear));
          blf.Assemble();
-         GridFunction blf_v(fes.get());
+         ParGridFunction blf_v(&fes);
          blf.Mult(v, blf_v);
 
+         std::cout <<"test!\n\n";
          for (int i = 0; i < jac_v.Size(); ++i)
          {
+            std::cout << "res_v: " << res_v(i) << " blf_v: " << blf_v(i) << " jac_v: " << jac_v(i) << "\n";
             REQUIRE( res_v(i) == Approx(blf_v(i)) );
             REQUIRE( jac_v(i) == Approx(blf_v(i)) );
          }
@@ -107,7 +103,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
          std::unique_ptr<mach::StateCoefficient> nu(
             new LinearCoefficient());
 
-         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
+         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(*nu));
 
          // GridFunction A(fes.get());
          // VectorFunctionCoefficient a0(3, [](const Vector &x, Vector &a)
@@ -190,7 +186,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear",
             new NonLinearCoefficient());
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(nu.get()));
+         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(*nu));
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
@@ -256,7 +252,7 @@ TEST_CASE("CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect")
 
          // we use res for finite-difference approximation
          NonlinearForm res(&fes);
-         auto *integ = new mach::CurlCurlNLFIntegrator(&nu);
+         auto *integ = new mach::CurlCurlNLFIntegrator(nu);
          res.AddDomainIntegrator(integ);
 
          // initialize the vector that we use to perturb the mesh nodes

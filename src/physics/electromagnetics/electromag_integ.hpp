@@ -55,7 +55,7 @@ public:
    /// Construct a curl curl nonlinear form integrator for Nedelec elements
    /// \param[in] m - model describing nonlinear material parameter
    /// \param[in] a - used to move to lhs or rhs
-   CurlCurlNLFIntegrator(StateCoefficient *m,
+   CurlCurlNLFIntegrator(StateCoefficient &m,
                         double a = 1.0)
       : model(m), alpha(a) {}
 
@@ -81,7 +81,7 @@ public:
 
 private:
 	/// material (thus mesh) dependent model describing electromagnetic behavior
-	StateCoefficient *model;
+	StateCoefficient &model;
    /// scales the terms; can be used to move to rhs/lhs
 	double alpha;
 

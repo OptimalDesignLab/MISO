@@ -42,7 +42,6 @@ set(FLUID_TEST_SRCS
 
 # group EM tests
 set(EM_TEST_SRCS
-   test_electromag_integ
 )
 
 # group fluid MPI tests
@@ -52,6 +51,7 @@ set(FLUID_MPI_TEST_SRCS
 
 # group EM MPI tests
 set(EM_MPI_TEST_SRCS
+   test_electromag_integ
    test_irrotational_projector
    test_div_free_projector
    test_magnetostatic_solver

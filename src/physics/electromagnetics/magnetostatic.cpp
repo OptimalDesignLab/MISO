@@ -1306,7 +1306,7 @@ void MagnetostaticSolver::addMassIntegrators(double alpha)
 
 void MagnetostaticSolver::addResVolumeIntegrators(double alpha)
 {
-   addResidualDomainIntegrator(new CurlCurlNLFIntegrator(nu.get()));
+   addResidualDomainIntegrator(new CurlCurlNLFIntegrator(*nu));
 }
 
 void MagnetostaticSolver::assembleLoadVector(double alpha)

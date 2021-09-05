@@ -1107,8 +1107,9 @@ void AbstractSolver::getField(std::string name, mfem::HypreParVector &field)
 void AbstractSolver::solveForState(ParGridFunction &state)
 {
    HypreParVector state_true(fes.get());
+   state.GetTrueDofs(state_true);
    state.MakeTRef(fes.get(), state_true, 0);
-   state.SetTrueVector();
+   // state.SetTrueVector();
 
    if (options["steady"].get<bool>() == true)
    {
