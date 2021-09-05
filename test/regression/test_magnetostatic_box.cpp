@@ -31,7 +31,7 @@ auto options = R"(
       "max-iter": 5
    },
    "lin-solver": {
-      "type": "minres",
+      "type": "hypregmres",
       "printlevel": 0,
       "maxiter": 100,
       "abstol": 1e-14,
@@ -42,7 +42,7 @@ auto options = R"(
       "printlevel": 0
    },
    "nonlin-solver": {
-      "type": "inexactnewton",
+      "type": "newton",
       "printlevel": 3,
       "maxiter": 15,
       "reltol": 1e-10,
@@ -127,8 +127,17 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             // construct the solver, set the initial condition, and solve
             unique_ptr<Mesh> smesh = buildMesh(nxy, nz);
             auto solver = createSolver<MagnetostaticSolver>(options, move(smesh));
-            solver->setInitialCondition(aexact);
-            solver->solveForState();
+
+            /// using externally allocated state vector seems to fix regression test...
+            auto state = solver->getNewField();
+            solver->setFieldValue(*state, aexact);
+            MachInputs inputs {
+               {"state", state->GetData()}
+            };
+            solver->solveForState(inputs, *state);
+
+            // solver->setInitialCondition(aexact);
+            // solver->solveForState();
             auto fields = solver->getFields();
 
             // Compute error and check against appropriate target
