@@ -980,13 +980,11 @@ void AbstractSolver::solveUnsteady()
       //    mass_save.close();
       // }
       //updateNonlinearMass(ti, dt_real/2, 1.0);
-      // if (ti % 10 == 0)
-      // {
-      //    *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-      //         << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      // }
-      *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+      if (ti % 500 == 0)
+      {
+         *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
+      }
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);

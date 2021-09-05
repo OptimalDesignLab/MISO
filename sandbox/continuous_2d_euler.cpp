@@ -23,6 +23,7 @@ void pert(const Vector &x, Vector& p);
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u0 - conservative variables stored as a 4-vector
 void u0_function(const Vector &x, Vector& u0);
+void u1_function(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
 {
@@ -57,7 +58,7 @@ int main(int argc, char *argv[])
       mfem::out << "\n|| u_h - u ||_{L^2} = "<< l2_error << '\n' << endl;
       solver->solveForState();
       l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
-                            .calcConservativeVarsL2Error(u0_function, 0));
+                            .calcConservativeVarsL2Error(u1_function, 0));
       mfem::out << "\n|| u_h - u ||_{L^2} = " << l2_error << '\n' << endl;
       // mfem::out << "\n|| u_h - u ||_{L^2} = " 
       //           << solver->calcL2Error(u0_function) << '\n' << endl;
@@ -77,10 +78,30 @@ int main(int argc, char *argv[])
 
 // Initial condition; see Crean et al. 2018 for the notation
 void u0_function(const Vector &x, Vector& q)
-{
+{  
    q.SetSize(4);
    Vector u0(4);
-	u0(0) = 1.0 + 0.98*sin(2.*M_PI * (x(0)+x(1)) );
+   u0(0) = 1.0 + 0.98*sin(2.*M_PI * x(0) );
+	u0(1) = 0.1 * u0(0);
+	u0(2) = 0.0;
+	u0(3) = 20. / euler::gami + 0.5 * u0(0) * 0.01;
+   if (entvar == false)
+   {
+      q = u0;
+   }
+   else
+   {
+      calcEntropyVars<double, 2>(u0.GetData(), q.GetData());
+   }
+}
+
+// Initial condition; see Crean et al. 2018 for the notation
+void u1_function(const Vector &x, Vector& q)
+{
+   double t_final = 0.0; 
+   q.SetSize(4);
+   Vector u0(4);
+	u0(0) = 1.0 + 0.98*sin(2.*M_PI * (x(0) - 0.1 * t_final) );
 	u0(1) = 0.1 * u0(0);
 	u0(2) = 0.0;
 	u0(3) = 20. / euler::gami + 0.5 * u0(0) * 0.01;
