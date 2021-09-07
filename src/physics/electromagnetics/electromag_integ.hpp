@@ -193,6 +193,7 @@ private:
 #endif
 };
 
+/** moved/replaced in mfem_common_integ.xpp
 class VectorFECurldJdXIntegerator : public mfem::LinearFormIntegrator
 {
 public:
@@ -245,7 +246,9 @@ private:
 #endif
 
 };
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 class VectorFEMassdJdXIntegerator : public mfem::LinearFormIntegrator
 {
 public:
@@ -292,7 +295,9 @@ private:
 #endif
 
 };
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 class VectorFEWeakDivergencedJdXIntegrator : public mfem::LinearFormIntegrator
 {
 public:
@@ -339,7 +344,9 @@ private:
 #endif
 
 };
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 class VectorFEDomainLFMeshSensInteg : public mfem::LinearFormIntegrator
 {
 public:
@@ -372,7 +379,9 @@ private:
 #endif
 
 };
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 /// TODO: Move this somewhere else to a common integrators spot
 class GridFuncMeshSensIntegrator : public mfem::LinearFormIntegrator
 {
@@ -415,6 +424,7 @@ private:
 #endif
 
 };
+*/
 
 /// Integrator to compute the magnetic energy
 class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator

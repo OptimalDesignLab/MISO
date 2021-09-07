@@ -306,9 +306,13 @@ void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(ndof*dimc);
    mesh_coords_bar = 0.0;
 
-   state.FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
    adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr) {dof_tr->InvTransformPrimal(psi); }
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(el_ndof,dimc), curlshape_dFt(el_ndof,dimc);
@@ -623,6 +627,7 @@ void MagnetizationIntegrator::AssembleElementGrad(
    */
 }
 
+/** moved/replaced in mfem_common_integ.xpp
 void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
    const FiniteElement &mesh_el,
    ElementTransformation &mesh_trans,
@@ -753,7 +758,9 @@ void VectorFECurldJdXIntegerator::AssembleRHSElementVect(
       }
    }  
 }
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 void VectorFEMassdJdXIntegerator::AssembleRHSElementVect(
    const FiniteElement &mesh_el,
    ElementTransformation &mesh_trans,
@@ -863,7 +870,9 @@ void VectorFEMassdJdXIntegerator::AssembleRHSElementVect(
       }
    }  
 }
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
    const FiniteElement &mesh_el,
    ElementTransformation &mesh_trans,
@@ -986,7 +995,9 @@ void VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect(
       }
    }  
 }
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 void VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect(
    const FiniteElement &mesh_el,
    ElementTransformation &mesh_trans,
@@ -1077,7 +1088,9 @@ void VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect(
       }
    }  
 }
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 void GridFuncMeshSensIntegrator::AssembleRHSElementVect(
    const FiniteElement &mesh_el,
    ElementTransformation &mesh_trans,
@@ -1119,6 +1132,7 @@ void GridFuncMeshSensIntegrator::AssembleRHSElementVect(
       }
    }  
 }
+*/
 
 double MagneticEnergyIntegrator::GetElementEnergy(
    const FiniteElement &el,
@@ -1281,8 +1295,9 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(ndof*dimc);
    mesh_coords_bar = 0.0;
 
-   state.FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(el_ndof, dimc);
@@ -1928,7 +1943,6 @@ void BNormdJdx::AssembleRHSElementVect(
    int element = mesh_trans.ElementNo;
    const FiniteElement *el = state.FESpace()->GetFE(element);
    ElementTransformation *trans = state.FESpace()->GetElementTransformation(element);
-   state.FESpace()->GetElementVDofs(element, vdofs);
 
    const IntegrationRule *ir = IntRule;
    if (ir == NULL)
@@ -1945,7 +1959,10 @@ void BNormdJdx::AssembleRHSElementVect(
 
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
+
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
 
    int ndof = mesh_el.GetDof();
    int el_ndof = el->GetDof();
@@ -2179,7 +2196,6 @@ void nuBNormdJdx::AssembleRHSElementVect(
    int element = mesh_trans.ElementNo;
    const FiniteElement *el = state.FESpace()->GetFE(element);
    ElementTransformation *trans = state.FESpace()->GetElementTransformation(element);
-   state.FESpace()->GetElementVDofs(element, vdofs);
 
    const IntegrationRule *ir = IntRule;
    if (ir == NULL)
@@ -2196,7 +2212,9 @@ void nuBNormdJdx::AssembleRHSElementVect(
 
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
 
    int ndof = mesh_el.GetDof();
    int el_ndof = el->GetDof();
@@ -2393,7 +2411,6 @@ void nuFuncIntegrator::AssembleRHSElementVect(
    int element = mesh_trans.ElementNo;
    const FiniteElement *el = state->FESpace()->GetFE(element);
    ElementTransformation *trans = state->FESpace()->GetElementTransformation(element);
-   state->FESpace()->GetElementVDofs(element, vdofs);
 
    const IntegrationRule *ir = NULL;
    {
@@ -2409,7 +2426,10 @@ void nuFuncIntegrator::AssembleRHSElementVect(
 
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
+
+   auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
 
    int ndof = mesh_el.GetDof();
    int el_ndof = el->GetDof();
@@ -3043,8 +3063,9 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
    {
       return;
    }
-   state.FESpace()->GetElementVDofs(element, vdofs);
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
+   if (dof_tr) {dof_tr->InvTransformPrimal(elfun); }
 
    /// get the proper element, transformation, and v vector
    // const int element = trans.ElementNo;

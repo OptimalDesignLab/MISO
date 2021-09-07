@@ -288,6 +288,7 @@ TEST_CASE("FunctionCoefficient::EvalRevDiff",
    }
 }
 
+/** not maintaining anymore
 TEST_CASE("SteinmetzCoefficient::EvalRevDiff",
           "[SteinmetzCoefficient]")
 {
@@ -303,7 +304,7 @@ TEST_CASE("SteinmetzCoefficient::EvalRevDiff",
    // Mesh mesh(meshStr);
 
    Mesh mesh(1, 2, 2, Element::TETRAHEDRON,
-             true /* gen. edges */, 1.0, 1.0, 1.0, true);
+             true, 1.0, 1.0, 1.0, true);
 
    /// Costruct coefficient
    for (int p = 1; p <= 1; p++)
@@ -368,7 +369,9 @@ TEST_CASE("SteinmetzCoefficient::EvalRevDiff",
       }
    }
 }
+*/
 
+/** not maintaining anymore
 TEST_CASE("SteinmetzVectorDiffCoefficient::Eval",
           "[SteinmetzVectorDiffCoefficient]")
 {
@@ -452,6 +455,7 @@ TEST_CASE("SteinmetzVectorDiffCoefficient::Eval",
       }
    }
 }
+*/
 
 TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
           "[ReluctivityCoefficient]")
@@ -519,8 +523,8 @@ TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
             dnudB_fd += coeff.Eval(trans, ip, b_mag + eps_fd);
             dnudB_fd /= (2* eps_fd);
 
-            std::cout << "dnudB: " << dnudB << "\n";
-            std::cout << "dnudB_fd: " << dnudB_fd << "\n";
+            // std::cout << "dnudB: " << dnudB << "\n";
+            // std::cout << "dnudB_fd: " << dnudB_fd << "\n";
             REQUIRE(dnudB == Approx(dnudB_fd));
          }
       }

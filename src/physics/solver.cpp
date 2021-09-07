@@ -885,7 +885,8 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
    /// this approach would require communication twice, once to set the tdofs
    ///   and then again inside of res->Mult
    // auto &state_gf = res_fields.at("state");
-   // state_gf.MakeTRef(state.ParFESpace(), inputs.at("state").getField());
+   // state_gf.GetTrueVector().SetDataAndSize(inputs.at("state").getField(),
+   //                                         res.Size());
    // state_gf.SetFromTrueVector();
    // auto &state = state_gf.GetTrueVector();
 
@@ -1107,9 +1108,8 @@ void AbstractSolver::getField(std::string name, mfem::HypreParVector &field)
 void AbstractSolver::solveForState(ParGridFunction &state)
 {
    HypreParVector state_true(fes.get());
-   state.GetTrueDofs(state_true);
-   state.MakeTRef(fes.get(), state_true, 0);
-   // state.SetTrueVector();
+   state.GetTrueVector().SetDataAndSize(state_true.GetData(), state_true.Size());
+   state.SetTrueVector();
 
    if (options["steady"].get<bool>() == true)
    {
@@ -1140,7 +1140,7 @@ void AbstractSolver::solveForState(const MachInputs &inputs,
       mach::setInputs(*load, inputs);
 
    auto &state_gf = res_fields.at("state");
-   state_gf.MakeTRef(state_gf.ParFESpace(), state.GetData());
+   state_gf.GetTrueVector().SetDataAndSize(state.GetData(), state.Size());
    state_gf.SetFromTrueVector();
    
    solveUnsteady(state_gf);
@@ -2101,7 +2101,8 @@ void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
    if (input.isField())
    {
       auto &field = res_fields.at(name);
-      field.MakeTRef(field.ParFESpace(), input.getField());
+      field.GetTrueVector().SetDataAndSize(input.getField(),
+                                           field.ParFESpace()->GetTrueVSize());
       field.SetFromTrueVector();
    }
    else if (input.isValue())

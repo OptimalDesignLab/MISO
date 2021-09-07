@@ -115,11 +115,11 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
    /// number of elements in Z direction
    auto nz = 2;
 
-   for (int order = 1; order <= 2; ++order)
+   for (int order = 1; order <= 4; ++order)
    {
       options["space-dis"]["degree"] = order;
       int nxy = 1;
-      for (int ref = 1; ref <= 4; ++ref)
+      for (int ref = 1; ref <= 1; ++ref)
       {  
          nxy *= 2;
          DYNAMIC_SECTION("...for order " << order << " and mesh sizing nxy = " << nxy)
@@ -128,7 +128,6 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             unique_ptr<Mesh> smesh = buildMesh(nxy, nz);
             auto solver = createSolver<MagnetostaticSolver>(options, move(smesh));
 
-            /// using externally allocated state vector seems to fix regression test...
             auto state = solver->getNewField();
             solver->setFieldValue(*state, aexact);
             MachInputs inputs {
@@ -136,8 +135,6 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             };
             solver->solveForState(inputs, *state);
 
-            // solver->setInitialCondition(aexact);
-            // solver->solveForState();
             auto fields = solver->getFields();
 
             // Compute error and check against appropriate target

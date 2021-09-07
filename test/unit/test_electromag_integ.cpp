@@ -61,10 +61,8 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
          ParGridFunction blf_v(&fes);
          blf.Mult(v, blf_v);
 
-         std::cout <<"test!\n\n";
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            std::cout << "res_v: " << res_v(i) << " blf_v: " << blf_v(i) << " jac_v: " << jac_v(i) << "\n";
             REQUIRE( res_v(i) == Approx(blf_v(i)) );
             REQUIRE( jac_v(i) == Approx(blf_v(i)) );
          }
@@ -288,6 +286,7 @@ TEST_CASE("CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect")
    }
 }
 
+/** moved/replaced in mfem_common_integ.xpp
 TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
           "[VectorFECurldJdXIntegerator]")
 {
@@ -397,7 +396,9 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
       }
    }
 }
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
           "[VectorFEMassdJdXIntegerator]")
 {
@@ -492,7 +493,9 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
       }
    }
 }
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
           "[VectorFEWeakDivergencedJdXIntegrator]")
 {
@@ -596,7 +599,9 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
       }
    }
 }
+*/
 
+/** moved/replaced in mfem_common_integ.xpp
 TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
           "[VectorFEDomainLFMeshSensInteg]")
 {
@@ -679,6 +684,7 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
       }
    }
 }
+*/
 
 // TEST_CASE("GridFuncMeshSensIntegrator::AssembleRHSElementVect",
 //           "[GridFuncMeshSensIntegrator]")
@@ -1770,7 +1776,7 @@ TEST_CASE("ForceIntegrator::GetElementEnergy")
          dWds += energy.GetEnergy(A);
          dWds /= 2*delta;
 
-         std::cout << "-dWds: " << -dWds << " Force: " << force << "\n";
+         // std::cout << "-dWds: " << -dWds << " Force: " << force << "\n";
          REQUIRE(force == Approx(-dWds));
       }
    }

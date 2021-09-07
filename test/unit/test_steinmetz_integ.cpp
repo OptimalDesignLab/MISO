@@ -26,6 +26,7 @@ void funcRevDiff(const Vector &x, const double Q_bar, Vector &x_bar)
 
 } // namespace
 
+/** not maintaining anymore
 TEST_CASE("DomainResIntegrator::AssembleElementVector",
           "[DomainResIntegrator for Steinmetz]")
 {
@@ -40,7 +41,7 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
    int num_edge = 1;
    std::unique_ptr<Mesh> mesh = electromag_data::getMesh(2, 1);
                               //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                              //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+                              //        true , 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -110,7 +111,9 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
       }
    }
 }
+*/
 
+/** not maintaining anymore
 TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
           "[ThermalSensIntegrator]")
 {
@@ -125,7 +128,7 @@ TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh = electromag_data::getMesh();
                               //(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                              //        true /* gen. edges */, 1.0, 1.0, 1.0, true));
+                              //        true, 1.0, 1.0, 1.0, true));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -196,3 +199,4 @@ TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
       }
    }
 }
+*/
