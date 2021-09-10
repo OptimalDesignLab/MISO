@@ -23,9 +23,6 @@ NavierStokesSolver<dim, entvar>::NavierStokesSolver(
    // Note: the viscous terms are added to the semi-linear form `res` via
    // virtual function calls to addVolumeIntegrators(), addBoundaryIntegrators,
    // and addInterfaceIntegrators(). 
-
-   // add the output functional QoIs 
-   //addOutputs(dim);
 }
 
 template <int dim, bool entvar>
@@ -157,73 +154,6 @@ void NavierStokesSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 {
    // add base class integrators
    EulerSolver<dim, entvar>::addResInterfaceIntegrators(alpha);
-}
-
-template <int dim, bool entvar>
-void NavierStokesSolver<dim, entvar>::addOutputs()
-{
-   // auto &fun = this->options["outputs"];
-   // double mu = this->options["flow-param"]["mu"].template get<double>();
-   // Vector q_ref(dim+2);
-   // this->getFreeStreamState(q_ref);
-   // int idx = 0;
-   // if (fun.find("drag") != fun.end())
-   // { 
-   //    // drag on the specified boundaries
-   //    vector<int> tmp = fun["drag"].template get<vector<int>>();
-   //    this->output_bndry_marker[idx].SetSize(tmp.size(), 0);
-   //    this->output_bndry_marker[idx].Assign(tmp.data());
-   //    this->output.emplace("drag", this->fes.get());
-   //    mfem::Vector drag_dir(dim);
-   //    drag_dir = 0.0;
-   //    if (dim == 1)
-   //    {
-   //       drag_dir(0) = 1.0;
-   //    }
-   //    else 
-   //    {
-   //       drag_dir(this->iroll) = cos(this->aoa_fs);
-   //       drag_dir(this->ipitch) = sin(this->aoa_fs);
-   //    }
-   //    drag_dir *= 1.0 / pow(this->mach_fs, 2.0); // to get non-dimensional Cd
-   //    this->output.at("drag").AddBdrFaceIntegrator(
-   //        new SurfaceForce<dim>(this->diff_stack, this->fec.get(), dim + 2,
-   //                              re_fs, pr_fs, q_ref, drag_dir, mu),
-   //        this->output_bndry_marker[idx]);
-   //    idx++;
-   // }
-   // if (fun.find("lift") != fun.end())
-   // { 
-   //    // lift on the specified boundaries
-   //    vector<int> tmp = fun["lift"].template get<vector<int>>();
-   //    this->output_bndry_marker[idx].SetSize(tmp.size(), 0);
-   //    this->output_bndry_marker[idx].Assign(tmp.data());
-   //    this->output.emplace("lift", this->fes.get());
-   //    mfem::Vector lift_dir(dim);
-   //    lift_dir = 0.0;
-   //    if (dim == 1)
-   //    {
-   //       lift_dir(0) = 0.0;
-   //    }
-   //    else
-   //    {
-   //       lift_dir(this->iroll) = -sin(this->aoa_fs);
-   //       lift_dir(this->ipitch) = cos(this->aoa_fs);
-   //    }
-   //    lift_dir *= 1.0 / pow(this->mach_fs, 2.0); // to get non-dimensional Cl
-   //    this->output.at("lift").AddBdrFaceIntegrator(
-   //        new SurfaceForce<dim>(this->diff_stack, this->fec.get(), dim + 2,
-   //                              re_fs, pr_fs, q_ref, lift_dir, mu),
-   //        this->output_bndry_marker[idx]);
-   //    idx++;
-   // }
-   // if (fun.find("entropy") != fun.end())
-   // {
-   //    // integral of entropy over the entire volume domain
-   //    this->output.emplace("entropy", this->fes.get());
-   //    this->output.at("entropy").AddDomainIntegrator(
-   //       new EntropyIntegrator<dim, entvar>(this->diff_stack));
-   // }
 }
 
 template <int dim, bool entvar>

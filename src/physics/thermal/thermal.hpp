@@ -175,8 +175,7 @@ private:
    /// implementation of solveUnsteadyAdjoint, call only after solveForState
    void solveUnsteadyAdjoint(const std::string &fun) override;
 
-   /// implementation of addOutputs
-   void addOutputs() override;
+   // void addOutputs() override;
 
    // /// vector of maximum temperature constraints
    // mfem::Vector max;

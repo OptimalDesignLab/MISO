@@ -54,106 +54,106 @@ std::vector<GridFunType*> ThermalSolver::getFields(void)
    return {u.get()};
 }
 
+/// Commenting out for now, will update when I get around to using the thermal solver again
+// void ThermalSolver::addOutputs()
+// {
+//    auto &fun = options["outputs"];
+//    int idx = 0;
+//    if (fun.find("new-agg") != fun.end())
+//    {
+//       fractional_output.emplace("new-agg",
+//          std::initializer_list<std::string>{"agg-num", "agg_denom"});
 
-void ThermalSolver::addOutputs()
-{
-   auto &fun = options["outputs"];
-   int idx = 0;
-   if (fun.find("new-agg") != fun.end())
-   {
-      fractional_output.emplace("new-agg",
-         std::initializer_list<std::string>{"agg-num", "agg_denom"});
+//       output.emplace("agg-num", fes.get());
+//       output.emplace("agg-denom", fes.get());
 
-      output.emplace("agg-num", fes.get());
-      output.emplace("agg-denom", fes.get());
+//       /// assemble max temp array
+//       Vector max(fes->GetMesh()->attributes.Size());
+//       double default_max = options["problem-opts"].value("max-temp", 1e6);
+//       for (auto& component : options["components"])
+//       {
+//          auto material = component["material"].get<std::string>();
+//          auto mat_max = materials[material].value("max-temp", default_max);
 
-      /// assemble max temp array
-      Vector max(fes->GetMesh()->attributes.Size());
-      double default_max = options["problem-opts"].value("max-temp", 1e6);
-      for (auto& component : options["components"])
-      {
-         auto material = component["material"].get<std::string>();
-         auto mat_max = materials[material].value("max-temp", default_max);
-
-         int attr = component.value("attr", -1);
-         if (-1 != attr)
-         {
-            max[attr - 1] = mat_max;
-         }
-         else
-         {
-            auto attrs = component["attrs"].get<std::vector<int>>();
-            for (auto& attribute : attrs)
-            {
-               max[attribute - 1] = mat_max;
-            }
-         }
+//          int attr = component.value("attr", -1);
+//          if (-1 != attr)
+//          {
+//             max[attr - 1] = mat_max;
+//          }
+//          else
+//          {
+//             auto attrs = component["attrs"].get<std::vector<int>>();
+//             for (auto& attribute : attrs)
+//             {
+//                max[attribute - 1] = mat_max;
+//             }
+//          }
          
-      }
+//       }
       
-      /// use rho = 10 for a default if rho not given in options
-      double rhoa = options["problem-opts"].value("rho-agg", 10.0);
-      output.at("agg-num").AddDomainIntegrator(
-         new AggregateIntegratorNumerator(rhoa, max));
+//       /// use rho = 10 for a default if rho not given in options
+//       double rhoa = options["problem-opts"].value("rho-agg", 10.0);
+//       output.at("agg-num").AddDomainIntegrator(
+//          new AggregateIntegratorNumerator(rhoa, max));
 
-      output.at("agg-denom").AddDomainIntegrator(
-         new AggregateIntegratorDenominator(rhoa, max));
+//       output.at("agg-denom").AddDomainIntegrator(
+//          new AggregateIntegratorDenominator(rhoa, max));
 
-   }
-   if (fun.find("agg") != fun.end())
-   {
-      output.emplace("agg", fes.get());
+//    }
+//    if (fun.find("agg") != fun.end())
+//    {
+//       output.emplace("agg", fes.get());
       
-      /// assemble max temp array
-      Vector max(fes->GetMesh()->attributes.Size());
-      double default_max = options["problem-opts"].value("max-temp", 1e6);
-      for (auto& component : options["components"])
-      {
-         auto material = component["material"].get<std::string>();
-         auto mat_max = materials[material].value("max-temp", default_max);
+//       /// assemble max temp array
+//       Vector max(fes->GetMesh()->attributes.Size());
+//       double default_max = options["problem-opts"].value("max-temp", 1e6);
+//       for (auto& component : options["components"])
+//       {
+//          auto material = component["material"].get<std::string>();
+//          auto mat_max = materials[material].value("max-temp", default_max);
 
-         int attr = component.value("attr", -1);
-         if (-1 != attr)
-         {
-            max[attr - 1] = mat_max;
-         }
-         else
-         {
-            auto attrs = component["attrs"].get<std::vector<int>>();
-            for (auto& attribute : attrs)
-            {
-               max[attribute - 1] = mat_max;
-            }
-         }
+//          int attr = component.value("attr", -1);
+//          if (-1 != attr)
+//          {
+//             max[attr - 1] = mat_max;
+//          }
+//          else
+//          {
+//             auto attrs = component["attrs"].get<std::vector<int>>();
+//             for (auto& attribute : attrs)
+//             {
+//                max[attribute - 1] = mat_max;
+//             }
+//          }
          
-      }
+//       }
       
-      /// use rho = 10 for a default if rho not given
-      double rhoa = options["problem-opts"].value("rho-agg", 10.0);
-      output.at("agg").AddDomainIntegrator(
-         new AggregateIntegrator(fes.get(), rhoa, max, u.get()));
-   }
-   if (fun.find("temp") != fun.end())
-   {
-      output.emplace("temp", fes.get());
+//       /// use rho = 10 for a default if rho not given
+//       double rhoa = options["problem-opts"].value("rho-agg", 10.0);
+//       output.at("agg").AddDomainIntegrator(
+//          new AggregateIntegrator(fes.get(), rhoa, max, u.get()));
+//    }
+//    if (fun.find("temp") != fun.end())
+//    {
+//       output.emplace("temp", fes.get());
 
-      auto &bcs = options["bcs"];
-      int idx = 0;
-      bndry_marker.resize(bcs.size());
-      if (bcs.find("outflux") != bcs.end())
-      { // outward flux bc
-         vector<int> tmp = bcs["outflux"].get<vector<int>>();
-         bndry_marker[idx].SetSize(tmp.size(), 0);
-         bndry_marker[idx].Assign(tmp.data());
-         output.at("temp").AddBdrFaceIntegrator(
-            new TempIntegrator(fes.get(), u.get()), bndry_marker[idx]);
-         idx++;
-      }
-      //output.at("temp-agg").AddDomainIntegrator(
-      //new TempIntegrator(fes.get(), u.get()));
-   }
-   idx++; 
-}
+//       auto &bcs = options["bcs"];
+//       int idx = 0;
+//       bndry_marker.resize(bcs.size());
+//       if (bcs.find("outflux") != bcs.end())
+//       { // outward flux bc
+//          vector<int> tmp = bcs["outflux"].get<vector<int>>();
+//          bndry_marker[idx].SetSize(tmp.size(), 0);
+//          bndry_marker[idx].Assign(tmp.data());
+//          output.at("temp").AddBdrFaceIntegrator(
+//             new TempIntegrator(fes.get(), u.get()), bndry_marker[idx]);
+//          idx++;
+//       }
+//       //output.at("temp-agg").AddDomainIntegrator(
+//       //new TempIntegrator(fes.get(), u.get()));
+//    }
+//    idx++; 
+// }
 
 void ThermalSolver::initialHook(const ParGridFunction &state) 
 {
@@ -577,11 +577,7 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    {
       time_beg = MPI_Wtime();
    }
-
-   // add the dJdu output, do this now to precompute max temperature and 
-   // certain values for the functional so that we don't need it at every call
-   addOutputs();
-
+   
    // Step 0: allocate the adjoint variable
    adj.reset(new GridFunType(fes.get()));
 

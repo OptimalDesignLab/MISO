@@ -842,9 +842,6 @@ protected:
    /// Define the number of states, the finite element space, and state u
    virtual int getNumState() = 0; 
 
-   /// Create `output` based on `options` and add approporiate integrators
-   virtual void addOutputs() {};
-
    /// Add integrators to functional `fun` based on options
    virtual void addOutputIntegrators(const std::string &fun,
                                      const nlohmann::json &options) {};

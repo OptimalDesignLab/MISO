@@ -147,14 +147,4 @@ void JouleSolver::solveForAdjoint(const std::string &fun)
    }
 }
 
-// Vector* JouleSolver::getMeshSensitivities()
-// {
-
-// }
-
-void JouleSolver::addOutputs()
-{
-   auto &fun = options["outputs"];
-}
-
 } // namespace mach

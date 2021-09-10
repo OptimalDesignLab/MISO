@@ -269,7 +269,6 @@ void AbstractSolver::initDerived()
    //    if (it->is_array()) ++num_bndry_outputs;
    // }
    // output_bndry_marker.resize(num_bndry_outputs);
-   // addOutputs(); // virtual function
 
    prec = constructPreconditioner(options["lin-prec"]);
    solver = constructLinearSolver(options["lin-solver"], *prec);
