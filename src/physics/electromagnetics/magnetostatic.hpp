@@ -190,12 +190,12 @@ private:
    void terminalHook(int iter, double t_final,
                      const mfem::ParGridFunction &state) override;
 
-   /// Constructs the nonlinear solver object
-   /// \param[in] options - options structure that determines the solver
-   /// \param[in] lin_solver - linear solver for the Newton steps
-   /// \returns unique pointer to the Newton solver object
-   std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
-      nlohmann::json &options, mfem::Solver &lin_solver) override;
+   // /// Constructs the nonlinear solver object
+   // /// \param[in] options - options structure that determines the solver
+   // /// \param[in] lin_solver - linear solver for the Newton steps
+   // /// \returns unique pointer to the Newton solver object
+   // std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
+   //    nlohmann::json &options, mfem::Solver &lin_solver) override;
 
    /// Create `output` based on `options` and add approporiate integrators
    // void addOutputs() override;

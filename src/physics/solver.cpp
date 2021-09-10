@@ -500,7 +500,6 @@ void AbstractSolver::setFieldValue(HypreParVector &field,
                                    const double u_init)
 {
    ConstantCoefficient u0(u_init);
-   *scratch = field;
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
 }
@@ -518,7 +517,6 @@ void AbstractSolver::setFieldValue(
    const std::function<double(const Vector &)> &u_init)
 {
    FunctionCoefficient u0(u_init);
-   *scratch = field;
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
 }
@@ -535,7 +533,6 @@ void AbstractSolver::setFieldValue(HypreParVector &field,
                                    const Vector &u_init)
 {
    VectorConstantCoefficient u0(u_init);
-   *scratch = field;
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
 }
@@ -553,7 +550,6 @@ void AbstractSolver::setFieldValue(
    const std::function<void(const Vector &, Vector&)> &u_init)
 {
    VectorFunctionCoefficient u0(num_state, u_init);
-   *scratch = field;
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
 }
