@@ -15,11 +15,11 @@ class MachLinearForm final
 {
 public:
    /// Assemble the linear form on the true dofs and add it to tv
-   friend void addLoad(MachLinearForm &lf,
+   friend void addLoad(MachLinearForm &load,
                        mfem::Vector &tv);
    
    /// Set scalar inputs in all integrators used by the linear form
-   friend void setInputs(MachLinearForm &lf,
+   friend void setInputs(MachLinearForm &load,
                          const MachInputs &inputs);
 
    /// Assemble the linear form's sensitivity to a scalar and contract it with
