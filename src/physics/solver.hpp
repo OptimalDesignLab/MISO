@@ -392,14 +392,14 @@ public:
 
    /// Creates the nonlinear form for the functional
    /// \param[in] fun - specifies the desired functional
-   /// \note if a nonlinear from for `fun` has already been created an
+   /// \note if a nonlinear form for `fun` has already been created an
    /// exception will be thrown
    void createOutput(const std::string &fun);
 
    /// Creates the nonlinear form for the functional
    /// \param[in] fun - specifies the desired functional
    /// \param[in] options - options needed for calculating functional
-   /// \note if a nonlinear from for `fun` has already been created an
+   /// \note if a nonlinear form for `fun` has already been created an
    /// exception will be thrown
    void createOutput(const std::string &fun,
                      const nlohmann::json &options);
