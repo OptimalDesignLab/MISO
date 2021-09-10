@@ -1,5 +1,5 @@
-#ifndef MACH_RES_INTEGRATOR
-#define MACH_RES_INTEGRATOR
+#ifndef MACH_MFEM_COMMON_INTEG
+#define MACH_MFEM_COMMON_INTEG
 
 #include "mfem.hpp"
 
