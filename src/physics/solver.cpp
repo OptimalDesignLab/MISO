@@ -770,9 +770,10 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
                                   ParGridFunction &residual)
 {
    auto *u_true = state.GetTrueDofs();
-   res->Mult(*u_true, residual);
+   auto *r_true = residual.GetTrueDofs();
+   res->Mult(*u_true, *r_true);
    if (load)
-      residual -= *load;
+      *r_true -= *load;
 }
 
 double AbstractSolver::calcStepSize(int iter, double t, double t_final,
@@ -1083,7 +1084,6 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
-
    int ti;
    bool done = false;
    double dt = 0.0;
@@ -1272,7 +1272,7 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
       HYPRE_ILUSetLevelOfFill(*ilu, _options["lev-fill"].get<int>());
       HYPRE_ILUSetLocalReordering(*ilu, _options["ilu-reorder"].get<int>());
       HYPRE_ILUSetPrintLevel(*ilu, _options["printlevel"].get<int>());
-      cout << "Just after Hypre options" << endl;
+      //cout << "Just after Hypre options" << endl;
       // Just listing the options below in case we need them in the future
       //HYPRE_ILUSetSchurMaxIter(ilu, schur_max_iter);
       //HYPRE_ILUSetNSHDropThreshold(ilu, nsh_thres); needs type = 20,21

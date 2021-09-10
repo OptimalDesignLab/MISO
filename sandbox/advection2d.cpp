@@ -47,7 +47,8 @@ int main(int argc, char *argv[])
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
       unique_ptr<AbstractSolver> solver(
-         new AdvectionSolver<2>(opt_file_name, velocity_function));
+         new AdvectionSolver<2>(opt_file_name, velocity_function, 
+                                MPI_COMM_WORLD));
       solver->setInitialCondition(u0_function);
       *out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;      
@@ -64,15 +65,6 @@ int main(int argc, char *argv[])
       cerr << exception.what() << endl;
    }
    MPI_Finalize();
-#endif
-}
-
-void velocity_function(const Vector &x, Vector &v)
-{
-   // Simply advection to upper right corner; See mfem ex9 to see how this might
-   // be generalized.
-   v(0) = 1.0;
-   v(1) = 1.0;
 }
 
 // Initial condition

@@ -18,8 +18,8 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -27,7 +27,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(new mach::EulerIntegrator<2>(diff_stack));
@@ -67,7 +67,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
          std::unique_ptr<FiniteElementCollection> fec(
              new DSBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(new mach::EulerIntegrator<2>(diff_stack));
@@ -116,8 +116,8 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -125,7 +125,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddBdrFaceIntegrator(new mach::SlipWallBC<dim>(diff_stack,
@@ -166,7 +166,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
          std::unique_ptr<FiniteElementCollection> fec(
              new DSBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddBdrFaceIntegrator(new mach::SlipWallBC<dim>(diff_stack,
@@ -221,8 +221,8 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -230,7 +230,7 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm drag(fes.get());
          drag.AddBdrFaceIntegrator(
@@ -266,7 +266,7 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
          std::unique_ptr<FiniteElementCollection> fec(
              new DSBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm drag(fes.get());
          drag.AddBdrFaceIntegrator(
@@ -313,8 +313,8 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -322,7 +322,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
@@ -363,7 +363,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
          std::unique_ptr<FiniteElementCollection> fec(
              new DSBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(new mach::IsmailRoeIntegrator<2, entvar>(diff_stack));
@@ -414,8 +414,8 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
 //    // generate a 2 element mesh
 //    int num_edge = 2;
-//    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-//                                        true /* gen. edges */, 1.0, 1.0, true));
+//    Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+//                                    true /* gen. edges */, 1.0, 1.0, true));
 
 //    const int max_degree = 4;
 //    for (int p = 0; p <= max_degree; p++)
@@ -425,7 +425,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 //          std::unique_ptr<FiniteElementCollection> fec(
 //              new DSBPCollection(p, dim));
 //          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-//              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+//              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
 //          NonlinearForm res(fes.get());
 //          res.AddInteriorFaceIntegrator(new mach::InterfaceIntegrator<dim>(
@@ -477,8 +477,8 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -486,7 +486,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
@@ -527,7 +527,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
          std::unique_ptr<FiniteElementCollection> fec(
              new DSBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(new mach::EntStableLPSIntegrator<2, entvar>(diff_stack));
@@ -577,8 +577,8 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
 
    // generate an 8 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -586,7 +586,7 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          // initialize state; we randomly perturb a constant state
          GridFunction u(fes.get());
@@ -627,7 +627,7 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
          std::unique_ptr<FiniteElementCollection> fec(
              new DSBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          // initialize state and k = du/dt; here we randomly perturb a constant state
          GridFunction u(fes.get());
@@ -680,8 +680,8 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad",
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
-                                       true /* gen. edges */, 1.0, 1.0, true));
+   Mesh mesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                   true /* gen. edges */, 1.0, 1.0, true));
 
    const int max_degree = 4;
    for (int p = 0; p <= max_degree; p++)
@@ -691,7 +691,7 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad",
          std::unique_ptr<FiniteElementCollection> fec(
              new DSBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
          res.AddInteriorFaceIntegrator(

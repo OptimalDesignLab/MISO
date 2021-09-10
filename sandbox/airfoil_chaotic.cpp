@@ -33,8 +33,17 @@ int main(int argc, char *argv[])
    petscoptions << "-pc_factor_reuse_ordering" << endl;
    petscoptions.close();
 #endif
+
    // Initialize MPI
+   int num_procs, rank;
    MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   ostream *out = getOutStream(rank);
+
+#ifdef MFEM_USE_PETSC
+   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
+#endif
 
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -46,9 +55,6 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
 
    try
    {
@@ -64,8 +70,8 @@ int main(int argc, char *argv[])
       dynamic_cast<EulerSolver<2>*>(solver.get())->getFreeStreamState(qfar);
 
       // TEMP?
-      qfar(1) = 0.0;
-      qfar(2) = 0.0;
+      //qfar(1) = 0.0;
+      //qfar(2) = 0.0;
 
       //static_cast<EulerSolver<2>*>(solver)->getFreeStreamState(qfar); 
       solver->setInitialCondition(qfar);
