@@ -8,11 +8,11 @@ using namespace std;
 
 namespace mach
 {
-
-void AdvectionIntegrator::AssembleElementMatrix(
-   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
+void AdvectionIntegrator::AssembleElementMatrix(const FiniteElement &el,
+                                                ElementTransformation &Trans,
+                                                DenseMatrix &elmat)
 {
-   using SBP = const SBPTriangleElement&;
+   using SBP = const SBPTriangleElement &;
    int num_nodes = el.GetDof();
    int dim = el.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -20,9 +20,9 @@ void AdvectionIntegrator::AssembleElementMatrix(
    Vector vel_i, velhat_i, Udi;
 #endif
    elmat.SetSize(num_nodes);
-   velhat.SetSize(dim, num_nodes); // scaled velocity in reference space
-   adjJ.SetSize(dim); // adjJ = |J|*dxi/dx = adj(dx/dxi)
-   Udi.SetSize(num_nodes); // reference to one component of velhat at all nodes
+   velhat.SetSize(dim, num_nodes);  // scaled velocity in reference space
+   adjJ.SetSize(dim);               // adjJ = |J|*dxi/dx = adj(dx/dxi)
+   Udi.SetSize(num_nodes);  // reference to one component of velhat at all nodes
 
    // Evaluate the velocity at the nodes and get the velocity in reference space
    // vel and velhat are dim x num_nodes
@@ -41,23 +41,25 @@ void AdvectionIntegrator::AssembleElementMatrix(
    {
       static_cast<SBP>(el).getWeakOperator(di, Q, true);
       velhat.GetRow(di, Udi);
-      Q.RightScaling(Udi); // This makes Q_{di}^T * diag(Udi)
-      elmat.Add(-alpha, Q); // minus sign accounts for integration by parts
+      Q.RightScaling(Udi);   // This makes Q_{di}^T * diag(Udi)
+      elmat.Add(-alpha, Q);  // minus sign accounts for integration by parts
    }
 }
 
-AdvectLPSIntegrator::AdvectLPSIntegrator(
-    VectorCoefficient &velc, double a, double diss_coeff)
-    : vel_coeff(velc)
+AdvectLPSIntegrator::AdvectLPSIntegrator(VectorCoefficient &velc,
+                                         double a,
+                                         double diss_coeff)
+ : vel_coeff(velc)
 {
    alpha = a;
    lps_coeff = diss_coeff;
 }
 
-void AdvectLPSIntegrator::AssembleElementMatrix(
-   const FiniteElement &el, ElementTransformation &Trans, DenseMatrix &elmat)
+void AdvectLPSIntegrator::AssembleElementMatrix(const FiniteElement &el,
+                                                ElementTransformation &Trans,
+                                                DenseMatrix &elmat)
 {
-   using SBP = const SBPTriangleElement&;
+   using SBP = const SBPTriangleElement &;
    int num_nodes = el.GetDof();
    int dim = el.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -65,14 +67,14 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
    Vector velhat_i, AH;
 #endif
    elmat.SetSize(num_nodes);
-   adjJ.SetSize(dim); // adjJ = |J|*dxi/dx = adj(dx/dxi)
-   P.SetSize(num_nodes); // LPS projection operator
-   velhat_i.SetSize(dim); // scaled velocity in reference space at a node
-   AH.SetSize(num_nodes); // the scaling matrix for LPS
+   adjJ.SetSize(dim);      // adjJ = |J|*dxi/dx = adj(dx/dxi)
+   P.SetSize(num_nodes);   // LPS projection operator
+   velhat_i.SetSize(dim);  // scaled velocity in reference space at a node
+   AH.SetSize(num_nodes);  // the scaling matrix for LPS
 
    // Get AH: the scaling matrix, A, times the quadrature weights, H
    vel_coeff.Eval(vel, Trans, el.GetNodes());
-   Vector vel_i; // reference to vel at a node
+   Vector vel_i;  // reference to vel at a node
    const Vector &H = static_cast<SBP>(el).returnDiagNorm();
    for (int i = 0; i < num_nodes; i++)
    {
@@ -80,7 +82,7 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
       Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
       CalcAdjugate(Trans.Jacobian(), adjJ);
       adjJ.Mult(vel_i, velhat_i);
-      AH(i) = alpha*lps_coeff*H(i)*velhat_i.Norml2();
+      AH(i) = alpha * lps_coeff * H(i) * velhat_i.Norml2();
    }
    // Get the projection operator, construct LPS, and add to element matrix
    static_cast<SBP>(el).getProjOperator(P);
@@ -89,15 +91,14 @@ void AdvectLPSIntegrator::AssembleElementMatrix(
 }
 
 template <int dim>
-AdvectionSolver<dim>::AdvectionSolver(
-    const nlohmann::json &json_options,
-    void (*vel_field)(const Vector &, Vector &),
-    MPI_Comm comm)
-    : AbstractSolver(json_options, nullptr, comm)
+AdvectionSolver<dim>::AdvectionSolver(const nlohmann::json &json_options,
+                                      void (*vel_field)(const Vector &,
+                                                        Vector &),
+                                      MPI_Comm comm)
+ : AbstractSolver(json_options, nullptr, comm)
 {
    // set up the stiffness matrix
-   velocity.reset(
-       new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
+   velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
    *out << "dimension is " << mesh->Dimension() << endl;
    stiff.reset(new BilinearFormType(static_cast<SpaceType *>(fes.get())));
    stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
@@ -117,10 +118,16 @@ AdvectionSolver<dim>::AdvectionSolver(
    /// This should overwrite the evolver defined in base class constructor
    /// TODO: This should not be necessary?
    evolver.reset(
-      //   new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out))); 
-       new MachEvolver(ess_bdr, nullptr, mass.get(), nullptr, stiff.get(),
-                       nullptr, nullptr, *(out), 0.0));
-
+       //   new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out)));
+       new MachEvolver(ess_bdr,
+                       nullptr,
+                       mass.get(),
+                       nullptr,
+                       stiff.get(),
+                       nullptr,
+                       nullptr,
+                       *(out),
+                       0.0));
 }
 
 // explicit instantiation
@@ -128,4 +135,4 @@ template class AdvectionSolver<1>;
 template class AdvectionSolver<2>;
 template class AdvectionSolver<3>;
 
-} // namespace mach
+}  // namespace mach

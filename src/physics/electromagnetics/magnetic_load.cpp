@@ -10,13 +10,12 @@ using namespace mfem;
 
 namespace mach
 {
-
 MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
                            VectorCoefficient &mag_coeff,
                            Coefficient &nu)
-   : lf(pfes, mag_load_fields), nuM(nu, mag_coeff)
+ : lf(pfes, mag_load_fields), nuM(nu, mag_coeff)
 {
-   auto &mesh_gf = dynamic_cast<ParGridFunction&>(*pfes.GetMesh()->GetNodes());
+   auto &mesh_gf = dynamic_cast<ParGridFunction &>(*pfes.GetMesh()->GetNodes());
    auto *mesh_fes = mesh_gf.ParFESpace();
    mag_load_fields.emplace(std::piecewise_construct,
                            std::make_tuple("mesh_coords"),
@@ -24,12 +23,12 @@ MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
 
    lf.addDomainIntegrator(new mach::VectorFEDomainLFCurlIntegrator(nuM, -1.0));
    /// only needed if magnets are on the boundary and not normal to boundary
-   // lf.addBdrFaceIntegrator(new mach::VectorFEBoundaryTangentLFIntegrator(nuM, -1.0));
+   // lf.addBdrFaceIntegrator(new mach::VectorFEBoundaryTangentLFIntegrator(nuM,
+   // -1.0));
 }
 
 /// set inputs should include fields, so things can check it they're "dirty"
-void setInputs(LegacyMagneticLoad &load,
-               const MachInputs &inputs)
+void setInputs(LegacyMagneticLoad &load, const MachInputs &inputs)
 {
    auto it = inputs.find("mesh_coords");
    if (it != inputs.end())
@@ -38,8 +37,7 @@ void setInputs(LegacyMagneticLoad &load,
    }
 }
 
-void addLoad(LegacyMagneticLoad &load,
-             Vector &tv)
+void addLoad(LegacyMagneticLoad &load, Vector &tv)
 {
    if (load.dirty)
    {
@@ -61,15 +59,21 @@ void vectorJacobianProduct(LegacyMagneticLoad &load,
                            std::string wrt,
                            mfem::HypreParVector &wrt_bar)
 {
-   throw std::logic_error("vectorJacobianProduct not implemented for LegacyMagneticLoad!\n");
+   throw std::logic_error(
+       "vectorJacobianProduct not implemented for LegacyMagneticLoad!\n");
 }
 
 LegacyMagneticLoad::LegacyMagneticLoad(ParFiniteElementSpace &pfes,
                                        VectorCoefficient &mag_coeff,
                                        Coefficient &nu)
-   : fes(pfes), rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
-   rt_fes(fes.GetParMesh(), &rt_coll), mag_coeff(mag_coeff),
-   load(&fes), weakCurlMuInv(&rt_fes, &fes), M(&rt_fes), scratch(&fes),
+ : fes(pfes),
+   rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
+   rt_fes(fes.GetParMesh(), &rt_coll),
+   mag_coeff(mag_coeff),
+   load(&fes),
+   weakCurlMuInv(&rt_fes, &fes),
+   M(&rt_fes),
+   scratch(&fes),
    dirty(true)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
@@ -87,4 +91,4 @@ void LegacyMagneticLoad::assembleLoad()
    scratch.ParallelAssemble(load);
 }
 
-} // namespace mach
+}  // namespace mach

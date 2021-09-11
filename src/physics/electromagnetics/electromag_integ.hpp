@@ -11,7 +11,6 @@
 
 namespace mach
 {
-
 class AbstractSolver;
 class StateCoefficient;
 
@@ -44,9 +43,9 @@ double calcMagneticEnergyDot(mfem::ElementTransformation &trans,
 /// \param[in] B - upper bound for integration
 /// \return the second derivative of the magnetic energy with respect to B
 double calcMagneticEnergyDoubleDot(mfem::ElementTransformation &trans,
-                             const mfem::IntegrationPoint &ip,
-                             StateCoefficient &nu,
-                             double B);
+                                   const mfem::IntegrationPoint &ip,
+                                   StateCoefficient &nu,
+                                   double B);
 
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
 class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator
@@ -55,9 +54,9 @@ public:
    /// Construct a curl curl nonlinear form integrator for Nedelec elements
    /// \param[in] m - model describing nonlinear material parameter
    /// \param[in] a - used to move to lhs or rhs
-   CurlCurlNLFIntegrator(StateCoefficient &m,
-                        double a = 1.0)
-      : model(m), alpha(a) {}
+   CurlCurlNLFIntegrator(StateCoefficient &m, double a = 1.0)
+    : model(m), alpha(a)
+   { }
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -80,10 +79,10 @@ public:
                             mfem::DenseMatrix &elmat) override;
 
 private:
-	/// material (thus mesh) dependent model describing electromagnetic behavior
-	StateCoefficient &model;
+   /// material (thus mesh) dependent model describing electromagnetic behavior
+   StateCoefficient &model;
    /// scales the terms; can be used to move to rhs/lhs
-	double alpha;
+   double alpha;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt;
@@ -103,14 +102,14 @@ public:
    CurlCurlNLFIntegratorMeshSens(mfem::GridFunction &state,
                                  mfem::GridFunction &adjoint,
                                  CurlCurlNLFIntegrator &integ)
-   : state(state), adjoint(adjoint), integ(integ)
+    : state(state), adjoint(adjoint), integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to d(psi^T R)/dX
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
-   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
-   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// \param[in] trans - the transformation between reference and physical
+   /// space \param[out] mesh_coords_bar - d(psi^T R)/dX for the element \note
+   /// the LinearForm that assembles this integrator's FiniteElementSpace
    ///       MUST be the mesh's nodal finite element space
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
@@ -133,31 +132,30 @@ private:
 
 template <>
 inline void addSensitivityIntegrator<CurlCurlNLFIntegrator>(
-   CurlCurlNLFIntegrator &primal_integ,
-   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &res_sens,
-   std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens)
+    CurlCurlNLFIntegrator &primal_integ,
+    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+    std::map<std::string, mfem::ParLinearForm> &res_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens)
 {
    auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    res_sens.emplace("mesh_coords", mesh_fes);
-   res_sens.at("mesh_coords").AddDomainIntegrator(
-      new CurlCurlNLFIntegratorMeshSens(res_fields.at("state"),
-                                        res_fields.at("res_bar"),
-                                        primal_integ));
-};
-
+   res_sens.at("mesh_coords")
+       .AddDomainIntegrator(new CurlCurlNLFIntegratorMeshSens(
+           res_fields.at("state"), res_fields.at("res_bar"), primal_integ));
+}
 
 /// Integrator for (\nu(u) M, curl v) for Nedelec Elements
 class MagnetizationIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Construct a curl curl nonlinear form integrator for Nedelec elements
-	/// \param[in] m - model describing nonlinear material parameter
+   /// \param[in] m - model describing nonlinear material parameter
    /// \param[in] a - used to move to lhs or rhs
    MagnetizationIntegrator(StateCoefficient *nu,
                            mfem::VectorCoefficient *M,
-								   double a = 1.0)
-		: nu(nu), mag(M), alpha(a) {}
+                           double a = 1.0)
+    : nu(nu), mag(M), alpha(a)
+   { }
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -180,12 +178,12 @@ public:
                                     mfem::DenseMatrix &elmat);
 
 private:
-	/// material (thus mesh) dependent model for reluvtivity
-	StateCoefficient *nu;
+   /// material (thus mesh) dependent model for reluvtivity
+   StateCoefficient *nu;
    /// material thus mesh dependent model for Magnetization
    mfem::VectorCoefficient *mag;
    /// scales the terms; can be used to move to rhs/lhs
-	double alpha;
+   double alpha;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape, curlshape_dFt;
@@ -215,10 +213,12 @@ public:
         alpha(_alpha) {};
 
    /// \brief - assemble an element's contribution to
-   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
+   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the
+total
    ///          derivative of a functional with respect to the mesh nodes
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[in] trans - the transformation between reference and physical
+space
    /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
    /// \note this is the `LinearFormIntegrator` component, the LinearForm that
    ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
@@ -226,10 +226,10 @@ public:
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
-   
+
 private:
-	/// material (thus mesh) dependent model describing electromagnetic behavior
-	mfem::Coefficient *nu;
+   /// material (thus mesh) dependent model describing electromagnetic behavior
+   mfem::Coefficient *nu;
    /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
    const mfem::GridFunction *state;
    /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
@@ -264,13 +264,16 @@ public:
                                const mfem::GridFunction *_adjoint,
                                mfem::VectorCoefficient *_vec_coeff = nullptr,
                                const double _alpha = 1.0)
-      : state(_state), adjoint(_adjoint), vec_coeff(_vec_coeff), alpha(_alpha) {};
+      : state(_state), adjoint(_adjoint), vec_coeff(_vec_coeff), alpha(_alpha)
+{};
 
    /// \brief - assemble an element's contribution to
-   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
+   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the
+total
    ///          derivative of a functional with respect to the mesh nodes
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[in] trans - the transformation between reference and physical
+space
    /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
    /// \note this is the `LinearFormIntegrator` component, the LinearForm that
    ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
@@ -278,7 +281,7 @@ public:
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
-   
+
 private:
    /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
    const mfem::GridFunction *state;
@@ -310,15 +313,17 @@ public:
    ///       and that adjoint is in a H1 finite element space
    VectorFEWeakDivergencedJdXIntegrator(const mfem::GridFunction *_state,
                                         const mfem::GridFunction *_adjoint,
-                                        mfem::VectorCoefficient *_vec_coeff = nullptr,
-                                        const double _alpha = 1.0)
-      : state(_state), adjoint(_adjoint), vec_coeff(_vec_coeff), alpha(_alpha) {};
+                                        mfem::VectorCoefficient *_vec_coeff =
+nullptr, const double _alpha = 1.0) : state(_state), adjoint(_adjoint),
+vec_coeff(_vec_coeff), alpha(_alpha) {};
 
    /// \brief - assemble an element's contribution to
-   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
+   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the
+total
    ///          derivative of a functional with respect to the mesh nodes
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[in] trans - the transformation between reference and physical
+space
    /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
    /// \note this is the `LinearFormIntegrator` component, the LinearForm that
    ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
@@ -326,7 +331,7 @@ public:
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
-   
+
 private:
    /// the state to use when evaluating \frac{\partial psi^T R}{\partial X}
    const mfem::GridFunction *state;
@@ -359,7 +364,8 @@ public:
    ///          \frac{\partial psi^T LF}{\partial X}, needed for finding the
    ///          total derivative of a functional with respect to the mesh nodes
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[in] trans - the transformation between reference and physical
+space
    /// \param[out] elvect - \frac{\partial psi^T LF}{\partial X} for the element
    /// \note the LinearForm that assembles this integrator's FiniteElementSpace
    ///       MUST be the mesh's nodal finite element space
@@ -397,10 +403,12 @@ public:
       : adjoint(_adjoint), vec_coeff(_vec_coeff), alpha(_alpha) {};
 
    /// \brief - assemble an element's contribution to
-   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the total
+   ///          \frac{\partial psi^T R}{\partial X}, needed for finding the
+total
    ///          derivative of a functional with respect to the mesh nodes
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[in] trans - the transformation between reference and physical
+space
    /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
    /// \note this is the `LinearFormIntegrator` component, the LinearForm that
    ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
@@ -408,7 +416,7 @@ public:
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
-   
+
 private:
    /// the adjoint to use when evaluating \frac{\partial psi^T R}{\partial X}
    mfem::GridFunction *adjoint;
@@ -431,9 +439,7 @@ class MagneticEnergyIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// \param[in] nu - model describing reluctivity
-   MagneticEnergyIntegrator(StateCoefficient &nu)
-   : nu(nu)
-   { }
+   MagneticEnergyIntegrator(StateCoefficient &nu) : nu(nu) { }
 
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
@@ -448,7 +454,7 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
    /// \param[out] elvect - \partial J \partial u for this functional
-   void AssembleElementVector(const mfem::FiniteElement &el, 
+   void AssembleElementVector(const mfem::FiniteElement &el,
                               mfem::ElementTransformation &trans,
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
@@ -469,16 +475,17 @@ class MagneticEnergyIntegratorMeshSens : public mfem::LinearFormIntegrator
 public:
    /// \brief - Compute energy stored in magnetic field mesh sensitivity
    /// \param[in] state - the state vector to evaluate force at
-   /// \param[in] integ - reference to primal integrator that holds inputs for integrators
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrators
    MagneticEnergyIntegratorMeshSens(mfem::GridFunction &state,
                                     MagneticEnergyIntegrator &integ)
-   : state(state), integ(integ)
+    : state(state), integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to dJdX
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
-   /// \param[out] mesh_coords_bar - dJdX for the element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space \param[out] mesh_coords_bar - dJdX for the element
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &mesh_coords_bar) override;
@@ -498,15 +505,16 @@ private:
 
 template <>
 inline void addSensitivityIntegrator<MagneticEnergyIntegrator>(
-   MagneticEnergyIntegrator &primal_integ,
-   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &output_sens,
-   std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    MagneticEnergyIntegrator &primal_integ,
+    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
 {
    auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    output_sens.emplace("mesh_coords", mesh_fes);
-   output_sens.at("mesh_coords").AddDomainIntegrator(
-      new MagneticEnergyIntegratorMeshSens(res_fields.at("state"), primal_integ));
+   output_sens.at("mesh_coords")
+       .AddDomainIntegrator(new MagneticEnergyIntegratorMeshSens(
+           res_fields.at("state"), primal_integ));
 }
 
 /** commenting out co-energy stuff since I'm stopping maintaining it
@@ -534,7 +542,7 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
    /// \param[out] elvect - \partial J \partial u for this functional
-   void AssembleElementVector(const mfem::FiniteElement &el, 
+   void AssembleElementVector(const mfem::FiniteElement &el,
                               mfem::ElementTransformation &trans,
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
@@ -543,7 +551,8 @@ public:
    ///          \frac{\partial J}{\partial X}, needed for finding the total
    ///          derivative of the functional with respect to the mesh nodes
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
+   /// \param[in] trans - the transformation between reference and physical
+space
    /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
    /// \note this is the `LinearFormIntegrator` component, the LinearForm that
    ///       assembles this integrator's FiniteElementSpace MUST be the mesh's
@@ -597,7 +606,7 @@ inline void setInput(MagneticCoenergyIntegrator &integ,
 class BNormIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   BNormIntegrator() {};
+   BNormIntegrator() { }
 
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
@@ -612,7 +621,7 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
    /// \param[out] elvect - \partial J \partial u for this functional
-   void AssembleElementVector(const mfem::FiniteElement &el, 
+   void AssembleElementVector(const mfem::FiniteElement &el,
                               mfem::ElementTransformation &trans,
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
@@ -632,13 +641,13 @@ public:
    /// \param[in] state - the current state (A)
    /// \note the finite element space used to by the linear form that assembles
    ///       this integrator will use the mesh's nodal finite element space
-   BNormdJdx(mfem::GridFunction &_state)
-      : LinearFormIntegrator(), state(_state) {}
+   BNormdJdx(mfem::GridFunction &_state) : LinearFormIntegrator(), state(_state)
+   { }
 
-   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial X}
-   /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
-   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial
+   /// X} \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space \param[out] elvect - \frac{\partial J}{\partial X} for the element
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
@@ -657,8 +666,7 @@ class nuBNormIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// \param[in] nu - model describing reluctivity
-   nuBNormIntegrator(StateCoefficient *_nu)
-      : nu(_nu) {};
+   nuBNormIntegrator(StateCoefficient *_nu) : nu(_nu) { }
 
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
@@ -673,7 +681,7 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
    /// \param[out] elvect - \partial J \partial u for this functional
-   void AssembleElementVector(const mfem::FiniteElement &el, 
+   void AssembleElementVector(const mfem::FiniteElement &el,
                               mfem::ElementTransformation &trans,
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
@@ -696,13 +704,13 @@ public:
    /// \note the finite element space used to by the linear form that assembles
    ///       this integrator will use the mesh's nodal finite element space
    nuBNormdJdx(mfem::GridFunction &_state, StateCoefficient *_nu)
-      : LinearFormIntegrator(), state(_state), nu(_nu) {}
+    : LinearFormIntegrator(), state(_state), nu(_nu)
+   { }
 
-
-   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial X}
-   /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
-   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial
+   /// X} \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space \param[out] elvect - \frac{\partial J}{\partial X} for the element
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
@@ -724,8 +732,7 @@ class nuFuncIntegrator : public mfem::NonlinearFormIntegrator,
 {
 public:
    /// \param[in] nu - model describing reluctivity
-   nuFuncIntegrator(StateCoefficient *_nu)
-      : state(NULL), nu(_nu) {};
+   nuFuncIntegrator(StateCoefficient *_nu) : state(NULL), nu(_nu) { }
 
    /// \brief - linear form integrator to assemble the vector
    ///          \frac{\partial J}{\partial X}
@@ -733,7 +740,8 @@ public:
    /// \note the finite element space used to by the linear form that assembles
    ///       this integrator will use the mesh's nodal finite element space
    nuFuncIntegrator(mfem::GridFunction *_state, StateCoefficient *_nu)
-      : state(_state), nu(_nu) {};
+    : state(_state), nu(_nu)
+   { }
 
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
@@ -749,15 +757,15 @@ public:
    /// \param[in] elfun - state vector of the element
    /// \param[out] elvect - \partial J \partial u for this functional
    /// \note - not implemented
-   // void AssembleElementVector(const mfem::FiniteElement &el, 
+   // void AssembleElementVector(const mfem::FiniteElement &el,
    //                            mfem::ElementTransformation &trans,
    //                            const mfem::Vector &elfun,
    //                            mfem::Vector &elvect) override;
 
-   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial X}
-   /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
-   /// \param[out] elvect - \frac{\partial J}{\partial X} for the element
+   /// \brief - assemble an element's contribution to \frac{\partial J}{\partial
+   /// X} \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space \param[out] elvect - \frac{\partial J}{\partial X} for the element
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
@@ -773,16 +781,19 @@ private:
 #endif
 };
 
-/// Integrator to compute the sensitivity of the thermal residual to the vector potential
+/// Integrator to compute the sensitivity of the thermal residual to the vector
+/// potential
 class ThermalSensIntegrator : public mfem::NonlinearFormIntegrator,
                               public mfem::LinearFormIntegrator
 {
 public:
    /// Constructor, expected coefficient is SteinmetzVectorDiffCoefficient
-   ThermalSensIntegrator(mfem::VectorCoefficient &_Q, 
-                         mfem::GridFunction *_adjoint, 
-                         int a = 2, int b = 0)
-   : Q(_Q), oa(a), ob(b), adjoint(_adjoint) {}
+   ThermalSensIntegrator(mfem::VectorCoefficient &_Q,
+                         mfem::GridFunction *_adjoint,
+                         int a = 2,
+                         int b = 0)
+    : Q(_Q), oa(a), ob(b), adjoint(_adjoint)
+   { }
 
    /// \brief - assemble an element's contribution to
    ///          \frac{\partial psi^T R}{\partial A}
@@ -794,6 +805,7 @@ public:
    void AssembleRHSElementVect(const mfem::FiniteElement &ela,
                                mfem::ElementTransformation &Transa,
                                mfem::Vector &elvect) override;
+
 private:
    /// vector coefficient that evaluates dQ/dA
    mfem::VectorCoefficient &Q;
@@ -817,14 +829,16 @@ public:
 
    /// \brief - Compute DC copper losses in the domain
    /// \param[in] sigma - the electrical conductivity coefficient
-   /// \param[in] current - the current density vector coefficient 
+   /// \param[in] current - the current density vector coefficient
    /// \param[in] current_density - the current density magnitude
    /// \param[in] fill_factor - the density of strands in the bundle
    DCLossFunctionalIntegrator(mfem::Coefficient &sigma,
                               mfem::VectorCoefficient &current,
                               double current_density,
                               double fill_factor)
-   : sigma(sigma), current(current), current_density(current_density),
+    : sigma(sigma),
+      current(current),
+      current_density(current_density),
       fill_factor(fill_factor)
    { }
 
@@ -860,14 +874,14 @@ public:
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
    /// \param[in] sigma - the electrical conductivity coefficient
-   /// \param[in] freq - the electrical excitation frequency 
+   /// \param[in] freq - the electrical excitation frequency
    /// \param[in] diam - the diameter of a strand in the bundle
    /// \param[in] fill_factor - the density of strands in the bundle
    HybridACLossFunctionalIntegrator(mfem::Coefficient &sigma,
                                     const double freq,
                                     const double diam,
                                     const double fill_factor)
-   : sigma(sigma), freq(freq), diam(diam), fill_factor(fill_factor)
+    : sigma(sigma), freq(freq), diam(diam), fill_factor(fill_factor)
    { }
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
@@ -892,7 +906,8 @@ private:
 #endif
 };
 
-/// Functional integrator to compute forces/torques based on the virtual work method
+/// Functional integrator to compute forces/torques based on the virtual work
+/// method
 class ForceIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
@@ -900,9 +915,7 @@ public:
    /// \param[in] nu - model describing reluctivity
    /// \param[in] v - the grid function containing virtual displacements for
    ///                each mesh node
-   ForceIntegrator(StateCoefficient &nu,
-                   mfem::GridFunction &v)
-   : nu(nu), v(v)
+   ForceIntegrator(StateCoefficient &nu, mfem::GridFunction &v) : nu(nu), v(v)
    { }
 
    /// \brief - Compute forces/torques based on the virtual work method
@@ -913,7 +926,7 @@ public:
    ForceIntegrator(StateCoefficient &nu,
                    mfem::GridFunction &v,
                    std::unordered_set<int> attrs)
-   : nu(nu), v(v), attrs(std::move(attrs))
+    : nu(nu), v(v), attrs(std::move(attrs))
    { }
 
    /// \brief - Compute element contribution to global force/torque
@@ -930,7 +943,7 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
    /// \param[out] elfun_bar - \partial J \partial u for this functional
-   void AssembleElementVector(const mfem::FiniteElement &el, 
+   void AssembleElementVector(const mfem::FiniteElement &el,
                               mfem::ElementTransformation &trans,
                               const mfem::Vector &elfun,
                               mfem::Vector &elfun_bar) override;
@@ -959,16 +972,16 @@ class ForceIntegratorMeshSens : public mfem::LinearFormIntegrator
 public:
    /// \brief - Compute forces/torques based on the virtual work method
    /// \param[in] state - the state vector to evaluate force at
-   /// \param[in] integ - reference to primal integrator that holds inputs for integrators
-   ForceIntegratorMeshSens(mfem::GridFunction &state,
-                           ForceIntegrator &integ)
-   : state(state), force_integ(integ)
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrators
+   ForceIntegratorMeshSens(mfem::GridFunction &state, ForceIntegrator &integ)
+    : state(state), force_integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to dJdX
    /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical space
-   /// \param[out] mesh_coords_bar - dJdX for the element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space \param[out] mesh_coords_bar - dJdX for the element
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &mesh_coords_bar) override;
@@ -987,18 +1000,18 @@ private:
 
 template <>
 inline void addSensitivityIntegrator<ForceIntegrator>(
-   ForceIntegrator &primal_integ,
-   std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
-   std::map<std::string, mfem::ParLinearForm> &output_sens,
-   std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    ForceIntegrator &primal_integ,
+    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
 {
    auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    output_sens.emplace("mesh_coords", mesh_fes);
-   output_sens.at("mesh_coords").AddDomainIntegrator(
-      new ForceIntegratorMeshSens(res_fields.at("state"), primal_integ));
+   output_sens.at("mesh_coords")
+       .AddDomainIntegrator(
+           new ForceIntegratorMeshSens(res_fields.at("state"), primal_integ));
 }
 
-
-} // namespace mach
+}  // namespace mach
 
 #endif

@@ -15,13 +15,13 @@
 #ifdef MFEM_USE_SIMMETRIX
 #include "SimUtil.h"
 #include "gmi_sim.h"
-#endif // MFEM_USE_SIMMETRIX
+#endif  // MFEM_USE_SIMMETRIX
 
 #ifdef MFEM_USE_EGADS
 #include "gmi_egads.h"
-#endif // MFEM_USE_EGADS
+#endif  // MFEM_USE_EGADS
 
-#endif // MFEM_USE_PUMI
+#endif  // MFEM_USE_PUMI
 
 #include "utils.hpp"
 #include "mfem_extensions.hpp"
@@ -45,7 +45,6 @@ using namespace mfem;
 
 namespace mach
 {
-
 adept::Stack AbstractSolver::diff_stack;
 
 AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
@@ -56,11 +55,10 @@ AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
 }
 
 // Note: the following constructor is protected
-AbstractSolver::AbstractSolver(const string &opt_file_name,
-                               MPI_Comm incomm)
+AbstractSolver::AbstractSolver(const string &opt_file_name, MPI_Comm incomm)
 {
-   // Some of the following code would normally happen in initBase, but this is 
-   // a parred down version of the AbstractSolver that does not need most of 
+   // Some of the following code would normally happen in initBase, but this is
+   // a parred down version of the AbstractSolver that does not need most of
    // the functionality (e.g. multiphysics code)
    // TODO: Do we need a separate super class for this case?
 
@@ -71,7 +69,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    options_file >> file_options;
    options = default_options;
    options.merge_patch(file_options);
-   
+
    bool silent = options.value("silent", false);
    out = getOutStream(rank, silent);
    *out << setw(3) << options << endl;
@@ -101,7 +99,7 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    {
       *out << setw(3) << options << endl;
    }
- 
+
    materials = material_library;
 
    constructMesh(move(smesh));
@@ -126,7 +124,8 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    {
       ode_solver.reset(new RK4Solver);
    }
-   else if (options["time-dis"]["ode-solver"].template get<string>() == "MIDPOINT")
+   else if (options["time-dis"]["ode-solver"].template get<string>() ==
+            "MIDPOINT")
    {
       ode_solver.reset(new ImplicitMidpointSolver);
    }
@@ -140,8 +139,9 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    }
    else
    {
-      throw MachException("Unknown ODE solver type " +
-                          options["time-dis"]["ode-solver"].template get<string>());
+      throw MachException(
+          "Unknown ODE solver type " +
+          options["time-dis"]["ode-solver"].template get<string>());
       // TODO: parallel exit
    }
 
@@ -156,11 +156,12 @@ void AbstractSolver::initDerived()
 {
    int dim = mesh->Dimension();
    int fe_order = options["space-dis"]["degree"].template get<int>();
-   std::string basis_type = options["space-dis"]["basis-type"].template get<string>();
+   std::string basis_type =
+       options["space-dis"]["basis-type"].template get<string>();
    bool galerkin_diff = options["space-dis"].value("GD", false);
    // Define the SBP elements and finite-element space; eventually, we will want
-   // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
-   // and here it is for first two
+   // to have a case or if statement here for both CSBP and DSBP, and (?)
+   // standard FEM. and here it is for first two
    if (basis_type == "csbp")
    {
       fec.reset(new SBPCollection(fe_order, dim));
@@ -179,15 +180,15 @@ void AbstractSolver::initDerived()
    }
 
    // define the number of states, the fes, and the state grid function
-   num_state = this->getNumState(); // <--- this is a virtual fun
+   num_state = this->getNumState();  // <--- this is a virtual fun
    *out << "Num states = " << num_state << endl;
-   fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
-                   Ordering::byVDIM));
+   fes.reset(new SpaceType(mesh.get(), fec.get(), num_state, Ordering::byVDIM));
    /// we'll stop using `u` eventually
    /// start creating your own state vector with `getNewField`
    u.reset(new GridFunType(fes.get()));
-   *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize() << endl;
-   
+   *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize()
+        << endl;
+
    /// initialize scratch work vectors
    scratch.reset(new ParGridFunction(fes.get()));
    scratch_tv.reset(new HypreParVector(fes.get()));
@@ -261,7 +262,7 @@ void AbstractSolver::initDerived()
 
    setEssentialBoundaries();
 
-   // // add the output functional QoIs 
+   // // add the output functional QoIs
    // auto &fun = options["outputs"];
    // using json_iter = nlohmann::json::iterator;
    // int num_bndry_outputs = 0;
@@ -283,17 +284,16 @@ AbstractSolver::~AbstractSolver()
 #ifdef MFEM_USE_PUMI
    if (pumi_mesh)
    {
-      if (!PCU_previously_initialized)
-         PCU_Comm_Free();
+      if (!PCU_previously_initialized) PCU_Comm_Free();
    }
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
    Sim_unregisterAllKeys();
-#endif // MFEM_USE_SIMMETRIX
+#endif  // MFEM_USE_SIMMETRIX
 
 #ifdef MFEM_USE_EGADS
    gmi_egads_stop();
-#endif // MFEM_USE_EGADS
+#endif  // MFEM_USE_EGADS
 #endif
 
    MPI_Comm_free(&comm);
@@ -304,13 +304,15 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    std::string mesh_file = options["mesh"]["file"].template get<string>();
    std::string mesh_ext;
    size_t i = mesh_file.rfind('.', mesh_file.length());
-   if (i != string::npos) {
-      mesh_ext = (mesh_file.substr(i+1, mesh_file.length() - i));
+   if (i != string::npos)
+   {
+      mesh_ext = (mesh_file.substr(i + 1, mesh_file.length() - i));
    }
    else
    {
-      throw MachException("AbstractSolver::constructMesh(smesh)\n"
-                        "\tMesh file has no extension!\n");
+      throw MachException(
+          "AbstractSolver::constructMesh(smesh)\n"
+          "\tMesh file has no extension!\n");
    }
 
    // if serial mesh passed in, use that
@@ -333,12 +335,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    mesh->EnsureNodes();
 
    removeInternalBoundaries();
-   *out << "bdr_attr: "; mesh->bdr_attributes.Print(*out);
+   *out << "bdr_attr: ";
+   mesh->bdr_attributes.Print(*out);
 }
 
 void AbstractSolver::constructPumiMesh()
 {
-#ifdef MFEM_USE_PUMI // if using pumi mesh
+#ifdef MFEM_USE_PUMI  // if using pumi mesh
    *out << options["mesh"]["model-file"].get<string>().c_str() << std::endl;
    std::string model_file = options["mesh"]["model-file"].get<string>();
    std::string mesh_file = options["mesh"]["file"].get<string>();
@@ -346,8 +349,7 @@ void AbstractSolver::constructPumiMesh()
    {
       PCU_previously_initialized = true;
    }
-   if (!PCU_previously_initialized)
-      PCU_Comm_Init();
+   if (!PCU_previously_initialized) PCU_Comm_Init();
    PCU_Switch_Comm(comm);
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
@@ -366,8 +368,8 @@ void AbstractSolver::constructPumiMesh()
    // Perform Uniform refinement
    // if (ref_levels > 1)
    // {
-   //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh, ref_levels);
-   //    ma::adapt(uniInput);
+   //    ma::Input* uniInput = ma::configureUniformRefine(pumi_mesh,
+   //    ref_levels); ma::adapt(uniInput);
    // }
 
    /// TODO: change this to use options
@@ -381,15 +383,15 @@ void AbstractSolver::constructPumiMesh()
 
    pumi_mesh->verify();
 
-   apf::Numbering* aux_num = apf::createNumbering(pumi_mesh.get(), "aux_numbering",
-                                                  pumi_mesh->getShape(), 1);
+   apf::Numbering *aux_num = apf::createNumbering(
+       pumi_mesh.get(), "aux_numbering", pumi_mesh->getShape(), 1);
 
-   apf::MeshIterator* it = pumi_mesh->begin(0);
-   apf::MeshEntity* v;
+   apf::MeshIterator *it = pumi_mesh->begin(0);
+   apf::MeshEntity *v;
    int count = 0;
    while ((v = pumi_mesh->iterate(it)))
    {
-     apf::number(aux_num, v, 0, 0, count++);
+      apf::number(aux_num, v, 0, 0, count++);
    }
    pumi_mesh->end(it);
 
@@ -425,46 +427,47 @@ void AbstractSolver::constructPumiMesh()
    /// Add attributes based on reverse classification
    // Boundary faces
    int dim = mesh->Dimension();
-   apf::MeshIterator* itr = pumi_mesh->begin(dim-1);
-   apf::MeshEntity* ent ;
+   apf::MeshIterator *itr = pumi_mesh->begin(dim - 1);
+   apf::MeshEntity *ent;
    int ent_cnt = 0;
    while ((ent = pumi_mesh->iterate(itr)))
    {
       apf::ModelEntity *me = pumi_mesh->toModel(ent);
-      if (pumi_mesh->getModelType(me) == (dim-1))
+      if (pumi_mesh->getModelType(me) == (dim - 1))
       {
-         //Get tag from model by  reverse classification
+         // Get tag from model by  reverse classification
          int tag = pumi_mesh->getModelTag(me);
          (mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
          ent_cnt++;
       }
    }
-   pumi_mesh->end(itr);  
-   
+   pumi_mesh->end(itr);
+
    // Volume faces
    itr = pumi_mesh->begin(dim);
    ent_cnt = 0;
    while ((ent = pumi_mesh->iterate(itr)))
    {
-       apf::ModelEntity *me = pumi_mesh->toModel(ent);
-       int tag = pumi_mesh->getModelTag(me);
-       mesh->SetAttribute(ent_cnt, tag);
-       ent_cnt++;
+      apf::ModelEntity *me = pumi_mesh->toModel(ent);
+      int tag = pumi_mesh->getModelTag(me);
+      mesh->SetAttribute(ent_cnt, tag);
+      ent_cnt++;
    }
    pumi_mesh->end(itr);
-   
+
    // Apply the attributes
    mesh->SetAttributes();
 #else
-   throw MachException("AbstractSolver::constructPumiMesh()\n"
-                       "\tMFEM was not built with PUMI!\n"
-                       "\trecompile MFEM with PUMI\n");
-#endif // MFEM_USE_PUMI
+   throw MachException(
+       "AbstractSolver::constructPumiMesh()\n"
+       "\tMFEM was not built with PUMI!\n"
+       "\trecompile MFEM with PUMI\n");
+#endif  // MFEM_USE_PUMI
 }
 
 void AbstractSolver::setInitialCondition(
-   ParGridFunction &state,
-   const std::function<double(const mfem::Vector &)> &u_init)
+    ParGridFunction &state,
+    const std::function<double(const mfem::Vector &)> &u_init)
 {
    // state = 0.0;
    FunctionCoefficient u0(u_init);
@@ -474,8 +477,8 @@ void AbstractSolver::setInitialCondition(
 }
 
 void AbstractSolver::setInitialCondition(
-   ParGridFunction &state,
-   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+    ParGridFunction &state,
+    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
    VectorFunctionCoefficient u0(num_state, u_init);
    state.ProjectCoefficient(u0);
@@ -495,25 +498,22 @@ void AbstractSolver::setInitialCondition(ParGridFunction &state,
    state.ProjectCoefficient(u0);
 }
 
-void AbstractSolver::setFieldValue(HypreParVector &field,
-                                   const double u_init)
+void AbstractSolver::setFieldValue(HypreParVector &field, const double u_init)
 {
    ConstantCoefficient u0(u_init);
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
 }
 
-void AbstractSolver::setFieldValue(
-   double *field_buffer,
-   const double u_init)
+void AbstractSolver::setFieldValue(double *field_buffer, const double u_init)
 {
    auto field = bufferToHypreParVector(field_buffer, *fes);
    setFieldValue(field, u_init);
 }
 
 void AbstractSolver::setFieldValue(
-   HypreParVector &field,
-   const std::function<double(const Vector &)> &u_init)
+    HypreParVector &field,
+    const std::function<double(const Vector &)> &u_init)
 {
    FunctionCoefficient u0(u_init);
    scratch->ProjectCoefficient(u0);
@@ -521,32 +521,30 @@ void AbstractSolver::setFieldValue(
 }
 
 void AbstractSolver::setFieldValue(
-   double *field_buffer,
-   const std::function<double(const mfem::Vector &)> &u_init)
+    double *field_buffer,
+    const std::function<double(const mfem::Vector &)> &u_init)
 {
    auto field = bufferToHypreParVector(field_buffer, *fes);
    setFieldValue(field, u_init);
 }
 
-void AbstractSolver::setFieldValue(HypreParVector &field,
-                                   const Vector &u_init)
+void AbstractSolver::setFieldValue(HypreParVector &field, const Vector &u_init)
 {
    VectorConstantCoefficient u0(u_init);
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
 }
 
-void AbstractSolver::setFieldValue(
-   double *field_buffer,
-   const mfem::Vector &u_init)
+void AbstractSolver::setFieldValue(double *field_buffer,
+                                   const mfem::Vector &u_init)
 {
    auto field = bufferToHypreParVector(field_buffer, *fes);
    setFieldValue(field, u_init);
 }
 
 void AbstractSolver::setFieldValue(
-   HypreParVector &field,
-   const std::function<void(const Vector &, Vector&)> &u_init)
+    HypreParVector &field,
+    const std::function<void(const Vector &, Vector &)> &u_init)
 {
    VectorFunctionCoefficient u0(num_state, u_init);
    scratch->ProjectCoefficient(u0);
@@ -554,17 +552,18 @@ void AbstractSolver::setFieldValue(
 }
 
 void AbstractSolver::setFieldValue(
-   double *field_buffer,
-   const std::function<void(const mfem::Vector &, mfem::Vector&)> &u_init)
+    double *field_buffer,
+    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
    auto field = bufferToHypreParVector(field_buffer, *fes);
    setFieldValue(field, u_init);
 }
 
-double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType &y) const
+double AbstractSolver::calcInnerProduct(const GridFunType &x,
+                                        const GridFunType &y) const
 {
    ParFiniteElementSpace *fe_space = x.ParFESpace();
-   const char* name = fe_space->FEColl()->Name();
+   const char *name = fe_space->FEColl()->Name();
 
    double loc_prod = 0.0;
    const FiniteElement *fe;
@@ -576,12 +575,12 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
       fe = fe_space->GetFE(i);
       const IntegrationRule *ir;
       if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
-      {        
+      {
          ir = &(fe->GetNodes());
       }
       else
       {
-         int intorder = 2*fe->GetOrder() + 1;
+         int intorder = 2 * fe->GetOrder() + 1;
          ir = &(IntRules.Get(fe->GetGeomType(), intorder));
       }
       T = fe_space->GetElementTransformation(i);
@@ -594,7 +593,7 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
          double node_prod = 0.0;
          for (int n = 0; n < num_state; ++n)
          {
-            node_prod += x_vals(n,j)*y_vals(n,j);
+            node_prod += x_vals(n, j) * y_vals(n, j);
          }
          loc_prod += ip.weight * T->Weight() * node_prod;
       }
@@ -605,27 +604,27 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x, const GridFunType 
 }
 
 double AbstractSolver::calcL2Error(
-   const std::function<double(const mfem::Vector &)> &u_exact)
+    const std::function<double(const mfem::Vector &)> &u_exact)
 {
    return calcL2Error(u.get(), u_exact);
 }
 
 double AbstractSolver::calcL2Error(
-   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
-   int entry)
+    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
+    int entry)
 {
    return calcL2Error(u.get(), u_exact, entry);
 }
 
 double AbstractSolver::calcL2Error(
-   GridFunType *field,
-   const std::function<double(const mfem::Vector &)> &u_exact)
+    GridFunType *field,
+    const std::function<double(const mfem::Vector &)> &u_exact)
 {
    // TODO: need to generalize to parallel
    FunctionCoefficient exsol(u_exact);
    FiniteElementSpace *fe_space = field->FESpace();
 
-   const char* name = fe_space->FEColl()->Name();
+   const char *name = fe_space->FEColl()->Name();
 
    double loc_norm = 0.0;
    const FiniteElement *fe;
@@ -639,12 +638,12 @@ double AbstractSolver::calcL2Error(
       fe = fe_space->GetFE(i);
       const IntegrationRule *ir;
       if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
-      {        
+      {
          ir = &(fe->GetNodes());
       }
       else
       {
-         int intorder = 2*fe->GetOrder() + 1;
+         int intorder = 2 * fe->GetOrder() + 1;
          ir = &(IntRules.Get(fe->GetGeomType(), intorder));
       }
       int fdof = fe->GetDof();
@@ -663,7 +662,7 @@ double AbstractSolver::calcL2Error(
             }
             else
             {
-               a -= (*field)(-1-vdofs[k]) * shape(k);
+               a -= (*field)(-1 - vdofs[k]) * shape(k);
             }
          T->SetIntPoint(&ip);
          a -= exsol.Eval(*T, ip);
@@ -673,7 +672,7 @@ double AbstractSolver::calcL2Error(
 
    double norm;
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   if (norm < 0.0)  // This was copied from mfem...should not happen for us
    {
       return -sqrt(-norm);
    }
@@ -681,15 +680,15 @@ double AbstractSolver::calcL2Error(
 }
 
 double AbstractSolver::calcL2Error(
-   GridFunType *field,
-   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
-   int entry)
+    GridFunType *field,
+    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
+    int entry)
 {
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
    FiniteElementSpace *fe_space = field->FESpace();
 
-   const char* name = fe_space->FEColl()->Name();
+   const char *name = fe_space->FEColl()->Name();
 
    double loc_norm = 0.0;
    const FiniteElement *fe;
@@ -705,12 +704,12 @@ double AbstractSolver::calcL2Error(
          fe = fe_space->GetFE(i);
          const IntegrationRule *ir;
          if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
-         {        
+         {
             ir = &(fe->GetNodes());
          }
          else
          {
-            int intorder = 2*fe->GetOrder() + 1;
+            int intorder = 2 * fe->GetOrder() + 1;
             ir = &(IntRules.Get(fe->GetGeomType(), intorder));
          }
          T = fe_space->GetElementTransformation(i);
@@ -735,12 +734,12 @@ double AbstractSolver::calcL2Error(
          fe = fe_space->GetFE(i);
          const IntegrationRule *ir;
          if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
-         {        
+         {
             ir = &(fe->GetNodes());
          }
          else
          {
-            int intorder = 2*fe->GetOrder() + 1;
+            int intorder = 2 * fe->GetOrder() + 1;
             ir = &(IntRules.Get(fe->GetGeomType(), intorder));
          }
          T = fe_space->GetElementTransformation(i);
@@ -759,7 +758,7 @@ double AbstractSolver::calcL2Error(
    }
    double norm;
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   if (norm < 0.0)  // This was copied from mfem...should not happen for us
    {
       return -sqrt(-norm);
    }
@@ -767,17 +766,17 @@ double AbstractSolver::calcL2Error(
 }
 
 double AbstractSolver::calcL2Error(
-   mfem::HypreParVector &field,
-   const std::function<double(const mfem::Vector &)> &u_exact)
+    mfem::HypreParVector &field,
+    const std::function<double(const mfem::Vector &)> &u_exact)
 {
    *scratch = field;
    return calcL2Error(scratch.get(), u_exact);
 }
 
 double AbstractSolver::calcL2Error(
-   mfem::HypreParVector &field,
-   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
-   int entry)
+    mfem::HypreParVector &field,
+    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
+    int entry)
 {
    *scratch = field;
    return calcL2Error(scratch.get(), u_exact, entry);
@@ -785,9 +784,7 @@ double AbstractSolver::calcL2Error(
 
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
-   MachInputs inputs {
-      {"state", state.GetTrueVector().GetData()}
-   };
+   MachInputs inputs{{"state", state.GetTrueVector().GetData()}};
 
    calcResidual(inputs, *scratch_tv);
    return std::sqrt(InnerProduct(comm, *scratch_tv, *scratch_tv));
@@ -813,13 +810,12 @@ double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 //    }
 // }
 
-std::unique_ptr<HypreParVector> AbstractSolver::getNewField(
-   double *data)
+std::unique_ptr<HypreParVector> AbstractSolver::getNewField(double *data)
 {
    if (data == nullptr)
    {
-      auto field = std::unique_ptr<HypreParVector>(
-         new HypreParVector(fes.get()));
+      auto field =
+          std::unique_ptr<HypreParVector>(new HypreParVector(fes.get()));
 
       *field = 0.0;
       return field;
@@ -827,14 +823,13 @@ std::unique_ptr<HypreParVector> AbstractSolver::getNewField(
    else
    {
       auto field = std::unique_ptr<HypreParVector>(
-         new HypreParVector(fes->GetComm(),
-                            fes->GlobalTrueVSize(),
-                            data,
-                            fes->GetTrueDofOffsets()));
+          new HypreParVector(fes->GetComm(),
+                             fes->GlobalTrueVSize(),
+                             data,
+                             fes->GetTrueDofOffsets()));
       return field;
    }
 }
-
 
 /// NOTE: the load vectors must have previously been assembled
 void AbstractSolver::calcResidual(const ParGridFunction &state,
@@ -887,8 +882,7 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
 
    // this only communicates once inside of res->Mult to distribute state
    // create HypreParVector that contains the data from the state input
-   auto state = bufferToHypreParVector(inputs.at("state").getField(),
-                                       *fes);
+   auto state = bufferToHypreParVector(inputs.at("state").getField(), *fes);
 
    res->Mult(state, residual);
 
@@ -966,14 +960,16 @@ void AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
       /// ParallelAssemble overwrites its argument, so to accumulate into
       /// wrt_bar we need a second vector stored in ext_tv to assemble into,
       /// then we add it to wrt_bar
-      ext_tvs.emplace(wrt+"_bar", res_fields.at(wrt).ParFESpace());
-      auto &temp_wrt_bar = ext_tvs.at(wrt+"_bar");
+      ext_tvs.emplace(wrt + "_bar", res_fields.at(wrt).ParFESpace());
+      auto &temp_wrt_bar = ext_tvs.at(wrt + "_bar");
       res_sens.at(wrt).ParallelAssemble(temp_wrt_bar);
       wrt_bar += temp_wrt_bar;
    }
 }
 
-double AbstractSolver::calcStepSize(int iter, double t, double t_final,
+double AbstractSolver::calcStepSize(int iter,
+                                    double t,
+                                    double t_final,
                                     double dt_old,
                                     const ParGridFunction &state) const
 {
@@ -983,15 +979,16 @@ double AbstractSolver::calcStepSize(int iter, double t, double t_final,
 }
 
 bool AbstractSolver::iterationExit(int iter,
-                                   double t, double t_final, double dt,
+                                   double t,
+                                   double t_final,
+                                   double dt,
                                    const ParGridFunction &state) const
 {
    if (t >= t_final - 1e-14 * dt) return true;
    return false;
 }
 
-void AbstractSolver::printSolution(const std::string &file_name,
-                                   int refine)
+void AbstractSolver::printSolution(const std::string &file_name, int refine)
 {
    // TODO: These mfem functions do not appear to be parallelized
    ofstream sol_ofs(file_name + ".vtk");
@@ -1005,8 +1002,7 @@ void AbstractSolver::printSolution(const std::string &file_name,
    sol_ofs.close();
 }
 
-void AbstractSolver::printAdjoint(const std::string &file_name,
-                                  int refine)
+void AbstractSolver::printAdjoint(const std::string &file_name, int refine)
 {
    // TODO: These mfem functions do not appear to be parallelized
    ofstream adj_ofs(file_name + ".vtk");
@@ -1020,8 +1016,7 @@ void AbstractSolver::printAdjoint(const std::string &file_name,
    adj_ofs.close();
 }
 
-void AbstractSolver::printResidual(const std::string &file_name,
-                                   int refine)
+void AbstractSolver::printResidual(const std::string &file_name, int refine)
 {
    GridFunType r(fes.get());
    calcResidual(*u, r);
@@ -1046,7 +1041,7 @@ void AbstractSolver::printFields(const std::string &file_name,
    if (fields.size() != names.size())
    {
       throw MachException(
-         "Must supply a name for each grid function to print!");
+          "Must supply a name for each grid function to print!");
    }
    ParaViewDataCollection paraview_dc(file_name, mesh.get());
    paraview_dc.SetPrefixPath("ParaView");
@@ -1058,7 +1053,7 @@ void AbstractSolver::printFields(const std::string &file_name,
    paraview_dc.SetCycle(cycle);
    paraview_dc.SetDataFormat(VTKFormat::BINARY);
    paraview_dc.SetHighOrderOutput(true);
-   paraview_dc.SetTime((double)cycle); // set the time
+   paraview_dc.SetTime((double)cycle);  // set the time
    for (unsigned i = 0; i < fields.size(); ++i)
    {
       paraview_dc.RegisterField(names[i], fields[i]);
@@ -1080,10 +1075,7 @@ void AbstractSolver::printFields(const std::string &file_name,
    // sol_ofs.close();
 }
 
-std::vector<GridFunType*> AbstractSolver::getFields()
-{
-   return {u.get()};
-}
+std::vector<GridFunType *> AbstractSolver::getFields() { return {u.get()}; }
 
 void AbstractSolver::getField(std::string name, double *field_buffer)
 {
@@ -1103,14 +1095,15 @@ void AbstractSolver::getField(std::string name, mfem::HypreParVector &field)
 void AbstractSolver::solveForState(ParGridFunction &state)
 {
    HypreParVector state_true(fes.get());
-   state.GetTrueVector().SetDataAndSize(state_true.GetData(), state_true.Size());
+   state.GetTrueVector().SetDataAndSize(state_true.GetData(),
+                                        state_true.Size());
    state.SetTrueVector();
 
    if (options["steady"].get<bool>() == true)
    {
       solveSteady(state);
    }
-   else 
+   else
    {
       solveUnsteady(state);
    }
@@ -1131,13 +1124,12 @@ void AbstractSolver::solveForState(const MachInputs &inputs,
                                    mfem::HypreParVector &state)
 {
    // mach::setInputs(*res, inputs);
-   if (load)
-      mach::setInputs(*load, inputs);
+   if (load) mach::setInputs(*load, inputs);
 
    auto &state_gf = res_fields.at("state");
    state_gf.GetTrueVector().SetDataAndSize(state.GetData(), state.Size());
    state_gf.SetFromTrueVector();
-   
+
    solveUnsteady(state_gf);
    // this is not necessary if state_gf is unchanged after timestepping
    // unnecessary communication
@@ -1150,7 +1142,7 @@ void AbstractSolver::solveForAdjoint(const std::string &fun)
    {
       solveSteadyAdjoint(fun);
    }
-   else 
+   else
    {
       solveUnsteadyAdjoint(fun);
    }
@@ -1192,7 +1184,8 @@ void AbstractSolver::removeInternalBoundaries()
       {
          return;
       }
-      else if (prob_opts["keep-bndrys"].type() == nlohmann::json::value_t::array)
+      else if (prob_opts["keep-bndrys"].type() ==
+               nlohmann::json::value_t::array)
       {
          const auto &tmp = prob_opts["keep-bndrys"].get<vector<int>>();
          Array<int> keep(tmp.size());
@@ -1200,7 +1193,8 @@ void AbstractSolver::removeInternalBoundaries()
          {
             keep[i] = tmp[i];
          }
-         *out << "keep: "; keep.Print(*out);
+         *out << "keep: ";
+         keep.Print(*out);
          mesh->RemoveInternalBoundaries(keep);
          return;
       }
@@ -1217,7 +1211,8 @@ void AbstractSolver::removeInternalBoundaries()
       {
          regions[i] = tmp[i];
       }
-      *out << "regions: "; regions.Print(*out);
+      *out << "regions: ";
+      regions.Print(*out);
       mesh->RemoveInternalBoundariesNotAdjacentTo(regions);
       return;
    }
@@ -1236,7 +1231,7 @@ void AbstractSolver::setUpExternalFields()
    // give the solver ownership over the mesh coords grid function, and store
    // it in `res_fields` under key "mesh_coords"
    {
-      auto &mesh_gf = *dynamic_cast<ParGridFunction*>(mesh->GetNodes());
+      auto &mesh_gf = *dynamic_cast<ParGridFunction *>(mesh->GetNodes());
       ParFiniteElementSpace *mesh_fespace;
       auto *mesh_fec = mesh_gf.OwnFEC();
       // if the mesh GF owns its FESpace and FECollection
@@ -1250,8 +1245,8 @@ void AbstractSolver::setUpExternalFields()
       {
          // else copy the FESpace and get its FECollection
          mesh_fespace = new ParFiniteElementSpace(*mesh_gf.ParFESpace());
-         mesh_fec = const_cast<FiniteElementCollection*>(
-                                                mesh_fespace->FEColl());
+         mesh_fec =
+             const_cast<FiniteElementCollection *>(mesh_fespace->FEColl());
       }
       // create a new GF for the mesh nodes with the new/stolen FESpace
       res_fields.emplace("mesh_coords", mesh_fespace);
@@ -1288,15 +1283,15 @@ void AbstractSolver::setUpExternalFields()
             fecoll = new ND_FECollection(order, dim, num_state);
          else
          {
-            throw MachException("Unrecognized basis type: " + basis + "!\n"
+            throw MachException("Unrecognized basis type: " + basis +
+                                "!\n"
                                 "Known types are:\n"
                                 "\tH1\n"
                                 "\tnedelec\n");
          }
-   
-         auto *fespace = new ParFiniteElementSpace(mesh.get(), 
-                                                   fecoll, 
-                                                   num_states);
+
+         auto *fespace =
+             new ParFiniteElementSpace(mesh.get(), fecoll, num_states);
 
          /// constructs a grid function with an empty data array that must
          /// later be set by `setResidualInput`
@@ -1308,7 +1303,7 @@ void AbstractSolver::setUpExternalFields()
 
 void AbstractSolver::addMassIntegrators(double alpha)
 {
-   const char* name = fes->FEColl()->Name();
+   const char *name = fes->FEColl()->Name();
    if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
    {
       mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
@@ -1335,23 +1330,22 @@ void AbstractSolver::setEssentialBoundaries()
          auto tmp = bcs["essential"].get<std::vector<int>>();
          for (auto &bdr : tmp)
          {
-            ess_bdr[bdr-1] = 1;
+            ess_bdr[bdr - 1] = 1;
          }
       }
-      catch (nlohmann::json::type_error& e)
+      catch (nlohmann::json::type_error &e)
       {
          auto all = bcs["essential"].get<std::string>();
-         if (all == "all")
-            ess_bdr = 1;
+         if (all == "all") ess_bdr = 1;
       }
-      
+
       // *out << "ess_bdr: "; ess_bdr.Print(*out);
    }
    /// otherwise mark all attributes as nonessential
    else
    {
       *out << "No essential BCs" << endl;
-      if (mesh->bdr_attributes) // some meshes may not have boundary attributes
+      if (mesh->bdr_attributes)  // some meshes may not have boundary attributes
       {
          *out << "mesh with boundary attributes" << endl;
          ess_bdr = 0;
@@ -1359,8 +1353,7 @@ void AbstractSolver::setEssentialBoundaries()
    }
    Array<int> ess_tdof_list;
    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-   if (ess_tdof_list)
-      res->SetEssentialTrueDofs(ess_tdof_list);
+   if (ess_tdof_list) res->SetEssentialTrueDofs(ess_tdof_list);
 }
 
 void AbstractSolver::solveSteady(ParGridFunction &state)
@@ -1370,97 +1363,101 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
    solveUnsteady(state);
    return;
 
-// #ifdef MFEM_USE_MPI
-//    double t1, t2;
-//    if (0==rank)
-//    {
-//       t1 = MPI_Wtime();
-//    }
-// #ifdef MFEM_USE_PETSC
-//    // Get the PetscSolver option
-//    *out << "Petsc solver with lu preconditioner.\n";
-//    double abstol = options["petscsolver"]["abstol"].get<double>();
-//    double reltol = options["petscsolver"]["reltol"].get<double>();
-//    int maxiter = options["petscsolver"]["maxiter"].get<int>();
-//    int ptl = options["petscsolver"]["printlevel"].get<int>();
+   // #ifdef MFEM_USE_MPI
+   //    double t1, t2;
+   //    if (0==rank)
+   //    {
+   //       t1 = MPI_Wtime();
+   //    }
+   // #ifdef MFEM_USE_PETSC
+   //    // Get the PetscSolver option
+   //    *out << "Petsc solver with lu preconditioner.\n";
+   //    double abstol = options["petscsolver"]["abstol"].get<double>();
+   //    double reltol = options["petscsolver"]["reltol"].get<double>();
+   //    int maxiter = options["petscsolver"]["maxiter"].get<int>();
+   //    int ptl = options["petscsolver"]["printlevel"].get<int>();
 
-//    solver.reset(new mfem::PetscLinearSolver(comm, "solver_", 0));
-//    prec.reset(new mfem::PetscPreconditioner(comm, "prec_"));
-//    dynamic_cast<mfem::PetscLinearSolver *>(solver.get())->SetPreconditioner(*prec);
+   //    solver.reset(new mfem::PetscLinearSolver(comm, "solver_", 0));
+   //    prec.reset(new mfem::PetscPreconditioner(comm, "prec_"));
+   //    dynamic_cast<mfem::PetscLinearSolver
+   //    *>(solver.get())->SetPreconditioner(*prec);
 
-//    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(abstol);
-//    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
-//    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
-//    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
-//    *out << "Petsc Solver set.\n";
-//    //Get the newton solver options
-//    double nabstol = options["newton"]["abstol"].get<double>();
-//    double nreltol = options["newton"]["reltol"].get<double>();
-//    int nmaxiter = options["newton"]["maxiter"].get<int>();
-//    int nptl = options["newton"]["printlevel"].get<int>();
-//    newton_solver.reset(new mfem::NewtonSolver(comm));
-//    newton_solver->iterative_mode = true;
-//    newton_solver->SetSolver(*solver);
-//    newton_solver->SetOperator(*res);
-//    newton_solver->SetAbsTol(nabstol);
-//    newton_solver->SetRelTol(nreltol);
-//    newton_solver->SetMaxIter(nmaxiter);
-//    newton_solver->SetPrintLevel(nptl);
-//    *out << "Newton solver is set.\n";
-//    // Solve the nonlinear problem with r.h.s at 0
-//    mfem::Vector b;
-//    mfem::Vector u_true;
-//    u->GetTrueDofs(u_true);
-//    newton_solver->Mult(b, u_true);
-//    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-//    u->SetFromTrueDofs(u_true);
-// #else
-//    // Hypre solver section
-//    if (newton_solver == nullptr)
-//       constructNewtonSolver();
+   //    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetAbsTol(abstol);
+   //    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetRelTol(reltol);
+   //    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetMaxIter(maxiter);
+   //    dynamic_cast<mfem::PetscSolver *>(solver.get())->SetPrintLevel(ptl);
+   //    *out << "Petsc Solver set.\n";
+   //    //Get the newton solver options
+   //    double nabstol = options["newton"]["abstol"].get<double>();
+   //    double nreltol = options["newton"]["reltol"].get<double>();
+   //    int nmaxiter = options["newton"]["maxiter"].get<int>();
+   //    int nptl = options["newton"]["printlevel"].get<int>();
+   //    newton_solver.reset(new mfem::NewtonSolver(comm));
+   //    newton_solver->iterative_mode = true;
+   //    newton_solver->SetSolver(*solver);
+   //    newton_solver->SetOperator(*res);
+   //    newton_solver->SetAbsTol(nabstol);
+   //    newton_solver->SetRelTol(nreltol);
+   //    newton_solver->SetMaxIter(nmaxiter);
+   //    newton_solver->SetPrintLevel(nptl);
+   //    *out << "Newton solver is set.\n";
+   //    // Solve the nonlinear problem with r.h.s at 0
+   //    mfem::Vector b;
+   //    mfem::Vector u_true;
+   //    u->GetTrueDofs(u_true);
+   //    newton_solver->Mult(b, u_true);
+   //    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not
+   //    converge."); u->SetFromTrueDofs(u_true);
+   // #else
+   //    // Hypre solver section
+   //    if (newton_solver == nullptr)
+   //       constructNewtonSolver();
 
-//    // Solve the nonlinear problem with r.h.s at 0
-//    mfem::Vector b;
-//    //mfem::Vector u_true;
-//    HypreParVector *u_true = u->GetTrueDofs();
-//    //HypreParVector b(*u_true);
-//    //u->GetTrueDofs(u_true);
-//    newton_solver->Mult(b, *u_true);
-//    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-//    //u->SetFromTrueDofs(u_true);
-//    u->SetFromTrueDofs(*u_true);
-// #endif
-//    if (0==rank)
-//    {
-//       t2 = MPI_Wtime();
-//       *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
-//    }
-// #else
-//    solver.reset(new UMFPackSolver());
-//    dynamic_cast<UMFPackSolver*>(solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-//    dynamic_cast<UMFPackSolver*>(solver.get())->SetPrintLevel(2);
-//    //Get the newton solver options
-//    double nabstol = options["newton"]["abstol"].get<double>();
-//    double nreltol = options["newton"]["reltol"].get<double>();
-//    int nmaxiter = options["newton"]["maxiter"].get<int>();
-//    int nptl = options["newton"]["printlevel"].get<int>();
-//    newton_solver.reset(new mfem::NewtonSolver());
-//    newton_solver->iterative_mode = true;
-//    newton_solver->SetSolver(*solver);
-//    newton_solver->SetOperator(*res);
-//    newton_solver->SetAbsTol(nabstol);
-//    newton_solver->SetRelTol(nreltol);
-//    newton_solver->SetMaxIter(nmaxiter);
-//    newton_solver->SetPrintLevel(nptl);
-//    std::cout << "Newton solver is set.\n";
-//    // Solve the nonlinear problem with r.h.s at 0
-//    mfem::Vector b;
-//    mfem::Vector u_true;
-//    u->GetTrueDofs(u_true);
-//    newton_solver->Mult(b, u_true);
-//    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
-//    u->SetFromTrueDofs(u_true);
-// #endif // MFEM_USE_MPI
+   //    // Solve the nonlinear problem with r.h.s at 0
+   //    mfem::Vector b;
+   //    //mfem::Vector u_true;
+   //    HypreParVector *u_true = u->GetTrueDofs();
+   //    //HypreParVector b(*u_true);
+   //    //u->GetTrueDofs(u_true);
+   //    newton_solver->Mult(b, *u_true);
+   //    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not
+   //    converge.");
+   //    //u->SetFromTrueDofs(u_true);
+   //    u->SetFromTrueDofs(*u_true);
+   // #endif
+   //    if (0==rank)
+   //    {
+   //       t2 = MPI_Wtime();
+   //       *out << "Time for solving nonlinear system is " << (t2 - t1) <<
+   //       endl;
+   //    }
+   // #else
+   //    solver.reset(new UMFPackSolver());
+   //    dynamic_cast<UMFPackSolver*>(solver.get())->Control[UMFPACK_ORDERING] =
+   //    UMFPACK_ORDERING_METIS;
+   //    dynamic_cast<UMFPackSolver*>(solver.get())->SetPrintLevel(2);
+   //    //Get the newton solver options
+   //    double nabstol = options["newton"]["abstol"].get<double>();
+   //    double nreltol = options["newton"]["reltol"].get<double>();
+   //    int nmaxiter = options["newton"]["maxiter"].get<int>();
+   //    int nptl = options["newton"]["printlevel"].get<int>();
+   //    newton_solver.reset(new mfem::NewtonSolver());
+   //    newton_solver->iterative_mode = true;
+   //    newton_solver->SetSolver(*solver);
+   //    newton_solver->SetOperator(*res);
+   //    newton_solver->SetAbsTol(nabstol);
+   //    newton_solver->SetRelTol(nreltol);
+   //    newton_solver->SetMaxIter(nmaxiter);
+   //    newton_solver->SetPrintLevel(nptl);
+   //    std::cout << "Newton solver is set.\n";
+   //    // Solve the nonlinear problem with r.h.s at 0
+   //    mfem::Vector b;
+   //    mfem::Vector u_true;
+   //    u->GetTrueDofs(u_true);
+   //    newton_solver->Mult(b, u_true);
+   //    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not
+   //    converge."); u->SetFromTrueDofs(u_true);
+   // #endif // MFEM_USE_MPI
 }
 
 void AbstractSolver::solveUnsteady(ParGridFunction &state)
@@ -1536,7 +1533,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       ofstream osol("final_before_TH.gf");
       osol.precision(std::numeric_limits<long double>::digits10 + 1);
       state.Save(osol);
-   }   
+   }
    terminalHook(ti, t, state);
 
    // Save the final solution. This output can be viewed later using GLVis:
@@ -1551,8 +1548,11 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    {
       ofstream sol_ofs("final_cg.vtk");
       sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
-      state.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      mesh->PrintVTK(sol_ofs,
+                     options["space-dis"]["degree"].template get<int>() + 1);
+      state.SaveVTK(sol_ofs,
+                    "Solution",
+                    options["space-dis"]["degree"].template get<int>() + 1);
       sol_ofs.close();
       printField("final", state, "Solution");
    }
@@ -1560,8 +1560,11 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    {
       ofstream sol_ofs("final_dg.vtk");
       sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].template get<int>() + 1);
-      state.SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].template get<int>() + 1);
+      mesh->PrintVTK(sol_ofs,
+                     options["space-dis"]["degree"].template get<int>() + 1);
+      state.SaveVTK(sol_ofs,
+                    "Solution",
+                    options["space-dis"]["degree"].template get<int>() + 1);
       sol_ofs.close();
       printField("final", state, "Solution");
    }
@@ -1595,8 +1598,8 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    // Step 3: Solve the adjoint problem
    *out << "Solving adjoint problem" << endl;
    unique_ptr<Solver> adj_prec = constructPreconditioner(options["adj-prec"]);
-   unique_ptr<Solver> adj_solver = constructLinearSolver(
-       options["adj-solver"], *adj_prec);
+   unique_ptr<Solver> adj_solver =
+       constructLinearSolver(options["adj-solver"], *adj_prec);
    adj_solver->SetOperator(*jac_trans);
    adj_solver->Mult(*dJdu_true, *adj_true);
 
@@ -1606,18 +1609,19 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
    HypreParVector *adj_res_true = adj_res->GetTrueDofs();
    jac_trans->Mult(*adj_true, *adj_res_true);
    *adj_res_true -= *dJdu_true;
-   double loc_norm = (*adj_res_true)*(*adj_res_true);
+   double loc_norm = (*adj_res_true) * (*adj_res_true);
    MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    res_norm = sqrt(res_norm);
    *out << "Adjoint residual norm = " << res_norm << endl;
    adj->SetFromTrueDofs(*adj_true);
- 
+
    time_end = MPI_Wtime();
    *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
 }
 
 unique_ptr<Solver> AbstractSolver::constructLinearSolver(
-    nlohmann::json &_options, mfem::Solver &_prec)
+    nlohmann::json &_options,
+    mfem::Solver &_prec)
 {
    std::string solver_type = _options["type"].get<std::string>();
    double reltol = _options["reltol"].get<double>();
@@ -1629,68 +1633,66 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    if (solver_type == "hypregmres")
    {
       lin_solver.reset(new HypreGMRES(comm));
-      HypreGMRES *gmres = dynamic_cast<HypreGMRES*>(lin_solver.get());
+      HypreGMRES *gmres = dynamic_cast<HypreGMRES *>(lin_solver.get());
       gmres->SetTol(reltol);
       gmres->SetMaxIter(maxiter);
       gmres->SetPrintLevel(ptl);
-      gmres->SetPreconditioner(dynamic_cast<HypreSolver&>(_prec));
-      if (kdim != -1)
-         gmres->SetKDim(kdim); // set GMRES subspace size
+      gmres->SetPreconditioner(dynamic_cast<HypreSolver &>(_prec));
+      if (kdim != -1) gmres->SetKDim(kdim);  // set GMRES subspace size
    }
    else if (solver_type == "gmres")
    {
       lin_solver.reset(new GMRESSolver(comm));
-      GMRESSolver *gmres = dynamic_cast<GMRESSolver*>(lin_solver.get());
+      GMRESSolver *gmres = dynamic_cast<GMRESSolver *>(lin_solver.get());
       gmres->SetRelTol(reltol);
       gmres->SetMaxIter(maxiter);
       gmres->SetPrintLevel(ptl);
-      gmres->SetPreconditioner(dynamic_cast<Solver&>(_prec));
-      if (kdim != -1)
-         gmres->SetKDim(kdim); // set GMRES subspace size
+      gmres->SetPreconditioner(dynamic_cast<Solver &>(_prec));
+      if (kdim != -1) gmres->SetKDim(kdim);  // set GMRES subspace size
    }
    else if (solver_type == "hyprefgmres")
    {
       lin_solver.reset(new HypreFGMRES(comm));
-      HypreFGMRES *fgmres = dynamic_cast<HypreFGMRES*>(lin_solver.get());
+      HypreFGMRES *fgmres = dynamic_cast<HypreFGMRES *>(lin_solver.get());
       fgmres->SetTol(reltol);
       fgmres->SetMaxIter(maxiter);
       fgmres->SetPrintLevel(ptl);
-      fgmres->SetPreconditioner(dynamic_cast<HypreSolver&>(_prec));
-      if (kdim != -1)
-         fgmres->SetKDim(kdim); // set FGMRES subspace size
+      fgmres->SetPreconditioner(dynamic_cast<HypreSolver &>(_prec));
+      if (kdim != -1) fgmres->SetKDim(kdim);  // set FGMRES subspace size
    }
    else if (solver_type == "hyprepcg")
    {
       lin_solver.reset(new HyprePCG(comm));
-      HyprePCG *pcg = static_cast<HyprePCG*>(lin_solver.get());
+      HyprePCG *pcg = static_cast<HyprePCG *>(lin_solver.get());
       pcg->SetTol(reltol);
       pcg->SetMaxIter(maxiter);
       pcg->SetPrintLevel(ptl);
-      pcg->SetPreconditioner(dynamic_cast<HypreSolver&>(_prec));
+      pcg->SetPreconditioner(dynamic_cast<HypreSolver &>(_prec));
    }
    else if (solver_type == "pcg")
    {
       lin_solver.reset(new CGSolver(comm));
-      CGSolver *pcg = dynamic_cast<CGSolver*>(lin_solver.get());
+      CGSolver *pcg = dynamic_cast<CGSolver *>(lin_solver.get());
       pcg->SetRelTol(reltol);
       pcg->SetMaxIter(maxiter);
       pcg->SetPrintLevel(ptl);
-      pcg->SetPreconditioner(dynamic_cast<Solver&>(_prec));
+      pcg->SetPreconditioner(dynamic_cast<Solver &>(_prec));
    }
    else if (solver_type == "minres")
    {
       lin_solver.reset(new MINRESSolver(comm));
-      MINRESSolver *minres = dynamic_cast<MINRESSolver*>(lin_solver.get());
+      MINRESSolver *minres = dynamic_cast<MINRESSolver *>(lin_solver.get());
       minres->SetRelTol(reltol);
       minres->SetMaxIter(maxiter);
       minres->SetPrintLevel(ptl);
-      minres->SetPreconditioner(dynamic_cast<Solver&>(_prec));
+      minres->SetPreconditioner(dynamic_cast<Solver &>(_prec));
    }
    else
    {
-      throw MachException("Unsupported iterative solver type!\n"
-               "\tavilable options are: hypregmres, gmres, hyprefgmres,\n"
-               "\thyprepcg, pcg, minres");
+      throw MachException(
+          "Unsupported iterative solver type!\n"
+          "\tavilable options are: hypregmres, gmres, hyprefgmres,\n"
+          "\thyprepcg, pcg, minres");
    }
    return lin_solver;
 }
@@ -1705,36 +1707,38 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
       precond.reset(new HypreEuclid(comm));
       // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
       *out << "WARNING! Euclid fill level is hard-coded"
-           << "(see AbstractSolver::constructLinearSolver() for details)" << endl;
-      //int fill = options["lin-solver"]["filllevel"].get<int>();
-      //HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(precond.get())->GetPrec(), fill);
+           << "(see AbstractSolver::constructLinearSolver() for details)"
+           << endl;
+      // int fill = options["lin-solver"]["filllevel"].get<int>();
+      // HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(precond.get())->GetPrec(),
+      // fill);
    }
    else if (prec_type == "hypreilu")
    {
       precond.reset(new HypreILU());
-      HypreILU *ilu = dynamic_cast<HypreILU*>(precond.get());
+      HypreILU *ilu = dynamic_cast<HypreILU *>(precond.get());
       HYPRE_ILUSetType(*ilu, _options["ilu-type"].get<int>());
       HYPRE_ILUSetLevelOfFill(*ilu, _options["lev-fill"].get<int>());
       HYPRE_ILUSetLocalReordering(*ilu, _options["ilu-reorder"].get<int>());
       HYPRE_ILUSetPrintLevel(*ilu, _options["printlevel"].get<int>());
-      //cout << "Just after Hypre options" << endl;
+      // cout << "Just after Hypre options" << endl;
       // Just listing the options below in case we need them in the future
-      //HYPRE_ILUSetSchurMaxIter(ilu, schur_max_iter);
-      //HYPRE_ILUSetNSHDropThreshold(ilu, nsh_thres); needs type = 20,21
-      //HYPRE_ILUSetDropThreshold(ilu, drop_thres);
-      //HYPRE_ILUSetMaxNnzPerRow(ilu, nz_max);
+      // HYPRE_ILUSetSchurMaxIter(ilu, schur_max_iter);
+      // HYPRE_ILUSetNSHDropThreshold(ilu, nsh_thres); needs type = 20,21
+      // HYPRE_ILUSetDropThreshold(ilu, drop_thres);
+      // HYPRE_ILUSetMaxNnzPerRow(ilu, nz_max);
    }
    else if (prec_type == "hypreams")
    {
       precond.reset(new HypreAMS(fes.get()));
-      HypreAMS *ams = dynamic_cast<HypreAMS*>(precond.get());
+      HypreAMS *ams = dynamic_cast<HypreAMS *>(precond.get());
       ams->SetPrintLevel(_options["printlevel"].get<int>());
       ams->SetSingularProblem();
    }
    else if (prec_type == "hypreboomeramg")
    {
       precond.reset(new HypreBoomerAMG());
-      HypreBoomerAMG *amg = dynamic_cast<HypreBoomerAMG*>(precond.get());
+      HypreBoomerAMG *amg = dynamic_cast<HypreBoomerAMG *>(precond.get());
       amg->SetPrintLevel(_options["printlevel"].get<int>());
    }
    else if (prec_type == "blockilu")
@@ -1743,15 +1747,17 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    }
    else
    {
-      throw MachException("Unsupported preconditioner type!\n"
-         "\tavilable options are: HypreEuclid, HypreILU, HypreAMS,"
-         " HypreBoomerAMG.\n");
+      throw MachException(
+          "Unsupported preconditioner type!\n"
+          "\tavilable options are: HypreEuclid, HypreILU, HypreAMS,"
+          " HypreBoomerAMG.\n");
    }
    return precond;
 }
 
 unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
-   nlohmann::json &_options, mfem::Solver &_lin_solver)
+    nlohmann::json &_options,
+    mfem::Solver &_lin_solver)
 {
    std::string solver_type = _options["type"].get<std::string>();
    double abstol = _options["abstol"].get<double>();
@@ -1766,7 +1772,7 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    else if (solver_type == "inexactnewton")
    {
       nonlin_solver.reset(new NewtonSolver(comm));
-      NewtonSolver *newton = dynamic_cast<NewtonSolver*>(nonlin_solver.get());
+      NewtonSolver *newton = dynamic_cast<NewtonSolver *>(nonlin_solver.get());
 
       /// use defaults from SetAdaptiveLinRtol unless specified
       int type = _options.value("inexacttype", 2);
@@ -1778,12 +1784,13 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    }
    else
    {
-      throw MachException("Unsupported nonlinear solver type!\n"
-         "\tavilable options are: newton, inexactnewton\n");
+      throw MachException(
+          "Unsupported nonlinear solver type!\n"
+          "\tavilable options are: newton, inexactnewton\n");
    }
 
    nonlin_solver->iterative_mode = true;
-   nonlin_solver->SetSolver(dynamic_cast<Solver&>(_lin_solver));
+   nonlin_solver->SetSolver(dynamic_cast<Solver &>(_lin_solver));
    nonlin_solver->SetPrintLevel(ptl);
    nonlin_solver->SetRelTol(reltol);
    nonlin_solver->SetAbsTol(abstol);
@@ -1795,9 +1802,15 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
 void AbstractSolver::constructEvolver()
 {
    bool newton_abort = options["nonlin-solver"]["abort"].get<bool>();
-   evolver.reset(new MachEvolver(ess_bdr, nonlinear_mass.get(), mass.get(),
-                                 res.get(), stiff.get(), load.get(), ent.get(),
-                                 *out, 0.0,
+   evolver.reset(new MachEvolver(ess_bdr,
+                                 nonlinear_mass.get(),
+                                 mass.get(),
+                                 res.get(),
+                                 stiff.get(),
+                                 load.get(),
+                                 ent.get(),
+                                 *out,
+                                 0.0,
                                  TimeDependentOperator::Type::IMPLICIT,
                                  newton_abort));
    evolver->SetNewtonSolver(newton_solver.get());
@@ -1805,8 +1818,9 @@ void AbstractSolver::constructEvolver()
 
 void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
 {
-   throw MachException("AbstractSolver::solveUnsteadyAdjoint(fun)\n"
-                       "\tnot implemented yet!");
+   throw MachException(
+       "AbstractSolver::solveUnsteadyAdjoint(fun)\n"
+       "\tnot implemented yet!");
 }
 
 void AbstractSolver::createOutput(const std::string &fun)
@@ -1878,9 +1892,7 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
                                        const MachInputs &inputs,
                                        double &partial)
-{
-
-}
+{ }
 
 void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
@@ -1920,8 +1932,8 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
 }
 
 void AbstractSolver::checkJacobian(
-   const ParGridFunction &state,
-   std::function<double(const Vector &)> pert_fun)
+    const ParGridFunction &state,
+    std::function<double(const Vector &)> pert_fun)
 {
    // initialize some variables
    const double delta = 1e-5;
@@ -1947,7 +1959,7 @@ void AbstractSolver::checkJacobian(
    calcResidual(u_plus, res_plus);
    calcResidual(u_minus, res_minus);
    // res_plus = 1/(2*delta)*(res_plus - res_minus)
-   subtract(1/(2*delta), res_plus, res_minus, res_plus);
+   subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
 
    // Get the product directly using Jacobian from GetGradient
    GridFunType jac_v(fes.get());
@@ -1968,7 +1980,6 @@ void AbstractSolver::checkJacobian(
    //       *out << "jac_v(" << i << "): " << jac_v(i) << "\n";
    // }
 
-
    // ParGridFunction real_res(fes.get());
    // ParGridFunction zero_res(fes.get());
    // ParGridFunction jac_temp(fes.get());
@@ -1985,8 +1996,6 @@ void AbstractSolver::checkJacobian(
    // auto *real_res_true = real_res.GetTrueDofs();
    // auto *zero_res_true = zero_res.GetTrueDofs();
 
-
-
    // auto *u_true = state.GetTrueDofs();
    // mfem::Operator &jac = res->GetGradient(*u_true);
    // auto *jac_temp_true = jac_temp.GetTrueDofs();
@@ -1994,7 +2003,8 @@ void AbstractSolver::checkJacobian(
 
    // jac_temp.SetFromTrueDofs(*jac_temp_true);
 
-   // printFields("real_res", {&real_res, &jac_temp, &zero_res}, {"res", "jac_temp", "zero_res"});
+   // printFields("real_res", {&real_res, &jac_temp, &zero_res}, {"res",
+   // "jac_temp", "zero_res"});
 
    // real_res -= jac_temp;
    // real_res += zero_res;
@@ -2007,13 +2017,10 @@ void AbstractSolver::checkJacobian(
    // double norm = calcInnerProduct(real_res, real_res);
    // // double norm = *real_res_true * *real_res_true;
    // *out << "The norm is " << sqrt(norm) << endl;
-   
-
-
 }
 
-void AbstractSolver::checkJacobian(
-    void (*pert_fun)(const mfem::Vector &, mfem::Vector &))
+void AbstractSolver::checkJacobian(void (*pert_fun)(const mfem::Vector &,
+                                                    mfem::Vector &))
 {
    // initialize some variables
    const double delta = 1e-5;
@@ -2039,7 +2046,7 @@ void AbstractSolver::checkJacobian(
    res_plus.SetFromTrueDofs(*res_p);
    res_minus.SetFromTrueDofs(*res_m);
    // res_plus = 1/(2*delta)*(res_plus - res_minus)
-   subtract(1/(2*delta), res_plus, res_minus, res_plus);
+   subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
 
    // Get the product directly using Jacobian from GetGradient
    GridFunType jac_v(fes.get());
@@ -2056,10 +2063,11 @@ void AbstractSolver::checkJacobian(
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
-mfem::Vector* AbstractSolver::getMeshSensitivities()
+mfem::Vector *AbstractSolver::getMeshSensitivities()
 {
-   throw MachException("AbstractSolver::getMeshSensitivities\n"
-                       "\tnot implemented yet!");
+   throw MachException(
+       "AbstractSolver::getMeshSensitivities\n"
+       "\tnot implemented yet!");
 }
 
 // HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
@@ -2107,15 +2115,12 @@ void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
 }
 
 HypreParVector AbstractSolver::bufferToHypreParVector(
-   double *buffer,
-   const ParFiniteElementSpace &fes) const
+    double *buffer,
+    const ParFiniteElementSpace &fes) const
 {
-   return HypreParVector(fes.GetComm(),
-                         fes.GlobalTrueVSize(),
-                         buffer,
-                         fes.GetTrueDofOffsets());
+   return HypreParVector(
+       fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets());
 }
-
 
 // void AbstractSolver::setResidualInput(std::string name,
 //                                       ParGridFunction &field)
@@ -2146,4 +2151,4 @@ double AbstractSolver::calcFractionalOutput(const ParGridFunction &state,
    return val;
 }
 
-} // namespace mach
+}  // namespace mach

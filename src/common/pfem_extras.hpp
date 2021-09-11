@@ -18,10 +18,8 @@
 
 namespace mfem
 {
-
 namespace common
 {
-
 /** The H1_ParFESpace class is a ParFiniteElementSpace which automatically
     allocates and destroys its own FiniteElementCollection, in this
     case an H1_FECollection object.
@@ -30,10 +28,13 @@ class H1_ParFESpace : public ParFiniteElementSpace
 {
 public:
    H1_ParFESpace(ParMesh *m,
-                 const int p, const int space_dim = 3,
+                 const int p,
+                 const int space_dim = 3,
                  const int type = BasisType::GaussLobatto,
-                 int vdim = 1, int order = Ordering::byNODES);
+                 int vdim = 1,
+                 int order = Ordering::byNODES);
    ~H1_ParFESpace();
+
 private:
    const FiniteElementCollection *FEC_;
 };
@@ -45,9 +46,13 @@ private:
 class ND_ParFESpace : public ParFiniteElementSpace
 {
 public:
-   ND_ParFESpace(ParMesh *m, const int p, const int space_dim,
-                 int vdim = 1, int order = Ordering::byNODES);
+   ND_ParFESpace(ParMesh *m,
+                 const int p,
+                 const int space_dim,
+                 int vdim = 1,
+                 int order = Ordering::byNODES);
    ~ND_ParFESpace();
+
 private:
    const FiniteElementCollection *FEC_;
 };
@@ -59,9 +64,13 @@ private:
 class RT_ParFESpace : public ParFiniteElementSpace
 {
 public:
-   RT_ParFESpace(ParMesh *m, const int p, const int space_dim,
-                 int vdim = 1, int order = Ordering::byNODES);
+   RT_ParFESpace(ParMesh *m,
+                 const int p,
+                 const int space_dim,
+                 int vdim = 1,
+                 int order = Ordering::byNODES);
    ~RT_ParFESpace();
+
 private:
    const FiniteElementCollection *FEC_;
 };
@@ -73,9 +82,13 @@ private:
 class L2_ParFESpace : public ParFiniteElementSpace
 {
 public:
-   L2_ParFESpace(ParMesh *m, const int p, const int space_dim,
-                 int vdim = 1, int order = Ordering::byNODES);
+   L2_ParFESpace(ParMesh *m,
+                 const int p,
+                 const int space_dim,
+                 int vdim = 1,
+                 int order = Ordering::byNODES);
    ~L2_ParFESpace();
+
 private:
    const FiniteElementCollection *FEC_;
 };
@@ -85,7 +98,8 @@ class ParDiscreteInterpolationOperator : public ParDiscreteLinearOperator
 public:
    ParDiscreteInterpolationOperator(ParFiniteElementSpace *dfes,
                                     ParFiniteElementSpace *rfes)
-      : ParDiscreteLinearOperator(dfes, rfes) {}
+    : ParDiscreteLinearOperator(dfes, rfes)
+   { }
    virtual ~ParDiscreteInterpolationOperator();
 };
 
@@ -116,12 +130,12 @@ public:
 class IrrotationalProjector : public Operator
 {
 public:
-   IrrotationalProjector(ParFiniteElementSpace   & H1FESpace,
-                         ParFiniteElementSpace   & HCurlFESpace,
-                         const int               & irOrder,
-                         ParBilinearForm         * s0 = NULL,
-                         ParMixedBilinearForm    * weakDiv = NULL,
-                         ParDiscreteGradOperator * grad = NULL);
+   IrrotationalProjector(ParFiniteElementSpace &H1FESpace,
+                         ParFiniteElementSpace &HCurlFESpace,
+                         const int &irOrder,
+                         ParBilinearForm *s0 = NULL,
+                         ParMixedBilinearForm *weakDiv = NULL,
+                         ParDiscreteGradOperator *grad = NULL);
    virtual ~IrrotationalProjector();
 
    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
@@ -135,22 +149,22 @@ public:
 private:
    void InitSolver() const;
 
-   ParFiniteElementSpace * H1FESpace_;
-   ParFiniteElementSpace * HCurlFESpace_;
+   ParFiniteElementSpace *H1FESpace_;
+   ParFiniteElementSpace *HCurlFESpace_;
 
-   ParBilinearForm         * s0_;
-   ParMixedBilinearForm    * weakDiv_;
-   ParDiscreteGradOperator * grad_;
+   ParBilinearForm *s0_;
+   ParMixedBilinearForm *weakDiv_;
+   ParDiscreteGradOperator *grad_;
 
-   ParGridFunction * psi_;
-   ParGridFunction * xDiv_;
+   ParGridFunction *psi_;
+   ParGridFunction *xDiv_;
 
-   HypreParMatrix * S0_;
+   HypreParMatrix *S0_;
    mutable Vector Psi_;
    mutable Vector RHS_;
 
-   mutable HypreBoomerAMG * amg_;
-   mutable HyprePCG       * pcg_;
+   mutable HypreBoomerAMG *amg_;
+   mutable HyprePCG *pcg_;
 
    Array<int> ess_bdr_, ess_bdr_tdofs_;
 
@@ -165,12 +179,12 @@ private:
 class DivergenceFreeProjector : public IrrotationalProjector
 {
 public:
-   DivergenceFreeProjector(ParFiniteElementSpace   & H1FESpace,
-                           ParFiniteElementSpace   & HCurlFESpace,
-                           const int               & irOrder,
-                           ParBilinearForm         * s0 = NULL,
-                           ParMixedBilinearForm    * weakDiv = NULL,
-                           ParDiscreteGradOperator * grad = NULL);
+   DivergenceFreeProjector(ParFiniteElementSpace &H1FESpace,
+                           ParFiniteElementSpace &HCurlFESpace,
+                           const int &irOrder,
+                           ParBilinearForm *s0 = NULL,
+                           ParMixedBilinearForm *weakDiv = NULL,
+                           ParDiscreteGradOperator *grad = NULL);
    virtual ~DivergenceFreeProjector();
 
    // Given a vector 'x' of Nedelec DoFs for an arbitrary vector field,
@@ -182,25 +196,37 @@ public:
    void Update();
 };
 
-
 /// Visualize the given parallel mesh object, using a GLVis server on the
 /// specified host and port. Set the visualization window title, and optionally,
 /// its geometry.
-void VisualizeMesh(socketstream &sock, const char *vishost, int visport,
-                   ParMesh &pmesh, const char *title,
-                   int x = 0, int y = 0, int w = 400, int h = 400,
+void VisualizeMesh(socketstream &sock,
+                   const char *vishost,
+                   int visport,
+                   ParMesh &pmesh,
+                   const char *title,
+                   int x = 0,
+                   int y = 0,
+                   int w = 400,
+                   int h = 400,
                    const char *keys = NULL);
 
 /// Visualize the given parallel grid function, using a GLVis server on the
 /// specified host and port. Set the visualization window title, and optionally,
 /// its geometry.
-void VisualizeField(socketstream &sock, const char *vishost, int visport,
-                    ParGridFunction &gf, const char *title,
-                    int x = 0, int y = 0, int w = 400, int h = 400,
-                    const char *keys = NULL, bool vec = false);
+void VisualizeField(socketstream &sock,
+                    const char *vishost,
+                    int visport,
+                    ParGridFunction &gf,
+                    const char *title,
+                    int x = 0,
+                    int y = 0,
+                    int w = 400,
+                    int h = 400,
+                    const char *keys = NULL,
+                    bool vec = false);
 
-} // namespace common
+}  // namespace common
 
-} // namespace mfem
+}  // namespace mfem
 
 #endif

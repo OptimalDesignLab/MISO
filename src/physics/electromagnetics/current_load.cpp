@@ -11,10 +11,8 @@ using namespace mfem;
 
 namespace mach
 {
-
 /// set inputs should include fields, so things can check if they're "dirty"
-void setInputs(CurrentLoad &load,
-               const MachInputs &inputs)
+void setInputs(CurrentLoad &load, const MachInputs &inputs)
 {
    setInputs(load.div_free_proj, inputs);
 
@@ -33,8 +31,7 @@ void setInputs(CurrentLoad &load,
    }
 }
 
-void addLoad(CurrentLoad &load,
-             Vector &tv)
+void addLoad(CurrentLoad &load, Vector &tv)
 {
    if (load.dirty)
    {
@@ -81,14 +78,17 @@ void vectorJacobianProduct(CurrentLoad &load,
       load.nd_mass.Assemble();
       load.nd_mass.Finalize();
 
-      ParGridFunction psi_k(&load.fes); psi_k = 0.0;
+      ParGridFunction psi_k(&load.fes);
+      psi_k = 0.0;
       load.nd_mass.MultTranspose(psi_l, psi_k);
 
-      ParGridFunction rhs(&load.fes); rhs = 0.0;
+      ParGridFunction rhs(&load.fes);
+      rhs = 0.0;
       load.div_free_proj.vectorJacobianProduct(load.j, psi_k, "in", rhs);
       rhs *= -1.0;
 
-      ParGridFunction psi_j(&load.fes); psi_j = 0.0;
+      ParGridFunction psi_j(&load.fes);
+      psi_j = 0.0;
       // psi_j = load_bar;
 
       HypreParMatrix M;
@@ -116,15 +116,17 @@ void vectorJacobianProduct(CurrentLoad &load,
       load.m_l_mesh_sens->setAdjoint(psi_l);
 
       auto &mesh = *load.h1_fes.GetParMesh();
-      auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
+      auto &x_nodes = dynamic_cast<ParGridFunction &>(*mesh.GetNodes());
       auto &mesh_fes = *x_nodes.ParFESpace();
-      HypreParVector scratch_tv(&mesh_fes); scratch_tv = 0.0;
+      HypreParVector scratch_tv(&mesh_fes);
+      scratch_tv = 0.0;
 
       load.mesh_sens.Assemble();
       load.mesh_sens.ParallelAssemble(scratch_tv);
       wrt_bar -= scratch_tv;
 
-      ParGridFunction scratch(&mesh_fes); scratch = 0.0;
+      ParGridFunction scratch(&mesh_fes);
+      scratch = 0.0;
       load.div_free_proj.vectorJacobianProduct(load.j, psi_k, wrt, scratch);
       scratch.ParallelAssemble(scratch_tv);
       wrt_bar -= scratch_tv;
@@ -133,14 +135,24 @@ void vectorJacobianProduct(CurrentLoad &load,
 
 CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
                          VectorCoefficient &current_coeff)
-   : current_density(1.0), current(1.0, current_coeff),
-   fes(pfes), h1_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
+ : current_density(1.0),
+   current(1.0, current_coeff),
+   fes(pfes),
+   h1_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    h1_fes(fes.GetParMesh(), &h1_coll),
-   rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()), 
-   rt_fes(fes.GetParMesh(), &rt_coll), nd_mass(&fes), J(&fes), j(&fes),
-   div_free_current_vec(&fes), scratch(&fes), load(&fes),
-   div_free_proj(h1_fes, fes, h1_fes.GetElementTransformation(0)->OrderW()
-                                 + 2 * fes.GetFE(0)->GetOrder()), dirty(true)
+   rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
+   rt_fes(fes.GetParMesh(), &rt_coll),
+   nd_mass(&fes),
+   J(&fes),
+   j(&fes),
+   div_free_current_vec(&fes),
+   scratch(&fes),
+   load(&fes),
+   div_free_proj(h1_fes,
+                 fes,
+                 h1_fes.GetElementTransformation(0)->OrderW() +
+                     2 * fes.GetFE(0)->GetOrder()),
+   dirty(true)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
@@ -148,7 +160,7 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(current));
 
    auto &mesh = *h1_fes.GetParMesh();
-   auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
+   auto &x_nodes = dynamic_cast<ParGridFunction &>(*mesh.GetNodes());
    auto &mesh_fes = *x_nodes.ParFESpace();
    mesh_sens.Update(&mesh_fes);
 
@@ -198,7 +210,7 @@ void CurrentLoad::assembleLoad()
    /// Compute the dual of div_free_current_vec
    // div_free_current_vec.ParallelAssemble(scratch);
    // M.Mult(scratch, load);
-   
+
    /// Compute the dual of div_free_current_vec
    nd_mass.Update();
    nd_mass.Assemble();
@@ -207,4 +219,4 @@ void CurrentLoad::assembleLoad()
    scratch.ParallelAssemble(load);
 }
 
-} // namespace mach
+}  // namespace mach

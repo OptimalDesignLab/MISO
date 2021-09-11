@@ -48,12 +48,15 @@
 //    PCU_Comm_Free();
 
 //    // TODO:
-//    // 1. determine the size of cP. i.e. # of quadrature points and barycenters.
+//    // 1. determine the size of cP. i.e. # of quadrature points and
+//    barycenters.
 //    // 2. call the mfem::FiniteElementSpace constructor.
-//    // 3. make sure that the dofs' order is consistent with that in bi/nonlinearforms
+//    // 3. make sure that the dofs' order is consistent with that in
+//    bi/nonlinearforms
 // } // class constructor ends
 
-// void GalerkinDifference::BuildNeighbourMat(DenseMatrix &nmat1, DenseMatrix &nmat2)
+// void GalerkinDifference::BuildNeighbourMat(DenseMatrix &nmat1, DenseMatrix
+// &nmat2)
 // {
 //    // create pumi iterator over elements
 //    pMeshIter it = pumi_mesh->begin(pumi_mesh_getDim(pumi_mesh));
@@ -66,7 +69,8 @@
 //    int req_n = ((degree + 1) * (degree + 2)) / 2;
 //    int max_n = 0;
 //    int min_n = req_n;
-//    // iterate over mesh elements to get maximum number of neighbours for an element.
+//    // iterate over mesh elements to get maximum number of neighbours for an
+//    element.
 //    // this provides the row size of neighbour matrices
 //    while ((e = pumi_mesh->iterate(it)))
 //    {
@@ -90,7 +94,8 @@
 //    vector<int> nels;
 //    //GetNeighbourSet(0, req_n, nels);
 //    // set size of neighbour matrix
-//    // To do: in 3D the # neighbours may be more than the required # neighbours
+//    // To do: in 3D the # neighbours may be more than the required #
+//    neighbours
 //    // nmat1.SetSize((max_n + req_n-min_n), nEle);
 // }
 
@@ -103,8 +108,9 @@
 //    int num_el = elmt_id.size();
 //    mat_cent.Clear(); mat_cent.SetSize(dim, num_el);
 
-//    const FiniteElement *fe = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
-//    const int num_dofs = fe->GetDof();
+//    const FiniteElement *fe =
+//    fec->FiniteElementForGeometry(Geometry::TRIANGLE); const int num_dofs =
+//    fe->GetDof();
 //    // vectors that hold coordinates of quadrature points
 //    // used for duplication tests
 //    vector<double> quad_data;
@@ -119,7 +125,7 @@
 //       {
 //          mat_cent(i,j) = cent_coord(i);
 //       }
-      
+
 //       // deal with quadrature points
 //       eltransf = mesh->GetElementTransformation(elmt_id[j]);
 //       for (int k = 0; k < num_dofs; k++)
@@ -148,7 +154,8 @@
 //    }
 // }
 
-// void GalerkinDifference::GetNeighbourSet(int id, int req_n, std::vector<int> &nels)
+// void GalerkinDifference::GetNeighbourSet(int id, int req_n, std::vector<int>
+// &nels)
 // {
 //    /// this stores the elements for which we need neighbours
 //    vector<pMeshEnt> el;
@@ -158,7 +165,7 @@
 //    /// first, need to find neighbour of the given element
 //    el.push_back(e);
 //    /// first entry in neighbour vector should be the element itself
-//    nels.resize(0); // clean the queue vector 
+//    nels.resize(0); // clean the queue vector
 //    nels.push_back(id);
 //    /// iterate for finding element neighbours.
 //    /// it stops when the # of elements in patch are equal/greater
@@ -191,10 +198,10 @@
 //             elm.push_back(nels_e1[i]);
 //          }
 //       }
-//       /// resizing el to zero prevents finding neighbours of the same elements
-//       el.resize(0);
-//       /// insert the neighbour elements in 'el' and iterate to find their neighbours if needed
-//       el.insert(end(el), begin(elm), end(elm));
+//       /// resizing el to zero prevents finding neighbours of the same
+//       elements el.resize(0);
+//       /// insert the neighbour elements in 'el' and iterate to find their
+//       neighbours if needed el.insert(end(el), begin(elm), end(elm));
 //    }
 // }
 
@@ -226,7 +233,7 @@
 //    // 1. build the patch for each element,
 //    // 2. construct the local reconstruction operator
 //    // 3. assemble local reconstruction operator
-   
+
 //    // vector that contains element id (resize to zero )
 //    std::vector<int> elmt_id;
 //    mfem::DenseMatrix cent_mat, quad_mat;
@@ -237,7 +244,7 @@
 //       // have more element than required to make it a underdetermined system
 //       elmt_id.clear();
 //       GetNeighbourSet(i, nelmt, elmt_id);
-      
+
 //       // 2. build the quadrature and barycenter coordinate matrices
 //       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
 
@@ -249,7 +256,8 @@
 //    }
 // }
 
-// bool GalerkinDifference::duplicated(const Vector quad, const vector<double> data)
+// bool GalerkinDifference::duplicated(const Vector quad, const vector<double>
+// data)
 // {
 //    bool duplicated;
 //    int data_size = data.size();

@@ -9,7 +9,6 @@
 
 namespace mach
 {
-
 class VectorFEMassIntegratorMeshSens;
 class VectorFEDomainLFIntegratorMeshSens;
 
@@ -19,12 +18,10 @@ public:
    /// Used to set scalar inputs in the underlying load type
    /// Ends up calling `setInputs` on either the `MachLinearForm` or
    /// a specialized version for each particular load.
-   friend void setInputs(CurrentLoad &load,
-                         const MachInputs &inputs);
+   friend void setInputs(CurrentLoad &load, const MachInputs &inputs);
 
    /// Assemble the load vector on the true dofs and store in tv
-   friend void addLoad(CurrentLoad &load,
-                       mfem::Vector &tv);
+   friend void addLoad(CurrentLoad &load, mfem::Vector &tv);
 
    friend double vectorJacobianProduct(CurrentLoad &load,
                                        const mfem::HypreParVector &load_bar,
@@ -48,7 +45,7 @@ private:
    mfem::ParFiniteElementSpace h1_fes;
    mfem::RT_FECollection rt_coll;
    mfem::ParFiniteElementSpace rt_fes;
-   
+
    mfem::ParBilinearForm nd_mass;
    mfem::ParLinearForm J;
    mfem::ParGridFunction j;
@@ -71,6 +68,6 @@ private:
    void assembleLoad();
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

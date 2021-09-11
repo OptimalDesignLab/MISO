@@ -48,12 +48,13 @@
 //    int me_dim = pumi_mesh->getModelType(me);
 //    if (me_dim != 2) {return;} // face classified on a model region
 //    int tag = pumi_mesh->getModelTag(me);
-//    if (faces.count(tag) == 0) {return;} // face is on a model face, but not one we want
+//    if (faces.count(tag) == 0) {return;} // face is on a model face, but not
+//    one we want
 
 //    Vector el1vect(elvect.GetData(), ndof1);
 //    Vector el2vect(elvect.GetData() + ndof1, ndof2);
 
-//    bool el1_is_source = face_trans.Elem1->Attribute == source_attr ? 
+//    bool el1_is_source = face_trans.Elem1->Attribute == source_attr ?
 //                         true : false;
 
 //    const IntegrationRule *ir = IntRule;
@@ -98,7 +99,7 @@
 //       CalcAdjugate(face_trans.Elem2->Jacobian(), adjJ);
 //       adjJ.Mult(nor, nh);
 //       dshape2.Mult(nh, dshape2dn);
-   
+
 //       w1 = ip.weight;
 //       w2 = ip.weight;
 
@@ -111,7 +112,7 @@
 //          el1flux = (shape1 * el1state) - ambient_temp;
 //          el2flux = dshape2dn * el2state;
 //       }
-//       else 
+//       else
 //       {
 //          w1 *= K.Eval(*face_trans.Elem1, eip1) / face_trans.Elem2->Weight();
 //          w2 *= nor.Norml2() * H.Eval(*face_trans.Elem2, eip2);
@@ -159,8 +160,9 @@
 //    int me_dim = pumi_mesh->getModelType(me);
 //    if (me_dim != 2) {return;} // face classified on a model region
 //    int tag = pumi_mesh->getModelTag(me);
-//    if (faces.count(tag) == 0) {return;} // face is on a model face, but not one we want
-//    bool el1_is_source = face_trans.Elem1->Attribute == source_attr ? 
+//    if (faces.count(tag) == 0) {return;} // face is on a model face, but not
+//    one we want bool el1_is_source = face_trans.Elem1->Attribute ==
+//    source_attr ?
 //                         true : false;
 
 //    const IntegrationRule *ir = IntRule;
@@ -204,7 +206,7 @@
 //       CalcAdjugate(face_trans.Elem2->Jacobian(), adjJ);
 //       adjJ.Mult(nor, nh);
 //       dshape2.Mult(nh, dshape2dn);
-   
+
 //       w1 = ip.weight;
 //       w2 = ip.weight;
 
@@ -229,7 +231,7 @@
 //             }
 //          }
 //       }
-//       else 
+//       else
 //       {
 //          w1 *= K.Eval(*face_trans.Elem1, eip1) / face_trans.Elem1->Weight();
 //          w2 *= nor.Norml2() * H.Eval(*face_trans.Elem2, eip2);

@@ -5,7 +5,6 @@
 
 namespace mach
 {
-
 /// Integrator for diagonal mass matrices that arise in SBP discretizations
 class DiagMassIntegrator : public mfem::BilinearFormIntegrator
 {
@@ -13,8 +12,9 @@ public:
    /// Constructs a diagonal-mass matrix integrator.
    /// \param[in] nvar - number of state variables
    /// \param[in] space_vary - if true, sets up for space varying time step
-   explicit DiagMassIntegrator(int nvar = 1, bool space_vary = false) 
-   : num_state(nvar), space_vary_dt(space_vary) {}
+   explicit DiagMassIntegrator(int nvar = 1, bool space_vary = false)
+    : num_state(nvar), space_vary_dt(space_vary)
+   { }
 
    /// Finds the diagonal mass matrix for the given element.
    /// \param[in] el - the element for which the mass matrix is desired
@@ -31,6 +31,6 @@ private:
    bool space_vary_dt;
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

@@ -12,7 +12,6 @@
 
 namespace mach
 {
-
 /// Creates common interface for integrators used by mach
 /// A MachIntegrator can wrap any type `T` that has a function
 /// `setInput(T &, const std::string &, const MachInput &)` defined.
@@ -32,13 +31,16 @@ public:
    template <typename T>
    MachIntegrator(T &x) : self_(new model<T>(x))
    { }
-   MachIntegrator(const MachIntegrator &x) : self_(x.self_->copy_())
-   { }
-   MachIntegrator(MachIntegrator&&) noexcept = default;
+   MachIntegrator(const MachIntegrator &x) : self_(x.self_->copy_()) { }
+   MachIntegrator(MachIntegrator &&) noexcept = default;
 
-   MachIntegrator& operator=(const MachIntegrator &x)
-   { MachIntegrator tmp(x); *this = std::move(tmp); return *this; }
-   MachIntegrator& operator=(MachIntegrator&&) noexcept = default;
+   MachIntegrator &operator=(const MachIntegrator &x)
+   {
+      MachIntegrator tmp(x);
+      *this = std::move(tmp);
+      return *this;
+   }
+   MachIntegrator &operator=(MachIntegrator &&) noexcept = default;
 
    friend void setInput(MachIntegrator &integ,
                         const std::string &name,
@@ -49,7 +51,7 @@ private:
    {
    public:
       virtual ~concept_t() = default;
-      virtual concept_t* copy_() const = 0;
+      virtual concept_t *copy_() const = 0;
       virtual void setInput_(const std::string &name,
                              const MachInput &input) const = 0;
    };
@@ -59,10 +61,12 @@ private:
    {
    public:
       model(T &x) : integ(x) { }
-      concept_t* copy_() const override { return new model(*this); }
+      concept_t *copy_() const override { return new model(*this); }
       void setInput_(const std::string &name,
                      const MachInput &input) const override
-      { setInput(integ, name, input); }
+      {
+         setInput(integ, name, input);
+      }
 
       T &integ;
    };
@@ -72,7 +76,7 @@ private:
 
 /// Used to set scalar inputs in several integrators
 void setScalarInputs(std::vector<MachIntegrator> &integrators,
-                    const MachInputs &inputs);
+                     const MachInputs &inputs);
 
 /// Used to set a scalar input in several integrators
 void setScalarInput(std::vector<MachIntegrator> &integrators,
@@ -91,14 +95,16 @@ void setInput(MachIntegrator &integ,
 /// `MachIntegrator`
 inline void setInput(mfem::NonlinearFormIntegrator &integ,
                      const std::string &name,
-                     const MachInput &input) { };
+                     const MachInput &input)
+{ }
 
 /// Default implementation of setInput for a LinearFormIntegrator that does
 /// nothing but allows each child class of LinearFormIntegrator to be a
 /// `MachIntegrator`
 inline void setInput(mfem::LinearFormIntegrator &integ,
                      const std::string &name,
-                     const MachInput &input) { };
+                     const MachInput &input)
+{ }
 
 /// Function meant to be specialized to allow sensitivity integrators
 /// to be associated with the forward version of the integrator
@@ -109,11 +115,12 @@ inline void setInput(mfem::LinearFormIntegrator &integ,
 ///                             scalar sensitivity
 template <typename T>
 inline void addSensitivityIntegrator(
-   T &primal_integ,
-   std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-   std::map<std::string, mfem::ParLinearForm> &sens,
-   std::map<std::string, mfem::ParNonlinearForm> &scalar_sens) { };
+    T &primal_integ,
+    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, mfem::ParLinearForm> &sens,
+    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
+{ }
 
-} // namespace mach
+}  // namespace mach
 
 #endif

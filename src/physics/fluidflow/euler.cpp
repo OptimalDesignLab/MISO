@@ -8,16 +8,13 @@
 using namespace mfem;
 using namespace std;
 
-
 namespace mach
 {
-
 template <int dim, bool entvar>
-EulerSolver<dim, entvar>::EulerSolver(
-   const nlohmann::json &json_options,
-   unique_ptr<mfem::Mesh> smesh,
-   MPI_Comm comm)
-    : AbstractSolver(json_options, move(smesh), comm)
+EulerSolver<dim, entvar>::EulerSolver(const nlohmann::json &json_options,
+                                      unique_ptr<mfem::Mesh> smesh,
+                                      MPI_Comm comm)
+ : AbstractSolver(json_options, move(smesh), comm)
 {
    if (entvar)
    {
@@ -29,18 +26,18 @@ EulerSolver<dim, entvar>::EulerSolver(
    }
    // define free-stream parameters; may or may not be used, depending on case
    mach_fs = options["flow-param"]["mach"].template get<double>();
-   aoa_fs = options["flow-param"]["aoa"].template get<double>()*M_PI/180;
+   aoa_fs = options["flow-param"]["aoa"].template get<double>() * M_PI / 180;
    iroll = options["flow-param"]["roll-axis"].template get<int>();
    ipitch = options["flow-param"]["pitch-axis"].template get<int>();
    if (iroll == ipitch)
    {
       throw MachException("iroll and ipitch must be distinct dimensions!");
    }
-   if ( (iroll < 0) || (iroll > 2) )
+   if ((iroll < 0) || (iroll > 2))
    {
       throw MachException("iroll axis must be between 0 and 2!");
    }
-   if ( (ipitch < 0) || (ipitch > 2) )
+   if ((ipitch < 0) || (ipitch > 2))
    {
       throw MachException("ipitch axis must be between 0 and 2!");
    }
@@ -50,7 +47,7 @@ template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::constructForms()
 {
    res.reset(new NonlinearFormType(fes.get()));
-   if ( (entvar) && (!options["time-dis"]["steady"].template get<bool>()) )
+   if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
    {
       nonlinear_mass.reset(new NonlinearFormType(fes.get()));
       mass.reset();
@@ -66,11 +63,13 @@ void EulerSolver<dim, entvar>::constructForms()
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addMassIntegrators(double alpha)
 {
-   if (options["time-dis"]["steady"].template get<bool>()) {
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
       mass->AddDomainIntegrator(new DiagMassIntegrator(num_state, true));
-      //AbstractSolver::addMassIntegrators(alpha);
+      // AbstractSolver::addMassIntegrators(alpha);
    }
-   else {
+   else
+   {
       AbstractSolver::addMassIntegrators(alpha);
    }
 }
@@ -88,7 +87,7 @@ void EulerSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    // TODO: should decide between one-point and two-point fluxes using options
    res->AddDomainIntegrator(
        new IsmailRoeIntegrator<dim, entvar>(diff_stack, alpha));
-   //res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
+   // res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
 
    // add the LPS stabilization
    double lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
@@ -102,11 +101,12 @@ void EulerSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    auto &bcs = options["bcs"];
    int idx = 0;
    if (bcs.find("vortex") != bcs.end())
-   { // isentropic vortex BC
+   {  // isentropic vortex BC
       if (dim != 2)
       {
-         throw MachException("EulerSolver::addBoundaryIntegrators(alpha)\n"
-                             "\tisentropic vortex BC must use 2D mesh!");
+         throw MachException(
+             "EulerSolver::addBoundaryIntegrators(alpha)\n"
+             "\tisentropic vortex BC must use 2D mesh!");
       }
       vector<int> tmp = bcs["vortex"].template get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
@@ -117,20 +117,20 @@ void EulerSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       idx++;
    }
    if (bcs.find("slip-wall") != bcs.end())
-   { // slip-wall boundary condition
+   {  // slip-wall boundary condition
       vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-             new SlipWallBC<dim, entvar>(diff_stack, fec.get(), alpha),
-             bndry_marker[idx]);
+          new SlipWallBC<dim, entvar>(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
       idx++;
    }
    if (bcs.find("far-field") != bcs.end())
-   { 
+   {
       // far-field boundary conditions
       vector<int> tmp = bcs["far-field"].template get<vector<int>>();
-      mfem::Vector qfar(dim+2);
+      mfem::Vector qfar(dim + 2);
       getFreeStreamState(qfar);
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
@@ -147,10 +147,10 @@ void EulerSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
    // add the integrators based on if discretization is continuous or discrete
    if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
    {
-      double diss_coeff = options["space-dis"]["iface-coeff"].template get<double>();
-      res->AddInteriorFaceIntegrator(
-          new InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
-                                               fec.get(), alpha));
+      double diss_coeff =
+          options["space-dis"]["iface-coeff"].template get<double>();
+      res->AddInteriorFaceIntegrator(new InterfaceIntegrator<dim, entvar>(
+          diff_stack, diss_coeff, fec.get(), alpha));
    }
 }
 
@@ -161,7 +161,7 @@ void EulerSolver<dim, entvar>::addEntVolumeIntegrators()
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::initialHook(const ParGridFunction &state) 
+void EulerSolver<dim, entvar>::initialHook(const ParGridFunction &state)
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
@@ -170,14 +170,16 @@ void EulerSolver<dim, entvar>::initialHook(const ParGridFunction &state)
    }
    // TODO: this should only be output if necessary
    double entropy = ent->GetEnergy(state);
-   *out << "before time stepping, entropy is "<< entropy << endl;
+   *out << "before time stepping, entropy is " << entropy << endl;
    remove("entropylog.txt");
    entropylog.open("entropylog.txt", fstream::app);
    entropylog << setprecision(14);
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::iterationHook(int iter, double t, double dt,
+void EulerSolver<dim, entvar>::iterationHook(int iter,
+                                             double t,
+                                             double dt,
                                              const ParGridFunction &state)
 {
    double entropy = ent->GetEnergy(state);
@@ -185,7 +187,9 @@ void EulerSolver<dim, entvar>::iterationHook(int iter, double t, double dt,
 }
 
 template <int dim, bool entvar>
-bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
+bool EulerSolver<dim, entvar>::iterationExit(int iter,
+                                             double t,
+                                             double t_final,
                                              double dt,
                                              const ParGridFunction &state) const
 {
@@ -195,8 +199,9 @@ bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
       double norm = calcResidualNorm(state);
       if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
          return true;
-      if (norm <= res_norm0 *
-                      options["time-dis"]["steady-reltol"].template get<double>())
+      if (norm <=
+          res_norm0 *
+              options["time-dis"]["steady-reltol"].template get<double>())
          return true;
       return false;
    }
@@ -207,7 +212,8 @@ bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final,
+void EulerSolver<dim, entvar>::terminalHook(int iter,
+                                            double t_final,
                                             const ParGridFunction &state)
 {
    double entropy = ent->GetEnergy(state);
@@ -217,11 +223,11 @@ void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final,
 
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::addOutputIntegrators(
-   const std::string &fun,
-   const nlohmann::json &options)
+    const std::string &fun,
+    const nlohmann::json &options)
 {
    if (fun == "drag")
-   { 
+   {
       // drag on the specified boundaries
       vector<int> bdr = options["boundaries"].template get<vector<int>>();
       output_bndry_marker.emplace(fun, bdr.size());
@@ -233,17 +239,17 @@ void EulerSolver<dim, entvar>::addOutputIntegrators(
       {
          drag_dir(0) = 1.0;
       }
-      else 
+      else
       {
          drag_dir(iroll) = cos(aoa_fs);
          drag_dir(ipitch) = sin(aoa_fs);
       }
-      drag_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cd
+      drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
 
       addOutputBdrFaceIntegrator(
-         fun,
-         new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
-         output_bndry_marker.at(fun));
+          fun,
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
+          output_bndry_marker.at(fun));
    }
    else if (fun == "lift")
    {
@@ -263,32 +269,34 @@ void EulerSolver<dim, entvar>::addOutputIntegrators(
          lift_dir(iroll) = -sin(aoa_fs);
          lift_dir(ipitch) = cos(aoa_fs);
       }
-      lift_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cl
+      lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
 
       addOutputBdrFaceIntegrator(
-         fun,
-         new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
-         output_bndry_marker.at(fun));
+          fun,
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+          output_bndry_marker.at(fun));
    }
    else if (fun == "entropy")
    {
-      // integral of entropy over the entire volume domain         
-      addOutputDomainIntegrator(
-         fun,
-         new EntropyIntegrator<dim, entvar>(diff_stack));
+      // integral of entropy over the entire volume domain
+      addOutputDomainIntegrator(fun,
+                                new EntropyIntegrator<dim, entvar>(diff_stack));
    }
    else
    {
-      throw MachException("Output with name " + fun + " not supported by "
+      throw MachException("Output with name " + fun +
+                          " not supported by "
                           "EulerSolver!\n");
    }
 }
 
 template <int dim, bool entvar>
-double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
-                                              double t_final,
-                                              double dt_old,
-                                              const ParGridFunction &state) const
+double EulerSolver<dim, entvar>::calcStepSize(
+    int iter,
+    double t,
+    double t_final,
+    double dt_old,
+    const ParGridFunction &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
@@ -307,9 +315,8 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
    }
    // Otherwise, use a constant CFL condition
    double cfl = options["time-dis"]["cfl"].template get<double>();
-   Vector q(dim+2);
-   auto calcSpect = [&q](const double* dir, const double* u)
-   {
+   Vector q(dim + 2);
+   auto calcSpect = [&q](const double *dir, const double *u) {
       if (entvar)
       {
          calcConservativeVars<double, dim>(u, q);
@@ -318,7 +325,7 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
       else
       {
          return calcSpectralRadius<double, dim>(dir, u);
-      }   
+      }
    };
    double dt_local = 1e100;
    Vector xi(dim);
@@ -341,12 +348,14 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
          uk.GetColumnReference(i, ui);
          for (int j = 0; j < fe->GetDof(); ++j)
          {
-            if (j == i)
-               continue;
+            if (j == i) continue;
             trans->Transform(fe->GetNodes().IntPoint(j), dxij);
             dxij -= xi;
             double dx = dxij.Norml2();
-            dt_local = min(dt_local, cfl * dx * dx / calcSpect(dxij, ui)); // extra dx is to normalize dxij
+            dt_local =
+                min(dt_local,
+                    cfl * dx * dx /
+                        calcSpect(dxij, ui));  // extra dx is to normalize dxij
          }
       }
    }
@@ -356,32 +365,34 @@ double EulerSolver<dim, entvar>::calcStepSize(int iter, double t,
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref) 
+void EulerSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
 {
    q_ref = 0.0;
    q_ref(0) = 1.0;
    if (dim == 1)
    {
-      q_ref(1) = q_ref(0)*mach_fs; // ignore angle of attack
+      q_ref(1) = q_ref(0) * mach_fs;  // ignore angle of attack
    }
    else
    {
-      q_ref(iroll+1) = q_ref(0)*mach_fs*cos(aoa_fs);
-      q_ref(ipitch+1) = q_ref(0)*mach_fs*sin(aoa_fs);
+      q_ref(iroll + 1) = q_ref(0) * mach_fs * cos(aoa_fs);
+      q_ref(ipitch + 1) = q_ref(0) * mach_fs * sin(aoa_fs);
    }
-   q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
+   q_ref(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
 }
 
 template <int dim, bool entvar>
 double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
-   void (*u_exact)(const mfem::Vector &, mfem::Vector &), int entry)
+    void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+    int entry)
 {
    // This lambda function computes the error at a node
    // Beware: this is not particularly efficient, given the conditionals
    // Also **NOT thread safe!**
-   Vector qdiscrete(dim+2), qexact(dim+2); // define here to avoid reallocation
-   auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
-   {
+   Vector qdiscrete(dim + 2),
+       qexact(dim + 2);  // define here to avoid reallocation
+   auto node_error = [&](const Vector &discrete,
+                         const Vector &exact) -> double {
       if (entvar)
       {
          calcConservativeVars<double, dim>(discrete.GetData(),
@@ -396,16 +407,16 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
       double err = 0.0;
       if (entry < 0)
       {
-         for (int i = 0; i < dim+2; ++i)
+         for (int i = 0; i < dim + 2; ++i)
          {
             double dq = qdiscrete(i) - qexact(i);
-            err += dq*dq;
+            err += dq * dq;
          }
       }
       else
       {
          err = qdiscrete(entry) - qexact(entry);
-         err = err*err;  
+         err = err * err;
       }
       return err;
    };
@@ -432,19 +443,19 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    }
    double norm;
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   if (norm < 0.0)  // This was copied from mfem...should not happen for us
    {
       return -sqrt(-norm);
    }
    return sqrt(norm);
 }
 
-template<int dim, bool entvar>
+template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
 {
    if (entvar)
    {
-      return ;
+      return;
    }
    else
    {
@@ -493,4 +504,4 @@ template class EulerSolver<2, false>;
 template class EulerSolver<3, true>;
 template class EulerSolver<3, false>;
 
-} // namespace mach
+}  // namespace mach

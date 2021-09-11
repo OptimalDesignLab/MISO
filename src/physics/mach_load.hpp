@@ -12,7 +12,6 @@
 
 namespace mach
 {
-
 /// Creates common interface for load vectors used by mach
 /// A MachLoad can wrap any type `T` that has the interface of a load vector.
 /// We have defined this function where `T` is a `MachLinearForm` so that every
@@ -27,13 +26,11 @@ public:
    /// Used to set scalar inputs in the underlying load type
    /// Ends up calling `setInputs` on either the `MachLinearForm` or
    /// a specialized version for each particular load.
-   friend void setInputs(MachLoad &load,
-                         const MachInputs &inputs);
+   friend void setInputs(MachLoad &load, const MachInputs &inputs);
 
    /// Assemble the load vector on the true dofs and add it to tv
-   friend void addLoad(MachLoad &load,
-                       mfem::Vector &tv);
-   
+   friend void addLoad(MachLoad &load, mfem::Vector &tv);
+
    /// Assemble the load vector's sensitivity to a scalar and contract it with
    /// res_bar
    friend double vectorJacobianProduct(MachLoad &load,
@@ -50,20 +47,23 @@ public:
    template <typename T>
    MachLoad(T &x) : self_(new model<T>(x))
    { }
-   MachLoad(const MachLoad &x) : self_(x.self_->copy_())
-   { }
-   MachLoad(MachLoad&&) noexcept = default;
+   MachLoad(const MachLoad &x) : self_(x.self_->copy_()) { }
+   MachLoad(MachLoad &&) noexcept = default;
 
-   MachLoad& operator=(const MachLoad &x)
-   { MachLoad tmp(x); *this = std::move(tmp); return *this; }
-   MachLoad& operator=(MachLoad&&) noexcept = default;
+   MachLoad &operator=(const MachLoad &x)
+   {
+      MachLoad tmp(x);
+      *this = std::move(tmp);
+      return *this;
+   }
+   MachLoad &operator=(MachLoad &&) noexcept = default;
 
 private:
    class concept_t
    {
    public:
       virtual ~concept_t() = default;
-      virtual concept_t* copy_() const = 0;
+      virtual concept_t *copy_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) const = 0;
       virtual void addLoad_(mfem::Vector &tv) = 0;
       virtual double vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
@@ -78,19 +78,23 @@ private:
    {
    public:
       model(T &x) : data_(x) { }
-      concept_t* copy_() const override { return new model(*this); }
+      concept_t *copy_() const override { return new model(*this); }
       void setInputs_(const MachInputs &inputs) const override
-      { setInputs(data_, inputs); }
-      void addLoad_(mfem::Vector &tv) override
-      { addLoad(data_, tv); }
+      {
+         setInputs(data_, inputs);
+      }
+      void addLoad_(mfem::Vector &tv) override { addLoad(data_, tv); }
       double vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
                                     std::string wrt) override
-      { return vectorJacobianProduct(data_, res_bar, wrt); }
+      {
+         return vectorJacobianProduct(data_, res_bar, wrt);
+      }
       void vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
                                   std::string wrt,
                                   mfem::HypreParVector &wrt_bar) override
-      { vectorJacobianProduct(data_, res_bar, wrt, wrt_bar); }
-
+      {
+         vectorJacobianProduct(data_, res_bar, wrt, wrt_bar);
+      }
 
       T &data_;
    };
@@ -98,14 +102,12 @@ private:
    std::unique_ptr<concept_t> self_;
 };
 
-inline void setInputs(MachLoad &load,
-                      const MachInputs &inputs)
+inline void setInputs(MachLoad &load, const MachInputs &inputs)
 {
    load.self_->setInputs_(inputs);
 }
 
-inline void addLoad(MachLoad &load,
-                    mfem::Vector &tv)
+inline void addLoad(MachLoad &load, mfem::Vector &tv)
 {
    load.self_->addLoad_(tv);
 }
@@ -125,6 +127,6 @@ inline void vectorJacobianProduct(MachLoad &load,
    load.self_->vectorJacobianProduct_(res_bar, wrt, wrt_bar);
 }
 
-} // namespace mach
+}  // namespace mach
 
 #endif

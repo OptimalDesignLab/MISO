@@ -8,15 +8,12 @@
 
 namespace mach
 {
-
-void setInputs(MachLinearForm &load,
-               const MachInputs &inputs)
+void setInputs(MachLinearForm &load, const MachInputs &inputs)
 {
    setScalarInputs(load.integs, inputs);
 }
 
-void addLoad(MachLinearForm &load,
-             mfem::Vector &tv)
+void addLoad(MachLinearForm &load, mfem::Vector &tv)
 {
    load.lf.Assemble();
    load.lf.ParallelAssemble(load.scratch);
@@ -29,7 +26,8 @@ double vectorJacobianProduct(MachLinearForm &load,
 {
    if (load.scalar_sens.count(wrt) != 0)
    {
-      throw std::logic_error("vectorJacobianProduct not implemented for MachLinearForm!\n");
+      throw std::logic_error(
+          "vectorJacobianProduct not implemented for MachLinearForm!\n");
       // auto &adjoint = load.lf_fields.at("adjoint");
       // adjoint = res_bar;
       // return load.scalar_sens.at(wrt).GetEnergy();
@@ -55,4 +53,4 @@ void vectorJacobianProduct(MachLinearForm &load,
    }
 }
 
-} // namespace mach
+}  // namespace mach

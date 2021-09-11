@@ -7,7 +7,6 @@
 
 namespace mach
 {
-
 /// Forward declarations of mesh sens integrators
 class DiffusionIntegratorMeshSens;
 class VectorFEWeakDivergenceIntegratorMeshSens;
@@ -18,8 +17,10 @@ class DiscreteGradOperator final : public mfem::ParDiscreteLinearOperator
 public:
    DiscreteGradOperator(mfem::ParFiniteElementSpace *dfes,
                         mfem::ParFiniteElementSpace *rfes)
-      : ParDiscreteLinearOperator(dfes, rfes)
-   { this->AddDomainInterpolator(new mfem::GradientInterpolator); }
+    : ParDiscreteLinearOperator(dfes, rfes)
+   {
+      this->AddDomainInterpolator(new mfem::GradientInterpolator);
+   }
 };
 
 class DiscreteCurlOperator final : public mfem::ParDiscreteLinearOperator
@@ -27,8 +28,10 @@ class DiscreteCurlOperator final : public mfem::ParDiscreteLinearOperator
 public:
    DiscreteCurlOperator(mfem::ParFiniteElementSpace *dfes,
                         mfem::ParFiniteElementSpace *rfes)
-      : ParDiscreteLinearOperator(dfes, rfes)
-   { this->AddDomainInterpolator(new mfem::CurlInterpolator); }
+    : ParDiscreteLinearOperator(dfes, rfes)
+   {
+      this->AddDomainInterpolator(new mfem::CurlInterpolator);
+   }
 };
 
 class DiscreteDivOperator final : public mfem::ParDiscreteLinearOperator
@@ -36,8 +39,10 @@ class DiscreteDivOperator final : public mfem::ParDiscreteLinearOperator
 public:
    DiscreteDivOperator(mfem::ParFiniteElementSpace *dfes,
                        mfem::ParFiniteElementSpace *rfes)
-      : ParDiscreteLinearOperator(dfes, rfes)
-   { this->AddDomainInterpolator(new mfem::DivergenceInterpolator); }
+    : ParDiscreteLinearOperator(dfes, rfes)
+   {
+      this->AddDomainInterpolator(new mfem::DivergenceInterpolator);
+   }
 };
 
 /// This class computes the irrotational portion of a vector field.
@@ -47,8 +52,7 @@ class IrrotationalProjector : public mfem::Operator
 {
 public:
    /// Used to set inputs in the operator
-   friend void setInputs(IrrotationalProjector &op,
-                         const MachInputs &inputs);
+   friend void setInputs(IrrotationalProjector &op, const MachInputs &inputs);
 
    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
    // compute the Nedelec DoFs of the irrotational portion, 'y', of
@@ -99,6 +103,6 @@ private:
    mfem::Array<int> ess_bdr, ess_bdr_tdofs;
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif
