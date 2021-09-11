@@ -8,11 +8,42 @@
 
 #include "solver.hpp"
 #include "coefficient.hpp"
+#include "current_load.hpp"
+#include "magnetic_load.hpp"
 
 namespace mach
 {
 
-class MeshMovementSolver;
+class MagnetostaticLoad final
+{
+public:
+   friend void setInputs(MagnetostaticLoad &load,
+                         const MachInputs &inputs);
+   
+   friend void addLoad(MagnetostaticLoad &load,
+                       mfem::Vector &tv);
+
+   friend double vectorJacobianProduct(MagnetostaticLoad &load,
+                                       const mfem::HypreParVector &res_bar,
+                                       std::string wrt);
+
+   friend void vectorJacobianProduct(MagnetostaticLoad &load,
+                                     const mfem::HypreParVector &res_bar,
+                                     std::string wrt,
+                                     mfem::HypreParVector &wrt_bar);
+   
+   MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
+                     mfem::VectorCoefficient &current_coeff,
+                     mfem::VectorCoefficient &mag_coeff,
+                     mfem::Coefficient &nu)
+   :  current_load(pfes, current_coeff), magnetic_load(pfes, mag_coeff, nu)
+   { }
+
+private:
+   CurrentLoad current_load;
+   MagneticLoad magnetic_load;
+   // LegacyMagneticLoad magnetic_load;
+};
 
 /// Solver for magnetostatic electromagnetic problems
 /// dim - number of spatial dimensions (only 3 supported)
@@ -57,6 +88,19 @@ public:
 
    void Update() override;
 
+   void setFieldValue(
+      mfem::HypreParVector &field,
+      const std::function<void(const mfem::Vector &,
+                               mfem::Vector&)> &u_init) override;
+
+   /// TODO: rename this and other related functions to set BoundaryCondition
+   /// Initializes the state vector to a given vector.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - const vector that defines the initial condition
+   virtual void setInitialCondition(
+      mfem::ParGridFunction &state,
+      const mfem::Vector &u_init) override;
+
    /// Initializes the state vector to a given function.
    /// \param[in] state - the state vector to initialize
    /// \param[in] u_init - function that defines the initial condition
@@ -70,36 +114,36 @@ public:
                        const mfem::ParGridFunction &state) const override;
 
 private:
-   // /// Nedelec finite element collection
-   // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
-   /// Raviart-Thomas finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
-   /// H1 finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> h1_coll;
-   ///L2 finite element collection
-   std::unique_ptr<mfem::FiniteElementCollection> l2_coll;
+   // // /// Nedelec finite element collection
+   // // std::unique_ptr<mfem::FiniteElementCollection> h_curl_coll;
+   // /// Raviart-Thomas finite element collection
+   // std::unique_ptr<mfem::FiniteElementCollection> h_div_coll;
+   // /// H1 finite element collection
+   // std::unique_ptr<mfem::FiniteElementCollection> h1_coll;
+   // ///L2 finite element collection
+   // std::unique_ptr<mfem::FiniteElementCollection> l2_coll;
 
-   // /// H(Curl) finite element space
-   // std::unique_ptr<SpaceType> h_curl_space;
-   /// H(Div) finite element space
-   std::unique_ptr<SpaceType> h_div_space;
-   /// H1 finite element space
-   std::unique_ptr<SpaceType> h1_space;
-   /// L2 finite element space
-   std::unique_ptr<SpaceType> l2_space;
+   // // /// H(Curl) finite element space
+   // // std::unique_ptr<SpaceType> h_curl_space;
+   // /// H(Div) finite element space
+   // std::unique_ptr<SpaceType> h_div_space;
+   // /// H1 finite element space
+   // std::unique_ptr<SpaceType> h1_space;
+   // /// L2 finite element space
+   // std::unique_ptr<SpaceType> l2_space;
 
-   // /// Magnetic vector potential A grid function
-   // std::unique_ptr<GridFunType> A;
-   /// Magnetic flux density B = curl(A) grid function
-   std::unique_ptr<GridFunType> B;
-   /// Magnetic flux density B = curl(A) grid function in H(curl) space
-   std::unique_ptr<GridFunType> B_dual;
-   /// Magnetization grid function
-   std::unique_ptr<GridFunType> M;
+   // // /// Magnetic vector potential A grid function
+   // // std::unique_ptr<GridFunType> A;
 
-   // /// TODO: delete? defined in abstract solver
-   // /// the spatial residual (a semilinear form)
-   // std::unique_ptr<NonlinearFormType> res;
+   /// alias to magnetic flux density grid function stored in res_fields
+   mfem::ParGridFunction *B;
+   
+   // /// Magnetic flux density B = curl(A) grid function in H(curl) space
+   // std::unique_ptr<GridFunType> B_dual;
+   // /// Magnetization grid function
+   // std::unique_ptr<GridFunType> M;
+
+   std::unique_ptr<MagnetostaticLoad> magnetostatic_load;
 
    /// current source vector
    // std::unique_ptr<GridFunType> current_vec;
@@ -111,6 +155,8 @@ private:
    std::unique_ptr<VectorMeshDependentCoefficient> current_coeff;
    /// vector mesh dependent magnetization coefficient
    std::unique_ptr<VectorMeshDependentCoefficient> mag_coeff;
+   /// mesh dependent electrical conductivity coefficient
+   std::unique_ptr<MeshDependentCoefficient> sigma;
 
    /// boundary condition marker array
    // mfem::Array<int> ess_bdr;
@@ -125,6 +171,7 @@ private:
    void addMassIntegrators(double alpha) override;
    void addResVolumeIntegrators(double alpha) override;
    void assembleLoadVector(double alpha) override;
+   void addEntVolumeIntegrators() override;
 
    /// mark which boundaries are essential
    void setEssentialBoundaries() override;
@@ -138,16 +185,20 @@ private:
    //                    const mfem::ParGridFunction &state) override;
 
    bool iterationExit(int iter, double t, double t_final, double dt,
-                      const mfem::ParGridFunction &state) override;
+                      const mfem::ParGridFunction &state) const override;
    
    void terminalHook(int iter, double t_final,
                      const mfem::ParGridFunction &state) override;
 
-   /// Create `output` based on `options` and add approporiate integrators
-   void addOutputs() override;
+   void addOutputIntegrators(const std::string &fun,
+                             const nlohmann::json &options) override;
+
+   void setOutputOptions(const std::string &fun,
+                         const nlohmann::json &options) override;
 
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
-   // void solveUnsteady(mfem::ParGridFunction &state) override;
+   void solveUnsteady(mfem::ParGridFunction &state) override;
+   void _solveUnsteady(mfem::ParGridFunction &state);
 
    /// static member variables used inside static member functions
    /// magnetization_source and winding_current_source
@@ -171,6 +222,8 @@ private:
    /// construct vector mesh dependent coefficient for current source
    /// \param[in] alpha - used to move to lhs or rhs
    void constructCurrent();
+
+   void constructSigma();
 
 public:
    /// TODO: throw MachException if constructCurrent not called first
@@ -268,6 +321,34 @@ private:
                                                const mfem::Vector &V_bar,
                                                mfem::Vector &x_bar);
 
+   /// function describing permanent magnet magnetization pointing inwards
+   /// \param[in] x - position x in space
+   /// \param[out] M - magetic flux density at position x cause by permanent
+   ///                 magnets
+   static void cwMagnetizationSource(const mfem::Vector &x,
+                                     mfem::Vector &M);
+
+   /// \param[in] x - position x in space of evaluation
+   /// \param[in] V_bar - 
+   /// \param[out] x_bar - V_bar^T Jacobian
+   static void cwMagnetizationSourceRevDiff(const mfem::Vector &x,
+                                            const mfem::Vector &V_bar,
+                                            mfem::Vector &x_bar);
+
+   /// function describing permanent magnet magnetization pointing inwards
+   /// \param[in] x - position x in space
+   /// \param[out] M - magetic flux density at position x cause by permanent
+   ///                 magnets
+   static void ccwMagnetizationSource(const mfem::Vector &x,
+                                      mfem::Vector &M);
+
+   /// \param[in] x - position x in space of evaluation
+   /// \param[in] V_bar - 
+   /// \param[out] x_bar - V_bar^T Jacobian
+   static void ccwMagnetizationSourceRevDiff(const mfem::Vector &x,
+                                             const mfem::Vector &V_bar,
+                                             mfem::Vector &x_bar);
+
 
    /// function defining current density aligned with the x axis
    /// \param[in] x - position x in space of evaluation
@@ -289,7 +370,7 @@ private:
                                          const mfem::Vector &V_bar,
                                          mfem::Vector &x_bar);
 
-   /// function defining current density aligned with the x axis
+   /// function defining current density aligned with the z axis
    /// \param[in] x - position x in space of evaluation
    /// \param[out] J - current density at position x 
    static void zAxisCurrentSource(const mfem::Vector &x,
@@ -298,6 +379,16 @@ private:
    static void zAxisCurrentSourceRevDiff(const mfem::Vector &x,
                                          const mfem::Vector &V_bar,
                                          mfem::Vector &x_bar);
+
+   /// function defining current density aligned with the -z axis
+   /// \param[in] x - position x in space of evaluation
+   /// \param[out] J - current density at position x 
+   static void nzAxisCurrentSource(const mfem::Vector &x,
+                                   mfem::Vector &J);
+
+   static void nzAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                                          const mfem::Vector &V_bar,
+                                          mfem::Vector &x_bar);
 
    /// function defining current density aligned in a ring around the z axis
    /// \param[in] x - position x in space of evaluation

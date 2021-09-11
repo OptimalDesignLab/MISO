@@ -1,10 +1,37 @@
 #include <fstream>
+#include <unordered_set>
 
-#include "thermal.hpp"
+#include "mfem.hpp"
+
 #include "evolver.hpp"
+#include "thermal.hpp"
+#include "mach_load.hpp"
+#include "mach_linearform.hpp"
 
 using namespace std;
 using namespace mfem;
+
+namespace
+{
+
+void test_flux_func(const Vector &x, double time, Vector &y)
+{
+   y.SetSize(3);
+
+   if (x(0) > .5)
+   {
+      y(0) = 1;
+   }
+   else
+   {
+      y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
+   }
+
+   y(1) = 0;
+   y(2) = 0;
+}
+
+} // anonymous namespace
 
 namespace mach
 {
@@ -13,207 +40,292 @@ ThermalSolver::ThermalSolver(const nlohmann::json &options,
                              std::unique_ptr<mfem::Mesh> smesh,
                              MPI_Comm comm)
    : AbstractSolver(options, move(smesh), comm)
-{
-	mesh->EnsureNodes();
-}
+{ }
 
 void ThermalSolver::initDerived()
 {
    AbstractSolver::initDerived();
-
-   mesh->ReorientTetMesh();
-   /// Override, only use 1st order H elements
-   int fe_order = 1;// options["space-dis"]["degree"].get<int>();
-
-   th_exact.reset(new GridFunType(fes.get()));
-
-   *out << "Number of finite element unknowns: "
-      << fes->GlobalTrueVSize() << endl;
-
-   *out << "Constructing Material Coefficients..." << std::endl;
-
-   int dim = getMesh()->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
-
-   /// Create the H(Div) finite element collection for the representation the
-   /// magnetic flux density field in the thermal solver
-   // h_div_coll.reset(new RT_FECollection(order, dim));
-   /// Create the H(Div) finite element space
-   // h_div_space.reset(new SpaceType(mesh.get(), h_div_coll.get()));
-   /// Create magnetic flux grid function
-   // mag_field.reset(new GridFunType(h_div_space.get()));
-      
-
-   /// TODO: REPLACE WITH DOMAIN BASED TEMPERATURE MAXIMA ARRAY
-   rhoa = options["rho-agg"].get<double>();
-
-   /// assemble max temp array
-   max.SetSize(fes->GetMesh()->attributes.Size()+1);
-   for (auto& component : options["components"])
-   {
-      double mat_max = component["max-temp"].get<double>();
-      int attrib = component["attr"].get<int>();
-      max(attrib) = mat_max;
-   }
-
-   /// pass through aggregation parameters for functional
-   // func.reset(new AggregateIntegrator(fes.get(), rhoa, max));
-   // /// pass through aggregation parameters for functional
-   // does not include dJdu calculation, need AddOutputs for that
-   if (rhoa != 0)
-   {
-      funca.reset(new AggregateIntegrator(fes.get(), rhoa, max));
-   }
-   else
-   {
-      funct.reset(new TempIntegrator(fes.get()));
-   }
 }
 
+ThermalSolver::~ThermalSolver() = default;
 
 std::vector<GridFunType*> ThermalSolver::getFields(void)
 {
    return {u.get()};
 }
 
+/// Commenting out for now, will update when I get around to using the thermal solver again
+// void ThermalSolver::addOutputs()
+// {
+//    auto &fun = options["outputs"];
+//    int idx = 0;
+//    if (fun.find("new-agg") != fun.end())
+//    {
+//       fractional_output.emplace("new-agg",
+//          std::initializer_list<std::string>{"agg-num", "agg_denom"});
 
-void ThermalSolver::addOutputs()
-{
-   auto &fun = options["outputs"];
-   int idx = 0;
-   if (fun.find("temp-agg") != fun.end())
-   {
-      rhoa = options["rho-agg"].template get<double>();
-      //double max = options["max-temp"].template get<double>();
-      output.emplace("temp-agg", fes.get());
-      /// assemble max temp array
-      max.SetSize(fes->GetMesh()->attributes.Size()+1);
-      for (auto& component : options["components"])
-      {
-         double mat_max = component["max-temp"].template get<double>();
-         int attrib = component["attr"].template get<int>();
-         max(attrib) = mat_max;
-      }
+//       output.emplace("agg-num", fes.get());
+//       output.emplace("agg-denom", fes.get());
+
+//       /// assemble max temp array
+//       Vector max(fes->GetMesh()->attributes.Size());
+//       double default_max = options["problem-opts"].value("max-temp", 1e6);
+//       for (auto& component : options["components"])
+//       {
+//          auto material = component["material"].get<std::string>();
+//          auto mat_max = materials[material].value("max-temp", default_max);
+
+//          int attr = component.value("attr", -1);
+//          if (-1 != attr)
+//          {
+//             max[attr - 1] = mat_max;
+//          }
+//          else
+//          {
+//             auto attrs = component["attrs"].get<std::vector<int>>();
+//             for (auto& attribute : attrs)
+//             {
+//                max[attribute - 1] = mat_max;
+//             }
+//          }
+         
+//       }
       
-      // call the second constructor of the aggregate integrator
-      if(rhoa != 0)
-      {
-         output.at("temp-agg").AddDomainIntegrator(
-         new AggregateIntegrator(fes.get(), rhoa, max, u.get()));
-      }
-      else
-      {
-         auto &bcs = options["bcs"];
-         int idx = 0;
-         bndry_marker.resize(bcs.size());
-         if (bcs.find("outflux") != bcs.end())
-         { // outward flux bc
-            vector<int> tmp = bcs["outflux"].get<vector<int>>();
-            bndry_marker[idx].SetSize(tmp.size(), 0);
-            bndry_marker[idx].Assign(tmp.data());
-            output.at("temp-agg").AddBdrFaceIntegrator(
-               new TempIntegrator(fes.get(), u.get()), bndry_marker[idx]);
-            idx++;
-         }
-         //output.at("temp-agg").AddDomainIntegrator(
-         //new TempIntegrator(fes.get(), u.get()));
-      }
-         idx++; 
+//       /// use rho = 10 for a default if rho not given in options
+//       double rhoa = options["problem-opts"].value("rho-agg", 10.0);
+//       output.at("agg-num").AddDomainIntegrator(
+//          new AggregateIntegratorNumerator(rhoa, max));
+
+//       output.at("agg-denom").AddDomainIntegrator(
+//          new AggregateIntegratorDenominator(rhoa, max));
+
+//    }
+//    if (fun.find("agg") != fun.end())
+//    {
+//       output.emplace("agg", fes.get());
+      
+//       /// assemble max temp array
+//       Vector max(fes->GetMesh()->attributes.Size());
+//       double default_max = options["problem-opts"].value("max-temp", 1e6);
+//       for (auto& component : options["components"])
+//       {
+//          auto material = component["material"].get<std::string>();
+//          auto mat_max = materials[material].value("max-temp", default_max);
+
+//          int attr = component.value("attr", -1);
+//          if (-1 != attr)
+//          {
+//             max[attr - 1] = mat_max;
+//          }
+//          else
+//          {
+//             auto attrs = component["attrs"].get<std::vector<int>>();
+//             for (auto& attribute : attrs)
+//             {
+//                max[attribute - 1] = mat_max;
+//             }
+//          }
+         
+//       }
+      
+//       /// use rho = 10 for a default if rho not given
+//       double rhoa = options["problem-opts"].value("rho-agg", 10.0);
+//       output.at("agg").AddDomainIntegrator(
+//          new AggregateIntegrator(fes.get(), rhoa, max, u.get()));
+//    }
+//    if (fun.find("temp") != fun.end())
+//    {
+//       output.emplace("temp", fes.get());
+
+//       auto &bcs = options["bcs"];
+//       int idx = 0;
+//       bndry_marker.resize(bcs.size());
+//       if (bcs.find("outflux") != bcs.end())
+//       { // outward flux bc
+//          vector<int> tmp = bcs["outflux"].get<vector<int>>();
+//          bndry_marker[idx].SetSize(tmp.size(), 0);
+//          bndry_marker[idx].Assign(tmp.data());
+//          output.at("temp").AddBdrFaceIntegrator(
+//             new TempIntegrator(fes.get(), u.get()), bndry_marker[idx]);
+//          idx++;
+//       }
+//       //output.at("temp-agg").AddDomainIntegrator(
+//       //new TempIntegrator(fes.get(), u.get()));
+//    }
+//    idx++; 
+// }
+
+void ThermalSolver::initialHook(const ParGridFunction &state) 
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // res_norm0 is used to compute the time step in PTC
+      res_norm0 = calcResidualNorm(state);
    }
+}
+
+bool ThermalSolver::iterationExit(int iter, double t, double t_final,
+                                  double dt,
+                                  const ParGridFunction &state) const
+{
+   if (options["time-dis"]["steady"].get<bool>())
+   {
+      // use tolerance options for Newton's method
+      double norm = calcResidualNorm(state);
+      std::cout << "res norm: " << norm << "\n";
+      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
+         return true;
+      if (norm <= res_norm0 *
+                      options["time-dis"]["steady-reltol"].get<double>())
+         return true;
+      return false;
+   }
+   else
+   {
+      return AbstractSolver::iterationExit(iter, t, t_final, dt, state);
+   }
+}
+
+double ThermalSolver::calcStepSize(int iter, 
+                                   double t,
+                                   double t_final,
+                                   double dt_old,
+                                   const ParGridFunction &state) const
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // ramp up time step for pseudo-transient continuation
+      // TODO: the l2 norm of the weak residual is probably not ideal here
+      // A better choice might be the l1 norm
+      double res_norm = calcResidualNorm(state);
+      if (std::abs(res_norm) <= 1e-14) return 1e14;
+      double exponent = options["time-dis"]["res-exp"];
+      double dt = options["time-dis"]["dt"].template get<double>() *
+                  pow(res_norm0 / res_norm, exponent);
+      return max(dt, dt_old);
+   }
+   else
+      return AbstractSolver::calcStepSize(iter, t, t_final, dt_old, state);
+}
+
+void ThermalSolver::terminalHook(int iter, double t_final,
+                                 const ParGridFunction &state)
+{
+   auto *state_gf = const_cast<ParGridFunction*>(&state);
+
+   //#GradientGridFunctionCoefficient flux_coeff(state_gf);
+   //#ParFiniteElementSpace h1_fes(mesh.get(), fec.get(), mesh->Dimension());
+   //#ParGridFunction heat_flux(&h1_fes);
+   //#heat_flux.ProjectCoefficient(flux_coeff);
+
+
+   printField("therm_state", *state_gf, "theta");
+
 }
 
 void ThermalSolver::solveUnsteady(ParGridFunction &state)
 {
-   double t = 0.0;
-   double agg;
-   double gerror = 0;
-   evolver->SetTime(t);
-   ode_solver->Init(*evolver);
-
-   int precision = 8;
    {
-      ofstream osol("motor_heat_init.gf");
-      osol.precision(precision);
-      u->Save(osol);
+      // auto stein_field = getNewField();
+      // stein_field->ProjectCoefficient(*coreloss);
+      // auto i2r_field = getNewField();
+      // i2r_field->ProjectCoefficient(*i2sigmainv);
+      // printFields("loses",
+      //             {stein_field.get(), i2r_field.get()},
+      //             {"steinmetz", "i2r"});
    }
+
+   AbstractSolver::solveUnsteady(state);
+   // double t = 0.0;
+   // double agg;
+   // double gerror = 0;
+   // evolver->SetTime(t);
+   // ode_solver->Init(*evolver);
+
+   // int precision = 8;
    // {
-   //     ofstream sol_ofs("motor_heat_init.vtk");
-   //     sol_ofs.precision(14);
-   //     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-   //     u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
-   //     sol_ofs.close();
+   //    ofstream osol("motor_heat_init.gf");
+   //    osol.precision(precision);
+   //    u->Save(osol);
+   // }
+   // // {
+   // //     ofstream sol_ofs("motor_heat_init.vtk");
+   // //     sol_ofs.precision(14);
+   // //     mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+   // //     u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+   // //     sol_ofs.close();
+   // // }
+
+   // bool done = false;
+   // double t_final = options["time-dis"]["t-final"].get<double>();
+   // double dt = options["time-dis"]["dt"].get<double>();
+
+   // // compute functional for first step, testing purposes
+   // // if (rhoa != 0)
+   // // {
+   // //    agg = funca->GetIEAggregate(u.get());
+
+   // //    cout << "aggregated temp constraint = " << agg << endl;
+
+   // // // 	compare to actual max, ASSUMING UNIFORM CONSTRAINT
+   // // // 	gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
+      
+   // // }
+   // // else
+   // // {
+   // //    agg = funct->GetTemp(u.get());
+   // // }
+
+   // for (int ti = 0; !done;)
+   // {
+   //    // if (options["time-dis"]["const-cfl"].get<bool>())
+   //    // {
+   //    //     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
+   //    // }
+   //    double dt_real = min(dt, t_final - t);
+   //    dt_real_ = dt_real;
+   //    //if (ti % 100 == 0)
+   //    {
+   //       cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+   //          << " (" << round(100 * t / t_final) << "% complete)" << endl;
+   //    }
+   //    HypreParVector *TV = u->GetTrueDofs();
+   //    ode_solver->Step(*TV, t, dt_real);
+   //    *u = *TV;
+
+   //    // // compute functional
+   //    // if (rhoa != 0)
+   //    // {
+   //    //    agg = funca->GetIEAggregate(u.get());
+   //    //    cout << "aggregated temp constraint = " << agg << endl;
+   //    // }
+   //    // else
+   //    // {
+   //    //    agg = funct->GetTemp(u.get());
+   //    // }
+
+   //    // evolver->updateParameters();
+
+   //    ti++;
+
+   //    done = (t >= t_final - 1e-8 * dt);
    // }
 
-   bool done = false;
-   double t_final = options["time-dis"]["t-final"].get<double>();
-   double dt = options["time-dis"]["dt"].get<double>();
+   // // if (rhoa != 0)
+   // // {
+   // //    cout << "aggregated constraint error at initial state = " << gerror << endl;
+   // // }
 
-   // compute functional for first step, testing purposes
-   if (rhoa != 0)
-   {
-      agg = funca->GetIEAggregate(u.get());
-
-      cout << "aggregated temp constraint = " << agg << endl;
-
-   // 	compare to actual max, ASSUMING UNIFORM CONSTRAINT
-   // 	gerror = (u->Max()/max(1) - agg)/(u->Max()/max(1));
-      
-   }
-   else
-   {
-      agg = funct->GetTemp(u.get());
-   }
-
-   for (int ti = 0; !done;)
-   {
-      // if (options["time-dis"]["const-cfl"].get<bool>())
-      // {
-      //     dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
-      // }
-      double dt_real = min(dt, t_final - t);
-      dt_real_ = dt_real;
-      //if (ti % 100 == 0)
-      {
-         cout << "iter " << ti << ": time = " << t << ": dt = " << dt_real
-            << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      }
-      HypreParVector *TV = u->GetTrueDofs();
-      ode_solver->Step(*TV, t, dt_real);
-      *u = *TV;
-
-      // compute functional
-      if (rhoa != 0)
-      {
-         agg = funca->GetIEAggregate(u.get());
-         cout << "aggregated temp constraint = " << agg << endl;
-      }
-      else
-      {
-         agg = funct->GetTemp(u.get());
-      }
-
-      // evolver->updateParameters();
-
-      ti++;
-
-      done = (t >= t_final - 1e-8 * dt);
-   }
-
-   if (rhoa != 0)
-   {
-      cout << "aggregated constraint error at initial state = " << gerror << endl;
-   }
-
-   {
-      ofstream osol("motor_heat.gf");
-      osol.precision(precision);
-      u->Save(osol);
-   }
+   // {
+   //    ofstream osol("motor_heat.gf");
+   //    osol.precision(precision);
+   //    u->Save(osol);
+   // }
    
       
-   // sol_ofs.precision(14);
-   // mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
-   // u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
+   // // sol_ofs.precision(14);
+   // // mesh->PrintVTK(sol_ofs, options["space-dis"]["degree"].get<int>() + 1);
+   // // u->SaveVTK(sol_ofs, "Solution", options["space-dis"]["degree"].get<int>() + 1);
 }
 
 // void ThermalSolver::setStaticMembers()
@@ -317,40 +429,61 @@ void ThermalSolver::constructConductivity()
    }
 }
 
+void ThermalSolver::constructConvection()
+{
+   auto &bcs = options["bcs"];
+   if (bcs.contains("convection"))
+   {
+      if (options["problem-opts"].contains("convection-coeff"))
+      {
+         auto h = options["problem-opts"]["convection-coeff"].get<double>();
+         convection.reset(new ConstantCoefficient(h));
+      }
+      else
+      {
+         throw MachException("Using convection boundary condition without"
+                             "specifying heat transfer coefficient!\n");
+      }
+   }
+}
+
 void ThermalSolver::constructJoule()
 {
    i2sigmainv.reset(new MeshDependentCoefficient());
 
-   for (auto& component : options["components"])
+   if (options["problem-opts"].contains("current"))
    {
-      int attr = component.value("attr", -1);
-
-      std::string material = component["material"].get<std::string>();
-
-      /// todo use grid function?
-      auto current = options["motor-opts"]["current"].get<double>();
-
-      double sigma = materials[material].value("sigma", 0.0);
-
-      if (-1 != attr)
+      for (auto& component : options["components"])
       {
-         if (sigma > 1e-12)
-         {
-            std::unique_ptr<mfem::Coefficient> temp_coeff;
-            temp_coeff.reset(new ConstantCoefficient(current*current/sigma));
-            i2sigmainv->addCoefficient(attr, move(temp_coeff));
-         }
-      }
-      else
-      {
-         auto attrs = component["attrs"].get<std::vector<int>>();
-         for (auto& attribute : attrs)
+         int attr = component.value("attr", -1);
+
+         std::string material = component["material"].get<std::string>();
+
+         auto current = options["problem-opts"]["current_density"].get<double>();
+         current *= options["problem-opts"].value("fill-factor", 1.0);
+
+         double sigma = materials[material].value("sigma", 0.0);
+
+         if (-1 != attr)
          {
             if (sigma > 1e-12)
             {
                std::unique_ptr<mfem::Coefficient> temp_coeff;
-               temp_coeff.reset(new ConstantCoefficient(current*current/sigma));
-               i2sigmainv->addCoefficient(attribute, move(temp_coeff));
+               temp_coeff.reset(new ConstantCoefficient(-current*current/sigma));
+               i2sigmainv->addCoefficient(attr, move(temp_coeff));
+            }
+         }
+         else
+         {
+            auto attrs = component["attrs"].get<std::vector<int>>();
+            for (auto& attribute : attrs)
+            {
+               if (sigma > 1e-12)
+               {
+                  std::unique_ptr<mfem::Coefficient> temp_coeff;
+                  temp_coeff.reset(new ConstantCoefficient(-current*current/sigma));
+                  i2sigmainv->addCoefficient(attribute, move(temp_coeff));
+               }
             }
          }
       }
@@ -359,6 +492,12 @@ void ThermalSolver::constructJoule()
 
 void ThermalSolver::constructCore()
 {
+   /// only construct the coreloss coefficient if the magnetic field is known
+   /// to the thermal solver
+   if (res_fields.count("mvp") == 0)
+   {
+      return;
+   }
    coreloss.reset(new MeshDependentCoefficient());
 
    for (auto& component : options["components"])
@@ -369,12 +508,14 @@ void ThermalSolver::constructCore()
       /// the value of zero
       double rho_val = materials[material].value("rho", 0.0);
       double alpha = materials[material].value("alpha", 0.0);
-      double freq = options["motor-opts"].value("frequency", 0.0);
-      double kh = materials[material].value("kh", 0.0);
-      double ke = materials[material].value("ke", 0.0);
+      double freq = options["problem-opts"].value("frequency", 0.0);
+      // double kh = materials[material].value("kh", 0.0);
+      // double ke = materials[material].value("ke", 0.0);
+      double ks = materials[material].value("ks", 0.0);
+      double beta = materials[material].value("beta", 0.0);
 
       /// make sure that there is a coefficient
-      double params = rho_val + alpha + freq + kh + ke;
+      double params =  alpha + ks + beta;
 
       int attr = component.value("attr", -1);
       if (-1 != attr)
@@ -383,8 +524,11 @@ void ThermalSolver::constructCore()
          {
             std::unique_ptr<mfem::Coefficient> temp_coeff;
             // temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
-            // 														kh, ke, mag_field));
-            temp_coeff.reset(new ConstantCoefficient(0.0));
+            //                                           kh, ke,
+            //                                           res_fields.at("mvp")));
+            temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
+                                                      ks, beta,
+                                                      res_fields.at("mvp")));
             coreloss->addCoefficient(attr, move(temp_coeff));		
          }
       }
@@ -397,8 +541,12 @@ void ThermalSolver::constructCore()
             {
                std::unique_ptr<mfem::Coefficient> temp_coeff;
                // temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
-               // 														kh, ke, mag_field));
-               temp_coeff.reset(new ConstantCoefficient(0.0));
+               //                                           kh, ke,
+               //                                           res_fields.at("mvp")));
+               temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
+                                                         ks, beta,
+                                                         res_fields.at("mvp")));
+
                coreloss->addCoefficient(attribute, move(temp_coeff));
             }
          }
@@ -429,11 +577,7 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    {
       time_beg = MPI_Wtime();
    }
-
-   // add the dJdu output, do this now to precompute max temperature and 
-   // certain values for the functional so that we don't need it at every call
-   addOutputs();
-
+   
    // Step 0: allocate the adjoint variable
    adj.reset(new GridFunType(fes.get()));
 
@@ -494,6 +638,7 @@ void ThermalSolver::constructCoefficients()
    constructMassCoeff();
    // constructHeatCoeff();
    constructConductivity();
+   constructConvection();
    constructJoule();
    constructCore();
 }
@@ -502,7 +647,8 @@ void ThermalSolver::constructForms()
 {
    mass.reset(new BilinearFormType(fes.get()));
    res.reset(new ParNonlinearForm(fes.get()));
-   load.reset(new LinearFormType(fes.get()));
+   therm_load.reset(new MachLinearForm(*fes, res_fields));
+   load.reset(new MachLoad(*therm_load));
 }
 
 void ThermalSolver::addMassIntegrators(double alpha)
@@ -515,136 +661,131 @@ void ThermalSolver::addResVolumeIntegrators(double alpha)
    res->AddDomainIntegrator(new DiffusionIntegrator(*kappa));
 }
 
+void ThermalSolver::addResBoundaryIntegrators(double alpha)
+{
+// #ifdef MFEM_USE_PUMI
+//    if (convection)
+//    {
+//       auto &bcs = options["bcs"];
+//       auto conv_bdr = bcs["convection"].get<std::vector<int>>();
+
+//       int source = conv_bdr[0];
+//       std::unordered_set<int> conv_faces(conv_bdr.begin()+1, conv_bdr.end());
+
+//       double ambient_temp = options["problem-opts"]["init-temp"].get<double>();
+//       // res->AddBdrFaceIntegrator(new InteriorBoundaryOutFluxInteg(*kappa,
+//       //                                                            *convection,
+//       //                                                            source,
+//       //                                                            ambient_temp),
+//       //                                                            conv_faces);
+//       res->AddInteriorFaceIntegrator(
+//          new InteriorBoundaryOutFluxInteg(*kappa,
+//                                           *convection,
+//                                           source,
+//                                           ambient_temp,
+//                                           conv_faces,
+//                                           pumi_mesh.get()));
+      
+//    }
+// #endif
+}
+
 void ThermalSolver::addLoadVolumeIntegrators(double alpha)
 {
-   auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+   // auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
    /// add joule heating term
-   load_lf->AddDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
-   /// add iron loss heating terms
-   load_lf->AddDomainIntegrator(new DomainLFIntegrator(*coreloss));
+   therm_load->addDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
+   /// add iron loss heating terms only if the EM field exists
+   if (res_fields.find("mvp") != res_fields.end())
+      therm_load->addDomainIntegrator(new DomainLFIntegrator(*coreloss));
 }
 
 void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 {
-   auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+   // auto *load_lf = dynamic_cast<ParLinearForm*>(load.get());
+   // if (!load_lf)
+   //    throw MachException("Couldn't cast load to LinearFormType!\n");
 
-   //determine type of flux function
-   if(options["outflux-type"].template get<string>() == "test")
-   {
-      flux_coeff.reset(new VectorFunctionCoefficient(3, testFluxFunc));
-   }
-   else
-      throw MachException("Specified flux function not supported!\n");
-
+   /// determine type of flux function
    auto &bcs = options["bcs"];
-   bndry_marker.resize(bcs.size());
-   int idx = 0;
-   if (bcs.find("outflux") != bcs.end())
-   { // outward flux bc
+   if (bcs.contains("outflux"))
+   {
+      if (options["problem-opts"].contains("outflux-type"))
+      {
+         if (options["problem-opts"]["outflux-type"].get<string>() == "test")
+         {
+            int dim = mesh->Dimension();
+            flux_coeff.reset(new VectorFunctionCoefficient(dim, test_flux_func));
+         }
+         else
+            throw MachException("Specified flux function not supported!\n");
+      }
+      else
+      {
+         throw MachException("Must specify outflux type if using outflux "
+                             "boundary conditions!");
+      }
+      
+
+      constexpr int idx = 0;
+      
+      // outward flux bc
       vector<int> tmp = bcs["outflux"].get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
-      load_lf->AddBoundaryIntegrator(new BoundaryNormalLFIntegrator(
+      therm_load->addBoundaryIntegrator(new BoundaryNormalLFIntegrator(
                                              *flux_coeff), bndry_marker[idx]);
-      idx++;
    }
 }
 
 void ThermalSolver::constructEvolver()
 {
-   Array<int> ess_bdr;
-   auto &bcs = options["bcs"];
-   /// if any boundaries are marked as essential in the options file use that
-   if (bcs.find("essential") != bcs.end())
-   {
-      auto tmp = bcs["essential"].get<vector<int>>();
-      ess_bdr.SetSize(tmp.size(), 0);
-      ess_bdr.Assign(tmp.data());
-   }
-   /// otherwise mark all attributes as nonessential
-   else
-   {
-      ess_bdr.SetSize(mesh->bdr_attributes.Max());
-      ess_bdr = 0;
-   }
-
-   evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), res.get(), load.get(), *out,
-                                    0.0, flux_coeff.get()));
-   evolver->SetLinearSolver(solver.get());
-   //if (newton_solver == nullptr)
-   //   constructNewtonSolver();
+   evolver.reset(new ThermalEvolver(ess_bdr, mass.get(), res.get(), load.get(),
+                                    *out, 0.0, flux_coeff.get()));
    evolver->SetNewtonSolver(newton_solver.get());
-}
-
-void ThermalSolver::testFluxFunc(const Vector &x, double time, Vector &y)
-{
-   y.SetSize(3);
-   //use constant in time for now
-
-   //assuming centered coordinate system, will offset
-   // double th;// = atan(x(1)/x(0));
-
-   if (x(0) > .5)
-   {
-      y(0) = 1;
-   }
-   else
-   {
-      y(0) = -(M_PI/2)*exp(-M_PI*M_PI*time/4);
-   }
-
-   y(1) = 0;
-   y(2) = 0;
-   
 }
 
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr, BilinearFormType *mass,
                                ParNonlinearForm *res,
-                               Vector *load,
+                               MachLoad *load,
                                std::ostream &outstream,
                                double start_time,
-                               mfem::VectorCoefficient *_flux_coeff)
+                               VectorCoefficient *_flux_coeff)
    : MachEvolver(ess_bdr, nullptr, mass, res, nullptr, load, nullptr,
                  outstream, start_time),
-   flux_coeff(_flux_coeff), work(height)
+   flux_coeff(_flux_coeff)
 { };
+
+ThermalEvolver::~ThermalEvolver() = default;
 
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
-   flux_coeff->SetTime(t);
-   LinearFormType *load_lf = dynamic_cast<LinearFormType*>(load);
-   if (load_lf)
-      load_lf->Assemble();
-   else
-      throw MachException("Couldn't cast load to LinearFormType!\n");
-   work.SetSize(x.Size());
-   res->Mult(x, work);
-   work += *load;
-   mass_solver.Mult(work, y);
-   y *= -1.0;
+   if (flux_coeff)
+   {
+      flux_coeff->SetTime(t);
+      MachInputs inputs({
+         {"time", t}
+      });
+      setInputs(*load, inputs);
+   }
+
+   MachEvolver::Mult(x, y);
 }
 
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x,
                                    Vector &k)
 {
    /// re-assemble time dependent load vector
-   flux_coeff->SetTime(t);
-   // dynamic_cast<LinearFormType*>(load)->Assemble();
-   LinearFormType *load_lf = dynamic_cast<LinearFormType*>(load);
-   if (load_lf)
-      load_lf->Assemble();
-   else
-      throw MachException("Couldn't cast load to LinearFormType!\n");
+   if (flux_coeff)
+   {
+      flux_coeff->SetTime(t);
+      MachInputs inputs({
+         {"time", t}
+      });
+      setInputs(*load, inputs);
+   }
 
-   setOperParameters(dt, &x);
-   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-
-   // set iterative mode to false so k is only zeroed once, but set back after
-   auto iter_mode = newton->iterative_mode;
-   newton->iterative_mode = false;
-   newton->Mult(zero, k);
-   newton->iterative_mode = iter_mode;
-   MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+   MachEvolver::ImplicitSolve(dt, x, k);
 }
 
 } // namespace mach

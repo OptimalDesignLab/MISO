@@ -187,7 +187,7 @@ void EulerSolver<dim, entvar>::iterationHook(int iter, double t, double dt,
 template <int dim, bool entvar>
 bool EulerSolver<dim, entvar>::iterationExit(int iter, double t, double t_final,
                                              double dt,
-                                             const ParGridFunction &state)
+                                             const ParGridFunction &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
@@ -216,17 +216,17 @@ void EulerSolver<dim, entvar>::terminalHook(int iter, double t_final,
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addOutputs()
+void EulerSolver<dim, entvar>::addOutputIntegrators(
+   const std::string &fun,
+   const nlohmann::json &options)
 {
-   auto &fun = options["outputs"];
-   int idx = 0;
-   if (fun.find("drag") != fun.end())
+   if (fun == "drag")
    { 
       // drag on the specified boundaries
-      vector<int> tmp = fun["drag"].template get<vector<int>>();
-      output_bndry_marker[idx].SetSize(tmp.size(), 0);
-      output_bndry_marker[idx].Assign(tmp.data());
-      output.emplace("drag", fes.get());
+      vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      output_bndry_marker.emplace(fun, bdr.size());
+      output_bndry_marker.at(fun).Assign(bdr.data());
+
       mfem::Vector drag_dir(dim);
       drag_dir = 0.0;
       if (dim == 1)
@@ -239,18 +239,19 @@ void EulerSolver<dim, entvar>::addOutputs()
          drag_dir(ipitch) = sin(aoa_fs);
       }
       drag_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cd
-      output.at("drag").AddBdrFaceIntegrator(
-          new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
-          output_bndry_marker[idx]);
-      idx++;
+
+      addOutputBdrFaceIntegrator(
+         fun,
+         new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
+         output_bndry_marker.at(fun));
    }
-   if (fun.find("lift") != fun.end())
-   { 
+   else if (fun == "lift")
+   {
       // lift on the specified boundaries
-      vector<int> tmp = fun["lift"].template get<vector<int>>();
-      output_bndry_marker[idx].SetSize(tmp.size(), 0);
-      output_bndry_marker[idx].Assign(tmp.data());
-      output.emplace("lift", fes.get());
+      vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      output_bndry_marker.emplace(fun, bdr.size());
+      output_bndry_marker.at(fun).Assign(bdr.data());
+
       mfem::Vector lift_dir(dim);
       lift_dir = 0.0;
       if (dim == 1)
@@ -263,17 +264,23 @@ void EulerSolver<dim, entvar>::addOutputs()
          lift_dir(ipitch) = cos(aoa_fs);
       }
       lift_dir *= 1.0/pow(mach_fs, 2.0); // to get non-dimensional Cl
-      output.at("lift").AddBdrFaceIntegrator(
-          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
-          output_bndry_marker[idx]);
-      idx++;
+
+      addOutputBdrFaceIntegrator(
+         fun,
+         new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+         output_bndry_marker.at(fun));
    }
-   if (fun.find("entropy") != fun.end())
+   else if (fun == "entropy")
    {
-      // integral of entropy over the entire volume domain
-      output.emplace("entropy", fes.get());
-      output.at("entropy").AddDomainIntegrator(
+      // integral of entropy over the entire volume domain         
+      addOutputDomainIntegrator(
+         fun,
          new EntropyIntegrator<dim, entvar>(diff_stack));
+   }
+   else
+   {
+      throw MachException("Output with name " + fun + " not supported by "
+                          "EulerSolver!\n");
    }
 }
 

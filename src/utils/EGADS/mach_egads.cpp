@@ -15,7 +15,7 @@ using namespace mfem;
 void mapSurfaceMesh(const std::string &old_model_file,
                     const std::string &new_model_file,
                     const std::string &tess_file,
-                    GridFunction &displacement)
+                    HypreParVector &displacement)
    {
       // start egads
       ego eg_context;
@@ -89,14 +89,14 @@ void mapSurfaceMesh(const std::string &old_model_file,
          EG_getGlobal(old_tess, i, &ptype, &pindex, xyz_old);
          if (two_dimensional)
          {
-            displacement[(i-1)*2 + 0] = xyz[0] - xyz_old[0];
-            displacement[(i-1)*2 + 1] = xyz[1] - xyz_old[1];
+            displacement((i-1)*2 + 0) = xyz[0] - xyz_old[0];
+            displacement((i-1)*2 + 1) = xyz[1] - xyz_old[1];
          }
          else
          {
-            displacement[(i-1)*3 + 0] = xyz[0] - xyz_old[0];
-            displacement[(i-1)*3 + 1] = xyz[1] - xyz_old[1];
-            displacement[(i-1)*3 + 2] = xyz[2] - xyz_old[2];
+            displacement((i-1)*3 + 0) = xyz[0] - xyz_old[0];
+            displacement((i-1)*3 + 1) = xyz[1] - xyz_old[1];
+            displacement((i-1)*3 + 2) = xyz[2] - xyz_old[2];
          }
          // std::cout << "(" << xyz[0] << ", " << xyz[1] << ", " << xyz[2] << ")\n";
       }

@@ -13,70 +13,69 @@ using namespace mach;
 auto options = R"(
 {
    "print-options": false,
-    "mesh": {
-       "file": "initial.mesh",
-       "num-edge-x": 20,
-       "num-edge-y": 5,
-       "num-edge-z": 5
-    },
-    "space-dis": {
-       "basis-type": "H1",
-       "degree": 1,
-       "GD": false
-    },
-    "steady": false,
-    "time-dis": {
-        "ode-solver": "MIDPOINT",
-        "const-cfl": true,
-        "cfl": 1.0,
-        "dt": 0.01,
-        "t-final": 0.2
-    },
-    "lin-prec": {
-       "type": "hypreboomeramg"
-    },
-    "lin-solver": {
-       "reltol": 1e-14,
-       "abstol": 0.0,
-       "printlevel": 0,
-       "maxiter": 500
-    },
-    "adj-solver":{
-       "reltol": 1e-8,
-       "abstol": 0.0,
-       "printlevel": 0,
-       "maxiter": 500
-    },
-    "nonlin-solver":{
-       "printlevel": 0
-    },
-    "motor-opts" : {
-       "current": 1,
-       "frequency": 1500
-    },
-    "components": {
-       "stator": {
-          "material": "regtestmat1",
-          "attr": 1,
-          "max-temp": 0.5
-       },
-       "rotor": {
-          "material": "regtestmat1",
-          "attr": 2,
-          "max-temp": 0.5
-       }
-    },
-    "bcs": {
-        "outflux": [0, 0, 1, 0, 1, 0]
-    },
-    "outflux-type": "test",
-    "outputs": {
-        "temp-agg": "temp-agg"
-    },
-    "rho-agg": 10,
-    "max-temp": 0.1,
-    "init-temp": 300,
-    "material-lib-path": "../../src/material_options.json"
+   "mesh": {
+      "file": "initial.mesh",
+      "num-edge-x": 20,
+      "num-edge-y": 5,
+      "num-edge-z": 5
+   },
+   "space-dis": {
+      "basis-type": "H1",
+      "degree": 1,
+      "GD": false
+   },
+   "steady": false,
+   "time-dis": {
+      "ode-solver": "MIDPOINT",
+      "const-cfl": true,
+      "cfl": 1.0,
+      "dt": 0.01,
+      "t-final": 0.2
+   },
+   "lin-prec": {
+      "type": "hypreboomeramg"
+   },
+   "lin-solver": {
+      "reltol": 1e-14,
+      "abstol": 0.0,
+      "printlevel": 0,
+      "maxiter": 500
+   },
+   "adj-solver":{
+      "reltol": 1e-8,
+      "abstol": 0.0,
+      "printlevel": 0,
+      "maxiter": 500
+   },
+   "nonlin-solver":{
+      "printlevel": 0
+   },
+   "components": {
+      "stator": {
+         "material": "regtestmat1",
+         "attr": 1,
+         "max-temp": 0.5
+      },
+      "rotor": {
+         "material": "regtestmat1",
+         "attr": 2,
+         "max-temp": 0.5
+      }
+   },
+   "bcs": {
+      "outflux": [0, 0, 1, 0, 1, 0]
+   },
+   "outputs": {
+      "temp-agg": "temp-agg"
+   },
+   "problem-opts": {
+      "outflux-type": "test",
+      "rho-agg": 10,
+      "max-temp": 0.1,
+      "init-temp": 300,
+      "current_density": 1,
+      "frequency": 1500
+   }
 })"_json;
 
 
@@ -90,7 +89,7 @@ static double ExactSolution(const Vector &x);
 
 TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
 {
-   temp_0 = options["init-temp"].get<double>();
+   temp_0 = options["problem-opts"]["init-temp"].get<double>();
    t_final = options["time-dis"]["t-final"].get<double>();
    double target_error[4] {
       0.0548041517, 0.0137142199, 0.0060951886, 0.0034275387
@@ -109,7 +108,6 @@ TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
                                     Element::HEXAHEDRON, true /* gen. edges */, 1.0,
                                     1.0, 1.0, true));
 
-         mesh->ReorientTetMesh();
          std::cout << "Number of Boundary Attributes: "<< mesh->bdr_attributes.Size() <<std::endl;
          // assign attributes to top and bottom sides
          for (int i = 0; i < mesh->GetNE(); ++i)

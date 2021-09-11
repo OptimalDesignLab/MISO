@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <functional>
+#include <unordered_map>
 
 #include "adept.h"
 #include "json.hpp"
@@ -11,6 +12,8 @@
 
 #include "mach_types.hpp"
 #include "utils.hpp"
+#include "mach_integrator.hpp"
+#include "mach_input.hpp"
 
 #ifdef MFEM_USE_PUMI
 namespace apf
@@ -44,6 +47,7 @@ namespace mach
 {
 
 class MachEvolver;
+class MachLoad;
 
 /// Serves as a base class for specific PDE solvers
 class AbstractSolver
@@ -63,8 +67,8 @@ public:
                   std::unique_ptr<mfem::Mesh> smesh,
                   MPI_Comm comm);
 
-   /// Perform set-up of derived classes using virtual functions
-   /// \todo Put the constructors and this in a factory
+   /// Construct the finite element space and perform set-up of derived classes
+   /// using virtual functions
    virtual void initDerived();
 
    /// class destructor
@@ -142,12 +146,68 @@ public:
       mfem::ParGridFunction &state,
       const mfem::Vector &u_init);
 
+   /// Initializes the field to a given constant
+   /// \param[in] field - the field to set
+   /// \param[in] u_init - constant to set the field to
+   virtual void setFieldValue(
+      mfem::HypreParVector &field,
+      const double u_init);
+
+   /// Initializes the field to a given constant
+   /// \param[in] field_buffer - the field to set
+   /// \param[in] u_init - constant to set the field to
+   virtual void setFieldValue(
+      double *field_buffer,
+      const double u_init);
+
+   /// Initializes the field to a given scalar function
+   /// \param[in] field - the field to set
+   /// \param[in] u_init - function that defines spatially varying field
+   virtual void setFieldValue(
+      mfem::HypreParVector &field,
+      const std::function<double(const mfem::Vector &)> &u_init);
+
+   /// Initializes the field to a given scalar function
+   /// \param[in] field_buffer - the field to set
+   /// \param[in] u_init - function that defines spatially varying field
+   virtual void setFieldValue(
+      double *field_buffer,
+      const std::function<double(const mfem::Vector &)> &u_init);
+
+   /// Initializes the vector field to a given constant vector
+   /// \param[in] field - the vector field to set
+   /// \param[in] u_init - vector to set the field to
+   virtual void setFieldValue(
+      mfem::HypreParVector &field,
+      const mfem::Vector &u_init);
+
+   /// Initializes the vector field to a given constant vector
+   /// \param[in] field_buffer - the field to set
+   /// \param[in] u_init - vector to set the field to
+   virtual void setFieldValue(
+      double *field_buffer,
+      const mfem::Vector &u_init);
+
+   /// Sets the vector field to a given vector-valued function.
+   /// \param[in] field - the vector field to set
+   /// \param[in] u_init - function that defines spatially varying vector field
+   virtual void setFieldValue(
+      mfem::HypreParVector &field,
+      const std::function<void(const mfem::Vector &, mfem::Vector&)> &u_init);
+
+   /// Sets the vector field to a given vector-valued function.
+   /// \param[in] field_buffer - the field to set
+   /// \param[in] u_init - function that defines spatially varying vector field
+   virtual void setFieldValue(
+      double *field_buffer,
+      const std::function<void(const mfem::Vector &, mfem::Vector&)> &u_init);
+
    /// TODO move to protected?
    /// Returns the integral inner product between two grid functions
    /// \param[in] x - grid function 
    /// \param[in] y - grid function 
    /// \return integral inner product between `x` and `y`
-   double calcInnerProduct(const GridFunType &x, const GridFunType &y);
+   double calcInnerProduct(const GridFunType &x, const GridFunType &y) const;
 
    /// Returns the L2 error between the state `u` and given exact solution.
    /// \param[in] u_exact - function that defines the exact solution
@@ -176,6 +236,24 @@ public:
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
    /// \return L2 error
    double calcL2Error(GridFunType *field,
+                      const std::function<void(const mfem::Vector &,
+                                               mfem::Vector &)> &u_exact,
+                      int entry = -1);
+
+   /// Returns the L2 error of a field and given exact solution.
+   /// \param[in] field - state vector to compute L2 error for
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \return L2 error
+   double calcL2Error(mfem::HypreParVector &field,
+                      const std::function<double(const mfem::Vector &)> &u_exact);
+   
+   /// Returns the L2 error of a field and given exact solution.
+   /// \param[in] field - state vector to compute L2 error for
+   /// \param[in] u_exact - function that defines the exact solution
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \return L2 error
+   double calcL2Error(mfem::HypreParVector &field,
                       const std::function<void(const mfem::Vector &,
                                                mfem::Vector &)> &u_exact,
                       int entry = -1);
@@ -217,43 +295,80 @@ public:
    /// solutions; it divides the elements up so it is possible to visualize.
    void printResidual(const std::string &file_name, int refine = -1);
 
+   /// Write the mesh and a field to a vtk file
+   /// \param[in] file_name - prefix file name **without** .vtk extension
+   /// \param[in] field_name - name of field to print
+   /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \param[in] cycle - cycle to write to vtk file
+   /// \note the `refine` argument is useful for high-order meshes and
+   /// solutions; it divides the elements up so it is possible to visualize.
+   void printField(const std::string &file_name,
+                   const std::string &field_name,
+                   int refine = -1,
+                   int cycle = 0)
+   {
+      auto& field = res_fields.at(field_name);
+      printFields(file_name, {&field}, {field_name}, refine, cycle);
+   };
 
-   /// TODO: make this work for parallel!
    /// Write the mesh and an initializer list to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] field - grid function to print
    /// \param[in] name - name to use for the printed grid function
    /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \param[in] cycle - cycle to write to vtk file
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printField(const std::string &file_name,
                    mfem::ParGridFunction &field,
                    const std::string &name,
-                   int refine = -1)
-   { printFields(file_name, {&field}, {name}, refine); };
+                   int refine = -1,
+                   int cycle = 0)
+   { printFields(file_name, {&field}, {name}, refine, cycle); };
 
-   /// TODO: make this work for parallel!
    /// Write the mesh and an initializer list to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] fields - list of grid functions to print, passed as an
    ///                     initializer list
    /// \param[in] names - list of names to use for each grid function printed
    /// \param[in] refine - if >=0, indicates the number of refinements to make
+   /// \param[in] cycle - cycle to write to vtk file
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    void printFields(const std::string &file_name,
-                      std::vector<mfem::ParGridFunction *> fields,
-                      std::vector<std::string> names,
-                      int refine = -1);
+                    std::vector<mfem::ParGridFunction *> fields,
+                    std::vector<std::string> names,
+                    int refine = -1,
+                    int cycle = 0);
 
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// Default behavior is to return just the state `u`
    virtual std::vector<GridFunType*> getFields();
 
+   // mfem::ParGridFunction& getField(std::string field)
+   // { return res_fields.at(field); };
+   void getField(std::string name, double *field_buffer);
+
+   void getField(std::string name, mfem::HypreParVector &field);
+
+   /// DEPRECIATED -> use version with HypreParVector
    /// Solve for the state variables based on current mesh, solver, etc.
    virtual void solveForState() { solveForState(*u); };
 
+   /// DEPRECIATED -> use version with HypreParVector
    virtual void solveForState(mfem::ParGridFunction &state);
+
+   inline virtual void solveForState(double *state)
+   { MachInputs inputs; solveForState(inputs, state); }
+
+   inline virtual void solveForState(mfem::HypreParVector &state)
+   { MachInputs inputs; solveForState(inputs, state); }
+
+   virtual void solveForState(const MachInputs &inputs,
+                              double *state);
+
+   virtual void solveForState(const MachInputs &inputs,
+                              mfem::HypreParVector &state);
    
    /// Solve for the adjoint based on current mesh, solver, etc.
    /// \param[in] fun - specifies the functional corresponding to the adjoint
@@ -266,7 +381,28 @@ public:
    /// \param[in] pert - function that defines the perturbation direction
    /// \note Compare the results of the project Jac*pert using the Jacobian
    /// directly versus a finite-difference based product.  
+   void checkJacobian(const mfem::ParGridFunction &state,
+                      std::function<double(const mfem::Vector &)> pert_fun);
+
+   /// Check the Jacobian using a finite-difference directional derivative
+   /// \param[in] pert - function that defines the perturbation direction
+   /// \note Compare the results of the project Jac*pert using the Jacobian
+   /// directly versus a finite-difference based product.  
    void checkJacobian(void (*pert_fun)(const mfem::Vector &, mfem::Vector &));
+
+   /// Creates the nonlinear form for the functional
+   /// \param[in] fun - specifies the desired functional
+   /// \note if a nonlinear form for `fun` has already been created an
+   /// exception will be thrown
+   void createOutput(const std::string &fun);
+
+   /// Creates the nonlinear form for the functional
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] options - options needed for calculating functional
+   /// \note if a nonlinear form for `fun` has already been created an
+   /// exception will be thrown
+   void createOutput(const std::string &fun,
+                     const nlohmann::json &options);
    
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
@@ -280,6 +416,58 @@ public:
    /// \returns scalar value of estimated functional value
    double calcOutput(const mfem::ParGridFunction &state,
                      const std::string &fun);
+
+   /// Evaluates and returns the output functional specifed by `fun`
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating functional
+   /// \return scalar value of estimated functional value
+   double calcOutput(const std::string &fun,
+                     const MachInputs &inputs);
+
+   /// Evaluates and returns the partial derivative of output functional
+   /// specifed by `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired functional
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating functional
+   /// \param[out] partial - the partial with respect to a scalar-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          double &partial);
+
+   /// Evaluates and returns the partial derivative of output functional
+   /// specifed by `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired functional
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating functional
+   /// \param[out] partial - the partial with respect to a vector-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          double *partial);
+
+   /// Evaluates and returns the partial derivative of output functional
+   /// specifed by `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired functional
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating functional
+   /// \param[out] partial - the partial with respect to a vector-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          mfem::HypreParVector &partial);
+
+   /// Sets options for the output functional specifed by `fun`
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] options - options needed for calculating functional
+   /// \note will only have an effect if a subclass supports setting options
+   ///       for the functional
+   virtual void setOutputOptions(const std::string &fun,
+                                 const nlohmann::json &options) { }; 
    
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
@@ -293,19 +481,72 @@ public:
    /// \param[in] data - external data array
    /// \note If `data` is nullptr a new array will be allocated. If `data` is 
    /// not `nullptr` it is assumed to be of size of at least `fes->GetVSize()`
-   std::unique_ptr<mfem::ParGridFunction> getNewField(double *data = nullptr);
+   // std::unique_ptr<mfem::ParGridFunction> getNewField(double *data = nullptr);
+
+   /// Return a state sized vector constructed from an externally allocated array
+   /// \param[in] data - external data array
+   /// \note If `data` is nullptr a new array will be allocated. If `data` is 
+   /// not `nullptr` it is assumed to be of size of at least `fes->GetTrueVSize()`
+   std::unique_ptr<mfem::HypreParVector> getNewField(double *data = nullptr);
 
    /// Compute the residual based on the current solution in `u`
    /// \param[out] residual - the residual
-   void calcResidual(mfem::ParGridFunction &residual)
+   void calcResidual(mfem::ParGridFunction &residual) const
    { calcResidual(*u, residual); };
 
    /// Compute the residual based on `state` and store the it in `residual`
    /// \param[in] state - the current state to evaluate the residual at
    /// \param[out] residual - the residual
-   void calcResidual(const mfem::ParGridFunction &state, 
-                     mfem::ParGridFunction &residual);
-   
+   virtual void calcResidual(const mfem::ParGridFunction &state, 
+                             mfem::ParGridFunction &residual) const;
+
+   /// Compute the residual based on inputs and store the it in `residual`
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating residual
+   /// \param[out] residual - the residual
+   void calcResidual(const MachInputs &inputs,
+                     double *residual) const;
+
+   /// Compute the residual based on inputs and store the it in `residual`
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating residual
+   /// \param[out] residual - the residual
+   void calcResidual(const MachInputs &inputs,
+                     mfem::HypreParVector &residual) const;
+
+   /// Set inputs for residual integrators and assemble state jacobian
+   void linearize(const MachInputs &inputs);
+
+   /// Compute vector jacobian product for derivative with respect to a scalar
+   /// \param[in] residual_bar - multiplies jacobian on the left hand side
+   /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   /// \return result of vector jacobian product
+   double vectorJacobianProduct(double *residual_bar,
+                                std::string wrt);
+
+   /// Compute vector jacobian product for derivative with respect to a scalar
+   /// \param[in] residual_bar - multiplies jacobian on the left hand side
+   /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   /// \return result of vector jacobian product
+   double vectorJacobianProduct(const mfem::HypreParVector &res_bar,
+                                std::string wrt);
+
+   /// Compute vector jacobian product for derivative with respect to a vector
+   /// \param[in] residual_bar - multiplies jacobian on the left hand side
+   /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   /// \param[inout] wrt_bar - result of vector jacobian product added to wrt_bar
+   void vectorJacobianProduct(double *residual_bar,
+                              std::string wrt,
+                              double *wrt_bar);
+
+   /// Compute vector jacobian product for derivative with respect to a vector
+   /// \param[in] residual_bar - multiplies jacobian on the left hand side
+   /// \param[in] wrt - string identifying what the jacobian is taken with respect to
+   /// \param[inout] wrt_bar - result of vector jacobian product added to wrt_bar
+   void vectorJacobianProduct(const mfem::HypreParVector &res_bar,
+                              std::string wrt,
+                              mfem::HypreParVector &wrt_bar);
+
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
 
@@ -339,6 +580,11 @@ public:
 
    inline int getMeshSize() { return mesh->GetNodes()->FESpace()->GetVSize(); }
    inline int getStateSize() { return fes->GetVSize(); }
+   inline int getFieldSize(std::string field)
+   { return res_fields.at(field).ParFESpace()->GetTrueVSize(); }
+
+   /// return the options dictionary with read-only access
+   inline const nlohmann::json& getOptions() const { return options; }
 
 #ifdef MFEM_USE_PUMI
    /// Return a pointer to the underlying PUMI mesh
@@ -347,6 +593,43 @@ public:
 
    /// Tell the underling forms that the mesh has changed;
    virtual void Update() {fes->Update();};
+
+   // /// Set the data for the input field
+   // /// \param[in] name - name of the field
+   // /// \param[in] field - reference the existing field
+   // /// \note it is assumed that this external grid function is defined on the
+   // /// same mesh the solver uses
+   // void setResidualInput(std::string name,
+   //                       mfem::ParGridFunction &field);
+
+   // /// Set the data for the input field
+   // /// \param[in] name - name of the field
+   // /// \param[in] field - data buffer for an external grid function
+   // /// \note it is assumed that this external grid function is defined on the
+   // /// same mesh the solver uses
+   // void setResidualInput(std::string name,
+   //                       double *field);
+
+   // /// Compute seed^T \frac{\partial R}{\partial field}
+   // /// \param[in] field - name of the field to differentiate with respect to
+   // /// \param[in] seed - the field to contract with (usually the adjoint)
+   // mfem::HypreParVector* vectorJacobianProduct(std::string field,
+   //                                             mfem::ParGridFunction &seed);
+
+   // /// Register a functional's dependence on a field
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] name - name of the field
+   // /// \param[in] field - reference the existing field
+   // /// \note field/name pairs are stored in `external_fields`
+   // void setFunctionalInput(std::string fun,
+   //                         std::string name,
+   //                         mfem::ParGridFunction &field);
+
+   // /// Compute \frac{\partial J}{\partial field}
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] field - name of the field to differentiate with respect to
+   // mfem::HypreParVector* calcFunctionalGradient(std::string fun,
+   //                                              std::string field);
 
 protected:
    /// communicator used by MPI group for communication
@@ -385,6 +668,10 @@ protected:
    std::unique_ptr<SpaceType> fes;
    /// pointer to mesh's underlying finite element space
    SpaceType *mesh_fes;
+   /// state sized work vector
+   std::unique_ptr<mfem::ParGridFunction> scratch;
+   /// state tdof sized work vector
+   mutable std::unique_ptr<mfem::HypreParVector> scratch_tv;
    /// state variable
    std::unique_ptr<GridFunType> u;
    /// initial state variable
@@ -411,16 +698,26 @@ protected:
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
    /// the load vector linear form
-   std::unique_ptr<mfem::Vector> load;
+   std::unique_ptr<MachLoad> load;
    /// entropy/energy that is needed for RRK methods
    std::unique_ptr<NonlinearFormType> ent;
 
-   /// derivative of psi^T res w.r.t the mesh nodes
-   std::unique_ptr<NonlinearFormType> res_mesh_sens;
-   /// partial of J w.r.t the mesh nodes
-   std::unique_ptr<NonlinearFormType> j_mesh_sens;
-   /// derivative of psi^T res w.r.t the mesh nodes, if using LinearFormIntegrators
-   std::unique_ptr<LinearFormType> res_mesh_sens_l;
+   //--------------------------------------------------------------------------
+   // Members associated with external inputs
+   /// map of external fields the residual depends on
+   std::unordered_map<std::string, mfem::ParGridFunction> res_fields;
+   /// map of external true vectors, used primarily for accumulating bar variables
+   std::map<std::string, mfem::HypreParVector> ext_tvs;
+   /// collection of integrators for the residual
+   std::vector<MachIntegrator> res_integrators;
+   /// map of linear forms that will compute
+   /// \psi^T \frac{\partial R}{\partial field}
+   /// for each field the residual depends on
+   std::map<std::string, mfem::ParLinearForm> res_sens;
+   /// map of nonlinear forms that will compute
+   /// \psi^T \frac{\partial R}{\partial scalar}
+   /// for each scalar the residual depends on
+   std::map<std::string, mfem::ParNonlinearForm> res_scalar_sens;
 
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
@@ -451,13 +748,32 @@ protected:
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of output functionals
    std::map<std::string, NonlinearFormType> output;
-   /// `output_bndry_marker[i]` lists the boundaries associated with output i
-   std::vector<mfem::Array<int>> output_bndry_marker;
+   /// collection of integrators for each functional
+   std::map<std::string, std::vector<MachIntegrator>> fun_integrators;
+   /// map of linear forms that will compute \frac{\partial J}{\partial field}
+   /// for each field the functional depends on
+   std::map<std::string, std::map<std::string,
+                                  mfem::ParLinearForm>> output_sens;
+   /// map of nonlinear forms that will compute
+   /// \frac{\partial J}{\partial scalar} for each scalar the functional
+   /// depends on
+   std::map<std::string, std::map<std::string,
+                                  mfem::ParNonlinearForm>> output_scalar_sens;
+
+   /// map of fractional functionals - a funtional that is a fraction of others
+   std::unordered_map<std::string, std::vector<std::string>> fractional_output;
+   /// output_bndry_marker[fun] lists the boundaries associated with output fun
+   std::unordered_map<std::string, mfem::Array<int>> output_bndry_marker;
 
    //--------------------------------------------------------------------------
 
    /// Construct PUMI Mesh
    void constructPumiMesh();
+
+   /// Remove internal mesh boundaries based on options
+   void removeInternalBoundaries();
+
+   void setUpExternalFields();
 
    /// Construct various coefficients
    virtual void constructCoefficients() {};
@@ -526,8 +842,9 @@ protected:
    /// Define the number of states, the finite element space, and state u
    virtual int getNumState() = 0; 
 
-   /// Create `output` based on `options` and add approporiate integrators
-   virtual void addOutputs() {};
+   /// Add integrators to functional `fun` based on options
+   virtual void addOutputIntegrators(const std::string &fun,
+                                     const nlohmann::json &options) {};
 
    /// Solve for the steady state problem using newton method
    virtual void solveSteady(mfem::ParGridFunction &state);
@@ -554,7 +871,7 @@ protected:
    /// \param[in] dt - the step size that was just taken
    /// \param[in] state - the current state
    virtual bool iterationExit(int iter, double t, double t_final, double dt,
-                              const mfem::ParGridFunction &state );
+                              const mfem::ParGridFunction &state) const;
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration
@@ -603,6 +920,151 @@ protected:
    AbstractSolver(const std::string &opt_file_name,
                   MPI_Comm comm = MPI_COMM_WORLD);
 
+   /// calculate a functional that is the product of others
+   /// \param[in] state - the state vector to evaluate the functional at
+   /// \param[in] fun - specifies the desired functional
+   /// \returns scalar value of estimated functional value
+   double calcFractionalOutput(const mfem::ParGridFunction &state,
+                               const std::string &fun);
+
+   /// Add integrators to the linear form representing the product
+   /// seed^T \frac{\partial R}{\partial field} for a particular field
+   /// \param[in] name - name of the field for the integrators
+   /// \param[in] seed - the field to contract with (usually the adjoint)
+   virtual void addResFieldSensIntegrators(std::string field,
+                                           mfem::ParGridFunction &seed) {}
+
+   /// Add integrators to the linear form representing the vector
+   /// \frac{\partial J}{\partial field} for a particular field
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] name - name of the field for the integrators
+   virtual void addFuncFieldSensIntegrators(std::string fun,
+                                            std::string field) {}
+
+   /// Iterates through each input and calls `setInput` for each
+   /// \param[in] integrators - list of integrators to set scalar inputs for
+   /// \param[in] inputs - collection of named field or scalar inputs
+   void setInputs(std::vector<MachIntegrator> &integrators,
+                  const MachInputs &inputs);
+
+   /// If the input is a field variable, updates the data for the field in
+   /// `res_fields`. If the input is a scalar, iterates through the integrators
+   /// and calls `setInput` for each integrator to set it's scalar inputs
+   /// \param[in] integrators - list of integrators to set scalar inputs for
+   /// \param[in] name - name of input
+   /// \param[in] input - input to set, either a field or scalar
+   void setInput(std::vector<MachIntegrator> &integrators,
+                 const std::string &name,
+                 const MachInput &input);
+
+   /// Construct a HypreParVector on the a given FES using external data
+   /// \param[in] buffer - external data for HypreParVector
+   /// \param[in] fes - finite element space to construct vector on
+   mfem::HypreParVector bufferToHypreParVector(
+      double *buffer,
+      const mfem::ParFiniteElementSpace &fes) const;
+
+   /// Adds domain integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addResidualDomainIntegrator(T *integrator)
+   {
+      res->AddDomainIntegrator(integrator);
+      res_integrators.emplace_back(*integrator);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     res_sens,
+                                     res_scalar_sens);
+   }
+
+   /// Adds interface integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator   
+   template <typename T>
+   void addResidualInteriorFaceIntegrator(T *integrator)
+   {
+      res->AddInteriorFaceIntegrator(integrator);
+      res_integrators.emplace_back(*integrator);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     res_sens,
+                                     res_scalar_sens);
+   }
+
+   /// Adds boundary integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addResidualBdrFaceIntegrator(T *integrator,
+                                     mfem::Array<int> &bdr_marker)
+   {
+      res->AddBdrFaceIntegrator(integrator, bdr_marker);
+      res_integrators.emplace_back(*integrator);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     res_sens,
+                                     res_scalar_sens);
+   }
+
+   /// Adds domain integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addOutputDomainIntegrator(const std::string &fun,
+                                  T *integrator)
+   {
+      output.at(fun).AddDomainIntegrator(integrator);
+      fun_integrators.at(fun).emplace_back(*integrator);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     output_sens[fun],
+                                     output_scalar_sens[fun]);
+   }
+
+   /// Adds interface integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator   
+   template <typename T>
+   void addOutputInteriorFaceIntegrator(const std::string &fun,
+                                        T *integrator)
+   {
+      output.at(fun).AddInteriorFaceIntegrator(integrator);
+      fun_integrators.at(fun).emplace_back(*integrator);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     output_sens[fun],
+                                     output_scalar_sens[fun]);
+   }
+
+   /// Adds boundary integrator to the nonlinear form for `fun`, and adds
+   /// reference to it to in fun_integrators as a MachIntegrator
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] integrator - integrator to add to functional
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addOutputBdrFaceIntegrator(const std::string &fun,
+                                   T *integrator,
+                                   mfem::Array<int> &bdr_marker)
+   {
+      output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
+      fun_integrators.at(fun).emplace_back(*integrator);
+      mach::addSensitivityIntegrator(*integrator,
+                                     res_fields,
+                                     output_sens[fun],
+                                     output_scalar_sens[fun]);
+   }
+
 private:
    /// explicitly prohibit copy construction
    AbstractSolver(const AbstractSolver&) = delete;
@@ -615,7 +1077,6 @@ private:
    void initBase(const nlohmann::json &file_options,
                  std::unique_ptr<mfem::Mesh> smesh,
                  MPI_Comm comm);
-
 };
 
 using SolverPtr = std::unique_ptr<AbstractSolver>;

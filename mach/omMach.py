@@ -1,202 +1,174 @@
 from types import FunctionType
 
 import openmdao.api as om
+import numpy as np
 
 from .pyMach import MachSolver, Vector
-
-class omMach(om.Group):
-    """
-    Group that combines the components for the state variables and functionals
-    """
-    def initialize(self):
-        self.options.declare('options_file', types=str, default=None, allow_none=True)
-        self.options.declare('options_dict', types=dict, default=None, allow_none=True)
-        self.options.declare('solver_type', types=str)
-        self.options.declare('initial_condition', types=FunctionType)
-
-    def setup(self):
-        # indeps = self.add_subsystem('indeps', om.IndepVarComp(), promotes=['*'])
-        # indeps.add_output('current_density', 10000)
-        # indeps.add_output('fill_factor', 0.5)
-
-        if self.options['options_file']:
-            solver_opts = self.options['options_file']
-        elif self.options['options_dict']:
-            solver_opts = self.options['options_dict']
-        
-        solver_type = self.options['solver_type']
-        self.solver = MachSolver(solver_type, solver_opts, self.comm)
-
-        initial_condition = self.options['initial_condition']
-
-        self.add_subsystem('state',
-                           omMachState(solver=self.solver,
-                                       initial_condition=initial_condition),
-                           promotes_inputs=['vol_mesh_coords'])
-
-        self.add_subsystem('functionals',
-                           omMachFunctionals(solver=self.solver),
-                           promotes_inputs=['vol_mesh_coords'],
-                           promotes_outputs=['func'])
-
-        # self.connect('current_density', ['state.current_density', 'functionals.current_density'])
-        # self.connect('fill_factor', ['state.fill_factor', 'functionals.fill_factor'])
-        self.connect('state.state', 'functionals.state')
-
 
 class omMachState(om.ImplicitComponent):
     """OpenMDAO component that converges the state variables"""
 
     def initialize(self):
-        # self.options.declare('options_file', types=str)
-        # self.options.declare('options_dict', types=dict)
-        self.options.declare('solver', types=MachSolver)
-        self.options.declare('initial_condition', types=FunctionType)
-        # self.options['distributed'] = True
+        self.options.declare("solver", types=MachSolver)
+        self.options.declare("depends", types=list)
+        self.options.declare("initial_condition", default=None)
 
     def setup(self):
-        solver = self.options['solver']
+        solver = self.options["solver"]
 
         if self.comm.rank == 0:
-            print('Adding state inputs')
+            print("Adding state inputs")
 
-        local_mesh_size = solver.getMeshSize()
-        self.add_input('vol_mesh_coords', shape=local_mesh_size)
-        # self.add_input('current_density')
-        # self.add_input('fill_factor')
+        solver_options = solver.getOptions()
+        ext_fields = "external-fields" in solver_options
+        for input in self.options["depends"]:
+            print("adding input", input)
+            if input == "state":
+                self.add_input(input, shape=solver.getStateSize())
+            elif input == "mesh_coords":
+                mesh_size = solver.getFieldSize(input)
+                mesh_coords = np.zeros(mesh_size)
+                solver.getField(input, mesh_coords)
+                self.add_input(input, mesh_coords)
+            elif ext_fields:
+                if input in solver_options["external-fields"]:
+                    self.add_input(input, shape=solver.getFieldSize(input))
+            else:
+                self.add_input(input)
+
 
         if self.comm.rank == 0:
-            print('Adding state outputs')
+            print("Adding state outputs")
 
         local_state_size = solver.getStateSize()
-        self.add_output('state', shape=local_state_size)
+        self.add_output("state", shape=local_state_size)
 
-        #self.declare_partials(of='state', wrt='*')
+    # def setup_partials(self):
+        # for input in self.options["depends"]:
+            # self.declare_partials("state", input)
+        # self.declare_partials("state", "state")
 
     def apply_nonlinear(self, inputs, outputs, residuals):
-        """
-        Compute the residual
-        """
-        solver = self.options['solver']
+        solver = self.options["solver"]
 
-        mesh_coords = inputs['vol_mesh_coords']
-        state = solver.getNewField(outputs['state'])
-        residual = solver.getNewField(residuals['state'])
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        input_dict.update(dict(zip(outputs.keys(), outputs.values())))
 
-        # TODO: change these methods in machSolver to support numpy array 
-        # as argument and do the conversion internally
-        solver.setMeshCoordinates(Vector(mesh_coords))
-        solver.calcResidual(state, residual)
-
+        residual = residuals["state"]
+        solver.calcResidual(input_dict, residual)
 
     def solve_nonlinear(self, inputs, outputs):
-        """
-        Converge the state
-        """
-        solver = self.options['solver']
+        solver = self.options["solver"]
 
-        mesh_coords = inputs['vol_mesh_coords']
-        state = solver.getNewField(outputs['state'])
+        state = outputs["state"]
+        if (self.options["initial_condition"] is not None):
+            u_init = self.options["initial_condition"]
+            solver.setFieldValue(state, u_init)
 
-        u_init = self.options['initial_condition']
-
-        solver.setInitialCondition(state, u_init)
-
-        # solver.printField("state", state, "state")
-        # TODO: change these methods in machSolver to support numpy array 
-        # as argument and do the conversion internally
-        solver.setMeshCoordinates(Vector(mesh_coords))
-        solver.printMesh("mesh")
-        solver.solveForState(state)
-
-        uex = solver.getNewField()
-        solver.setInitialCondition(uex, u_init)
-
-        solver.printFields("state_post_solve", [state, uex], ["state", "uex"])
-
-        print("error: ", solver.calcL2Error(state, u_init, -1))
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        input_dict.update(dict(zip(outputs.keys(), outputs.values())))
+        solver.solveForState(input_dict, state)
 
     def linearize(self, inputs, outputs, residuals):
-        """
-        Perform assembly of Jacobians/linear forms?
-            Only makes sense if this is always called before apply_linear
-        """
+        solver = self.options["solver"]
 
-        solver = self.options['solver']
-        state = solver.getNewField(outputs['state'])
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        input_dict.update(dict(zip(outputs.keys(), outputs.values())))
 
-        solver.setState(state)
+        solver.linearize(input_dict)
 
 
     def apply_linear(self, inputs, outputs, d_inputs, d_outputs, d_residuals, mode):
+        solver = self.options["solver"]
 
-        solver = self.options['solver']
+        if mode == "rev":
+            if "state" in d_residuals: 
+                res_bar = d_residuals["state"]
+                if "state" in d_outputs: 
+                    solver.vectorJacobianProduct(res_bar,
+                                                 wrt="state",
+                                                 wrt_bar=d_outputs["state"])
 
-        if mode == 'rev':
-            if 'state' in d_residuals: 
-                if 'state' in d_outputs: 
-                    d_outputs['state'] = solver.multStateJacTranspose(d_residuals['state'])
-        
-                if 'vol_mesh_coords' in d_inputs: 
-                    d_inputs['vol_mesh_coords'] = solver.multMeshJacTranspose(d_residuals['state'])
+                for input in d_inputs:
+                    solver.vectorJacobianProduct(res_bar,
+                                                 wrt=input,
+                                                 wrt_bar=d_inputs[input])
 
-                if 'current_density' in d_inputs: 
-                    raise NotImplementedError 
-
-                if 'fill_factor' in d_inputs: 
-                    raise NotImplementedError 
-
-        elif mode == 'fwd':
-            raise NotImplementedError
+        elif mode == "fwd":
+            pass
+            # raise NotImplementedError
 
     def solve_linear(self, d_outputs, d_residuals, mode):
+        solver = self.options["solver"]
 
-        solver = self.options['solver']
+        if mode == "rev":
+            if "state" in d_residuals:
+                if "state" in d_outputs:
+                    d_residuals["state"] = solver.invertStateJacTranspose(d_outputs["state"])
 
-        if mode == 'rev':
-            if 'state' in d_residuals: 
-                if 'state' in d_outputs: 
-                    d_residuals['state'] = solver.invertStateJacTranspose(d_outputs['state'])
-
-        elif mode == 'fwd':
+        elif mode == "fwd":
             raise NotImplementedError
         
 
-class omMachFunctionals(om.ExplicitComponent):
+class omMachFunctional(om.ExplicitComponent):
     """OpenMDAO component that computes functionals given the state variables"""
     def initialize(self):
-        self.options.declare('solver', types=MachSolver)
-        # self.options['distributed'] = True
+        self.options.declare("solver", types=MachSolver)
+        self.options.declare("func", types=str)
+        self.options.declare("depends", types=list)
+        self.options.declare("options", default=None, types=dict)
 
     def setup(self):
-        solver = self.options['solver']
+        solver = self.options["solver"]
 
         if self.comm.rank == 0:
-            print('Adding functional inputs')
+            print("Adding functional inputs")
 
-        local_mesh_size = solver.getMeshSize()
-        self.add_input('vol_mesh_coords', shape=local_mesh_size)
-
-        local_state_size = solver.getStateSize()
-        self.add_input('state', shape=local_state_size)
-        # self.add_input('current_density')
-        # self.add_input('fill_factor')
+        solver_options = solver.getOptions()
+        ext_fields = "external-fields" in solver_options
+        for input in self.options["depends"]:
+            print("adding input", input)
+            if input == "state":
+                self.add_input(input, shape=solver.getStateSize())
+            elif input == "mesh_coords":
+                mesh_size = solver.getFieldSize(input)
+                mesh_coords = np.zeros(mesh_size)
+                solver.getField(input, mesh_coords)
+                self.add_input(input, mesh_coords)
+            elif ext_fields:
+                if input in solver_options["external-fields"]:
+                    self.add_input(input, shape=solver.getFieldSize(input))
+            else:
+                self.add_input(input)
 
         if self.comm.rank == 0:
-            print('Adding functional outputs')
+            print("Adding functional outputs")
 
-        self.add_output('func')
+        func = self.options["func"]
+        if self.options["options"]:
+            solver.createOutput(func, self.options["options"])
+        else:
+            solver.createOutput(func)
+        print("adding output", func)
+        self.add_output(func)
 
-        #self.declare_partials(of='func', wrt='*')
+    def setup_partials(self):
+        func = self.options["func"]
+        for input in self.options["depends"]:
+            self.declare_partials(func, input)
 
     def compute(self, inputs, outputs):
-        solver = self.options['solver']
+        solver = self.options["solver"]
+        func = self.options["func"]
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        outputs[func] = solver.calcOutput(func, input_dict)
 
-        mesh_coords = inputs['vol_mesh_coords']
-        state = inputs['state']
+    def compute_partials(self, inputs, partials):
+        solver = self.options["solver"]
+        func = self.options["func"]
 
-        state_field = solver.getNewField(state)
-
-        solver.setMeshCoordinates(Vector(mesh_coords))
-
-        outputs['func'] = solver.calcFunctional(state_field, "drag")
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        for input in inputs:
+            solver.calcOutputPartial(of=func, wrt=input,
+                                     inputs=input_dict,
+                                     partial=partials[func, input][0])

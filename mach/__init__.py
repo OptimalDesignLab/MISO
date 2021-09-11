@@ -13,7 +13,7 @@ except ImportError as err:
         print('Warning: OpenMDAO dependency is not installed. omMach wrapper will not be active.')
 
 if openmdao is not None: 
-    from .omMach import omMach
+    from .omMach import omMachState, omMachFunctional
     from .omMeshMovement import omMeshMove
 
 try:

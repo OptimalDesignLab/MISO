@@ -3,6 +3,7 @@
 
 #include "solver.hpp"
 #include "coefficient.hpp"
+#include "mesh_move_integ.hpp"
 #include "mesh_movement.hpp"
 
 using namespace mfem;
@@ -12,7 +13,7 @@ namespace mach
 
 LEAnalogySolver::LEAnalogySolver(
    const nlohmann::json &options,
-   std::unique_ptr<mfem::Mesh> smesh,
+   std::unique_ptr<Mesh> smesh,
    MPI_Comm comm)
    : MeshMovementSolver(options, move(smesh), comm)
 {
@@ -31,15 +32,15 @@ LEAnalogySolver::LEAnalogySolver(
 }
 
 void LEAnalogySolver::setInitialCondition(
-   mfem::ParGridFunction &state,
-   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+   ParGridFunction &state,
+   const std::function<void(const Vector &, Vector &)> &u_init)
 {
+   // AbstractSolver::setInitialCondition(state, u_init);
    state = 0.0;
 
    VectorFunctionCoefficient u0(dim, u_init);
    state.ProjectBdrCoefficient(u0, ess_bdr);
    printField("uinit", state, "solution");
-   // state = 100.0;
 }
 
 double LEAnalogySolver::calcStepSize(int iter, 
@@ -54,6 +55,7 @@ double LEAnalogySolver::calcStepSize(int iter,
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm(state);
+      if (std::abs(res_norm) <= 1e-14) return 1e14;
       double exponent = options["time-dis"]["res-exp"];
       double dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
@@ -79,7 +81,7 @@ bool LEAnalogySolver::iterationExit(int iter,
                                         double t, 
                                         double t_final,
                                         double dt,
-                                        const ParGridFunction &state)
+                                        const ParGridFunction &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {

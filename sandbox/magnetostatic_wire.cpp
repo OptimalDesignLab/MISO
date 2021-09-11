@@ -37,12 +37,12 @@ int main(int argc, char *argv[])
       solver->solveForState();
       std::cout << "finish steady solve\n";
       
-      double coenergy = solver->calcOutput("co-energy");
-      std::cout << "Co-energy = " << coenergy << std::endl;
-      solver->solveForAdjoint("co-energy");
-      solver->printAdjoint("co-energy-adjoint");
-      solver->printSolution("wire_out");
-      //solver->verifyMeshSensitivities();
+      // double coenergy = solver->calcOutput("co-energy");
+      // std::cout << "Co-energy = " << coenergy << std::endl;
+      // solver->solveForAdjoint("co-energy");
+      // solver->printAdjoint("co-energy-adjoint");
+      // solver->printSolution("wire_out");
+      // solver->verifyMeshSensitivities();
    }
    catch (MachException &exception)
    {

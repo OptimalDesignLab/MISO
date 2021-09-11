@@ -1,0 +1,13 @@
+# This is a suppressions file that must exist in order for the Leak Sanitizer
+# (LSan) to be able to run with the default configuration.
+
+#### Third-party leaks ####
+
+# leaks reported in OpenMPI
+leak:libmpi
+leak:libopen-rte
+leak:libdispatch
+
+# leaks reported in Python
+leak:_PyObject_Malloc
+leak:_PyObject_Realloc

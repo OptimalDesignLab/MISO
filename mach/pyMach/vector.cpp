@@ -54,6 +54,8 @@ void initVector(py::module &m)
          return self;
       }))
 
+      .def("normL2", &Vector::Norml2)
+
       /// construct unintialized Vector
       .def(py::init<>())
 

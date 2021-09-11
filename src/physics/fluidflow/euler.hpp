@@ -107,23 +107,22 @@ protected:
 
    virtual void addEntVolumeIntegrators() override;
 
-   /// Create `output` based on `options` and add approporiate integrators
-   virtual void addOutputs() override;
-
+   void addOutputIntegrators(const std::string &fun,
+                             const nlohmann::json &options) override;
    /// Return the number of state variables
-   virtual int getNumState() override {return dim+2; }
+   int getNumState() override {return dim+2; }
 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
-   virtual void initialHook(const mfem::ParGridFunction &state) override;
+   void initialHook(const mfem::ParGridFunction &state) override;
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
    /// \param[in] state - the current state
-   virtual void iterationHook(int iter, double t, double dt,
-                              const mfem::ParGridFunction &state) override;
+   void iterationHook(int iter, double t, double dt,
+                      const mfem::ParGridFunction &state) override;
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration
@@ -131,16 +130,15 @@ protected:
    /// \param[in] t_final - the final time
    /// \param[in] dt - the step size that was just taken
    /// \param[in] state - the current state
-   virtual bool iterationExit(int iter, double t, double t_final, 
-                              double dt,
-                              const mfem::ParGridFunction &state) override;
+   bool iterationExit(int iter, double t, double t_final, double dt,
+                      const mfem::ParGridFunction &state) const override;
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
    /// \param[in] state - the current state
-   virtual void terminalHook(int iter, double t_final,
-                             const mfem::ParGridFunction &state) override;
+   void terminalHook(int iter, double t_final,
+                     const mfem::ParGridFunction &state) override;
 
    friend SolverPtr createSolver<EulerSolver<dim, entvar>>(
        const nlohmann::json &json_options,

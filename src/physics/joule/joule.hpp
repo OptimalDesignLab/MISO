@@ -48,8 +48,6 @@ public:
 
    // mfem::Vector* getMeshSensitivities() override;
 
-   void addOutputs() override;
-
    int getNumState() override {return 0;};
 
    ~JouleSolver() override;

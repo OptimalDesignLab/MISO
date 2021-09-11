@@ -128,7 +128,6 @@ int main(int argc, char *argv[])
     Sim_unregisterAllKeys();
 #endif
 
-    mesh->ReorientTetMesh();
    try
    {
     

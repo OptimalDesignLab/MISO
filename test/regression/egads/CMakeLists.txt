@@ -15,7 +15,18 @@ endfunction(create_egads_tests)
 
 # group together all regression tests
 set(TEST_SRCS
+   test_acloss_functional
    test_meshmovement_egads_cyl
+#   test_joule_wire_egads
+#   test_team13
+#   test_thermal_steady_embedded_box
+   test_thermal_ring
+#   coupled_motor
+   test_coulomb1984_force
+   test_torque_loop
+#   test_magnet_force
+#   test_magnet_box
+#   test_femm_tutorial
 )
 
 add_custom_target(copy-egads-data-files ALL

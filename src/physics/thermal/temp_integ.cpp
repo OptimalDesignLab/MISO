@@ -7,6 +7,54 @@ using namespace std;
 namespace mach
 {
 
+double AggregateIntegratorNumerator::GetElementEnergy(
+   const FiniteElement &el, 
+   ElementTransformation &Trans,
+   const Vector &elfun)
+{
+   const int attr = Trans.Attribute;
+   Vector shape(elfun.Size());
+
+   const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(),
+                                             2 * el.GetOrder());
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      el.CalcShape(ip, shape);
+      double g = (shape*elfun) / max(attr - 1);
+      fun += ip.weight*Trans.Weight()*g*exp(rho*(g));
+   }
+   return fun;
+}
+
+double AggregateIntegratorDenominator::GetElementEnergy(
+   const FiniteElement &el, 
+   ElementTransformation &Trans,
+   const Vector &elfun)
+{
+   const int attr = Trans.Attribute;
+   Vector shape(elfun.Size());
+
+   const IntegrationRule *ir = &IntRules.Get(el.GetGeomType(),
+                                             2 * el.GetOrder());
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      Trans.SetIntPoint(&ip);
+      el.CalcShape(ip, shape);
+      double g = (shape*elfun) / max(attr - 1);
+      fun += ip.weight*Trans.Weight()*exp(rho*(g));
+   }
+   return fun;
+}
+
+
+
 AggregateIntegrator::AggregateIntegrator(const FiniteElementSpace *fe_space,
                                          const double r,
                                          const Vector m,

@@ -23,9 +23,6 @@ NavierStokesSolver<dim, entvar>::NavierStokesSolver(
    // Note: the viscous terms are added to the semi-linear form `res` via
    // virtual function calls to addVolumeIntegrators(), addBoundaryIntegrators,
    // and addInterfaceIntegrators(). 
-
-   // add the output functional QoIs 
-   //addOutputs(dim);
 }
 
 template <int dim, bool entvar>
@@ -159,20 +156,21 @@ void NavierStokesSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void NavierStokesSolver<dim, entvar>::addOutputs()
+void NavierStokesSolver<dim, entvar>::addOutputIntegrators(
+   const std::string &fun,
+   const nlohmann::json &options)
 {
-   auto &fun = this->options["outputs"];
    double mu = this->options["flow-param"]["mu"].template get<double>();
    Vector q_ref(dim+2);
    this->getFreeStreamState(q_ref);
    int idx = 0;
-   if (fun.find("drag") != fun.end())
+   if (fun == "drag")
    { 
       // drag on the specified boundaries
-      vector<int> tmp = fun["drag"].template get<vector<int>>();
-      this->output_bndry_marker[idx].SetSize(tmp.size(), 0);
-      this->output_bndry_marker[idx].Assign(tmp.data());
-      this->output.emplace("drag", this->fes.get());
+      vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      this->output_bndry_marker.emplace(fun, bdr.size());
+      this->output_bndry_marker.at(fun).Assign(bdr.data());
+
       mfem::Vector drag_dir(dim);
       drag_dir = 0.0;
       if (dim == 1)
@@ -185,19 +183,20 @@ void NavierStokesSolver<dim, entvar>::addOutputs()
          drag_dir(this->ipitch) = sin(this->aoa_fs);
       }
       drag_dir *= 1.0 / pow(this->mach_fs, 2.0); // to get non-dimensional Cd
-      this->output.at("drag").AddBdrFaceIntegrator(
-          new SurfaceForce<dim>(this->diff_stack, this->fec.get(), dim + 2,
-                                re_fs, pr_fs, q_ref, drag_dir, mu),
-          this->output_bndry_marker[idx]);
-      idx++;
+
+      this->addOutputBdrFaceIntegrator(
+         fun,
+         new SurfaceForce<dim>(this->diff_stack, this->fec.get(), dim + 2,
+                               re_fs, pr_fs, q_ref, drag_dir, mu),
+         this->output_bndry_marker.at(fun));
    }
-   if (fun.find("lift") != fun.end())
+   else if (fun == "lift")
    { 
       // lift on the specified boundaries
-      vector<int> tmp = fun["lift"].template get<vector<int>>();
-      this->output_bndry_marker[idx].SetSize(tmp.size(), 0);
-      this->output_bndry_marker[idx].Assign(tmp.data());
-      this->output.emplace("lift", this->fes.get());
+      vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      this->output_bndry_marker.emplace(fun, bdr.size());
+      this->output_bndry_marker.at(fun).Assign(bdr.data());
+
       mfem::Vector lift_dir(dim);
       lift_dir = 0.0;
       if (dim == 1)
@@ -210,19 +209,25 @@ void NavierStokesSolver<dim, entvar>::addOutputs()
          lift_dir(this->ipitch) = cos(this->aoa_fs);
       }
       lift_dir *= 1.0 / pow(this->mach_fs, 2.0); // to get non-dimensional Cl
-      this->output.at("lift").AddBdrFaceIntegrator(
-          new SurfaceForce<dim>(this->diff_stack, this->fec.get(), dim + 2,
-                                re_fs, pr_fs, q_ref, lift_dir, mu),
-          this->output_bndry_marker[idx]);
-      idx++;
+      this->addOutputBdrFaceIntegrator(
+         fun,
+         new SurfaceForce<dim>(this->diff_stack, this->fec.get(), dim + 2,
+                               re_fs, pr_fs, q_ref, lift_dir, mu),
+         this->output_bndry_marker.at(fun));
    }
-   if (fun.find("entropy") != fun.end())
+   else if (fun == "entropy")
    {
-      // integral of entropy over the entire volume domain
-      this->output.emplace("entropy", this->fes.get());
-      this->output.at("entropy").AddDomainIntegrator(
+      // integral of entropy over the entire volume domain         
+      this->addOutputDomainIntegrator(
+         fun,
          new EntropyIntegrator<dim, entvar>(this->diff_stack));
    }
+   else
+   {
+      throw MachException("Output with name " + fun + " not supported by "
+                          "NavierStokesSolver!\n");
+   }
+
 }
 
 template <int dim, bool entvar>

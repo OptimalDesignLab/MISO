@@ -77,6 +77,6 @@
          "south": [7, 9, 11, 13]
       },
       "fill-factor": 0.5,
-      "current-density": 100000
+      "current_density": 100000
    }
 }

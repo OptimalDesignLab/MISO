@@ -1,8 +1,10 @@
 #include <iostream>
 
-#include "mfem_extensions.hpp"
+#include "mfem.hpp"
+
 #include "evolver.hpp"
 #include "utils.hpp"
+#include "mfem_extensions.hpp"
 
 using namespace mfem;
 using namespace std;

@@ -39,14 +39,6 @@ public:
                    std::unique_ptr<mfem::Mesh> smesh = nullptr,
                    int dim = 3);
 
-   /// Implement InitDerived
-   //  virtual void initDerived();
-
-   /// Initializes the state vector to a given function.
-   /// \param[in] state - the state vector to initialize
-   /// \param[in] u_init - function that defines the initial condition
-   /// \note The second argument in the function `u_init` is the initial
-   /// condition value.
    void setInitialCondition(
       mfem::ParGridFunction &state,
       const std::function<void(const mfem::Vector &,
@@ -85,7 +77,7 @@ private:
    //                    const mfem::ParGridFunction &state) override;
 
    bool iterationExit(int iter, double t, double t_final, double dt,
-                      const mfem::ParGridFunction &state) override;
+                      const mfem::ParGridFunction &state) const override;
    
    // void terminalHook(int iter, double t_final,
    //                   const mfem::ParGridFunction &state) override;

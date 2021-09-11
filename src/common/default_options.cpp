@@ -52,6 +52,7 @@ const nlohmann::json default_options
       {"maxiter", 100}, // default to 100 iterations
       {"reltol", 1e-14}, // solver relative tolerance
       {"abstol", 1e-14}, // solver absolute tolerance
+      {"abort", true}, // should program abort if Newton doesn't converge
    }},
 
    {"lin-solver",

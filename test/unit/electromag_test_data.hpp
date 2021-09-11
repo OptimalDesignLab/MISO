@@ -113,19 +113,30 @@ public:
       // mfem::Vector state;
       // stateGF->GetVectorValue(trans.ElementNo, ip, state);
       // double state_mag = state.Norml2();
-      // return pow(state, 3.0);
+      // return pow(state, 2.0);
+      // return state;
       return 0.5*pow(state+1, -0.5);
    }
 
    double EvalStateDeriv(mfem::ElementTransformation &trans,
-                        const mfem::IntegrationPoint &ip,
-                        const double state) override
+                         const mfem::IntegrationPoint &ip,
+                         const double state) override
    {
       // mfem::Vector state;
       // stateGF->GetVectorValue(trans.ElementNo, ip, state);
       // double state_mag = state.Norml2();
-      // return 3.0*pow(state, 2.0);
+      // return 2.0*pow(state, 1.0);
+      // return 1.0;
       return -0.25*pow(state+1, -1.5);
+   }
+
+   double EvalState2ndDeriv(mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            const double state) override
+   {
+      // return 2.0;
+      // return 0.0;
+      return 0.375*pow(state+1, -2.5);
    }
 };
 
@@ -173,7 +184,7 @@ nlohmann::json getBoxOptions(int order)
       }},
       {"problem-opts", {
          {"fill-factor", 1.0},
-         {"current-density", 1.0},
+         {"current_density", 1.0},
          {"current", {
             {"box1", {1}},
             {"box2", {2}}
@@ -194,8 +205,6 @@ std::unique_ptr<mfem::Mesh> getMesh(int nxy = 2, int nz = 2)
    std::unique_ptr<Mesh> mesh(new Mesh(nxy, nxy, nz,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, (double)nz / (double)nxy, true));
-
-   mesh->ReorientTetMesh();
    mesh->EnsureNodes();
 
    // assign attributes to top and bottom sides
@@ -280,7 +289,7 @@ nlohmann::json getWireOptions(int order)
       }},
       {"problem-opts", {
          {"fill-factor", 1.0},
-         {"current-density", 10000.0},
+         {"current_density", 10000.0},
          {"current", {
             {"z", {1, 3, 4, 5}},
          }},

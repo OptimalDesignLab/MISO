@@ -90,195 +90,138 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
    return -c1 / (2 * c2);
 }
 
-DiscreteInterpolationOperator::~DiscreteInterpolationOperator()
-{}
+// DiscreteGradOperator::DiscreteGradOperator(SpaceType *dfes,
+//                                            SpaceType *rfes)
+//    : ParDiscreteLinearOperator(dfes, rfes)
+// {
+//    this->AddDomainInterpolator(new GradientInterpolator);
+// }
 
-DiscreteGradOperator::DiscreteGradOperator(SpaceType *dfes,
-                                           SpaceType *rfes)
-   : DiscreteInterpolationOperator(dfes, rfes)
-{
-   this->AddDomainInterpolator(new GradientInterpolator);
-}
+// DiscreteCurlOperator::DiscreteCurlOperator(SpaceType *dfes,
+//                                            SpaceType *rfes)
+//    : ParDiscreteLinearOperator(dfes, rfes)
+// {
+//    this->AddDomainInterpolator(new CurlInterpolator);
+// }
 
-DiscreteCurlOperator::DiscreteCurlOperator(SpaceType *dfes,
-                                           SpaceType *rfes)
-   : DiscreteInterpolationOperator(dfes, rfes)
-{
-   this->AddDomainInterpolator(new CurlInterpolator);
-}
+// DiscreteDivOperator::DiscreteDivOperator(SpaceType *dfes,
+//                                          SpaceType *rfes)
+//    : ParDiscreteLinearOperator(dfes, rfes)
+// {
+//    this->AddDomainInterpolator(new DivergenceInterpolator);
+// }
 
-DiscreteDivOperator::DiscreteDivOperator(SpaceType *dfes,
-                                         SpaceType *rfes)
-   : DiscreteInterpolationOperator(dfes, rfes)
-{
-   this->AddDomainInterpolator(new DivergenceInterpolator);
-}
+// IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
+//                                              ParFiniteElementSpace &nd_fes,
+//                                              const int &ir_order)
+//    : h1_fes(h1_fes), nd_fes(nd_fes), s0(&h1_fes), weakDiv(&nd_fes, &h1_fes),
+//    grad(&h1_fes, &nd_fes), psi(&h1_fes), xDiv(&h1_fes), pcg(h1_fes.GetComm())
+// {
+//    /// not sure if theres a better way to handle this
+//    ess_bdr.SetSize(h1_fes.GetParMesh()->bdr_attributes.Max());
+//    ess_bdr = 1;
+//    h1_fes.GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
 
-IrrotationalProjector
-::IrrotationalProjector(SpaceType &H1FESpace,
-                        SpaceType &HCurlFESpace,
-                        const int &irOrder,
-                        BilinearFormType *s0,
-                        MixedBilinearFormType *weakDiv,
-                        DiscreteGradOperator *grad)
-   : H1FESpace_(&H1FESpace),
-     HCurlFESpace_(&HCurlFESpace),
-     s0_(s0),
-     weakDiv_(weakDiv),
-     grad_(grad),
-     psi_(NULL),
-     xDiv_(NULL),
-     S0_(NULL),
-     amg_(NULL),
-     pcg_(NULL),
-     ownsS0_(s0 == NULL),
-     ownsWeakDiv_(weakDiv == NULL),
-     ownsGrad_(grad == NULL)
-{
-   /// not sure if theres a better way to handle this
-   ess_bdr_.SetSize(H1FESpace_->GetParMesh()->bdr_attributes.Max());
-   ess_bdr_ = 1;
-   H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
+//    int geom = h1_fes.GetFE(0)->GetGeomType();
+//    const IntegrationRule * ir = &IntRules.Get(geom, ir_order);
 
-   int geom = H1FESpace_->GetFE(0)->GetGeomType();
-   const IntegrationRule * ir = &IntRules.Get(geom, irOrder);
+//    BilinearFormIntegrator *diffInteg = new DiffusionIntegrator;
+//    diffInteg->SetIntRule(ir);
+//    s0.AddDomainIntegrator(diffInteg);
+//    s0.Assemble();
+//    s0.Finalize();
 
-   if ( s0 == NULL )
-   {
-      s0_ = new BilinearFormType(H1FESpace_);
-      BilinearFormIntegrator *diffInteg = new DiffusionIntegrator;
-      diffInteg->SetIntRule(ir);
-      s0_->AddDomainIntegrator(diffInteg);
-      s0_->Assemble();
-      s0_->Finalize();
-      S0_ = new MatrixType;
-   }
-   if ( weakDiv_ == NULL )
-   {
-      weakDiv_ = new MixedBilinearFormType(HCurlFESpace_, H1FESpace_);
-      BilinearFormIntegrator *wdivInteg = new VectorFEWeakDivergenceIntegrator;
-      wdivInteg->SetIntRule(ir);
-      weakDiv_->AddDomainIntegrator(wdivInteg);
-      weakDiv_->Assemble();
-      weakDiv_->Finalize();
-   }
-   if ( grad_ == NULL )
-   {
-      grad_ = new DiscreteGradOperator(H1FESpace_, HCurlFESpace_);
-      grad_->Assemble();
-      grad_->Finalize();
-   }
+//    BilinearFormIntegrator *wdivInteg = new VectorFEWeakDivergenceIntegrator;
+//    wdivInteg->SetIntRule(ir);
+//    weakDiv.AddDomainIntegrator(wdivInteg);
+//    weakDiv.Assemble();
+//    weakDiv.Finalize();
+//    grad.Assemble();
+//    grad.Finalize();
+// }
 
-   psi_  = new GridFunType(H1FESpace_);
-   xDiv_ = new GridFunType(H1FESpace_);
-}
+// void IrrotationalProjector::Mult(const Vector &x, Vector &y) const
+// {
+//    // Compute the divergence of x
+//    weakDiv.Mult(x, xDiv); xDiv *= -1.0;
+//    std::cout << "weakdiv mult\n";
 
-IrrotationalProjector::~IrrotationalProjector()
-{
-   delete psi_;
-   delete xDiv_;
-   delete amg_;
-   delete pcg_;
-   delete S0_;
-   delete s0_;
-   delete weakDiv_;
-}
+//    // Apply essential BC and form linear system
+//    psi = 0.0;
+//    s0.FormLinearSystem(ess_bdr_tdofs, psi, xDiv, S0, Psi, RHS);
+//    std::cout << "form lin system\n";
 
-void
-IrrotationalProjector::InitSolver() const
-{
+//    amg.SetOperator(S0);
+//    amg.SetPrintLevel(0);
 
-   delete pcg_;
-   delete amg_;
+//    pcg.SetOperator(S0);
+//    pcg.SetTol(1e-14);
+//    pcg.SetMaxIter(200);
+//    pcg.SetPrintLevel(0);
+//    pcg.SetPreconditioner(amg);
 
-   amg_ = new HypreBoomerAMG(*S0_);
-   amg_->SetPrintLevel(0);
-   pcg_ = new HyprePCG(*S0_);
-   pcg_->SetTol(1e-14);
-   pcg_->SetMaxIter(200);
-   pcg_->SetPrintLevel(0);
-   pcg_->SetPreconditioner(*amg_);
-}
+//    // Solve the linear system for Psi
+//    pcg.Mult(RHS, Psi);
+//    std::cout << "pcg mult\n";
 
-void
-IrrotationalProjector::Mult(const Vector &x, Vector &y) const
-{
-   // Compute the divergence of x
-   weakDiv_->Mult(x,*xDiv_); *xDiv_ *= -1.0;
-   std::cout << "weakdiv mult\n";
+//    // Compute the parallel grid function correspoinding to Psi
+//    s0.RecoverFEMSolution(Psi, xDiv, psi);
 
-   // Apply essential BC and form linear system
-   *psi_ = 0.0;
-   s0_->FormLinearSystem(ess_bdr_tdofs_, *psi_, *xDiv_, *S0_, Psi_, RHS_);
-   std::cout << "form lin system\n";
+//    // Compute the irrotational portion of x
+//    grad.Mult(psi, y);
+// }
 
-   // Solve the linear system for Psi
-   if ( pcg_ == NULL ) { this->InitSolver(); }
-   pcg_->Mult(RHS_, Psi_);
-   std::cout << "pcg mult\n";
+// void
+// IrrotationalProjector::Update()
+// {
+//    psi.Update();
+//    xDiv.Update();
 
-   // Compute the parallel grid function correspoinding to Psi
-   s0_->RecoverFEMSolution(Psi_, *xDiv_, *psi_);
+//    s0.Update();
+//    s0.Assemble();
+//    s0.Finalize();
 
-   // Compute the irrotational portion of x
-   grad_->Mult(*psi_, y);
-}
+//    weakDiv.Update();
+//    weakDiv.Assemble();
+//    weakDiv.Finalize();
 
-void
-IrrotationalProjector::Update()
-{
-   delete pcg_; pcg_ = NULL;
-   delete amg_; amg_ = NULL;
-   delete S0_;  S0_  = new MatrixType;
+//    grad.Update();
+//    grad.Assemble();
+//    grad.Finalize();
 
-   psi_->Update();
-   xDiv_->Update();
+//    h1_fes.GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
+// }
 
-   if ( ownsS0_ )
-   {
-      s0_->Update();
-      s0_->Assemble();
-      s0_->Finalize();
-   }
-   if ( ownsWeakDiv_ )
-   {
-      weakDiv_->Update();
-      weakDiv_->Assemble();
-      weakDiv_->Finalize();
-   }
-   if ( ownsGrad_ )
-   {
-      grad_->Update();
-      grad_->Assemble();
-      grad_->Finalize();
-   }
+// DivergenceFreeProjector::DivergenceFreeProjector(ParFiniteElementSpace &h1_fes,
+//                                                  ParFiniteElementSpace &nd_fes,
+//                                                  const int &ir_order)
+//    : IrrotationalProjector(h1_fes, nd_fes, ir_order)
+// {}
 
-   H1FESpace_->GetEssentialTrueDofs(ess_bdr_, ess_bdr_tdofs_);
-}
+// void DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
+// {
+//    std::cout << "above irrot proj mult\n";
+//    this->IrrotationalProjector::Mult(x, y);
+//    std::cout << "below irrot proj mult\n";
+//    y  -= x;
+//    y *= -1.0;
+// }
 
-DivergenceFreeProjector
-::DivergenceFreeProjector(SpaceType &H1FESpace,
-                          SpaceType &HCurlFESpace,
-                          const int &irOrder,
-                          BilinearFormType *s0,
-                          MixedBilinearFormType *weakDiv,
-                          DiscreteGradOperator *grad)
-   : IrrotationalProjector(H1FESpace,HCurlFESpace, irOrder, s0, weakDiv, grad)
-{}
+// void DivergenceFreeProjector::vectorJacobianProduct(
+//    const mfem::ParGridFunction &proj_bar,
+//    std::string wrt,
+//    mfem::ParGridFunction &wrt_bar)
+// {
+//    if (wrt == "wrt")
+//    {
 
-void DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
-{
-   std::cout << "above irrot proj mult\n";
-   this->IrrotationalProjector::Mult(x, y);
-   std::cout << "below irrot proj mult\n";
-   y  -= x;
-   y *= -1.0;
-}
+//    }
+// }
 
-void DivergenceFreeProjector::Update()
-{
-   this->IrrotationalProjector::Update();
-}
+// void DivergenceFreeProjector::Update()
+// {
+//    this->IrrotationalProjector::Update();
+// }
 
 double bisection(std::function<double(double)> func, double xl, double xr,
                  double ftol, double xtol, int maxiter)
