@@ -187,6 +187,13 @@ install(FILES mach.hpp
    DESTINATION include
 )
 
+get_target_property(MACH_SOURCES mach SOURCES)
+add_custom_target(format
+   COMMAND clang-format
+   -style=file
+   -i
+   ${MACH_SOURCES}
+)
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
    include(CTest)
@@ -231,7 +238,7 @@ if (BUILD_PYTHON_WRAPPER)
 
    FetchContent_Declare(pybind11
       GIT_REPOSITORY "https://github.com/pybind/pybind11"
-      # GIT_TAG v2.6.0
+      GIT_TAG v2.7.1
    )
 
    FetchContent_MakeAvailable(pybind11)
