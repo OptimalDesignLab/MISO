@@ -96,8 +96,8 @@ set_target_properties(tinysplinecxx
 add_library(mach STATIC "")
 
 target_sources(mach
-   PUBLIC
-      mach.hpp
+   PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/mach.hpp"
 )
 
 # Use CMakeLists.txt files in subdirectories to add sources to mach
