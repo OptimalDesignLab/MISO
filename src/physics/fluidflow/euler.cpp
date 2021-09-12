@@ -316,7 +316,8 @@ double EulerSolver<dim, entvar>::calcStepSize(
    // Otherwise, use a constant CFL condition
    double cfl = options["time-dis"]["cfl"].template get<double>();
    Vector q(dim + 2);
-   auto calcSpect = [&q](const double *dir, const double *u) {
+   auto calcSpect = [&q](const double *dir, const double *u)
+   {
       if (entvar)
       {
          calcConservativeVars<double, dim>(u, q);
@@ -391,8 +392,8 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    // Also **NOT thread safe!**
    Vector qdiscrete(dim + 2),
        qexact(dim + 2);  // define here to avoid reallocation
-   auto node_error = [&](const Vector &discrete,
-                         const Vector &exact) -> double {
+   auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
+   {
       if (entvar)
       {
          calcConservativeVars<double, dim>(discrete.GetData(),

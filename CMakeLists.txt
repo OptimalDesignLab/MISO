@@ -188,7 +188,7 @@ install(FILES mach.hpp
 )
 
 get_target_property(MACH_SOURCES mach SOURCES)
-add_custom_target(format
+add_custom_target(mach-format
    COMMAND clang-format
    -style=file
    -i
@@ -258,6 +258,14 @@ if (BUILD_PYTHON_WRAPPER)
 
    add_subdirectory(mach)
 
+   get_target_property(PYMACH_SOURCES pyMach SOURCES)
+   add_custom_target(pymach-format
+      COMMAND clang-format
+      -style=file
+      -i
+      ${PYMACH_SOURCES}
+   )
+
    if (BUILD_TESTING)
       target_compile_definitions(pyMach
          PRIVATE
@@ -324,3 +332,6 @@ if (BUILD_PYTHON_WRAPPER)
 
 endif (BUILD_PYTHON_WRAPPER)
 
+add_custom_target(format
+   DEPENDS mach-format pymach-format
+)

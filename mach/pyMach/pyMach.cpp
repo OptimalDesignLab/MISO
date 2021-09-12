@@ -8,14 +8,15 @@ void initSolver(py::module &);
 void initMesh(py::module &);
 void initMeshMotion(py::module &);
 
-PYBIND11_MODULE(pyMach, m) {
+PYBIND11_MODULE(pyMach, m)
+{
    initVector(m);
    initField(m);
    initSolver(m);
    initMesh(m);
 
-   auto mesh_motion = m.def_submodule("MeshMovement", 
-                                      "Handles support for mesh movement");
-   
+   auto mesh_motion =
+       m.def_submodule("MeshMovement", "Handles support for mesh movement");
+
    initMeshMotion(mesh_motion);
 }

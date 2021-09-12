@@ -823,7 +823,9 @@ void MagnetostaticSolver::setOutputOptions(const std::string &fun,
       double r_data[3];
       Vector r(r_data, dim);
       VectorFunctionCoefficient v_vector(
-          3, [&axis_vector, &about_vector, &r](const Vector &x, Vector &v) {
+          3,
+          [&axis_vector, &about_vector, &r](const Vector &x, Vector &v)
+          {
              subtract(x, about_vector, r);
              // r /= r.Norml2();
              v(0) = axis_vector(1) * r(2) - axis_vector(2) * r(1);
