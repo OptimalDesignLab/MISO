@@ -150,9 +150,8 @@ option(MACH_USE_CLANG_TIDY
 if (MACH_USE_CLANG_TIDY)
    set_target_properties(mach
       PROPERTIES
-         CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
-         # CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
-      # -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-header-filter=.*;-checks=*;-extra-arg=-ferror-limit=0;" \
+         CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
+         # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
    )
 endif (MACH_USE_CLANG_TIDY)
 
@@ -200,7 +199,7 @@ install(FILES mach.hpp
 )
 
 get_target_property(MACH_SOURCES mach SOURCES)
-add_custom_target(format
+add_custom_target(mach-format
    COMMAND clang-format
    -style=file
    -i
@@ -267,6 +266,14 @@ if (BUILD_PYTHON_WRAPPER)
    PUBLIC
       cxx_std_11
    )
+
+   if (MACH_USE_CLANG_TIDY)
+      set_target_properties(pyMach
+         PROPERTIES
+            # CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
+            CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
+      )
+   endif (MACH_USE_CLANG_TIDY)
 
    add_subdirectory(mach)
 
@@ -335,4 +342,3 @@ if (BUILD_PYTHON_WRAPPER)
    )
 
 endif (BUILD_PYTHON_WRAPPER)
-
