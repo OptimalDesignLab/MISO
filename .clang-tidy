@@ -1,0 +1,37 @@
+Checks: 'clang-diagnostic*,
+         clang-analyzer*,
+         cppcoreguidelines*,
+         bugprone*,
+         modernize*,
+         mpi*,
+         performance*,
+         portability*,
+         readability*,
+         -bugprone-narrowing-conversions,
+         -clang-analyzer-core.CallAndMessage,
+         -cppcoreguidelines-avoid-c-arrays,
+         -cppcoreguidelines-avoid-magic-numbers,
+         -cppcoreguidelines-avoid-non-const-global-variables,
+         -cppcoreguidelines-owning-memory,
+         -cppcoreguidelines-narrowing-conversions,
+         -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+         -cppcoreguidelines-pro-bounds-constant-array-index,
+         -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+         -cppcoreguidelines-pro-type-const-cast,
+         -cppcoreguidelines-pro-type-static-cast-downcast,
+         -cppcoreguidelines-pro-type-union-access,
+         -cppcoreguidelines-pro-type-vararg,
+         -modernize-avoid-c-arrays,
+         -modernize-use-trailing-return-type,
+         -readability-else-after-return,
+         -readability-magic-numbers'
+
+CheckOptions:
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: 'true'
+  - key: readability-function-cognitive-complexity.Threshold
+    value: 60
+
+WarningsAsErrors: '*'
+
+# HeaderFilterRegex: '.*hpp$'

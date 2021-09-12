@@ -1,4 +1,4 @@
-#include <assert.h>
+#include <cassert>
 
 #include "utils.hpp"
 #include "orthopoly.hpp"
@@ -18,10 +18,13 @@ void getLobattoQuadrature(const int num_nodes, Vector &x, Vector &w)
    }
    // P holds the Legendre Vandermonde matrix
    DenseMatrix P(num_nodes);
-   Vector p_k, p_km1, p_kp1;
+   Vector p_k;
+   Vector p_km1;
+   Vector p_kp1;
    // Compute P_{degree} using the recusion relation; compute its first and
    // second derivatives and update x using the Newton-Raphson method
-   Vector x_old(num_nodes), res(num_nodes);
+   Vector x_old(num_nodes);
+   Vector res(num_nodes);
    x_old = 2.0;
    subtract(x, x_old, res);
    while (res.Normlinf() > std::numeric_limits<double>::epsilon())
@@ -63,12 +66,12 @@ void jacobiPoly(const Vector &x,
                 const int degree,
                 Vector &poly)
 {
-   double gamma0, gamma1, anew, aold, bnew, h1;
    int size = x.Size();
    MFEM_ASSERT(alpha + beta != -1, "");
    MFEM_ASSERT(alpha > -1 && beta > -1, "");
-   gamma0 = ((pow(2, alpha + beta + 1)) / (alpha + beta + 1)) *
-            (tgamma(alpha + 1) * tgamma(beta + 1) / tgamma(alpha + beta + 1));
+   auto gamma0 =
+       ((pow(2, alpha + beta + 1)) / (alpha + beta + 1)) *
+       (tgamma(alpha + 1) * tgamma(beta + 1) / tgamma(alpha + beta + 1));
    // For degree 0, return a constant function
    Vector poly_0(size);
    poly_0 = 1.0 / sqrt(gamma0);
@@ -77,7 +80,7 @@ void jacobiPoly(const Vector &x,
       poly = poly_0;
       return;
    }
-   gamma1 = (alpha + 1) * (beta + 1) * gamma0 / (alpha + beta + 3);
+   auto gamma1 = (alpha + 1) * (beta + 1) * gamma0 / (alpha + beta + 3);
    // Set poly_1(:) = ((alpha+beta+2)*x(:) + (alpha-beta))*0.5/sqrt(gamma1)
    Vector poly_1(size);
    poly_1 = alpha + beta;
@@ -89,15 +92,15 @@ void jacobiPoly(const Vector &x,
       return;
    }
    // Henceforth, poly_0  denotes P_{i} and poly_1 denotes P_{i+1} in recurrence
-   aold = (2 / (2 + alpha + beta)) *
-          sqrt((alpha + 1) * (beta + 1) / (alpha + beta + 3));
+   auto aold = (2 / (2 + alpha + beta)) *
+               sqrt((alpha + 1) * (beta + 1) / (alpha + beta + 3));
    for (int i = 0; i < degree - 1; ++i)
    {
-      h1 = 2 * (i + 1) + alpha + beta;
-      anew = (2 / (h1 + 2)) *
-             sqrt((i + 2) * (i + 2 + alpha + beta) * (i + 2 + alpha) *
-                  (i + 2 + beta) / ((h1 + 1) * (h1 + 3)));
-      bnew = -((alpha * alpha) - (beta * beta)) / (h1 * (h1 + 2));
+      auto h1 = 2 * (i + 1) + alpha + beta;
+      auto anew = (2 / (h1 + 2)) *
+                  sqrt((i + 2) * (i + 2 + alpha + beta) * (i + 2 + alpha) *
+                       (i + 2 + beta) / ((h1 + 1) * (h1 + 3)));
+      auto bnew = -((alpha * alpha) - (beta * beta)) / (h1 * (h1 + 2));
       // Rather than using Vector methods and functions, we use a loop here
       // because several actions are performed on each entry
       for (int j = 0; j < size; ++j)
@@ -117,7 +120,9 @@ void prorioPoly(const Vector &x,
                 Vector &poly)
 {
    int size = x.Size();
-   Vector poly_L(size), poly_J(size), xi(size);
+   Vector poly_L(size);
+   Vector poly_J(size);
+   Vector xi(size);
    MFEM_ASSERT(i >= 0 && j >= 0, "");
    for (int k = 0; k < size; ++k)
    {

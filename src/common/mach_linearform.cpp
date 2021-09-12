@@ -21,15 +21,15 @@ void addLoad(MachLinearForm &load, mfem::Vector &tv)
 }
 
 double vectorJacobianProduct(MachLinearForm &load,
-                             const mfem::HypreParVector &res_bar,
-                             std::string wrt)
+                             const mfem::HypreParVector &load_bar,
+                             const std::string &wrt)
 {
    if (load.scalar_sens.count(wrt) != 0)
    {
       throw std::logic_error(
           "vectorJacobianProduct not implemented for MachLinearForm!\n");
       // auto &adjoint = load.lf_fields.at("adjoint");
-      // adjoint = res_bar;
+      // adjoint = load_bar;
       // return load.scalar_sens.at(wrt).GetEnergy();
    }
    else
@@ -39,14 +39,14 @@ double vectorJacobianProduct(MachLinearForm &load,
 }
 
 void vectorJacobianProduct(MachLinearForm &load,
-                           const mfem::HypreParVector &res_bar,
-                           std::string wrt,
+                           const mfem::HypreParVector &load_bar,
+                           const std::string &wrt,
                            mfem::HypreParVector &wrt_bar)
 {
    if (load.sens.count(wrt) != 0)
    {
       auto &adjoint = load.lf_fields.at("adjoint");
-      adjoint = res_bar;
+      adjoint = load_bar;
       load.sens.at(wrt).Assemble();
       load.sens.at(wrt).ParallelAssemble(load.scratch);
       wrt_bar += load.scratch;

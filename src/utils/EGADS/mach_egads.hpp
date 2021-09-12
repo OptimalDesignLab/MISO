@@ -6,11 +6,13 @@ namespace mfem
 class HypreParVector;
 }  // namespace mfem
 
+namespace mach
+{
 void mapSurfaceMesh(const std::string &old_model_file,
                     const std::string &new_model_file,
                     const std::string &tess_file,
                     mfem::HypreParVector &displacement);
-
+}
 // /// try to put includes in the .cpp file unless theyre explicitly needed for
 // /// the function prototypes
 // #include "mfem.hpp"

@@ -50,31 +50,38 @@ double LEAnalogySolver::calcStepSize(int iter,
                                      double dt_old,
                                      const ParGridFunction &state) const
 {
-   if (options["time-dis"]["steady"].template get<bool>())
+   if (options["time-dis"]["steady"].get<bool>())
    {
       // ramp up time step for pseudo-transient continuation
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm(state);
-      if (std::abs(res_norm) <= 1e-14) return 1e14;
+      if (std::abs(res_norm) <= 1e-14)
+      {
+         return 1e14;
+      }
       double exponent = options["time-dis"]["res-exp"];
-      double dt = options["time-dis"]["dt"].template get<double>() *
+      double dt = options["time-dis"]["dt"].get<double>() *
                   pow(res_norm0 / res_norm, exponent);
       return std::max(dt, dt_old);
    }
    else
+   {
       throw MachException("LEAnalogySolver requires steady time-dis!\n");
+   }
 }
 
 void LEAnalogySolver::initialHook(const ParGridFunction &state)
 {
-   if (options["time-dis"]["steady"].template get<bool>())
+   if (options["time-dis"]["steady"].get<bool>())
    {
       // res_norm0 is used to compute the time step in PTC
       res_norm0 = calcResidualNorm(state);
    }
    else
+   {
       throw MachException("LEAnalogySolver requires steady time-dis!\n");
+   }
 }
 
 bool LEAnalogySolver::iterationExit(int iter,
@@ -83,20 +90,18 @@ bool LEAnalogySolver::iterationExit(int iter,
                                     double dt,
                                     const ParGridFunction &state) const
 {
-   if (options["time-dis"]["steady"].template get<bool>())
+   if (options["time-dis"]["steady"].get<bool>())
    {
       // use tolerance options for Newton's method
       double norm = calcResidualNorm(state);
-      if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
-         return true;
-      if (norm <=
-          res_norm0 *
-              options["time-dis"]["steady-reltol"].template get<double>())
-         return true;
-      return false;
+      return norm <= options["time-dis"]["steady-abstol"].get<double>() ||
+             norm <=
+                 res_norm0 * options["time-dis"]["steady-reltol"].get<double>();
    }
    else
+   {
       throw MachException("LEAnalogySolver requires steady time-dis!\n");
+   }
 }
 
 void LEAnalogySolver::constructCoefficients()
@@ -104,10 +109,9 @@ void LEAnalogySolver::constructCoefficients()
    /// assign stiffness
    if (options["problem-opts"].contains("uniform-stiff"))
    {
-      double lambda = options["problem-opts"]["uniform-stiff"]["lambda"]
-                          .template get<double>();
-      double mu =
-          options["problem-opts"]["uniform-stiff"]["mu"].template get<double>();
+      auto lambda =
+          options["problem-opts"]["uniform-stiff"]["lambda"].get<double>();
+      auto mu = options["problem-opts"]["uniform-stiff"]["mu"].get<double>();
       lambda_c.reset(new ConstantCoefficient(lambda));
       mu_c.reset(new ConstantCoefficient(mu));
    }

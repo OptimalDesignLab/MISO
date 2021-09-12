@@ -22,11 +22,11 @@ public:
 
    friend double vectorJacobianProduct(MagnetostaticLoad &load,
                                        const mfem::HypreParVector &res_bar,
-                                       std::string wrt);
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(MagnetostaticLoad &load,
                                      const mfem::HypreParVector &res_bar,
-                                     std::string wrt,
+                                     const std::string &wrt,
                                      mfem::HypreParVector &wrt_bar);
 
    MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
@@ -51,7 +51,7 @@ public:
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] comm - MPI communicator for parallel operations
-   MagnetostaticSolver(const nlohmann::json &opt_file_name,
+   MagnetostaticSolver(const nlohmann::json &json_options,
                        std::unique_ptr<mfem::Mesh> smesh,
                        MPI_Comm comm);
 
@@ -78,7 +78,7 @@ public:
    /// Compute the sensitivity of the functional to the mesh volume
    /// nodes, using appropriate mesh sensitivity integrators. This function will
    /// compute the adjoint.
-   mfem::GridFunction *getMeshSensitivities() override;
+   // mfem::GridFunction *getMeshSensitivities() override;
 
    /// perturb the whole mesh and finite difference
    void verifyMeshSensitivities();
@@ -247,13 +247,13 @@ public:
    /// return the residual as a vector
    mfem::Vector *getResidual();
 
-   /// Get the derivative of the residual with respect to the current density
-   mfem::Vector *getResidualCurrentDensitySensitivity();
+   // /// Get the derivative of the residual with respect to the current density
+   // mfem::Vector *getResidualCurrentDensitySensitivity();
 
    /// Get the total derivative of a functional with respect to the current
    /// density
    /// \param[in] fun - which functional to get sensitivity with respect to
-   double getFunctionalCurrentDensitySensitivity(const std::string &fun);
+   // double getFunctionalCurrentDensitySensitivity(const std::string &fun);
 
 private:
    /// TODO: throw MachException if constructMagnetization or

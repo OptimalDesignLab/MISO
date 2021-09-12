@@ -1,8 +1,8 @@
 #include <fstream>
 #include <random>
+#include <memory>
 
 #include "adept.h"
-#include "pfem_extras.hpp"
 
 #include "magnetostatic.hpp"
 #include "solver.hpp"
@@ -158,8 +158,10 @@ void phase_a_current(const xdouble &n_slots,
 
    auto jmag = sqrt(J[0] * J[0] + J[1] * J[1] + J[2] * J[2]);
    if (abs(jmag - 1.0) >= 1e-14)
+   {
       std::cout << "J mag: " << sqrt(J[0] * J[0] + J[1] * J[1] + J[2] * J[2])
                 << "\n";
+   }
 }
 
 template <typename xdouble = double>
@@ -583,11 +585,11 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
    // calcResidual(state, residual);
    // printFields("init", {&residual, &state}, {"Residual", "Solution"});
 
-   double t_final = options["time-dis"]["t-final"].template get<double>();
+   auto t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
 
-   int ti;
-   bool done = false;
+   int ti = 0;
+   // bool done = false;
    double dt = 1.0;
    initialHook(state);
 
@@ -605,7 +607,9 @@ void MagnetostaticSolver::_solveUnsteady(ParGridFunction &state)
       // dt = calcStepSize(ti, t, t_final, dt, state);
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
+      {
          *out << " (" << round(100 * t / t_final) << "% complete)";
+      }
       *out << endl;
       iterationHook(ti, t, dt, state);
       // computeSecondaryFields(state);
@@ -844,7 +848,7 @@ void MagnetostaticSolver::setOutputOptions(const std::string &fun,
    }
 }
 
-std::vector<GridFunType *> MagnetostaticSolver::getFields(void)
+std::vector<GridFunType *> MagnetostaticSolver::getFields()
 {
    return {u.get(), B};
 }
@@ -860,56 +864,56 @@ void MagnetostaticSolver::constructForms()
    ent.reset(new ParNonlinearForm(fes.get()));
 }
 
-GridFunction *MagnetostaticSolver::getMeshSensitivities()
-{
-   // /// assign mesh node space to forms
-   // mesh->EnsureNodes();
-   // SpaceType *mesh_fes =
-   // static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
+// GridFunction *MagnetostaticSolver::getMeshSensitivities()
+// {
+// /// assign mesh node space to forms
+// mesh->EnsureNodes();
+// SpaceType *mesh_fes =
+// static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
 
-   // dLdX.reset(new GridFunType(mesh_fes));
-   // *dLdX = 0.0;
+// dLdX.reset(new GridFunType(mesh_fes));
+// *dLdX = 0.0;
 
-   // /// Add mesh sensitivities of functional
-   // LinearFormType dJdX(mesh_fes);
-   // dJdX.AddDomainIntegrator(
-   //    new MagneticCoenergyIntegrator(*u, nu.get()));
-   // dJdX.Assemble();
-   // std::cout << "dJdX norm: " << dJdX.Norml2() << "\n";
-   // /// TODO I don't know if this works in parallel / when we need to use tdof
-   // vectors
-   // // *dLdX -= dJdX;
+// /// Add mesh sensitivities of functional
+// LinearFormType dJdX(mesh_fes);
+// dJdX.AddDomainIntegrator(
+//    new MagneticCoenergyIntegrator(*u, nu.get()));
+// dJdX.Assemble();
+// std::cout << "dJdX norm: " << dJdX.Norml2() << "\n";
+// /// TODO I don't know if this works in parallel / when we need to use tdof
+// vectors
+// // *dLdX -= dJdX;
 
-   // res_mesh_sens_l.reset(new LinearFormType(mesh_fes));
+// res_mesh_sens_l.reset(new LinearFormType(mesh_fes));
 
-   // /// compute \psi_A
-   // solveForAdjoint("co-energy");
+// /// compute \psi_A
+// solveForAdjoint("co-energy");
 
-   // /// add integrators R = CurlCurl(A) + Cm + Mj = 0
-   // /// \psi^T CurlCurl(A)
-   // res_mesh_sens_l->AddDomainIntegrator(
-   //    new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
-   // /// \psi^T C m
-   // res_mesh_sens_l->AddDomainIntegrator(
-   //    new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(),
-   //                                    mag_coeff.get(), -1.0));
+// /// add integrators R = CurlCurl(A) + Cm + Mj = 0
+// /// \psi^T CurlCurl(A)
+// res_mesh_sens_l->AddDomainIntegrator(
+//    new CurlCurlNLFIntegrator(nu.get(), u.get(), adj.get()));
+// /// \psi^T C m
+// res_mesh_sens_l->AddDomainIntegrator(
+//    new VectorFECurldJdXIntegerator(nu.get(), M.get(), adj.get(),
+//                                    mag_coeff.get(), -1.0));
 
-   // /// Compute the derivatives and accumulate the result
-   // res_mesh_sens_l->Assemble();
+// /// Compute the derivatives and accumulate the result
+// res_mesh_sens_l->Assemble();
 
-   // ParGridFunction j_mesh_sens(mesh_fes);
-   // j_mesh_sens = 0.0;
-   // auto *j_mesh_sens_true = j_mesh_sens.GetTrueDofs();
-   // getCurrentSourceMeshSens(*adj, *j_mesh_sens_true);
-   // std::cout << "residual dJdX norm: " << res_mesh_sens_l->Norml2() << "\n";
-   // std::cout << "current source dJdX norm: " << j_mesh_sens_true->Norml2() <<
-   // "\n";
-   // /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
-   // dLdX->Add(1, *res_mesh_sens_l);
-   // dLdX->Add(-1, *j_mesh_sens_true);
+// ParGridFunction j_mesh_sens(mesh_fes);
+// j_mesh_sens = 0.0;
+// auto *j_mesh_sens_true = j_mesh_sens.GetTrueDofs();
+// getCurrentSourceMeshSens(*adj, *j_mesh_sens_true);
+// std::cout << "residual dJdX norm: " << res_mesh_sens_l->Norml2() << "\n";
+// std::cout << "current source dJdX norm: " << j_mesh_sens_true->Norml2() <<
+// "\n";
+// /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
+// dLdX->Add(1, *res_mesh_sens_l);
+// dLdX->Add(-1, *j_mesh_sens_true);
 
-   // return dLdX.get();
-}
+// return dLdX.get();
+// }
 
 void MagnetostaticSolver::verifyMeshSensitivities()
 {
@@ -1153,22 +1157,14 @@ bool MagnetostaticSolver::iterationExit(int iter,
    {
       // use tolerance options for Newton's method
       double norm = calcResidualNorm(state);
-      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
-      {
-         return true;
-      }
-      else if (norm <=
-               res_norm0 * options["time-dis"]["steady-reltol"].get<double>())
-      {
-         return true;
-      }
-      else
-      {
-         return false;
-      }
+      return norm <= options["time-dis"]["steady-abstol"].get<double>() ||
+             norm <=
+                 res_norm0 * options["time-dis"]["steady-reltol"].get<double>();
    }
    else
+   {
       throw MachException("MagnetostaticSolver requires steady time-dis!\n");
+   }
 }
 
 void MagnetostaticSolver::terminalHook(int iter,
@@ -1193,14 +1189,19 @@ double MagnetostaticSolver::calcStepSize(int iter,
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm(state);
-      if (std::abs(res_norm) <= 1e-14) return 1e14;
+      if (std::abs(res_norm) <= 1e-14)
+      {
+         return 1e14;
+      }
       double exponent = options["time-dis"]["res-exp"];
       double dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
       return max(dt, dt_old);
    }
    else
+   {
       throw MachException("MagnetostaticSolver requires steady time-dis!\n");
+   }
 }
 
 // unique_ptr<NewtonSolver> MagnetostaticSolver::constructNonlinearSolver(
@@ -1874,44 +1875,44 @@ Vector *MagnetostaticSolver::getResidual()
    return residual.get();
 }
 
-Vector *MagnetostaticSolver::getResidualCurrentDensitySensitivity()
-{
-   current_density = 1.0;
-   // *load = 0.0;
-   constructCurrent();
-   assembleCurrentSource();
-   // *load *= -1.0;
+// Vector *MagnetostaticSolver::getResidualCurrentDensitySensitivity()
+// {
+//    current_density = 1.0;
+//    // *load = 0.0;
+//    constructCurrent();
+//    assembleCurrentSource();
+//    // *load *= -1.0;
 
-   Array<int> ess_bdr(mesh->bdr_attributes.Size());
-   Array<int> ess_tdof_list;
-   ess_bdr = 1;
-   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-   /// set current vector's ess_tdofs to zero
-   // load->SetSubVector(ess_tdof_list, 0.0);
+//    Array<int> ess_bdr(mesh->bdr_attributes.Size());
+//    Array<int> ess_tdof_list;
+//    ess_bdr = 1;
+//    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+//    /// set current vector's ess_tdofs to zero
+//    // load->SetSubVector(ess_tdof_list, 0.0);
 
-   // return load.get();
-}
+//    // return load.get();
+// }
 
-double MagnetostaticSolver::getFunctionalCurrentDensitySensitivity(
-    const std::string &fun)
-{
-   Array<int> ess_bdr(mesh->bdr_attributes.Size());
-   ess_bdr = 1;
-   res->SetEssentialBC(ess_bdr);
-   solveForAdjoint(fun);
+// double MagnetostaticSolver::getFunctionalCurrentDensitySensitivity(
+//     const std::string &fun)
+// {
+//    Array<int> ess_bdr(mesh->bdr_attributes.Size());
+//    ess_bdr = 1;
+//    res->SetEssentialBC(ess_bdr);
+//    solveForAdjoint(fun);
 
-   double derivative = *adj * *getResidualCurrentDensitySensitivity();
+//    double derivative = *adj * *getResidualCurrentDensitySensitivity();
 
-   setStaticMembers();
-   constructCurrent();
-   constructMagnetization();
-   assembleCurrentSource();
-   assembleMagnetizationSource();
+//    setStaticMembers();
+//    constructCurrent();
+//    constructMagnetization();
+//    assembleCurrentSource();
+//    assembleMagnetizationSource();
 
-   return derivative;
-}
+//    return derivative;
+// }
 
-void MagnetostaticSolver::assembleMagnetizationSource(void)
+void MagnetostaticSolver::assembleMagnetizationSource()
 {
    // M.reset(new GridFunType(h_div_space.get()));
 
@@ -2706,7 +2707,7 @@ void addLoad(MagnetostaticLoad &load, mfem::Vector &tv)
 
 double vectorJacobianProduct(MagnetostaticLoad &load,
                              const mfem::HypreParVector &res_bar,
-                             std::string wrt)
+                             const std::string &wrt)
 {
    double wrt_bar = 0.0;
    wrt_bar += vectorJacobianProduct(load.current_load, res_bar, wrt);
@@ -2716,7 +2717,7 @@ double vectorJacobianProduct(MagnetostaticLoad &load,
 
 void vectorJacobianProduct(MagnetostaticLoad &load,
                            const mfem::HypreParVector &res_bar,
-                           std::string wrt,
+                           const std::string &wrt,
                            mfem::HypreParVector &wrt_bar)
 {
    vectorJacobianProduct(load.current_load, res_bar, wrt, wrt_bar);

@@ -3,7 +3,7 @@
 
 #include "mfem.hpp"
 
-#include "solver.hpp"
+#include "mach_integrator.hpp"
 
 using namespace mfem;
 
@@ -563,7 +563,7 @@ public:
 
    /// Computes dR/dX, X being mesh node locations
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                               mfem::ElementTransformation &trans,
+                               mfem::ElementTransformation &Trx,
                                mfem::Vector &elvect) override;
 };
 

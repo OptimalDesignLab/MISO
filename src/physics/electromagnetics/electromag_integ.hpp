@@ -802,8 +802,8 @@ public:
    /// \param[out] elvect - \frac{\partial psi^T R}{\partial A} for the element
    /// \note LinearForm that assembles this integrator's FiniteElementSpace
    ///       MUST be the magnetic vector potential's finite element space
-   void AssembleRHSElementVect(const mfem::FiniteElement &ela,
-                               mfem::ElementTransformation &Transa,
+   void AssembleRHSElementVect(const mfem::FiniteElement &nd_el,
+                               mfem::ElementTransformation &nd_trans,
                                mfem::Vector &elvect) override;
 
 private:

@@ -1,6 +1,8 @@
+#include <cmath>
 #include <memory>
 
 #include "navier_stokes.hpp"
+
 #include "navier_stokes_integ.hpp"
 
 using namespace mfem;
@@ -31,7 +33,7 @@ void NavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    EulerSolver<dim, entvar>::addResVolumeIntegrators(alpha);
    cout << "Inside NS add volume integrators" << endl;
    // now add NS integrators
-   double mu = this->options["flow-param"]["mu"].template get<double>();
+   auto mu = this->options["flow-param"]["mu"].template get<double>();
    this->res->AddDomainIntegrator(
        new ESViscousIntegrator<dim>(this->diff_stack, re_fs, pr_fs, mu, alpha));
 
@@ -50,7 +52,7 @@ template <int dim, bool entvar>
 void NavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
 {
    auto &bcs = this->options["bcs"];
-   double mu = this->options["flow-param"]["mu"].template get<double>();
+   auto mu = this->options["flow-param"]["mu"].template get<double>();
    int idx = 0;
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
@@ -178,10 +180,9 @@ void NavierStokesSolver<dim, entvar>::addOutputIntegrators(
     const std::string &fun,
     const nlohmann::json &options)
 {
-   double mu = this->options["flow-param"]["mu"].template get<double>();
+   auto mu = this->options["flow-param"]["mu"].template get<double>();
    Vector q_ref(dim + 2);
    this->getFreeStreamState(q_ref);
-   int idx = 0;
    if (fun == "drag")
    {
       // drag on the specified boundaries
@@ -300,7 +301,7 @@ double shockEquation(double Re, double Ma, double v)
 {
    double vf = (2.0 + euler::gami * Ma * Ma) / ((euler::gamma + 1) * Ma * Ma);
    double alpha = (8 * euler::gamma) / (3 * (euler::gamma + 1) * Re * Ma);
-   double r = (1 + vf) / (1 - vf);
+   // double r = (1 + vf) / (1 - vf);
    double a = abs((v - 1) * (v - vf));
    double b = (1 + vf) / (1 - vf);
    double c = abs((v - 1) / (v - vf));
@@ -313,10 +314,10 @@ void shockExact(const mfem::Vector &x, mfem::Vector &u)
    double Re = 10.0;  // !!!!! Values from options file are ignored
    double Ma = 2.5;
    double vf = (2.0 + euler::gami * Ma * Ma) / ((euler::gamma + 1) * Ma * Ma);
-   double v;
    double ftol = 1e-10;
    double xtol = 1e-10;
    int maxiter = 50;
+   double v = NAN;
    if (x(0) < -1.25)
    {
       v = 1.0;

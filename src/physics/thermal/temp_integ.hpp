@@ -67,7 +67,7 @@ public:
    /// Overloaded, precomputes aggregate and denominator for use in adjoint
    AggregateIntegrator(const mfem::FiniteElementSpace *fe_space,
                        const double r,
-                       const mfem::Vector m,
+                       const mfem::Vector &m,
                        mfem::GridFunction *temp);
 
    /// Computes the induced functional estimate for aggregated temperature
@@ -97,16 +97,16 @@ private:
    const mfem::Vector max;
 
    /// maximum temperature value
-   double maxt;
+   double maxt{};
 
    // last computed output (for dJdU)
-   double J_;
+   double J_{};
 
    // last computed denom (for dJdU)
-   double denom_;
+   double denom_{};
 
    // last computed state vector (for dJdu)
-   mfem::GridFunction *temp_;
+   mfem::GridFunction *temp_{};
 
 #ifndef MFEM_THREAD_SAFE
    /// store the physical location of a node
@@ -148,10 +148,10 @@ private:
    const mfem::FiniteElementSpace *fes;
 
    // last computed output (for dJdU)
-   double J_;
+   double J_{};
 
    // last computed denom (for dJdU)
-   double denom_;
+   double denom_{};
 
    // last computed state vector (for dJdu)
    mfem::GridFunction *temp_;
@@ -178,7 +178,7 @@ public:
    /// Overloaded, precomputes aggregate and denominator for use in adjoint
    AggregateResIntegrator(const mfem::FiniteElementSpace *fe_space,
                           const double r,
-                          const mfem::Vector m,
+                          const mfem::Vector &m,
                           mfem::GridFunction *temp);
 
    /// Computes the induced functional estimate for aggregated temperature
@@ -202,16 +202,16 @@ private:
    const mfem::Vector max;
 
    /// maximum temperature value
-   double maxt;
+   double maxt{};
 
    // last computed output (for dJdU)
-   double J_;
+   double J_{};
 
    // last computed denom (for dJdU)
-   double denom_;
+   double denom_{};
 
    // last computed state vector (for dJdu)
-   mfem::GridFunction *temp_;
+   mfem::GridFunction *temp_{};
 
 #ifndef MFEM_THREAD_SAFE
    /// store the physical location of a node
@@ -246,10 +246,10 @@ private:
    const mfem::FiniteElementSpace *fes;
 
    // last computed output (for dJdU)
-   double J_;
+   double J_{};
 
    // last computed denom (for dJdU)
-   double denom_;
+   double denom_{};
 
    // last computed state vector (for dJdu)
    mfem::GridFunction *temp_;

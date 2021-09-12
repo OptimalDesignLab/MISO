@@ -3,7 +3,6 @@
 
 #include "mfem.hpp"
 
-#include "pfem_extras.hpp"
 #include "coefficient.hpp"
 #include "mach_input.hpp"
 #include "mach_linearform.hpp"
@@ -64,11 +63,11 @@ public:
 
    friend double vectorJacobianProduct(LegacyMagneticLoad &load,
                                        const mfem::HypreParVector &res_bar,
-                                       std::string wrt);
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(LegacyMagneticLoad &load,
                                      const mfem::HypreParVector &res_bar,
-                                     std::string wrt,
+                                     const std::string &wrt,
                                      mfem::HypreParVector &wrt_bar);
 
    LegacyMagneticLoad(mfem::ParFiniteElementSpace &pfes,

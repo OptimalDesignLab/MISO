@@ -1,12 +1,12 @@
 #ifndef MACH_LINEAR_EVOLVER
 #define MACH_LINEAR_EVOLVER
 
+#include "adept.h"
 #include "mfem.hpp"
 
-#include "adept.h"
-#include "mach_types.hpp"
 #include "inexact_newton.hpp"
 #include "mach_load.hpp"
+#include "mach_types.hpp"
 
 namespace mach
 {
@@ -78,7 +78,7 @@ public:
                std::ostream &outstream,
                double start_time,
                mfem::TimeDependentOperator::Type type = EXPLICIT,
-               bool abort_on_no_convergence = true);
+               bool _abort_on_no_converge = true);
 
    /// Perform the action of the operator: y = k = f(x, t), where k solves
    /// the algebraic equation F(x, k, t) = G(x, t) and t is the current time.

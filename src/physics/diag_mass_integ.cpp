@@ -14,7 +14,6 @@ void DiagMassIntegrator::AssembleElementMatrix(const FiniteElement &el,
    int dim = el.GetDim();
    elmat.SetSize(num_nodes * num_state);
    elmat = 0.0;
-   double norm;
    // loop over the nodes of the SBP element
    // TODO: this does not take advantage of el.H diagonal norm
    for (int i = 0; i < num_nodes; i++)
@@ -22,7 +21,7 @@ void DiagMassIntegrator::AssembleElementMatrix(const FiniteElement &el,
       // get the Jacobian (Trans.Weight) and cubature weight (node.weight)
       const IntegrationPoint &node = ir.IntPoint(i);
       Trans.SetIntPoint(&node);
-      norm = node.weight * Trans.Weight();
+      auto norm = node.weight * Trans.Weight();
       if (space_vary_dt)
       {
          norm /= pow(Trans.Weight(), 1.0 / dim);

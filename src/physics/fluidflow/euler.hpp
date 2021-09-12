@@ -31,12 +31,11 @@ public:
    /// between nodes for the length in the CFL number.
    /// \note If "steady" option is involved, the time step will increase based
    /// on the baseline value of "dt" and the inverse residual norm.
-   virtual double calcStepSize(
-       int iter,
-       double t,
-       double t_final,
-       double dt_old,
-       const mfem::ParGridFunction &state) const override;
+   double calcStepSize(int iter,
+                       double t,
+                       double t_final,
+                       double dt_old,
+                       const mfem::ParGridFunction &state) const override;
 
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);
@@ -85,29 +84,29 @@ protected:
                MPI_Comm comm);
 
    /// Initialize `res` and either `mass` or `nonlinear_mass`
-   virtual void constructForms() override;
+   void constructForms() override;
 
    /// Add domain integrators to `mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addMassIntegrators(double alpha) override;
+   void addMassIntegrators(double alpha) override;
 
    /// Add domain integrator to the nonlinear mass operator
    /// \param[in] alpha - scales the data; used to ove terems to rhs or lhs
-   virtual void addNonlinearMassIntegrators(double alpha) override;
+   void addNonlinearMassIntegrators(double alpha) override;
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addResVolumeIntegrators(double alpha) override;
+   void addResVolumeIntegrators(double alpha) override;
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addResBoundaryIntegrators(double alpha) override;
+   void addResBoundaryIntegrators(double alpha) override;
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addResInterfaceIntegrators(double alpha) override;
+   void addResInterfaceIntegrators(double alpha) override;
 
-   virtual void addEntVolumeIntegrators() override;
+   void addEntVolumeIntegrators() override;
 
    void addOutputIntegrators(const std::string &fun,
                              const nlohmann::json &options) override;

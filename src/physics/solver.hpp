@@ -355,9 +355,9 @@ public:
 
    // mfem::ParGridFunction& getField(std::string field)
    // { return res_fields.at(field); }
-   void getField(std::string name, double *field_buffer);
+   void getField(const std::string &name, double *field_buffer);
 
-   void getField(std::string name, mfem::HypreParVector &field);
+   void getField(const std::string &name, mfem::HypreParVector &field);
 
    /// DEPRECIATED -> use version with HypreParVector
    /// Solve for the state variables based on current mesh, solver, etc.
@@ -518,7 +518,7 @@ public:
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating residual
    /// \param[out] residual - the residual
-   void calcResidual(const MachInputs &inputs, double *residual) const;
+   void calcResidual(const MachInputs &inputs, double *res_buffer) const;
 
    /// Compute the residual based on inputs and store the it in `residual`
    /// \param[in] inputs - collection of field or scalar inputs to set before
@@ -534,22 +534,22 @@ public:
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with
    /// respect to \return result of vector jacobian product
-   double vectorJacobianProduct(double *residual_bar, std::string wrt);
+   double vectorJacobianProduct(double *res_bar_buffer, const std::string &wrt);
 
    /// Compute vector jacobian product for derivative with respect to a scalar
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with
    /// respect to \return result of vector jacobian product
    double vectorJacobianProduct(const mfem::HypreParVector &res_bar,
-                                std::string wrt);
+                                const std::string &wrt);
 
    /// Compute vector jacobian product for derivative with respect to a vector
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with
    /// respect to \param[inout] wrt_bar - result of vector jacobian product
    /// added to wrt_bar
-   void vectorJacobianProduct(double *residual_bar,
-                              std::string wrt,
+   void vectorJacobianProduct(double *res_bar_buffer,
+                              const std::string &wrt,
                               double *wrt_bar);
 
    /// Compute vector jacobian product for derivative with respect to a vector
@@ -558,7 +558,7 @@ public:
    /// respect to \param[inout] wrt_bar - result of vector jacobian product
    /// added to wrt_bar
    void vectorJacobianProduct(const mfem::HypreParVector &res_bar,
-                              std::string wrt,
+                              const std::string &wrt,
                               mfem::HypreParVector &wrt_bar);
 
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
@@ -651,11 +651,11 @@ public:
 
 protected:
    /// communicator used by MPI group for communication
-   MPI_Comm comm;
+   MPI_Comm comm{};
    /// process rank
-   int rank;
+   int rank{};
    /// print object
-   std::ostream *out;
+   std::ostream *out{};
    /// solver options
    nlohmann::json options;
    /// material Library
@@ -663,9 +663,9 @@ protected:
    /// number of state variables at each node
    int num_state = 0;
    /// time step size
-   double dt;
+   double dt{};
    /// final time
-   double t_final;
+   double t_final{};
 
    //--------------------------------------------------------------------------
    // Members associated with the mesh
@@ -685,7 +685,7 @@ protected:
    /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
    /// pointer to mesh's underlying finite element space
-   SpaceType *mesh_fes;
+   SpaceType *mesh_fes{};
    /// state sized work vector
    std::unique_ptr<mfem::ParGridFunction> scratch;
    /// state tdof sized work vector
@@ -917,7 +917,7 @@ protected:
    virtual void solveUnsteadyAdjoint(const std::string &fun);
 
    /// TODO: What is this doing here?
-   void (*pert)(const mfem::Vector &, mfem::Vector &);
+   void (*pert)(const mfem::Vector &, mfem::Vector &){};
 
    /// Construct a preconditioner based on the given options
    /// \param[in] options - options structure that determines preconditioner
@@ -987,13 +987,6 @@ protected:
    void setInput(std::vector<MachIntegrator> &integrators,
                  const std::string &name,
                  const MachInput &input);
-
-   /// Construct a HypreParVector on the a given FES using external data
-   /// \param[in] buffer - external data for HypreParVector
-   /// \param[in] fes - finite element space to construct vector on
-   mfem::HypreParVector bufferToHypreParVector(
-       double *buffer,
-       const mfem::ParFiniteElementSpace &fes) const;
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
    /// reference to it to in fun_integrators as a MachIntegrator

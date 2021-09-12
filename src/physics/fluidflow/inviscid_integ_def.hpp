@@ -816,9 +816,9 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
 {
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
-   const IntegrationRule &ir = sbp.GetNodes();
+   // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
-   int dim = sbp.GetDim();
+   // int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector u_i, q_i;
 #endif
@@ -852,9 +852,9 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
 {
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
-   const IntegrationRule &ir = sbp.GetNodes();
+   // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
-   int dim = sbp.GetDim();
+   // int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector u_i;
    DenseMatrix A_i;

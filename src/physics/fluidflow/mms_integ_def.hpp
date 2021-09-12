@@ -5,9 +5,9 @@ void MMSIntegrator<Derived>::AssembleElementVector(
 {
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
-   const IntegrationRule& ir = sbp.GetNodes();
+   // const IntegrationRule& ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
-   int dim = sbp.GetDim();
+   // int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector x_i, src_i;
 #endif
@@ -37,7 +37,7 @@ void MMSIntegrator<Derived>::AssembleElementGrad(
 {
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
-   const IntegrationRule& ir = sbp.GetNodes();
+   // const IntegrationRule& ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
    elmat.SetSize(num_states*num_nodes);
    elmat = 0.0;

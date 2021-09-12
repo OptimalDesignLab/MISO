@@ -144,6 +144,18 @@ set_target_properties(mach
       # # INTERPROCEDURAL_OPTIMIZATION True
 )
 
+option(MACH_USE_CLANG_TIDY
+      "Use clang-tidy static analysis tool"
+      NO)
+if (MACH_USE_CLANG_TIDY)
+   set_target_properties(mach
+      PROPERTIES
+         CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
+         # CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
+      # -DCMAKE_CXX_CLANG_TIDY="clang-tidy;-header-filter=.*;-checks=*;-extra-arg=-ferror-limit=0;" \
+   )
+endif (MACH_USE_CLANG_TIDY)
+
 set(DEBUG_OPTIONS
    "-g"
    -Wall

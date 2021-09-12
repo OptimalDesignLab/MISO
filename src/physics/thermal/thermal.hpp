@@ -77,7 +77,7 @@ private:
    /// linear form object that allows setting inputs/assembling
    std::unique_ptr<MachLinearForm> therm_load;
    /// Magnetic vector potential A grid function (not owned)
-   GridFunType *a_field;
+   GridFunType *a_field{};
 
    /// Use for exact solution
    std::unique_ptr<GridFunType> th_exact;
@@ -114,10 +114,10 @@ private:
    /// static variables for use in static member functions
    // static double temp_0;
 
-   double dt_real_;
+   double dt_real_{};
 
    /// check if initial conditions are set
-   bool setInit;
+   bool setInit{};
 
    double res_norm0 = -1.0;
    void initialHook(const mfem::ParGridFunction &state) override;

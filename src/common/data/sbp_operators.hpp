@@ -1,3 +1,10 @@
+#ifndef MACH_SBP_OPERATORS
+#define MACH_SBP_OPERATORS
+
+namespace mfem
+{
+namespace sbp_operators
+{
 /// SBP Triangle Qx and Qy matrix data arrays, stored in row major format;
 /// Thus, when loaded into mfem::DenseMatrix, we store the transposed operator.
 const double p0Qx_seg[4] = {-0.5, 0.5, -0.5, 0.5};
@@ -2608,3 +2615,9 @@ const double p4Qy_tri[729] = {-0.016666666666666666,
                               -0.005765462619022355,
                               -0.11257228338069038,
                               0.0};
+
+} // namespace sbp_operators
+
+} // namespace mfem
+
+#endif

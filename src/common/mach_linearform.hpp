@@ -23,11 +23,11 @@ public:
    /// load_bar
    friend double vectorJacobianProduct(MachLinearForm &load,
                                        const mfem::HypreParVector &load_bar,
-                                       std::string wrt);
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(MachLinearForm &load,
                                      const mfem::HypreParVector &load_bar,
-                                     std::string wrt,
+                                     const std::string &wrt,
                                      mfem::HypreParVector &wrt_bar);
 
    /// Adds domain integrator to linear form

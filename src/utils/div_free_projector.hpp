@@ -29,7 +29,7 @@ public:
    /// \param[inout] wrt_bar - accumulated sensitivity of output w.r.t. @a wrt
    void vectorJacobianProduct(const mfem::Vector &x,
                               const mfem::Vector &proj_bar,
-                              std::string wrt,
+                              const std::string &wrt,
                               mfem::Vector &wrt_bar);
 
    DivergenceFreeProjector(mfem::ParFiniteElementSpace &h1_fes,

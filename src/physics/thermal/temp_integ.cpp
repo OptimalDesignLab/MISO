@@ -54,7 +54,7 @@ double AggregateIntegratorDenominator::GetElementEnergy(
 
 AggregateIntegrator::AggregateIntegrator(const FiniteElementSpace *fe_space,
                                          const double r,
-                                         const Vector m,
+                                         const Vector &m,
                                          GridFunction *temp)
  : fes(fe_space), rho(r), max(m)
 {
@@ -65,7 +65,7 @@ double AggregateIntegrator::GetIEAggregate(GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
-   ElementTransformation *eltrans;
+   ElementTransformation *eltrans = nullptr;
 
    double numer = 0;
    double denom = 0;
@@ -172,7 +172,7 @@ double TempIntegrator::GetTemp(GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
-   ElementTransformation *eltrans;
+   ElementTransformation *eltrans = nullptr;
 
    double numer = 0;
    double denom = 0;
@@ -251,7 +251,7 @@ void TempIntegrator::AssembleFaceVector(const FiniteElement &el1,
    for (int i = 0; i < ir->GetNPoints(); ++i)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
-      IntegrationPoint eip;
+      IntegrationPoint eip{};
       Trans.Loc1.Transform(ip, eip);
       Trans.Face->SetIntPoint(&ip);
       el1.CalcShape(eip, DofVal);
@@ -263,7 +263,7 @@ void TempIntegrator::AssembleFaceVector(const FiniteElement &el1,
 AggregateResIntegrator::AggregateResIntegrator(
     const FiniteElementSpace *fe_space,
     const double r,
-    const Vector m,
+    const Vector &m,
     GridFunction *temp)
  : fes(fe_space), rho(r), max(m)
 {
@@ -274,7 +274,7 @@ double AggregateResIntegrator::GetIEAggregate(GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
-   ElementTransformation *eltrans;
+   ElementTransformation *eltrans = nullptr;
 
    double numer = 0;
    double denom = 0;
@@ -331,21 +331,21 @@ void AggregateResIntegrator::AssembleElementVector(const FiniteElement &elx,
    temp_->FESpace()->GetElementVDofs(element, vdofs);
    int order = 2 * el->GetOrder() + Tr->OrderW();
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
    temp_->GetSubVector(vdofs, elfun);
 
-   int dof = elx.GetDof(), dim = el->GetDim();
+   int dof = elx.GetDof();
+   int dim = el->GetDim();
    elvect.SetSize(dof * dim);
    elvect = 0.0;
    DenseMatrix PointMat_bar(dim, dof);
    Vector DofVal(elfun.Size());
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*Tr);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*Tr);
 
    const int attr = Trx.Attribute;
    maxt = temp_->Max() / max(attr);
@@ -388,7 +388,7 @@ double TempResIntegrator::GetTemp(mfem::GridFunction *temp)
 {
    cout.flush();
    Array<int> dofs;
-   ElementTransformation *eltrans;
+   ElementTransformation *eltrans = nullptr;
 
    double numer = 0;
    double denom = 0;
@@ -441,21 +441,21 @@ void TempResIntegrator::AssembleElementVector(const mfem::FiniteElement &elx,
    temp_->FESpace()->GetElementVDofs(element, vdofs);
    int order = 2 * el->GetOrder() + Tr->OrderW();
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
    temp_->GetSubVector(vdofs, elfun);
 
-   int dof = elx.GetDof(), dim = el->GetDim();
+   int dof = elx.GetDof();
+   int dim = el->GetDim();
    elvect.SetSize(dof * dim);
    elvect = 0.0;
    DenseMatrix PointMat_bar(dim, dof);
    Vector DofVal(elfun.Size());
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*Tr);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*Tr);
 
    for (int i = 0; i < ir->GetNPoints(); ++i)
    {

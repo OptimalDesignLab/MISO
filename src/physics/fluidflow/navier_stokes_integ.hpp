@@ -178,8 +178,8 @@ public:
                                                             a),
       Re(Re_num),
       Pr(Pr_num),
-      qfs(q_ref),
       mu(vis),
+      qfs(q_ref),
       work_vec(dim + 2)
    { }
 
@@ -464,8 +464,8 @@ public:
                                                       a),
       Re(Re_num),
       Pr(Pr_num),
-      q_in(q_inflow),
       mu(vis),
+      q_in(q_inflow),
       work_vec(dim + 2)
    { }
 
@@ -611,8 +611,8 @@ public:
                                                        a),
       Re(Re_num),
       Pr(Pr_num),
-      q_out(q_outflow),
       mu(vis),
+      q_out(q_outflow),
       work_vec(dim + 2)
    { }
 
@@ -758,8 +758,8 @@ public:
                                                         a),
       Re(Re_num),
       Pr(Pr_num),
-      qfs(q_far),
       mu(vis),
+      qfs(q_far),
       work_vec(dim + 2)
    { }
 
@@ -1060,15 +1060,15 @@ public:
                 const mfem::Vector &force_dir,
                 double vis = -1.0,
                 double a = 1.0)
-    : stack(diff_stack),
+    : num_states(num_state_vars),
+      alpha(a),
+      stack(diff_stack),
       fec(fe_coll),
-      num_states(num_state_vars),
       Re(Re_num),
       Pr(Pr_num),
+      mu(vis),
       qfs(q_ref),
       force_nrm(force_dir),
-      mu(vis),
-      alpha(a),
       work_vec(dim + 2)
    { }
 
