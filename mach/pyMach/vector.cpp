@@ -16,23 +16,27 @@ void initVector(py::module &m)
    py::class_<Vector>(m, "Vector", py::buffer_protocol())
        /// method to allow Vector object to be constructable from a numpy array
        .def(py::init(
-           [](py::array_t<double, py::array::f_style> b)
+           [](const py::array_t<double, py::array::f_style> &b)
            {
               /* Request a buffer descriptor from Python */
               py::buffer_info info = b.request();
 
               /* Some sanity checks ... */
               if (info.format != py::format_descriptor<double>::format())
+              {
                  throw std::runtime_error(
                      "Incompatible format:\n"
                      "\texpected a double array!");
+              }
 
               if (info.ndim != 1)
+              {
                  throw std::runtime_error(
                      "Incompatible dimensions:\n"
                      "\texpected a 1D array!");
+              }
 
-              return new Vector((double *)info.ptr, info.shape[0]);
+              return new Vector(static_cast<double *>(info.ptr), info.shape[0]);
            }))
 
        /// method that allows a Vector to be converted to a numpy array
@@ -50,7 +54,7 @@ void initVector(py::module &m)
        .def(py::init(
            [](int size)
            {
-              auto self = new Vector(size);
+              auto *self = new Vector(size);
               *self = 0.0;
               return self;
            }))
