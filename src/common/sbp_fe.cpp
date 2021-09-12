@@ -651,7 +651,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
  : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree)
 {
-/// Header file including SBP Dx and Dy matrix data
+   /// Header file including SBP Dx and Dy matrix data
    Q[0].SetSize(num_nodes);
    Q[1].SetSize(num_nodes);
 

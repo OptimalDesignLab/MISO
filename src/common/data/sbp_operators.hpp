@@ -2616,8 +2616,8 @@ const double p4Qy_tri[729] = {-0.016666666666666666,
                               -0.11257228338069038,
                               0.0};
 
-} // namespace sbp_operators
+}  // namespace sbp_operators
 
-} // namespace mfem
+}  // namespace mfem
 
 #endif
