@@ -661,34 +661,32 @@ private:
 @def NLOHMANN_JSON_SERIALIZE_ENUM
 @since version 3.4.0
 */
-#define NLOHMANN_JSON_SERIALIZE_ENUM(ENUM_TYPE, ...)                        \
-   template <typename BasicJsonType>                                        \
-   inline void to_json(BasicJsonType &j, const ENUM_TYPE &e)                \
-   {                                                                        \
-      static_assert(std::is_enum<ENUM_TYPE>::value,                         \
-                    #ENUM_TYPE " must be an enum!");                        \
-      static const std::pair<ENUM_TYPE, BasicJsonType> m[] = __VA_ARGS__;   \
-      auto it = std::find_if(                                               \
-          std::begin(m),                                                    \
-          std::end(m),                                                      \
-          [e](const std::pair<ENUM_TYPE, BasicJsonType> &ej_pair) -> bool { \
-             return ej_pair.first == e;                                     \
-          });                                                               \
-      j = ((it != std::end(m)) ? it : std::begin(m))->second;               \
-   }                                                                        \
-   template <typename BasicJsonType>                                        \
-   inline void from_json(const BasicJsonType &j, ENUM_TYPE &e)              \
-   {                                                                        \
-      static_assert(std::is_enum<ENUM_TYPE>::value,                         \
-                    #ENUM_TYPE " must be an enum!");                        \
-      static const std::pair<ENUM_TYPE, BasicJsonType> m[] = __VA_ARGS__;   \
-      auto it = std::find_if(                                               \
-          std::begin(m),                                                    \
-          std::end(m),                                                      \
-          [j](const std::pair<ENUM_TYPE, BasicJsonType> &ej_pair) -> bool { \
-             return ej_pair.second == j;                                    \
-          });                                                               \
-      e = ((it != std::end(m)) ? it : std::begin(m))->first;                \
+#define NLOHMANN_JSON_SERIALIZE_ENUM(ENUM_TYPE, ...)                      \
+   template <typename BasicJsonType>                                      \
+   inline void to_json(BasicJsonType &j, const ENUM_TYPE &e)              \
+   {                                                                      \
+      static_assert(std::is_enum<ENUM_TYPE>::value,                       \
+                    #ENUM_TYPE " must be an enum!");                      \
+      static const std::pair<ENUM_TYPE, BasicJsonType> m[] = __VA_ARGS__; \
+      auto it = std::find_if(                                             \
+          std::begin(m),                                                  \
+          std::end(m),                                                    \
+          [e](const std::pair<ENUM_TYPE, BasicJsonType> &ej_pair) -> bool \
+          { return ej_pair.first == e; });                                \
+      j = ((it != std::end(m)) ? it : std::begin(m))->second;             \
+   }                                                                      \
+   template <typename BasicJsonType>                                      \
+   inline void from_json(const BasicJsonType &j, ENUM_TYPE &e)            \
+   {                                                                      \
+      static_assert(std::is_enum<ENUM_TYPE>::value,                       \
+                    #ENUM_TYPE " must be an enum!");                      \
+      static const std::pair<ENUM_TYPE, BasicJsonType> m[] = __VA_ARGS__; \
+      auto it = std::find_if(                                             \
+          std::begin(m),                                                  \
+          std::end(m),                                                    \
+          [j](const std::pair<ENUM_TYPE, BasicJsonType> &ej_pair) -> bool \
+          { return ej_pair.second == j; });                               \
+      e = ((it != std::end(m)) ? it : std::begin(m))->first;              \
    }
 
 // Ugly macros to avoid uglier copy-paste when specializing basic_json. They
@@ -1671,7 +1669,8 @@ auto from_json_array_impl(const BasicJsonType &j,
        j.begin(),
        j.end(),
        std::inserter(arr, end(arr)),
-       [](const BasicJsonType &i) {
+       [](const BasicJsonType &i)
+       {
           // get<BasicJsonType>() returns *this, this won't call a from_json
           // method when value_type is BasicJsonType
           return i.template get<typename ConstructibleArrayType::value_type>();
@@ -1689,7 +1688,8 @@ void from_json_array_impl(const BasicJsonType &j,
        j.begin(),
        j.end(),
        std::inserter(arr, end(arr)),
-       [](const BasicJsonType &i) {
+       [](const BasicJsonType &i)
+       {
           // get<BasicJsonType>() returns *this, this won't call a from_json
           // method when value_type is BasicJsonType
           return i.template get<typename ConstructibleArrayType::value_type>();
@@ -1743,7 +1743,8 @@ void from_json(const BasicJsonType &j, ConstructibleObjectType &obj)
    std::transform(inner_object->begin(),
                   inner_object->end(),
                   std::inserter(obj, obj.begin()),
-                  [](typename BasicJsonType::object_t::value_type const &p) {
+                  [](typename BasicJsonType::object_t::value_type const &p)
+                  {
                      return value_type(
                          p.first,
                          p.second.template get<
@@ -2984,7 +2985,8 @@ public:
               first,
               last,
               std::pair<bool, int>(true, 0),
-              [&first](std::pair<bool, int> res, decltype(*first) val) {
+              [&first](std::pair<bool, int> res, decltype(*first) val)
+              {
                  res.first &= (val == *(std::next(std::addressof(*first),
                                                   res.second++)));
                  return res;
@@ -4582,7 +4584,8 @@ private:
          // half-precision floating-point numbers in the C language
          // is shown in Fig. 3.
          const auto half = static_cast<unsigned int>((byte1 << 8u) + byte2);
-         const double val = [&half] {
+         const double val = [&half]
+         {
             const int exp = (half >> 10u) & 0x1Fu;
             const unsigned int mant = half & 0x3FFu;
             assert(0 <= exp and exp <= 32);
@@ -5963,15 +5966,17 @@ private:
                    string_t &result)
    {
       bool success = true;
-      std::generate_n(
-          std::back_inserter(result), len, [this, &success, &format]() {
-             get();
-             if (JSON_UNLIKELY(not unexpect_eof(format, "string")))
-             {
-                success = false;
-             }
-             return static_cast<char>(current);
-          });
+      std::generate_n(std::back_inserter(result),
+                      len,
+                      [this, &success, &format]()
+                      {
+                         get();
+                         if (JSON_UNLIKELY(not unexpect_eof(format, "string")))
+                         {
+                            success = false;
+                         }
+                         return static_cast<char>(current);
+                      });
       return success;
    }
 
@@ -9195,9 +9200,8 @@ public:
       return std::accumulate(reference_tokens.begin(),
                              reference_tokens.end(),
                              std::string{},
-                             [](const std::string &a, const std::string &b) {
-                                return a + "/" + escape(b);
-                             });
+                             [](const std::string &a, const std::string &b)
+                             { return a + "/" + escape(b); });
    }
 
    /// @copydoc to_string()
@@ -10972,9 +10976,8 @@ public:
             const bool same_prefix =
                 std::all_of(j.begin() + 1,
                             j.end(),
-                            [this, first_prefix](const BasicJsonType &v) {
-                               return ubjson_prefix(v) == first_prefix;
-                            });
+                            [this, first_prefix](const BasicJsonType &v)
+                            { return ubjson_prefix(v) == first_prefix; });
 
             if (same_prefix)
             {
@@ -11018,9 +11021,8 @@ public:
             const bool same_prefix =
                 std::all_of(j.begin(),
                             j.end(),
-                            [this, first_prefix](const BasicJsonType &v) {
-                               return ubjson_prefix(v) == first_prefix;
-                            });
+                            [this, first_prefix](const BasicJsonType &v)
+                            { return ubjson_prefix(v) == first_prefix; });
 
             if (same_prefix)
             {
@@ -11356,9 +11358,8 @@ private:
           value.end(),
           0ul,
           [](size_t result,
-             const typename BasicJsonType::object_t::value_type &el) {
-             return result += calc_bson_element_size(el.first, el.second);
-          });
+             const typename BasicJsonType::object_t::value_type &el)
+          { return result += calc_bson_element_size(el.first, el.second); });
 
       return sizeof(std::int32_t) + document_size + 1ul;
    }
@@ -13653,10 +13654,10 @@ private:
       o->write_characters(number_buffer.data(), static_cast<std::size_t>(len));
 
       // determine if need to append ".0"
-      const bool value_is_int_like = std::none_of(
-          number_buffer.begin(), number_buffer.begin() + len + 1, [](char c) {
-             return c == '.' or c == 'e';
-          });
+      const bool value_is_int_like =
+          std::none_of(number_buffer.begin(),
+                       number_buffer.begin() + len + 1,
+                       [](char c) { return c == '.' or c == 'e'; });
 
       if (value_is_int_like)
       {
@@ -14550,9 +14551,8 @@ private:
       AllocatorType<T> alloc;
       using AllocatorTraits = std::allocator_traits<AllocatorType<T>>;
 
-      auto deleter = [&](T *object) {
-         AllocatorTraits::deallocate(alloc, object, 1);
-      };
+      auto deleter = [&](T *object)
+      { AllocatorTraits::deallocate(alloc, object, 1); };
       std::unique_ptr<T, decltype(deleter)> object(
           AllocatorTraits::allocate(alloc, 1), deleter);
       AllocatorTraits::construct(
@@ -15144,7 +15144,8 @@ public:
       bool is_an_object = std::all_of(
           init.begin(),
           init.end(),
-          [](const detail::json_ref<basic_json> &element_ref) {
+          [](const detail::json_ref<basic_json> &element_ref)
+          {
              return element_ref->is_array() and element_ref->size() == 2 and
                     (*element_ref)[0].is_string();
           });
@@ -15175,7 +15176,8 @@ public:
          std::for_each(
              init.begin(),
              init.end(),
-             [this](const detail::json_ref<basic_json> &element_ref) {
+             [this](const detail::json_ref<basic_json> &element_ref)
+             {
                 auto element = element_ref.moved_or_copied();
                 m_value.object->emplace(
                     std::move(*((*element.m_value.array)[0].m_value.string)),
@@ -21393,7 +21395,8 @@ public:
          invalid
       };
 
-      const auto get_op = [](const std::string &op) {
+      const auto get_op = [](const std::string &op)
+      {
          if (op == "add")
          {
             return patch_operations::add;
@@ -21423,7 +21426,8 @@ public:
       };
 
       // wrapper for "add" operation; add value at ptr
-      const auto operation_add = [&result](json_pointer &ptr, basic_json val) {
+      const auto operation_add = [&result](json_pointer &ptr, basic_json val)
+      {
          // adding to the root of the target document means replacing it
          if (ptr.empty())
          {
@@ -21486,7 +21490,8 @@ public:
       };
 
       // wrapper for "remove" operation; remove value at ptr
-      const auto operation_remove = [&result](json_pointer &ptr) {
+      const auto operation_remove = [&result](json_pointer &ptr)
+      {
          // get reference to parent of JSON pointer ptr
          const auto last_path = ptr.back();
          ptr.pop_back();
@@ -21528,7 +21533,8 @@ public:
          // wrapper to get a value for an operation
          const auto get_value = [&val](const std::string &op,
                                        const std::string &member,
-                                       bool string_type) -> basic_json & {
+                                       bool string_type) -> basic_json &
+         {
             // find value
             auto it = val.m_value.object->find(member);
 

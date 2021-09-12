@@ -19,6 +19,7 @@ BraceWrapping:
   AfterUnion: true
   BeforeCatch: true
   BeforeElse: true
+  BeforeLambdaBody: true
   SplitEmptyFunction: 'false'
   SplitEmptyRecord: 'false'
 ColumnLimit: '80'

@@ -329,9 +329,8 @@ void shockExact(const mfem::Vector &x, mfem::Vector &u)
    else
    {
       // define a lambda function for equation (7.5)
-      auto func = [&](double vroot) {
-         return x(0) - shockEquation(Re, Ma, vroot);
-      };
+      auto func = [&](double vroot)
+      { return x(0) - shockEquation(Re, Ma, vroot); };
       v = bisection(func, 1.0000001 * vf, 0.9999999, ftol, xtol, maxiter);
    }
    double vel = v * Ma;

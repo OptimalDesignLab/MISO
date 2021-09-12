@@ -48,7 +48,8 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    *out << "old entropy is " << entropy_old << '\n';
    mfem::Vector x_new(x.Size());
    // cout << "x_new size is " << x_new.Size() << '\n';
-   auto entropyFun = [&](double gamma) {
+   auto entropyFun = [&](double gamma)
+   {
       *out << "In lambda function: " << std::setprecision(14);
       add(x, gamma * dt, k, x_new);
       double entropy = f_ode->Entropy(x_new);
