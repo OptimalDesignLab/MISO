@@ -651,11 +651,11 @@ public:
 
 protected:
    /// communicator used by MPI group for communication
-   MPI_Comm comm{};
+   MPI_Comm comm;
    /// process rank
-   int rank{};
+   int rank;
    /// print object
-   std::ostream *out{};
+   std::ostream *out;
    /// solver options
    nlohmann::json options;
    /// material Library
@@ -663,9 +663,9 @@ protected:
    /// number of state variables at each node
    int num_state = 0;
    /// time step size
-   double dt{};
+   double dt;
    /// final time
-   double t_final{};
+   double t_final;
 
    //--------------------------------------------------------------------------
    // Members associated with the mesh
@@ -685,7 +685,7 @@ protected:
    /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
    /// pointer to mesh's underlying finite element space
-   SpaceType *mesh_fes{};
+   SpaceType *mesh_fes;
    /// state sized work vector
    std::unique_ptr<mfem::ParGridFunction> scratch;
    /// state tdof sized work vector

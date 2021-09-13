@@ -40,6 +40,7 @@ public:
       load(_load),
       jac(Operator::Hypre_ParCSR),
       dt(0.0),
+      dt_stage(dt),
       x(nullptr),
       x_work(width),
       r_work(height)
@@ -183,7 +184,7 @@ private:
    // mutable HypreParMatrix *jac;
    mutable OperatorHandle jac;
    double dt;
-   double dt_stage{};
+   double dt_stage;
    const mfem::Vector *x;
 
    mutable mfem::Vector x_work;
@@ -381,8 +382,8 @@ double MachEvolver::EntropyChange(double dt,
                                   const mfem::Vector &x,
                                   const mfem::Vector &k)
 {
-   if (ent ==
-       nullptr)  // even though it is not used here, ent should be defined
+   /// even though it is not used here, ent should be defined
+   if (ent == nullptr)
    {
       throw MachException("MachEvolver::EntropyChange(): ent not defined!");
    }

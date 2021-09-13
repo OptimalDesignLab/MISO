@@ -20,11 +20,11 @@ double InexactNewton::ComputeStepSize(const Vector &x,
    // A temporary vector for calculating p0p.
    Vector temp(r.Size());
 
-   auto p0 = 0.5 * norm * norm;
+   double p0 = 0.5 * norm * norm;
    // temp=F'(x_i)*r(x_i)
    jac->Mult(r, temp);
    // c is the negative inexact newton step size.
-   auto p0p = -Dot(c, temp);
+   double p0p = -Dot(c, temp);
    // Calculate the new norm.
 
    add(x, -1.0, c, x_new);
@@ -40,7 +40,7 @@ double InexactNewton::ComputeStepSize(const Vector &x,
    int itt = 0;
    while (err_new > (1 - t * (1 - theta)) * norm)
    {
-      auto p1 = 0.5 * err_new * err_new;
+      double p1 = 0.5 * err_new * err_new;
       // Quadratic interpolation between [0,1]
       theta = quadInterp(0.0, p0, p0p, 1.0, p1);
       theta = (theta > theta_min) ? theta : theta_min;
@@ -109,9 +109,9 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
    std::cout << "Norm(r) = " << Norm(r) << endl;
    std::cout.flush();
 
-   auto norm = Norm(r);
-   auto norm0 = norm;
-   auto norm_goal = std::max(rel_tol * norm, abs_tol);
+   double norm = Norm(r);
+   double norm0 = norm;
+   double norm_goal = std::max(rel_tol * norm, abs_tol);
    prec->iterative_mode = false;
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (int it = 0; true; it++)

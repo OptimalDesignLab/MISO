@@ -150,8 +150,8 @@ option(MACH_USE_CLANG_TIDY
 if (MACH_USE_CLANG_TIDY)
    set_target_properties(mach
       PROPERTIES
-         # CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
-         CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
+         CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
+         # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
    )
 endif (MACH_USE_CLANG_TIDY)
 
@@ -270,8 +270,8 @@ if (BUILD_PYTHON_WRAPPER)
    if (MACH_USE_CLANG_TIDY)
       set_target_properties(pyMach
          PROPERTIES
-            # CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
-            CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
+            CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
+            # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
       )
    endif (MACH_USE_CLANG_TIDY)
 

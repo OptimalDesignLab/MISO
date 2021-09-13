@@ -69,7 +69,7 @@ void jacobiPoly(const Vector &x,
    int size = x.Size();
    MFEM_ASSERT(alpha + beta != -1, "");
    MFEM_ASSERT(alpha > -1 && beta > -1, "");
-   auto gamma0 =
+   double gamma0 =
        ((pow(2, alpha + beta + 1)) / (alpha + beta + 1)) *
        (tgamma(alpha + 1) * tgamma(beta + 1) / tgamma(alpha + beta + 1));
    // For degree 0, return a constant function
@@ -80,7 +80,7 @@ void jacobiPoly(const Vector &x,
       poly = poly_0;
       return;
    }
-   auto gamma1 = (alpha + 1) * (beta + 1) * gamma0 / (alpha + beta + 3);
+   double gamma1 = (alpha + 1) * (beta + 1) * gamma0 / (alpha + beta + 3);
    // Set poly_1(:) = ((alpha+beta+2)*x(:) + (alpha-beta))*0.5/sqrt(gamma1)
    Vector poly_1(size);
    poly_1 = alpha + beta;
@@ -92,15 +92,15 @@ void jacobiPoly(const Vector &x,
       return;
    }
    // Henceforth, poly_0  denotes P_{i} and poly_1 denotes P_{i+1} in recurrence
-   auto aold = (2 / (2 + alpha + beta)) *
-               sqrt((alpha + 1) * (beta + 1) / (alpha + beta + 3));
+   double aold = (2 / (2 + alpha + beta)) *
+                 sqrt((alpha + 1) * (beta + 1) / (alpha + beta + 3));
    for (int i = 0; i < degree - 1; ++i)
    {
-      auto h1 = 2 * (i + 1) + alpha + beta;
-      auto anew = (2 / (h1 + 2)) *
-                  sqrt((i + 2) * (i + 2 + alpha + beta) * (i + 2 + alpha) *
-                       (i + 2 + beta) / ((h1 + 1) * (h1 + 3)));
-      auto bnew = -((alpha * alpha) - (beta * beta)) / (h1 * (h1 + 2));
+      double h1 = 2 * (i + 1) + alpha + beta;
+      double anew = (2 / (h1 + 2)) *
+                    sqrt((i + 2) * (i + 2 + alpha + beta) * (i + 2 + alpha) *
+                         (i + 2 + beta) / ((h1 + 1) * (h1 + 3)));
+      double bnew = -((alpha * alpha) - (beta * beta)) / (h1 * (h1 + 2));
       // Rather than using Vector methods and functions, we use a loop here
       // because several actions are performed on each entry
       for (int j = 0; j < size; ++j)

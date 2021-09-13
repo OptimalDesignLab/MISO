@@ -428,7 +428,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
 void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
                                   Vector &shape) const
 {
-   int ipIdx = 0;
+   int ipIdx = -1;
    try
    {
       ipIdx = ipIdxMap.at(&ip);
@@ -472,7 +472,7 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
 void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
                                    DenseMatrix &dshape) const
 {
-   int ipIdx = 0;
+   int ipIdx = -1;
    try
    {
       ipIdx = ipIdxMap.at(&ip);
@@ -841,7 +841,7 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
 void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
                                    Vector &shape) const
 {
-   int ipIdx = 0;
+   int ipIdx = -1;
    try
    {
       ipIdx = ipIdxMap.at(&ip);
@@ -890,7 +890,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
 void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
                                     DenseMatrix &dshape) const
 {
-   int ipIdx = 0;
+   int ipIdx = -1;
    try
    {
       ipIdx = ipIdxMap.at(&ip);
@@ -927,7 +927,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 SBPCollection::SBPCollection(const int p, const int dim)
- : FiniteElementCollection(p), SBPname{}, SBPElements{}, SBPdof{}, SegDofOrd{}
+ : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
@@ -1089,12 +1089,7 @@ SBPCollection::~SBPCollection()
 
 // From here thee DSBPCollection class
 DSBPCollection::DSBPCollection(const int p, const int dim)
- : FiniteElementCollection(p),
-   DSBPname{},
-   DSBPElements{},
-   Tr_SBPElements{},
-   DSBPdof{},
-   SegDofOrd{}
+ : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");

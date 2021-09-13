@@ -55,8 +55,7 @@ void initMeshMotion(py::module &m)
 
           // start egads
           ego eg_context = nullptr;
-          int status = 0;
-          status = EG_open(&eg_context);
+          int status = EG_open(&eg_context);
           if (status != EGADS_SUCCESS)
           {
              throw std::runtime_error("EG_open failed!\n");
@@ -132,10 +131,6 @@ void initMeshMotion(py::module &m)
           auto *old_raw_tess = static_cast<egTessel *>(old_tess->blind);
           auto *raw_tess = static_cast<egTessel *>(new_tess->blind);
 
-          int ptype = 0;
-          int pindex = 0;
-          double xyz[3];
-          double xyz_old[3];
           // std::cout << "old_raw_tess->nGlobal: " << old_raw_tess->nGlobal <<
           // "\n"; std::cout << "raw_tess->nGlobal: " << raw_tess->nGlobal <<
           // "\n";
@@ -151,6 +146,10 @@ void initMeshMotion(py::module &m)
           // std::cout << "tess size (2): " << 2 * (old_raw_tess->nGlobal / 3)
           // << "\n"; std::cout << "two dim: " << two_dimensional << "\n";
 
+          int ptype;   // NOLINT
+          int pindex;  // NOLINT
+          double xyz[3];
+          double xyz_old[3];
           for (int i = 1; i <= old_raw_tess->nGlobal; ++i)
           {
              EG_getGlobal(new_tess, i, &ptype, &pindex, xyz);

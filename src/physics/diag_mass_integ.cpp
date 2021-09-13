@@ -21,7 +21,7 @@ void DiagMassIntegrator::AssembleElementMatrix(const FiniteElement &el,
       // get the Jacobian (Trans.Weight) and cubature weight (node.weight)
       const IntegrationPoint &node = ir.IntPoint(i);
       Trans.SetIntPoint(&node);
-      auto norm = node.weight * Trans.Weight();
+      double norm = node.weight * Trans.Weight();
       if (space_vary_dt)
       {
          norm /= pow(Trans.Weight(), 1.0 / dim);
