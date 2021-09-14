@@ -782,7 +782,14 @@ double AbstractSolver::calcL2Error(
    *scratch = field;
    return calcL2Error(scratch.get(), u_exact, entry);
 }
+double AbstractSolver::calcResidualNorm() const
+{
+   HypreParVector u_true(fes.get());
+   u->GetTrueVector().SetDataAndSize(u_true.GetData(), u_true.Size());
+   u->SetTrueVector();
 
+   return calcResidualNorm(*u);
+}
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
    MachInputs inputs {
