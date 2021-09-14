@@ -1700,6 +1700,19 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
          fgmres->SetKDim(kdim);  // set FGMRES subspace size
       }
    }
+   else if (solver_type == "fgmres")
+   {
+      lin_solver.reset(new FGMRESSolver(comm));
+      auto *fgmres = dynamic_cast<FGMRESSolver *>(lin_solver.get());
+      fgmres->SetRelTol(reltol);
+      fgmres->SetMaxIter(maxiter);
+      fgmres->SetPrintLevel(ptl);
+      fgmres->SetPreconditioner(dynamic_cast<Solver &>(_prec));
+      if (kdim != -1)
+      {
+         fgmres->SetKDim(kdim);  // set FGMRES subspace size
+      }
+   }
    else if (solver_type == "hyprepcg")
    {
       lin_solver.reset(new HyprePCG(comm));
@@ -1732,7 +1745,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
       throw MachException(
           "Unsupported iterative solver type!\n"
           "\tavilable options are: hypregmres, gmres, hyprefgmres,\n"
-          "\thyprepcg, pcg, minres");
+          "\tfgmres, hyprepcg, pcg, minres");
    }
    return lin_solver;
 }

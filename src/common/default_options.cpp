@@ -58,7 +58,7 @@ const nlohmann::json default_options{
 
     {"lin-solver",
      {
-         {"type", "hyprefgmres"},  // Default solver
+         {"type", "fgmres"},  // Default solver
          {"printlevel", 1},  // linear solver print level (no printing if zero)
          {"maxiter", 100},   // default to 100 iterations
          {"reltol", 1e-12},  // solver relative tolerance
@@ -77,7 +77,7 @@ const nlohmann::json default_options{
 
     {"adj-solver",
      {
-         {"type", "hyprefgmres"},  // Default solver
+         {"type", "fgmres"},  // Default solver
          {"printlevel", 0},  // adjoint solver print level (no printing if zero)
          {"maxiter", 100},   // maximum number of solver iterations
          {"reltol", 1e-8},   // adjoint solver relative tolerance

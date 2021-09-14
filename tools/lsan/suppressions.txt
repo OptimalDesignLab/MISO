@@ -2,11 +2,12 @@
 # (LSan) to be able to run with the default configuration.
 
 #### Third-party leaks ####
-
 # leaks reported in OpenMPI
 leak:libmpi
 leak:libopen-rte
 leak:libdispatch
+leak:libopen-pal
+leak:libhwloc
 
 # leaks reported in Python
 leak:_PyObject_Malloc

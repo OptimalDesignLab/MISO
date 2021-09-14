@@ -50,6 +50,14 @@ jobs:
             buildflags: "-fno-omit-frame-pointer -fsanitize=address,undefined",
             testflags: "ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=/home/runner/work/mach/mach/tools/lsan/suppressions.txt"
           }
+        - {
+            name: "Ubuntu Latest Clang (Debug-ASan;Undefined)", artifact: "Linux.7z",
+            os: ubuntu-latest,
+            cc: "clang", cxx: "clang++",
+            buildtype: "Debug",
+            buildflags: "-fno-omit-frame-pointer -fsanitize=address,undefined",
+            testflags: "ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=/home/runner/work/mach/mach/tools/lsan/suppressions.txt"
+          }
         # - {
         #     name: "Ubuntu Latest Clang (Debug)", artifact: "Linux.7z",
         #     os: ubuntu-latest,

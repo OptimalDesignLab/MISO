@@ -54,7 +54,7 @@ auto options = R"(
       "printlevel": 0
    },
    "lin-solver": {
-      "type": "hyprefgmres",
+      "type": "fgmres",
       "printlevel": 0,
       "filllevel": 3,
       "maxiter": 100,
