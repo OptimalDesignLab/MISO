@@ -17,7 +17,8 @@ const nlohmann::json default_options{
          {"Re", 0.0},        // far-field Reynolds number
          {"Pr", 0.72},       // the Prandtl number
          {"mu",
-          -1.0}  // nondimensional viscosity (if negative, use Sutherland's)
+          -1.0},  // nondimensional viscosity (if negative, use Sutherland's)
+         {"viscous-mms", false}  // if true, include MMS terms for viscous test
      }},
 
     {"space-dis",  // options related to spatial discretization
@@ -27,7 +28,6 @@ const nlohmann::json default_options{
           1.0},  // scaling coefficient for local-proj stabilization
          {"iface-coeff", 1.0},  // scaling coefficient for interface dissipation
          {"basis-type", "csbp"}  // csbp & dsbp for continuous & discrete SBP
-                                 // discretization resp.
      }},
 
     {"steady", false},  // deprecated; now included in "time-dis"

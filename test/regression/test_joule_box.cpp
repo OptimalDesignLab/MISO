@@ -2,7 +2,7 @@
 #include <iostream>
 
 #include "catch.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "mfem.hpp"
 
 #include "magnetostatic.hpp"

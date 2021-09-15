@@ -36,7 +36,6 @@ void NavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    auto mu = this->options["flow-param"]["mu"].template get<double>();
    this->res->AddDomainIntegrator(
        new ESViscousIntegrator<dim>(this->diff_stack, re_fs, pr_fs, mu, alpha));
-
    if (this->options["flow-param"]["viscous-mms"].template get<bool>())
    {
       if (dim != 2)

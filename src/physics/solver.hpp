@@ -7,7 +7,7 @@
 #include <unordered_map>
 
 #include "adept.h"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "mfem.hpp"
 
 #include "mach_types.hpp"

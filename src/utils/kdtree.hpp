@@ -7,26 +7,27 @@
 #include <iostream>
 #include <random>
 #include <vector>
- 
+
 #include "mfem.hpp"
 
 namespace mach
 {
-
 /// Class for representing a point
 /// \tparam coord_type - a numeric type
 /// \tparam dim - number of spatial dim
-template<typename coord_type, size_t dim>
+template <typename coord_type, size_t dim>
 class point
 {
 public:
    /// Copy constructor from mfem::Vector to point
-   point(const mfem::Vector &x) {
-      for (size_t i = 0; i < dim; ++i) coords_[i] = x(i);
+   point(const mfem::Vector &x)
+   {
+      for (size_t i = 0; i < dim; ++i)
+         coords_[i] = x(i);
    }
 
    /// Copy construction from point to point
-   point(std::array<coord_type, dim> c) : coords_(c) {}
+   point(std::array<coord_type, dim> c) : coords_(c) { }
 
    /// Initializer list based constructor
    point(std::initializer_list<coord_type> list)
@@ -38,10 +39,7 @@ public:
    /// Returns the coordinate in the given dimension.
    /// \param[in] index - dimension index (zero based)
    /// \returns coordinate in the given dimension
-   coord_type get(size_t index) const
-   {
-      return coords_[index];
-   }
+   coord_type get(size_t index) const { return coords_[index]; }
 
    /// Returns the distance squared from this point to another point
    /// \param[in] pt - another point
@@ -61,55 +59,52 @@ private:
    std::array<coord_type, dim> coords_;
 };
 
-template<typename coord_type, size_t dim>
-std::ostream& operator<<(std::ostream& out, const point<coord_type, dim>& pt) {
-    out << '(';
-    for (size_t i = 0; i < dim; ++i) {
-        if (i > 0)
-            out << ", ";
-        out << pt.get(i);
-    }
-    out << ')';
-    return out;
+template <typename coord_type, size_t dim>
+std::ostream &operator<<(std::ostream &out, const point<coord_type, dim> &pt)
+{
+   out << '(';
+   for (size_t i = 0; i < dim; ++i)
+   {
+      if (i > 0) out << ", ";
+      out << pt.get(i);
+   }
+   out << ')';
+   return out;
 }
- 
+
 /// k-d tree implementation, based on the version at rosettacode.org
 /// \tparam coord_type - a numeric type
 /// \tparam dim - number of spatial dim
-template<typename coord_type, size_t dim>
+template <typename coord_type, size_t dim>
 class kdtree
 {
 public:
    typedef point<coord_type, dim> point_type;
+
 private:
    /// Defines a node in the tree
-   struct node {
+   struct node
+   {
       /// Construct a leaf in the tree
       /// \note this sets a default value of -1 for node_idx_
-      node(const point_type &pt) : point_(pt), left_(nullptr), right_(nullptr),
-                                   mfem_idx_(-1)
-      {
-      }
+      node(const point_type &pt)
+       : point_(pt), left_(nullptr), right_(nullptr), mfem_idx_(-1)
+      { }
       /// Construct a leaf in a tree, including its index in the FE space.
-      node(const mfem::Vector &x, int mfem_idx) : point_(x), left_(nullptr),
-                                                  right_(nullptr), 
-                                                  mfem_idx_(mfem_idx)
-      {
-      }
-      /// Get the `index` coordinate of the point 
-      coord_type get(size_t index) const
-      {
-         return point_.get(index);
-      }
+      node(const mfem::Vector &x, int mfem_idx)
+       : point_(x), left_(nullptr), right_(nullptr), mfem_idx_(mfem_idx)
+      { }
+      /// Get the `index` coordinate of the point
+      coord_type get(size_t index) const { return point_.get(index); }
       /// Get the distance between the node and `pt`
-      double distance(const point_type& pt) const
+      double distance(const point_type &pt) const
       {
          return point_.distance(pt);
       }
       point_type point_;
       node *left_;
       node *right_;
-      int mfem_idx_; /// maps back to node in mfem data structure
+      int mfem_idx_;  /// maps back to node in mfem data structure
    };
    /// root node in the kd tree
    node *root_ = nullptr;
@@ -123,9 +118,11 @@ private:
    std::vector<node> nodes_;
 
    /// Defines an operator to compare two nodes based on coordinate `index_`
-   struct node_cmp {
-      node_cmp(size_t index) : index_(index) {}
-      bool operator()(const node& n1, const node& n2) const {
+   struct node_cmp
+   {
+      node_cmp(size_t index) : index_(index) { }
+      bool operator()(const node &n1, const node &n2) const
+      {
          return n1.point_.get(index_) < n2.point_.get(index_);
       }
       size_t index_;
@@ -134,11 +131,10 @@ private:
    /// Recursive function to build a tree
    node *make_tree(size_t begin, size_t end, size_t index)
    {
-      if (end <= begin)
-         return nullptr;
+      if (end <= begin) return nullptr;
       size_t n = begin + (end - begin) / 2;
-      std::nth_element(&nodes_[begin], &nodes_[n], &nodes_[0] + end,
-                       node_cmp(index));
+      std::nth_element(
+          &nodes_[begin], &nodes_[n], &nodes_[0] + end, node_cmp(index));
       index = (index + 1) % dim;
       nodes_[n].left_ = make_tree(begin, n, index);
       nodes_[n].right_ = make_tree(n + 1, end, index);
@@ -146,10 +142,9 @@ private:
    }
 
    /// Find the nearest node in tree to `point`
-   void nearest(node* root, const point_type& point, size_t index)
+   void nearest(node *root, const point_type &point, size_t index)
    {
-      if (root == nullptr)
-         return;
+      if (root == nullptr) return;
       ++visited_;
       double d = root->distance(point);
       if (best_ == nullptr || d < best_dist_)
@@ -157,55 +152,50 @@ private:
          best_dist_ = d;
          best_ = root;
       }
-      if (best_dist_ == 0)
-         return;
+      if (best_dist_ == 0) return;
       double dx = root->get(index) - point.get(index);
       index = (index + 1) % dim;
       nearest(dx > 0 ? root->left_ : root->right_, point, index);
-      if (dx * dx >= best_dist_)
-         return;
+      if (dx * dx >= best_dist_) return;
       nearest(dx > 0 ? root->right_ : root->left_, point, index);
-    }
+   }
 
 public:
    /// Remove the copy constructor and assignment constructors
-   kdtree(const kdtree&) = delete;
-   kdtree& operator=(const kdtree&) = delete;
+   kdtree(const kdtree &) = delete;
+   kdtree &operator=(const kdtree &) = delete;
 
    /// Construct an empty tree; use with set_size and add_node, and finalize
    kdtree() { }
 
-   /// Constructor taking a pair of iterators. Adds each point in the range 
+   /// Constructor taking a pair of iterators. Adds each point in the range
    /// [begin, end) to the tree.
    /// \param[in] begin - start of range
    /// \param[in] end - end of range
-   template<typename iterator>
+   template <typename iterator>
    kdtree(iterator begin, iterator end) : nodes_(begin, end)
    {
       root_ = make_tree(0, nodes_.size(), 0);
    }
- 
-   /// Constructor taking a function object that generates points. The function /// object will be called n times to populate the tree.
-   /// \param[in] f - function that returns a point
-   /// \param[in] n - number of points to add
-   template<typename func>
-   kdtree(func&& f, size_t n)
+
+   /// Constructor taking a function object that generates points. The function
+   /// /// object will be called n times to populate the tree. \param[in] f -
+   /// function that returns a point \param[in] n - number of points to add
+   template <typename func>
+   kdtree(func &&f, size_t n)
    {
       nodes_.reserve(n);
       for (size_t i = 0; i < n; ++i)
          nodes_.emplace_back(f());
       root_ = make_tree(0, nodes_.size(), 0);
    }
- 
+
    /// Allocate memory for the tree
    /// \param[in] n - number of nodes in the tree
-   void set_size(size_t n)
-   {
-      nodes_.reserve(n);
-   }
+   void set_size(size_t n) { nodes_.reserve(n); }
 
    /// Adds a new node to the tree, including its index
-   /// \param[in] x - the coordinates of the node 
+   /// \param[in] x - the coordinates of the node
    /// \param[in] mfem_idx - the index of the node in the finite-element space
    void add_node(const mfem::Vector &x, int mfem_idx)
    {
@@ -213,28 +203,25 @@ public:
    }
 
    /// Call this after adding all the nodes to the tree
-   void finalize()
-   {
-      root_ = make_tree(0, nodes_.size(), 0);
-   }
+   void finalize() { root_ = make_tree(0, nodes_.size(), 0); }
 
    /// Returns true if the tree is empty, false otherwise.
    bool empty() const { return nodes_.empty(); }
- 
+
    /// Returns the number of nodes visited by the last call to nearest()
    size_t visited() const { return visited_; }
- 
+
    /// Returns the distance between the input point and return value from the
    /// last call to nearest()
    double distance() const { return std::sqrt(best_dist_); }
 
    /// Returns the index of the closest node.
    /// \warning based on the most recent call to nearest().
-   //int get_node_index() const { return best_->node_idx_; }
+   // int get_node_index() const { return best_->node_idx_; }
 
    /// Returns the index of the element associated with the closest node.
    /// \warning based on the most recent call to nearest().
-   //int get_elem_index() const { return best_->elem_idx_; }
+   // int get_elem_index() const { return best_->elem_idx_; }
 
    /// Finds the nearest point in the tree to the given point.
    /// \param[in] pt - a point whose distance to tree is sought
@@ -242,8 +229,7 @@ public:
    /// \note It is not valid to call this function if the tree is empty.
    int nearest(const point_type &pt)
    {
-      if (root_ == nullptr)
-         throw std::logic_error("tree is empty");
+      if (root_ == nullptr) throw std::logic_error("tree is empty");
       best_ = nullptr;
       visited_ = 0;
       best_dist_ = 0;
@@ -251,7 +237,7 @@ public:
       return best_->mfem_idx_;
    }
 };
- 
+
 #if 0
 void test_wikipedia() {
     typedef point<int, 2> point2d;
@@ -313,6 +299,6 @@ int main() {
 }
 #endif
 
-} // namespace mach
+}  // namespace mach
 
 #endif

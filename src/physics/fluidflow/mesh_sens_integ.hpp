@@ -8,7 +8,6 @@
 
 namespace mach
 {
-
 /// Integrator for mesh sensitivity of dyadic domain integrators
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
@@ -22,9 +21,13 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    DyadicMeshSensIntegrator(const mfem::GridFunction &state_vec,
                             const mfem::GridFunction &adjoint_vec,
-                            int num_state_vars = 1, double a = 1.0)
-       : state(state_vec), adjoint(adjoint_vec), num_states(num_state_vars),
-         alpha(a) {}
+                            int num_state_vars = 1,
+                            double a = 1.0)
+    : state(state_vec),
+      adjoint(adjoint_vec),
+      num_states(num_state_vars),
+      alpha(a)
+   { }
 
    /// Construct the element local contribution to dF/dx
    /// \param[in] el - the finite element whose dF/dx contribution we want
@@ -55,15 +58,17 @@ protected:
 #endif
 
    /// A two point (i.e. dyadic) flux function
-   /// \param[in] di - desired coordinate direction for flux 
+   /// \param[in] di - desired coordinate direction for flux
    /// \param[in] u_left - the "left" state
    /// \param[in] u_right - the "right" state
    /// \param[out] flux_vec - flux evaluated at `u_left` and `u_right`
    /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
-   void flux(int di, const mfem::Vector &u_left, const mfem::Vector &u_right,
+   void flux(int di,
+             const mfem::Vector &u_left,
+             const mfem::Vector &u_right,
              mfem::Vector &flux_vec)
    {
-      static_cast<Derived*>(this)->calcFlux(di, u_left, u_right, flux_vec);
+      static_cast<Derived *>(this)->calcFlux(di, u_left, u_right, flux_vec);
    }
 };
 
@@ -80,9 +85,13 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    BoundaryMeshSensIntegrator(const mfem::GridFunction &state_vec,
                               const mfem::GridFunction &adjoint_vec,
-                              int num_state_vars = 1, double a = 1.0)
-       : state(state_vec), adjoint(adjoint_vec), num_states(num_state_vars),
-         alpha(a) {}
+                              int num_state_vars = 1,
+                              double a = 1.0)
+    : state(state_vec),
+      adjoint(adjoint_vec),
+      num_states(num_state_vars),
+      alpha(a)
+   { }
 
    /// **Do not use**: only included because it is required by base class
    virtual void AssembleRHSElementVect(const mfem::FiniteElement &el,
@@ -131,16 +140,18 @@ protected:
    /// \param[out] dir_bar - derivative with respect to `dir`
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
-   void fluxBar(const mfem::Vector &x, const mfem::Vector &dir,
-                const mfem::Vector &u, const mfem::Vector &flux_bar,
+   void fluxBar(const mfem::Vector &x,
+                const mfem::Vector &dir,
+                const mfem::Vector &u,
+                const mfem::Vector &flux_bar,
                 mfem::Vector &dir_bar)
    {
-      static_cast<Derived*>(this)->calcFluxBar(x, dir, u, flux_bar, dir_bar);
+      static_cast<Derived *>(this)->calcFluxBar(x, dir, u, flux_bar, dir_bar);
    }
 };
 
 #include "mesh_sens_integ_def.hpp"
 
-} // namespace mach
+}  // namespace mach
 
 #endif

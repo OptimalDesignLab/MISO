@@ -1,7 +1,7 @@
 #ifndef MACH_DEFAULT_OPTIONS
 #define MACH_DEFAULT_OPTIONS
 
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 
 namespace mach
 {

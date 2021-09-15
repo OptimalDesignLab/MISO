@@ -3,7 +3,7 @@
 
 #include "mpi.h"
 #include "catch.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "mfem.hpp"
 
 #ifdef MFEM_USE_PUMI

@@ -1,7 +1,7 @@
 
 template <int dim>
 Surface<dim>::Surface(mfem::Mesh &ext_mesh)
-{ 
+{
    using namespace mfem;
    if (dim != 2)
    {
@@ -35,7 +35,10 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
    {
       Element *el = vol_mesh.GetBdrElement(i);
       int bdr_attr = el->GetAttribute();
-      if (bdr_attr_marker[bdr_attr-1] == 0) { continue; }
+      if (bdr_attr_marker[bdr_attr - 1] == 0)
+      {
+         continue;
+      }
       num_belem++;
       int *v = el->GetVertices();
       int nv = el->GetNVertices();
@@ -55,8 +58,8 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
    }
 
    // Create the new boundary mesh
-   mesh = new Mesh(vol_mesh.Dimension() - 1, nbvt, num_belem, 0,
-                   vol_mesh.SpaceDimension());
+   mesh = new Mesh(
+       vol_mesh.Dimension() - 1, nbvt, num_belem, 0, vol_mesh.SpaceDimension());
 
    // Copy vertices to the boundary mesh
    nbvt = 0;
@@ -76,7 +79,10 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
    {
       Element *el = vol_mesh.GetBdrElement(i);
       int bdr_attr = el->GetAttribute();
-      if (bdr_attr_marker[bdr_attr-1] == 0) { continue; }
+      if (bdr_attr_marker[bdr_attr - 1] == 0)
+      {
+         continue;
+      }
 
       int *v = el->GetVertices();
       int nv = el->GetNVertices();
@@ -88,19 +94,18 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
 
       switch (el->GetGeometryType())
       {
-         case Geometry::SEGMENT:
-            mesh->AddSegment(bv, el->GetAttribute());
-            break;
-         case Geometry::TRIANGLE:
-            mesh->AddTriangle(bv, el->GetAttribute());
-            break;
-         case Geometry::SQUARE:
-            mesh->AddQuad(bv, el->GetAttribute());
-            break;
-         default:
-            break; /// This should not happen
+      case Geometry::SEGMENT:
+         mesh->AddSegment(bv, el->GetAttribute());
+         break;
+      case Geometry::TRIANGLE:
+         mesh->AddTriangle(bv, el->GetAttribute());
+         break;
+      case Geometry::SQUARE:
+         mesh->AddQuad(bv, el->GetAttribute());
+         break;
+      default:
+         break;  /// This should not happen
       }
-
    }
    mesh->FinalizeTopology();
 
@@ -109,12 +114,12 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
    {
       FiniteElementSpace *fes = vol_mesh.GetNodes()->FESpace();
       const FiniteElementCollection *fec = fes->FEColl();
-      if (dynamic_cast<const H1_FECollection*>(fec))
+      if (dynamic_cast<const H1_FECollection *>(fec))
       {
          FiniteElementCollection *fec_copy =
-            FiniteElementCollection::New(fec->Name());
+             FiniteElementCollection::New(fec->Name());
          FiniteElementSpace *fes_copy =
-            new FiniteElementSpace(*fes, mesh, fec_copy);
+             new FiniteElementSpace(*fes, mesh, fec_copy);
          GridFunction *bdr_nodes = new GridFunction(fes_copy);
          bdr_nodes->MakeOwner(fec_copy);
 
@@ -123,10 +128,13 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
          Array<int> vdofs;
          Array<int> bvdofs;
          Vector v;
-         for (int i=0; i<vol_mesh.GetNBE(); i++)
+         for (int i = 0; i < vol_mesh.GetNBE(); i++)
          {
             int bdr_attr = vol_mesh.GetBdrAttribute(i);
-            if (bdr_attr_marker[bdr_attr-1] == 0) { continue; }
+            if (bdr_attr_marker[bdr_attr - 1] == 0)
+            {
+               continue;
+            }
 
             fes->GetBdrElementVDofs(i, vdofs);
             vol_mesh.GetNodes()->GetSubVector(vdofs, v);
@@ -191,24 +199,25 @@ double Surface<dim>::solveDistance(mfem::ElementTransformation &trans,
    using namespace mfem;
 
 #ifdef MFEM_THREAD_SAFE
-   Vector res(dim), gradient(dim-1), step(dim-1), hess_vec(dim*(dim-1)/2);
-   Vector xi(dim-1);
+   Vector res(dim), gradient(dim - 1), step(dim - 1),
+       hess_vec(dim * (dim - 1) / 2);
+   Vector xi(dim - 1);
    IntegrationPoint ip, ip_new;
-   DenseMatrix Hess(dim-1);
+   DenseMatrix Hess(dim - 1);
 #endif
    res.SetSize(dim);
-   gradient.SetSize(dim-1);
-   step.SetSize(dim-1);
-   hess_vec.SetSize(dim*(dim-1)/2);
-   xi.SetSize(dim-1);
-   Hess.SetSize(dim-1);
+   gradient.SetSize(dim - 1);
+   step.SetSize(dim - 1);
+   hess_vec.SetSize(dim * (dim - 1) / 2);
+   xi.SetSize(dim - 1);
+   Hess.SetSize(dim - 1);
 
    // use centroid for initial guess for reference coordinate
    ip = Geometries.GetCenter(trans.GetGeometryType());
    trans.SetIntPoint(&ip);
 
    // evaluate the gradient of the least-squares objective
-   const DenseMatrix &Jac = trans.Jacobian();   
+   const DenseMatrix &Jac = trans.Jacobian();
    trans.Transform(ip, res);
    res -= x;
    Jac.MultTranspose(res, gradient);
@@ -219,15 +228,15 @@ double Surface<dim>::solveDistance(mfem::ElementTransformation &trans,
              << std::endl;
 #endif
 
-   // Loop over Newton iterations 
+   // Loop over Newton iterations
    const int max_iter = 30;
    const double tol = 1e-13;
    bool hit_boundary = false;
    for (int n = 0; n < max_iter; ++n)
    {
 #ifdef MFEM_DEBUG
-      std::cout << "\titeration " << n << ": optimality = "
-           << gradient.Norml2() << ": distance = " << res.Norml2() << std::endl;
+      std::cout << "\titeration " << n << ": optimality = " << gradient.Norml2()
+                << ": distance = " << res.Norml2() << std::endl;
 #endif
       // check for convergence
       if (gradient.Norml2() < tol)
@@ -239,14 +248,14 @@ double Surface<dim>::solveDistance(mfem::ElementTransformation &trans,
       const DenseMatrix &d2Fdx2 = trans.Hessian();
       d2Fdx2.MultTranspose(res, hess_vec);
       int idx = 0;
-      for (int i = 0; i < dim-1; ++i)
+      for (int i = 0; i < dim - 1; ++i)
       {
-         Hess(i,i) += hess_vec(idx);
+         Hess(i, i) += hess_vec(idx);
          ++idx;
-         for (int j = i+1; j < dim-1; ++j)
+         for (int j = i + 1; j < dim - 1; ++j)
          {
-            Hess(i,j) += hess_vec(idx);
-            Hess(j,i) += hess_vec(idx);
+            Hess(i, j) += hess_vec(idx);
+            Hess(j, i) += hess_vec(idx);
             ++idx;
          }
       }
@@ -259,41 +268,41 @@ double Surface<dim>::solveDistance(mfem::ElementTransformation &trans,
          throw MachException("LinearSolve failed in Surface::solveDistance!");
       }
 
-      // check that this is a descent direction; if not, use scaled negative 
+      // check that this is a descent direction; if not, use scaled negative
       // gradient
       if (InnerProduct(step, gradient) > 0.0)
       {
 #ifdef MFEM_DEBUG
          std::cout << "\tNewton step was not a descent direction; "
-              << "switching to steepest descent." << std::endl;
+                   << "switching to steepest descent." << std::endl;
 #endif
-         step.Set(-0.1/gradient.Norml2(), gradient);
+         step.Set(-0.1 / gradient.Norml2(), gradient);
       }
-      ip.Get(xi.GetData(), dim-1);
+      ip.Get(xi.GetData(), dim - 1);
       xi += step;
-      ip_new.Set(xi.GetData(), dim-1);
+      ip_new.Set(xi.GetData(), dim - 1);
       // check that point is not outside element geometry
       if (!Geometries.ProjectPoint(trans.GetGeometryType(), ip, ip_new))
       {
          // If we get here, ip_new was outside the element and had to be
          // projected to boundary
 #ifdef MFEM_DEBUG
-         std::cout << "\tNewton step was projected onto feasible space." 
+         std::cout << "\tNewton step was projected onto feasible space."
                    << std::endl;
 #endif
          if (hit_boundary)
          {
             return res.Norml2();
-            // if this happens twice, we should move to constrained 
+            // if this happens twice, we should move to constrained
             // optimization for 3D (ie. surface embedded in 3D)
             // solveConstrained();
          }
          hit_boundary = true;
       }
 
-      // prepare for the next iteration 
-      ip_new.Get(xi.GetData(), dim-1);
-      ip.Set(xi.GetData(), dim-1);
+      // prepare for the next iteration
+      ip_new.Get(xi.GetData(), dim - 1);
+      ip.Set(xi.GetData(), dim - 1);
       trans.SetIntPoint(&ip);
       trans.Jacobian();
       trans.Transform(ip, res);

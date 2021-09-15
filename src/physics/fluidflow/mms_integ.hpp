@@ -8,7 +8,6 @@
 
 namespace mach
 {
-
 /// Integrator for method-of-manufactured solution (MMS) sources
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 /// \note This probably does not need to be a nonlinear integrator, but this
@@ -22,10 +21,11 @@ public:
    /// \param[in] a - factor, usually used to move terms to rhs
    /// \note `num_state_vars` is not necessarily the same as the number of
    /// states used by, nor the number of fluxes returned by, `source`.
-   /// For example, there may be 5 states for the 2D RANS equations, but 
+   /// For example, there may be 5 states for the 2D RANS equations, but
    /// `source` may use only the first 4.
    MMSIntegrator(int num_state_vars = 1, double a = 1.0)
-      : num_states(num_state_vars), alpha(a) { }
+    : num_states(num_state_vars), alpha(a)
+   { }
 
    /// Get the contribution of this element to a functional
    /// \param[in] el - the finite element whose contribution we want
@@ -33,7 +33,10 @@ public:
    /// \param[in] elfun - element local state function
    virtual double GetElementEnergy(const mfem::FiniteElement &el,
                                    mfem::ElementTransformation &trans,
-                                   const mfem::Vector &elfun) { return 0.0; }
+                                   const mfem::Vector &elfun)
+   {
+      return 0.0;
+   }
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -73,12 +76,12 @@ protected:
    /// \note This uses the CRTP, so it wraps a call to `calcSource` in Derived.
    void source(const mfem::Vector &x, mfem::Vector &src)
    {
-      static_cast<Derived*>(this)->calcSource(x, src);
+      static_cast<Derived *>(this)->calcSource(x, src);
    }
 };
 
 #include "mms_integ_def.hpp"
 
-} // namespace mach
+}  // namespace mach
 
 #endif

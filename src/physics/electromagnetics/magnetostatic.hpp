@@ -4,7 +4,7 @@
 #include <mpi.h>
 
 #include "mfem.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 
 #include "solver.hpp"
 #include "coefficient.hpp"
