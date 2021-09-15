@@ -92,6 +92,16 @@ set_target_properties(tinysplinecxx
       POSITION_INDEPENDENT_CODE ON
 )
 
+FetchContent_Declare(json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.10.2)
+
+FetchContent_GetProperties(json)
+if(NOT json_POPULATED)
+  FetchContent_Populate(json)
+  add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
 
@@ -109,6 +119,7 @@ target_link_libraries(mach
       "${MFEM_LIBRARIES}"
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
       tinysplinecxx
+      nlohmann_json::nlohmann_json
 )
 
 target_include_directories(mach

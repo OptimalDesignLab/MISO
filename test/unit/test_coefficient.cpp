@@ -2,7 +2,7 @@
 
 #include "catch.hpp"
 #include "mfem.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
 #include "material_library.hpp"

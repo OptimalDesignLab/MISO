@@ -7,7 +7,7 @@
 #include <iostream>
 
 #include "mfem.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "pybind11_json.hpp"
 
 #include "mpi4py_comm.hpp"

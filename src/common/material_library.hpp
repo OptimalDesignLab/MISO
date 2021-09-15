@@ -1,7 +1,7 @@
 #ifndef MACH_MATERIAL_LIBRARY
 #define MACH_MATERIAL_LIBRARY
 
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 
 namespace mach
 {
