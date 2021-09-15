@@ -48,7 +48,7 @@ void calcEntropyVars(const xdouble *q, xdouble *w)
    {
       u[i] = q[i + 1] / q[0];
    }
-   xdouble p = pressure<xdouble, dim>(q);
+   auto p = pressure<xdouble, dim>(q);
    xdouble s = log(p / pow(q[0], euler::gamma));
    xdouble fac = 1.0 / p;
    w[0] = (euler::gamma - s) / euler::gami -
@@ -95,7 +95,7 @@ inline xdouble entropy(const xdouble *q)
 {
    if (entvar)
    {
-      double Vel2 = dot<xdouble, dim>(q + 1, q + 1);  // Vel2*rho^2/p^2
+      auto Vel2 = dot<xdouble, dim>(q + 1, q + 1);  // Vel2*rho^2/p^2
       double s =
           -euler::gamma + euler::gami * (q[0] - 0.5 * Vel2 / q[dim + 1]);  // -s
       double rho = pow(-exp(s) / q[dim + 1], 1.0 / euler::gami);
@@ -117,8 +117,8 @@ inline xdouble entropy(const xdouble *q)
 template <typename xdouble, int dim>
 void calcEulerFlux(const xdouble *dir, const xdouble *q, xdouble *flux)
 {
-   xdouble press = pressure<xdouble, dim>(q);
-   xdouble U = dot<xdouble, dim>(q + 1, dir);
+   auto press = pressure<xdouble, dim>(q);
+   auto U = dot<xdouble, dim>(q + 1, dir);
    flux[0] = U;
    U /= q[0];
    for (int i = 0; i < dim; ++i)
@@ -252,8 +252,8 @@ void calcIsmailRoeFlux(int di,
                        const xdouble *qR,
                        xdouble *flux)
 {
-   xdouble pL = pressure<xdouble, dim>(qL);
-   xdouble pR = pressure<xdouble, dim>(qR);
+   auto pL = pressure<xdouble, dim>(qL);
+   auto pR = pressure<xdouble, dim>(qR);
    xdouble zL[dim + 2];
    xdouble zR[dim + 2];
    zL[0] = sqrt(qL[0] / pL);
@@ -475,7 +475,7 @@ xdouble calcSpectralRadius(const xdouble *dir, const xdouble *u)
          q[i] = u[i];
       }
    }
-   xdouble press = pressure<xdouble, dim>(q);
+   auto press = pressure<xdouble, dim>(q);
    xdouble sndsp = sqrt(euler::gamma * press / q[0]);
    // U = u*dir[0] + v*dir[1] + ...
    xdouble U = dot<xdouble, dim>(q + 1, dir) / q[0];
@@ -488,7 +488,7 @@ xdouble calcSpectralRadius(const xdouble *dir, const xdouble *u)
 template <typename xdouble, int dim>
 void calcdQdWProduct(const xdouble *q, const xdouble *vec, xdouble *dqdw_vec)
 {
-   xdouble p = pressure<xdouble, dim>(q);
+   auto p = pressure<xdouble, dim>(q);
    xdouble rho_inv = 1.0 / q[0];
    xdouble h = (q[dim + 1] + p) * rho_inv;   // scaled version of h
    xdouble a2 = euler::gamma * p * rho_inv;  // square of speed of sound
@@ -794,7 +794,7 @@ void calcSlipWallFlux(const xdouble *x,
    xdouble press;
    if (entvar)
    {
-      xdouble Vel2 = dot<xdouble, dim>(q + 1, q + 1);
+      auto Vel2 = dot<xdouble, dim>(q + 1, q + 1);
       xdouble s = euler::gamma + euler::gami * (0.5 * Vel2 / q[dim + 1] - q[0]);
       press = -pow(-exp(-s) / q[dim + 1], 1.0 / euler::gami) / q[dim + 1];
    }
@@ -895,8 +895,8 @@ void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir,
                                    const xdouble *qR,
                                    xdouble *flux)
 {
-   xdouble pL = pressure<xdouble, dim>(qL);
-   xdouble pR = pressure<xdouble, dim>(qR);
+   auto pL = pressure<xdouble, dim>(qL);
+   auto pR = pressure<xdouble, dim>(qR);
    xdouble zL[dim + 2];
    xdouble zR[dim + 2];
    zL[0] = sqrt(qL[0] / pL);
@@ -937,7 +937,9 @@ void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir,
 
    // add the dissipation
    xdouble q_ave[dim + 2];
-   xdouble wL[dim + 2], wR[dim + 2], w_diff[dim + 2];
+   xdouble wL[dim + 2];
+   xdouble wR[dim + 2];
+   xdouble w_diff[dim + 2];
    xdouble dqdw_vec[dim + 2];
    calcEntropyVars<xdouble, dim>(qL, wL);  // first convert to entropy vars
    calcEntropyVars<xdouble, dim>(qR, wR);
@@ -1015,7 +1017,9 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    flux[dim + 1] = rho_hat * h_hat * U;
 
    // add the dissipation
-   xdouble qL[dim + 2], qR[dim + 2], q_ave[dim + 2];
+   xdouble qL[dim + 2];
+   xdouble qR[dim + 2];
+   xdouble q_ave[dim + 2];
    xdouble w_diff[dim + 2];
    xdouble dqdw_vec[dim + 2];
    calcConservativeVars<xdouble, dim>(wL, qL);

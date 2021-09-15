@@ -22,7 +22,7 @@ public:
    /// \param[out] elmat - the element mass matrix
    void AssembleElementMatrix(const mfem::FiniteElement &el,
                               mfem::ElementTransformation &Trans,
-                              mfem::DenseMatrix &elmat);
+                              mfem::DenseMatrix &elmat) override;
 
 private:
    /// number of state variables; helps determine the dimensions of mass matrix

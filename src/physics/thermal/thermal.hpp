@@ -33,8 +33,6 @@ public:
 
    void initDerived() override;
 
-   ~ThermalSolver();
-
    /// Set the Magnetic Vector Potential
    void setAField(GridFunType *_a_field) { a_field = _a_field; }
 
@@ -192,7 +190,7 @@ private:
    // mutable mfem::Vector z;
 
    friend SolverPtr createSolver<ThermalSolver>(
-       const nlohmann::json &opt_file_name,
+       const nlohmann::json &json_options,
        std::unique_ptr<mfem::Mesh> smesh,
        MPI_Comm comm);
 };
@@ -208,11 +206,9 @@ public:
                   double start_time,
                   mfem::VectorCoefficient *flux_coeff);
 
-   ~ThermalEvolver();
-
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
-   void ImplicitSolve(const double dt,
+   void ImplicitSolve(double dt,
                       const mfem::Vector &x,
                       mfem::Vector &k) override;
 

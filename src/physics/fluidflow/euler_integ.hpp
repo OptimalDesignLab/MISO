@@ -83,9 +83,9 @@ public:
    /// \param[in] el - the finite element whose contribution we want
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
-   virtual double GetElementEnergy(const mfem::FiniteElement &el,
-                                   mfem::ElementTransformation &trans,
-                                   const mfem::Vector &elfun) override;
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
 
    /// Ismail-Roe two-point (dyadic) entropy conservative flux function
    /// \param[in] di - physical coordinate direction in which flux is wanted
@@ -137,9 +137,9 @@ public:
    /// \param[in] el - the finite element whose contribution we want
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
-   virtual double GetElementEnergy(const mfem::FiniteElement &el,
-                                   mfem::ElementTransformation &trans,
-                                   const mfem::Vector &elfun) override;
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
 
    /// converts state variables to entropy variables, if necessary
    /// \param[in] q - state variables that are to be converted
@@ -368,7 +368,7 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    FarFieldBC(adept::Stack &diff_stack,
               const mfem::FiniteElementCollection *fe_coll,
-              const mfem::Vector q_far,
+              const mfem::Vector &q_far,
               double a = 1.0)
     : InviscidBoundaryIntegrator<FarFieldBC<dim, entvar>>(diff_stack,
                                                           fe_coll,

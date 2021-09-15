@@ -26,7 +26,7 @@ public:
    friend inline double vectorJacobianProduct(
        MagneticLoad &load,
        const mfem::HypreParVector &load_bar,
-       std::string wrt)
+       const std::string &wrt)
    {
       return vectorJacobianProduct(load.lf, load_bar, wrt);
    }
@@ -34,7 +34,7 @@ public:
    friend inline void vectorJacobianProduct(
        MagneticLoad &load,
        const mfem::HypreParVector &load_bar,
-       std::string wrt,
+       const std::string &wrt,
        mfem::HypreParVector &wrt_bar)
    {
       vectorJacobianProduct(load.lf, load_bar, wrt, wrt_bar);

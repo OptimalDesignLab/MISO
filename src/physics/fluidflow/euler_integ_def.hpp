@@ -51,7 +51,9 @@ double IsmailRoeIntegrator<dim, entvar>::GetElementEnergy(
 {
    int num_states = this->num_states;
    int num_nodes = el.GetDof();
-   mfem::Vector u_i(num_states), w_i(num_states), res_i(num_states);
+   mfem::Vector u_i(num_states);
+   mfem::Vector w_i(num_states);
+   mfem::Vector res_i(num_states);
    mfem::Vector elres;
    this->AssembleElementVector(el, trans, elfun, elres);
    mfem::DenseMatrix u(elfun.GetData(), num_nodes, num_states);
@@ -143,7 +145,9 @@ double EntStableLPSIntegrator<dim, entvar>::GetElementEnergy(
 {
    int num_states = this->num_states;
    int num_nodes = el.GetDof();
-   mfem::Vector u_i(num_states), w_i(num_states), res_i(num_states);
+   mfem::Vector u_i(num_states);
+   mfem::Vector w_i(num_states);
+   mfem::Vector res_i(num_states);
    mfem::Vector elres;
    this->AssembleElementVector(el, trans, elfun, elres);
    mfem::DenseMatrix u(elfun.GetData(), num_nodes, num_states);
@@ -663,7 +667,8 @@ double InterfaceIntegrator<dim, entvar>::calcIFaceFun(const mfem::Vector &dir,
 {
    mfem::Vector flux(qL.Size());
    calcFlux(dir, qL, qR, flux);
-   mfem::Vector wL(qL.Size()), wR(qR.Size());
+   mfem::Vector wL(qL.Size());
+   mfem::Vector wR(qR.Size());
    if (entvar)
    {
       wL = qL;

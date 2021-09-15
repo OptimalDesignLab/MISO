@@ -21,19 +21,19 @@ namespace mach
 class StateCoefficient : public mfem::Coefficient
 {
 public:
-   virtual double Eval(mfem::ElementTransformation &trans,
-                       const mfem::IntegrationPoint &ip)
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override
    {
       return Eval(trans, ip, 0);
    }
 
    virtual double Eval(mfem::ElementTransformation &trans,
                        const mfem::IntegrationPoint &ip,
-                       const double state) = 0;
+                       double state) = 0;
 
    virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
                                  const mfem::IntegrationPoint &ip,
-                                 const double state) = 0;
+                                 double state) = 0;
 
    virtual double EvalState2ndDeriv(mfem::ElementTransformation &trans,
                                     const mfem::IntegrationPoint &ip,
@@ -53,11 +53,11 @@ public:
 
    double Eval(mfem::ElementTransformation &trans,
                const mfem::IntegrationPoint &ip,
-               const double state) override;
+               double state) override;
 
    double EvalStateDeriv(mfem::ElementTransformation &trans,
                          const mfem::IntegrationPoint &ip,
-                         const double state) override;
+                         double state) override;
 
    inline static void setLambda(double _lambda)
    {
@@ -83,7 +83,7 @@ public:
    /// \param [in] dflt - default coefficient to evaluate if element attribute
    ///						  is not found in the map. If not set, will default
    ///						  to zero
-   MeshDependentCoefficient(std::unique_ptr<mfem::Coefficient> dflt = NULL)
+   MeshDependentCoefficient(std::unique_ptr<mfem::Coefficient> dflt = nullptr)
     : default_coeff(move(dflt))
    { }
 
@@ -112,8 +112,8 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-   virtual double Eval(mfem::ElementTransformation &trans,
-                       const mfem::IntegrationPoint &ip);
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
 
    /// \brief Search the map of coefficients and evaluate the one whose key is
    /// 		  the same as the element's `Attribute` at the point defined by
@@ -125,9 +125,9 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-   virtual double Eval(mfem::ElementTransformation &trans,
-                       const mfem::IntegrationPoint &ip,
-                       const double state);
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               double state) override;
 
    /// TODO - implement expression SFINAE when iterating over map
    /// TODO - Consider different model for coefficient's dependent upon multiple
@@ -142,9 +142,9 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-   virtual double EvalStateDeriv(mfem::ElementTransformation &trans,
-                                 const mfem::IntegrationPoint &ip,
-                                 const double state);
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         double state) override;
 
    /// \brief Search the map of coefficients and evaluate the one whose key is
    ///        the same as the element's `Attribute` at the point defined by
@@ -157,10 +157,10 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-   virtual void EvalRevDiff(const double Q_bar,
-                            mfem::ElementTransformation &trans,
-                            const mfem::IntegrationPoint &ip,
-                            mfem::DenseMatrix &PointMat_bar);
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override;
 
 protected:
    // /// \brief Method to be called if a coefficient matching the element's
@@ -371,7 +371,7 @@ public:
    /// achieved by calling trans.SetIntPoint(&ip).
    double Eval(mfem::ElementTransformation &trans,
                const mfem::IntegrationPoint &ip,
-               const double state) override;
+               double state) override;
 
    /// \brief Evaluate the derivative of reluctivity with respsect to magnetic
    /// flux in the element described by trans at the point ip.
@@ -380,7 +380,7 @@ public:
    /// achieved by calling trans.SetIntPoint(&ip).
    double EvalStateDeriv(mfem::ElementTransformation &trans,
                          const mfem::IntegrationPoint &ip,
-                         const double state) override;
+                         double state) override;
 
 protected:
    /// max B value in the data
@@ -408,7 +408,7 @@ public:
    /// achieved by calling trans.SetIntPoint(&ip).
    double Eval(mfem::ElementTransformation &trans,
                const mfem::IntegrationPoint &ip,
-               const double state) override;
+               double state) override;
 
    /// \brief Evaluate the derivative of reluctivity with respsect to magnetic
    /// flux in the element described by trans at the point ip.
@@ -417,7 +417,7 @@ public:
    /// achieved by calling trans.SetIntPoint(&ip).
    double EvalStateDeriv(mfem::ElementTransformation &trans,
                          const mfem::IntegrationPoint &ip,
-                         const double state) override;
+                         double state) override;
 };
 
 class VectorMeshDependentCoefficient : public mfem::VectorCoefficient
@@ -425,7 +425,7 @@ class VectorMeshDependentCoefficient : public mfem::VectorCoefficient
 public:
    VectorMeshDependentCoefficient(
        const int dim = 3,
-       std::unique_ptr<mfem::VectorCoefficient> dflt = NULL)
+       std::unique_ptr<mfem::VectorCoefficient> dflt = nullptr)
     : VectorCoefficient(dim), default_coeff(move(dflt))
    { }
 
@@ -457,7 +457,7 @@ public:
    /// achieved by calling trans.SetIntPoint(&ip).
    void Eval(mfem::Vector &vec,
              mfem::ElementTransformation &trans,
-             const mfem::IntegrationPoint &ip);
+             const mfem::IntegrationPoint &ip) override;
 
    /// \brief Search the map of coefficients and evaluate the one whose key is
    ///        the same as the element's `Attribute` at the point defined by
@@ -470,10 +470,10 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-   virtual void EvalRevDiff(const mfem::Vector &V_bar,
-                            mfem::ElementTransformation &trans,
-                            const mfem::IntegrationPoint &ip,
-                            mfem::DenseMatrix &PointMat_bar);
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override;
 
    // /// TODO - implement expression SFINAE when iterating over map
    // /// TODO - Consider different model for coefficient's dependent upon
@@ -525,7 +525,7 @@ public:
                const mfem::IntegrationPoint &ip) override;
 
    /// Evaluate the derivative of the Steinmetz coefficient with respect to x
-   void EvalRevDiff(const double Q_bar,
+   void EvalRevDiff(double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
                     mfem::DenseMatrix &PointMat_bar) override;
@@ -584,13 +584,13 @@ public:
    ElementFunctionCoefficient(double (*f)(const mfem::Vector &, int))
    {
       Function = f;
-      TDFunction = NULL;
+      TDFunction = nullptr;
    }
 
    // Time Dependent Version
    ElementFunctionCoefficient(double (*tdf)(const mfem::Vector &, int, double))
    {
-      Function = NULL;
+      Function = nullptr;
       TDFunction = tdf;
    }
 
@@ -602,8 +602,8 @@ public:
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
-   virtual double Eval(mfem::ElementTransformation &trans,
-                       const mfem::IntegrationPoint &ip);
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
 
 protected:
    double (*Function)(const mfem::Vector &, int);

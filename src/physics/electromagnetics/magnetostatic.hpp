@@ -61,7 +61,7 @@ public:
    MagnetostaticSolver(const nlohmann::json &options,
                        std::unique_ptr<mfem::Mesh> smesh);
 
-   ~MagnetostaticSolver();
+   // ~MagnetostaticSolver() override;
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -94,15 +94,15 @@ public:
    /// Initializes the state vector to a given vector.
    /// \param[in] state - the state vector to initialize
    /// \param[in] u_init - const vector that defines the initial condition
-   virtual void setInitialCondition(mfem::ParGridFunction &state,
-                                    const mfem::Vector &u_init) override;
+   void setInitialCondition(mfem::ParGridFunction &state,
+                            const mfem::Vector &u_init) override;
 
    /// Initializes the state vector to a given function.
    /// \param[in] state - the state vector to initialize
    /// \param[in] u_init - function that defines the initial condition
    /// \note The second argument in the function `u_init` is the initial
    /// condition value.  This may be a vector of length 1 for scalar.
-   virtual void setInitialCondition(
+   void setInitialCondition(
        mfem::ParGridFunction &state,
        const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
        override;
@@ -462,7 +462,7 @@ private:
    static void b_exact(const mfem::Vector &x, mfem::Vector &B);
 
    friend SolverPtr createSolver<MagnetostaticSolver>(
-       const nlohmann::json &opt_file_name,
+       const nlohmann::json &json_options,
        std::unique_ptr<mfem::Mesh> smesh,
        MPI_Comm comm);
 };

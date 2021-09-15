@@ -20,7 +20,7 @@ public:
    // compute the Nedelec DoFs of the divergence free portion, 'y', of
    // this vector field.  The resulting GridFunction will satisfy Div y = 0
    // in a weak sense.
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
    /// \brief Reverse-mode differentiation of DivergenceFreeProjector::Mult
    /// \param[in] x - GridFunction 'x' that would be input to Mult

@@ -70,6 +70,11 @@ public:
    /// using virtual functions
    virtual void initDerived();
 
+   /// explicitly prohibit copy/move construction
+   AbstractSolver(const AbstractSolver &) = delete;
+   AbstractSolver &operator=(const AbstractSolver &) = delete;
+   AbstractSolver(AbstractSolver &&) = delete;
+   AbstractSolver &operator=(AbstractSolver &&) = delete;
    /// class destructor
    virtual ~AbstractSolver();
 
@@ -146,7 +151,7 @@ public:
    /// \param[in] state - the state vector to initialize
    /// \param[in] u_init - value that defines the initial condition
    virtual void setInitialCondition(mfem::ParGridFunction &state,
-                                    const double u_init);
+                                    double u_init);
 
    /// Initializes the state variable to a given constant vector
    /// \param[in] state - the state vector to initialize
@@ -157,12 +162,12 @@ public:
    /// Initializes the field to a given constant
    /// \param[in] field - the field to set
    /// \param[in] u_init - constant to set the field to
-   virtual void setFieldValue(mfem::HypreParVector &field, const double u_init);
+   virtual void setFieldValue(mfem::HypreParVector &field, double u_init);
 
    /// Initializes the field to a given constant
    /// \param[in] field_buffer - the field to set
    /// \param[in] u_init - constant to set the field to
-   virtual void setFieldValue(double *field_buffer, const double u_init);
+   virtual void setFieldValue(double *field_buffer, double u_init);
 
    /// Initializes the field to a given scalar function
    /// \param[in] field - the field to set
@@ -596,7 +601,7 @@ public:
 
    inline int getMeshSize() { return mesh->GetNodes()->FESpace()->GetVSize(); }
    inline int getStateSize() { return fes->GetVSize(); }
-   inline int getFieldSize(std::string field)
+   inline int getFieldSize(const std::string &field)
    {
       return res_fields.at(field).ParFESpace()->GetTrueVSize();
    }
@@ -957,21 +962,6 @@ protected:
    double calcFractionalOutput(const mfem::ParGridFunction &state,
                                const std::string &fun);
 
-   /// Add integrators to the linear form representing the product
-   /// seed^T \frac{\partial R}{\partial field} for a particular field
-   /// \param[in] name - name of the field for the integrators
-   /// \param[in] seed - the field to contract with (usually the adjoint)
-   virtual void addResFieldSensIntegrators(std::string field,
-                                           mfem::ParGridFunction &seed)
-   { }
-
-   /// Add integrators to the linear form representing the vector
-   /// \frac{\partial J}{\partial field} for a particular field
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] name - name of the field for the integrators
-   virtual void addFuncFieldSensIntegrators(std::string fun, std::string field)
-   { }
-
    /// Iterates through each input and calls `setInput` for each
    /// \param[in] integrators - list of integrators to set scalar inputs for
    /// \param[in] inputs - collection of named field or scalar inputs
@@ -1076,10 +1066,6 @@ protected:
    }
 
 private:
-   /// explicitly prohibit copy construction
-   AbstractSolver(const AbstractSolver &) = delete;
-   AbstractSolver &operator=(const AbstractSolver &) = delete;
-
    /// Used to do the bulk of the initialization shared between constructors
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem

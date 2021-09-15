@@ -39,9 +39,9 @@ public:
    /// \param[in] el - the finite element whose stiffness matrix we want
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[out] elmat - the desired element stiffness matrix
-   virtual void AssembleElementMatrix(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
-                                      mfem::DenseMatrix &elmat);
+   void AssembleElementMatrix(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &Trans,
+                              mfem::DenseMatrix &elmat) override;
 
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -82,9 +82,9 @@ public:
    /// \param[in] el - the finite element whose stabilization matrix we want
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[out] elmat - the desired element stabilization matrix
-   virtual void AssembleElementMatrix(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
-                                      mfem::DenseMatrix &elmat);
+   void AssembleElementMatrix(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &Trans,
+                              mfem::DenseMatrix &elmat) override;
 
 private:
 #ifndef MFEM_THREAD_SAFE
@@ -142,7 +142,7 @@ protected:
    virtual void addInterfaceIntegrators(double alpha) { }
 
    /// Return the number of state variables
-   virtual int getNumState() { return 1; }
+   int getNumState() override { return 1; }
 };
 
 }  // namespace mach

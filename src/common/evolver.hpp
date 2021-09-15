@@ -44,8 +44,8 @@ public:
    /// \param[in] x - baseline state
    /// \param[out] k - the desired slope
    /// \note This may need to be generalized further
-   virtual void ImplicitSolve(const double dt_stage,
-                              const double dt,
+   virtual void ImplicitSolve(double dt_stage,
+                              double dt,
                               const mfem::Vector &x,
                               mfem::Vector &k) = 0;
 };
@@ -88,7 +88,7 @@ public:
    /// Solve the implicit equation: k = f(x + dt k, t), for the unknown k at
    /// the current time t.
    /// Currently implemented for the implicit midpoit method
-   void ImplicitSolve(const double dt,
+   void ImplicitSolve(double dt,
                       const mfem::Vector &x,
                       mfem::Vector &k) override;
 
@@ -98,8 +98,8 @@ public:
    /// \param[in] x - baseline state
    /// \param[out] k - the desired slope
    /// \note This may need to be generalized further
-   void ImplicitSolve(const double dt_stage,
-                      const double dt,
+   void ImplicitSolve(double dt_stage,
+                      double dt,
                       const mfem::Vector &x,
                       mfem::Vector &k) override;
 
@@ -132,7 +132,13 @@ public:
                         const mfem::Vector &x,
                         const mfem::Vector &k) override;
 
-   virtual ~MachEvolver();
+   /// explicitly prohibit copy/move construction
+   MachEvolver(const MachEvolver &) = delete;
+   MachEvolver &operator=(const MachEvolver &) = delete;
+   MachEvolver(MachEvolver &&) = delete;
+   MachEvolver &operator=(MachEvolver &&) = delete;
+
+   ~MachEvolver() override;
 
 protected:
    /// pointer to nonlinear mass bilinear form (not owned)

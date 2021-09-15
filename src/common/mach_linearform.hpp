@@ -76,7 +76,10 @@ public:
        std::unordered_map<std::string, mfem::ParGridFunction> &fields)
     : lf(&pfes), scratch(&pfes), lf_fields(fields)
    {
-      if (lf_fields.count("adjoint") == 0) lf_fields.emplace("adjoint", &pfes);
+      if (lf_fields.count("adjoint") == 0)
+      {
+         lf_fields.emplace("adjoint", &pfes);
+      }
    }
 
 private:

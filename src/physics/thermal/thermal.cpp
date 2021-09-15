@@ -44,8 +44,6 @@ ThermalSolver::ThermalSolver(const nlohmann::json &options,
 
 void ThermalSolver::initDerived() { AbstractSolver::initDerived(); }
 
-ThermalSolver::~ThermalSolver() = default;
-
 std::vector<GridFunType *> ThermalSolver::getFields() { return {u.get()}; }
 
 /// Commenting out for now, will update when I get around to using the thermal
@@ -782,8 +780,6 @@ ThermalEvolver::ThermalEvolver(Array<int> ess_bdr,
                start_time),
    flux_coeff(_flux_coeff)
 { }
-
-ThermalEvolver::~ThermalEvolver() = default;
 
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {

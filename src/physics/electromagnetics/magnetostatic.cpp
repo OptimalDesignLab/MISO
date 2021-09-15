@@ -501,7 +501,7 @@ MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json &json_options,
    B = &res_fields.at("B");
 }
 
-MagnetostaticSolver::~MagnetostaticSolver() = default;
+// MagnetostaticSolver::~MagnetostaticSolver() = default;
 
 void MagnetostaticSolver::printSolution(const std::string &file_name,
                                         int refine)

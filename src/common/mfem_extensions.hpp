@@ -9,13 +9,11 @@ namespace mach
 class PseudoTransientSolver : public mfem::ODESolver
 {
 public:
-   PseudoTransientSolver(std::ostream *out_stream)
-    : mfem::ODESolver(), out(out_stream)
-   { }
+   PseudoTransientSolver(std::ostream *out_stream) : out(out_stream) { }
 
-   virtual void Init(mfem::TimeDependentOperator &_f);
+   void Init(mfem::TimeDependentOperator &_f) override;
 
-   virtual void Step(mfem::Vector &x, double &t, double &dt);
+   void Step(mfem::Vector &x, double &t, double &dt) override;
 
 protected:
    mfem::Vector k;
@@ -26,13 +24,11 @@ protected:
 class RRKImplicitMidpointSolver : public mfem::ODESolver
 {
 public:
-   RRKImplicitMidpointSolver(std::ostream *out_stream)
-    : mfem::ODESolver(), out(out_stream)
-   { }
+   RRKImplicitMidpointSolver(std::ostream *out_stream) : out(out_stream) { }
 
-   virtual void Init(mfem::TimeDependentOperator &_f);
+   void Init(mfem::TimeDependentOperator &_f) override;
 
-   virtual void Step(mfem::Vector &x, double &t, double &dt);
+   void Step(mfem::Vector &x, double &t, double &dt) override;
 
 protected:
    mfem::Vector k;

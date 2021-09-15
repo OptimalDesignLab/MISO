@@ -6,7 +6,7 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -87,7 +87,7 @@ void SymmetricViscousIntegrator<Derived>::AssembleElementGrad(
 {
    using namespace mfem;
    using namespace std;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -212,7 +212,7 @@ double ViscousBoundaryIntegrator<Derived>::GetFaceEnergy(
     const mfem::Vector &elfun)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
    const int num_nodes = sbp.GetDof();
    const int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -229,7 +229,7 @@ double ViscousBoundaryIntegrator<Derived>::GetFaceEnergy(
    Dwi.SetSize(num_states, dim);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -297,7 +297,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
    const int num_nodes = el_bnd.GetDof();
    const int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -320,7 +320,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -416,7 +416,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
     mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
    const int num_nodes = el_bnd.GetDof();
    const int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -444,7 +444,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
    elmat.SetSize(num_states * num_nodes);
    elmat = 0.0;
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:

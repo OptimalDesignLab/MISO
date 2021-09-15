@@ -13,9 +13,7 @@ namespace mach
 /// (num_nodes-1)th Legendre polynomial.
 /// \see C. Canuto, M. Y. Hussaini, A. Quarteroni, T. A. Tang, "Spectral
 /// Methods in Fluid Dynamics," Section 2.3. Springer-Verlag 1987.
-void getLobattoQuadrature(const int num_nodes,
-                          mfem::Vector &x,
-                          mfem::Vector &w);
+void getLobattoQuadrature(int num_nodes, mfem::Vector &x, mfem::Vector &w);
 
 /// Evaluate a Jacobi polynomial at some points.
 /// \param[in] x - points at which to evaluate polynomial
@@ -25,9 +23,9 @@ void getLobattoQuadrature(const int num_nodes,
 ///
 /// Based on JacobiP in Hesthaven and Warburton's nodal DG book.
 void jacobiPoly(const mfem::Vector &x,
-                const double alpha,
-                const double beta,
-                const int degree,
+                double alpha,
+                double beta,
+                int degree,
                 mfem::Vector &poly);
 
 /// Evaluate Proriol orthogonal polynomial basis on right triangle.
@@ -39,8 +37,8 @@ void jacobiPoly(const mfem::Vector &x,
 /// \warning the reference triangle is (-1,-1), (1,-1), (-1,1) here.
 void prorioPoly(const mfem::Vector &x,
                 const mfem::Vector &y,
-                const int i,
-                const int j,
+                int i,
+                int j,
                 mfem::Vector &poly);
 
 /// Constructs the Vandermonde matrix for the segment reference domain
@@ -51,7 +49,7 @@ void prorioPoly(const mfem::Vector &x,
 /// want to use this on `mfem`'s reference triangle, you need to adjust `x` and
 /// scale `V` by sqrt(2) afterward.
 void getVandermondeForSeg(const mfem::Vector &x,
-                          const int degree,
+                          int degree,
                           mfem::DenseMatrix &V);
 
 /// Constructs the Vandermonde matrix for the triangle reference domain
@@ -63,7 +61,7 @@ void getVandermondeForSeg(const mfem::Vector &x,
 /// `y`, and scale `V` by 2.0 afterward.
 void getVandermondeForTri(const mfem::Vector &x,
                           const mfem::Vector &y,
-                          const int degree,
+                          int degree,
                           mfem::DenseMatrix &V);
 
 }  // namespace mach

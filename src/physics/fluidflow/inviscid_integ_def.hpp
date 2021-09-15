@@ -5,7 +5,7 @@ double InviscidIntegrator<Derived>::GetElementEnergy(
     const mfem::Vector &elfun)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();  // not used at present
 #ifdef MFEM_THREAD_SAFE
@@ -36,7 +36,7 @@ void InviscidIntegrator<Derived>::AssembleElementVector(
 {
    using namespace mfem;
    // This should be in a try/catch, but that creates other issues
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -82,7 +82,7 @@ void InviscidIntegrator<Derived>::AssembleElementGrad(
 {
    using namespace mfem;
    // This should be in a try/catch, but that creates other issues
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -134,7 +134,7 @@ void DyadicFluxIntegrator<Derived>::AssembleElementVector(
 {
    using namespace mfem;
    // This should be in a try/catch, but that creates other issues
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -186,7 +186,7 @@ void DyadicFluxIntegrator<Derived>::AssembleElementGrad(
 {
    using namespace mfem;
    // This should be in a try/catch, but that creates other issues
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -247,7 +247,7 @@ void LPSIntegrator<Derived>::AssembleElementVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -259,7 +259,8 @@ void LPSIntegrator<Derived>::AssembleElementVector(
    adjJt.SetSize(dim);
    w.SetSize(num_states, num_nodes);
    Pw.SetSize(num_states, num_nodes);
-   Vector wi, Pwi;
+   Vector wi;
+   Vector Pwi;
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
@@ -301,14 +302,15 @@ void LPSIntegrator<Derived>::AssembleElementGrad(
     mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
    int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector ui;
    DenseMatrix adjJt, w, Pw, jac_term, jac_node, Lij;
 #endif
-   Vector wi, Pwi;
+   Vector wi;
+   Vector Pwi;
    elmat.SetSize(num_states * num_nodes);
    elmat = 0.0;
    ui.SetSize(num_states);
@@ -408,7 +410,7 @@ double InviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
     const mfem::Vector &elfun)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
    const int num_nodes = el_bnd.GetDof();
    const int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -420,7 +422,7 @@ double InviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
    double fun = 0.0;  // initialize the functional value
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -460,7 +462,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
    const int num_nodes = el_bnd.GetDof();
    const int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -476,7 +478,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -522,7 +524,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
     mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
    const int num_nodes = el_bnd.GetDof();
    const int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -540,7 +542,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
 
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -593,8 +595,7 @@ double InviscidFaceIntegrator<Derived>::GetFaceEnergy(
     const mfem::Vector &elfun)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp =
-       dynamic_cast<const SBPFiniteElement &>(el_left);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_left);
    const int num_nodes_left = el_left.GetDof();
    const int num_nodes_right = el_right.GetDof();
    const int dim = sbp.GetDim();
@@ -609,7 +610,7 @@ double InviscidFaceIntegrator<Derived>::GetFaceEnergy(
                        num_nodes_right,
                        num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -623,7 +624,8 @@ double InviscidFaceIntegrator<Derived>::GetFaceEnergy(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
-   IntegrationPoint ip_left, ip_right;
+   IntegrationPoint ip_left;
+   IntegrationPoint ip_right;
    double fun = 0.0;
    for (int i = 0; i < sbp_face->GetDof(); ++i)
    {
@@ -654,8 +656,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp =
-       dynamic_cast<const SBPFiniteElement &>(el_left);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_left);
    const int num_nodes_left = el_left.GetDof();
    const int num_nodes_right = el_right.GetDof();
    const int dim = sbp.GetDim();
@@ -678,7 +679,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
                          num_nodes_right,
                          num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -692,7 +693,8 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
-   IntegrationPoint ip_left, ip_right;
+   IntegrationPoint ip_left;
+   IntegrationPoint ip_right;
    for (int i = 0; i < sbp_face->GetDof(); ++i)
    {
       const IntegrationPoint &ip_face = sbp_face->GetNodes().IntPoint(i);
@@ -728,8 +730,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
     mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp =
-       dynamic_cast<const SBPFiniteElement &>(el_left);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_left);
    const int num_nodes_left = el_left.GetDof();
    const int num_nodes_right = el_right.GetDof();
    const int num_rows = num_states * (num_nodes_left + num_nodes_right);
@@ -750,7 +751,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
    DenseMatrix u_right(elfun.GetData() + num_nodes_left * num_states,
                        num_nodes_right,
                        num_states);
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -764,7 +765,8 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
-   IntegrationPoint ip_left, ip_right;
+   IntegrationPoint ip_left;
+   IntegrationPoint ip_right;
    for (int i = 0; i < sbp_face->GetDof(); ++i)
    {
       const IntegrationPoint &ip_face = sbp_face->GetNodes().IntPoint(i);
@@ -815,7 +817,7 @@ void NonlinearMassIntegrator<Derived>::AssembleElementVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
    // int dim = sbp.GetDim();
@@ -851,7 +853,7 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
     mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
    // int dim = sbp.GetDim();

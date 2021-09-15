@@ -6,8 +6,8 @@ void MMSIntegrator<Derived>::AssembleElementVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
-   const IntegrationRule &ir = sbp.GetNodes();
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
    // int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
@@ -40,8 +40,8 @@ void MMSIntegrator<Derived>::AssembleElementGrad(
     mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
-   const IntegrationRule &ir = sbp.GetNodes();
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
    elmat.SetSize(num_states * num_nodes);
    elmat = 0.0;
