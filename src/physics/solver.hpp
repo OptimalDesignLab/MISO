@@ -482,7 +482,7 @@ public:
 
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
-   double calcResidualNorm() const { return calcResidualNorm(*u); }
+   double calcResidualNorm() const;
 
    /// Compute the residual norm based on the input `state`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
