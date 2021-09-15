@@ -10,7 +10,6 @@ using namespace mach;
 
 namespace mach
 {
-
 class MachEvolver::SystemOperator : public mfem::Operator
 {
 public:
@@ -23,20 +22,27 @@ public:
    /// \note The mfem::NewtonSolver class requires the operator's width and
    /// height to be the same; here we use `GetTrueVSize()` to find the process
    /// local height=width
-   SystemOperator(Array<int> &ess_bdr, ParNonlinearForm *_nonlinear_mass,
-                  ParBilinearForm *_mass, ParNonlinearForm *_res,
+   SystemOperator(Array<int> &ess_bdr,
+                  ParNonlinearForm *_nonlinear_mass,
+                  ParBilinearForm *_mass,
+                  ParNonlinearForm *_res,
                   MachLoad *_load)
-       : Operator(((_nonlinear_mass != nullptr)
-                       ? _nonlinear_mass->FESpace()->GetTrueVSize()
-                       : (_mass != nullptr) ? _mass->FESpace()->GetTrueVSize()
-                       : _res->FESpace()->GetTrueVSize())), 
-         pfes(((_nonlinear_mass != nullptr)
-                       ? _nonlinear_mass->ParFESpace()
-                       : (_mass != nullptr) ? _mass->ParFESpace()
-                       : _res->ParFESpace())),
-         nonlinear_mass(_nonlinear_mass), mass(_mass),
-         res(_res), load(_load), jac(Operator::Hypre_ParCSR),
-         dt(0.0), x(nullptr), x_work(width), r_work(height)
+    : Operator(((_nonlinear_mass != nullptr)
+                    ? _nonlinear_mass->FESpace()->GetTrueVSize()
+                : (_mass != nullptr) ? _mass->FESpace()->GetTrueVSize()
+                                     : _res->FESpace()->GetTrueVSize())),
+      pfes(((_nonlinear_mass != nullptr) ? _nonlinear_mass->ParFESpace()
+            : (_mass != nullptr)         ? _mass->ParFESpace()
+                                         : _res->ParFESpace())),
+      nonlinear_mass(_nonlinear_mass),
+      mass(_mass),
+      res(_res),
+      load(_load),
+      jac(Operator::Hypre_ParCSR),
+      dt(0.0),
+      x(nullptr),
+      x_work(width),
+      r_work(height)
    {
       if (_mass)
       {
@@ -56,9 +62,9 @@ public:
       //    load_tv = nullptr;
    }
 
-   /// Compute r = N(x + dt_stage*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) + K@(x+dt*k) + l
-   /// (with `@` denoting matrix-vector multiplication)
-   /// \param[in] k - dx/dt 
+   /// Compute r = N(x + dt_stage*k,t + dt) - N(x,t) + M@k + R(x + dt*k,t) +
+   /// K@(x+dt*k) + l (with `@` denoting matrix-vector multiplication)
+   /// \param[in] k - dx/dt
    /// \param[out] r - the residual
    /// \note the signs on each operator must be accounted for elsewhere
    void Mult(const mfem::Vector &k, mfem::Vector &r) const override
@@ -68,9 +74,9 @@ public:
       {
          add(1.0, *x, dt_stage, k, x_work);
          nonlinear_mass->Mult(x_work, r);
-         nonlinear_mass->Mult(*x, r_work); // TODO: This could be precomputed
+         nonlinear_mass->Mult(*x, r_work);  // TODO: This could be precomputed
          r -= r_work;
-         r *= 1/dt_stage;
+         r *= 1 / dt_stage;
       }
       // x_work = x + dt*k = x + dt*dx/dt = x + dx
       add(1.0, *x, dt, k, x_work);
@@ -97,8 +103,8 @@ public:
       }
    }
 
-   /// Compute J = grad(N(x + dt_stage*k)) + M + dt * grad(R(x + dt*k, t)) + dt * K
-   /// \param[in] k - dx/dt 
+   /// Compute J = grad(N(x + dt_stage*k)) + M + dt * grad(R(x + dt*k, t)) + dt
+   /// * K \param[in] k - dx/dt
    mfem::Operator &GetGradient(const mfem::Vector &k) const override
    {
       jac.Clear();
@@ -118,7 +124,7 @@ public:
       auto &res_local_jac = res->GetLocalGradient(x_work);
 
       std::unique_ptr<SparseMatrix> local_jac;
-      
+
       if (mass_local_jac)
          local_jac.reset(Add(1.0, *mass_local_jac, dt, res_local_jac));
       else
@@ -129,9 +135,11 @@ public:
          OperatorHandle dA(jac.Type()), Ph(jac.Type());
 
          /// TODO -> this will not work for shared face terms
-         dA.MakeSquareBlockDiag(pfes->GetComm(), pfes->GlobalVSize(),
-                                pfes->GetDofOffsets(), local_jac.get());
-         
+         dA.MakeSquareBlockDiag(pfes->GetComm(),
+                                pfes->GlobalVSize(),
+                                pfes->GetDofOffsets(),
+                                local_jac.get());
+
          // TODO - construct Dof_TrueDof_Matrix directly in the pGrad format
          Ph.ConvertFrom(pfes->Dof_TrueDof_Matrix());
          jac.MakePtAP(dA, Ph);
@@ -150,12 +158,14 @@ public:
    /// \param[in] _dt_stage - the step for this entire stage/step
    /// \note `_dt` is the step usually assumed in mfem.  `_dt_stage` is needed
    /// by the nonlinear mass form and can be ignored if not needed.
-   void setParameters(double _dt, const mfem::Vector *_x, double _dt_stage = -1.0)
+   void setParameters(double _dt,
+                      const mfem::Vector *_x,
+                      double _dt_stage = -1.0)
    {
       dt = _dt;
       x = _x;
       dt_stage = _dt_stage;
-   };
+   }
 
    ~SystemOperator() = default;
 
@@ -179,25 +189,38 @@ private:
    Array<int> ess_tdof_list;
 };
 
-MachEvolver::MachEvolver(
-    Array<int> &ess_bdr, NonlinearFormType *_nonlinear_mass,
-    BilinearFormType *_mass, NonlinearFormType *_res, BilinearFormType *_stiff,
-    MachLoad *_load, NonlinearFormType *_ent, std::ostream &outstream,
-    double start_time, TimeDependentOperator::Type type,
-    bool _abort_on_no_converge)
-    : EntropyConstrainedOperator((_nonlinear_mass != nullptr)
-                                     ? _nonlinear_mass->FESpace()->GetTrueVSize()
-                                     : (_mass != nullptr) ? _mass->FESpace()->GetTrueVSize()
-                                     : _res->FESpace()->GetTrueVSize(),
-                                 start_time, type),
-      nonlinear_mass(_nonlinear_mass), res(_res), load(_load), ent(_ent),
-      out(outstream), x_work(width), r_work1(height), r_work2(height),
-      abort_on_no_converge(_abort_on_no_converge)
+MachEvolver::MachEvolver(Array<int> &ess_bdr,
+                         NonlinearFormType *_nonlinear_mass,
+                         BilinearFormType *_mass,
+                         NonlinearFormType *_res,
+                         BilinearFormType *_stiff,
+                         MachLoad *_load,
+                         NonlinearFormType *_ent,
+                         std::ostream &outstream,
+                         double start_time,
+                         TimeDependentOperator::Type type,
+                         bool _abort_on_no_converge)
+ : EntropyConstrainedOperator(
+       (_nonlinear_mass != nullptr) ? _nonlinear_mass->FESpace()->GetTrueVSize()
+       : (_mass != nullptr)         ? _mass->FESpace()->GetTrueVSize()
+                                    : _res->FESpace()->GetTrueVSize(),
+       start_time,
+       type),
+   nonlinear_mass(_nonlinear_mass),
+   res(_res),
+   load(_load),
+   ent(_ent),
+   out(outstream),
+   x_work(width),
+   r_work1(height),
+   r_work2(height),
+   abort_on_no_converge(_abort_on_no_converge)
 {
-   if ( (_mass != nullptr) && (_nonlinear_mass != nullptr) )
+   if ((_mass != nullptr) && (_nonlinear_mass != nullptr))
    {
-      throw MachException("Cannot use a linear and nonlinear mass operator "
-                          "simultaneously");
+      throw MachException(
+          "Cannot use a linear and nonlinear mass operator "
+          "simultaneously");
    }
 
    if (_mass != nullptr)
@@ -250,15 +273,17 @@ MachEvolver::MachEvolver(
          auto *Smat = _stiff->ParallelAssemble();
          auto *Se = Smat->EliminateRowsCols(ess_tdof_list);
          delete Se;
-         stiff.Reset(Smat, true);      }
+         stiff.Reset(Smat, true);
+      }
       else
       {
-         throw MachException("Unsupported assembly level"
-                                                      "for stiffness matrix!");
+         throw MachException(
+             "Unsupported assembly level"
+             "for stiffness matrix!");
       }
    }
-   combined_oper.reset(new SystemOperator(ess_bdr, _nonlinear_mass, _mass, _res,
-                                          _load));
+   combined_oper.reset(
+       new SystemOperator(ess_bdr, _nonlinear_mass, _mass, _res, _load));
 }
 
 MachEvolver::~MachEvolver() = default;
@@ -290,28 +315,29 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
    y *= -1.0;
 }
 
-void MachEvolver::ImplicitSolve(const double dt, const Vector &x,
-                                Vector &k)
+void MachEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
 {
    setOperParameters(dt, &x);
-   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   Vector zero;  // empty vector is interpreted as zero r.h.s. by NewtonSolver
 
    // set iterative mode to false so k is only zeroed once, but set back after
    auto iter_mode = newton->iterative_mode;
    newton->iterative_mode = false;
    newton->Mult(zero, k);
    newton->iterative_mode = iter_mode;
-   
+
    if (abort_on_no_converge)
       MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
 }
 
-void MachEvolver::ImplicitSolve(const double dt_stage, const double dt,
-                                const Vector &x, Vector &k)
+void MachEvolver::ImplicitSolve(const double dt_stage,
+                                const double dt,
+                                const Vector &x,
+                                Vector &k)
 {
    setOperParameters(dt, &x, dt_stage);
-   Vector zero; // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   k = 0.0; // In case iterative mode is set to true
+   Vector zero;  // empty vector is interpreted as zero r.h.s. by NewtonSolver
+   k = 0.0;      // In case iterative mode is set to true
    newton->Mult(zero, k);
    if (abort_on_no_converge)
       MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
@@ -328,7 +354,7 @@ void MachEvolver::SetNewtonSolver(NewtonSolver *_newton)
    newton->SetOperator(*combined_oper);
 }
 
-mfem::Operator& MachEvolver::GetGradient(const mfem::Vector &x) const
+mfem::Operator &MachEvolver::GetGradient(const mfem::Vector &x) const
 {
    return combined_oper->GetGradient(x);
 }
@@ -342,10 +368,11 @@ double MachEvolver::Entropy(const mfem::Vector &x)
    return ent->GetEnergy(x);
 }
 
-double MachEvolver::EntropyChange(double dt, const mfem::Vector &x,
+double MachEvolver::EntropyChange(double dt,
+                                  const mfem::Vector &x,
                                   const mfem::Vector &k)
 {
-   if (!ent) // even though it is not used here, ent should be defined
+   if (!ent)  // even though it is not used here, ent should be defined
    {
       throw MachException("MachEvolver::EntropyChange(): ent not defined!");
    }
@@ -353,10 +380,11 @@ double MachEvolver::EntropyChange(double dt, const mfem::Vector &x,
    return res->GetEnergy(x_work);
 }
 
-void MachEvolver::setOperParameters(double dt, const mfem::Vector *x,
+void MachEvolver::setOperParameters(double dt,
+                                    const mfem::Vector *x,
                                     double dt_stage)
 {
    combined_oper->setParameters(dt, x, dt_stage);
 }
 
-} // namespace mach
+}  // namespace mach

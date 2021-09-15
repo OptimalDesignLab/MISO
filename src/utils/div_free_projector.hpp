@@ -7,7 +7,6 @@
 
 namespace mach
 {
-
 /// This class computes the divergence free portion of a vector field.
 /// This vector field must be discretized using Nedelec basis
 /// functions.
@@ -15,8 +14,7 @@ class DivergenceFreeProjector : public IrrotationalProjector
 {
 public:
    /// Used to set inputs in the operator
-   friend void setInputs(DivergenceFreeProjector &op,
-                         const MachInputs &inputs);
+   friend void setInputs(DivergenceFreeProjector &op, const MachInputs &inputs);
 
    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
    // compute the Nedelec DoFs of the divergence free portion, 'y', of
@@ -37,13 +35,13 @@ public:
    DivergenceFreeProjector(mfem::ParFiniteElementSpace &h1_fes,
                            mfem::ParFiniteElementSpace &nd_fes,
                            const int &ir_order)
-      : IrrotationalProjector(h1_fes, nd_fes, ir_order), psi_irrot(&nd_fes)
+    : IrrotationalProjector(h1_fes, nd_fes, ir_order), psi_irrot(&nd_fes)
    { }
 
 private:
    mutable mfem::ParGridFunction psi_irrot;
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

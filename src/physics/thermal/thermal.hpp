@@ -17,7 +17,6 @@
 
 namespace mach
 {
-
 class MachLoad;
 class MachLinearForm;
 
@@ -31,13 +30,13 @@ public:
    ThermalSolver(const nlohmann::json &options,
                  std::unique_ptr<mfem::Mesh> smesh,
                  MPI_Comm comm);
-   
+
    void initDerived() override;
 
    ~ThermalSolver();
 
    /// Set the Magnetic Vector Potential
-   void setAField(GridFunType *_a_field) {a_field = _a_field;}
+   void setAField(GridFunType *_a_field) { a_field = _a_field; }
 
    // /// Returns the L2 error between the state `u` and given exact solution.
    // /// Overload for scalar quantities
@@ -49,16 +48,16 @@ public:
 
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {theta, B}
-   std::vector<GridFunType*> getFields() override;
+   std::vector<GridFunType *> getFields() override;
 
-   /// Compute the sensitivity of the aggregate temperature output to the mesh 
-   /// nodes, using appropriate mesh sensitivity integrators. Need to compute 
+   /// Compute the sensitivity of the aggregate temperature output to the mesh
+   /// nodes, using appropriate mesh sensitivity integrators. Need to compute
    /// the adjoint first.
    // mfem::Vector* getMeshSensitivities() override;
 
-   mfem::Vector* getSurfaceMeshSensitivities();
+   mfem::Vector *getSurfaceMeshSensitivities();
 
-   void getASensitivity(mfem::Vector &psiTdRtdA) {};
+   void getASensitivity(mfem::Vector &psiTdRtdA) { }
 
    double getOutput();
 
@@ -68,7 +67,10 @@ public:
    /// perturb the surface mesh, deform interior points, and finite difference
    void verifySurfaceMeshSensitivities();
 
-   double calcStepSize(int iter, double t, double t_final, double dt_old,
+   double calcStepSize(int iter,
+                       double t,
+                       double t_final,
+                       double dt_old,
                        const mfem::ParGridFunction &state) const override;
 
 private:
@@ -98,7 +100,7 @@ private:
    std::unique_ptr<MeshDependentCoefficient> i2sigmainv;
    /// mesh dependent core losses term
    std::unique_ptr<MeshDependentCoefficient> coreloss;
-   /// mesh dependent 
+   /// mesh dependent
    std::unique_ptr<MeshDependentCoefficient> sigmainv;
    /// natural bc coefficient
    std::unique_ptr<mfem::VectorCoefficient> flux_coeff;
@@ -123,10 +125,14 @@ private:
    // void iterationHook(int iter, double t, double dt,
    //                    const mfem::ParGridFunction &state) override;
 
-   bool iterationExit(int iter, double t, double t_final, double dt,
+   bool iterationExit(int iter,
+                      double t,
+                      double t_final,
+                      double dt,
                       const mfem::ParGridFunction &state) const override;
-   
-   void terminalHook(int iter, double t_final,
+
+   void terminalHook(int iter,
+                     double t_final,
                      const mfem::ParGridFunction &state) override;
 
    // /// set static variables
@@ -161,7 +167,9 @@ private:
 
    /// compute outward flux at boundary
    // static void FluxFunc(const mfem::Vector &x, mfem::Vector &y );
-   static void testFluxFunc(const mfem::Vector &x, double time, mfem::Vector &y);
+   static void testFluxFunc(const mfem::Vector &x,
+                            double time,
+                            mfem::Vector &y);
 
    /// initial temperature
    // static double initialTemperature(const mfem::Vector &x);
@@ -195,23 +203,23 @@ public:
    ThermalEvolver(mfem::Array<int> ess_bdr,
                   BilinearFormType *mass,
                   mfem::ParNonlinearForm *res,
-                  MachLoad *load, 
+                  MachLoad *load,
                   std::ostream &outstream,
-                  double start_time, 
+                  double start_time,
                   mfem::VectorCoefficient *flux_coeff);
 
    ~ThermalEvolver();
 
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
-   void ImplicitSolve(const double dt, const mfem::Vector &x,
+   void ImplicitSolve(const double dt,
+                      const mfem::Vector &x,
                       mfem::Vector &k) override;
 
-private:   
+private:
    mfem::VectorCoefficient *flux_coeff;
-   
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

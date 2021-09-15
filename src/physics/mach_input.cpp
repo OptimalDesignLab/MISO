@@ -3,8 +3,7 @@
 
 namespace mach
 {
-
-double* MachInput::getField() const
+double *MachInput::getField() const
 {
    if (active != Type::Field)
    {
@@ -28,4 +27,4 @@ double MachInput::getValue() const
    }
 }
 
-} // namespace mach
+}  // namespace mach

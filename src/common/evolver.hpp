@@ -10,15 +10,16 @@
 
 namespace mach
 {
-
 /// For systems that are equipped with a non-increasing entropy function
 class EntropyConstrainedOperator : public mfem::TimeDependentOperator
 {
 public:
    /// Default constructor
-   EntropyConstrainedOperator(int n, double start_time,
+   EntropyConstrainedOperator(int n,
+                              double start_time,
                               mfem::TimeDependentOperator::Type type)
-       : TimeDependentOperator(n, start_time, type) {}
+    : TimeDependentOperator(n, start_time, type)
+   { }
 
    /// Evaluate the entropy functional at the given state
    /// \param[in] state - the state at which to evaluate the entropy
@@ -31,20 +32,22 @@ public:
    /// \param[in] k - the approximate time derivative, `du/dt`
    /// \returns the product `w^T res`
    /// \note `w` and `res` are evaluated at `state + dt*k` and time `t+dt`.
-   virtual double EntropyChange(double dt, const mfem::Vector &state, 
+   virtual double EntropyChange(double dt,
+                                const mfem::Vector &state,
                                 const mfem::Vector &k) = 0;
 
-
    using mfem::TimeDependentOperator::ImplicitSolve;
-   
+
    /// Variant of `mfem::ImplicitSolve` for entropy constrained systems
-   /// \param[in] dt_stage - the full step size 
+   /// \param[in] dt_stage - the full step size
    /// \param[in] dt - a partial step, `dt` < `dt_stage`.
-   /// \param[in] x - baseline state 
+   /// \param[in] x - baseline state
    /// \param[out] k - the desired slope
    /// \note This may need to be generalized further
-   virtual void ImplicitSolve(const double dt_stage, const double dt,
-                              const mfem::Vector &x, mfem::Vector &k) = 0;
+   virtual void ImplicitSolve(const double dt_stage,
+                              const double dt,
+                              const mfem::Vector &x,
+                              mfem::Vector &k) = 0;
 };
 
 /// Class that can handle implicit or explicit time marching of linear or
@@ -66,10 +69,14 @@ public:
    ///                         (important for time-variant sources)
    /// \param[in] type - solver type; explicit or implicit
    MachEvolver(mfem::Array<int> &ess_bdr,
-               NonlinearFormType *nonlinear_mass, BilinearFormType *mass,
-               NonlinearFormType *res, BilinearFormType *stiff,
-               MachLoad *load, NonlinearFormType *ent,
-               std::ostream &outstream, double start_time,
+               NonlinearFormType *nonlinear_mass,
+               BilinearFormType *mass,
+               NonlinearFormType *res,
+               BilinearFormType *stiff,
+               MachLoad *load,
+               NonlinearFormType *ent,
+               std::ostream &outstream,
+               double start_time,
                mfem::TimeDependentOperator::Type type = EXPLICIT,
                bool abort_on_no_convergence = true);
 
@@ -79,19 +86,22 @@ public:
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
    /// Solve the implicit equation: k = f(x + dt k, t), for the unknown k at
-   /// the current time t. 
+   /// the current time t.
    /// Currently implemented for the implicit midpoit method
-   void ImplicitSolve(const double dt, const mfem::Vector &x,
+   void ImplicitSolve(const double dt,
+                      const mfem::Vector &x,
                       mfem::Vector &k) override;
-   
+
    /// Variant of `mfem::ImplicitSolve` for entropy constrained systems
-   /// \param[in] dt_stage - the full step size 
+   /// \param[in] dt_stage - the full step size
    /// \param[in] dt - a partial step, `dt` < `dt_stage`.
-   /// \param[in] x - baseline state 
+   /// \param[in] x - baseline state
    /// \param[out] k - the desired slope
    /// \note This may need to be generalized further
-   void ImplicitSolve(const double dt_stage, const double dt,
-                      const mfem::Vector &x, mfem::Vector &k) override;
+   void ImplicitSolve(const double dt_stage,
+                      const double dt,
+                      const mfem::Vector &x,
+                      mfem::Vector &k) override;
 
    /// Set the linear solver to be used for implicit methods
    /// \param[in] linsolver - pointer to configured linear solver (not owned)
@@ -118,11 +128,12 @@ public:
    /// \returns the product `w^T res`
    /// \note `w` and `res` are evaluated at `x + dt*k` and time `t+dt`
    /// \note optional, but must be implemented for relaxation RK
-   double EntropyChange(double dt, const mfem::Vector &x, 
-                                const mfem::Vector &k) override;
+   double EntropyChange(double dt,
+                        const mfem::Vector &x,
+                        const mfem::Vector &k) override;
 
    virtual ~MachEvolver();
-   
+
 protected:
    /// pointer to nonlinear mass bilinear form (not owned)
    NonlinearFormType *nonlinear_mass;
@@ -132,7 +143,7 @@ protected:
    NonlinearFormType *res;
    /// pointer to stiffness bilinear form (not owned)
    mfem::OperatorHandle stiff;
-   ///pointer to load vector (not owned)
+   /// pointer to load vector (not owned)
    MachLoad *load;
    /// pointer to a form for computing the entropy  (not owned)
    NonlinearFormType *ent;
@@ -151,7 +162,8 @@ protected:
    mfem::Array<int> ess_tdof_list;
    /// work vectors
    mutable mfem::Vector x_work, r_work1, r_work2;
-   /// flag that determines if program should abort if Newton's method does not converge
+   /// flag that determines if program should abort if Newton's method does not
+   /// converge
    bool abort_on_no_converge;
 
    /// pointer-to-implementation idiom
@@ -166,10 +178,11 @@ protected:
    /// \param[in] dt - time increment
    /// \param[in] x - the current state
    /// \param[in] dt_stage - time step for full stage/step
-   void setOperParameters(double dt, const mfem::Vector *x,
+   void setOperParameters(double dt,
+                          const mfem::Vector *x,
                           double dt_stage = -1.0);
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

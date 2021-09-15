@@ -5,15 +5,14 @@ using namespace std;
 
 namespace mach
 {
-
-void DiagMassIntegrator::AssembleElementMatrix(
-    const FiniteElement &el, ElementTransformation &Trans,
-    DenseMatrix &elmat)
-{   
+void DiagMassIntegrator::AssembleElementMatrix(const FiniteElement &el,
+                                               ElementTransformation &Trans,
+                                               DenseMatrix &elmat)
+{
    const IntegrationRule &ir = el.GetNodes();
    int num_nodes = ir.GetNPoints();
    int dim = el.GetDim();
-   elmat.SetSize(num_nodes*num_state);
+   elmat.SetSize(num_nodes * num_state);
    elmat = 0.0;
    double norm;
    // loop over the nodes of the SBP element
@@ -26,15 +25,16 @@ void DiagMassIntegrator::AssembleElementMatrix(
       norm = node.weight * Trans.Weight();
       if (space_vary_dt)
       {
-         norm /= pow(Trans.Weight(), 1.0/dim);
+         norm /= pow(Trans.Weight(), 1.0 / dim);
       }
       for (int k = 0; k < num_state; k++)
       {
-         // Insert diagonal entries for each state 
-         //elmat(i*num_state + k, i*num_state + k) = norm; // assumes states are ordered fastest;
-         elmat(i + k*num_nodes, i + k*num_nodes) = norm;
+         // Insert diagonal entries for each state
+         // elmat(i*num_state + k, i*num_state + k) = norm; // assumes states
+         // are ordered fastest;
+         elmat(i + k * num_nodes, i + k * num_nodes) = norm;
       }
    }
 }
 
-}
+}  // namespace mach

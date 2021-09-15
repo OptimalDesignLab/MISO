@@ -5,7 +5,7 @@
 #include <random>
 
 #include "mfem.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
 

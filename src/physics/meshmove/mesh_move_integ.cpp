@@ -6,23 +6,22 @@ using namespace mfem;
 
 namespace mach
 {
-
 void ElasticityPositionIntegrator::AssembleElementVector(
-   const FiniteElement &el,
-   ElementTransformation &trans,
-   const Vector &elfun,
-   Vector &elvect)
+    const FiniteElement &el,
+    ElementTransformation &trans,
+    const Vector &elfun,
+    Vector &elvect)
 {
    DenseMatrix elmat;
    AssembleElementMatrix(el, trans, elmat);
 
    Vector disp(elfun);
 
-   auto &iso_trans = *dynamic_cast<IsoparametricTransformation*>(&trans);
+   auto &iso_trans = *dynamic_cast<IsoparametricTransformation *>(&trans);
    auto point_mat = iso_trans.GetPointMat();
    point_mat.Transpose();
    Vector point_vec(point_mat.GetData(),
-                    point_mat.Height()*point_mat.Width());
+                    point_mat.Height() * point_mat.Width());
 
    disp -= point_vec;
 
@@ -30,4 +29,4 @@ void ElasticityPositionIntegrator::AssembleElementVector(
    elmat.Mult(disp, elvect);
 }
 
-} // namespace mach
+}  // namespace mach

@@ -1,7 +1,7 @@
 #ifndef MACH_TEST_MACH_INPUTS
 #define MACH_TEST_MACH_INPUTS
 
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "mfem.hpp"
 
 #include "solver.hpp"

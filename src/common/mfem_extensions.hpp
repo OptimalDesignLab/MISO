@@ -5,13 +5,13 @@
 
 namespace mach
 {
-
 /// Backward Euler pseudo-transient continuation solver
 class PseudoTransientSolver : public mfem::ODESolver
 {
 public:
    PseudoTransientSolver(std::ostream *out_stream)
-       : mfem::ODESolver(), out(out_stream) {}
+    : mfem::ODESolver(), out(out_stream)
+   { }
 
    virtual void Init(mfem::TimeDependentOperator &_f);
 
@@ -27,7 +27,8 @@ class RRKImplicitMidpointSolver : public mfem::ODESolver
 {
 public:
    RRKImplicitMidpointSolver(std::ostream *out_stream)
-       : mfem::ODESolver(), out(out_stream) {}
+    : mfem::ODESolver(), out(out_stream)
+   { }
 
    virtual void Init(mfem::TimeDependentOperator &_f);
 
@@ -38,6 +39,6 @@ protected:
    std::ostream *out;
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

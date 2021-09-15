@@ -4,12 +4,11 @@
 #include "adept.h"
 #include "mfem.hpp"
 
-#include "sbp_fe.hpp" // needed in viscous_integ_def.hpp
+#include "sbp_fe.hpp"  // needed in viscous_integ_def.hpp
 #include "utils.hpp"
 
 namespace mach
 {
-
 /// Integrator for symmetric viscous terms
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
@@ -20,9 +19,11 @@ public:
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   SymmetricViscousIntegrator(adept::Stack &diff_stack, int num_state_vars = 1,
+   SymmetricViscousIntegrator(adept::Stack &diff_stack,
+                              int num_state_vars = 1,
                               double a = 1.0)
-       : num_states(num_state_vars), alpha(a), stack(diff_stack) {}
+    : num_states(num_state_vars), alpha(a), stack(diff_stack)
+   { }
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -72,7 +73,7 @@ protected:
    mfem::DenseMatrix adjJ_k;
    /// stores (num_state x num_state) Jacobian terms
    mfem::DenseMatrix jac_term1;
-  /// stores (num_state x num_state) Jacobian terms
+   /// stores (num_state x num_state) Jacobian terms
    mfem::DenseMatrix jac_term2;
    /// Jacobian of w variables with respect to states u at node j
    mfem::DenseMatrix dwduj;
@@ -100,30 +101,37 @@ protected:
 
    /// applies symmetric matrices \f$ C_{d,:}(u) \f$ to input `Dw`
    /// \param[in] d - index `d` in \f$ C_{d,:} \f$ matrices
-   /// \param[in] x - coordinate location at which scaling is evaluated  
+   /// \param[in] x - coordinate location at which scaling is evaluated
    /// \param[in] u - state at which the symmetric matrices `C` are evaluated
-   /// \param[in] Dw - `Dw[:,d2]` stores derivative of `w` in direction `d2`. 
+   /// \param[in] Dw - `Dw[:,d2]` stores derivative of `w` in direction `d2`.
    /// \param[out] CDw - product of the multiplication between the `C` and `Dw`.
    /// \note This uses the CRTP, so it wraps call to `applyScaling` in Derived.
-   void scale(int d, const mfem::Vector &x, const mfem::Vector &u,
-              const mfem::DenseMatrix &Dw, mfem::Vector &CDw)
+   void scale(int d,
+              const mfem::Vector &x,
+              const mfem::Vector &u,
+              const mfem::DenseMatrix &Dw,
+              mfem::Vector &CDw)
    {
       static_cast<Derived *>(this)->applyScaling(d, x, u, Dw, CDw);
    }
 
-   void scaleJacState(int d, const mfem::Vector &x, const mfem::Vector &u,
-                      const mfem::DenseMatrix &Dw, mfem::DenseMatrix &CDw_jac)
+   void scaleJacState(int d,
+                      const mfem::Vector &x,
+                      const mfem::Vector &u,
+                      const mfem::DenseMatrix &Dw,
+                      mfem::DenseMatrix &CDw_jac)
    {
       static_cast<Derived *>(this)->applyScalingJacState(d, x, u, Dw, CDw_jac);
    }
 
-   void scaleJacDw(int d, const mfem::Vector &x, const mfem::Vector &u,
+   void scaleJacDw(int d,
+                   const mfem::Vector &x,
+                   const mfem::Vector &u,
                    const mfem::DenseMatrix &Dw,
                    std::vector<mfem::DenseMatrix> &CDw_jac)
    {
       static_cast<Derived *>(this)->applyScalingJacDw(d, x, u, Dw, CDw_jac);
    }
-
 };
 
 /// Integrator for viscous boundary fluxes
@@ -138,18 +146,19 @@ public:
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    ViscousBoundaryIntegrator(adept::Stack &diff_stack,
-                              const mfem::FiniteElementCollection *fe_coll,
-                              int num_state_vars = 1, double a = 1.0)
-       : num_states(num_state_vars), alpha(a), stack(diff_stack),
-         fec(fe_coll) {}
+                             const mfem::FiniteElementCollection *fe_coll,
+                             int num_state_vars = 1,
+                             double a = 1.0)
+    : num_states(num_state_vars), alpha(a), stack(diff_stack), fec(fe_coll)
+   { }
 
-	/// Construct the contribution to a functional from the boundary element
-	/// \param[in] el_bnd - boundary element that contribute to the functional
-	/// \param[in] el_unused - dummy element that is not used for boundaries
+   /// Construct the contribution to a functional from the boundary element
+   /// \param[in] el_bnd - boundary element that contribute to the functional
+   /// \param[in] el_unused - dummy element that is not used for boundaries
    /// \param[in] trans - hold geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \return element local contribution to functional
-	virtual double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
+   virtual double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
                                 const mfem::FiniteElement &el_unused,
                                 mfem::FaceElementTransformations &trans,
                                 const mfem::Vector &elfun);
@@ -178,7 +187,7 @@ public:
                                  const mfem::Vector &elfun,
                                  mfem::DenseMatrix &elmat);
 
-protected: 
+protected:
    /// number of states
    int num_states;
    /// scales the terms; can be used to move to rhs/lhs
@@ -242,8 +251,10 @@ protected:
    /// \note `x` can be ignored depending on the function
    /// \note This uses the CRTP, so it wraps a call to `calcFunction` in
    /// Derived.
-   double bndryFun(const mfem::Vector &x, const mfem::Vector &dir,
-                   double jac, const mfem::Vector &u,
+   double bndryFun(const mfem::Vector &x,
+                   const mfem::Vector &dir,
+                   double jac,
+                   const mfem::Vector &u,
                    const mfem::DenseMatrix &Dw)
    {
       return static_cast<Derived *>(this)->calcBndryFun(x, dir, jac, u, Dw);
@@ -258,22 +269,27 @@ protected:
    /// \param[out] flux_vec - value of the flux
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
-   void flux(const mfem::Vector &x, const mfem::Vector &dir, double jac,
-                 const mfem::Vector &u, const mfem::DenseMatrix &Dw,
-                 mfem::Vector &flux_vec)
+   void flux(const mfem::Vector &x,
+             const mfem::Vector &dir,
+             double jac,
+             const mfem::Vector &u,
+             const mfem::DenseMatrix &Dw,
+             mfem::Vector &flux_vec)
    {
-      static_cast<Derived*>(this)->calcFlux(x, dir, jac, u, Dw, flux_vec);
+      static_cast<Derived *>(this)->calcFlux(x, dir, jac, u, Dw, flux_vec);
    }
 
    /// Compute boundary fluxes that are scaled by test function derivative
    /// \param[in] x - coordinate location at which fluxes are evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] u - state at which to evaluate the flux
-   /// \param[out] flux_mat - `flux_mat[:,di]` to be scaled by `D_[di] v` 
-   void fluxDv(const mfem::Vector &x, const mfem::Vector &dir,
-               const mfem::Vector &u, mfem::DenseMatrix &flux_mat)
+   /// \param[out] flux_mat - `flux_mat[:,di]` to be scaled by `D_[di] v`
+   void fluxDv(const mfem::Vector &x,
+               const mfem::Vector &dir,
+               const mfem::Vector &u,
+               mfem::DenseMatrix &flux_mat)
    {
-      static_cast<Derived*>(this)->calcFluxDv(x, dir, u, flux_mat);
+      static_cast<Derived *>(this)->calcFluxDv(x, dir, u, flux_mat);
    }
 
    /// Compute the Jacobian of the boundary flux function w.r.t. `u`
@@ -284,15 +300,17 @@ protected:
    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `u`
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call a func. in Derived.
-   void fluxJacState(const mfem::Vector &x, const mfem::Vector &dir,
-                     double jac, const mfem::Vector &u,
+   void fluxJacState(const mfem::Vector &x,
+                     const mfem::Vector &dir,
+                     double jac,
+                     const mfem::Vector &u,
                      const mfem::DenseMatrix &Dw,
                      mfem::DenseMatrix &flux_jac)
    {
-      static_cast<Derived *>(this)->calcFluxJacState(x, dir, jac, u, Dw,
-                                                     flux_jac);
+      static_cast<Derived *>(this)->calcFluxJacState(
+          x, dir, jac, u, Dw, flux_jac);
    }
-   
+
    /// Compute the Jacobian of the boundary flux function w.r.t. `Dw`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
@@ -301,13 +319,14 @@ protected:
    /// \param[out] flux_jac[di] - Jacobian of `flux` w.r.t. `D_[di]w`
    /// \note `x` can be ignored depending on the flux
    /// \note This uses the CRTP, so it wraps a call a func. in Derived.
-   void fluxJacDw(const mfem::Vector &x, const mfem::Vector &dir,
-                  double jac, const mfem::Vector &u,
+   void fluxJacDw(const mfem::Vector &x,
+                  const mfem::Vector &dir,
+                  double jac,
+                  const mfem::Vector &u,
                   const mfem::DenseMatrix &Dw,
                   std::vector<mfem::DenseMatrix> &flux_jac)
    {
-      static_cast<Derived *>(this)->calcFluxJacDw(x, dir, jac, u, Dw,
-                                                  flux_jac);
+      static_cast<Derived *>(this)->calcFluxJacDw(x, dir, jac, u, Dw, flux_jac);
    }
 
    /// Compute the Jacobian of fluxDv w.r.t. `u`
@@ -315,11 +334,12 @@ protected:
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] u - state at which to evaluate the flux
    /// \param[in] flux_jac[di] - Jacobian of fluxDv[di] with respect to `u`
-   void fluxDvJacState(const mfem::Vector &x, const mfem::Vector dir, 
+   void fluxDvJacState(const mfem::Vector &x,
+                       const mfem::Vector dir,
                        const mfem::Vector &u,
                        std::vector<mfem::DenseMatrix> &flux_jac)
    {
-      static_cast<Derived*>(this)->calcFluxDvJacState(x, dir, u, flux_jac);
+      static_cast<Derived *>(this)->calcFluxDvJacState(x, dir, u, flux_jac);
    }
 
 #if 0
@@ -336,11 +356,10 @@ protected:
       static_cast<Derived*>(this)->calcFluxJacDir(x, nrm, u, flux_dir);
    }
 #endif
-
 };
 
 #include "viscous_integ_def.hpp"
 
-} // namespace mach
+}  // namespace mach
 
 #endif

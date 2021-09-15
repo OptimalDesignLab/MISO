@@ -5,7 +5,6 @@
 
 namespace mach
 {
-
 /** Integrator for the linear elasticity form:
     a(u,v) = (lambda div(u), div(v)) + (2 mu e(u), e(v)),
     where e(v) = (1/2) (grad(v) + grad(v)^T).
@@ -15,7 +14,7 @@ class ElasticityPositionIntegrator : public mfem::ElasticityIntegrator
 {
 public:
    ElasticityPositionIntegrator(mfem::Coefficient &l, mfem::Coefficient &m)
-   : ElasticityIntegrator(l, m)
+    : ElasticityIntegrator(l, m)
    { }
 
    // /** With this constructor lambda = q_l * m and mu = q_m * m;
@@ -28,9 +27,8 @@ public:
                               mfem::ElementTransformation &trans,
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
-
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

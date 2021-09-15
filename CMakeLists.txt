@@ -92,12 +92,22 @@ set_target_properties(tinysplinecxx
       POSITION_INDEPENDENT_CODE ON
 )
 
+FetchContent_Declare(json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.10.2)
+
+FetchContent_GetProperties(json)
+if(NOT json_POPULATED)
+  FetchContent_Populate(json)
+  add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
 
 target_sources(mach
-   PUBLIC
-      mach.hpp
+   PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/mach.hpp"
 )
 
 # Use CMakeLists.txt files in subdirectories to add sources to mach
@@ -109,6 +119,7 @@ target_link_libraries(mach
       "${MFEM_LIBRARIES}"
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
       tinysplinecxx
+      nlohmann_json::nlohmann_json
 )
 
 target_include_directories(mach
@@ -187,6 +198,13 @@ install(FILES mach.hpp
    DESTINATION include
 )
 
+get_target_property(MACH_SOURCES mach SOURCES)
+add_custom_target(mach-format
+   COMMAND clang-format
+   -style=file
+   -i
+   ${MACH_SOURCES}
+)
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
    include(CTest)
@@ -231,7 +249,7 @@ if (BUILD_PYTHON_WRAPPER)
 
    FetchContent_Declare(pybind11
       GIT_REPOSITORY "https://github.com/pybind/pybind11"
-      # GIT_TAG v2.6.0
+      GIT_TAG v2.7.1
    )
 
    FetchContent_MakeAvailable(pybind11)
@@ -250,6 +268,14 @@ if (BUILD_PYTHON_WRAPPER)
    )
 
    add_subdirectory(mach)
+
+   get_target_property(PYMACH_SOURCES pyMach SOURCES)
+   add_custom_target(pymach-format
+      COMMAND clang-format
+      -style=file
+      -i
+      ${PYMACH_SOURCES}
+   )
 
    if (BUILD_TESTING)
       target_compile_definitions(pyMach
@@ -317,3 +343,6 @@ if (BUILD_PYTHON_WRAPPER)
 
 endif (BUILD_PYTHON_WRAPPER)
 
+add_custom_target(format
+   DEPENDS mach-format pymach-format
+)

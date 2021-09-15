@@ -22,7 +22,7 @@
 // 		// if (i+1 == u.Size())
 // 		// {
 // 		// 	u(i) = x(0)*0.1;
-// 		// }	
+// 		// }
 // 		// else
 // 		// {
 // 		// 	u(i) = x(i+1)*0.1;
@@ -41,7 +41,7 @@
 // 	double dJdX_cd_v;
 // 	Vector *dJdX_vect = getMeshSensitivities();
 //     // extract mesh nodes and get their finite-element space
-   
+
 //     GridFunction *x_nodes = mesh->GetNodes();
 //     FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 // 	GridFunction dJdX(mesh_fes, dJdX_vect->GetData());
@@ -229,9 +229,11 @@
 //     std::cout << "Finite Difference:  " << dJdX_fd_v << std::endl;
 // 	std::cout << "Central Difference: " << dJdX_cd_v << std::endl;
 //     std::cout << "Analytic: 		  " << dJdX_v << std::endl;
-// 	std::cout << "FD Relative: 		  " << (dJdX_v-dJdX_fd_v)/dJdX_v << std::endl;
+// 	std::cout << "FD Relative: 		  " << (dJdX_v-dJdX_fd_v)/dJdX_v <<
+// std::endl;
 //     std::cout << "FD Absolute: 		  " << dJdX_v - dJdX_fd_v << std::endl;
-// 	std::cout << "CD Relative: 		  " << (dJdX_v-dJdX_cd_v)/dJdX_v << std::endl;
+// 	std::cout << "CD Relative: 		  " << (dJdX_v-dJdX_cd_v)/dJdX_v <<
+// std::endl;
 //     std::cout << "CD Absolute: 		  " << dJdX_v - dJdX_cd_v << std::endl;
 // }
 
@@ -239,7 +241,7 @@
 // {
 // #ifdef MFEM_USE_EGADS
 // 	std::cout << "Verifying Surface Mesh Sensitivities..." << std::endl;
-		
+
 // 	int dim = mesh->SpaceDimension();
 // 	double delta = 1e-7;
 // 	double delta_cd = 1e-5;
@@ -255,7 +257,7 @@
 // 	GridFunction x_pert_true(*x_nodes);
 
 // 	//(v_bnd, might not need v_bnd though)
-// 	Array<int> ess_bdr_test(mesh->bdr_attributes.Max()); 
+// 	Array<int> ess_bdr_test(mesh->bdr_attributes.Max());
 // 	ess_bdr_test = 1;
 // 	Array<int> ess_tdof_list_test;
 // 	mesh_fes->GetEssentialTrueDofs(ess_bdr_test, ess_tdof_list_test);
@@ -300,7 +302,7 @@
 // 		{
 // 			mesh->SetNodes(x_pert_true);
 // 			int in = ess_tdof_list_test[p]; x_pert = 0.0;
-// 			x_pert(in) += delta; 
+// 			x_pert(in) += delta;
 // 			MSolver->setMesh(mesh.get());	// give it the mesh pointer
 // 			MSolver->setPert(&x_pert);
 // 			MSolver->initDerived();
@@ -334,7 +336,7 @@
 // 			{
 // 			mesh->SetNodes(x_pert_true);
 // 			int in = ess_tdof_list_test[p]; x_pert = 0.0;
-// 			x_pert(in) += delta_cd; 
+// 			x_pert(in) += delta_cd;
 // 			MSolver->setMesh(mesh.get());	// give it the mesh pointer
 // 			MSolver->setPert(&x_pert);
 // 			MSolver->initDerived();
@@ -363,7 +365,7 @@
 
 // 			mesh->SetNodes(x_pert_true);
 // 			x_pert = 0.0;
-// 			x_pert(in) -= delta_cd; 
+// 			x_pert(in) -= delta_cd;
 // 			MSolver->setMesh(mesh.get());	// give it the mesh pointer
 // 			MSolver->setPert(&x_pert);
 // 			MSolver->initDerived();
@@ -405,12 +407,12 @@
 // 		fderrname << "dJdXs_fd_err.gf";
 //     	ofstream fd(fderrname.str()); fd.precision(15);
 // 		dJdXs_fd_err.Save(fd);
-		
+
 // 		stringstream cderrname;
 // 		cderrname << "dJdXs_cd_err.gf";
 //    	    ofstream cd(cderrname.str()); cd.precision(15);
 // 		dJdXs_cd_err.Save(cd);
-	
+
 // 		stringstream analytic;
 // 		analytic << "dJdXs.gf";
 //    	    ofstream an(analytic.str()); an.precision(15);
@@ -503,9 +505,11 @@
 //     std::cout << "Finite Difference:  " << dJdXs_fd_v << std::endl;
 // 	std::cout << "Central Difference: " << dJdXs_cd_v << std::endl;
 //     std::cout << "Analytic: 		  " << dJdXs_v << std::endl;
-// 	std::cout << "FD Relative: 		  " << (dJdXs_v-dJdXs_fd_v)/dJdXs_v << std::endl;
+// 	std::cout << "FD Relative: 		  " << (dJdXs_v-dJdXs_fd_v)/dJdXs_v <<
+// std::endl;
 //     std::cout << "FD Absolute: 		  " << dJdXs_v - dJdXs_fd_v << std::endl;
-// 	std::cout << "CD Relative: 		  " << (dJdXs_v-dJdXs_cd_v)/dJdXs_v << std::endl;
+// 	std::cout << "CD Relative: 		  " << (dJdXs_v-dJdXs_cd_v)/dJdXs_v <<
+// std::endl;
 //     std::cout << "CD Absolute: 		  " << dJdXs_v - dJdXs_cd_v << std::endl;
 
 // }

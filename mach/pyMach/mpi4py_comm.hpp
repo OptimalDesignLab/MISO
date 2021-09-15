@@ -17,19 +17,16 @@ struct mpi4py_comm
 {
 public:
    mpi4py_comm() = default;
-   mpi4py_comm(MPI_Comm value) : value(value) {}
-   inline operator MPI_Comm () { return value; }
+   mpi4py_comm(MPI_Comm value) : value(value) { }
+   inline operator MPI_Comm() { return value; }
 
    MPI_Comm value;
 };
 
-
 namespace pybind11
 {
-
 namespace detail
 {
-
 template <>
 struct type_caster<mpi4py_comm>
 {
@@ -46,7 +43,8 @@ public:
       {
          // Convert to regular MPI communicator
          value.value = *PyMPIComm_Get(py_src);
-      } else
+      }
+      else
       {
          return false;
       }
@@ -64,8 +62,8 @@ public:
    }
 };
 
-} // namespace pybind11::detail
+}  // namespace detail
 
-} // namespace pybind11
+}  // namespace pybind11
 
 #endif

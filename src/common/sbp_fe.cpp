@@ -6,21 +6,20 @@
 
 namespace mfem
 {
-
 using namespace std;
 
 void SBPFiniteElement::multNormMatrix(const DenseMatrix &u,
                                       DenseMatrix &Hu) const
 {
    int num_nodes = GetDof();
-   MFEM_ASSERT( u.Width() == Hu.Width() && u.Width() == num_nodes , "");
-   MFEM_ASSERT( u.Height() == Hu.Height() , "");
+   MFEM_ASSERT(u.Width() == Hu.Width() && u.Width() == num_nodes, "");
+   MFEM_ASSERT(u.Height() == Hu.Height(), "");
    int num_states = u.Height();
    for (int i = 0; i < num_nodes; ++i)
    {
       for (int n = 0; n < num_states; ++n)
       {
-         Hu(n,i) = H(i)*u(n,i);
+         Hu(n, i) = H(i) * u(n, i);
       }
    }
 }
@@ -29,20 +28,21 @@ void SBPFiniteElement::multNormMatrixInv(const DenseMatrix &u,
                                          DenseMatrix &Hinvu) const
 {
    int num_nodes = GetDof();
-   MFEM_ASSERT( u.Width() == Hinvu.Width() && u.Width() == num_nodes , "");
-   MFEM_ASSERT( u.Height() == Hinvu.Height() , "");
+   MFEM_ASSERT(u.Width() == Hinvu.Width() && u.Width() == num_nodes, "");
+   MFEM_ASSERT(u.Height() == Hinvu.Height(), "");
    int num_states = u.Height();
    for (int i = 0; i < num_nodes; ++i)
    {
-      double fac = 1.0/H(i);
+      double fac = 1.0 / H(i);
       for (int n = 0; n < num_states; ++n)
       {
-         Hinvu(n,i) = fac*u(n,i);
+         Hinvu(n, i) = fac * u(n, i);
       }
    }
 }
 
-void SBPFiniteElement::getStrongOperator(int di, DenseMatrix &D,
+void SBPFiniteElement::getStrongOperator(int di,
+                                         DenseMatrix &D,
                                          bool trans) const
 {
    MFEM_ASSERT(di >= 0 && di < GetDim(), "");
@@ -54,7 +54,7 @@ void SBPFiniteElement::getStrongOperator(int di, DenseMatrix &D,
    }
    else
    {
-      D.Transpose(Q[di]); // this copies Qx^T, etc
+      D.Transpose(Q[di]);  // this copies Qx^T, etc
       D.InvLeftScaling(H);
    }
 }
@@ -65,36 +65,38 @@ void SBPFiniteElement::getStrongOperator(int di, int i, Vector &D) const
    MFEM_ASSERT(i >= 0 && i < GetDof(), "");
    int num_nodes = GetDof();
    D.SetSize(num_nodes);
-   double fac = 1.0/H(i);
+   double fac = 1.0 / H(i);
    for (int j = 0; j < num_nodes; ++j)
    {
-      D[j] = fac*Q[di](j,i); // Q[di] stores transposed weak operator
+      D[j] = fac * Q[di](j, i);  // Q[di] stores transposed weak operator
    }
 }
 
-void SBPFiniteElement::getWeakOperator(int di, DenseMatrix &Qdi,
+void SBPFiniteElement::getWeakOperator(int di,
+                                       DenseMatrix &Qdi,
                                        bool trans) const
 {
    MFEM_ASSERT(di >= 0 && di < GetDim(), "");
    if (trans)
    {
       // Q[di] stores the transposed operator already!!!
-      Qdi = Q[di]; // assignment (deep copy)
+      Qdi = Q[di];  // assignment (deep copy)
    }
    else
    {
-      Qdi.Transpose(Q[di]); // this copies Qx^T, etc
+      Qdi.Transpose(Q[di]);  // this copies Qx^T, etc
    }
 }
 
-void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u,
+void SBPFiniteElement::multWeakOperator(int di,
+                                        const DenseMatrix &u,
                                         DenseMatrix &Qu,
                                         bool trans) const
 {
    MFEM_ASSERT(di >= 0 && di < GetDim(), "");
    int num_nodes = GetDof();
-   MFEM_ASSERT( u.Width() == Qu.Width() && u.Width() == num_nodes , "");
-   MFEM_ASSERT( u.Height() == Qu.Height() , "");
+   MFEM_ASSERT(u.Width() == Qu.Width() && u.Width() == num_nodes, "");
+   MFEM_ASSERT(u.Height() == Qu.Height(), "");
    int num_states = u.Height();
    if (trans)
    {
@@ -105,12 +107,12 @@ void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u,
             for (int n = 0; n < num_states; ++n)
             {
                // recall that Q[di] stores the transposed operator
-               Qu(n,i) -= Q[di](i,j)*u(n,j);
+               Qu(n, i) -= Q[di](i, j) * u(n, j);
             }
          }
       }
    }
-   else // trans == false
+   else  // trans == false
    {
       for (int i = 0; i < num_nodes; ++i)
       {
@@ -119,21 +121,22 @@ void SBPFiniteElement::multWeakOperator(int di, const DenseMatrix &u,
             for (int n = 0; n < num_states; ++n)
             {
                // recall that Q[di] stores the transposed operator
-               Qu(n,i) += Q[di](j,i)*u(n,j);
+               Qu(n, i) += Q[di](j, i) * u(n, j);
             }
          }
       }
    }
 }
 
-void SBPFiniteElement::multWeakOperator(int di, int i,
+void SBPFiniteElement::multWeakOperator(int di,
+                                        int i,
                                         const DenseMatrix &u,
                                         Vector &Qu) const
 {
    MFEM_ASSERT(di >= 0 && di < GetDim(), "");
    int num_nodes = GetDof();
-   MFEM_ASSERT( u.Width() == num_nodes , "");
-   MFEM_ASSERT( u.Height() == Qu.Size() , "");
+   MFEM_ASSERT(u.Width() == num_nodes, "");
+   MFEM_ASSERT(u.Height() == Qu.Size(), "");
    int num_states = u.Height();
    Qu = 0.0;
    for (int j = 0; j < num_nodes; ++j)
@@ -146,56 +149,65 @@ void SBPFiniteElement::multWeakOperator(int di, int i,
    }
 }
 
-void SBPFiniteElement::multStrongOperator(int di, int i,
+void SBPFiniteElement::multStrongOperator(int di,
+                                          int i,
                                           const DenseMatrix &u,
                                           Vector &Du) const
 {
    multWeakOperator(di, i, u, Du);
-   double fac = 1.0/H(i);
+   double fac = 1.0 / H(i);
    Du *= fac;
 }
 
 double SBPFiniteElement::getQ(int di, int i, int j) const
 {
-   return Q[di](j,i); // Recall: Q[di] stores the transposed operator
+   return Q[di](j, i);  // Recall: Q[di] stores the transposed operator
 }
 
-double SBPFiniteElement::getSkewEntry(int di, int i, int j,
+double SBPFiniteElement::getSkewEntry(int di,
+                                      int i,
+                                      int j,
                                       const mfem::DenseMatrix &adjJ_i,
-                                      const mfem::DenseMatrix &adjJ_j) const 
+                                      const mfem::DenseMatrix &adjJ_j) const
 {
    double Sij = 0.0;
    for (int k = 0; k < GetDim(); ++k)
    {
-      Sij += adjJ_i(k,di)*Q[k](j,i) - adjJ_j(k,di)*Q[k](i,j);
+      Sij += adjJ_i(k, di) * Q[k](j, i) - adjJ_j(k, di) * Q[k](i, j);
    }
-   return Sij; 
+   return Sij;
 }
 
-void SBPFiniteElement::getSkewEntryRevDiff(int di, int i, int j, double Sij_bar,
+void SBPFiniteElement::getSkewEntryRevDiff(int di,
+                                           int i,
+                                           int j,
+                                           double Sij_bar,
                                            mfem::DenseMatrix &adjJ_i_bar,
                                            mfem::DenseMatrix &adjJ_j_bar) const
 {
    for (int k = 0; k < GetDim(); ++k)
    {
       // Sij += adjJ_i(k,di)*Q[k](j,i) - adjJ_j(k,di)*Q[k](i,j);
-      adjJ_i_bar(k,di) += Sij_bar*Q[k](j,i);
-      adjJ_j_bar(k,di) -= Sij_bar*Q[k](i,j);
+      adjJ_i_bar(k, di) += Sij_bar * Q[k](j, i);
+      adjJ_j_bar(k, di) -= Sij_bar * Q[k](i, j);
    }
 }
 
-double SBPFiniteElement::getSymEntry(int di, int i,
+double SBPFiniteElement::getSymEntry(int di,
+                                     int i,
                                      const mfem::DenseMatrix &adjJ_i) const
 {
    double Eij = 0.0;
    for (int k = 0; k < GetDim(); ++k)
    {
-      Eij += adjJ_i(k,di)*Q[k](i,i);
+      Eij += adjJ_i(k, di) * Q[k](i, i);
    }
    return Eij;
 }
 
-double SBPFiniteElement::getQEntry(int di, int i, int j,
+double SBPFiniteElement::getQEntry(int di,
+                                   int i,
+                                   int j,
                                    const mfem::DenseMatrix &adjJ_i,
                                    const mfem::DenseMatrix &adjJ_j) const
 {
@@ -205,13 +217,13 @@ double SBPFiniteElement::getQEntry(int di, int i, int j,
    }
    else
    {
-      return 0.5*getSkewEntry(di, i, j, adjJ_i, adjJ_j);
+      return 0.5 * getSkewEntry(di, i, j, adjJ_i, adjJ_j);
    }
 }
 
 void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
 {
-   MFEM_ASSERT( P.Size() == dof, "");
+   MFEM_ASSERT(P.Size() == dof, "");
    // Set lps = I - V*V'*H
    MultAAt(V, P);
    P.RightScaling(H);
@@ -224,26 +236,27 @@ void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
 
 double SBPFiniteElement::getProjOperatorEntry(int i, int j) const
 {
-   MFEM_ASSERT( i < dof, "");
-   MFEM_ASSERT( j < dof, "");
+   MFEM_ASSERT(i < dof, "");
+   MFEM_ASSERT(j < dof, "");
    double Pij = (i == j) ? 1.0 : 0.0;
    // loop over the polynomial basis functions
    for (int k = 0; k < V.Width(); ++k)
    {
-      Pij -= V(i,k)*V(j,k)*H(j);
+      Pij -= V(i, k) * V(j, k) * H(j);
    }
    return Pij;
 }
 
-void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
+void SBPFiniteElement::multProjOperator(const DenseMatrix &u,
+                                        DenseMatrix &Pu,
                                         bool trans) const
 {
    int num_nodes = GetDof();
-   MFEM_ASSERT( u.Width() == Pu.Width() && u.Width() == num_nodes , "");
-   MFEM_ASSERT( u.Height() == Pu.Height() , "");
+   MFEM_ASSERT(u.Width() == Pu.Width() && u.Width() == num_nodes, "");
+   MFEM_ASSERT(u.Height() == Pu.Height(), "");
    int num_states = u.Height();
-   Vector prod(num_states); // work vector
-   Vector uj, Puj; // For references to existing data
+   Vector prod(num_states);  // work vector
+   Vector uj, Puj;           // For references to existing data
    // Note: DenseMatrix::operator= is not in-place
    Pu = u;
    if (trans == true)
@@ -257,21 +270,21 @@ void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
          {
             for (int n = 0; n < num_states; ++n)
             {
-               prod(n) += V(j,i)*u(n,j); 
+               prod(n) += V(j, i) * u(n, j);
             }
          }
          // Subtract V(:,i) *(V(:,i)^T H u) from Pu
          for (int j = 0; j < num_nodes; ++j)
          {
-            double fac = V(j,i)*H(j);
+            double fac = V(j, i) * H(j);
             for (int n = 0; n < num_states; ++n)
             {
-               Pu(n,j) -= fac*prod(n);
+               Pu(n, j) -= fac * prod(n);
             }
          }
       }
    }
-   else // trans != true 
+   else  // trans != true
    {
       // loop over the polynomial basis functions
       for (int i = 0; i < V.Width(); ++i)
@@ -280,10 +293,10 @@ void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
          prod = 0.0;
          for (int j = 0; j < num_nodes; ++j)
          {
-            double fac = V(j,i)*H(j);
+            double fac = V(j, i) * H(j);
             for (int n = 0; n < num_states; ++n)
             {
-               prod(n) += fac*u(n,j);
+               prod(n) += fac * u(n, j);
             }
          }
          // Subtract V(:,i) *(V(:,i)^T H u) from Pu
@@ -291,7 +304,7 @@ void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
          {
             for (int n = 0; n < num_states; ++n)
             {
-               Pu(n,j) -= V(j,i)*prod(n);
+               Pu(n, j) -= V(j, i) * prod(n);
             }
          }
       }
@@ -304,13 +317,13 @@ int SBPFiniteElement::getIntegrationPointIndex(const IntegrationPoint &ip) const
    int index;
    for (int i = 0; i < GetDof(); ++i)
    {
-      double delta = pow(ip.x - x(i,0),2);
+      double delta = pow(ip.x - x(i, 0), 2);
       if (GetDim() > 1)
       {
-         delta += pow(ip.y - x(i,1),2);
+         delta += pow(ip.y - x(i, 1), 2);
          if (GetDim() > 2)
          {
-            delta += pow(ip.z - x(i,2),2);
+            delta += pow(ip.z - x(i, 2), 2);
          }
       }
       delta = sqrt(delta);
@@ -320,67 +333,69 @@ int SBPFiniteElement::getIntegrationPointIndex(const IntegrationPoint &ip) const
          return index;
       }
    }
-   throw mach::MachException("SBPFiniteElement::getIntegrationPointIndex(ip)\n"
-                             "\tprovided ip is not a node of given element!");
+   throw mach::MachException(
+       "SBPFiniteElement::getIntegrationPointIndex(ip)\n"
+       "\tprovided ip is not a node of given element!");
 }
 
 /// SBPSegmentElement is a segment element with nodes at Gauss Lobatto
 /// points with ordering consistent with SBPTriangleElement's edges.
 
 SBPSegmentElement::SBPSegmentElement(const int degree)
-   : SBPFiniteElement(1, Geometry::SEGMENT, degree+2, degree)
+ : SBPFiniteElement(1, Geometry::SEGMENT, degree + 2, degree)
 {
-   const int num_nodes = degree+2;
-   #include "sbp_operators.hpp"
+   const int num_nodes = degree + 2;
+#include "sbp_operators.hpp"
    Q[0].SetSize(num_nodes);
    Vector pts(num_nodes), wts(num_nodes);
-   mach::getLobattoQuadrature(degree+2, pts, wts);
+   mach::getLobattoQuadrature(degree + 2, pts, wts);
    // shift nodes to [0,1] and scale quadrature
    for (int i = 0; i < num_nodes; ++i)
    {
-      pts(i) = 0.5*(pts(i) + 1.0);
+      pts(i) = 0.5 * (pts(i) + 1.0);
       wts(i) *= 0.5;
    }
 
    Nodes.IntPoint(0).x = pts(0);
    Nodes.IntPoint(0).weight = wts(0);
-   Nodes.IntPoint(1).x = pts(num_nodes-1);
-   Nodes.IntPoint(1).weight = wts(num_nodes-1);
-   for (int i = 0; i < (num_nodes-2)/2; ++i)
+   Nodes.IntPoint(1).x = pts(num_nodes - 1);
+   Nodes.IntPoint(1).weight = wts(num_nodes - 1);
+   for (int i = 0; i < (num_nodes - 2) / 2; ++i)
    {
-      Nodes.IntPoint(2*(i+1)).x = pts(i+1);
-      Nodes.IntPoint(2*(i+1)).weight = wts(i+1);
-      Nodes.IntPoint(2*(i+1)+1).x = 1.0 - pts(i+1);
-      Nodes.IntPoint(2*(i+1)+1).weight = wts(i+1);
+      Nodes.IntPoint(2 * (i + 1)).x = pts(i + 1);
+      Nodes.IntPoint(2 * (i + 1)).weight = wts(i + 1);
+      Nodes.IntPoint(2 * (i + 1) + 1).x = 1.0 - pts(i + 1);
+      Nodes.IntPoint(2 * (i + 1) + 1).weight = wts(i + 1);
    }
    if (num_nodes % 2 == 1)
    {
       // Account for mid-point node
-      Nodes.IntPoint(num_nodes-1).x = pts((num_nodes-1)/2);
-      Nodes.IntPoint(num_nodes-1).weight = wts((num_nodes-1)/2);
+      Nodes.IntPoint(num_nodes - 1).x = pts((num_nodes - 1) / 2);
+      Nodes.IntPoint(num_nodes - 1).weight = wts((num_nodes - 1) / 2);
    }
 
    // Populate the Q[0] matrix
    switch (degree)
    {
-      case 0:
-         Q[0] = p0Qx_seg;
-         break;
-      case 1:
-         Q[0] = p1Qx_seg;
-         break;
-      case 2:
-         Q[0] = p2Qx_seg;
-         break;
-      case 3:
-         Q[0] = p3Qx_seg;
-         break;
-      case 4:
-         Q[0] = p4Qx_seg;
-         break;
-      default:
-         mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
-         break;
+   case 0:
+      Q[0] = p0Qx_seg;
+      break;
+   case 1:
+      Q[0] = p1Qx_seg;
+      break;
+   case 2:
+      Q[0] = p2Qx_seg;
+      break;
+   case 3:
+      Q[0] = p3Qx_seg;
+      break;
+   case 4:
+      Q[0] = p4Qx_seg;
+      break;
+   default:
+      mfem_error(
+          "SBP elements are currently only supported for 0 <= order <= 4");
+      break;
    }
 
    // populate unordered_map with mapping from IntPoint address to index
@@ -393,7 +408,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(i);
       H(i) = ip.weight;
-      x(i,0) = ip.x;
+      x(i, 0) = ip.x;
    }
 
    // Construct the Vandermonde matrix in order to perform LPS projections;
@@ -409,7 +424,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
 }
 
 /// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
-/// where ip is the integration point CalcShape is evaluated at. 
+/// where ip is the integration point CalcShape is evaluated at.
 void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
                                   Vector &shape) const
 {
@@ -418,9 +433,9 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
    {
       ipIdx = ipIdxMap.at(&ip);
    }
-   catch (const std::out_of_range& oor)
+   catch (const std::out_of_range &oor)
    // error handling code to handle cases where the pointer to ip is not
-   // in the map. Problems arise in GridFunction::SaveVTK() (specifically 
+   // in the map. Problems arise in GridFunction::SaveVTK() (specifically
    // GridFunction::GetValues()), which calls CalcShape() with an
    // `IntegrationPoint` defined by a refined geometry type. Since the
    // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap,
@@ -430,7 +445,7 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
       // Such an approach is fine if LPS is used, but it will eliminate high
       // frequencey modes that may be present in the true solution.  It has
       // the advantage of being fast and not requiring a min-norm solution.
-      Vector xvec(1); // Vector with 1 entry (needed by jacobiPoly)
+      Vector xvec(1);  // Vector with 1 entry (needed by jacobiPoly)
       Vector poly(1);
       xvec(0) = 2 * ip.x - 1;
       int ptr = 0;
@@ -438,7 +453,7 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
       for (int i = 0; i <= order; ++i)
       {
          mach::jacobiPoly(xvec, 0.0, 0.0, i, poly);
-         poly *= 2.0; // scale to mfem reference element
+         poly *= 2.0;  // scale to mfem reference element
          for (int k = 0; k < GetDof(); ++k)
          {
             shape(k) += poly(0) * V(k, ptr) * H(k);
@@ -462,14 +477,14 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
    {
       ipIdx = ipIdxMap.at(&ip);
    }
-   catch (const std::out_of_range& oor)
+   catch (const std::out_of_range &oor)
    // error handling code to handle cases where the pointer to ip is not
-   // in the map. Problems arise in GridFunction::SaveVTK() ->  GridFunction::GetValues()
-   // which calls CalcShape() with an `IntegrationPoint` defined by a refined
-   // geometry type. Since the IntegrationPoint is not in Nodes, its address is
-   // not in the ipIdxMap, and an out_of_range error is thrown. This code catches 
-   // the error and uses float comparisons to determine the IntegrationPoint
-   // index.
+   // in the map. Problems arise in GridFunction::SaveVTK() ->
+   // GridFunction::GetValues() which calls CalcShape() with an
+   // `IntegrationPoint` defined by a refined geometry type. Since the
+   // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap, and
+   // an out_of_range error is thrown. This code catches the error and uses
+   // float comparisons to determine the IntegrationPoint index.
    {
       double tol = 1e-12;
       for (int i = 0; i < dof; i++)
@@ -482,7 +497,8 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
          }
       }
    }
-   // TODO: I think we can make tempVec an empty Vector, since it is just a reference
+   // TODO: I think we can make tempVec an empty Vector, since it is just a
+   // reference
    dshape = 0.0;
    Vector tempVec(dof);
    Q[0].GetColumnReference(ipIdx, tempVec);
@@ -494,7 +510,8 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 // /// Not currently implemented as collocated SBP type element
 // //////////////////////////////////////////////////////////////////////////
 // SBPSegmentElement::SBPSegmentElement(const int p)
-//    : NodalTensorFiniteElement(1, p+1, BasisType::GaussLobatto, H1_DOF_MAP) //SBPFiniteElement(1, GetTensorProductGeometry(1), p+2, p),
+//    : NodalTensorFiniteElement(1, p+1, BasisType::GaussLobatto, H1_DOF_MAP)
+//    //SBPFiniteElement(1, GetTensorProductGeometry(1), p+2, p),
 // {
 //    const double *cp = poly1d.ClosedPoints(p+1, b_type);
 
@@ -632,120 +649,162 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 // }
 
 SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
-   : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree)
+ : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree)
 {
-   /// Header file including SBP Dx and Dy matrix data
-   #include "sbp_operators.hpp"
+/// Header file including SBP Dx and Dy matrix data
+#include "sbp_operators.hpp"
    Q[0].SetSize(num_nodes);
    Q[1].SetSize(num_nodes);
-   
+
    // Populate the Q[i] matrices and create the element's Nodes
    switch (degree)
    {
-      case 0:
-         Q[0] = p0Qx_tri;
-         Q[1] = p0Qy_tri;
-         // vertices
-         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.16666666666666666);
-         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.16666666666666666);
-         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.16666666666666666);
-         break;
-      case 1:
-         Q[0] = p1Qx_tri;
-         Q[1] = p1Qy_tri;
-         // vertices
-         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.024999999999999998);
-         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.024999999999999998);
-         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.024999999999999998);
-         // edges
-         Nodes.IntPoint(3).Set2w(0.5, 0.0, 0.06666666666666667);
-         Nodes.IntPoint(4).Set2w(0.5, 0.5, 0.06666666666666667);
-         Nodes.IntPoint(5).Set2w(0.0, 0.5, 0.06666666666666667);
-         // interior
-         Nodes.IntPoint(6).Set2w(0.3333333333333333, 0.3333333333333333, 0.22500000000000006);
-         break;
-      case 2:
-         Q[0] = p2Qx_tri;
-         Q[1] = p2Qy_tri;
-         // vertices
-         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.006261126504899741);
-         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.006261126504899741);
-         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.006261126504899741);
-         // edges
-         Nodes.IntPoint(3).Set2w(0.27639320225002106, 0.0, 0.026823800250389242);
-         Nodes.IntPoint(4).Set2w(0.7236067977499789, 0.0, 0.026823800250389242);
-         Nodes.IntPoint(5).Set2w(0.7236067977499789, 0.27639320225002106, 0.026823800250389242);
-         Nodes.IntPoint(6).Set2w(0.27639320225002106, 0.7236067977499789, 0.026823800250389242);
-         Nodes.IntPoint(7).Set2w(0.0, 0.7236067977499789, 0.026823800250389242);
-         Nodes.IntPoint(8).Set2w(0.0, 0.27639320225002106, 0.026823800250389242);
-         // interior
-         Nodes.IntPoint(9).Set2w(0.21285435711180825, 0.5742912857763836, 0.10675793966098839);
-         Nodes.IntPoint(10).Set2w(0.21285435711180825, 0.21285435711180825, 0.10675793966098839);
-         Nodes.IntPoint(11).Set2w(0.5742912857763836, 0.21285435711180825, 0.10675793966098839);
-         break;
-      case 3:
-         Q[0] = p3Qx_tri;
-         Q[1] = p3Qy_tri;
-         // vertices
-         Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.0022825661430496253);
-         Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.0022825661430496253);
-         Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.0022825661430496253);
-         // edges
-         Nodes.IntPoint(3).Set2w(0.5, 0.0, 0.015504052643022513);
-         Nodes.IntPoint(4).Set2w(0.17267316464601146, 0.0, 0.011342592592592586);
-         Nodes.IntPoint(5).Set2w(0.8273268353539885, 0.0, 0.011342592592592586);
-         Nodes.IntPoint(6).Set2w(0.5, 0.5, 0.015504052643022513);
-         Nodes.IntPoint(7).Set2w(0.8273268353539885, 0.17267316464601146, 0.011342592592592586);
-         Nodes.IntPoint(8).Set2w(0.17267316464601146, 0.8273268353539885, 0.011342592592592586);
-         Nodes.IntPoint(9).Set2w(0.0, 0.5, 0.015504052643022513);
-         Nodes.IntPoint(10).Set2w(0.0, 0.8273268353539885, 0.011342592592592586);
-         Nodes.IntPoint(11).Set2w(0.0, 0.17267316464601146, 0.011342592592592586);
-         // interior
-         Nodes.IntPoint(12).Set2w(0.4243860251718814, 0.1512279496562372, 0.07467669469983994);
-         Nodes.IntPoint(13).Set2w(0.4243860251718814, 0.4243860251718814, 0.07467669469983994);
-         Nodes.IntPoint(14).Set2w(0.1512279496562372, 0.4243860251718814, 0.07467669469983994);
-         Nodes.IntPoint(15).Set2w(0.14200508409677795, 0.7159898318064442, 0.051518167995569394);
-         Nodes.IntPoint(16).Set2w(0.14200508409677795, 0.14200508409677795, 0.051518167995569394);
-         Nodes.IntPoint(17).Set2w(0.7159898318064442, 0.14200508409677795, 0.051518167995569394);
-         break;
-      case 4:
-         Q[0] = p4Qx_tri;
-         Q[1] = p4Qy_tri; 
+   case 0:
+      Q[0] = p0Qx_tri;
+      Q[1] = p0Qy_tri;
+      // vertices
+      Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.16666666666666666);
+      Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.16666666666666666);
+      Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.16666666666666666);
+      break;
+   case 1:
+      Q[0] = p1Qx_tri;
+      Q[1] = p1Qy_tri;
+      // vertices
+      Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.024999999999999998);
+      Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.024999999999999998);
+      Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.024999999999999998);
+      // edges
+      Nodes.IntPoint(3).Set2w(0.5, 0.0, 0.06666666666666667);
+      Nodes.IntPoint(4).Set2w(0.5, 0.5, 0.06666666666666667);
+      Nodes.IntPoint(5).Set2w(0.0, 0.5, 0.06666666666666667);
+      // interior
+      Nodes.IntPoint(6).Set2w(
+          0.3333333333333333, 0.3333333333333333, 0.22500000000000006);
+      break;
+   case 2:
+      Q[0] = p2Qx_tri;
+      Q[1] = p2Qy_tri;
+      // vertices
+      Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.006261126504899741);
+      Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.006261126504899741);
+      Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.006261126504899741);
+      // edges
+      Nodes.IntPoint(3).Set2w(0.27639320225002106, 0.0, 0.026823800250389242);
+      Nodes.IntPoint(4).Set2w(0.7236067977499789, 0.0, 0.026823800250389242);
+      Nodes.IntPoint(5).Set2w(
+          0.7236067977499789, 0.27639320225002106, 0.026823800250389242);
+      Nodes.IntPoint(6).Set2w(
+          0.27639320225002106, 0.7236067977499789, 0.026823800250389242);
+      Nodes.IntPoint(7).Set2w(0.0, 0.7236067977499789, 0.026823800250389242);
+      Nodes.IntPoint(8).Set2w(0.0, 0.27639320225002106, 0.026823800250389242);
+      // interior
+      Nodes.IntPoint(9).Set2w(
+          0.21285435711180825, 0.5742912857763836, 0.10675793966098839);
+      Nodes.IntPoint(10).Set2w(
+          0.21285435711180825, 0.21285435711180825, 0.10675793966098839);
+      Nodes.IntPoint(11).Set2w(
+          0.5742912857763836, 0.21285435711180825, 0.10675793966098839);
+      break;
+   case 3:
+      Q[0] = p3Qx_tri;
+      Q[1] = p3Qy_tri;
+      // vertices
+      Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.0022825661430496253);
+      Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.0022825661430496253);
+      Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.0022825661430496253);
+      // edges
+      Nodes.IntPoint(3).Set2w(0.5, 0.0, 0.015504052643022513);
+      Nodes.IntPoint(4).Set2w(0.17267316464601146, 0.0, 0.011342592592592586);
+      Nodes.IntPoint(5).Set2w(0.8273268353539885, 0.0, 0.011342592592592586);
+      Nodes.IntPoint(6).Set2w(0.5, 0.5, 0.015504052643022513);
+      Nodes.IntPoint(7).Set2w(
+          0.8273268353539885, 0.17267316464601146, 0.011342592592592586);
+      Nodes.IntPoint(8).Set2w(
+          0.17267316464601146, 0.8273268353539885, 0.011342592592592586);
+      Nodes.IntPoint(9).Set2w(0.0, 0.5, 0.015504052643022513);
+      Nodes.IntPoint(10).Set2w(0.0, 0.8273268353539885, 0.011342592592592586);
+      Nodes.IntPoint(11).Set2w(0.0, 0.17267316464601146, 0.011342592592592586);
+      // interior
+      Nodes.IntPoint(12).Set2w(
+          0.4243860251718814, 0.1512279496562372, 0.07467669469983994);
+      Nodes.IntPoint(13).Set2w(
+          0.4243860251718814, 0.4243860251718814, 0.07467669469983994);
+      Nodes.IntPoint(14).Set2w(
+          0.1512279496562372, 0.4243860251718814, 0.07467669469983994);
+      Nodes.IntPoint(15).Set2w(
+          0.14200508409677795, 0.7159898318064442, 0.051518167995569394);
+      Nodes.IntPoint(16).Set2w(
+          0.14200508409677795, 0.14200508409677795, 0.051518167995569394);
+      Nodes.IntPoint(17).Set2w(
+          0.7159898318064442, 0.14200508409677795, 0.051518167995569394);
+      break;
+   case 4:
+      Q[0] = p4Qx_tri;
+      Q[1] = p4Qy_tri;
 
-         // vertices
-         Nodes.IntPoint(0).Set2w(0.000000000000000000,0.000000000000000000,0.001090393904993471);
-         Nodes.IntPoint(1).Set2w(1.000000000000000000,0.000000000000000000,0.001090393904993471);
-         Nodes.IntPoint(2).Set2w(0.000000000000000000,1.000000000000000000,0.001090393904993471);
-         // edges
-         Nodes.IntPoint(3).Set2w(0.357384241759677534,0.000000000000000000,0.006966942871463700);
-         Nodes.IntPoint(4).Set2w(0.642615758240322466,0.000000000000000000,0.006966942871463700);
-         Nodes.IntPoint(5).Set2w(0.117472338035267576,0.000000000000000000,0.005519747637357106);
-         Nodes.IntPoint(6).Set2w(0.882527661964732424,0.000000000000000000,0.005519747637357106);
-         Nodes.IntPoint(7).Set2w(0.642615758240322466,0.357384241759677534,0.006966942871463700);
-         Nodes.IntPoint(8).Set2w(0.357384241759677534,0.642615758240322466,0.006966942871463700);
-         Nodes.IntPoint(9).Set2w(0.882527661964732424,0.117472338035267576,0.005519747637357106);
-         Nodes.IntPoint(10).Set2w(0.117472338035267576,0.882527661964732424,0.005519747637357106);
-         Nodes.IntPoint(11).Set2w(0.000000000000000000,0.642615758240322466,0.006966942871463700);
-         Nodes.IntPoint(12).Set2w(0.000000000000000000,0.357384241759677534,0.006966942871463700);
-         Nodes.IntPoint(13).Set2w(0.000000000000000000,0.882527661964732424,0.005519747637357106);
-         Nodes.IntPoint(14).Set2w(0.000000000000000000,0.117472338035267576,0.005519747637357106);
-         // interior
-         Nodes.IntPoint(15).Set2w(0.103677508142805172,0.792644983714389628,0.028397190663911491);
-         Nodes.IntPoint(16).Set2w(0.103677508142805172,0.103677508142805172,0.028397190663911491);
-         Nodes.IntPoint(17).Set2w(0.792644983714389628,0.103677508142805172,0.028397190663911491);
-         Nodes.IntPoint(18).Set2w(0.265331380484209678,0.469337239031580644,0.039960048027851809);
-         Nodes.IntPoint(19).Set2w(0.265331380484209678,0.265331380484209678,0.039960048027851809);
-         Nodes.IntPoint(20).Set2w(0.469337239031580644,0.265331380484209678,0.039960048027851809);
-         Nodes.IntPoint(21).Set2w(0.587085567133367348,0.088273960601581103,0.036122826526134168);
-         Nodes.IntPoint(22).Set2w(0.324640472265051494,0.088273960601581103,0.036122826526134168);
-         Nodes.IntPoint(23).Set2w(0.324640472265051494,0.587085567133367348,0.036122826526134168);
-         Nodes.IntPoint(24).Set2w(0.587085567133367348,0.324640472265051494,0.036122826526134168);
-         Nodes.IntPoint(25).Set2w(0.088273960601581103,0.324640472265051494,0.036122826526134168);
-         Nodes.IntPoint(26).Set2w(0.088273960601581103,0.587085567133367348,0.036122826526134168);
-         break;
-      default:
-         mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
-         break;
+      // vertices
+      Nodes.IntPoint(0).Set2w(
+          0.000000000000000000, 0.000000000000000000, 0.001090393904993471);
+      Nodes.IntPoint(1).Set2w(
+          1.000000000000000000, 0.000000000000000000, 0.001090393904993471);
+      Nodes.IntPoint(2).Set2w(
+          0.000000000000000000, 1.000000000000000000, 0.001090393904993471);
+      // edges
+      Nodes.IntPoint(3).Set2w(
+          0.357384241759677534, 0.000000000000000000, 0.006966942871463700);
+      Nodes.IntPoint(4).Set2w(
+          0.642615758240322466, 0.000000000000000000, 0.006966942871463700);
+      Nodes.IntPoint(5).Set2w(
+          0.117472338035267576, 0.000000000000000000, 0.005519747637357106);
+      Nodes.IntPoint(6).Set2w(
+          0.882527661964732424, 0.000000000000000000, 0.005519747637357106);
+      Nodes.IntPoint(7).Set2w(
+          0.642615758240322466, 0.357384241759677534, 0.006966942871463700);
+      Nodes.IntPoint(8).Set2w(
+          0.357384241759677534, 0.642615758240322466, 0.006966942871463700);
+      Nodes.IntPoint(9).Set2w(
+          0.882527661964732424, 0.117472338035267576, 0.005519747637357106);
+      Nodes.IntPoint(10).Set2w(
+          0.117472338035267576, 0.882527661964732424, 0.005519747637357106);
+      Nodes.IntPoint(11).Set2w(
+          0.000000000000000000, 0.642615758240322466, 0.006966942871463700);
+      Nodes.IntPoint(12).Set2w(
+          0.000000000000000000, 0.357384241759677534, 0.006966942871463700);
+      Nodes.IntPoint(13).Set2w(
+          0.000000000000000000, 0.882527661964732424, 0.005519747637357106);
+      Nodes.IntPoint(14).Set2w(
+          0.000000000000000000, 0.117472338035267576, 0.005519747637357106);
+      // interior
+      Nodes.IntPoint(15).Set2w(
+          0.103677508142805172, 0.792644983714389628, 0.028397190663911491);
+      Nodes.IntPoint(16).Set2w(
+          0.103677508142805172, 0.103677508142805172, 0.028397190663911491);
+      Nodes.IntPoint(17).Set2w(
+          0.792644983714389628, 0.103677508142805172, 0.028397190663911491);
+      Nodes.IntPoint(18).Set2w(
+          0.265331380484209678, 0.469337239031580644, 0.039960048027851809);
+      Nodes.IntPoint(19).Set2w(
+          0.265331380484209678, 0.265331380484209678, 0.039960048027851809);
+      Nodes.IntPoint(20).Set2w(
+          0.469337239031580644, 0.265331380484209678, 0.039960048027851809);
+      Nodes.IntPoint(21).Set2w(
+          0.587085567133367348, 0.088273960601581103, 0.036122826526134168);
+      Nodes.IntPoint(22).Set2w(
+          0.324640472265051494, 0.088273960601581103, 0.036122826526134168);
+      Nodes.IntPoint(23).Set2w(
+          0.324640472265051494, 0.587085567133367348, 0.036122826526134168);
+      Nodes.IntPoint(24).Set2w(
+          0.587085567133367348, 0.324640472265051494, 0.036122826526134168);
+      Nodes.IntPoint(25).Set2w(
+          0.088273960601581103, 0.324640472265051494, 0.036122826526134168);
+      Nodes.IntPoint(26).Set2w(
+          0.088273960601581103, 0.587085567133367348, 0.036122826526134168);
+      break;
+   default:
+      mfem_error(
+          "SBP elements are currently only supported for 0 <= order <= 4");
+      break;
    }
 
    // populate unordered_map with mapping from IntPoint address to index
@@ -758,12 +817,12 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(i);
       H(i) = ip.weight;
-      x(i,0) = ip.x;
-      x(i,1) = ip.y;
+      x(i, 0) = ip.x;
+      x(i, 1) = ip.y;
    }
    // Construct the Vandermonde matrix in order to perform LPS projections;
    V.SetSize(num_nodes, (degree + 1) * (degree + 2) / 2);
-   // First, get node coordinates and shift to triangle with vertices 
+   // First, get node coordinates and shift to triangle with vertices
    // (-1,-1), (1,-1), (-1,1)
    Vector xi, eta;
    getNodeCoords(0, xi);
@@ -778,7 +837,7 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
 }
 
 /// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
-/// where ip is the integration point CalcShape is evaluated at. 
+/// where ip is the integration point CalcShape is evaluated at.
 void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
                                    Vector &shape) const
 {
@@ -787,9 +846,9 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
    {
       ipIdx = ipIdxMap.at(&ip);
    }
-   catch (const std::out_of_range& oor)
+   catch (const std::out_of_range &oor)
    // error handling code to handle cases where the pointer to ip is not
-   // in the map. Problems arise in GridFunction::SaveVTK() (specifically 
+   // in the map. Problems arise in GridFunction::SaveVTK() (specifically
    // GridFunction::GetValues()), which calls CalcShape() with an
    // `IntegrationPoint` defined by a refined geometry type. Since the
    // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap,
@@ -799,7 +858,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
       // Such an approach is fine if LPS is used, but it will eliminate high
       // frequencey modes that may be present in the true solution.  It has
       // the advantage of being fast and not requiring a min-norm solution.
-      Vector xvec(1); // Vector with 1 entry (needed by prorioPoly)
+      Vector xvec(1);  // Vector with 1 entry (needed by prorioPoly)
       Vector yvec(1);
       Vector poly(1);
       xvec(0) = 2 * ip.x - 1;
@@ -811,7 +870,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
          for (int j = 0; j <= r; ++j)
          {
             mach::prorioPoly(xvec, yvec, r - j, j, poly);
-            poly *= 2.0; // scale to mfem reference element
+            poly *= 2.0;  // scale to mfem reference element
             for (int k = 0; k < GetDof(); ++k)
             {
                shape(k) += poly(0) * V(k, ptr) * H(k);
@@ -836,21 +895,21 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    {
       ipIdx = ipIdxMap.at(&ip);
    }
-   catch (const std::out_of_range& oor)
+   catch (const std::out_of_range &oor)
    // error handling code to handle cases where the pointer to ip is not
-   // in the map. Problems arise in GridFunction::SaveVTK() ->  GridFunction::GetValues()
-   // which calls CalcShape() with an `IntegrationPoint` defined by a refined
-   // geometry type. Since the IntegrationPoint is not in Nodes, its address is
-   // not in the ipIdxMap, and an out_of_range error is thrown. This code catches 
-   // the error and uses float comparisons to determine the IntegrationPoint
-   // index.
+   // in the map. Problems arise in GridFunction::SaveVTK() ->
+   // GridFunction::GetValues() which calls CalcShape() with an
+   // `IntegrationPoint` defined by a refined geometry type. Since the
+   // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap, and
+   // an out_of_range error is thrown. This code catches the error and uses
+   // float comparisons to determine the IntegrationPoint index.
    {
       double tol = 1e-12;
       for (int i = 0; i < dof; i++)
       {
          double delta_x = ip.x - Nodes.IntPoint(i).x;
          double delta_y = ip.y - Nodes.IntPoint(i).y;
-         if (delta_x*delta_x + delta_y*delta_y < tol)
+         if (delta_x * delta_x + delta_y * delta_y < tol)
          {
             ipIdx = i;
             break;
@@ -868,7 +927,7 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
 }
 
 SBPCollection::SBPCollection(const int p, const int dim)
-   : FiniteElementCollection(p)
+ : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
@@ -903,60 +962,60 @@ SBPCollection::SBPCollection(const int p, const int dim)
       int revNodeOrder0[] = {};
       int revNodeOrder1[1] = {0};
       int revNodeOrder2[2] = {1, 0};
-      int revNodeOrder3[3] = {0, 2, 1}; // {1, 0, 2};    // {0, 2, 1};
-      int revNodeOrder4[4] = {1, 0, 3, 2};    // {1, 0, 3, 2};
+      int revNodeOrder3[3] = {0, 2, 1};     // {1, 0, 2};    // {0, 2, 1};
+      int revNodeOrder4[4] = {1, 0, 3, 2};  // {1, 0, 3, 2};
 
       switch (p)
       {
-         case 0:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder0[i];
-               SegDofOrd[1][i] = revNodeOrder0[i];
-            }
-            break;
-         case 1:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder1[i];
-               SegDofOrd[1][i] = revNodeOrder1[i];
-            }
-            break;
-         case 2:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder2[i];
-               SegDofOrd[1][i] = revNodeOrder2[i];
-            }
-            break;
-         case 3:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder3[i];
-               SegDofOrd[1][i] = revNodeOrder3[i];
-            }
-            break;
-         case 4:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder4[i];
-               SegDofOrd[1][i] = revNodeOrder4[i];
-            }
-            break;
-         default:
-            mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
-            break;
-
+      case 0:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder0[i];
+            SegDofOrd[1][i] = revNodeOrder0[i];
+         }
+         break;
+      case 1:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder1[i];
+            SegDofOrd[1][i] = revNodeOrder1[i];
+         }
+         break;
+      case 2:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder2[i];
+            SegDofOrd[1][i] = revNodeOrder2[i];
+         }
+         break;
+      case 3:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder3[i];
+            SegDofOrd[1][i] = revNodeOrder3[i];
+         }
+         break;
+      case 4:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder4[i];
+            SegDofOrd[1][i] = revNodeOrder4[i];
+         }
+         break;
+      default:
+         mfem_error(
+             "SBP elements are currently only supported for 0 <= order <= 4");
+         break;
       }
    }
 
@@ -964,38 +1023,42 @@ SBPCollection::SBPCollection(const int p, const int dim)
    {
       switch (p)
       {
-         case 0:
-            SBPdof[Geometry::TRIANGLE] = 3 - 3 - 3*p;
-            break;
-         case 1:
-            SBPdof[Geometry::TRIANGLE] = 7 - 3 - 3*p;
-            break;
-         case 2:
-            SBPdof[Geometry::TRIANGLE] = 12 - 3 - 3*p;
-            break;
-         case 3:
-            SBPdof[Geometry::TRIANGLE] = 18 - 3 - 3*p;
-            break;
-         case 4:
-            SBPdof[Geometry::TRIANGLE] = 27 - 3 - 3*p;
-            break;
-         default:
-            mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
-            break;
+      case 0:
+         SBPdof[Geometry::TRIANGLE] = 3 - 3 - 3 * p;
+         break;
+      case 1:
+         SBPdof[Geometry::TRIANGLE] = 7 - 3 - 3 * p;
+         break;
+      case 2:
+         SBPdof[Geometry::TRIANGLE] = 12 - 3 - 3 * p;
+         break;
+      case 3:
+         SBPdof[Geometry::TRIANGLE] = 18 - 3 - 3 * p;
+         break;
+      case 4:
+         SBPdof[Geometry::TRIANGLE] = 27 - 3 - 3 * p;
+         break;
+      default:
+         mfem_error(
+             "SBP elements are currently only supported for 0 <= order <= 4");
+         break;
       }
 
-      const int &TriDof = SBPdof[Geometry::TRIANGLE] + 3*SBPdof[Geometry::POINT] + 3*SBPdof[Geometry::SEGMENT];
+      const int &TriDof = SBPdof[Geometry::TRIANGLE] +
+                          3 * SBPdof[Geometry::POINT] +
+                          3 * SBPdof[Geometry::SEGMENT];
 
       SBPElements[Geometry::TRIANGLE] = new SBPTriangleElement(p, TriDof);
    }
 }
 
 const FiniteElement *SBPCollection::FiniteElementForGeometry(
-      Geometry::Type GeomType) const
+    Geometry::Type GeomType) const
 {
-   if (GeomType == Geometry::TRIANGLE || GeomType == Geometry::SEGMENT || GeomType == Geometry::POINT)
+   if (GeomType == Geometry::TRIANGLE || GeomType == Geometry::SEGMENT ||
+       GeomType == Geometry::POINT)
    {
-      return SBPElements[GeomType]; 
+      return SBPElements[GeomType];
    }
    else
    {
@@ -1005,7 +1068,7 @@ const FiniteElement *SBPCollection::FiniteElementForGeometry(
 }
 
 const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
-                                                   int Or) const
+                                                 int Or) const
 {
    if (GeomType == Geometry::SEGMENT)
    {
@@ -1016,17 +1079,17 @@ const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
 
 SBPCollection::~SBPCollection()
 {
-   delete [] SegDofOrd[0];
-   delete [] SegDofOrd[1];
+   delete[] SegDofOrd[0];
+   delete[] SegDofOrd[1];
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       delete SBPElements[g];
    }
 }
 
-// From here thee DSBPCollection class 
+// From here thee DSBPCollection class
 DSBPCollection::DSBPCollection(const int p, const int dim)
-   : FiniteElementCollection(p)
+ : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
    MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
@@ -1034,13 +1097,13 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       DSBPElements[g] = NULL;
-      Tr_SBPElements[g] =NULL;
+      Tr_SBPElements[g] = NULL;
    }
    for (int i = 0; i < 2; i++)
    {
       SegDofOrd[i] = NULL;
    }
-   if (dim >= 1 )
+   if (dim >= 1)
    {
       DSBPdof[Geometry::POINT] = 0;
       DSBPdof[Geometry::SEGMENT] = 0;
@@ -1057,60 +1120,60 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
       int revNodeOrder0[] = {};
       int revNodeOrder1[1] = {0};
       int revNodeOrder2[2] = {1, 0};
-      int revNodeOrder3[3] = {0, 2, 1}; //{1, 0, 2};    // {0, 2, 1};
-      int revNodeOrder4[4] = {1, 0, 3, 2};    // {1, 0, 3, 2};
+      int revNodeOrder3[3] = {0, 2, 1};     //{1, 0, 2};    // {0, 2, 1};
+      int revNodeOrder4[4] = {1, 0, 3, 2};  // {1, 0, 3, 2};
       // set the dof order
       switch (p)
       {
-         case 0:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder0[i];
-               SegDofOrd[1][i] = revNodeOrder0[i];
-            }
-            break;
-         case 1:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder1[i];
-               SegDofOrd[1][i] = revNodeOrder1[i];
-            }
-            break;
-         case 2:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder2[i];
-               SegDofOrd[1][i] = revNodeOrder2[i];
-            }
-            break;
-         case 3:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder3[i];
-               SegDofOrd[1][i] = revNodeOrder3[i];
-            }
-            break;
-         case 4:
-            SegDofOrd[0] = new int[p];
-            SegDofOrd[1] = new int[p];
-            for (int i = 0; i < p; i++)
-            {
-               SegDofOrd[0][i] = nodeOrder4[i];
-               SegDofOrd[1][i] = revNodeOrder4[i];
-            }
-            break;
-         default:
-            mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
-            break;
-
+      case 0:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder0[i];
+            SegDofOrd[1][i] = revNodeOrder0[i];
+         }
+         break;
+      case 1:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder1[i];
+            SegDofOrd[1][i] = revNodeOrder1[i];
+         }
+         break;
+      case 2:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder2[i];
+            SegDofOrd[1][i] = revNodeOrder2[i];
+         }
+         break;
+      case 3:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder3[i];
+            SegDofOrd[1][i] = revNodeOrder3[i];
+         }
+         break;
+      case 4:
+         SegDofOrd[0] = new int[p];
+         SegDofOrd[1] = new int[p];
+         for (int i = 0; i < p; i++)
+         {
+            SegDofOrd[0][i] = nodeOrder4[i];
+            SegDofOrd[1][i] = revNodeOrder4[i];
+         }
+         break;
+      default:
+         mfem_error(
+             "SBP elements are currently only supported for 0 <= order <= 4");
+         break;
       }
    }
 
@@ -1119,34 +1182,36 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
    {
       switch (p)
       {
-         case 0:
-            DSBPdof[Geometry::TRIANGLE] = 3;
-            break;
-         case 1:
-            DSBPdof[Geometry::TRIANGLE] = 7;
-            break;
-         case 2:
-            DSBPdof[Geometry::TRIANGLE] = 12;
-            break;
-         case 3:
-            DSBPdof[Geometry::TRIANGLE] = 18;
-            break;
-         case 4:
-            DSBPdof[Geometry::TRIANGLE] = 27;
-            break;
-         default:
-            mfem_error("SBP elements are currently only supported for 0 <= order <= 4");
-            break;
+      case 0:
+         DSBPdof[Geometry::TRIANGLE] = 3;
+         break;
+      case 1:
+         DSBPdof[Geometry::TRIANGLE] = 7;
+         break;
+      case 2:
+         DSBPdof[Geometry::TRIANGLE] = 12;
+         break;
+      case 3:
+         DSBPdof[Geometry::TRIANGLE] = 18;
+         break;
+      case 4:
+         DSBPdof[Geometry::TRIANGLE] = 27;
+         break;
+      default:
+         mfem_error(
+             "SBP elements are currently only supported for 0 <= order <= 4");
+         break;
       }
-      const int &TriDof = DSBPdof[Geometry::TRIANGLE] + 3*DSBPdof[Geometry::POINT]
-          + 3*DSBPdof[Geometry::SEGMENT];
+      const int &TriDof = DSBPdof[Geometry::TRIANGLE] +
+                          3 * DSBPdof[Geometry::POINT] +
+                          3 * DSBPdof[Geometry::SEGMENT];
       DSBPElements[Geometry::TRIANGLE] = new SBPTriangleElement(p, TriDof);
       Tr_SBPElements[Geometry::SEGMENT] = new SBPSegmentElement(p);
    }
 }
 
 const int *DSBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
-                                                   int Or) const
+                                                  int Or) const
 {
    if (GeomType == Geometry::SEGMENT)
    {
@@ -1157,12 +1222,12 @@ const int *DSBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
 
 DSBPCollection::~DSBPCollection()
 {
-   delete [] SegDofOrd[0];
-   delete [] SegDofOrd[1];
+   delete[] SegDofOrd[0];
+   delete[] SegDofOrd[1];
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       delete DSBPElements[g];
       delete Tr_SBPElements[g];
    }
 }
-} // namespace mfem
+}  // namespace mfem

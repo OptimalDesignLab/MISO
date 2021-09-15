@@ -3,7 +3,7 @@
 #include <random>
 
 #include "catch.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "mfem.hpp"
 
 #include "thermal.hpp"

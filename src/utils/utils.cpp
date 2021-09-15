@@ -5,7 +5,6 @@ using namespace std;
 
 namespace mach
 {
-
 /// performs the Hadamard (elementwise) product: `v(i) = v1(i)*v2(i)`
 void multiplyElementwise(const Vector &v1, const Vector &v2, Vector &v)
 {
@@ -19,7 +18,7 @@ void multiplyElementwise(const Vector &v1, const Vector &v2, Vector &v)
 /// performs the Hadamard (elementwise) product: `a(i) *= b(i)`
 void multiplyElementwise(const Vector &b, Vector &a)
 {
-   MFEM_ASSERT( a.Size() == b.Size(), "");
+   MFEM_ASSERT(a.Size() == b.Size(), "");
    for (int i = 0; i < a.Size(); ++i)
    {
       a(i) *= b(i);
@@ -47,16 +46,17 @@ void invertElementwise(const Vector &x, Vector &y)
 }
 
 /// Handles print in parallel case
-template<typename _CharT, typename _Traits>
+template <typename _CharT, typename _Traits>
 class basic_oblackholestream
-    : virtual public std::basic_ostream<_CharT, _Traits>
+ : virtual public std::basic_ostream<_CharT, _Traits>
 {
-public:   
+public:
    /// called when rank is not root, prints nothing
-   explicit basic_oblackholestream() : std::basic_ostream<_CharT, _Traits>(NULL) {}
-}; // end class basic_oblackholestream
+   explicit basic_oblackholestream() : std::basic_ostream<_CharT, _Traits>(NULL)
+   { }
+};  // end class basic_oblackholestream
 
-using oblackholestream = basic_oblackholestream<char,std::char_traits<char> >;
+using oblackholestream = basic_oblackholestream<char, std::char_traits<char>>;
 static oblackholestream obj;
 
 std::ostream *getOutStream(int rank, bool silent)
@@ -82,11 +82,13 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 {
    // Assume the fuction has the form y(x) = c0 + c1 * x + c2 * x^2
    double c0, c1, c2;
-   c0 = (dydx0 * x0 * x0 * x1 + y1 * x0 * x0 - dydx0 * x0 * x1 * x1 - 2 * y0 * x0 * x1 + y0 * x1 * x1) /
+   c0 = (dydx0 * x0 * x0 * x1 + y1 * x0 * x0 - dydx0 * x0 * x1 * x1 -
+         2 * y0 * x0 * x1 + y0 * x1 * x1) /
         (x0 * x0 - 2 * x1 * x0 + x1 * x1);
    c1 = (2 * x0 * y0 - 2 * x0 * y1 - x0 * x0 * dydx0 + x1 * x1 * dydx0) /
         (x0 * x0 - 2 * x1 * x0 + x1 * x1);
-   c2 = -(y0 - y1 - x0 * dydx0 + x1 * dydx0) / (x0 * x0 - 2 * x1 * x0 + x1 * x1);
+   c2 =
+       -(y0 - y1 - x0 * dydx0 + x1 * dydx0) / (x0 * x0 - 2 * x1 * x0 + x1 * x1);
    return -c1 / (2 * c2);
 }
 
@@ -192,9 +194,11 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 //    h1_fes.GetEssentialTrueDofs(ess_bdr, ess_bdr_tdofs);
 // }
 
-// DivergenceFreeProjector::DivergenceFreeProjector(ParFiniteElementSpace &h1_fes,
-//                                                  ParFiniteElementSpace &nd_fes,
-//                                                  const int &ir_order)
+// DivergenceFreeProjector::DivergenceFreeProjector(ParFiniteElementSpace
+// &h1_fes,
+//                                                  ParFiniteElementSpace
+//                                                  &nd_fes, const int
+//                                                  &ir_order)
 //    : IrrotationalProjector(h1_fes, nd_fes, ir_order)
 // {}
 
@@ -223,37 +227,42 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 //    this->IrrotationalProjector::Update();
 // }
 
-double bisection(std::function<double(double)> func, double xl, double xr,
-                 double ftol, double xtol, int maxiter)
+double bisection(std::function<double(double)> func,
+                 double xl,
+                 double xr,
+                 double ftol,
+                 double xtol,
+                 int maxiter)
 {
    double fl = func(xl);
    double fr = func(xr);
-   if (fl*fr > 0.0)
+   if (fl * fr > 0.0)
    {
       cerr << "bisection: func(xl)*func(xr) is positive." << endl;
       throw(-1);
    }
-   double xm = 0.5*(xl + xr);
+   double xm = 0.5 * (xl + xr);
    double fm = func(xm);
    int iter = 0;
-   while ( (abs(fm) > ftol) && (abs(xr - xl) > xtol) && (iter < maxiter) )
+   while ((abs(fm) > ftol) && (abs(xr - xl) > xtol) && (iter < maxiter))
    {
       iter++;
-      //cout << "iter = " << iter << ": f(x) = " << fm << endl;
-      if (fm*fl < 0.0)
+      // cout << "iter = " << iter << ": f(x) = " << fm << endl;
+      if (fm * fl < 0.0)
       {
          xr = xm;
          fr = fm;
       }
-      else if (fm*fr < 0.0)
+      else if (fm * fr < 0.0)
       {
          xl = xm;
          fl = fm;
       }
-      else {
+      else
+      {
          break;
       }
-      xm = 0.5*(xl + xr);
+      xm = 0.5 * (xl + xr);
       fm = func(xm);
    }
    if (iter >= maxiter)
@@ -264,10 +273,14 @@ double bisection(std::function<double(double)> func, double xl, double xr,
    return xm;
 }
 
-double secant(std::function<double(double)> func, double x1, double x2,
-              double ftol, double xtol, int maxiter)
+double secant(std::function<double(double)> func,
+              double x1,
+              double x2,
+              double ftol,
+              double xtol,
+              int maxiter)
 {
-   double f1 = func(x1); 
+   double f1 = func(x1);
    double f2 = func(x2);
    double x, f;
    if (fabs(f1) < fabs(f2))
@@ -283,12 +296,12 @@ double secant(std::function<double(double)> func, double x1, double x2,
    x = x2;
    f = f2;
    int iter = 0;
-   while ( (fabs(f) > ftol) && (iter < maxiter) )
+   while ((fabs(f) > ftol) && (iter < maxiter))
    {
       ++iter;
       try
       {
-         double dx = f2*(x2 - x1)/(f2 - f1);
+         double dx = f2 * (x2 - x1) / (f2 - f1);
          x -= dx;
          f = func(x);
          if (fabs(dx) < xtol)
@@ -300,7 +313,7 @@ double secant(std::function<double(double)> func, double x1, double x2,
          x2 = x;
          f2 = f;
       }
-      catch(std::exception &exception)
+      catch (std::exception &exception)
       {
          cerr << "secant: " << exception.what() << endl;
       }
@@ -313,23 +326,64 @@ double secant(std::function<double(double)> func, double x1, double x2,
 }
 
 #ifndef MFEM_USE_LAPACK
-void dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
-        double *, int *, double *, int *, int *);
-void dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
-       int *, int *);
+void dgelss_(int *,
+             int *,
+             int *,
+             double *,
+             int *,
+             double *,
+             int *,
+             double *,
+             double *,
+             int *,
+             double *,
+             int *,
+             int *);
+void dgels_(char *,
+            int *,
+            int *,
+            int *,
+            double *,
+            int *,
+            double *,
+            int *,
+            double *,
+            int *,
+            int *);
 #else
-extern "C" void
-dgelss_(int *, int *, int *, double *, int *, double *, int *, double *,
-        double *, int *, double *, int *, int *);
-extern "C" void
-dgels_(char *, int *, int *, int *, double *, int *, double *, int *, double *,
-       int *, int *);
+extern "C" void dgelss_(int *,
+                        int *,
+                        int *,
+                        double *,
+                        int *,
+                        double *,
+                        int *,
+                        double *,
+                        double *,
+                        int *,
+                        double *,
+                        int *,
+                        int *);
+extern "C" void dgels_(char *,
+                       int *,
+                       int *,
+                       int *,
+                       double *,
+                       int *,
+                       double *,
+                       int *,
+                       double *,
+                       int *,
+                       int *);
 #endif
 /// build the interpolation operator on element patch
 /// this function will be moved later
 #ifdef MFEM_USE_LAPACK
-void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
-                        const DenseMatrix &x_quad, DenseMatrix &interp)
+void buildInterpolation(int dim,
+                        int degree,
+                        const DenseMatrix &x_center,
+                        const DenseMatrix &x_quad,
+                        DenseMatrix &interp)
 {
    // number of quadrature points
    int num_quad = x_quad.Width();
@@ -337,7 +391,8 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
    int num_el = x_center.Width();
 
    // number of row and colomn in r matrix
-   int m = (degree + 1) * (degree + 2) / 2; // in 1 and 3D the size will be different
+   int m = (degree + 1) * (degree + 2) /
+           2;  // in 1 and 3D the size will be different
    int n = num_el;
    if (1 == dim)
    {
@@ -349,7 +404,8 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
    }
    else
    {
-      throw MachException("Other dimension interpolation has not been implemented yet.\n");
+      throw MachException(
+          "Other dimension interpolation has not been implemented yet.\n");
    }
 
    // Set the size of interpolation operator
@@ -400,14 +456,24 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
          }
          else
          {
-            throw MachException("Other dimension interpolation has not been implemented yet.\n");
+            throw MachException(
+                "Other dimension interpolation has not been implemented "
+                "yet.\n");
          }
-         
       }
       // Solve each row of R and put them back to R
       int info, rank;
-      dgels_(&TRANS, &m, &n, &nrhs, r.GetData(), &m, rhs.GetData(), &n,
-             work, &lwork, &info);
+      dgels_(&TRANS,
+             &m,
+             &n,
+             &nrhs,
+             r.GetData(),
+             &m,
+             rhs.GetData(),
+             &n,
+             work,
+             &lwork,
+             &info);
       MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
       // put each row back to interp
       for (int k = 0; k < n; k++)
@@ -415,12 +481,15 @@ void buildInterpolation(int dim, int degree, const DenseMatrix &x_center,
          interp(i, k) = rhs(k, 0);
       }
    }
-} // end of constructing interp
+}  // end of constructing interp
 #endif
 
 #ifdef MFEM_USE_LAPACK
-void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
-                          const DenseMatrix &x_quad, DenseMatrix &interp)
+void buildLSInterpolation(int dim,
+                          int degree,
+                          const DenseMatrix &x_center,
+                          const DenseMatrix &x_quad,
+                          DenseMatrix &interp)
 {
    // get the number of quadrature points and elements.
    int num_quad = x_quad.Width();
@@ -454,7 +523,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
          double dx = x_center(0, i) - x_center(0, 0);
          for (int p = 0; p <= degree; ++p)
          {
-            V(i,p) = pow(dx, p);
+            V(i, p) = pow(dx, p);
          }
       }
    }
@@ -469,7 +538,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
          {
             for (int q = 0; q <= p; ++q)
             {
-               V(i, col) = pow(dx, p - q)*pow(dy, q);
+               V(i, col) = pow(dx, p - q) * pow(dy, q);
                ++col;
             }
          }
@@ -489,7 +558,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
             {
                for (int r = 0; r <= p - q; ++r)
                {
-                  V(i, col) = pow(dx, p - q - r)*pow(dy, r)*pow(dz, q);
+                  V(i, col) = pow(dx, p - q - r) * pow(dy, r) * pow(dz, q);
                   ++col;
                }
             }
@@ -504,16 +573,25 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
    coeff = 0.0;
    for (int i = 0; i < num_elem; ++i)
    {
-      coeff(i,i) = 1.0;
+      coeff(i, i) = 1.0;
    }
 
    // Set-up and solve the least-squares problem using LAPACK's dgels
    char TRANS = 'N';
    int info;
-   int lwork = 2*num_elem*num_basis;
+   int lwork = 2 * num_elem * num_basis;
    double work[lwork];
-   dgels_(&TRANS, &num_elem, &num_basis, &num_elem, V.GetData(), &num_elem,
-          coeff.GetData(), &num_elem, work, &lwork, &info);
+   dgels_(&TRANS,
+          &num_elem,
+          &num_basis,
+          &num_elem,
+          V.GetData(),
+          &num_elem,
+          coeff.GetData(),
+          &num_elem,
+          work,
+          &lwork,
+          &info);
    MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
 
    // Perform matrix-matrix multiplication between basis functions evalauted at
@@ -531,7 +609,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
          {
             for (int p = 0; p <= degree; ++p)
             {
-               interp(j, i) += pow(dx, p)*coeff(p, i);
+               interp(j, i) += pow(dx, p) * coeff(p, i);
             }
          }
       }
@@ -576,8 +654,8 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
                {
                   for (int r = 0; r <= p - q; ++r)
                   {
-                     interp(j, i) += pow(dx, p - q - r) * pow(dy, r) 
-                                       * pow(dz, q) * coeff(col, i);
+                     interp(j, i) += pow(dx, p - q - r) * pow(dy, r) *
+                                     pow(dz, q) * coeff(col, i);
                      ++col;
                   }
                }
@@ -589,10 +667,12 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
 #endif
 
 #ifdef MFEM_USE_GSLIB
-void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
-                      const GridFunType &in, GridFunType &out)
+void transferSolution(MeshType &old_mesh,
+                      MeshType &new_mesh,
+                      const GridFunType &in,
+                      GridFunType &out)
 {
-   const int dim = old_mesh.Dimension(); 
+   const int dim = old_mesh.Dimension();
 
    old_mesh.EnsureNodes();
    new_mesh.EnsureNodes();
@@ -601,19 +681,19 @@ void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
    const int nodes_cnt = vxyz.Size() / dim;
    FindPointsGSLIB finder(MPI_COMM_WORLD);
    const double rel_bbox_el = 0.05;
-   const double newton_tol  = 1.0e-12;
-   const int npts_at_once   = 256;
+   const double newton_tol = 1.0e-12;
+   const int npts_at_once = 256;
 
    // Get the values at the nodes of mesh 1.
    Array<unsigned int> el_id_out(nodes_cnt), code_out(nodes_cnt),
-         task_id_out(nodes_cnt);
+       task_id_out(nodes_cnt);
    Vector pos_r_out(nodes_cnt * dim), dist_p_out(nodes_cnt * dim),
-         interp_vals(nodes_cnt);
+       interp_vals(nodes_cnt);
    finder.Setup(old_mesh, rel_bbox_el, newton_tol, npts_at_once);
-   finder.FindPoints(vxyz, code_out, task_id_out,
-                     el_id_out, pos_r_out, dist_p_out);
-   finder.Interpolate(code_out, task_id_out, el_id_out,
-                      pos_r_out, in, interp_vals);
+   finder.FindPoints(
+       vxyz, code_out, task_id_out, el_id_out, pos_r_out, dist_p_out);
+   finder.Interpolate(
+       code_out, task_id_out, el_id_out, pos_r_out, in, interp_vals);
    for (int n = 0; n < nodes_cnt; n++)
    {
       out(n) = interp_vals(n);
@@ -621,12 +701,15 @@ void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
    finder.FreeData();
 }
 #else
-void transferSolution(MeshType &old_mesh, MeshType &new_mesh,
-                      const GridFunType &in, GridFunType &out)
+void transferSolution(MeshType &old_mesh,
+                      MeshType &new_mesh,
+                      const GridFunType &in,
+                      GridFunType &out)
 {
-   throw MachException("transferSolution requires GSLIB!"
-                       "\trecompile MFEM with GSLIB!");
+   throw MachException(
+       "transferSolution requires GSLIB!"
+       "\trecompile MFEM with GSLIB!");
 }
 #endif
 
-} // namespace mach
+}  // namespace mach

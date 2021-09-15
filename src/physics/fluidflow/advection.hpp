@@ -7,12 +7,11 @@
 
 namespace mach
 {
-
 /// Defines the velocity field used by the AdvectionSolver class
-/// \param[in] x - location at which to evaluate the velocity 
+/// \param[in] x - location at which to evaluate the velocity
 /// \param[out] v - velocity at `x`.
-/// This should be provided as an input to the class, but the current API makes 
-/// this difficult.  Since advection is of minor importance, this is fine for 
+/// This should be provided as an input to the class, but the current API makes
+/// this difficult.  Since advection is of minor importance, this is fine for
 /// now.
 void velocity_function(const mfem::Vector &x, mfem::Vector &v)
 {
@@ -31,7 +30,10 @@ public:
    /// \param[in] velc - represents the (possibly) spatially varying velocity
    /// \param[in] alpha - scales the terms; can be used to move from lhs to rhs
    AdvectionIntegrator(mfem::VectorCoefficient &velc, double a = 1.0)
-      : vel_coeff(velc) { alpha = a; }
+    : vel_coeff(velc)
+   {
+      alpha = a;
+   }
 
    /// Create the element stiffness matrix for linear advection.
    /// \param[in] el - the finite element whose stiffness matrix we want
@@ -72,8 +74,9 @@ public:
    /// \param[in] velc - represents the (possibly) spatially varying velocity
    /// \param[in] a - used to move from lhs to rhs
    /// \param[in] diss_coeff - used to scale the magnitude of the LPS
-   AdvectLPSIntegrator(mfem::VectorCoefficient &velc, double a = 1.0,
-                 double diss_coeff = 1.0);
+   AdvectLPSIntegrator(mfem::VectorCoefficient &velc,
+                       double a = 1.0,
+                       double diss_coeff = 1.0);
 
    /// Create the stabilization matrix for the LPS operator.
    /// \param[in] el - the finite element whose stabilization matrix we want
@@ -122,26 +125,26 @@ protected:
    std::unique_ptr<mfem::VectorFunctionCoefficient> velocity;
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
-   /// stiffness matrix 
+   /// stiffness matrix
    std::unique_ptr<MatrixType> stiff_matrix;
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addVolumeIntegrators(double alpha) {}
+   virtual void addVolumeIntegrators(double alpha) { }
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \returns num_bc - total number of BCs, including those of super classes
-   virtual void addBoundaryIntegrators(double alpha) {}
+   virtual void addBoundaryIntegrators(double alpha) { }
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   virtual void addInterfaceIntegrators(double alpha) {}
+   virtual void addInterfaceIntegrators(double alpha) { }
 
    /// Return the number of state variables
    virtual int getNumState() { return 1; }
 };
-    
-} // namespace mach
 
-#endif 
+}  // namespace mach
+
+#endif

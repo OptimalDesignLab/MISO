@@ -8,20 +8,19 @@
 
 namespace mach
 {
-
 /// A geometry representation for distance calculations
 /// \tparam dim - number of spatial dimensions (only `dim=2` is tested)
 /// \warning The class has only been tested thoroughly for spatial degree
 /// `dim=2` and degree p=1 and p=2 meshes. Higher degree meshes pose changes
 /// because the number of local minimizers increases (i.e. more than one point
 /// on the surface satisfies the first-order optimality conditions).  For
-/// dimension `dim=3`, the code is mostly ready, but we need to handle cases 
-/// where the closest point is on an edge and the optimization becomes 
+/// dimension `dim=3`, the code is mostly ready, but we need to handle cases
+/// where the closest point is on an edge and the optimization becomes
 /// constrained.
-/// \note When we need to differentiation this code, we will need to think 
-/// about how to account for the sensitivities with respect to the mesh nodes 
-/// (the sensitivity with respect to the points we provide to `calcDistance` is 
-/// straightforward).  One option is to expand this class to act as the 
+/// \note When we need to differentiation this code, we will need to think
+/// about how to account for the sensitivities with respect to the mesh nodes
+/// (the sensitivity with respect to the points we provide to `calcDistance` is
+/// straightforward).  One option is to expand this class to act as the
 /// underlying geometry parameterization.
 template <int dim>
 class Surface
@@ -34,7 +33,7 @@ public:
    Surface(mfem::Mesh &ext_mesh);
 
    /// Construct a Surface object by extracting surface mesh from volume mesh
-   /// \param[in] vol_mesh - volume mesh to extract surface mesh from 
+   /// \param[in] vol_mesh - volume mesh to extract surface mesh from
    /// \param[in] bdr_attr_marker - extract boundary elements with nonzero attr.
    /// \note The definition was adapted from the mesh-explorer.cpp miniapp
    Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker);
@@ -43,7 +42,7 @@ public:
    ~Surface() { delete mesh; }
 
    /// Find the distance from `x` to the surface
-   /// \param[in] x - the point whose distance to the surface we want 
+   /// \param[in] x - the point whose distance to the surface we want
    /// \returns the distance
    double calcDistance(const mfem::Vector &x);
 
@@ -71,13 +70,13 @@ private:
    mfem::IntegrationPoint ip_new;
    /// The difference between the surface point and the target point
    mfem::Vector res;
-   /// The gradient of the least-squares objective 
+   /// The gradient of the least-squares objective
    mfem::Vector gradient;
    /// The Newton step to update the parametric coordinates
    mfem::Vector step;
    /// Hessian vector product; here, Hessian refers to the coordinate transform
    mfem::Vector hess_vec;
-   /// Storage for the reference coordinates 
+   /// Storage for the reference coordinates
    mfem::Vector xi;
    /// Storage for the Hessian
    mfem::DenseMatrix Hess;
@@ -90,10 +89,10 @@ private:
    {
       throw MachException("solveConstrained is not implemented yet!");
    }
-}; 
+};
 
 #include "surface_def.hpp"
 
-} // namespace mach
+}  // namespace mach
 
-#endif 
+#endif

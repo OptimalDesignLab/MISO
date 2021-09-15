@@ -4,7 +4,7 @@ target_sources(mach
       div_free_projector.hpp
       irrotational_projector.cpp
       irrotational_projector.hpp
-      json.hpp
+      kdtree.hpp
       mach_types.hpp
       utilities.hpp
       utils.cpp

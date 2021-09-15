@@ -11,23 +11,27 @@ using adept::adouble;
 
 namespace mach
 {
-
 /// Integrator for the mesh sensitivity of the Ismail-Roe domain integrator
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, the state variables are the entropy variables
 /// \note This derived class uses the CRTP
 template <int dim, bool entvar = false>
-class IsmailRoeMeshSensIntegrator : public DyadicMeshSensIntegrator<
-                                IsmailRoeMeshSensIntegrator<dim, entvar>>
+class IsmailRoeMeshSensIntegrator
+ : public DyadicMeshSensIntegrator<IsmailRoeMeshSensIntegrator<dim, entvar>>
 {
 public:
    /// Construct an integrator for the Ismail-Roe flux over domains
    /// \param[in] a - factor, usually used to move terms to rhs
    IsmailRoeMeshSensIntegrator(const mfem::GridFunction &state_vec,
                                const mfem::GridFunction &adjoint_vec,
-                               int num_state_vars = 1, double a = 1.0)
-       : DyadicMeshSensIntegrator<IsmailRoeMeshSensIntegrator<dim, entvar>>(
-             state_vec, adjoint_vec, num_state_vars, a) {}
+                               int num_state_vars = 1,
+                               double a = 1.0)
+    : DyadicMeshSensIntegrator<IsmailRoeMeshSensIntegrator<dim, entvar>>(
+          state_vec,
+          adjoint_vec,
+          num_state_vars,
+          a)
+   { }
 
    /// Ismail-Roe two-point (dyadic) entropy conservative flux function
    /// \param[in] di - physical coordinate direction in which flux is wanted
@@ -35,8 +39,10 @@ public:
    /// \param[in] qR - state variables at "right" state
    /// \param[out] flux - fluxes in the direction `di`
    /// \note This is simply a wrapper for the function in `euler_fluxes.hpp`
-   void calcFlux(int di, const mfem::Vector &qL,
-                 const mfem::Vector &qR, mfem::Vector &flux);
+   void calcFlux(int di,
+                 const mfem::Vector &qL,
+                 const mfem::Vector &qR,
+                 mfem::Vector &flux);
 };
 
 /// Integrator for inviscid slip-wall boundary condition
@@ -44,8 +50,8 @@ public:
 /// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
 template <int dim, bool entvar = false>
-class SlipWallBCMeshSens : public BoundaryMeshSensIntegrator<
-                               SlipWallBCMeshSens<dim, entvar>>
+class SlipWallBCMeshSens
+ : public BoundaryMeshSensIntegrator<SlipWallBCMeshSens<dim, entvar>>
 {
 public:
    /// Constructs an integrator for a slip-wall boundary flux
@@ -55,9 +61,14 @@ public:
    SlipWallBCMeshSens(adept::Stack &diff_stack,
                       const mfem::GridFunction &state_vec,
                       const mfem::GridFunction &adjoint_vec,
-                      int num_state_vars = 1, double a = 1.0)
-       : BoundaryMeshSensIntegrator<SlipWallBCMeshSens<dim, entvar>>(
-             state_vec, adjoint_vec, dim + 2, a), stack(diff_stack) {}
+                      int num_state_vars = 1,
+                      double a = 1.0)
+    : BoundaryMeshSensIntegrator<SlipWallBCMeshSens<dim, entvar>>(state_vec,
+                                                                  adjoint_vec,
+                                                                  dim + 2,
+                                                                  a),
+      stack(diff_stack)
+   { }
 
    /// Compute ther derivative of flux_bar*flux w.r.t. `dir`
    /// \param[in] x - location at which the derivative is evaluated (not used)
@@ -65,8 +76,10 @@ public:
    /// \param[in] u - state at which to evaluate the flux
    /// \param[in] flux_bar - flux weighting (e.g. the adjoint)
    /// \param[out] dir_bar - derivative with respect to `dir`
-   void calcFluxBar(const mfem::Vector &x, const mfem::Vector &dir,
-                    const mfem::Vector &u, const mfem::Vector &flux_bar,
+   void calcFluxBar(const mfem::Vector &x,
+                    const mfem::Vector &dir,
+                    const mfem::Vector &u,
+                    const mfem::Vector &flux_bar,
                     mfem::Vector &dir_bar);
 
 protected:
@@ -76,6 +89,6 @@ protected:
 
 #include "euler_sens_integ_def.hpp"
 
-} // namespace mach
+}  // namespace mach
 
 #endif

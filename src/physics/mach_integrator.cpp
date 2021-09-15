@@ -7,9 +7,8 @@
 
 namespace mach
 {
-
 void setScalarInputs(std::vector<MachIntegrator> &integrators,
-                    const MachInputs &inputs)
+                     const MachInputs &inputs)
 {
    for (auto &input : inputs)
    {
@@ -34,4 +33,4 @@ void setInput(MachIntegrator &integ,
    integ.self_->setInput_(name, input);
 }
 
-} // namespace mach
+}  // namespace mach
