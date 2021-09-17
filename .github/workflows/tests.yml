@@ -45,11 +45,6 @@ jobs:
           }
 
     steps:
-    - name: Clone Mach
-      uses: actions/checkout@v2
-      with:
-        path: mach
-
     - name: Download Ninja
       id: cmake_and_ninja
       shell: cmake -P {0}
@@ -286,6 +281,11 @@ jobs:
           message("::error::${error_message}")
           message(FATAL_ERROR "Build failed")
         endif()
+
+    - name: Clone Mach
+      uses: actions/checkout@v2
+      with:
+        path: mach
 
     - name: Create Mach Build Environment
       run: cmake -E make_directory ${GITHUB_WORKSPACE}/mach/build
