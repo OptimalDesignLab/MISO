@@ -21,7 +21,7 @@ jobs:
         - {
             name: "Ubuntu Latest Clang", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
-            cc: "clang", cxx: "clang++"
+            cc: "clang", cxx: "clang++",
             buildtype: "Debug",
             buildflags: "-fno-openmp",
           }
