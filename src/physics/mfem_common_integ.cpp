@@ -76,15 +76,16 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
    {
       int order = [&]()
       {
-      if (el.Space() == FunctionSpace::Pk)
-      {
-         return 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         // return 2*el.GetOrder() - 2;  // <-- this seems to work fine too
-         return 2 * el.GetOrder() + el.GetDim() - 1;
-      }}();
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // return 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 

@@ -281,7 +281,7 @@ public:
    const char *Name() const override { return SBPname; }
    int GetContType() const override { return CONTINUOUS; }
    SBPCollection(const SBPCollection &) = delete;
-   SBPCollection &operator=(const SBPCollection&) = delete;
+   SBPCollection &operator=(const SBPCollection &) = delete;
    SBPCollection(SBPCollection &&) = delete;
    SBPCollection &operator=(SBPCollection &&) = delete;
    ~SBPCollection() override;
@@ -324,7 +324,7 @@ public:
    int GetContType() const override { return DISCONTINUOUS; }
 
    DSBPCollection(const DSBPCollection &) = delete;
-   DSBPCollection &operator=(const DSBPCollection&) = delete;
+   DSBPCollection &operator=(const DSBPCollection &) = delete;
    DSBPCollection(DSBPCollection &&) = delete;
    DSBPCollection &operator=(DSBPCollection &&) = delete;
    ~DSBPCollection() override;
