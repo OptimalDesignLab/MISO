@@ -15,7 +15,7 @@
 #include <gmi_mesh.h>
 #include <crv.h>
 
-const bool entvar = true;
+const bool entvar = false;
 
 using namespace std;
 using namespace mfem;
@@ -40,8 +40,8 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    // 2. Parse command-line options
-	const char *mesh_file = "./annulus_coarse/annulus.smb";
-	const char *model_file ="./annulus_coarse/annulus.dmg";
+	const char *mesh_file = "./annulus_2/annulus_p.smb";
+	const char *model_file ="./annulus_2/annulus.dmg";
 
    OptionsParser args(argc, argv);
    int p = 1;
@@ -77,10 +77,10 @@ int main(int argc, char *argv[])
    	pumi_mesh = apf::loadMdsMesh(model_file, mesh_file);
       int dim = pumi_mesh->getDimension();
 		pumi_mesh->verify();
-		mfem::ParMesh *pmesh = new ParPumiMesh(MPI_COMM_WORLD, pumi_mesh);
+		mfem::ParPumiMesh *pmesh = new ParPumiMesh(MPI_COMM_WORLD, pumi_mesh);
 
 		// save the mesh
-		string path("/Users/geyan/workspace/mach_dev/build/sandbox/annulus");
+		string path("/Users/geyan/workspace/mach_dev/build/sandbox/Test");
       pmesh->PrintVTU(path);
 
 		if (pr == myid)
