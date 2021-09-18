@@ -7,8 +7,6 @@
 #include "mesh_sens_integ.hpp"
 #include "euler_fluxes.hpp"
 
-using adept::adouble;
-
 namespace mach
 {
 /// Integrator for the mesh sensitivity of the Ismail-Roe domain integrator
@@ -87,8 +85,8 @@ protected:
    adept::Stack &stack;
 };
 
-#include "euler_sens_integ_def.hpp"
-
 }  // namespace mach
+
+#include "euler_sens_integ_def.hpp"
 
 #endif

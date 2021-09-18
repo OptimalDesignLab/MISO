@@ -1,3 +1,13 @@
+#ifndef MACH_VISCOUS_INTEG_DEF
+#define MACH_VISCOUS_INTEG_DEF
+
+#include "mfem.hpp"
+
+#include "sbp_fe.hpp"
+#include "utils.hpp"
+
+namespace mach
+{
 template <typename Derived>
 void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el,
@@ -568,3 +578,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
       }     // j loop
    }        // k/i loop
 }
+
+}  // namespace mach
+
+#endif

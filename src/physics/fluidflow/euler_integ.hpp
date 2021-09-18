@@ -7,8 +7,6 @@
 #include "inviscid_integ.hpp"
 #include "euler_fluxes.hpp"
 
-using adept::adouble;
-
 namespace mach
 {
 /// Integrator for the Euler flux over an element
@@ -595,8 +593,8 @@ public:
    { }
 };
 
-#include "euler_integ_def.hpp"
-
 }  // namespace mach
+
+#include "euler_integ_def.hpp"
 
 #endif

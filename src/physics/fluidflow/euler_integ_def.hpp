@@ -1,3 +1,16 @@
+#ifndef MACH_EULER_INTEG_DEF
+#define MACH_EULER_INTEG_DEF
+
+#include "adept.h"
+#include "mfem.hpp"
+
+#include "inviscid_integ.hpp"
+#include "euler_fluxes.hpp"
+
+namespace mach
+{
+using adept::adouble;
+
 template <int dim>
 void EulerIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
                                             const mfem::Vector &q,
@@ -831,3 +844,7 @@ double EntropyIntegrator<dim, entvar>::calcVolFun(const mfem::Vector &x,
 {
    return entropy<double, dim, entvar>(u.GetData());
 }
+
+}  // namespace mach
+
+#endif

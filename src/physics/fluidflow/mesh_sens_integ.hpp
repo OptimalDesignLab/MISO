@@ -3,9 +3,6 @@
 
 #include "mfem.hpp"
 
-#include "sbp_fe.hpp"
-#include "solver.hpp"
-
 namespace mach
 {
 /// Integrator for mesh sensitivity of dyadic domain integrators
@@ -150,8 +147,8 @@ protected:
    }
 };
 
-#include "mesh_sens_integ_def.hpp"
-
 }  // namespace mach
+
+#include "mesh_sens_integ_def.hpp"
 
 #endif

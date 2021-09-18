@@ -9,9 +9,6 @@
 #include "euler_fluxes.hpp"
 #include "navier_stokes_fluxes.hpp"
 
-using adept::adouble;
-using namespace std;  /// TODO: this is polluting other headers!
-
 namespace mach
 {
 /// Source-term integrator for a 2D Navier-Stokes MMS problem
@@ -135,7 +132,7 @@ public:
                           const mfem::Vector &x,
                           const mfem::Vector &q,
                           const mfem::DenseMatrix &Dw,
-                          vector<mfem::DenseMatrix> &CDw_jac);
+                          std::vector<mfem::DenseMatrix> &CDw_jac);
 
    /// This allows the base class to access the number of dimensions
    static const int ndim = dim;
@@ -556,7 +553,7 @@ public:
                       double jac,
                       const mfem::Vector &q,
                       const mfem::DenseMatrix &Dw,
-                      vector<mfem::DenseMatrix> &flux_jac);
+                      std::vector<mfem::DenseMatrix> &flux_jac);
 
    /// Compute the Jacobian of calcFluxDv w.r.t. state
    /// \param[in] x - coordinate location at which fluxes are evaluated
@@ -1223,8 +1220,8 @@ private:
 #endif
 };
 
-#include "navier_stokes_integ_def.hpp"
-
 }  // namespace mach
+
+#include "navier_stokes_integ_def.hpp"
 
 #endif

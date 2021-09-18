@@ -4,9 +4,6 @@
 #include "adept.h"
 #include "mfem.hpp"
 
-#include "sbp_fe.hpp"  // needed in viscous_integ_def.hpp
-#include "utils.hpp"
-
 namespace mach
 {
 /// Integrator for symmetric viscous terms
@@ -358,8 +355,8 @@ protected:
 #endif
 };
 
-#include "viscous_integ_def.hpp"
-
 }  // namespace mach
+
+#include "viscous_integ_def.hpp"
 
 #endif

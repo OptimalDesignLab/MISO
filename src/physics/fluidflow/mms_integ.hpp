@@ -80,8 +80,8 @@ protected:
    }
 };
 
-#include "mms_integ_def.hpp"
-
 }  // namespace mach
+
+#include "mms_integ_def.hpp"
 
 #endif

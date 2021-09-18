@@ -91,8 +91,8 @@ private:
    }
 };
 
-#include "surface_def.hpp"
-
 }  // namespace mach
+
+#include "surface_def.hpp"
 
 #endif

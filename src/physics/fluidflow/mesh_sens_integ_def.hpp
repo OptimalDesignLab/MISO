@@ -1,3 +1,12 @@
+#ifndef MACH_MESH_SENS_INTEG_DEF
+#define MACH_MESH_SENS_INTEG_DEF
+
+#include "mfem.hpp"
+
+#include "sbp_fe.hpp"
+
+namespace mach
+{
 template <typename Derived>
 void DyadicMeshSensIntegrator<Derived>::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
@@ -286,3 +295,7 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
       }
    }
 }
+
+}  // namespace mach
+
+#endif

@@ -1,3 +1,13 @@
+#ifndef MACH_MMS_INTEG_DEF
+#define MACH_MMS_INTEG_DEF
+
+#include "mfem.hpp"
+
+#include "sbp_fe.hpp"
+#include "utils.hpp"
+
+namespace mach
+{
 template <typename Derived>
 void MMSIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el,
@@ -46,3 +56,7 @@ void MMSIntegrator<Derived>::AssembleElementGrad(
    elmat.SetSize(num_states * num_nodes);
    elmat = 0.0;
 }
+
+}  // namespace mach
+
+#endif

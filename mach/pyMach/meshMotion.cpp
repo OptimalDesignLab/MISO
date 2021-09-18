@@ -1,25 +1,15 @@
-// #ifdef MFEM_USE_PUMI
+#include <iostream>
+#include <stdexcept>
+#include <string>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
-#include "mfem.hpp"
-
-#include "apfMDS.h"
-#include "PCU.h"
-#include "apfConvert.h"
-#include "crv.h"
-#include "gmi_mesh.h"
-
-// #ifdef MFEM_USE_EGADS
+#ifdef MFEM_USE_EGADS
 #include "egads.h"
-#include "gmi_egads.h"
-
-// #endif // MFEM_USE_EGADS
+#endif  // MFEM_USE_EGADS
 
 namespace py = pybind11;
-
-using namespace mfem;
 
 void initMeshMotion(py::module &m)
 {
@@ -29,6 +19,7 @@ void initMeshMotion(py::module &m)
           const std::string &new_model_file,
           const std::string &tess_file,
           const py::array_t<double> &buffer)
+#ifdef MFEM_USE_EGADS
        {
           std::cout << "\n\ncalling mapSurfaceMesh!\n\n\n";
           /* Request a buffer descriptor from Python */
@@ -169,6 +160,13 @@ void initMeshMotion(py::module &m)
              // << ")\n";
           }
        },
+#else
+       {
+          throw std::runtime_error(
+              "pyMach not built with EGADS support!\n"
+              "\t mapSurfaceMesh unavailable!\n");
+       },
+#endif  // MFEM_USE_EGADS
        "Map an existing surface tessalation to a new body with the same "
        "topology",
        py::arg("old_model"),
@@ -176,5 +174,3 @@ void initMeshMotion(py::module &m)
        py::arg("tess_file"),
        py::arg("displacements"));
 }
-
-// #endif // MFEM_USE_PUMI

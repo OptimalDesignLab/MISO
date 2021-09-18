@@ -1,3 +1,12 @@
+#ifndef MACH_INVISCID_INTEG_DEF
+#define MACH_INVISCID_INTEG_DEF
+
+#include "mfem.hpp"
+
+#include "sbp_fe.hpp"
+
+namespace mach
+{
 template <typename Derived>
 double InviscidIntegrator<Derived>::GetElementEnergy(
     const mfem::FiniteElement &el,
@@ -884,3 +893,7 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
    }
    elmat *= alpha;
 }
+
+}  // namespace mach
+
+#endif

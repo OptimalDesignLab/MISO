@@ -1,3 +1,17 @@
+#ifndef MACH_NAVIER_STOKES_INTEG_DEF
+#define MACH_NAVIER_STOKES_INTEG_DEF
+
+#include "adept.h"
+#include "mfem.hpp"
+
+#include "viscous_integ.hpp"
+#include "mms_integ.hpp"
+#include "euler_fluxes.hpp"
+#include "navier_stokes_fluxes.hpp"
+
+namespace mach
+{
+using adept::adouble;
 //==============================================================================
 // ESViscousIntegrator methods
 
@@ -41,7 +55,7 @@ void ESViscousIntegrator<dim>::applyScalingJacDw(
     const mfem::Vector &x,
     const mfem::Vector &q,
     const mfem::DenseMatrix &Dw,
-    vector<mfem::DenseMatrix> &CDw_jac)
+    std::vector<mfem::DenseMatrix> &CDw_jac)
 {
    // vector of active input variables
    int Dw_size = Dw.Height() * Dw.Width();
@@ -207,7 +221,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(
     double jac,
     const mfem::Vector &q,
     const mfem::DenseMatrix &Dw,
-    vector<mfem::DenseMatrix> &flux_jac)
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
@@ -423,12 +437,13 @@ void ViscousSlipWallBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousSlipWallBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                           const mfem::Vector &dir,
-                                           double jac,
-                                           const mfem::Vector &q,
-                                           const mfem::DenseMatrix &Dw,
-                                           vector<mfem::DenseMatrix> &flux_jac)
+void ViscousSlipWallBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
 #if 0
    // Presently, this BC has no dependence on the derivative
@@ -586,12 +601,13 @@ void ViscousInflowBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousInflowBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                         const mfem::Vector &dir,
-                                         double jac,
-                                         const mfem::Vector &q,
-                                         const mfem::DenseMatrix &Dw,
-                                         vector<mfem::DenseMatrix> &flux_jac)
+void ViscousInflowBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    // Presently, this BC has no dependence on the derivative
    for (int i = 0; i < dim; ++i)
@@ -711,12 +727,13 @@ void ViscousOutflowBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousOutflowBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                          const mfem::Vector &dir,
-                                          double jac,
-                                          const mfem::Vector &q,
-                                          const mfem::DenseMatrix &Dw,
-                                          vector<mfem::DenseMatrix> &flux_jac)
+void ViscousOutflowBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    // Presently, this BC has no dependence on the derivative
    for (int i = 0; i < dim; ++i)
@@ -775,12 +792,13 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousFarFieldBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                           const mfem::Vector &dir,
-                                           double jac,
-                                           const mfem::Vector &q,
-                                           const mfem::DenseMatrix &Dw,
-                                           vector<mfem::DenseMatrix> &flux_jac)
+void ViscousFarFieldBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    // Presently, this BC has no dependence on the derivative
    for (int i = 0; i < dim; ++i)
@@ -902,12 +920,13 @@ void ViscousExactBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousExactBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                        const mfem::Vector &dir,
-                                        double jac,
-                                        const mfem::Vector &q,
-                                        const mfem::DenseMatrix &Dw,
-                                        vector<mfem::DenseMatrix> &flux_jac)
+void ViscousExactBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    exactSolution(x, qexact);
    // create containers for active double objects for each input
@@ -1339,3 +1358,7 @@ void SurfaceForce<dim>::AssembleFaceVector(
       }     // j loop
    }        // k/i loop
 }
+
+}  // namespace mach
+
+#endif
