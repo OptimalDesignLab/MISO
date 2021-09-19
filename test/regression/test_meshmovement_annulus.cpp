@@ -241,9 +241,11 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree,
                                          int num_ang,
                                          int num_z)
 {
-   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_rad, num_ang, num_z,
-                                             Element::TETRAHEDRON, true,
-                                             2.0, M_PI*0.5, 1.0, true));
+   std::unique_ptr<Mesh> mesh_ptr(
+      new Mesh(Mesh::MakeCartesian3D(num_rad, num_ang, num_z,
+                                     Element::TETRAHEDRON,
+                                     2.0, M_PI*0.5, 1.0, true)));
+
    // strategy:
    // 1) generate a fes for Lagrange elements of desired degree
    // 2) create a Grid Function using a VectorFunctionCoefficient

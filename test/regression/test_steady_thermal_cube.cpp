@@ -122,8 +122,9 @@ TEST_CASE("Thermal Cube Solver Steady Regression Test",
 unique_ptr<Mesh> buildMesh(int nxy, int nz)
 {
    // generate a simple tet mesh
-   std::unique_ptr<Mesh> mesh(new Mesh(nxy, nxy, nz,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, (double)nz / (double)nxy, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(nxy, nxy, nz,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, (double)nz / (double)nxy, true)));
    return mesh;
 }

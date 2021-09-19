@@ -104,9 +104,10 @@ TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
          int num_edge_y = 2;
          int num_edge_z = 2;
 
-         std::unique_ptr<Mesh> mesh(new Mesh(num_edge_x, num_edge_y, num_edge_z,
-                                    Element::HEXAHEDRON, true /* gen. edges */, 1.0,
-                                    1.0, 1.0, true));
+         std::unique_ptr<Mesh> mesh(
+            new Mesh(Mesh::MakeCartesian3D(num_edge_x, num_edge_y, num_edge_z,
+                                           Element::HEXAHEDRON,
+                                           1.0, 1.0, 1.0, true)));
 
          std::cout << "Number of Boundary Attributes: "<< mesh->bdr_attributes.Size() <<std::endl;
          // assign attributes to top and bottom sides

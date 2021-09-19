@@ -37,7 +37,6 @@ TEST_CASE("MagnetostaticLoad Value Test")
 {
    Mesh smesh = buildMesh(3, 3);
    ParMesh mesh(MPI_COMM_WORLD, smesh);
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    auto p = 2;
@@ -114,7 +113,6 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
 {
    Mesh smesh = buildMesh(3, 3);
    ParMesh mesh(MPI_COMM_WORLD, smesh);
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    auto p = 2;
@@ -181,7 +179,6 @@ TEST_CASE("MagnetostaticLoad vectorJacobianProduct wrt mesh_coords")
 {
    Mesh smesh = buildMesh(3, 3);
    ParMesh mesh(MPI_COMM_WORLD, smesh);
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    auto p = 2;

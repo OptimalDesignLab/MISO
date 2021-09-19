@@ -69,7 +69,6 @@ TEST_CASE("HybridACLossFunctionalIntegrator::GetEnergy",
    pumi_mesh->end(it);
 
    ParPumiMesh mesh(MPI_COMM_WORLD, pumi_mesh.get());
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    const auto p = 2;

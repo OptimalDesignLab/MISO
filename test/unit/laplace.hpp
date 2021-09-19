@@ -80,7 +80,7 @@ public:
 
    double calcBndryFun(const mfem::Vector &x, const mfem::Vector &dir,
                        double jac, const mfem::Vector &u,
-                       const mfem::DenseMatrix &Dw) {}
+                       const mfem::DenseMatrix &Dw) { return 0.0; }
 
    /// Compute Laplace natural boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated

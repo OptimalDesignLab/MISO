@@ -21,7 +21,6 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt in")
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -85,7 +84,6 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt mesh_coords")
                                       1.0, 1.0, 1.0, true);
 
    ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
