@@ -763,18 +763,13 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
    {
       addOutputDomainIntegrator(fun, new MagneticEnergyIntegrator(*nu));
    }
-   // else if (fun == "co-energy")
-   // {
-   //    addOutputDomainIntegrator(fun,
-   //                              new MagneticCoenergyIntegrator(*u,
-   //                              nu.get()));
-   // }
-   else if (fun == "ACLoss")
+   else if (fun == "ac_loss")
    {
-      addOutputDomainIntegrator(
-          fun, new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
+      addOutputDomainIntegrator(fun,
+         // new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
+         new ACLossFunctionalIntegrator(*sigma, 1.0, 1.0));
    }
-   else if (fun == "DCLoss")
+   else if (fun == "dc_loss")
    {
       addOutputDomainIntegrator(
           fun,

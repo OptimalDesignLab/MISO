@@ -2656,6 +2656,90 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
    return fun;
 }
 
+void setInput(ACLossFunctionalIntegrator &integ,
+              const std::string &name,
+              const MachInput &input)
+{
+   if (name == "strand_radius")
+   {
+      integ.radius = input.getValue();
+   }
+   else if (name == "frequency")
+   {
+      integ.freq = input.getValue();
+   }
+}
+
+double ACLossFunctionalIntegrator::GetElementEnergy(
+   const FiniteElement &el,
+   ElementTransformation &trans,
+   const Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+#else
+   curlshape.SetSize(ndof,dimc);
+   curlshape_dFt.SetSize(ndof,dimc);
+#endif
+
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, dimc);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order;
+      if (el.Space() == FunctionSpace::Pk)
+      {
+         order = 2*el.GetOrder() - 2;
+      }
+      else
+      {
+         order = 2*el.GetOrder();
+      }
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
+
+      if ( dim == 3 )
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      curlshape_dFt.MultTranspose(elfun, b_vec);
+      const auto b_vec_norm = b_vec.Norml2();
+      const auto b_mag = b_vec_norm / trans.Weight();
+
+      const auto sigma_val = sigma.Eval(trans, ip);
+
+      const auto loss = pow(radius, 2) * sigma_val * pow(freq * b_mag, 2) / 32;
+      fun += loss * w;
+   }
+   return fun;
+}
+
 void setInput(HybridACLossFunctionalIntegrator &integ,
               const std::string &name,
               const MachInput &input)

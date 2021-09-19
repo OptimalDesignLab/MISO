@@ -127,8 +127,9 @@ MachInputs pyDictToMachInputs(const py::dict &py_inputs)
       const auto &key = input.first.cast<std::string>();
 
       const char *val_name = input.second.ptr()->ob_type->tp_name;
-      bool is_float = strncmp("float", val_name, 5) == 0;
-      if (is_float)
+      bool is_number = strncmp("float", val_name, 5) == 0
+                     || strncmp("int", val_name, 3) == 0;
+      if (is_number)
       {
          const auto &value = input.second.cast<double>();
          inputs.emplace(key, value);

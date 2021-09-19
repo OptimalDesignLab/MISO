@@ -860,6 +860,45 @@ private:
 #endif
 };
 
+/// Functional integrator to compute AC copper losses based on hybrid approach (new)
+class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   friend void setInput(ACLossFunctionalIntegrator &integ,
+                        const std::string &name,
+                        const MachInput &input);
+
+   /// \brief - Compute AC copper losses in the domain based on a hybrid
+   ///          analytical-FEM approach
+   /// \param[in] sigma - the electrical conductivity coefficient
+   /// \param[in] freq - the electrical excitation frequency 
+   /// \param[in] radius - the radius of a strand in the bundle
+   ACLossFunctionalIntegrator(mfem::Coefficient &sigma,
+                              double freq,
+                              double radius)
+   : sigma(sigma), freq(freq), radius(radius)
+   { }
+
+   /// \brief - Compute AC copper losses in the domain based on a hybrid
+   ///          analytical-FEM approach
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the AC losses calculated over an element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   mfem::Coefficient &sigma;
+   double freq;
+   double radius;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt;
+#endif
+};
+
 /// Functional integrator to compute AC copper losses based on hybrid approach
 class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
