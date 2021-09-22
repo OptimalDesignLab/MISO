@@ -3,8 +3,6 @@
 #include "mfem.hpp"
 #include "solver.hpp"
 #include "mach_types.hpp"
-#include "pumi.h"
-#include "apfMDS.h"
 #include "HYPRE.h"
 #include <iostream>
 namespace mfem
@@ -12,17 +10,19 @@ namespace mfem
 
 class ParGDSpace : public ParFiniteElementSpace
 {
-public:
-	/// Class constructor
-	/// \param[in] apf_mesh - the apf mesh object that
-	/// \param[in] parmesh - the parallel mesh created from apf mesh
-	/// \param[in] f - the finite element space
-	/// \param[in] vdim - number of state variables
-	/// \param[in] ordering - method for ordering the dofs, usually is byVDIM
+public:	
+	/// class constructor
+	/// \param[in] pm - the mfem parallel mesh
+	/// \param[in] global_fes - serial finite element space
+	/// \param[in] partitioning - user generated mesh partitioning method
+	/// \param[in] fec - finite element collection
+	/// \param[in] vdim - number of variable per degree of freedom
+	/// \param[in] ordering - method for orderding the dofs, usually is byVDIM
 	/// \param[in] de - prolongation operator degree
-	ParGDSpace(apf::Mesh2 *apf_mesh, mfem::ParMesh *pm, const mfem::FiniteElementCollection *f,
-				  int vdim = 1, int ordiering = mfem::Ordering::byVDIM, int de = 1, int p = 0);
-
+	/// \param[in] p - a temporal variable used for print some result
+	ParGDSpace(mfem::Mesh *m, mfem::ParMesh *pm, const mfem::FiniteElementSpace *global_fes,
+				  const int *partitioning, const mfem::FiniteElementCollection *fec,
+				  int vdim = 1, int ordering = mfem::Ordering::byVDIM, int de = 1, int p = 0);
 	/// Construct the parallel prolongation operator
 	void BuildProlongationOperator();
 
@@ -36,8 +36,8 @@ public:
 	/// \param[in] els_id - element ids in patch
 	/// \param[in,out] mat_cent - matrix holding element centers coordinates
 	/// \param[in,out] mat_quad - matrix holding quadrature poinst coordinates
-	void GetNeighbourMat(mfem::Array<int> &els_id, mfem::DenseMatrix &mat_cent,
-						 mfem::DenseMatrix &mat_quad) const;
+	void BuildNeighbourMat(const mfem::Array<int> &els_id, mfem::DenseMatrix &mat_cent,
+						 		  mfem::DenseMatrix &mat_quad) const;
 
 	/// Get the element bary center coordinate
 	/// \param[in] id - element id
@@ -48,8 +48,11 @@ public:
 	/// \param[in] els_id - element ids in patch
 	/// \param[in] local_mat - local prolongation matrix
 	void AssembleProlongationMatrix(const mfem::Array<int> &els_id,
-									mfem::DenseMatrix &local_mat);
-
+											  const mfem::DenseMatrix &local_mat) const;
+	
+	hypre_ParCSRMatrix* DistributeGloballyReplicatedMatrix( MPI_Comm comm,
+   	HYPRE_Int* serial_I, HYPRE_Int* serial_J, HYPRE_Complex* serial_Data,
+	   HYPRE_Int* my_row_starts, HYPRE_Int* my_col_starts);
 	// HYPRE_Int GlobalTrueVSize() const
 	// { return total_tdof;}
 
@@ -57,29 +60,31 @@ public:
    {
       std::cout << "ParGDSpace::NewTrueDofVector is called.\n";
 		Array<HYPRE_Int> fake_dofs(2);
-		fake_dofs[0] = GetParMesh()->GetElementOffset();
+		fake_dofs[0] = GetParMesh()->GetGlobalElementNum(0);
 		fake_dofs[1] = fake_dofs[0] + local_tdof;
       std::cout << "GlobalTrueVSize is " << GlobalTrueVSize() << ". ";
       std::cout << "True dof offset is " <<  fake_dofs[0]
                 << ' ' << fake_dofs[1] << '\n';
       return (new HypreParVector(GetComm(), GlobalTrueVSize(), fake_dofs.GetData()));
     }
+	SparseMatrix *GetCP() { return cP; }
 private:
-   /// the pumi mesh object
-   apf::Mesh2 *pumi_mesh; 
-
 	/// mesh dimenstion
 	int dim;
    /// degree of the prolongation operator
    int degree;
 	/// the start and end row index of each local prolongation operator
 	/// what is the index exceed the limit?
-	int dof_start, dof_end;
+	int col_start, col_end;
 	/// the start and end colume index of each local prolongation operator
-	int el_start, el_end;
+	int row_start, row_end;
 	int pr;
 
+	// Use the serial mesh to constructe prolongation matrix 
+	mfem::Mesh *full_mesh;
+	const mfem::FiniteElementSpace *full_fespace;
 	/// total number of element
+	int total_nel;
 	HYPRE_Int local_tdof;
 	HYPRE_Int total_tdof;
 
