@@ -16,56 +16,43 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
 {
    degree = de;
    total_nel = full_mesh->GetNE();
+   GetParMesh()->GetGlobalElementNum(0);
 
+
+   // determine the the local prolongation matrix size
+   col_start = 0;
+   col_end = vdim * (total_nel-1);
+
+   HYPRE_BigInt *offsets = GetTrueDofOffsets();
+   int dof_offset = GetMyTDofOffset();
+   row_start = dof_offset + offsets[0];
+   row_end = dof_offset + offsets[1];
+
+   HYPRE_BigInt ssize = GlobalTrueVSize();
    if (GetMyRank() == pr)
    {
-      BuildProlongationOperator();
+      cout << "Global true Vsize is " << ssize << endl;
+      cout << "row start and end are " << row_start << ", " << row_end << endl;
+      cout << "col start and end are " << col_start << ", " << col_end << endl;
    }
-
-   local_tdof = vdim * GetParMesh()->GetNE();
-   MPI_Allreduce(&local_tdof, &total_tdof, 1, HYPRE_MPI_INT, MPI_SUM, GetComm());
-
-   HYPRE_BigInt row_starts[2], col_starts[GetNRanks()+1];
-
-
-   col_starts[0] = 0;
-   col_starts[1] = 8;
-   col_starts[2] = 16;
-   col_starts[3] = 24;
-   col_starts[4] = 32;
-   row_starts[0] = 0;
-   row_starts[1] = 224;
-
-
-   if (GetMyRank() == pr)
-   {
-      cout << "row start and end are " << row_starts[0] << ", " << row_starts[1] << endl;
-      cout << "col start and end are " << col_starts[0] << ", " << col_starts[1] << endl;
-   }
-
    MPI_Barrier(GetComm());
 
-   // hypre_CSRMatrix *csr_a;
-   // csr_a = hypre_CSRMatrixCreate(GetCP()->Height(), GetCP()->Width(),GetCP()->NumNonZeroElems());
-   // hypre_CSRMatrixSetDataOwner(csr_a,1);
-   // hypre_CSRMatrixI(csr_a) = GetCP()->GetI();
-   // hypre_CSRMatrixJ(csr_a) = GetCP()->GetJ();
-   // hypre_CSRMatrixData(csr_a) = GetCP()->GetData();
-   // hypre_CSRMatrixSetRownnz(csr_a);
+   BuildProlongationOperator();
+   
+   // if (GetMyRank() == pr)
+   // {
+   //    cout << "HypreProlongation matrix size are " << P->Height() << " x " << P->Width() << endl;
+   // }
+   
 
-   // hypre_ParCSRMatrix *par_csr;
-   // // par_csr = hypre_CSRMatrixToParCSRMatrix(GetComm(),(HYPRE_CSRMatrix)csr_a,row_starts,col_starts);
-   // par_csr = hypre_CSRMatrixToParCSRMatrix(GetComm(), csr_a, row_starts, col_starts);
-   // // hypre_ParCSRMatrix * aa;
-   // // aa = DistributeGloballyReplicatedMatrix(GetComm(),GetCP()->GetI(),GetCP()->GetJ(),
-   // //                                         GetCP()->GetData(), row_starts, col_starts);
-   P = new HypreParMatrix(GetComm(), row_starts, col_starts, GetCP());
-   cout << "HypreProlongation matrix size are " << P->Height() << " x " << P->Width() << endl;
+   // local_tdof = vdim * GetParMesh()->GetNE();
+   // MPI_Allreduce(&local_tdof, &total_tdof, 1, HYPRE_MPI_INT, MPI_SUM, GetComm());
 }
 
 void ParGDSpace::GetNeighbourSet(int id, int req_n,
                                  mfem::Array<int> &nels)
 {
+   id = GetParMesh()->GetGlobalElementNum(id);
    // initialize the patch list
    nels.LoseData();
    nels.Append(id);
@@ -153,13 +140,18 @@ void ParGDSpace::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
 
 void ParGDSpace::BuildProlongationOperator()
 {
+
+   HYPRE_IJMatrixCreate(GetComm(),row_start,row_end,col_start,col_end,&ij_matrix);
+   HYPRE_IJMatrixSetObjectType(ij_matrix,HYPRE_PARCSR);
+   HYPRE_IJMatrixInitialize(ij_matrix);
+
    // assume the mesh only contains only 1 type of element
    const Element* el = full_mesh->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
    const int dim = full_mesh->Dimension();
 
-   cP = new mfem::SparseMatrix(full_fespace->GetVSize(), vdim * total_nel);
+   // cP = new mfem::SparseMatrix(full_fespace->GetVSize(), vdim * total_nel);
    // determine the minimum # of element in each patch
    int nelmt;
    switch(full_mesh->Dimension())
@@ -170,21 +162,28 @@ void ParGDSpace::BuildProlongationOperator()
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
 
-   cout << "cp size is " << cP->Height() << " x " << cP->Width() << '\n';
+   // cout << "cp size is " << cP->Height() << " x " << cP->Width() << '\n';
    // vector that contains element id (resize to zero )
    mfem::Array<int> elmt_id;
    mfem::DenseMatrix cent_mat, quad_mat, local_mat;
-   for (int i = 0; i < total_nel; i++)
+   for (int i = 0; i < GetParMesh()->GetNE(); i++)
    {
       // 1. Get element id in patch
       GetNeighbourSet(i, nelmt, elmt_id);
-      // cout << "id(s) in patch " << i << ": ";
-      // elmt_id.Print(cout, elmt_id.Size());
+      if (GetMyRank() == pr)
+      {
+         cout << "id(s) in patch " << i << ": ";
+         elmt_id.Print(cout, elmt_id.Size());
+      }
+
 
       // 2. build the quadrature and barycenter coordinate matrices
       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
-      // cout << "The element center matrix:\n";
-      // cent_mat.Print(cout, cent_mat.Width());
+      if (GetMyRank() == pr)
+      {
+         cout << "The element center matrix:\n";
+         cent_mat.Print(cout, cent_mat.Width());
+      }
       // cout << "Quadrature points id matrix:\n";
       // quad_mat.Print(cout, quad_mat.Width());
       // cout << endl;
@@ -199,11 +198,14 @@ void ParGDSpace::BuildProlongationOperator()
       // 4. assemble them back to prolongation matrix
       AssembleProlongationMatrix(elmt_id, local_mat);
    }
-   cP->Finalize();
-   cP_is_set = true;
-   ofstream cp_save("cP.txt");
-   cP->PrintMatlab(cp_save);
-   cp_save.close();
+   HYPRE_IJMatrixAssemble(ij_matrix);
+   HYPRE_IJMatrixGetObject(ij_matrix, (void**)&prolong);
+
+   P = new HypreParMatrix((hypre_ParCSRMatrix*)(prolong), true);
+
+   Vector diag(local_tdof);
+   diag = 1.0;
+   R = new SparseMatrix(diag);
 }
 
 void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,
@@ -213,181 +215,47 @@ void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,
    // dofs id coresponds to the row indices
    // the local reconstruction matrix needs to be assembled `vdim` times
    // assume the mesh only contains only 1 type of element
+   int nel = id.Size();
    const Element* el = full_mesh->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
-
-   int nel = id.Size();
+   MFEM_VERIFY(num_dofs == local_mat.Height(),"matrix height doesn't match # of dof");
+   
+   int j, v, e;
+   // Get local dof order
+   const int main_id = id[0];
    Array<int> el_dofs;
-   Array<int> col_index(nel);
-   Array<int> row_index(num_dofs);
+   GetElementDofs(main_id,el_dofs);
+   if (GetMyRank() == pr)
+   {
+      cout << "Element dofs is: ";
+      el_dofs.Print(cout, el_dofs.Size());
+   }
 
-   int el_id = id[0];
-   full_fespace->GetElementVDofs(el_id, el_dofs);
-   for(int e = 0; e < nel; e++)
+   int row_index;
+   Array<int> col_index(nel);
+
+   
+   for (e = 0; e < nel; e++)
    {
       col_index[e] = vdim * id[e];
    }
+   Vector single_row;
 
-   for (int v = 0; v < vdim; v++)
+   for (v = 0; v < vdim; v++)
    {
-      el_dofs.GetSubArray(v * num_dofs, num_dofs, row_index);
-      cP->SetSubMatrix(row_index, col_index, local_mat, 1);
-      row_index.LoseData();
-      // elements id also need to be shift accordingly
-      for (int e = 0; e < nel; e++)
+      
+      for (j = 0; j < num_dofs; j++)
       {
-         col_index[e]++;
+         row_index = GetGlobalTDofNumber(el_dofs[j*vdim+v]);
+         HYPRE_IJMatrixSetValues(ij_matrix,1,&nel, &row_index, col_index.GetData(),
+                                 single_row.GetData());
+      }
+      for (e = 0; e < nel; e++)
+      {
+         col_index[e]++; 
       }
    }
-}
-
-hypre_ParCSRMatrix* ParGDSpace::DistributeGloballyReplicatedMatrix(
-   MPI_Comm comm, HYPRE_Int* serial_I, HYPRE_Int* serial_J,
-   HYPRE_Complex* serial_Data, HYPRE_Int* my_row_starts, HYPRE_Int* my_col_starts)
-{
-
-   const HYPRE_Int global_num_rows = my_row_starts[2],
-      global_num_cols = my_col_starts[2];
-
-   const HYPRE_Int my_first_row = my_row_starts[0],
-      my_last_row = my_row_starts[1];
-
-   const HYPRE_Int my_first_col = my_col_starts[0],
-      my_last_col = my_col_starts[1];
-
-   const HYPRE_Int my_num_rows = my_last_row - my_first_row;
-
-
-   // Create the offd_col_map first
-   HYPRE_Int * global_idx_marker =
-      (HYPRE_Int *) malloc(global_num_cols*sizeof(HYPRE_Int));
-
-   for (int i=0;i<global_num_cols;i++)
-      global_idx_marker[i] =  0;
-
-   HYPRE_Int num_shared_cols = 0, diag_nnz = 0, offd_nnz = 0;
-   for (HYPRE_Int index = serial_I[my_first_row];
-        index < serial_I[my_last_row];
-        ++index)
-   {
-      const HYPRE_Int& the_global_column_index = serial_J[index];
-
-      if ( (the_global_column_index < my_first_col) ||
-           (the_global_column_index >= my_last_col) )
-      {
-         // The index is outside my owned range; mark and up count
-         if (!global_idx_marker[the_global_column_index])
-            global_idx_marker[the_global_column_index] = ++num_shared_cols;
-
-         // Up nnz count
-         offd_nnz++;
-      }
-      else
-         diag_nnz++;
-   }
-
-   // Create the new matrix
-   hypre_ParCSRMatrix * parallel_matrix = hypre_ParCSRMatrixCreate(
-      comm,global_num_rows,global_num_cols,
-      my_row_starts,my_col_starts,
-      num_shared_cols,diag_nnz,offd_nnz);
-
-   // In my case, I keep the partitioning arrays
-   hypre_ParCSRMatrixOwnsRowStarts(parallel_matrix) = 0;
-   hypre_ParCSRMatrixOwnsColStarts(parallel_matrix) = 0;
-
-   // Initialize the matrix -- allocates Diag and Offd
-   hypre_ParCSRMatrixInitialize(parallel_matrix);
-
-   // Fill col_map_offd
-   HYPRE_Int * col_map_offd = hypre_ParCSRMatrixColMapOffd(parallel_matrix);
-   num_shared_cols = 0;
-   for (size_t global_idx = 0;
-        global_idx < global_num_cols;
-        ++global_idx)
-   {
-      if (global_idx_marker[global_idx] > 0)
-      {
-         col_map_offd[num_shared_cols] = global_idx;
-         global_idx_marker[global_idx] = ++num_shared_cols;
-         // Note: this will mark each shared global idx with a
-         // positive number, so
-         //
-         // local_idx = global_idx_marker[global_idx] - 1.
-      }
-   }
-
-
-   // Copy the matrix data
-   hypre_CSRMatrix * diag = hypre_ParCSRMatrixDiag(parallel_matrix),
-      * offd = hypre_ParCSRMatrixOffd(parallel_matrix);
-
-   HYPRE_Int * diag_i = hypre_CSRMatrixI(diag),
-      * diag_j = hypre_CSRMatrixJ(diag);
-   HYPRE_Complex * diag_data = hypre_CSRMatrixData(diag);
-
-   HYPRE_Int * offd_i = hypre_CSRMatrixI(offd),
-      * offd_j = hypre_CSRMatrixJ(offd);
-   HYPRE_Complex * offd_data = hypre_CSRMatrixData(offd);
-
-   diag_nnz = 0; offd_nnz = 0;
-   for (HYPRE_Int global_row = my_first_row, local_row = 0;
-        global_row < my_last_row;++global_row,++local_row)
-   {
-      diag_i[local_row] = diag_nnz;
-      offd_i[local_row] = offd_nnz;
-
-      for (HYPRE_Int j_idx = serial_I[global_row];
-           j_idx < serial_I[global_row+1]; ++j_idx)
-      {
-         const HYPRE_Int& global_idx = serial_J[j_idx];
-
-         if ((global_idx < my_first_col) || (global_idx >= my_last_col))
-         {
-            // Column is shared, add to offd
-            offd_j[offd_nnz] = global_idx_marker[global_idx] - 1;
-            offd_data[offd_nnz++] = serial_Data[j_idx];
-         }
-         else
-         {
-            // Column is owned, add to diag
-            diag_j[diag_nnz] = global_idx - my_first_col;
-            diag_data[diag_nnz++] = serial_Data[j_idx];
-         }
-      }
-   }
-   diag_i[my_num_rows] = diag_nnz;
-   offd_i[my_num_rows] = offd_nnz;
-
-   // Hypre wants the diagonal entry to come first.
-   HYPRE_Complex tmp_data;
-   for (HYPRE_Int local_row=0; local_row < my_num_rows; ++local_row)
-   {
-      HYPRE_Int first_col = diag_i[local_row];
-      for (HYPRE_Int j_idx = first_col; j_idx < diag_i[local_row+1]; ++j_idx)
-      {
-         if (diag_j[j_idx] == local_row)
-         {
-            // Swap the column indices
-            diag_j[j_idx] = diag_j[first_col];
-            diag_j[first_col] = local_row;
-
-            // Swap the data
-            tmp_data = diag_data[j_idx];
-            diag_data[j_idx] = diag_data[first_col];
-            diag_data[first_col] = tmp_data;
-            break;
-         }
-      }
-   }
-
-   // Now the hypre_ParCSRMatrix should be built. Create the commpkg:
-   hypre_MatvecCommPkgCreate(parallel_matrix);
-
-   free(global_idx_marker);
-
-   return parallel_matrix;
 }
 
 // ParGDSpace::ParGDSpace(Mesh2 *apf_mesh, ParMesh *pm, const FiniteElementCollection *f,

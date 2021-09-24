@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
    int p = 1;
 	int o = 1;
 	int pr = 0;
-	int vdim = 1;
+	int num_state = 1;
 	int nx = 4;
 	int ny = 4;
 	args.AddOption(&o, "-o", "--order", "order of prolongation matrix");
@@ -50,6 +50,7 @@ int main(int argc, char *argv[])
 	args.AddOption(&pr, "-c", "--processor", "processor to check info");
 	args.AddOption(&nx, "-nr", "--nrad", "processor to check info");
 	args.AddOption(&ny, "-nt", "--ntang", "processor to check info");
+	args.AddOption(&num_state, "-v", "--vdim", "vdim");
    args.Parse();
 
    if (!args.Good())
@@ -128,10 +129,10 @@ int main(int argc, char *argv[])
 
 
 		DSBPCollection fec(o,dim);
-		FiniteElementSpace serial_fes(mesh.get(),&fec, 1, mfem::Ordering::byVDIM);
+		FiniteElementSpace serial_fes(mesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
 		ParGDSpace pgd(mesh.get(), pmesh.get(), &serial_fes, partitioning, &fec,
-							1,mfem::Ordering::byVDIM, o, pr);
-
+							num_state,mfem::Ordering::byVDIM, o, pr);
+		int dof_offset = pgd.GetMyTDofOffset();
 		if (pr == myid)
 		{
 			Array<int> el_dofs1, el_dofs2;
@@ -144,8 +145,8 @@ int main(int argc, char *argv[])
 			for (int i = 0; i < pmesh->GetNE(); i++)
 			{
 				glb_id = pmesh->GetGlobalElementNum(i);
-				serial_fes.GetElementDofs(glb_id, el_dofs1);
-				pgd.GetElementDofs(i,el_dofs2);
+				serial_fes.GetElementVDofs(glb_id, el_dofs1);
+				pgd.GetElementVDofs(i,el_dofs2);
 				cout << setw(3) << glb_id << ": (";
 				for (int k=0; k<el_dofs1.Size(); k++)
 				{
@@ -154,7 +155,7 @@ int main(int argc, char *argv[])
 				cout << ") --> (";
 				for (int k=0; k<el_dofs2.Size(); k++)
 				{
-					cout << el_dofs2[k] << ' ';
+					cout << dof_offset + el_dofs2[k] << ' ';
 				}
 				cout << ") --> (";
 				for (int k=0; k<el_dofs2.Size(); k++)
