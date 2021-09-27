@@ -130,6 +130,7 @@ int main(int argc, char *argv[])
 
 		DSBPCollection fec(o,dim);
 		FiniteElementSpace serial_fes(mesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
+		ParFiniteElementSpace pfes(pmesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
 		ParGDSpace pgd(mesh.get(), pmesh.get(), &serial_fes, partitioning, &fec,
 							num_state,mfem::Ordering::byVDIM, o, pr);
 		int dof_offset = pgd.GetMyTDofOffset();
@@ -175,64 +176,93 @@ int main(int argc, char *argv[])
 		// ParGDSpace gd(pumi_mesh, pmesh, &fec, vdim, mfem::Ordering::byVDIM, o, pr);
 		// ParFiniteElementSpace pfes(pmesh, &fec, vdim, mfem::Ordering::byVDIM);
 
-		// // 5. create the gridfucntions
-		// mfem::ParCentGridFunction x_cent(&gd);
-		// mfem::ParGridFunction x(&pfes);
-		// mfem::ParGridFunction x_exact(&pfes);
-		// if (1 == p)
-		// {
-		// 	if( 1 == vdim)
-		// 	{
-		// 		mfem::VectorFunctionCoefficient u0_fun(1, u_const_single);
-		// 		x_exact.ProjectCoefficient(u0_fun);
-		// 		x_cent.ProjectCoefficient(u0_fun);
-		// 		x = 0.0;
-		// 	}
-		// 	else
-		// 	{
-		// 		mfem::VectorFunctionCoefficient u0_fun(dim+2, u_const);
-		// 		x_exact.ProjectCoefficient(u0_fun);
-		// 		x_cent.ProjectCoefficient(u0_fun);
-		// 		x = 0.0;
-		// 	}
+		// 5. create the gridfucntions
+		mfem::ParCentGridFunction x_cent(&pgd);
+		mfem::ParGridFunction x(&pfes);
+		mfem::ParGridFunction x_exact(&pfes);
+		if (1 == p)
+		{
+			if( 1 == num_state)
+			{
+				mfem::VectorFunctionCoefficient u0_fun(1, u_const_single);
+				x_exact.ProjectCoefficient(u0_fun);
+				x_cent.ProjectCoefficient(u0_fun);
+				x = 0.0;
+			}
+			else
+			{
+				mfem::VectorFunctionCoefficient u0_fun(dim+2, u_const);
+				x_exact.ProjectCoefficient(u0_fun);
+				x_cent.ProjectCoefficient(u0_fun);
+				x = 0.0;
+			}
 
-		// }
-		// else if (2 == p)
+		}
+		else if (2 == p)
+		{
+			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_poly);
+			x_exact.ProjectCoefficient(u0_fun);
+			x_cent.ProjectCoefficient(u0_fun);
+			x = 0.0;
+		}
+		else if(3 == p)
+		{
+			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_exact);
+			x_exact.ProjectCoefficient(u0_fun);
+			x_cent.ProjectCoefficient(u0_fun);
+			x = 0.0;
+		}
+
+		if (pr == myid)
+		{
+			cout << "---------------Check projection---------------\n";
+			cout << "x_exact is: " << endl;
+			x_exact.Print(cout, num_state);
+			cout << "--------------\n";
+			cout << "x_center is: " << endl;
+			x_cent.Print(cout, num_state);
+			cout << "----------------------------------------------\n";
+		}
+		MPI_Barrier(MPI_COMM_WORLD);
+		// 6. Prolong the solution to real quadrature points
+		HypreParMatrix *prolong = pgd.Dof_TrueDof_Matrix();
+		HypreParVector *x_cent_true = x_cent.GetTrueDofs();
+		// HypreParVector *x_true = x.GetTrueDofs();
+		// HypreParVector *x_exact_true = x_exact.GetTrueDofs();
+		// if (myid == pr)
 		// {
-		// 	mfem::VectorFunctionCoefficient u0_fun(dim+2, u_poly);
-		// 	x_exact.ProjectCoefficient(u0_fun);
-		// 	x_cent.ProjectCoefficient(u0_fun);
-		// 	x = 0.0;
-		// }
-		// else if(3 == p)
-		// {
-		// 	mfem::VectorFunctionCoefficient u0_fun(dim+2, u_exact);
-		// 	x_exact.ProjectCoefficient(u0_fun);
-		// 	x_cent.ProjectCoefficient(u0_fun);
-		// 	x = 0.0;
+		// 	cout << "Get Prolongation matrix, the size is "
+		// 		<< prolong->Height() << " x " << prolong->Width() << "\n";
+		// 	cout << "x_cent size is: " << x_cent.Size()<<'\n';
+		// 	cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n';
+		// 	cout << "x_true size is " << x_true->Size() << '\n';
+		// 	cout << "x_exact_true size is " << x_exact_true->Size() << endl;
 		// }
 
-		// // 6. Prolong the solution to real quadrature points
-		// HypreParMatrix *prolong = gd.Dof_TrueDof_Matrix();
-		// cout << "Get Prolongation matrix, the size is "
-		// 	  << prolong->Height() << " x " << prolong->Width() << "\n\n";
+		// prolong->Mult(*x_cent_true, *x_true);
+		// x.SetFromTrueDofs(*x_true);
+		// if (pr == myid)
+		// {
+		// 	cout << "---------------Check prolongation---------------\n";
+		// 	cout << "x is: " << endl;
+		// 	x.Print(cout, num_state);
+		// 	cout << "----------------------------------------------\n";
+		// }
 		
-		// cout << "x_cent size is: " << x_cent.Size()<<'\n';
-		// HypreParVector *x_cent_true = x_cent.GetTrueDofs();
-		// cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n' << '\n';
+		
 		// const char *f1 = "x_cent_true";
 		// x_cent_true->Print(f1);
 
-		// HypreParVector *x_true = x.GetTrueDofs();
-		// cout << "x_true size is " << x_true->Size() << '\n' << '\n';
+		
+		
 
 
-		// HypreParVector *x_exact_true = x_exact.GetTrueDofs();
-		// cout << "x_exact_true size is " << x_exact_true->Size() << '\n'<<'\n';
+		// 
+		// 
 		// const char *f2 = "x_exact_true";
 		// x_exact_true->Print(f2);
 
-		// prolong->Mult(*x_cent_true, *x_true);
+		// 
 		// cout << "prolonged.\n";
 		// const char *f3 = "x_true";
 		// x_true->Print(f3);

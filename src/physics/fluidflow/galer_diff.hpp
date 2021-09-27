@@ -49,23 +49,24 @@ public:
 	/// \param[in] local_mat - local prolongation matrix
 	void AssembleProlongationMatrix(const mfem::Array<int> &els_id,
 											  const mfem::DenseMatrix &local_mat) const;
-	
-	hypre_ParCSRMatrix* DistributeGloballyReplicatedMatrix( MPI_Comm comm,
-   	HYPRE_Int* serial_I, HYPRE_Int* serial_J, HYPRE_Complex* serial_Data,
-	   HYPRE_Int* my_row_starts, HYPRE_Int* my_col_starts);
+
 	// HYPRE_Int GlobalTrueVSize() const
 	// { return total_tdof;}
 
    HypreParVector *NewTrueDofVector()
    {
-      std::cout << "ParGDSpace::NewTrueDofVector is called.\n";
-		Array<HYPRE_Int> fake_dofs(2);
-		fake_dofs[0] = GetParMesh()->GetGlobalElementNum(0);
-		fake_dofs[1] = fake_dofs[0] + local_tdof;
-      std::cout << "GlobalTrueVSize is " << GlobalTrueVSize() << ". ";
-      std::cout << "True dof offset is " <<  fake_dofs[0]
-                << ' ' << fake_dofs[1] << '\n';
-      return (new HypreParVector(GetComm(), GlobalTrueVSize(), fake_dofs.GetData()));
+		HYPRE_BigInt col_starts[2];
+		col_starts[0] = GetVDim() * el_offset;
+		col_starts[1] = GetVDim() * (el_offset+GetParMesh()->GetNE());
+		if (GetMyRank() == pr )
+		{
+			std::cout << "ParGDSpace::NewTrueDofVector is called.\n";
+			std::cout << "GlobalTrueVSize is " << GetVDim()*total_nel << ". ";
+			std::cout << "True dof offset is " <<  col_starts[0]
+						<< ' ' << col_starts[1] << '\n';
+		}
+
+      return (new HypreParVector(GetComm(), GetVDim()*total_nel, col_starts));
     }
 	SparseMatrix *GetCP() { return cP; }
 private:
@@ -78,6 +79,7 @@ private:
 	int col_start, col_end;
 	/// the start and end colume index of each local prolongation operator
 	int row_start, row_end;
+	int el_offset;
 	int pr;
 
 	// Use the serial mesh to constructe prolongation matrix 

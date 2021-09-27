@@ -16,7 +16,7 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
 {
    degree = de;
    total_nel = full_mesh->GetNE();
-   GetParMesh()->GetGlobalElementNum(0);
+   el_offset = GetParMesh()->GetGlobalElementNum(0);
 
 
    // determine the the local prolongation matrix size
