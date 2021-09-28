@@ -14,6 +14,10 @@ target_sources(mach
       galer_diff.hpp
       inviscid_integ_def.hpp
       inviscid_integ.hpp
+      mesh_sens_integ.hpp
+      mesh_sens_integ_def.hpp
+      mms_integ.hpp
+      mms_integ_def.hpp
       navier_stokes_fluxes.hpp
       navier_stokes_integ_def.hpp
       navier_stokes_integ.hpp

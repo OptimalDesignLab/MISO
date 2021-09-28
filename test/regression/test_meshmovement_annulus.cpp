@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "catch.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "mfem.hpp"
 
 #include "mesh_movement.hpp"
@@ -43,7 +43,7 @@ auto options = R"(
    },
    "nonlin-solver": {
       "type": "newton",
-      "printlevel": -1,
+      "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-10,
       "abstol": 1e-12
@@ -88,12 +88,12 @@ TEST_CASE("Mesh Movement Annulus Extension Regression Test",
    /// number of elements in Z direction
    auto nz = 2;
 
-   for (int order = 1; order <= 1; ++order)
+   for (int order = 1; order <= 2; ++order)
    {
       // order = 2;
       options["space-dis"]["degree"] = order;
       int nxy = 1;
-      for (int ref = 1; ref <= 4; ++ref)
+      for (int ref = 1; ref <= 2; ++ref)
       {  
          nxy *= 2;
          DYNAMIC_SECTION("...for order " << order << " and mesh sizing nxy = " << nxy)
@@ -143,7 +143,7 @@ TEST_CASE("Mesh Movement Annulus Contraction Regression Test",
       // order = 2;
       options["space-dis"]["degree"] = order;
       int nxy = 1;
-      for (int ref = 1; ref <= 4; ++ref)
+      for (int ref = 1; ref <= 2; ++ref)
       {  
          nxy *= 2;
          DYNAMIC_SECTION("...for order " << order << " and mesh sizing nxy = " << nxy)
@@ -207,7 +207,7 @@ void annulusExtension(const Vector &x, Vector& X)
       xyz(2) = rtz(2);
    };
    xyz_fun(rtz, X); // new field has had theta doubled (semi-annulus now)
-   X -= x; // get displacement
+   // X -= x; // get displacement
 }
 
 void annulusContraction(const Vector &x, Vector& X)
@@ -232,8 +232,8 @@ void annulusContraction(const Vector &x, Vector& X)
       xyz(1) = (rtz(0) + 1.0)*sin(rtz(1));
       xyz(2) = rtz(2);
    };
-   xyz_fun(rtz, X); // new field has had theta doubled (semi-annulus now)
-   X -= x; // get displacement
+   xyz_fun(rtz, X); // new field has had theta reduced by 75%
+   // X -= x; // get displacement
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree,

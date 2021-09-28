@@ -38,22 +38,34 @@ set(FLUID_TEST_SRCS
    test_surface
    test_utils
    test_thermal_integ
-   test_res_integ
 )
 
 # group EM tests
 set(EM_TEST_SRCS
-   test_electromag_integ
-   test_coefficient
+)
+
+# group fluid MPI tests
+set(FLUID_MPI_TEST_SRCS
+   test_mfem_common_integ
 )
 
 # group EM MPI tests
 set(EM_MPI_TEST_SRCS
+   test_electromag_integ
+   test_irrotational_projector
+   test_div_free_projector
    test_magnetostatic_solver
    test_steinmetz_integ
+   test_coefficient
+   test_mach_load
+   test_current_load
+   test_magnetic_load
+   test_magnetostatic_load
+   #test_mass_operator
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
 create_tests("${EM_TEST_SRCS}" electromag_test_data.hpp)
 
 create_mpi_tests("${EM_MPI_TEST_SRCS}" electromag_test_data.hpp)
+create_mpi_tests("${FLUID_MPI_TEST_SRCS}" euler_test_data.cpp)

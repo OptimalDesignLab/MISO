@@ -9,6 +9,9 @@ target_sources(mach
       evolver.hpp
       inexact_newton.cpp
       inexact_newton.hpp
+      mach_linearform.cpp
+      mach_linearform.hpp
+      material_library.hpp
       mfem_extensions.cpp
       mfem_extensions.hpp
       orthopoly.cpp
@@ -18,8 +21,9 @@ target_sources(mach
       sbp_fe.cpp
       sbp_fe.hpp
       surface.hpp
-		parcentgridfunc.cpp
-		parcentgridfunc.hpp
+      surface_def.hpp
+      parcentgridfunc.cpp
+	parcentgridfunc.hpp
 )
 
 target_include_directories(mach

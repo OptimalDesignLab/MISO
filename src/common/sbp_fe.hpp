@@ -1,7 +1,7 @@
 #ifndef MFEM_SBP_FE
 #define MFEM_SBP_FE
 
-#include <unordered_map> // TODO: delete when we re-implement SBP elements?
+#include <unordered_map>  // TODO: delete when we re-implement SBP elements?
 
 #include "mfem.hpp"
 
@@ -9,7 +9,6 @@
 // simplify things if we ever port the SBP stuff to MFEM
 namespace mfem
 {
-
 /// Abstract class for diaognal norm summation-by-parts (SBP) elements
 class SBPFiniteElement : public NodalFiniteElement
 {
@@ -20,10 +19,16 @@ public:
    /// \param[in] num_nodes - number of nodal degrees of freedom on element
    /// \param[in] degree - maximum degree for which the operator is exact
    /// \param[in] fspace - needed by `FiniteElement` base class only
-   SBPFiniteElement(int dim, Geometry::Type geo, int num_nodes, int degree,
+   SBPFiniteElement(int dim,
+                    Geometry::Type geo,
+                    int num_nodes,
+                    int degree,
                     int fspace = FunctionSpace::Pk)
-       : NodalFiniteElement(dim, geo, num_nodes, degree, fspace),
-         H(num_nodes), x(num_nodes, dim), Q(dim) {}
+    : NodalFiniteElement(dim, geo, num_nodes, degree, fspace),
+      H(num_nodes),
+      x(num_nodes, dim),
+      Q(dim)
+   { }
 
    /// Returns the diagonal norm/mass matrix as a vector.
    const Vector &returnDiagNorm() const { return H; }
@@ -77,7 +82,7 @@ public:
    /// \param[in] u - vector that is being multiplied
    /// \param[out] Qu - result of applying `Q` or `Q^T` to `u`
    /// \param[in] trans - if `true` applies `Q^T`, otherwise applies `Q`
-   //void multWeakOperator(int di, int num_state, const Vector &u, Vector &Qu,
+   // void multWeakOperator(int di, int num_state, const Vector &u, Vector &Qu,
    //                      bool trans = false) const;
 
    /// Applies the weak derivative, `Q` or `-Q^T`, to the given data
@@ -87,12 +92,14 @@ public:
    /// \param[in] trans - if `true` applies `-Q^T`, otherwise applies `Q`
    /// \warning The result of the operation is **added** to `Qu`, so the user is
    /// responsible for initializing `Qu`.
-   void multWeakOperator(int di, const DenseMatrix &u, DenseMatrix &Qu,
+   void multWeakOperator(int di,
+                         const DenseMatrix &u,
+                         DenseMatrix &Qu,
                          bool trans = false) const;
 
    /// Applies the weak derivative, `Q`, at a given node location `i`
    /// \param[in] di - desired reference space direction for operator
-   /// \param[in] i - index at which we want the weak derivative 
+   /// \param[in] i - index at which we want the weak derivative
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
    /// \param[out] Qu - result of applying `Q` to `u` at node `i`
    void multWeakOperator(int di, int i, const DenseMatrix &u, Vector &Qu) const;
@@ -102,7 +109,9 @@ public:
    /// \param[in] i - index at which we want the derivative
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
    /// \param[out] Du - result of applying `D` to `u` at node `i`
-   void multStrongOperator(int di, int i, const DenseMatrix &u,
+   void multStrongOperator(int di,
+                           int i,
+                           const DenseMatrix &u,
                            Vector &Du) const;
 
    /// Sets `P` to be the operator that removes polynomials of degree `order`
@@ -120,7 +129,8 @@ public:
    /// \param[out] Pu - result of applying `P` or `P^T` to `u` is stored here
    /// \param[in] trans - if `true` applies `P^T`, otherwise applies `P`
    /// \warning Pu is overwritten and possibly resized.
-   void multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
+   void multProjOperator(const DenseMatrix &u,
+                         DenseMatrix &Pu,
                          bool trans = false) const;
 
    /// Returns the `(i,j)`th entry of the weak derivative in direction `di`
@@ -134,7 +144,7 @@ public:
    /// \param[in] di - desired physical space coordinate direction
    /// \param[in] i - row/column index for \f$ E_{di} \f$
    /// \param[in] adjJ_i - adjugate of the mapping Jacobian at node `i`
-   /// \returns \f$ (E_{di})_{i,j} \f$ in physical space 
+   /// \returns \f$ (E_{di})_{i,j} \f$ in physical space
    double getSymEntry(int di, int i, const mfem::DenseMatrix &adjJ_i) const;
 
    /// `(i,j)`th entry of skew-symmetric matrix \f$ S_{di} \f$ in physical space
@@ -145,11 +155,17 @@ public:
    /// \param[in] adjJ_j - adjugate of the mapping Jacobian at node `j`
    /// \returns \f$ (S_{di})_{i,j} \f$ in physical space
    /// \note The factor of 1/2 is missing, because there is a factor of 2 in
-   /// two-point fluxes that cancel. 
-   double getSkewEntry(int di, int i, int j, const mfem::DenseMatrix &adjJ_i,
+   /// two-point fluxes that cancel.
+   double getSkewEntry(int di,
+                       int i,
+                       int j,
+                       const mfem::DenseMatrix &adjJ_i,
                        const mfem::DenseMatrix &adjJ_j) const;
 
-   void getSkewEntryRevDiff(int di, int i, int j, double Sij_bar,
+   void getSkewEntryRevDiff(int di,
+                            int i,
+                            int j,
+                            double Sij_bar,
                             mfem::DenseMatrix &adjJ_i_bar,
                             mfem::DenseMatrix &adjJ_j_bar) const;
 
@@ -160,7 +176,10 @@ public:
    /// \param[in] adjJ_i - adjugate of the mapping Jacobian at node `i`
    /// \param[in] adjJ_j - adjugate of the mapping Jacobian at node `j`
    /// \returns \f$ (Q_{di})_{i,j} \f$ in physical space
-   double getQEntry(int di, int i, int j, const mfem::DenseMatrix &adjJ_i,
+   double getQEntry(int di,
+                    int i,
+                    int j,
+                    const mfem::DenseMatrix &adjJ_i,
                     const mfem::DenseMatrix &adjJ_j) const;
 
    /// Attempts to find the index corresponding to a given IntegrationPoint
@@ -171,7 +190,7 @@ public:
 
 protected:
    /// maps from integration points to integer index
-   std::unordered_map<const IntegrationPoint*, int> ipIdxMap;
+   std::unordered_map<const IntegrationPoint *, int> ipIdxMap;
    /// the diagonal norm matrix stored as a vector
    Vector H;
    /// node coordinates of the reference element (0,0), (1,0), (0,1)
@@ -183,7 +202,8 @@ protected:
 };
 
 // /// Class for summation-by-parts operator on interval
-// class SBPSegmentElement : public NodalTensorFiniteElement //, public SBPFiniteElement
+// class SBPSegmentElement : public NodalTensorFiniteElement //, public
+// SBPFiniteElement
 // {
 // public:
 //    SBPSegmentElement(const int p);
@@ -227,13 +247,13 @@ public:
    /// \param[in] degree - maximum poly degree for which operator is exact
    /// \param[in] num_nodes - the number of nodes the operator has
    SBPTriangleElement(const int degree, const int num_nodes);
-   
+
    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
    virtual void CalcDShape(const IntegrationPoint &ip,
                            DenseMatrix &dshape) const;
 
    /// Get the derivative operator in the direction di; transposed if trans=true
-   void GetOperator(int di, DenseMatrix &D, bool trans=false) const;
+   void GetOperator(int di, DenseMatrix &D, bool trans = false) const;
 };
 
 /// High order H1-conforming (continuous) Summation By Parts
@@ -244,26 +264,27 @@ class SBPCollection : public FiniteElementCollection
 protected:
    char SBPname[32];
    FiniteElement *SBPElements[Geometry::NumGeom];
-   int  SBPdof[Geometry::NumGeom];
+   int SBPdof[Geometry::NumGeom];
    int *SegDofOrd[2];
 
 public:
    explicit SBPCollection(const int p, const int dim = 2);
 
    virtual const FiniteElement *FiniteElementForGeometry(
-      Geometry::Type GeomType) const;
+       Geometry::Type GeomType) const;
    virtual int DofForGeometry(Geometry::Type GeomType) const
-   { return SBPdof[GeomType]; }
+   {
+      return SBPdof[GeomType];
+   }
    virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
                                              int Or) const;
    virtual const char *Name() const { return SBPname; }
    virtual int GetContType() const { return CONTINUOUS; }
    virtual ~SBPCollection();
-
 };
 
 /// High order L2-discontinous Summation By Parts operators
-class DSBPCollection :public FiniteElementCollection
+class DSBPCollection : public FiniteElementCollection
 {
 protected:
    char DSBPname[32];
@@ -277,23 +298,29 @@ public:
 
    // Currently we we only have point, segment and triangle elements
    virtual const FiniteElement *FiniteElementForGeometry(
-      Geometry::Type GeomType) const
-   {  return DSBPElements[GeomType];  }
+       Geometry::Type GeomType) const
+   {
+      return DSBPElements[GeomType];
+   }
 
    virtual const FiniteElement *TraceFiniteElementGeometry(
-      Geometry::Type GeomType) const
-   {  return Tr_SBPElements[GeomType]; }
+       Geometry::Type GeomType) const
+   {
+      return Tr_SBPElements[GeomType];
+   }
 
    virtual int DofForGeometry(Geometry::Type GeomType) const
-   {  return DSBPdof[GeomType]; }
+   {
+      return DSBPdof[GeomType];
+   }
 
    virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
                                              int Or) const;
-   virtual const char *Name() const {  return DSBPname;  }
+   virtual const char *Name() const { return DSBPname; }
    virtual int GetContType() const { return DISCONTINUOUS; }
    virtual ~DSBPCollection();
 };
 
-} // namespace mfem
+}  // namespace mfem
 
 #endif

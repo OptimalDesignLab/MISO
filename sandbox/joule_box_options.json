@@ -69,7 +69,7 @@
       },
       "box": true,
       "fill-factor" : 1.0,
-      "current-density" : 1,
+      "current_density" : 1,
       "frequency": 1500,
       "const-flux" : true,
       "const-val" : 1.0,

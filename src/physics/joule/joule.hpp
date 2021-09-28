@@ -5,15 +5,13 @@
 
 namespace mach
 {
-
 class MagnetostaticSolver;
 class ThermalSolver;
-
 
 class JouleSolver : public AbstractSolver
 {
 public:
-	/// Class constructor.
+   /// Class constructor.
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] comm - MPI communicator for parallel operations
@@ -36,11 +34,12 @@ public:
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
-   void setInitialCondition(const std::function<double(const mfem::Vector &)> &u_init) override;
+   void setInitialCondition(
+       const std::function<double(const mfem::Vector &)> &u_init) override;
 
    /// \brief Returns a vector of pointers to grid functions that define fields
    /// returns {T, A, B}
-   std::vector<GridFunType*> getFields() override;
+   std::vector<GridFunType *> getFields() override;
 
    void solveForState() override;
 
@@ -48,9 +47,7 @@ public:
 
    // mfem::Vector* getMeshSensitivities() override;
 
-   void addOutputs() override;
-
-   int getNumState() override {return 0;};
+   int getNumState() override { return 0; }
 
    ~JouleSolver() override;
 
@@ -58,17 +55,16 @@ private:
    std::unique_ptr<MagnetostaticSolver> em_solver;
    std::unique_ptr<ThermalSolver> thermal_solver;
 
-   std::vector<GridFunType*> em_fields;
-   std::vector<GridFunType*> thermal_fields;
+   std::vector<GridFunType *> em_fields;
+   std::vector<GridFunType *> thermal_fields;
 
    std::function<double(const mfem::Vector &)> thermal_init;
 
-   friend SolverPtr createSolver<JouleSolver>(
-       const std::string &opt_file_name,
-       std::unique_ptr<mfem::Mesh> smesh,
-       MPI_Comm comm);
+   friend SolverPtr createSolver<JouleSolver>(const std::string &opt_file_name,
+                                              std::unique_ptr<mfem::Mesh> smesh,
+                                              MPI_Comm comm);
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

@@ -20,6 +20,8 @@ jobs:
       BUILD_TYPE: ${{ matrix.config.buildtype }}
       CC: ${{ matrix.config.cc }}
       C++: ${{ matrix.config.cxx }}
+      BUILD_FLAGS: ${{ matrix.config.buildflags}}
+      TEST_FLAGS: ${{ matrix.config.testflags}}
     strategy:
       fail-fast: false
       matrix:
@@ -28,13 +30,25 @@ jobs:
             name: "Ubuntu Latest GCC (Release)", artifact: "Linux.7z",
             os: ubuntu-latest,
             cc: "gcc", cxx: "g++",
-            buildtype: "Release"
+            buildtype: "Release",
+            buildflags: "",
+            testflags: ""
           }
         - {
             name: "Ubuntu Latest GCC (Debug)", artifact: "Linux.7z",
             os: ubuntu-latest,
             cc: "gcc", cxx: "g++",
-            buildtype: "Debug"
+            buildtype: "Debug",
+            buildflags: "",
+            testflags: ""
+          }
+        - {
+            name: "Ubuntu Latest GCC (Debug-ASan;Undefined)", artifact: "Linux.7z",
+            os: ubuntu-latest,
+            cc: "gcc", cxx: "g++",
+            buildtype: "Debug",
+            buildflags: "-fno-omit-frame-pointer -fsanitize=address,undefined",
+            testflags: "ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=/home/runner/work/mach/mach/tools/lsan/suppressions.txt"
           }
         # - {
         #     name: "Ubuntu Latest Clang (Debug)", artifact: "Linux.7z",
@@ -142,7 +156,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: 'mfem/mfem'
-        ref: 'odl'
+        ref: 'odl-next'
         path: .deps/mfem
      
     - name: Create MFEM Build Environment
@@ -154,6 +168,7 @@ jobs:
       run: |
         cmake ${GITHUB_WORKSPACE}/.deps/mfem \
          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+         -DCMAKE_CXX_FLAGS="$BUILD_FLAGS" \
          -DMFEM_USE_MPI=YES \
          -DMFEM_USE_METIS_5=YES \
          -DHYPRE_DIR="${{runner.workspace}}/.deps/hypre" \
@@ -186,6 +201,7 @@ jobs:
       run: |
         cmake ${GITHUB_WORKSPACE}/mach \
          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+         -DCMAKE_CXX_FLAGS="$BUILD_FLAGS" \
          -DMFEM_DIR="${{runner.workspace}}/.deps/mfem/build" \
          -DADEPT_DIR="${GITHUB_WORKSPACE}/.deps/adept/inst"
     # - name: ls
@@ -206,4 +222,4 @@ jobs:
       shell: bash
       # Execute tests defined by the CMake configuration.  
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C $BUILD_TYPE -V
+      run: echo $TEST_FLAGS ; ctest -C $BUILD_TYPE --output-on-failure

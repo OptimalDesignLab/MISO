@@ -6,44 +6,94 @@
 
 namespace mach
 {
+class AggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
+{
+public:
+   AggregateIntegratorNumerator(const double r, const mfem::Vector m)
+    : rho(r), max(m)
+   { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   // /// Computes dJdu, for the adjoint.
+   // void AssembleElementVector(const mfem::FiniteElement &el,
+   //                            mfem::ElementTransformation &trans,
+   //                            const mfem::Vector &elfun,
+   //                            mfem::Vector &elvect) override;
+private:
+   /// aggregation parameter rho
+   const double rho;
+   /// maximum allowable field value in each model region
+   const mfem::Vector max;
+};
+
+class AggregateIntegratorDenominator : public mfem::NonlinearFormIntegrator
+{
+public:
+   AggregateIntegratorDenominator(const double r, const mfem::Vector m)
+    : rho(r), max(m)
+   { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   // /// Computes dJdu, for the adjoint.
+   // void AssembleElementVector(const mfem::FiniteElement &el,
+   //                            mfem::ElementTransformation &trans,
+   //                            const mfem::Vector &elfun,
+   //                            mfem::Vector &elvect) override;
+private:
+   /// aggregation parameter rho
+   const double rho;
+   /// maximum allowable field value in each model region
+   const mfem::Vector max;
+};
+
 /// Class that evaluates the aggregated temperature constraint
 class AggregateIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// Constructs a domain integrator that computes an induced aggregated 
+   /// Constructs a domain integrator that computes an induced aggregated
    /// temperature constraint based on the maximum value in the grid function
    AggregateIntegrator(const mfem::FiniteElementSpace *fe_space,
-                              const double r,
-                              const mfem::Vector m)
-       : fes(fe_space), rho(r), max(m) { }
-   
+                       const double r,
+                       const mfem::Vector m)
+    : fes(fe_space), rho(r), max(m)
+   { }
+
    /// Overloaded, precomputes aggregate and denominator for use in adjoint
    AggregateIntegrator(const mfem::FiniteElementSpace *fe_space,
-                              const double r,
-                              const mfem::Vector m,
-                              mfem::GridFunction *temp);
+                       const double r,
+                       const mfem::Vector m,
+                       mfem::GridFunction *temp);
 
    /// Computes the induced functional estimate for aggregated temperature
-	double GetIEAggregate(mfem::GridFunction *temp);
+   double GetIEAggregate(mfem::GridFunction *temp);
 
-   /// Computes the induced functional estimate, need to call second constructor first
-   virtual double GetElementEnergy(const mfem::FiniteElement &el, 
-               mfem::ElementTransformation &Trans,
-               const mfem::Vector &elfun);
+   /// Computes the induced functional estimate, need to call second constructor
+   /// first
+   virtual double GetElementEnergy(const mfem::FiniteElement &el,
+                                   mfem::ElementTransformation &Trans,
+                                   const mfem::Vector &elfun);
 
    /// Computes dJdu, for the adjoint. Must call GetIEAggregate beforehand.
-   virtual void AssembleElementVector(const mfem::FiniteElement &el, 
-               mfem::ElementTransformation &Trans,
-               const mfem::Vector &elfun, mfem::Vector &elvect);
-private: 
+   virtual void AssembleElementVector(const mfem::FiniteElement &el,
+                                      mfem::ElementTransformation &Trans,
+                                      const mfem::Vector &elfun,
+                                      mfem::Vector &elvect);
 
+private:
    /// used to integrate over appropriate elements
    const mfem::FiniteElementSpace *fes;
 
    /// aggregation parameter rho
    const double rho;
 
-   /// maximum temperature constraint (TODO: USE MULTIPLE MAXIMA, ONE FOR EACH MESH ATTRIBUTE)
+   /// maximum temperature constraint (TODO: USE MULTIPLE MAXIMA, ONE FOR EACH
+   /// MESH ATTRIBUTE)
    const mfem::Vector max;
 
    /// maximum temperature value
@@ -68,9 +118,9 @@ private:
 class TempIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// Constructs a domain integrator that computes the integral over temperature
-   TempIntegrator(const mfem::FiniteElementSpace *fe_space)
-       : fes(fe_space) { }
+   /// Constructs a domain integrator that computes the integral over
+   /// temperature
+   TempIntegrator(const mfem::FiniteElementSpace *fe_space) : fes(fe_space) { }
 
    /// Overloaded, precomputes for use in adjoint
    TempIntegrator(const mfem::FiniteElementSpace *fe_space,
@@ -78,22 +128,22 @@ public:
 
    /// TODO: Turn this into a GetElementEnergy and GetFaceEnergy
    /// Computes the induced functional estimate for aggregated temperature
-	double GetTemp(mfem::GridFunction *temp);
+   double GetTemp(mfem::GridFunction *temp);
 
    /// Computes dJdu, for the adjoint
-   void AssembleElementVector(const mfem::FiniteElement &el, 
+   void AssembleElementVector(const mfem::FiniteElement &el,
                               mfem::ElementTransformation &Trans,
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
 
    /// Computes dJdu for the adjoint on the boundary
-   void AssembleFaceVector(const mfem::FiniteElement &el1, 
-                           const mfem::FiniteElement &el2, 
-                           mfem::FaceElementTransformations  &Trans,
+   void AssembleFaceVector(const mfem::FiniteElement &el1,
+                           const mfem::FiniteElement &el2,
+                           mfem::FaceElementTransformations &Trans,
                            const mfem::Vector &elfun,
                            mfem::Vector &elvect) override;
-private: 
 
+private:
    /// used to integrate over appropriate elements
    const mfem::FiniteElementSpace *fes;
 
@@ -112,41 +162,43 @@ private:
 #endif
 };
 
-
-/// Class that evaluates the aggregated temperature constraint 
+/// Class that evaluates the aggregated temperature constraint
 /// (derivative with respect to mesh nodes)
 class AggregateResIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// Constructs a domain integrator that computes an induced aggregated 
+   /// Constructs a domain integrator that computes an induced aggregated
    /// temperature constraint based on the maximum value in the grid function
    AggregateResIntegrator(const mfem::FiniteElementSpace *fe_space,
-                              const double r,
-                              const mfem::Vector m)
-       : fes(fe_space), rho(r), max(m) { }
-   
+                          const double r,
+                          const mfem::Vector m)
+    : fes(fe_space), rho(r), max(m)
+   { }
+
    /// Overloaded, precomputes aggregate and denominator for use in adjoint
    AggregateResIntegrator(const mfem::FiniteElementSpace *fe_space,
-                              const double r,
-                              const mfem::Vector m,
-                              mfem::GridFunction *temp);
+                          const double r,
+                          const mfem::Vector m,
+                          mfem::GridFunction *temp);
 
    /// Computes the induced functional estimate for aggregated temperature
-	double GetIEAggregate(mfem::GridFunction *temp);
+   double GetIEAggregate(mfem::GridFunction *temp);
 
    /// Computes dJdx, for the adjoint. Must call GetIEAggregate beforehand.
-   virtual void AssembleElementVector(const mfem::FiniteElement &elx, 
-               mfem::ElementTransformation &Trx,
-               const mfem::Vector &elfunx, mfem::Vector &elvect);
-private: 
+   virtual void AssembleElementVector(const mfem::FiniteElement &elx,
+                                      mfem::ElementTransformation &Trx,
+                                      const mfem::Vector &elfunx,
+                                      mfem::Vector &elvect);
 
+private:
    /// used to integrate over appropriate elements
    const mfem::FiniteElementSpace *fes;
 
    /// aggregation parameter rho
    const double rho;
 
-   /// maximum temperature constraint (TODO: USE MULTIPLE MAXIMA, ONE FOR EACH MESH ATTRIBUTE)
+   /// maximum temperature constraint (TODO: USE MULTIPLE MAXIMA, ONE FOR EACH
+   /// MESH ATTRIBUTE)
    const mfem::Vector max;
 
    /// maximum temperature value
@@ -171,24 +223,25 @@ private:
 class TempResIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// Constructs a domain integrator that computes the integral over temperature
-   TempResIntegrator(const mfem::FiniteElementSpace *fe_space)
-       : fes(fe_space) { }
+   /// Constructs a domain integrator that computes the integral over
+   /// temperature
+   TempResIntegrator(const mfem::FiniteElementSpace *fe_space) : fes(fe_space)
+   { }
 
    /// Overloaded, precomputes for use in adjoint
    TempResIntegrator(const mfem::FiniteElementSpace *fe_space,
-                              mfem::GridFunction *temp);
+                     mfem::GridFunction *temp);
 
    /// Computes the induced functional estimate for aggregated temperature
-	double GetTemp(mfem::GridFunction *temp);
+   double GetTemp(mfem::GridFunction *temp);
 
    /// Computes dJdu, for the adjoint
-   virtual void AssembleElementVector(const mfem::FiniteElement &elx, 
-               mfem::ElementTransformation &Trx,
-               const mfem::Vector &elfunx, mfem::Vector &elvect);
+   virtual void AssembleElementVector(const mfem::FiniteElement &elx,
+                                      mfem::ElementTransformation &Trx,
+                                      const mfem::Vector &elfunx,
+                                      mfem::Vector &elvect);
 
-private: 
-
+private:
    /// used to integrate over appropriate elements
    const mfem::FiniteElementSpace *fes;
 
@@ -207,7 +260,6 @@ private:
 #endif
 };
 
-
-} // namespace mach
+}  // namespace mach
 
 #endif

@@ -8,14 +8,12 @@ using namespace mfem;
 
 namespace mach
 {
-
-/// TODO: read options file and construct options files for EM and 
-JouleSolver::JouleSolver(
-	const std::string &opt_file_name,
-   std::unique_ptr<mfem::Mesh> smesh,
-   MPI_Comm comm)
-	// : AbstractSolver(opt_file_name, move(smesh))
-   : AbstractSolver(opt_file_name, comm)
+/// TODO: read options file and construct options files for EM and
+JouleSolver::JouleSolver(const std::string &opt_file_name,
+                         std::unique_ptr<mfem::Mesh> smesh,
+                         MPI_Comm comm)
+ // : AbstractSolver(opt_file_name, move(smesh))
+ : AbstractSolver(opt_file_name, comm)
 {
    nlohmann::json em_opts = options["em-opts"];
    nlohmann::json thermal_opts = options["thermal-opts"];
@@ -24,38 +22,42 @@ JouleSolver::JouleSolver(
    auto model_file = options["mesh"]["model-file"].get<std::string>();
    auto mesh_out_file = options["mesh"]["out-file"].get<std::string>();
 
-   /// get mesh file name and extension 
+   /// get mesh file name and extension
    std::string mesh_name;
    std::string mesh_ext;
    {
       size_t i = mesh_file.rfind('.', mesh_file.length());
-      if (i != string::npos) {
+      if (i != string::npos)
+      {
          mesh_name = (mesh_file.substr(0, i));
-         mesh_ext = (mesh_file.substr(i+1, mesh_file.length() - i));
+         mesh_ext = (mesh_file.substr(i + 1, mesh_file.length() - i));
       }
       else
       {
-         throw MachException("JouleSolver::JouleSolver()\n"
-                           "\tMesh file has no extension!\n");
+         throw MachException(
+             "JouleSolver::JouleSolver()\n"
+             "\tMesh file has no extension!\n");
       }
    }
 
    em_opts["mesh"]["file"] = mesh_name + "_em." + mesh_ext;
    thermal_opts["mesh"]["file"] = mesh_name + "_thermal." + mesh_ext;
 
-   /// get model file name and extension 
+   /// get model file name and extension
    std::string model_name;
    std::string model_ext;
    {
       size_t i = model_file.rfind('.', model_file.length());
-      if (i != string::npos) {
+      if (i != string::npos)
+      {
          model_name = (model_file.substr(0, i));
-         model_ext = (model_file.substr(i+1, model_file.length() - i));
+         model_ext = (model_file.substr(i + 1, model_file.length() - i));
       }
       else
       {
-         throw MachException("JouleSolver::JouleSolver()\n"
-                           "\tModel file has no extension!\n");
+         throw MachException(
+             "JouleSolver::JouleSolver()\n"
+             "\tModel file has no extension!\n");
       }
    }
 
@@ -89,7 +91,6 @@ JouleSolver::JouleSolver(
 
    thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr, comm));
    // thermal_solver->initDerived();
-
 }
 
 void JouleSolver::initDerived()
@@ -99,12 +100,10 @@ void JouleSolver::initDerived()
    thermal_solver->setAField(em_fields[0]);
 }
 
-JouleSolver::~JouleSolver()
-{
-   *out << "Deleting Joule Solver..." << endl;
-}
+JouleSolver::~JouleSolver() { *out << "Deleting Joule Solver..." << endl; }
 
-/// TODO: Change this in AbstractSolver to mark a flag so that unsteady solutions can be saved
+/// TODO: Change this in AbstractSolver to mark a flag so that unsteady
+/// solutions can be saved
 void JouleSolver::printSolution(const std::string &filename, int refine)
 {
    std::string em_filename = filename + "_em";
@@ -113,14 +112,15 @@ void JouleSolver::printSolution(const std::string &filename, int refine)
    thermal_solver->printSolution(thermal_filename, refine);
 }
 
-void JouleSolver::setInitialCondition(const std::function<double(const mfem::Vector &)> &u_init)
+void JouleSolver::setInitialCondition(
+    const std::function<double(const mfem::Vector &)> &u_init)
 {
    thermal_init = u_init;
 }
 
-std::vector<GridFunType*> JouleSolver::getFields(void)
+std::vector<GridFunType *> JouleSolver::getFields(void)
 {
-	return {thermal_fields[0], em_fields[0], em_fields[1]};
+   return {thermal_fields[0], em_fields[0], em_fields[1]};
 }
 
 void JouleSolver::solveForState()
@@ -147,14 +147,4 @@ void JouleSolver::solveForAdjoint(const std::string &fun)
    }
 }
 
-// Vector* JouleSolver::getMeshSensitivities()
-// {
-
-// }
-
-void JouleSolver::addOutputs()
-{
-   auto &fun = options["outputs"];
-}
-
-} // namespace mach
+}  // namespace mach

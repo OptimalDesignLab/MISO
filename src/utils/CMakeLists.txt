@@ -1,6 +1,10 @@
 target_sources(mach
    PRIVATE
-      json.hpp
+      div_free_projector.cpp
+      div_free_projector.hpp
+      irrotational_projector.cpp
+      irrotational_projector.hpp
+      kdtree.hpp
       mach_types.hpp
       utilities.hpp
       utils.cpp

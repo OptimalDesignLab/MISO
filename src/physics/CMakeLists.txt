@@ -2,11 +2,18 @@ target_sources(mach
    PRIVATE
       diag_mass_integ.cpp
       diag_mass_integ.hpp
+      mach_input.cpp
+      mach_input.hpp
+      mach_integrator.cpp
+      mach_integrator.hpp
+      mach_load.hpp
+      #mass_operator.cpp
+      #mass_operator.hpp
+      mfem_common_integ.cpp
+      mfem_common_integ.hpp
       physics.hpp
       solver.cpp
       solver.hpp
-      res_integ.cpp
-      res_integ.hpp
 )
 
 target_include_directories(mach

@@ -12,10 +12,10 @@ class omMeshMove(om.ImplicitComponent):
     def setup(self):
         solver = self.options['solver']
 
-        local_mesh_size = solver.getMeshSize()
+        local_mesh_size = solver.getFieldSize("mesh_coords")
 
         self.add_input('surf_mesh_disp', shape=local_mesh_size)
-        self.add_output('vol_mesh_disp', shape=local_mesh_size)
+        self.add_output('vol_mesh_coords', shape=local_mesh_size)
 
         #self.declare_partials(of='state', wrt='*')
 
@@ -23,43 +23,50 @@ class omMeshMove(om.ImplicitComponent):
         """
         Compute the residual
         """
-        solver = self.options['solver']
+        solver = self.options["solver"]
 
-        surf_mesh_disp = inputs['surf_mesh_disp']
-        vol_mesh_disp = outputs['vol_mesh_disp']
+        # surf_mesh_disp = inputs['surf_mesh_disp']
+        # vol_mesh_coords = outputs['vol_mesh_coords']
         
-        state = solver.getNewField(vol_mesh_disp)
-        residual = solver.getNewField(residuals['vol_mesh_disp'])
+        # state = solver.getNewField(vol_mesh_coords)
+        # residual = solver.getNewField(residuals['vol_mesh_coords'])
 
-        # TODO: change these methods in machSolver to support numpy array 
-        # as argument and do the conversion internally
-        solver.calcResidual(state, residual)
+        # solver.calcResidual(state, residual)
+
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        input_dict.update(dict(zip(outputs.keys(), outputs.values())))
+
+        residual = residuals["vol_mesh_coords"]
+        solver.calcResidual(input_dict, residual)
 
 
     def solve_nonlinear(self, inputs, outputs):
         """
         Converge the state
         """
-        solver = self.options['solver']
+        solver = self.options["solver"]
+        mesh_size = solver.getFieldSize("mesh_coords")
+        mesh_coords = np.zeros(mesh_size)
+        solver.getField("mesh_coords", mesh_coords)
+        outputs["vol_mesh_coords"] = mesh_coords
 
-        surf_mesh_disp = inputs['surf_mesh_disp']
-        vol_mesh_disp = outputs['vol_mesh_disp']
+        # # print(inputs['surf_mesh_disp'])
+        # surf_mesh_disp = inputs['surf_mesh_disp'] + np.array(solver.getMeshCoordinates(), copy=False)
 
-        # Get fields for the surface displacement and volume displacement
-        initial_condition = solver.getNewField(surf_mesh_disp)
-        state = solver.getNewField(vol_mesh_disp)
+        # # Get fields for the surface displacement and volume coords
+        # initial_condition = solver.getNewField(surf_mesh_disp)
+        # state = solver.getNewField(outputs['vol_mesh_coords'])
 
-        # TODO: change these methods in machSolver.cpp to support numpy array 
-        # as argument and do the conversion internally
-        solver.setInitialField(state, initial_condition)
-        solver.solveForState(state)
+        # solver.setField(state, initial_condition)
 
-        # test displacement
-        mesh = Mesh(model_file='data/testOMMeshMovement/cyl.egads', mesh_file='data/testOMMeshMovement/cyl.smb')
-        print(type(state))
-        mesh.addDisplacement(state)
-        mesh.PrintVTU("testmeshmove")
+        # input_dict = { k:v for (k,v) in zip(inputs.keys(), inputs.values())}
+        # solver.solveForState(input_dict, state)
 
+        # # test displacement
+        # mesh = Mesh(model_file='wire.egads', mesh_file='wire.smb')
+        # print(type(state))
+        # mesh.setNodes(state)
+        # mesh.PrintVTU("testmeshmove")
 
     def linearize(self, inputs, outputs, residuals):
         """
@@ -72,7 +79,6 @@ class omMeshMove(om.ImplicitComponent):
 
         solver.setState(state)
 
-
     def apply_linear(self, inputs, outputs, d_inputs, d_outputs, d_residuals, mode):
 
         solver = self.options['solver']
@@ -82,8 +88,8 @@ class omMeshMove(om.ImplicitComponent):
                 if 'state' in d_outputs: 
                     d_outputs['state'] = solver.multStateJacTranspose(d_residuals['state'])
         
-                if 'vol_mesh_disp' in d_inputs: 
-                    d_inputs['vol_mesh_disp'] = solver.multMeshJacTranspose(d_residuals['state'])
+                if 'vol_mesh_coords' in d_inputs: 
+                    d_inputs['vol_mesh_coords'] = solver.multMeshJacTranspose(d_residuals['state'])
 
                 if 'current_density' in d_inputs: 
                     raise NotImplementedError 

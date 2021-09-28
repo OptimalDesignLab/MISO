@@ -4,7 +4,6 @@
 #include "galer_diff.hpp"
 using namespace std;
 using namespace mach;
-using namespace apf;
 
 namespace mfem
 {
@@ -19,6 +18,7 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
    el_offset = GetParMesh()->GetGlobalElementNum(0);
 
 
+
    // determine the the local prolongation matrix size
 
    col_start = 0;
@@ -28,6 +28,7 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
    int dof_offset = GetMyTDofOffset();
    row_start = offsets[0];
    row_end = offsets[1] - 1;
+
 
    HYPRE_BigInt ssize = GlobalTrueVSize();
    if (GetMyRank() == pr)
@@ -93,6 +94,7 @@ void ParGDSpace::GetNeighbourSet(int id, int req_n,
    }
 }
 
+
 // an overload function of previous one (more doable?)
 void ParGDSpace::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
                                    mfem::DenseMatrix &mat_cent,
@@ -110,6 +112,7 @@ void ParGDSpace::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    mat_cent.SetSize(dim, num_el);
 
    Vector cent_coord(dim);
+
 
    for(int j = 0; j < num_el; j++)
    {

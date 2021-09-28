@@ -1,9 +1,8 @@
-/// Solve the steady isentropic vortex problem on a quarter annulus
 #include <fstream>
 #include <iostream>
 
 #include "catch.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "mfem.hpp"
 
 #include "mesh_movement.hpp"
@@ -65,8 +64,6 @@ auto options = R"(
    }
 })"_json;
 
-
-
 TEST_CASE("Mesh Movement EGADS Cylinder Test",
           "[Mesh-Movement-EGADS-Cyl]")
 {
@@ -74,6 +71,7 @@ TEST_CASE("Mesh Movement EGADS Cylinder Test",
    {
       // construct the solver, set the initial condition, and solve
       auto solver = createSolver<LEAnalogySolver>(options);
+      auto coord_field = solver->getNewField();
 
       std::string old_model("data/cyl.egads");
       std::string new_model("data/cyl2.egads");
@@ -82,11 +80,11 @@ TEST_CASE("Mesh Movement EGADS Cylinder Test",
 
       mapSurfaceMesh(old_model, new_model, tess, *surface_displacement);
 
-      solver->setInitialCondition(*surface_displacement);
-      solver->solveForState();
-      // solver->printSolution("final");
+      *surface_displacement += solver->getMeshCoordinates();
 
-      auto fields = solver->getFields();
+      *coord_field = *surface_displacement;
+      solver->solveForState(*coord_field);
+      // solver->printSolution("final");
 
       // Compute error and check against appropriate target
       // mfem::VectorFunctionCoefficient dispEx(3, boxDisplacement);
@@ -95,13 +93,7 @@ TEST_CASE("Mesh Movement EGADS Cylinder Test",
       // REQUIRE(l2_error == Approx(target_error[ref - 1]).margin(1e-10));
 
       auto &mesh_coords = solver->getMeshCoordinates();
-      mesh_coords += *fields[0];
+      mesh_coords.SetData(coord_field->GetData());
       solver->printMesh("moved_egads_cyl_mesh");
    }
-}
-
-void boxDisplacement(const Vector &x, Vector& X)
-{
-   X.SetSize(x.Size());
-   X = x; // new field is 2x, displacement is x
 }

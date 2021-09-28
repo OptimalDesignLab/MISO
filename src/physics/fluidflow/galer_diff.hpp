@@ -113,7 +113,7 @@ private:
 //    GalerkinDifference(const std::string &opt_file_name =
 //                         std::string("mach_options.json"));
 
-//    /// constructs the neighbour matrices for all mesh elements. 
+//    /// constructs the neighbour matrices for all mesh elements.
 //    /// and second neighbours (shared vertices).
 //    /// \param[out] nmat1 - matrix of first neighbours
 //    /// \param[out] nmat1 - matrix of second neighbours
@@ -125,11 +125,12 @@ private:
 //                           DenseMatrix &mat_cent,
 //                           DenseMatrix &mat_quad);
 
-//    /// constructs the neighbour set for given mesh element. 
+//    /// constructs the neighbour set for given mesh element.
 //    /// \param[in]  id - the id of the element for which we need neighbour
 //    /// \param[in]  req_n - the required number of neighbours for patch
-//    /// \param[out] nels - the set of neighbours (may contain more element than required)
-//    void GetNeighbourSet(int id, int req_n, std::vector<int> &nels);
+//    /// \param[out] nels - the set of neighbours (may contain more element
+//    than required) void GetNeighbourSet(int id, int req_n, std::vector<int>
+//    &nels);
 
 //    /// provides the center (barycenter) of an element
 //    /// \param[in]  id - the id of the element for which we need barycenter
@@ -148,8 +149,8 @@ private:
 //    /// Assemble the local reconstruction matrix into the prolongation matrix
 //    /// \param[in] id - vector of element id in patch
 //    /// \param[in] local_mat - the local reconstruction matrix
-//    /// problem to be solved: how the ensure the oder of dofs consistent with other forms?
-//    void AssembleProlongationMatrix(const std::vector<int> id,
+//    /// problem to be solved: how the ensure the oder of dofs consistent with
+//    other forms? void AssembleProlongationMatrix(const std::vector<int> id,
 //                            const DenseMatrix local_mat) const;
 
 //    /// check the duplication of quadrature points in the quad matrix
@@ -161,7 +162,7 @@ private:
 //    /// number of elements in mesh
 //    int nEle;
 //    /// degree of lagrange interpolation
-//    int degree;   
+//    int degree;
 //    /// use pumi mesh
 //    using MeshType = mfem::PumiMesh;
 //    /// object defining the computational mesh

@@ -1,0 +1,50 @@
+# torque_ring.csm written by ocsmSave (v1.19)
+
+# Constant, Design, and Output Parameters:
+#despmtr   thickness       0.05000
+despmtr   r_outer       0.01050
+despmtr   r_inner       0.00950
+
+
+# Global Attributes:
+attribute capsAIM $egadsTessAIM;aflr4AIM;tetgenAIM;pumiAIM
+attribute capsMeshLength 1
+
+# Branches:
+#cylinder  0   0   -thickness/2   0   0   thickness/2   r_outer
+#cylinder  0   0   -thickness/2   0   0   thickness/2   r_inner
+#subtract  none   1   0
+
+torus     0   0   0   0   0   1   (r_outer+r_inner)/2   r_outer-r_inner
+store ring
+
+sphere    0   0   0   4*r_outer
+box       -1   -1   -1   2   1   2
+subtract  none   1   0
+restore ring
+subtract  none   1   0
+store     hemi   0   0
+restore   hemi   0
+mirror    0   1   0   0
+extract   0
+restore   hemi   0
+extract   0
+union     0    0 0
+
+select face
+#attribute AFLR_GBC   $TRANSP_UG3_GBC
+attribute capsGroup $ring
+
+select face 2
+attribute capsGroup $cut
+
+select face 1
+#attribute AFLR_GBC   $FARFIELD_UG3_GBC
+attribute capsGroup $farfield
+select face 3
+#attribute AFLR_GBC   $FARFIELD_UG3_GBC
+attribute capsGroup $farfield
+
+end
+
+end

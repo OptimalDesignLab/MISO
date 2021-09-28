@@ -1,9 +1,8 @@
-/// Solve the steady isentropic vortex problem on a quarter annulus
 #include <fstream>
 #include <iostream>
 
 #include "catch.hpp"
-#include "json.hpp"
+#include "nlohmann/json.hpp"
 #include "mfem.hpp"
 
 #include "magnetostatic.hpp"
@@ -24,12 +23,12 @@ auto options = R"(
    },
    "time-dis": {
       "steady": true,
-      "steady-abstol": 1e-12,
+      "steady-abstol": 1e-10,
       "steady-reltol": 1e-10,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 1e12,
-      "max-iter": 10
+      "dt": 1,
+      "max-iter": 5
    },
    "lin-solver": {
       "type": "hypregmres",
@@ -45,11 +44,11 @@ auto options = R"(
    "nonlin-solver": {
       "type": "newton",
       "printlevel": 3,
-      "maxiter": 50,
+      "maxiter": 15,
       "reltol": 1e-10,
-      "abstol": 1e-12
+      "abstol": 1e-9
    },
-  "components": {
+   "components": {
       "attr1": {
          "material": "box1",
          "attr": 1,
@@ -63,7 +62,7 @@ auto options = R"(
    },
    "problem-opts": {
       "fill-factor": 1.0,
-      "current-density": 1.0,
+      "current_density": 1.0,
       "current": {
          "box1": [1],
          "box2": [2]
@@ -71,6 +70,9 @@ auto options = R"(
    },
    "outputs": {
       "co-energy": {}
+   },
+   "bcs": {
+      "essential": [1, 2, 3, 4, 5, 6]
    }
 })"_json;
 
@@ -113,11 +115,11 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
    /// number of elements in Z direction
    auto nz = 2;
 
-   for (int order = 1; order <= 2; ++order)
+   for (int order = 1; order <= 4; ++order)
    {
       options["space-dis"]["degree"] = order;
       int nxy = 1;
-      for (int ref = 1; ref <= 4; ++ref)
+      for (int ref = 1; ref <= 1; ++ref)
       {  
          nxy *= 2;
          DYNAMIC_SECTION("...for order " << order << " and mesh sizing nxy = " << nxy)
@@ -125,8 +127,14 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             // construct the solver, set the initial condition, and solve
             unique_ptr<Mesh> smesh = buildMesh(nxy, nz);
             auto solver = createSolver<MagnetostaticSolver>(options, move(smesh));
-            solver->setInitialCondition(aexact);
-            solver->solveForState();
+
+            auto state = solver->getNewField();
+            solver->setFieldValue(*state, aexact);
+            MachInputs inputs {
+               {"state", state->GetData()}
+            };
+            solver->solveForState(inputs, *state);
+
             auto fields = solver->getFields();
 
             // Compute error and check against appropriate target
@@ -183,8 +191,6 @@ unique_ptr<Mesh> buildMesh(int nxy, int nz)
    std::unique_ptr<Mesh> mesh(new Mesh(nxy, nxy, nz,
                               Element::TETRAHEDRON, true /* gen. edges */, 1.0,
                               1.0, (double)nz / (double)nxy, true));
-
-   mesh->ReorientTetMesh();
 
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh->GetNE(); ++i)

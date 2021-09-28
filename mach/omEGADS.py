@@ -27,6 +27,8 @@ class omEGADS(om.ExplicitComponent):
 
         self.design_pmtrs = self.geom.getGeometryVal()
         for key in self.design_pmtrs:
+            if self.design_pmtrs[key].is_integer():
+                continue
             self.add_input(key, self.design_pmtrs[key])
 
         model_file = self.options['model_file']
@@ -43,7 +45,7 @@ class omEGADS(om.ExplicitComponent):
         for key in self.design_pmtrs:
             if key in inputs:
                 print("setting geom val: ", key, "to: ", inputs[key])
-                self.geom.setGeometryVal(key, inputs[key])
+                self.geom.setGeometryVal(key, inputs[key][0])
 
         tmp_dir = tempfile.gettempdir()
         tmp_model = os.path.join(tmp_dir, "tmp_model.egads")

@@ -8,11 +8,10 @@
 namespace mfem
 {
 class Coefficient;
-} // namespace mfem
+}  // namespace mfem
 
 namespace mach
 {
-
 class MeshMovementSolver : public AbstractSolver
 {
 protected:
@@ -20,7 +19,7 @@ protected:
    MeshMovementSolver(const nlohmann::json &options,
                       std::unique_ptr<mfem::Mesh> smesh,
                       MPI_Comm comm)
-   : AbstractSolver(options, move(smesh), comm)
+    : AbstractSolver(options, move(smesh), comm)
    { }
 };
 
@@ -39,20 +38,15 @@ public:
                    std::unique_ptr<mfem::Mesh> smesh = nullptr,
                    int dim = 3);
 
-   /// Implement InitDerived
-   //  virtual void initDerived();
-
-   /// Initializes the state vector to a given function.
-   /// \param[in] state - the state vector to initialize
-   /// \param[in] u_init - function that defines the initial condition
-   /// \note The second argument in the function `u_init` is the initial
-   /// condition value.
    void setInitialCondition(
-      mfem::ParGridFunction &state,
-      const std::function<void(const mfem::Vector &,
-                               mfem::Vector &)> &u_init) override;
+       mfem::ParGridFunction &state,
+       const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+       override;
 
-   double calcStepSize(int iter, double t, double t_final, double dt_old,
+   double calcStepSize(int iter,
+                       double t,
+                       double t_final,
+                       double dt_old,
                        const mfem::ParGridFunction &state) const override;
 
 private:
@@ -60,7 +54,6 @@ private:
 
    // /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::ofstream sol_ofs;
-
 
    /// Stiffness coefficients
    std::unique_ptr<mfem::Coefficient> lambda_c;
@@ -84,9 +77,12 @@ private:
    // void iterationHook(int iter, double t, double dt,
    //                    const mfem::ParGridFunction &state) override;
 
-   bool iterationExit(int iter, double t, double t_final, double dt,
-                      const mfem::ParGridFunction &state) override;
-   
+   bool iterationExit(int iter,
+                      double t,
+                      double t_final,
+                      double dt,
+                      const mfem::ParGridFunction &state) const override;
+
    // void terminalHook(int iter, double t_final,
    //                   const mfem::ParGridFunction &state) override;
 
@@ -97,6 +93,6 @@ private:
    // static double MuFunc(const mfem::Vector &x, int ie);
 };
 
-} //namespace mach
+}  // namespace mach
 
 #endif

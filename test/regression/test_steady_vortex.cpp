@@ -54,6 +54,7 @@ auto options = R"(
       "printlevel": 0
    },
    "lin-solver": {
+      "type": "hyprefgmres",
       "printlevel": 0,
       "filllevel": 3,
       "maxiter": 100,
@@ -134,6 +135,10 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
          REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
 
          // Compute drag and check against target
+         auto drag_opts = R"({ 
+            "boundaries": [0, 0, 0, 1]
+         })"_json;
+         solver->createOutput("drag", drag_opts);
          double drag_error = fabs(solver->calcOutput("drag") - (-1 /mach::euler::gamma));
          REQUIRE(drag_error == Approx(target_drag_error[nx-1]).margin(1e-10));
       }
