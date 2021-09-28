@@ -315,9 +315,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    }
    else
    {
-      throw MachException(
-          "AbstractSolver::constructMesh(smesh)\n"
-          "\tMesh file has no extension!\n");
+      ("AbstractSolver::constructMesh(smesh)\n"
+       "\tMesh file has no extension!\n");
    }
 
    // if serial mesh passed in, use that

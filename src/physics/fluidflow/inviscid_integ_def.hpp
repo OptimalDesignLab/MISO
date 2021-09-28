@@ -3,6 +3,7 @@
 
 #include "mfem.hpp"
 
+#include "utils.hpp"
 #include "sbp_fe.hpp"
 #include "inviscid_integ.hpp"
 

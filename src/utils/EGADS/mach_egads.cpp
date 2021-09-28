@@ -1,8 +1,11 @@
 // #ifdef MFEM_USE_PUMI
+#include <string>
 
 #include "adept.h"
-#include "mfem.hpp"  // including mfem first is required or else there is a
-#include "egads.h"   // compiler error
+#include "mfem.hpp"    // including mfem before egads is required or else there
+#ifdef MFEM_USE_EGADS  // is a compiler error
+#include "egads.h"
+#endif
 
 #include "mach_egads.hpp"
 
@@ -15,6 +18,7 @@ void mapSurfaceMesh(const std::string &old_model_file,
                     const std::string &tess_file,
                     HypreParVector &displacement)
 {
+#ifdef MFEM_USE_EGADS
    // start egads
    ego eg_context = nullptr;
    int status = 0;
@@ -129,6 +133,11 @@ void mapSurfaceMesh(const std::string &old_model_file,
       // std::cout << "(" << xyz[0] << ", " << xyz[1] << ", " << xyz[2] <<
       // ")\n";
    }
+#else
+   throw std::runtime_error(
+       "Mach not built with EGADS support!\n"
+       "\tmapSurfaceMesh unavailable!\n");
+#endif
 }
 // , "Map an existing surface tessalation to a new body with the same topology",
 // py::arg("old_model"),

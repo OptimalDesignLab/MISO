@@ -2,6 +2,7 @@
 #include <memory>
 
 #include "sbp_fe.hpp"
+#include "utils.hpp"
 #include "euler.hpp"
 
 #include "euler_integ.hpp"
