@@ -5,6 +5,7 @@
 
 #include <mpi4py/mpi4py.h>
 #include <iostream>
+#include <utility>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -56,10 +57,14 @@ SolverPtr initSolver(const std::string &type,
    else if (type == "Euler")
    {
       if (entvar)
+      {
          return createSolver<EulerSolver<2, true>>(json_options, nullptr, comm);
+      }
       else
+      {
          return createSolver<EulerSolver<2, false>>(
              json_options, nullptr, comm);
+      }
    }
    else if (type == "MeshMovement")
    {
@@ -83,8 +88,7 @@ SolverPtr initSolver(const std::string &type,
    }
 }
 
-double *npBufferToDoubleArray(py::array_t<double> arr,
-                              int &ndim,
+double *npBufferToDoubleArray(const py::array_t<double> &arr,
                               std::vector<pybind11::ssize_t> &shape,
                               int expected_dim = 1)
 {
@@ -103,23 +107,22 @@ double *npBufferToDoubleArray(py::array_t<double> arr,
           "Incompatible dimensions:\n"
           "\texpected a 1D array!");
    }
-   ndim = info.ndim;
    shape = std::move(info.shape);
-   return (double *)info.ptr;
+   return static_cast<double *>(info.ptr);
 }
 
-double *npBufferToDoubleArray(py::array_t<double> arr, int expected_dim = 1)
+double *npBufferToDoubleArray(const py::array_t<double> &arr,
+                              int expected_dim = 1)
 {
-   int ndim;
    std::vector<pybind11::ssize_t> shape;
-   return npBufferToDoubleArray(arr, ndim, shape, expected_dim);
+   return npBufferToDoubleArray(arr, shape, expected_dim);
 }
 
 MachInputs pyDictToMachInputs(const py::dict &py_inputs)
 {
    MachInputs inputs(py_inputs.size());
 
-   for (auto &input : py_inputs)
+   for (const auto &input : py_inputs)
    {
       const auto &key = input.first.cast<std::string>();
 
@@ -133,14 +136,17 @@ MachInputs pyDictToMachInputs(const py::dict &py_inputs)
       else
       {
          const auto &value_buffer = input.second.cast<py::array_t<double>>();
-         int ndim;
          std::vector<pybind11::ssize_t> shape;
-         auto *value = npBufferToDoubleArray(value_buffer, ndim, shape);
+         auto *value = npBufferToDoubleArray(value_buffer, shape);
 
          if (shape[0] == 1)
+         {
             inputs.emplace(key, *value);
+         }
          else
+         {
             inputs.emplace(key, value);
+         }
       }
    }
    return inputs;
@@ -151,7 +157,10 @@ MachInputs pyDictToMachInputs(const py::dict &py_inputs)
 void initSolver(py::module &m)
 {
    /// imports mpi4py's C interface
-   if (import_mpi4py() < 0) return;
+   if (import_mpi4py() < 0)
+   {
+      return;
+   }
 
    py::class_<AbstractSolver>(m, "MachSolver")
        .def(py::init(
@@ -228,7 +237,7 @@ void initSolver(py::module &m)
        .def(
            "setFieldValue",
            [](AbstractSolver &self,
-              py::array_t<double> field,
+              const py::array_t<double> &field,
               const double u_init)
            { self.setFieldValue(npBufferToDoubleArray(field), u_init); },
            "Sets the field to a given value.")
@@ -236,7 +245,7 @@ void initSolver(py::module &m)
        .def(
            "setFieldValue",
            [](AbstractSolver &self,
-              py::array_t<double> field,
+              const py::array_t<double> &field,
               const std::function<double(const mfem::Vector &)> &u_init)
            { self.setFieldValue(npBufferToDoubleArray(field), u_init); },
            "Sets the field to a given scalar function.")
@@ -244,20 +253,18 @@ void initSolver(py::module &m)
        .def(
            "setFieldValue",
            [](AbstractSolver &self,
-              py::array_t<double> field,
+              const py::array_t<double> &field,
               const mfem::Vector &u_init)
            { self.setFieldValue(npBufferToDoubleArray(field), u_init); },
            "Sets the vector field to a given vector value.")
        .def(
            "setFieldValue",
            [](AbstractSolver &self,
-              py::array_t<double> field,
-              py::array_t<double> u_init_data)
+              const py::array_t<double> &field,
+              const py::array_t<double> &u_init_data)
            {
-              int ndim;
               std::vector<pybind11::ssize_t> shape;
-              auto u_init_buffer =
-                  npBufferToDoubleArray(u_init_data, ndim, shape);
+              auto *u_init_buffer = npBufferToDoubleArray(u_init_data, shape);
               mfem::Vector u_init(u_init_buffer, shape[0]);
               self.setFieldValue(npBufferToDoubleArray(field), u_init);
            },
@@ -266,9 +273,9 @@ void initSolver(py::module &m)
        .def(
            "setFieldValue",
            [](AbstractSolver &self,
-              py::array_t<double> field,
-              std::function<void(const mfem::Vector &, mfem::Vector *const)>
-                  u_init)
+              const py::array_t<double> &field,
+              const std::function<void(const mfem::Vector &,
+                                       mfem::Vector *const)> &u_init)
            {
               self.setFieldValue(npBufferToDoubleArray(field),
                                  [u_init](const mfem::Vector &x,
@@ -279,14 +286,12 @@ void initSolver(py::module &m)
        .def(
            "setField",
            [](AbstractSolver &self,
-              py::array_t<double> field,
-              py::array_t<double> u_init)
+              const py::array_t<double> &field,
+              const py::array_t<double> &u_init)
            {
-              int ndim;
               std::vector<pybind11::ssize_t> shape;
-              auto field_buffer = npBufferToDoubleArray(field, ndim, shape);
-              auto u_init_buffer = npBufferToDoubleArray(u_init);
-              field = u_init;
+              auto *field_buffer = npBufferToDoubleArray(field, shape);
+              auto *u_init_buffer = npBufferToDoubleArray(u_init);
               for (pybind11::ssize_t i = 0; i < shape[0]; ++i)
               {
                  field_buffer[i] = u_init_buffer[i];
@@ -296,7 +301,7 @@ void initSolver(py::module &m)
 
        .def(
            "getNewField",
-           [](AbstractSolver &self, py::array_t<double> data)
+           [](AbstractSolver &self, const py::array_t<double> &data)
            {
               py::buffer_info info = data.request();
 
@@ -326,12 +331,12 @@ void initSolver(py::module &m)
                     std::string err(
                         "Incompatible size:\n"
                         "\tattempting to construct state vector (size ");
-                    err += self.getStateSize();
+                    err += std::to_string(self.getStateSize());
                     err += ") with numpy vector of size ";
-                    err += info.shape[0];
+                    err += std::to_string(info.shape[0]);
                     throw std::runtime_error(err);
                  }
-                 return self.getNewField((double *)info.ptr);
+                 return self.getNewField(static_cast<double *>(info.ptr));
               }
            },
            py::arg("data") = py::none())
@@ -340,11 +345,10 @@ void initSolver(py::module &m)
            "solveForState",
            [](AbstractSolver &self,
               const py::dict &py_inputs,
-              py::array_t<double> state)
+              const py::array_t<double> &state)
            {
               self.solveForState(pyDictToMachInputs(py_inputs),
                                  npBufferToDoubleArray(state));
-              return;
            },
            py::arg("inputs"),
            py::arg("state"))
@@ -352,25 +356,20 @@ void initSolver(py::module &m)
        .def(
            "linearize",
            [](AbstractSolver &self, const py::dict &py_inputs)
-           {
-              self.linearize(pyDictToMachInputs(py_inputs));
-              return;
-           },
+           { self.linearize(pyDictToMachInputs(py_inputs)); },
            py::arg("inputs"))
 
        .def(
            "vectorJacobianProduct",
            [](AbstractSolver &self,
-              py::array_t<double> res_bar_buffer,
-              std::string wrt,
-              py::array_t<double> wrt_bar_buffer)
+              const py::array_t<double> &res_bar_buffer,
+              const std::string &wrt,
+              const py::array_t<double> &wrt_bar_buffer)
            {
               auto *res_bar = npBufferToDoubleArray(res_bar_buffer);
 
-              int ndim;
               std::vector<pybind11::ssize_t> shape;
-              auto *wrt_bar =
-                  npBufferToDoubleArray(wrt_bar_buffer, ndim, shape);
+              auto *wrt_bar = npBufferToDoubleArray(wrt_bar_buffer, shape);
               if (shape[0] == 1)
               {
                  *wrt_bar += self.vectorJacobianProduct(res_bar, wrt);
@@ -379,7 +378,6 @@ void initSolver(py::module &m)
               {
                  self.vectorJacobianProduct(res_bar, wrt, wrt_bar);
               }
-              return;
            },
            py::arg("res_bar"),
            py::arg("wrt"),
@@ -388,8 +386,8 @@ void initSolver(py::module &m)
        .def("calcL2Error",
             [](AbstractSolver &self,
                mfem::ParGridFunction &state,
-               std::function<void(const mfem::Vector &, mfem::Vector *const)>
-                   u_exact,
+               const std::function<void(const mfem::Vector &,
+                                        mfem::Vector *const)> &u_exact,
                int entry)
             {
                return self.calcL2Error(
@@ -434,8 +432,8 @@ void initSolver(py::module &m)
        .def(
            "getField",
            [](AbstractSolver &self,
-              std::string name,
-              py::array_t<double> field_buffer)
+              const std::string &name,
+              const py::array_t<double> &field_buffer)
            { self.getField(name, npBufferToDoubleArray(field_buffer)); },
            py::arg("name"),
            py::arg("field"))
@@ -444,7 +442,7 @@ void initSolver(py::module &m)
            "calcResidual",
            [](AbstractSolver &self,
               const py::dict &py_inputs,
-              py::array_t<double> residual)
+              const py::array_t<double> &residual)
            {
               self.calcResidual(pyDictToMachInputs(py_inputs),
                                 npBufferToDoubleArray(residual));
@@ -482,12 +480,10 @@ void initSolver(py::module &m)
               const std::string &of,
               const std::string &wrt,
               const py::dict &py_inputs,
-              py::array_t<double> partial_buffer)
+              const py::array_t<double> &partial_buffer)
            {
-              int ndim;
               std::vector<pybind11::ssize_t> shape;
-              auto *partial =
-                  npBufferToDoubleArray(partial_buffer, ndim, shape);
+              auto *partial = npBufferToDoubleArray(partial_buffer, shape);
 
               auto inputs = pyDictToMachInputs(py_inputs);
               if (shape[0] == 1)

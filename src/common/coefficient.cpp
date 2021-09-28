@@ -1,5 +1,7 @@
 #include "coefficient.hpp"
 
+#include <cmath>
+
 using namespace mfem;
 
 namespace mach
@@ -28,7 +30,7 @@ double MeshDependentCoefficient::Eval(ElementTransformation &trans,
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
-   double value;
+   double value = NAN;
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
@@ -53,24 +55,32 @@ double MeshDependentCoefficient::Eval(ElementTransformation &trans,
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
-   double value;
+   double value = NAN;
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
       auto *coeff = it->second.get();
       auto *state_coeff = dynamic_cast<StateCoefficient *>(coeff);
-      if (state_coeff)
+      if (state_coeff != nullptr)
+      {
          value = state_coeff->Eval(trans, ip, state);
+      }
       else
+      {
          value = coeff->Eval(trans, ip);
+      }
    }
    else if (default_coeff)
    {
       auto *state_coeff = dynamic_cast<StateCoefficient *>(default_coeff.get());
-      if (state_coeff)
+      if (state_coeff != nullptr)
+      {
          value = state_coeff->Eval(trans, ip, state);
+      }
       else
+      {
          value = default_coeff->Eval(trans, ip);
+      }
    }
    else  // if attribute not found and no default set, evaluate to zero
    {
@@ -86,24 +96,32 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
-   double value;
+   double value = NAN;
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
       auto *coeff = it->second.get();
       auto *state_coeff = dynamic_cast<StateCoefficient *>(coeff);
-      if (state_coeff)
+      if (state_coeff != nullptr)
+      {
          value = state_coeff->EvalStateDeriv(trans, ip, state);
+      }
       else
+      {
          value = 0.0;
+      }
    }
    else if (default_coeff)
    {
       auto *state_coeff = dynamic_cast<StateCoefficient *>(default_coeff.get());
-      if (state_coeff)
+      if (state_coeff != nullptr)
+      {
          value = state_coeff->EvalStateDeriv(trans, ip, state);
+      }
       else
+      {
          value = 0.0;
+      }
    }
    else  // if attribute not found in material map default to zero
    {
@@ -119,7 +137,7 @@ void MeshDependentCoefficient::EvalRevDiff(const double Q_bar,
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
-   Coefficient *coeff;
+   Coefficient *coeff = nullptr;
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
@@ -131,7 +149,6 @@ void MeshDependentCoefficient::EvalRevDiff(const double Q_bar,
       default_coeff->EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
    }
    // if attribute not found and no default set, don't change PointMat_bar
-   return;
 }
 
 ReluctivityCoefficient::ReluctivityCoefficient(const std::vector<double> &B,
@@ -198,6 +215,7 @@ double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
 /// namespace for TEAM 13 B-H curve fit
 namespace
 {
+/** unused
 double team13h(double b_hat)
 {
    const double h =
@@ -210,6 +228,7 @@ double team13h(double b_hat)
        31;
    return h;
 }
+*/
 
 double team13dhdb_hat(double b_hat)
 {
@@ -332,8 +351,9 @@ double team13ReluctivityCoefficient::EvalStateDeriv(
    const double dhdb_hat = team13dhdb_hat(b_hat);
    const double d2hdb_hat2 = team13d2hdb_hat2(b_hat);
 
-   const double dnudb = d2hdb_hat2 * pow(db_hatdb, 2) + dhdb_hat * d2b_hatdb2;
-   // std::cout << "state: " << state << " dnudb: " << dnudb << "\n";
+   // const double dnudb = d2hdb_hat2 * pow(db_hatdb, 2) + dhdb_hat *
+   // d2b_hatdb2; std::cout << "state: " << state << " dnudb: " << dnudb <<
+   // "\n";
 
    // try
    // {
@@ -356,7 +376,7 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
-   VectorCoefficient *coeff;
+   VectorCoefficient *coeff = nullptr;
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
@@ -385,7 +405,7 @@ void VectorMeshDependentCoefficient::EvalRevDiff(const Vector &V_bar,
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
-   VectorCoefficient *coeff;
+   VectorCoefficient *coeff = nullptr;
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
@@ -397,7 +417,6 @@ void VectorMeshDependentCoefficient::EvalRevDiff(const Vector &V_bar,
       default_coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
    }
    // if attribute not found and no default set, don't change PointMat_bar
-   return;
 }
 
 double SteinmetzCoefficient::Eval(ElementTransformation &trans,
@@ -447,7 +466,7 @@ void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
    A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
    A.GetSubVector(vdofs, elfun);
 
-   auto &el = *A.FESpace()->GetFE(trans.ElementNo);
+   const auto &el = *A.FESpace()->GetFE(trans.ElementNo);
    int ndof = el.GetDof();
 
    DenseMatrix curlshape(ndof, dim);
@@ -464,7 +483,7 @@ void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
    curlshape_dFt.AddMultTranspose(elfun, b_vec);
    curlshape.AddMultTranspose(elfun, b_hat);
 
-   double b_mag = b_vec.Norml2();
+   // double b_mag = b_vec.Norml2();
    // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
    // ke*freq*freq*b_mag*b_mag); double dS = rho*(alpha*kh*freq*std::pow(b_mag,
    // alpha-2) + 2*ke*freq*freq);
@@ -475,8 +494,7 @@ void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
    Jac_bar *= dS;
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    DenseMatrix loc_PointMat_bar(PointMat_bar.Height(), PointMat_bar.Width());
    loc_PointMat_bar = 0.0;
@@ -496,7 +514,7 @@ void SteinmetzVectorDiffCoefficient::Eval(Vector &V,
    A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
    A.GetSubVector(vdofs, elfun);
 
-   auto &el = *A.FESpace()->GetFE(trans.ElementNo);
+   const auto &el = *A.FESpace()->GetFE(trans.ElementNo);
    int ndof = el.GetDof();
 
    DenseMatrix curlshape(ndof, dim);
@@ -532,7 +550,7 @@ double ElementFunctionCoefficient::Eval(ElementTransformation &trans,
 
    int ei = trans.ElementNo;
 
-   if (Function)
+   if (Function != nullptr)
    {
       return (*Function)(transip, ei);
    }

@@ -33,7 +33,10 @@ bool isBoundaryTet(apf::Mesh2 *m, apf::MeshEntity *e)
    for (int i = 0; i < nfs; i++)
    {
       int mtype = m->getModelType(m->toModel(dfs[i]));
-      if (mtype == 2) return true;
+      if (mtype == 2)
+      {
+         return true;
+      }
    }
    return false;
 }
@@ -56,12 +59,12 @@ void initMesh(py::module &m)
                    int order,
                    mpi4py_comm comm)
                 {
-                   auto mesh = std::unique_ptr<Mesh>(
-                       new Mesh(nx, ny, Element::TRIANGLE, true, sx, sy, true));
+                   auto mesh = Mesh::MakeCartesian2D(
+                       nx, ny, Element::TRIANGLE, true, sx, sy);
 
                    // mesh->SetCurvature(order, false, -1, 0);
                    auto parmesh =
-                       std::unique_ptr<ParMesh>(new ParMesh(comm, *mesh));
+                       std::unique_ptr<ParMesh>(new ParMesh(comm, mesh));
                    parmesh->SetCurvature(order, false, -1, 1);
                    return parmesh;
                 }),
@@ -84,19 +87,11 @@ void initMesh(py::module &m)
                   double sz,
                   mpi4py_comm comm)
                {
-                  auto mesh =
-                      std::unique_ptr<Mesh>(new Mesh(nx,
-                                                     ny,
-                                                     nz,
-                                                     Element::TETRAHEDRON,
-                                                     true,
-                                                     sx,
-                                                     sy,
-                                                     sz,
-                                                     true));
+                  auto mesh = Mesh::MakeCartesian3D(
+                      nx, ny, nz, Element::TETRAHEDRON, sx, sy, sz, true);
 
                   auto parmesh =
-                      std::unique_ptr<ParMesh>(new ParMesh(comm, *mesh));
+                      std::unique_ptr<ParMesh>(new ParMesh(comm, mesh));
                   return parmesh;
                }),
            "Creates mesh for the parallelepiped [0,1]x[0,1]x[0,1], divided into"
@@ -155,9 +150,9 @@ void initMesh(py::module &m)
                       pumi_mesh, "aux_numbering", pumi_mesh->getShape(), 1);
 
                   apf::MeshIterator *it = pumi_mesh->begin(0);
-                  apf::MeshEntity *v;
+                  apf::MeshEntity *v = nullptr;
                   int count = 0;
-                  while ((v = pumi_mesh->iterate(it)))
+                  while ((v = pumi_mesh->iterate(it)) != nullptr)
                   {
                      apf::number(aux_num, v, 0, 0, count++);
                   }
@@ -167,14 +162,21 @@ void initMesh(py::module &m)
 
                   it = pumi_mesh->begin(pumi_mesh->getDimension());
                   count = 0;
-                  while ((v = pumi_mesh->iterate(it)))
+                  while ((v = pumi_mesh->iterate(it)) != nullptr)
                   {
-                     if (count > 10) break;
+                     if (count > 10)
+                     {
+                        break;
+                     }
                      printf("at element %d =========\n", count);
                      if (isBoundaryTet(pumi_mesh, v))
+                     {
                         printf("tet is connected to the boundary\n");
+                     }
                      else
+                     {
                         printf("tet is NOT connected to the boundary\n");
+                     }
                      apf::MeshEntity *dvs[12];
                      int nd = pumi_mesh->getDownward(v, 0, dvs);
                      for (int i = 0; i < nd; i++)
@@ -198,9 +200,9 @@ void initMesh(py::module &m)
                   // Boundary faces
                   int dim = mesh->Dimension();
                   apf::MeshIterator *itr = pumi_mesh->begin(dim - 1);
-                  apf::MeshEntity *ent;
+                  apf::MeshEntity *ent = nullptr;
                   int ent_cnt = 0;
-                  while ((ent = pumi_mesh->iterate(itr)))
+                  while ((ent = pumi_mesh->iterate(itr)) != nullptr)
                   {
                      apf::ModelEntity *me = pumi_mesh->toModel(ent);
                      if (pumi_mesh->getModelType(me) == (dim - 1))
@@ -216,7 +218,7 @@ void initMesh(py::module &m)
                   // Volume faces
                   itr = pumi_mesh->begin(dim);
                   ent_cnt = 0;
-                  while ((ent = pumi_mesh->iterate(itr)))
+                  while ((ent = pumi_mesh->iterate(itr)) != nullptr)
                   {
                      apf::ModelEntity *me = pumi_mesh->toModel(ent);
                      int tag = pumi_mesh->getModelTag(me);
@@ -328,7 +330,7 @@ void initMesh(py::module &m)
            [](ParMesh &self, Vector &nodes)
            {
               self.EnsureNodes();
-              auto mesh_gf = self.GetNodes();
+              auto *mesh_gf = self.GetNodes();
               mesh_gf->MakeRef(nodes, 0);
            },
            "Set the coordinates of the mesh nodes to the new vector `nodes`",

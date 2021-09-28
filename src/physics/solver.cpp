@@ -2,6 +2,8 @@
 
 #include <fstream>
 #include <iostream>
+#include <cmath>
+#include <utility>
 
 #ifdef MFEM_USE_PUMI
 
@@ -30,11 +32,11 @@
 #include "sbp_fe.hpp"
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
-#include "solver.hpp"
 #include "material_library.hpp"
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
 #include "mach_load.hpp"
+#include "solver.hpp"
 
 #ifdef MFEM_USE_EGADS
 #include "gmi_egads.h"
@@ -113,7 +115,7 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    int dim = mesh->Dimension();
    *out << "problem space dimension = " << dim << endl;
    // Define the ODE solver used for time integration (possibly not used)
-   ode_solver = NULL;
+   ode_solver = nullptr;
    *out << "ode-solver type = "
         << options["time-dis"]["ode-solver"].template get<string>() << endl;
    if (options["time-dis"]["ode-solver"].template get<string>() == "RK1")
@@ -284,7 +286,10 @@ AbstractSolver::~AbstractSolver()
 #ifdef MFEM_USE_PUMI
    if (pumi_mesh)
    {
-      if (!PCU_previously_initialized) PCU_Comm_Free();
+      if (!PCU_previously_initialized)
+      {
+         PCU_Comm_Free();
+      }
    }
 #ifdef MFEM_USE_SIMMETRIX
    gmi_sim_stop();
@@ -349,7 +354,10 @@ void AbstractSolver::constructPumiMesh()
    {
       PCU_previously_initialized = true;
    }
-   if (!PCU_previously_initialized) PCU_Comm_Init();
+   if (!PCU_previously_initialized)
+   {
+      PCU_Comm_Init();
+   }
    PCU_Switch_Comm(comm);
 #ifdef MFEM_USE_SIMMETRIX
    Sim_readLicenseFile(0);
@@ -387,9 +395,9 @@ void AbstractSolver::constructPumiMesh()
        pumi_mesh.get(), "aux_numbering", pumi_mesh->getShape(), 1);
 
    apf::MeshIterator *it = pumi_mesh->begin(0);
-   apf::MeshEntity *v;
+   apf::MeshEntity *v = nullptr;
    int count = 0;
-   while ((v = pumi_mesh->iterate(it)))
+   while ((v = pumi_mesh->iterate(it)) != nullptr)
    {
       apf::number(aux_num, v, 0, 0, count++);
    }
@@ -428,9 +436,9 @@ void AbstractSolver::constructPumiMesh()
    // Boundary faces
    int dim = mesh->Dimension();
    apf::MeshIterator *itr = pumi_mesh->begin(dim - 1);
-   apf::MeshEntity *ent;
+   apf::MeshEntity *ent = nullptr;
    int ent_cnt = 0;
-   while ((ent = pumi_mesh->iterate(itr)))
+   while ((ent = pumi_mesh->iterate(itr)) != nullptr)
    {
       apf::ModelEntity *me = pumi_mesh->toModel(ent);
       if (pumi_mesh->getModelType(me) == (dim - 1))
@@ -446,7 +454,7 @@ void AbstractSolver::constructPumiMesh()
    // Volume faces
    itr = pumi_mesh->begin(dim);
    ent_cnt = 0;
-   while ((ent = pumi_mesh->iterate(itr)))
+   while ((ent = pumi_mesh->iterate(itr)) != nullptr)
    {
       apf::ModelEntity *me = pumi_mesh->toModel(ent);
       int tag = pumi_mesh->getModelTag(me);
@@ -566,15 +574,16 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x,
    const char *name = fe_space->FEColl()->Name();
 
    double loc_prod = 0.0;
-   const FiniteElement *fe;
-   ElementTransformation *T;
-   DenseMatrix x_vals, y_vals;
+   const FiniteElement *fe = nullptr;
+   ElementTransformation *T = nullptr;
+   DenseMatrix x_vals;
+   DenseMatrix y_vals;
    // calculate the L2 inner product for component index `entry`
    for (int i = 0; i < fe_space->GetNE(); i++)
    {
       fe = fe_space->GetFE(i);
-      const IntegrationRule *ir;
-      if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+      const IntegrationRule *ir = nullptr;
+      if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
       {
          ir = &(fe->GetNodes());
       }
@@ -598,7 +607,7 @@ double AbstractSolver::calcInnerProduct(const GridFunType &x,
          loc_prod += ip.weight * T->Weight() * node_prod;
       }
    }
-   double prod;
+   double prod = NAN;
    MPI_Allreduce(&loc_prod, &prod, 1, MPI_DOUBLE, MPI_SUM, comm);
    return prod;
 }
@@ -627,8 +636,8 @@ double AbstractSolver::calcL2Error(
    const char *name = fe_space->FEColl()->Name();
 
    double loc_norm = 0.0;
-   const FiniteElement *fe;
-   ElementTransformation *T;
+   const FiniteElement *fe = nullptr;
+   ElementTransformation *T = nullptr;
    Vector shape;
    Array<int> vdofs;
 
@@ -636,8 +645,8 @@ double AbstractSolver::calcL2Error(
    for (int i = 0; i < fe_space->GetNE(); i++)
    {
       fe = fe_space->GetFE(i);
-      const IntegrationRule *ir;
-      if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+      const IntegrationRule *ir = nullptr;
+      if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
       {
          ir = &(fe->GetNodes());
       }
@@ -656,6 +665,7 @@ double AbstractSolver::calcL2Error(
          fe->CalcShape(ip, shape);
          double a = 0;
          for (int k = 0; k < fdof; k++)
+         {
             if (vdofs[k] >= 0)
             {
                a += (*field)(vdofs[k]) * shape(k);
@@ -664,13 +674,14 @@ double AbstractSolver::calcL2Error(
             {
                a -= (*field)(-1 - vdofs[k]) * shape(k);
             }
+         }
          T->SetIntPoint(&ip);
          a -= exsol.Eval(*T, ip);
          loc_norm += ip.weight * T->Weight() * a * a;
       }
    }
 
-   double norm;
+   double norm = NAN;
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    if (norm < 0.0)  // This was copied from mfem...should not happen for us
    {
@@ -691,9 +702,10 @@ double AbstractSolver::calcL2Error(
    const char *name = fe_space->FEColl()->Name();
 
    double loc_norm = 0.0;
-   const FiniteElement *fe;
-   ElementTransformation *T;
-   DenseMatrix vals, exact_vals;
+   const FiniteElement *fe = nullptr;
+   ElementTransformation *T = nullptr;
+   DenseMatrix vals;
+   DenseMatrix exact_vals;
    Vector loc_errs;
 
    if (entry < 0)
@@ -702,8 +714,8 @@ double AbstractSolver::calcL2Error(
       for (int i = 0; i < fe_space->GetNE(); i++)
       {
          fe = fe_space->GetFE(i);
-         const IntegrationRule *ir;
-         if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+         const IntegrationRule *ir = nullptr;
+         if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
          {
             ir = &(fe->GetNodes());
          }
@@ -732,8 +744,8 @@ double AbstractSolver::calcL2Error(
       for (int i = 0; i < fe_space->GetNE(); i++)
       {
          fe = fe_space->GetFE(i);
-         const IntegrationRule *ir;
-         if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+         const IntegrationRule *ir = nullptr;
+         if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
          {
             ir = &(fe->GetNodes());
          }
@@ -756,7 +768,7 @@ double AbstractSolver::calcL2Error(
          }
       }
    }
-   double norm;
+   double norm = NAN;
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    if (norm < 0.0)  // This was copied from mfem...should not happen for us
    {
@@ -913,14 +925,14 @@ void AbstractSolver::linearize(const MachInputs &inputs)
 }
 
 double AbstractSolver::vectorJacobianProduct(double *res_bar_buffer,
-                                             std::string wrt)
+                                             const std::string &wrt)
 {
    auto res_bar = bufferToHypreParVector(res_bar_buffer, *fes);
    return vectorJacobianProduct(res_bar, wrt);
 }
 
 double AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
-                                             std::string wrt)
+                                             const std::string &wrt)
 {
    double wrt_bar = 0.0;
    if (res_scalar_sens.count(wrt) != 0)
@@ -936,7 +948,7 @@ double AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
 }
 
 void AbstractSolver::vectorJacobianProduct(double *res_bar_buffer,
-                                           std::string wrt,
+                                           const std::string &wrt,
                                            double *wrt_bar_buffer)
 {
    auto res_bar = bufferToHypreParVector(res_bar_buffer, *fes);
@@ -948,7 +960,7 @@ void AbstractSolver::vectorJacobianProduct(double *res_bar_buffer,
 }
 
 void AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
-                                           std::string wrt,
+                                           const std::string &wrt,
                                            HypreParVector &wrt_bar)
 {
    res_fields.at("res_bar") = res_bar;
@@ -980,7 +992,7 @@ double AbstractSolver::calcStepSize(int iter,
                                     double dt_old,
                                     const ParGridFunction &state) const
 {
-   double dt = options["time-dis"]["dt"].get<double>();
+   auto dt = options["time-dis"]["dt"].get<double>();
    dt = min(dt, t_final - t);
    return dt;
 }
@@ -991,8 +1003,7 @@ bool AbstractSolver::iterationExit(int iter,
                                    double dt,
                                    const ParGridFunction &state) const
 {
-   if (t >= t_final - 1e-14 * dt) return true;
-   return false;
+   return t >= t_final - 1e-14 * dt;
 }
 
 void AbstractSolver::printSolution(const std::string &file_name, int refine)
@@ -1056,7 +1067,7 @@ void AbstractSolver::printFields(const std::string &file_name,
    {
       refine = options["space-dis"]["degree"].get<int>() + 1;
    }
-   paraview_dc.SetLevelsOfDetail(1);
+   paraview_dc.SetLevelsOfDetail(refine);
    paraview_dc.SetCycle(cycle);
    paraview_dc.SetDataFormat(VTKFormat::BINARY);
    paraview_dc.SetHighOrderOutput(true);
@@ -1084,7 +1095,7 @@ void AbstractSolver::printFields(const std::string &file_name,
 
 std::vector<GridFunType *> AbstractSolver::getFields() { return {u.get()}; }
 
-void AbstractSolver::getField(std::string name, double *field_buffer)
+void AbstractSolver::getField(const std::string &name, double *field_buffer)
 {
    auto *field_fes = res_fields.at(name).ParFESpace();
    HypreParVector field(field_fes->GetComm(),
@@ -1094,7 +1105,8 @@ void AbstractSolver::getField(std::string name, double *field_buffer)
    getField(name, field);
 }
 
-void AbstractSolver::getField(std::string name, mfem::HypreParVector &field)
+void AbstractSolver::getField(const std::string &name,
+                              mfem::HypreParVector &field)
 {
    res_fields.at(name).ParallelAssemble(field);
 }
@@ -1106,7 +1118,7 @@ void AbstractSolver::solveForState(ParGridFunction &state)
                                         state_true.Size());
    state.SetTrueVector();
 
-   if (options["steady"].get<bool>() == true)
+   if (options["steady"].get<bool>())
    {
       solveSteady(state);
    }
@@ -1131,7 +1143,10 @@ void AbstractSolver::solveForState(const MachInputs &inputs,
                                    mfem::HypreParVector &state)
 {
    // mach::setInputs(*res, inputs);
-   if (load) mach::setInputs(*load, inputs);
+   if (load)
+   {
+      mach::setInputs(*load, inputs);
+   }
 
    auto &state_gf = res_fields.at("state");
    state_gf.GetTrueVector().SetDataAndSize(state.GetData(), state.Size());
@@ -1145,7 +1160,7 @@ void AbstractSolver::solveForState(const MachInputs &inputs,
 
 void AbstractSolver::solveForAdjoint(const std::string &fun)
 {
-   if (options["steady"].get<bool>() == true)
+   if (options["steady"].get<bool>())
    {
       solveSteadyAdjoint(fun);
    }
@@ -1165,7 +1180,7 @@ void AbstractSolver::setMeshCoordinates(mfem::Vector &coords)
    //    mesh->EnsureNodes();
    // }
    // auto mesh_gf = static_cast<ParGridFunction*>(mesh->GetNodes());
-   auto mesh_gf = mesh->GetNodes();
+   auto *mesh_gf = mesh->GetNodes();
    mfem::Vector diff(coords);
    diff -= *mesh_gf;
 
@@ -1239,10 +1254,10 @@ void AbstractSolver::setUpExternalFields()
    // it in `res_fields` under key "mesh_coords"
    {
       auto &mesh_gf = *dynamic_cast<ParGridFunction *>(mesh->GetNodes());
-      ParFiniteElementSpace *mesh_fespace;
+      ParFiniteElementSpace *mesh_fespace = nullptr;
       auto *mesh_fec = mesh_gf.OwnFEC();
       // if the mesh GF owns its FESpace and FECollection
-      if (mesh_fec)
+      if (mesh_fec != nullptr)
       {
          // steal them and tell the mesh GF it no longer owns them
          mesh_fespace = mesh_gf.ParFESpace();
@@ -1283,11 +1298,15 @@ void AbstractSolver::setUpExternalFields()
          auto basis = field["basis-type"].get<std::string>();
          auto num_states = field["num-states"].get<int>();
 
-         FiniteElementCollection *fecoll;
+         FiniteElementCollection *fecoll = nullptr;
          if (basis == "H1")
+         {
             fecoll = new H1_FECollection(order, dim, num_state);
+         }
          else if (basis == "nedelec")
+         {
             fecoll = new ND_FECollection(order, dim, num_state);
+         }
          else
          {
             throw MachException("Unrecognized basis type: " + basis +
@@ -1311,7 +1330,7 @@ void AbstractSolver::setUpExternalFields()
 void AbstractSolver::addMassIntegrators(double alpha)
 {
    const char *name = fes->FEColl()->Name();
-   if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+   if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {
       mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
    }
@@ -1343,7 +1362,10 @@ void AbstractSolver::setEssentialBoundaries()
       catch (nlohmann::json::type_error &e)
       {
          auto all = bcs["essential"].get<std::string>();
-         if (all == "all") ess_bdr = 1;
+         if (all == "all")
+         {
+            ess_bdr = 1;
+         }
       }
 
       // *out << "ess_bdr: "; ess_bdr.Print(*out);
@@ -1352,7 +1374,8 @@ void AbstractSolver::setEssentialBoundaries()
    else
    {
       *out << "No essential BCs" << endl;
-      if (mesh->bdr_attributes)  // some meshes may not have boundary attributes
+      if (mesh->bdr_attributes !=
+          nullptr)  // some meshes may not have boundary attributes
       {
          *out << "mesh with boundary attributes" << endl;
          ess_bdr = 0;
@@ -1360,7 +1383,10 @@ void AbstractSolver::setEssentialBoundaries()
    }
    Array<int> ess_tdof_list;
    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-   if (ess_tdof_list) res->SetEssentialTrueDofs(ess_tdof_list);
+   if (ess_tdof_list != nullptr)
+   {
+      res->SetEssentialTrueDofs(ess_tdof_list);
+   }
 }
 
 void AbstractSolver::solveSteady(ParGridFunction &state)
@@ -1368,7 +1394,6 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
    *out << "AbstractSolver::solveSteady() is deprecated!!!!!!!!!!!!!!" << endl;
    *out << "calling AbstractSolver::solveUnsteady() instead" << endl;
    solveUnsteady(state);
-   return;
 
    // #ifdef MFEM_USE_MPI
    //    double t1, t2;
@@ -1509,9 +1534,9 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    calcResidual(state, residual);
    // printFields("init", {&residual, &state}, {"Residual", "Solution"});
 
-   double t_final = options["time-dis"]["t-final"].template get<double>();
+   auto t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
-   int ti;
+   int ti = 0;
    double dt = 0.0;
    initialHook(state);
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
@@ -1519,7 +1544,9 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       dt = calcStepSize(ti, t, t_final, dt, state);
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
+      {
          *out << " (" << round(100 * t / t_final) << "% complete)";
+      }
       *out << endl;
       iterationHook(ti, t, dt, state);
       auto &u_true = state.GetTrueVector();
@@ -1534,7 +1561,10 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       }
       // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
-      if (iterationExit(ti, t, t_final, dt, state)) break;
+      if (iterationExit(ti, t, t_final, dt, state))
+      {
+         break;
+      }
    }
    {
       ofstream osol("final_before_TH.gf");
@@ -1580,7 +1610,8 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
 
 void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 {
-   double time_beg, time_end;
+   double time_beg = NAN;
+   double time_end = NAN;
    time_beg = MPI_Wtime();
 
    // Step 0: allocate the adjoint variable
@@ -1631,7 +1662,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
     mfem::Solver &_prec)
 {
    std::string solver_type = _options["type"].get<std::string>();
-   double reltol = _options["reltol"].get<double>();
+   auto reltol = _options["reltol"].get<double>();
    int maxiter = _options["maxiter"].get<int>();
    int ptl = _options["printlevel"].get<int>();
    int kdim = _options.value("kdim", -1);
@@ -1640,37 +1671,46 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    if (solver_type == "hypregmres")
    {
       lin_solver.reset(new HypreGMRES(comm));
-      HypreGMRES *gmres = dynamic_cast<HypreGMRES *>(lin_solver.get());
+      auto *gmres = dynamic_cast<HypreGMRES *>(lin_solver.get());
       gmres->SetTol(reltol);
       gmres->SetMaxIter(maxiter);
       gmres->SetPrintLevel(ptl);
       gmres->SetPreconditioner(dynamic_cast<HypreSolver &>(_prec));
-      if (kdim != -1) gmres->SetKDim(kdim);  // set GMRES subspace size
+      if (kdim != -1)
+      {
+         gmres->SetKDim(kdim);  // set GMRES subspace size
+      }
    }
    else if (solver_type == "gmres")
    {
       lin_solver.reset(new GMRESSolver(comm));
-      GMRESSolver *gmres = dynamic_cast<GMRESSolver *>(lin_solver.get());
+      auto *gmres = dynamic_cast<GMRESSolver *>(lin_solver.get());
       gmres->SetRelTol(reltol);
       gmres->SetMaxIter(maxiter);
       gmres->SetPrintLevel(ptl);
       gmres->SetPreconditioner(dynamic_cast<Solver &>(_prec));
-      if (kdim != -1) gmres->SetKDim(kdim);  // set GMRES subspace size
+      if (kdim != -1)
+      {
+         gmres->SetKDim(kdim);  // set GMRES subspace size
+      }
    }
    else if (solver_type == "hyprefgmres")
    {
       lin_solver.reset(new HypreFGMRES(comm));
-      HypreFGMRES *fgmres = dynamic_cast<HypreFGMRES *>(lin_solver.get());
+      auto *fgmres = dynamic_cast<HypreFGMRES *>(lin_solver.get());
       fgmres->SetTol(reltol);
       fgmres->SetMaxIter(maxiter);
       fgmres->SetPrintLevel(ptl);
       fgmres->SetPreconditioner(dynamic_cast<HypreSolver &>(_prec));
-      if (kdim != -1) fgmres->SetKDim(kdim);  // set FGMRES subspace size
+      if (kdim != -1)
+      {
+         fgmres->SetKDim(kdim);  // set FGMRES subspace size
+      }
    }
    else if (solver_type == "hyprepcg")
    {
       lin_solver.reset(new HyprePCG(comm));
-      HyprePCG *pcg = static_cast<HyprePCG *>(lin_solver.get());
+      auto *pcg = dynamic_cast<HyprePCG *>(lin_solver.get());
       pcg->SetTol(reltol);
       pcg->SetMaxIter(maxiter);
       pcg->SetPrintLevel(ptl);
@@ -1679,7 +1719,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    else if (solver_type == "pcg")
    {
       lin_solver.reset(new CGSolver(comm));
-      CGSolver *pcg = dynamic_cast<CGSolver *>(lin_solver.get());
+      auto *pcg = dynamic_cast<CGSolver *>(lin_solver.get());
       pcg->SetRelTol(reltol);
       pcg->SetMaxIter(maxiter);
       pcg->SetPrintLevel(ptl);
@@ -1688,7 +1728,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    else if (solver_type == "minres")
    {
       lin_solver.reset(new MINRESSolver(comm));
-      MINRESSolver *minres = dynamic_cast<MINRESSolver *>(lin_solver.get());
+      auto *minres = dynamic_cast<MINRESSolver *>(lin_solver.get());
       minres->SetRelTol(reltol);
       minres->SetMaxIter(maxiter);
       minres->SetPrintLevel(ptl);
@@ -1723,7 +1763,7 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    else if (prec_type == "hypreilu")
    {
       precond.reset(new HypreILU());
-      HypreILU *ilu = dynamic_cast<HypreILU *>(precond.get());
+      auto *ilu = dynamic_cast<HypreILU *>(precond.get());
       HYPRE_ILUSetType(*ilu, _options["ilu-type"].get<int>());
       HYPRE_ILUSetLevelOfFill(*ilu, _options["lev-fill"].get<int>());
       HYPRE_ILUSetLocalReordering(*ilu, _options["ilu-reorder"].get<int>());
@@ -1738,14 +1778,14 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    else if (prec_type == "hypreams")
    {
       precond.reset(new HypreAMS(fes.get()));
-      HypreAMS *ams = dynamic_cast<HypreAMS *>(precond.get());
+      auto *ams = dynamic_cast<HypreAMS *>(precond.get());
       ams->SetPrintLevel(_options["printlevel"].get<int>());
       ams->SetSingularProblem();
    }
    else if (prec_type == "hypreboomeramg")
    {
       precond.reset(new HypreBoomerAMG());
-      HypreBoomerAMG *amg = dynamic_cast<HypreBoomerAMG *>(precond.get());
+      auto *amg = dynamic_cast<HypreBoomerAMG *>(precond.get());
       amg->SetPrintLevel(_options["printlevel"].get<int>());
    }
    else if (prec_type == "blockilu")
@@ -1767,8 +1807,8 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
     mfem::Solver &_lin_solver)
 {
    std::string solver_type = _options["type"].get<std::string>();
-   double abstol = _options["abstol"].get<double>();
-   double reltol = _options["reltol"].get<double>();
+   auto abstol = _options["abstol"].get<double>();
+   auto reltol = _options["reltol"].get<double>();
    int maxiter = _options["maxiter"].get<int>();
    int ptl = _options["printlevel"].get<int>();
    unique_ptr<NewtonSolver> nonlin_solver;
@@ -1779,7 +1819,7 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    else if (solver_type == "inexactnewton")
    {
       nonlin_solver.reset(new NewtonSolver(comm));
-      NewtonSolver *newton = dynamic_cast<NewtonSolver *>(nonlin_solver.get());
+      auto *newton = dynamic_cast<NewtonSolver *>(nonlin_solver.get());
 
       /// use defaults from SetAdaptiveLinRtol unless specified
       int type = _options.value("inexacttype", 2);
@@ -1855,7 +1895,9 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
                                   const std::string &fun)
 {
    if (fractional_output.find(fun) != fractional_output.end())
+   {
       return calcFractionalOutput(state, fun);
+   }
 
    try
    {
@@ -1907,7 +1949,7 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
                                        double *partial_buffer)
 {
    /// get FESpace for field we're taking partial with respect to
-   auto wrt_fes = res_fields.at(wrt).ParFESpace();
+   auto *wrt_fes = res_fields.at(wrt).ParFESpace();
    HypreParVector partial(wrt_fes->GetComm(),
                           wrt_fes->GlobalTrueVSize(),
                           partial_buffer,
@@ -1948,7 +1990,7 @@ void AbstractSolver::checkJacobian(
    GridFunType u_plus(state);
    GridFunType u_minus(state);
    GridFunType pert_vec(fes.get());
-   FunctionCoefficient up(pert_fun);
+   FunctionCoefficient up(std::move(pert_fun));
    pert_vec.ProjectCoefficient(up);
 
    Array<int> ess_tdof_list;
@@ -2098,7 +2140,7 @@ mfem::Vector *AbstractSolver::getMeshSensitivities()
 void AbstractSolver::setInputs(std::vector<MachIntegrator> &integrators,
                                const MachInputs &inputs)
 {
-   for (auto &input : inputs)
+   for (const auto &input : inputs)
    {
       setInput(integrators, input.first, input.second);
    }
@@ -2119,14 +2161,6 @@ void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
    {
       mach::setScalarInput(integrators, name, input);
    }
-}
-
-HypreParVector AbstractSolver::bufferToHypreParVector(
-    double *buffer,
-    const ParFiniteElementSpace &fes) const
-{
-   return HypreParVector(
-       fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets());
 }
 
 // void AbstractSolver::setResidualInput(std::string name,

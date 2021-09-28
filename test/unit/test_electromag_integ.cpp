@@ -82,9 +82,11 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
+
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -161,9 +163,10 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear",
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -223,9 +226,9 @@ TEST_CASE("CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect")
 
    // generate a 6 element mesh
    int num_edge = 2;
-   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-             true /* gen. edges */, 2.0, 3.0, 1.0, true);
-   mesh.ReorientTetMesh();
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true);
    mesh.EnsureNodes();
 
    NonLinearCoefficient nu;
@@ -777,10 +780,10 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy")
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                                       Element::TETRAHEDRON,
-                                       true /* gen. edges */, 2.0, 3.0, 1.0,
-                                       true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -832,9 +835,9 @@ TEST_CASE("MagneticEnergyIntegrator::AssembleElementVector")
    double delta = 1e-5;
 
    int num_edge = 2;
-   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-             true /* gen. edges */, 2.0, 3.0, 1.0, true);
-   mesh.ReorientTetMesh();
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true);
    mesh.EnsureNodes();
 
    NonLinearCoefficient nu;
@@ -888,9 +891,9 @@ TEST_CASE("MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect")
 
    // generate a 6 element mesh
    int num_edge = 2;
-   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-             true /* gen. edges */, 2.0, 3.0, 1.0, true);
-   mesh.ReorientTetMesh();
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true);
    mesh.EnsureNodes();
 
    NonLinearCoefficient nu;
@@ -1099,8 +1102,10 @@ TEST_CASE("BNormIntegrator::GetElementEnergy",
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 2.0, 2.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 2.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1146,8 +1151,10 @@ TEST_CASE("BNormIntegrator::AssembleElementVector",
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1205,8 +1212,10 @@ TEST_CASE("BNormdJdX::AssembleRHSElementVect",
 
    // generate a 2 element mesh
    int num_edge = 3;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1276,8 +1285,10 @@ TEST_CASE("nuBNormIntegrator::AssembleElementVector",
 
    // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1338,8 +1349,10 @@ TEST_CASE("nuBNormdJdX::AssembleRHSElementVect",
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1412,8 +1425,10 @@ TEST_CASE("nuFuncIntegrator::AssembleRHSElementVect",
 
    // generate a 2 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
@@ -1489,9 +1504,9 @@ TEST_CASE("DCLossFunctionalIntegrator::GetEnergy",
       num_edge *= 2;
       DYNAMIC_SECTION("...for num edges = " << num_edge)
       {
-         Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                  true /* gen. edges */, 1.0, 1.0, 1.0, true);
-         mesh.ReorientTetMesh();
+         auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                           Element::TETRAHEDRON,
+                                           1.0, 1.0, 1.0, true);
          mesh.EnsureNodes();
 
          const auto p = 2;
@@ -1588,8 +1603,10 @@ TEST_CASE("calcMagneticEnergy")
 
    // generate a 6 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    mesh->EnsureNodes();
 
    const double lin_nu_val = 0.42;
@@ -1640,8 +1657,10 @@ TEST_CASE("calcMagneticEnergyDot")
 
    // generate a 6 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    mesh->EnsureNodes();
 
    // std::unique_ptr<mach::StateCoefficient> nu(new LinearCoefficient(0.75));
@@ -1686,8 +1705,10 @@ TEST_CASE("calcMagneticEnergyDoubleDot")
 
    // generate a 6 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    mesh->EnsureNodes();
 
    // std::unique_ptr<mach::StateCoefficient> nu(new LinearCoefficient(0.75));
@@ -1732,9 +1753,9 @@ TEST_CASE("ForceIntegrator::GetElementEnergy")
 
    // generate a 6 element mesh
    int num_edge = 2;
-   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-             true /* gen. edges */, 2.0, 3.0, 1.0, true);
-   mesh.ReorientTetMesh();
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true);
    mesh.EnsureNodes();
 
    NonLinearCoefficient nu;
@@ -1792,9 +1813,9 @@ TEST_CASE("ForceIntegrator::AssembleElementVector")
 
    // generate a 6 element mesh
    int num_edge = 2;
-   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-             true /* gen. edges */, 2.0, 3.0, 1.0, true);
-   mesh.ReorientTetMesh();
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true);
    mesh.EnsureNodes();
 
    NonLinearCoefficient nu;
@@ -1856,9 +1877,9 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
 
    // generate a 6 element mesh
    int num_edge = 2;
-   Mesh mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-             true /* gen. edges */, 2.0, 3.0, 1.0, true);
-   mesh.ReorientTetMesh();
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     2.0, 3.0, 1.0, true);
    mesh.EnsureNodes();
 
    NonLinearCoefficient nu;

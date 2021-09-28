@@ -1,15 +1,5 @@
-#include "electromag_integ.hpp"
-
-#ifdef MFEM_USE_PUMI
-#include "apfMDS.h"
-#include "PCU.h"
-#include "apfConvert.h"
-#include "crv.h"
-#include "gmi.h"
-#endif  // MFEM_USE_PUMI
-
 #include "coefficient.hpp"
-#include "solver.hpp"
+#include "electromag_integ.hpp"
 
 using namespace mfem;
 
@@ -118,17 +108,20 @@ void CurlCurlNLFIntegrator::AssembleElementVector(const FiniteElement &el,
    double b_vec_buffer[3];
    Vector b_vec(b_vec_buffer, dim);
 
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 1;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -189,17 +182,20 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    double b_vec_buffer[3];
    Vector b_vec(b_vec_buffer, dim);
 
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 1;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -294,7 +290,7 @@ void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
    mfem::Vector elfun, psi;
 #endif
    int element = mesh_trans.ElementNo;
-   auto &el = *state.FESpace()->GetFE(element);
+   const auto &el = *state.FESpace()->GetFE(element);
    auto &trans = *state.FESpace()->GetElementTransformation(element);
 
    const int ndof = mesh_el.GetDof();
@@ -306,14 +302,14 @@ void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
 
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
 
    dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
    adjoint.GetSubVector(vdofs, psi);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(psi);
    }
@@ -343,21 +339,22 @@ void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
    Vector curl_psi(curl_psi_buffer, dim);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 1;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -472,9 +469,6 @@ void MagnetizationIntegrator::AssembleElementVector(
    /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   /// holds quadrature weight
-   double w;
-
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc), M;
    Vector b_vec(dimc) mag_vec(dimc);
@@ -488,17 +482,20 @@ void MagnetizationIntegrator::AssembleElementVector(
    elvect.SetSize(ndof);
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
@@ -510,8 +507,8 @@ void MagnetizationIntegrator::AssembleElementVector(
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
-      w *= alpha;
+      /// holds quadrature weight
+      double w = alpha * ip.weight / trans.Weight();
 
       if (dim == 3)
       {
@@ -1175,17 +1172,19 @@ double MagneticEnergyIntegrator::GetElementEnergy(const FiniteElement &el,
 #endif
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -1244,17 +1243,19 @@ void MagneticEnergyIntegrator::AssembleElementVector(
 #endif
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -1288,7 +1289,6 @@ void MagneticEnergyIntegrator::AssembleElementVector(
       b_vec *= energy_dot * w / b_mag;
       curlshape_dFt.AddMult(b_vec, elvect);
    }
-   return;
 }
 
 void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
@@ -1304,7 +1304,7 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
    Vector elfun;
 #endif
    const int element = mesh_trans.ElementNo;
-   auto &el = *state.FESpace()->GetFE(element);
+   const auto &el = *state.FESpace()->GetFE(element);
    auto &trans = *state.FESpace()->GetElementTransformation(element);
 
    const int ndof = mesh_el.GetDof();
@@ -1316,7 +1316,7 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
 
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
@@ -1343,24 +1343,26 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
 #endif
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
+
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
@@ -1436,7 +1438,6 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
          }
       }
    }
-   return;
 }
 
 /** commenting out co-energy stuff since I'm stopping maintaining it
@@ -1828,9 +1829,6 @@ double BNormIntegrator::GetElementEnergy(const FiniteElement &el,
    /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   /// holds quadrature weight
-   double w;
-
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc), M;
    Vector b_vec(dimc);
@@ -1841,17 +1839,19 @@ double BNormIntegrator::GetElementEnergy(const FiniteElement &el,
 #endif
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -1865,7 +1865,8 @@ double BNormIntegrator::GetElementEnergy(const FiniteElement &el,
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight * trans.Weight();
+      /// holds quadrature weight
+      auto w = ip.weight * trans.Weight();
 
       if (dim == 3)
       {
@@ -1900,9 +1901,6 @@ void BNormIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
    /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   /// holds quadrature weight
-   double w;
-
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc), M;
    Vector b_vec(dimc), temp_vec(ndof);
@@ -1914,17 +1912,19 @@ void BNormIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
 #endif
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -1936,7 +1936,8 @@ void BNormIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
+      /// holds quadrature weight
+      auto w = ip.weight / trans.Weight();
 
       if (dim == 3)
       {
@@ -1968,36 +1969,38 @@ void BNormdJdx::AssembleRHSElementVect(const FiniteElement &mesh_el,
    Array<int> vdofs;
    Vector elfun;
    int element = mesh_trans.ElementNo;
-   const FiniteElement *el = state.FESpace()->GetFE(element);
+   const FiniteElement &el = *state.FESpace()->GetFE(element);
    ElementTransformation *trans =
        state.FESpace()->GetElementTransformation(element);
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el->Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el->GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el->GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
-      ir = &IntRules.Get(el->GetGeomType(), order);
+      ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
 
    int ndof = mesh_el.GetDof();
-   int el_ndof = el->GetDof();
-   int dim = el->GetDim();
+   int el_ndof = el.GetDof();
+   int dim = el.GetDim();
    int dimc = (dim == 3) ? 3 : 1;
    elvect.SetSize(ndof * dimc);
    elvect = 0.0;
@@ -2013,8 +2016,7 @@ void BNormdJdx::AssembleRHSElementVect(const FiniteElement &mesh_el,
    Vector b_hat(dimc);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*trans);
 
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
@@ -2023,12 +2025,12 @@ void BNormdJdx::AssembleRHSElementVect(const FiniteElement &mesh_el,
       double w = ip.weight;
       if (dim == 3)
       {
-         el->CalcCurlShape(ip, curlshape);
+         el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, trans->Jacobian(), curlshape_dFt);
       }
       else
       {
-         el->CalcCurlShape(ip, curlshape_dFt);
+         el.CalcCurlShape(ip, curlshape_dFt);
       }
 
       b_vec = 0.0;
@@ -2082,9 +2084,6 @@ double nuBNormIntegrator::GetElementEnergy(const FiniteElement &el,
    /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   /// holds quadrature weight
-   double w;
-
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc), M;
    Vector b_vec(dimc);
@@ -2095,17 +2094,19 @@ double nuBNormIntegrator::GetElementEnergy(const FiniteElement &el,
 #endif
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -2119,7 +2120,8 @@ double nuBNormIntegrator::GetElementEnergy(const FiniteElement &el,
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
+      /// holds quadrature weight
+      auto w = ip.weight / trans.Weight();
 
       if (dim == 3)
       {
@@ -2154,9 +2156,6 @@ void nuBNormIntegrator::AssembleElementVector(
    /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   /// holds quadrature weight
-   double w;
-
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc), M;
    Vector b_vec(dimc), temp_vec(ndof);
@@ -2168,17 +2167,19 @@ void nuBNormIntegrator::AssembleElementVector(
 #endif
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -2190,7 +2191,7 @@ void nuBNormIntegrator::AssembleElementVector(
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
+      auto w = ip.weight / trans.Weight();
 
       if (dim == 3)
       {
@@ -2224,35 +2225,38 @@ void nuBNormdJdx::AssembleRHSElementVect(const FiniteElement &mesh_el,
    Array<int> vdofs;
    Vector elfun;
    int element = mesh_trans.ElementNo;
-   const FiniteElement *el = state.FESpace()->GetFE(element);
+   const FiniteElement &el = *state.FESpace()->GetFE(element);
    ElementTransformation *trans =
        state.FESpace()->GetElementTransformation(element);
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el->Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el->GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el->GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
-      ir = &IntRules.Get(el->GetGeomType(), order);
+      ir = &IntRules.Get(el.GetGeomType(), order);
    }
+
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
 
    int ndof = mesh_el.GetDof();
-   int el_ndof = el->GetDof();
-   int dim = el->GetDim();
+   int el_ndof = el.GetDof();
+   int dim = el.GetDim();
    int dimc = (dim == 3) ? 3 : 1;
    elvect.SetSize(ndof * dimc);
    elvect = 0.0;
@@ -2273,8 +2277,7 @@ void nuBNormdJdx::AssembleRHSElementVect(const FiniteElement &mesh_el,
    Vector b_hat(dimc);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*trans);
 
    for (int i = 0; i < ir->GetNPoints(); ++i)
    {
@@ -2288,12 +2291,12 @@ void nuBNormdJdx::AssembleRHSElementVect(const FiniteElement &mesh_el,
       trans->SetIntPoint(&ip);
       if (dim == 3)
       {
-         el->CalcCurlShape(ip, curlshape);
+         el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, trans->Jacobian(), curlshape_dFt);
       }
       else
       {
-         el->CalcCurlShape(ip, curlshape_dFt);
+         el.CalcCurlShape(ip, curlshape_dFt);
       }
       curlshape.AddMultTranspose(elfun, b_hat);
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
@@ -2375,9 +2378,6 @@ double nuFuncIntegrator::GetElementEnergy(const FiniteElement &el,
    /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   /// holds quadrature weight
-   double w;
-
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc), M;
    Vector b_vec(dimc);
@@ -2387,17 +2387,20 @@ double nuFuncIntegrator::GetElementEnergy(const FiniteElement &el,
    b_vec.SetSize(dimc);
 #endif
 
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = mfem::NonlinearFormIntegrator::IntRule;
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -2411,7 +2414,7 @@ double nuFuncIntegrator::GetElementEnergy(const FiniteElement &el,
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight / trans.Weight();
+      auto w = ip.weight / trans.Weight();
 
       if (dim == 3)
       {
@@ -2439,35 +2442,38 @@ void nuFuncIntegrator::AssembleRHSElementVect(const FiniteElement &mesh_el,
    Array<int> vdofs;
    Vector elfun;
    int element = mesh_trans.ElementNo;
-   const FiniteElement *el = state->FESpace()->GetFE(element);
+   const FiniteElement &el = *state->FESpace()->GetFE(element);
    ElementTransformation *trans =
        state->FESpace()->GetElementTransformation(element);
 
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = mfem::NonlinearFormIntegrator::IntRule;
+   if (ir == nullptr)
    {
-      int order;
-      if (el->Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el->GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el->GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
-      ir = &IntRules.Get(el->GetGeomType(), order);
+      ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
    auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
 
    int ndof = mesh_el.GetDof();
-   int el_ndof = el->GetDof();
-   int dim = el->GetDim();
+   int el_ndof = el.GetDof();
+   int dim = el.GetDim();
    int dimc = (dim == 3) ? 3 : 1;
    elvect.SetSize(ndof * dimc);
    elvect = 0.0;
@@ -2484,8 +2490,7 @@ void nuFuncIntegrator::AssembleRHSElementVect(const FiniteElement &mesh_el,
    Vector b_hat(dimc);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*trans);
 
    for (int i = 0; i < ir->GetNPoints(); ++i)
    {
@@ -2494,12 +2499,12 @@ void nuFuncIntegrator::AssembleRHSElementVect(const FiniteElement &mesh_el,
       trans->SetIntPoint(&ip);
       if (dim == 3)
       {
-         el->CalcCurlShape(ip, curlshape);
+         el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, trans->Jacobian(), curlshape_dFt);
       }
       else
       {
-         el->CalcCurlShape(ip, curlshape_dFt);
+         el.CalcCurlShape(ip, curlshape_dFt);
       }
       b_vec = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
@@ -2603,17 +2608,20 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
    int dim = el.GetDim();
    int dimc = (dim == 3) ? 3 : 1;
 
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -2637,7 +2645,10 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       current.Eval(current_vec, trans, ip);
       current_vec *= current_density;
       const double current2 = current_vec * current_vec;
-      if (current2 < 1e-14) continue;
+      if (current2 < 1e-14)
+      {
+         continue;
+      }
       const double sigma_val = sigma.Eval(trans, ip);
       const double loss = current2 / sigma_val;
       fun += loss * fill_factor * w;
@@ -2676,9 +2687,6 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
    /// a properly defined curl? Need more investigation
    int dimc = (dim == 3) ? 3 : 1;
 
-   /// holds quadrature weight
-   double w;
-
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc);
    Vector b_vec(dimc);
@@ -2688,17 +2696,20 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
    b_vec.SetSize(dimc);
 #endif
 
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -2712,7 +2723,7 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
 
       trans.SetIntPoint(&ip);
 
-      w = ip.weight * trans.Weight();
+      auto w = ip.weight * trans.Weight();
       if (dim == 3)
       {
          el.CalcCurlShape(ip, curlshape);
@@ -2782,17 +2793,20 @@ double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
    // cast the ElementTransformation
    auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -2915,17 +2929,20 @@ void ForceIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
    // cast the ElementTransformation
    auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -2983,7 +3000,7 @@ void ForceIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
       }
       const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
       // dBds *= energy_dot;
-      auto force = dBds * energy_dot;
+      // auto force = dBds * energy_dot;
 
       v_el.CalcDShape(ip, dshape);
       DenseMatrix JinvdJds(3);
@@ -2991,8 +3008,8 @@ void ForceIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
       MultAtB(dXds, dshape, dJds);
       Mult(trans.InverseJacobian(), dJds, JinvdJds);
 
-      const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
-      double force2 = energy * JinvdJds.Trace();
+      // const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      // double force2 = energy * JinvdJds.Trace();
 
       // fun -= (force + force2) * w;
 
@@ -3058,7 +3075,8 @@ void ForceIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
       }
 
       /// MultVWt(b_vec, b_hat, BB_hatT);
-      Vector b_vec_bar(dimc), b_hat_bar(dimc);
+      Vector b_vec_bar(dimc);
+      Vector b_hat_bar(dimc);
       BB_hatT_bar.Mult(b_hat, b_vec_bar);
       BB_hatT_bar.MultTranspose(b_vec, b_hat_bar);
 
@@ -3074,7 +3092,6 @@ void ForceIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
       /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
       curlshape_dFt.AddMult(b_vec_bar, elfun_bar);
    }
-   return;
 }
 
 void ForceIntegratorMeshSens::AssembleRHSElementVect(
@@ -3095,7 +3112,7 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
    auto &vfun = force_integ.vfun;
 
    const int element = mesh_trans.ElementNo;
-   auto &el = *state.FESpace()->GetFE(element);
+   const auto &el = *state.FESpace()->GetFE(element);
    auto &trans = *state.FESpace()->GetElementTransformation(element);
 
    const int ndof = mesh_el.GetDof();
@@ -3110,7 +3127,7 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
    }
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
    state.GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
@@ -3150,24 +3167,26 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
 #endif
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2 * el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
+
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
@@ -3373,7 +3392,6 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
          }
       }
    }
-   return;
 }
 
 }  // namespace mach

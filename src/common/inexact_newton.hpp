@@ -37,12 +37,12 @@ public:
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`
-   virtual void SetOperator(const mfem::Operator &op) override;
+   void SetOperator(const mfem::Operator &op) override;
 
    /// Solve the nonlinear system with right-hand side b
    /// \param[in] b - the right-hand side vector (can be zero)
    /// \param[in] x - intial "guess" for solution
-   virtual void Mult(const mfem::Vector &b, mfem::Vector &x) const override;
+   void Mult(const mfem::Vector &b, mfem::Vector &x) const override;
 
    mfem::Solver *GetSolver() { return prec; }
 
@@ -70,7 +70,7 @@ private:
    /// regarding the line search method and its parameters.
    double ComputeStepSize(const mfem::Vector &x,
                           const mfem::Vector &b,
-                          const double norm) const;
+                          double norm) const;
 };
 
 }  // namespace mfem

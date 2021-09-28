@@ -4,6 +4,7 @@
 #include <functional>
 #include <exception>
 #include <iostream>
+#include <utility>
 
 #include "mfem.hpp"
 
@@ -25,10 +26,11 @@ class MachException : public std::exception
 public:
    /// Class constructor.
    /// \param[in] err_msg - the error message to be printed
-   MachException(std::string err_msg) : error_msg(err_msg) { }
+   MachException(std::string err_msg) : error_msg(std::move(std::move(err_msg)))
+   { }
 
    /// Overwrites inherieted member that returns a c-string.
-   virtual const char *what() const noexcept { return error_msg.c_str(); }
+   const char *what() const noexcept override { return error_msg.c_str(); }
 
    /// Use this to print the message; prints only on root for parallel runs.
    void print_message()
@@ -93,6 +95,13 @@ inline xdouble dot(const xdouble *a, const xdouble *b)
 }
 
 std::ostream *getOutStream(int rank, bool silent = false);
+
+/// Construct a HypreParVector on the a given FES using external data
+/// \param[in] buffer - external data for HypreParVector
+/// \param[in] fes - finite element space to construct vector on
+mfem::HypreParVector bufferToHypreParVector(
+    double *buffer,
+    const mfem::ParFiniteElementSpace &fes);
 
 // /// The following are adapted from MFEM's pfem_extras.xpp
 // class DiscreteGradOperator : public mfem::ParDiscreteLinearOperator
@@ -199,7 +208,7 @@ std::ostream *getOutStream(int rank, bool silent = false);
 /// \param[in] ftol - absolute tolerance for root function
 /// \param[in] xtol - absolute tolerance for root value
 /// \param[in] maxiter - maximum number of iterations
-double bisection(std::function<double(double)> func,
+double bisection(const std::function<double(double)> &func,
                  double xl,
                  double xr,
                  double ftol,
@@ -215,7 +224,7 @@ double bisection(std::function<double(double)> func,
 /// \param[in] maxiter - maximum number of iterations
 /// \note Considered converged when either `abs(func(x)) < ftol` or
 /// `abs(dx) < dxtol`, where `dx` is the increment to the variable.
-double secant(std::function<double(double)> func,
+double secant(const std::function<double(double)> &func,
               double x1,
               double x2,
               double ftol,

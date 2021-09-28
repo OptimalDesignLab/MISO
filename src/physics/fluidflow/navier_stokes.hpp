@@ -29,17 +29,17 @@ protected:
    /// Add volume/domain integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addVolumeIntegrators() first
-   virtual void addResVolumeIntegrators(double alpha);
+   void addResVolumeIntegrators(double alpha) override;
 
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addBoundaryIntegrators() first
-   virtual void addResBoundaryIntegrators(double alpha);
+   void addResBoundaryIntegrators(double alpha) override;
 
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    /// \note This function calls EulerSolver::addInterfaceIntegrators() first
-   virtual void addResInterfaceIntegrators(double alpha);
+   void addResInterfaceIntegrators(double alpha) override;
 
    void addOutputIntegrators(const std::string &fun,
                              const nlohmann::json &options) override;

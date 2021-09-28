@@ -100,8 +100,6 @@ void JouleSolver::initDerived()
    thermal_solver->setAField(em_fields[0]);
 }
 
-JouleSolver::~JouleSolver() { *out << "Deleting Joule Solver..." << endl; }
-
 /// TODO: Change this in AbstractSolver to mark a flag so that unsteady
 /// solutions can be saved
 void JouleSolver::printSolution(const std::string &filename, int refine)
@@ -118,7 +116,7 @@ void JouleSolver::setInitialCondition(
    thermal_init = u_init;
 }
 
-std::vector<GridFunType *> JouleSolver::getFields(void)
+std::vector<GridFunType *> JouleSolver::getFields()
 {
    return {thermal_fields[0], em_fields[0], em_fields[1]};
 }

@@ -2,6 +2,8 @@
 
 #include "mfem_common_integ.hpp"
 
+#include <cmath>
+
 using namespace mfem;
 
 namespace mach
@@ -17,7 +19,7 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
    mfem::Vector elfun, psi;
 #endif
    int element = mesh_trans.ElementNo;
-   auto &el = *state->FESpace()->GetFE(element);
+   const auto &el = *state->FESpace()->GetFE(element);
    auto &trans = *state->FESpace()->GetElementTransformation(element);
 
    const int ndof = mesh_el.GetDof();
@@ -30,13 +32,13 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
 
    auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
    dof_tr = adjoint->FESpace()->GetElementVDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(psi);
    }
@@ -67,22 +69,23 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
    DenseMatrix adj_jac_bar(adj_jac_bar_buffer, dim, dim);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2 * el.GetOrder() - 2;
-      }
-      else
-      {
-         // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
-         order = 2 * el.GetOrder() + el.GetDim() - 1;
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // return 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
@@ -92,11 +95,11 @@ void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
       el.CalcDShape(ip, dshape);
 
       trans.SetIntPoint(&ip);
-      double w;
-      if (square)
-         w = ip.weight / trans.Weight();
-      else
-         w = ip.weight / pow(trans.Weight(), 3);
+      auto w = ip.weight / trans.Weight();
+      if (!square)
+      {
+         w /= pow(trans.Weight(), 2);
+      }
 
       // AdjugateJacobian = / adj(J),         if J is square
       //                    \ adj(J^t.J).J^t, otherwise
@@ -165,8 +168,8 @@ void VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect(
    mfem::Vector elfun, psi;
 #endif
    int element = mesh_trans.ElementNo;
-   auto &nd_el = *state->FESpace()->GetFE(element);
-   auto &h1_el = *adjoint->FESpace()->GetFE(element);
+   const auto &nd_el = *state->FESpace()->GetFE(element);
+   const auto &h1_el = *adjoint->FESpace()->GetFE(element);
 
    const int ndof = mesh_el.GetDof();
    const int dim = mesh_el.GetDim();
@@ -177,13 +180,13 @@ void VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect(
 
    auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
    dof_tr = adjoint->FESpace()->GetElementDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(psi);
    }
@@ -223,8 +226,7 @@ void VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect(
    DenseMatrix adj_jac_bar_temp(adj_jac_bar_buffer_temp, dim, dim);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
@@ -546,7 +548,7 @@ void VectorFEMassIntegratorMeshSens::AssembleRHSElementVect(
    mfem::Vector elfun, psi;
 #endif
    int element = mesh_trans.ElementNo;
-   auto &el = *state->FESpace()->GetFE(element);
+   const auto &el = *state->FESpace()->GetFE(element);
    auto &trans = *state->FESpace()->GetElementTransformation(element);
 
    const int ndof = mesh_el.GetDof();
@@ -558,13 +560,13 @@ void VectorFEMassIntegratorMeshSens::AssembleRHSElementVect(
 
    auto *dof_tr = state->FESpace()->GetElementVDofs(element, vdofs);
    state->GetSubVector(vdofs, elfun);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
    dof_tr = adjoint->FESpace()->GetElementVDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(psi);
    }
@@ -595,8 +597,7 @@ void VectorFEMassIntegratorMeshSens::AssembleRHSElementVect(
    DenseMatrix adj_jac_bar(adj_jac_bar_buffer, dim, dim);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
@@ -679,7 +680,7 @@ void VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect(
    mfem::Vector psi;
 #endif
    int element = mesh_trans.ElementNo;
-   auto &el = *adjoint->FESpace()->GetFE(element);
+   const auto &el = *adjoint->FESpace()->GetFE(element);
    auto &trans = *adjoint->FESpace()->GetElementTransformation(element);
 
    const int ndof = mesh_el.GetDof();
@@ -691,7 +692,7 @@ void VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect(
 
    auto *dof_tr = adjoint->FESpace()->GetElementVDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(psi);
    }
@@ -722,8 +723,7 @@ void VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect(
    DenseMatrix adj_jac_bar(adj_jac_bar_buffer, dim, dim);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
@@ -801,7 +801,7 @@ void VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect(
    mfem::Vector psi;
 #endif
    int element = mesh_trans.ElementNo;
-   auto &el = *adjoint->FESpace()->GetFE(element);
+   const auto &el = *adjoint->FESpace()->GetFE(element);
    auto &trans = *adjoint->FESpace()->GetElementTransformation(element);
 
    const int ndof = mesh_el.GetDof();
@@ -815,7 +815,7 @@ void VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect(
 
    auto *dof_tr = adjoint->FESpace()->GetElementVDofs(element, vdofs);
    adjoint->GetSubVector(vdofs, psi);
-   if (dof_tr)
+   if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(psi);
    }
@@ -830,7 +830,7 @@ void VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect(
    PointMat_bar.SetSize(dim, ndof);
 #endif
    auto &F = integ.F;
-   auto &alpha = integ.alpha;
+   const auto &alpha = integ.alpha;
 
    /// these vector's size is the spatial dimension we can stack allocate
    double vec_buffer[3];
@@ -846,8 +846,7 @@ void VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect(
    Vector CT_psi_bar(CT_psi_bar_buffer, dim);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
@@ -917,14 +916,13 @@ double TestLFIntegrator::GetElementEnergy(const FiniteElement &el,
                                           ElementTransformation &trans,
                                           const Vector &elfun)
 {
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = nullptr;
    {
       ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
    }
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -943,7 +941,7 @@ void TestLFMeshSensIntegrator::AssembleRHSElementVect(
     ElementTransformation &mesh_trans,
     Vector &elvect)
 {
-   const IntegrationRule *ir = NULL;
+   const IntegrationRule *ir = nullptr;
    {
       ir = &IntRules.Get(mesh_el.GetGeomType(), 8);
    }
@@ -956,8 +954,7 @@ void TestLFMeshSensIntegrator::AssembleRHSElementVect(
    DenseMatrix PointMat_bar(dim, ndof);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
 
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
@@ -994,7 +991,7 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
        adjoint->FESpace()->GetElementTransformation(element);
    adjoint->FESpace()->GetElementVDofs(element, vdofs);
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
       int order = oa * el->GetOrder() + ob;
       ir = &IntRules.Get(el->GetGeomType(), order);
@@ -1009,8 +1006,7 @@ void DomainResIntegrator::AssembleElementVector(const FiniteElement &elx,
    shape.SetSize(dofu);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*Tr);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*Tr);
 
    DenseMatrix PointMat_bar(dim, dof);
 
@@ -1056,7 +1052,7 @@ void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
    state->FESpace()->GetElementVDofs(element, vdofs);
    int order = 2 * el->GetOrder() + Tr->OrderW();
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
@@ -1071,8 +1067,7 @@ void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
    shape.SetSize(dofu);
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*Tr);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*Tr);
 
    DenseMatrix elmat(dofu);
    DenseMatrix PointMat_bar(dim, dof);
@@ -1090,7 +1085,7 @@ void MassResIntegrator::AssembleElementVector(const FiniteElement &elx,
       double deriv = ip.weight;  // dR/dWeight
       isotrans.WeightRevDiff(PointMat_bar);
       el->CalcShape(ip, shape);
-      if (Q)
+      if (Q != nullptr)
       {
          deriv *= Q->Eval(*Tr, ip);
       }
@@ -1124,8 +1119,8 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
        state->FESpace()->GetElementTransformation(element);
    state->FESpace()->GetElementVDofs(element, vdofs);
    int order = 2 * el->GetOrder() + Tr->OrderW();
-   const IntegrationRule *ir = NULL;
-   if (ir == NULL)
+   const IntegrationRule *ir = nullptr;
+   if (ir == nullptr)
    {
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
@@ -1137,7 +1132,9 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
    const int dim = el->GetDim();
    int spaceDim = Tr->GetSpaceDim();
    bool square = (dim == spaceDim);
-   double tw, w, dw;
+   double tw = NAN;
+   double w = NAN;
+   double dw = NAN;
    Vector av(dim);
    Vector bv(dim);
    Vector ad(dim);
@@ -1146,8 +1143,7 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
    elvect = 0.0;
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*Tr);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*Tr);
 
    DenseMatrix elmat(dofu);
    DenseMatrix PointMat_bar(dim, dof);
@@ -1170,7 +1166,7 @@ void DiffusionResIntegrator::AssembleElementVector(const FiniteElement &elx,
       dw = -ip.weight / (square ? tw * tw : tw * tw * tw * tw / 3);
       /// NOTE: Q may or may not have sensitivity to x. Need to tailor to
       /// different coefficients
-      if (Q)
+      if (Q != nullptr)
       {
          w *= Q->Eval(*Tr, ip);
          dw *= Q->Eval(*Tr, ip);
@@ -1215,8 +1211,8 @@ void DiffusionResIntegrator::AssembleRHSElementVect(
        state->FESpace()->GetElementTransformation(element);
    state->FESpace()->GetElementVDofs(element, vdofs);
    int order = 2 * el->GetOrder() + Tr->OrderW();
-   const IntegrationRule *ir = NULL;
-   if (ir == NULL)
+   const IntegrationRule *ir = nullptr;
+   if (ir == nullptr)
    {
       ir = &IntRules.Get(el->GetGeomType(), order);
    }
@@ -1228,7 +1224,9 @@ void DiffusionResIntegrator::AssembleRHSElementVect(
    const int dim = el->GetDim();
    int spaceDim = Tr->GetSpaceDim();
    bool square = (dim == spaceDim);
-   double tw, w, dw;
+   double tw = NAN;
+   double w = NAN;
+   double dw = NAN;
    Vector av(dim);
    Vector bv(dim);
    Vector ad(dim);
@@ -1237,8 +1235,7 @@ void DiffusionResIntegrator::AssembleRHSElementVect(
    elvect = 0.0;
 
    // cast the ElementTransformation
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*Tr);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*Tr);
 
    DenseMatrix elmat(dofu);
    DenseMatrix PointMat_bar(dim, dof);
@@ -1261,7 +1258,7 @@ void DiffusionResIntegrator::AssembleRHSElementVect(
       dw = -ip.weight / (square ? tw * tw : tw * tw * tw * tw / 3);
       /// NOTE: Q may or may not have sensitivity to x. Need to tailor to
       /// different coefficients
-      if (Q)
+      if (Q != nullptr)
       {
          w *= Q->Eval(*Tr, ip);
          dw *= Q->Eval(*Tr, ip);
@@ -1313,7 +1310,7 @@ void BoundaryNormalResIntegrator::AssembleRHSElementVect(
    elvect = 0.0;
 
    // get the right boundary element
-   const FiniteElement *el_bnd;
+   const FiniteElement *el_bnd = nullptr;
    switch (space_dim)
    {
    case 1:
@@ -1338,7 +1335,7 @@ void BoundaryNormalResIntegrator::AssembleRHSElementVect(
 
    // boundary element integration rule
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
       ir = &IntRules.Get(el_bnd->GetGeomType(), oa * el_bnd->GetOrder() + ob);
    }
@@ -1348,8 +1345,7 @@ void BoundaryNormalResIntegrator::AssembleRHSElementVect(
    adjoint->GetSubVector(vdofs, eladj);
 
    // cast the ElementTransformation (for the domain element)
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*Trx.Elem1);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*Trx.Elem1);
 
    DenseMatrix PointMat_bar(space_dim, dof);
    DenseMatrix R;
@@ -1362,7 +1358,7 @@ void BoundaryNormalResIntegrator::AssembleRHSElementVect(
 
       // get corresponding element integration point
       const IntegrationPoint &ip = ir->IntPoint(i);
-      IntegrationPoint eip;
+      IntegrationPoint eip{};
       Trx.Loc1.Transform(ip, eip);
       Tr_bnd->SetIntPoint(&ip);
       Tr->SetIntPoint(&eip);

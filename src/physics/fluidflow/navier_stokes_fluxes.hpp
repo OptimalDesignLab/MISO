@@ -184,7 +184,9 @@ void calcAdiabaticWallFlux(const xdouble *dir,
       for (int d2 = 0; d2 < dim; ++d2)
       {
          for (int k = 0; k < dim + 2; ++k)
+         {
             Dw_bnd[k] = Dw[d2 * (dim + 2) + k];
+         }
          // find the corrected component for Dw[end]
          Dw_bnd[dim + 1] -= Dw_nrm * nrm[d2];
          // we "sneak" dir[d] into the computation via mu
@@ -216,7 +218,7 @@ void calcNoSlipPenaltyFlux(const xdouble *dir,
    xdouble dw[dim + 2];
    dw[0] = 0.0;
    dw[dim + 1] = 0.0;
-   xdouble p = pressure<xdouble, dim>(q);
+   auto p = pressure<xdouble, dim>(q);
    for (int d = 0; d < dim; ++d)
    {
       dw[d + 1] = q[d + 1] / p;
@@ -258,12 +260,14 @@ void calcNoSlipDualFlux(const xdouble *dir,
    int num_state = dim + 2;
    // zero out the fluxes, since applyCijMatrix accummulates
    for (int i = 0; i < num_state * dim; ++i)
+   {
       fluxes[i] = 0.0;
+   }
    // evaluate the difference w - w_bc, where w_bc = [w[0], 0, 0, ...,w[dim+1]]
    xdouble dw[num_state];
    dw[0] = 0.0;
    dw[dim + 1] = 0.0;
-   xdouble p = pressure<xdouble, dim>(q);
+   auto p = pressure<xdouble, dim>(q);
    for (int d = 0; d < dim; ++d)
    {
       dw[d + 1] = q[d + 1] / p;
@@ -292,7 +296,9 @@ void calcNoSlipDualFlux(const xdouble *dir,
       flux_nrm += fluxes[d * num_state + dim + 1] * nrm[d];
    }
    for (int d = 0; d < dim; ++d)
+   {
       fluxes[d * num_state + dim + 1] -= flux_nrm * nrm[d];
+   }
 #endif
 }
 

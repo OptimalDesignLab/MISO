@@ -2,6 +2,7 @@
 #define MACH_LOAD
 
 #include <memory>
+#include <utility>
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -58,10 +59,17 @@ public:
    }
    MachLoad &operator=(MachLoad &&) noexcept = default;
 
+   ~MachLoad() = default;
+
 private:
    class concept_t
    {
    public:
+      // concept_t() = default;
+      // concept_t(const concept_t &) = default;
+      // concept_t &operator=(const concept_t&) = default;
+      // concept_t(concept_t &&) = default;
+      // concept_t &operator=(concept_t &&) = default;
       virtual ~concept_t() = default;
       virtual concept_t *copy_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) const = 0;
@@ -116,7 +124,7 @@ inline double vectorJacobianProduct(MachLoad &load,
                                     const mfem::HypreParVector &res_bar,
                                     std::string wrt)
 {
-   return load.self_->vectorJacobianProduct_(res_bar, wrt);
+   return load.self_->vectorJacobianProduct_(res_bar, std::move(wrt));
 }
 
 inline void vectorJacobianProduct(MachLoad &load,
@@ -124,7 +132,7 @@ inline void vectorJacobianProduct(MachLoad &load,
                                   std::string wrt,
                                   mfem::HypreParVector &wrt_bar)
 {
-   load.self_->vectorJacobianProduct_(res_bar, wrt, wrt_bar);
+   load.self_->vectorJacobianProduct_(res_bar, std::move(wrt), wrt_bar);
 }
 
 }  // namespace mach

@@ -91,8 +91,8 @@ void IrrotationalProjector::Mult(const Vector &x, Vector &y) const
 }
 
 void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
-                                                  const mfem::Vector &out_bar,
-                                                  std::string wrt,
+                                                  const mfem::Vector &proj_bar,
+                                                  const std::string &wrt,
                                                   mfem::Vector &wrt_bar)
 {
    if (wrt == "in")
@@ -103,9 +103,9 @@ void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
          dirty = false;
       }
 
-      ParGridFunction GTout_bar(&h1_fes);
-      grad.MultTranspose(out_bar, GTout_bar);
-      GTout_bar *= -1.0;
+      ParGridFunction GTproj_bar(&h1_fes);
+      grad.MultTranspose(proj_bar, GTproj_bar);
+      GTproj_bar *= -1.0;
 
       // Apply essential BC and form linear system
       ParGridFunction psi_bar(psi);
@@ -113,7 +113,7 @@ void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
       // auto D_mat = std::unique_ptr<HypreParMatrix>(new HypreParMatrix);
       HypreParMatrix D_mat;
       diffusion.FormLinearSystem(
-          ess_bdr_tdofs, psi_bar, GTout_bar, D_mat, Psi, RHS);
+          ess_bdr_tdofs, psi_bar, GTproj_bar, D_mat, Psi, RHS);
       auto D_matT = std::unique_ptr<HypreParMatrix>(D_mat.Transpose());
       amg.SetOperator(*D_matT);
       amg.SetPrintLevel(0);
@@ -128,7 +128,7 @@ void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
       pcg.Mult(RHS, Psi);
 
       // Compute the parallel grid function correspoinding to Psi
-      diffusion.RecoverFEMSolution(Psi, GTout_bar, psi_bar);
+      diffusion.RecoverFEMSolution(Psi, GTproj_bar, psi_bar);
 
       weak_div.AddMultTranspose(psi_bar, wrt_bar);
    }
@@ -164,15 +164,15 @@ void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
       diffusion.RecoverFEMSolution(Psi, div_x, psi);
 
       /// start reverse pass
-      ParGridFunction GTout_bar(&h1_fes);
-      grad.MultTranspose(out_bar, GTout_bar);
-      GTout_bar *= -1.0;
+      ParGridFunction GTproj_bar(&h1_fes);
+      grad.MultTranspose(proj_bar, GTproj_bar);
+      GTproj_bar *= -1.0;
 
       // Apply essential BC and form linear system
       ParGridFunction psi_bar(psi);
       psi_bar = 0.0;
       diffusion.FormLinearSystem(
-          ess_bdr_tdofs, psi_bar, GTout_bar, D_mat, Psi, RHS);
+          ess_bdr_tdofs, psi_bar, GTproj_bar, D_mat, Psi, RHS);
       auto D_matT = std::unique_ptr<HypreParMatrix>(D_mat.Transpose());
       amg.SetOperator(*D_matT);
       amg.SetPrintLevel(0);
@@ -187,7 +187,7 @@ void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
       pcg.Mult(RHS, Psi);
 
       // Compute the parallel grid function correspoinding to Psi
-      diffusion.RecoverFEMSolution(Psi, GTout_bar, psi_bar);
+      diffusion.RecoverFEMSolution(Psi, GTproj_bar, psi_bar);
 
       const auto &x_gf = dynamic_cast<const mfem::GridFunction &>(x);
       diff_mesh_sens->setState(psi);

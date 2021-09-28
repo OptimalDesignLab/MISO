@@ -1,8 +1,9 @@
 #include "mfem.hpp"
 
 #include "utils.hpp"
-#include "sbp_fe.hpp"
 #include "orthopoly.hpp"
+#include "sbp_operators.hpp"
+#include "sbp_fe.hpp"
 
 namespace mfem
 {
@@ -256,10 +257,11 @@ void SBPFiniteElement::multProjOperator(const DenseMatrix &u,
    MFEM_ASSERT(u.Height() == Pu.Height(), "");
    int num_states = u.Height();
    Vector prod(num_states);  // work vector
-   Vector uj, Puj;           // For references to existing data
+   Vector uj;
+   Vector Puj;  // For references to existing data
    // Note: DenseMatrix::operator= is not in-place
    Pu = u;
-   if (trans == true)
+   if (trans)
    {
       // loop over the polynomial basis functions
       for (int i = 0; i < V.Width(); ++i)
@@ -314,7 +316,6 @@ void SBPFiniteElement::multProjOperator(const DenseMatrix &u,
 int SBPFiniteElement::getIntegrationPointIndex(const IntegrationPoint &ip) const
 {
    const double tol = 1e-12;
-   int index;
    for (int i = 0; i < GetDof(); ++i)
    {
       double delta = pow(ip.x - x(i, 0), 2);
@@ -329,8 +330,7 @@ int SBPFiniteElement::getIntegrationPointIndex(const IntegrationPoint &ip) const
       delta = sqrt(delta);
       if (delta < tol)
       {
-         index = i;
-         return index;
+         return i;
       }
    }
    throw mach::MachException(
@@ -345,9 +345,9 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
  : SBPFiniteElement(1, Geometry::SEGMENT, degree + 2, degree)
 {
    const int num_nodes = degree + 2;
-#include "sbp_operators.hpp"
    Q[0].SetSize(num_nodes);
-   Vector pts(num_nodes), wts(num_nodes);
+   Vector pts(num_nodes);
+   Vector wts(num_nodes);
    mach::getLobattoQuadrature(degree + 2, pts, wts);
    // shift nodes to [0,1] and scale quadrature
    for (int i = 0; i < num_nodes; ++i)
@@ -378,19 +378,19 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
    switch (degree)
    {
    case 0:
-      Q[0] = p0Qx_seg;
+      Q[0] = sbp_operators::p0Qx_seg;
       break;
    case 1:
-      Q[0] = p1Qx_seg;
+      Q[0] = sbp_operators::p1Qx_seg;
       break;
    case 2:
-      Q[0] = p2Qx_seg;
+      Q[0] = sbp_operators::p2Qx_seg;
       break;
    case 3:
-      Q[0] = p3Qx_seg;
+      Q[0] = sbp_operators::p3Qx_seg;
       break;
    case 4:
-      Q[0] = p4Qx_seg;
+      Q[0] = sbp_operators::p4Qx_seg;
       break;
    default:
       mfem_error(
@@ -428,7 +428,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
 void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
                                   Vector &shape) const
 {
-   int ipIdx;
+   int ipIdx = -1;
    try
    {
       ipIdx = ipIdxMap.at(&ip);
@@ -472,7 +472,7 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
 void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
                                    DenseMatrix &dshape) const
 {
-   int ipIdx;
+   int ipIdx = -1;
    try
    {
       ipIdx = ipIdxMap.at(&ip);
@@ -651,8 +651,7 @@ void SBPSegmentElement::CalcDShape(const IntegrationPoint &ip,
 SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
  : SBPFiniteElement(2, Geometry::TRIANGLE, num_nodes, degree)
 {
-/// Header file including SBP Dx and Dy matrix data
-#include "sbp_operators.hpp"
+   /// Header file including SBP Dx and Dy matrix data
    Q[0].SetSize(num_nodes);
    Q[1].SetSize(num_nodes);
 
@@ -660,16 +659,16 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    switch (degree)
    {
    case 0:
-      Q[0] = p0Qx_tri;
-      Q[1] = p0Qy_tri;
+      Q[0] = sbp_operators::p0Qx_tri;
+      Q[1] = sbp_operators::p0Qy_tri;
       // vertices
       Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.16666666666666666);
       Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.16666666666666666);
       Nodes.IntPoint(2).Set2w(0.0, 1.0, 0.16666666666666666);
       break;
    case 1:
-      Q[0] = p1Qx_tri;
-      Q[1] = p1Qy_tri;
+      Q[0] = sbp_operators::p1Qx_tri;
+      Q[1] = sbp_operators::p1Qy_tri;
       // vertices
       Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.024999999999999998);
       Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.024999999999999998);
@@ -683,8 +682,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
           0.3333333333333333, 0.3333333333333333, 0.22500000000000006);
       break;
    case 2:
-      Q[0] = p2Qx_tri;
-      Q[1] = p2Qy_tri;
+      Q[0] = sbp_operators::p2Qx_tri;
+      Q[1] = sbp_operators::p2Qy_tri;
       // vertices
       Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.006261126504899741);
       Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.006261126504899741);
@@ -707,8 +706,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
           0.5742912857763836, 0.21285435711180825, 0.10675793966098839);
       break;
    case 3:
-      Q[0] = p3Qx_tri;
-      Q[1] = p3Qy_tri;
+      Q[0] = sbp_operators::p3Qx_tri;
+      Q[1] = sbp_operators::p3Qy_tri;
       // vertices
       Nodes.IntPoint(0).Set2w(0.0, 0.0, 0.0022825661430496253);
       Nodes.IntPoint(1).Set2w(1.0, 0.0, 0.0022825661430496253);
@@ -740,8 +739,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
           0.7159898318064442, 0.14200508409677795, 0.051518167995569394);
       break;
    case 4:
-      Q[0] = p4Qx_tri;
-      Q[1] = p4Qy_tri;
+      Q[0] = sbp_operators::p4Qx_tri;
+      Q[1] = sbp_operators::p4Qy_tri;
 
       // vertices
       Nodes.IntPoint(0).Set2w(
@@ -824,7 +823,8 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    V.SetSize(num_nodes, (degree + 1) * (degree + 2) / 2);
    // First, get node coordinates and shift to triangle with vertices
    // (-1,-1), (1,-1), (-1,1)
-   Vector xi, eta;
+   Vector xi;
+   Vector eta;
    getNodeCoords(0, xi);
    getNodeCoords(1, eta);
    xi *= 2.0;
@@ -841,7 +841,7 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
 void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
                                    Vector &shape) const
 {
-   int ipIdx;
+   int ipIdx = -1;
    try
    {
       ipIdx = ipIdxMap.at(&ip);
@@ -890,7 +890,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
 void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
                                     DenseMatrix &dshape) const
 {
-   int ipIdx;
+   int ipIdx = -1;
    try
    {
       ipIdx = ipIdxMap.at(&ip);
@@ -937,11 +937,11 @@ SBPCollection::SBPCollection(const int p, const int dim)
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
       SBPdof[g] = 0;
-      SBPElements[g] = NULL;
+      SBPElements[g] = nullptr;
    }
-   for (int i = 0; i < 2; i++)
+   for (auto &i : SegDofOrd)
    {
-      SegDofOrd[i] = NULL;
+      i = nullptr;
    }
 
    SBPdof[Geometry::POINT] = 1;
@@ -1074,16 +1074,16 @@ const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
    {
       return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
    }
-   return NULL;
+   return nullptr;
 }
 
 SBPCollection::~SBPCollection()
 {
    delete[] SegDofOrd[0];
    delete[] SegDofOrd[1];
-   for (int g = 0; g < Geometry::NumGeom; g++)
+   for (auto &SBPElement : SBPElements)
    {
-      delete SBPElements[g];
+      delete SBPElement;
    }
 }
 
@@ -1096,12 +1096,12 @@ DSBPCollection::DSBPCollection(const int p, const int dim)
    snprintf(DSBPname, 32, "DSBP_%dD_P%d", dim, p);
    for (int g = 0; g < Geometry::NumGeom; g++)
    {
-      DSBPElements[g] = NULL;
-      Tr_SBPElements[g] = NULL;
+      DSBPElements[g] = nullptr;
+      Tr_SBPElements[g] = nullptr;
    }
-   for (int i = 0; i < 2; i++)
+   for (auto &i : SegDofOrd)
    {
-      SegDofOrd[i] = NULL;
+      i = nullptr;
    }
    if (dim >= 1)
    {
@@ -1217,7 +1217,7 @@ const int *DSBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
    {
       return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
    }
-   return NULL;
+   return nullptr;
 }
 
 DSBPCollection::~DSBPCollection()

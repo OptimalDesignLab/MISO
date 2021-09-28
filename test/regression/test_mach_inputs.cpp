@@ -103,11 +103,11 @@ TEST_CASE("MachInputs Field Input Test",
    auto test_field = solver->getNewField();
    solver->setFieldValue(*test_field, 0.0);
 
-   auto inputs = MachInputs({
+   auto inputs = MachInputs{
       {"test_val", 0.0},
       {"test_field", test_field->GetData()},
       {"state", state->GetData()}
-   });
+   };
 
    solver->createOutput("testMachInput");
    auto fun = solver->calcOutput("testMachInput", inputs);
@@ -123,9 +123,10 @@ TEST_CASE("MachInputs Field Input Test",
 std::unique_ptr<Mesh> buildMesh(int nxy, int nz)
 {
    // generate a simple tet mesh
-   std::unique_ptr<Mesh> mesh(new Mesh(nxy, nxy, nz,
-                                    Element::TETRAHEDRON, true, 1.0,
-                                    1.0, (double)nz / (double)nxy, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(nxy, nxy, nz,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, (double)nz / (double)nxy, true)));
 
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh->GetNE(); ++i)

@@ -1,0 +1,344 @@
+name: Static Analysis
+
+on: pull_request
+
+env:
+  CMAKE_VERSION: 3.21.1
+  NINJA_VERSION: 1.10.2
+  CCACHE_VERSION: 4.4
+
+jobs:
+  build:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    env:
+      BUILD_TYPE: ${{ matrix.config.buildtype }}
+      BUILD_FLAGS: ${{ matrix.config.buildflags}}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {
+            name: "Ubuntu Latest Clang", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            cc: "clang", cxx: "clang++",
+            buildtype: "Debug",
+            buildflags: "-fno-openmp",
+          }
+    steps:
+    - name: Clone Mach
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+
+    - name: Download Ninja
+      id: cmake_and_ninja
+      shell: cmake -P {0}
+      run: |
+        set(cmake_version $ENV{CMAKE_VERSION})
+        set(ninja_version $ENV{NINJA_VERSION})
+
+        message(STATUS "Using host CMake version: ${CMAKE_VERSION}")
+
+        if ("${{ runner.os }}" STREQUAL "Linux")
+          set(ninja_suffix "linux.zip")
+          set(cmake_suffix "linux-x86_64.tar.gz")
+          set(cmake_dir "cmake-${cmake_version}-linux-x86_64/bin")
+        elseif ("${{ runner.os }}" STREQUAL "macOS")
+          set(ninja_suffix "mac.zip")
+          set(cmake_suffix "macos-universal.tar.gz")
+          set(cmake_dir "cmake-${cmake_version}-macos-universal/CMake.app/Contents/bin")
+        endif()
+
+        set(ninja_url "https://github.com/ninja-build/ninja/releases/download/v${ninja_version}/ninja-${ninja_suffix}")
+        file(DOWNLOAD "${ninja_url}" ./ninja.zip SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./ninja.zip)
+
+        set(cmake_url "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-${cmake_suffix}")
+        file(DOWNLOAD "${cmake_url}" ./cmake.zip SHOW_PROGRESS)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./cmake.zip)
+
+        # Add to PATH environment variable
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/${cmake_dir}" cmake_dir)
+        set(path_separator ":")
+        file(APPEND "$ENV{GITHUB_PATH}" "$ENV{GITHUB_WORKSPACE}${path_separator}${cmake_dir}")
+
+        execute_process(
+            COMMAND chmod +x ninja
+            COMMAND chmod +x ${cmake_dir}/cmake
+        )
+
+    - name: Download clang-tidy
+      id: cland-tidy-download
+      run: sudo apt-get install clang-tidy
+
+    - name: Download OpenMPI
+      id: openmpi
+      run: sudo apt-get install openmpi-bin openmpi-common openmpi-doc libopenmpi-dev
+
+    - name: Download Metis
+      id: metis
+      run: brew install metis
+      # run: sudo apt-get install metis libmetis-dev
+
+    - name: Download ccache
+      id: ccache
+      # run: sudo apt-get install ccache
+      run: brew install ccache
+
+    - name: Prepare ccache timestamp
+      id: ccache_cache_timestamp
+      shell: cmake -P {0}
+      run: |
+        string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+        message("::set-output name=timestamp::${current_date}")
+
+    - name: ccache cache files
+      uses: actions/cache@v1.1.0
+      with:
+        path: .ccache
+        key: ${{ matrix.config.name }}-ccache-${{ steps.ccache_cache_timestamp.outputs.timestamp }}
+        restore-keys: |
+          ${{ matrix.config.name }}-ccache-
+
+    - name: Download Adept
+      uses: actions/checkout@v2
+      with:
+        repository: 'rjhogan/Adept-2'
+        path: .deps/adept
+
+    - name: Configure Adept
+      run: |
+        cd ${GITHUB_WORKSPACE}/.deps/adept/
+        autoreconf -i
+        ./configure --prefix="${GITHUB_WORKSPACE}/.deps/adept/install" \
+                    --with-blas=blas \
+                    --with-lapack=lapack \
+                    --disable-openmp \
+                    CC="ccache ${{matrix.config.cc}}" \
+                    CXX="ccache ${{matrix.config.cxx}}" \
+
+    - name: Build Adept
+      run: |
+        cd ${GITHUB_WORKSPACE}/.deps/adept/
+        CC="ccache ${{matrix.config.cc}}" CXX="ccache ${{matrix.config.cxx}}" make -j 2
+        # CC="ccache ${{matrix.config.cc}}" CXX="ccache ${{matrix.config.cxx}}" make check
+        make install
+
+    - name: Download Hypre
+      uses: actions/checkout@v2
+      with:
+        repository: 'hypre-space/hypre'
+        ref: 'v2.20.0'
+        path: .deps/hypre
+  
+    - name: Create Hypre Build Environment
+      run: cmake -E make_directory ${GITHUB_WORKSPACE}/.deps/hypre/src/build
+
+    - name: Configure Hypre
+      shell: cmake -P {0}
+      run: |
+        set(ENV{CC} ${{ matrix.config.cc }})
+        set(ENV{CXX} ${{ matrix.config.cxx }})
+
+        set(path_separator ":")
+        set(ENV{PATH} "$ENV{GITHUB_WORKSPACE}${path_separator}$ENV{PATH}")
+        execute_process(
+          COMMAND cmake
+            -S $ENV{GITHUB_WORKSPACE}/.deps/hypre/src
+            -B $ENV{GITHUB_WORKSPACE}/.deps/hypre/src/build
+            -D CMAKE_BUILD_TYPE=$ENV{BUILD_TYPE}
+            -G Ninja
+            -D CMAKE_MAKE_PROGRAM=ninja
+            -D CMAKE_C_COMPILER_LAUNCHER=ccache
+            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -D CMAKE_POSITION_INDEPENDENT_CODE=ON
+            -D CMAKE_INSTALL_PREFIX=.
+
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Bad exit status")
+        endif()
+
+    - name: Build Hypre
+      shell: cmake -P {0}
+      run: |
+        set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
+
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}" ccache_basedir)
+        set(ENV{CCACHE_BASEDIR} "${ccache_basedir}")
+        set(ENV{CCACHE_DIR} "${ccache_basedir}/.ccache")
+        set(ENV{CCACHE_COMPRESS} "true")
+        set(ENV{CCACHE_COMPRESSLEVEL} "6")
+        set(ENV{CCACHE_MAXSIZE} "1000M")
+        if ("${{ matrix.config.cxx }}" STREQUAL "cl")
+          set(ENV{CCACHE_MAXSIZE} "1000M")
+        endif()
+
+        execute_process(COMMAND ccache -p)
+        execute_process(COMMAND ccache -z)
+
+        execute_process(
+          COMMAND cmake --build $ENV{GITHUB_WORKSPACE}/.deps/hypre/src/build
+          RESULT_VARIABLE result
+          OUTPUT_VARIABLE output
+          ERROR_VARIABLE output
+          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+        )
+        if (NOT result EQUAL 0)
+          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
+          string(REPLACE "\n" "%0A" error_message "${error_message}")
+          message("::error::${error_message}")
+          message(FATAL_ERROR "Build failed")
+        endif()
+
+    - name: Install Hypre
+      run: cmake --build ${GITHUB_WORKSPACE}/.deps/hypre/src/build --config $BUILD_TYPE --target install
+
+    - name: Download MFEM
+      uses: actions/checkout@v2
+      with:
+        repository: 'mfem/mfem'
+        ref: 'odl-next'
+        path: .deps/mfem
+     
+    - name: Create MFEM Build Environment
+      run: cmake -E make_directory ${GITHUB_WORKSPACE}/.deps/mfem/build
+
+    - name: Configure MFEM
+      shell: cmake -P {0}
+      run: |
+        set(ENV{CC} ${{ matrix.config.cc }})
+        set(ENV{CXX} ${{ matrix.config.cxx }})
+
+        set(path_separator ":")
+        set(ENV{PATH} "$ENV{GITHUB_WORKSPACE}${path_separator}$ENV{PATH}")
+
+        execute_process(
+          COMMAND brew --prefix metis
+          OUTPUT_VARIABLE metis-dir
+        )
+
+        execute_process(
+          COMMAND cmake
+            -S $ENV{GITHUB_WORKSPACE}/.deps/mfem/
+            -B $ENV{GITHUB_WORKSPACE}/.deps/mfem/build
+            -D CMAKE_BUILD_TYPE=$ENV{BUILD_TYPE}
+            -G Ninja
+            -D CMAKE_MAKE_PROGRAM=ninja
+            -D CMAKE_C_COMPILER_LAUNCHER=ccache
+            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -D CMAKE_POSITION_INDEPENDENT_CODE=ON
+            -D MFEM_USE_MPI=YES
+            -D MFEM_USE_METIS_5=YES
+            -D HYPRE_DIR=../hypre
+            -D METIS_DIR=/home/linuxbrew/.linuxbrew/opt/metis
+            -D MFEM_ENABLE_EXAMPLES=NO
+            -D MFEM_ENABLE_MINIAPPS=NO
+
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Bad exit status")
+        endif()
+
+    - name: Build MFEM
+      shell: cmake -P {0}
+      run: |
+        set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
+
+
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}" ccache_basedir)
+        set(ENV{CCACHE_BASEDIR} "${ccache_basedir}")
+        set(ENV{CCACHE_DIR} "${ccache_basedir}/.ccache")
+        set(ENV{CCACHE_COMPRESS} "true")
+        set(ENV{CCACHE_COMPRESSLEVEL} "6")
+        set(ENV{CCACHE_MAXSIZE} "1000M")
+        if ("${{ matrix.config.cxx }}" STREQUAL "cl")
+          set(ENV{CCACHE_MAXSIZE} "1000M")
+        endif()
+
+        # execute_process(COMMAND ccache -p)
+        # execute_process(COMMAND ccache -z)
+
+        execute_process(
+          COMMAND cmake --build $ENV{GITHUB_WORKSPACE}/.deps/mfem/build
+          RESULT_VARIABLE result
+          OUTPUT_VARIABLE output
+          ERROR_VARIABLE output
+          ECHO_OUTPUT_VARIABLE ECHO_ERROR_VARIABLE
+        )
+        if (NOT result EQUAL 0)
+          string(REGEX MATCH "FAILED:.*$" error_message "${output}")
+          string(REPLACE "\n" "%0A" error_message "${error_message}")
+          message("::error::${error_message}")
+          message(FATAL_ERROR "Build failed")
+        endif()
+
+    # - name: Clone Mach
+    #   uses: actions/checkout@v2
+    #   with:
+    #     # path: mach
+    #     fetch-depth: 2
+
+    - name: Create Mach Build Environment
+      run: cmake -E make_directory ${GITHUB_WORKSPACE}/build
+
+    - name: Generate Compile Commands
+      shell: cmake -P {0}
+      run: |
+        set(ENV{CC} ${{ matrix.config.cc }})
+        set(ENV{CXX} ${{ matrix.config.cxx }})
+
+        set(path_separator ":")
+        set(ENV{PATH} "$ENV{GITHUB_WORKSPACE}${path_separator}$ENV{PATH}")
+
+        execute_process(
+          COMMAND cmake
+            -S .
+            -B build
+            -D CMAKE_BUILD_TYPE=$ENV{BUILD_TYPE}
+            -G Ninja
+            -D CMAKE_MAKE_PROGRAM=ninja
+            -D CMAKE_C_COMPILER_LAUNCHER=ccache
+            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -D CMAKE_POSITION_INDEPENDENT_CODE=ON
+            -D CMAKE_CXX_FLAGS="$ENV{BUILD_FLAGS}"
+            -D ADEPT_DIR=$ENV{GITHUB_WORKSPACE}/.deps/adept/install
+            -D MFEM_DIR=$ENV{GITHUB_WORKSPACE}/.deps/mfem/build
+            -D CMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Bad exit status")
+        endif()
+
+    - name: Run clang-tidy
+      run: |
+        git diff -U0 HEAD^ | clang-tidy-diff -p1 -path build/compile_commands.json -export-fixes build/fixes.yml
+
+    - name: Run clang-tidy-pr-comments action
+      uses: platisd/clang-tidy-pr-comments@master
+      with:
+        # The GitHub token (or a personal access token)
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        # The path to the clang-tidy fixes generated previously
+        clang_tidy_fixes: build/fixes.yml
+        # Optionally set to true if you want the Action to request
+        # changes in case warnings are found
+        request_changes: true
+        # Optionally set the number of comments per review
+        # to avoid GitHub API timeouts for heavily loaded
+        # pull requests
+        suggestions_per_comment: 25
+
+    - name: ccache statistics
+      shell: cmake -P {0}
+      run: |
+        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}" ccache_basedir)
+        set(ENV{CCACHE_BASEDIR} "${ccache_basedir}")
+        set(ENV{CCACHE_DIR} "${ccache_basedir}/.ccache")
+
+        execute_process(COMMAND ccache -s)

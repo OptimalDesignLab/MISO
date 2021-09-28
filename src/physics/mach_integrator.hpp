@@ -28,6 +28,10 @@ namespace mach
 class MachIntegrator
 {
 public:
+   friend void setInput(MachIntegrator &integ,
+                        const std::string &name,
+                        const MachInput &input);
+
    template <typename T>
    MachIntegrator(T &x) : self_(new model<T>(x))
    { }
@@ -42,9 +46,7 @@ public:
    }
    MachIntegrator &operator=(MachIntegrator &&) noexcept = default;
 
-   friend void setInput(MachIntegrator &integ,
-                        const std::string &name,
-                        const MachInput &input);
+   ~MachIntegrator() = default;
 
 private:
    class concept_t

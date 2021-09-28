@@ -5,6 +5,7 @@
 #include "mfem.hpp"
 
 #include "solver.hpp"
+#include "utils.hpp"
 
 namespace mach
 {

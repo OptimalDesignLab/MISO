@@ -3,7 +3,7 @@
 
 #include "mfem.hpp"
 
-#include "solver.hpp"
+#include "mach_integrator.hpp"
 
 using namespace mfem;
 
@@ -12,7 +12,7 @@ namespace mach
 class DiffusionIntegratorMeshSens final : public mfem::LinearFormIntegrator
 {
 public:
-   DiffusionIntegratorMeshSens() : state(nullptr), adjoint(nullptr) { }
+   DiffusionIntegratorMeshSens() = default;
 
    /// \brief - assemble an element's contribution to d(psi^T D u)/dX
    /// \param[in] el - the finite element that describes the mesh element
@@ -30,9 +30,9 @@ public:
 
 private:
    /// the state to use when evaluating d(psi^T D u)/dX
-   const mfem::GridFunction *state;
+   const mfem::GridFunction *state{nullptr};
    /// the adjoint to use when evaluating d(psi^T D u)/dX
-   const mfem::GridFunction *adjoint;
+   const mfem::GridFunction *adjoint{nullptr};
 #ifndef MFEM_THREAD_SAFE
    DenseMatrix dshape, dshapedxt;
    mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
@@ -48,7 +48,7 @@ inline void addSensitivityIntegrator<DiffusionIntegrator>(
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 {
-   auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+   auto *mesh_fes = fields.at("mesh_coords").ParFESpace();
    sens.emplace("mesh_coords", mesh_fes);
    sens.at("mesh_coords").AddDomainIntegrator(new DiffusionIntegratorMeshSens);
 }
@@ -57,8 +57,7 @@ class VectorFEWeakDivergenceIntegratorMeshSens final
  : public mfem::LinearFormIntegrator
 {
 public:
-   VectorFEWeakDivergenceIntegratorMeshSens() : state(nullptr), adjoint(nullptr)
-   { }
+   VectorFEWeakDivergenceIntegratorMeshSens() = default;
 
    /// \brief - assemble an element's contribution to d(psi^T W u)/dX
    /// \param[in] el - the finite element that describes the mesh element
@@ -76,9 +75,9 @@ public:
 
 private:
    /// the state to use when evaluating d(psi^T W u)/dX
-   const mfem::GridFunction *state;
+   const mfem::GridFunction *state{nullptr};
    /// the adjoint to use when evaluating d(psi^T W u)/dX
-   const mfem::GridFunction *adjoint;
+   const mfem::GridFunction *adjoint{nullptr};
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshape, dshapedxt, vshape, vshapedxt;
    mfem::DenseMatrix dshapedxt_bar, vshapedxt_bar, PointMat_bar;
@@ -94,7 +93,7 @@ inline void addSensitivityIntegrator<VectorFEWeakDivergenceIntegrator>(
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 {
-   auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+   auto *mesh_fes = fields.at("mesh_coords").ParFESpace();
    sens.emplace("mesh_coords", mesh_fes);
    sens.at("mesh_coords")
        .AddDomainIntegrator(new VectorFEWeakDivergenceIntegratorMeshSens);
@@ -151,9 +150,7 @@ private:
 class VectorFEMassIntegratorMeshSens final : public mfem::LinearFormIntegrator
 {
 public:
-   VectorFEMassIntegratorMeshSens(double alpha = 1.0)
-    : state(nullptr), adjoint(nullptr), alpha(alpha)
-   { }
+   VectorFEMassIntegratorMeshSens(double alpha = 1.0) : alpha(alpha) { }
 
    /// \brief - assemble an element's contribution to d(psi^T M u)/dX
    /// \param[in] el - the finite element that describes the mesh element
@@ -171,9 +168,9 @@ public:
 
 private:
    /// the state to use when evaluating d(psi^T M u)/dX
-   const mfem::GridFunction *state;
+   const mfem::GridFunction *state{nullptr};
    /// the adjoint to use when evaluating d(psi^T M u)/dX
-   const mfem::GridFunction *adjoint;
+   const mfem::GridFunction *adjoint{nullptr};
    /// scaling term if the bilinear form has a negative sign in the residual
    const double alpha;
 #ifndef MFEM_THREAD_SAFE
@@ -191,7 +188,7 @@ inline void addSensitivityIntegrator<VectorFEMassIntegrator>(
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 {
-   auto mesh_fes = fields.at("mesh_coords").ParFESpace();
+   auto *mesh_fes = fields.at("mesh_coords").ParFESpace();
    sens.emplace("mesh_coords", mesh_fes);
 
    auto *integ = new VectorFEMassIntegratorMeshSens;
@@ -262,7 +259,10 @@ public:
    {
       mfem::VectorFEDomainLFCurlIntegrator::AssembleRHSElementVect(
           el, trans, elvect);
-      if (alpha != 1.0) elvect *= alpha;
+      if (alpha != 1.0)
+      {
+         elvect *= alpha;
+      }
    }
 
 private:
@@ -395,7 +395,7 @@ private:
 class TestLFIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   TestLFIntegrator(mfem::Coefficient &_Q) : Q(_Q) { }
+   TestLFIntegrator(mfem::Coefficient &Q) : Q(Q) { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
@@ -408,7 +408,7 @@ private:
 class TestLFMeshSensIntegrator : public mfem::LinearFormIntegrator
 {
 public:
-   TestLFMeshSensIntegrator(mfem::Coefficient &_Q) : Q(_Q) { }
+   TestLFMeshSensIntegrator(mfem::Coefficient &Q) : Q(Q) { }
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
@@ -446,10 +446,10 @@ public:
    //                                    const Vector &elfunx);
 
    /// Computes dR/dX, X being mesh node locations
-   virtual void AssembleElementVector(const FiniteElement &elx,
-                                      ElementTransformation &Trx,
-                                      const Vector &elfunx,
-                                      Vector &elvect);
+   void AssembleElementVector(const FiniteElement &elx,
+                              ElementTransformation &Trx,
+                              const Vector &elfunx,
+                              Vector &elvect) override;
 
    /// Computes R at an integration point
    double calcFunctional(int elno,
@@ -459,13 +459,13 @@ public:
                          DenseMatrix &Jac_q);
 
    /// Computes dR/dX at an integration point using reverse mode
-   double calcFunctionalRevDiff(int elno,
-                                IntegrationPoint &ip,
-                                Vector &x_q,
-                                ElementTransformation &Tr,
-                                DenseMatrix &Jac_q,
-                                Vector &x_bar,
-                                DenseMatrix &Jac_bar)
+   static double calcFunctionalRevDiff(int elno,
+                                       IntegrationPoint &ip,
+                                       Vector &x_q,
+                                       ElementTransformation &Tr,
+                                       DenseMatrix &Jac_q,
+                                       Vector &x_bar,
+                                       DenseMatrix &Jac_bar)
    {
       return 0.0;
    }
@@ -485,15 +485,15 @@ public:
    /// Constructs a domain integrator with a given Coefficient
    MassResIntegrator(GridFunction *u,
                      GridFunction *adj,
-                     const IntegrationRule *ir = NULL)
-    : Q(NULL), state(u), adjoint(adj)
+                     const IntegrationRule *ir = nullptr)
+    : Q(nullptr), state(u), adjoint(adj)
    { }
 
    /// Constructs a domain integrator with a given Coefficient
    MassResIntegrator(Coefficient &QF,
                      GridFunction *u,
                      GridFunction *adj,
-                     const IntegrationRule *ir = NULL)
+                     const IntegrationRule *ir = nullptr)
     : Q(&QF), state(u), adjoint(adj)
    { }
 
@@ -503,10 +503,10 @@ public:
    //                                    const Vector &elfun);
 
    /// Computes dR/dX, X being mesh node locations
-   virtual void AssembleElementVector(const FiniteElement &elx,
-                                      ElementTransformation &Trx,
-                                      const Vector &elfunx,
-                                      Vector &elvect);
+   void AssembleElementVector(const FiniteElement &elx,
+                              ElementTransformation &Trx,
+                              const Vector &elfunx,
+                              Vector &elvect) override;
 
    /// Computes R at an integration point
    double calcFunctional(int elno,
@@ -516,13 +516,13 @@ public:
                          DenseMatrix &Jac_q);
 
    /// Computes dR/dX at an integration point using reverse mode
-   double calcFunctionalRevDiff(int elno,
-                                IntegrationPoint &ip,
-                                Vector &x_q,
-                                ElementTransformation &Tr,
-                                DenseMatrix &Jac_q,
-                                Vector &x_bar,
-                                DenseMatrix &Jac_bar)
+   static double calcFunctionalRevDiff(int elno,
+                                       IntegrationPoint &ip,
+                                       Vector &x_q,
+                                       ElementTransformation &Tr,
+                                       DenseMatrix &Jac_q,
+                                       Vector &x_bar,
+                                       DenseMatrix &Jac_bar)
    {
       return 0.0;
    }
@@ -546,7 +546,7 @@ public:
    DiffusionResIntegrator(Coefficient &QF,
                           GridFunction *u,
                           GridFunction *adj,
-                          const IntegrationRule *ir = NULL)
+                          const IntegrationRule *ir = nullptr)
     : Q(&QF), state(u), adjoint(adj)
    { }
 
@@ -563,7 +563,7 @@ public:
 
    /// Computes dR/dX, X being mesh node locations
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                               mfem::ElementTransformation &trans,
+                               mfem::ElementTransformation &Trx,
                                mfem::Vector &elvect) override;
 };
 
@@ -589,15 +589,15 @@ public:
    { }
 
    /// Computes dR/dX, X being mesh node locations (DO NOT USE)
-   virtual void AssembleRHSElementVect(const FiniteElement &elx,
-                                       ElementTransformation &Trx,
-                                       Vector &elvect)
+   void AssembleRHSElementVect(const FiniteElement &elx,
+                               ElementTransformation &Trx,
+                               Vector &elvect) override
    { }
 
    /// Computes dR/dX, X being mesh node locations
-   virtual void AssembleRHSElementVect(const FiniteElement &elx,
-                                       FaceElementTransformations &Trx,
-                                       Vector &elvect);
+   void AssembleRHSElementVect(const FiniteElement &elx,
+                               FaceElementTransformations &Trx,
+                               Vector &elvect) override;
 };
 
 }  // namespace mach

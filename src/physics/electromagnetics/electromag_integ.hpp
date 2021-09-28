@@ -137,7 +137,7 @@ inline void addSensitivityIntegrator<CurlCurlNLFIntegrator>(
     std::map<std::string, mfem::ParLinearForm> &res_sens,
     std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens)
 {
-   auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
+   auto *mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    res_sens.emplace("mesh_coords", mesh_fes);
    res_sens.at("mesh_coords")
        .AddDomainIntegrator(new CurlCurlNLFIntegratorMeshSens(
@@ -162,20 +162,20 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state vector
    /// \param[out] elvect - element local residual
-   virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &trans,
-                                      const mfem::Vector &elfun,
-                                      mfem::Vector &elvect);
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
    /// Construct the element local Jacobian
    /// \param[in] el - the finite element whose Jacobian we want
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state vector
    /// \param[out] elmat - element local Jacobian
-   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &trans,
-                                    const mfem::Vector &elfun,
-                                    mfem::DenseMatrix &elmat);
+   void AssembleElementGrad(const mfem::FiniteElement &el,
+                            mfem::ElementTransformation &trans,
+                            const mfem::Vector &elfun,
+                            mfem::DenseMatrix &elmat) override;
 
 private:
    /// material (thus mesh) dependent model for reluvtivity
@@ -510,7 +510,7 @@ inline void addSensitivityIntegrator<MagneticEnergyIntegrator>(
     std::map<std::string, mfem::ParLinearForm> &output_sens,
     std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
 {
-   auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
+   auto *mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    output_sens.emplace("mesh_coords", mesh_fes);
    output_sens.at("mesh_coords")
        .AddDomainIntegrator(new MagneticEnergyIntegratorMeshSens(
@@ -606,7 +606,7 @@ inline void setInput(MagneticCoenergyIntegrator &integ,
 class BNormIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   BNormIntegrator() { }
+   BNormIntegrator() = default;
 
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
@@ -641,8 +641,7 @@ public:
    /// \param[in] state - the current state (A)
    /// \note the finite element space used to by the linear form that assembles
    ///       this integrator will use the mesh's nodal finite element space
-   BNormdJdx(mfem::GridFunction &_state) : LinearFormIntegrator(), state(_state)
-   { }
+   BNormdJdx(mfem::GridFunction &_state) : state(_state) { }
 
    /// \brief - assemble an element's contribution to \frac{\partial J}{\partial
    /// X} \param[in] el - the finite element that describes the mesh element
@@ -704,7 +703,7 @@ public:
    /// \note the finite element space used to by the linear form that assembles
    ///       this integrator will use the mesh's nodal finite element space
    nuBNormdJdx(mfem::GridFunction &_state, StateCoefficient *_nu)
-    : LinearFormIntegrator(), state(_state), nu(_nu)
+    : state(_state), nu(_nu)
    { }
 
    /// \brief - assemble an element's contribution to \frac{\partial J}{\partial
@@ -732,7 +731,7 @@ class nuFuncIntegrator : public mfem::NonlinearFormIntegrator,
 {
 public:
    /// \param[in] nu - model describing reluctivity
-   nuFuncIntegrator(StateCoefficient *_nu) : state(NULL), nu(_nu) { }
+   nuFuncIntegrator(StateCoefficient *_nu) : state(nullptr), nu(_nu) { }
 
    /// \brief - linear form integrator to assemble the vector
    ///          \frac{\partial J}{\partial X}
@@ -788,11 +787,11 @@ class ThermalSensIntegrator : public mfem::NonlinearFormIntegrator,
 {
 public:
    /// Constructor, expected coefficient is SteinmetzVectorDiffCoefficient
-   ThermalSensIntegrator(mfem::VectorCoefficient &_Q,
+   ThermalSensIntegrator(mfem::VectorCoefficient &Q,
                          mfem::GridFunction *_adjoint,
                          int a = 2,
                          int b = 0)
-    : Q(_Q), oa(a), ob(b), adjoint(_adjoint)
+    : Q(Q), oa(a), ob(b), adjoint(_adjoint)
    { }
 
    /// \brief - assemble an element's contribution to
@@ -802,8 +801,8 @@ public:
    /// \param[out] elvect - \frac{\partial psi^T R}{\partial A} for the element
    /// \note LinearForm that assembles this integrator's FiniteElementSpace
    ///       MUST be the magnetic vector potential's finite element space
-   void AssembleRHSElementVect(const mfem::FiniteElement &ela,
-                               mfem::ElementTransformation &Transa,
+   void AssembleRHSElementVect(const mfem::FiniteElement &nd_el,
+                               mfem::ElementTransformation &nd_trans,
                                mfem::Vector &elvect) override;
 
 private:
@@ -1005,7 +1004,7 @@ inline void addSensitivityIntegrator<ForceIntegrator>(
     std::map<std::string, mfem::ParLinearForm> &output_sens,
     std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
 {
-   auto mesh_fes = res_fields.at("mesh_coords").ParFESpace();
+   auto *mesh_fes = res_fields.at("mesh_coords").ParFESpace();
    output_sens.emplace("mesh_coords", mesh_fes);
    output_sens.at("mesh_coords")
        .AddDomainIntegrator(

@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "utils.hpp"
 
 using namespace mfem;
@@ -46,13 +48,13 @@ void invertElementwise(const Vector &x, Vector &y)
 }
 
 /// Handles print in parallel case
-template <typename _CharT, typename _Traits>
-class basic_oblackholestream
- : virtual public std::basic_ostream<_CharT, _Traits>
+template <typename CharT, typename Traits>
+class basic_oblackholestream : virtual public std::basic_ostream<CharT, Traits>
 {
 public:
    /// called when rank is not root, prints nothing
-   explicit basic_oblackholestream() : std::basic_ostream<_CharT, _Traits>(NULL)
+   explicit basic_oblackholestream()
+    : std::basic_ostream<CharT, Traits>(nullptr)
    { }
 };  // end class basic_oblackholestream
 
@@ -74,20 +76,28 @@ std::ostream *getOutStream(int rank, bool silent)
       }
    }
    else
+   {
       return &obj;
+   }
+}
+
+HypreParVector bufferToHypreParVector(double *buffer,
+                                      const ParFiniteElementSpace &fes)
+{
+   return HypreParVector(
+       fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets());
 }
 
 /// performs quadratic interpolation given x0, y0, dy0/dx0, x1, and y1.
 double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 {
    // Assume the fuction has the form y(x) = c0 + c1 * x + c2 * x^2
-   double c0, c1, c2;
-   c0 = (dydx0 * x0 * x0 * x1 + y1 * x0 * x0 - dydx0 * x0 * x1 * x1 -
-         2 * y0 * x0 * x1 + y0 * x1 * x1) /
-        (x0 * x0 - 2 * x1 * x0 + x1 * x1);
-   c1 = (2 * x0 * y0 - 2 * x0 * y1 - x0 * x0 * dydx0 + x1 * x1 * dydx0) /
-        (x0 * x0 - 2 * x1 * x0 + x1 * x1);
-   c2 =
+   // double c0 = (dydx0 * x0 * x0 * x1 + y1 * x0 * x0 - dydx0 * x0 * x1 * x1 -
+   // 2 * y0 * x0 * x1 + y0 * x1 * x1) /
+   //   (x0 * x0 - 2 * x1 * x0 + x1 * x1);
+   double c1 = (2 * x0 * y0 - 2 * x0 * y1 - x0 * x0 * dydx0 + x1 * x1 * dydx0) /
+               (x0 * x0 - 2 * x1 * x0 + x1 * x1);
+   double c2 =
        -(y0 - y1 - x0 * dydx0 + x1 * dydx0) / (x0 * x0 - 2 * x1 * x0 + x1 * x1);
    return -c1 / (2 * c2);
 }
@@ -227,7 +237,7 @@ double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 //    this->IrrotationalProjector::Update();
 // }
 
-double bisection(std::function<double(double)> func,
+double bisection(const std::function<double(double)> &func,
                  double xl,
                  double xr,
                  double ftol,
@@ -273,7 +283,7 @@ double bisection(std::function<double(double)> func,
    return xm;
 }
 
-double secant(std::function<double(double)> func,
+double secant(const std::function<double(double)> &func,
               double x1,
               double x2,
               double ftol,
@@ -282,7 +292,8 @@ double secant(std::function<double(double)> func,
 {
    double f1 = func(x1);
    double f2 = func(x2);
-   double x, f;
+   double x = NAN;
+   double f = NAN;
    if (fabs(f1) < fabs(f2))
    {
       // swap x1 and x2 if the latter gives a smaller value

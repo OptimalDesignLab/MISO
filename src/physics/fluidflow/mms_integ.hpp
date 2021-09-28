@@ -31,9 +31,9 @@ public:
    /// \param[in] el - the finite element whose contribution we want
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
-   virtual double GetElementEnergy(const mfem::FiniteElement &el,
-                                   mfem::ElementTransformation &trans,
-                                   const mfem::Vector &elfun)
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override
    {
       return 0.0;
    }
@@ -43,20 +43,20 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
-   virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &trans,
-                                      const mfem::Vector &elfun,
-                                      mfem::Vector &elvect);
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
    /// Construct the element local Jacobian
    /// \param[in] el - the finite element whose Jacobian we want
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
-   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &trans,
-                                    const mfem::Vector &elfun,
-                                    mfem::DenseMatrix &elmat);
+   void AssembleElementGrad(const mfem::FiniteElement &el,
+                            mfem::ElementTransformation &trans,
+                            const mfem::Vector &elfun,
+                            mfem::DenseMatrix &elmat) override;
 
 protected:
    /// number of states
@@ -80,8 +80,8 @@ protected:
    }
 };
 
-#include "mms_integ_def.hpp"
-
 }  // namespace mach
+
+#include "mms_integ_def.hpp"
 
 #endif

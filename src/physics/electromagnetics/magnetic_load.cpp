@@ -49,14 +49,14 @@ void addLoad(LegacyMagneticLoad &load, Vector &tv)
 
 double vectorJacobianProduct(LegacyMagneticLoad &load,
                              const mfem::HypreParVector &res_bar,
-                             std::string wrt)
+                             const std::string &wrt)
 {
    return 0.0;
 }
 
 void vectorJacobianProduct(LegacyMagneticLoad &load,
                            const mfem::HypreParVector &res_bar,
-                           std::string wrt,
+                           const std::string &wrt,
                            mfem::HypreParVector &wrt_bar)
 {
    throw std::logic_error(

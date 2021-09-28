@@ -22,11 +22,11 @@ public:
 
    friend double vectorJacobianProduct(MagnetostaticLoad &load,
                                        const mfem::HypreParVector &res_bar,
-                                       std::string wrt);
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(MagnetostaticLoad &load,
                                      const mfem::HypreParVector &res_bar,
-                                     std::string wrt,
+                                     const std::string &wrt,
                                      mfem::HypreParVector &wrt_bar);
 
    MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
@@ -51,7 +51,7 @@ public:
    /// \param[in] opt_file_name - file where options are stored
    /// \param[in] smesh - if provided, defines the mesh for the problem
    /// \param[in] comm - MPI communicator for parallel operations
-   MagnetostaticSolver(const nlohmann::json &opt_file_name,
+   MagnetostaticSolver(const nlohmann::json &json_options,
                        std::unique_ptr<mfem::Mesh> smesh,
                        MPI_Comm comm);
 
@@ -61,7 +61,7 @@ public:
    MagnetostaticSolver(const nlohmann::json &options,
                        std::unique_ptr<mfem::Mesh> smesh);
 
-   ~MagnetostaticSolver();
+   // ~MagnetostaticSolver() override;
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -78,7 +78,7 @@ public:
    /// Compute the sensitivity of the functional to the mesh volume
    /// nodes, using appropriate mesh sensitivity integrators. This function will
    /// compute the adjoint.
-   mfem::GridFunction *getMeshSensitivities() override;
+   // mfem::GridFunction *getMeshSensitivities() override;
 
    /// perturb the whole mesh and finite difference
    void verifyMeshSensitivities();
@@ -94,15 +94,15 @@ public:
    /// Initializes the state vector to a given vector.
    /// \param[in] state - the state vector to initialize
    /// \param[in] u_init - const vector that defines the initial condition
-   virtual void setInitialCondition(mfem::ParGridFunction &state,
-                                    const mfem::Vector &u_init) override;
+   void setInitialCondition(mfem::ParGridFunction &state,
+                            const mfem::Vector &u_init) override;
 
    /// Initializes the state vector to a given function.
    /// \param[in] state - the state vector to initialize
    /// \param[in] u_init - function that defines the initial condition
    /// \note The second argument in the function `u_init` is the initial
    /// condition value.  This may be a vector of length 1 for scalar.
-   virtual void setInitialCondition(
+   void setInitialCondition(
        mfem::ParGridFunction &state,
        const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
        override;
@@ -247,13 +247,13 @@ public:
    /// return the residual as a vector
    mfem::Vector *getResidual();
 
-   /// Get the derivative of the residual with respect to the current density
-   mfem::Vector *getResidualCurrentDensitySensitivity();
+   // /// Get the derivative of the residual with respect to the current density
+   // mfem::Vector *getResidualCurrentDensitySensitivity();
 
    /// Get the total derivative of a functional with respect to the current
    /// density
    /// \param[in] fun - which functional to get sensitivity with respect to
-   double getFunctionalCurrentDensitySensitivity(const std::string &fun);
+   // double getFunctionalCurrentDensitySensitivity(const std::string &fun);
 
 private:
    /// TODO: throw MachException if constructMagnetization or
@@ -462,7 +462,7 @@ private:
    static void b_exact(const mfem::Vector &x, mfem::Vector &B);
 
    friend SolverPtr createSolver<MagnetostaticSolver>(
-       const nlohmann::json &opt_file_name,
+       const nlohmann::json &json_options,
        std::unique_ptr<mfem::Mesh> smesh,
        MPI_Comm comm);
 };

@@ -1,75 +1,114 @@
 // #ifdef MFEM_USE_PUMI
+#include <string>
 
 #include "adept.h"
-#include "mfem.hpp"  // including mfem first is required or else there is a
-#include "egads.h"   // compiler error
+#include "mfem.hpp"    // including mfem before egads is required or else there
+#ifdef MFEM_USE_EGADS  // is a compiler error
+#include "egads.h"
+#endif
 
 #include "mach_egads.hpp"
 
-extern "C" int EG_saveTess(egObject *tess, const char *name);
-extern "C" int EG_loadTess(egObject *body, const char *name, egObject **tess);
-
 using namespace mfem;
 
+namespace mach
+{
 void mapSurfaceMesh(const std::string &old_model_file,
                     const std::string &new_model_file,
                     const std::string &tess_file,
                     HypreParVector &displacement)
 {
+#ifdef MFEM_USE_EGADS
    // start egads
-   ego eg_context;
-   int status;
+   ego eg_context = nullptr;
+   int status = 0;
    status = EG_open(&eg_context);
-   if (status != EGADS_SUCCESS) throw std::runtime_error("EG_open failed!\n");
+   if (status != EGADS_SUCCESS)
+   {
+      throw std::runtime_error("EG_open failed!\n");
+   }
 
    // load models
-   ego old_model;
+   ego old_model = nullptr;
    status = EG_loadModel(eg_context, 0, old_model_file.c_str(), &old_model);
    if (status != EGADS_SUCCESS)
+   {
       throw std::runtime_error("EG_loadModel failed!\n");
+   }
 
-   ego new_model;
+   ego new_model = nullptr;
    status = EG_loadModel(eg_context, 0, new_model_file.c_str(), &new_model);
    if (status != EGADS_SUCCESS)
+   {
       throw std::runtime_error("EG_loadModel failed!\n");
+   }
 
    // get bodies
-   int oclass, mtype, nbody, *senses;
-   ego old_geom, new_geom;
-   ego *old_body;
-   ego *new_body;
+   int oclass = 0;
+   int mtype = 0;
+   int nbody = 0;
+   int *senses = nullptr;
+   ego old_geom = nullptr;
+   ego new_geom = nullptr;
+   ego *old_body = nullptr;
+   ego *new_body = nullptr;
 
-   status = EG_getTopology(
-       old_model, &old_geom, &oclass, &mtype, NULL, &nbody, &old_body, &senses);
+   status = EG_getTopology(old_model,
+                           &old_geom,
+                           &oclass,
+                           &mtype,
+                           nullptr,
+                           &nbody,
+                           &old_body,
+                           &senses);
    if (status != EGADS_SUCCESS)
+   {
       throw std::runtime_error("EG_getTopology failed!\n");
+   }
 
-   status = EG_getTopology(
-       new_model, &new_geom, &oclass, &mtype, NULL, &nbody, &new_body, &senses);
+   status = EG_getTopology(new_model,
+                           &new_geom,
+                           &oclass,
+                           &mtype,
+                           nullptr,
+                           &nbody,
+                           &new_body,
+                           &senses);
    if (status != EGADS_SUCCESS)
+   {
       throw std::runtime_error("EG_getTopology failed!\n");
+   }
 
-   ego old_tess;
+   ego old_tess = nullptr;
    status = EG_loadTess(*old_body, tess_file.c_str(), &old_tess);
    if (status != EGADS_SUCCESS)
+   {
       throw std::runtime_error("EG_loadTess failed!\n");
+   }
 
-   ego new_tess;
+   ego new_tess = nullptr;
    status = EG_mapTessBody(old_tess, *new_body, &new_tess);
    if (status != EGADS_SUCCESS)
+   {
       throw std::runtime_error("EG_mapTessBody failed!\n");
+   }
 
    auto *old_raw_tess = static_cast<egTessel *>(old_tess->blind);
    // auto *raw_tess = static_cast<egTessel *>(new_tess->blind);
 
-   int ptype, pindex;
-   double xyz[3], xyz_old[3];
+   int ptype = 0;
+   int pindex = 0;
+   double xyz[3];
+   double xyz_old[3];
    // std::cout << "old_raw_tess->nGlobal: " << old_raw_tess->nGlobal << "\n";
    // std::cout << "raw_tess->nGlobal: " << raw_tess->nGlobal << "\n";
 
    bool two_dimensional = false;
    auto displacement_size = displacement.Size();
-   if (displacement_size == 2 * old_raw_tess->nGlobal) two_dimensional = true;
+   if (displacement_size == 2 * old_raw_tess->nGlobal)
+   {
+      two_dimensional = true;
+   }
 
    // std::cout << "displacement_size: " << displacement_size << "\n";
    // std::cout << "tess size: " << old_raw_tess->nGlobal << "\n";
@@ -94,6 +133,11 @@ void mapSurfaceMesh(const std::string &old_model_file,
       // std::cout << "(" << xyz[0] << ", " << xyz[1] << ", " << xyz[2] <<
       // ")\n";
    }
+#else
+   throw std::runtime_error(
+       "Mach not built with EGADS support!\n"
+       "\tmapSurfaceMesh unavailable!\n");
+#endif
 }
 // , "Map an existing surface tessalation to a new body with the same topology",
 // py::arg("old_model"),
@@ -232,3 +276,4 @@ void mapSurfaceMesh(const std::string &old_model_file,
 // }
 
 // #endif
+}  // namespace mach

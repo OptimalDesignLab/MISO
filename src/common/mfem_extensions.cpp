@@ -33,8 +33,7 @@ void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
 
 void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
 {
-   EntropyConstrainedOperator *f_ode =
-       dynamic_cast<EntropyConstrainedOperator *>(f);
+   auto *f_ode = dynamic_cast<EntropyConstrainedOperator *>(f);
    f_ode->SetTime(t + dt / 2);
    k.SetSize(x.Size(), mem_type);
    f_ode->ImplicitSolve(dt, dt / 2, x, k);

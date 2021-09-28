@@ -1,3 +1,4 @@
+#include <cmath>
 #include <fstream>
 #include <unordered_set>
 
@@ -5,6 +6,8 @@
 
 #include "evolver.hpp"
 #include "thermal.hpp"
+#include "utils.hpp"
+
 #include "mach_load.hpp"
 #include "mach_linearform.hpp"
 
@@ -42,9 +45,7 @@ ThermalSolver::ThermalSolver(const nlohmann::json &options,
 
 void ThermalSolver::initDerived() { AbstractSolver::initDerived(); }
 
-ThermalSolver::~ThermalSolver() = default;
-
-std::vector<GridFunType *> ThermalSolver::getFields(void) { return {u.get()}; }
+std::vector<GridFunType *> ThermalSolver::getFields() { return {u.get()}; }
 
 /// Commenting out for now, will update when I get around to using the thermal
 /// solver again
@@ -168,12 +169,9 @@ bool ThermalSolver::iterationExit(int iter,
       // use tolerance options for Newton's method
       double norm = calcResidualNorm(state);
       std::cout << "res norm: " << norm << "\n";
-      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
-         return true;
-      if (norm <=
-          res_norm0 * options["time-dis"]["steady-reltol"].get<double>())
-         return true;
-      return false;
+      return norm <= options["time-dis"]["steady-abstol"].get<double>() ||
+             norm <=
+                 res_norm0 * options["time-dis"]["steady-reltol"].get<double>();
    }
    else
    {
@@ -193,14 +191,19 @@ double ThermalSolver::calcStepSize(int iter,
       // TODO: the l2 norm of the weak residual is probably not ideal here
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm(state);
-      if (std::abs(res_norm) <= 1e-14) return 1e14;
+      if (std::abs(res_norm) <= 1e-14)
+      {
+         return 1e14;
+      }
       double exponent = options["time-dis"]["res-exp"];
       double dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
       return max(dt, dt_old);
    }
    else
+   {
       return AbstractSolver::calcStepSize(iter, t, t_final, dt_old, state);
+   }
 }
 
 void ThermalSolver::terminalHook(int iter,
@@ -572,7 +575,8 @@ void ThermalSolver::constructCore()
 void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 {
    // only solve for state at end time
-   double time_beg, time_end;
+   double time_beg = NAN;
+   double time_end = NAN;
    if (0 == rank)
    {
       time_beg = MPI_Wtime();
@@ -605,7 +609,7 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
         << "\tsolver: HypreGMRES\n"
         << "\tprec. : Euclid ILU" << endl;
    prec.reset(new HypreEuclid(fes->GetComm()));
-   double tol = options["adj-solver"]["rel-tol"].get<double>();
+   auto tol = options["adj-solver"]["rel-tol"].get<double>();
    int maxiter = options["adj-solver"]["max-iter"].get<int>();
    int ptl = options["adj-solver"]["print-lvl"].get<int>();
    solver.reset(new HypreGMRES(fes->GetComm()));
@@ -701,7 +705,9 @@ void ThermalSolver::addLoadVolumeIntegrators(double alpha)
    therm_load->addDomainIntegrator(new DomainLFIntegrator(*i2sigmainv));
    /// add iron loss heating terms only if the EM field exists
    if (res_fields.find("mvp") != res_fields.end())
+   {
       therm_load->addDomainIntegrator(new DomainLFIntegrator(*coreloss));
+   }
 }
 
 void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
@@ -723,7 +729,9 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
                 new VectorFunctionCoefficient(dim, test_flux_func));
          }
          else
+         {
             throw MachException("Specified flux function not supported!\n");
+         }
       }
       else
       {
@@ -774,11 +782,9 @@ ThermalEvolver::ThermalEvolver(Array<int> ess_bdr,
    flux_coeff(_flux_coeff)
 { }
 
-ThermalEvolver::~ThermalEvolver() = default;
-
 void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
-   if (flux_coeff)
+   if (flux_coeff != nullptr)
    {
       flux_coeff->SetTime(t);
       MachInputs inputs({{"time", t}});
@@ -791,7 +797,7 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
 {
    /// re-assemble time dependent load vector
-   if (flux_coeff)
+   if (flux_coeff != nullptr)
    {
       flux_coeff->SetTime(t);
       MachInputs inputs({{"time", t}});

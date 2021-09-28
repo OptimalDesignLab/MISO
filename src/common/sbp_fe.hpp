@@ -232,11 +232,11 @@ public:
    /// \param[in] degree - maximum poly degree for which operator is exact
    /// \note a degree p "diagonal E" SBP segment is equivalent to a degree
    /// p+1 LGL collocation element
-   SBPSegmentElement(const int degree);
+   SBPSegmentElement(int degree);
 
-   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
-   virtual void CalcDShape(const IntegrationPoint &ip,
-                           DenseMatrix &dshape) const;
+   void CalcShape(const IntegrationPoint &ip, Vector &shape) const override;
+   void CalcDShape(const IntegrationPoint &ip,
+                   DenseMatrix &dshape) const override;
 };
 
 /// Class for (diagonal-norm) summation-by-parts operator on triangles
@@ -246,11 +246,11 @@ public:
    /// Constructor for SBP operator on triangles (so-called "diagonal E")
    /// \param[in] degree - maximum poly degree for which operator is exact
    /// \param[in] num_nodes - the number of nodes the operator has
-   SBPTriangleElement(const int degree, const int num_nodes);
+   SBPTriangleElement(int degree, int num_nodes);
 
-   virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
-   virtual void CalcDShape(const IntegrationPoint &ip,
-                           DenseMatrix &dshape) const;
+   void CalcShape(const IntegrationPoint &ip, Vector &shape) const override;
+   void CalcDShape(const IntegrationPoint &ip,
+                   DenseMatrix &dshape) const override;
 
    /// Get the derivative operator in the direction di; transposed if trans=true
    void GetOperator(int di, DenseMatrix &D, bool trans = false) const;
@@ -268,19 +268,23 @@ protected:
    int *SegDofOrd[2];
 
 public:
-   explicit SBPCollection(const int p, const int dim = 2);
+   explicit SBPCollection(int p, int dim = 2);
 
-   virtual const FiniteElement *FiniteElementForGeometry(
-       Geometry::Type GeomType) const;
-   virtual int DofForGeometry(Geometry::Type GeomType) const
+   const FiniteElement *FiniteElementForGeometry(
+       Geometry::Type GeomType) const override;
+   int DofForGeometry(Geometry::Type GeomType) const override
    {
       return SBPdof[GeomType];
    }
-   virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
-                                             int Or) const;
-   virtual const char *Name() const { return SBPname; }
-   virtual int GetContType() const { return CONTINUOUS; }
-   virtual ~SBPCollection();
+   const int *DofOrderForOrientation(Geometry::Type GeomType,
+                                     int Or) const override;
+   const char *Name() const override { return SBPname; }
+   int GetContType() const override { return CONTINUOUS; }
+   SBPCollection(const SBPCollection &) = delete;
+   SBPCollection &operator=(const SBPCollection &) = delete;
+   SBPCollection(SBPCollection &&) = delete;
+   SBPCollection &operator=(SBPCollection &&) = delete;
+   ~SBPCollection() override;
 };
 
 /// High order L2-discontinous Summation By Parts operators
@@ -294,11 +298,11 @@ protected:
    int *SegDofOrd[2];
 
 public:
-   explicit DSBPCollection(const int p, const int dim = 2);
+   explicit DSBPCollection(int p, int dim = 2);
 
    // Currently we we only have point, segment and triangle elements
-   virtual const FiniteElement *FiniteElementForGeometry(
-       Geometry::Type GeomType) const
+   const FiniteElement *FiniteElementForGeometry(
+       Geometry::Type GeomType) const override
    {
       return DSBPElements[GeomType];
    }
@@ -309,16 +313,21 @@ public:
       return Tr_SBPElements[GeomType];
    }
 
-   virtual int DofForGeometry(Geometry::Type GeomType) const
+   int DofForGeometry(Geometry::Type GeomType) const override
    {
       return DSBPdof[GeomType];
    }
 
-   virtual const int *DofOrderForOrientation(Geometry::Type GeomType,
-                                             int Or) const;
-   virtual const char *Name() const { return DSBPname; }
-   virtual int GetContType() const { return DISCONTINUOUS; }
-   virtual ~DSBPCollection();
+   const int *DofOrderForOrientation(Geometry::Type GeomType,
+                                     int Or) const override;
+   const char *Name() const override { return DSBPname; }
+   int GetContType() const override { return DISCONTINUOUS; }
+
+   DSBPCollection(const DSBPCollection &) = delete;
+   DSBPCollection &operator=(const DSBPCollection &) = delete;
+   DSBPCollection(DSBPCollection &&) = delete;
+   DSBPCollection &operator=(DSBPCollection &&) = delete;
+   ~DSBPCollection() override;
 };
 
 }  // namespace mfem

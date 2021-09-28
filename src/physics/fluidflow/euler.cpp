@@ -1,7 +1,10 @@
+#include <cmath>
 #include <memory>
 
 #include "sbp_fe.hpp"
+#include "utils.hpp"
 #include "euler.hpp"
+
 #include "euler_integ.hpp"
 #include "diag_mass_integ.hpp"
 
@@ -90,7 +93,7 @@ void EulerSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    // res->AddDomainIntegrator(new EulerIntegrator<dim>(diff_stack, alpha));
 
    // add the LPS stabilization
-   double lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
+   auto lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    res->AddDomainIntegrator(
        new EntStableLPSIntegrator<dim, entvar>(diff_stack, alpha, lps_coeff));
 }
@@ -147,7 +150,7 @@ void EulerSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
    // add the integrators based on if discretization is continuous or discrete
    if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
    {
-      double diss_coeff =
+      auto diss_coeff =
           options["space-dis"]["iface-coeff"].template get<double>();
       res->AddInteriorFaceIntegrator(new InterfaceIntegrator<dim, entvar>(
           diff_stack, diss_coeff, fec.get(), alpha));
@@ -198,11 +201,15 @@ bool EulerSolver<dim, entvar>::iterationExit(int iter,
       // use tolerance options for Newton's method
       double norm = calcResidualNorm(state);
       if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
+      {
          return true;
+      }
       if (norm <=
           res_norm0 *
               options["time-dis"]["steady-reltol"].template get<double>())
+      {
          return true;
+      }
       return false;
    }
    else
@@ -314,7 +321,7 @@ double EulerSolver<dim, entvar>::calcStepSize(
       return options["time-dis"]["dt"].template get<double>();
    }
    // Otherwise, use a constant CFL condition
-   double cfl = options["time-dis"]["cfl"].template get<double>();
+   auto cfl = options["time-dis"]["cfl"].template get<double>();
    Vector q(dim + 2);
    auto calcSpect = [&q](const double *dir, const double *u)
    {
@@ -331,7 +338,8 @@ double EulerSolver<dim, entvar>::calcStepSize(
    double dt_local = 1e100;
    Vector xi(dim);
    Vector dxij(dim);
-   Vector ui, dxidx;
+   Vector ui;
+   Vector dxidx;
    DenseMatrix uk;
    DenseMatrix adjJt(dim);
    for (int k = 0; k < fes->GetNE(); k++)
@@ -349,7 +357,10 @@ double EulerSolver<dim, entvar>::calcStepSize(
          uk.GetColumnReference(i, ui);
          for (int j = 0; j < fe->GetDof(); ++j)
          {
-            if (j == i) continue;
+            if (j == i)
+            {
+               continue;
+            }
             trans->Transform(fe->GetNodes().IntPoint(j), dxij);
             dxij -= xi;
             double dx = dxij.Norml2();
@@ -360,7 +371,7 @@ double EulerSolver<dim, entvar>::calcStepSize(
          }
       }
    }
-   double dt_min;
+   double dt_min = NAN;
    MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
    return dt_min;
 }
@@ -390,8 +401,8 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    // This lambda function computes the error at a node
    // Beware: this is not particularly efficient, given the conditionals
    // Also **NOT thread safe!**
-   Vector qdiscrete(dim + 2),
-       qexact(dim + 2);  // define here to avoid reallocation
+   Vector qdiscrete(dim + 2);
+   Vector qexact(dim + 2);  // define here to avoid reallocation
    auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
    {
       if (entvar)
@@ -423,8 +434,10 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    };
 
    VectorFunctionCoefficient exsol(num_state, u_exact);
-   DenseMatrix vals, exact_vals;
-   Vector u_j, exsol_j;
+   DenseMatrix vals;
+   DenseMatrix exact_vals;
+   Vector u_j;
+   Vector exsol_j;
    double loc_norm = 0.0;
    for (int i = 0; i < fes->GetNE(); i++)
    {
@@ -442,7 +455,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
          loc_norm += ip.weight * T->Weight() * node_error(u_j, exsol_j);
       }
    }
-   double norm;
+   double norm = NAN;
    MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
    if (norm < 0.0)  // This was copied from mfem...should not happen for us
    {
@@ -460,17 +473,16 @@ void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
    }
    else
    {
-      int num_nodes, offset;
       Array<int> vdofs(num_state);
-      Vector el_con, el_ent;
-      const FiniteElement *fe;
+      Vector el_con;
+      Vector el_ent;
       for (int i = 0; i < fes->GetNE(); i++)
       {
-         fe = fes->GetFE(i);
-         num_nodes = fe->GetDof();
+         const auto *fe = fes->GetFE(i);
+         int num_nodes = fe->GetDof();
          for (int j = 0; j < num_nodes; j++)
          {
-            offset = i * num_nodes * num_state + j * num_state;
+            int offset = i * num_nodes * num_state + j * num_state;
             for (int k = 0; k < num_state; k++)
             {
                vdofs[k] = offset + k;

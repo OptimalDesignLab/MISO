@@ -40,11 +40,12 @@ public:
       load(_load),
       jac(Operator::Hypre_ParCSR),
       dt(0.0),
+      dt_stage(dt),
       x(nullptr),
       x_work(width),
       r_work(height)
    {
-      if (_mass)
+      if (_mass != nullptr)
       {
          _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       }
@@ -52,7 +53,7 @@ public:
       // {
       //    _stiff->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       // }
-      else if (_res)
+      else if (_res != nullptr)
       {
          _res->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       }
@@ -70,7 +71,7 @@ public:
    void Mult(const mfem::Vector &k, mfem::Vector &r) const override
    {
       r = 0.0;
-      if (nonlinear_mass)
+      if (nonlinear_mass != nullptr)
       {
          add(1.0, *x, dt_stage, k, x_work);
          nonlinear_mass->Mult(x_work, r);
@@ -91,12 +92,12 @@ public:
       //    stiff->TrueAddMult(x_work, r);
       //    r.SetSubVector(ess_tdof_list, 0.0);
       // }
-      if (load)
+      if (load != nullptr)
       {
          mach::addLoad(*load, r);
          r.SetSubVector(ess_tdof_list, 0.0);
       }
-      if (mass)
+      if (mass != nullptr)
       {
          mass->TrueAddMult(k, r);
          r.SetSubVector(ess_tdof_list, 0.0);
@@ -110,29 +111,34 @@ public:
       jac.Clear();
 
       const SparseMatrix *mass_local_jac = nullptr;
-      if (mass)
+      if (mass != nullptr)
       {
          mass_local_jac = &mass->SpMat();
       }
-      if (nonlinear_mass)
+      if (nonlinear_mass != nullptr)
       {
          add(*x, dt_stage, k, x_work);
          mass_local_jac = &nonlinear_mass->GetLocalGradient(x_work);
       }
 
       add(1.0, *x, dt, k, x_work);
-      auto &res_local_jac = res->GetLocalGradient(x_work);
+      const auto &res_local_jac = res->GetLocalGradient(x_work);
 
       std::unique_ptr<SparseMatrix> local_jac;
 
-      if (mass_local_jac)
+      if (mass_local_jac != nullptr)
+      {
          local_jac.reset(Add(1.0, *mass_local_jac, dt, res_local_jac));
+      }
       else
+      {
          local_jac.reset(new SparseMatrix(res_local_jac, false));
+      }
 
       /// TODO: this is taken from ParNonlinearForm::GetGradient
       {
-         OperatorHandle dA(jac.Type()), Ph(jac.Type());
+         OperatorHandle dA(jac.Type());
+         OperatorHandle Ph(jac.Type());
 
          /// TODO -> this will not work for shared face terms
          dA.MakeSquareBlockDiag(pfes->GetComm(),
@@ -166,8 +172,6 @@ public:
       x = _x;
       dt_stage = _dt_stage;
    }
-
-   ~SystemOperator() = default;
 
 private:
    ParFiniteElementSpace *pfes;
@@ -211,6 +215,8 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
    load(_load),
    ent(_ent),
    out(outstream),
+   linsolver(nullptr),
+   newton(nullptr),
    x_work(width),
    r_work1(height),
    r_work2(height),
@@ -295,18 +301,18 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
       throw MachException("Cannot use MachEvolver::Mult with nonlinear mass");
    }
 
-   if (res)
+   if (res != nullptr)
    {
       res->Mult(x, r_work1);
    }
 
-   if (stiff.Ptr())
+   if (stiff.Ptr() != nullptr)
    {
       // stiff->AddMult(x, work); // <-- Cannot do AddMult with ParBilinearForm
       stiff->Mult(x, r_work2);
       add(r_work1, r_work2, r_work1);
    }
-   if (load)
+   if (load != nullptr)
    {
       // r_work1 += *load;
       addLoad(*load, r_work1);
@@ -327,7 +333,9 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
    newton->iterative_mode = iter_mode;
 
    if (abort_on_no_converge)
+   {
       MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+   }
 }
 
 void MachEvolver::ImplicitSolve(const double dt_stage,
@@ -340,7 +348,9 @@ void MachEvolver::ImplicitSolve(const double dt_stage,
    k = 0.0;      // In case iterative mode is set to true
    newton->Mult(zero, k);
    if (abort_on_no_converge)
+   {
       MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+   }
 }
 
 void MachEvolver::SetLinearSolver(Solver *_linsolver)
@@ -361,7 +371,7 @@ mfem::Operator &MachEvolver::GetGradient(const mfem::Vector &x) const
 
 double MachEvolver::Entropy(const mfem::Vector &x)
 {
-   if (!ent)
+   if (ent == nullptr)
    {
       throw MachException("MachEvolver::Entropy(): ent member not defined!");
    }
@@ -372,7 +382,8 @@ double MachEvolver::EntropyChange(double dt,
                                   const mfem::Vector &x,
                                   const mfem::Vector &k)
 {
-   if (!ent)  // even though it is not used here, ent should be defined
+   /// even though it is not used here, ent should be defined
+   if (ent == nullptr)
    {
       throw MachException("MachEvolver::EntropyChange(): ent not defined!");
    }

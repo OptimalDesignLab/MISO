@@ -241,9 +241,10 @@ TEST_CASE("AggregateIntegratorNumerator/Denominator::GetEnergy")
 
    constexpr int dim = 3;
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge,
-                                       Element::TETRAHEDRON, true,
-                                       1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    
    for (int p = 1; p <= 4; ++p)
    {
@@ -297,8 +298,10 @@ TEST_CASE("AggregateIntegrator::AssembleVector", "[AggregateIntegrator]")
 
    // generate a 2 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -364,8 +367,10 @@ TEST_CASE("TempIntegrator::AssembleVector", "[TempIntegrator]")
 
    // generate a 2 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -425,8 +430,10 @@ TEST_CASE("AggregateResIntegrator::AssembleVector", "[AggregateResIntegrator]")
 
    // generate a 2 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {
@@ -500,8 +507,10 @@ TEST_CASE("TempResIntegrator::AssembleVector", "[TempResIntegrator]")
 
    // generate a 2 element mesh
    int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
-                                       true /* gen. edges */, 1.0, 1.0, 1.0, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, 1.0, true)));
    mesh->EnsureNodes();
    for (int p = 1; p <= 4; ++p)
    {

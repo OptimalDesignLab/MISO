@@ -43,7 +43,7 @@ void addLoad(CurrentLoad &load, Vector &tv)
 
 double vectorJacobianProduct(CurrentLoad &load,
                              const mfem::HypreParVector &load_bar,
-                             std::string wrt)
+                             const std::string &wrt)
 {
    if (wrt == "current_density")
    {
@@ -60,7 +60,7 @@ double vectorJacobianProduct(CurrentLoad &load,
 
 void vectorJacobianProduct(CurrentLoad &load,
                            const mfem::HypreParVector &load_bar,
-                           std::string wrt,
+                           const std::string &wrt,
                            mfem::HypreParVector &wrt_bar)
 {
    if (wrt == "mesh_coords")
@@ -92,7 +92,8 @@ void vectorJacobianProduct(CurrentLoad &load,
       // psi_j = load_bar;
 
       HypreParMatrix M;
-      Vector X, RHS;
+      Vector X;
+      Vector RHS;
       Array<int> ess_tdof_list;
       load.nd_mass.FormLinearSystem(ess_tdof_list, psi_j, rhs, M, X, RHS);
       auto M_matT = std::unique_ptr<HypreParMatrix>(M.Transpose());
@@ -186,7 +187,8 @@ void CurrentLoad::assembleLoad()
    // j.ProjectCoefficient(current);
 
    HypreParMatrix M;
-   Vector X, RHS;
+   Vector X;
+   Vector RHS;
    Array<int> ess_tdof_list;
    nd_mass.FormLinearSystem(ess_tdof_list, j, J, M, X, RHS);
 

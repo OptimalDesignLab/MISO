@@ -9,7 +9,7 @@ namespace mach
 class AggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
 {
 public:
-   AggregateIntegratorNumerator(const double r, const mfem::Vector m)
+   AggregateIntegratorNumerator(const double r, const mfem::Vector &m)
     : rho(r), max(m)
    { }
 
@@ -32,7 +32,7 @@ private:
 class AggregateIntegratorDenominator : public mfem::NonlinearFormIntegrator
 {
 public:
-   AggregateIntegratorDenominator(const double r, const mfem::Vector m)
+   AggregateIntegratorDenominator(const double r, const mfem::Vector &m)
     : rho(r), max(m)
    { }
 
@@ -60,14 +60,14 @@ public:
    /// temperature constraint based on the maximum value in the grid function
    AggregateIntegrator(const mfem::FiniteElementSpace *fe_space,
                        const double r,
-                       const mfem::Vector m)
+                       const mfem::Vector &m)
     : fes(fe_space), rho(r), max(m)
    { }
 
    /// Overloaded, precomputes aggregate and denominator for use in adjoint
    AggregateIntegrator(const mfem::FiniteElementSpace *fe_space,
-                       const double r,
-                       const mfem::Vector m,
+                       double r,
+                       const mfem::Vector &m,
                        mfem::GridFunction *temp);
 
    /// Computes the induced functional estimate for aggregated temperature
@@ -75,15 +75,15 @@ public:
 
    /// Computes the induced functional estimate, need to call second constructor
    /// first
-   virtual double GetElementEnergy(const mfem::FiniteElement &el,
-                                   mfem::ElementTransformation &Trans,
-                                   const mfem::Vector &elfun);
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &Trans,
+                           const mfem::Vector &elfun) override;
 
    /// Computes dJdu, for the adjoint. Must call GetIEAggregate beforehand.
-   virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
-                                      const mfem::Vector &elfun,
-                                      mfem::Vector &elvect);
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &Trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
 private:
    /// used to integrate over appropriate elements
@@ -97,16 +97,16 @@ private:
    const mfem::Vector max;
 
    /// maximum temperature value
-   double maxt;
+   double maxt{};
 
    // last computed output (for dJdU)
-   double J_;
+   double J_{};
 
    // last computed denom (for dJdU)
-   double denom_;
+   double denom_{};
 
    // last computed state vector (for dJdu)
-   mfem::GridFunction *temp_;
+   mfem::GridFunction *temp_{};
 
 #ifndef MFEM_THREAD_SAFE
    /// store the physical location of a node
@@ -148,10 +148,10 @@ private:
    const mfem::FiniteElementSpace *fes;
 
    // last computed output (for dJdU)
-   double J_;
+   double J_{};
 
    // last computed denom (for dJdU)
-   double denom_;
+   double denom_{};
 
    // last computed state vector (for dJdu)
    mfem::GridFunction *temp_;
@@ -171,24 +171,24 @@ public:
    /// temperature constraint based on the maximum value in the grid function
    AggregateResIntegrator(const mfem::FiniteElementSpace *fe_space,
                           const double r,
-                          const mfem::Vector m)
+                          const mfem::Vector &m)
     : fes(fe_space), rho(r), max(m)
    { }
 
    /// Overloaded, precomputes aggregate and denominator for use in adjoint
    AggregateResIntegrator(const mfem::FiniteElementSpace *fe_space,
-                          const double r,
-                          const mfem::Vector m,
+                          double r,
+                          const mfem::Vector &m,
                           mfem::GridFunction *temp);
 
    /// Computes the induced functional estimate for aggregated temperature
    double GetIEAggregate(mfem::GridFunction *temp);
 
    /// Computes dJdx, for the adjoint. Must call GetIEAggregate beforehand.
-   virtual void AssembleElementVector(const mfem::FiniteElement &elx,
-                                      mfem::ElementTransformation &Trx,
-                                      const mfem::Vector &elfunx,
-                                      mfem::Vector &elvect);
+   void AssembleElementVector(const mfem::FiniteElement &elx,
+                              mfem::ElementTransformation &Trx,
+                              const mfem::Vector &elfunx,
+                              mfem::Vector &elvect) override;
 
 private:
    /// used to integrate over appropriate elements
@@ -202,16 +202,16 @@ private:
    const mfem::Vector max;
 
    /// maximum temperature value
-   double maxt;
+   double maxt{};
 
    // last computed output (for dJdU)
-   double J_;
+   double J_{};
 
    // last computed denom (for dJdU)
-   double denom_;
+   double denom_{};
 
    // last computed state vector (for dJdu)
-   mfem::GridFunction *temp_;
+   mfem::GridFunction *temp_{};
 
 #ifndef MFEM_THREAD_SAFE
    /// store the physical location of a node
@@ -236,20 +236,20 @@ public:
    double GetTemp(mfem::GridFunction *temp);
 
    /// Computes dJdu, for the adjoint
-   virtual void AssembleElementVector(const mfem::FiniteElement &elx,
-                                      mfem::ElementTransformation &Trx,
-                                      const mfem::Vector &elfunx,
-                                      mfem::Vector &elvect);
+   void AssembleElementVector(const mfem::FiniteElement &elx,
+                              mfem::ElementTransformation &Trx,
+                              const mfem::Vector &elfunx,
+                              mfem::Vector &elvect) override;
 
 private:
    /// used to integrate over appropriate elements
    const mfem::FiniteElementSpace *fes;
 
    // last computed output (for dJdU)
-   double J_;
+   double J_{};
 
    // last computed denom (for dJdU)
-   double denom_;
+   double denom_{};
 
    // last computed state vector (for dJdu)
    mfem::GridFunction *temp_;

@@ -1,12 +1,12 @@
 #ifndef MACH_LINEAR_EVOLVER
 #define MACH_LINEAR_EVOLVER
 
+#include "adept.h"
 #include "mfem.hpp"
 
-#include "adept.h"
-#include "mach_types.hpp"
 #include "inexact_newton.hpp"
 #include "mach_load.hpp"
+#include "mach_types.hpp"
 
 namespace mach
 {
@@ -44,8 +44,8 @@ public:
    /// \param[in] x - baseline state
    /// \param[out] k - the desired slope
    /// \note This may need to be generalized further
-   virtual void ImplicitSolve(const double dt_stage,
-                              const double dt,
+   virtual void ImplicitSolve(double dt_stage,
+                              double dt,
                               const mfem::Vector &x,
                               mfem::Vector &k) = 0;
 };
@@ -78,7 +78,7 @@ public:
                std::ostream &outstream,
                double start_time,
                mfem::TimeDependentOperator::Type type = EXPLICIT,
-               bool abort_on_no_convergence = true);
+               bool _abort_on_no_converge = true);
 
    /// Perform the action of the operator: y = k = f(x, t), where k solves
    /// the algebraic equation F(x, k, t) = G(x, t) and t is the current time.
@@ -88,7 +88,7 @@ public:
    /// Solve the implicit equation: k = f(x + dt k, t), for the unknown k at
    /// the current time t.
    /// Currently implemented for the implicit midpoit method
-   void ImplicitSolve(const double dt,
+   void ImplicitSolve(double dt,
                       const mfem::Vector &x,
                       mfem::Vector &k) override;
 
@@ -98,8 +98,8 @@ public:
    /// \param[in] x - baseline state
    /// \param[out] k - the desired slope
    /// \note This may need to be generalized further
-   void ImplicitSolve(const double dt_stage,
-                      const double dt,
+   void ImplicitSolve(double dt_stage,
+                      double dt,
                       const mfem::Vector &x,
                       mfem::Vector &k) override;
 
@@ -132,7 +132,13 @@ public:
                         const mfem::Vector &x,
                         const mfem::Vector &k) override;
 
-   virtual ~MachEvolver();
+   /// explicitly prohibit copy/move construction
+   MachEvolver(const MachEvolver &) = delete;
+   MachEvolver &operator=(const MachEvolver &) = delete;
+   MachEvolver(MachEvolver &&) = delete;
+   MachEvolver &operator=(MachEvolver &&) = delete;
+
+   ~MachEvolver() override;
 
 protected:
    /// pointer to nonlinear mass bilinear form (not owned)

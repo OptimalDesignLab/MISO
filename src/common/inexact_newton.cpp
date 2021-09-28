@@ -17,15 +17,14 @@ double InexactNewton::ComputeStepSize(const Vector &x,
    // p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
    // p0 is the value of p(0), p0p is the derivative p'(0), and
    // p1 is the value of p(1). */
-   double p0, p1, p0p;
    // A temporary vector for calculating p0p.
    Vector temp(r.Size());
 
-   p0 = 0.5 * norm * norm;
+   double p0 = 0.5 * norm * norm;
    // temp=F'(x_i)*r(x_i)
    jac->Mult(r, temp);
    // c is the negative inexact newton step size.
-   p0p = -Dot(c, temp);
+   double p0p = -Dot(c, temp);
    // Calculate the new norm.
 
    add(x, -1.0, c, x_new);
@@ -41,7 +40,7 @@ double InexactNewton::ComputeStepSize(const Vector &x,
    int itt = 0;
    while (err_new > (1 - t * (1 - theta)) * norm)
    {
-      p1 = 0.5 * err_new * err_new;
+      double p1 = 0.5 * err_new * err_new;
       // Quadratic interpolation between [0,1]
       theta = quadInterp(0.0, p0, p0p, 1.0, p1);
       theta = (theta > theta_min) ? theta : theta_min;
@@ -89,14 +88,12 @@ void InexactNewton::SetOperator(const Operator &op)
 
 void InexactNewton::Mult(const Vector &b, Vector &x) const
 {
-   MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
-   MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
+   MFEM_ASSERT(oper != nullptr, "the Operator is not set (use SetOperator).");
+   MFEM_ASSERT(prec != nullptr, "the Solver is not set (use SetSolver).");
 
    std::cout << "Beginning of inexact Newton..." << std::endl;
    std::cout.flush();
 
-   int it;
-   double norm0, norm, norm_goal;
    const bool have_b = (b.Size() == Height());
    if (!iterative_mode)
    {
@@ -112,11 +109,12 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
    std::cout << "Norm(r) = " << Norm(r) << endl;
    std::cout.flush();
 
-   norm0 = norm = Norm(r);
-   norm_goal = std::max(rel_tol * norm, abs_tol);
+   double norm = Norm(r);
+   double norm0 = norm;
+   double norm_goal = std::max(rel_tol * norm, abs_tol);
    prec->iterative_mode = false;
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
-   for (it = 0; true; it++)
+   for (int it = 0; true; it++)
    {
       MFEM_ASSERT(IsFinite(norm), "norm = " << norm);
       if (print_level >= 0)
@@ -133,12 +131,14 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
       if (norm <= norm_goal)
       {
          converged = 1;
+         final_iter = it;
          break;
       }
 
       if (it >= max_iter)
       {
          converged = 0;
+         final_iter = it;
          break;
       }
 
@@ -153,6 +153,7 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
       if (c_scale == 0.0)
       {
          converged = 0;
+         final_iter = it;
          break;
       }
       add(x, -c_scale, c, x);
@@ -165,7 +166,6 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
       norm = Norm(r);
    }
 
-   final_iter = it;
    final_norm = norm;
 }
 

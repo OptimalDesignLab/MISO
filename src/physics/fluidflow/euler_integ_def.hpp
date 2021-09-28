@@ -1,3 +1,17 @@
+#ifndef MACH_EULER_INTEG_DEF
+#define MACH_EULER_INTEG_DEF
+
+#include "adept.h"
+#include "mfem.hpp"
+
+#include "inviscid_integ.hpp"
+#include "euler_fluxes.hpp"
+#include "euler_integ.hpp"
+
+namespace mach
+{
+using adept::adouble;
+
 template <int dim>
 void EulerIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
                                             const mfem::Vector &q,
@@ -51,7 +65,9 @@ double IsmailRoeIntegrator<dim, entvar>::GetElementEnergy(
 {
    int num_states = this->num_states;
    int num_nodes = el.GetDof();
-   mfem::Vector u_i(num_states), w_i(num_states), res_i(num_states);
+   mfem::Vector u_i(num_states);
+   mfem::Vector w_i(num_states);
+   mfem::Vector res_i(num_states);
    mfem::Vector elres;
    this->AssembleElementVector(el, trans, elfun, elres);
    mfem::DenseMatrix u(elfun.GetData(), num_nodes, num_states);
@@ -143,7 +159,9 @@ double EntStableLPSIntegrator<dim, entvar>::GetElementEnergy(
 {
    int num_states = this->num_states;
    int num_nodes = el.GetDof();
-   mfem::Vector u_i(num_states), w_i(num_states), res_i(num_states);
+   mfem::Vector u_i(num_states);
+   mfem::Vector w_i(num_states);
+   mfem::Vector res_i(num_states);
    mfem::Vector elres;
    this->AssembleElementVector(el, trans, elfun, elres);
    mfem::DenseMatrix u(elfun.GetData(), num_nodes, num_states);
@@ -663,7 +681,8 @@ double InterfaceIntegrator<dim, entvar>::calcIFaceFun(const mfem::Vector &dir,
 {
    mfem::Vector flux(qL.Size());
    calcFlux(dir, qL, qR, flux);
-   mfem::Vector wL(qL.Size()), wR(qR.Size());
+   mfem::Vector wL(qL.Size());
+   mfem::Vector wR(qR.Size());
    if (entvar)
    {
       wL = qL;
@@ -826,3 +845,7 @@ double EntropyIntegrator<dim, entvar>::calcVolFun(const mfem::Vector &x,
 {
    return entropy<double, dim, entvar>(u.GetData());
 }
+
+}  // namespace mach
+
+#endif

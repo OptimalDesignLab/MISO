@@ -23,11 +23,11 @@ public:
    /// load_bar
    friend double vectorJacobianProduct(MachLinearForm &load,
                                        const mfem::HypreParVector &load_bar,
-                                       std::string wrt);
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(MachLinearForm &load,
                                      const mfem::HypreParVector &load_bar,
-                                     std::string wrt,
+                                     const std::string &wrt,
                                      mfem::HypreParVector &wrt_bar);
 
    /// Adds domain integrator to linear form
@@ -76,7 +76,10 @@ public:
        std::unordered_map<std::string, mfem::ParGridFunction> &fields)
     : lf(&pfes), scratch(&pfes), lf_fields(fields)
    {
-      if (lf_fields.count("adjoint") == 0) lf_fields.emplace("adjoint", &pfes);
+      if (lf_fields.count("adjoint") == 0)
+      {
+         lf_fields.emplace("adjoint", &pfes);
+      }
    }
 
 private:

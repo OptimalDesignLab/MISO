@@ -20,7 +20,7 @@ public:
                MPI_Comm comm);
 
    /// Fully initialize the Joule Solver and its sub-solvers
-   void initDerived();
+   void initDerived() override;
 
    /// Write the solutions of both the EM and thermal problems to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
@@ -30,7 +30,7 @@ public:
    /// \todo make this work for parallel!
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
-   void printSolution(const std::string &file_name, int refine = -1) override;
+   void printSolution(const std::string &filename, int refine = -1) override;
 
    /// Initializes the state variable to a given function.
    /// \param[in] u_init - function that defines the initial condition
@@ -48,8 +48,6 @@ public:
    // mfem::Vector* getMeshSensitivities() override;
 
    int getNumState() override { return 0; }
-
-   ~JouleSolver() override;
 
 private:
    std::unique_ptr<MagnetostaticSolver> em_solver;

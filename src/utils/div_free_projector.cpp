@@ -23,7 +23,7 @@ void DivergenceFreeProjector::Mult(const Vector &x, Vector &y) const
 void DivergenceFreeProjector::vectorJacobianProduct(
     const mfem::Vector &x,
     const mfem::Vector &proj_bar,
-    std::string wrt,
+    const std::string &wrt,
     mfem::Vector &wrt_bar)
 {
    if (wrt == "in")

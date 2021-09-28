@@ -202,9 +202,10 @@ std::unique_ptr<mfem::Mesh> getMesh(int nxy = 2, int nz = 2)
 {
    using namespace mfem;
    // generate a simple tet mesh
-   std::unique_ptr<Mesh> mesh(new Mesh(nxy, nxy, nz,
-                              Element::TETRAHEDRON, true /* gen. edges */, 1.0,
-                              1.0, (double)nz / (double)nxy, true));
+   std::unique_ptr<Mesh> mesh(
+      new Mesh(Mesh::MakeCartesian3D(nxy, nxy, nz,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, (double)nz / (double)nxy, true)));
    mesh->EnsureNodes();
 
    // assign attributes to top and bottom sides

@@ -70,6 +70,11 @@ public:
    /// using virtual functions
    virtual void initDerived();
 
+   /// explicitly prohibit copy/move construction
+   AbstractSolver(const AbstractSolver &) = delete;
+   AbstractSolver &operator=(const AbstractSolver &) = delete;
+   AbstractSolver(AbstractSolver &&) = delete;
+   AbstractSolver &operator=(AbstractSolver &&) = delete;
    /// class destructor
    virtual ~AbstractSolver();
 
@@ -146,7 +151,7 @@ public:
    /// \param[in] state - the state vector to initialize
    /// \param[in] u_init - value that defines the initial condition
    virtual void setInitialCondition(mfem::ParGridFunction &state,
-                                    const double u_init);
+                                    double u_init);
 
    /// Initializes the state variable to a given constant vector
    /// \param[in] state - the state vector to initialize
@@ -157,12 +162,12 @@ public:
    /// Initializes the field to a given constant
    /// \param[in] field - the field to set
    /// \param[in] u_init - constant to set the field to
-   virtual void setFieldValue(mfem::HypreParVector &field, const double u_init);
+   virtual void setFieldValue(mfem::HypreParVector &field, double u_init);
 
    /// Initializes the field to a given constant
    /// \param[in] field_buffer - the field to set
    /// \param[in] u_init - constant to set the field to
-   virtual void setFieldValue(double *field_buffer, const double u_init);
+   virtual void setFieldValue(double *field_buffer, double u_init);
 
    /// Initializes the field to a given scalar function
    /// \param[in] field - the field to set
@@ -355,9 +360,9 @@ public:
 
    // mfem::ParGridFunction& getField(std::string field)
    // { return res_fields.at(field); }
-   void getField(std::string name, double *field_buffer);
+   void getField(const std::string &name, double *field_buffer);
 
-   void getField(std::string name, mfem::HypreParVector &field);
+   void getField(const std::string &name, mfem::HypreParVector &field);
 
    /// DEPRECIATED -> use version with HypreParVector
    /// Solve for the state variables based on current mesh, solver, etc.
@@ -518,7 +523,7 @@ public:
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating residual
    /// \param[out] residual - the residual
-   void calcResidual(const MachInputs &inputs, double *residual) const;
+   void calcResidual(const MachInputs &inputs, double *res_buffer) const;
 
    /// Compute the residual based on inputs and store the it in `residual`
    /// \param[in] inputs - collection of field or scalar inputs to set before
@@ -534,22 +539,22 @@ public:
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with
    /// respect to \return result of vector jacobian product
-   double vectorJacobianProduct(double *residual_bar, std::string wrt);
+   double vectorJacobianProduct(double *res_bar_buffer, const std::string &wrt);
 
    /// Compute vector jacobian product for derivative with respect to a scalar
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with
    /// respect to \return result of vector jacobian product
    double vectorJacobianProduct(const mfem::HypreParVector &res_bar,
-                                std::string wrt);
+                                const std::string &wrt);
 
    /// Compute vector jacobian product for derivative with respect to a vector
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
    /// \param[in] wrt - string identifying what the jacobian is taken with
    /// respect to \param[inout] wrt_bar - result of vector jacobian product
    /// added to wrt_bar
-   void vectorJacobianProduct(double *residual_bar,
-                              std::string wrt,
+   void vectorJacobianProduct(double *res_bar_buffer,
+                              const std::string &wrt,
                               double *wrt_bar);
 
    /// Compute vector jacobian product for derivative with respect to a vector
@@ -558,7 +563,7 @@ public:
    /// respect to \param[inout] wrt_bar - result of vector jacobian product
    /// added to wrt_bar
    void vectorJacobianProduct(const mfem::HypreParVector &res_bar,
-                              std::string wrt,
+                              const std::string &wrt,
                               mfem::HypreParVector &wrt_bar);
 
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
@@ -596,7 +601,7 @@ public:
 
    inline int getMeshSize() { return mesh->GetNodes()->FESpace()->GetVSize(); }
    inline int getStateSize() { return fes->GetVSize(); }
-   inline int getFieldSize(std::string field)
+   inline int getFieldSize(const std::string &field)
    {
       return res_fields.at(field).ParFESpace()->GetTrueVSize();
    }
@@ -917,7 +922,7 @@ protected:
    virtual void solveUnsteadyAdjoint(const std::string &fun);
 
    /// TODO: What is this doing here?
-   void (*pert)(const mfem::Vector &, mfem::Vector &);
+   void (*pert)(const mfem::Vector &, mfem::Vector &){};
 
    /// Construct a preconditioner based on the given options
    /// \param[in] options - options structure that determines preconditioner
@@ -957,21 +962,6 @@ protected:
    double calcFractionalOutput(const mfem::ParGridFunction &state,
                                const std::string &fun);
 
-   /// Add integrators to the linear form representing the product
-   /// seed^T \frac{\partial R}{\partial field} for a particular field
-   /// \param[in] name - name of the field for the integrators
-   /// \param[in] seed - the field to contract with (usually the adjoint)
-   virtual void addResFieldSensIntegrators(std::string field,
-                                           mfem::ParGridFunction &seed)
-   { }
-
-   /// Add integrators to the linear form representing the vector
-   /// \frac{\partial J}{\partial field} for a particular field
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] name - name of the field for the integrators
-   virtual void addFuncFieldSensIntegrators(std::string fun, std::string field)
-   { }
-
    /// Iterates through each input and calls `setInput` for each
    /// \param[in] integrators - list of integrators to set scalar inputs for
    /// \param[in] inputs - collection of named field or scalar inputs
@@ -987,13 +977,6 @@ protected:
    void setInput(std::vector<MachIntegrator> &integrators,
                  const std::string &name,
                  const MachInput &input);
-
-   /// Construct a HypreParVector on the a given FES using external data
-   /// \param[in] buffer - external data for HypreParVector
-   /// \param[in] fes - finite element space to construct vector on
-   mfem::HypreParVector bufferToHypreParVector(
-       double *buffer,
-       const mfem::ParFiniteElementSpace &fes) const;
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
    /// reference to it to in fun_integrators as a MachIntegrator
@@ -1083,10 +1066,6 @@ protected:
    }
 
 private:
-   /// explicitly prohibit copy construction
-   AbstractSolver(const AbstractSolver &) = delete;
-   AbstractSolver &operator=(const AbstractSolver &) = delete;
-
    /// Used to do the bulk of the initialization shared between constructors
    /// \param[in] options - pre-loaded JSON options object
    /// \param[in] smesh - if provided, defines the mesh for the problem

@@ -4,9 +4,6 @@
 #include "adept.h"
 #include "mfem.hpp"
 
-#include "sbp_fe.hpp"  // needed in viscous_integ_def.hpp
-#include "utils.hpp"
-
 namespace mach
 {
 /// Integrator for symmetric viscous terms
@@ -30,20 +27,20 @@ public:
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
-   virtual void AssembleElementVector(const mfem::FiniteElement &el,
-                                      mfem::ElementTransformation &Trans,
-                                      const mfem::Vector &elfun,
-                                      mfem::Vector &elvect);
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &Trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
 
    /// Construct the element local Jacobian
    /// \param[in] el - the finite element whose Jacobian we want
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
-   virtual void AssembleElementGrad(const mfem::FiniteElement &el,
-                                    mfem::ElementTransformation &Trans,
-                                    const mfem::Vector &elfun,
-                                    mfem::DenseMatrix &elmat);
+   void AssembleElementGrad(const mfem::FiniteElement &el,
+                            mfem::ElementTransformation &Trans,
+                            const mfem::Vector &elfun,
+                            mfem::DenseMatrix &elmat) override;
 
 protected:
    /// number of states
@@ -158,10 +155,10 @@ public:
    /// \param[in] trans - hold geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \return element local contribution to functional
-   virtual double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
-                                const mfem::FiniteElement &el_unused,
-                                mfem::FaceElementTransformations &trans,
-                                const mfem::Vector &elfun);
+   double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
+                        const mfem::FiniteElement &el_unused,
+                        mfem::FaceElementTransformations &trans,
+                        const mfem::Vector &elfun) override;
 
    /// Construct the contribution to the element local residual
    /// \param[in] el_bnd - the finite element whose residual we want to update
@@ -169,11 +166,11 @@ public:
    /// \param[in] trans - holds geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
-   virtual void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
-                                   const mfem::FiniteElement &el_unused,
-                                   mfem::FaceElementTransformations &trans,
-                                   const mfem::Vector &elfun,
-                                   mfem::Vector &elvect);
+   void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
+                           const mfem::FiniteElement &el_unused,
+                           mfem::FaceElementTransformations &trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elvect) override;
 
    /// Construct the element local Jacobian
    /// \param[in] el_bnd - the finite element whose residual we want to update
@@ -181,11 +178,11 @@ public:
    /// \param[in] trans - hold geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
-   virtual void AssembleFaceGrad(const mfem::FiniteElement &el_bnd,
-                                 const mfem::FiniteElement &el_unused,
-                                 mfem::FaceElementTransformations &trans,
-                                 const mfem::Vector &elfun,
-                                 mfem::DenseMatrix &elmat);
+   void AssembleFaceGrad(const mfem::FiniteElement &el_bnd,
+                         const mfem::FiniteElement &el_unused,
+                         mfem::FaceElementTransformations &trans,
+                         const mfem::Vector &elfun,
+                         mfem::DenseMatrix &elmat) override;
 
 protected:
    /// number of states
@@ -358,8 +355,8 @@ protected:
 #endif
 };
 
-#include "viscous_integ_def.hpp"
-
 }  // namespace mach
+
+#include "viscous_integ_def.hpp"
 
 #endif

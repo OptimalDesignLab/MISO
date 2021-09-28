@@ -1,3 +1,18 @@
+#ifndef MACH_NAVIER_STOKES_INTEG_DEF
+#define MACH_NAVIER_STOKES_INTEG_DEF
+
+#include "adept.h"
+#include "mfem.hpp"
+
+#include "viscous_integ.hpp"
+#include "mms_integ.hpp"
+#include "euler_fluxes.hpp"
+#include "navier_stokes_fluxes.hpp"
+#include "navier_stokes_integ.hpp"
+
+namespace mach
+{
+using adept::adouble;
 //==============================================================================
 // ESViscousIntegrator methods
 
@@ -41,7 +56,7 @@ void ESViscousIntegrator<dim>::applyScalingJacDw(
     const mfem::Vector &x,
     const mfem::Vector &q,
     const mfem::DenseMatrix &Dw,
-    vector<mfem::DenseMatrix> &CDw_jac)
+    std::vector<mfem::DenseMatrix> &CDw_jac)
 {
    // vector of active input variables
    int Dw_size = Dw.Height() * Dw.Width();
@@ -105,7 +120,10 @@ void NoSlipAdiabaticWallBC<dim>::calcFlux(const mfem::Vector &x,
        x.GetData(), dir.GetData(), q.GetData(), flux_vec.GetData());
    // Step 2: evaluate the adiabatic flux
    double mu_Re = mu;
-   if (mu < 0.0) mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
    mu_Re /= Re;
    calcAdiabaticWallFlux<double, dim>(
        dir.GetData(), mu_Re, Pr, q.GetData(), Dw.GetData(), work_vec.GetData());
@@ -128,7 +146,10 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxDv(const mfem::Vector &x,
                                             mfem::DenseMatrix &flux_mat)
 {
    double mu_Re = mu;
-   if (mu < 0.0) mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
    mu_Re /= Re;
    calcNoSlipDualFlux<double, dim>(
        dir.GetData(), mu_Re, Pr, q.GetData(), flux_mat.GetData());
@@ -166,7 +187,9 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(const mfem::Vector &x,
    // Step 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
    if (mu < 0.0)
+   {
       mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
    mu_Re /= Re;
    mach::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
@@ -199,7 +222,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(
     double jac,
     const mfem::Vector &q,
     const mfem::DenseMatrix &Dw,
-    vector<mfem::DenseMatrix> &flux_jac)
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    // create containers for active double objects for each input
    int Dw_size = Dw.Height() * Dw.Width();
@@ -260,7 +283,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(
 template <int dim>
 void NoSlipAdiabaticWallBC<dim>::calcFluxDvJacState(
     const mfem::Vector &x,
-    const mfem::Vector dir,
+    const mfem::Vector &dir,
     const mfem::Vector &q,
     std::vector<mfem::DenseMatrix> &flux_jac)
 {
@@ -277,7 +300,10 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxDvJacState(
    std::vector<adouble> fluxes_a(flux_size);
    // evaluate the fluxes
    adouble mu_Re = mu;
-   if (mu < 0.0) mu_Re = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
    mu_Re /= Re;
    calcNoSlipDualFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), fluxes_a.data());
@@ -412,12 +438,13 @@ void ViscousSlipWallBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousSlipWallBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                           const mfem::Vector &dir,
-                                           double jac,
-                                           const mfem::Vector &q,
-                                           const mfem::DenseMatrix &Dw,
-                                           vector<mfem::DenseMatrix> &flux_jac)
+void ViscousSlipWallBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
 #if 0
    // Presently, this BC has no dependence on the derivative
@@ -575,12 +602,13 @@ void ViscousInflowBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousInflowBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                         const mfem::Vector &dir,
-                                         double jac,
-                                         const mfem::Vector &q,
-                                         const mfem::DenseMatrix &Dw,
-                                         vector<mfem::DenseMatrix> &flux_jac)
+void ViscousInflowBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    // Presently, this BC has no dependence on the derivative
    for (int i = 0; i < dim; ++i)
@@ -700,12 +728,13 @@ void ViscousOutflowBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousOutflowBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                          const mfem::Vector &dir,
-                                          double jac,
-                                          const mfem::Vector &q,
-                                          const mfem::DenseMatrix &Dw,
-                                          vector<mfem::DenseMatrix> &flux_jac)
+void ViscousOutflowBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    // Presently, this BC has no dependence on the derivative
    for (int i = 0; i < dim; ++i)
@@ -764,12 +793,13 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousFarFieldBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                           const mfem::Vector &dir,
-                                           double jac,
-                                           const mfem::Vector &q,
-                                           const mfem::DenseMatrix &Dw,
-                                           vector<mfem::DenseMatrix> &flux_jac)
+void ViscousFarFieldBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    // Presently, this BC has no dependence on the derivative
    for (int i = 0; i < dim; ++i)
@@ -812,7 +842,10 @@ void ViscousExactBC<dim>::calcFlux(const mfem::Vector &x,
                                  flux_vec.GetData());
    // Step 2: evaluate the derivative flux
    double mu_Re = mu;
-   if (mu < 0.0) mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
+   }
    mu_Re /= Re;
    int Dw_size = Dw.Height() * Dw.Width();
    mfem::Vector Dw_work(Dw_size);
@@ -861,7 +894,10 @@ void ViscousExactBC<dim>::calcFluxJacState(const mfem::Vector &x,
                                   flux_a.data());
    // Step 2: evaluate the derivative flux
    adouble mu_Re = mu;
-   if (mu < 0.0) mu_Re = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
    mu_Re /= Re;
    std::vector<adouble> Dw_work(Dw_size);
    setZeroNormalDeriv<adouble, dim>(dir_a.data(), Dw_a.data(), Dw_work.data());
@@ -885,12 +921,13 @@ void ViscousExactBC<dim>::calcFluxJacState(const mfem::Vector &x,
 }
 
 template <int dim>
-void ViscousExactBC<dim>::calcFluxJacDw(const mfem::Vector &x,
-                                        const mfem::Vector &dir,
-                                        double jac,
-                                        const mfem::Vector &q,
-                                        const mfem::DenseMatrix &Dw,
-                                        vector<mfem::DenseMatrix> &flux_jac)
+void ViscousExactBC<dim>::calcFluxJacDw(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    double jac,
+    const mfem::Vector &q,
+    const mfem::DenseMatrix &Dw,
+    std::vector<mfem::DenseMatrix> &flux_jac)
 {
    exactSolution(x, qexact);
    // create containers for active double objects for each input
@@ -917,7 +954,10 @@ void ViscousExactBC<dim>::calcFluxJacDw(const mfem::Vector &x,
                                   flux_a.data());
    // Step 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
-   if (mu < 0.0) mu_Re = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   if (mu < 0.0)
+   {
+      mu_Re = calcSutherlandViscosity<adouble, dim>(q_a.data());
+   }
    mu_Re /= Re;
    std::vector<adouble> Dw_work(Dw_size);
    setZeroNormalDeriv<adouble, dim>(dir_a.data(), Dw_a.data(), Dw_work.data());
@@ -1121,7 +1161,7 @@ double SurfaceForce<dim>::GetFaceEnergy(const mfem::FiniteElement &el_bnd,
                                         const mfem::Vector &elfun)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
    const int num_nodes = sbp.GetDof();
 #ifdef MFEM_THREAD_SAFE
    Vector u_face, uj, wj, x, nrm;
@@ -1137,7 +1177,7 @@ double SurfaceForce<dim>::GetFaceEnergy(const mfem::FiniteElement &el_bnd,
    Dwi.SetSize(num_states, dim);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -1205,7 +1245,7 @@ void SurfaceForce<dim>::AssembleFaceVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el_bnd);
    const int num_nodes = el_bnd.GetDof();
 #ifdef MFEM_THREAD_SAFE
    Vector u_face, uj, wj, x, nrm, flux_face;
@@ -1229,7 +1269,7 @@ void SurfaceForce<dim>::AssembleFaceVector(
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (dim)
    {
    case 1:
@@ -1319,3 +1359,7 @@ void SurfaceForce<dim>::AssembleFaceVector(
       }     // j loop
    }        // k/i loop
 }
+
+}  // namespace mach
+
+#endif

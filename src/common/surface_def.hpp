@@ -1,4 +1,14 @@
+#ifndef MACH_SURFACE_DEF
+#define MACH_SURFACE_DEF
 
+#include "mfem.hpp"
+
+#include "kdtree.hpp"
+#include "utils.hpp"
+#include "surface.hpp"
+
+namespace mach
+{
 template <int dim>
 Surface<dim>::Surface(mfem::Mesh &ext_mesh)
 {
@@ -312,3 +322,7 @@ double Surface<dim>::solveDistance(mfem::ElementTransformation &trans,
    // If we get here, we exceeded the maximum number of Newton iterations
    throw MachException("Newton solve failed in Surface::solveDistance!");
 }
+
+}  // namespace mach
+
+#endif

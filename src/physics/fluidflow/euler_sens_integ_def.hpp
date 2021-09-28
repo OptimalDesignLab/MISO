@@ -1,3 +1,17 @@
+#ifndef MACH_EULER_SENS_INTEG_DEF
+#define MACH_EULER_SENS_INTEG_DEF
+
+#include "adept.h"
+#include "mfem.hpp"
+
+#include "mesh_sens_integ.hpp"
+#include "euler_fluxes.hpp"
+#include "euler_sens_integ.hpp"
+
+namespace mach
+{
+using adept::adouble;
+
 template <int dim, bool entvar>
 void IsmailRoeMeshSensIntegrator<dim, entvar>::calcFlux(int di,
                                                         const mfem::Vector &qL,
@@ -41,3 +55,7 @@ void SlipWallBCMeshSens<dim, entvar>::calcFluxBar(const mfem::Vector &x,
    this->stack.compute_adjoint();
    adept::get_gradients(dir_a.data(), dir.Size(), dir_bar.GetData());
 }
+
+}  // namespace mach
+
+#endif

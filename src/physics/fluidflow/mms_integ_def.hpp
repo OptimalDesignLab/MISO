@@ -1,3 +1,14 @@
+#ifndef MACH_MMS_INTEG_DEF
+#define MACH_MMS_INTEG_DEF
+
+#include "mfem.hpp"
+
+#include "sbp_fe.hpp"
+#include "utils.hpp"
+#include "mms_integ.hpp"
+
+namespace mach
+{
 template <typename Derived>
 void MMSIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el,
@@ -6,10 +17,10 @@ void MMSIntegrator<Derived>::AssembleElementVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
-   const IntegrationRule &ir = sbp.GetNodes();
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
-   int dim = sbp.GetDim();
+   // int dim = sbp.GetDim();
 #ifdef MFEM_THREAD_SAFE
    Vector x_i, src_i;
 #endif
@@ -40,9 +51,13 @@ void MMSIntegrator<Derived>::AssembleElementGrad(
     mfem::DenseMatrix &elmat)
 {
    using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(el);
-   const IntegrationRule &ir = sbp.GetNodes();
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = sbp.GetDof();
    elmat.SetSize(num_states * num_nodes);
    elmat = 0.0;
 }
+
+}  // namespace mach
+
+#endif

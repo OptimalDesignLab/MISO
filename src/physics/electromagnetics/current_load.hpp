@@ -4,7 +4,6 @@
 #include "mfem.hpp"
 
 #include "div_free_projector.hpp"
-#include "pfem_extras.hpp"
 #include "mach_input.hpp"
 
 namespace mach
@@ -25,11 +24,11 @@ public:
 
    friend double vectorJacobianProduct(CurrentLoad &load,
                                        const mfem::HypreParVector &load_bar,
-                                       std::string wrt);
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(CurrentLoad &load,
                                      const mfem::HypreParVector &load_bar,
-                                     std::string wrt,
+                                     const std::string &wrt,
                                      mfem::HypreParVector &wrt_bar);
 
    CurrentLoad(mfem::ParFiniteElementSpace &pfes,

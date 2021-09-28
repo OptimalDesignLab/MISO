@@ -37,7 +37,6 @@ TEST_CASE("MagnetostaticLoad Value Test")
 {
    Mesh smesh = buildMesh(3, 3);
    ParMesh mesh(MPI_COMM_WORLD, smesh);
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    auto p = 2;
@@ -86,7 +85,7 @@ TEST_CASE("MagnetostaticLoad Value Test")
    auto norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
    std::cout << "norm: " << norm << "\n";
 
-   REQUIRE(norm == Approx(1.8987543495).margin(1e-10));
+   REQUIRE(norm == Approx(1.8696677851).margin(1e-10));
 
    inputs.at("current_density") = 2.0;
    setInputs(ml, inputs);
@@ -96,7 +95,7 @@ TEST_CASE("MagnetostaticLoad Value Test")
    norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
    // std::cout << "norm: " << norm << "\n";
 
-   REQUIRE(norm == Approx(1.9785411644).margin(1e-10));
+   REQUIRE(norm == Approx(1.9505429368).margin(1e-10));
 
    inputs.at("current_density") = 0.0;
    setInputs(ml, inputs);
@@ -106,7 +105,7 @@ TEST_CASE("MagnetostaticLoad Value Test")
    norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
    // std::cout << "norm: " << norm << "\n";
 
-   REQUIRE(norm == Approx(1.8574135496).margin(1e-10));
+   REQUIRE(norm == Approx(1.8280057201).margin(1e-10));
 
 }
 
@@ -114,7 +113,6 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
 {
    Mesh smesh = buildMesh(3, 3);
    ParMesh mesh(MPI_COMM_WORLD, smesh);
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    auto p = 2;
@@ -181,7 +179,6 @@ TEST_CASE("MagnetostaticLoad vectorJacobianProduct wrt mesh_coords")
 {
    Mesh smesh = buildMesh(3, 3);
    ParMesh mesh(MPI_COMM_WORLD, smesh);
-   mesh.ReorientTetMesh();
    mesh.EnsureNodes();
 
    auto p = 2;

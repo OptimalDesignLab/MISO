@@ -9,9 +9,6 @@
 #include "euler_fluxes.hpp"
 #include "navier_stokes_fluxes.hpp"
 
-using adept::adouble;
-using namespace std;  /// TODO: this is polluting other headers!
-
 namespace mach
 {
 /// Source-term integrator for a 2D Navier-Stokes MMS problem
@@ -32,7 +29,7 @@ public:
    /// Computes the MMS source term at a give point
    /// \param[in] x - spatial location at which to evaluate the source
    /// \param[out] src - source term evaluated at `x`
-   void calcSource(const mfem::Vector &x, mfem::Vector &src)
+   void calcSource(const mfem::Vector &x, mfem::Vector &src) const
    {
       double mu = 1.0 / Re;
       calcViscousMMS<double>(mu, Pr, x.GetData(), src.GetData());
@@ -135,7 +132,7 @@ public:
                           const mfem::Vector &x,
                           const mfem::Vector &q,
                           const mfem::DenseMatrix &Dw,
-                          vector<mfem::DenseMatrix> &CDw_jac);
+                          std::vector<mfem::DenseMatrix> &CDw_jac);
 
    /// This allows the base class to access the number of dimensions
    static const int ndim = dim;
@@ -178,8 +175,8 @@ public:
                                                             a),
       Re(Re_num),
       Pr(Pr_num),
-      qfs(q_ref),
       mu(vis),
+      qfs(q_ref),
       work_vec(dim + 2)
    { }
 
@@ -274,7 +271,7 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
    void calcFluxDvJacState(const mfem::Vector &x,
-                           const mfem::Vector dir,
+                           const mfem::Vector &dir,
                            const mfem::Vector &q,
                            std::vector<mfem::DenseMatrix> &flux_jac);
 
@@ -417,12 +414,14 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
    void calcFluxDvJacState(const mfem::Vector &x,
-                           const mfem::Vector dir,
+                           const mfem::Vector &dir,
                            const mfem::Vector &u,
                            std::vector<mfem::DenseMatrix> &flux_jac)
    {
       for (int d = 0; d < dim; ++d)
+      {
          flux_jac[d] = 0.0;
+      }
    }
 
 private:
@@ -464,8 +463,8 @@ public:
                                                       a),
       Re(Re_num),
       Pr(Pr_num),
-      q_in(q_inflow),
       mu(vis),
+      q_in(q_inflow),
       work_vec(dim + 2)
    { }
 
@@ -554,7 +553,7 @@ public:
                       double jac,
                       const mfem::Vector &q,
                       const mfem::DenseMatrix &Dw,
-                      vector<mfem::DenseMatrix> &flux_jac);
+                      std::vector<mfem::DenseMatrix> &flux_jac);
 
    /// Compute the Jacobian of calcFluxDv w.r.t. state
    /// \param[in] x - coordinate location at which fluxes are evaluated
@@ -562,12 +561,14 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
    void calcFluxDvJacState(const mfem::Vector &x,
-                           const mfem::Vector dir,
+                           const mfem::Vector &dir,
                            const mfem::Vector &u,
                            std::vector<mfem::DenseMatrix> &flux_jac)
    {
       for (int d = 0; d < dim; ++d)
+      {
          flux_jac[d] = 0.0;
+      }
    }
 
 private:
@@ -611,8 +612,8 @@ public:
                                                        a),
       Re(Re_num),
       Pr(Pr_num),
-      q_out(q_outflow),
       mu(vis),
+      q_out(q_outflow),
       work_vec(dim + 2)
    { }
 
@@ -708,12 +709,14 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
    void calcFluxDvJacState(const mfem::Vector &x,
-                           const mfem::Vector dir,
+                           const mfem::Vector &dir,
                            const mfem::Vector &u,
                            std::vector<mfem::DenseMatrix> &flux_jac)
    {
       for (int d = 0; d < dim; ++d)
+      {
          flux_jac[d] = 0.0;
+      }
    }
 
 private:
@@ -758,8 +761,8 @@ public:
                                                         a),
       Re(Re_num),
       Pr(Pr_num),
-      qfs(q_far),
       mu(vis),
+      qfs(q_far),
       work_vec(dim + 2)
    { }
 
@@ -863,12 +866,14 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
    void calcFluxDvJacState(const mfem::Vector &x,
-                           const mfem::Vector dir,
+                           const mfem::Vector &dir,
                            const mfem::Vector &u,
                            std::vector<mfem::DenseMatrix> &flux_jac)
    {
       for (int d = 0; d < dim; ++d)
+      {
          flux_jac[d] = 0.0;
+      }
    }
 
 private:
@@ -1012,12 +1017,14 @@ public:
    /// \param[in] q - conservative variables at which to evaluate the flux
    /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
    void calcFluxDvJacState(const mfem::Vector &x,
-                           const mfem::Vector dir,
+                           const mfem::Vector &dir,
                            const mfem::Vector &u,
                            std::vector<mfem::DenseMatrix> &flux_jac)
    {
       for (int d = 0; d < dim; ++d)
+      {
          flux_jac[d] = 0.0;
+      }
    }
 
 private:
@@ -1060,15 +1067,15 @@ public:
                 const mfem::Vector &force_dir,
                 double vis = -1.0,
                 double a = 1.0)
-    : stack(diff_stack),
+    : num_states(num_state_vars),
+      alpha(a),
+      stack(diff_stack),
       fec(fe_coll),
-      num_states(num_state_vars),
       Re(Re_num),
       Pr(Pr_num),
+      mu(vis),
       qfs(q_ref),
       force_nrm(force_dir),
-      mu(vis),
-      alpha(a),
       work_vec(dim + 2)
    { }
 
@@ -1078,10 +1085,10 @@ public:
    /// \param[in] trans - hold geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \return element local contribution to functional
-   virtual double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
-                                const mfem::FiniteElement &el_unused,
-                                mfem::FaceElementTransformations &trans,
-                                const mfem::Vector &elfun);
+   double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
+                        const mfem::FiniteElement &el_unused,
+                        mfem::FaceElementTransformations &trans,
+                        const mfem::Vector &elfun) override;
 
    /// Construct the contribution to the element local dJ/dq
    /// \param[in] el_bnd - the finite element whose residual we want to update
@@ -1089,11 +1096,11 @@ public:
    /// \param[in] trans - holds geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
-   virtual void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
-                                   const mfem::FiniteElement &el_unused,
-                                   mfem::FaceElementTransformations &trans,
-                                   const mfem::Vector &elfun,
-                                   mfem::Vector &elvect);
+   void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
+                           const mfem::FiniteElement &el_unused,
+                           mfem::FaceElementTransformations &trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elvect) override;
 
    /// Construct the element local Jacobian (not used)
    /// \param[in] el_bnd - the finite element whose residual we want to update
@@ -1101,11 +1108,11 @@ public:
    /// \param[in] trans - hold geometry and mapping information about the face
    /// \param[in] elfun - element local state function
    /// \param[out] elmat - element local Jacobian
-   virtual void AssembleFaceGrad(const mfem::FiniteElement &el_bnd,
-                                 const mfem::FiniteElement &el_unused,
-                                 mfem::FaceElementTransformations &trans,
-                                 const mfem::Vector &elfun,
-                                 mfem::DenseMatrix &elmat)
+   void AssembleFaceGrad(const mfem::FiniteElement &el_bnd,
+                         const mfem::FiniteElement &el_unused,
+                         mfem::FaceElementTransformations &trans,
+                         const mfem::Vector &elfun,
+                         mfem::DenseMatrix &elmat) override
    { }
 
    /// converts conservative variables to entropy variables
@@ -1135,7 +1142,7 @@ public:
    double calcBndryFun(const mfem::Vector &x,
                        const mfem::Vector &dir,
                        double jac,
-                       const mfem::Vector &u,
+                       const mfem::Vector &q,
                        const mfem::DenseMatrix &Dw);
 
    /// Returns the gradient of the stress with respect to `q`
@@ -1213,8 +1220,8 @@ private:
 #endif
 };
 
-#include "navier_stokes_integ_def.hpp"
-
 }  // namespace mach
+
+#include "navier_stokes_integ_def.hpp"
 
 #endif
