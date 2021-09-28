@@ -61,7 +61,7 @@ public:
    MagnetostaticSolver(const nlohmann::json &options,
                        std::unique_ptr<mfem::Mesh> smesh);
 
-   // ~MagnetostaticSolver() override;
+   void calcCurl(const mfem::HypreParVector &A, mfem::HypreParVector &B);
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension

@@ -470,10 +470,6 @@ MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json &json_options,
                                          MPI_Comm comm)
  : AbstractSolver(json_options, move(smesh), comm)
 {
-   dim = mesh->Dimension();
-   int order = options["space-dis"]["degree"].get<int>();
-   // num_state = dim;
-
    mesh->RemoveInternalBoundaries();
 
    // /// Create the H(Div) finite element collection
@@ -492,16 +488,36 @@ MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json &json_options,
 
    /// Create magnetic flux density grid function
    // B.reset(new GridFunType(h_div_space.get()));
-
-   auto *h_div_coll = new RT_FECollection(order, dim);
-   auto *h_div_space = new ParFiniteElementSpace(mesh.get(), h_div_coll);
-   res_fields.emplace("B", h_div_space);
-   res_fields.at("B").MakeOwner(h_div_coll);
+   dim = mesh->Dimension();
+   int order = options["space-dis"]["degree"].get<int>();
+   if (dim == 3)
+   {
+      auto *h_div_coll = new RT_FECollection(order, dim);
+      auto *h_div_space = new ParFiniteElementSpace(mesh.get(), h_div_coll);
+      res_fields.emplace("B", h_div_space);
+      res_fields.at("B").MakeOwner(h_div_coll);
+   }
+   else
+   {
+      auto *h_curl_coll = new ND_FECollection(order, dim);
+      auto *h_curl_space = new ParFiniteElementSpace(mesh.get(), h_curl_coll);
+      res_fields.emplace("B", h_curl_space);
+      res_fields.at("B").MakeOwner(h_curl_coll);
+   }
 
    B = &res_fields.at("B");
 }
 
-// MagnetostaticSolver::~MagnetostaticSolver() = default;
+void MagnetostaticSolver::calcCurl(const HypreParVector &A,
+                                   HypreParVector &B)
+{
+   auto &B_gf = res_fields.at("B");
+   DiscreteCurlOperator curl(fes.get(), B_gf.ParFESpace());
+   curl.Assemble();
+   curl.Finalize();
+   std::unique_ptr<HypreParMatrix> curl_mat(curl.ParallelAssemble());
+   curl_mat->Mult(A, B);
+}
 
 void MagnetostaticSolver::printSolution(const std::string &file_name,
                                         int refine)
@@ -536,7 +552,8 @@ void MagnetostaticSolver::setFieldValue(
     HypreParVector &field,
     const std::function<void(const Vector &, Vector &)> &u_init)
 {
-   VectorFunctionCoefficient u0(dim, u_init);
+   const int dimc = (dim == 3) ? 3 : 1;
+   VectorFunctionCoefficient u0(dimc, u_init);
    *scratch = field;
    scratch->ProjectCoefficient(u0);
    scratch->GetTrueDofs(field);
@@ -765,9 +782,10 @@ void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
    }
    else if (fun == "ac_loss")
    {
-      addOutputDomainIntegrator(fun,
-         // new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
-         new ACLossFunctionalIntegrator(*sigma, 1.0, 1.0));
+      addOutputDomainIntegrator(
+          fun,
+          // new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
+          new ACLossFunctionalIntegrator(*sigma, 1.0, 1.0));
    }
    else if (fun == "dc_loss")
    {
@@ -1295,8 +1313,8 @@ void MagnetostaticSolver::setStaticMembers()
       mag_mu_r = materials[material]["mu_r"].get<double>();
       std::cout << "B_r = " << remnant_flux << "\n";
    }
-   fill_factor = options["problem-opts"].value("fill-factor", 1.0);
-   current_density = options["problem-opts"].value("current_density", 1.0);
+   // fill_factor = options["problem-opts"].value("fill-factor", 1.0);
+   // current_density = options["problem-opts"].value("current_density", 1.0);
 }
 
 void MagnetostaticSolver::constructReluctivity()
@@ -2687,8 +2705,6 @@ void MagnetostaticSolver::b_exact(const Vector &x, Vector &B)
 
 double MagnetostaticSolver::remnant_flux = 0.0;
 double MagnetostaticSolver::mag_mu_r = 0.0;
-double MagnetostaticSolver::fill_factor = 0.0;
-double MagnetostaticSolver::current_density = 0.0;
 
 void setInputs(MagnetostaticLoad &load, const MachInputs &inputs)
 {

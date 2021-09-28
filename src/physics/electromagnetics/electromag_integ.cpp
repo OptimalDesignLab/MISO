@@ -2668,12 +2668,24 @@ void setInput(ACLossFunctionalIntegrator &integ,
    {
       integ.freq = input.getValue();
    }
+   else if (name == "effective_length")
+   {
+      integ.effective_length = input.getValue();
+   }
+   else if (name == "num_strands")
+   {
+      integ.num_strands = input.getValue();
+   }
+   else if (name == "slot_area")
+   {
+      integ.slot_area = input.getValue();
+   }
 }
 
 double ACLossFunctionalIntegrator::GetElementEnergy(
-   const FiniteElement &el,
-   ElementTransformation &trans,
-   const Vector &elfun)
+    const FiniteElement &el,
+    ElementTransformation &trans,
+    const Vector &elfun)
 {
    /// number of degrees of freedom
    int ndof = el.GetDof();
@@ -2684,10 +2696,10 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
    int dimc = (dim == 3) ? 3 : 1;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshape(ndof,dimc), curlshape_dFt(ndof,dimc), M;
+   DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc), M;
 #else
-   curlshape.SetSize(ndof,dimc);
-   curlshape_dFt.SetSize(ndof,dimc);
+   curlshape.SetSize(ndof, dimc);
+   curlshape_dFt.SetSize(ndof, dimc);
 #endif
 
    double b_vec_buffer[3];
@@ -2696,15 +2708,17 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
    const IntegrationRule *ir = IntRule;
    if (ir == NULL)
    {
-      int order;
-      if (el.Space() == FunctionSpace::Pk)
+      int order = [&]()
       {
-         order = 2*el.GetOrder() - 2;
-      }
-      else
-      {
-         order = 2*el.GetOrder();
-      }
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
 
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
@@ -2718,7 +2732,7 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       /// holds quadrature weight
       const double w = ip.weight * trans.Weight();
 
-      if ( dim == 3 )
+      if (dim == 3)
       {
          el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
@@ -2734,8 +2748,12 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
 
       const auto sigma_val = sigma.Eval(trans, ip);
 
-      const auto loss = pow(radius, 2) * sigma_val * pow(freq * b_mag, 2) / 32;
-      fun += loss * w;
+      const auto loss = effective_length * M_PI * pow(radius, 4) * sigma_val *
+                        pow(freq * b_mag, 2) / 32.0;
+      
+      // const auto copper_area = 2 * num_strands * M_PI * pow(radius, 2);
+      // const auto fill_factor = copper_area / slot_area;
+      fun += loss * w * num_strands / slot_area;
    }
    return fun;
 }

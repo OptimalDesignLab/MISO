@@ -793,6 +793,7 @@ double AbstractSolver::calcL2Error(
    *scratch = field;
    return calcL2Error(scratch.get(), u_exact, entry);
 }
+
 double AbstractSolver::calcResidualNorm() const
 {
    HypreParVector u_true(fes.get());
@@ -1108,7 +1109,24 @@ void AbstractSolver::getField(const std::string &name, double *field_buffer)
 void AbstractSolver::getField(const std::string &name,
                               mfem::HypreParVector &field)
 {
-   res_fields.at(name).ParallelAssemble(field);
+   res_fields.at(name).GetTrueDofs(field);
+}
+
+std::unique_ptr<HypreParVector> AbstractSolver::getField(
+   const std::string &name)
+{
+   auto &field_gf = res_fields.at(name);
+   auto *field_fes = field_gf.ParFESpace();
+
+   auto field = std::unique_ptr<HypreParVector>(new HypreParVector(field_fes));
+   field_gf.GetTrueDofs(*field);
+   return field;
+}
+
+void AbstractSolver::setField(const std::string &name,
+                              const mfem::HypreParVector &field)
+{
+   res_fields.at(name).SetFromTrueDofs(field);
 }
 
 void AbstractSolver::solveForState(ParGridFunction &state)
