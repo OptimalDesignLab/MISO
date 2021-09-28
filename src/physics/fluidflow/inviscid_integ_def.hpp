@@ -4,6 +4,7 @@
 #include "mfem.hpp"
 
 #include "sbp_fe.hpp"
+#include "inviscid_integ.hpp"
 
 namespace mach
 {

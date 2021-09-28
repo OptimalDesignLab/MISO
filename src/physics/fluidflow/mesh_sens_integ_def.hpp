@@ -4,6 +4,7 @@
 #include "mfem.hpp"
 
 #include "sbp_fe.hpp"
+#include "mesh_sens_integ.hpp"
 
 namespace mach
 {

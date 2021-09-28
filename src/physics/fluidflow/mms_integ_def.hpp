@@ -5,6 +5,7 @@
 
 #include "sbp_fe.hpp"
 #include "utils.hpp"
+#include "mms_integ.hpp"
 
 namespace mach
 {

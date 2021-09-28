@@ -6,6 +6,7 @@
 
 #include "mesh_sens_integ.hpp"
 #include "euler_fluxes.hpp"
+#include "euler_sens_integ.hpp"
 
 namespace mach
 {
