@@ -17,34 +17,41 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
    total_nel = full_mesh->GetNE();
    el_offset = GetParMesh()->GetGlobalElementNum(0);
 
+   // re-cal necessary members from base classses
+   gddofs = GetParMesh()->GetNE();
+   tdof_offsets[0] = vdim * el_offset;
+   tdof_offsets[1] = vdim *(el_offset + gddofs);
 
 
    // determine the the local prolongation matrix size
 
    col_start = 0;
-   col_end = vdim * total_nel - 1;
+   col_end = vdim * total_nel-1;
 
-   HYPRE_BigInt *offsets = GetTrueDofOffsets();
-   int dof_offset = GetMyTDofOffset();
+   HYPRE_BigInt *offsets = GetDofOffsets();
+   int dof_offset = GetMyDofOffset();
    row_start = offsets[0];
-   row_end = offsets[1] - 1;
+   row_end = offsets[1]-1;
 
 
-   HYPRE_BigInt ssize = GlobalTrueVSize();
+   local_tdof = vdim * GetParMesh()->GetNE();
+
    if (GetMyRank() == pr)
    {
       cout << "vdim is " << vdim << endl;
-      cout << "Global true Vsize is " << ssize << endl;
       cout << "dof offset is " << dof_offset <<endl;
+      cout << "tdof_offset is " << tdof_offsets[0] << ", " << tdof_offsets[1] << endl;
       cout << "row start and end are " << row_start << ", " << row_end << endl;
       cout << "col start and end are " << col_start << ", " << col_end << endl;
    }
    MPI_Barrier(GetComm());
 
    BuildProlongationOperator();
-   
+
+   HYPRE_BigInt ssize = GlobalTrueVSize();
    if (GetMyRank() == pr)
    {
+      cout << "Global true Vsize is " << ssize << endl;
       cout << "HypreProlongation matrix size are " << P->Height() << " x " << P->Width() << endl;
    }
 }
@@ -172,11 +179,11 @@ void ParGDSpace::BuildProlongationOperator()
    {
       // 1. Get element id in patch
       GetNeighbourSet(i, nelmt, elmt_id);
-      if (GetMyRank() == pr)
-      {
-         cout << "id(s) in patch " << i << ": ";
-         elmt_id.Print(cout, elmt_id.Size());
-      }
+      // if (GetMyRank() == pr)
+      // {
+      //    cout << "id(s) in patch " << i << ": ";
+      //    elmt_id.Print(cout, elmt_id.Size());
+      // }
 
 
       // 2. build the quadrature and barycenter coordinate matrices
@@ -208,6 +215,10 @@ void ParGDSpace::BuildProlongationOperator()
    Vector diag(local_tdof);
    diag = 1.0;
    R = new SparseMatrix(diag);
+   if (pr == GetMyRank())
+   {
+      cout << "R size is " << R->Height() << " x " << R->Width() << endl;
+   }
 }
 
 void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,
@@ -233,14 +244,14 @@ void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,
       el_dofs[i] += dof_offset;
    }
 
-   if (GetMyRank() == pr)
-   {
-      cout << "All row indices are: ";
-      el_dofs.Print(cout, el_dofs.Size());
-      cout << "All col indices are: ";
-      id.Print(cout,id.Size());
-      cout << endl;
-   }
+   // if (GetMyRank() == pr)
+   // {
+   //    cout << "All row indices are: ";
+   //    el_dofs.Print(cout, el_dofs.Size());
+   //    cout << "All col indices are: ";
+   //    id.Print(cout,id.Size());
+   //    cout << endl;
+   // }
 
    int j, v, e;
    int row_index;

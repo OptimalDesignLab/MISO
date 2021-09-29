@@ -18,6 +18,7 @@ using namespace mach;
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void u_const(const mfem::Vector &x, mfem::Vector &u);
+void u_linear(const mfem::Vector  &x, mfem::Vector &u);
 void u_poly(const mfem::Vector &x, mfem::Vector &u);
 void u_exact(const mfem::Vector &x, mfem::Vector &u);
 void u_const_single(const mfem::Vector &x, mfem::Vector &u);
@@ -133,9 +134,11 @@ int main(int argc, char *argv[])
 		ParFiniteElementSpace pfes(pmesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
 		ParGDSpace pgd(mesh.get(), pmesh.get(), &serial_fes, partitioning, &fec,
 							num_state,mfem::Ordering::byVDIM, o, pr);
-		int dof_offset = pgd.GetMyTDofOffset();
+		int tdof_offset = pgd.GetMyTDofOffset();
+		int dof_offset = pgd.GetMyDofOffset();
 		if (pr == myid)
 		{
+
 			Array<int> el_dofs1, el_dofs2;
 			long glb_dof;
 			cout << "\n-----------------------------------"
@@ -168,9 +171,21 @@ int main(int argc, char *argv[])
 			cout << "pfes.GetVDim()  = " << pfes.GetVDim() << endl;
 			cout << "pfes.GetVSize() = " << pfes.GetVSize() << endl;
 			cout << "pfes.GetNDofs() = " << pfes.GetNDofs() << endl;
+			cout << "pfes.GetTrueVSize() = " << pfes.GetTrueVSize() << endl;
+			HYPRE_BigInt *offsets0 = pfes.GetDofOffsets();
+			cout << "pfes offsets are " << offsets0[0] << ", "<< offsets0[1] << endl;
+			HYPRE_BigInt *offsets1 = pfes.GetTrueDofOffsets();
+			cout << "pfes true offsets are " << offsets1[0] << ", "<< offsets1[1] << endl;
 			cout << "pgd.GetVDim()   = " << pgd.GetVDim() << endl;
 			cout << "pgd.GetVSize()  = " << pgd.GetVSize() << endl;
-			cout << "pgd.GetNDofs()  = " << pgd.GetNDofs() << endl; 
+			cout << "pgd.GetNDofs()  = " << pgd.GetNDofs() << endl;
+			cout << "pgd.GetTrueVSize() = " << pgd.GetTrueVSize() << endl;
+			HYPRE_BigInt *offsets2 = pgd.GetDofOffsets();
+			cout << "pgd offsets are " << offsets2[0] << ", "<< offsets2[1] << endl;
+			HYPRE_BigInt *offsets3 = pgd.GetTrueDofOffsets();
+			cout << "pgd true offsets are " << offsets3[0] << ", "<< offsets3[1] << endl;
+			cout << "pgd tdof_offset is " << tdof_offset << endl;
+			cout << "pgd dof_offset is " << dof_offset << endl; 
 			cout << "----------------------------------------------------"
 				  << "---------------------------------------------\n";
 		}
@@ -213,7 +228,7 @@ int main(int argc, char *argv[])
 		}
 		else if (2 == p)
 		{
-			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_poly);
+			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_linear);
 			x_exact.ProjectCoefficient(u0_fun);
 			x_cent.ProjectCoefficient(u0_fun);
 			x = 0.0;
@@ -226,22 +241,23 @@ int main(int argc, char *argv[])
 			x = 0.0;
 		}
 
-		if (pr == myid)
-		{
-			cout << "---------------Check projection---------------\n";
-			cout << "x_exact is: " << endl;
-			x_exact.Print(cout, num_state);
-			cout << "--------------\n";
-			cout << "x_center is: " << endl;
-			x_cent.Print(cout, num_state);
-			cout << "----------------------------------------------\n";
-		}
+		// if (pr == myid)
+		// {
+		// 	cout << "---------------Check projection---------------\n";
+		// 	cout << "x_exact is: " << endl;
+		// 	x_exact.Print(cout, num_state);
+		// 	cout << "--------------\n";
+		// 	cout << "x_center is: " << endl;
+		// 	x_cent.Print(cout, num_state);
+		// 	cout << "----------------------------------------------\n";
+		// }
 		MPI_Barrier(MPI_COMM_WORLD);
 		// 6. Prolong the solution to real quadrature points
 		HypreParMatrix *prolong = pgd.Dof_TrueDof_Matrix();
 		HypreParVector *x_cent_true = x_cent.GetTrueDofs();
-		HypreParVector *x_true = x.GetTrueDofs();
 		HypreParVector *x_exact_true = x_exact.GetTrueDofs();
+		HypreParVector *x_true = x.GetTrueDofs();
+		
 		if (myid == pr)
 		{
 			cout << "Get Prolongation matrix, the size is "
@@ -252,36 +268,19 @@ int main(int argc, char *argv[])
 			cout << "x_exact_true size is " << x_exact_true->Size() << endl;
 		}
 		x_exact_true->Print("x_exact_true");
-		x_true->Print("x_true");
+		
 		x_cent_true->Print("x_cent_true");
 
-		// prolong->Mult(*x_cent_true, *x_true);
-		// x.SetFromTrueDofs(*x_true);
-		// if (pr == myid)
-		// {
-		// 	cout << "---------------Check prolongation---------------\n";
-		// 	cout << "x is: " << endl;
-		// 	x.Print(cout, num_state);
-		// 	cout << "----------------------------------------------\n";
-		// }
-		
-		
-		// const char *f1 = "x_cent_true";
-		// x_cent_true->Print(f1);
-
-		
-		
-
-
-		// 
-		// 
-		// const char *f2 = "x_exact_true";
-		// x_exact_true->Print(f2);
-
-		// 
-		// cout << "prolonged.\n";
-		// const char *f3 = "x_true";
-		// x_true->Print(f3);
+		prolong->Mult(*x_cent_true, *x_true);
+		x_true->Print("x_true");
+		x.SetFromTrueDofs(*x_true);
+		if (pr == myid)
+		{
+			cout << "---------------Check prolongation---------------\n";
+			cout << "x is: " << endl;
+			x.Print(cout, num_state);
+			cout << "----------------------------------------------\n";
+		}
 
 		// // 7. compute the difference
 		// x.SetFromTrueDofs(*x_true);
@@ -362,6 +361,15 @@ void u_const(const mfem::Vector &x, mfem::Vector &u)
 	u(1) = 2.0;
 	u(2) = 3.0;
 	u(3) = 4.0;
+}
+
+void u_linear(const mfem::Vector &x, mfem::Vector &u)
+{
+	u.SetSize(x.Size()+2);
+	u(0) = 1.0;
+	u(1) = 2.0;
+	u(2) = x(0);
+	u(3) = x(1);
 }
 
 void u_poly(const mfem::Vector &x, mfem::Vector &u)
