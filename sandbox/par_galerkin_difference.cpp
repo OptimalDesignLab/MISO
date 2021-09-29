@@ -141,30 +141,36 @@ int main(int argc, char *argv[])
 			cout << "\n-----------------------------------"
 			<<" FiniteElementSpace Info "
 			<< "-----------------------------------\n";
-			cout << setw(3) << "id" << setw(30) << "dofs from serial mesh "
-				  << setw(20) <<"local dofs order" << setw(30) << "global dof order\n";
-			for (int i = 0; i < pmesh->GetNE(); i++)
-			{
-				glb_id = pmesh->GetGlobalElementNum(i);
-				serial_fes.GetElementVDofs(glb_id, el_dofs1);
-				pgd.GetElementVDofs(i,el_dofs2);
-				cout << setw(3) << glb_id << ": (";
-				for (int k=0; k<el_dofs1.Size(); k++)
-				{
-					cout << el_dofs1[k] << ' ';
-				}
-				cout << ") --> (";
-				for (int k=0; k<el_dofs2.Size(); k++)
-				{
-					cout << dof_offset + el_dofs2[k] << ' ';
-				}
-				cout << ") --> (";
-				for (int k=0; k<el_dofs2.Size(); k++)
-				{
-					cout << pgd.GetGlobalTDofNumber(el_dofs2[k]) << ' ';
-				}
-				cout << ")\n";
-			}
+			// cout << setw(3) << "id" << setw(30) << "dofs from serial mesh "
+			// 	  << setw(20) <<"local dofs order" << setw(30) << "global dof order\n";
+			// for (int i = 0; i < pmesh->GetNE(); i++)
+			// {
+			// 	glb_id = pmesh->GetGlobalElementNum(i);
+			// 	serial_fes.GetElementVDofs(glb_id, el_dofs1);
+			// 	pgd.GetElementVDofs(i,el_dofs2);
+			// 	cout << setw(3) << glb_id << ": (";
+			// 	for (int k=0; k<el_dofs1.Size(); k++)
+			// 	{
+			// 		cout << el_dofs1[k] << ' ';
+			// 	}
+			// 	cout << ") --> (";
+			// 	for (int k=0; k<el_dofs2.Size(); k++)
+			// 	{
+			// 		cout << dof_offset + el_dofs2[k] << ' ';
+			// 	}
+			// 	cout << ") --> (";
+			// 	for (int k=0; k<el_dofs2.Size(); k++)
+			// 	{
+			// 		cout << pgd.GetGlobalTDofNumber(el_dofs2[k]) << ' ';
+			// 	}
+			// 	cout << ")\n";
+			// }
+			cout << "pfes.GetVDim()  = " << pfes.GetVDim() << endl;
+			cout << "pfes.GetVSize() = " << pfes.GetVSize() << endl;
+			cout << "pfes.GetNDofs() = " << pfes.GetNDofs() << endl;
+			cout << "pgd.GetVDim()   = " << pgd.GetVDim() << endl;
+			cout << "pgd.GetVSize()  = " << pgd.GetVSize() << endl;
+			cout << "pgd.GetNDofs()  = " << pgd.GetNDofs() << endl; 
 			cout << "----------------------------------------------------"
 				  << "---------------------------------------------\n";
 		}
@@ -177,9 +183,16 @@ int main(int argc, char *argv[])
 		// ParFiniteElementSpace pfes(pmesh, &fec, vdim, mfem::Ordering::byVDIM);
 
 		// 5. create the gridfucntions
-		mfem::ParCentGridFunction x_cent(&pgd);
+		mfem::ParCentGridFunction x_cent(&pgd, pr);
 		mfem::ParGridFunction x(&pfes);
 		mfem::ParGridFunction x_exact(&pfes);
+
+		if (pr == myid)
+		{
+			cout << "ParCentGridFunction x_cent size is " << x_cent.Size() << endl;
+			cout << "ParGridFunction x size is " << x.Size() << endl;
+			cout << "ParGridFunction x_exact size is " << x_exact.Size() << endl;
+		}
 		if (1 == p)
 		{
 			if( 1 == num_state)
@@ -227,17 +240,20 @@ int main(int argc, char *argv[])
 		// 6. Prolong the solution to real quadrature points
 		HypreParMatrix *prolong = pgd.Dof_TrueDof_Matrix();
 		HypreParVector *x_cent_true = x_cent.GetTrueDofs();
-		// HypreParVector *x_true = x.GetTrueDofs();
-		// HypreParVector *x_exact_true = x_exact.GetTrueDofs();
-		// if (myid == pr)
-		// {
-		// 	cout << "Get Prolongation matrix, the size is "
-		// 		<< prolong->Height() << " x " << prolong->Width() << "\n";
-		// 	cout << "x_cent size is: " << x_cent.Size()<<'\n';
-		// 	cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n';
-		// 	cout << "x_true size is " << x_true->Size() << '\n';
-		// 	cout << "x_exact_true size is " << x_exact_true->Size() << endl;
-		// }
+		HypreParVector *x_true = x.GetTrueDofs();
+		HypreParVector *x_exact_true = x_exact.GetTrueDofs();
+		if (myid == pr)
+		{
+			cout << "Get Prolongation matrix, the size is "
+				<< prolong->Height() << " x " << prolong->Width() << "\n";
+			cout << "x_cent size is: " << x_cent.Size()<<'\n';
+			cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n';
+			cout << "x_true size is " << x_true->Size() << '\n';
+			cout << "x_exact_true size is " << x_exact_true->Size() << endl;
+		}
+		x_exact_true->Print("x_exact_true");
+		x_true->Print("x_true");
+		x_cent_true->Print("x_cent_true");
 
 		// prolong->Mult(*x_cent_true, *x_true);
 		// x.SetFromTrueDofs(*x_true);

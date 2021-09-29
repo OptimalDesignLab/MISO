@@ -7,10 +7,10 @@ using namespace mfem;
 namespace mfem
 {
 
-ParCentGridFunction::ParCentGridFunction(ParFiniteElementSpace *pf)
+ParCentGridFunction::ParCentGridFunction(ParFiniteElementSpace *pf, int pr)
+   : ParGridFunction(pf)
 {
-   fes = pfes = pf;
-   fec = NULL;
+   proc = pr;
    SetSize(pf->GetVDim() * pf->GetNE());
 }
 
@@ -48,7 +48,10 @@ void ParCentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
 
 HypreParVector *ParCentGridFunction::GetTrueDofs() const
 {
-   std::cout << "ParCentGridFunction::GetTruedofs is called. ";
+   if (pfes->GetMyRank() == proc)
+   {
+      std::cout << "ParCentGridFunction::GetTruedofs is called.\n";
+   }
    HypreParVector *tv = dynamic_cast<ParGDSpace*>(pfes)->NewTrueDofVector();
    GridFunction::GetTrueDofs(*tv);
    return tv;

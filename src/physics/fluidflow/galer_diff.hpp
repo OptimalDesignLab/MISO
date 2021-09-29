@@ -55,12 +55,15 @@ public:
 
    HypreParVector *NewTrueDofVector()
    {
+	   if (GetMyRank() == pr)
+	   {
+			std::cout << "ParGDSpace::NewTrueDofVector() is called.\n";
+	   }
 		HYPRE_BigInt col_starts[2];
 		col_starts[0] = GetVDim() * el_offset;
 		col_starts[1] = GetVDim() * (el_offset+GetParMesh()->GetNE());
 		if (GetMyRank() == pr )
 		{
-			std::cout << "ParGDSpace::NewTrueDofVector is called.\n";
 			std::cout << "GlobalTrueVSize is " << GetVDim()*total_nel << ". ";
 			std::cout << "True dof offset is " <<  col_starts[0]
 						<< ' ' << col_starts[1] << '\n';
