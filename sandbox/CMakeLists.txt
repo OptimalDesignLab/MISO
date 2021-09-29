@@ -23,6 +23,7 @@ set(SANDBOX_SRCS
    sod_shock
    continuous_euler
    continuous_2d_euler
+   mass_lump_check
 	)
 
 create_sandbox("${SANDBOX_SRCS}")

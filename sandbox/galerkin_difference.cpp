@@ -7,7 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <random>
-const bool entvar = true;
+const bool entvar = false;
 
 using namespace std;
 using namespace mfem;
@@ -19,7 +19,7 @@ using namespace mach;
 void u_const(const mfem::Vector &x, mfem::Vector &u);
 void u_poly(const mfem::Vector &x, mfem::Vector &u);
 void u_exact(const mfem::Vector &x, mfem::Vector &u);
-void u_single(const mfem::Vector &x, mfem::Vector &u);
+void u_nonlinear(const mfem::Vector &x, mfem::Vector &u);
 
 /// Generate quarter annulus mesh
 /// \param[in] degree - polynomial degree of the mapping
@@ -60,24 +60,25 @@ int main(int argc, char *argv[])
    //================== Multiply mesh files for testing ====================
       int dim;
       int degree = o+1; // annulus mesh degree, should be p+1
-      // unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      unique_ptr<Mesh> mesh = (unique_ptr<Mesh>)(new Mesh("periodic_triangle.mesh", 1, 1));
-      for (int l = 0; l < r; l++)
-      {
-         mesh->UniformRefinement();
-      }
+      unique_ptr<Mesh> mesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      //unique_ptr<Mesh> mesh = (unique_ptr<Mesh>)(new Mesh("periodic_triangle.mesh", 1, 1));
+      // for (int l = 0; l < r; l++)
+      // {
+      //    mesh->UniformRefinement();
+      // }
       ofstream sol_ofs("gd_test.vtk");
       sol_ofs.precision(14);
       mesh->PrintVTK(sol_ofs, 0);
       sol_ofs.close();
       std::cout << "Number of elements " << mesh->GetNE() << '\n';
       dim = mesh->Dimension();
-      // int num_state = dim + 2;
-      int num_state = 1;
+      int num_state = dim +2;
+      //int num_state = 1;
 
    //================== Construct the gd and normal finite element spaces =========
       cout << "Construct the GD fespace.\n";
       DSBPCollection fec(o, dim);
+      //DG_FECollection fec(o,dim, BasisType::GaussLobatto);
       GalerkinDifference gd(mesh.get(), &fec, num_state, Ordering::byVDIM, o);
       FiniteElementSpace fes(mesh.get(), &fec, num_state, Ordering::byVDIM);
 
@@ -86,30 +87,30 @@ int main(int argc, char *argv[])
       mfem::GridFunction x(&fes);
       mfem::GridFunction x_exact(&fes);
 
-      if (p == 1)
+      if (p == 0)
       {
          mfem::VectorFunctionCoefficient u0_fun(num_state, u_const);
          x_cent.ProjectCoefficient(u0_fun);
          x_exact.ProjectCoefficient(u0_fun);
          x = 0.0;
       }
-      else if (p == 2)
+      else if (p == 1)
       {
          mfem::VectorFunctionCoefficient u0_fun(num_state, u_poly);
          x_cent.ProjectCoefficient(u0_fun);
          x_exact.ProjectCoefficient(u0_fun);
          x = 0.0;
       }
-      else if(p == 3)
+      else if(p == 2)
       {
-         mfem::VectorFunctionCoefficient u0_fun(num_state, u_exact);
+         mfem::VectorFunctionCoefficient u0_fun(num_state, u_nonlinear);
          x_cent.ProjectCoefficient(u0_fun);
          x_exact.ProjectCoefficient(u0_fun);
          x = 0.0;
       }
       else
       {
-         mfem::VectorFunctionCoefficient u0_fun(num_state, u_single);
+         mfem::VectorFunctionCoefficient u0_fun(num_state, u_exact);
          x_cent.ProjectCoefficient(u0_fun);
          x_exact.ProjectCoefficient(u0_fun);
          x = 0.0;
@@ -185,30 +186,36 @@ void u_exact(const mfem::Vector &x, mfem::Vector &q)
 
 void u_const(const mfem::Vector &x, mfem::Vector &u)
 {
-   u.SetSize(x.Size()+2);
-   for (int i = 0; i < x.Size()+2; i++)
-   {
-      u(i) = (double)i;
-   }
+   // u.SetSize(x.Size()+2);
+   // for (int i = 0; i < x.Size()+2; i++)
+   // {
+   //    u(i) = (double)i;
+   // }
+   u.SetSize(1);
+   u(0) = 2.0;
 }
 
 void u_poly(const mfem::Vector &x, mfem::Vector &u)
 {
-   u.SetSize(4);
-   u = 0.0;
-   for (int o = 0; o <= 2; o++)
-   {
-      u(0) += pow(x(0), o);
-      u(1) += pow(x(1), o);
-      u(2) += pow(x(0)+x(1), o);
-      u(3) += pow(x(0)-x(1), o);
-   }
+   // u.SetSize(4);
+   // u = 0.0;
+   // for (int o = 0; o <= 2; o++)
+   // {
+   //    u(0) += pow(x(0), o);
+   //    u(1) += pow(x(1), o);
+   //    u(2) += pow(x(0)+x(1), o);
+   //    u(3) += pow(x(0)-x(1), o);
+   // }
+   u.SetSize(1);
+   u(0) = x(0)*x(0);
 }
 
-void u_single(const mfem::Vector &x, mfem::Vector &u)
+void u_nonlinear(const mfem::Vector &x, mfem::Vector &u)
 {
    u.SetSize(1);
-   u(0) = 1.0 + 0.98*sin(2.*M_PI*(x(0)+x(1)));
+   // u(0) = x(0);
+   u(0) = sin(x(0));
+   // u(0) = 1.0 + 0.98*sin(2.*M_PI*(x(0)+x(1)));
    //u(0) = x(0)*x(0)*x(0) - 2.*x(1)*x(1) - 3.*x(0)*x(1) + x(1) +3.0; 
 }
 

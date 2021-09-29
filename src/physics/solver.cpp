@@ -77,8 +77,11 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?) standard FEM.
    // and here it is for first two
-   if (options["space-dis"]["GD"].get<bool>() == true || 
-       options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   if (options["space-dis"]["basis-type"].get<string>() == "dg")
+   {
+      fec.reset(new DG_FECollection(options["space-dis"]["degree"].get<int>(), dim, BasisType::GaussLobatto));
+   }
+   else if ( options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(), dim));
    }
@@ -86,8 +89,76 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    {
       fec.reset(new SBPCollection(options["space-dis"]["degree"].get<int>(), dim ));
    }
-}
 
+}
+void AbstractSolver::masslumpCheck( void (*u_init)(const Vector &, Vector &))
+{
+   num_state = 1;
+   *out << "Num states = " << num_state << endl;
+   if (options["space-dis"]["GD"].get<bool>() == true)
+   {
+      int gd_degree = options["space-dis"]["GD-degree"].get<int>();
+      mesh->ElementToElementTable();
+      fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
+                                       Ordering::byVDIM, gd_degree));
+      fes_normal.reset(new SpaceType(mesh.get(), fec.get(), num_state,
+                              Ordering::byVDIM));
+      uc.reset(new CentGridFunction(fes.get()));
+      u.reset(new GridFunType(fes_normal.get()));
+   }
+   else
+   {
+      fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
+                              Ordering::byVDIM));
+      u.reset(new GridFunType(fes.get()));
+   }
+
+   double alpha = 1.0;
+   // set up the mass matrix
+   mass.reset(new BilinearFormType(fes_normal.get()));
+   if (options["space-dis"]["basis-type"].get<string>() == "dg")
+   {
+      mass->AddDomainIntegrator(new MassIntegrator);
+   }
+   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
+   {
+      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   }
+   mass->Assemble();
+   mass->Finalize();
+   mass_matrix.reset(new MatrixType(mass->SpMat()));
+   MatrixType *cp = dynamic_cast<GalerkinDifference*>(fes.get())->GetCP();
+   MatrixType *p = RAP(*cp, *mass_matrix, *cp);
+   mass_matrix_gd.reset(new MatrixType(*p));
+   // mass lumping
+   const bool lump = options["mass-matrix"]["lump"].get<bool>();
+   Vector diag(mass_matrix_gd->Height());
+   if (lump)
+   {
+      double *cols;
+      int num_in_row;
+      diag = 0.0;
+      for (int i = 0; i < mass_matrix_gd->Height(); i++)
+      {
+         cols = mass_matrix_gd->GetRowEntries(i);
+         num_in_row = mass_matrix_gd->RowSize(i);
+         for (int j = 0; j < num_in_row; j++)
+         {
+            diag(i) += cols[j];
+         }
+      }
+      mass_matrix_gd.reset(new MatrixType(diag));
+   }
+   setInitialCondition(u_init);
+   double integration = (*uc) * diag;
+   // double exact = 2 * M_PI; // 0th order
+   // double exact = 26.0/3.0; // 1st order
+   // double exact = 5.0*M_PI; // 2nd order
+   // double exact = 484.0/15.0; // 3rd order
+   // double exact = 91.0 *M_PI / 4.0; // 4th order
+   // double exact = 4.0; // nonliear
+   cout << "Integration error is " <<  std::setprecision(14) << 4.0 - integration << endl;
+}
 void AbstractSolver::initDerived()
 {
    // define the number of states, the fes, and the state grid function
