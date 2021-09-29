@@ -6,6 +6,7 @@
 
 #include "evolver.hpp"
 #include "thermal.hpp"
+#include "utils.hpp"
 
 #include "mach_load.hpp"
 #include "mach_linearform.hpp"

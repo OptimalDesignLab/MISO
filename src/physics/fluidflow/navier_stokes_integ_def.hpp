@@ -8,6 +8,7 @@
 #include "mms_integ.hpp"
 #include "euler_fluxes.hpp"
 #include "navier_stokes_fluxes.hpp"
+#include "navier_stokes_integ.hpp"
 
 namespace mach
 {

@@ -71,7 +71,7 @@ TEST_CASE("LegacyMagneticLoad Value Test")
    auto norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
    // std::cout << "norm: " << norm << "\n";
 
-   REQUIRE(norm == Approx(1.7583916468).margin(1e-10));
+   REQUIRE(norm == Approx(1.7467088168).margin(1e-10));
 
    setInputs(ml, inputs);
    tv = 0.0;
@@ -80,7 +80,7 @@ TEST_CASE("LegacyMagneticLoad Value Test")
    norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
    // std::cout << "norm: " << norm << "\n";
 
-   REQUIRE(norm == Approx(1.7583916468).margin(1e-10));
+   REQUIRE(norm == Approx(1.7467088168).margin(1e-10));
 }
 
 TEST_CASE("MagneticLoad Value Test")
@@ -128,7 +128,7 @@ TEST_CASE("MagneticLoad Value Test")
    auto normLF = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
    // std::cout << "normLF: " << normLF << "\n";
 
-   REQUIRE(normLF == Approx(1.8574135496).margin(1e-10));
+   REQUIRE(normLF == Approx(1.8280057201).margin(1e-10));
 
    setInputs(mlLF, inputs);
    tv = 0.0;
@@ -137,7 +137,7 @@ TEST_CASE("MagneticLoad Value Test")
    normLF = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
    // std::cout << "normLF: " << normLF << "\n";
 
-   REQUIRE(normLF == Approx(1.8574135496).margin(1e-10));
+   REQUIRE(normLF == Approx(1.8280057201).margin(1e-10));
 }
 
 TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")

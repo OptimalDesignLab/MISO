@@ -4,6 +4,7 @@
 #include "solver.hpp"
 #include "coefficient.hpp"
 #include "mesh_move_integ.hpp"
+#include "utils.hpp"
 #include "mesh_movement.hpp"
 
 using namespace mfem;

@@ -1,6 +1,8 @@
 #ifndef MACH_EGADS
 #define MACH_EGADS
 
+#include <string>
+
 namespace mfem
 {
 class HypreParVector;

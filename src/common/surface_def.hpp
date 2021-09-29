@@ -5,6 +5,7 @@
 
 #include "kdtree.hpp"
 #include "utils.hpp"
+#include "surface.hpp"
 
 namespace mach
 {

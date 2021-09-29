@@ -4,7 +4,6 @@
 
 #include "adept.h"
 
-#include "magnetostatic.hpp"
 #include "solver.hpp"
 #include "evolver.hpp"
 #include "electromag_integ.hpp"
@@ -12,6 +11,8 @@
 #include "mfem_extensions.hpp"
 #include "current_load.hpp"
 #include "magnetic_load.hpp"
+#include "utils.hpp"
+#include "magnetostatic.hpp"
 
 using namespace std;
 using namespace mfem;

@@ -6,6 +6,7 @@
 
 #include "inviscid_integ.hpp"
 #include "euler_fluxes.hpp"
+#include "euler_integ.hpp"
 
 namespace mach
 {

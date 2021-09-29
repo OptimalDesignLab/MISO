@@ -1105,7 +1105,7 @@ TEST_CASE("BNormIntegrator::GetElementEnergy",
    std::unique_ptr<Mesh> mesh(
       new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
                                      Element::TETRAHEDRON,
-                                     2.0, 3.0, 1.0, true)));
+                                     2.0, 2.0, 1.0, true)));
    mesh->EnsureNodes();
 
    for (int p = 1; p <= 4; ++p)
