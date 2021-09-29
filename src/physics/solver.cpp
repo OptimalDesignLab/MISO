@@ -1113,7 +1113,7 @@ void AbstractSolver::getField(const std::string &name,
 }
 
 std::unique_ptr<HypreParVector> AbstractSolver::getField(
-   const std::string &name)
+    const std::string &name)
 {
    auto &field_gf = res_fields.at(name);
    auto *field_fes = field_gf.ParFESpace();

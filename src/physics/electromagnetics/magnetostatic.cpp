@@ -509,8 +509,7 @@ MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json &json_options,
    B = &res_fields.at("B");
 }
 
-void MagnetostaticSolver::calcCurl(const HypreParVector &A,
-                                   HypreParVector &B)
+void MagnetostaticSolver::calcCurl(const HypreParVector &A, HypreParVector &B)
 {
    auto &B_gf = res_fields.at("B");
    DiscreteCurlOperator curl(fes.get(), B_gf.ParFESpace());
