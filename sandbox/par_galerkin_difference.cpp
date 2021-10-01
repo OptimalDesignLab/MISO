@@ -105,25 +105,25 @@ int main(int argc, char *argv[])
 			cout << "\n-------"
 				  <<" Mesh Info "
 				  << "-------\n";
-			cout << setw(15) << "total # elmts:" << setw(8) << mesh->GetNE() << '\n';
 			cout << setw(15) << "Processor id:" << setw(8) << myid << '\n';
 			cout << setw(15) << "mesh dimension:" << setw(8) << dim << '\n';
-			cout << setw(15) << "# of elements:" << setw(8) <<pmesh->GetNE() << '\n';
-			cout << setw(15) << "Check ordering: " << endl;
-			Vector cent1(dim), cent2(dim);
-			int geom;
-			ElementTransformation *eltransf;
-			for (int i = 0; i < pmesh->GetNE(); i++)
-			{
-				glb_id = pmesh->GetGlobalElementNum(i);
-				cout << i << " --> " << glb_id;
-				geom = pmesh->GetElement(i)->GetGeometryType();
-				eltransf = pmesh->GetElementTransformation(i);
-				eltransf->Transform(Geometries.GetCenter(geom),cent2);
-				eltransf = mesh->GetElementTransformation((int)glb_id);
-				eltransf->Transform(Geometries.GetCenter(geom),cent1);
-				cout << ",  ("<< cent1(0) - cent2(0) << ", " << cent1(1) - cent2(1) << ")\n";
-			}
+			cout << setw(15) << "total # elmts:" << setw(8) << mesh->GetNE() << '\n';
+			cout << setw(15) << "local # elmts:" << setw(8) <<pmesh->GetNE() << '\n';
+			// cout << setw(15) << "Check ordering: " << endl;
+			// Vector cent1(dim), cent2(dim);
+			// int geom;
+			// ElementTransformation *eltransf;
+			// for (int i = 0; i < pmesh->GetNE(); i++)
+			// {
+			// 	glb_id = pmesh->GetGlobalElementNum(i);
+			// 	cout << i << " --> " << glb_id;
+			// 	geom = pmesh->GetElement(i)->GetGeometryType();
+			// 	eltransf = pmesh->GetElementTransformation(i);
+			// 	eltransf->Transform(Geometries.GetCenter(geom),cent2);
+			// 	eltransf = mesh->GetElementTransformation((int)glb_id);
+			// 	eltransf->Transform(Geometries.GetCenter(geom),cent1);
+			// 	cout << ",  ("<< cent1(0) - cent2(0) << ", " << cent1(1) - cent2(1) << ")\n";
+			// }
 			cout << "-------------------------\n";
 
 		}
@@ -370,7 +370,7 @@ void u_linear(const mfem::Vector &x, mfem::Vector &u)
 	u(0) = 1.0;
 	u(1) = 2.0;
 	u(2) = x(0);
-	u(3) = x(1);
+	u(3) = x(1)*x(1);
 }
 
 void u_poly(const mfem::Vector &x, mfem::Vector &u)

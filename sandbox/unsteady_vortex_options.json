@@ -8,7 +8,7 @@
       "degree": 1,
       "lps-coeff": 1.0,
       "iface-coeff": 1.0,
-      "basis-type": "csbp"
+      "basis-type": "dsbp"
    },
    "nonlin-solver": {
       "printlevel": 1,

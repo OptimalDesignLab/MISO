@@ -27,11 +27,9 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
    // determine the the local prolongation matrix size
 
    col_start = vdim * el_offset;
-   //col_end = vdim * total_ne - 1;
-   col_end = col_start + gddofs * vdim - 1;
+   col_end = col_start + vdim * gddofs - 1;
 
    HYPRE_BigInt *offsets = GetDofOffsets();
-   int dof_offset = GetMyDofOffset();
    row_start = offsets[0];
    row_end = offsets[1]-1;
 
@@ -42,7 +40,6 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
    {
       cout << "Constructint the parallel prolongation matrix:\n";
       cout << "vdim is " << vdim << endl;
-      cout << "dof offset is " << dof_offset <<endl;
       cout << "dof offsets are " << offsets[0] << ", " << offsets[1] << endl;
       cout << "tdof_offset is " << tdof_offsets[0] << ", " << tdof_offsets[1] << endl;
       cout << "row start and end are " << row_start << ", " << row_end << endl;
@@ -184,11 +181,11 @@ void ParGDSpace::BuildProlongationOperator()
    {
       // 1. Get element id in patch
       GetNeighbourSet(i, nelmt, elmt_id);
-      if (GetMyRank() == pr)
-      {
-         cout << "id(s) in patch " << i << ": ";
-         elmt_id.Print(cout, elmt_id.Size());
-      }
+      // if (GetMyRank() == pr)
+      // {
+      //    cout << "id(s) in patch " << i << ": ";
+      //    elmt_id.Print(cout, elmt_id.Size());
+      // }
 
 
       // 2. build the quadrature and barycenter coordinate matrices

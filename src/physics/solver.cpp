@@ -99,6 +99,7 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    {
       *out << setw(3) << options << endl;
    }
+   *out << "initBase is called, and this is rank " << rank << endl;
 
    materials = material_library;
 
@@ -304,6 +305,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    std::string mesh_file = options["mesh"]["file"].template get<string>();
    std::string mesh_ext;
    size_t i = mesh_file.rfind('.', mesh_file.length());
+   bool gd = options["space-dis"]["GD"].template get<bool>();
    if (i != string::npos)
    {
       mesh_ext = (mesh_file.substr(i + 1, mesh_file.length() - i));
@@ -325,7 +327,23 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    {
       // read in the serial mesh
       smesh.reset(new Mesh(mesh_file.c_str(), 1, 1));
-      mesh.reset(new MeshType(comm, *smesh));
+      
+      if (true == gd)
+      {
+         int partitioning[smesh->GetNE()];
+         ProcessMeshToGD(smesh.get(), partitioning);
+         *out << "check mesh partitioning: \n";
+         for (int k = 0; k < smesh->GetNE(); k++)
+         {
+            *out << partitioning[k] << ' ';
+         }
+         *out << endl;
+         mesh.reset(new MeshType(comm, *smesh, partitioning)); 
+      }
+      else
+      {
+         mesh.reset(new MeshType(comm, *smesh));
+      }
    }
    // PUMI mesh
    else if (mesh_ext == "smb")
@@ -463,6 +481,26 @@ void AbstractSolver::constructPumiMesh()
        "\tMFEM was not built with PUMI!\n"
        "\trecompile MFEM with PUMI\n");
 #endif  // MFEM_USE_PUMI
+}
+
+void AbstractSolver::ProcessMeshToGD(Mesh *smesh, int *partitioning)
+{
+   int num_proc;
+   MPI_Comm_size(comm, &num_proc);
+   int nel = smesh->GetNE();
+
+   int nel_par = (int)floor(nel/num_proc);
+   int nel_left = nel - nel_par * num_proc;
+   int nel_par_a = nel_par;
+
+   for (int i=0; i < num_proc; i++)
+   {
+      if (i == num_proc-1) nel_par_a += nel_left;
+      for (int j = 0; j < nel_par_a; j++)
+      {
+         partitioning[i*nel_par+j] = i;
+      }
+   }
 }
 
 void AbstractSolver::setInitialCondition(

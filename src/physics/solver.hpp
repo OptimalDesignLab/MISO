@@ -789,6 +789,9 @@ protected:
    /// Construct PUMI Mesh
    void constructPumiMesh();
 
+   /// Process the mfem::mesh for parallel Galerkin difference
+   void ProcessMeshToGD(mfem::Mesh *smesh, int *partitioning);
+
    /// Remove internal mesh boundaries based on options
    void removeInternalBoundaries();
 
