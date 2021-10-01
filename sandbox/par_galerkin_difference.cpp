@@ -284,17 +284,16 @@ int main(int argc, char *argv[])
 		// 	cout << "----------------------------------------------\n";
 		// }
 
-		// // 7. compute the difference
-		// x.SetFromTrueDofs(*x_true);
-		// x_exact.Add(-1.0, x);
-		// double loc_norm = x_exact.Norml2();
-		// double norm;
-		// MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		// // 7. compute the differences
+		x_exact.Add(-1.0, x);
+		double loc_norm = x_exact.Norml2();
+		double norm;
+		MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-		// if ( 0 == myid)
-		// {
-		// 	cout << "The projection norm is " << norm << '\n';
-		// }
+		if ( 0 == myid)
+		{
+			cout << "The projection norm is " << norm << '\n';
+		}
 
    }
 

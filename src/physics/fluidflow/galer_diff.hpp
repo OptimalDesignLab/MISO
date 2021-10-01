@@ -89,6 +89,8 @@ private:
 	int el_offset;
 	int pr;
 
+	HypreParMatrix *ptranspose;
+
 	// Use the serial mesh to constructe prolongation matrix 
 	mfem::Mesh *full_mesh;
 	const mfem::FiniteElementSpace *full_fespace;

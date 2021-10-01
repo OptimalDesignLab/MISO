@@ -26,8 +26,9 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
 
    // determine the the local prolongation matrix size
 
-   col_start = 0;
-   col_end = vdim * total_nel - 1;
+   col_start = vdim * el_offset;
+   //col_end = vdim * total_ne - 1;
+   col_end = col_start + gddofs * vdim - 1;
 
    HYPRE_BigInt *offsets = GetDofOffsets();
    int dof_offset = GetMyDofOffset();
@@ -154,6 +155,7 @@ void ParGDSpace::BuildProlongationOperator()
 {
 
    HYPRE_IJMatrixCreate(GetComm(),row_start,row_end,col_start,col_end,&ij_matrix);
+   //HYPRE_IJMatrixCreate(GetComm(),);
    HYPRE_IJMatrixSetObjectType(ij_matrix,HYPRE_PARCSR);
    HYPRE_IJMatrixInitialize(ij_matrix);
 
