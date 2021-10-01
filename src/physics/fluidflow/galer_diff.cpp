@@ -13,6 +13,7 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
                        int vdim, int ordering, int de, int p)
    : pr(p), full_mesh(m), full_fespace(global_fes), SpaceType(pm,global_fes,partitioning)
 {
+
    degree = de;
    total_nel = full_mesh->GetNE();
    el_offset = GetParMesh()->GetGlobalElementNum(0);
@@ -26,7 +27,7 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
    // determine the the local prolongation matrix size
 
    col_start = 0;
-   col_end = vdim * total_nel-1;
+   col_end = vdim * total_nel - 1;
 
    HYPRE_BigInt *offsets = GetDofOffsets();
    int dof_offset = GetMyDofOffset();
@@ -38,8 +39,10 @@ ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fe
 
    if (GetMyRank() == pr)
    {
+      cout << "Constructint the parallel prolongation matrix:\n";
       cout << "vdim is " << vdim << endl;
       cout << "dof offset is " << dof_offset <<endl;
+      cout << "dof offsets are " << offsets[0] << ", " << offsets[1] << endl;
       cout << "tdof_offset is " << tdof_offsets[0] << ", " << tdof_offsets[1] << endl;
       cout << "row start and end are " << row_start << ", " << row_end << endl;
       cout << "col start and end are " << col_start << ", " << col_end << endl;
@@ -179,11 +182,11 @@ void ParGDSpace::BuildProlongationOperator()
    {
       // 1. Get element id in patch
       GetNeighbourSet(i, nelmt, elmt_id);
-      // if (GetMyRank() == pr)
-      // {
-      //    cout << "id(s) in patch " << i << ": ";
-      //    elmt_id.Print(cout, elmt_id.Size());
-      // }
+      if (GetMyRank() == pr)
+      {
+         cout << "id(s) in patch " << i << ": ";
+         elmt_id.Print(cout, elmt_id.Size());
+      }
 
 
       // 2. build the quadrature and barycenter coordinate matrices
@@ -237,7 +240,7 @@ void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,
    MFEM_VERIFY(num_dofs == local_mat.Height(),"matrix height doesn't match # of dof");
    
    Array<int> el_dofs;
-   int dof_offset = GetMyTDofOffset();
+   int dof_offset = GetMyDofOffset();
    GetElementVDofs(main_id_local, el_dofs);
    for (int i = 0; i < el_dofs.Size(); i++)
    {

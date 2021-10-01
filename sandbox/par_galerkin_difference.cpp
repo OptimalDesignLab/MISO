@@ -132,6 +132,8 @@ int main(int argc, char *argv[])
 		DSBPCollection fec(o,dim);
 		FiniteElementSpace serial_fes(mesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
 		ParFiniteElementSpace pfes(pmesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
+		HypreParMatrix *test_mat = pfes.Dof_TrueDof_Matrix();
+		test_mat->Print("test");
 		ParGDSpace pgd(mesh.get(), pmesh.get(), &serial_fes, partitioning, &fec,
 							num_state,mfem::Ordering::byVDIM, o, pr);
 		int tdof_offset = pgd.GetMyTDofOffset();
@@ -241,16 +243,14 @@ int main(int argc, char *argv[])
 			x = 0.0;
 		}
 
-		// if (pr == myid)
-		// {
-		// 	cout << "---------------Check projection---------------\n";
-		// 	cout << "x_exact is: " << endl;
-		// 	x_exact.Print(cout, num_state);
-		// 	cout << "--------------\n";
-		// 	cout << "x_center is: " << endl;
-		// 	x_cent.Print(cout, num_state);
-		// 	cout << "----------------------------------------------\n";
-		// }
+		if (pr == myid)
+		{
+			cout << "---------------Check projection---------------\n";
+			cout << "x_exact size is : " << x_exact.Size() << endl;
+			cout << "x_center is: " << x_cent.Size() << endl;
+			cout << "x size is " << x.Size() << endl;
+			cout << "----------------------------------------------\n";
+		}
 		MPI_Barrier(MPI_COMM_WORLD);
 		// 6. Prolong the solution to real quadrature points
 		HypreParMatrix *prolong = pgd.Dof_TrueDof_Matrix();
@@ -262,10 +262,12 @@ int main(int argc, char *argv[])
 		{
 			cout << "Get Prolongation matrix, the size is "
 				<< prolong->Height() << " x " << prolong->Width() << "\n";
-			cout << "x_cent size is: " << x_cent.Size()<<'\n';
+			cout << "Global size is " << prolong->GetGlobalNumRows() << " x "
+				  << prolong->GetGlobalNumCols()  << endl;
+			cout << "x_exact_true size is " << x_exact_true->Size() << endl;
 			cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n';
 			cout << "x_true size is " << x_true->Size() << '\n';
-			cout << "x_exact_true size is " << x_exact_true->Size() << endl;
+			
 		}
 		x_exact_true->Print("x_exact_true");
 		
@@ -274,13 +276,13 @@ int main(int argc, char *argv[])
 		prolong->Mult(*x_cent_true, *x_true);
 		x_true->Print("x_true");
 		x.SetFromTrueDofs(*x_true);
-		if (pr == myid)
-		{
-			cout << "---------------Check prolongation---------------\n";
-			cout << "x is: " << endl;
-			x.Print(cout, num_state);
-			cout << "----------------------------------------------\n";
-		}
+		// if (pr == myid)
+		// {
+		// 	cout << "---------------Check prolongation---------------\n";
+		// 	cout << "x is: " << endl;
+		// 	x.Print(cout, num_state);
+		// 	cout << "----------------------------------------------\n";
+		// }
 
 		// // 7. compute the difference
 		// x.SetFromTrueDofs(*x_true);

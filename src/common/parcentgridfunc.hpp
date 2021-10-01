@@ -13,8 +13,8 @@ public:
 	ParCentGridFunction() { }
 	ParCentGridFunction(mfem::ParFiniteElementSpace *pfes, int pr);
 	virtual void ProjectCoefficient(mfem::VectorCoefficient &coeff);
-	HypreParVector *GetTrueDofs() const;
-	using GridFunction::GetTrueDofs;
+	// HypreParVector *GetTrueDofs() const;
+	// using GridFunction::GetTrueDofs;
 	ParCentGridFunction &operator=(const Vector &v);
    ParCentGridFunction &operator=(double value);
 };
