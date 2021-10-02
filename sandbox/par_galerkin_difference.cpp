@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 		ParFiniteElementSpace pfes(pmesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
 		HypreParMatrix *test_mat = pfes.Dof_TrueDof_Matrix();
 		test_mat->Print("test");
-		ParGDSpace pgd(mesh.get(), pmesh.get(), &serial_fes, partitioning, &fec,
+		ParGDSpace pgd(mesh.get(), pmesh.get(), &fec,
 							num_state,mfem::Ordering::byVDIM, o, pr);
 		int tdof_offset = pgd.GetMyTDofOffset();
 		int dof_offset = pgd.GetMyDofOffset();

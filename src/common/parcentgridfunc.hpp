@@ -14,7 +14,7 @@ private:
 	int proc; // temporal data created for print
 public:
 	ParCentGridFunction() { }
-	ParCentGridFunction(mfem::ParFiniteElementSpace *pfes, int pr);
+	ParCentGridFunction(mfem::ParFiniteElementSpace *pfes, int pr = 0);
 	virtual void ProjectCoefficient(mfem::VectorCoefficient &coeff);
 	// HypreParVector *GetTrueDofs() const;
 	// using GridFunction::GetTrueDofs;

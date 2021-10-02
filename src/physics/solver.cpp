@@ -155,7 +155,6 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
 
 void AbstractSolver::initDerived()
 {
-   *out << "initderived is called, serial mesh has " << serial_mesh->GetNE() << endl;
    int dim = mesh->Dimension();
    int fe_order = options["space-dis"]["degree"].template get<int>();
    std::string basis_type =
@@ -190,7 +189,11 @@ void AbstractSolver::initDerived()
    u.reset(new GridFunType(fes.get()));
    if (galerkin_diff)
    {
-      //fes_gd.reset(new ParGDSpace(serial_mesh.get(), pmesh.get(), ));
+      fes_gd.reset(new ParGDSpace(serial_mesh.get(), mesh.get(), fec.get(),
+                     num_state, Ordering::byVDIM));
+      u_gd.reset(new ParCentGridFunction(fes_gd.get()));
+      *out << "Number of Galerkin difference space unknows: " 
+           << fes_gd->GlobalTrueVSize() << endl;
    }
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize()
         << endl;
@@ -265,8 +268,10 @@ void AbstractSolver::initDerived()
       }
       *out << endl;
    }
+   *out << "flag 10\n";
 
    setEssentialBoundaries();
+   *out << "flag 11\n";
 
    // // add the output functional QoIs
    // auto &fun = options["outputs"];
@@ -281,6 +286,7 @@ void AbstractSolver::initDerived()
    solver = constructLinearSolver(options["lin-solver"], *prec);
    newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
    constructEvolver();
+   *out << "flag 12\n";
 }
 
 AbstractSolver::~AbstractSolver()
@@ -332,6 +338,10 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    {
       // read in the serial mesh
       smesh.reset(new Mesh(mesh_file.c_str(), 1, 1));
+      for (int l = 0; l < options["mesh"]["refine"].template get<int>(); l++)
+      {
+         smesh->UniformRefinement();
+      }
       
       if (true == gd)
       {
@@ -1369,7 +1379,10 @@ void AbstractSolver::setEssentialBoundaries()
 {
    auto &bcs = options["bcs"];
    // std::cout << "bdr_attributes: "; mesh->bdr_attributes.Print();
-   ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   if (mesh->bdr_attributes.Size())
+   {
+      ess_bdr.SetSize(mesh->bdr_attributes.Max());
+   }
    // ess_bdr.SetSize(13);
    // *out << "ess_bdr size: " << ess_bdr.Size() << "\n";
 

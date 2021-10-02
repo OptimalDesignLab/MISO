@@ -21,8 +21,7 @@ public:
 	/// \param[in] ordering - method for orderding the dofs, usually is byVDIM
 	/// \param[in] de - prolongation operator degree
 	/// \param[in] p - a temporal variable used for print some result
-	ParGDSpace(mfem::Mesh *m, mfem::ParMesh *pm, const mfem::FiniteElementSpace *global_fes,
-				  const int *partitioning, const mfem::FiniteElementCollection *fec,
+	ParGDSpace(mfem::Mesh *m, mfem::ParMesh *pm, const mfem::FiniteElementCollection *fec,
 				  int vdim = 1, int ordering = mfem::Ordering::byVDIM, int de = 1, int p = 0);
 	/// Construct the parallel prolongation operator
 	void BuildProlongationOperator();
@@ -94,7 +93,7 @@ private:
 
 	// Use the serial mesh to constructe prolongation matrix 
 	mfem::Mesh *full_mesh;
-	const mfem::FiniteElementSpace *full_fespace;
+	//const mfem::FiniteElementSpace *full_fespace;
 	/// total number of element
 	int total_nel;
 	HYPRE_Int local_tdof;

@@ -10,10 +10,9 @@ using namespace mach;
 namespace mfem
 {
 
-ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementSpace *global_fes,
-                       const int *partitioning, const FiniteElementCollection *fec,
+ParGDSpace::ParGDSpace(Mesh *m, ParMesh *pm, const FiniteElementCollection *fec,
                        int vdim, int ordering, int de, int p)
-   : pr(p), full_mesh(m), full_fespace(global_fes), SpaceType(pm,global_fes,partitioning)
+   : pr(p), full_mesh(m), SpaceType(pm,fec,vdim,ordering)
 {
 
    degree = de;

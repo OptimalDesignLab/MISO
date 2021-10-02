@@ -114,12 +114,13 @@ int main(int argc, char *argv[])
       l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
-      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
-      double entropy = solver->calcOutput("entropy");
-
       out->precision(15);
       *out << "\nfinal residual norm = " << res_error;
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      double entropy = solver->calcOutput("entropy");
+
+
       *out << "\nDrag error = " << drag << endl;
       *out << "\nTotal entropy = " << entropy;
       *out << "\nEntropy error = "
