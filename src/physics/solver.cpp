@@ -147,14 +147,15 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    }
 
    // Refine the mesh here, or have a separate member function?
-   for (int l = 0; l < options["mesh"]["refine"].template get<int>(); l++)
-   {
-      mesh->UniformRefinement();
-   }
+   // for (int l = 0; l < options["mesh"]["refine"].template get<int>(); l++)
+   // {
+   //    mesh->UniformRefinement();
+   // }
 }
 
 void AbstractSolver::initDerived()
 {
+   *out << "initderived is called, serial mesh has " << serial_mesh->GetNE() << endl;
    int dim = mesh->Dimension();
    int fe_order = options["space-dis"]["degree"].template get<int>();
    std::string basis_type =
@@ -187,6 +188,10 @@ void AbstractSolver::initDerived()
    /// we'll stop using `u` eventually
    /// start creating your own state vector with `getNewField`
    u.reset(new GridFunType(fes.get()));
+   if (galerkin_diff)
+   {
+      //fes_gd.reset(new ParGDSpace(serial_mesh.get(), pmesh.get(), ));
+   }
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize()
         << endl;
 
@@ -338,7 +343,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             *out << partitioning[k] << ' ';
          }
          *out << endl;
-         mesh.reset(new MeshType(comm, *smesh, partitioning)); 
+         serial_mesh = move(smesh);
+         mesh.reset(new MeshType(comm, *serial_mesh, partitioning)); 
       }
       else
       {

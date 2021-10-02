@@ -2,6 +2,8 @@
 #include <iostream>
 #include "default_options.hpp"
 #include "galer_diff.hpp"
+#include "utils.hpp"
+
 using namespace std;
 using namespace mach;
 

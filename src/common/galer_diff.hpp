@@ -1,10 +1,11 @@
 #ifndef MFEM_GALER_DIFF
 #define MFEM_GALER_DIFF
 #include "mfem.hpp"
-#include "solver.hpp"
-#include "mach_types.hpp"
 #include "HYPRE.h"
-#include <iostream>
+
+#include "mach_types.hpp"
+
+
 namespace mfem
 {
 

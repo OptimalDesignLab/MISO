@@ -1,6 +1,5 @@
 #include "parcentgridfunc.hpp"
 #include "galer_diff.hpp"
-#include "sbp_fe.hpp"
 
 using namespace mfem;
 

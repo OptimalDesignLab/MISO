@@ -14,6 +14,8 @@
 #include "utils.hpp"
 #include "mach_integrator.hpp"
 #include "mach_input.hpp"
+#include "galer_diff.hpp"
+#include "parcentgridfunc.hpp"
 
 #ifdef MFEM_USE_PUMI
 namespace apf
@@ -785,6 +787,12 @@ protected:
    std::unordered_map<std::string, mfem::Array<int>> output_bndry_marker;
 
    //--------------------------------------------------------------------------
+   // Members associated with Galerkin difference method
+   std::unique_ptr<mfem::Mesh> serial_mesh;
+   std::unique_ptr<mfem::ParGDSpace> fes_gd;
+   std::unique_ptr<mfem::ParCentGridFunction> u_gd;
+   
+   
 
    /// Construct PUMI Mesh
    void constructPumiMesh();

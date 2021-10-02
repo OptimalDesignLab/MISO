@@ -2,6 +2,9 @@
 #define MFEM_PARCENTGRIDFUNC
 
 #include "mfem.hpp"
+#include "sbp_fe.hpp"
+
+
 namespace mfem
 {
 

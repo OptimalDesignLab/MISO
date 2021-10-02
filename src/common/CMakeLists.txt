@@ -23,7 +23,9 @@ target_sources(mach
       surface.hpp
       surface_def.hpp
       parcentgridfunc.cpp
-	parcentgridfunc.hpp
+      parcentgridfunc.hpp
+      galer_diff.cpp
+      galer_diff.hpp
 )
 
 target_include_directories(mach

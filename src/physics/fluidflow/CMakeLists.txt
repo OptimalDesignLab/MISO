@@ -10,8 +10,6 @@ target_sources(mach
       euler.cpp
       euler.hpp
       fluidflow.hpp
-      galer_diff.cpp
-      galer_diff.hpp
       inviscid_integ_def.hpp
       inviscid_integ.hpp
       mesh_sens_integ.hpp
