@@ -552,6 +552,25 @@ void AbstractSolver::setInitialCondition(ParGridFunction &state,
    state.ProjectCoefficient(u0);
 }
 
+void AbstractSolver::setMinL2ErrorInitialCondition(ParCentGridFunction &state,
+         const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+{
+   // get P and H
+   HypreParMatrix *p = fes_gd->Dof_TrueDof_Matrix();
+   HypreParMatrix *h = mass->ParallelAssemble();
+   
+   // compute (P^t*H) * u
+   FunctionCoefficient u0(num_state, u_init);
+   u->ProjectCoefficient(u0);
+   HypreParVector hu(fes_gd.get()), pthu(fes_gd.get());
+   h->Mult(*u,*hu);
+   p->MultTranspose(*hu,*pthu);
+
+   // compute (P^t*H*P)
+   HypreParMatrix *pthp = RAP(h,p);
+   PCG();
+}
+
 void AbstractSolver::setFieldValue(HypreParVector &field, const double u_init)
 {
    ConstantCoefficient u0(u_init);

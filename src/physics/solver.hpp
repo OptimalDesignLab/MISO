@@ -155,6 +155,13 @@ public:
    /// \param[in] u_init - vector that defines the initial condition
    virtual void setInitialCondition(mfem::ParGridFunction &state,
                                     const mfem::Vector &u_init);
+   
+   /// Initializes the minimum L2 error GD by solving (P^t*H*P) * u_gd = (P^t*H) * u
+   /// \param[in] state - teh state vector to initialize
+   /// \param[in] u_init - function that defines the initial condition
+   virtual void setMinL2ErrorInitialCondition(
+      mfem::ParCentGridFunction &state,
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
 
    /// Initializes the field to a given constant
    /// \param[in] field - the field to set
