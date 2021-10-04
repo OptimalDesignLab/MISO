@@ -17,6 +17,7 @@ using namespace mach;
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
 void u_const(const mfem::Vector &x, mfem::Vector &u);
+void u_linear(const mfem::Vector &x, mfem::Vector &u);
 void u_poly(const mfem::Vector &x, mfem::Vector &u);
 void u_exact(const mfem::Vector &x, mfem::Vector &u);
 void u_nonlinear(const mfem::Vector &x, mfem::Vector &u);
@@ -89,7 +90,7 @@ int main(int argc, char *argv[])
 
       if (p == 0)
       {
-         mfem::VectorFunctionCoefficient u0_fun(num_state, u_const);
+         mfem::VectorFunctionCoefficient u0_fun(num_state, u_linear);
          x_cent.ProjectCoefficient(u0_fun);
          x_exact.ProjectCoefficient(u0_fun);
          x = 0.0;
@@ -193,6 +194,15 @@ void u_const(const mfem::Vector &x, mfem::Vector &u)
    // }
    u.SetSize(1);
    u(0) = 2.0;
+}
+
+void u_linear(const mfem::Vector &x, mfem::Vector &u)
+{
+   u.SetSize(4);
+   u(0) = 1.0;
+   u(1) = 2.0;
+   u(2) = x(0);
+   u(3) = x(1); 
 }
 
 void u_poly(const mfem::Vector &x, mfem::Vector &u)

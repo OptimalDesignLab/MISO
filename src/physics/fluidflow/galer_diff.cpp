@@ -242,8 +242,8 @@ void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,
 
    int el_id = id[0];
    GetElementVDofs(el_id, el_dofs);
-   cout << "element vdofs is: ";
-   el_dofs.Print(cout, el_dofs.Size());
+   // cout << "element vdofs is: ";
+   // el_dofs.Print(cout, el_dofs.Size());
    for(int e = 0; e < nel; e++)
    {
       col_index[e] = vdim * id[e];
