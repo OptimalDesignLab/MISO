@@ -29,7 +29,8 @@ double calcEntropyTotalExact();
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - state variables stored as a 4-vector
-void uexact(const Vector &x, Vector& u);
+void uexact(const Vector &x, Vector &u);
+void utest(const Vector &x, Vector &u);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -91,16 +92,16 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh(new Mesh(buildQuarterAnnulusMesh(degree, nx, ny)));
       *out << "Number of elements " << smesh->GetNE() <<'\n';
-      ofstream sol_ofs("steady_vortex_mesh.vtk");
-      sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,0);
+      // ofstream sol_ofs("steady_vortex_mesh.vtk");
+      // sol_ofs.precision(14);
+      // smesh->PrintVTK(sol_ofs,0);
 
       // construct the solver and set initial conditions
       auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
                                                          move(smesh));
-      solver->setInitialCondition(uexact);
-      solver->printSolution("euler_init", 0);
-
+      // solver->setInitialCondition(uexact);
+      // solver->printSolution("euler_init", 0);
+      solver->setMinL2ErrorInitialCondition(utest);
       // get the initial density error
       double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("euler_final",0);
+      // solver->printSolution("euler_final",0);
       // get the final density error
       l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
@@ -205,6 +206,15 @@ void uexact(const Vector &x, Vector& q)
    {
       calcEntropyVars<double, 2>(u.GetData(), q.GetData());
    }
+}
+
+void utest(const Vector &x, Vector &q)
+{
+   q.SetSize(4);
+   q(0) = 1.0;
+   q(1) = 2.0;
+   q(2) = x(0);
+   q(3) = x(1)*x(1);
 }
 
 Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)

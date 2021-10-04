@@ -213,8 +213,7 @@ void ParGDSpace::BuildProlongationOperator()
    HYPRE_IJMatrixAssemble(ij_matrix);
    HYPRE_IJMatrixGetObject(ij_matrix, (void**)&prolong);
    P = new HypreParMatrix((hypre_ParCSRMatrix*)(prolong), true);
-   string name = "prolong";
-   P->Print(name.c_str());
+   //P->Print("prolong");
    Vector diag(local_tdof);
    diag = 1.0;
    R = new SparseMatrix(diag);

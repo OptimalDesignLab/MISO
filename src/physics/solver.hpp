@@ -160,7 +160,6 @@ public:
    /// \param[in] state - teh state vector to initialize
    /// \param[in] u_init - function that defines the initial condition
    virtual void setMinL2ErrorInitialCondition(
-      mfem::ParCentGridFunction &state,
       const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
 
    /// Initializes the field to a given constant

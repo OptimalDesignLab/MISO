@@ -87,17 +87,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-
-		// print the mesh in serial		
-		ofstream sol_ofs("par_galerkin_mesh.vtk");
-		sol_ofs.precision(14);
-		mesh->PrintVTK(sol_ofs,0);
-
 		unique_ptr<ParMesh> pmesh(new ParMesh(MPI_COMM_WORLD, *mesh, partitioning));
-
-		// save the mesh in parallel
-		string path("/Users/geyan/workspace/mach_dev/build/sandbox");
-      pmesh->PrintVTU(path);
 
 		long glb_id = pmesh->GetGlobalElementNum(0);
 		if (pr == myid)
@@ -108,22 +98,7 @@ int main(int argc, char *argv[])
 			cout << setw(15) << "Processor id:" << setw(8) << myid << '\n';
 			cout << setw(15) << "mesh dimension:" << setw(8) << dim << '\n';
 			cout << setw(15) << "total # elmts:" << setw(8) << mesh->GetNE() << '\n';
-			cout << setw(15) << "local # elmts:" << setw(8) <<pmesh->GetNE() << '\n';
-			// cout << setw(15) << "Check ordering: " << endl;
-			// Vector cent1(dim), cent2(dim);
-			// int geom;
-			// ElementTransformation *eltransf;
-			// for (int i = 0; i < pmesh->GetNE(); i++)
-			// {
-			// 	glb_id = pmesh->GetGlobalElementNum(i);
-			// 	cout << i << " --> " << glb_id;
-			// 	geom = pmesh->GetElement(i)->GetGeometryType();
-			// 	eltransf = pmesh->GetElementTransformation(i);
-			// 	eltransf->Transform(Geometries.GetCenter(geom),cent2);
-			// 	eltransf = mesh->GetElementTransformation((int)glb_id);
-			// 	eltransf->Transform(Geometries.GetCenter(geom),cent1);
-			// 	cout << ",  ("<< cent1(0) - cent2(0) << ", " << cent1(1) - cent2(1) << ")\n";
-			// }
+			cout << setw(15) << "local # elmts:" << setw(8) << pmesh->GetNE() << '\n';
 			cout << "-------------------------\n";
 
 		}
@@ -146,30 +121,6 @@ int main(int argc, char *argv[])
 			cout << "\n-----------------------------------"
 			<<" FiniteElementSpace Info "
 			<< "-----------------------------------\n";
-			// cout << setw(3) << "id" << setw(30) << "dofs from serial mesh "
-			// 	  << setw(20) <<"local dofs order" << setw(30) << "global dof order\n";
-			// for (int i = 0; i < pmesh->GetNE(); i++)
-			// {
-			// 	glb_id = pmesh->GetGlobalElementNum(i);
-			// 	serial_fes.GetElementVDofs(glb_id, el_dofs1);
-			// 	pgd.GetElementVDofs(i,el_dofs2);
-			// 	cout << setw(3) << glb_id << ": (";
-			// 	for (int k=0; k<el_dofs1.Size(); k++)
-			// 	{
-			// 		cout << el_dofs1[k] << ' ';
-			// 	}
-			// 	cout << ") --> (";
-			// 	for (int k=0; k<el_dofs2.Size(); k++)
-			// 	{
-			// 		cout << dof_offset + el_dofs2[k] << ' ';
-			// 	}
-			// 	cout << ") --> (";
-			// 	for (int k=0; k<el_dofs2.Size(); k++)
-			// 	{
-			// 		cout << pgd.GetGlobalTDofNumber(el_dofs2[k]) << ' ';
-			// 	}
-			// 	cout << ")\n";
-			// }
 			cout << "pfes.GetVDim()  = " << pfes.GetVDim() << endl;
 			cout << "pfes.GetVSize() = " << pfes.GetVSize() << endl;
 			cout << "pfes.GetNDofs() = " << pfes.GetNDofs() << endl;
@@ -192,12 +143,6 @@ int main(int argc, char *argv[])
 				  << "---------------------------------------------\n";
 		}
 		
-	
-
-		// // 4. create parallel gd space and regular fespace
-		// DSBPCollection fec(o, dim);
-		// ParGDSpace gd(pumi_mesh, pmesh, &fec, vdim, mfem::Ordering::byVDIM, o, pr);
-		// ParFiniteElementSpace pfes(pmesh, &fec, vdim, mfem::Ordering::byVDIM);
 
 		// 5. create the gridfucntions
 		mfem::ParCentGridFunction x_cent(&pgd, pr);
@@ -269,30 +214,42 @@ int main(int argc, char *argv[])
 			cout << "x_true size is " << x_true->Size() << '\n';
 			
 		}
+
 		x_exact_true->Print("x_exact_true");
-		
 		x_cent_true->Print("x_cent_true");
 
 		prolong->Mult(*x_cent_true, *x_true);
 		x_true->Print("x_true");
 		x.SetFromTrueDofs(*x_true);
-		// if (pr == myid)
-		// {
-		// 	cout << "---------------Check prolongation---------------\n";
-		// 	cout << "x is: " << endl;
-		// 	x.Print(cout, num_state);
-		// 	cout << "----------------------------------------------\n";
-		// }
 
-		// // 7. compute the differences
-		x_exact.Add(-1.0, x);
-		double loc_norm = x_exact.Norml2();
+
+		// 7. compute the differences
+		x.Add(-1.0, x_exact);
+		double loc_norm = x.Norml2();
 		double norm;
 		MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 		if ( 0 == myid)
 		{
 			cout << "The projection norm is " << norm << '\n';
+		}
+
+		// 8. save the result
+		{
+			std::vector<ParGridFunction*> fields{&x_exact,&x};
+			std::vector<std::string> names{"u_exact", "error"};
+			ParaViewDataCollection paraview_dc("par_gd_check", pmesh.get());
+   		paraview_dc.SetPrefixPath("test");
+			paraview_dc.SetLevelsOfDetail(1);
+			paraview_dc.SetCycle(0.0);
+			paraview_dc.SetDataFormat(VTKFormat::BINARY);
+			paraview_dc.SetHighOrderOutput(true);
+			paraview_dc.SetTime(0.0);  // set the time
+			for (unsigned i = 0; i < fields.size(); ++i)
+			{
+				paraview_dc.RegisterField(names[i], fields[i]);
+			}
+			paraview_dc.Save();
 		}
 
    }

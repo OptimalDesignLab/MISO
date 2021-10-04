@@ -190,7 +190,7 @@ void AbstractSolver::initDerived()
    if (galerkin_diff)
    {
       fes_gd.reset(new ParGDSpace(serial_mesh.get(), mesh.get(), fec.get(),
-                     num_state, Ordering::byVDIM));
+                     num_state, Ordering::byVDIM, fe_order));
       u_gd.reset(new ParCentGridFunction(fes_gd.get()));
       *out << "Number of Galerkin difference space unknows: " 
            << fes_gd->GlobalTrueVSize() << endl;
@@ -268,10 +268,8 @@ void AbstractSolver::initDerived()
       }
       *out << endl;
    }
-   *out << "flag 10\n";
 
    setEssentialBoundaries();
-   *out << "flag 11\n";
 
    // // add the output functional QoIs
    // auto &fun = options["outputs"];
@@ -286,7 +284,6 @@ void AbstractSolver::initDerived()
    solver = constructLinearSolver(options["lin-solver"], *prec);
    newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
    constructEvolver();
-   *out << "flag 12\n";
 }
 
 AbstractSolver::~AbstractSolver()
@@ -331,7 +328,17 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
-      mesh.reset(new MeshType(comm, *smesh));
+      if (true == gd)
+      {
+         int partitioning[smesh->GetNE()];
+         ProcessMeshToGD(smesh.get(), partitioning);
+         serial_mesh = move(smesh);
+         mesh.reset(new MeshType(comm, *serial_mesh, partitioning)); 
+      }
+      else
+      {
+         mesh.reset(new MeshType(comm, *smesh));
+      }
    }
    // native MFEM mesh
    else if (mesh_ext == "mesh")
@@ -347,12 +354,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       {
          int partitioning[smesh->GetNE()];
          ProcessMeshToGD(smesh.get(), partitioning);
-         *out << "check mesh partitioning: \n";
-         for (int k = 0; k < smesh->GetNE(); k++)
-         {
-            *out << partitioning[k] << ' ';
-         }
-         *out << endl;
          serial_mesh = move(smesh);
          mesh.reset(new MeshType(comm, *serial_mesh, partitioning)); 
       }
@@ -552,23 +553,66 @@ void AbstractSolver::setInitialCondition(ParGridFunction &state,
    state.ProjectCoefficient(u0);
 }
 
-void AbstractSolver::setMinL2ErrorInitialCondition(ParCentGridFunction &state,
+void AbstractSolver::setMinL2ErrorInitialCondition(
          const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
    // get P and H
    HypreParMatrix *p = fes_gd->Dof_TrueDof_Matrix();
    HypreParMatrix *h = mass->ParallelAssemble();
-   
+
    // compute (P^t*H) * u
-   FunctionCoefficient u0(num_state, u_init);
+   VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
-   HypreParVector hu(fes_gd.get()), pthu(fes_gd.get());
-   h->Mult(*u,*hu);
-   p->MultTranspose(*hu,*pthu);
+
+   HypreParVector hu(fes.get()), pthu(fes_gd.get());
+   h->Mult(*u,hu);
+   p->MultTranspose(hu,pthu);
 
    // compute (P^t*H*P)
    HypreParMatrix *pthp = RAP(h,p);
-   PCG();
+   CGSolver cg(comm);
+   cg.SetRelTol(1e-19);
+   cg.SetAbsTol(1e-19);
+   cg.SetMaxIter(1000);
+   cg.SetPrintLevel(1);
+
+   // solve for u_gd
+   HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
+   cg.SetOperator(*pthp);
+   cg.Mult(pthu,*u_gd_vec);
+
+   // multiply back
+   ParGridFunction u_mult(fes.get());
+   HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
+   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_vec, *u_mult_vec);
+   u_mult.SetFromTrueDofs(*u_mult_vec);
+
+
+   // also check the accuracy of gd matrix
+   ParCentGridFunction u_gd_test(fes_gd.get());
+   ParGridFunction u_test(fes.get());
+   u_gd_test.ProjectCoefficient(u0);
+   HypreParVector *u_gd_test_vec = u_gd_test.GetTrueDofs();
+   HypreParVector *u_test_vec = u_test.GetTrueDofs();
+   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_test_vec, *u_test_vec);
+   u_test.SetFromTrueDofs(*u_test_vec);
+   
+
+   // check error
+   u_mult.Add(-1.0, *u);
+   u_test.Add(-1.0, *u);
+   double loc_norm1 = u_mult.Norml2();
+   double loc_norm2 = u_test.Norml2();
+   double norm1;
+   double norm2;
+   MPI_Allreduce(&loc_norm1, &norm1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(&loc_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   *out << "Applied min l2 norm initial condition, error is " << norm1 << endl;
+   *out << "Applied min l2 norm initial condition, error is " << norm2 << endl;
+
+   std::vector<ParGridFunction *> fields{u.get(), &u_mult, &u_test};
+   std::vector<std::string> names{"u_quad", "error1", "error2"};
+   printFields("minl2error_condition", fields, names, 0,0);
 }
 
 void AbstractSolver::setFieldValue(HypreParVector &field, const double u_init)
