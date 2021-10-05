@@ -159,7 +159,7 @@ void AbstractSolver::initDerived()
    int fe_order = options["space-dis"]["degree"].template get<int>();
    std::string basis_type =
        options["space-dis"]["basis-type"].template get<string>();
-   bool galerkin_diff = options["space-dis"].value("GD", false);
+   galerkin_diff = options["space-dis"].value("GD", false);
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?)
    // standard FEM. and here it is for first two
@@ -270,6 +270,7 @@ void AbstractSolver::initDerived()
    }
 
    setEssentialBoundaries();
+   *out << "bcs done \n";
 
    // // add the output functional QoIs
    // auto &fun = options["outputs"];
@@ -281,9 +282,13 @@ void AbstractSolver::initDerived()
    // output_bndry_marker.resize(num_bndry_outputs);
 
    prec = constructPreconditioner(options["lin-prec"]);
+   *out << "prec done\n";
    solver = constructLinearSolver(options["lin-solver"], *prec);
+   *out << "lin solver done\n";
    newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
+   *out << "nonlinear solver done.\n";
    constructEvolver();
+   *out << "evolver set.\n";
 }
 
 AbstractSolver::~AbstractSolver()
@@ -724,6 +729,14 @@ double AbstractSolver::calcL2Error(
     const std::function<double(const mfem::Vector &)> &u_exact)
 {
    return calcL2Error(u.get(), u_exact);
+   // if (!galerkin_diff)
+   // {
+   //    return calcL2Error(u.get(), u_exact);
+   // }
+   // else
+   // {
+   //    return calcL2Error(u_gd.get(), u_exact);
+   // }
 }
 
 double AbstractSolver::calcL2Error(
@@ -796,6 +809,24 @@ double AbstractSolver::calcL2Error(
    return sqrt(norm);
 }
 
+// double AbstractSolver::calcL2Error(
+//    ParCentGridFunction *field,
+//    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact)
+// {
+//    // prolong the solution to quadrature points
+//    GridFunType u_test();
+//    // TODO: need to generalize to parallel
+//    VectorFunctionCoefficient exsol(num_state, u_exact);
+//    FiniteElementSpace *fe_space = field->FESpace();
+
+//    const char *name = fe_space->FEColl()->Name();
+
+//    double loc_norm = 0.0;
+//    const FiniteElement *fe;
+//    ElementTransformation *T;
+//    DenseMatrix vals, exact_vals;
+//    Vector loc_errs;
+// }
 double AbstractSolver::calcL2Error(
     GridFunType *field,
     const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
@@ -1665,36 +1696,36 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
 
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
-   {
-      ofstream osol("final.gf");
-      osol.precision(std::numeric_limits<long double>::digits10 + 1);
-      state.Save(osol);
-   }
-   // write the solution to vtk file
-   if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
-   {
-      ofstream sol_ofs("final_cg.vtk");
-      sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs,
-                     options["space-dis"]["degree"].template get<int>() + 1);
-      state.SaveVTK(sol_ofs,
-                    "Solution",
-                    options["space-dis"]["degree"].template get<int>() + 1);
-      sol_ofs.close();
-      printField("final", state, "Solution");
-   }
-   else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
-   {
-      ofstream sol_ofs("final_dg.vtk");
-      sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs,
-                     options["space-dis"]["degree"].template get<int>() + 1);
-      state.SaveVTK(sol_ofs,
-                    "Solution",
-                    options["space-dis"]["degree"].template get<int>() + 1);
-      sol_ofs.close();
-      printField("final", state, "Solution");
-   }
+   // {
+   //    ofstream osol("final.gf");
+   //    osol.precision(std::numeric_limits<long double>::digits10 + 1);
+   //    state.Save(osol);
+   // }
+   // // write the solution to vtk file
+   // if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
+   // {
+   //    ofstream sol_ofs("final_cg.vtk");
+   //    sol_ofs.precision(14);
+   //    mesh->PrintVTK(sol_ofs,
+   //                   options["space-dis"]["degree"].template get<int>() + 1);
+   //    state.SaveVTK(sol_ofs,
+   //                  "Solution",
+   //                  options["space-dis"]["degree"].template get<int>() + 1);
+   //    sol_ofs.close();
+   //    printField("final", state, "Solution");
+   // }
+   // else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
+   // {
+   //    ofstream sol_ofs("final_dg.vtk");
+   //    sol_ofs.precision(14);
+   //    mesh->PrintVTK(sol_ofs,
+   //                   options["space-dis"]["degree"].template get<int>() + 1);
+   //    state.SaveVTK(sol_ofs,
+   //                  "Solution",
+   //                  options["space-dis"]["degree"].template get<int>() + 1);
+   //    sol_ofs.close();
+   //    printField("final", state, "Solution");
+   // }
    // TODO: These mfem functions do not appear to be parallelized
 }
 
@@ -1929,6 +1960,7 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
 void AbstractSolver::constructEvolver()
 {
    bool newton_abort = options["nonlin-solver"]["abort"].get<bool>();
+   *out << "newton_abort is " << newton_abort << endl;
    evolver.reset(new MachEvolver(ess_bdr,
                                  nonlinear_mass.get(),
                                  mass.get(),

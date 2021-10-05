@@ -216,6 +216,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
    r_work2(height),
    abort_on_no_converge(_abort_on_no_converge)
 {
+   std::cout << "constructing mach evolver.\n";
    if ((_mass != nullptr) && (_nonlinear_mass != nullptr))
    {
       throw MachException(
@@ -225,29 +226,36 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
 
    if (_mass != nullptr)
    {
+      std::cout << "mass exist.\n";
       Array<int> mass_ess_tdof_list;
       _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, mass_ess_tdof_list);
 
       AssemblyLevel mass_assem;
       mass_assem = _mass->GetAssemblyLevel();
+      std::cout << "Get Assemble level.\n";
       if (mass_assem == AssemblyLevel::PARTIAL)
       {
+         std::cout << "level is partial.\n";
          mass.Reset(_mass, false);
          mass_prec.reset(new OperatorJacobiSmoother(*_mass, ess_tdof_list));
+         std::cout << "mass, mass_prec set.\n";
       }
       else if (mass_assem == AssemblyLevel::LEGACYFULL)
       {
+         std::cout << "level is legacy.\n";
          auto *Mmat = _mass->ParallelAssemble();
          auto *Me = Mmat->EliminateRowsCols(ess_tdof_list);
          delete Me;
          mass.Reset(Mmat, true);
          mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
                                            HypreSmoother::Jacobi));
+         std::cout << "mass, mass_prec set.\n";
       }
       else
       {
          throw MachException("Unsupported assembly level for mass matrix!");
       }
+      std::cout << "mass set up.\n";
       mass_solver = CGSolver(_mass->ParFESpace()->GetComm());
       mass_solver.SetPreconditioner(*mass_prec);
       mass_solver.SetOperator(*mass);

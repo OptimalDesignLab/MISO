@@ -46,18 +46,37 @@ EulerSolver<dim, entvar>::EulerSolver(const nlohmann::json &json_options,
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::constructForms()
 {
-   res.reset(new NonlinearFormType(fes.get()));
-   if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
+   if (!galerkin_diff)
    {
-      nonlinear_mass.reset(new NonlinearFormType(fes.get()));
-      mass.reset();
+      res.reset(new NonlinearFormType(fes.get()));
+      if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
+      {
+         nonlinear_mass.reset(new NonlinearFormType(fes.get()));
+         mass.reset();
+      }
+      else
+      {
+         mass.reset(new BilinearFormType(fes.get()));
+         nonlinear_mass.reset();
+      }
+      ent.reset(new NonlinearFormType(fes.get()));
    }
    else
    {
-      mass.reset(new BilinearFormType(fes.get()));
-      nonlinear_mass.reset();
+      res.reset(new NonlinearFormType(fes_gd.get()));
+      if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
+      {
+         nonlinear_mass.reset(new NonlinearFormType(fes_gd.get()));
+         mass.reset();
+      }
+      else
+      {
+         mass.reset(new BilinearFormType(fes_gd.get()));
+         nonlinear_mass.reset();
+      }
+      ent.reset(new NonlinearFormType(fes_gd.get()));
    }
-   ent.reset(new NonlinearFormType(fes.get()));
+
 }
 
 template <int dim, bool entvar>

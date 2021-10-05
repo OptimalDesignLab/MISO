@@ -794,6 +794,7 @@ protected:
 
    //--------------------------------------------------------------------------
    // Members associated with Galerkin difference method
+   bool galerkin_diff;
    std::unique_ptr<mfem::Mesh> serial_mesh;
    std::unique_ptr<mfem::ParGDSpace> fes_gd;
    std::unique_ptr<mfem::ParCentGridFunction> u_gd;
