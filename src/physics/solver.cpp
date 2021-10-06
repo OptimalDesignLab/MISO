@@ -194,6 +194,8 @@ void AbstractSolver::initDerived()
       u_gd.reset(new ParCentGridFunction(fes_gd.get()));
       *out << "Number of Galerkin difference space unknows: " 
            << fes_gd->GlobalTrueVSize() << endl;
+      *out << "local true vsie is " << fes_gd->GetTrueVSize() <<endl;
+      *out << "GetVSize is " << fes_gd->GetVSize() << endl;
    }
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize()
         << endl;
@@ -214,7 +216,12 @@ void AbstractSolver::initDerived()
    bndry_marker.resize(bcs.size());
 
    // construct/initialize the forms needed by derived class
+   // res.reset(new NonlinearFormType(fes_gd.get()));
    constructForms();
+   *out << "res size is " << res->Height() << " x " << res->Width() << endl;
+   *out << "mass size is " << mass->Height() << " x " << mass->Width() << endl;
+   *out << "ent size is " << ent->Height() << " x " << ent->Width() << endl;
+   
 
    if (nonlinear_mass)
    {
@@ -286,8 +293,9 @@ void AbstractSolver::initDerived()
    solver = constructLinearSolver(options["lin-solver"], *prec);
    *out << "lin solver done\n";
    newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
-   *out << "nonlinear solver done.\n";
-   constructEvolver();
+   *out << "nonlinear solver done.\n"; 
+   evolver_gd.reset(new NonlinearEvolver(mass.get(), res.get(), 1.0));
+   //constructEvolver();
    *out << "evolver set.\n";
 }
 
@@ -558,12 +566,22 @@ void AbstractSolver::setInitialCondition(ParGridFunction &state,
    state.ProjectCoefficient(u0);
 }
 
+void AbstractSolver::setGDInitialCondition(
+   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+{
+   VectorFunctionCoefficient u0(num_state, u_init);
+   u_gd->ProjectCoefficient(u0);
+}
+
 void AbstractSolver::setMinL2ErrorInitialCondition(
          const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
+   *out << "In set minl2 error.\n";
    // get P and H
    HypreParMatrix *p = fes_gd->Dof_TrueDof_Matrix();
-   HypreParMatrix *h = mass->ParallelAssemble();
+   mass_ref.reset(new BilinearFormType(fes.get()));
+   *out << "mass_ref size is " << mass_ref->Height() << " x " << mass_ref->Width() << endl; 
+   HypreParMatrix *h = mass_ref->ParallelAssemble();
 
    // compute (P^t*H) * u
    VectorFunctionCoefficient u0(num_state, u_init);
@@ -571,10 +589,15 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
 
    HypreParVector hu(fes.get()), pthu(fes_gd.get());
    h->Mult(*u,hu);
+   *out << "Get hu.\n";
    p->MultTranspose(hu,pthu);
+   *out << "Get pthu.\n";
 
    // compute (P^t*H*P)
    HypreParMatrix *pthp = RAP(h,p);
+   *out << "Get pthp.\n";
+
+   //solve
    CGSolver cg(comm);
    cg.SetRelTol(1e-19);
    cg.SetAbsTol(1e-19);
@@ -591,6 +614,7 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
    fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_vec, *u_mult_vec);
    u_mult.SetFromTrueDofs(*u_mult_vec);
+   *out << "mult back.\n";
 
 
    // also check the accuracy of gd matrix
@@ -729,21 +753,20 @@ double AbstractSolver::calcL2Error(
     const std::function<double(const mfem::Vector &)> &u_exact)
 {
    return calcL2Error(u.get(), u_exact);
-   // if (!galerkin_diff)
-   // {
-   //    return calcL2Error(u.get(), u_exact);
-   // }
-   // else
-   // {
-   //    return calcL2Error(u_gd.get(), u_exact);
-   // }
 }
 
 double AbstractSolver::calcL2Error(
     const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
     int entry)
 {
-   return calcL2Error(u.get(), u_exact, entry);
+   if (!galerkin_diff)
+   {
+      return calcL2Error(u.get(), u_exact, entry);
+   }
+   else
+   {
+      return calcL2Error(u_gd.get(), u_exact, entry);
+   }
 }
 
 double AbstractSolver::calcL2Error(
@@ -809,24 +832,99 @@ double AbstractSolver::calcL2Error(
    return sqrt(norm);
 }
 
-// double AbstractSolver::calcL2Error(
-//    ParCentGridFunction *field,
-//    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact)
-// {
-//    // prolong the solution to quadrature points
-//    GridFunType u_test();
-//    // TODO: need to generalize to parallel
-//    VectorFunctionCoefficient exsol(num_state, u_exact);
-//    FiniteElementSpace *fe_space = field->FESpace();
+double AbstractSolver::calcL2Error(
+   ParCentGridFunction *field,
+   const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
+   int entry)
+{
+   // prolong the solution to quadrature points
+   GridFunType u_test(fes.get());
+   HypreParVector *u_test_vec = u_test.GetTrueDofs();
+   HypreParVector *u_gd_vec = field->GetTrueDofs();
+   fes_gd->GetProlongationMatrix()->Mult(*u_gd_vec, *u_test_vec);
+   u_test.SetFromTrueDofs(*u_test_vec);
+   // TODO: need to generalize to parallel
+   VectorFunctionCoefficient exsol(num_state, u_exact);
 
-//    const char *name = fe_space->FEColl()->Name();
+   FiniteElementSpace *fe_space = field->FESpace();
 
-//    double loc_norm = 0.0;
-//    const FiniteElement *fe;
-//    ElementTransformation *T;
-//    DenseMatrix vals, exact_vals;
-//    Vector loc_errs;
-// }
+
+   const char *name = fe_space->FEColl()->Name();
+
+   double loc_norm = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals;
+   Vector loc_errs;
+   if (entry < 0)
+   {
+      // sum up the L2 error over all states
+      for (int i = 0; i < fe_space->GetNE(); i++)
+      {
+         fe = fe_space->GetFE(i);
+         const IntegrationRule *ir;
+         if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+         {
+            ir = &(fe->GetNodes());
+         }
+         else
+         {
+            int intorder = 2 * fe->GetOrder() + 1;
+            ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+         }
+         T = fe_space->GetElementTransformation(i);
+         u_test.GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Width());
+         vals.Norm2(loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+         }
+      }
+   }
+   else
+   {
+      // calculate the L2 error for component index `entry`
+      for (int i = 0; i < fe_space->GetNE(); i++)
+      {
+         fe = fe_space->GetFE(i);
+         const IntegrationRule *ir;
+         if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
+         {
+            ir = &(fe->GetNodes());
+         }
+         else
+         {
+            int intorder = 2 * fe->GetOrder() + 1;
+            ir = &(IntRules.Get(fe->GetGeomType(), intorder));
+         }
+         T = fe_space->GetElementTransformation(i);
+         u_test.GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Width());
+         vals.GetRow(entry, loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+         }
+      }
+   }
+   double norm;
+   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   if (norm < 0.0)  // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
+}
+
 double AbstractSolver::calcL2Error(
     GridFunType *field,
     const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
@@ -1959,20 +2057,29 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
 
 void AbstractSolver::constructEvolver()
 {
-   bool newton_abort = options["nonlin-solver"]["abort"].get<bool>();
-   *out << "newton_abort is " << newton_abort << endl;
-   evolver.reset(new MachEvolver(ess_bdr,
-                                 nonlinear_mass.get(),
-                                 mass.get(),
-                                 res.get(),
-                                 stiff.get(),
-                                 load.get(),
-                                 ent.get(),
-                                 *out,
-                                 0.0,
-                                 TimeDependentOperator::Type::IMPLICIT,
-                                 newton_abort));
-   evolver->SetNewtonSolver(newton_solver.get());
+   if (!galerkin_diff)
+   {
+      bool newton_abort = options["nonlin-solver"]["abort"].get<bool>();
+      *out << "newton_abort is " << newton_abort << endl;
+      evolver.reset(new MachEvolver(ess_bdr,
+                                    nonlinear_mass.get(),
+                                    mass.get(),
+                                    res.get(),
+                                    stiff.get(),
+                                    load.get(),
+                                    ent.get(),
+                                    *out,
+                                    0.0,
+                                    TimeDependentOperator::Type::IMPLICIT,
+                                    newton_abort));
+      evolver->SetNewtonSolver(newton_solver.get());
+   }
+   else
+   {
+      *out << "Going to set nonlinear evolver.\n";
+      evolver_gd.reset(new NonlinearEvolver(mass.get(),res.get(),1.0));
+   }
+
 }
 
 void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)

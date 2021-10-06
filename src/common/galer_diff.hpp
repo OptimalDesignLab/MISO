@@ -51,29 +51,12 @@ public:
 											  const mfem::DenseMatrix &local_mat) const;
    
    /// return the number of dofs in GD space, which is the number of element
-   int GetNDofs() {return gddofs;}
+   virtual int GetNDofs() const {return gddofs;}
 
    /// return the number of true dofs 
-   int GetTrueVSize() {return vdim * gddofs;}
+   virtual int GetTrueVSize() const {return vdim * gddofs;}
 
-   // HypreParVector *NewTrueDofVector()
-   // {
-	//    if (GetMyRank() == pr)
-	//    {
-	// 		std::cout << "ParGDSpace::NewTrueDofVector() is called.\n";
-	//    }
-	// 	HYPRE_BigInt col_starts[2];
-	// 	col_starts[0] = GetVDim() * el_offset;
-	// 	col_starts[1] = GetVDim() * (el_offset+GetParMesh()->GetNE());
-	// 	if (GetMyRank() == pr )
-	// 	{
-	// 		std::cout << "GlobalTrueVSize is " << GetVDim()*total_nel << ". ";
-	// 		std::cout << "True dof offset is " <<  col_starts[0]
-	// 					<< ' ' << col_starts[1] << '\n';
-	// 	}
-
-   //    return (new HypreParVector(GetComm(), GetVDim()*total_nel, col_starts));
-   // }
+	virtual const mfem::Operator *GetProlongationMatrix() const;
 
 private:
 	/// mesh dimenstion

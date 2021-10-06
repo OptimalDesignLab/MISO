@@ -51,8 +51,8 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name);
       *out << "solver created.\n";
-      //solver->setInitialCondition(u0_function);
-      solver->setMinL2ErrorInitialCondition(u0_function);
+      solver->setGDInitialCondition(u0_function);
+      //solver->setMinL2ErrorInitialCondition(u0_function);
       *out << "set initial values.\n";
       solver->feedpert(pert);
       *out << "\n|| u_h - u ||_{L^2} = " 

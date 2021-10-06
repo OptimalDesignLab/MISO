@@ -156,6 +156,9 @@ public:
    virtual void setInitialCondition(mfem::ParGridFunction &state,
                                     const mfem::Vector &u_init);
    
+   virtual void setGDInitialCondition(
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
+   
    /// Initializes the minimum L2 error GD by solving (P^t*H*P) * u_gd = (P^t*H) * u
    /// \param[in] state - teh state vector to initialize
    /// \param[in] u_init - function that defines the initial condition
@@ -269,6 +272,12 @@ public:
        mfem::HypreParVector &field,
        const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
        int entry = -1);
+   
+   /// Returns the L2 error of a ParCentGridFunction and given exact solution.
+   double calcL2Error(
+      mfem::ParCentGridFunction *field,
+      const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
+      int entry = -1);
 
    /// Find the step size based on the options
    /// \param[in] iter - the current iteration
@@ -798,6 +807,8 @@ protected:
    std::unique_ptr<mfem::Mesh> serial_mesh;
    std::unique_ptr<mfem::ParGDSpace> fes_gd;
    std::unique_ptr<mfem::ParCentGridFunction> u_gd;
+   std::unique_ptr<mfem::TimeDependentOperator> evolver_gd;
+   std::unique_ptr<BilinearFormType> mass_ref;
    
    
 

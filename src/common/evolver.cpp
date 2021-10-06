@@ -396,11 +396,12 @@ void MachEvolver::setOperParameters(double dt,
 }
 
 
-NonlinearEvolver::NonlinearEvolver(MatrixType *m, NonlinearFormType *r, double a)
-   : TimeDependentOperator(m->Height()), mass(m), res(r), z(res->ParFESpace()),alpha(a)
+NonlinearEvolver::NonlinearEvolver(BilinearFormType *m, NonlinearFormType *r, double a)
+   : TimeDependentOperator(r->Height()), mass(m), res(r), alpha(a)
 {
+   mass_matrix = mass->ParallelAssemble();
    mass_solver.reset(new CGSolver(res->ParFESpace()->GetComm()));
-   mass_solver->SetOperator(*mass);
+   mass_solver->SetOperator(*mass_matrix);
    mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
    mass_solver->SetRelTol(1e-9);
    mass_solver->SetAbsTol(0.0);

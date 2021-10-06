@@ -188,11 +188,12 @@ protected:
 class NonlinearEvolver : public mfem::TimeDependentOperator
 {
 public:
-   NonlinearEvolver(MatrixType *m, NonlinearFormType *r, double a = 1.0);
+   NonlinearEvolver(BilinearFormType *m, NonlinearFormType *r, double a = 1.0);
    virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
    virtual ~NonlinearEvolver() { }
 private:
-    MatrixType *mass;
+    MatrixType *mass_matrix;
+    BilinearFormType *mass;
     NonlinearFormType *res;
     SmootherType *mass_prec;
     std::unique_ptr<mfem::CGSolver> mass_solver;

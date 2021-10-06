@@ -246,15 +246,6 @@ void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,
       el_dofs[i] += dof_offset;
    }
 
-   // if (GetMyRank() == pr)
-   // {
-   //    cout << "All row indices are: ";
-   //    el_dofs.Print(cout, el_dofs.Size());
-   //    cout << "All col indices are: ";
-   //    id.Print(cout,id.Size());
-   //    cout << endl;
-   // }
-
    int j, v, e;
    int row_index;
    Array<int> col_index(nel);
@@ -275,6 +266,11 @@ void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,
                                  single_row.GetData());
       }
    }
+}
+
+const Operator *ParGDSpace::GetProlongationMatrix() const
+{
+   return P;
 }
 
 } // end of namespace

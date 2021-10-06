@@ -1,4 +1,5 @@
 #include <memory>
+#include <iostream>
 
 #include "sbp_fe.hpp"
 #include "euler.hpp"
@@ -63,6 +64,7 @@ void EulerSolver<dim, entvar>::constructForms()
    }
    else
    {
+      *out << "Now constuct gd res, mass and ent forms.\n";
       res.reset(new NonlinearFormType(fes_gd.get()));
       if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
       {
@@ -76,7 +78,6 @@ void EulerSolver<dim, entvar>::constructForms()
       }
       ent.reset(new NonlinearFormType(fes_gd.get()));
    }
-
 }
 
 template <int dim, bool entvar>
