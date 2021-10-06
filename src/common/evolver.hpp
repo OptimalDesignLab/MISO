@@ -183,6 +183,23 @@ protected:
                           double dt_stage = -1.0);
 };
 
+
+/// an easy to use nonlinear evolver for GD method with rk4
+class NonlinearEvolver : public mfem::TimeDependentOperator
+{
+public:
+   NonlinearEvolver(MatrixType *m, NonlinearFormType *r, double a = 1.0);
+   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+   virtual ~NonlinearEvolver() { }
+private:
+    MatrixType *mass;
+    NonlinearFormType *res;
+    SmootherType *mass_prec;
+    std::unique_ptr<mfem::CGSolver> mass_solver;
+    mutable mfem::HypreParVector z;
+    double alpha;
+};
+
 }  // namespace mach
 
 #endif
