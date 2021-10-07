@@ -580,7 +580,9 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    // get P and H
    HypreParMatrix *p = fes_gd->Dof_TrueDof_Matrix();
    mass_ref.reset(new BilinearFormType(fes.get()));
-   *out << "mass_ref size is " << mass_ref->Height() << " x " << mass_ref->Width() << endl; 
+   mass_ref->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass_ref->Assemble(0);
+   mass_ref->Finalize();
    HypreParMatrix *h = mass_ref->ParallelAssemble();
 
    // compute (P^t*H) * u
@@ -637,7 +639,7 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    MPI_Allreduce(&loc_norm1, &norm1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
    MPI_Allreduce(&loc_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
    *out << "Applied min l2 norm initial condition, error is " << norm1 << endl;
-   *out << "Applied min l2 norm initial condition, error is " << norm2 << endl;
+   *out << "Directly applied initial condition, error is " << norm2 << endl;
 
    std::vector<ParGridFunction *> fields{u.get(), &u_mult, &u_test};
    std::vector<std::string> names{"u_quad", "error1", "error2"};
@@ -1720,7 +1722,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
 {
    double t = 0.0;
    evolver->SetTime(t);
-   ode_solver->Init(*evolver);
+   ode_solver->Init(*evolver_gd);
 
    // output the mesh and initial condition
    // TODO: need to swtich to vtk for SBP

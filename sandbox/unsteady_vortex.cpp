@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
       auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name);
-      *out << "solver created.\n";
+      //*out << "solver created.\n";
       //solver->setGDInitialCondition(u0_function);
       solver->setMinL2ErrorInitialCondition(u0_function);
       *out << "set initial values.\n";
