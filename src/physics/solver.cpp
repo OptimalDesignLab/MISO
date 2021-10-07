@@ -584,6 +584,7 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    mass_ref->Assemble(0);
    mass_ref->Finalize();
    HypreParMatrix *h = mass_ref->ParallelAssemble();
+   h->Print("mass_raw");
 
    // compute (P^t*H) * u
    VectorFunctionCoefficient u0(num_state, u_init);
@@ -597,7 +598,7 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
 
    // compute (P^t*H*P)
    HypreParMatrix *pthp = RAP(h,p);
-   *out << "Get pthp.\n";
+   pthp->Print("pthp");
 
    //solve
    CGSolver cg(comm);
@@ -616,7 +617,6 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
    fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_vec, *u_mult_vec);
    u_mult.SetFromTrueDofs(*u_mult_vec);
-   *out << "mult back.\n";
 
 
    // also check the accuracy of gd matrix
