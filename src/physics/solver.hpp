@@ -378,10 +378,11 @@ public:
 
    /// DEPRECIATED -> use version with HypreParVector
    /// Solve for the state variables based on current mesh, solver, etc.
-   virtual void solveForState() { solveForState(*u); }
+   virtual void solveForState();
 
    /// DEPRECIATED -> use version with HypreParVector
    virtual void solveForState(mfem::ParGridFunction &state);
+   virtual void solveForState(mfem::ParCentGridFunction &state);
 
    inline virtual void solveForState(double *state)
    {
@@ -504,6 +505,7 @@ public:
    /// Compute the residual norm based on the input `state`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm(const mfem::ParGridFunction &state) const;
+   double calcResidualNorm(const mfem::ParCentGridFunction &state) const;
 
    /// Return a state sized vector constructed from an externally allocated
    /// array \param[in] data - external data array \note If `data` is nullptr a
@@ -900,6 +902,7 @@ protected:
 
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady(mfem::ParGridFunction &state);
+   virtual void solveUnsteady(mfem::ParCentGridFunction &state);
 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state

@@ -192,17 +192,22 @@ void AbstractSolver::initDerived()
       fes_gd.reset(new ParGDSpace(serial_mesh.get(), mesh.get(), fec.get(),
                      num_state, Ordering::byVDIM, fe_order));
       u_gd.reset(new ParCentGridFunction(fes_gd.get()));
+      scratch.reset(new ParCentGridFunction(fes_gd.get()));
+      scratch_tv.reset(new HypreParVector(fes_gd.get()));
       *out << "Number of Galerkin difference space unknows: " 
            << fes_gd->GlobalTrueVSize() << endl;
       *out << "local true vsie is " << fes_gd->GetTrueVSize() <<endl;
       *out << "GetVSize is " << fes_gd->GetVSize() << endl;
    }
+   else
+   {
+      scratch.reset(new ParGridFunction(fes.get()));
+      scratch_tv.reset(new HypreParVector(fes.get()));
+   }
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize()
         << endl;
 
    /// initialize scratch work vectors
-   scratch.reset(new ParGridFunction(fes.get()));
-   scratch_tv.reset(new HypreParVector(fes.get()));
 
    double alpha = 1.0;
 
@@ -571,6 +576,7 @@ void AbstractSolver::setGDInitialCondition(
 {
    VectorFunctionCoefficient u0(num_state, u_init);
    u_gd->ProjectCoefficient(u0);
+   u->ProjectCoefficient(u0);
 }
 
 void AbstractSolver::setMinL2ErrorInitialCondition(
@@ -584,24 +590,27 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    mass_ref->Assemble(0);
    mass_ref->Finalize();
    HypreParMatrix *h = mass_ref->ParallelAssemble();
-   h->Print("mass_raw");
+   //h->Print("mass_raw");
 
    // compute (P^t*H) * u
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
+   HypreParVector *u_vec = u->GetTrueDofs();
+   //u_vec->Print("u");
 
    HypreParVector hu(fes.get()), pthu(fes_gd.get());
-   h->Mult(*u,hu);
-   *out << "Get hu.\n";
+   h->Mult(*u_vec,hu);
+   //*out << "Get hu.\n";
    p->MultTranspose(hu,pthu);
-   *out << "Get pthu.\n";
+   //*out << "Get pthu.\n";
 
    // compute (P^t*H*P)
    HypreParMatrix *pthp = RAP(h,p);
-   pthp->Print("pthp");
+   //pthp->Print("pthp");
 
-   //solve
+   //solve set
    CGSolver cg(comm);
+   cg.SetOperator(*pthp);
    cg.SetRelTol(1e-19);
    cg.SetAbsTol(1e-19);
    cg.SetMaxIter(1000);
@@ -609,25 +618,25 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
 
    // solve for u_gd
    HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
-   cg.SetOperator(*pthp);
-   cg.Mult(pthu,*u_gd_vec);
+   cg.Mult(pthu,*u_gd);
+   u_gd_vec->Print("u_gd");
 
+
+   // following code is used to accuracty check.
    // multiply back
    ParGridFunction u_mult(fes.get());
    HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
-   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_vec, *u_mult_vec);
+   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd, *u_mult_vec);
    u_mult.SetFromTrueDofs(*u_mult_vec);
 
-
-   // also check the accuracy of gd matrix
-   ParCentGridFunction u_gd_test(fes_gd.get());
+   // also check the error from directly applied initial
+   ParCentGridFunction u_gd_test(fes_gd.get()); 
    ParGridFunction u_test(fes.get());
    u_gd_test.ProjectCoefficient(u0);
    HypreParVector *u_gd_test_vec = u_gd_test.GetTrueDofs();
    HypreParVector *u_test_vec = u_test.GetTrueDofs();
    fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_test_vec, *u_test_vec);
    u_test.SetFromTrueDofs(*u_test_vec);
-   
 
    // check error
    u_mult.Add(-1.0, *u);
@@ -843,7 +852,7 @@ double AbstractSolver::calcL2Error(
    GridFunType u_test(fes.get());
    HypreParVector *u_test_vec = u_test.GetTrueDofs();
    HypreParVector *u_gd_vec = field->GetTrueDofs();
-   fes_gd->GetProlongationMatrix()->Mult(*u_gd_vec, *u_test_vec);
+   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_vec, *u_test_vec);
    u_test.SetFromTrueDofs(*u_test_vec);
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
@@ -1031,11 +1040,21 @@ double AbstractSolver::calcL2Error(
 }
 double AbstractSolver::calcResidualNorm() const
 {
-   HypreParVector u_true(fes.get());
-   u->GetTrueVector().SetDataAndSize(u_true.GetData(), u_true.Size());
-   u->SetTrueVector();
+   if (!galerkin_diff)
+   {
+      HypreParVector u_true(fes.get());
+      u->GetTrueVector().SetDataAndSize(u_true.GetData(), u_true.Size());
+      u->SetTrueVector();
+      return calcResidualNorm(*u);
+   }
+   else
+   {
+      // HypreParVector u_gd_true(fes_gd.get());
+      // u_gd->GetTrueVector().SetDataAndSize(u_gd_true.GetData(), u_gd_true.Size());
+      // u_gd->SetTrueVector();
+      return calcResidualNorm(*u_gd);
+   }
 
-   return calcResidualNorm(*u);
 }
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
@@ -1043,6 +1062,13 @@ double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 
    calcResidual(inputs, *scratch_tv);
    return std::sqrt(InnerProduct(comm, *scratch_tv, *scratch_tv));
+}
+
+double AbstractSolver::calcResidualNorm(const ParCentGridFunction &state) const
+{
+   HypreParVector *state_vec = state.GetTrueDofs();
+   res->Mult(state, *scratch_tv);
+   return std::sqrt(InnerProduct(comm,*scratch_tv, *scratch_tv));
 }
 
 // std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
@@ -1347,6 +1373,19 @@ void AbstractSolver::getField(std::string name, mfem::HypreParVector &field)
    res_fields.at(name).ParallelAssemble(field);
 }
 
+void AbstractSolver::solveForState()
+{
+   if (!galerkin_diff)
+   {
+      solveForState(*u);
+   }
+   else
+   {
+      solveForState(*u_gd);
+   }
+       
+}
+
 void AbstractSolver::solveForState(ParGridFunction &state)
 {
    HypreParVector state_true(fes.get());
@@ -1362,6 +1401,11 @@ void AbstractSolver::solveForState(ParGridFunction &state)
    {
       solveUnsteady(state);
    }
+}
+
+void AbstractSolver::solveForState(ParCentGridFunction &state)
+{
+   solveUnsteady(state);
 }
 
 void AbstractSolver::solveForState(const MachInputs &inputs,
@@ -1718,10 +1762,70 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
    // #endif // MFEM_USE_MPI
 }
 
+void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
+{
+   *out << "in solve unsteady for gd.\n";
+   double t = 0.0;
+   evolver_gd->SetTime(t);
+   ode_solver->Init(*evolver_gd);
+   GridFunType state_full(fes.get());
+   fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
+
+   bool paraview = true;
+   std::unique_ptr<ParaViewDataCollection> pd;
+   if (paraview)
+   {
+      pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
+      pd->SetPrefixPath("ParaView");
+      pd->RegisterField("state", &state_full);
+      pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
+      pd->SetDataFormat(VTKFormat::BINARY);
+      pd->SetHighOrderOutput(true);
+      pd->SetCycle(0);
+      pd->SetTime(t);
+      pd->Save();
+   }
+   std::cout.precision(16);
+   std::cout << "res norm: " << calcResidualNorm() << "\n";
+
+   double t_final = options["time-dis"]["t-final"].template get<double>();
+   *out << "t_final is " << t_final << '\n';
+   int ti;
+   double dt = 0.0;
+   initialHook(state);
+   for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
+   {
+      dt = calcStepSize(ti, t, t_final, dt, state);
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
+      if (!options["time-dis"]["steady"].get<bool>())
+         *out << " (" << round(100 * t / t_final) << "% complete)";
+      *out << endl;
+      iterationHook(ti, t, dt, state);
+      ode_solver->Step(state, t, dt);
+      // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+      fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
+      if (paraview)
+      {
+         pd->SetCycle(ti);
+         pd->SetTime(t);
+         pd->Save();
+      }
+
+      if (iterationExit(ti, t, t_final, dt, state)) break;
+   }
+   {
+      ofstream osol("final_before_TH.gf");
+      osol.precision(std::numeric_limits<long double>::digits10 + 1);
+      state.Save(osol);
+   }
+   terminalHook(ti, t, state);
+
+}
+
 void AbstractSolver::solveUnsteady(ParGridFunction &state)
 {
    double t = 0.0;
-   evolver->SetTime(t);
+   evolver_gd->SetTime(t);
    ode_solver->Init(*evolver_gd);
 
    // output the mesh and initial condition

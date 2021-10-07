@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 			std::vector<ParGridFunction*> fields{&x_exact,&x};
 			std::vector<std::string> names{"u_exact", "error"};
 			ParaViewDataCollection paraview_dc("par_gd_check", pmesh.get());
-   		paraview_dc.SetPrefixPath("test");
+   		paraview_dc.SetPrefixPath("par_gd_test");
 			paraview_dc.SetLevelsOfDetail(1);
 			paraview_dc.SetCycle(0.0);
 			paraview_dc.SetDataFormat(VTKFormat::BINARY);

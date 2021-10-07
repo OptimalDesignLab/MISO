@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
       //solver->setGDInitialCondition(u0_function);
       solver->setMinL2ErrorInitialCondition(u0_function);
       *out << "set initial values.\n";
-      solver->feedpert(pert);
+      //solver->feedpert(pert);
       *out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;      
       solver->solveForState();

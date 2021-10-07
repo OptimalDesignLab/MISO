@@ -5,7 +5,7 @@
 #include "evolver.hpp"
 
 using namespace mfem;
-
+using namespace std;
 using namespace mach;
 
 namespace mach
@@ -397,7 +397,7 @@ void MachEvolver::setOperParameters(double dt,
 
 
 NonlinearEvolver::NonlinearEvolver(BilinearFormType *m, NonlinearFormType *r, double a)
-   : TimeDependentOperator(r->Height()), mass(m), res(r), alpha(a)
+   : TimeDependentOperator(r->Height()), mass(m), res(r), z(res->ParFESpace()), alpha(a)
 {
    mass_matrix = mass->ParallelAssemble();
    mass_solver.reset(new CGSolver(res->ParFESpace()->GetComm()));
