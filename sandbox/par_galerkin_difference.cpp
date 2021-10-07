@@ -107,8 +107,6 @@ int main(int argc, char *argv[])
 		DSBPCollection fec(o,dim);
 		FiniteElementSpace serial_fes(mesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
 		ParFiniteElementSpace pfes(pmesh.get(),&fec, num_state, mfem::Ordering::byVDIM);
-		HypreParMatrix *test_mat = pfes.Dof_TrueDof_Matrix();
-		test_mat->Print("test");
 		ParGDSpace pgd(mesh.get(), pmesh.get(), &fec,
 							num_state,mfem::Ordering::byVDIM, o, pr);
 		int tdof_offset = pgd.GetMyTDofOffset();
