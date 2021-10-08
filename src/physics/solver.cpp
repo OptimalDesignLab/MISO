@@ -454,6 +454,15 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    mesh->PrintVTK(sol_ofs, 0);
    u_test.SaveVTK(sol_ofs, "project_error", 0);
    sol_ofs.close();
+
+   ofstream u_write("u_init.txt");
+   ofstream uc_write("uc_init.txt");
+   u_write << setprecision(14);
+   uc_write << setprecision(14);
+   u->Print(u_write, 1);
+   uc->Print(uc_write, 1);
+   u_write.close();
+   uc_write.close();
 }
 
 
