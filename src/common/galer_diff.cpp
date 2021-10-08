@@ -256,13 +256,13 @@ void ParGDSpace::BuildProlongationOperator()
    HYPRE_IJMatrixGetObject(ij_matrix, (void**)&prolong);
    P = new HypreParMatrix((hypre_ParCSRMatrix*)(prolong), true);
    P->Print("prolong");
-   Vector diag(local_tdof);
-   diag = 1.0;
-   R = new SparseMatrix(diag);
-   if (pr == GetMyRank())
-   {
-      cout << "R size is " << R->Height() << " x " << R->Width() << endl;
-   }
+   // Vector diag(local_tdof);
+   // diag = 1.0;
+   // R = new SparseMatrix(diag);
+   // if (pr == GetMyRank())
+   // {
+   //    cout << "R size is " << R->Height() << " x " << R->Width() << endl;
+   // }
 }
 
 void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,

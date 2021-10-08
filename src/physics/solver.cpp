@@ -583,76 +583,84 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
          const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
    *out << "In set minl2 error.\n";
-   // get P and H
+   // get P and M
    HypreParMatrix *p = fes_gd->Dof_TrueDof_Matrix();
    mass_ref.reset(new BilinearFormType(fes.get()));
    mass_ref->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   mass_ref->Assemble(0);
+   mass_ref->Assemble();
    mass_ref->Finalize();
    HypreParMatrix *h = mass_ref->ParallelAssemble();
-   //h->Print("mass_raw");
+   h->Print("mass_raw");
 
-   // compute (P^t*H) * u
+   // COMPUTE P^t H u
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
    HypreParVector *u_vec = u->GetTrueDofs();
-   //u_vec->Print("u");
-
+   u_vec->Print("u");
    HypreParVector hu(fes.get()), pthu(fes_gd.get());
    h->Mult(*u_vec,hu);
-   //*out << "Get hu.\n";
    p->MultTranspose(hu,pthu);
-   //*out << "Get pthu.\n";
-
-   // compute (P^t*H*P)
+   
+   // compute pthp
    HypreParMatrix *pthp = RAP(h,p);
-   //pthp->Print("pthp");
+   pthp->Print("pthp");
 
-   //solve set
+   // solver setup
    CGSolver cg(comm);
    cg.SetOperator(*pthp);
-   cg.SetRelTol(1e-19);
-   cg.SetAbsTol(1e-19);
+   cg.SetRelTol(1e-24);
+   cg.SetAbsTol(1e-24);
    cg.SetMaxIter(1000);
    cg.SetPrintLevel(1);
 
    // solve for u_gd
-   HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
    cg.Mult(pthu,*u_gd);
+   HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
    u_gd_vec->Print("u_gd");
 
 
-   // following code is used to accuracty check.
-   // multiply back
+   // check error
    ParGridFunction u_mult(fes.get());
    HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
    fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd, *u_mult_vec);
    u_mult.SetFromTrueDofs(*u_mult_vec);
-
-   // also check the error from directly applied initial
-   ParCentGridFunction u_gd_test(fes_gd.get()); 
-   ParGridFunction u_test(fes.get());
-   u_gd_test.ProjectCoefficient(u0);
-   HypreParVector *u_gd_test_vec = u_gd_test.GetTrueDofs();
-   HypreParVector *u_test_vec = u_test.GetTrueDofs();
-   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_test_vec, *u_test_vec);
-   u_test.SetFromTrueDofs(*u_test_vec);
-
-   // check error
    u_mult.Add(-1.0, *u);
-   u_test.Add(-1.0, *u);
    double loc_norm1 = u_mult.Norml2();
-   double loc_norm2 = u_test.Norml2();
    double norm1;
-   double norm2;
    MPI_Allreduce(&loc_norm1, &norm1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   MPI_Allreduce(&loc_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
    *out << "Applied min l2 norm initial condition, error is " << norm1 << endl;
-   *out << "Directly applied initial condition, error is " << norm2 << endl;
+   
+   // // following code is used to accuracty check.
+   // // multiply back
+   // ParGridFunction u_mult(fes.get());
+   // HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
+   // fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd, *u_mult_vec);
+   // u_mult.SetFromTrueDofs(*u_mult_vec);
 
-   std::vector<ParGridFunction *> fields{u.get(), &u_mult, &u_test};
-   std::vector<std::string> names{"u_quad", "error1", "error2"};
-   printFields("minl2error_condition", fields, names, 0,0);
+   // // also check the error from directly applied initial
+   // ParCentGridFunction u_gd_test(fes_gd.get()); 
+   // ParGridFunction u_test(fes.get());
+   // u_gd_test.ProjectCoefficient(u0);
+   // HypreParVector *u_gd_test_vec = u_gd_test.GetTrueDofs();
+   // HypreParVector *u_test_vec = u_test.GetTrueDofs();
+   // fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_test_vec, *u_test_vec);
+   // u_test.SetFromTrueDofs(*u_test_vec);
+
+   // // check error
+   // u_mult.Add(-1.0, *u);
+   // u_test.Add(-1.0, *u);
+   // double loc_norm1 = u_mult.Norml2();
+   // double loc_norm2 = u_test.Norml2();
+   // double norm1;
+   // double norm2;
+   // MPI_Allreduce(&loc_norm1, &norm1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   // MPI_Allreduce(&loc_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+   // *out << "Applied min l2 norm initial condition, error is " << norm1 << endl;
+   // *out << "Directly applied initial condition, error is " << norm2 << endl;
+
+   // std::vector<ParGridFunction *> fields{u.get(), &u_mult, &u_test};
+   // std::vector<std::string> names{"u_quad", "error1", "error2"};
+   // printFields("minl2error_condition", fields, names, 0,0);
 }
 
 void AbstractSolver::setFieldValue(HypreParVector &field, const double u_init)
@@ -847,12 +855,11 @@ double AbstractSolver::calcL2Error(
    ParCentGridFunction *field,
    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
    int entry)
-{
+{  *out << "In calcl2 error for gd.\n ";
    // prolong the solution to quadrature points
    GridFunType u_test(fes.get());
    HypreParVector *u_test_vec = u_test.GetTrueDofs();
-   HypreParVector *u_gd_vec = field->GetTrueDofs();
-   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_vec, *u_test_vec);
+   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd, *u_test_vec);
    u_test.SetFromTrueDofs(*u_test_vec);
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
@@ -1786,7 +1793,10 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
       pd->Save();
    }
    std::cout.precision(16);
-   std::cout << "res norm: " << calcResidualNorm() << "\n";
+   double res_norm = calcResidualNorm();
+   double all_norm;
+   MPI_Allreduce(&res_norm, &all_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   *out << "res norm is " << all_norm << endl;
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
