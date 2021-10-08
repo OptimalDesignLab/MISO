@@ -1060,7 +1060,7 @@ void AbstractSolver::solveUnsteady()
       //    mass_save.close();
       // }
       //updateNonlinearMass(ti, dt_real/2, 1.0);
-      if (ti % 500 == 0)
+      if (ti % 20 == 0)
       {
          *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
