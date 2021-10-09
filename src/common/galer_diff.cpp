@@ -138,37 +138,38 @@ void ParGDSpace::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    {
       // Get and store the element center
       full_mesh->GetElementCenter(elmt_id[j], cent_coord);
-      if (right)
-      {
-         if (cent_coord(0)+1.0 < 1.5 )
-         {
-            cent_coord(0) = cent_coord(0) + 1.0;
-         }
-      }
+      
+      // if (right)
+      // {
+      //    if (cent_coord(0)+1.0 < 1.5 )
+      //    {
+      //       cent_coord(0) = cent_coord(0) + 1.0;
+      //    }
+      // }
 
-      if (left)
-      {
-         if (cent_coord(0)-1.0 > -0.5)
-         {
-            cent_coord(0) = cent_coord(0) - 1.0;
-         }
-      }
+      // if (left)
+      // {
+      //    if (cent_coord(0)-1.0 > -0.5)
+      //    {
+      //       cent_coord(0) = cent_coord(0) - 1.0;
+      //    }
+      // }
 
-      if (top)
-      {
-         if (cent_coord(1)+1.0 < 1.5)
-         {
-            cent_coord(1) = cent_coord(1) + 1.0;
-         }
-      }
+      // if (top)
+      // {
+      //    if (cent_coord(1)+1.0 < 1.5)
+      //    {
+      //       cent_coord(1) = cent_coord(1) + 1.0;
+      //    }
+      // }
 
-      if (bot)
-      {
-         if (cent_coord(1)-1.0 > -0.5)
-         {
-            cent_coord(1) = cent_coord(1) - 1.0;
-         }
-      }
+      // if (bot)
+      // {
+      //    if (cent_coord(1)-1.0 > -0.5)
+      //    {
+      //       cent_coord(1) = cent_coord(1) - 1.0;
+      //    }
+      // }
    
 
       for(int i = 0; i < dim; i++)
@@ -256,13 +257,13 @@ void ParGDSpace::BuildProlongationOperator()
    HYPRE_IJMatrixGetObject(ij_matrix, (void**)&prolong);
    P = new HypreParMatrix((hypre_ParCSRMatrix*)(prolong), true);
    P->Print("prolong");
-   // Vector diag(local_tdof);
-   // diag = 1.0;
-   // R = new SparseMatrix(diag);
-   // if (pr == GetMyRank())
-   // {
-   //    cout << "R size is " << R->Height() << " x " << R->Width() << endl;
-   // }
+   Vector diag(local_tdof);
+   diag = 1.0;
+   R = new SparseMatrix(diag);
+   if (pr == GetMyRank())
+   {
+      cout << "R size is " << R->Height() << " x " << R->Width() << endl;
+   }
 }
 
 void ParGDSpace::AssembleProlongationMatrix(const mfem::Array<int> &id,

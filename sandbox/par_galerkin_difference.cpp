@@ -17,11 +17,9 @@ using namespace mach;
 /// \brief multiply exact solutions for testing
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - conservative variables stored as a 4-vector
-void u_const(const mfem::Vector &x, mfem::Vector &u);
-void u_linear(const mfem::Vector  &x, mfem::Vector &u);
 void u_poly(const mfem::Vector &x, mfem::Vector &u);
 void u_exact(const mfem::Vector &x, mfem::Vector &u);
-void u_const_single(const mfem::Vector &x, mfem::Vector &u);
+void u_single(const mfem::Vector &x, mfem::Vector &u);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -43,7 +41,7 @@ int main(int argc, char *argv[])
    int p = 1;
 	int o = 1;
 	int pr = 0;
-	int num_state = 1;
+	int num_state = 4;
 	int nx = 4;
 	int ny = 4;
 	args.AddOption(&o, "-o", "--order", "order of prolongation matrix");
@@ -144,62 +142,45 @@ int main(int argc, char *argv[])
 
 		// 5. create the gridfucntions
 		mfem::ParCentGridFunction x_cent(&pgd, pr);
-		mfem::ParGridFunction x(&pfes);
 		mfem::ParGridFunction x_exact(&pfes);
 
 		if (pr == myid)
 		{
 			cout << "ParCentGridFunction x_cent size is " << x_cent.Size() << endl;
-			cout << "ParGridFunction x size is " << x.Size() << endl;
 			cout << "ParGridFunction x_exact size is " << x_exact.Size() << endl;
 		}
 		if (1 == p)
 		{
-			if( 1 == num_state)
-			{
-				mfem::VectorFunctionCoefficient u0_fun(1, u_const_single);
-				x_exact.ProjectCoefficient(u0_fun);
-				x_cent.ProjectCoefficient(u0_fun);
-				x = 0.0;
-			}
-			else
-			{
-				mfem::VectorFunctionCoefficient u0_fun(dim+2, u_const);
-				x_exact.ProjectCoefficient(u0_fun);
-				x_cent.ProjectCoefficient(u0_fun);
-				x = 0.0;
-			}
-
-		}
-		else if (2 == p)
-		{
-			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_linear);
+			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_poly);
 			x_exact.ProjectCoefficient(u0_fun);
 			x_cent.ProjectCoefficient(u0_fun);
-			x = 0.0;
 		}
-		else if(3 == p)
+		else if(2 == p)
 		{
 			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_exact);
 			x_exact.ProjectCoefficient(u0_fun);
 			x_cent.ProjectCoefficient(u0_fun);
-			x = 0.0;
 		}
-
+		else
+		{
+			mfem::VectorFunctionCoefficient u0_fun(num_state, u_single);
+			x_exact.ProjectCoefficient(u0_fun);
+			x_cent.ProjectCoefficient(u0_fun);
+		}
+		
 		if (pr == myid)
 		{
 			cout << "---------------Check projection---------------\n";
 			cout << "x_exact size is : " << x_exact.Size() << endl;
 			cout << "x_center is: " << x_cent.Size() << endl;
-			cout << "x size is " << x.Size() << endl;
 			cout << "----------------------------------------------\n";
 		}
 		MPI_Barrier(MPI_COMM_WORLD);
 		// 6. Prolong the solution to real quadrature points
 		HypreParMatrix *prolong = pgd.Dof_TrueDof_Matrix();
-		HypreParVector *x_cent_true = x_cent.GetTrueDofs();
 		HypreParVector *x_exact_true = x_exact.GetTrueDofs();
-		HypreParVector *x_true = x.GetTrueDofs();
+		x_cent.SetFromTrueVector();
+		HypreParVector *x_cent_true = x_cent.GetTrueDofs();
 		
 		if (myid == pr)
 		{
@@ -209,21 +190,19 @@ int main(int argc, char *argv[])
 				  << prolong->GetGlobalNumCols()  << endl;
 			cout << "x_exact_true size is " << x_exact_true->Size() << endl;
 			cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n';
-			cout << "x_true size is " << x_true->Size() << '\n';
-			
 		}
 
 		x_exact_true->Print("x_exact_true");
 		x_cent_true->Print("x_cent_true");
 
-		prolong->Mult(*x_cent_true, *x_true);
-		x_true->Print("x_true");
-		x.SetFromTrueDofs(*x_true);
+		// prolong->Mult(*x_cent_true, *x_true);
+		// x_true->Print("x_true");
+		// x.SetFromTrueDofs(*x_true);
 
 
-		// 7. compute the differences
-		x.Add(-1.0, x_exact);
-		double loc_norm = x.Norml2();
+		// // 7. compute the differences
+		x_cent.Add(-1.0, x_exact);
+		double loc_norm = x_cent.Norml2();
 		double norm;
 		MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
@@ -232,9 +211,9 @@ int main(int argc, char *argv[])
 			cout << "The projection norm is " << norm << '\n';
 		}
 
-		// 8. save the result
+		// // 8. save the result
 		{
-			std::vector<ParGridFunction*> fields{&x_exact,&x};
+			std::vector<ParGridFunction*> fields{&x_exact,&x_cent};
 			std::vector<std::string> names{"u_exact", "error"};
 			ParaViewDataCollection paraview_dc("par_gd_check", pmesh.get());
    		paraview_dc.SetPrefixPath("par_gd_test");
@@ -310,16 +289,7 @@ void u_exact(const mfem::Vector &x, mfem::Vector &q)
    }
 }
 
-void u_const(const mfem::Vector &x, mfem::Vector &u)
-{
-	u.SetSize(x.Size()+2);
-	u(0) = 1.0;
-	u(1) = 2.0;
-	u(2) = 3.0;
-	u(3) = 4.0;
-}
-
-void u_linear(const mfem::Vector &x, mfem::Vector &u)
+void u_poly(const mfem::Vector &x, mfem::Vector &u)
 {
 	u.SetSize(x.Size()+2);
 	u(0) = 1.0;
@@ -328,23 +298,10 @@ void u_linear(const mfem::Vector &x, mfem::Vector &u)
 	u(3) = x(1)*x(1);
 }
 
-void u_poly(const mfem::Vector &x, mfem::Vector &u)
-{
-	u.SetSize(x.Size()+2);
-   u = 0.0;
-   for (int i = 2; i >= 0; i--)
-   {
-      u(0) += pow(x(0), i);
-		u(1) += pow(x(1), i);
-		u(2) += pow(x(0) + x(1), i);
-		u(3) += pow(x(0) - x(1), i);
-   }
-}
-
-void u_const_single(const mfem::Vector &x, mfem::Vector &u)
+void u_single(const mfem::Vector &x, mfem::Vector &u)
 {
 	u.SetSize(1);
-	u(0) = 5.0;
+	u(0) = x(0) * x(1) + x(1)*x(1);
 }
 
 Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)

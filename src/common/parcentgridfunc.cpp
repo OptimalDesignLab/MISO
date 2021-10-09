@@ -10,8 +10,8 @@ ParCentGridFunction::ParCentGridFunction(ParFiniteElementSpace *pf, int pr)
    : ParGridFunction(pf)
 {
    proc = pr;
-
-   SetSize(pf->GetVDim() * dynamic_cast<ParGDSpace*>(pf)->GetNDofs());
+   t_vec.SetSize(pf->GetTrueVSize());
+   //SetSize(pf->GetVDim() * dynamic_cast<ParGDSpace*>(pf)->GetNDofs());
 }
 
 void ParCentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
@@ -42,20 +42,17 @@ void ParCentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
       {
         vals(i) *= eltransf->Weight();
       }
-      SetSubVector(vdofs, vals);
+      GetTrueVector().SetSubVector(vdofs, vals);
    }
 }
 
-// HypreParVector *ParCentGridFunction::GetTrueDofs() const
-// {
-//    if (pfes->GetMyRank() == proc)
-//    {
-//       std::cout << "ParCentGridFunction::GetTruedofs is called.\n";
-//    }
-//    HypreParVector *tv = dynamic_cast<ParGDSpace*>(pfes)->NewTrueDofVector();
-//    GridFunction::GetTrueDofs(*tv);
-//    return tv;
-// }
+HypreParVector *ParCentGridFunction::GetTrueDofs() const
+{
+   HypreParVector *tv = dynamic_cast<ParGDSpace*>(pfes)->NewTrueDofVector();
+   const SparseMatrix *R = fes->GetRestrictionMatrix();
+   R->Mult(t_vec,*tv);
+   return tv;
+}
 
 ParCentGridFunction &ParCentGridFunction::operator=(const Vector &v)
 {
