@@ -608,7 +608,7 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    // solver setup
    CGSolver cg(comm);
    cg.SetOperator(*pthp);
-   cg.SetRelTol(1e-24);
+   cg.SetRelTol(1e-12);
    cg.SetAbsTol(1e-24);
    cg.SetMaxIter(1000);
    cg.SetPrintLevel(1);
@@ -622,22 +622,23 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    // check error
    ParGridFunction u_mult(fes.get());
    HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
-   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd, *u_mult_vec);
+   fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u_mult_vec);
+   u_mult_vec->Print("u_mult");
    u_mult.SetFromTrueDofs(*u_mult_vec);
    u_mult.Add(-1.0, *u);
-   double loc_norm1 = u_mult.Norml2();
-   double norm1;
-   MPI_Allreduce(&loc_norm1, &norm1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   *out << "Applied min l2 norm initial condition, error is " << norm1 << endl;
+   u_mult_vec = u_mult.GetTrueDofs();
+   u_mult_vec->Print("erro_gd");
+   double loc_norm1 = ParNormlp(*u_mult_vec, 2.0, comm);
+   *out << "Applied min l2 norm initial condition, error is " << loc_norm1 << endl;
    
-   // // following code is used to accuracty check.
-   // // multiply back
+   // following code is used to accuracty check.
+   // multiply back
    // ParGridFunction u_mult(fes.get());
    // HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
    // fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd, *u_mult_vec);
    // u_mult.SetFromTrueDofs(*u_mult_vec);
 
-   // // also check the error from directly applied initial
+   // also check the error from directly applied initial
    // ParCentGridFunction u_gd_test(fes_gd.get()); 
    // ParGridFunction u_test(fes.get());
    // u_gd_test.ProjectCoefficient(u0);
@@ -859,12 +860,12 @@ double AbstractSolver::calcL2Error(
    // prolong the solution to quadrature points
    GridFunType u_test(fes.get());
    HypreParVector *u_test_vec = u_test.GetTrueDofs();
-   fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd, *u_test_vec);
+   fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u_test_vec);
    u_test.SetFromTrueDofs(*u_test_vec);
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
 
-   FiniteElementSpace *fe_space = field->FESpace();
+   ParFiniteElementSpace *fe_space = field->ParFESpace();
 
 
    const char *name = fe_space->FEColl()->Name();
