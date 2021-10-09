@@ -40,8 +40,8 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    GetElementCenter(elmt_id[0], cent_coord);
    double left_threshold = 0.25;
    double right_threshold = 0.75;
-   double top_threshold = 0.4;
-   double bot_threshold = 0.2;
+   double top_threshold = 0.75;
+   double bot_threshold = 0.25;
    bool left = false, right = false, top = false, bot = false;
 
    if (cent_coord(0) > right_threshold) {right = true;}
@@ -80,7 +80,7 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
 
       if (bot)
       {
-         if (cent_coord(1)-1.6 > -0.5)
+         if (cent_coord(1)-1.0 > -0.5)
          {
             cent_coord(1) = cent_coord(1) - 1.0;
          }

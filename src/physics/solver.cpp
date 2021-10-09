@@ -398,7 +398,7 @@ void AbstractSolver::setInverseInitialCondition(
    MatrixType *p = RAP(*cp, *mass_matrix, *cp);
 
    // Solver for M u_c = P^t H u_{sbp}
-   mfem::CG(*p, temp, *uc, 0, 1000, 1e-13, 1e-24);
+   mfem::CG(*p, temp, *uc, 1, 1000, 1e-13, 1e-24);
    GridFunType u_test(fes.get());
    fes->GetProlongationMatrix()->Mult(*uc, u_test);
    ofstream projection("initial_projection.vtk");
@@ -437,7 +437,7 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    cout << "hu size is " << hu.Size() << endl;
    cp->MultTranspose(hu,pthu);
    cout << "Get A and b.\n";
-   CG(*p,pthu,*uc,1);
+   mfem::CG(*p,pthu,*uc,1,100,1e-24,1e-48);
    
    GridFunType u_test(fes.get());
    fes->GetProlongationMatrix()->Mult(*uc, u_test);
@@ -446,6 +446,10 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    mesh->PrintVTK(projection, 0);
    u_test.SaveVTK(projection, "projection", 0);
    projection.close();
+   ofstream up_write("up_init.txt");
+   up_write<<setprecision(15);
+   u_test.Print(up_write,1);
+   up_write.close();
 
    u_test -= *u;
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
@@ -457,8 +461,8 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
 
    ofstream u_write("u_init.txt");
    ofstream uc_write("uc_init.txt");
-   u_write << setprecision(14);
-   uc_write << setprecision(14);
+   u_write << setprecision(15);
+   uc_write << setprecision(15);
    u->Print(u_write, 1);
    uc->Print(uc_write, 1);
    u_write.close();
