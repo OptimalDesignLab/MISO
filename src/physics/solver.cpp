@@ -192,6 +192,8 @@ void AbstractSolver::initDerived()
       fes_gd.reset(new ParGDSpace(serial_mesh.get(), mesh.get(), fec.get(),
                      num_state, Ordering::byVDIM, fe_order));
       u_gd.reset(new ParCentGridFunction(fes_gd.get()));
+      scratch.reset(new ParCentGridFunction(fes_gd.get()));
+      scratch_tv.reset(new HypreParVector(fes_gd.get()));
       *out << "Number of Galerkin difference space unknows: " 
            << fes_gd->GlobalTrueVSize() << endl;
       *out << "local true vsie is " << fes_gd->GetTrueVSize() <<endl;
@@ -1014,6 +1016,7 @@ double AbstractSolver::calcResidualNorm() const
       // HypreParVector u_gd_true(fes_gd.get());
       // u_gd->GetTrueVector().SetDataAndSize(u_gd_true.GetData(), u_gd_true.Size());
       // u_gd->SetTrueVector();
+      *out << "calcredidualnorm(gd) will be called\n";
       return calcResidualNorm(*u_gd);
    }
 
@@ -1029,8 +1032,12 @@ double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 double AbstractSolver::calcResidualNorm(const ParCentGridFunction &state) const
 {
    HypreParVector *state_vec = state.GetTrueDofs();
-   res->Mult(state, *scratch_tv);
-   return std::sqrt(InnerProduct(comm,*scratch_tv, *scratch_tv));
+   HypreParVector sc;
+   sc = *state_vec;
+   *out << "In calcResidualNorm, state_vec size is " << state_vec->Size() << endl;
+   *out << "sc size is " << sc.Size() << endl;
+   res->Mult(*state_vec, sc);
+   return std::sqrt(InnerProduct(comm, sc, sc));
 }
 
 // std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
@@ -1343,6 +1350,7 @@ void AbstractSolver::solveForState()
    }
    else
    {
+      *out << "going to call solveforstate(gd)\n";
       solveForState(*u_gd);
    }
        
@@ -1367,6 +1375,7 @@ void AbstractSolver::solveForState(ParGridFunction &state)
 
 void AbstractSolver::solveForState(ParCentGridFunction &state)
 {
+   *out << "dummy call.\n";
    solveUnsteady(state);
 }
 
@@ -1724,8 +1733,18 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
    // #endif // MFEM_USE_MPI
 }
 
+void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
+{
+   *out << "gd solveunsteady is called.\n";
+   double t = 0.0;
+   evolver_gd->SetTime(t);
+   ode_solver->Init(*evolver_gd);
+   std::cout.precision(16);
+   std::cout <<  "res norm is: " << calcResidualNorm(state) << std::endl;
+}
 void AbstractSolver::solveUnsteady(ParGridFunction &state)
 {
+   *out << "regular solveunsteady is called.\n";
    double t = 0.0;
    evolver_gd->SetTime(t);
    ode_solver->Init(*evolver_gd);
