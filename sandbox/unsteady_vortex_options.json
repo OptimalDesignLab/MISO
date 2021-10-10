@@ -1,7 +1,7 @@
 {
    "mesh": {
       "file": "periodic_triangle1.mesh",
-      "refine": 1
+      "refine": 2
    },
    "space-dis": {
       "GD": true,
@@ -12,7 +12,7 @@
       "basis-type": "dsbp"
    },
    "mass-matrix":{
-      "lump": true
+      "lump": false
    },
    "petscsolver": {
       "ksptype": "gmres",
@@ -27,10 +27,11 @@
       "entropy": true
    },
    "time-dis": {
-      "ode-solver": "RRK",
+      "ode-solver": "RK1",
       "const-cfl": true,
       "cfl": 1.0,
       "dt": 0.002,
+      "max-iter":2,
       "t-final": 0.066666666666666
    }
 }

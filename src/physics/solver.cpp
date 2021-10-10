@@ -1040,7 +1040,7 @@ void AbstractSolver::solveUnsteady()
    entropylog.open("entropylog.txt", fstream::app);
    entropylog << setprecision(17);
    clock_t start_t = clock();
-   for (int ti = 0; !done;)
+   for (int ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); !done)
    {
       entropy = calcOutput("entropy");
       entropylog << t << ' ' << entropy << '\n';
@@ -1064,17 +1064,26 @@ void AbstractSolver::solveUnsteady()
       //    mass_save.close();
       // }
       //updateNonlinearMass(ti, dt_real/2, 1.0);
-      if (ti % 20 == 0)
-      {
-         *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-      }
 #ifdef MFEM_USE_MPI
       HypreParVector *U = u->GetTrueDofs();
       ode_solver->Step(*U, t, dt_real);
       *u = *U;
 #else
+      {
+         Vector r(fes->GetTrueVSize());
+         res->Mult(*uc,r);
+         double n = r.Norml2();
+         cout << " before step, resdual norm is " << n << endl;
+      }
       ode_solver->Step(*uc, t, dt_real);
+      {
+         Vector r(fes->GetTrueVSize());
+         res->Mult(*uc,r);
+         double n = r.Norml2();
+         cout << "after step, resdual norm is " << n << endl;
+      }
 #endif
       ti++;
       done = (t >= t_final - 1e-8 * dt);
