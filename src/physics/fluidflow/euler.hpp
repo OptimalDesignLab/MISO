@@ -117,6 +117,7 @@ protected:
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
    void initialHook(const mfem::ParGridFunction &state) override;
+   void initialHook(const mfem::ParCentGridFunction &state) override;
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
@@ -127,6 +128,11 @@ protected:
                       double t,
                       double dt,
                       const mfem::ParGridFunction &state) override;
+	
+   void iterationHook(int iter,
+                      double t,
+                      double dt,
+                      const mfem::ParCentGridFunction &state) override;
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration

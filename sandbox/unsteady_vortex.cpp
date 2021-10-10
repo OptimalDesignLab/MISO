@@ -56,11 +56,10 @@ int main(int argc, char *argv[])
       *out << "set initial values.\n";
       //solver->feedpert(pert);
       *out << "\n|| u_h - u ||_{L^2} = " 
-                << solver->calcL2Error(u0_function) << '\n' << endl;      
+                << solver->calcL2Error(u0_function,0) << '\n' << endl;      
       solver->solveForState();
-      *out << "simulation done.\n";
-      *out << "\n|| u_h - u ||_{L^2} = " 
-                << solver->calcL2Error(u0_function) << '\n' << endl;
+      // *out << "\n|| u_h - u ||_{L^2} = " 
+      //           << solver->calcL2Error(u0_function) << '\n' << endl;
 
    }
    catch (MachException &exception)

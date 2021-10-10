@@ -856,7 +856,7 @@ double AbstractSolver::calcL2Error(
    ParCentGridFunction *field,
    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
    int entry)
-{  *out << "In calcl2 error for gd.\n ";
+{
    // prolong the solution to quadrature points
    GridFunType u_test(fes.get());
    HypreParVector *u_test_vec = u_test.GetTrueDofs();
@@ -1795,9 +1795,7 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
    }
    std::cout.precision(16);
    double res_norm = calcResidualNorm();
-   double all_norm;
-   MPI_Allreduce(&res_norm, &all_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   *out << "res norm is " << all_norm << endl;
+   *out << "res norm is " << res_norm << endl;
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
@@ -1807,13 +1805,14 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
       dt = calcStepSize(ti, t, t_final, dt, state);
+      std::cout << "before step, res norm: " << calcResidualNorm() << "\n";
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
          *out << " (" << round(100 * t / t_final) << "% complete)";
       *out << endl;
       iterationHook(ti, t, dt, state);
       ode_solver->Step(state, t, dt);
-      // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+      std::cout << "after step, res norm is " << calcResidualNorm() << "\n";
       fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
       if (paraview)
       {

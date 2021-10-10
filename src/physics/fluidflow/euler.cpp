@@ -64,7 +64,6 @@ void EulerSolver<dim, entvar>::constructForms()
    }
    else
    {
-      *out << "Now constuct gd res, mass and ent forms.\n";
       res.reset(new NonlinearFormType(fes_gd.get()));
       if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
       {
@@ -197,12 +196,42 @@ void EulerSolver<dim, entvar>::initialHook(const ParGridFunction &state)
 }
 
 template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::initialHook(const ParCentGridFunction &state)
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // res_norm0 is used to compute the time step in PTC
+      res_norm0 = calcResidualNorm(state);
+   }
+   // TODO: this should only be output if necessary
+   GridFunType state_full(fes.get());
+   fes_gd->GetProlongationMatrix()->Mult(state, state_full);
+   double entropy = ent->GetEnergy(state_full);
+   *out << "before time stepping, gd entropy is " << entropy << endl;
+   remove("entropylog.txt");
+   entropylog.open("entropylog.txt", fstream::app);
+   entropylog << setprecision(14);
+}
+
+template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::iterationHook(int iter,
                                              double t,
                                              double dt,
                                              const ParGridFunction &state)
 {
    double entropy = ent->GetEnergy(state);
+   entropylog << t << ' ' << entropy << endl;
+}
+
+template <int dim, bool entvar>
+void EulerSolver<dim, entvar>::iterationHook(int iter,
+                                             double t,
+                                             double dt,
+                                             const ParCentGridFunction &state)
+{
+   GridFunType state_full(fes.get());
+   fes_gd->GetProlongationMatrix()->Mult(state, state_full);
+   double entropy = ent->GetEnergy(state_full);
    entropylog << t << ' ' << entropy << endl;
 }
 
