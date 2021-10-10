@@ -139,37 +139,37 @@ void ParGDSpace::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
       // Get and store the element center
       full_mesh->GetElementCenter(elmt_id[j], cent_coord);
       
-      // if (right)
-      // {
-      //    if (cent_coord(0)+1.0 < 1.5 )
-      //    {
-      //       cent_coord(0) = cent_coord(0) + 1.0;
-      //    }
-      // }
+      if (right)
+      {
+         if (cent_coord(0)+1.0 < 1.5 )
+         {
+            cent_coord(0) = cent_coord(0) + 1.0;
+         }
+      }
 
-      // if (left)
-      // {
-      //    if (cent_coord(0)-1.0 > -0.5)
-      //    {
-      //       cent_coord(0) = cent_coord(0) - 1.0;
-      //    }
-      // }
+      if (left)
+      {
+         if (cent_coord(0)-1.0 > -0.5)
+         {
+            cent_coord(0) = cent_coord(0) - 1.0;
+         }
+      }
 
-      // if (top)
-      // {
-      //    if (cent_coord(1)+1.0 < 1.5)
-      //    {
-      //       cent_coord(1) = cent_coord(1) + 1.0;
-      //    }
-      // }
+      if (top)
+      {
+         if (cent_coord(1)+1.0 < 1.5)
+         {
+            cent_coord(1) = cent_coord(1) + 1.0;
+         }
+      }
 
-      // if (bot)
-      // {
-      //    if (cent_coord(1)-1.0 > -0.5)
-      //    {
-      //       cent_coord(1) = cent_coord(1) - 1.0;
-      //    }
-      // }
+      if (bot)
+      {
+         if (cent_coord(1)-1.0 > -0.5)
+         {
+            cent_coord(1) = cent_coord(1) - 1.0;
+         }
+      }
    
 
       for(int i = 0; i < dim; i++)

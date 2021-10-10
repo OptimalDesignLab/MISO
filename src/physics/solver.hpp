@@ -902,7 +902,6 @@ protected:
 
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady(mfem::ParGridFunction &state);
-   virtual void solveUnsteady(mfem::ParCentGridFunction &state);
 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state

@@ -176,6 +176,7 @@ int main(int argc, char *argv[])
 			cout << "----------------------------------------------\n";
 		}
 		MPI_Barrier(MPI_COMM_WORLD);
+		
 		// 6. Prolong the solution to real quadrature points
 		HypreParMatrix *prolong = pgd.Dof_TrueDof_Matrix();
 		HypreParVector *x_exact_true = x_exact.GetTrueDofs();
@@ -192,12 +193,9 @@ int main(int argc, char *argv[])
 			cout << "x_cent_true size is "<<  x_cent_true->Size() << '\n';
 		}
 
-		x_exact_true->Print("x_exact_true");
-		x_cent_true->Print("x_cent_true");
-
-		// prolong->Mult(*x_cent_true, *x_true);
-		// x_true->Print("x_true");
-		// x.SetFromTrueDofs(*x_true);
+		x_exact_true->Print("x_quad_exact");
+		x_cent_true->Print("x_cent");
+		x_cent.SaveAsOne("x_quad_mult.txt");
 
 
 		// // 7. compute the differences

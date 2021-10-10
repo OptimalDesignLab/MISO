@@ -192,18 +192,14 @@ void AbstractSolver::initDerived()
       fes_gd.reset(new ParGDSpace(serial_mesh.get(), mesh.get(), fec.get(),
                      num_state, Ordering::byVDIM, fe_order));
       u_gd.reset(new ParCentGridFunction(fes_gd.get()));
-      scratch.reset(new ParCentGridFunction(fes_gd.get()));
-      scratch_tv.reset(new HypreParVector(fes_gd.get()));
       *out << "Number of Galerkin difference space unknows: " 
            << fes_gd->GlobalTrueVSize() << endl;
       *out << "local true vsie is " << fes_gd->GetTrueVSize() <<endl;
       *out << "GetVSize is " << fes_gd->GetVSize() << endl;
    }
-   else
-   {
-      scratch.reset(new ParGridFunction(fes.get()));
-      scratch_tv.reset(new HypreParVector(fes.get()));
-   }
+
+   scratch.reset(new ParGridFunction(fes.get()));
+   scratch_tv.reset(new HypreParVector(fes.get()));
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize()
         << endl;
 
@@ -582,83 +578,49 @@ void AbstractSolver::setGDInitialCondition(
 void AbstractSolver::setMinL2ErrorInitialCondition(
          const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
-   *out << "In set minl2 error.\n";
-   // get P and M
-   HypreParMatrix *p = fes_gd->Dof_TrueDof_Matrix();
-   mass_ref.reset(new BilinearFormType(fes.get()));
-   mass_ref->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   mass_ref->Assemble();
-   mass_ref->Finalize();
-   HypreParMatrix *h = mass_ref->ParallelAssemble();
-   h->Print("mass_raw");
+   *out << "In set Min l2 error norm initial condition.\n";
 
-   // COMPUTE P^t H u
-   VectorFunctionCoefficient u0(num_state, u_init);
+   // get pthp mass matrix
+   HypreParMatrix *pthp = mass->ParallelAssemble();
+
+   // get u_quad_exact
+   VectorFunctionCoefficient u0(num_state,u_init);
    u->ProjectCoefficient(u0);
    HypreParVector *u_vec = u->GetTrueDofs();
-   u_vec->Print("u");
-   HypreParVector hu(fes.get()), pthu(fes_gd.get());
-   h->Mult(*u_vec,hu);
-   p->MultTranspose(hu,pthu);
-   
-   // compute pthp
-   HypreParMatrix *pthp = RAP(h,p);
-   pthp->Print("pthp");
 
-   // solver setup
-   CGSolver cg(comm);
+   // get the original mass matrix and h*u
+   mass_ref.reset(new BilinearFormType(fes.get()));
+   mass_ref->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass_ref->Assemble(0);
+   mass_ref->Finalize();
+   HypreParMatrix *h = mass_ref->ParallelAssemble();
+   HypreParVector hu(fes.get());
+   h->Mult(*u_vec, hu);
+
+   // compute pthu
+   HypreParVector pthu(fes_gd.get());
+   fes_gd->GetProlongationMatrix()->MultTranspose(hu, pthu);
+
+   // construct cg solver and sole
+   mfem::CGSolver cg(comm);
+   HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
    cg.SetOperator(*pthp);
    cg.SetRelTol(1e-12);
    cg.SetAbsTol(1e-24);
-   cg.SetMaxIter(1000);
+   cg.SetMaxIter(100);
    cg.SetPrintLevel(1);
+   cg.Mult(pthu, *u_gd_vec);
 
-   // solve for u_gd
-   cg.Mult(pthu,*u_gd);
-   HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
-   u_gd_vec->Print("u_gd");
+   // set back
+   u_gd->SetFromTrueDofs(*u_gd_vec);
 
 
-   // check error
-   ParGridFunction u_mult(fes.get());
-   HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
-   fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u_mult_vec);
-   u_mult_vec->Print("u_mult");
-   u_mult.SetFromTrueDofs(*u_mult_vec);
-   u_mult.Add(-1.0, *u);
-   u_mult_vec = u_mult.GetTrueDofs();
-   u_mult_vec->Print("erro_gd");
-   double loc_norm1 = ParNormlp(*u_mult_vec, 2.0, comm);
+   // compute the l2 error
+   u->Add(-1.0, *u_gd);
+   u_vec = u->GetTrueDofs();
+   double loc_norm1 = ParNormlp(*u_vec,2.0,comm);
+   //MPI_Allreduce(&loc_norm1, &norm1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
    *out << "Applied min l2 norm initial condition, error is " << loc_norm1 << endl;
-   
-   // following code is used to accuracty check.
-   // multiply back
-   // ParGridFunction u_mult(fes.get());
-   // HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
-   // fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd, *u_mult_vec);
-   // u_mult.SetFromTrueDofs(*u_mult_vec);
-
-   // also check the error from directly applied initial
-   // ParCentGridFunction u_gd_test(fes_gd.get()); 
-   // ParGridFunction u_test(fes.get());
-   // u_gd_test.ProjectCoefficient(u0);
-   // HypreParVector *u_gd_test_vec = u_gd_test.GetTrueDofs();
-   // HypreParVector *u_test_vec = u_test.GetTrueDofs();
-   // fes_gd->Dof_TrueDof_Matrix()->Mult(*u_gd_test_vec, *u_test_vec);
-   // u_test.SetFromTrueDofs(*u_test_vec);
-
-   // // check error
-   // u_mult.Add(-1.0, *u);
-   // u_test.Add(-1.0, *u);
-   // double loc_norm1 = u_mult.Norml2();
-   // double loc_norm2 = u_test.Norml2();
-   // double norm1;
-   // double norm2;
-   // MPI_Allreduce(&loc_norm1, &norm1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   // MPI_Allreduce(&loc_norm2, &norm2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-   // *out << "Applied min l2 norm initial condition, error is " << norm1 << endl;
-   // *out << "Directly applied initial condition, error is " << norm2 << endl;
-
    // std::vector<ParGridFunction *> fields{u.get(), &u_mult, &u_test};
    // std::vector<std::string> names{"u_quad", "error1", "error2"};
    // printFields("minl2error_condition", fields, names, 0,0);
@@ -856,19 +818,11 @@ double AbstractSolver::calcL2Error(
    ParCentGridFunction *field,
    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_exact,
    int entry)
-{  *out << "In calcl2 error for gd.\n ";
-   // prolong the solution to quadrature points
-   GridFunType u_test(fes.get());
-   HypreParVector *u_test_vec = u_test.GetTrueDofs();
-   fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u_test_vec);
-   u_test.SetFromTrueDofs(*u_test_vec);
+{
    // TODO: need to generalize to parallel
    VectorFunctionCoefficient exsol(num_state, u_exact);
 
-   ParFiniteElementSpace *fe_space = field->ParFESpace();
-
-
-   const char *name = fe_space->FEColl()->Name();
+   const char *name = fes_gd->FEColl()->Name();
 
    double loc_norm = 0.0;
    const FiniteElement *fe;
@@ -878,9 +832,9 @@ double AbstractSolver::calcL2Error(
    if (entry < 0)
    {
       // sum up the L2 error over all states
-      for (int i = 0; i < fe_space->GetNE(); i++)
+      for (int i = 0; i < fes_gd->GetNE(); i++)
       {
-         fe = fe_space->GetFE(i);
+         fe = fes_gd->GetFE(i);
          const IntegrationRule *ir;
          if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
          {
@@ -891,8 +845,8 @@ double AbstractSolver::calcL2Error(
             int intorder = 2 * fe->GetOrder() + 1;
             ir = &(IntRules.Get(fe->GetGeomType(), intorder));
          }
-         T = fe_space->GetElementTransformation(i);
-         u_test.GetVectorValues(*T, *ir, vals);
+         T = fes_gd->GetElementTransformation(i);
+         u_gd->GetVectorValues(*T, *ir, vals);
          exsol.Eval(exact_vals, *T, *ir);
          vals -= exact_vals;
          loc_errs.SetSize(vals.Width());
@@ -908,9 +862,9 @@ double AbstractSolver::calcL2Error(
    else
    {
       // calculate the L2 error for component index `entry`
-      for (int i = 0; i < fe_space->GetNE(); i++)
+      for (int i = 0; i < fes_gd->GetNE(); i++)
       {
-         fe = fe_space->GetFE(i);
+         fe = fes_gd->GetFE(i);
          const IntegrationRule *ir;
          if (!strncmp(name, "SBP", 3) || !strncmp(name, "DSBP", 4))
          {
@@ -921,8 +875,8 @@ double AbstractSolver::calcL2Error(
             int intorder = 2 * fe->GetOrder() + 1;
             ir = &(IntRules.Get(fe->GetGeomType(), intorder));
          }
-         T = fe_space->GetElementTransformation(i);
-         u_test.GetVectorValues(*T, *ir, vals);
+         T = fes_gd->GetElementTransformation(i);
+         u_gd->GetVectorValues(*T, *ir, vals);
          exsol.Eval(exact_vals, *T, *ir);
          vals -= exact_vals;
          loc_errs.SetSize(vals.Width());
@@ -1768,69 +1722,6 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
    //    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not
    //    converge."); u->SetFromTrueDofs(u_true);
    // #endif // MFEM_USE_MPI
-}
-
-void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
-{
-   *out << "in solve unsteady for gd.\n";
-   double t = 0.0;
-   evolver_gd->SetTime(t);
-   ode_solver->Init(*evolver_gd);
-   GridFunType state_full(fes.get());
-   fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
-
-   bool paraview = true;
-   std::unique_ptr<ParaViewDataCollection> pd;
-   if (paraview)
-   {
-      pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
-      pd->SetPrefixPath("ParaView");
-      pd->RegisterField("state", &state_full);
-      pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
-      pd->SetDataFormat(VTKFormat::BINARY);
-      pd->SetHighOrderOutput(true);
-      pd->SetCycle(0);
-      pd->SetTime(t);
-      pd->Save();
-   }
-   std::cout.precision(16);
-   double res_norm = calcResidualNorm();
-   double all_norm;
-   MPI_Allreduce(&res_norm, &all_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   *out << "res norm is " << all_norm << endl;
-
-   double t_final = options["time-dis"]["t-final"].template get<double>();
-   *out << "t_final is " << t_final << '\n';
-   int ti;
-   double dt = 0.0;
-   initialHook(state);
-   for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
-   {
-      dt = calcStepSize(ti, t, t_final, dt, state);
-      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
-      if (!options["time-dis"]["steady"].get<bool>())
-         *out << " (" << round(100 * t / t_final) << "% complete)";
-      *out << endl;
-      iterationHook(ti, t, dt, state);
-      ode_solver->Step(state, t, dt);
-      // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
-      fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
-      if (paraview)
-      {
-         pd->SetCycle(ti);
-         pd->SetTime(t);
-         pd->Save();
-      }
-
-      if (iterationExit(ti, t, t_final, dt, state)) break;
-   }
-   {
-      ofstream osol("final_before_TH.gf");
-      osol.precision(std::numeric_limits<long double>::digits10 + 1);
-      state.Save(osol);
-   }
-   terminalHook(ti, t, state);
-
 }
 
 void AbstractSolver::solveUnsteady(ParGridFunction &state)
