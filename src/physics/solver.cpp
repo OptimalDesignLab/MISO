@@ -590,20 +590,20 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    mass_ref->Assemble();
    mass_ref->Finalize();
    HypreParMatrix *h = mass_ref->ParallelAssemble();
-   h->Print("mass_raw");
+   // h->Print("mass_raw");
 
    // COMPUTE P^t H u
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
    HypreParVector *u_vec = u->GetTrueDofs();
-   u_vec->Print("u");
+   // u_vec->Print("u");
    HypreParVector hu(fes.get()), pthu(fes_gd.get());
    h->Mult(*u_vec,hu);
    p->MultTranspose(hu,pthu);
    
    // compute pthp
    HypreParMatrix *pthp = RAP(h,p);
-   pthp->Print("pthp");
+   // pthp->Print("pthp");
 
    // solver setup
    CGSolver cg(comm);
@@ -616,18 +616,18 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    // solve for u_gd
    cg.Mult(pthu,*u_gd);
    HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
-   u_gd_vec->Print("u_gd");
+   // u_gd_vec->Print("u_gd");
 
 
    // check error
    ParGridFunction u_mult(fes.get());
    HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
    fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u_mult_vec);
-   u_mult_vec->Print("u_mult");
+   // u_mult_vec->Print("u_mult");
    u_mult.SetFromTrueDofs(*u_mult_vec);
    u_mult.Add(-1.0, *u);
    u_mult_vec = u_mult.GetTrueDofs();
-   u_mult_vec->Print("erro_gd");
+   // u_mult_vec->Print("erro_gd");
    double loc_norm1 = ParNormlp(*u_mult_vec, 2.0, comm);
    *out << "Applied min l2 norm initial condition, error is " << loc_norm1 << endl;
    
@@ -1805,14 +1805,14 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
    for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
    {
       dt = calcStepSize(ti, t, t_final, dt, state);
-      std::cout << "before step, res norm: " << calcResidualNorm() << "\n";
+      //std::cout << "before step, res norm: " << calcResidualNorm() << "\n";
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
       if (!options["time-dis"]["steady"].get<bool>())
          *out << " (" << round(100 * t / t_final) << "% complete)";
       *out << endl;
       iterationHook(ti, t, dt, state);
       ode_solver->Step(state, t, dt);
-      std::cout << "after step, res norm is " << calcResidualNorm() << "\n";
+      //std::cout << "after step, res norm is " << calcResidualNorm() << "\n";
       fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
       if (paraview)
       {
@@ -1897,15 +1897,14 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
          pd->SetTime(t);
          pd->Save();
       }
-      // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
       if (iterationExit(ti, t, t_final, dt, state)) break;
    }
-   {
-      ofstream osol("final_before_TH.gf");
-      osol.precision(std::numeric_limits<long double>::digits10 + 1);
-      state.Save(osol);
-   }
+   // {
+   //    ofstream osol("final_before_TH.gf");
+   //    osol.precision(std::numeric_limits<long double>::digits10 + 1);
+   //    state.Save(osol);
+   // }
    terminalHook(ti, t, state);
 
    // Save the final solution. This output can be viewed later using GLVis:

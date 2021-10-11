@@ -412,11 +412,11 @@ NonlinearEvolver::NonlinearEvolver(BilinearFormType *m, NonlinearFormType *r, do
 void NonlinearEvolver::Mult(const Vector &x, Vector &y) const
 {
    res->Mult(x, z);
-   cout << "in nonlinearevolver::Mult, ";
-   cout << "z norm is " << ParNormlp(dynamic_cast<HypreParVector*>(&z), 2.0, comm); << endl;
+   // cout << "in nonlinearevolver::Mult, ";
+   // cout << "z norm is " << z.Norml2() << endl;
    mass_solver->Mult(z, y);
-   cout << "y norm is " << y.Norml2() << endl;
-   y *= alpha;
+   // cout << "y norm is " << y.Norml2() << endl;
+   y *= -1.0;
 }
 
 }  // namespace mach
