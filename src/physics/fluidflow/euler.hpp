@@ -37,6 +37,12 @@ public:
        double t_final,
        double dt_old,
        const mfem::ParGridFunction &state) const override;
+   virtual double calcStepSize(
+       int iter,
+       double t,
+       double t_final,
+       double dt_old,
+       const mfem::ParCentGridFunction &state) const override;
 
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);

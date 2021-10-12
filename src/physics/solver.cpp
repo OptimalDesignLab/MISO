@@ -1267,6 +1267,17 @@ double AbstractSolver::calcStepSize(int iter,
    return dt;
 }
 
+double AbstractSolver::calcStepSize(int iter,
+                                    double t,
+                                    double t_final,
+                                    double dt_old,
+                                    const ParCentGridFunction &state) const
+{
+   double dt = options["time-dis"]["dt"].get<double>();
+   dt = min(dt, t_final - t);
+   return dt;
+}
+
 bool AbstractSolver::iterationExit(int iter,
                                    double t,
                                    double t_final,
@@ -1799,35 +1810,45 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
 
    double t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
-   int ti;
+   long ti;
    double dt = 0.0;
    initialHook(state);
-   for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
+   for (ti = 0; ti < options["time-dis"]["max-iter"].get<long>(); ++ti)
    {
       dt = calcStepSize(ti, t, t_final, dt, state);
       //std::cout << "before step, res norm: " << calcResidualNorm() << "\n";
-      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
-      if (!options["time-dis"]["steady"].get<bool>())
-         *out << " (" << round(100 * t / t_final) << "% complete)";
-      *out << endl;
+      if (ti % 1000 == 0)
+      {
+         *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
+         if (!options["time-dis"]["steady"].get<bool>())
+            *out << " (" << round(100 * t / t_final) << "% complete)";
+         *out << endl;
+      }
       iterationHook(ti, t, dt, state);
       ode_solver->Step(state, t, dt);
       //std::cout << "after step, res norm is " << calcResidualNorm() << "\n";
-      fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
-      if (paraview)
-      {
-         pd->SetCycle(ti);
-         pd->SetTime(t);
-         pd->Save();
-      }
+      // fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
+      // if (paraview)
+      // {
+      //    pd->SetCycle(ti);
+      //    pd->SetTime(t);
+      //    pd->Save();
+      // }
 
       if (iterationExit(ti, t, t_final, dt, state)) break;
    }
+   fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
+   if (paraview)
    {
-      ofstream osol("final_before_TH.gf");
-      osol.precision(std::numeric_limits<long double>::digits10 + 1);
-      state.Save(osol);
+      pd->SetCycle(ti);
+      pd->SetTime(t);
+      pd->Save();
    }
+   // {
+   //    ofstream osol("final_before_TH.gf");
+   //    osol.precision(std::numeric_limits<long double>::digits10 + 1);
+   //    state.Save(osol);
+   // }
    terminalHook(ti, t, state);
 
 }

@@ -415,6 +415,83 @@ double EulerSolver<dim, entvar>::calcStepSize(
 }
 
 template <int dim, bool entvar>
+double EulerSolver<dim, entvar>::calcStepSize(
+    int iter,
+    double t,
+    double t_final,
+    double dt_old,
+    const ParCentGridFunction &state) const
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // ramp up time step for pseudo-transient continuation
+      // TODO: the l2 norm of the weak residual is probably not ideal here
+      // A better choice might be the l1 norm
+      double res_norm = calcResidualNorm(state);
+      double exponent = options["time-dis"]["res-exp"];
+      double dt = options["time-dis"]["dt"].template get<double>() *
+                  pow(res_norm0 / res_norm, exponent);
+      return max(dt, dt_old);
+   }
+   if (!options["time-dis"]["const-cfl"].template get<bool>())
+   {
+      return options["time-dis"]["dt"].template get<double>();
+   }
+   // Otherwise, use a constant CFL condition
+   GridFunType state_full(fes.get());
+   fes_gd->GetProlongationMatrix()->Mult(state, state_full);
+   double cfl = options["time-dis"]["cfl"].template get<double>();
+   Vector q(dim + 2);
+   auto calcSpect = [&q](const double *dir, const double *u)
+   {
+      if (entvar)
+      {
+         calcConservativeVars<double, dim>(u, q);
+         return calcSpectralRadius<double, dim>(dir, q);
+      }
+      else
+      {
+         return calcSpectralRadius<double, dim>(dir, u);
+      }
+   };
+   double dt_local = 1e100;
+   Vector xi(dim);
+   Vector dxij(dim);
+   Vector ui, dxidx;
+   DenseMatrix uk;
+   DenseMatrix adjJt(dim);
+   for (int k = 0; k < fes->GetNE(); k++)
+   {
+      // get the element, its transformation, and the state values on element
+      const FiniteElement *fe = fes->GetFE(k);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *trans = fes->GetElementTransformation(k);
+      state_full.GetVectorValues(*trans, *ir, uk);
+      for (int i = 0; i < fe->GetDof(); ++i)
+      {
+         trans->SetIntPoint(&fe->GetNodes().IntPoint(i));
+         trans->Transform(fe->GetNodes().IntPoint(i), xi);
+         CalcAdjugateTranspose(trans->Jacobian(), adjJt);
+         uk.GetColumnReference(i, ui);
+         for (int j = 0; j < fe->GetDof(); ++j)
+         {
+            if (j == i) continue;
+            trans->Transform(fe->GetNodes().IntPoint(j), dxij);
+            dxij -= xi;
+            double dx = dxij.Norml2();
+            dt_local =
+                min(dt_local,
+                    cfl * dx * dx /
+                        calcSpect(dxij, ui));  // extra dx is to normalize dxij
+         }
+      }
+   }
+   double dt_min;
+   MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
+   return dt_min;
+}
+
+template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
 {
    q_ref = 0.0;

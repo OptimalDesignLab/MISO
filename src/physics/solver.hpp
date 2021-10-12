@@ -293,6 +293,11 @@ public:
                                double t_final,
                                double dt_old,
                                const mfem::ParGridFunction &state) const;
+   virtual double calcStepSize(int iter,
+                               double t,
+                               double t_final,
+                               double dt_old,
+                               const mfem::ParCentGridFunction &state) const;
 
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
