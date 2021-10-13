@@ -491,20 +491,20 @@ MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json &json_options,
    // B.reset(new GridFunType(h_div_space.get()));
    dim = mesh->Dimension();
    int order = options["space-dis"]["degree"].get<int>();
-   if (dim == 3)
-   {
+   // if (dim == 3)
+   // {
       auto *h_div_coll = new RT_FECollection(order, dim);
       auto *h_div_space = new ParFiniteElementSpace(mesh.get(), h_div_coll);
       res_fields.emplace("B", h_div_space);
       res_fields.at("B").MakeOwner(h_div_coll);
-   }
-   else
-   {
-      auto *h_curl_coll = new ND_FECollection(order, dim);
-      auto *h_curl_space = new ParFiniteElementSpace(mesh.get(), h_curl_coll);
-      res_fields.emplace("B", h_curl_space);
-      res_fields.at("B").MakeOwner(h_curl_coll);
-   }
+   // }
+   // else
+   // {
+   //    auto *h_curl_coll = new ND_FECollection(order, dim);
+   //    auto *h_curl_space = new ParFiniteElementSpace(mesh.get(), h_curl_coll);
+   //    res_fields.emplace("B", h_curl_space);
+   //    res_fields.at("B").MakeOwner(h_curl_coll);
+   // }
 
    B = &res_fields.at("B");
 }

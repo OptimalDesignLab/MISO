@@ -44,9 +44,9 @@ TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
    std::unique_ptr<mfem::Mesh> mesh( new mfem::Mesh(
       // mfem::Mesh::MakeCartesian3D(32, 64, 1,
       //                             Element::TETRAHEDRON,
-      //                             b, h, 1.0, true)));
+      //                             b, h, 0.001, true)));
       mfem::Mesh::MakeCartesian2D(16, 32,
-                                  Element::QUADRILATERAL, true,
+                                  Element::TRIANGLE, true,
                                   b, h, true)));
 
    auto solver = createSolver<MagnetostaticSolver>(options, std::move(mesh));
@@ -58,13 +58,13 @@ TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
       aexact(h, b, b0, N, Ipk, X, A);
    });
 
-   // solver->setField("state", *state);
-   // solver->printField("state", "state");
+   solver->setField("state", *state);
+   solver->printField("state", "state");
 
-   // auto B = solver->getField("B");
-   // em_solver->calcCurl(*state, *B);
-   // solver->setField("B", *B);
-   // solver->printField("B", "B");
+   auto B = solver->getField("B");
+   em_solver->calcCurl(*state, *B);
+   solver->setField("B", *B);
+   solver->printField("B_new", "B");
 
    solver->createOutput("ac_loss");
 
@@ -94,7 +94,7 @@ TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
    std::cout << "ac loss: ";
    for (const auto &ac_loss : loss)
    {
-      std::cout << ac_loss << ", ";
+      std::cout << ac_loss * 1000 << ", ";
    }
    std::cout << "\n";
 
@@ -104,6 +104,13 @@ TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
 
    std::cout << "dc loss: " << dc_loss << "\n";
 }
+
+/// 2D: 0.420313, 1.68125, 3.78282, 6.72501, 10.5078, 15.1313, 20.5953, 26.9, 34.0454, 42.0313, 50.8579, 60.5251, 71.0329, 82.3814, 94.5705, 228.772
+/// 3D: 0.421145, 1.68458, 3.7903, 6.73831, 10.5286, 15.1612, 20.6361, 26.9533, 34.1127, 42.1145, 50.9585, 60.6448, 71.1734, 82.5443, 94.7575, 229.224
+/// 3D: 0.0421145, 0.168458, 0.37903, 0.673831, 1.05286, 1.51612, 2.06361, 2.69533, 3.41127, 4.21145, 5.09585, 6.06448, 7.11734, 8.25443, 9.47575, 22.9224 // 0.1
+/// 3D: 0.00421146, 0.0168458, 0.0379032, 0.0673834, 0.105287, 0.151613, 0.206362, 0.269534, 0.341128, 0.421146, 0.509587, 0.606451, 0.711737, 0.825447, 0.947579, 2.29225 // 0.01
+/// 3D: 0.000421304, 0.00168521, 0.00379173, 0.00674086, 0.0105326, 0.0151669, 0.0206439, 0.0269634, 0.0341256, 0.0421304, 0.0509777, 0.0606677, 0.0712003, 0.0825755, 0.0947933, 0.229311 // 0.001
+/// 3D: 0.421304, 1.68521, 3.79173, 6.74086, 10.5326, 15.1669, 20.6439, 26.9634, 34.1256, 42.1304, 50.9777, 60.6677, 71.2003, 82.5755, 94.7933, 229.311
 
 void aexact(double h,
             double b,

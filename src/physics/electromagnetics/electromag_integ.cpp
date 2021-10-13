@@ -106,7 +106,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(const FiniteElement &el,
 #endif
 
    double b_vec_buffer[3];
-   Vector b_vec(b_vec_buffer, dim);
+   Vector b_vec(b_vec_buffer, dimc);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
@@ -180,7 +180,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
 #endif
 
    double b_vec_buffer[3];
-   Vector b_vec(b_vec_buffer, dim);
+   Vector b_vec(b_vec_buffer, dimc);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
@@ -2706,7 +2706,7 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
    Vector b_vec(b_vec_buffer, dimc);
 
    const IntegrationRule *ir = IntRule;
-   if (ir == NULL)
+   if (ir == nullptr)
    {
       int order = [&]()
       {
@@ -2751,9 +2751,9 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       const auto loss = effective_length * M_PI * pow(radius, 4) * sigma_val *
                         pow(freq * b_mag, 2) / 32.0;
 
-      // const auto copper_area = 2 * num_strands * M_PI * pow(radius, 2);
-      // const auto fill_factor = copper_area / slot_area;
-      fun += loss * w * num_strands / slot_area;
+      const auto copper_area = num_strands * M_PI * pow(radius, 2);
+      const auto fill_factor = copper_area / slot_area;
+      fun += loss * w * num_strands * fill_factor / slot_area;
    }
    return fun;
 }
@@ -3495,5 +3495,25 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
       }
    }
 }
+
+// CurlInterpolator::AssembleElementMatrix2(const FiniteElement &nd_fe,
+//                                          const FiniteElement &rt_fe,
+//                                          ElementTransformation &trans,
+//                                          DenseMatrix &elmat)
+// {
+//    DenseMatrix curl_shape(fe.GetDof(), dim);
+//    Vector curl_k(fe.GetDof());
+
+//    curl.SetSize(dof, fe.GetDof());
+//    for (int k = 0; k < dof; k++)
+//    {
+//       fe.CalcCurlShape(Nodes.IntPoint(k), curl_shape);
+//       curl_shape.Mult(nk + d2n[k]*dim, curl_k);
+//       for (int j = 0; j < curl_k.Size(); j++)
+//       {
+//          curl(k,j) = (fabs(curl_k(j)) < 1e-12) ? 0.0 : curl_k(j);
+//       }
+//    }
+// }
 
 }  // namespace mach

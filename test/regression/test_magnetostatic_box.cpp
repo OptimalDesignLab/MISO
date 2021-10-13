@@ -72,7 +72,7 @@ auto options = R"(
       "co-energy": {}
    },
    "bcs": {
-      "essential": [1, 2, 3, 4, 5, 6]
+      "essential": "all"
    }
 })"_json;
 
@@ -105,11 +105,11 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
    };
 
    /// TODO:
-   std::vector<std::vector<double>> target_coenergy = {
-      {0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0}
+   std::vector<std::vector<double>> target_energy = {
+      {0.0456124231, 0.0, 0.0, 0.0},
+      {0.05807012599, 0.0, 0.0, 0.0},
+      {0.05629189119, 0.0, 0.0, 0.0},
+      {0.05625, 0.0, 0.0, 0.0}
    };
 
    /// number of elements in Z direction
@@ -135,17 +135,20 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             };
             solver->solveForState(inputs, *state);
 
-            auto fields = solver->getFields();
+            // auto fields = solver->getFields();
 
-            // Compute error and check against appropriate target
-            mfem::VectorFunctionCoefficient bEx(3, bexact);
-            double l2_error = fields[1]->ComputeL2Error(bEx);
-            std::cout << "\n\nl2 error in B: " << l2_error << "\n\n\n";
-            REQUIRE(l2_error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
+            // // Compute error and check against appropriate target
+            // mfem::VectorFunctionCoefficient bEx(3, bexact);
+            // double l2_error = fields[1]->ComputeL2Error(bEx);
+            // std::cout << "\n\nl2 error in B: " << l2_error << "\n\n\n";
+            // REQUIRE(l2_error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
-            // // Compute co-energy and check against target
-            // double coenergy = solver->calcOutput("co-energy");
-            // REQUIRE(coenergy == Approx(target_coenergy[nxy-1]).margin(1e-10));
+            // Compute co-energy and check against target
+            solver->createOutput("energy");
+            double energy = solver->calcOutput("energy", inputs);
+            std::cout.precision(10);
+            std::cout << "energy: " << energy << "\n";
+            REQUIRE(energy == Approx(target_energy[order-1][ref - 1]).margin(1e-10));
          }
       }
    }
@@ -153,18 +156,47 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
 
 void aexact(const Vector &x, Vector& A)
 {
-   A.SetSize(3);
-   A = 0.0;
+   // A.SetSize(3);
+   // A = 0.0;
+   // double y = x(1) - .5;
+   // if ( x(1) <= .5)
+   // {
+   //    A(2) = y*y*y; 
+   //    // A(2) = y*y; 
+   // }
+   // else 
+   // {
+   //    A(2) = -y*y*y;
+   //    // A(2) = -y*y;
+   // }
+
+   int dim = x.Size();
+   int dimc = (dimc == 3) ? 3 : 1;
+   A.SetSize(dimc);
    double y = x(1) - .5;
-   if ( x(1) <= .5)
+
+   if (dimc == 1)
    {
-      A(2) = y*y*y; 
-      // A(2) = y*y; 
+      if ( x(1) <= .5)
+      {
+         A = y*y*y; 
+      }
+      else 
+      {
+         A = -y*y*y;
+      }
    }
-   else 
+   else
    {
-      A(2) = -y*y*y;
-      // A(2) = -y*y;
+      A = 0.0;
+      if ( x(1) <= .5)
+      {
+         A(2) = y*y*y; 
+      }
+      else 
+      {
+         A(2) = -y*y*y;
+      }
    }
 }
 
@@ -189,9 +221,12 @@ unique_ptr<Mesh> buildMesh(int nxy, int nz)
 {
    // generate a simple tet mesh
    std::unique_ptr<Mesh> mesh(
-      new Mesh(Mesh::MakeCartesian3D(nxy, nxy, nz,
-                                     Element::TETRAHEDRON,
-                                     1.0, 1.0, (double)nz / (double)nxy, true)));
+      // new Mesh(Mesh::MakeCartesian3D(nxy, nxy, nz,
+      //                                Element::TETRAHEDRON,
+      //                                1.0, 1.0, (double)nz / (double)nxy, true)));
+      new Mesh(Mesh::MakeCartesian2D(nxy, nxy,
+                                     Element::TRIANGLE, true,
+                                     1.0, 1.0, true)));
 
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh->GetNE(); ++i)
@@ -202,7 +237,7 @@ unique_ptr<Mesh> buildMesh(int nxy, int nz)
       elem->GetVertices(verts);
 
       bool below = true;
-      for (int i = 0; i < 4; ++i)
+      for (int i = 0; i < verts.Size(); ++i)
       {
          auto vtx = mesh->GetVertex(verts[i]);
          if (vtx[1] <= 0.5)
