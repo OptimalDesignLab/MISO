@@ -2137,31 +2137,31 @@ mfem::Vector *AbstractSolver::getMeshSensitivities()
 //    return func_sens_integ.at(fun).at(field).ParallelAssemble();
 // }
 
-void AbstractSolver::setInputs(std::vector<MachIntegrator> &integrators,
-                               const MachInputs &inputs)
-{
-   for (const auto &input : inputs)
-   {
-      setInput(integrators, input.first, input.second);
-   }
-}
+// void AbstractSolver::setInputs(std::vector<MachIntegrator> &integrators,
+//                                const MachInputs &inputs)
+// {
+//    for (const auto &input : inputs)
+//    {
+//       setInput(integrators, input.first, input.second);
+//    }
+// }
 
-void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
-                              const std::string &name,
-                              const MachInput &input)
-{
-   if (input.isField())
-   {
-      auto &field = res_fields.at(name);
-      field.GetTrueVector().SetDataAndSize(input.getField(),
-                                           field.ParFESpace()->GetTrueVSize());
-      field.SetFromTrueVector();
-   }
-   else if (input.isValue())
-   {
-      mach::setScalarInput(integrators, name, input);
-   }
-}
+// void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
+//                               const std::string &name,
+//                               const MachInput &input)
+// {
+//    if (input.isField())
+//    {
+//       auto &field = res_fields.at(name);
+//       field.GetTrueVector().SetDataAndSize(input.getField(),
+//                                            field.ParFESpace()->GetTrueVSize());
+//       field.SetFromTrueVector();
+//    }
+//    else if (input.isValue())
+//    {
+//       mach::setScalarInput(integrators, name, input);
+//    }
+// }
 
 // void AbstractSolver::setResidualInput(std::string name,
 //                                       ParGridFunction &field)

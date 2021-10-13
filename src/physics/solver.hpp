@@ -962,21 +962,22 @@ protected:
    double calcFractionalOutput(const mfem::ParGridFunction &state,
                                const std::string &fun);
 
-   /// Iterates through each input and calls `setInput` for each
-   /// \param[in] integrators - list of integrators to set scalar inputs for
-   /// \param[in] inputs - collection of named field or scalar inputs
-   void setInputs(std::vector<MachIntegrator> &integrators,
-                  const MachInputs &inputs);
+   // /// Iterates through each input and calls `setInput` for each
+   // /// \param[in] integrators - list of integrators to set scalar inputs for
+   // /// \param[in] inputs - collection of named field or scalar inputs
+   // void setInputs(std::vector<MachIntegrator> &integrators,
+   //                const MachInputs &inputs);
 
-   /// If the input is a field variable, updates the data for the field in
-   /// `res_fields`. If the input is a scalar, iterates through the integrators
-   /// and calls `setInput` for each integrator to set it's scalar inputs
-   /// \param[in] integrators - list of integrators to set scalar inputs for
-   /// \param[in] name - name of input
-   /// \param[in] input - input to set, either a field or scalar
-   void setInput(std::vector<MachIntegrator> &integrators,
-                 const std::string &name,
-                 const MachInput &input);
+   // /// If the input is a field variable, updates the data for the field in
+   // /// `res_fields`. If the input is a scalar, iterates through the
+   // integrators
+   // /// and calls `setInput` for each integrator to set it's scalar inputs
+   // /// \param[in] integrators - list of integrators to set scalar inputs for
+   // /// \param[in] name - name of input
+   // /// \param[in] input - input to set, either a field or scalar
+   // void setInput(std::vector<MachIntegrator> &integrators,
+   //               const std::string &name,
+   //               const MachInput &input);
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
    /// reference to it to in fun_integrators as a MachIntegrator

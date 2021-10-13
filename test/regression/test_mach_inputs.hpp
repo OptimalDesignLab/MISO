@@ -44,24 +44,23 @@ public:
       return fun;
    }
 
-   friend void setInput(TestMachInputIntegrator &integ,
-                        const std::string &name,
-                        const MachInput &input);
+   friend void setInputs(TestMachInputIntegrator &integ,
+                         const MachInputs &inputs);
 
 private:
    double test_val;
    const mfem::GridFunction &test_field;
 };
 
-void setInput(TestMachInputIntegrator &integ,
-              const std::string &name,
-              const MachInput &input)
+void setInputs(TestMachInputIntegrator &integ,
+               const MachInputs &inputs)
 {
-   if (name == "test_val")
+   auto it = inputs.find("test_val");
+   if (it != inputs.end())
    {
-      if (input.isValue())
+      if (it->second.isValue())
       {
-         integ.test_val = input.getValue();
+         integ.test_val = it->second.getValue();
       }
       else
       {

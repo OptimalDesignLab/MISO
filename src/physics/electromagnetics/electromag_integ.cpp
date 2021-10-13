@@ -2584,17 +2584,13 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
-void setInput(DCLossFunctionalIntegrator &integ,
-              const std::string &name,
-              const MachInput &input)
+void setInputs(DCLossFunctionalIntegrator &integ,
+               const MachInputs &inputs)
 {
-   if (name == "current_density")
+   auto it = inputs.find("current_density");
+   if (it != inputs.end())
    {
-      integ.current_density = input.getValue();
-   }
-   else if (name == "fill-factor")
-   {
-      integ.fill_factor = input.getValue();
+      integ.current_density = it->second.getValue();
    }
 }
 
@@ -2651,26 +2647,28 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       }
       const double sigma_val = sigma.Eval(trans, ip);
       const double loss = current2 / sigma_val;
-      fun += loss * fill_factor * w;
+      fun += loss * w;
    }
    return fun;
 }
 
-void setInput(HybridACLossFunctionalIntegrator &integ,
-              const std::string &name,
-              const MachInput &input)
+void setInputs(HybridACLossFunctionalIntegrator &integ,
+               const MachInputs &inputs)
 {
-   if (name == "diam")
+   auto it = inputs.find("diam");
+   if (it != inputs.end())
    {
-      integ.diam = input.getValue();
+      integ.diam = it->second.getValue();
    }
-   else if (name == "frequency")
+   it = inputs.find("diam");
+   if (it != inputs.end())
    {
-      integ.freq = input.getValue();
+      integ.freq = it->second.getValue();
    }
-   else if (name == "fill-factor")
+   it = inputs.find("fill-factor");
+   if (it != inputs.end())
    {
-      integ.fill_factor = input.getValue();
+      integ.fill_factor = it->second.getValue();
    }
 }
 
