@@ -11,6 +11,7 @@ target_sources(mach
       inexact_newton.hpp
       mach_linearform.cpp
       mach_linearform.hpp
+      mach_residual.hpp
       material_library.hpp
       mfem_extensions.cpp
       mfem_extensions.hpp

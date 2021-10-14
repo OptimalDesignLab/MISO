@@ -1,6 +1,10 @@
 #ifndef MACH_RESIDUAL
 #define MACH_RESIDUAL
 
+
+
+#include "mfem.hpp"
+
 #include "mach_input.hpp"
 
 namespace mach
@@ -10,8 +14,8 @@ namespace mach
 /// function.  For example, one instance of `T` is given by `MachNonlinearForm`,
 /// so that every nonlinear form can be wrapped by a MachResidual.
 /// \note We use this approach to achieve polymorphism without inheritance.
-/// This is important because we need to derive from `mfem` classes frequently, 
-/// but at the same time we need to build on their classes' functionality.  
+/// This is important because we need to derive from `mfem` classes frequently,
+/// but at the same time we need to build on their classes' functionality.
 /// Without this approach, we would need to use frequent dynamic casts because
 /// we have pointers to base classes.
 /// \note This approach is based on the example in Sean Parent's talk:
@@ -21,21 +25,22 @@ class MachResidual final
 public:
 
    /// Set a scalar input in the underlying residual type
-   /// \param[inout] res - the residual being assigned the input 
+   /// \param[inout] residual - the residual being assigned the input 
    /// \param[in] inputs - the input that is being assigned 
    /// \note Ends up calling `setInputs` on either the `MachNonlinearForm` or
    /// a specialized version for each particular residual.
-   friend void setInputs(MachResidual &res, const MachInputs &inputs);
+   friend void setInputs(MachResidual &residual, const MachInputs &inputs);
 
-   /// Evaluate the residual function at vector `x` and return result in `y`
-   /// \param[inout] res - the residual being evaluated 
-   /// \param[in] x - the independent variable at which to evaluate `res`
-   /// \param[out] y - the dependent variable, the output from `res`
-   friend void mult(MachResidual &res, const mfem::Vector &x, mfem::Vector &y);
+   /// Evaluate the residual function at given inputs and return as `res_vec`
+   /// \param[inout] residual - the residual being evaluated 
+   /// \param[in] inputs - the independent variables at which to evaluate `res`
+   /// \param[out] res_vec - the dependent variable, the output from `residual`
+   friend void evaluate(MachResidual &residual, const MachInputs &inputs, 
+                        mfem::Vector &res_vec);
 
    // TODO: we will eventual want to add functions for Jacobian products
 
-   // The following constructors, assignment operators, and destructors allow 
+   // The following constructors, assignment operators, and destructors allow
    // the `MachResidual` to wrap the generic type `T`.
 
    template <typename T>
@@ -63,7 +68,7 @@ private:
       virtual ~concept_t() = default;
       virtual concept_t *copy_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) const = 0;
-      virtual void mult_(const mfem::Vector &x, mfem::Vector &y) = 0;
+      virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -78,9 +83,9 @@ private:
       {
          setInputs(data_, inputs);
       }
-      void mult_(const mfem::Vector &x, mfem::Vector &y) override
+      void eval_(const MachInputs &inputs, mfem::Vector &res_vec) override
       {
-         mult(data_, x, y);
+         evaluate(data_, inputs, res_vec);
       }
 
       T &data_;
@@ -90,18 +95,19 @@ private:
    std::unique_ptr<concept_t> self_;  
 };
 
-inline void setInputs(MachResidual &res, const MachInputs &inputs)
+inline void setInputs(MachResidual &residual, const MachInputs &inputs)
 {
    // passes `inputs` on to the `setInputs` function for the concrete
    // residual type
    res.self_->setInputs_(inputs);
 }
 
-inline void mult(MachResidual &res, const mfem::Vector &x, mfem::Vector &y)
+inline void evaluate(MachResidual &residual, const MachInputs &inputs,
+                     mfem::Vector &res_vec)
 {
-   // passes `x` and `y` on to the `mult` function for the concrete residual
-   // type
-   res.self_->mult_(x, y);
+   // passes `inputs` and `res_vec` on to the `evaluate` function for the 
+   // concrete residual type
+   res.self_->eval_(inputs, res_vec);
 }
 
 } // namespace mach
