@@ -767,21 +767,21 @@ void MagnetostaticSolver::addOutputs(const std::string &fun,
       FunctionalOutput out(*fes, res_fields);
       out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(*nu));
       // MachOutput mout(std::move(out));
-      output.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "ACLoss")
    {
       FunctionalOutput out(*fes, res_fields);
       out.addOutputDomainIntegrator(
           new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
-      output.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "DCLoss")
    {
       FunctionalOutput out(*fes, res_fields);
       out.addOutputDomainIntegrator(
           new DCLossFunctionalIntegrator(*sigma, *current_coeff, 1.0));
-      output.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "force")
    {
@@ -790,7 +790,7 @@ void MagnetostaticSolver::addOutputs(const std::string &fun,
       res_fields.emplace("v" + fun, mesh_gf.ParFESpace());
 
       ForceFunctional out(*fes, res_fields, options, *nu);
-      output.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "torque")
    {
@@ -799,7 +799,7 @@ void MagnetostaticSolver::addOutputs(const std::string &fun,
       res_fields.emplace("v" + fun, mesh_gf.ParFESpace());
 
       TorqueFunctional out(*fes, res_fields, options, *nu);
-      output.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(out));
    }
    else
    {

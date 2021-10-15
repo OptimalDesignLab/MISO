@@ -2,19 +2,19 @@
 #define MACH_SOLVER
 
 #include <fstream>
-#include <iostream>
 #include <functional>
+#include <iostream>
 #include <unordered_map>
 
 #include "adept.h"
-#include "nlohmann/json.hpp"
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
-#include "mach_types.hpp"
-#include "utils.hpp"
 #include "mach_integrator.hpp"
 #include "mach_input.hpp"
 #include "mach_output.hpp"
+#include "mach_types.hpp"
+#include "utils.hpp"
 
 #ifdef MFEM_USE_PUMI
 namespace apf
@@ -767,7 +767,7 @@ protected:
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
    /// map of outputs
-   std::map<std::string, MachOutput> output;
+   std::map<std::string, MachOutput> outputs;
    // /// collection of integrators for each functional
    // std::map<std::string, std::vector<MachIntegrator>> fun_integrators;
    // /// map of linear forms that will compute \frac{\partial J}{\partial

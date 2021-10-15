@@ -1,13 +1,13 @@
 #include <cmath>
 #include <memory>
 
+#include "diag_mass_integ.hpp"
+#include "euler_integ.hpp"
+#include "functional_output.hpp"
 #include "sbp_fe.hpp"
 #include "utils.hpp"
-#include "euler.hpp"
 
-#include "euler_integ.hpp"
-#include "diag_mass_integ.hpp"
-#include "functional_output.hpp"
+#include "euler.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -235,61 +235,60 @@ void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
 {
    if (fun == "drag")
    {
-      // const auto &out = output.emplace(fun, FunctionalOutput(*fes, res_fields)).first;
+      FunctionalOutput out(*fes, res_fields);
 
-      // // drag on the specified boundaries
-      // vector<int> bdr = options["boundaries"].template get<vector<int>>();
-      // output_bndry_marker.emplace(fun, bdr.size());
-      // output_bndry_marker.at(fun).Assign(bdr.data());
+      // drag on the specified boundaries
+      auto bdrs = options["boundaries"].template get<vector<int>>();
 
-      // mfem::Vector drag_dir(dim);
-      // drag_dir = 0.0;
-      // if (dim == 1)
-      // {
-      //    drag_dir(0) = 1.0;
-      // }
-      // else
-      // {
-      //    drag_dir(iroll) = cos(aoa_fs);
-      //    drag_dir(ipitch) = sin(aoa_fs);
-      // }
-      // drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+      mfem::Vector drag_dir(dim);
+      drag_dir = 0.0;
+      if (dim == 1)
+      {
+         drag_dir(0) = 1.0;
+      }
+      else
+      {
+         drag_dir(iroll) = cos(aoa_fs);
+         drag_dir(ipitch) = sin(aoa_fs);
+      }
+      drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
 
-      // out->second.addOutputBdrFaceIntegrator(
-      //     new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
-      //     output_bndry_marker.at(fun));
+      out.addOutputBdrFaceIntegrator(
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
+          std::move(bdrs));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "lift")
    {
-      // const auto &out = output.emplace(fun, FunctionalOutput(*fes, res_fields)).first;
-      // // lift on the specified boundaries
-      // vector<int> bdr = options["boundaries"].template get<vector<int>>();
-      // output_bndry_marker.emplace(fun, bdr.size());
-      // output_bndry_marker.at(fun).Assign(bdr.data());
+      FunctionalOutput out(*fes, res_fields);
+      // lift on the specified boundaries
+      auto bdrs = options["boundaries"].template get<vector<int>>();
 
-      // mfem::Vector lift_dir(dim);
-      // lift_dir = 0.0;
-      // if (dim == 1)
-      // {
-      //    lift_dir(0) = 0.0;
-      // }
-      // else
-      // {
-      //    lift_dir(iroll) = -sin(aoa_fs);
-      //    lift_dir(ipitch) = cos(aoa_fs);
-      // }
-      // lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
+      mfem::Vector lift_dir(dim);
+      lift_dir = 0.0;
+      if (dim == 1)
+      {
+         lift_dir(0) = 0.0;
+      }
+      else
+      {
+         lift_dir(iroll) = -sin(aoa_fs);
+         lift_dir(ipitch) = cos(aoa_fs);
+      }
+      lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
 
-      // out->second.addOutputBdrFaceIntegrator(
-      //     new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
-      //     output_bndry_marker.at(fun));
+      out.addOutputBdrFaceIntegrator(
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+          std::move(bdrs));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "entropy")
    {
-      // const auto &out = output.emplace(fun, FunctionalOutput(*fes, res_fields)).first;
-      // // integral of entropy over the entire volume domain
-      // out->second.addOutputDomainIntegrator(
-      //     new EntropyIntegrator<dim, entvar>(diff_stack));
+      FunctionalOutput out(*fes, res_fields);
+      // integral of entropy over the entire volume domain
+      out.addOutputDomainIntegrator(
+          new EntropyIntegrator<dim, entvar>(diff_stack));
+      outputs.emplace(fun, std::move(out));
    }
    else
    {

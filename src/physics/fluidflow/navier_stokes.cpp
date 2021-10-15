@@ -1,9 +1,10 @@
 #include <cmath>
 #include <memory>
 
-#include "navier_stokes.hpp"
-
+#include "functional_output.hpp"
 #include "navier_stokes_integ.hpp"
+
+#include "navier_stokes.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -178,79 +179,78 @@ template <int dim, bool entvar>
 void NavierStokesSolver<dim, entvar>::addOutputs(const std::string &fun,
                                                  const nlohmann::json &options)
 {
-   // auto mu = this->options["flow-param"]["mu"].template get<double>();
+   auto mu = this->options["flow-param"]["mu"].template get<double>();
    Vector q_ref(dim + 2);
    this->getFreeStreamState(q_ref);
    if (fun == "drag")
-   {
-      // FunctionalOutput out(*fes, res_fields);
-      // // drag on the specified boundaries
-      // vector<int> bdr = options["boundaries"].template get<vector<int>>();
-      // this->output_bndry_marker.emplace(fun, bdr.size());
-      // this->output_bndry_marker.at(fun).Assign(bdr.data());
+   {      
+      // drag on the specified boundaries
+      auto bdrs = options["boundaries"].template get<vector<int>>();
 
-      // mfem::Vector drag_dir(dim);
-      // drag_dir = 0.0;
-      // if (dim == 1)
-      // {
-      //    drag_dir(0) = 1.0;
-      // }
-      // else
-      // {
-      //    drag_dir(this->iroll) = cos(this->aoa_fs);
-      //    drag_dir(this->ipitch) = sin(this->aoa_fs);
-      // }
-      // drag_dir *= 1.0 / pow(this->mach_fs, 2.0);  // to get non-dimensional Cd
+      mfem::Vector drag_dir(dim);
+      drag_dir = 0.0;
+      if (dim == 1)
+      {
+         drag_dir(0) = 1.0;
+      }
+      else
+      {
+         drag_dir(this->iroll) = cos(this->aoa_fs);
+         drag_dir(this->ipitch) = sin(this->aoa_fs);
+      }
+      drag_dir *= 1.0 / pow(this->mach_fs, 2.0);  // to get non-dimensional Cd
 
-      // out.addOutputBdrFaceIntegrator(
-      //     new SurfaceForce<dim>(this->diff_stack,
-      //                           this->fec.get(),
-      //                           dim + 2,
-      //                           re_fs,
-      //                           pr_fs,
-      //                           q_ref,
-      //                           drag_dir,
-      //                           mu),
-      //     this->output_bndry_marker.at(fun));
-      // output.emplace(fun, out);
+      FunctionalOutput out(*(this->fes), this->res_fields);
+      out.addOutputBdrFaceIntegrator(
+          new SurfaceForce<dim>(this->diff_stack,
+                                this->fec.get(),
+                                dim + 2,
+                                re_fs,
+                                pr_fs,
+                                q_ref,
+                                drag_dir,
+                                mu),
+          std::move(bdrs));
+      this->outputs.emplace(fun, std::move(out));
    }
    else if (fun == "lift")
    {
-      // const auto &out = output.emplace(fun, FunctionalOutput(*fes, res_fields)).first;
-      // // lift on the specified boundaries
-      // vector<int> bdr = options["boundaries"].template get<vector<int>>();
-      // this->output_bndry_marker.emplace(fun, bdr.size());
-      // this->output_bndry_marker.at(fun).Assign(bdr.data());
+      // lift on the specified boundaries
+      auto bdrs = options["boundaries"].template get<vector<int>>();
 
-      // mfem::Vector lift_dir(dim);
-      // lift_dir = 0.0;
-      // if (dim == 1)
-      // {
-      //    lift_dir(0) = 0.0;
-      // }
-      // else
-      // {
-      //    lift_dir(this->iroll) = -sin(this->aoa_fs);
-      //    lift_dir(this->ipitch) = cos(this->aoa_fs);
-      // }
-      // lift_dir *= 1.0 / pow(this->mach_fs, 2.0);  // to get non-dimensional Cl
-      // out->second.addOutputBdrFaceIntegrator(
-      //     new SurfaceForce<dim>(this->diff_stack,
-      //                           this->fec.get(),
-      //                           dim + 2,
-      //                           re_fs,
-      //                           pr_fs,
-      //                           q_ref,
-      //                           lift_dir,
-      //                           mu),
-      //     this->output_bndry_marker.at(fun));
+      mfem::Vector lift_dir(dim);
+      lift_dir = 0.0;
+      if (dim == 1)
+      {
+         lift_dir(0) = 0.0;
+      }
+      else
+      {
+         lift_dir(this->iroll) = -sin(this->aoa_fs);
+         lift_dir(this->ipitch) = cos(this->aoa_fs);
+      }
+      lift_dir *= 1.0 / pow(this->mach_fs, 2.0);  // to get non-dimensional Cl
+
+      FunctionalOutput out(*(this->fes), this->res_fields);
+      out.addOutputBdrFaceIntegrator(
+          new SurfaceForce<dim>(this->diff_stack,
+                                this->fec.get(),
+                                dim + 2,
+                                re_fs,
+                                pr_fs,
+                                q_ref,
+                                lift_dir,
+                                mu),
+          std::move(bdrs));
+      this->outputs.emplace(fun, std::move(out));
    }
    else if (fun == "entropy")
    {
-      // const auto &out = output.emplace(fun, FunctionalOutput(*fes, res_fields)).first;
-      // // integral of entropy over the entire volume domain
-      // out->second.addOutputDomainIntegrator(
-      //     new EntropyIntegrator<dim, entvar>(this->diff_stack));
+      // integral of entropy over the entire volume domain
+      FunctionalOutput out(*(this->fes), this->res_fields);
+      out.addOutputDomainIntegrator(
+          new EntropyIntegrator<dim, entvar>(this->diff_stack));
+      this->outputs.emplace(fun, std::move(out));
    }
    else
    {

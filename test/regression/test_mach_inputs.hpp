@@ -1,11 +1,11 @@
 #ifndef MACH_TEST_MACH_INPUTS
 #define MACH_TEST_MACH_INPUTS
 
-#include "nlohmann/json.hpp"
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
-#include "solver.hpp"
 #include "functional_output.hpp"
+#include "solver.hpp"
 #include "utils.hpp"
 
 namespace mach
@@ -89,7 +89,7 @@ private:
 
          out.addOutputDomainIntegrator(
             new TestMachInputIntegrator(res_fields.at("test_field")));
-         output.emplace(fun, std::move(out));
+         outputs.emplace(fun, std::move(out));
       }
    }
    void constructForms() { res.reset(new NonlinearFormType(fes.get())); }

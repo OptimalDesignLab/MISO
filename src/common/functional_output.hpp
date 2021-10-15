@@ -48,7 +48,7 @@ public:
    /// \param[in] integrator - integrator to add to functional
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
-   void addOutputBdrFaceIntegrator(T *integrator, mfem::Array<int> &bdr_marker);
+   void addOutputBdrFaceIntegrator(T *integrator, std::vector<int> bdr_marker);
 
    FunctionalOutput(
        mfem::ParFiniteElementSpace &fes,
@@ -73,7 +73,7 @@ private:
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
    /// Collection of boundary markers for boundary integrators
-   std::vector<mfem::Array<int>> bdr_marker;
+   std::vector<mfem::Array<int>> bdr_markers;
 
 
    /// map of linear forms that will compute \frac{\partial J}{\partial field}
@@ -104,9 +104,11 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
 
 template <typename T>
 void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator,
-                                                  mfem::Array<int> &bdr_marker)
+                                                  std::vector<int> bdr_marker)
 {
-   output.AddBdrFaceIntegrator(integrator, bdr_marker);
+   bdr_markers.emplace_back(bdr_marker.size());
+   bdr_markers.back().Assign(bdr_marker.data());
+   output.AddBdrFaceIntegrator(integrator, bdr_markers.back());
    integs.emplace_back(*integrator);
    mach::addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);

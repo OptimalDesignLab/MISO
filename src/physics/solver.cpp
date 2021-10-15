@@ -1879,7 +1879,7 @@ void AbstractSolver::createOutput(const std::string &fun)
 void AbstractSolver::createOutput(const std::string &fun,
                                   const nlohmann::json &options)
 {
-   if (output.count(fun) == 0)
+   if (outputs.count(fun) == 0)
    {
       addOutputs(fun, options);
    }
@@ -1892,25 +1892,13 @@ void AbstractSolver::createOutput(const std::string &fun,
 double AbstractSolver::calcOutput(const ParGridFunction &state,
                                   const std::string &fun)
 {
-   // if (fractional_output.find(fun) != fractional_output.end())
-   // {
-   //    return calcFractionalOutput(state, fun);
-   // }
+   HypreParVector state_true(fes.get());
+   state.GetTrueDofs(state_true);
 
-   // try
-   // {
-   //    if (output.find(fun) == output.end())
-   //    {
-   //       //*out << "Did not find " << fun << " in output map?" << endl;
-   //       throw MachException("Did not find " + fun + " in output map?");
-   //    }
-   //    return output.at(fun).GetEnergy(state);
-   // }
-   // catch (const std::out_of_range &exception)
-   // {
-   //    std::cerr << exception.what() << endl;
-   //    return -1.0;
-   // }
+   MachInputs inputs {
+      {"state", state_true.GetData()}
+   };
+   return calcOutput(fun, inputs);
 }
 
 double AbstractSolver::calcOutput(const std::string &fun,
@@ -1918,15 +1906,13 @@ double AbstractSolver::calcOutput(const std::string &fun,
 {
    try
    {
-      auto out = output.find(fun);
-      if (out == output.end())
+      auto output = outputs.find(fun);
+      if (output == outputs.end())
       {
          throw MachException("Did not find " + fun + " in output map?");
       }
-      mach::setInputs(out->second, inputs);
-      return mach::calcOutput(out->second, inputs);
-      // auto &state = res_fields.at("state");
-      // return output.at(fun).GetEnergy(state);
+      mach::setInputs(output->second, inputs);
+      return mach::calcOutput(output->second, inputs);
    }
    catch (const std::out_of_range &exception)
    {
@@ -1969,7 +1955,7 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
    //                         fes->GlobalTrueVSize(),
    //                         inputs.at("state").getField(),
    //                         fes->GetTrueDofOffsets());
-   //    output.at(of).Mult(state, partial);
+   //    outputs.at(of).Mult(state, partial);
    // }
    // else
    // {
