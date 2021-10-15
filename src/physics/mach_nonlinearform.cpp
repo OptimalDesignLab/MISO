@@ -11,7 +11,7 @@ namespace mach
 {
 void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
 {
-   setScalarInputs(form.integs, inputs);
+   setInputs(form.integs, inputs);
 }
 
 void evaluate(MachNonlinearForm &form,
