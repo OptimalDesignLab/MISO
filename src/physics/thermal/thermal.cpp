@@ -625,7 +625,8 @@ void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
    // if (0 == rank)
    // {
    //    time_end = MPI_Wtime();
-   //    cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+   //    cout << "Time for solving adjoint is " << (time_end - time_beg) <<
+   //    endl;
    // }
 
    // {

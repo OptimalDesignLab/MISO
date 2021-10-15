@@ -1635,8 +1635,9 @@ void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 
    // // Step 3: Solve the adjoint problem
    // *out << "Solving adjoint problem" << endl;
-   // unique_ptr<Solver> adj_prec = constructPreconditioner(options["adj-prec"]);
-   // unique_ptr<Solver> adj_solver =
+   // unique_ptr<Solver> adj_prec =
+   // constructPreconditioner(options["adj-prec"]); unique_ptr<Solver>
+   // adj_solver =
    //     constructLinearSolver(options["adj-solver"], *adj_prec);
    // adj_solver->SetOperator(*jac_trans);
    // adj_solver->Mult(*dJdu_true, *adj_true);
@@ -1895,9 +1896,7 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
    HypreParVector state_true(fes.get());
    state.GetTrueDofs(state_true);
 
-   MachInputs inputs {
-      {"state", state_true.GetData()}
-   };
+   MachInputs inputs{{"state", state_true.GetData()}};
    return calcOutput(fun, inputs);
 }
 

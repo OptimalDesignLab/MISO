@@ -566,7 +566,8 @@ public:
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
 
    /// Return the output map
-   // const std::map<std::string, MachOutput> &GetOutput() const { return output; }
+   // const std::map<std::string, MachOutput> &GetOutput() const { return
+   // output; }
 
    /// convert conservative variables to entropy variables
    /// \param[in/out] state - the conservative/entropy variables

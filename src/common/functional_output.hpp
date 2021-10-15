@@ -75,7 +75,6 @@ private:
    /// Collection of boundary markers for boundary integrators
    std::vector<mfem::Array<int>> bdr_markers;
 
-
    /// map of linear forms that will compute \frac{\partial J}{\partial field}
    /// for each field the functional depends on
    std::map<std::string, mfem::ParLinearForm> output_sens;
