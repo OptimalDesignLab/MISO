@@ -7,10 +7,12 @@
 #include "solver.hpp"
 #include "evolver.hpp"
 #include "electromag_integ.hpp"
+#include "electromag_outputs.hpp"
 #include "mfem_common_integ.hpp"
 #include "mfem_extensions.hpp"
 #include "current_load.hpp"
 #include "magnetic_load.hpp"
+#include "functional_output.hpp"
 #include "utils.hpp"
 #include "magnetostatic.hpp"
 
@@ -757,97 +759,53 @@ void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
 // state.ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
 // }
 
-void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
-                                               const nlohmann::json &options)
+void MagnetostaticSolver::addOutputs(const std::string &fun,
+                                     const nlohmann::json &options)
 {
    if (fun == "energy")
    {
-      addOutputDomainIntegrator(fun, new MagneticEnergyIntegrator(*nu));
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(*nu));
+      // MachOutput mout(std::move(out));
+      outputs.emplace(fun, std::move(out));
    }
-   // else if (fun == "co-energy")
-   // {
-   //    addOutputDomainIntegrator(fun,
-   //                              new MagneticCoenergyIntegrator(*u,
-   //                              nu.get()));
-   // }
    else if (fun == "ACLoss")
    {
-      addOutputDomainIntegrator(
-          fun, new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputDomainIntegrator(
+          new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "DCLoss")
    {
-      addOutputDomainIntegrator(
-          fun,
-          new DCLossFunctionalIntegrator(*sigma, *current_coeff, 1.0, 1.0));
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputDomainIntegrator(
+          new DCLossFunctionalIntegrator(*sigma, *current_coeff, 1.0));
+      outputs.emplace(fun, std::move(out));
    }
-   else if (fun == "force" || fun == "torque")
+   else if (fun == "force")
    {
       /// create displacement field V that uses the same FES as the mesh
       auto &mesh_gf = *dynamic_cast<ParGridFunction *>(mesh->GetNodes());
       res_fields.emplace("v" + fun, mesh_gf.ParFESpace());
 
-      setOutputOptions(fun, options);
+      ForceFunctional out(*fes, res_fields, options, *nu);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun == "torque")
+   {
+      /// create displacement field V that uses the same FES as the mesh
+      auto &mesh_gf = *dynamic_cast<ParGridFunction *>(mesh->GetNodes());
+      res_fields.emplace("v" + fun, mesh_gf.ParFESpace());
 
-      auto &&attrs = options["attributes"].get<unordered_set<int>>();
-      addOutputDomainIntegrator(
-          fun, new ForceIntegrator(*nu, res_fields.at("v" + fun), attrs));
+      TorqueFunctional out(*fes, res_fields, options, *nu);
+      outputs.emplace(fun, std::move(out));
    }
    else
    {
       throw MachException("Output with name " + fun +
                           " not supported by "
                           "MagnetostaticSolver!\n");
-   }
-}
-
-void MagnetostaticSolver::setOutputOptions(const std::string &fun,
-                                           const nlohmann::json &options)
-{
-   if (fun == "force")
-   {
-      auto &&attrs = options["attributes"].get<unordered_set<int>>();
-      auto &&axis = options["axis"].get<std::vector<double>>();
-      VectorConstantCoefficient axis_vector(Vector{&axis[0], dim});
-
-      auto &v = res_fields.at("v" + fun);
-      v = 0.0;
-      for (const auto &attr : attrs)
-      {
-         v.ProjectCoefficient(axis_vector, attr);
-      }
-   }
-   else if (fun == "torque")
-   {
-      auto &&attrs = options["attributes"].get<unordered_set<int>>();
-      auto &&axis = options["axis"].get<std::vector<double>>();
-      auto &&about = options["about"].get<std::vector<double>>();
-      Vector axis_vector(&axis[0], dim);
-      axis_vector /= axis_vector.Norml2();
-      Vector about_vector(&about[0], dim);
-      double r_data[3];
-      Vector r(r_data, dim);
-      VectorFunctionCoefficient v_vector(
-          3,
-          [&axis_vector, &about_vector, &r](const Vector &x, Vector &v)
-          {
-             subtract(x, about_vector, r);
-             // r /= r.Norml2();
-             v(0) = axis_vector(1) * r(2) - axis_vector(2) * r(1);
-             v(1) = axis_vector(2) * r(0) - axis_vector(0) * r(2);
-             v(2) = axis_vector(0) * r(1) - axis_vector(1) * r(0);
-             // if (v.Norml2() > 1e-12)
-             //    v /= v.Norml2();
-          });
-
-      auto &v = res_fields.at("v" + fun);
-      v = 0.0;
-      for (const auto &attr : attrs)
-      {
-         v.ProjectCoefficient(v_vector, attr);
-      }
-
-      printField("v", v, "v", 0);
    }
 }
 

@@ -1,9 +1,10 @@
 #ifndef MACH_TEST_MACH_INPUTS
 #define MACH_TEST_MACH_INPUTS
 
-#include "nlohmann/json.hpp"
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
+#include "functional_output.hpp"
 #include "solver.hpp"
 #include "utils.hpp"
 
@@ -44,24 +45,23 @@ public:
       return fun;
    }
 
-   friend void setInput(TestMachInputIntegrator &integ,
-                        const std::string &name,
-                        const MachInput &input);
+   friend void setInputs(TestMachInputIntegrator &integ,
+                         const MachInputs &inputs);
 
 private:
    double test_val;
    const mfem::GridFunction &test_field;
 };
 
-void setInput(TestMachInputIntegrator &integ,
-              const std::string &name,
-              const MachInput &input)
+void setInputs(TestMachInputIntegrator &integ,
+               const MachInputs &inputs)
 {
-   if (name == "test_val")
+   auto it = inputs.find("test_val");
+   if (it != inputs.end())
    {
-      if (input.isValue())
+      if (it->second.isValue())
       {
-         integ.test_val = input.getValue();
+         integ.test_val = it->second.getValue();
       }
       else
       {
@@ -80,18 +80,20 @@ public:
    { }
 
 private:
-   void addOutputIntegrators(const std::string &fun,
-                             const nlohmann::json &options)
+   void addOutputs(const std::string &fun,
+                   const nlohmann::json &options) override
    {
       if (fun == "testMachInput")
       {
-         addOutputDomainIntegrator(
-            fun,
+         FunctionalOutput out(*fes, res_fields);
+
+         out.addOutputDomainIntegrator(
             new TestMachInputIntegrator(res_fields.at("test_field")));
+         outputs.emplace(fun, std::move(out));
       }
    }
-   void constructForms() { res.reset(new NonlinearFormType(fes.get())); }
-   int getNumState() {return 1;}
+   void constructForms() override { res.reset(new NonlinearFormType(fes.get())); }
+   int getNumState() override { return 1; }
 };
 
 } // namespace mach

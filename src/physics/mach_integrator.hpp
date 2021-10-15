@@ -28,9 +28,7 @@ namespace mach
 class MachIntegrator
 {
 public:
-   friend void setInput(MachIntegrator &integ,
-                        const std::string &name,
-                        const MachInput &input);
+   friend void setInputs(MachIntegrator &integ, const MachInputs &inputs);
 
    template <typename T>
    MachIntegrator(T &x) : self_(new model<T>(x))
@@ -54,8 +52,7 @@ private:
    public:
       virtual ~concept_t() = default;
       virtual concept_t *copy_() const = 0;
-      virtual void setInput_(const std::string &name,
-                             const MachInput &input) const = 0;
+      virtual void setInputs_(const MachInputs &inputs) const = 0;
    };
 
    template <typename T>
@@ -64,10 +61,9 @@ private:
    public:
       model(T &x) : integ(x) { }
       concept_t *copy_() const override { return new model(*this); }
-      void setInput_(const std::string &name,
-                     const MachInput &input) const override
+      void setInputs_(const MachInputs &inputs) const override
       {
-         setInput(integ, name, input);
+         setInputs(integ, inputs);
       }
 
       T &integ;
@@ -76,36 +72,25 @@ private:
    std::unique_ptr<concept_t> self_;
 };
 
-/// Used to set scalar inputs in several integrators
-void setScalarInputs(std::vector<MachIntegrator> &integrators,
-                     const MachInputs &inputs);
+/// Used to set inputs in several integrators
+void setInputs(std::vector<MachIntegrator> &integrators,
+               const MachInputs &inputs);
 
-/// Used to set a scalar input in several integrators
-void setScalarInput(std::vector<MachIntegrator> &integrators,
-                    const std::string &name,
-                    const MachInput &input);
-
-/// Used to set scalar inputs in the underlying integrator
-/// Ends up calling `setInput` on for either the `NonlinearFormIntegrator` or
-/// a specialized version for each particular integrator.
-void setInput(MachIntegrator &integ,
-              const std::string &name,
-              const MachInput &input);
+/// Used to set inputs in the underlying integrator
+void setInputs(MachIntegrator &integ, const MachInputs &inputs);
 
 /// Default implementation of setInput for a NonlinearFormIntegrator that does
 /// nothing but allows each child class of NonlinearFormIntegrator to be a
 /// `MachIntegrator`
-inline void setInput(mfem::NonlinearFormIntegrator &integ,
-                     const std::string &name,
-                     const MachInput &input)
+inline void setInputs(mfem::NonlinearFormIntegrator &integ,
+                      const MachInputs &inputs)
 { }
 
 /// Default implementation of setInput for a LinearFormIntegrator that does
 /// nothing but allows each child class of LinearFormIntegrator to be a
 /// `MachIntegrator`
-inline void setInput(mfem::LinearFormIntegrator &integ,
-                     const std::string &name,
-                     const MachInput &input)
+inline void setInputs(mfem::LinearFormIntegrator &integ,
+                      const MachInputs &inputs)
 { }
 
 /// Function meant to be specialized to allow sensitivity integrators

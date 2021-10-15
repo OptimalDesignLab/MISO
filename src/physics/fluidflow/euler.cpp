@@ -1,12 +1,13 @@
 #include <cmath>
 #include <memory>
 
+#include "diag_mass_integ.hpp"
+#include "euler_integ.hpp"
+#include "functional_output.hpp"
 #include "sbp_fe.hpp"
 #include "utils.hpp"
-#include "euler.hpp"
 
-#include "euler_integ.hpp"
-#include "diag_mass_integ.hpp"
+#include "euler.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -229,16 +230,13 @@ void EulerSolver<dim, entvar>::terminalHook(int iter,
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addOutputIntegrators(
-    const std::string &fun,
-    const nlohmann::json &options)
+void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
+                                          const nlohmann::json &options)
 {
    if (fun == "drag")
    {
       // drag on the specified boundaries
-      vector<int> bdr = options["boundaries"].template get<vector<int>>();
-      output_bndry_marker.emplace(fun, bdr.size());
-      output_bndry_marker.at(fun).Assign(bdr.data());
+      auto bdrs = options["boundaries"].template get<vector<int>>();
 
       mfem::Vector drag_dir(dim);
       drag_dir = 0.0;
@@ -253,17 +251,16 @@ void EulerSolver<dim, entvar>::addOutputIntegrators(
       }
       drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
 
-      addOutputBdrFaceIntegrator(
-          fun,
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
-          output_bndry_marker.at(fun));
+          std::move(bdrs));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "lift")
    {
       // lift on the specified boundaries
-      vector<int> bdr = options["boundaries"].template get<vector<int>>();
-      output_bndry_marker.emplace(fun, bdr.size());
-      output_bndry_marker.at(fun).Assign(bdr.data());
+      auto bdrs = options["boundaries"].template get<vector<int>>();
 
       mfem::Vector lift_dir(dim);
       lift_dir = 0.0;
@@ -278,16 +275,19 @@ void EulerSolver<dim, entvar>::addOutputIntegrators(
       }
       lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
 
-      addOutputBdrFaceIntegrator(
-          fun,
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
-          output_bndry_marker.at(fun));
+          std::move(bdrs));
+      outputs.emplace(fun, std::move(out));
    }
    else if (fun == "entropy")
    {
       // integral of entropy over the entire volume domain
-      addOutputDomainIntegrator(fun,
-                                new EntropyIntegrator<dim, entvar>(diff_stack));
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputDomainIntegrator(
+          new EntropyIntegrator<dim, entvar>(diff_stack));
+      outputs.emplace(fun, std::move(out));
    }
    else
    {

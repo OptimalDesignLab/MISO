@@ -4,6 +4,7 @@ target_sources(mach
       current_load.hpp
       electromag_integ.cpp
       electromag_integ.hpp
+      electromag_outputs.hpp
       electromagnetics.hpp
       magnetic_load.cpp
       magnetic_load.hpp

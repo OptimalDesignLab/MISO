@@ -10,7 +10,7 @@ namespace mach
 {
 void setInputs(MachLinearForm &load, const MachInputs &inputs)
 {
-   setScalarInputs(load.integs, inputs);
+   setInputs(load.integs, inputs);
 }
 
 void addLoad(MachLinearForm &load, mfem::Vector &tv)
