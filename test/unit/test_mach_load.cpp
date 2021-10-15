@@ -15,7 +15,7 @@ class TestMachLoadIntegrator : public mfem::LinearFormIntegrator
 {
 public:
    TestMachLoadIntegrator()
-   :  test_val(0.0)
+   : test_val(0.0)
    { }
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
@@ -43,23 +43,22 @@ public:
       }
    }
 
-   friend void setInput(TestMachLoadIntegrator &integ,
-                        const std::string &name,
-                        const mach::MachInput &input);
+   friend void setInputs(TestMachLoadIntegrator &integ,
+                         const mach::MachInputs &inputs);
 
 private:
    double test_val;
 };
 
-void setInput(TestMachLoadIntegrator &integ,
-              const std::string &name,
-              const mach::MachInput &input)
+void setInputs(TestMachLoadIntegrator &integ,
+               const mach::MachInputs &inputs)
 {
-   if (name == "test_val")
+   auto it = inputs.find("test_val");
+   if (it != inputs.end())
    {
-      if (input.isValue())
+      if (it->second.isValue())
       {
-         integ.test_val = input.getValue();
+         integ.test_val = it->second.getValue();
       }
       else
       {

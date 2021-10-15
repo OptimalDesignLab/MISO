@@ -7,10 +7,13 @@ target_sources(mach
       default_options.hpp
       evolver.cpp
       evolver.hpp
+      functional_output.cpp
+      functional_output.hpp
       inexact_newton.cpp
       inexact_newton.hpp
       mach_linearform.cpp
       mach_linearform.hpp
+      mach_output.hpp
       mach_residual.hpp
       material_library.hpp
       mfem_extensions.cpp

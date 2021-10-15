@@ -7,30 +7,18 @@
 
 namespace mach
 {
-void setScalarInputs(std::vector<MachIntegrator> &integrators,
-                     const MachInputs &inputs)
+void setInputs(std::vector<MachIntegrator> &integrators,
+               const MachInputs &inputs)
 {
-   for (const auto &input : inputs)
+   for (auto &integ : integrators)
    {
-      setScalarInput(integrators, input.first, input.second);
+      setInputs(integ, inputs);
    }
 }
 
-void setScalarInput(std::vector<MachIntegrator> &integrators,
-                    const std::string &name,
-                    const MachInput &input)
+void setInputs(MachIntegrator &integ, const MachInputs &inputs)
 {
-   for (auto &integrator : integrators)
-   {
-      setInput(integrator, name, input);
-   }
-}
-
-void setInput(MachIntegrator &integ,
-              const std::string &name,
-              const MachInput &input)
-{
-   integ.self_->setInput_(name, input);
+   integ.self_->setInputs_(inputs);
 }
 
 }  // namespace mach

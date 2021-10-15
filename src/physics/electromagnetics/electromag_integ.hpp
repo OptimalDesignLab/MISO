@@ -822,23 +822,17 @@ class DCLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 public:
    /// \brief allows changing the frequency and diameter of the strands for AC
    /// loss calculation
-   friend void setInput(DCLossFunctionalIntegrator &integ,
-                        const std::string &name,
-                        const MachInput &input);
+   friend void setInputs(DCLossFunctionalIntegrator &integ,
+                         const MachInputs &inputs);
 
    /// \brief - Compute DC copper losses in the domain
    /// \param[in] sigma - the electrical conductivity coefficient
    /// \param[in] current - the current density vector coefficient
    /// \param[in] current_density - the current density magnitude
-   /// \param[in] fill_factor - the density of strands in the bundle
    DCLossFunctionalIntegrator(mfem::Coefficient &sigma,
                               mfem::VectorCoefficient &current,
-                              double current_density,
-                              double fill_factor)
-    : sigma(sigma),
-      current(current),
-      current_density(current_density),
-      fill_factor(fill_factor)
+                              double current_density)
+    : sigma(sigma), current(current), current_density(current_density)
    { }
 
    /// \brief - Compute DC copper losses in the domain
@@ -854,7 +848,6 @@ private:
    mfem::Coefficient &sigma;
    mfem::VectorCoefficient &current;
    double current_density;
-   double fill_factor;
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector current_vec;
 #endif
@@ -866,9 +859,8 @@ class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 public:
    /// \brief allows changing the frequency and diameter of the strands for AC
    /// loss calculation
-   friend void setInput(HybridACLossFunctionalIntegrator &integ,
-                        const std::string &name,
-                        const MachInput &input);
+   friend void setInputs(HybridACLossFunctionalIntegrator &integ,
+                         const MachInputs &inputs);
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
