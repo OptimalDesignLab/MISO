@@ -47,15 +47,16 @@ void calcOutputPartial(FunctionalOutput &output,
                        const MachInputs &inputs,
                        HypreParVector &partial)
 {
-   setInputs(output.integs, inputs);
+   setInputs(output, inputs);
 
    if (wrt == "state")
    {
-      // HypreParVector state(fes->GetComm(),
-      //                      fes->GlobalTrueVSize(),
-      //                      inputs.at("state").getField(),
-      //                      fes->GetTrueDofOffsets());
-      // output.output.Mult(state, partial);
+      auto *fes = output.output.ParFESpace();
+      HypreParVector state(fes->GetComm(),
+                           fes->GlobalTrueVSize(),
+                           inputs.at("state").getField(),
+                           fes->GetTrueDofOffsets());
+      output.output.Mult(state, partial);
    }
    else
    {

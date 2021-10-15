@@ -93,7 +93,7 @@ private:
       }
    }
    void constructForms() override { res.reset(new NonlinearFormType(fes.get())); }
-   int getNumState() {return 1;}
+   int getNumState() override { return 1; }
 };
 
 } // namespace mach
