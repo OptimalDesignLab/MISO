@@ -1891,7 +1891,7 @@ void AbstractSolver::createOutput(const std::string &fun,
 }
 
 void AbstractSolver::setOutputOptions(const std::string &fun,
-                         const nlohmann::json &options)
+                                      const nlohmann::json &options)
 {
    try
    {

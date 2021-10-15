@@ -422,8 +422,7 @@ public:
    /// \param[in] options - options needed for calculating functional
    /// \note will only have an effect if a subclass supports setting options
    ///       for the functional
-   void setOutputOptions(const std::string &fun,
-                         const nlohmann::json &options);
+   void setOutputOptions(const std::string &fun, const nlohmann::json &options);
 
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
