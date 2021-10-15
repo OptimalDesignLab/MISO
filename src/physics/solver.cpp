@@ -1942,20 +1942,36 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
                                        const MachInputs &inputs,
                                        double &partial)
-{ }
+{
+   try
+   {
+      auto output = outputs.find(of);
+      if (output == outputs.end())
+      {
+         throw MachException("Did not find " + of + " in output map?");
+      }
+      double part = mach::calcOutputPartial(output->second, wrt, inputs);
+      partial += part;
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << endl;
+      partial = std::nan("");
+   }
+}
 
 void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
                                        const MachInputs &inputs,
                                        double *partial_buffer)
 {
-   // /// get FESpace for field we're taking partial with respect to
-   // auto *wrt_fes = res_fields.at(wrt).ParFESpace();
-   // HypreParVector partial(wrt_fes->GetComm(),
-   //                        wrt_fes->GlobalTrueVSize(),
-   //                        partial_buffer,
-   //                        wrt_fes->GetTrueDofOffsets());
-   // calcOutputPartial(of, wrt, inputs, partial);
+   /// get FESpace for field we're taking partial with respect to
+   auto *wrt_fes = res_fields.at(wrt).ParFESpace();
+   HypreParVector partial(wrt_fes->GetComm(),
+                          wrt_fes->GlobalTrueVSize(),
+                          partial_buffer,
+                          wrt_fes->GetTrueDofOffsets());
+   calcOutputPartial(of, wrt, inputs, partial);
 }
 
 void AbstractSolver::calcOutputPartial(const std::string &of,
@@ -1963,22 +1979,19 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const MachInputs &inputs,
                                        HypreParVector &partial)
 {
-   // auto &integrators = fun_integrators.at(of);
-   // setInputs(integrators, inputs);
-
-   // if (wrt == "state")
-   // {
-   //    HypreParVector state(fes->GetComm(),
-   //                         fes->GlobalTrueVSize(),
-   //                         inputs.at("state").getField(),
-   //                         fes->GetTrueDofOffsets());
-   //    outputs.at(of).Mult(state, partial);
-   // }
-   // else
-   // {
-   //    output_sens.at(of).at(wrt).Assemble();
-   //    output_sens.at(of).at(wrt).ParallelAssemble(partial);
-   // }
+   try
+   {
+      auto output = outputs.find(of);
+      if (output == outputs.end())
+      {
+         throw MachException("Did not find " + of + " in output map?");
+      }
+      mach::calcOutputPartial(output->second, wrt, inputs, partial);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << endl;
+   }
 }
 
 void AbstractSolver::checkJacobian(
