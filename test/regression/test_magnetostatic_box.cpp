@@ -105,11 +105,11 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
    };
 
    /// TODO:
-   std::vector<std::vector<double>> target_coenergy = {
-      {0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0}
+   std::vector<std::vector<double>> target_energy = {
+      {0.0456124231, 0.0, 0.0, 0.0},
+      {0.05807012599, 0.0, 0.0, 0.0},
+      {0.05629189119, 0.0, 0.0, 0.0},
+      {0.05625, 0.0, 0.0, 0.0}
    };
 
    /// number of elements in Z direction
@@ -143,9 +143,11 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             std::cout << "\n\nl2 error in B: " << l2_error << "\n\n\n";
             REQUIRE(l2_error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
-            // // Compute co-energy and check against target
-            // double coenergy = solver->calcOutput("co-energy");
-            // REQUIRE(coenergy == Approx(target_coenergy[nxy-1]).margin(1e-10));
+            solver->createOutput("energy");
+            double energy = solver->calcOutput("energy", inputs);
+            std::cout.precision(10);
+            std::cout << "energy: " << energy << "\n";
+            REQUIRE(energy == Approx(target_energy[order-1][ref - 1]).margin(1e-10));
          }
       }
    }

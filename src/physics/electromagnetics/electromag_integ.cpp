@@ -2584,8 +2584,7 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
-void setInputs(DCLossFunctionalIntegrator &integ,
-               const MachInputs &inputs)
+void setInputs(DCLossFunctionalIntegrator &integ, const MachInputs &inputs)
 {
    auto it = inputs.find("current_density");
    if (it != inputs.end())

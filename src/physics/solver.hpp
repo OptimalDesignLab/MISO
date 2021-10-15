@@ -14,6 +14,7 @@
 #include "utils.hpp"
 #include "mach_integrator.hpp"
 #include "mach_input.hpp"
+#include "mach_output.hpp"
 
 #ifdef MFEM_USE_PUMI
 namespace apf
@@ -77,11 +78,6 @@ public:
    AbstractSolver &operator=(AbstractSolver &&) = delete;
    /// class destructor
    virtual ~AbstractSolver();
-
-   /// TODO: should this be pretected/private?
-   /// Constructs the mesh member based on c preprocesor defs
-   /// \param[in] smesh - if provided, defines the mesh for the problem
-   void constructMesh(std::unique_ptr<mfem::Mesh> smesh);
 
    /// Initializes the state vector to a given field.
    /// \param[in] u_init - field that defines the initial condition
@@ -570,7 +566,7 @@ public:
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
 
    /// Return the output map
-   std::map<std::string, NonlinearFormType> GetOutput() const { return output; }
+   // const std::map<std::string, MachOutput> &GetOutput() const { return output; }
 
    /// convert conservative variables to entropy variables
    /// \param[in/out] state - the conservative/entropy variables
@@ -770,26 +766,32 @@ protected:
    mfem::Array<int> fes_surface_dofs;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
-   /// map of output functionals
-   std::map<std::string, NonlinearFormType> output;
-   /// collection of integrators for each functional
-   std::map<std::string, std::vector<MachIntegrator>> fun_integrators;
-   /// map of linear forms that will compute \frac{\partial J}{\partial field}
-   /// for each field the functional depends on
-   std::map<std::string, std::map<std::string, mfem::ParLinearForm>>
-       output_sens;
-   /// map of nonlinear forms that will compute
-   /// \frac{\partial J}{\partial scalar} for each scalar the functional
-   /// depends on
-   std::map<std::string, std::map<std::string, mfem::ParNonlinearForm>>
-       output_scalar_sens;
+   /// map of outputs
+   std::map<std::string, MachOutput> output;
+   // /// collection of integrators for each functional
+   // std::map<std::string, std::vector<MachIntegrator>> fun_integrators;
+   // /// map of linear forms that will compute \frac{\partial J}{\partial
+   // field}
+   // /// for each field the functional depends on
+   // std::map<std::string, std::map<std::string, mfem::ParLinearForm>>
+   //     output_sens;
+   // /// map of nonlinear forms that will compute
+   // /// \frac{\partial J}{\partial scalar} for each scalar the functional
+   // /// depends on
+   // std::map<std::string, std::map<std::string, mfem::ParNonlinearForm>>
+   //     output_scalar_sens;
 
-   /// map of fractional functionals - a funtional that is a fraction of others
-   std::unordered_map<std::string, std::vector<std::string>> fractional_output;
-   /// output_bndry_marker[fun] lists the boundaries associated with output fun
-   std::unordered_map<std::string, mfem::Array<int>> output_bndry_marker;
+   // /// map of fractional functionals - a funtional that is a fraction of
+   // others std::unordered_map<std::string, std::vector<std::string>>
+   // fractional_output;
+   // /// output_bndry_marker[fun] lists the boundaries associated with output
+   // fun std::unordered_map<std::string, mfem::Array<int>> output_bndry_marker;
 
    //--------------------------------------------------------------------------
+
+   /// Constructs the mesh member based on c preprocesor defs
+   /// \param[in] smesh - if provided, defines the mesh for the problem
+   void constructMesh(std::unique_ptr<mfem::Mesh> smesh);
 
    /// Construct PUMI Mesh
    void constructPumiMesh();
@@ -866,9 +868,9 @@ protected:
    /// Define the number of states, the finite element space, and state u
    virtual int getNumState() = 0;
 
-   /// Add integrators to functional `fun` based on options
-   virtual void addOutputIntegrators(const std::string &fun,
-                                     const nlohmann::json &options)
+   /// Add functional `fun` based on options
+   virtual void addOutputs(const std::string &fun,
+                           const nlohmann::json &options)
    { }
 
    /// Solve for the steady state problem using newton method
@@ -1022,49 +1024,53 @@ protected:
           *integrator, res_fields, res_sens, res_scalar_sens);
    }
 
-   /// Adds domain integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
-   template <typename T>
-   void addOutputDomainIntegrator(const std::string &fun, T *integrator)
-   {
-      output.at(fun).AddDomainIntegrator(integrator);
-      fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
-          *integrator, res_fields, output_sens[fun], output_scalar_sens[fun]);
-   }
+   // /// Adds domain integrator to the nonlinear form for `fun`, and adds
+   // /// reference to it to in fun_integrators as a MachIntegrator
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] integrator - integrator to add to functional
+   // /// \tparam T - type of integrator, used for constructing MachIntegrator
+   // template <typename T>
+   // void addOutputDomainIntegrator(const std::string &fun, T *integrator)
+   // {
+   //    output.at(fun).AddDomainIntegrator(integrator);
+   //    fun_integrators.at(fun).emplace_back(*integrator);
+   //    mach::addSensitivityIntegrator(
+   //        *integrator, res_fields, output_sens[fun],
+   //        output_scalar_sens[fun]);
+   // }
 
-   /// Adds interface integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
-   template <typename T>
-   void addOutputInteriorFaceIntegrator(const std::string &fun, T *integrator)
-   {
-      output.at(fun).AddInteriorFaceIntegrator(integrator);
-      fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
-          *integrator, res_fields, output_sens[fun], output_scalar_sens[fun]);
-   }
+   // /// Adds interface integrator to the nonlinear form for `fun`, and adds
+   // /// reference to it to in fun_integrators as a MachIntegrator
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] integrator - integrator to add to functional
+   // /// \tparam T - type of integrator, used for constructing MachIntegrator
+   // template <typename T>
+   // void addOutputInteriorFaceIntegrator(const std::string &fun, T
+   // *integrator)
+   // {
+   //    output.at(fun).AddInteriorFaceIntegrator(integrator);
+   //    fun_integrators.at(fun).emplace_back(*integrator);
+   //    mach::addSensitivityIntegrator(
+   //        *integrator, res_fields, output_sens[fun],
+   //        output_scalar_sens[fun]);
+   // }
 
-   /// Adds boundary integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
-   template <typename T>
-   void addOutputBdrFaceIntegrator(const std::string &fun,
-                                   T *integrator,
-                                   mfem::Array<int> &bdr_marker)
-   {
-      output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
-      fun_integrators.at(fun).emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
-          *integrator, res_fields, output_sens[fun], output_scalar_sens[fun]);
-   }
+   // /// Adds boundary integrator to the nonlinear form for `fun`, and adds
+   // /// reference to it to in fun_integrators as a MachIntegrator
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] integrator - integrator to add to functional
+   // /// \tparam T - type of integrator, used for constructing MachIntegrator
+   // template <typename T>
+   // void addOutputBdrFaceIntegrator(const std::string &fun,
+   //                                 T *integrator,
+   //                                 mfem::Array<int> &bdr_marker)
+   // {
+   //    output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
+   //    fun_integrators.at(fun).emplace_back(*integrator);
+   //    mach::addSensitivityIntegrator(
+   //        *integrator, res_fields, output_sens[fun],
+   //        output_scalar_sens[fun]);
+   // }
 
 private:
    /// Used to do the bulk of the initialization shared between constructors

@@ -194,8 +194,8 @@ private:
                      double t_final,
                      const mfem::ParGridFunction &state) override;
 
-   void addOutputIntegrators(const std::string &fun,
-                             const nlohmann::json &options) override;
+   void addOutputs(const std::string &fun,
+                   const nlohmann::json &options) override;
 
    void setOutputOptions(const std::string &fun,
                          const nlohmann::json &options) override;

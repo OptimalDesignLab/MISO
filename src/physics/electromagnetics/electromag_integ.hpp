@@ -832,9 +832,7 @@ public:
    DCLossFunctionalIntegrator(mfem::Coefficient &sigma,
                               mfem::VectorCoefficient &current,
                               double current_density)
-    : sigma(sigma),
-      current(current),
-      current_density(current_density)
+    : sigma(sigma), current(current), current_density(current_density)
    { }
 
    /// \brief - Compute DC copper losses in the domain

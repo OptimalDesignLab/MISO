@@ -7,6 +7,7 @@
 
 #include "euler_integ.hpp"
 #include "diag_mass_integ.hpp"
+#include "functional_output.hpp"
 
 using namespace mfem;
 using namespace std;
@@ -229,65 +230,66 @@ void EulerSolver<dim, entvar>::terminalHook(int iter,
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addOutputIntegrators(
-    const std::string &fun,
-    const nlohmann::json &options)
+void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
+                                          const nlohmann::json &options)
 {
    if (fun == "drag")
    {
-      // drag on the specified boundaries
-      vector<int> bdr = options["boundaries"].template get<vector<int>>();
-      output_bndry_marker.emplace(fun, bdr.size());
-      output_bndry_marker.at(fun).Assign(bdr.data());
+      // const auto &out = output.emplace(fun, FunctionalOutput(*fes, res_fields)).first;
 
-      mfem::Vector drag_dir(dim);
-      drag_dir = 0.0;
-      if (dim == 1)
-      {
-         drag_dir(0) = 1.0;
-      }
-      else
-      {
-         drag_dir(iroll) = cos(aoa_fs);
-         drag_dir(ipitch) = sin(aoa_fs);
-      }
-      drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+      // // drag on the specified boundaries
+      // vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      // output_bndry_marker.emplace(fun, bdr.size());
+      // output_bndry_marker.at(fun).Assign(bdr.data());
 
-      addOutputBdrFaceIntegrator(
-          fun,
-          new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
-          output_bndry_marker.at(fun));
+      // mfem::Vector drag_dir(dim);
+      // drag_dir = 0.0;
+      // if (dim == 1)
+      // {
+      //    drag_dir(0) = 1.0;
+      // }
+      // else
+      // {
+      //    drag_dir(iroll) = cos(aoa_fs);
+      //    drag_dir(ipitch) = sin(aoa_fs);
+      // }
+      // drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+
+      // out->second.addOutputBdrFaceIntegrator(
+      //     new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
+      //     output_bndry_marker.at(fun));
    }
    else if (fun == "lift")
    {
-      // lift on the specified boundaries
-      vector<int> bdr = options["boundaries"].template get<vector<int>>();
-      output_bndry_marker.emplace(fun, bdr.size());
-      output_bndry_marker.at(fun).Assign(bdr.data());
+      // const auto &out = output.emplace(fun, FunctionalOutput(*fes, res_fields)).first;
+      // // lift on the specified boundaries
+      // vector<int> bdr = options["boundaries"].template get<vector<int>>();
+      // output_bndry_marker.emplace(fun, bdr.size());
+      // output_bndry_marker.at(fun).Assign(bdr.data());
 
-      mfem::Vector lift_dir(dim);
-      lift_dir = 0.0;
-      if (dim == 1)
-      {
-         lift_dir(0) = 0.0;
-      }
-      else
-      {
-         lift_dir(iroll) = -sin(aoa_fs);
-         lift_dir(ipitch) = cos(aoa_fs);
-      }
-      lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
+      // mfem::Vector lift_dir(dim);
+      // lift_dir = 0.0;
+      // if (dim == 1)
+      // {
+      //    lift_dir(0) = 0.0;
+      // }
+      // else
+      // {
+      //    lift_dir(iroll) = -sin(aoa_fs);
+      //    lift_dir(ipitch) = cos(aoa_fs);
+      // }
+      // lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
 
-      addOutputBdrFaceIntegrator(
-          fun,
-          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
-          output_bndry_marker.at(fun));
+      // out->second.addOutputBdrFaceIntegrator(
+      //     new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+      //     output_bndry_marker.at(fun));
    }
    else if (fun == "entropy")
    {
-      // integral of entropy over the entire volume domain
-      addOutputDomainIntegrator(fun,
-                                new EntropyIntegrator<dim, entvar>(diff_stack));
+      // const auto &out = output.emplace(fun, FunctionalOutput(*fes, res_fields)).first;
+      // // integral of entropy over the entire volume domain
+      // out->second.addOutputDomainIntegrator(
+      //     new EntropyIntegrator<dim, entvar>(diff_stack));
    }
    else
    {

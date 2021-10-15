@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
 
@@ -21,7 +22,10 @@ public:
    /// Used to set inputs in the underlying output type
    friend void setInputs(MachOutput &output, const MachInputs &inputs);
 
-   /// Compute the output vector on the true dofs and add it to tv
+   /// Used to set options for the underlying output type
+   friend void setOptions(MachOutput &output, const nlohmann::json &options);
+
+   /// Compute the scalar output based on the inputs
    friend double calcOutput(MachOutput &output, const MachInputs &inputs);
 
    /// Compute the output's sensitivity to a scalar
@@ -36,17 +40,9 @@ public:
                                  mfem::HypreParVector &partial);
 
    template <typename T>
-   MachOutput(T &x) : self_(new model<T>(x))
+   MachOutput(T x) : self_(new model<T>(std::move(x)))
    { }
-   MachOutput(const MachOutput &x) : self_(x.self_->copy_()) { }
    MachOutput(MachOutput &&) noexcept = default;
-
-   MachOutput &operator=(const MachOutput &x)
-   {
-      MachOutput tmp(x);
-      *this = std::move(tmp);
-      return *this;
-   }
    MachOutput &operator=(MachOutput &&) noexcept = default;
 
    ~MachOutput() = default;
@@ -56,8 +52,8 @@ private:
    {
    public:
       virtual ~concept_t() = default;
-      virtual concept_t *copy_() const = 0;
-      virtual void setInputs_(const MachInputs &inputs) const = 0;
+      virtual void setInputs_(const MachInputs &inputs) = 0;
+      virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual double calcOutput_(const MachInputs &inputs) = 0;
       virtual double calcOutputPartial_(const std::string &wrt,
                                         const MachInputs &inputs) = 0;
@@ -70,11 +66,14 @@ private:
    class model final : public concept_t
    {
    public:
-      model(T &x) : data_(x) { }
-      concept_t *copy_() const override { return new model(*this); }
-      void setInputs_(const MachInputs &inputs) const override
+      model(T x) : data_(std::move(x)) { }
+      void setInputs_(const MachInputs &inputs) override
       {
          setInputs(data_, inputs);
+      }
+      void setOptions_(const nlohmann::json &options) override
+      {
+         setOptions(data_, options);
       }
       double calcOutput_(const MachInputs &inputs) override
       {
@@ -92,7 +91,7 @@ private:
          calcOutputPartial(data_, wrt, inputs, partial);
       }
 
-      T &data_;
+      T data_;
    };
 
    std::unique_ptr<concept_t> self_;
@@ -103,9 +102,14 @@ inline void setInputs(MachOutput &output, const MachInputs &inputs)
    output.self_->setInputs_(inputs);
 }
 
+inline void setOptions(MachOutput &output, const nlohmann::json &options)
+{
+   output.self_->setOptions_(options);
+}
+
 inline double calcOutput(MachOutput &output, const MachInputs &inputs)
 {
-   return output.self_->calcOutput(inputs);
+   return output.self_->calcOutput_(inputs);
 }
 
 inline double calcOutputPartial(MachOutput &output,

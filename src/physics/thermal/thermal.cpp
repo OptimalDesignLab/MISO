@@ -574,68 +574,68 @@ void ThermalSolver::constructCore()
 
 void ThermalSolver::solveUnsteadyAdjoint(const std::string &fun)
 {
-   // only solve for state at end time
-   double time_beg = NAN;
-   double time_end = NAN;
-   if (0 == rank)
-   {
-      time_beg = MPI_Wtime();
-   }
+   // // only solve for state at end time
+   // double time_beg = NAN;
+   // double time_end = NAN;
+   // if (0 == rank)
+   // {
+   //    time_beg = MPI_Wtime();
+   // }
 
-   // Step 0: allocate the adjoint variable
-   adj.reset(new GridFunType(fes.get()));
+   // // Step 0: allocate the adjoint variable
+   // adj.reset(new GridFunType(fes.get()));
 
-   // Step 1: get the right-hand side vector, dJdu, and make an appropriate
-   // alias to it, the state, and the adjoint
-   std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
-   HypreParVector *state = u->GetTrueDofs();
-   HypreParVector *dJ = dJdu->GetTrueDofs();
-   HypreParVector *adjoint = adj->GetTrueDofs();
-   double energy = output.at(fun).GetEnergy(*u);
-   output.at(fun).Mult(*state, *dJ);
-   cout << "Last Functional Output: " << energy << endl;
+   // // Step 1: get the right-hand side vector, dJdu, and make an appropriate
+   // // alias to it, the state, and the adjoint
+   // std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+   // HypreParVector *state = u->GetTrueDofs();
+   // HypreParVector *dJ = dJdu->GetTrueDofs();
+   // HypreParVector *adjoint = adj->GetTrueDofs();
+   // double energy = output.at(fun).GetEnergy(*u);
+   // output.at(fun).Mult(*state, *dJ);
+   // cout << "Last Functional Output: " << energy << endl;
 
-   // // Step 2: get the last time step's Jacobian
-   // HypreParMatrix *jac = evolver->GetOperator();
-   // //TransposeOperator jac_trans = TransposeOperator(jac);
-   // HypreParMatrix *jac_trans = jac->Transpose();
+   // // // Step 2: get the last time step's Jacobian
+   // // HypreParMatrix *jac = evolver->GetOperator();
+   // // //TransposeOperator jac_trans = TransposeOperator(jac);
+   // // HypreParMatrix *jac_trans = jac->Transpose();
 
-   // Step 2: get the last time step's Jacobian and transpose it
-   Operator *jac = &evolver->GetGradient(*state);
-   TransposeOperator jac_trans = TransposeOperator(jac);
+   // // Step 2: get the last time step's Jacobian and transpose it
+   // Operator *jac = &evolver->GetGradient(*state);
+   // TransposeOperator jac_trans = TransposeOperator(jac);
 
-   // Step 3: Solve the adjoint problem
-   *out << "Solving adjoint problem:\n"
-        << "\tsolver: HypreGMRES\n"
-        << "\tprec. : Euclid ILU" << endl;
-   prec.reset(new HypreEuclid(fes->GetComm()));
-   auto tol = options["adj-solver"]["rel-tol"].get<double>();
-   int maxiter = options["adj-solver"]["max-iter"].get<int>();
-   int ptl = options["adj-solver"]["print-lvl"].get<int>();
-   solver.reset(new HypreGMRES(fes->GetComm()));
-   solver->SetOperator(jac_trans);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())
-       ->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
-   solver->Mult(*dJ, *adjoint);
-   adjoint->Set(dt_real_, *adjoint);
-   adj->SetFromTrueDofs(*adjoint);
-   if (0 == rank)
-   {
-      time_end = MPI_Wtime();
-      cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
-   }
+   // // Step 3: Solve the adjoint problem
+   // *out << "Solving adjoint problem:\n"
+   //      << "\tsolver: HypreGMRES\n"
+   //      << "\tprec. : Euclid ILU" << endl;
+   // prec.reset(new HypreEuclid(fes->GetComm()));
+   // auto tol = options["adj-solver"]["rel-tol"].get<double>();
+   // int maxiter = options["adj-solver"]["max-iter"].get<int>();
+   // int ptl = options["adj-solver"]["print-lvl"].get<int>();
+   // solver.reset(new HypreGMRES(fes->GetComm()));
+   // solver->SetOperator(jac_trans);
+   // dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(tol);
+   // dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
+   // dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
+   // dynamic_cast<mfem::HypreGMRES *>(solver.get())
+   //     ->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
+   // solver->Mult(*dJ, *adjoint);
+   // adjoint->Set(dt_real_, *adjoint);
+   // adj->SetFromTrueDofs(*adjoint);
+   // if (0 == rank)
+   // {
+   //    time_end = MPI_Wtime();
+   //    cout << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+   // }
 
-   {
-      ofstream sol_ofs_adj("motor_heat_adj.vtk");
-      sol_ofs_adj.precision(14);
-      mesh->PrintVTK(sol_ofs_adj, options["space-dis"]["degree"].get<int>());
-      adj->SaveVTK(
-          sol_ofs_adj, "Adjoint", options["space-dis"]["degree"].get<int>());
-      sol_ofs_adj.close();
-   }
+   // {
+   //    ofstream sol_ofs_adj("motor_heat_adj.vtk");
+   //    sol_ofs_adj.precision(14);
+   //    mesh->PrintVTK(sol_ofs_adj, options["space-dis"]["degree"].get<int>());
+   //    adj->SaveVTK(
+   //        sol_ofs_adj, "Adjoint", options["space-dis"]["degree"].get<int>());
+   //    sol_ofs_adj.close();
+   // }
 }
 
 void ThermalSolver::constructCoefficients()

@@ -5,6 +5,7 @@
 #include "mfem.hpp"
 
 #include "solver.hpp"
+#include "functional_output.hpp"
 #include "utils.hpp"
 
 namespace mach
@@ -79,14 +80,16 @@ public:
    { }
 
 private:
-   void addOutputIntegrators(const std::string &fun,
-                             const nlohmann::json &options)
+   void addOutputs(const std::string &fun,
+                   const nlohmann::json &options)
    {
       if (fun == "testMachInput")
       {
-         addOutputDomainIntegrator(
-            fun,
+         FunctionalOutput out(*fes, res_fields);
+
+         out.addOutputDomainIntegrator(
             new TestMachInputIntegrator(res_fields.at("test_field")));
+         output.emplace(fun, std::move(out));
       }
    }
    void constructForms() { res.reset(new NonlinearFormType(fes.get())); }

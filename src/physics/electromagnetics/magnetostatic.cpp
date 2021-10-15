@@ -7,10 +7,12 @@
 #include "solver.hpp"
 #include "evolver.hpp"
 #include "electromag_integ.hpp"
+#include "electromag_outputs.hpp"
 #include "mfem_common_integ.hpp"
 #include "mfem_extensions.hpp"
 #include "current_load.hpp"
 #include "magnetic_load.hpp"
+#include "functional_output.hpp"
 #include "utils.hpp"
 #include "magnetostatic.hpp"
 
@@ -757,41 +759,47 @@ void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
 // state.ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
 // }
 
-void MagnetostaticSolver::addOutputIntegrators(const std::string &fun,
-                                               const nlohmann::json &options)
+void MagnetostaticSolver::addOutputs(const std::string &fun,
+                                     const nlohmann::json &options)
 {
    if (fun == "energy")
    {
-      addOutputDomainIntegrator(fun, new MagneticEnergyIntegrator(*nu));
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(*nu));
+      // MachOutput mout(std::move(out));
+      output.emplace(fun, std::move(out));
    }
-   // else if (fun == "co-energy")
-   // {
-   //    addOutputDomainIntegrator(fun,
-   //                              new MagneticCoenergyIntegrator(*u,
-   //                              nu.get()));
-   // }
    else if (fun == "ACLoss")
    {
-      addOutputDomainIntegrator(
-          fun, new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputDomainIntegrator(
+          new HybridACLossFunctionalIntegrator(*sigma, 1.0, 1.0, 1.0));
+      output.emplace(fun, std::move(out));
    }
    else if (fun == "DCLoss")
    {
-      addOutputDomainIntegrator(
-          fun,
+      FunctionalOutput out(*fes, res_fields);
+      out.addOutputDomainIntegrator(
           new DCLossFunctionalIntegrator(*sigma, *current_coeff, 1.0));
+      output.emplace(fun, std::move(out));
    }
-   else if (fun == "force" || fun == "torque")
+   else if (fun == "force")
    {
       /// create displacement field V that uses the same FES as the mesh
       auto &mesh_gf = *dynamic_cast<ParGridFunction *>(mesh->GetNodes());
       res_fields.emplace("v" + fun, mesh_gf.ParFESpace());
 
-      setOutputOptions(fun, options);
+      ForceFunctional out(*fes, res_fields, options, *nu);
+      output.emplace(fun, std::move(out));
+   }
+   else if (fun == "torque")
+   {
+      /// create displacement field V that uses the same FES as the mesh
+      auto &mesh_gf = *dynamic_cast<ParGridFunction *>(mesh->GetNodes());
+      res_fields.emplace("v" + fun, mesh_gf.ParFESpace());
 
-      auto &&attrs = options["attributes"].get<unordered_set<int>>();
-      addOutputDomainIntegrator(
-          fun, new ForceIntegrator(*nu, res_fields.at("v" + fun), attrs));
+      TorqueFunctional out(*fes, res_fields, options, *nu);
+      output.emplace(fun, std::move(out));
    }
    else
    {

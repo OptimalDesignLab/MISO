@@ -18,7 +18,7 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
       if (input.isField())
       {
          const auto &name = in.first;
-         auto &field = output.func_fields.at(name);
+         auto &field = output.func_fields->at(name);
          field.GetTrueVector().SetDataAndSize(
              input.getField(), field.ParFESpace()->GetTrueVSize());
          field.SetFromTrueVector();
@@ -31,7 +31,7 @@ double calcOutput(FunctionalOutput &output, const MachInputs &inputs)
 {
    setInputs(output, inputs);
 
-   auto &state = output.func_fields.at("state");
+   auto &state = output.func_fields->at("state");
    return output.output.GetEnergy(state);
 }
 

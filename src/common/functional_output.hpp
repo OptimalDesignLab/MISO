@@ -2,6 +2,7 @@
 #define MACH_FUNCTIONAL_OUTPUT
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
@@ -11,18 +12,18 @@ namespace mach
 class FunctionalOutput final
 {
 public:
-   /// Used to set inputs in the underlying output type
    friend void setInputs(FunctionalOutput &output, const MachInputs &inputs);
 
-   /// Compute the output vector on the true dofs and add it to tv
+   friend void setOptions(FunctionalOutput &output,
+                          const nlohmann::json &options)
+   { }
+
    friend double calcOutput(FunctionalOutput &output, const MachInputs &inputs);
 
-   /// Compute the output's sensitivity to a scalar
    friend double calcOutputPartial(FunctionalOutput &output,
                                    const std::string &wrt,
                                    const MachInputs &inputs);
 
-   /// Compute the output's sensitivity to a field and store in @a partial
    friend void calcOutputPartial(FunctionalOutput &output,
                                  const std::string &wrt,
                                  const MachInputs &inputs,
@@ -47,26 +48,33 @@ public:
    /// \param[in] integrator - integrator to add to functional
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
-   void addOutputBdrFaceIntegrator(T *integrator,
-                                   mfem::Array<int> &bdr_marker);
+   void addOutputBdrFaceIntegrator(T *integrator, mfem::Array<int> &bdr_marker);
 
    FunctionalOutput(
-       mfem::ParFiniteElementSpace &pfes,
+       mfem::ParFiniteElementSpace &fes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields)
-    : output(&pfes), func_fields(fields)
+    : output(&fes), func_fields(&fields)
    { }
+
+   FunctionalOutput(const FunctionalOutput &) = delete;
+   FunctionalOutput &operator=(const FunctionalOutput &) = delete;
+
+   FunctionalOutput(FunctionalOutput &&) = default;
+   FunctionalOutput &operator=(FunctionalOutput &&) = default;
+
+   ~FunctionalOutput() = default;
 
 private:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm output;
+   /// map of external fields the functional depends on
+   std::unordered_map<std::string, mfem::ParGridFunction> *func_fields;
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
    /// Collection of boundary markers for boundary integrators
    std::vector<mfem::Array<int>> bdr_marker;
 
-   /// map of external fields the functional depends on
-   std::unordered_map<std::string, mfem::ParGridFunction> &func_fields;
 
    /// map of linear forms that will compute \frac{\partial J}{\partial field}
    /// for each field the functional depends on
@@ -82,7 +90,7 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
    output.AddDomainIntegrator(integrator);
    integs.emplace_back(*integrator);
    mach::addSensitivityIntegrator(
-       *integrator, func_fields, output_sens, output_scalar_sens);
+       *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
 template <typename T>
@@ -91,7 +99,7 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
    output.AddInteriorFaceIntegrator(integrator);
    integs.emplace_back(*integrator);
    mach::addSensitivityIntegrator(
-       *integrator, func_fields, output_sens, output_scalar_sens);
+       *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
 template <typename T>
@@ -101,7 +109,7 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator,
    output.AddBdrFaceIntegrator(integrator, bdr_marker);
    integs.emplace_back(*integrator);
    mach::addSensitivityIntegrator(
-       *integrator, func_fields, output_sens, output_scalar_sens);
+       *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
 }  // namespace mach
