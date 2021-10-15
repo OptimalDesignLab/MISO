@@ -70,4 +70,11 @@ ParCentGridFunction &ParCentGridFunction::operator=(double value)
    ParGridFunction::operator=(value);
    return *this;
 }
+
+void ParCentGridFunction::SetFromTrueDofs(const Vector &tv)
+{
+   const Operator *R = pfes->GetRestrictionMatrix();
+   R->Mult(tv, *this);
+}
+
 }

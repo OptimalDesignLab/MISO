@@ -582,54 +582,64 @@ void AbstractSolver::setGDInitialCondition(
 void AbstractSolver::setMinL2ErrorInitialCondition(
          const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
-   *out << "In set minl2 error.\n";
-   // get P and M
-   HypreParMatrix *p = fes_gd->Dof_TrueDof_Matrix();
-   mass_ref.reset(new BilinearFormType(fes.get()));
-   mass_ref->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   mass_ref->Assemble();
-   mass_ref->Finalize();
-   HypreParMatrix *h = mass_ref->ParallelAssemble();
-   // h->Print("mass_raw");
+   if (!options["time-dis"]["restart"].get<bool>())
+   {
+      *out << "In set minl2 error.\n";
+      // get P and M
+      HypreParMatrix *p = fes_gd->Dof_TrueDof_Matrix();
+      mass_ref.reset(new BilinearFormType(fes.get()));
+      mass_ref->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+      mass_ref->Assemble();
+      mass_ref->Finalize();
+      HypreParMatrix *h = mass_ref->ParallelAssemble();
+      // h->Print("mass_raw");
 
-   // COMPUTE P^t H u
-   VectorFunctionCoefficient u0(num_state, u_init);
-   u->ProjectCoefficient(u0);
-   HypreParVector *u_vec = u->GetTrueDofs();
-   // u_vec->Print("u");
-   HypreParVector hu(fes.get()), pthu(fes_gd.get());
-   h->Mult(*u_vec,hu);
-   p->MultTranspose(hu,pthu);
-   
-   // compute pthp
-   HypreParMatrix *pthp = RAP(h,p);
-   // pthp->Print("pthp");
+      // COMPUTE P^t H u
+      VectorFunctionCoefficient u0(num_state, u_init);
+      u->ProjectCoefficient(u0);
+      HypreParVector *u_vec = u->GetTrueDofs();
+      // u_vec->Print("u");
+      HypreParVector hu(fes.get()), pthu(fes_gd.get());
+      h->Mult(*u_vec,hu);
+      p->MultTranspose(hu,pthu);
+      
+      // compute pthp
+      HypreParMatrix *pthp = RAP(h,p);
+      // pthp->Print("pthp");
 
-   // solver setup
-   CGSolver cg(comm);
-   cg.SetOperator(*pthp);
-   cg.SetRelTol(1e-12);
-   cg.SetAbsTol(1e-24);
-   cg.SetMaxIter(1000);
-   cg.SetPrintLevel(1);
+      // solver setup
+      CGSolver cg(comm);
+      cg.SetOperator(*pthp);
+      cg.SetRelTol(1e-12);
+      cg.SetAbsTol(1e-24);
+      cg.SetMaxIter(1000);
+      cg.SetPrintLevel(1);
 
-   // solve for u_gd
-   cg.Mult(pthu,*u_gd);
-   HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
-   // u_gd_vec->Print("u_gd");
+      // solve for u_gd
+      cg.Mult(pthu,*u_gd);
+      HypreParVector *u_gd_vec = u_gd->GetTrueDofs();
+      // u_gd_vec->Print("u_gd");
 
 
-   // check error
-   ParGridFunction u_mult(fes.get());
-   HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
-   fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u_mult_vec);
-   // u_mult_vec->Print("u_mult");
-   u_mult.SetFromTrueDofs(*u_mult_vec);
-   u_mult.Add(-1.0, *u);
-   u_mult_vec = u_mult.GetTrueDofs();
-   // u_mult_vec->Print("erro_gd");
-   double loc_norm1 = ParNormlp(*u_mult_vec, 2.0, comm);
-   *out << "Applied min l2 norm initial condition, error is " << loc_norm1 << endl;
+      // check error
+      ParGridFunction u_mult(fes.get());
+      HypreParVector *u_mult_vec = u_mult.GetTrueDofs();
+      fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u_mult_vec);
+      // u_mult_vec->Print("u_mult");
+      u_mult.SetFromTrueDofs(*u_mult_vec);
+      u_mult.Add(-1.0, *u);
+      u_mult_vec = u_mult.GetTrueDofs();
+      // u_mult_vec->Print("erro_gd");
+      double loc_norm1 = ParNormlp(*u_mult_vec, 2.0, comm);
+      *out << "Applied min l2 norm initial condition, error is " << loc_norm1 << endl;
+   }
+   else
+   {
+      *out << "set the restart initial condition.\n";
+      HypreParVector temp(fes_gd.get());
+      temp.Read(fes_gd->GetComm(),"u_restart");
+      u_gd->SetFromTrueDofs(temp);
+   }
    
    // following code is used to accuracty check.
    // multiply back
@@ -1817,7 +1827,7 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
    {
       dt = calcStepSize(ti, t, t_final, dt, state);
       //std::cout << "before step, res norm: " << calcResidualNorm() << "\n";
-      if (ti % 1000 == 0)
+      if (ti % 100 == 0)
       {
          *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
          if (!options["time-dis"]["steady"].get<bool>())
@@ -1837,6 +1847,8 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
 
       if (iterationExit(ti, t, t_final, dt, state)) break;
    }
+   HypreParVector *temp = u_gd->GetTrueDofs();
+   temp->Print("u_restart");
    fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
    if (paraview)
    {

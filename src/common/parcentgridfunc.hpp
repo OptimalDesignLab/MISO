@@ -20,6 +20,7 @@ public:
 	// using GridFunction::GetTrueDofs;
 	ParCentGridFunction &operator=(const Vector &v);
    ParCentGridFunction &operator=(double value);
+	virtual void SetFromTrueDofs(const Vector &tv);
 };
 
 
