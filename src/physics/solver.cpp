@@ -1882,7 +1882,7 @@ void AbstractSolver::createOutput(const std::string &fun,
 {
    if (outputs.count(fun) == 0)
    {
-      addOutputs(fun, options);
+      addOutput(fun, options);
    }
    else
    {

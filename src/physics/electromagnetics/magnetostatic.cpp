@@ -759,8 +759,8 @@ void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
 // state.ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
 // }
 
-void MagnetostaticSolver::addOutputs(const std::string &fun,
-                                     const nlohmann::json &options)
+void MagnetostaticSolver::addOutput(const std::string &fun,
+                                    const nlohmann::json &options)
 {
    if (fun == "energy")
    {

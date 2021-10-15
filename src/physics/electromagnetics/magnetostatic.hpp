@@ -194,8 +194,8 @@ private:
                      double t_final,
                      const mfem::ParGridFunction &state) override;
 
-   void addOutputs(const std::string &fun,
-                   const nlohmann::json &options) override;
+   void addOutput(const std::string &fun,
+                  const nlohmann::json &options) override;
 
    /// Solve nonlinear magnetostatics problem using an MFEM Newton solver
    void solveUnsteady(mfem::ParGridFunction &state) override;

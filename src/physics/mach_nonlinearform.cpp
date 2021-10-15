@@ -11,7 +11,23 @@ namespace mach
 {
 void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
 {
-   setScalarInputs(form.integs, inputs);
+   for (const auto &in : inputs)
+   {
+      const auto &input = in.second;
+      if (input.isField())
+      {
+         const auto &name = in.first;
+         auto it = form.nf_fields->find(name);
+         if (it != form.nf_fields->end())
+         {
+            auto &field = it->second;
+            field.GetTrueVector().SetDataAndSize(
+                input.getField(), field.ParFESpace()->GetTrueVSize());
+            field.SetFromTrueVector();
+         }
+      }
+   }
+   setInputs(form.integs, inputs);
 }
 
 void evaluate(MachNonlinearForm &form,

@@ -41,8 +41,8 @@ protected:
    /// \note This function calls EulerSolver::addInterfaceIntegrators() first
    void addResInterfaceIntegrators(double alpha) override;
 
-   void addOutputs(const std::string &fun,
-                   const nlohmann::json &options) override;
+   void addOutput(const std::string &fun,
+                  const nlohmann::json &options) override;
 
    /// Set the state corresponding to the inflow boundary
    /// \param[in] q_in - state corresponding to the inflow

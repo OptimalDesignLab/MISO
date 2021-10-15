@@ -843,8 +843,7 @@ protected:
    virtual int getNumState() = 0;
 
    /// Add functional `fun` based on options
-   virtual void addOutputs(const std::string &fun,
-                           const nlohmann::json &options)
+   virtual void addOutput(const std::string &fun, const nlohmann::json &options)
    { }
 
    /// Solve for the steady state problem using newton method
