@@ -1890,6 +1890,24 @@ void AbstractSolver::createOutput(const std::string &fun,
    }
 }
 
+void AbstractSolver::setOutputOptions(const std::string &fun,
+                         const nlohmann::json &options)
+{
+   try
+   {
+      auto output = outputs.find(fun);
+      if (output == outputs.end())
+      {
+         throw MachException("Did not find " + fun + " in output map?");
+      }
+      mach::setOptions(output->second, options);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << endl;
+   }
+}
+
 double AbstractSolver::calcOutput(const ParGridFunction &state,
                                   const std::string &fun)
 {
@@ -2093,86 +2111,6 @@ void AbstractSolver::checkJacobian(void (*pert_fun)(const mfem::Vector &,
    jac_v -= res_plus;
    double error = calcInnerProduct(jac_v, jac_v);
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
-}
-
-mfem::Vector *AbstractSolver::getMeshSensitivities()
-{
-   throw MachException(
-       "AbstractSolver::getMeshSensitivities\n"
-       "\tnot implemented yet!");
-}
-
-// HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
-//                                                       ParGridFunction &seed)
-// {
-//    res_sens_integ.emplace(field, res_fields.at(field).ParFESpace());
-//    addResFieldSensIntegrators(field, seed);
-//    return res_sens_integ.at(field).ParallelAssemble();
-// }
-
-// /// TODO: do something for compound functionals
-// HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
-//                                                        std::string field)
-// {
-//    func_sens_integ.at(fun).emplace(field,
-//                                  func_fields.at(fun).at(field)->ParFESpace());
-//    addFuncFieldSensIntegrators(fun, field);
-//    return func_sens_integ.at(fun).at(field).ParallelAssemble();
-// }
-
-// void AbstractSolver::setInputs(std::vector<MachIntegrator> &integrators,
-//                                const MachInputs &inputs)
-// {
-//    for (const auto &input : inputs)
-//    {
-//       setInput(integrators, input.first, input.second);
-//    }
-// }
-
-// void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
-//                               const std::string &name,
-//                               const MachInput &input)
-// {
-//    if (input.isField())
-//    {
-//       auto &field = res_fields.at(name);
-//       field.GetTrueVector().SetDataAndSize(input.getField(),
-//                                            field.ParFESpace()->GetTrueVSize());
-//       field.SetFromTrueVector();
-//    }
-//    else if (input.isValue())
-//    {
-//       mach::setScalarInput(integrators, name, input);
-//    }
-// }
-
-// void AbstractSolver::setResidualInput(std::string name,
-//                                       ParGridFunction &field)
-// {
-//    res_fields.at(name).SetData(field.GetData());
-// }
-
-// void AbstractSolver::setResidualInput(std::string name,
-//                                       double *field)
-// {
-//    res_fields.at(name).SetData(field);
-// }
-
-// void AbstractSolver::setFunctionalInput(std::string fun,
-//                                         std::string name,
-//                                         ParGridFunction &field)
-// {
-//    func_fields.at(fun).at(name) = &field;
-// }
-
-double AbstractSolver::calcFractionalOutput(const ParGridFunction &state,
-                                            const std::string &fun)
-{
-   // /// the first element in fractional_output is the numerator
-   // double val = output.at(fractional_output.at(fun)[0]).GetEnergy(state);
-   // val /= output.at(fractional_output.at(fun)[1]).GetEnergy(state);
-
-   // return val;
 }
 
 }  // namespace mach

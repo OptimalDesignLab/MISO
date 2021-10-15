@@ -417,6 +417,14 @@ public:
    /// exception will be thrown
    void createOutput(const std::string &fun, const nlohmann::json &options);
 
+   /// Sets options for the output functional specifed by `fun`
+   /// \param[in] fun - specifies the desired functional
+   /// \param[in] options - options needed for calculating functional
+   /// \note will only have an effect if a subclass supports setting options
+   ///       for the functional
+   void setOutputOptions(const std::string &fun,
+                         const nlohmann::json &options);
+
    /// Evaluate and return the output functional specified by `fun`
    /// \param[in] fun - specifies the desired functional
    /// \returns scalar value of estimated functional value
@@ -471,15 +479,6 @@ public:
                           const std::string &wrt,
                           const MachInputs &inputs,
                           mfem::HypreParVector &partial);
-
-   /// Sets options for the output functional specifed by `fun`
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] options - options needed for calculating functional
-   /// \note will only have an effect if a subclass supports setting options
-   ///       for the functional
-   virtual void setOutputOptions(const std::string &fun,
-                                 const nlohmann::json &options)
-   { }
 
    /// Compute the residual norm based on the current solution in `u`
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
@@ -565,17 +564,9 @@ public:
    /// TODO: Who added this?  Do we need it still?  What is it for?  Document!
    void feedpert(void (*p)(const mfem::Vector &, mfem::Vector &)) { pert = p; }
 
-   /// Return the output map
-   // const std::map<std::string, MachOutput> &GetOutput() const { return
-   // output; }
-
    /// convert conservative variables to entropy variables
    /// \param[in/out] state - the conservative/entropy variables
    // virtual void convertToEntvar(mfem::Vector &state) { }
-
-   /// Compute the sensitivity of an output to the mesh nodes, using appropriate
-   /// mesh sensitivity integrators. Need to compute the adjoint first.
-   virtual mfem::Vector *getMeshSensitivities();
 
    /// Return a pointer to the solver's mesh
    MeshType *getMesh() { return mesh.get(); }
@@ -767,26 +758,9 @@ protected:
    mfem::Array<int> fes_surface_dofs;
    /// `bndry_marker[i]` lists the boundaries associated with a particular BC
    std::vector<mfem::Array<int>> bndry_marker;
+
    /// map of outputs
    std::map<std::string, MachOutput> outputs;
-   // /// collection of integrators for each functional
-   // std::map<std::string, std::vector<MachIntegrator>> fun_integrators;
-   // /// map of linear forms that will compute \frac{\partial J}{\partial
-   // field}
-   // /// for each field the functional depends on
-   // std::map<std::string, std::map<std::string, mfem::ParLinearForm>>
-   //     output_sens;
-   // /// map of nonlinear forms that will compute
-   // /// \frac{\partial J}{\partial scalar} for each scalar the functional
-   // /// depends on
-   // std::map<std::string, std::map<std::string, mfem::ParNonlinearForm>>
-   //     output_scalar_sens;
-
-   // /// map of fractional functionals - a funtional that is a fraction of
-   // others std::unordered_map<std::string, std::vector<std::string>>
-   // fractional_output;
-   // /// output_bndry_marker[fun] lists the boundaries associated with output
-   // fun std::unordered_map<std::string, mfem::Array<int>> output_bndry_marker;
 
    //--------------------------------------------------------------------------
 
@@ -958,30 +932,6 @@ protected:
    AbstractSolver(const std::string &opt_file_name,
                   MPI_Comm comm = MPI_COMM_WORLD);
 
-   /// calculate a functional that is the product of others
-   /// \param[in] state - the state vector to evaluate the functional at
-   /// \param[in] fun - specifies the desired functional
-   /// \returns scalar value of estimated functional value
-   double calcFractionalOutput(const mfem::ParGridFunction &state,
-                               const std::string &fun);
-
-   // /// Iterates through each input and calls `setInput` for each
-   // /// \param[in] integrators - list of integrators to set scalar inputs for
-   // /// \param[in] inputs - collection of named field or scalar inputs
-   // void setInputs(std::vector<MachIntegrator> &integrators,
-   //                const MachInputs &inputs);
-
-   // /// If the input is a field variable, updates the data for the field in
-   // /// `res_fields`. If the input is a scalar, iterates through the
-   // integrators
-   // /// and calls `setInput` for each integrator to set it's scalar inputs
-   // /// \param[in] integrators - list of integrators to set scalar inputs for
-   // /// \param[in] name - name of input
-   // /// \param[in] input - input to set, either a field or scalar
-   // void setInput(std::vector<MachIntegrator> &integrators,
-   //               const std::string &name,
-   //               const MachInput &input);
-
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
    /// reference to it to in fun_integrators as a MachIntegrator
    /// \param[in] fun - specifies the desired functional
@@ -1024,54 +974,6 @@ protected:
       mach::addSensitivityIntegrator(
           *integrator, res_fields, res_sens, res_scalar_sens);
    }
-
-   // /// Adds domain integrator to the nonlinear form for `fun`, and adds
-   // /// reference to it to in fun_integrators as a MachIntegrator
-   // /// \param[in] fun - specifies the desired functional
-   // /// \param[in] integrator - integrator to add to functional
-   // /// \tparam T - type of integrator, used for constructing MachIntegrator
-   // template <typename T>
-   // void addOutputDomainIntegrator(const std::string &fun, T *integrator)
-   // {
-   //    output.at(fun).AddDomainIntegrator(integrator);
-   //    fun_integrators.at(fun).emplace_back(*integrator);
-   //    mach::addSensitivityIntegrator(
-   //        *integrator, res_fields, output_sens[fun],
-   //        output_scalar_sens[fun]);
-   // }
-
-   // /// Adds interface integrator to the nonlinear form for `fun`, and adds
-   // /// reference to it to in fun_integrators as a MachIntegrator
-   // /// \param[in] fun - specifies the desired functional
-   // /// \param[in] integrator - integrator to add to functional
-   // /// \tparam T - type of integrator, used for constructing MachIntegrator
-   // template <typename T>
-   // void addOutputInteriorFaceIntegrator(const std::string &fun, T
-   // *integrator)
-   // {
-   //    output.at(fun).AddInteriorFaceIntegrator(integrator);
-   //    fun_integrators.at(fun).emplace_back(*integrator);
-   //    mach::addSensitivityIntegrator(
-   //        *integrator, res_fields, output_sens[fun],
-   //        output_scalar_sens[fun]);
-   // }
-
-   // /// Adds boundary integrator to the nonlinear form for `fun`, and adds
-   // /// reference to it to in fun_integrators as a MachIntegrator
-   // /// \param[in] fun - specifies the desired functional
-   // /// \param[in] integrator - integrator to add to functional
-   // /// \tparam T - type of integrator, used for constructing MachIntegrator
-   // template <typename T>
-   // void addOutputBdrFaceIntegrator(const std::string &fun,
-   //                                 T *integrator,
-   //                                 mfem::Array<int> &bdr_marker)
-   // {
-   //    output.at(fun).AddBdrFaceIntegrator(integrator, bdr_marker);
-   //    fun_integrators.at(fun).emplace_back(*integrator);
-   //    mach::addSensitivityIntegrator(
-   //        *integrator, res_fields, output_sens[fun],
-   //        output_scalar_sens[fun]);
-   // }
 
 private:
    /// Used to do the bulk of the initialization shared between constructors
