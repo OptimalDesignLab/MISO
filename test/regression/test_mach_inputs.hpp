@@ -81,7 +81,7 @@ public:
 
 private:
    void addOutputs(const std::string &fun,
-                   const nlohmann::json &options)
+                   const nlohmann::json &options) override
    {
       if (fun == "testMachInput")
       {
@@ -92,7 +92,7 @@ private:
          outputs.emplace(fun, std::move(out));
       }
    }
-   void constructForms() { res.reset(new NonlinearFormType(fes.get())); }
+   void constructForms() override { res.reset(new NonlinearFormType(fes.get())); }
    int getNumState() {return 1;}
 };
 

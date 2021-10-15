@@ -15,7 +15,7 @@ class TestMachLoadIntegrator : public mfem::LinearFormIntegrator
 {
 public:
    TestMachLoadIntegrator()
-   :  test_val(0.0)
+   : test_val(0.0)
    { }
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
