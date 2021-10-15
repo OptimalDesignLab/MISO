@@ -809,56 +809,6 @@ void MagnetostaticSolver::addOutputs(const std::string &fun,
    }
 }
 
-// void MagnetostaticSolver::setOutputOptions(const std::string &fun,
-//                                            const nlohmann::json &options)
-// {
-//    if (fun == "force")
-//    {
-//       auto &&attrs = options["attributes"].get<unordered_set<int>>();
-//       auto &&axis = options["axis"].get<std::vector<double>>();
-//       VectorConstantCoefficient axis_vector(Vector{&axis[0], dim});
-
-//       auto &v = res_fields.at("v" + fun);
-//       v = 0.0;
-//       for (const auto &attr : attrs)
-//       {
-//          v.ProjectCoefficient(axis_vector, attr);
-//       }
-//    }
-//    else if (fun == "torque")
-//    {
-//       auto &&attrs = options["attributes"].get<unordered_set<int>>();
-//       auto &&axis = options["axis"].get<std::vector<double>>();
-//       auto &&about = options["about"].get<std::vector<double>>();
-//       Vector axis_vector(&axis[0], dim);
-//       axis_vector /= axis_vector.Norml2();
-//       Vector about_vector(&about[0], dim);
-//       double r_data[3];
-//       Vector r(r_data, dim);
-//       VectorFunctionCoefficient v_vector(
-//           3,
-//           [&axis_vector, &about_vector, &r](const Vector &x, Vector &v)
-//           {
-//              subtract(x, about_vector, r);
-//              // r /= r.Norml2();
-//              v(0) = axis_vector(1) * r(2) - axis_vector(2) * r(1);
-//              v(1) = axis_vector(2) * r(0) - axis_vector(0) * r(2);
-//              v(2) = axis_vector(0) * r(1) - axis_vector(1) * r(0);
-//              // if (v.Norml2() > 1e-12)
-//              //    v /= v.Norml2();
-//           });
-
-//       auto &v = res_fields.at("v" + fun);
-//       v = 0.0;
-//       for (const auto &attr : attrs)
-//       {
-//          v.ProjectCoefficient(v_vector, attr);
-//       }
-
-//       printField("v", v, "v", 0);
-//    }
-// }
-
 std::vector<GridFunType *> MagnetostaticSolver::getFields()
 {
    return {u.get(), B};

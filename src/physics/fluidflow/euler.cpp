@@ -235,8 +235,6 @@ void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
 {
    if (fun == "drag")
    {
-      FunctionalOutput out(*fes, res_fields);
-
       // drag on the specified boundaries
       auto bdrs = options["boundaries"].template get<vector<int>>();
 
@@ -253,6 +251,7 @@ void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
       }
       drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
 
+      FunctionalOutput out(*fes, res_fields);
       out.addOutputBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
           std::move(bdrs));
@@ -260,7 +259,6 @@ void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
    }
    else if (fun == "lift")
    {
-      FunctionalOutput out(*fes, res_fields);
       // lift on the specified boundaries
       auto bdrs = options["boundaries"].template get<vector<int>>();
 
@@ -277,6 +275,7 @@ void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
       }
       lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
 
+      FunctionalOutput out(*fes, res_fields);
       out.addOutputBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
           std::move(bdrs));
@@ -284,8 +283,8 @@ void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
    }
    else if (fun == "entropy")
    {
-      FunctionalOutput out(*fes, res_fields);
       // integral of entropy over the entire volume domain
+      FunctionalOutput out(*fes, res_fields);
       out.addOutputDomainIntegrator(
           new EntropyIntegrator<dim, entvar>(diff_stack));
       outputs.emplace(fun, std::move(out));
