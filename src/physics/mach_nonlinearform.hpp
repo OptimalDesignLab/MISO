@@ -17,7 +17,7 @@ public:
    /// Set inputs in all integrators used by the nonlinear form
    friend void setInputs(MachNonlinearForm &form, const MachInputs &inputs);
 
-   friend void setOptions(MachNonlinearForm &residual,
+   friend void setOptions(MachNonlinearForm &form,
                           const nlohmann::json &options);
 
    /// Evaluate the nonlinear form using `inputs` and return result in `res_vec`
