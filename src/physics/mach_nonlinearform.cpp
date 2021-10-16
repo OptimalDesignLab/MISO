@@ -30,6 +30,11 @@ void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
    setInputs(form.integs, inputs);
 }
 
+void setOptions(MachNonlinearForm &form, const nlohmann::json &options)
+{
+   setOptions(form.integs, options);
+}
+
 void evaluate(MachNonlinearForm &form,
               const MachInputs &inputs,
               mfem::Vector &res_vec)

@@ -47,16 +47,9 @@ public:
 
    // The following constructors, assignment operators, and destructors allow
    // the `MachResidual` to wrap the generic type `T`.
-
    template <typename T>
    MachResidual(T x) : self_(new model<T>(std::move(x)))
    { }
-   MachResidual(const MachResidual &) = delete;
-   MachResidual &operator=(const MachResidual &) = delete;
-   MachResidual(MachResidual &&) noexcept = default;
-   MachResidual &operator=(MachResidual &&) noexcept = default;
-
-   ~MachResidual() = default;
 
 private:
    /// Abstract base class with common functions needed by all residuals

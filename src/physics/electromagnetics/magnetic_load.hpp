@@ -65,6 +65,10 @@ public:
    /// a specialized version for each particular load.
    friend void setInputs(LegacyMagneticLoad &load, const MachInputs &inputs);
 
+   friend inline void setOptions(LegacyMagneticLoad &load,
+                                 const nlohmann::json &options)
+   { }
+
    /// Assemble the load vector on the true dofs and store in tv
    friend void addLoad(LegacyMagneticLoad &load, mfem::Vector &tv);
 

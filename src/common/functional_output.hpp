@@ -56,14 +56,6 @@ public:
     : output(&fes), func_fields(&fields)
    { }
 
-   FunctionalOutput(const FunctionalOutput &) = delete;
-   FunctionalOutput &operator=(const FunctionalOutput &) = delete;
-
-   FunctionalOutput(FunctionalOutput &&) = default;
-   FunctionalOutput &operator=(FunctionalOutput &&) = default;
-
-   ~FunctionalOutput() = default;
-
 private:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm output;

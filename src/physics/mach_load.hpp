@@ -52,12 +52,6 @@ public:
    template <typename T>
    MachLoad(T &x) : self_(new model<T>(x))
    { }
-   MachLoad(const MachLoad &x) = delete;
-   MachLoad &operator=(const MachLoad &x) = delete;
-   MachLoad(MachLoad &&) noexcept = default;
-   MachLoad &operator=(MachLoad &&) noexcept = default;
-
-   ~MachLoad() = default;
 
 private:
    class concept_t

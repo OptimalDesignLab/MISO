@@ -816,7 +816,8 @@ std::vector<GridFunType *> MagnetostaticSolver::getFields()
 
 void MagnetostaticSolver::constructForms()
 {
-   MagnetostaticResidual mres(*fes, res_fields, *current_coeff, *mag_coeff, *nu);
+   MagnetostaticResidual mres(
+       *fes, res_fields, *current_coeff, *mag_coeff, *nu);
    new_res.reset(new MachResidual(std::move(mres)));
    // mass.reset(new BilinearFormType(fes.get()));
    res.reset(new NonlinearFormType(fes.get()));

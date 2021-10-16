@@ -706,7 +706,7 @@ protected:
    std::unique_ptr<BilinearFormType> mass;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
-   /// the new spatial residual
+   /// the spatial residual /* only for demonstration */
    std::unique_ptr<MachResidual> new_res;
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
