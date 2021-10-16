@@ -2,6 +2,7 @@
 #define MACH_RESIDUAL
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
 
@@ -21,12 +22,18 @@ namespace mach
 class MachResidual final
 {
 public:
-   /// Set a scalar input in the underlying residual type
+   /// Set inputs in the underlying residual type
    /// \param[inout] residual - the residual being assigned the input
-   /// \param[in] inputs - the input that is being assigned
+   /// \param[in] inputs - the inputs that are being assigned
    /// \note Ends up calling `setInputs` on either the `MachNonlinearForm` or
    /// a specialized version for each particular residual.
    friend void setInputs(MachResidual &residual, const MachInputs &inputs);
+
+   /// Set options in the underlying residual type
+   /// \param[inout] residual - the residual being assigned the input
+   /// \param[in] options - the options that are being assigned
+   friend void setOptions(MachResidual &residual,
+                          const nlohmann::json &options);
 
    /// Evaluate the residual function at given inputs and return as `res_vec`
    /// \param[inout] residual - the residual being evaluated
@@ -40,22 +47,9 @@ public:
 
    // The following constructors, assignment operators, and destructors allow
    // the `MachResidual` to wrap the generic type `T`.
-
    template <typename T>
-   MachLoad(T &x) : self_(new model<T>(x))
+   MachResidual(T x) : self_(new model<T>(std::move(x)))
    { }
-   MachResidual(const MachResidual &x) : self_(x.self_->copy_()) { }
-   MachResidual(MachResidual &&) noexcept = default;
-
-   MachResidual &operator=(const MachResidual &x)
-   {
-      MachResidual tmp(x);
-      *this = std::move(tmp);
-      return *this;
-   }
-   MachResidual &operator=(MachResidual &&) noexcept = default;
-
-   ~MachResidual() = default;
 
 private:
    /// Abstract base class with common functions needed by all residuals
@@ -63,29 +57,32 @@ private:
    {
    public:
       virtual ~concept_t() = default;
-      virtual concept_t *copy_() const = 0;
-      virtual void setInputs_(const MachInputs &inputs) const = 0;
+      virtual void setInputs_(const MachInputs &inputs) = 0;
+      virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
    };
 
    /// Concrete (templated) class for residuals
    /// \tparam T - a residual class
    template <typename T>
-   class model : public concept_t
+   class model final : public concept_t
    {
    public:
-      model(T &x) : data_(x) { }
-      concept_t *copy_() const override { return new model(*this); }
-      void setInputs_(const MachInputs &inputs) const override
+      model(T x) : data_(std::move(x)) { }
+      void setInputs_(const MachInputs &inputs) override
       {
          setInputs(data_, inputs);
+      }
+      void setOptions_(const nlohmann::json &options) override
+      {
+         setOptions(data_, options);
       }
       void eval_(const MachInputs &inputs, mfem::Vector &res_vec) override
       {
          evaluate(data_, inputs, res_vec);
       }
 
-      T &data_;
+      T data_;
    };
 
    /// Pointer to `model` via its abstract base class `concept_t`
@@ -96,7 +93,14 @@ inline void setInputs(MachResidual &residual, const MachInputs &inputs)
 {
    // passes `inputs` on to the `setInputs` function for the concrete
    // residual type
-   res.self_->setInputs_(inputs);
+   residual.self_->setInputs_(inputs);
+}
+
+inline void setOptions(MachResidual &residual, const nlohmann::json &options)
+{
+   // passes `options` on to the `setOptions` function for the concrete
+   // residual type
+   residual.self_->setOptions_(options);
 }
 
 inline void evaluate(MachResidual &residual,
@@ -105,7 +109,7 @@ inline void evaluate(MachResidual &residual,
 {
    // passes `inputs` and `res_vec` on to the `evaluate` function for the
    // concrete residual type
-   res.self_->eval_(inputs, res_vec);
+   residual.self_->eval_(inputs, res_vec);
 }
 
 }  // namespace mach

@@ -15,8 +15,7 @@ public:
    friend void setInputs(FunctionalOutput &output, const MachInputs &inputs);
 
    friend void setOptions(FunctionalOutput &output,
-                          const nlohmann::json &options)
-   { }
+                          const nlohmann::json &options);
 
    friend double calcOutput(FunctionalOutput &output, const MachInputs &inputs);
 
@@ -56,14 +55,6 @@ public:
        std::unordered_map<std::string, mfem::ParGridFunction> &fields)
     : output(&fes), func_fields(&fields)
    { }
-
-   FunctionalOutput(const FunctionalOutput &) = delete;
-   FunctionalOutput &operator=(const FunctionalOutput &) = delete;
-
-   FunctionalOutput(FunctionalOutput &&) = default;
-   FunctionalOutput &operator=(FunctionalOutput &&) = default;
-
-   ~FunctionalOutput() = default;
 
 private:
    /// underlying nonlinear form object

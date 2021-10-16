@@ -1,9 +1,12 @@
 #ifndef MACH_LINEAR_FORM
 #define MACH_LINEAR_FORM
 
+#include <map>
+#include <unordered_map>
 #include <vector>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
@@ -16,8 +19,11 @@ public:
    /// Assemble the linear form on the true dofs and add it to tv
    friend void addLoad(MachLinearForm &load, mfem::Vector &tv);
 
-   /// Set scalar inputs in all integrators used by the linear form
+   /// Set inputs in all integrators used by the linear form
    friend void setInputs(MachLinearForm &load, const MachInputs &inputs);
+
+   /// Set options in all integrators used by the linear form
+   friend void setOptions(MachLinearForm &load, const nlohmann::json &options);
 
    /// Assemble the linear form's sensitivity to a scalar and contract it with
    /// load_bar
