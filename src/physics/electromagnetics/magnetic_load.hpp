@@ -2,6 +2,7 @@
 #define MACH_MAGNETIC_LOAD
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
 #include "mach_input.hpp"
@@ -15,6 +16,12 @@ public:
    friend inline void setInputs(MagneticLoad &load, const MachInputs &inputs)
    {
       setInputs(load.lf, inputs);
+   }
+
+   friend inline void setOptions(MagneticLoad &load,
+                                 const nlohmann::json &options)
+   {
+      setOptions(load.lf, options);
    }
 
    /// Assemble the load vector on the true dofs and store in tv

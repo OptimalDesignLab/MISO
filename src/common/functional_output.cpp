@@ -31,6 +31,11 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
    setInputs(output.integs, inputs);
 }
 
+void setOptions(FunctionalOutput &output, const nlohmann::json &options)
+{
+   setOptions(output.integs, options);
+}
+
 double calcOutput(FunctionalOutput &output, const MachInputs &inputs)
 {
    setInputs(output, inputs);

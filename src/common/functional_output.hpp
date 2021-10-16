@@ -15,8 +15,7 @@ public:
    friend void setInputs(FunctionalOutput &output, const MachInputs &inputs);
 
    friend void setOptions(FunctionalOutput &output,
-                          const nlohmann::json &options)
-   { }
+                          const nlohmann::json &options);
 
    friend double calcOutput(FunctionalOutput &output, const MachInputs &inputs);
 

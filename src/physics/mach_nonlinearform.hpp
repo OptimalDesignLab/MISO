@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
@@ -15,6 +16,9 @@ class MachNonlinearForm final
 public:
    /// Set inputs in all integrators used by the nonlinear form
    friend void setInputs(MachNonlinearForm &form, const MachInputs &inputs);
+
+   friend void setOptions(MachNonlinearForm &residual,
+                          const nlohmann::json &options);
 
    /// Evaluate the nonlinear form using `inputs` and return result in `res_vec`
    friend void evaluate(MachNonlinearForm &form,

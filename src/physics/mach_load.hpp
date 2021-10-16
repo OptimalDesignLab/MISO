@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
 
@@ -29,6 +30,9 @@ public:
    /// a specialized version for each particular load.
    friend void setInputs(MachLoad &load, const MachInputs &inputs);
 
+   /// Used to set options for the underlying load type
+   friend void setOptions(MachLoad &load, const nlohmann::json &options);
+
    /// Assemble the load vector on the true dofs and add it to tv
    friend void addLoad(MachLoad &load, mfem::Vector &tv);
 
@@ -48,15 +52,9 @@ public:
    template <typename T>
    MachLoad(T &x) : self_(new model<T>(x))
    { }
-   MachLoad(const MachLoad &x) : self_(x.self_->copy_()) { }
+   MachLoad(const MachLoad &x) = delete;
+   MachLoad &operator=(const MachLoad &x) = delete;
    MachLoad(MachLoad &&) noexcept = default;
-
-   MachLoad &operator=(const MachLoad &x)
-   {
-      MachLoad tmp(x);
-      *this = std::move(tmp);
-      return *this;
-   }
    MachLoad &operator=(MachLoad &&) noexcept = default;
 
    ~MachLoad() = default;
@@ -65,14 +63,9 @@ private:
    class concept_t
    {
    public:
-      // concept_t() = default;
-      // concept_t(const concept_t &) = default;
-      // concept_t &operator=(const concept_t&) = default;
-      // concept_t(concept_t &&) = default;
-      // concept_t &operator=(concept_t &&) = default;
       virtual ~concept_t() = default;
-      virtual concept_t *copy_() const = 0;
-      virtual void setInputs_(const MachInputs &inputs) const = 0;
+      virtual void setInputs_(const MachInputs &inputs) = 0;
+      virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void addLoad_(mfem::Vector &tv) = 0;
       virtual double vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
                                             std::string wrt) = 0;
@@ -82,14 +75,17 @@ private:
    };
 
    template <typename T>
-   class model : public concept_t
+   class model final : public concept_t
    {
    public:
       model(T &x) : data_(x) { }
-      concept_t *copy_() const override { return new model(*this); }
-      void setInputs_(const MachInputs &inputs) const override
+      void setInputs_(const MachInputs &inputs) override
       {
          setInputs(data_, inputs);
+      }
+      void setOptions_(const nlohmann::json &options) override
+      {
+         setOptions(data_, options);
       }
       void addLoad_(mfem::Vector &tv) override { addLoad(data_, tv); }
       double vectorJacobianProduct_(const mfem::HypreParVector &res_bar,
@@ -113,6 +109,11 @@ private:
 inline void setInputs(MachLoad &load, const MachInputs &inputs)
 {
    load.self_->setInputs_(inputs);
+}
+
+inline void setOptions(MachLoad &load, const nlohmann::json &options)
+{
+   load.self_->setOptions_(options);
 }
 
 inline void addLoad(MachLoad &load, mfem::Vector &tv)

@@ -29,6 +29,11 @@ void setInputs(MachLinearForm &load, const MachInputs &inputs)
    setInputs(load.integs, inputs);
 }
 
+void setOptions(MachLinearForm &load, const nlohmann::json &options)
+{
+   setOptions(load.integs, options);
+}
+
 void addLoad(MachLinearForm &load, mfem::Vector &tv)
 {
    load.lf.Assemble();

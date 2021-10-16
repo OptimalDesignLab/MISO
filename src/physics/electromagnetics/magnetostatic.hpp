@@ -1,15 +1,19 @@
 #ifndef MACH_MAGNETOSTATIC
 #define MACH_MAGNETOSTATIC
 
+#include <memory>
 #include <mpi.h>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-#include "solver.hpp"
+#include "electromag_integ.hpp"
 #include "coefficient.hpp"
 #include "current_load.hpp"
+#include "mach_load.hpp"
+#include "mach_nonlinearform.hpp"
 #include "magnetic_load.hpp"
+#include "solver.hpp"
 
 namespace mach
 {
@@ -17,6 +21,9 @@ class MagnetostaticLoad final
 {
 public:
    friend void setInputs(MagnetostaticLoad &load, const MachInputs &inputs);
+
+   friend void setOptions(MagnetostaticLoad &load,
+                          const nlohmann::json &options);
 
    friend void addLoad(MagnetostaticLoad &load, mfem::Vector &tv);
 
@@ -40,6 +47,38 @@ private:
    CurrentLoad current_load;
    MagneticLoad magnetic_load;
    // LegacyMagneticLoad magnetic_load;
+};
+
+class MagnetostaticResidual final
+{
+public:
+   friend void setInputs(MagnetostaticResidual &residual,
+                         const MachInputs &inputs);
+
+   friend void setOptions(MagnetostaticResidual &residual,
+                          const nlohmann::json &options);
+
+   friend void evaluate(MagnetostaticResidual &residual,
+                        const MachInputs &inputs,
+                        mfem::Vector &res_vec);
+
+   MagnetostaticResidual(
+       mfem::ParFiniteElementSpace &pfes,
+       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+       mfem::VectorCoefficient &current_coeff,
+       mfem::VectorCoefficient &mag_coeff,
+       StateCoefficient &nu)
+    : nlf(pfes, fields),
+      load(new MagnetostaticLoad(pfes, current_coeff, mag_coeff, nu))
+   {
+      nlf.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));
+   }
+
+private:
+   MachNonlinearForm nlf;
+   /// Need to store MagnetostaticLoad in pointer since underlying load types
+   /// are not yet correctly moveable
+   std::unique_ptr<MagnetostaticLoad> load;
 };
 
 /// Solver for magnetostatic electromagnetic problems
