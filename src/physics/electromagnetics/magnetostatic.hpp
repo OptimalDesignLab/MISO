@@ -62,6 +62,11 @@ public:
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
 
+   friend void getJacobian(MagnetostaticResidual &residual,
+                           const MachInputs &inputs,
+                           std::string wrt,
+                           mfem::Operator &jacobian);
+
    MagnetostaticResidual(
        mfem::ParFiniteElementSpace &pfes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields,

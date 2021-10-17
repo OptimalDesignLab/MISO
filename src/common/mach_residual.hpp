@@ -30,7 +30,7 @@ public:
    friend void setInputs(MachResidual &residual, const MachInputs &inputs);
 
    /// Set options in the underlying residual type
-   /// \param[inout] residual - the residual being assigned the input
+   /// \param[inout] residual - the residual whose options are being set
    /// \param[in] options - the options that are being assigned
    friend void setOptions(MachResidual &residual,
                           const nlohmann::json &options);
@@ -42,6 +42,16 @@ public:
    friend void evaluate(MachResidual &residual,
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
+
+   /// Compute the Jacobian of the given residual at the value of `inputs`
+   /// \param[inout] residual - function whose Jacobian we want 
+   /// \param[in] inputs - the variables needed to evaluate the Jacobian 
+   /// \param[in] wrt - the input we are differentiating with respect to 
+   /// \param[inout] jacobian - the Jacobian of `residual` with respect to `wrt`
+   friend void getJacobian(MachResidual &residual,
+                           const MachInputs &inputs,
+                           std::string wrt, 
+                           mfem::Operator &jacobian);
 
    // TODO: we will eventual want to add functions for Jacobian products
 
@@ -60,6 +70,8 @@ private:
       virtual void setInputs_(const MachInputs &inputs) = 0;
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
+      virtual void getJac_(const MachInputs &inputs, std::string wrt,
+                           mfem::Operator &jac) = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -80,6 +92,11 @@ private:
       void eval_(const MachInputs &inputs, mfem::Vector &res_vec) override
       {
          evaluate(data_, inputs, res_vec);
+      }
+      void getJac_(const MachInputs &inputs, std::string wrt,
+                   mfem::Operator &jac) override 
+      {
+         getJacobian(data_, inputs, wrt, jac);
       }
 
       T data_;
@@ -110,6 +127,16 @@ inline void evaluate(MachResidual &residual,
    // passes `inputs` and `res_vec` on to the `evaluate` function for the
    // concrete residual type
    residual.self_->eval_(inputs, res_vec);
+}
+
+inline void getJacobian(MachResidual &residual,
+                        const MachInputs &inputs,
+                        std::string wrt, 
+                        mfem::Operator &jacobian)
+{
+   // passes `inputs` and `res_vec` on to the `getJacobian` function for the 
+   // concrete residual type 
+   residual.self_->getJac_(inputs, wrt, jacobian);
 }
 
 }  // namespace mach

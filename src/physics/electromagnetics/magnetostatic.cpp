@@ -2715,4 +2715,12 @@ void evaluate(MagnetostaticResidual &residual,
    addLoad(*residual.load, res_vec);
 }
 
+void getJacobian(MagnetostaticResidual &residual,
+                 const MachInputs &inputs,
+                 std::string wrt,
+                 mfem::Operator &jacobian)
+{
+   std::cout << "Tucker, you need to define this." << std::endl;
+}
+
 }  // namespace mach
