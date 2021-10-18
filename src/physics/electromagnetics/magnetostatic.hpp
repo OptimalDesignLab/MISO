@@ -52,6 +52,8 @@ private:
 class MagnetostaticResidual final
 {
 public:
+   friend int getSize(const MagnetostaticResidual &residual);
+
    friend void setInputs(MagnetostaticResidual &residual,
                          const MachInputs &inputs);
 

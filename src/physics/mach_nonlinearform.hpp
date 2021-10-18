@@ -14,6 +14,9 @@ namespace mach
 class MachNonlinearForm final
 {
 public:
+   /// Get the size of the nonlinear form (number of equations/unknowns)
+   friend int getSize(const MachNonlinearForm &form);
+
    /// Set inputs in all integrators used by the nonlinear form
    friend void setInputs(MachNonlinearForm &form, const MachInputs &inputs);
 

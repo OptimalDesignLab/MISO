@@ -2694,6 +2694,11 @@ void vectorJacobianProduct(MagnetostaticLoad &load,
    vectorJacobianProduct(load.magnetic_load, res_bar, wrt, wrt_bar);
 }
 
+int getSize(const MagnetostaticResidual &residual)
+{
+   return getSize(residual.nlf);
+}
+
 void setInputs(MagnetostaticResidual &residual, const MachInputs &inputs)
 {
    setInputs(residual.nlf, inputs);

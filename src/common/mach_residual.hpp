@@ -22,6 +22,11 @@ namespace mach
 class MachResidual final
 {
 public:
+   /// Gets the number of equations/unknowns of the underlying residual type
+   /// \param[inout] residual - the residual whose size is being queried
+   /// \note Needed, e.g., by the ODESystemOperator constructor (see evolver.*)
+   friend int getSize(const MachResidual &residual);
+
    /// Set inputs in the underlying residual type
    /// \param[inout] residual - the residual being assigned the input
    /// \param[in] inputs - the inputs that are being assigned
@@ -67,6 +72,7 @@ private:
    {
    public:
       virtual ~concept_t() = default;
+      virtual int getSize_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) = 0;
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
@@ -81,6 +87,10 @@ private:
    {
    public:
       model(T x) : data_(std::move(x)) { }
+      int getSize_() const override 
+      {
+         return getSize(data_);
+      }
       void setInputs_(const MachInputs &inputs) override
       {
          setInputs(data_, inputs);
@@ -105,6 +115,11 @@ private:
    /// Pointer to `model` via its abstract base class `concept_t`
    std::unique_ptr<concept_t> self_;
 };
+
+inline int getSize(const MachResidual &residual)
+{
+   return residual.self_->getSize_();
+}
 
 inline void setInputs(MachResidual &residual, const MachInputs &inputs)
 {

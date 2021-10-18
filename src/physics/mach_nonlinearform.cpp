@@ -9,6 +9,11 @@
 
 namespace mach
 {
+int getSize(const MachNonlinearForm &form)
+{
+   return form.nf.FESpace()->GetTrueVSize();
+}
+
 void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
 {
    for (const auto &in : inputs)
