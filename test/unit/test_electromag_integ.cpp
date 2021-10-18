@@ -1530,13 +1530,11 @@ TEST_CASE("DCLossFunctionalIntegrator::GetEnergy",
          VectorConstantCoefficient current(current_vec); // current density coefficient
          auto current_density = 1.0; // current density magnitude
 
-         auto fill_factor = 0.7853981633974483; // the density of strands in the bundle
-
          functional.AddDomainIntegrator(
-            new mach::DCLossFunctionalIntegrator(sigma, current, current_density, fill_factor));
+            new mach::DCLossFunctionalIntegrator(sigma, current, current_density));
 
-         const auto R_dc = 1.0 / (sigma_val * fill_factor); // length / (sigma * area)
-         const auto loss = std::pow(current_density * fill_factor, 2) * R_dc;
+         const auto R_dc = 1.0 / (sigma_val); // length / (sigma * area)
+         const auto loss = std::pow(current_density, 2) * R_dc;
          
          const double loss_fe = functional.GetEnergy(A);
          // std::cout << "functional loss: " << loss_fe << "\n";

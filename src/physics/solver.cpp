@@ -1628,51 +1628,52 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
 
 void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 {
-   double time_beg = NAN;
-   double time_end = NAN;
-   time_beg = MPI_Wtime();
+   // double time_beg = NAN;
+   // double time_end = NAN;
+   // time_beg = MPI_Wtime();
 
-   // Step 0: allocate the adjoint variable
-   adj.reset(new GridFunType(fes.get()));
-   *adj = 0.0;
+   // // Step 0: allocate the adjoint variable
+   // adj.reset(new GridFunType(fes.get()));
+   // *adj = 0.0;
 
-   // Step 1: get the right-hand side vector, dJdu, and make an appropriate
-   // alias to it, the state, and the adjoint
-   std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+   // // Step 1: get the right-hand side vector, dJdu, and make an appropriate
+   // // alias to it, the state, and the adjoint
+   // std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
 
-   HypreParVector *u_true = u->GetTrueDofs();
-   HypreParVector *dJdu_true = dJdu->GetTrueDofs();
-   HypreParVector *adj_true = adj->GetTrueDofs();
-   output.at(fun).Mult(*u_true, *dJdu_true);
+   // HypreParVector *u_true = u->GetTrueDofs();
+   // HypreParVector *dJdu_true = dJdu->GetTrueDofs();
+   // HypreParVector *adj_true = adj->GetTrueDofs();
+   // output.at(fun).Mult(*u_true, *dJdu_true);
 
-   // Step 2: get the Jacobian and transpose it
-   Operator *jac = &res->GetGradient(*u_true);
-   const Operator *jac_trans =
-       dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
-   MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
+   // // Step 2: get the Jacobian and transpose it
+   // Operator *jac = &res->GetGradient(*u_true);
+   // const Operator *jac_trans =
+   //     dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
+   // MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
 
-   // Step 3: Solve the adjoint problem
-   *out << "Solving adjoint problem" << endl;
-   unique_ptr<Solver> adj_prec = constructPreconditioner(options["adj-prec"]);
-   unique_ptr<Solver> adj_solver =
-       constructLinearSolver(options["adj-solver"], *adj_prec);
-   adj_solver->SetOperator(*jac_trans);
-   adj_solver->Mult(*dJdu_true, *adj_true);
+   // // Step 3: Solve the adjoint problem
+   // *out << "Solving adjoint problem" << endl;
+   // unique_ptr<Solver> adj_prec =
+   // constructPreconditioner(options["adj-prec"]); unique_ptr<Solver>
+   // adj_solver =
+   //     constructLinearSolver(options["adj-solver"], *adj_prec);
+   // adj_solver->SetOperator(*jac_trans);
+   // adj_solver->Mult(*dJdu_true, *adj_true);
 
-   // check that adjoint residual is small
-   std::unique_ptr<GridFunType> adj_res(new GridFunType(fes.get()));
-   double res_norm = 0;
-   HypreParVector *adj_res_true = adj_res->GetTrueDofs();
-   jac_trans->Mult(*adj_true, *adj_res_true);
-   *adj_res_true -= *dJdu_true;
-   double loc_norm = (*adj_res_true) * (*adj_res_true);
-   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   res_norm = sqrt(res_norm);
-   *out << "Adjoint residual norm = " << res_norm << endl;
-   adj->SetFromTrueDofs(*adj_true);
+   // // check that adjoint residual is small
+   // std::unique_ptr<GridFunType> adj_res(new GridFunType(fes.get()));
+   // double res_norm = 0;
+   // HypreParVector *adj_res_true = adj_res->GetTrueDofs();
+   // jac_trans->Mult(*adj_true, *adj_res_true);
+   // *adj_res_true -= *dJdu_true;
+   // double loc_norm = (*adj_res_true) * (*adj_res_true);
+   // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   // res_norm = sqrt(res_norm);
+   // *out << "Adjoint residual norm = " << res_norm << endl;
+   // adj->SetFromTrueDofs(*adj_true);
 
-   time_end = MPI_Wtime();
-   *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+   // time_end = MPI_Wtime();
+   // *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
 }
 
 unique_ptr<Solver> AbstractSolver::constructLinearSolver(
@@ -1897,11 +1898,9 @@ void AbstractSolver::createOutput(const std::string &fun)
 void AbstractSolver::createOutput(const std::string &fun,
                                   const nlohmann::json &options)
 {
-   if (output.count(fun) == 0)
+   if (outputs.count(fun) == 0)
    {
-      output.emplace(fun, fes.get());
-      fun_integrators.emplace(fun, std::vector<MachIntegrator>());
-      addOutputIntegrators(fun, options);
+      addOutputs(fun, options);
    }
    else
    {
@@ -1909,28 +1908,32 @@ void AbstractSolver::createOutput(const std::string &fun,
    }
 }
 
-double AbstractSolver::calcOutput(const ParGridFunction &state,
-                                  const std::string &fun)
+void AbstractSolver::setOutputOptions(const std::string &fun,
+                                      const nlohmann::json &options)
 {
-   if (fractional_output.find(fun) != fractional_output.end())
-   {
-      return calcFractionalOutput(state, fun);
-   }
-
    try
    {
-      if (output.find(fun) == output.end())
+      auto output = outputs.find(fun);
+      if (output == outputs.end())
       {
-         //*out << "Did not find " << fun << " in output map?" << endl;
          throw MachException("Did not find " + fun + " in output map?");
       }
-      return output.at(fun).GetEnergy(state);
+      mach::setOptions(output->second, options);
    }
    catch (const std::out_of_range &exception)
    {
       std::cerr << exception.what() << endl;
-      return -1.0;
    }
+}
+
+double AbstractSolver::calcOutput(const ParGridFunction &state,
+                                  const std::string &fun)
+{
+   HypreParVector state_true(fes.get());
+   state.GetTrueDofs(state_true);
+
+   MachInputs inputs{{"state", state_true.GetData()}};
+   return calcOutput(fun, inputs);
 }
 
 double AbstractSolver::calcOutput(const std::string &fun,
@@ -1938,15 +1941,13 @@ double AbstractSolver::calcOutput(const std::string &fun,
 {
    try
    {
-      if (output.find(fun) == output.end())
+      auto output = outputs.find(fun);
+      if (output == outputs.end())
       {
          throw MachException("Did not find " + fun + " in output map?");
       }
-      auto &integrators = fun_integrators.at(fun);
-      setInputs(integrators, inputs);
-
-      auto &state = res_fields.at("state");
-      return output.at(fun).GetEnergy(state);
+      mach::setInputs(output->second, inputs);
+      return mach::calcOutput(output->second, inputs);
    }
    catch (const std::out_of_range &exception)
    {
@@ -1959,7 +1960,23 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
                                        const MachInputs &inputs,
                                        double &partial)
-{ }
+{
+   try
+   {
+      auto output = outputs.find(of);
+      if (output == outputs.end())
+      {
+         throw MachException("Did not find " + of + " in output map?");
+      }
+      double part = mach::calcOutputPartial(output->second, wrt, inputs);
+      partial += part;
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << endl;
+      partial = std::nan("");
+   }
+}
 
 void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
@@ -1980,21 +1997,18 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const MachInputs &inputs,
                                        HypreParVector &partial)
 {
-   auto &integrators = fun_integrators.at(of);
-   setInputs(integrators, inputs);
-
-   if (wrt == "state")
+   try
    {
-      HypreParVector state(fes->GetComm(),
-                           fes->GlobalTrueVSize(),
-                           inputs.at("state").getField(),
-                           fes->GetTrueDofOffsets());
-      output.at(of).Mult(state, partial);
+      auto output = outputs.find(of);
+      if (output == outputs.end())
+      {
+         throw MachException("Did not find " + of + " in output map?");
+      }
+      mach::calcOutputPartial(output->second, wrt, inputs, partial);
    }
-   else
+   catch (const std::out_of_range &exception)
    {
-      output_sens.at(of).at(wrt).Assemble();
-      output_sens.at(of).at(wrt).ParallelAssemble(partial);
+      std::cerr << exception.what() << endl;
    }
 }
 
@@ -2128,86 +2142,6 @@ void AbstractSolver::checkJacobian(void (*pert_fun)(const mfem::Vector &,
    jac_v -= res_plus;
    double error = calcInnerProduct(jac_v, jac_v);
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
-}
-
-mfem::Vector *AbstractSolver::getMeshSensitivities()
-{
-   throw MachException(
-       "AbstractSolver::getMeshSensitivities\n"
-       "\tnot implemented yet!");
-}
-
-// HypreParVector* AbstractSolver::vectorJacobianProduct(std::string field,
-//                                                       ParGridFunction &seed)
-// {
-//    res_sens_integ.emplace(field, res_fields.at(field).ParFESpace());
-//    addResFieldSensIntegrators(field, seed);
-//    return res_sens_integ.at(field).ParallelAssemble();
-// }
-
-// /// TODO: do something for compound functionals
-// HypreParVector* AbstractSolver::calcFunctionalGradient(std::string fun,
-//                                                        std::string field)
-// {
-//    func_sens_integ.at(fun).emplace(field,
-//                                  func_fields.at(fun).at(field)->ParFESpace());
-//    addFuncFieldSensIntegrators(fun, field);
-//    return func_sens_integ.at(fun).at(field).ParallelAssemble();
-// }
-
-void AbstractSolver::setInputs(std::vector<MachIntegrator> &integrators,
-                               const MachInputs &inputs)
-{
-   for (const auto &input : inputs)
-   {
-      setInput(integrators, input.first, input.second);
-   }
-}
-
-void AbstractSolver::setInput(std::vector<MachIntegrator> &integrators,
-                              const std::string &name,
-                              const MachInput &input)
-{
-   if (input.isField())
-   {
-      auto &field = res_fields.at(name);
-      field.GetTrueVector().SetDataAndSize(input.getField(),
-                                           field.ParFESpace()->GetTrueVSize());
-      field.SetFromTrueVector();
-   }
-   else if (input.isValue())
-   {
-      mach::setScalarInput(integrators, name, input);
-   }
-}
-
-// void AbstractSolver::setResidualInput(std::string name,
-//                                       ParGridFunction &field)
-// {
-//    res_fields.at(name).SetData(field.GetData());
-// }
-
-// void AbstractSolver::setResidualInput(std::string name,
-//                                       double *field)
-// {
-//    res_fields.at(name).SetData(field);
-// }
-
-// void AbstractSolver::setFunctionalInput(std::string fun,
-//                                         std::string name,
-//                                         ParGridFunction &field)
-// {
-//    func_fields.at(fun).at(name) = &field;
-// }
-
-double AbstractSolver::calcFractionalOutput(const ParGridFunction &state,
-                                            const std::string &fun)
-{
-   /// the first element in fractional_output is the numerator
-   double val = output.at(fractional_output.at(fun)[0]).GetEnergy(state);
-   val /= output.at(fractional_output.at(fun)[1]).GetEnergy(state);
-
-   return val;
 }
 
 }  // namespace mach

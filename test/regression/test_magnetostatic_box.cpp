@@ -143,7 +143,6 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             // std::cout << "\n\nl2 error in B: " << l2_error << "\n\n\n";
             // REQUIRE(l2_error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
-            // Compute co-energy and check against target
             solver->createOutput("energy");
             double energy = solver->calcOutput("energy", inputs);
             std::cout.precision(10);

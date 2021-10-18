@@ -2584,17 +2584,12 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
-void setInput(DCLossFunctionalIntegrator &integ,
-              const std::string &name,
-              const MachInput &input)
+void setInputs(DCLossFunctionalIntegrator &integ, const MachInputs &inputs)
 {
-   if (name == "current_density")
+   auto it = inputs.find("current_density");
+   if (it != inputs.end())
    {
-      integ.current_density = input.getValue();
-   }
-   else if (name == "fill-factor")
-   {
-      integ.fill_factor = input.getValue();
+      integ.current_density = it->second.getValue();
    }
 }
 
@@ -2651,34 +2646,37 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       }
       const double sigma_val = sigma.Eval(trans, ip);
       const double loss = current2 / sigma_val;
-      fun += loss * fill_factor * w;
+      fun += loss * w;
    }
    return fun;
 }
 
-void setInput(ACLossFunctionalIntegrator &integ,
-              const std::string &name,
-              const MachInput &input)
+void setInputs(ACLossFunctionalIntegrator &integ, const MachInputs &inputs)
 {
-   if (name == "strand_radius")
+   auto it = inputs.find("strand_radius");
+   if (it != inputs.end())
    {
-      integ.radius = input.getValue();
+      integ.radius = it->second.getValue();
    }
-   else if (name == "frequency")
+   it = inputs.find("frequency");
+   if (it != inputs.end())
    {
-      integ.freq = input.getValue();
+      integ.freq = it->second.getValue();
    }
-   else if (name == "effective_length")
+   it = inputs.find("effective_length");
+   if (it != inputs.end())
    {
-      integ.effective_length = input.getValue();
+      integ.effective_length = it->second.getValue();
    }
-   else if (name == "num_strands")
+   it = inputs.find("num_strands");
+   if (it != inputs.end())
    {
-      integ.num_strands = input.getValue();
+      integ.num_strands = it->second.getValue();
    }
-   else if (name == "slot_area")
+   it = inputs.find("slot_area");
+   if (it != inputs.end())
    {
-      integ.slot_area = input.getValue();
+      integ.slot_area = it->second.getValue();
    }
 }
 
@@ -2758,21 +2756,23 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
    return fun;
 }
 
-void setInput(HybridACLossFunctionalIntegrator &integ,
-              const std::string &name,
-              const MachInput &input)
+void setInputs(HybridACLossFunctionalIntegrator &integ,
+               const MachInputs &inputs)
 {
-   if (name == "diam")
+   auto it = inputs.find("diam");
+   if (it != inputs.end())
    {
-      integ.diam = input.getValue();
+      integ.diam = it->second.getValue();
    }
-   else if (name == "frequency")
+   it = inputs.find("frequency");
+   if (it != inputs.end())
    {
-      integ.freq = input.getValue();
+      integ.freq = it->second.getValue();
    }
-   else if (name == "fill-factor")
+   it = inputs.find("fill-factor");
+   if (it != inputs.end())
    {
-      integ.fill_factor = input.getValue();
+      integ.fill_factor = it->second.getValue();
    }
 }
 

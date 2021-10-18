@@ -108,8 +108,8 @@ protected:
 
    void addEntVolumeIntegrators() override;
 
-   void addOutputIntegrators(const std::string &fun,
-                             const nlohmann::json &options) override;
+   void addOutputs(const std::string &fun,
+                   const nlohmann::json &options) override;
    /// Return the number of state variables
    int getNumState() override { return dim + 2; }
 
