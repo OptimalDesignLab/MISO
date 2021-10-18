@@ -858,9 +858,8 @@ private:
 class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   friend void setInput(ACLossFunctionalIntegrator &integ,
-                        const std::string &name,
-                        const MachInput &input);
+   friend void setInputs(ACLossFunctionalIntegrator &integ,
+                         const MachInputs &inputs);
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach

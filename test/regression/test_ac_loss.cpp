@@ -42,12 +42,12 @@ TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
    double Ipk = 125 * sqrt(2);
    
    std::unique_ptr<mfem::Mesh> mesh( new mfem::Mesh(
-      // mfem::Mesh::MakeCartesian3D(32, 64, 1,
-      //                             Element::TETRAHEDRON,
-      //                             b, h, 0.001, true)));
-      mfem::Mesh::MakeCartesian2D(16, 32,
-                                  Element::TRIANGLE, true,
-                                  b, h, true)));
+      mfem::Mesh::MakeCartesian3D(32, 64, 1,
+                                  Element::TETRAHEDRON,
+                                  b, h, 0.001, true)));
+      // mfem::Mesh::MakeCartesian2D(16, 32,
+      //                             Element::TRIANGLE, true,
+      //                             b, h, true)));
 
    auto solver = createSolver<MagnetostaticSolver>(options, std::move(mesh));
    auto em_solver = dynamic_cast<MagnetostaticSolver*>(solver.get());

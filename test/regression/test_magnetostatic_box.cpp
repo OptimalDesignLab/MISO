@@ -220,12 +220,12 @@ unique_ptr<Mesh> buildMesh(int nxy, int nz)
 {
    // generate a simple tet mesh
    std::unique_ptr<Mesh> mesh(
-      // new Mesh(Mesh::MakeCartesian3D(nxy, nxy, nz,
-      //                                Element::TETRAHEDRON,
-      //                                1.0, 1.0, (double)nz / (double)nxy, true)));
-      new Mesh(Mesh::MakeCartesian2D(nxy, nxy,
-                                     Element::TRIANGLE, true,
-                                     1.0, 1.0, true)));
+      new Mesh(Mesh::MakeCartesian3D(nxy, nxy, nz,
+                                     Element::TETRAHEDRON,
+                                     1.0, 1.0, (double)nz / (double)nxy, true)));
+      // new Mesh(Mesh::MakeCartesian2D(nxy, nxy,
+      //                                Element::TRIANGLE, true,
+      //                                1.0, 1.0, true)));
 
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh->GetNE(); ++i)
