@@ -7,11 +7,40 @@
 #include <algorithm>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
 
 namespace mach
 {
+/// Default implementation of setInputs for a NonlinearFormIntegrator that does
+/// nothing but allows each child class of NonlinearFormIntegrator to be a
+/// `MachIntegrator`
+inline void setInputs(mfem::NonlinearFormIntegrator &integ,
+                      const MachInputs &inputs)
+{ }
+
+/// Default implementation of setInputs for a LinearFormIntegrator that does
+/// nothing but allows each child class of LinearFormIntegrator to be a
+/// `MachIntegrator`
+inline void setInputs(mfem::LinearFormIntegrator &integ,
+                      const MachInputs &inputs)
+{ }
+
+/// Default implementation of setOptions for a NonlinearFormIntegrator that does
+/// nothing but allows each child class of NonlinearFormIntegrator to be a
+/// `MachIntegrator`
+inline void setOptions(mfem::NonlinearFormIntegrator &integ,
+                       const nlohmann::json &options)
+{ }
+
+/// Default implementation of setOptions for a LinearFormIntegrator that does
+/// nothing but allows each child class of LinearFormIntegrator to be a
+/// `MachIntegrator`
+inline void setOptions(mfem::LinearFormIntegrator &integ,
+                       const nlohmann::json &options)
+{ }
+
 /// Creates common interface for integrators used by mach
 /// A MachIntegrator can wrap any type `T` that has a function
 /// `setInput(T &, const std::string &, const MachInput &)` defined.
@@ -29,6 +58,7 @@ class MachIntegrator
 {
 public:
    friend void setInputs(MachIntegrator &integ, const MachInputs &inputs);
+   friend void setOptions(MachIntegrator &integ, const nlohmann::json &options);
 
    template <typename T>
    MachIntegrator(T &x) : self_(new model<T>(x))
@@ -53,10 +83,11 @@ private:
       virtual ~concept_t() = default;
       virtual concept_t *copy_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) const = 0;
+      virtual void setOptions_(const nlohmann::json &options) const = 0;
    };
 
    template <typename T>
-   class model : public concept_t
+   class model final : public concept_t
    {
    public:
       model(T &x) : integ(x) { }
@@ -64,6 +95,10 @@ private:
       void setInputs_(const MachInputs &inputs) const override
       {
          setInputs(integ, inputs);
+      }
+      void setOptions_(const nlohmann::json &options) const override
+      {
+         setOptions(integ, options);
       }
 
       T &integ;
@@ -79,19 +114,12 @@ void setInputs(std::vector<MachIntegrator> &integrators,
 /// Used to set inputs in the underlying integrator
 void setInputs(MachIntegrator &integ, const MachInputs &inputs);
 
-/// Default implementation of setInput for a NonlinearFormIntegrator that does
-/// nothing but allows each child class of NonlinearFormIntegrator to be a
-/// `MachIntegrator`
-inline void setInputs(mfem::NonlinearFormIntegrator &integ,
-                      const MachInputs &inputs)
-{ }
+/// Used to set options in several integrators
+void setOptions(std::vector<MachIntegrator> &integrators,
+                const nlohmann::json &options);
 
-/// Default implementation of setInput for a LinearFormIntegrator that does
-/// nothing but allows each child class of LinearFormIntegrator to be a
-/// `MachIntegrator`
-inline void setInputs(mfem::LinearFormIntegrator &integ,
-                      const MachInputs &inputs)
-{ }
+/// Used to set options in the underlying integrator
+void setOptions(MachIntegrator &integ, const nlohmann::json &options);
 
 /// Function meant to be specialized to allow sensitivity integrators
 /// to be associated with the forward version of the integrator

@@ -2,6 +2,7 @@
 #define MACH_CURRENT_LOAD
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "div_free_projector.hpp"
 #include "mach_input.hpp"
@@ -18,6 +19,8 @@ public:
    /// Ends up calling `setInputs` on either the `MachLinearForm` or
    /// a specialized version for each particular load.
    friend void setInputs(CurrentLoad &load, const MachInputs &inputs);
+
+   friend void setOptions(CurrentLoad &load, const nlohmann::json &options);
 
    /// Assemble the load vector on the true dofs and store in tv
    friend void addLoad(CurrentLoad &load, mfem::Vector &tv);

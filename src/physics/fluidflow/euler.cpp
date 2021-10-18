@@ -230,8 +230,8 @@ void EulerSolver<dim, entvar>::terminalHook(int iter,
 }
 
 template <int dim, bool entvar>
-void EulerSolver<dim, entvar>::addOutputs(const std::string &fun,
-                                          const nlohmann::json &options)
+void EulerSolver<dim, entvar>::addOutput(const std::string &fun,
+                                         const nlohmann::json &options)
 {
    if (fun == "drag")
    {

@@ -80,8 +80,8 @@ public:
    { }
 
 private:
-   void addOutputs(const std::string &fun,
-                   const nlohmann::json &options) override
+   void addOutput(const std::string &fun,
+                  const nlohmann::json &options) override
    {
       if (fun == "testMachInput")
       {
