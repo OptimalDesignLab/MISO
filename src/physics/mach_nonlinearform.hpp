@@ -31,7 +31,7 @@ public:
    /// Compute Jacobian of `form` with respect to `wrt` and return in `jacobian`
    friend void getJacobian(MachNonlinearForm &form,
                            const MachInputs &inputs,
-                           std::string wrt, 
+                           std::string wrt,
                            mfem::Operator &jacobian);
 
    /// Compute Jacobian of `form` with respect to `wrt` and return

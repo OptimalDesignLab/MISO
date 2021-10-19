@@ -49,13 +49,13 @@ public:
                         mfem::Vector &res_vec);
 
    /// Compute the Jacobian of the given residual at the value of `inputs`
-   /// \param[inout] residual - function whose Jacobian we want 
-   /// \param[in] inputs - the variables needed to evaluate the Jacobian 
-   /// \param[in] wrt - the input we are differentiating with respect to 
+   /// \param[inout] residual - function whose Jacobian we want
+   /// \param[in] inputs - the variables needed to evaluate the Jacobian
+   /// \param[in] wrt - the input we are differentiating with respect to
    /// \param[inout] jacobian - the Jacobian of `residual` with respect to `wrt`
    friend void getJacobian(MachResidual &residual,
                            const MachInputs &inputs,
-                           std::string wrt, 
+                           std::string wrt,
                            mfem::Operator &jacobian);
 
    friend mfem::Operator &getJacobian(MachResidual &residual,
@@ -80,7 +80,8 @@ private:
       virtual void setInputs_(const MachInputs &inputs) = 0;
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
-      virtual void getJac_(const MachInputs &inputs, std::string wrt,
+      virtual void getJac_(const MachInputs &inputs,
+                           std::string wrt,
                            mfem::Operator &jac) = 0;
       virtual mfem::Operator &getJac_(const MachInputs &inputs,
                                       std::string wrt) = 0;
@@ -93,10 +94,7 @@ private:
    {
    public:
       model(T x) : data_(std::move(x)) { }
-      int getSize_() const override 
-      {
-         return getSize(data_);
-      }
+      int getSize_() const override { return getSize(data_); }
       void setInputs_(const MachInputs &inputs) override
       {
          setInputs(data_, inputs);
@@ -109,8 +107,9 @@ private:
       {
          evaluate(data_, inputs, res_vec);
       }
-      void getJac_(const MachInputs &inputs, std::string wrt,
-                   mfem::Operator &jac) override 
+      void getJac_(const MachInputs &inputs,
+                   std::string wrt,
+                   mfem::Operator &jac) override
       {
          getJacobian(data_, inputs, wrt, jac);
       }
@@ -157,11 +156,11 @@ inline void evaluate(MachResidual &residual,
 
 inline void getJacobian(MachResidual &residual,
                         const MachInputs &inputs,
-                        std::string wrt, 
+                        std::string wrt,
                         mfem::Operator &jacobian)
 {
-   // passes `inputs` and `res_vec` on to the `getJacobian` function for the 
-   // concrete residual type 
+   // passes `inputs` and `res_vec` on to the `getJacobian` function for the
+   // concrete residual type
    residual.self_->getJac_(inputs, wrt, jacobian);
 }
 
@@ -169,8 +168,8 @@ inline mfem::Operator &getJacobian(MachResidual &residual,
                                    const MachInputs &inputs,
                                    std::string wrt)
 {
-   // passes `inputs` and `res_vec` on to the `getJacobian` function for the 
-   // concrete residual type 
+   // passes `inputs` and `res_vec` on to the `getJacobian` function for the
+   // concrete residual type
    return residual.self_->getJac_(inputs, wrt);
 }
 

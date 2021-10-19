@@ -2735,5 +2735,4 @@ mfem::Operator &getJacobian(MagnetostaticResidual &residual,
    std::cout << "Tucker, you need to define this." << std::endl;
 }
 
-
 }  // namespace mach

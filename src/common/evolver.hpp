@@ -5,35 +5,43 @@
 #include "mfem.hpp"
 
 #include "inexact_newton.hpp"
-#include "mach_load.hpp" /// should be able to remove this eventually
+#include "mach_load.hpp"  /// should be able to remove this eventually
 #include "mach_residual.hpp"
 #include "mach_types.hpp"
 
 namespace mach
 {
-
 /// Wraps a MachResidual so that it can be used by MFEM's Newton solver, e.g.
-/// \note This is the operator provided to Newton's method for the nonlinear 
+/// \note This is the operator provided to Newton's method for the nonlinear
 /// equations that arise from implicit time-marching schemes
 class ODESystemOperator final : public mfem::Operator
 {
 public:
    /// Construct the operator from the given mass form and residual
    /// \param[in] residual - defines the dynamics of the ODE
-   /// \note The `evaluate` method for `residual` must compute the space-time 
-   /// residual when provided the inputs for the "state" and "dxdt".  
-   ODESystemOperator(MachResidual &residual) 
-   : Operator(getSize(residual)), res(residual), jac(nullptr), dt(0.0),
-      x(nullptr), x_work(width) {}
+   /// \note The `evaluate` method for `residual` must compute the space-time
+   /// residual when provided the inputs for the "state" and "dxdt".
+   ODESystemOperator(MachResidual &residual)
+    : Operator(getSize(residual)),
+      res(residual),
+      jac(nullptr),
+      dt(0.0),
+      x(nullptr),
+      x_work(width)
+   { }
 
-   ODESystemOperator(const ODESystemOperator&) = delete;
-   ODESystemOperator & operator=(const ODESystemOperator&) = delete;
+   ODESystemOperator(const ODESystemOperator &) = delete;
+   ODESystemOperator &operator=(const ODESystemOperator &) = delete;
    ~ODESystemOperator() = default;
 
    /// Set current dt and x values - needed to compute action and Jacobian.
    /// \param[in] _dt - the step used to define where dynamics are evaluated
    /// \param[in] _x - current state
-   void setParameters(double _dt, const mfem::Vector *_x) { dt = _dt; x = _x; }
+   void setParameters(double _dt, const mfem::Vector *_x)
+   {
+      dt = _dt;
+      x = _x;
+   }
 
    /// Compute r = M@k + R(x + dt*k,t) (with `@` being a mat-vec)
    /// \param[in] k - dx/dt
@@ -43,7 +51,7 @@ public:
    void Mult(const mfem::Vector &k, mfem::Vector &r) const override;
 
    /// Compute J = M + dt * grad(R(x + dt*k, t))
-   /// \param[in] k - dx/dt 
+   /// \param[in] k - dx/dt
    /// \returns the Jacobian of the system operator
    /// \note the provided `res` must compute all of the Jacobian
    mfem::Operator &GetGradient(const mfem::Vector &k) const override;
@@ -53,9 +61,9 @@ private:
    MachResidual &res;
    /// Jacobian of the combined system
    mfem::Operator *jac;
-   /// Current time step size 
+   /// Current time step size
    double dt;
-   /// Pointer to the solution at the previous time step 
+   /// Pointer to the solution at the previous time step
    const mfem::Vector *x;
    /// work array for the state
    mutable mfem::Vector x_work;
