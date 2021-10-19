@@ -58,6 +58,10 @@ public:
                            std::string wrt, 
                            mfem::Operator &jacobian);
 
+   friend mfem::Operator &getJacobian(MachResidual &residual,
+                                      const MachInputs &inputs,
+                                      std::string wrt);
+
    // TODO: we will eventual want to add functions for Jacobian products
 
    // The following constructors, assignment operators, and destructors allow
@@ -78,6 +82,8 @@ private:
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
       virtual void getJac_(const MachInputs &inputs, std::string wrt,
                            mfem::Operator &jac) = 0;
+      virtual mfem::Operator &getJac_(const MachInputs &inputs,
+                                      std::string wrt) = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -107,6 +113,11 @@ private:
                    mfem::Operator &jac) override 
       {
          getJacobian(data_, inputs, wrt, jac);
+      }
+      mfem::Operator &getJac_(const MachInputs &inputs,
+                              std::string wrt) override
+      {
+         return getJacobian(data_, inputs, wrt);
       }
 
       T data_;
@@ -152,6 +163,15 @@ inline void getJacobian(MachResidual &residual,
    // passes `inputs` and `res_vec` on to the `getJacobian` function for the 
    // concrete residual type 
    residual.self_->getJac_(inputs, wrt, jacobian);
+}
+
+inline mfem::Operator &getJacobian(MachResidual &residual,
+                                   const MachInputs &inputs,
+                                   std::string wrt)
+{
+   // passes `inputs` and `res_vec` on to the `getJacobian` function for the 
+   // concrete residual type 
+   return residual.self_->getJac_(inputs, wrt);
 }
 
 }  // namespace mach

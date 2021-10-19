@@ -59,4 +59,13 @@ void getJacobian(MachNonlinearForm &form,
    jacobian = form.nf.GetGradient(state);
 }
 
+mfem::Operator &getJacobian(MachNonlinearForm &form,
+                            const MachInputs &inputs,
+                            std::string wrt)
+{
+   auto pfes = form.nf.ParFESpace();
+   auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);
+   return form.nf.GetGradient(state);
+}
+
 }  // namespace mach

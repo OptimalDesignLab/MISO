@@ -69,6 +69,10 @@ public:
                            std::string wrt,
                            mfem::Operator &jacobian);
 
+   friend mfem::Operator &getJacobian(MagnetostaticResidual &residual,
+                                      const MachInputs &inputs,
+                                      std::string wrt);
+
    MagnetostaticResidual(
        mfem::ParFiniteElementSpace &pfes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields,
