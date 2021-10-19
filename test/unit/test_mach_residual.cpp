@@ -23,10 +23,10 @@ public:
       const mfem::FiniteElement &el,
       mfem::ElementTransformation &trans,
       const mfem::Vector &elfun,
-      mfem::Vector &elvect)
+      mfem::Vector &elvect) override
    {
       const mfem::IntegrationRule *ir = IntRule;
-      if (ir == NULL)
+      if (ir == nullptr)
       {
          const int order = 2*el.GetOrder() - 2;
          ir = &mfem::IntRules.Get(el.GetGeomType(), order);

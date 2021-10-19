@@ -2725,14 +2725,14 @@ void getJacobian(MagnetostaticResidual &residual,
                  std::string wrt,
                  mfem::Operator &jacobian)
 {
-   std::cout << "Tucker, you need to define this." << std::endl;
+   getJacobian(residual.nlf, inputs, std::move(wrt), jacobian);
 }
 
 mfem::Operator &getJacobian(MagnetostaticResidual &residual,
                             const MachInputs &inputs,
                             std::string wrt)
 {
-   std::cout << "Tucker, you need to define this." << std::endl;
+   return getJacobian(residual.nlf, inputs, std::move(wrt));
 }
 
 }  // namespace mach

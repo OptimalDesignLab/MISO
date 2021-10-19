@@ -161,7 +161,7 @@ inline void getJacobian(MachResidual &residual,
 {
    // passes `inputs` and `res_vec` on to the `getJacobian` function for the
    // concrete residual type
-   residual.self_->getJac_(inputs, wrt, jacobian);
+   residual.self_->getJac_(inputs, std::move(wrt), jacobian);
 }
 
 inline mfem::Operator &getJacobian(MachResidual &residual,
@@ -170,7 +170,7 @@ inline mfem::Operator &getJacobian(MachResidual &residual,
 {
    // passes `inputs` and `res_vec` on to the `getJacobian` function for the
    // concrete residual type
-   return residual.self_->getJac_(inputs, wrt);
+   return residual.self_->getJac_(inputs, std::move(wrt));
 }
 
 }  // namespace mach

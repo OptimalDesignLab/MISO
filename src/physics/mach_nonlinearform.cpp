@@ -44,7 +44,7 @@ void evaluate(MachNonlinearForm &form,
               const MachInputs &inputs,
               mfem::Vector &res_vec)
 {
-   auto pfes = form.nf.ParFESpace();
+   auto *pfes = form.nf.ParFESpace();
    auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);
    form.nf.Mult(state, res_vec);
 }
@@ -54,7 +54,7 @@ void getJacobian(MachNonlinearForm &form,
                  std::string wrt,
                  mfem::Operator &jacobian)
 {
-   auto pfes = form.nf.ParFESpace();
+   auto *pfes = form.nf.ParFESpace();
    auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);
    jacobian = form.nf.GetGradient(state);
 }
@@ -63,7 +63,7 @@ mfem::Operator &getJacobian(MachNonlinearForm &form,
                             const MachInputs &inputs,
                             std::string wrt)
 {
-   auto pfes = form.nf.ParFESpace();
+   auto *pfes = form.nf.ParFESpace();
    auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);
    return form.nf.GetGradient(state);
 }
