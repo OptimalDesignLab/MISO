@@ -23,16 +23,12 @@ public:
    /// residual when provided the inputs for the "state" and "dxdt".
    ODESystemOperator(MachResidual &residual)
     : Operator(getSize(residual)),
-      res(residual),
+      res(&residual),
       jac(nullptr),
       dt(0.0),
       x(nullptr),
       x_work(width)
    { }
-
-   ODESystemOperator(const ODESystemOperator &) = delete;
-   ODESystemOperator &operator=(const ODESystemOperator &) = delete;
-   ~ODESystemOperator() = default;
 
    /// Set current dt and x values - needed to compute action and Jacobian.
    /// \param[in] _dt - the step used to define where dynamics are evaluated
@@ -58,7 +54,7 @@ public:
 
 private:
    /// Defines the ODE, both the mass matrix and dynamics
-   MachResidual &res;
+   MachResidual *res;
    /// Jacobian of the combined system
    mfem::Operator *jac;
    /// Current time step size
