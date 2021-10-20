@@ -42,12 +42,6 @@ public:
    template <typename T>
    MachOutput(T x) : self_(new model<T>(std::move(x)))
    { }
-   MachOutput(const MachOutput &) = delete;
-   MachOutput &operator=(const MachOutput &) = delete;
-   MachOutput(MachOutput &&) noexcept = default;
-   MachOutput &operator=(MachOutput &&) noexcept = default;
-
-   ~MachOutput() = default;
 
 private:
    class concept_t

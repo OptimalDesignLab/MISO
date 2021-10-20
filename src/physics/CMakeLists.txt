@@ -7,6 +7,8 @@ target_sources(mach
       mach_integrator.cpp
       mach_integrator.hpp
       mach_load.hpp
+      mach_nonlinearform.cpp
+      mach_nonlinearform.hpp
       #mass_operator.cpp
       #mass_operator.hpp
       mfem_common_integ.cpp

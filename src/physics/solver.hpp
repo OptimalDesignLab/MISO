@@ -13,6 +13,7 @@
 #include "mach_integrator.hpp"
 #include "mach_input.hpp"
 #include "mach_output.hpp"
+#include "mach_residual.hpp"
 #include "mach_types.hpp"
 #include "utils.hpp"
 
@@ -705,6 +706,8 @@ protected:
    std::unique_ptr<BilinearFormType> mass;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
+   /// the spatial residual /* only for demonstration */
+   std::unique_ptr<MachResidual> new_res;
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
    /// the load vector linear form
@@ -843,8 +846,7 @@ protected:
    virtual int getNumState() = 0;
 
    /// Add functional `fun` based on options
-   virtual void addOutputs(const std::string &fun,
-                           const nlohmann::json &options)
+   virtual void addOutput(const std::string &fun, const nlohmann::json &options)
    { }
 
    /// Solve for the steady state problem using newton method

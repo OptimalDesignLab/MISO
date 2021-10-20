@@ -5,11 +5,63 @@
 #include "mfem.hpp"
 
 #include "inexact_newton.hpp"
-#include "mach_load.hpp"
+#include "mach_load.hpp"  /// should be able to remove this eventually
+#include "mach_residual.hpp"
 #include "mach_types.hpp"
 
 namespace mach
 {
+/// Wraps a MachResidual so that it can be used by MFEM's Newton solver, e.g.
+/// \note This is the operator provided to Newton's method for the nonlinear
+/// equations that arise from implicit time-marching schemes
+class ODESystemOperator final : public mfem::Operator
+{
+public:
+   /// Construct the operator from the given mass form and residual
+   /// \param[in] residual - defines the dynamics of the ODE
+   /// \note The `evaluate` method for `residual` must compute the space-time
+   /// residual when provided the inputs for the "state" and "dxdt".
+   ODESystemOperator(MachResidual &residual)
+    : Operator(getSize(residual)),
+      res(&residual),
+      dt(0.0),
+      x(nullptr),
+      x_work(width)
+   { }
+
+   /// Set current dt and x values - needed to compute action and Jacobian.
+   /// \param[in] _dt - the step used to define where dynamics are evaluated
+   /// \param[in] _x - current state
+   void setParameters(double _dt, const mfem::Vector *_x)
+   {
+      dt = _dt;
+      x = _x;
+   }
+
+   /// Compute r = M@k + R(x + dt*k,t) (with `@` being a mat-vec)
+   /// \param[in] k - dx/dt
+   /// \param[out] r - the residual vector
+   /// \note the signs on each operator must be accounted for elsewhere
+   /// \note the provided `res` must compute all of `r`
+   void Mult(const mfem::Vector &k, mfem::Vector &r) const override;
+
+   /// Compute J = M + dt * grad(R(x + dt*k, t))
+   /// \param[in] k - dx/dt
+   /// \returns the Jacobian of the system operator
+   /// \note the provided `res` must compute all of the Jacobian
+   mfem::Operator &GetGradient(const mfem::Vector &k) const override;
+
+private:
+   /// Defines the ODE, both the mass matrix and dynamics
+   MachResidual *res;
+   /// Current time step size
+   double dt;
+   /// Pointer to the solution at the previous time step
+   const mfem::Vector *x;
+   /// work array for the state
+   mutable mfem::Vector x_work;
+};
+
 /// For systems that are equipped with a non-increasing entropy function
 class EntropyConstrainedOperator : public mfem::TimeDependentOperator
 {
@@ -87,7 +139,7 @@ public:
 
    /// Solve the implicit equation: k = f(x + dt k, t), for the unknown k at
    /// the current time t.
-   /// Currently implemented for the implicit midpoit method
+   /// Currently implemented for the implicit midpoint method
    void ImplicitSolve(double dt,
                       const mfem::Vector &x,
                       mfem::Vector &k) override;

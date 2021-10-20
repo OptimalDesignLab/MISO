@@ -31,6 +31,8 @@ void setInputs(CurrentLoad &load, const MachInputs &inputs)
    }
 }
 
+void setOptions(CurrentLoad &load, const nlohmann::json &options) { }
+
 void addLoad(CurrentLoad &load, Vector &tv)
 {
    if (load.dirty)
