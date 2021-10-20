@@ -26,8 +26,7 @@ Operator &ODESystemOperator::GetGradient(const mfem::Vector &k) const
    add(1.0, *x, dt, k, x_work);
    auto inputs = MachInputs(
        {{"dt", dt}, {"state", x_work.GetData()}, {"dxdt", k.GetData()}});
-   getJacobian(*res, inputs, "dxdt", *jac);
-   return *jac;
+   return getJacobian(*res, inputs, "dxdt");
 }
 
 class MachEvolver::SystemOperator : public mfem::Operator

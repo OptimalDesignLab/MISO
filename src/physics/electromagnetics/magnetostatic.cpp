@@ -2720,14 +2720,6 @@ void evaluate(MagnetostaticResidual &residual,
    addLoad(*residual.load, res_vec);
 }
 
-void getJacobian(MagnetostaticResidual &residual,
-                 const MachInputs &inputs,
-                 std::string wrt,
-                 mfem::Operator &jacobian)
-{
-   getJacobian(residual.nlf, inputs, std::move(wrt), jacobian);
-}
-
 mfem::Operator &getJacobian(MagnetostaticResidual &residual,
                             const MachInputs &inputs,
                             std::string wrt)

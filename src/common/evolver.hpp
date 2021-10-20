@@ -24,7 +24,6 @@ public:
    ODESystemOperator(MachResidual &residual)
     : Operator(getSize(residual)),
       res(&residual),
-      jac(nullptr),
       dt(0.0),
       x(nullptr),
       x_work(width)
@@ -55,8 +54,6 @@ public:
 private:
    /// Defines the ODE, both the mass matrix and dynamics
    MachResidual *res;
-   /// Jacobian of the combined system
-   mfem::Operator *jac;
    /// Current time step size
    double dt;
    /// Pointer to the solution at the previous time step

@@ -24,6 +24,7 @@ class MachResidual final
 public:
    /// Gets the number of equations/unknowns of the underlying residual type
    /// \param[inout] residual - the residual whose size is being queried
+   /// \returns the number of equations/unknowns
    /// \note Needed, e.g., by the ODESystemOperator constructor (see evolver.*)
    friend int getSize(const MachResidual &residual);
 
@@ -48,16 +49,12 @@ public:
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
 
-   /// Compute the Jacobian of the given residual at the value of `inputs`
+   /// Compute the Jacobian of the given residual and return a reference to it
    /// \param[inout] residual - function whose Jacobian we want
    /// \param[in] inputs - the variables needed to evaluate the Jacobian
    /// \param[in] wrt - the input we are differentiating with respect to
-   /// \param[inout] jacobian - the Jacobian of `residual` with respect to `wrt`
-   friend void getJacobian(MachResidual &residual,
-                           const MachInputs &inputs,
-                           std::string wrt,
-                           mfem::Operator &jacobian);
-
+   /// \returns a reference to the residuals Jacobian with respect to `wrt`
+   /// \note the underlying `Operator` is owned by `residual`
    friend mfem::Operator &getJacobian(MachResidual &residual,
                                       const MachInputs &inputs,
                                       std::string wrt);
@@ -80,9 +77,6 @@ private:
       virtual void setInputs_(const MachInputs &inputs) = 0;
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
-      virtual void getJac_(const MachInputs &inputs,
-                           std::string wrt,
-                           mfem::Operator &jac) = 0;
       virtual mfem::Operator &getJac_(const MachInputs &inputs,
                                       std::string wrt) = 0;
    };
@@ -107,16 +101,10 @@ private:
       {
          evaluate(data_, inputs, res_vec);
       }
-      void getJac_(const MachInputs &inputs,
-                   std::string wrt,
-                   mfem::Operator &jac) override
-      {
-         getJacobian(data_, inputs, wrt, jac);
-      }
       mfem::Operator &getJac_(const MachInputs &inputs,
                               std::string wrt) override
       {
-         return getJacobian(data_, inputs, wrt);
+         return getJacobian(data_, inputs, std::move(wrt));
       }
 
       T data_;
@@ -152,16 +140,6 @@ inline void evaluate(MachResidual &residual,
    // passes `inputs` and `res_vec` on to the `evaluate` function for the
    // concrete residual type
    residual.self_->eval_(inputs, res_vec);
-}
-
-inline void getJacobian(MachResidual &residual,
-                        const MachInputs &inputs,
-                        std::string wrt,
-                        mfem::Operator &jacobian)
-{
-   // passes `inputs` and `res_vec` on to the `getJacobian` function for the
-   // concrete residual type
-   residual.self_->getJac_(inputs, std::move(wrt), jacobian);
 }
 
 inline mfem::Operator &getJacobian(MachResidual &residual,

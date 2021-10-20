@@ -64,11 +64,6 @@ public:
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
 
-   friend void getJacobian(MagnetostaticResidual &residual,
-                           const MachInputs &inputs,
-                           std::string wrt,
-                           mfem::Operator &jacobian);
-
    friend mfem::Operator &getJacobian(MagnetostaticResidual &residual,
                                       const MachInputs &inputs,
                                       std::string wrt);

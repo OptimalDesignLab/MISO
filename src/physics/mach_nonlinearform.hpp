@@ -28,12 +28,6 @@ public:
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
 
-   /// Compute Jacobian of `form` with respect to `wrt` and return in `jacobian`
-   friend void getJacobian(MachNonlinearForm &form,
-                           const MachInputs &inputs,
-                           std::string wrt,
-                           mfem::Operator &jacobian);
-
    /// Compute Jacobian of `form` with respect to `wrt` and return
    friend mfem::Operator &getJacobian(MachNonlinearForm &form,
                                       const MachInputs &inputs,
