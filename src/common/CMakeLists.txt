@@ -1,5 +1,7 @@
 target_sources(mach
    PRIVATE
+      abstract_solver.cpp 
+      abstract_solver.hpp
       coefficient.cpp
       coefficient.hpp
       common.hpp
