@@ -43,18 +43,18 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    // cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
    double delta_entropy = f_ode->EntropyChange(dt / 2, x, k);
    // double delta_entropy = f_ode->EntropyChange(dt, x, k);
-   *out << "delta_entropy is " << delta_entropy << '\n';
+   out << "delta_entropy is " << delta_entropy << '\n';
    double entropy_old = f_ode->Entropy(x);
-   *out << "old entropy is " << entropy_old << '\n';
+   out << "old entropy is " << entropy_old << '\n';
    mfem::Vector x_new(x.Size());
    // cout << "x_new size is " << x_new.Size() << '\n';
    auto entropyFun = [&](double gamma)
    {
-      *out << "In lambda function: " << std::setprecision(14);
+      out << "In lambda function: " << std::setprecision(14);
       add(x, gamma * dt, k, x_new);
       double entropy = f_ode->Entropy(x_new);
-      *out << "gamma = " << gamma << ": ";
-      *out << "residual = "
+      out << "gamma = " << gamma << ": ";
+      out << "residual = "
            << entropy - entropy_old + gamma * dt * delta_entropy << endl;
       // cout << "new entropy is " << entropy << '\n';
       return entropy - entropy_old + gamma * dt * delta_entropy;
@@ -65,7 +65,7 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    const int maxiter = 30;
    // double gamma = bisection(entropyFun, 0.50, 1.5, ftol, xtol, maxiter);
    double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
-   *out << "\tgamma = " << gamma << endl;
+   out << "\tgamma = " << gamma << endl;
    x.Add(gamma * dt, k);
    t += gamma * dt;
 }
@@ -73,13 +73,13 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
 unique_ptr<Solver> constructPreconditioner(nlohmann::json &options,
                                            MPI_Comm comm)
 {
-   std::string prec_type = options["type"].get<std::string>();
+   string prec_type = options["type"].get<string>();
    unique_ptr<Solver> precond;
    if (prec_type == "hypreeuclid")
    {
       precond.reset(new HypreEuclid(comm));
       // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
-      std::cout << "WARNING! Euclid fill level is hard-coded"
+      cout << "WARNING! Euclid fill level is hard-coded"
            << "(see AbstractSolver::constructLinearSolver() for details)"
            << endl;
       // int fill = options["lin-solver"]["filllevel"].get<int>();
@@ -103,10 +103,14 @@ unique_ptr<Solver> constructPreconditioner(nlohmann::json &options,
    }
    else if (prec_type == "hypreams")
    {
-      precond.reset(new HypreAMS(fes.get()));
-      auto *ams = dynamic_cast<HypreAMS *>(precond.get());
-      ams->SetPrintLevel(options["printlevel"].get<int>());
-      ams->SetSingularProblem();
+      // Once HypreAMS construction is added where needed in derived class(es)
+      // this else if statement should be removed
+      throw MachException(
+         "HypreAMS construction needs to happen in derived class.\n");
+      //precond.reset(new HypreAMS(fes.get()));
+      //auto *ams = dynamic_cast<HypreAMS *>(precond.get());
+      //ams->SetPrintLevel(options["printlevel"].get<int>());
+      //ams->SetSingularProblem();
    }
    else if (prec_type == "hypreboomeramg")
    {
@@ -116,7 +120,7 @@ unique_ptr<Solver> constructPreconditioner(nlohmann::json &options,
    }
    else if (prec_type == "blockilu")
    {
-      precond.reset(new BlockILU(getNumState()));
+      precond.reset(new BlockILU(options["block-size"].get<int>()));
    }
    else
    {
@@ -133,7 +137,7 @@ unique_ptr<Solver> constructLinearSolver(nlohmann::json &options,
                                          mfem::Solver &_prec,
                                          MPI_Comm comm)
 {
-   std::string solver_type = options["type"].get<std::string>();
+   string solver_type = options["type"].get<string>();
    auto reltol = options["reltol"].get<double>();
    int maxiter = options["maxiter"].get<int>();
    int ptl = options["printlevel"].get<int>();
@@ -220,7 +224,7 @@ unique_ptr<NewtonSolver> constructNonlinearSolver(nlohmann::json &options,
                                                   mfem::Solver &_lin_solver,
                                                   MPI_Comm comm)
 {
-   std::string solver_type = options["type"].get<std::string>();
+   string solver_type = options["type"].get<string>();
    auto abstol = options["abstol"].get<double>();
    auto reltol = options["reltol"].get<double>();
    int maxiter = options["maxiter"].get<int>();
@@ -260,9 +264,10 @@ unique_ptr<NewtonSolver> constructNonlinearSolver(nlohmann::json &options,
    return nonlin_solver;
 }
 
-unique_ptr<ODESolver> constructODESolver(nlohmann::json &options)
+unique_ptr<ODESolver> constructODESolver(nlohmann::json &options,
+                                         ostream &out_stream)
 {
-   std::string ode_solver_type = options["type"].get<std::string>();
+   string ode_solver_type = options["type"].get<string>();
    unique_ptr<ODESolver> ode_solver;
    if (ode_solver_type == "RK1")
    {
@@ -278,11 +283,11 @@ unique_ptr<ODESolver> constructODESolver(nlohmann::json &options)
    }
    else if (ode_solver_type == "RRK")
    {
-      ode_solver.reset(new RRKImplicitMidpointSolver());
+      ode_solver.reset(new RRKImplicitMidpointSolver(out_stream));
    }
    else if (ode_solver_type == "PTC")
    {
-      ode_solver.reset(new PseudoTransientSolver());
+      ode_solver.reset(new PseudoTransientSolver(out_stream));
    }
    else
    {

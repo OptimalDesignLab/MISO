@@ -1,12 +1,14 @@
 #ifndef MACH_ABSTRACT_SOLVER
 #define MACH_ABSTRACT_SOLVER
 
+#include "adept.h"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
 #include "mach_output.hpp"
 #include "mach_residual.hpp"
+#include "default_options.hpp"
 
 namespace mach
 {
@@ -18,14 +20,17 @@ class AbstractSolver2 : public mfem::TimeDependentOperator
 public:
 
    /// Base Class constructor
-   /// \param[in] options - pre-loaded JSON options object
+   /// \param[in] options_given - pre-loaded JSON options object
    /// \param[in] incomm - MPI communicator for parallelized problems
-   AbstractSolver2(const nlohmann::json &options,
+   AbstractSolver2(const nlohmann::json &options_given,
                    MPI_Comm incomm = MPI_COMM_WORLD);
 
    /// Execute set-up steps that are specific to the derived class.
    /// \note Use this to define the problem specific residual `res`.
    virtual void initDerived() = 0;
+
+   /// Throws if `TimeDependentOperator` fields are not set by the DerivedClass
+   void checkOperatorFields() const;
 
    /// explicitly prohibit copy/move construction
    AbstractSolver2(const AbstractSolver2 &) = delete;
@@ -41,8 +46,17 @@ public:
 
    /// Solve for the state based on the residual `res` and `options`
    /// \param[in] inputs - scalars and fields that the `res` may depend on 
-   /// \param[out] state - the solution to the governing equation
+   /// \param[inout] state - the solution to the governing equation
+   /// \note On input, `state` should hold the initial condition
    virtual void solveForState(const MachInputs &inputs, mfem::Vector &state);
+
+   /// Compute `k = dxdt = M^-1 R(x,t)` for explicit methods
+   /// \param[in] x - state at which to evaluate the dynamics/residual 
+   /// \param[out] k - inverse mass matrix acting on the residual
+   /// \note This base class version assumes the mass matrix is the identity; 
+   /// therefore, this should be overridden for derived classes that have mass 
+   /// matrices.
+   void Mult(const mfem::Vector &x, mfem::Vector &k) const override;
 
 /* 
    /// Creates the nonlinear form for the functional
@@ -109,11 +123,6 @@ public:
                           mfem::HypreParVector &partial);
  */
 
-   /// Compute `k = dxdt = M^-1(R(x,t) + Kx + l)` for explicit methods
-   /// \param[in] x - state at which to evaluate the dynamics/residual 
-   /// \param[out] k - inverse mass matrix acting on the residual
-   void Mult(const mfem::Vector &x, mfem::Vector &k) const override;
-
 protected:
    /// communicator used by MPI group for communication
    MPI_Comm comm;
@@ -140,7 +149,7 @@ protected:
 
    /// Returns the size of the state vector (locally)
    /// \todo Should we have a local and Global version of this?
-   int getNumState() { return getSize(*res); }
+   int getNumState() const { return width; }
 
    /// Add functional `fun` based on options
    virtual void addOutput(const std::string &fun, const nlohmann::json &options)
@@ -173,7 +182,7 @@ protected:
                                double t,
                                double t_final,
                                double dt_old,
-                               const mfem::ParGridFunction &state) const;
+                               const mfem::Vector &state) const;
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration
@@ -196,12 +205,7 @@ protected:
                              double t_final,
                              const mfem::Vector &state) { }
 
-private:
-   /// Used to do the bulk of the initialization shared between constructors
-   /// \param[in] options - pre-loaded JSON options object
-   /// \param[in] comm - MPI communicator to use for parallel operations
-   void initBase(const nlohmann::json &file_options, MPI_Comm comm);
-}
+};
 
 /// \todo Change this to `SolverPtr` eventually 
 using SolverPtr2 = std::unique_ptr<AbstractSolver2>;
@@ -212,10 +216,11 @@ using SolverPtr2 = std::unique_ptr<AbstractSolver2>;
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr2 createSolver(const nlohmann::json &json_options,
-                       MPI_Comm comm = MPI_COMM_WORLD)
+                        MPI_Comm comm = MPI_COMM_WORLD)
 {
-   SolverPtr solver(new DerivedSolver(json_options, comm));
+   SolverPtr2 solver(new DerivedSolver(json_options, comm));
    solver->initDerived();
+   solver->checkOperatorFields();
    return solver;
 }
 
@@ -230,8 +235,9 @@ SolverPtr2 createSolver(const nlohmann::json &json_options,
                        MPI_Comm comm = MPI_COMM_WORLD)
 {
    // auto solver = std::make_unique<DerivedSolver>(opt_file_name, move(smesh));
-   SolverPtr solver(new DerivedSolver(json_options, move(smesh), comm));
+   SolverPtr2 solver(new DerivedSolver(json_options, move(smesh), comm));
    solver->initDerived();
+   solver->checkOperatorFields();
    return solver;
 }
 
@@ -242,12 +248,13 @@ SolverPtr2 createSolver(const nlohmann::json &json_options,
 /// \tparam DerivedSolver - a derived class of `AbstractSolver`
 template <class DerivedSolver>
 SolverPtr2 createSolver(const std::string &opt_file_name,
-                       std::unique_ptr<mfem::Mesh> smesh,
-                       MPI_Comm comm = MPI_COMM_WORLD)
+                        std::unique_ptr<mfem::Mesh> smesh,
+                        MPI_Comm comm = MPI_COMM_WORLD)
 {
    nlohmann::json json_options;
    std::ifstream options_file(opt_file_name);
    options_file >> json_options;
+   options_file.close();
    return createSolver<DerivedSolver>(json_options, move(smesh), comm);
 }
 

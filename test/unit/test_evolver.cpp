@@ -105,7 +105,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    };
 
    std::unique_ptr<TimeDependentOperator> ode(new ExponentialODE());
-   std::unique_ptr<ODESolver> solver(new mach::RRKImplicitMidpointSolver(out));
+   std::unique_ptr<ODESolver> solver(new mach::RRKImplicitMidpointSolver(*out));
    solver->Init(*ode);
 
    double t_final = 5.0;

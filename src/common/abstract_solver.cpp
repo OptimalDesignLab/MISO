@@ -1,24 +1,24 @@
-#include "solver.hpp"
+#include "abstract_solver.hpp"
+#include "utils.hpp"
+#include "mfem_extensions.hpp"
 
 using namespace std;
 using namespace mfem;
 
+
 namespace mach
 {
-adept::Stack AbstractSolver::diff_stack;
+adept::Stack AbstractSolver2::diff_stack;
 
-// Note: the following constructor is protected
-AbstractSolver2::AbstractSolver2(const string &opt_file_name, MPI_Comm incomm)
+AbstractSolver2::AbstractSolver2(const nlohmann::json &options_given,
+                                 MPI_Comm incomm)
 {
    // Set the options; the defaults are overwritten by the values in the file
    // using the merge_patch method
-   nlohmann::json file_options;
-   ifstream options_file(opt_file_name);
-   options_file >> file_options;
    options = default_options;
-   options.merge_patch(file_options);
+   options.merge_patch(options_given);
    // display options, unless "silent" is true
-   bool silent = options.value("silent", false);
+   bool silent = !options.value("print-options", false);
    out = getOutStream(rank, silent);
    *out << setw(3) << options << endl;
 
@@ -29,16 +29,24 @@ AbstractSolver2::AbstractSolver2(const string &opt_file_name, MPI_Comm incomm)
 
    // construct various solvers and preconditioners
    prec = constructPreconditioner(options["lin-prec"], comm);
-   solver = constructLinearSolver(options["lin-solver"], *prec, comm);
-   newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver, 
+   linear_solver = constructLinearSolver(options["lin-solver"], *prec, comm);
+   newton_solver = constructNonlinearSolver(options["nonlin-solver"], 
+                                            *linear_solver, 
                                             comm);
-   ode_solver = constructODESolver(options["time-dis"]);
+   ode_solver = constructODESolver(options["time-dis"], *out);
 }
 
 AbstractSolver2::~AbstractSolver2()
 {
    *out << "Deleting Abstract Solver..." << endl;
    MPI_Comm_free(&comm);
+}
+
+void AbstractSolver2::Mult(const mfem::Vector &x, mfem::Vector &k) const
+{
+   auto inputs = MachInputs({{"state", x.GetData()}});
+   evaluate(*res, inputs, k);
+   k *= -1.0; 
 }
 
 void AbstractSolver2::solveForState(const MachInputs &inputs,
@@ -63,7 +71,6 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       *out << endl;
       iterationHook(ti, t, dt, state);
       ode_solver->Step(state, t, dt);
-
       if (iterationExit(ti, t, t_final, dt, state)) break;
    }
    terminalHook(ti, t, state);
@@ -87,6 +94,16 @@ bool AbstractSolver2::iterationExit(int iter,
                                    const Vector &state) const
 {
    return t >= t_final - 1e-14 * dt;
+}
+
+void AbstractSolver2::checkOperatorFields() const
+{
+   if (height <= 0 || width <= 0 || height != width)
+   {
+      *out << "height = " << height << endl;
+      *out << "width  = " << width << endl;
+      throw MachException("height and/or width fields of Solver are invalid");
+   }
 }
 
 } // namespace mach

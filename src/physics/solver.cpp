@@ -133,11 +133,11 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    }
    else if (options["time-dis"]["ode-solver"].get<string>() == "RRK")
    {
-      ode_solver.reset(new RRKImplicitMidpointSolver(out));
+      ode_solver.reset(new RRKImplicitMidpointSolver(*out));
    }
    else if (options["time-dis"]["ode-solver"].template get<string>() == "PTC")
    {
-      ode_solver.reset(new PseudoTransientSolver(out));
+      ode_solver.reset(new PseudoTransientSolver(*out));
    }
    else
    {

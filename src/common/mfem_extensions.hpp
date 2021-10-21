@@ -10,7 +10,7 @@ namespace mach
 class PseudoTransientSolver : public mfem::ODESolver
 {
 public:
-   PseudoTransientSolver(std::ostream *out_stream) : out(out_stream) { }
+   PseudoTransientSolver(std::ostream &out_stream) : out(out_stream) { }
 
    void Init(mfem::TimeDependentOperator &_f) override;
 
@@ -18,14 +18,14 @@ public:
 
 protected:
    mfem::Vector k;
-   std::ostream *out;
+   std::ostream &out;
 };
 
 /// Relaxation version of implicit midpoint method
 class RRKImplicitMidpointSolver : public mfem::ODESolver
 {
 public:
-   RRKImplicitMidpointSolver(std::ostream *out_stream) : out(out_stream) { }
+   RRKImplicitMidpointSolver(std::ostream &out_stream) : out(out_stream) { }
 
    void Init(mfem::TimeDependentOperator &_f) override;
 
@@ -33,7 +33,7 @@ public:
 
 protected:
    mfem::Vector k;
-   std::ostream *out;
+   std::ostream &out;
 };
 
 /// Construct a preconditioner based on the given options
@@ -63,8 +63,10 @@ std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
 
 /// Construct an `ODESolver` object based on the given options
 /// \param[in] options - options structure that determines ODE solver
+/// \param[in] out_stream - output stream used by some ODE solvers 
 /// \returns unique pointer to the `ODESolver` object
-std::unique_ptr<mfem::ODESolver> constructODESolver(nlohmann::json &options);
+std::unique_ptr<mfem::ODESolver> constructODESolver(nlohmann::json &options,
+                                                    std::ostream &out_stream);
 
 }  // namespace mach
 
