@@ -21,6 +21,7 @@ void u_const(const mfem::Vector &x, mfem::Vector &u);
 void u_linear(const mfem::Vector  &x, mfem::Vector &u);
 void u_poly(const mfem::Vector &x, mfem::Vector &u);
 void u_exact(const mfem::Vector &x, mfem::Vector &u);
+void u_exact_unsteady(const mfem::Vector &x, mfem::Vector &u);
 void u_const_single(const mfem::Vector &x, mfem::Vector &u);
 
 /// Generate quarter annulus mesh 
@@ -68,7 +69,12 @@ int main(int argc, char *argv[])
    {
 		// construct the mesh
 		int degree = o+1;
-      unique_ptr<Mesh> mesh(new Mesh(buildQuarterAnnulusMesh(degree, nx, ny)));
+      //unique_ptr<Mesh> mesh(new Mesh(buildQuarterAnnulusMesh(degree, nx, ny)));
+		unique_ptr<Mesh> mesh(new Mesh("periodic_triangle1.mesh",1,1));
+		for (int l = 0; l < 6; l++)
+      {
+         mesh->UniformRefinement();
+      }
 		int dim = mesh->Dimension();
 		int nel = mesh->GetNE();
 
@@ -185,6 +191,13 @@ int main(int argc, char *argv[])
 			x_cent.ProjectCoefficient(u0_fun);
 			x = 0.0;
 		}
+		else if(4 == p)
+		{
+			mfem::VectorFunctionCoefficient u0_fun(dim+2, u_exact_unsteady);
+			x_exact.ProjectCoefficient(u0_fun);
+			x_cent.ProjectCoefficient(u0_fun);
+			x = 0.0;
+		}
 
 		if (pr == myid)
 		{
@@ -224,12 +237,15 @@ int main(int argc, char *argv[])
 		// 7. compute the differences
 		x.Add(-1.0, x_exact);
 		double loc_norm = x.Norml2();
+		double loc_norm_inf = x.Normlinf();
 		double norm;
+		double norminf;
 		MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
+		MPI_Allreduce(&loc_norm_inf, &norminf, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 		if ( 0 == myid)
 		{
-			cout << "The projection norm is " << norm << '\n';
+			cout << "The projection norm is " << norm << endl;
+			cout << "The inf norm is " << norminf << endl;
 		}
 
 		// 8. save the result
@@ -307,6 +323,44 @@ void u_exact(const mfem::Vector &x, mfem::Vector &q)
    else
    {
       calcEntropyVars<double, 2>(u.GetData(), q.GetData());
+   }
+}
+
+void u_exact_unsteady(const Vector &x, Vector& q)
+{
+   q.SetSize(4);
+   Vector u0(4);
+   double t = 0.0; // this could be an input...
+   double x0 = 0.5;
+   double y0 = 0.5;
+   // scale is used to reduce the size of the vortex; need to scale the
+   // velocity and pressure carefully to account for this
+   double scale = 15.0;
+   double xi = (x(0) - x0)*scale - t;
+   double eta = (x(1) - y0)*scale;
+   double M = 0.5;
+   double epsilon = 1.0;
+   double f = 1.0 - (xi*xi + eta*eta);
+   // density
+   u0(0) = pow(1.0 - epsilon*epsilon*euler::gami*M*M*exp(f)/(8*M_PI*M_PI),
+               1.0/euler::gami);
+   // x velocity
+   u0(1) = 1.0 - epsilon*eta*exp(f*0.5)/(2*M_PI);
+   u0(1) *= scale*u0(0);
+   // y velocity
+   u0(2) = epsilon*xi*exp(f*0.5)/(2*M_PI);
+   u0(2) *= scale*u0(0);
+   // pressure, used to get the energy
+   double press = pow(u0(0), euler::gamma)/(euler::gamma*M*M);
+   press *= scale*scale;
+   u0(3) = press/euler::gami + 0.5*(u0(1)*u0(1) + u0(2)*u0(2))/u0(0);
+   if (entvar == false)
+   {
+      q = u0;
+   }
+   else
+   {
+      calcEntropyVars<double, 2>(u0.GetData(), q.GetData());
    }
 }
 

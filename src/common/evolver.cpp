@@ -403,8 +403,8 @@ NonlinearEvolver::NonlinearEvolver(BilinearFormType *m, NonlinearFormType *r, do
    mass_solver.reset(new CGSolver(res->ParFESpace()->GetComm()));
    mass_solver->SetOperator(*mass_matrix);
    mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
-   mass_solver->SetRelTol(1e-9);
-   mass_solver->SetAbsTol(0.0);
+   mass_solver->SetRelTol(1e-12);
+   mass_solver->SetAbsTol(1e-24);
    mass_solver->SetMaxIter(100);
    mass_solver->SetPrintLevel(0);
 }

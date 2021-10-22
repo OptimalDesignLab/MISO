@@ -169,7 +169,7 @@ void AbstractSolver::initDerived()
    }
    else if (basis_type == "dsbp" || galerkin_diff)
    {
-      fec.reset(new DSBPCollection(fe_order, dim));
+      fec.reset(new DSBPCollection(fe_order+1, dim));
    }
    else if (basis_type == "nedelec")
    {
@@ -1835,6 +1835,7 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
          *out << endl;
       }
       iterationHook(ti, t, dt, state);
+      dt = min(dt, t_final - t);
       ode_solver->Step(state, t, dt);
       //std::cout << "after step, res norm is " << calcResidualNorm() << "\n";
       // fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
@@ -1847,6 +1848,7 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
 
       if (iterationExit(ti, t, t_final, dt, state)) break;
    }
+   *out << "final time is " << t << '\n';
    HypreParVector *temp = u_gd->GetTrueDofs();
    temp->Print("u_restart");
    fes_gd->GetProlongationMatrix()->Mult(*u_gd, state_full);
