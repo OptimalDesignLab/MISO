@@ -357,20 +357,20 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
    }
 }
 
-void MachEvolver::ImplicitSolve(const double dt_stage,
-                                const double dt,
-                                const Vector &x,
-                                Vector &k)
-{
-   setOperParameters(dt, &x, dt_stage);
-   Vector zero;  // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   k = 0.0;      // In case iterative mode is set to true
-   newton->Mult(zero, k);
-   if (abort_on_no_converge)
-   {
-      MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
-   }
-}
+// void MachEvolver::ImplicitSolve(const double dt_stage,
+//                                 const double dt,
+//                                 const Vector &x,
+//                                 Vector &k)
+// {
+//    setOperParameters(dt, &x, dt_stage);
+//    Vector zero;  // empty vector is interpreted as zero r.h.s. by
+//    NewtonSolver k = 0.0;      // In case iterative mode is set to true
+//    newton->Mult(zero, k);
+//    if (abort_on_no_converge)
+//    {
+//       MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+//    }
+// }
 
 void MachEvolver::SetLinearSolver(Solver *_linsolver)
 {

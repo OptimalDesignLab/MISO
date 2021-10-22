@@ -92,16 +92,16 @@ public:
 
    using mfem::TimeDependentOperator::ImplicitSolve;
 
-   /// Variant of `mfem::ImplicitSolve` for entropy constrained systems
-   /// \param[in] dt_stage - the full step size
-   /// \param[in] dt - a partial step, `dt` < `dt_stage`.
-   /// \param[in] x - baseline state
-   /// \param[out] k - the desired slope
-   /// \note This may need to be generalized further
-   virtual void ImplicitSolve(double dt_stage,
-                              double dt,
-                              const mfem::Vector &x,
-                              mfem::Vector &k) = 0;
+   // /// Variant of `mfem::ImplicitSolve` for entropy constrained systems
+   // /// \param[in] dt_stage - the full step size
+   // /// \param[in] dt - a partial step, `dt` < `dt_stage`.
+   // /// \param[in] x - baseline state
+   // /// \param[out] k - the desired slope
+   // /// \note This may need to be generalized further
+   // virtual void ImplicitSolve(double dt_stage,
+   //                            double dt,
+   //                            const mfem::Vector &x,
+   //                            mfem::Vector &k) = 0;
 };
 
 /// Class that can handle implicit or explicit time marching of linear or
@@ -146,16 +146,16 @@ public:
                       const mfem::Vector &x,
                       mfem::Vector &k) override;
 
-   /// Variant of `mfem::ImplicitSolve` for entropy constrained systems
-   /// \param[in] dt_stage - the full step size
-   /// \param[in] dt - a partial step, `dt` < `dt_stage`.
-   /// \param[in] x - baseline state
-   /// \param[out] k - the desired slope
-   /// \note This may need to be generalized further
-   void ImplicitSolve(double dt_stage,
-                      double dt,
-                      const mfem::Vector &x,
-                      mfem::Vector &k) override;
+   // /// Variant of `mfem::ImplicitSolve` for entropy constrained systems
+   // /// \param[in] dt_stage - the full step size
+   // /// \param[in] dt - a partial step, `dt` < `dt_stage`.
+   // /// \param[in] x - baseline state
+   // /// \param[out] k - the desired slope
+   // /// \note This may need to be generalized further
+   // void ImplicitSolve(double dt_stage,
+   //                    double dt,
+   //                    const mfem::Vector &x,
+   //                    mfem::Vector &k) override;
 
    /// Set the linear solver to be used for implicit methods
    /// \param[in] linsolver - pointer to configured linear solver (not owned)

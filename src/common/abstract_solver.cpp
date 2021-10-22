@@ -4,9 +4,11 @@
 
 namespace mach
 {
-AbstractSolver2::AbstractSolver2(const nlohmann::json &solver_options, MPI_Comm incomm)
+AbstractSolver2::AbstractSolver2(const nlohmann::json &solver_options,
+                                 MPI_Comm incomm)
 {
-   /// Set the options; the defaults are overwritten by the values in the file using the merge_patch method
+   /// Set the options; the defaults are overwritten by the values in the file
+   /// using the merge_patch method
    options = default_options;
    options.merge_patch(solver_options);
 
@@ -14,11 +16,12 @@ AbstractSolver2::AbstractSolver2(const nlohmann::json &solver_options, MPI_Comm 
    MPI_Comm_rank(comm, &rank);
 }
 
-void AbstractSolver2::solveForState(const MachInputs &inputs, mfem::Vector &state)
+void AbstractSolver2::solveForState(const MachInputs &inputs,
+                                    mfem::Vector &state)
 {
    auto ode_opts = options["time-dis"];
 
-   double t = 0.0; // this should probably be based on an option
+   double t = 0.0;  // this should probably be based on an option
    auto t_final = ode_opts["t-final"].get<double>();
    std::cout << "t_final is " << t_final << '\n';
    int ti = 0;
@@ -52,12 +55,12 @@ double AbstractSolver2::calcStepSize(int iter,
 }
 
 bool AbstractSolver2::iterationExit(int iter,
-                                   double t,
-                                   double t_final,
-                                   double dt,
-                                   const mfem::Vector &state) const
+                                    double t,
+                                    double t_final,
+                                    double dt,
+                                    const mfem::Vector &state) const
 {
    return t >= t_final - 1e-14 * dt;
 }
 
-} // namespace mach
+}  // namespace mach

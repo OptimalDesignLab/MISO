@@ -36,7 +36,7 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    auto *f_ode = dynamic_cast<EntropyConstrainedOperator *>(f);
    f_ode->SetTime(t + dt / 2);
    k.SetSize(x.Size(), mem_type);
-   f_ode->ImplicitSolve(dt, dt / 2, x, k);
+   f_ode->ImplicitSolve(dt / 2, x, k);
 
    // Set-up and solve the scalar nonlinear problem for the relaxation gamma
    // cout << "x size is " << x.Size() << '\n';

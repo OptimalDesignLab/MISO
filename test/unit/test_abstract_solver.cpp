@@ -13,68 +13,50 @@
 class ExpODEResidual final
 {
 public:
-   ExpODEResidual() : Jac(2) {}
+   ExpODEResidual() : Jac(2), work(2) {}
+
    friend int getSize(const ExpODEResidual &residual) { return 2; }
-   friend void setInputs(ExpODEResidual &residual,
-                         const mach::MachInputs &inputs)
-   {
-      auto it = inputs.find("state");
-      if (it != inputs.end())
-      {
-         residual.state.SetDataAndSize(it->second.getField(),
-                                       getSize(residual));
-      }
-      it = inputs.find("state_dot");
-      if (it != inputs.end())
-      {
-         residual.state_dot.SetDataAndSize(it->second.getField(),
-                                           getSize(residual));
-      }
-      it = inputs.find("dt");
-      if (it != inputs.end())
-      {
-         residual.dt = it->second.getValue();
-      }
-      it = inputs.find("time");
-      if (it != inputs.end())
-      {
-         residual.time = it->second.getValue();
-      }
-   }
-   friend void setOptions(ExpODEResidual &residual,
-                          const nlohmann::json &options) {}
+
    friend void evaluate(ExpODEResidual &residual,
                         const mach::MachInputs &inputs,
                         mfem::Vector &res_vec)
    {
-      mfem::Vector &x = residual.state;
-      // mfem::Vector &x_dot = residual.state_dot;
-      mfem::Vector x_dot(inputs.at("state").getField(), getSize(residual));
-      double dt = residual.dt;
+      mfem::Vector x(inputs.at("state").getField(), 2);
       res_vec.SetSize(2);
-      res_vec(0) = x_dot(0) + exp(x(1) + dt * x_dot(1));
-      res_vec(1) = x_dot(1) - exp(x(0) + dt * x_dot(0));
+      res_vec(0) = exp(x(1));
+      res_vec(1) = -exp(x(0));
    }
    friend mfem::Operator &getJacobian(ExpODEResidual &residual,
                                       const mach::MachInputs &inputs,
                                       std::string wrt)
    {
-      mfem::Vector &x = residual.state;
-      // mfem::Vector &x_dot = residual.state_dot;
-      mfem::Vector x_dot(inputs.at("state").getField(), getSize(residual));
-      double dt = residual.dt;
-      residual.Jac(0,0) = 1.0;
-      residual.Jac(0,1) = dt*exp(x(1) + dt * x_dot(1));
-      residual.Jac(1,0) = -dt*exp(x(0) + dt * x_dot(0));
-      residual.Jac(1,1) = 1.0;
+      mfem::Vector x(inputs.at("state").getField(), 2);
+      residual.Jac(0,0) = 0.0;
+      residual.Jac(0,1) = exp(x(1));
+      residual.Jac(1,0) = -exp(x(0));
+      residual.Jac(1,1) = 0.0;
       return residual.Jac;
    }
+   friend double calcEntropy(ExpODEResidual &residual,
+                             const mach::MachInputs &inputs)
+   {
+      mfem::Vector x(inputs.at("state").getField(), 2);
+      return exp(x(0)) + exp(x(1));
+   }
+   friend double calcEntropyChange(ExpODEResidual &residual,
+                                   const mach::MachInputs &inputs)
+   {
+      mfem::Vector x(inputs.at("state").getField(), 2);
+      mfem::Vector x_dot(inputs.at("state_dot").getField(), 2);
+      double dt = inputs.at("dt").getValue();
+      mfem::Vector &y = residual.work;
+      add(x, dt, x_dot, y);
+      // should be zero 
+      return exp(y(0))*exp(y(1)) - exp(y(1))*exp(y(0)); 
+   }
 private:
-   double dt;
-   double time;
-   mfem::Vector state;
-   mfem::Vector state_dot;
    mfem::DenseMatrix Jac;
+   mfem::Vector work; 
 };
 
 /// Solver that uses `ExpODEResidual` to define its dynamics
@@ -84,7 +66,8 @@ public:
    ExponentialODESolver(const nlohmann::json &solver_options, MPI_Comm comm)
       : AbstractSolver2(solver_options, comm)
    {
-      res = std::make_unique<mach::MachResidual>(ExpODEResidual());
+      // res = std::make_unique<mach::MachResidual>(ExpODEResidual());
+      res = std::make_unique<mach::MachResidual>(mach::TimeDependentResidual(ExpODEResidual()));
 
       auto lin_solver_opts = options["lin-solver"];
       auto nonlin_solver_opts = options["nonlin-solver"];
@@ -117,7 +100,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RK4",
          "dt": 0.05
       },
       "lin-solver": {
-         "type": "gmres",
+         "type": "pcg",
          "reltol": 1e-14,
          "abstol": 0.0,
          "printlevel": -1,

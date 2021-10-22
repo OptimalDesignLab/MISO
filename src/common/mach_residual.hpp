@@ -5,9 +5,32 @@
 #include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
+#include "utils.hpp"
 
 namespace mach
 {
+template <typename T>
+void setInputs(T &, const MachInputs &)
+{ }
+
+template <typename T>
+void setOptions(T &, const nlohmann::json &)
+{ }
+
+template <typename T>
+double calcEntropy(T &, const MachInputs &)
+{
+   throw MachException(
+       "calcEntropy not specialized for concrete residual type!\n");
+}
+
+template <typename T>
+double calcEntropyChange(T &, const MachInputs &)
+{
+   throw MachException(
+       "calcEntropyChange not specialized for concrete residual type!\n");
+}
+
 /// Defines a common interface for residual functions used by mach.
 /// A MachResidual can wrap any type `T` that has the interface of a residual
 /// function.  For example, one instance of `T` is given by `MachNonlinearForm`,
@@ -59,6 +82,22 @@ public:
                                       const MachInputs &inputs,
                                       std::string wrt);
 
+   /// Evaluate the entropy functional at the given state
+   /// \param[inout] residual - function with an associated entropy
+   /// \param[in] inputs - the variables needed to evaluate the entropy
+   /// \return the entropy functional
+   /// \note optional, but must be implemented for relaxation RK
+   friend double calcEntropy(MachResidual &residual, const MachInputs &inputs);
+
+   /// Evaluate the residual weighted by the entropy variables
+   /// \param[inout] residual - function with an associated entropy
+   /// \param[in] inputs - the variables needed to evaluate the entropy
+   /// \return the product `w^T res`
+   /// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
+   /// `t+dt` \note optional, but must be implemented for relaxation RK
+   friend double calcEntropyChange(MachResidual &residual,
+                                   const MachInputs &inputs);
+
    /// We need to support these overrides so that the MachResidual type can be
    /// directly set as the operator for an MFEM NonlinearSolver
    void Mult(const mfem::Vector &state, mfem::Vector &res_vec) const override
@@ -95,6 +134,8 @@ private:
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
       virtual mfem::Operator &getJac_(const MachInputs &inputs,
                                       std::string wrt) = 0;
+      virtual double calcEntropy_(const MachInputs &inputs) = 0;
+      virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -121,6 +162,14 @@ private:
                               std::string wrt) override
       {
          return getJacobian(data_, inputs, std::move(wrt));
+      }
+      double calcEntropy_(const MachInputs &inputs) override
+      {
+         return calcEntropy(data_, inputs);
+      }
+      double calcEntropyChange_(const MachInputs &inputs) override
+      {
+         return calcEntropyChange(data_, inputs);
       }
 
       T data_;
@@ -165,6 +214,17 @@ inline mfem::Operator &getJacobian(MachResidual &residual,
    // passes `inputs` and `res_vec` on to the `getJacobian` function for the
    // concrete residual type
    return residual.self_->getJac_(inputs, std::move(wrt));
+}
+
+inline double calcEntropy(MachResidual &residual, const MachInputs &inputs)
+{
+   return residual.self_->calcEntropy_(inputs);
+}
+
+inline double calcEntropyChange(MachResidual &residual,
+                                const MachInputs &inputs)
+{
+   return residual.self_->calcEntropyChange_(inputs);
 }
 
 }  // namespace mach
