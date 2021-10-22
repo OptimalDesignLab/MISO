@@ -19,7 +19,7 @@ namespace mach
 /// we have pointers to base classes.
 /// \note This approach is based on the example in Sean Parent's talk:
 /// ``Inheritance is the base class of evil''
-class MachResidual final
+class MachResidual final : public mfem::Operator
 {
 public:
    /// Gets the number of equations/unknowns of the underlying residual type
@@ -59,12 +59,28 @@ public:
                                       const MachInputs &inputs,
                                       std::string wrt);
 
+   /// We need to support these overrides so that the MachResidual type can be
+   /// directly set as the operator for an MFEM NonlinearSolver
+   void Mult(const mfem::Vector &state, mfem::Vector &res_vec) const override
+   {
+      MachInputs inputs{{"state", state.GetData()}};
+      self_->eval_(inputs, res_vec);
+   }
+
+   /// We need to support these overrides so that the MachResidual type can be
+   /// directly set as the operator for an MFEM NonlinearSolver
+   mfem::Operator &GetGradient(const mfem::Vector &state) const override
+   {
+      MachInputs inputs{{"state", state.GetData()}};
+      return self_->getJac_(inputs, "state");
+   }
+
    // TODO: we will eventual want to add functions for Jacobian products
 
    // The following constructors, assignment operators, and destructors allow
    // the `MachResidual` to wrap the generic type `T`.
    template <typename T>
-   MachResidual(T x) : self_(new model<T>(std::move(x)))
+   MachResidual(T x) : Operator(getSize(x)), self_(new model<T>(std::move(x)))
    { }
 
 private:

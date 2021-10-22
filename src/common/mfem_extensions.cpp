@@ -43,19 +43,31 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    // cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
    double delta_entropy = f_ode->EntropyChange(dt / 2, x, k);
    // double delta_entropy = f_ode->EntropyChange(dt, x, k);
-   *out << "delta_entropy is " << delta_entropy << '\n';
+   if (out)
+   {
+      *out << "delta_entropy is " << delta_entropy << '\n';
+   }
    double entropy_old = f_ode->Entropy(x);
-   *out << "old entropy is " << entropy_old << '\n';
+   if (out)
+   {
+      *out << "old entropy is " << entropy_old << '\n';
+   }
    mfem::Vector x_new(x.Size());
    // cout << "x_new size is " << x_new.Size() << '\n';
    auto entropyFun = [&](double gamma)
    {
-      *out << "In lambda function: " << std::setprecision(14);
+      if (out)
+      {
+         *out << "In lambda function: " << std::setprecision(14);
+      }
       add(x, gamma * dt, k, x_new);
       double entropy = f_ode->Entropy(x_new);
-      *out << "gamma = " << gamma << ": ";
-      *out << "residual = "
-           << entropy - entropy_old + gamma * dt * delta_entropy << endl;
+      if (out)
+      {
+         *out << "gamma = " << gamma << ": ";
+         *out << "residual = "
+              << entropy - entropy_old + gamma * dt * delta_entropy << endl;
+      }
       // cout << "new entropy is " << entropy << '\n';
       return entropy - entropy_old + gamma * dt * delta_entropy;
    };
@@ -65,7 +77,10 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    const int maxiter = 30;
    // double gamma = bisection(entropyFun, 0.50, 1.5, ftol, xtol, maxiter);
    double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
-   *out << "\tgamma = " << gamma << endl;
+   if (out)
+   {
+      *out << "\tgamma = " << gamma << endl;
+   }
    x.Add(gamma * dt, k);
    t += gamma * dt;
 }

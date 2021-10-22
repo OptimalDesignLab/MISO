@@ -143,7 +143,7 @@ endif (MFEM_USE_EGADS)
 
 target_compile_features(mach
    PUBLIC
-      cxx_std_11
+      cxx_std_17
 )
 
 set_target_properties(mach
@@ -161,7 +161,7 @@ option(MACH_USE_CLANG_TIDY
 if (MACH_USE_CLANG_TIDY)
    set_target_properties(mach
       PROPERTIES
-         CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
+         CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++17"
          # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
    )
 endif (MACH_USE_CLANG_TIDY)
@@ -254,7 +254,7 @@ option(BUILD_PYTHON_WRAPPER
 if (BUILD_PYTHON_WRAPPER)
 
    # TODO: maybe don't do this? Use c++14/17 features if they're available on the compiler?
-   # set(PYBIND11_CPP_STANDARD -std=c++11)
+   # set(PYBIND11_CPP_STANDARD -std=c++17)
 
    include(FetchContent)
 
@@ -275,13 +275,13 @@ if (BUILD_PYTHON_WRAPPER)
 
    target_compile_features(pyMach
    PUBLIC
-      cxx_std_11
+      cxx_std_17
    )
 
    if (MACH_USE_CLANG_TIDY)
       set_target_properties(pyMach
          PROPERTIES
-            CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++11"
+            CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++17"
             # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
       )
    endif (MACH_USE_CLANG_TIDY)

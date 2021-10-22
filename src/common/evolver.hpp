@@ -67,9 +67,11 @@ class EntropyConstrainedOperator : public mfem::TimeDependentOperator
 {
 public:
    /// Default constructor
-   EntropyConstrainedOperator(int n,
-                              double start_time,
-                              mfem::TimeDependentOperator::Type type)
+   EntropyConstrainedOperator(
+       int n,
+       double start_time,
+       mfem::TimeDependentOperator::Type type =
+           EXPLICIT)  // mfem::TimeDependentOperator::Type::
     : TimeDependentOperator(n, start_time, type)
    { }
 
