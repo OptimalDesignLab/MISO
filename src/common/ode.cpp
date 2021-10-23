@@ -134,7 +134,8 @@ double calcEntropyChange(TimeDependentResidual &residual,
 // template <typename T>
 // TimeDependentResidual::TimeDependentResidual(T spatial_res,
 //                                              mfem::Operator *mass_matrix)
-//  : res_(std::move(spatial_res)), mass_matrix_(mass_matrix), work(getSize(res_))
+//  : res_(std::move(spatial_res)), mass_matrix_(mass_matrix),
+//  work(getSize(res_))
 // {
 //    if (mass_matrix_ == nullptr)
 //    {
@@ -206,7 +207,12 @@ void FirstOrderODE::solve(const double dt,
                      {"state_dot", du_dt.GetData()},
                      {"dt", dt},
                      {"time", t}};
-
+   /// explicit ODE solvers won't initialize du_dut, but we need it initialized
+   /// to calculate the residual
+   if (dt == 0.0)
+   {
+      du_dt = 0.0;
+   }
    setInputs(residual_, inputs);
    solver_.Mult(zero_, du_dt);
    // SLIC_WARNING_ROOT_IF(!solver_.NonlinearSolver().GetConverged(), "Newton

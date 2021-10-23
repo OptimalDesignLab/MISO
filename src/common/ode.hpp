@@ -19,10 +19,12 @@ public:
    friend void setOptions(TimeDependentResidual &residual,
                           const nlohmann::json &options);
 
+   /// Evaluates the residual `M du_dt + R(u, p, t) = 0`
    friend void evaluate(TimeDependentResidual &residual,
                         const mach::MachInputs &inputs,
                         mfem::Vector &res_vec);
 
+   /// Returns the Jacobian of the residual with respect to `du_dt`
    friend mfem::Operator &getJacobian(TimeDependentResidual &residual,
                                       const mach::MachInputs &inputs,
                                       std::string wrt);
@@ -33,20 +35,28 @@ public:
    friend double calcEntropyChange(TimeDependentResidual &residual,
                                    const MachInputs &inputs);
 
-   // template<typename T>
-   // TimeDependentResidual(T spatial_res,
-   //                       mfem::Operator *mass_matrix = nullptr);
+   /** \brief constructs a time dependent residual of the form
+            M du_dt + R(u, p, t) = 0
+
+       \param[in] spatial_res - The spatial residual, R above
+       \param[in] mass_matrix - Non-owning pointer to the optional mass matrix
+       \tparam T - The concrete type of the spatial residual
+       \note If no mass matrix is provided an IdentityOperator will be used */
    template <typename T>
    TimeDependentResidual(T spatial_res, mfem::Operator *mass_matrix = nullptr)
     : res_(std::move(spatial_res)),
       mass_matrix_(mass_matrix),
       work(getSize(res_))
    {
+      /// If no mass matrix is provided, we'll use an IdentityOperator
       if (mass_matrix_ == nullptr)
       {
          identity_ = std::make_unique<mfem::IdentityOperator>(getSize(res_));
          mass_matrix_ = identity_.get();
       }
+
+      /// Determine what type of mass matrix we're using and pre-allocate the
+      /// Jacobian
       auto *hypre_mass = dynamic_cast<mfem::HypreParMatrix *>(mass_matrix_);
       auto *iden_mass = dynamic_cast<mfem::IdentityOperator *>(mass_matrix_);
       if (hypre_mass != nullptr)
@@ -65,12 +75,12 @@ private:
    /// \brief pointer to mass matrix used for ODE integration
    mfem::Operator *mass_matrix_;
    /// \brief default mass matrix if none provided
-   std::unique_ptr<mfem::IdentityOperator> identity_;
+   std::unique_ptr<mfem::IdentityOperator> identity_ = nullptr;
    /// \brief jacobian of combined spatial and temporal residual
    std::unique_ptr<mfem::Operator> jac_ = nullptr;
 
-   double dt;
-   double time;
+   double dt = NAN;
+   double time = NAN;
    mfem::Vector state;
    mfem::Vector state_dot;
 
@@ -78,27 +88,27 @@ private:
 };
 
 class FirstOrderODE final : public EntropyConstrainedOperator
-// class FirstOrderODE final : public mfem::TimeDependentOperator
 {
 public:
    /** \brief Constructor defining the size and specific system of ordinary
-      differential equations to be solved
+       differential equations to be solved
 
-      \param[in] residual - reference to the underlying residual that defines
-                 the dynamics of the ODE
-      \param[in] ode_options - options for the construction of the ode solver
-      \param[in] solver - the solver that operates on
-                 the residual
+       \param[in] residual - reference to the underlying residual that defines
+                  the dynamics of the ODE
+       \param[in] ode_options - options for the construction of the ode solver
+       \param[in] solver - the solver that operates on
+                  the residual
 
-      Implements mfem::TimeDependentOperator::Mult and
-      mfem::TimeDependentOperator::ImplicitSolve (described in more detail here:
-      https://mfem.github.io/doxygen/html/classmfem_1_1TimeDependentOperator.html)
+       Implements mfem::TimeDependentOperator::Mult and
+       mfem::TimeDependentOperator::ImplicitSolve (described in more detail
+      here:
+       https://mfem.github.io/doxygen/html/classmfem_1_1TimeDependentOperator.html)
 
-      where
+       where
 
-      mfem::TimeDependentOperator::Mult corresponds to the case where dt is zero
-      mfem::TimeDependentOperator::ImplicitSolve corresponds to the case where
-      dt is nonzero */
+       mfem::TimeDependentOperator::Mult corresponds to the case where dt is
+       zero mfem::TimeDependentOperator::ImplicitSolve corresponds to the case
+       where dt is nonzero */
    FirstOrderODE(MachResidual &residual,
                  const nlohmann::json &ode_options,
                  const EquationSolver &solver);
@@ -113,7 +123,7 @@ public:
       ode_solver_->Step(u, time, dt);
    }
 
-   /// \brief Solves the equation du_dt = f(u, t)
+   /// \brief Solves the equation `M du_dt + R(u, p, t) = 0` for du_dt
    /// \param[in] u - the state true DOFs
    /// \param[in] du_dt - the first time derivative of u
    void Mult(const mfem::Vector &u, mfem::Vector &du_dt) const override
@@ -121,7 +131,8 @@ public:
       solve(0.0, u, du_dt);
    }
 
-   /// \brief Solves the equation du_dt = f(u + dt * du_dt, t)
+   /// \brief Solves the equation `M du_dt + R(u + dt * du_dt, p, t + dt) = 0`
+   /// for `du_dt`
    /// \param[in] dt - the time step
    /// \param[in] u - the state true DOFs
    /// \param[in] du_dt - the first time derivative of u
@@ -134,19 +145,19 @@ public:
 
    /// \brief Evaluate the entropy functional at the given state
    /// \param[in] u - the state true DOFs at which to evaluate the entropy
-   /// \returns the entropy functional
+   /// \return the entropy functional
    double Entropy(const mfem::Vector &u) override
    {
       MachInputs input{{"state", u.GetData()}};
       return calcEntropy(residual_, input);
    }
 
-   /// \brief Evaluate the residual weighted by the entropy variables
+   /// \brief Evaluate the spatial residual weighted by the entropy variables
    /// \praam[in] dt - evaluate residual at t+dt
    /// \param[in] u - previous time step state
    /// \param[in] du_dt - the first time derivative of u
-   /// \returns the product `w^T res`
-   /// \note `w` and `res` are evaluated at `u + dt*du_dt` and time `t+dt`.
+   /// \return the product `w^T R(u + dt * du_dt, p, t + dt)`
+   /// \note `w` and `R` are evaluated at `u + dt*du_dt` and time `t+dt`.
    double EntropyChange(double dt,
                         const mfem::Vector &u,
                         const mfem::Vector &du_dt) override
@@ -170,8 +181,10 @@ private:
    mfem::Vector zero_;
 
    /// \brief Internal implementation used for mfem::TDO::Mult and
-   /// mfem::TDO::ImplicitSolve \param[in] dt The time step \param[in] u The
-   /// true DOFs \param[in] du_dt The first time derivative of u
+   /// mfem::TDO::ImplicitSolve
+   /// \param[in] dt The time step
+   /// \param[in] u The true DOFs
+   /// \param[in] du_dt The first time derivative of u
    virtual void solve(const double dt,
                       const mfem::Vector &u,
                       mfem::Vector &du_dt) const;
@@ -179,12 +192,6 @@ private:
    /// \brief Set the time integration method
    /// \param[in] ode_options - options for the construction of the ode solver
    void setTimestepper(const nlohmann::json &ode_options);
-
-   /// \brief Work vectors for ODE
-   mutable mfem::Vector U_minus_;
-   mutable mfem::Vector U_;
-   mutable mfem::Vector U_plus_;
-   mutable mfem::Vector dU_dt_;
 };
 
 }  // namespace mach
