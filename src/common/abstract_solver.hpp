@@ -37,7 +37,7 @@ public:
    // /// \return scalar value of estimated functional value
    // double calcOutput(const std::string &fun, const MachInputs &inputs);
 
-   AbstractSolver2(const nlohmann::json &solver_options, MPI_Comm incomm);
+   AbstractSolver2(MPI_Comm incomm, const nlohmann::json &solver_options);
 
    virtual ~AbstractSolver2() = default;
 
@@ -52,8 +52,6 @@ protected:
 
    /// residual defines the dynamics of an ODE (including steady ODEs)
    std::unique_ptr<MachResidual> res;
-
-   std::unique_ptr<EquationSolver> solver;
 
    /// \brief the ordinary differential equation that describes how to evolve
    /// the state variables
@@ -110,6 +108,23 @@ protected:
                              double t_final,
                              const mfem::Vector &state)
    { }
+
+   /// linear system preconditioner for solver in newton solver and adjoint
+   std::unique_ptr<mfem::Solver> prec;
+   /// linear system solver used in newton solver
+   std::unique_ptr<mfem::Solver> linear_solver;
+   /// newton solver for solving implicit problems
+   std::unique_ptr<mfem::NewtonSolver> nonlinear_solver;
+
+   virtual std::unique_ptr<mfem::Solver> constructPreconditioner(
+       MPI_Comm comm,
+       const nlohmann::json &prec_options)
+   {
+      return nullptr;
+   }
+
+   /// Execute set-up steps that are specific to the derived solvers.
+   void initDerived();
 };
 
 }  // namespace mach

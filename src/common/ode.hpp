@@ -111,7 +111,7 @@ public:
        where dt is nonzero */
    FirstOrderODE(MachResidual &residual,
                  const nlohmann::json &ode_options,
-                 const EquationSolver &solver);
+                 mfem::Solver &solver);
 
    /// \brief Performs a time step
    /// \param[inout] u - the predicted solution
@@ -173,7 +173,7 @@ private:
    MachResidual &residual_;
 
    /// \brief reference to the equation solver used to solve for du_dt
-   const EquationSolver &solver_;
+   mfem::Solver &solver_;
 
    /// \brief MFEM solver object for first-order ODEs
    std::unique_ptr<mfem::ODESolver> ode_solver_;

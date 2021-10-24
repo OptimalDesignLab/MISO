@@ -2,6 +2,11 @@ target_sources(mach
    PRIVATE
       diag_mass_integ.cpp
       diag_mass_integ.hpp
+      finite_element_dual.hpp
+      finite_element_state.cpp
+      finite_element_state.hpp
+      finite_element_vector.cpp
+      finite_element_vector.hpp
       mach_input.cpp
       mach_input.hpp
       mach_integrator.cpp
@@ -13,6 +18,8 @@ target_sources(mach
       #mass_operator.hpp
       mfem_common_integ.cpp
       mfem_common_integ.hpp
+      pde_solver.cpp
+      pde_solver.hpp
       physics.hpp
       solver.cpp
       solver.hpp

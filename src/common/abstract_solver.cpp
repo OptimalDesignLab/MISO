@@ -1,11 +1,12 @@
 #include "default_options.hpp"
+#include "mfem_extensions.hpp"
 
 #include "abstract_solver.hpp"
 
 namespace mach
 {
-AbstractSolver2::AbstractSolver2(const nlohmann::json &solver_options,
-                                 MPI_Comm incomm)
+AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
+                                 const nlohmann::json &solver_options)
 {
    /// Set the options; the defaults are overwritten by the values in the file
    /// using the merge_patch method
@@ -14,6 +15,18 @@ AbstractSolver2::AbstractSolver2(const nlohmann::json &solver_options,
 
    MPI_Comm_dup(incomm, &comm);
    MPI_Comm_rank(comm, &rank);
+}
+
+void AbstractSolver2::initDerived()
+{
+   // construct various solvers and preconditioners
+   prec = constructPreconditioner(comm, options["lin-prec"]);
+
+   linear_solver =
+       constructLinearSolver(comm, options["lin-solver"], prec.get());
+
+   nonlinear_solver =
+       constructNonlinearSolver(comm, options["nonlin-solver"], *linear_solver);
 }
 
 void AbstractSolver2::solveForState(const MachInputs &inputs,

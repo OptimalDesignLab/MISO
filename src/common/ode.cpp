@@ -156,13 +156,14 @@ double calcEntropyChange(TimeDependentResidual &residual,
 
 FirstOrderODE::FirstOrderODE(MachResidual &residual,
                              const nlohmann::json &ode_options,
-                             const EquationSolver &solver)
+                             mfem::Solver &solver)
  : EntropyConstrainedOperator(getSize(residual), 0.0),
    //  : TimeDependentOperator(getSize(residual), 0.0),
    residual_(residual),
    solver_(solver),
    zero_(getSize(residual))
 {
+   solver_.iterative_mode = false;
    zero_ = 0.0;
    setTimestepper(ode_options);
 }
@@ -207,12 +208,7 @@ void FirstOrderODE::solve(const double dt,
                      {"state_dot", du_dt.GetData()},
                      {"dt", dt},
                      {"time", t}};
-   /// explicit ODE solvers won't initialize du_dut, but we need it initialized
-   /// to calculate the residual
-   if (dt == 0.0)
-   {
-      du_dt = 0.0;
-   }
+
    setInputs(residual_, inputs);
    solver_.Mult(zero_, du_dt);
    // SLIC_WARNING_ROOT_IF(!solver_.NonlinearSolver().GetConverged(), "Newton
