@@ -1,74 +1,79 @@
+#include <memory>
 #include <random>
 
 #include "catch.hpp"
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "abstract_solver.hpp"
 #include "mach_input.hpp"
+#include "mach_linearform.hpp"
+#include "mach_load.hpp"
+#include "mach_nonlinearform.hpp"
 #include "mach_residual.hpp"
 #include "mfem_extensions.hpp"
+#include "pde_solver.hpp"
 #include "utils.hpp"
 
 /// Class for ODE that follows the MachResidual API
-class ExpODEResidual final
+class ThermalResidual final
 {
 public:
-   ExpODEResidual() : Jac(2), work(2) {}
+   ThermalResidual(mfem::ParFiniteElementSpace &fes)
+   : res(fes, fields),
+     kappa(-1.0)
+   {
+      res.addDomainIntegrator(new mfem::DiffusionIntegrator(kappa));
 
-   friend int getSize(const ExpODEResidual &residual) { return 2; }
+      mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+      ess_bdr = 1;
+      nlohmann::json ess_bdr_opts;
+      ess_bdr_opts["ess_bdr"] = {1, 2, 3, 4};
+      setOptions(res, ess_bdr_opts);
+   }
 
-   friend void evaluate(ExpODEResidual &residual,
+   friend int getSize(const ThermalResidual &residual)
+   {
+      return getSize(residual.res);
+   }
+
+   friend void evaluate(ThermalResidual &residual,
                         const mach::MachInputs &inputs,
                         mfem::Vector &res_vec)
    {
-      mfem::Vector x(inputs.at("state").getField(), 2);
-      res_vec.SetSize(2);
-      res_vec(0) = exp(x(1));
-      res_vec(1) = -exp(x(0));
+      evaluate(residual.res, inputs, res_vec);
    }
-   friend mfem::Operator &getJacobian(ExpODEResidual &residual,
+
+   friend mfem::Operator &getJacobian(ThermalResidual &residual,
                                       const mach::MachInputs &inputs,
                                       std::string wrt)
    {
-      mfem::Vector x(inputs.at("state").getField(), 2);
-      residual.Jac(0,0) = 0.0;
-      residual.Jac(0,1) = exp(x(1));
-      residual.Jac(1,0) = -exp(x(0));
-      residual.Jac(1,1) = 0.0;
-      return residual.Jac;
+      return getJacobian(residual.res, inputs, std::move(wrt));
    }
-   friend double calcEntropy(ExpODEResidual &residual,
-                             const mach::MachInputs &inputs)
-   {
-      mfem::Vector x(inputs.at("state").getField(), 2);
-      return exp(x(0)) + exp(x(1));
-   }
-   friend double calcEntropyChange(ExpODEResidual &residual,
-                                   const mach::MachInputs &inputs)
-   {
-      mfem::Vector x(inputs.at("state").getField(), 2);
-      mfem::Vector x_dot(inputs.at("state_dot").getField(), 2);
-      double dt = inputs.at("dt").getValue();
-      mfem::Vector &y = residual.work;
-      add(x, dt, x_dot, y);
-      // should be zero 
-      return exp(y(0))*exp(y(1)) - exp(y(1))*exp(y(0)); 
-   }
+
 private:
-   mfem::DenseMatrix Jac;
-   mfem::Vector work; 
+   std::unordered_map<std::string, mfem::ParGridFunction> fields;
+   mach::MachNonlinearForm res;
+   mfem::ConstantCoefficient kappa;
 };
 
-/// Solver that uses `ExpODEResidual` to define its dynamics
-class ExponentialODESolver : public mach::AbstractSolver2
+/// Solver that uses `ThermalResidual` to define its dynamics
+class ThermalSolver : public mach::PDESolver
 {
 public:
-   ExponentialODESolver(MPI_Comm comm, const nlohmann::json &solver_options)
-      : AbstractSolver2(comm, solver_options)
+   ThermalSolver(MPI_Comm comm,
+                 const nlohmann::json &solver_options,
+                 std::unique_ptr<mfem::Mesh> smesh)
+      : PDESolver(comm, solver_options, num_states, std::move(smesh))
    {
-      // res = std::make_unique<mach::MachResidual>(ExpODEResidual());
-      res = std::make_unique<mach::MachResidual>(mach::TimeDependentResidual(ExpODEResidual()));
+      auto fes = state.space();
 
+      
+      // res = std::make_unique<mach::MachResidual>(ThermalResidual(fes));
+      res = std::make_unique<mach::MachResidual>(mach::TimeDependentResidual(ThermalResidual(fes)));
+
+      auto prec_opts = options["lin-prec"];
+      prec = constructPreconditioner(comm, prec_opts);
       auto lin_solver_opts = options["lin-solver"];
       linear_solver = mach::constructLinearSolver(comm, lin_solver_opts);
       auto nonlin_solver_opts = options["nonlin-solver"];
@@ -77,6 +82,19 @@ public:
 
       auto ode_opts = options["time-dis"];
       ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, *nonlinear_solver);
+   }
+private:
+   static constexpr int num_states = 1;
+
+   mfem::ParBilinearForm mass;
+
+   std::unique_ptr<mfem::Solver> constructPreconditioner(
+       MPI_Comm comm,
+       const nlohmann::json &prec_options)
+   {
+      auto amg = std::make_unique<mfem::HypreBoomerAMG>();
+      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
+      return amg;
    }
 };
 
@@ -93,13 +111,13 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RK4",
    {
       "print-options": true,
       "time-dis": {
-         "type": "RK4",
+         "type": "MIDPOINT",
          "t-final": 5.0,
          "dt": 0.05
       },
       "lin-solver": {
          "type": "pcg",
-         "reltol": 1e-14,
+         "reltol": 1e-12,
          "abstol": 0.0,
          "printlevel": -1,
          "maxiter": 500
@@ -110,8 +128,12 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RK4",
       }
    })"_json;
 
+   constexpr int nxy = 4;
+   auto mesh = std::make_unique<mfem::Mesh>(
+      Mesh::MakeCartesian2D(nxy, nxy, Element::TRIANGLE));
+
    // Create solver and solve for the state 
-   ExponentialODESolver solver(MPI_COMM_WORLD, options);
+   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
    Vector u(2);
    u(0) = 1.0;
    u(1) = 0.5;

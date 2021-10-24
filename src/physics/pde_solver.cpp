@@ -1,3 +1,5 @@
+#include "mfem.hpp"
+
 #ifdef MFEM_USE_PUMI
 #include "apf.h"
 #include "apfMDS.h"
@@ -130,11 +132,11 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
       smesh = std::make_unique<mfem::Mesh>(mesh_file.c_str(), 1, 1);
       mesh = std::make_unique<mfem::ParMesh>(comm, *smesh);
    }
-   // PUMI mesh
-   else if (mesh_ext == "smb")
-   {
-      mesh = constructPumiMesh(comm, mesh_options);
-   }
+   // // PUMI mesh
+   // else if (mesh_ext == "smb")
+   // {
+   //    mesh = constructPumiMesh(comm, mesh_options);
+   // }
    mesh->EnsureNodes();
 
    mesh->RemoveInternalBoundaries();
@@ -143,6 +145,7 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
    return mesh;
 }
 
+/*
 std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
     MPI_Comm comm,
     const nlohmann::json &mesh_options)
@@ -237,6 +240,7 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
        "\trecompile MFEM with PUMI\n");
 #endif  // MFEM_USE_PUMI
 }
+*/
 
 void PDESolver::setUpExternalFields()
 {

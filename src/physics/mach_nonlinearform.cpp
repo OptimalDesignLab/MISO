@@ -38,6 +38,23 @@ void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
 void setOptions(MachNonlinearForm &form, const nlohmann::json &options)
 {
    setOptions(form.integs, options);
+
+   if (options.contains("ess_bdr"))
+   {
+      auto fes = *form.nf.ParFESpace();
+      mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+      auto tmp = options["ess_bdr"].get<std::vector<int>>();
+      for (auto &bdr : tmp)
+      {
+         ess_bdr[bdr - 1] = 1;
+      }
+      mfem::Array<int> ess_tdof_list;
+      fes.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      if (ess_tdof_list != nullptr)
+      {
+         form.nf.SetEssentialTrueDofs(ess_tdof_list);
+      }
+   }
 }
 
 void evaluate(MachNonlinearForm &form,

@@ -37,7 +37,7 @@ public:
              const int num_states,
              std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
-private:
+protected:
    /// Members associated with the mesh
    /// object defining the mfem computational mesh
    std::unique_ptr<mfem::ParMesh> mesh;
@@ -54,10 +54,12 @@ private:
        const nlohmann::json &mesh_options,
        std::unique_ptr<mfem::Mesh> smesh);
 
+   /*
    /// Construct PUMI Mesh
    std::unique_ptr<mfem::ParMesh> constructPumiMesh(
        MPI_Comm comm,
        const nlohmann::json &mesh_options);
+   */
 
    /// Members associated with fields
    /// Vector of all state vectors used by the solver

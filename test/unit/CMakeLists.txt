@@ -64,6 +64,7 @@ set(EM_MPI_TEST_SRCS
    test_magnetostatic_load
    #test_mass_operator
    test_abstract_solver
+   test_pde_solver
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)
