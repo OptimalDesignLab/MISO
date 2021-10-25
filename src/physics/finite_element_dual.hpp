@@ -30,9 +30,9 @@ public:
     * capabilities of a grid function on the dual space
     * @note Shared degrees of freedom live on multiple MPI ranks
     */
-   mfem::Vector &localVec() { return *gf_; }
+   mfem::Vector &localVec() { return *gf; }
    /// @overload
-   const mfem::Vector &localVec() const { return *gf_; }
+   const mfem::Vector &localVec() const { return *gf; }
 
    /**
     * @brief Set a finite element dual to a constant value

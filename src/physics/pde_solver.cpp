@@ -30,11 +30,11 @@ template <typename T>
 T createFiniteElementVector(mfem::ParMesh &mesh,
                             const nlohmann::json &space_options,
                             const int num_states,
-                            std::string name)
+                            const std::string &name)
 {
    const int dim = mesh.Dimension();
    const auto order = space_options["degree"].get<int>();
-   const auto basis_type = space_options["basis_type"].get<std::string>();
+   const auto basis_type = space_options["basis-type"].get<std::string>();
    const bool galerkin_diff = space_options.value("GD", false);
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?)
@@ -57,12 +57,13 @@ T createFiniteElementVector(mfem::ParMesh &mesh,
       fec = std::make_unique<mfem::H1_FECollection>(order, dim);
    }
 
-   return T(mesh,
+   T vec(mesh,
             {.order = order,
              .num_states = num_states,
              .coll = std::move(fec),
              .ordering = mfem::Ordering::byVDIM,
-             .name = std::move(name)});
+             .name = name});
+   return vec;
 }
 
 mach::FiniteElementState createState(mfem::ParMesh &mesh,
@@ -71,7 +72,7 @@ mach::FiniteElementState createState(mfem::ParMesh &mesh,
                                      std::string name)
 {
    return createFiniteElementVector<mach::FiniteElementState>(
-       mesh, space_options, num_states, name);
+       mesh, space_options, num_states, std::move(name));
 }
 
 mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
@@ -80,7 +81,7 @@ mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
                                    std::string name)
 {
    return createFiniteElementVector<mach::FiniteElementDual>(
-       mesh, space_options, num_states, name);
+       mesh, space_options, num_states, std::move(name));
 }
 
 }  // namespace
@@ -92,13 +93,12 @@ PDESolver::PDESolver(MPI_Comm incomm,
                      const int num_states,
                      std::unique_ptr<mfem::Mesh> smesh)
  : AbstractSolver2(incomm, solver_options),
-   mesh(constructMesh(comm, options["mesh"], std::move(smesh))),
-   fields({createState(*mesh, options["space-dis"], num_states, "state"),
-           createState(*mesh, options["space-dis"], num_states, "adjoint")}),
-   state(fields.back()),
-   duals({createDual(*mesh, options["space-dis"], num_states, "residual")}),
-   res_vec(duals.back())
-{ }
+   mesh_(constructMesh(comm, options["mesh"], std::move(smesh)))
+{
+   fields.push_back(createState(*mesh_, options["space-dis"], num_states, "state"));
+   fields.push_back(createState(*mesh_, options["space-dis"], num_states, "adjoint"));
+   duals.push_back(createDual(*mesh_, options["space-dis"], num_states, "residual"));
+}
 
 std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
     MPI_Comm comm,
@@ -140,8 +140,8 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
    mesh->EnsureNodes();
 
    mesh->RemoveInternalBoundaries();
-   std::cout << "bdr_attr: ";
-   mesh->bdr_attributes.Print(std::cout);
+   // std::cout << "bdr_attr: ";
+   // mesh->bdr_attributes.Print(std::cout);
    return mesh;
 }
 
@@ -247,18 +247,18 @@ void PDESolver::setUpExternalFields()
    // give the solver ownership over the mesh coords grid function, and store
    // it in `fields` with name "mesh_coords"
    {
-      auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh->GetNodes());
+      auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh_->GetNodes());
       auto *mesh_fespace = mesh_gf.ParFESpace();
 
       /// create new state vector copying the mesh's fe space
-      fields.emplace_back(*mesh, *mesh_fespace, "mesh_coords");
+      fields.emplace_back(*mesh_, *mesh_fespace, "mesh_coords");
       FiniteElementState &mesh_coords = fields.back();
       /// set the values of the new GF to those of the mesh's old nodes
       mesh_coords.gridFunc() = mesh_gf;
       mesh_coords.initializeTrueVec();  // distribute coords
       /// tell the mesh to use this GF for its Nodes (and that it doesn't own
       /// it)
-      mesh->NewNodes(mesh_coords.gridFunc(), false);
+      mesh_->NewNodes(mesh_coords.gridFunc(), false);
    }
 
    if (options.contains("external-fields"))
@@ -272,7 +272,7 @@ void PDESolver::setUpExternalFields()
          /// this approach will only work for fields on the same mesh
          auto num_states = field["num-states"].get<int>();
          fields.emplace_back(
-             createState(*mesh, field, num_states, std::move(name)));
+             createState(*mesh_, field, num_states, std::move(name)));
       }
    }
 }

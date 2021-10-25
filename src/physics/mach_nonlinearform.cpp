@@ -11,7 +11,7 @@ namespace mach
 {
 int getSize(const MachNonlinearForm &form)
 {
-   return form.nf.FESpace()->GetTrueVSize();
+   return form.nf.ParFESpace()->GetTrueVSize();
 }
 
 void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
@@ -39,11 +39,11 @@ void setOptions(MachNonlinearForm &form, const nlohmann::json &options)
 {
    setOptions(form.integs, options);
 
-   if (options.contains("ess_bdr"))
+   if (options.contains("ess-bdr"))
    {
       auto fes = *form.nf.ParFESpace();
       mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
-      auto tmp = options["ess_bdr"].get<std::vector<int>>();
+      auto tmp = options["ess-bdr"].get<std::vector<int>>();
       for (auto &bdr : tmp)
       {
          ess_bdr[bdr - 1] = 1;
