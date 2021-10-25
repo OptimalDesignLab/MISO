@@ -161,12 +161,12 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
       "time-dis": {
          "steady": false,
          "type": "MIDPOINT",
-         "t-final": 10.0,
-         "dt": 0.5
+         "t-final": 1.0,
+         "dt": 0.05
       },
       "space-dis": {
          "basis-type": "H1",
-         "degree": 4
+         "degree": 2
       },
       "lin-solver": {
          "type": "pcg",
@@ -210,10 +210,7 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
 
    if (verbose)
    {
-      // std::cout << "discrete solution = " << u(0) << ": " << u(1) << std::endl;
-      // std::cout << "exact solution    = " << u_exact(0) << ": " << u_exact(1)
-      //           << std::endl;
       std::cout << "terminal solution error = " << error << std::endl;
    }
-   // REQUIRE( error == Approx(1.86013e-05).margin(1e-8) );
+   REQUIRE(error == Approx(0.0608685).margin(1e-8));
 }
