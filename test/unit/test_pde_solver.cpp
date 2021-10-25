@@ -18,12 +18,13 @@
 /// Class for ODE that follows the MachResidual API
 class ThermalResidual final
 {
+
 public:
    ThermalResidual(mfem::ParFiniteElementSpace &fes)
     : fes_(fes),
       fields(std::make_unique<std::unordered_map<std::string, mfem::ParGridFunction>>()),
       res(fes_, *fields),
-      kappa(std::make_unique<mfem::ConstantCoefficient>(-1.0)),
+      // kappa(std::make_unique<mfem::ConstantCoefficient>(1.0))
       load(std::make_unique<mach::MachLinearForm>(fes_, *fields)),
       force(std::make_unique<mfem::FunctionCoefficient>([](const mfem::Vector &p, double t)
       {
@@ -31,14 +32,7 @@ public:
          return 2 - exp(-t) * (3*sin(2*x) + 8*sin(3*x));
       }))
    {
-      res.addDomainIntegrator(new mfem::DiffusionIntegrator(*kappa));
-
-      // mfem::Array<int> ess_bdr(fes_.GetParMesh()->bdr_attributes.Max());
-      // ess_bdr = 1;
-      // nlohmann::json ess_bdr_opts;
-      // ess_bdr_opts["ess-bdr"] = {1, 2, 3, 4};
-      // setOptions(res, options);
-
+      res.addDomainIntegrator(new mfem::DiffusionIntegrator);
       load->addDomainIntegrator(new mfem::DomainLFIntegrator(*force));
    }
 
@@ -84,7 +78,7 @@ private:
    mfem::ParFiniteElementSpace &fes_;
    std::unique_ptr<std::unordered_map<std::string, mfem::ParGridFunction>> fields;
    mach::MachNonlinearForm res;
-   std::unique_ptr<mfem::ConstantCoefficient> kappa;
+   // std::unique_ptr<mfem::ConstantCoefficient> kappa;
    std::unique_ptr<mach::MachLinearForm> load;
    std::unique_ptr<mfem::FunctionCoefficient> force;
 };
@@ -109,6 +103,7 @@ public:
          mass->Assemble(0); // keep sparsity pattern of M the same as spatial Jacobian
          mass->Finalize(0);
          mfem::Array<int> ess_bdr(fes().GetParMesh()->bdr_attributes.Max());
+         ess_bdr = 0;
          auto tmp = options["ess-bdr"].get<std::vector<int>>();
          for (auto &bdr : tmp)
          {
@@ -166,12 +161,12 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
       "time-dis": {
          "steady": false,
          "type": "MIDPOINT",
-         "t-final": 5.0,
-         "dt": 0.05
+         "t-final": 10.0,
+         "dt": 0.5
       },
       "space-dis": {
          "basis-type": "H1",
-         "degree": 1
+         "degree": 4
       },
       "lin-solver": {
          "type": "pcg",
@@ -184,16 +179,18 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
          "maxiter": 1,
          "printlevel": -1
       },
-      "ess-bdr": [1, 3]
+      "ess-bdr": [2, 4]
    })"_json;
 
    constexpr int nxy = 4;
    auto mesh = std::make_unique<mfem::Mesh>(
+      // Mesh::MakeCartesian2D(nxy, nxy, Element::TRIANGLE));
       Mesh::MakeCartesian2D(nxy, nxy, Element::TRIANGLE, true, M_PI, M_PI));
 
    // Create solver and solve for the state 
-   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
-   auto &state = solver.getState();
+   std::unique_ptr<mach::PDESolver> solver = std::make_unique<ThermalSolver>(MPI_COMM_WORLD, options, std::move(mesh));
+   // ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
+   auto &state = solver->getState();
 
    FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
    {
@@ -203,7 +200,7 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
    exact_sol.SetTime(0.0);
    state.project(exact_sol);
    MachInputs inputs;
-   solver.solveForState(inputs, state.trueVec());
+   solver->solveForState(inputs, state.trueVec());
    state.distributeSharedDofs();
 
    // Check that solution is reasonable accurate

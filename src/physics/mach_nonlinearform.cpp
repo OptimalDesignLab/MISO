@@ -43,6 +43,7 @@ void setOptions(MachNonlinearForm &form, const nlohmann::json &options)
    {
       auto fes = *form.nf.ParFESpace();
       mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+      ess_bdr = 0;
       auto tmp = options["ess-bdr"].get<std::vector<int>>();
       for (auto &bdr : tmp)
       {

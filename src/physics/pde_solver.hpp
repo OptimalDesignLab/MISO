@@ -44,11 +44,11 @@ protected:
    /// Members associated with the mesh
    /// object defining the mfem computational mesh
    std::unique_ptr<mfem::ParMesh> mesh_ = nullptr;
-// #ifdef MFEM_USE_PUMI
-//    /// pumi mesh object
-//    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
-//    bool PCU_previously_initialized = false;
-// #endif
+   // #ifdef MFEM_USE_PUMI
+   //    /// pumi mesh object
+   //    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
+   //    bool PCU_previously_initialized = false;
+   // #endif
 
    /// Constructs the mesh member based on c preprocesor defs
    /// \param[in] smesh - if provided, defines the mesh for the problem
@@ -81,10 +81,25 @@ protected:
    const FiniteElementDual &res_vec() const { return duals[0]; }
 
    /// Reference to the state vectors finite element space
-   mfem::ParFiniteElementSpace &fes() { return state().space(); } 
-   const mfem::ParFiniteElementSpace &fes() const { return state().space(); } 
+   mfem::ParFiniteElementSpace &fes() { return state().space(); }
+   const mfem::ParFiniteElementSpace &fes() const { return state().space(); }
 
    void setUpExternalFields();
+
+   /// ParaView object for saving fields
+   mfem::ParaViewDataCollection vis;
+
+   /// Time-stepping overrides
+   void initialHook(const mfem::Vector &state) override;
+
+   void iterationHook(int iter,
+                      double t,
+                      double dt,
+                      const mfem::Vector &state) override;
+
+   void terminalHook(int iter,
+                     double t_final,
+                     const mfem::Vector &state) override;
 };
 
 }  // namespace mach

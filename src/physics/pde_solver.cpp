@@ -58,11 +58,11 @@ T createFiniteElementVector(mfem::ParMesh &mesh,
    }
 
    T vec(mesh,
-            {.order = order,
-             .num_states = num_states,
-             .coll = std::move(fec),
-             .ordering = mfem::Ordering::byVDIM,
-             .name = name});
+         {.order = order,
+          .num_states = num_states,
+          .coll = std::move(fec),
+          .ordering = mfem::Ordering::byVDIM,
+          .name = name});
    return vec;
 }
 
@@ -93,11 +93,15 @@ PDESolver::PDESolver(MPI_Comm incomm,
                      const int num_states,
                      std::unique_ptr<mfem::Mesh> smesh)
  : AbstractSolver2(incomm, solver_options),
-   mesh_(constructMesh(comm, options["mesh"], std::move(smesh)))
+   mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
+   vis("mach", mesh_.get())
 {
-   fields.push_back(createState(*mesh_, options["space-dis"], num_states, "state"));
-   fields.push_back(createState(*mesh_, options["space-dis"], num_states, "adjoint"));
-   duals.push_back(createDual(*mesh_, options["space-dis"], num_states, "residual"));
+   fields.push_back(
+       createState(*mesh_, options["space-dis"], num_states, "state"));
+   fields.push_back(
+       createState(*mesh_, options["space-dis"], num_states, "adjoint"));
+   duals.push_back(
+       createDual(*mesh_, options["space-dis"], num_states, "residual"));
 }
 
 std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
@@ -275,6 +279,37 @@ void PDESolver::setUpExternalFields()
              createState(*mesh_, field, num_states, std::move(name)));
       }
    }
+}
+
+void PDESolver::initialHook(const mfem::Vector &state)
+{
+   vis.SetPrefixPath("ParaView");
+
+   vis.RegisterField(fields[0].name(), &fields[0].gridFunc());
+   vis.SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
+   vis.SetDataFormat(mfem::VTKFormat::BINARY);
+   vis.SetHighOrderOutput(true);
+}
+
+void PDESolver::iterationHook(int iter,
+                              double t,
+                              double dt,
+                              const mfem::Vector &state)
+{
+   fields[0].distributeSharedDofs();
+   vis.SetCycle(iter);
+   vis.SetTime(t);
+   vis.Save();
+}
+
+void PDESolver::terminalHook(int iter,
+                             double t_final,
+                             const mfem::Vector &state)
+{
+   fields[0].distributeSharedDofs();
+   vis.SetCycle(iter);
+   vis.SetTime(t_final);
+   vis.Save();
 }
 
 }  // namespace mach

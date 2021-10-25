@@ -66,7 +66,7 @@ public:
    FiniteElementVector(mfem::ParMesh &mesh,
                        mfem::ParFiniteElementSpace &space,
                        std::string name = "");
-   
+
    /**
     * @brief Constructor for a FiniteElementVector given a finite
     * element space and collection

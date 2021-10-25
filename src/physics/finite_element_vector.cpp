@@ -38,15 +38,13 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                          FiniteElementVector::Options &&options)
  : mesh_(&mesh),
    coll(options.coll
-             ? std::move(options.coll)
-             : std::make_unique<mfem::H1_FECollection>(options.order,
-                                                       mesh.Dimension())),
+            ? std::move(options.coll)
+            : std::make_unique<mfem::H1_FECollection>(options.order,
+                                                      mesh.Dimension())),
    name_(options.name)
 {
-   space_ = std::make_unique<mfem::ParFiniteElementSpace>(&mesh,
-                                                        &retrieve(coll),
-                                                        options.num_states,
-                                                        options.ordering);
+   space_ = std::make_unique<mfem::ParFiniteElementSpace>(
+       &mesh, &retrieve(coll), options.num_states, options.ordering);
    gf = std::make_unique<mfem::ParGridFunction>(&retrieve(space_));
    true_vec = std::make_unique<mfem::HypreParVector>(&retrieve(space_));
 
@@ -107,7 +105,8 @@ FiniteElementVector::FiniteElementVector(FiniteElementVector &&other) noexcept
    // true_vec.WrapHypreParVector(par_vec);
 }
 
-FiniteElementVector &FiniteElementVector::operator=(FiniteElementVector &&other) noexcept
+FiniteElementVector &FiniteElementVector::operator=(
+    FiniteElementVector &&other) noexcept
 {
    mesh_ = other.mesh_;
    coll = std::move(other.coll);

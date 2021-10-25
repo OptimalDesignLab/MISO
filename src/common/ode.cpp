@@ -68,6 +68,7 @@ void setInputs(TimeDependentResidual &residual, const mach::MachInputs &inputs)
    {
       residual.time = it->second.getValue();
    }
+   setInputs(residual.res_, inputs);
 }
 
 void setOptions(TimeDependentResidual &residual, const nlohmann::json &options)
