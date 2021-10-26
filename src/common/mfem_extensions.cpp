@@ -10,6 +10,16 @@ using namespace mfem;
 
 namespace mach
 {
+void SteadyODESolver::Step(Vector &x, double &t, double &dt)
+{
+   f->SetTime(t + dt);
+   k.SetSize(x.Size(), mem_type);
+   k = x;
+   f->ImplicitSolve(dt, x, k);
+   x = k;
+   t += dt;
+}
+
 void PseudoTransientSolver::Init(TimeDependentOperator &_f)
 {
    ODESolver::Init(_f);

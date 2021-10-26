@@ -32,6 +32,12 @@ namespace mach
 class PDESolver : public AbstractSolver2
 {
 public:
+   FiniteElementState &getState() { return state(); }
+   const FiniteElementState &getState() const { return state(); }
+
+   FiniteElementDual &getResidual() { return res_vec(); }
+   const FiniteElementDual &getResidual() const { return res_vec(); }
+
    PDESolver(MPI_Comm incomm,
              const nlohmann::json &solver_options,
              const int num_states,
@@ -40,12 +46,12 @@ public:
 protected:
    /// Members associated with the mesh
    /// object defining the mfem computational mesh
-   std::unique_ptr<mfem::ParMesh> mesh;
-#ifdef MFEM_USE_PUMI
-   /// pumi mesh object
-   std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
-   bool PCU_previously_initialized = false;
-#endif
+   std::unique_ptr<mfem::ParMesh> mesh_ = nullptr;
+   // #ifdef MFEM_USE_PUMI
+   //    /// pumi mesh object
+   //    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
+   //    bool PCU_previously_initialized = false;
+   // #endif
 
    /// Constructs the mesh member based on c preprocesor defs
    /// \param[in] smesh - if provided, defines the mesh for the problem
@@ -64,14 +70,39 @@ protected:
    /// Members associated with fields
    /// Vector of all state vectors used by the solver
    std::vector<FiniteElementState> fields;
-   /// Reference to solver state vector
-   FiniteElementState &state;
    /// Vector of dual vectors used by the solver
    std::vector<FiniteElementDual> duals;
+
+   /// Reference to solver state vector
+   FiniteElementState &state() { return fields[0]; }
+   const FiniteElementState &state() const { return fields[0]; }
+   /// Reference to solver adjoint vector
+   FiniteElementState &adjoint() { return fields[1]; }
+   const FiniteElementState &adjoint() const { return fields[1]; }
    /// Reference to solver residual dual vec
-   FiniteElementDual &res_vec;
+   FiniteElementDual &res_vec() { return duals[0]; }
+   const FiniteElementDual &res_vec() const { return duals[0]; }
+
+   /// Reference to the state vectors finite element space
+   mfem::ParFiniteElementSpace &fes() { return state().space(); }
+   const mfem::ParFiniteElementSpace &fes() const { return state().space(); }
 
    void setUpExternalFields();
+
+   /// ParaView object for saving fields
+   mfem::ParaViewDataCollection vis;
+
+   /// Time-stepping overrides
+   void initialHook(const mfem::Vector &state) override;
+
+   void iterationHook(int iter,
+                      double t,
+                      double dt,
+                      const mfem::Vector &state) override;
+
+   void terminalHook(int iter,
+                     double t_final,
+                     const mfem::Vector &state) override;
 };
 
 }  // namespace mach

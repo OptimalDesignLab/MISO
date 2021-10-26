@@ -91,6 +91,9 @@ public:
 private:
    /// underlying linear form object
    mfem::ParLinearForm lf;
+   /// essential tdofs
+   mfem::Array<int> ess_tdof_list;
+
    /// work vector
    mfem::HypreParVector scratch;
 

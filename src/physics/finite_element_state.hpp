@@ -24,20 +24,21 @@ public:
     * @brief Use the finite element vector constructors
     */
    using FiniteElementVector::FiniteElementVector;
+   using FiniteElementVector::operator=;
 
    /**
     * Returns a non-owning reference to the internal grid function
     */
-   mfem::ParGridFunction &gridFunc() { return *gf_; }
+   mfem::ParGridFunction &gridFunc() { return *gf; }
    /// \overload
-   const mfem::ParGridFunction &gridFunc() const { return *gf_; }
+   const mfem::ParGridFunction &gridFunc() const { return *gf; }
 
    /**
     * Returns a GridFunctionCoefficient referencing the internal grid function
     */
    mfem::GridFunctionCoefficient gridFuncCoef() const
    {
-      return mfem::GridFunctionCoefficient{gf_.get(), gf_->VectorDim()};
+      return mfem::GridFunctionCoefficient{gf.get(), gf->VectorDim()};
    }
 
    /**
@@ -46,7 +47,7 @@ public:
     */
    mfem::VectorGridFunctionCoefficient vectorGridFuncCoef() const
    {
-      return mfem::VectorGridFunctionCoefficient{gf_.get()};
+      return mfem::VectorGridFunctionCoefficient{gf.get()};
    }
 
    /**
@@ -55,13 +56,13 @@ public:
     */
    void project(mfem::Coefficient &coef)
    {
-      gf_->ProjectCoefficient(coef);
+      gf->ProjectCoefficient(coef);
       initializeTrueVec();
    }
    /// \overload
    void project(mfem::VectorCoefficient &coef)
    {
-      gf_->ProjectCoefficient(coef);
+      gf->ProjectCoefficient(coef);
       initializeTrueVec();
    }
 

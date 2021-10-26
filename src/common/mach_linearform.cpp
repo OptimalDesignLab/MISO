@@ -32,12 +32,26 @@ void setInputs(MachLinearForm &load, const MachInputs &inputs)
 void setOptions(MachLinearForm &load, const nlohmann::json &options)
 {
    setOptions(load.integs, options);
+
+   if (options.contains("ess-bdr"))
+   {
+      auto fes = *load.lf.ParFESpace();
+      mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+      ess_bdr = 0;
+      auto tmp = options["ess-bdr"].get<std::vector<int>>();
+      for (auto &bdr : tmp)
+      {
+         ess_bdr[bdr - 1] = 1;
+      }
+      fes.GetEssentialTrueDofs(ess_bdr, load.ess_tdof_list);
+   }
 }
 
 void addLoad(MachLinearForm &load, mfem::Vector &tv)
 {
    load.lf.Assemble();
    load.lf.ParallelAssemble(load.scratch);
+   load.scratch.SetSubVector(load.ess_tdof_list, 0.0);
    add(tv, load.scratch, tv);
 }
 

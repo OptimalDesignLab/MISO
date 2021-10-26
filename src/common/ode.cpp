@@ -17,7 +17,7 @@ void addJacobians(mfem::Operator &A,
 {
    auto *hypre_A = dynamic_cast<mfem::HypreParMatrix *>(&A);
    auto *hypre_B = dynamic_cast<mfem::HypreParMatrix *>(&B);
-   if (hypre_A && hypre_B)
+   if (hypre_A != nullptr && hypre_B != nullptr)
    {
       auto *hypre_C = dynamic_cast<mfem::HypreParMatrix *>(&C);
       *hypre_C = 0.0;
@@ -27,7 +27,7 @@ void addJacobians(mfem::Operator &A,
    }
    auto *iden_A = dynamic_cast<mfem::IdentityOperator *>(&A);
    auto *dense_B = dynamic_cast<mfem::DenseMatrix *>(&B);
-   if (iden_A && dense_B)
+   if (iden_A != nullptr && dense_B != nullptr)
    {
       auto *dense_C = dynamic_cast<mfem::DenseMatrix *>(&C);
       dense_C->Diag(1.0, dense_B->Width());
@@ -68,6 +68,7 @@ void setInputs(TimeDependentResidual &residual, const mach::MachInputs &inputs)
    {
       residual.time = it->second.getValue();
    }
+   setInputs(residual.res_, inputs);
 }
 
 void setOptions(TimeDependentResidual &residual, const nlohmann::json &options)
@@ -115,7 +116,7 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto &work = residual.work;
    add(state, dt, state_dot, work);
    MachInputs input{{"state", work.GetData()}};
-   auto &spatial_jac = getJacobian(residual.res_, input, "state");
+   auto &spatial_jac = getJacobian(residual.res_, input, std::move(wrt));
    addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
    return *residual.jac_;
 }
@@ -190,6 +191,11 @@ void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
    else if (timestepper == "PTC")
    {
       ode_solver_ = std::make_unique<mach::PseudoTransientSolver>();
+   }
+   else if (timestepper == "steady")
+   {
+      ode_solver_ = std::make_unique<mach::SteadyODESolver>();
+      solver_.iterative_mode = true;
    }
    else
    {

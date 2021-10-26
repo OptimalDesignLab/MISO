@@ -6,6 +6,8 @@
 
 #include "mfem.hpp"
 
+#include "utils.hpp"
+
 namespace mach
 {
 /**
@@ -65,30 +67,43 @@ public:
                        mfem::ParFiniteElementSpace &space,
                        std::string name = "");
 
-   FiniteElementVector(const FiniteElementVector &other);
-   FiniteElementVector &operator=(const FiniteElementVector &other);
-   FiniteElementVector(FiniteElementVector &&other);
-   FiniteElementVector &operator=(FiniteElementVector &&other);
+   /**
+    * @brief Constructor for a FiniteElementVector given a finite
+    * element space and collection
+    * @param[in] mesh The problem mesh (object does not take ownership)
+    * @param[in] coll The collection to use for the finite element state.
+    * @param[in] space The space to use for the finite element state.
+    * @param[in] name The name of the field
+    */
+   FiniteElementVector(mfem::ParMesh &mesh,
+                       mfem::FiniteElementCollection *coll,
+                       mfem::ParFiniteElementSpace *space,
+                       std::string name = "");
+
+   FiniteElementVector(const FiniteElementVector &other) = delete;
+   FiniteElementVector &operator=(const FiniteElementVector &other) = delete;
+   FiniteElementVector(FiniteElementVector &&other) noexcept;
+   FiniteElementVector &operator=(FiniteElementVector &&other) noexcept;
 
    /**
     * @brief Returns the MPI communicator for the state
     * @return The underlying MPI communicator
     */
-   MPI_Comm comm() const { return space_->GetComm(); }
+   MPI_Comm comm() const { return retrieve(space_).GetComm(); }
 
    /**
     * @brief Returns a non-owning reference to the internal mesh object
     * @return The underlying mesh
     */
-   mfem::ParMesh &mesh() { return mesh_; }
+   mfem::ParMesh &mesh() { return *mesh_; }
 
    /**
     * @brief Returns a non-owning reference to the internal FESpace
     * @return The underlying finite element space
     */
-   mfem::ParFiniteElementSpace &space() { return *space_; }
+   mfem::ParFiniteElementSpace &space() { return retrieve(space_); }
    /// \overload
-   const mfem::ParFiniteElementSpace &space() const { return *space_; }
+   const mfem::ParFiniteElementSpace &space() const { return retrieve(space_); }
 
    /**
     * @brief Returns a non-owning reference to the vector of true DOFs
@@ -100,9 +115,9 @@ public:
     * href="https://libceed.readthedocs.io/en/latest/libCEEDapi/#terminology-and-notation">CEED</a>
     * documentation for more details.
     */
-   mfem::HypreParVector &trueVec() { return true_vec_; }
+   mfem::HypreParVector &trueVec() { return *true_vec; }
    /// \overload
-   const mfem::HypreParVector &trueVec() const { return true_vec_; }
+   const mfem::HypreParVector &trueVec() const { return *true_vec; }
 
    /**
     * @brief Returns the name of the FEState (field)
@@ -113,13 +128,13 @@ public:
    /**
     * @brief Set the internal grid function using the true DOF values
     */
-   void distributeSharedDofs() { gf_->SetFromTrueDofs(true_vec_); }
+   void distributeSharedDofs() { gf->SetFromTrueDofs(*true_vec); }
 
    /**
     * @brief Initialize the true DOF vector by extracting true DOFs from the
     * internal grid function/local into the internal true DOF vector
     */
-   void initializeTrueVec() { gf_->GetTrueDofs(true_vec_); }
+   void initializeTrueVec() { gf->GetTrueDofs(*true_vec); }
 
    /**
     * @brief Set a finite element state to a constant value
@@ -134,21 +149,21 @@ public:
    FiniteElementVector &operator=(const double value);
 
 protected:
-   /// \brief A reference to the mesh object on which the field is defined
-   std::reference_wrapper<mfem::ParMesh> mesh_;
+   /// \brief A non-owning pointer to the mesh on which the field is defined
+   mfem::ParMesh *mesh_ = nullptr;
 
    /// \brief Finite element or SBP operators
-   std::unique_ptr<const mfem::FiniteElementCollection> coll_;
+   MaybeOwningPointer<const mfem::FiniteElementCollection> coll;
 
    /// \brief Discrete finite element space
-   std::unique_ptr<mfem::ParFiniteElementSpace> space_;
+   MaybeOwningPointer<mfem::ParFiniteElementSpace> space_;
 
    /// \brief GridFunction containing the process local degrees of freedom
-   std::unique_ptr<mfem::ParGridFunction> gf_;
+   std::unique_ptr<mfem::ParGridFunction> gf;
 
    /// \brief The hypre vector containing the true degrees of freedom
    /// \note Each entry in this vector is owned by exactly one MPI rank
-   mfem::HypreParVector true_vec_;
+   std::unique_ptr<mfem::HypreParVector> true_vec;
 
    /// \brief The name of the finite element vector
    std::string name_ = "";

@@ -5,6 +5,7 @@
 #include <exception>
 #include <iostream>
 #include <utility>
+#include <variant>
 
 #include "mfem.hpp"
 
@@ -102,6 +103,24 @@ std::ostream *getOutStream(int rank, bool silent = false);
 mfem::HypreParVector bufferToHypreParVector(
     double *buffer,
     const mfem::ParFiniteElementSpace &fes);
+
+/// \brief A helper type for uniform semantics over owning/non-owning pointers
+template <typename T>
+using MaybeOwningPointer = std::variant<T *, std::unique_ptr<T>>;
+
+/// \brief Retrieves a reference to the underlying object in a
+/// MaybeOwningPointer \param[in] obj The object to dereference
+template <typename T>
+static T &retrieve(MaybeOwningPointer<T> &obj)
+{
+   return std::visit([](auto &&ptr) -> T & { return *ptr; }, obj);
+}
+/// \overload
+template <typename T>
+static const T &retrieve(const MaybeOwningPointer<T> &obj)
+{
+   return std::visit([](auto &&ptr) -> const T & { return *ptr; }, obj);
+}
 
 // /// The following are adapted from MFEM's pfem_extras.xpp
 // class DiscreteGradOperator : public mfem::ParDiscreteLinearOperator
