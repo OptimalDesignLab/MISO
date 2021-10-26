@@ -6,6 +6,7 @@
 #include "abstract_solver.hpp"
 #include "mach_input.hpp"
 #include "mach_residual.hpp"
+#include "matrix_operators.hpp"
 #include "mfem_extensions.hpp"
 #include "utils.hpp"
 
@@ -13,7 +14,7 @@
 class ExpODEResidual final
 {
 public:
-   ExpODEResidual() : Jac(2), work(2) {}
+   ExpODEResidual() : work(2), Jac(*this) {}
 
    friend int getSize(const ExpODEResidual &residual) { return 2; }
 
@@ -31,10 +32,12 @@ public:
                                       std::string wrt)
    {
       mfem::Vector x(inputs.at("state").getField(), 2);
-      residual.Jac(0,0) = 0.0;
-      residual.Jac(0,1) = exp(x(1));
-      residual.Jac(1,0) = -exp(x(0));
-      residual.Jac(1,1) = 0.0;
+      //residual.Jac(0,0) = 0.0;
+      //residual.Jac(0,1) = exp(x(1));
+      //residual.Jac(1,0) = -exp(x(0));
+      //residual.Jac(1,1) = 0.0;
+      //return residual.Jac;
+      residual.Jac.setState(x);
       return residual.Jac;
    }
    friend double calcEntropy(ExpODEResidual &residual,
@@ -55,7 +58,8 @@ public:
       return exp(y(0))*exp(y(1)) - exp(y(1))*exp(y(0)); 
    }
 private:
-   mfem::DenseMatrix Jac;
+   //mfem::DenseMatrix Jac;
+   mach::JacobianFree<ExpODEResidual> Jac;
    mfem::Vector work; 
 };
 
@@ -148,7 +152,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
    std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
    using namespace mfem;
    using namespace mach;
-​
+
    // Provide the options explicitly for regression tests
    auto options = R"(
    {
@@ -170,7 +174,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
          "printlevel": -1
       }
    })"_json;
-​
+
    // Create solver and solve for the state 
    ExponentialODESolver solver(MPI_COMM_WORLD, options);
    Vector u0(2), u(2);
@@ -179,7 +183,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
    u = u0;
    MachInputs inputs;
    solver.solveForState(inputs, u);
-​
+
    // Check that solution is reasonable accurate
    auto exact_sol = [](double t, Vector &u)
    {
@@ -194,7 +198,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
    double error = sqrt( pow(u(0) - u_exact(0),2) + pow(u(1) - u_exact(1),2));
    double entropy0 = exp(u0(0)) + exp(u0(1));
    double entropy = exp(u(0)) + exp(u(1));
-​
+
    if (verbose)
    {
       std::cout << "discrete solution = " << u(0) << ": " << u(1) << std::endl;
@@ -204,6 +208,6 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
       std::cout << "entropy error = " << entropy - entropy0 << std::endl;
    }
    REQUIRE( error == Approx(0.003).margin(1e-4) );
-​
+
    REQUIRE( entropy == Approx(entropy0).margin(1e-12) );
 }
