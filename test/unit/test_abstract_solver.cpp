@@ -148,7 +148,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
    std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
    using namespace mfem;
    using namespace mach;
-​
+
    // Provide the options explicitly for regression tests
    auto options = R"(
    {
@@ -170,7 +170,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
          "printlevel": -1
       }
    })"_json;
-​
+
    // Create solver and solve for the state 
    ExponentialODESolver solver(MPI_COMM_WORLD, options);
    Vector u0(2), u(2);
@@ -179,7 +179,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
    u = u0;
    MachInputs inputs;
    solver.solveForState(inputs, u);
-​
+
    // Check that solution is reasonable accurate
    auto exact_sol = [](double t, Vector &u)
    {
@@ -194,7 +194,7 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
    double error = sqrt( pow(u(0) - u_exact(0),2) + pow(u(1) - u_exact(1),2));
    double entropy0 = exp(u0(0)) + exp(u0(1));
    double entropy = exp(u(0)) + exp(u(1));
-​
+
    if (verbose)
    {
       std::cout << "discrete solution = " << u(0) << ": " << u(1) << std::endl;
@@ -204,6 +204,6 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RRK",
       std::cout << "entropy error = " << entropy - entropy0 << std::endl;
    }
    REQUIRE( error == Approx(0.003).margin(1e-4) );
-​
+
    REQUIRE( entropy == Approx(entropy0).margin(1e-12) );
 }
