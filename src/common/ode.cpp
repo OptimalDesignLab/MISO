@@ -192,6 +192,11 @@ void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
    {
       ode_solver_ = std::make_unique<mach::PseudoTransientSolver>();
    }
+   else if (timestepper == "steady")
+   {
+      ode_solver_ = std::make_unique<mach::SteadyODESolver>();
+      solver_.iterative_mode = true;
+   }
    else
    {
       throw MachException("Unknown ODE solver type: " +

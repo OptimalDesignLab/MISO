@@ -35,6 +35,9 @@ public:
    FiniteElementState &getState() { return state(); }
    const FiniteElementState &getState() const { return state(); }
 
+   FiniteElementDual &getResidual() { return res_vec(); }
+   const FiniteElementDual &getResidual() const { return res_vec(); }
+
    PDESolver(MPI_Comm incomm,
              const nlohmann::json &solver_options,
              const int num_states,

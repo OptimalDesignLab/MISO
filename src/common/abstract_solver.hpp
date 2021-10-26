@@ -23,6 +23,9 @@ public:
    /// \note On input, `state` should hold the initial condition
    void solveForState(const MachInputs &inputs, mfem::Vector &state);
 
+   MachResidual &residual() { return *res; }
+   const MachResidual &residual() const { return *res; }
+
    // /// Creates the nonlinear form for the functional
    // /// \param[in] fun - specifies the desired functional
    // /// \param[in] options - options needed for calculating functional
