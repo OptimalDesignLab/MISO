@@ -10,8 +10,7 @@ namespace mach
 class SteadyODESolver : public mfem::ODESolver
 {
 public:
-   SteadyODESolver(std::ostream *out_stream = nullptr) : out(out_stream)
-   { }
+   SteadyODESolver(std::ostream *out_stream = nullptr) : out(out_stream) { }
 
    void Step(mfem::Vector &x, double &t, double &dt) override;
 

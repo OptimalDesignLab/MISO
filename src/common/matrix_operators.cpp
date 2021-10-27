@@ -7,17 +7,19 @@ using namespace mfem;
 
 namespace mach
 {
-SumOfOperators::SumOfOperators(double alpha, Operator &oper1, double beta,
-                               Operator &oper2) 
-                               : Operator(oper1.Height(),oper1.Width()),
-                               a(alpha),
-                               b(beta),
-                               oper_a(oper1), 
-                               oper_b(oper2),
-                               work_vec(oper1.Width())
+SumOfOperators::SumOfOperators(double alpha,
+                               Operator &oper1,
+                               double beta,
+                               Operator &oper2)
+ : Operator(oper1.Height(), oper1.Width()),
+   a(alpha),
+   b(beta),
+   oper_a(oper1),
+   oper_b(oper2),
+   work_vec(oper1.Width())
 {
-   if ( (oper_a.Height() != oper_b.Height()) || 
-        (oper_a.Width() != oper_b.Width()) )
+   if ((oper_a.Height() != oper_b.Height()) ||
+       (oper_a.Width() != oper_b.Width()))
    {
       throw MachException("SumOfOperators: Operator sizes are incompatible!\n");
    }
@@ -46,4 +48,4 @@ void SumOfOperators::Mult(const Vector &x, Vector &y) const
    y += work_vec;
 }
 
-} // namespace mach
+}  // namespace mach

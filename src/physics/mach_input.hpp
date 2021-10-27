@@ -50,23 +50,27 @@ private:
 /// Convenient shorthand for a map of inputs since each input must be named
 using MachInputs = std::unordered_map<std::string, MachInput>;
 
-/// Helper function that scans a `MachInput` for a given `key` and sets value 
-/// \param[in] inputs - map of strings to MachInputs 
+/// Helper function that scans a `MachInput` for a given `key` and sets value
+/// \param[in] inputs - map of strings to MachInputs
 /// \param[in] key - value to look for in `inputs`
 /// \param[out] value - if `key` is found, value is set to `inputs.at(key)`
 /// \param[in] error_if_not_found - if true, and `key` not found, raises
 /// \note If `key` is not found, `value` is left unchanged.
-void setValueFromInputs(const MachInputs &inputs, const std::string &key,
-                        double &value, bool error_if_not_found=false);
+void setValueFromInputs(const MachInputs &inputs,
+                        const std::string &key,
+                        double &value,
+                        bool error_if_not_found = false);
 
-/// Helper function that scans a `MachInput` for a given `key` and sets field 
-/// \param[in] inputs - map of strings to MachInputs 
+/// Helper function that scans a `MachInput` for a given `key` and sets field
+/// \param[in] inputs - map of strings to MachInputs
 /// \param[in] key - value to look for in `inputs`
 /// \param[out] value - if `key` is found, field is set to `inputs.at(key)`
 /// \param[in] error_if_not_found - if true, and `key` not found, raises
 /// \note If `key` is not found, `field` is left unchanged.
-void setFieldFromInputs(const MachInputs &inputs, const std::string &key, 
-                        double *field, bool error_if_not_found=false);
+void setFieldFromInputs(const MachInputs &inputs,
+                        const std::string &key,
+                        double *field,
+                        bool error_if_not_found = false);
 
 }  // namespace mach
 

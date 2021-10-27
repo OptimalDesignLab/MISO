@@ -27,8 +27,10 @@ double MachInput::getValue() const
    }
 }
 
-void setValueFromInputs(const MachInputs &inputs, const std::string &key,
-                        double &value, bool error_if_not_found)
+void setValueFromInputs(const MachInputs &inputs,
+                        const std::string &key,
+                        double &value,
+                        bool error_if_not_found)
 {
    auto it = inputs.find(key);
    if (it != inputs.end())
@@ -41,8 +43,10 @@ void setValueFromInputs(const MachInputs &inputs, const std::string &key,
    }
 }
 
-void setFieldFromInputs(const MachInputs &inputs, const std::string &key, 
-                        double *field, bool error_if_not_found)
+void setFieldFromInputs(const MachInputs &inputs,
+                        const std::string &key,
+                        double *field,
+                        bool error_if_not_found)
 {
    auto it = inputs.find(key);
    if (it != inputs.end())
