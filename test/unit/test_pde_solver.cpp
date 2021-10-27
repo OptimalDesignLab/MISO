@@ -123,7 +123,7 @@ public:
       auto prec_opts = options["lin-prec"];
       prec = constructPreconditioner(comm, prec_opts);
       auto lin_solver_opts = options["lin-solver"];
-      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts);
+      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec.get());
       auto nonlin_solver_opts = options["nonlin-solver"];
       nonlinear_solver = mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
       nonlinear_solver->SetOperator(*res);
@@ -173,12 +173,12 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
          "type": "pcg",
          "reltol": 1e-12,
          "abstol": 0.0,
-         "printlevel": -1,
+         "printlevel": 1,
          "maxiter": 500
       },
       "nonlin-solver": {
          "maxiter": 1,
-         "printlevel": -1
+         "printlevel": 3
       },
       "ess-bdr": [2, 4]
    })"_json;
