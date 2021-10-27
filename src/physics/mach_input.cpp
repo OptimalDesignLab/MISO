@@ -61,7 +61,8 @@ void setFieldFromInputs(const MachInputs &inputs,
 
 void setVectorFromInputs(const MachInputs &inputs,
                          const std::string &key,
-                         mfem::Vector &vec, int size,
+                         mfem::Vector &vec,
+                         int size,
                          bool error_if_not_found)
 {
    auto it = inputs.find(key);
