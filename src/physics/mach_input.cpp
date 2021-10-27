@@ -59,4 +59,20 @@ void setFieldFromInputs(const MachInputs &inputs,
    }
 }
 
+void setVectorFromInputs(const MachInputs &inputs,
+                         const std::string &key,
+                         mfem::Vector &vec, int size,
+                         bool error_if_not_found)
+{
+   auto it = inputs.find(key);
+   if (it != inputs.end())
+   {
+      vec.SetDataAndSize(it->second.getField(), size);
+   }
+   else if (error_if_not_found)
+   {
+      throw MachException("key = " + key + "not found in inputs!\n");
+   }
+}
+
 }  // namespace mach

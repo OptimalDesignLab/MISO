@@ -4,6 +4,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "mfem.hpp"
+
 namespace mach
 {
 /// Class that represents possible input variabels used when evaluating a mach
@@ -55,7 +57,6 @@ using MachInputs = std::unordered_map<std::string, MachInput>;
 /// \param[in] key - value to look for in `inputs`
 /// \param[out] value - if `key` is found, value is set to `inputs.at(key)`
 /// \param[in] error_if_not_found - if true, and `key` not found, raises
-/// \note If `key` is not found, `value` is left unchanged.
 void setValueFromInputs(const MachInputs &inputs,
                         const std::string &key,
                         double &value,
@@ -64,13 +65,23 @@ void setValueFromInputs(const MachInputs &inputs,
 /// Helper function that scans a `MachInput` for a given `key` and sets field
 /// \param[in] inputs - map of strings to MachInputs
 /// \param[in] key - value to look for in `inputs`
-/// \param[out] value - if `key` is found, field is set to `inputs.at(key)`
+/// \param[out] field - if `key` is found, field is set to `inputs.at(key)`
 /// \param[in] error_if_not_found - if true, and `key` not found, raises
-/// \note If `key` is not found, `field` is left unchanged.
 void setFieldFromInputs(const MachInputs &inputs,
                         const std::string &key,
                         double *field,
                         bool error_if_not_found = false);
+
+/// Helper function that scans a `MachInput` for a given `key` and sets Vector
+/// \param[in] inputs - map of strings to MachInputs
+/// \param[in] key - value to look for in `inputs`
+/// \param[out] vec - if `key` is found, vector is set using `inputs.at(key)`
+/// \param[in] size - number of entries in the vector
+/// \param[in] error_if_not_found - if true, and `key` not found, raises
+void setVectorFromInputs(const MachInputs &inputs,
+                         const std::string &key,
+                         mfem::Vector &vec, int size,
+                         bool error_if_not_found = false);
 
 }  // namespace mach
 
