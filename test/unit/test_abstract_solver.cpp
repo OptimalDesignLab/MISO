@@ -31,13 +31,8 @@ public:
                                       const mach::MachInputs &inputs,
                                       std::string wrt)
    {
-      mfem::Vector x(inputs.at("state").getField(), 2);
-      //residual.Jac(0,0) = 0.0;
-      //residual.Jac(0,1) = exp(x(1));
-      //residual.Jac(1,0) = -exp(x(0));
-      //residual.Jac(1,1) = 0.0;
-      //return residual.Jac;
-      residual.Jac.setState(x);
+      residual.state.SetDataAndSize(inputs.at("state").getField(), 2);
+      residual.Jac.setState(residual.state);
       return residual.Jac;
    }
    friend double calcEntropy(ExpODEResidual &residual,
@@ -60,6 +55,7 @@ public:
 private:
    //mfem::DenseMatrix Jac;
    mach::JacobianFree<ExpODEResidual> Jac;
+   mfem::Vector state;
    mfem::Vector work; 
 };
 
@@ -82,6 +78,11 @@ public:
       auto ode_opts = options["time-dis"];
       ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, *nonlinear_solver);
    }
+   std::unique_ptr<mfem::Solver> constructPreconditioner(
+      MPI_Comm comm, const nlohmann::json &prec_options)
+   {
+      return nullptr;
+   }
 };
 
 TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RK4",
@@ -103,8 +104,8 @@ TEST_CASE("Testing AbstractSolver as TimeDependentOperator with RK4",
       },
       "lin-solver": {
          "type": "pcg",
-         "reltol": 1e-14,
-         "abstol": 0.0,
+         "reltol": 1e-12,
+         "abstol": 1e-14,
          "printlevel": -1,
          "maxiter": 500
       },

@@ -9,6 +9,37 @@
 namespace mach
 {
 
+/// Linear combination of two `Operators`
+class SumOfOperators : public mfem::Operator 
+{
+public:
+   /// Construct an operator out of the given linear combination
+   /// \param[in] alpha - scalar multiplying `oper1`
+   /// \param[in] oper1 - first operator in the sum 
+   /// \param[in] beta - scalar multiplying `oper2`
+   /// \param[in] oper2 - second operator in the sum 
+   /// \note Produces an operator whose `Mult(x,y)` performs `y = a*v + b*w` 
+   /// where `oper1.Mult(x,v)` and `oper2.Mult(x,w)`
+   SumOfOperators(double alpha, mfem::Operator &oper1, double beta,
+                  mfem::Operator &oper2);
+
+   /// Performs the linear combination of the operators on `x` to produce `y`
+   /// \param[in] x - the vector being acted/operated on 
+   /// \param[out] y - the result of the action
+   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
+
+private:
+   /// scalars in the linear combination 
+   double a, b;
+   /// first operator making up the sum 
+   mfem::Operator &oper_a;
+   /// second operator making up the sum 
+   mfem::Operator &oper_b;
+   /// work vector 
+   mutable mfem::Vector work_vec;
+};
+
+
 /// Defines Jacobian-vector products using finite-differences
 /// \note Presently the object computes the residual at the given baseline 
 /// state; this is likely unnecessary, since the residual at that state will be 
@@ -22,7 +53,7 @@ public:
    /// Construct a Jacobian-free matrix-vector product operator 
    /// \param[in] residual - the equation/residual that defines the Jacobian
    /// \param[in] comm - MPI communicator needed for global inner products 
-   JacobianFree(T &residual, MPI_Comm comm=MPI_COMM_WORLD);
+   JacobianFree(T &residual, MPI_Comm incomm=MPI_COMM_WORLD);
 
    /// Sets the state at which the Jacobian is evaluated
    /// \param[in] baseline - state where Jacobian is to be evaluated
@@ -55,8 +86,10 @@ private:
 };
 
 template <typename T>
-JacobianFree<T>::JacobianFree(T &residual, MPI_Comm comm)
-                              : res(residual),
+JacobianFree<T>::JacobianFree(T &residual, MPI_Comm incomm)
+                              : Operator(getSize(residual)),
+                              comm(incomm),
+                              res(residual),
                               res_at_state(getSize(res)),
                               state_pert(getSize(res)) {}
 
@@ -85,12 +118,19 @@ template <typename T>
 double JacobianFree<T>::getStepSize(const mfem::Vector &baseline,
                                     const mfem::Vector &pert) const
 {
-   // This currently uses the step size suggested by Chisholm and Zingg in 
+   // This is based on the step size suggested by Chisholm and Zingg in 
    // "A Jacobian-Free Newton-Krylov Algorithm for Compressible Turbulent Fluid 
    // Flows", https://doi.org/10.1016/j.jcp.2009.02.004
    const double delta = 1e-10;
    double prod = InnerProduct(comm, pert, pert);
-   return sqrt(delta/prod);
+   if (prod > 1e-6)
+   {
+      return sqrt(delta/prod);
+   }
+   else 
+   {
+      return 1e-7;
+   }
 }
 
 } // namespace mach 

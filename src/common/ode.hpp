@@ -57,16 +57,16 @@ public:
 
       /// Determine what type of mass matrix we're using and pre-allocate the
       /// Jacobian
-      auto *hypre_mass = dynamic_cast<mfem::HypreParMatrix *>(mass_matrix_);
-      auto *iden_mass = dynamic_cast<mfem::IdentityOperator *>(mass_matrix_);
-      if (hypre_mass != nullptr)
-      {
-         jac_ = std::make_unique<mfem::HypreParMatrix>(*hypre_mass);
-      }
-      else if (iden_mass != nullptr)
-      {
-         jac_ = std::make_unique<mfem::DenseMatrix>(getSize(res_));
-      }
+      // auto *hypre_mass = dynamic_cast<mfem::HypreParMatrix *>(mass_matrix_);
+      // auto *iden_mass = dynamic_cast<mfem::IdentityOperator *>(mass_matrix_);
+      // if (hypre_mass != nullptr)
+      // {
+      //    jac_ = std::make_unique<mfem::HypreParMatrix>(*hypre_mass);
+      // }
+      // else if (iden_mass != nullptr)
+      // {
+      //    jac_ = std::make_unique<mfem::DenseMatrix>(getSize(res_));
+      // }
    }
 
 private:

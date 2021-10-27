@@ -4,6 +4,7 @@
 #include "utils.hpp"
 
 #include "ode.hpp"
+#include "matrix_operators.hpp"
 
 namespace mach
 {
@@ -117,7 +118,9 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    add(state, dt, state_dot, work);
    MachInputs input{{"state", work.GetData()}};
    auto &spatial_jac = getJacobian(residual.res_, input, std::move(wrt));
-   addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
+   residual.jac_ = std::make_unique<SumOfOperators>(1.0, *residual.mass_matrix_,
+                                                    dt, spatial_jac);
+   ///addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
    return *residual.jac_;
 }
 
