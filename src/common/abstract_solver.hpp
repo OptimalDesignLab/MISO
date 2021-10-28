@@ -112,22 +112,10 @@ protected:
                              const mfem::Vector &state)
    { }
 
-   /// linear system preconditioner for solver in newton solver and adjoint
-   std::unique_ptr<mfem::Solver> prec;
    /// linear system solver used in newton solver
    std::unique_ptr<mfem::Solver> linear_solver;
    /// newton solver for solving implicit problems
    std::unique_ptr<mfem::NewtonSolver> nonlinear_solver;
-
-   virtual std::unique_ptr<mfem::Solver> constructPreconditioner(
-       MPI_Comm comm,
-       const nlohmann::json &prec_options)
-   {
-      return nullptr;
-   }
-
-   /// Execute set-up steps that are specific to the derived solvers.
-   void initDerived();
 };
 
 }  // namespace mach

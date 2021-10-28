@@ -125,11 +125,6 @@ public:
       ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, 
                                                   *nonlinear_solver);
    }
-   std::unique_ptr<mfem::Solver> constructPreconditioner(
-      MPI_Comm comm, const nlohmann::json &prec_options)
-   {
-      return nullptr;
-   }
 };
 
 TEST_CASE("Testing AbstractSolver using RK4", "[abstract-solver]")

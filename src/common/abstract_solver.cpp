@@ -17,18 +17,6 @@ AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
    MPI_Comm_rank(comm, &rank);
 }
 
-void AbstractSolver2::initDerived()
-{
-   // construct various solvers and preconditioners
-   prec = constructPreconditioner(comm, options["lin-prec"]);
-
-   linear_solver =
-       constructLinearSolver(comm, options["lin-solver"], prec.get());
-
-   nonlinear_solver =
-       constructNonlinearSolver(comm, options["nonlin-solver"], *linear_solver);
-}
-
 void AbstractSolver2::solveForState(const MachInputs &inputs,
                                     mfem::Vector &state)
 {

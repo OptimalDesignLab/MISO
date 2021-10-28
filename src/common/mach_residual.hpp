@@ -31,6 +31,12 @@ double calcEntropyChange(T &, const MachInputs &)
        "calcEntropyChange not specialized for concrete residual type!\n");
 }
 
+template <typename T>
+mfem::Solver *getPreconditioner(T &)
+{
+   return nullptr;
+}
+
 /// Defines a common interface for residual functions used by mach.
 /// A MachResidual can wrap any type `T` that has the interface of a residual
 /// function.  For example, one instance of `T` is given by `MachNonlinearForm`,
@@ -98,6 +104,12 @@ public:
    friend double calcEntropyChange(MachResidual &residual,
                                    const MachInputs &inputs);
 
+   /// Return a preconditioner owned by the residual for inverting the residual's state Jacobian
+   /// \param[inout] residual - the object owning the preconditioner
+   /// \return non owning pointer to a preconditioner for inverting the state Jacobian
+   /// \note if a concrete residual type does not define a getPreconditioner function a `nullptr` will be returned
+   friend mfem::Solver *getPreconditioner(MachResidual &residual);
+
    /// We need to support these overrides so that the MachResidual type can be
    /// directly set as the operator for an MFEM NonlinearSolver
    void Mult(const mfem::Vector &state, mfem::Vector &res_vec) const override
@@ -136,6 +148,7 @@ private:
                                       std::string wrt) = 0;
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
+      virtual mfem::Solver *getPrec_() = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -170,6 +183,10 @@ private:
       double calcEntropyChange_(const MachInputs &inputs) override
       {
          return calcEntropyChange(data_, inputs);
+      }
+      mfem::Solver *getPrec_() override
+      {
+         return getPreconditioner(data_);
       }
 
       T data_;
@@ -225,6 +242,11 @@ inline double calcEntropyChange(MachResidual &residual,
                                 const MachInputs &inputs)
 {
    return residual.self_->calcEntropyChange_(inputs);
+}
+
+inline mfem::Solver *getPreconditioner(MachResidual &residual)
+{
+   return residual.self_->getPrec_();
 }
 
 }  // namespace mach

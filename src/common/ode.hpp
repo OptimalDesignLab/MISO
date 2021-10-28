@@ -35,6 +35,11 @@ public:
    friend double calcEntropyChange(TimeDependentResidual &residual,
                                    const MachInputs &inputs);
 
+   friend mfem::Solver *getPreconditioner(TimeDependentResidual &residual)
+   {
+      return getPreconditioner(residual.res_);
+   }
+
    /** \brief constructs a time dependent residual of the form
             M du_dt + R(u, p, t) = 0
 

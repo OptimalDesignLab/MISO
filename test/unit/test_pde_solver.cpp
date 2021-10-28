@@ -20,7 +20,8 @@ class ThermalResidual final
 {
 
 public:
-   ThermalResidual(mfem::ParFiniteElementSpace &fes)
+   ThermalResidual(mfem::ParFiniteElementSpace &fes,
+                   const nlohmann::json &options)
     : fes_(fes),
       fields(std::make_unique<std::unordered_map<std::string, mfem::ParGridFunction>>()),
       res(fes_, *fields),
@@ -30,7 +31,8 @@ public:
       {
          auto x = p(0);
          return 2 - exp(-t) * (3*sin(2*x) + 8*sin(3*x));
-      }))
+      })),
+      prec(constructPreconditioner(fes_.GetComm(), options["lin-prec"]))
    {
       res.addDomainIntegrator(new mfem::DiffusionIntegrator);
       load->addDomainIntegrator(new mfem::DomainLFIntegrator(*force));
@@ -75,6 +77,11 @@ public:
       return getJacobian(residual.res, inputs, std::move(wrt));
    }
 
+   friend mfem::Solver *getPreconditioner(ThermalResidual &residual)
+   {
+      return residual.prec.get();
+   }
+
 private:
    mfem::ParFiniteElementSpace &fes_;
    std::unique_ptr<std::unordered_map<std::string, mfem::ParGridFunction>> fields;
@@ -82,6 +89,17 @@ private:
    // std::unique_ptr<mfem::ConstantCoefficient> kappa;
    std::unique_ptr<mach::MachLinearForm> load;
    std::unique_ptr<mfem::FunctionCoefficient> force;
+
+   /// preconditioner for inverting residual's state Jacobian
+   std::unique_ptr<mfem::Solver> prec;
+   std::unique_ptr<mfem::Solver> constructPreconditioner(
+       MPI_Comm comm,
+       const nlohmann::json &prec_options)
+   {
+      auto amg = std::make_unique<mfem::HypreBoomerAMG>();
+      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
+      return amg;
+   }
 };
 
 /// Solver that uses `ThermalResidual` to define its dynamics
@@ -95,7 +113,7 @@ public:
    {
       if (options["time-dis"]["steady"].get<bool>())
       {
-         res = std::make_unique<mach::MachResidual>(ThermalResidual(fes()));
+         res = std::make_unique<mach::MachResidual>(ThermalResidual(fes(), options));
       }
       else
       {
@@ -116,14 +134,13 @@ public:
          mass->FormSystemMatrix(ess_tdof_list, *mass_mat);
 
          res = std::make_unique<mach::MachResidual>(
-            mach::TimeDependentResidual(ThermalResidual(fes()), &(*mass_mat)));
+            mach::TimeDependentResidual(ThermalResidual(fes(), options), &(*mass_mat)));
       }
       setOptions(*res, options);
 
-      auto prec_opts = options["lin-prec"];
-      prec = constructPreconditioner(comm, prec_opts);
+      auto *prec = getPreconditioner(*res);
       auto lin_solver_opts = options["lin-solver"];
-      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec.get());
+      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
       auto nonlin_solver_opts = options["nonlin-solver"];
       nonlinear_solver = mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
       nonlinear_solver->SetOperator(*res);
@@ -137,15 +154,6 @@ private:
    /// Optional mass matrix depending on if the problem is steady or not
    std::optional<mfem::ParBilinearForm> mass = std::nullopt;
    std::optional<mfem::HypreParMatrix> mass_mat = std::nullopt;
-
-   std::unique_ptr<mfem::Solver> constructPreconditioner(
-       MPI_Comm comm,
-       const nlohmann::json &prec_options)
-   {
-      auto amg = std::make_unique<mfem::HypreBoomerAMG>();
-      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
-      return amg;
-   }
 };
 
 TEST_CASE("Testing PDESolver unsteady heat equation MMS")
