@@ -20,6 +20,8 @@ target_sources(mach
       mach_output.hpp
       mach_residual.hpp
       material_library.hpp
+      matrix_operators.hpp
+      matrix_operators.cpp
       mfem_extensions.cpp
       mfem_extensions.hpp
       ode.cpp

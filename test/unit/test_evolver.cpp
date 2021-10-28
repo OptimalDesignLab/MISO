@@ -85,10 +85,8 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
          return *Jac;
       }
 
-      void ImplicitSolve(const double dt_, 
-                         const Vector &x_, Vector &k_)
+      void ImplicitSolve(const double dt_, const Vector &x_, Vector &k_)
       {
-         // NOTE:: dt_stage is not required by this ODE
          dt = dt_;
          x = x_;
          Vector zero;

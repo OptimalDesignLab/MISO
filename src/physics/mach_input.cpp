@@ -27,4 +27,53 @@ double MachInput::getValue() const
    }
 }
 
+void setValueFromInputs(const MachInputs &inputs,
+                        const std::string &key,
+                        double &value,
+                        bool error_if_not_found)
+{
+   auto it = inputs.find(key);
+   if (it != inputs.end())
+   {
+      value = it->second.getValue();
+   }
+   else if (error_if_not_found)
+   {
+      throw MachException("key = " + key + "not found in inputs!\n");
+   }
+}
+
+void setFieldFromInputs(const MachInputs &inputs,
+                        const std::string &key,
+                        double *field,
+                        bool error_if_not_found)
+{
+   auto it = inputs.find(key);
+   if (it != inputs.end())
+   {
+      field = it->second.getField();
+   }
+   else if (error_if_not_found)
+   {
+      throw MachException("key = " + key + "not found in inputs!\n");
+   }
+}
+
+void setVectorFromInputs(const MachInputs &inputs,
+                         const std::string &key,
+                         mfem::Vector &vec,
+                         int size,
+                         bool error_if_not_found)
+{
+   auto it = inputs.find(key);
+   if (it != inputs.end())
+   {
+      vec.SetDataAndSize(it->second.getField(), size);
+   }
+   else if (error_if_not_found)
+   {
+      throw MachException("key = " + key + "not found in inputs!\n");
+   }
+}
+
 }  // namespace mach
