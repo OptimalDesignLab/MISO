@@ -35,6 +35,7 @@ public:
                                      mfem::HypreParVector &wrt_bar);
 
    CurrentLoad(mfem::ParFiniteElementSpace &pfes,
+               const nlohmann::json &options,
                mfem::VectorCoefficient &current_coeff);
 
 private:
@@ -62,6 +63,9 @@ private:
    VectorFEMassIntegratorMeshSens *m_j_mesh_sens;
    VectorFEDomainLFIntegratorMeshSens *J_mesh_sens;
    VectorFEMassIntegratorMeshSens *m_l_mesh_sens;
+
+   /// essential tdofs
+   mfem::Array<int> ess_tdof_list;
 
    /// flag to know if the load vector should be reassembled
    bool dirty;

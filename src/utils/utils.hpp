@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_types.hpp"
 
@@ -121,6 +122,12 @@ static const T &retrieve(const MaybeOwningPointer<T> &obj)
 {
    return std::visit([](auto &&ptr) -> const T & { return *ptr; }, obj);
 }
+
+/// \brief helper function to populate the @a ess_bdr array based on options
+/// \param[in] options - options dictionary containing "ess-bdr" key
+/// \param[out] ess_bdr - binary array that marks essential boundaries
+void getEssentialBoundaries(const nlohmann::json &options,
+                            mfem::Array<int> &ess_bdr);
 
 // /// The following are adapted from MFEM's pfem_extras.xpp
 // class DiscreteGradOperator : public mfem::ParDiscreteLinearOperator

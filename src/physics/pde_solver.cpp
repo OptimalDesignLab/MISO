@@ -19,6 +19,7 @@
 #endif  // MFEM_USE_PUMI
 
 #include "finite_element_state.hpp"
+#include "material_library.hpp"
 #include "sbp_fe.hpp"
 #include "utils.hpp"
 
@@ -94,6 +95,7 @@ PDESolver::PDESolver(MPI_Comm incomm,
                      std::unique_ptr<mfem::Mesh> smesh)
  : AbstractSolver2(incomm, solver_options),
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
+   materials(material_library),
    vis("mach", mesh_.get())
 {
    fields.push_back(

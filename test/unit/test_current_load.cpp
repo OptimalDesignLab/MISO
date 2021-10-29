@@ -84,7 +84,8 @@ TEST_CASE("CurrentLoad setInputs")
       current_coeff.addCoefficient(2, move(temp_coeff));
    }
 
-   CurrentLoad load(fes, current_coeff);
+   nlohmann::json options;
+   CurrentLoad load(fes, options, current_coeff);
 
    MachLoad ml(load);
 
@@ -148,7 +149,8 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
       current_coeff.addCoefficient(2, move(temp_coeff));
    }
 
-   CurrentLoad load(fes, current_coeff);
+   nlohmann::json options;
+   CurrentLoad load(fes, options, current_coeff);
 
    MachLoad ml(load);
 
@@ -208,7 +210,8 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
                                            simpleCurrent,
                                            simpleCurrentRevDiff);
 
-   CurrentLoad load(fes, current_coeff);
+   nlohmann::json options;
+   CurrentLoad load(fes, options, current_coeff);
    MachLoad ml(load);
 
    // extract mesh nodes and get their finite-element space

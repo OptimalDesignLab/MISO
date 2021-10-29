@@ -67,6 +67,9 @@ protected:
        const nlohmann::json &mesh_options);
    */
 
+   /// solver material properties
+   nlohmann::json materials;
+
    /// Members associated with fields
    /// Vector of all state vectors used by the solver
    std::vector<FiniteElementState> fields;

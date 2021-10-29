@@ -31,7 +31,16 @@ void setInputs(CurrentLoad &load, const MachInputs &inputs)
    }
 }
 
-void setOptions(CurrentLoad &load, const nlohmann::json &options) { }
+void setOptions(CurrentLoad &load, const nlohmann::json &options)
+{
+   if (options.contains("ess-bdr"))
+   {
+      auto fes = load.fes;
+      mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+      getEssentialBoundaries(options, ess_bdr);
+      fes.GetEssentialTrueDofs(ess_bdr, load.ess_tdof_list);
+   }
+}
 
 void addLoad(CurrentLoad &load, Vector &tv)
 {
@@ -40,6 +49,7 @@ void addLoad(CurrentLoad &load, Vector &tv)
       load.assembleLoad();
       load.dirty = false;
    }
+   load.load.SetSubVector(load.ess_tdof_list, 0.0);
    subtract(tv, load.load, tv);
 }
 
@@ -137,6 +147,7 @@ void vectorJacobianProduct(CurrentLoad &load,
 }
 
 CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
+                         const nlohmann::json &options,
                          VectorCoefficient &current_coeff)
  : current_density(1.0),
    current(1.0, current_coeff),
@@ -173,6 +184,8 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    mesh_sens.AddDomainIntegrator(J_mesh_sens);
    m_l_mesh_sens = new VectorFEMassIntegratorMeshSens;
    mesh_sens.AddDomainIntegrator(m_l_mesh_sens);
+
+   setOptions(*this, options);
 }
 
 void CurrentLoad::assembleLoad()

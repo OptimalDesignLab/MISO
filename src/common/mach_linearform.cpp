@@ -5,6 +5,7 @@
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
 #include "mach_linearform.hpp"
+#include "utils.hpp"
 
 namespace mach
 {
@@ -37,12 +38,7 @@ void setOptions(MachLinearForm &load, const nlohmann::json &options)
    {
       auto fes = *load.lf.ParFESpace();
       mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
-      ess_bdr = 0;
-      auto tmp = options["ess-bdr"].get<std::vector<int>>();
-      for (auto &bdr : tmp)
-      {
-         ess_bdr[bdr - 1] = 1;
-      }
+      getEssentialBoundaries(options, ess_bdr);
       fes.GetEssentialTrueDofs(ess_bdr, load.ess_tdof_list);
    }
 }

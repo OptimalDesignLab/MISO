@@ -88,6 +88,40 @@ HypreParVector bufferToHypreParVector(double *buffer,
        fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets());
 }
 
+void getEssentialBoundaries(const nlohmann::json &options,
+                            mfem::Array<int> &ess_bdr)
+{
+   ess_bdr = 0;
+   if (options["ess-bdr"].is_string())
+   {
+      auto tmp = options["ess-bdr"].get<std::string>();
+      if (tmp == "all")
+      {
+         ess_bdr = 1;
+      }
+      else if (tmp == "none")
+      {
+         ess_bdr = 0;
+      }
+      else
+      {
+         throw MachException("Unrecognized string for \"ess-bdr\" options!");
+      }
+   }
+   else if (options["ess-bdr"].is_array())
+   {
+      auto tmp = options["ess-bdr"].get<std::vector<int>>();
+      for (auto &bdr : tmp)
+      {
+         ess_bdr[bdr - 1] = 1;
+      }
+   }
+   else 
+   {
+      throw MachException("Unrecognized JSON value for \"ess-bdr\" options!");
+   }
+}
+
 /// performs quadratic interpolation given x0, y0, dy0/dx0, x1, and y1.
 double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 {
