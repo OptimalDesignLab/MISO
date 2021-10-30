@@ -3,28 +3,10 @@
 
 namespace mach
 {
-double *MachInput::getField() const
-{
-   if (active != Type::Field)
-   {
-      throw MachException("Input type is not a field!\n");
-   }
-   else
-   {
-      return input.field;
-   }
-}
 
-double MachInput::getValue() const
+void setValueFromInput(const MachInput &input, double &value)
 {
-   if (active != Type::Value)
-   {
-      throw MachException("Input type is not a value!\n");
-   }
-   else
-   {
-      return input.value;
-   }
+   value = std::get<double>(input);
 }
 
 void setValueFromInputs(const MachInputs &inputs,
@@ -32,10 +14,10 @@ void setValueFromInputs(const MachInputs &inputs,
                         double &value,
                         bool error_if_not_found)
 {
-   auto it = inputs.find(key);
-   if (it != inputs.end())
+   auto input = inputs.find(key);
+   if (input != inputs.end())
    {
-      value = it->second.getValue();
+      setValueFromInput(input->second, value);
    }
    else if (error_if_not_found)
    {
@@ -43,32 +25,32 @@ void setValueFromInputs(const MachInputs &inputs,
    }
 }
 
-void setFieldFromInputs(const MachInputs &inputs,
-                        const std::string &key,
-                        double *field,
-                        bool error_if_not_found)
+void setVectorFromInput(const MachInput &input,
+                        mfem::Vector &vec,
+                        bool deep_copy)
 {
-   auto it = inputs.find(key);
-   if (it != inputs.end())
+   auto *tmp = std::get<const mfem::Vector *>(input);
+   if (deep_copy)
    {
-      field = it->second.getField();
+      vec.SetSize(tmp->Size());
+      vec = *tmp;
    }
-   else if (error_if_not_found)
+   else
    {
-      throw MachException("key = " + key + "not found in inputs!\n");
+      vec.NewDataAndSize(tmp->GetData(), tmp->Size());
    }
 }
 
 void setVectorFromInputs(const MachInputs &inputs,
                          const std::string &key,
                          mfem::Vector &vec,
-                         int size,
+                         bool deep_copy,
                          bool error_if_not_found)
 {
-   auto it = inputs.find(key);
-   if (it != inputs.end())
+   auto input = inputs.find(key);
+   if (input != inputs.end())
    {
-      vec.SetDataAndSize(it->second.getField(), size);
+      setVectorFromInput(input->second, vec, deep_copy);
    }
    else if (error_if_not_found)
    {

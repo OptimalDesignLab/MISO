@@ -19,7 +19,7 @@ void setInputs(PassiveControlResidual &residual, const MachInputs &inputs)
    setValueFromInputs(inputs, "alpha", residual.alpha);
    setValueFromInputs(inputs, "beta", residual.beta);
    setValueFromInputs(inputs, "entropy_targ", residual.entropy_targ);
-   setFieldFromInputs(inputs, "state", residual.x.begin());
+   setVectorFromInputs(inputs, "state", residual.x);
 }
 
 void setOptions(PassiveControlResidual &residual, const nlohmann::json &options)
@@ -39,7 +39,7 @@ void evaluate(PassiveControlResidual &residual, const MachInputs &inputs,
    double &entropy_targ = residual.entropy_targ;
    // extract the control variables ("state") and entropy from inputs
    const bool error_if_not_found = true;
-   setFieldFromInputs(inputs, "state", residual.x.begin(), error_if_not_found);
+   setVectorFromInputs(inputs, "state", residual.x, error_if_not_found);
    double entropy;
    setValueFromInputs(inputs, "entropy", entropy, error_if_not_found);
    // evaluate the residual
@@ -85,15 +85,24 @@ void evaluate(FlowControlResidual &residual, const MachInputs &inputs,
                        getSize(residual.flow_res));
 
    // Compute the outputs of the flow and control problems needed by the other
-   double time = inputs.at("time").getValue();
-   double * control_state_ptr = inputs.at("state").getField();
-   double * flow_state_ptr = inputs.at("state").getField() + num_control;
+   double time = std::get<double>(inputs.at("time"));
+
+   Vector state;
+   getVectorFromInput(inputs.at("state"), state);
+   Vector control_state(state.begin(), num_control);
+   Vector flow_state(state.begin() + num_control, num_flow_state);
+
+   // double * control_state_ptr = inputs.at("state").getField();
+   // double * flow_state_ptr = inputs.at("state").getField() + num_control;
    auto flow_inputs = MachInputs({
-      {"state", flow_state_ptr}, {"time", time}
+      // {"state", flow_state_ptr},
+      {"state", flow_state},
+      {"time", time}
    });
    double entropy = calcOutput(residual.boundary_entropy, flow_inputs);
    auto control_inputs = MachInputs({
-      {"state", control_state_ptr}
+      // {"state", control_state_ptr}
+      {"state", control_state}
    });
    double velocity = calcOutput(residual.velocity, control_inputs);
 
@@ -117,11 +126,17 @@ Operator &getJacobian(FlowControlResidual &residual, const MachInputs &inputs,
           "\tvalue provided for wrt was " + wrt "\n");
    }
    double time = inputs.at("time");
-   double * control_state_ptr = inputs.at("state").getField();
-   double * flow_state_ptr = inputs.at("state").getField() + num_control;
+
+   Vector state;
+   getVectorFromInput(inputs.at("state"), state);
+   Vector control_state(state.begin(), num_control);
+   Vector flow_state(state.begin() + num_control, num_flow_state);
+
+   // double * control_state_ptr = inputs.at("state").getField();
+   // double * flow_state_ptr = inputs.at("state").getField() + num_control;
    // set inputs for flow Jacobian and get a reference to it
    auto flow_inputs = MachInputs({
-      {"state", flow_state_ptr}, {"time", time}, {"control", control_state_ptr}
+      {"state", flow_state}, {"time", time}, {"control", control_state}
    });
    Operator &flow_jac = getJacobian(residual.flow_res, flow_inputs, "state");
 

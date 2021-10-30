@@ -40,7 +40,8 @@ public:
                      mfem::VectorCoefficient &current_coeff,
                      mfem::VectorCoefficient &mag_coeff,
                      mfem::Coefficient &nu)
-    : current_load(pfes, options, current_coeff), magnetic_load(pfes, mag_coeff, nu)
+    : current_load(pfes, options, current_coeff),
+      magnetic_load(pfes, mag_coeff, nu)
    { }
 
 private:

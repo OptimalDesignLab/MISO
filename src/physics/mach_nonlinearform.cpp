@@ -17,18 +17,43 @@ int getSize(const MachNonlinearForm &form)
 
 void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
 {
+   // for (const auto &in : inputs)
+   // {
+   //    const auto &input = in.second;
+   //    if (input.isField())
+   //    {
+   //       const auto &name = in.first;
+   //       auto it = form.nf_fields->find(name);
+   //       if (it != form.nf_fields->end())
+   //       {
+   //          auto &field = it->second;
+   //          field.GetTrueVector().SetDataAndSize(
+   //              input.getField(), field.ParFESpace()->GetTrueVSize());
+   //          field.SetFromTrueVector();
+   //       }
+   //    }
+   // }
    for (const auto &in : inputs)
    {
       const auto &input = in.second;
-      if (input.isField())
+      if (std::holds_alternative<const mfem::Vector*>(input))
       {
          const auto &name = in.first;
          auto it = form.nf_fields->find(name);
          if (it != form.nf_fields->end())
          {
             auto &field = it->second;
-            field.GetTrueVector().SetDataAndSize(
-                input.getField(), field.ParFESpace()->GetTrueVSize());
+            setVectorFromInput(input, field.GetTrueVector());
+            // if (field.GetTrueVector().Size() !=
+            //     field.ParFESpace()->GetTrueVSize())
+            // {
+            //    throw MachException("Input field " + name +
+            //                        " is wrong size!\n"
+            //                        "Size is " +
+            //                        field.GetTrueVector().Size() +
+            //                        ", should be " +
+            //                        field.ParFESpace()->GetTrueVSize() + "!\n");
+            // }
             field.SetFromTrueVector();
          }
       }
@@ -58,8 +83,10 @@ void evaluate(MachNonlinearForm &form,
               const MachInputs &inputs,
               mfem::Vector &res_vec)
 {
-   auto *pfes = form.nf.ParFESpace();
-   auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);
+   // auto *pfes = form.nf.ParFESpace();
+   // auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);
+   mfem::Vector state;
+   setVectorFromInputs(inputs, "state", state, false, true);
    form.nf.Mult(state, res_vec);
 }
 
@@ -67,8 +94,10 @@ mfem::Operator &getJacobian(MachNonlinearForm &form,
                             const MachInputs &inputs,
                             std::string wrt)
 {
-   auto *pfes = form.nf.ParFESpace();
-   auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);
+   // auto *pfes = form.nf.ParFESpace();
+   // auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);
+   mfem::Vector state;
+   setVectorFromInputs(inputs, "state", state, false, true);
    return form.nf.GetGradient(state);
 }
 

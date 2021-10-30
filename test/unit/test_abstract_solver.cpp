@@ -24,15 +24,15 @@ public:
    friend void setInputs(ExpODEResidual &residual,
                          const mach::MachInputs &inputs)
    {
-      setValueFromInputs(inputs, "dt", residual.dt);
-      setVectorFromInputs(inputs, "state", residual.state, 2);
+      mach::setValueFromInputs(inputs, "dt", residual.dt);
+      mach::setVectorFromInputs(inputs, "state", residual.state);
    }
    friend void evaluate(ExpODEResidual &residual,
                         const mach::MachInputs &inputs,
                         mfem::Vector &res_vec)
    {
       mfem::Vector dxdt;
-      setVectorFromInputs(inputs, "state", dxdt, 2);
+      mach::setVectorFromInputs(inputs, "state", dxdt);
       res_vec.SetSize(2);
       res_vec(0) = dxdt(0);
       res_vec(1) = dxdt(1);
@@ -68,7 +68,7 @@ public:
       }
       // Implicit time marching
       mfem::Vector dxdt;
-      setVectorFromInputs(inputs, "state", dxdt, 2);
+      mach::setVectorFromInputs(inputs, "state", dxdt);
       auto &x = residual.work;
       add(residual.state, residual.dt, dxdt, x);
       residual.Jac(0,0) = 1.0;
@@ -81,17 +81,17 @@ public:
                              const mach::MachInputs &inputs)
    {
       mfem::Vector x;
-      setVectorFromInputs(inputs, "state", x, 2, true);
+      mach::setVectorFromInputs(inputs, "state", x, false, true);
       return exp(x(0)) + exp(x(1));
    }
    friend double calcEntropyChange(ExpODEResidual &residual,
                                    const mach::MachInputs &inputs)
    {
       mfem::Vector x, dxdt;
-      setVectorFromInputs(inputs, "state", x, 2, true);
-      setVectorFromInputs(inputs, "state_dot", dxdt, 2, true);
+      mach::setVectorFromInputs(inputs, "state", x, false, true);
+      mach::setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
       double dt;
-      setValueFromInputs(inputs, "dt", dt, true);
+      mach::setValueFromInputs(inputs, "dt", dt, true);
       auto &y = residual.work;
       add(x, dt, dxdt, y);
       // should be zero 

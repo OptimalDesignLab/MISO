@@ -58,11 +58,12 @@ private:
 
 void setInputs(TestIntegrator &integ, const mach::MachInputs &inputs)
 {
-   auto it = inputs.find("time");
-   if (it != inputs.end())
-   {
-      integ.time = it->second.getValue();
-   }
+   // auto it = inputs.find("time");
+   // if (it != inputs.end())
+   // {
+   //    integ.time = it->second.getValue();
+   // }
+   mach::setValueFromInputs(inputs, "time", integ.time);
 }
 
 using namespace mach;
@@ -96,7 +97,7 @@ TEST_CASE("MachResidual Scalar Input Test",
 
    // set the time using a MachInput to pi, and set state
    auto inputs = MachInputs({
-      {"time", M_PI}, {"state", state.GetData()}
+      {"time", M_PI}, {"state", &state}
    });
    setInputs(res, inputs);
 

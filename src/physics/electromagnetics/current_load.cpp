@@ -19,7 +19,8 @@ void setInputs(CurrentLoad &load, const MachInputs &inputs)
    auto it = inputs.find("current_density");
    if (it != inputs.end())
    {
-      load.current_density = it->second.getValue();
+      setValueFromInput(it->second, load.current_density);
+      // load.current_density = it->second.getValue();
       load.current.SetAConst(load.current_density);
       load.dirty = true;
    }

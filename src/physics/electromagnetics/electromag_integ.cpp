@@ -2586,11 +2586,12 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
 
 void setInputs(DCLossFunctionalIntegrator &integ, const MachInputs &inputs)
 {
-   auto it = inputs.find("current_density");
-   if (it != inputs.end())
-   {
-      integ.current_density = it->second.getValue();
-   }
+   // auto it = inputs.find("current_density");
+   // if (it != inputs.end())
+   // {
+   //    integ.current_density = it->second.getValue();
+   // }
+   setValueFromInputs(inputs, "current_density", integ.current_density);
 }
 
 double DCLossFunctionalIntegrator::GetElementEnergy(
@@ -2654,21 +2655,24 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
 void setInputs(HybridACLossFunctionalIntegrator &integ,
                const MachInputs &inputs)
 {
-   auto it = inputs.find("diam");
-   if (it != inputs.end())
-   {
-      integ.diam = it->second.getValue();
-   }
-   it = inputs.find("diam");
-   if (it != inputs.end())
-   {
-      integ.freq = it->second.getValue();
-   }
-   it = inputs.find("fill-factor");
-   if (it != inputs.end())
-   {
-      integ.fill_factor = it->second.getValue();
-   }
+   // auto it = inputs.find("diam");
+   // if (it != inputs.end())
+   // {
+   //    integ.diam = it->second.getValue();
+   // }
+   // it = inputs.find("diam");
+   // if (it != inputs.end())
+   // {
+   //    integ.freq = it->second.getValue();
+   // }
+   // it = inputs.find("fill-factor");
+   // if (it != inputs.end())
+   // {
+   //    integ.fill_factor = it->second.getValue();
+   // }
+   setValueFromInputs(inputs, "diam", integ.diam);
+   setValueFromInputs(inputs, "freq", integ.freq);
+   setValueFromInputs(inputs, "fill-factor", integ.fill_factor);
 }
 
 double HybridACLossFunctionalIntegrator::GetElementEnergy(

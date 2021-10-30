@@ -48,26 +48,32 @@ int getSize(const TimeDependentResidual &residual)
 void setInputs(TimeDependentResidual &residual, const mach::MachInputs &inputs)
 {
    auto it = inputs.find("state");
-   if (it != inputs.end())
-   {
-      residual.state.SetDataAndSize(it->second.getField(), getSize(residual));
-   }
-   it = inputs.find("state_dot");
-   if (it != inputs.end())
-   {
-      residual.state_dot.SetDataAndSize(it->second.getField(),
-                                        getSize(residual));
-   }
-   it = inputs.find("dt");
-   if (it != inputs.end())
-   {
-      residual.dt = it->second.getValue();
-   }
-   it = inputs.find("time");
-   if (it != inputs.end())
-   {
-      residual.time = it->second.getValue();
-   }
+   // if (it != inputs.end())
+   // {
+   //    residual.state.SetDataAndSize(it->second.getField(),
+   //    getSize(residual));
+   // }
+   // it = inputs.find("state_dot");
+   // if (it != inputs.end())
+   // {
+   //    residual.state_dot.SetDataAndSize(it->second.getField(),
+   //                                      getSize(residual));
+   // }
+   // it = inputs.find("dt");
+   // if (it != inputs.end())
+   // {
+   //    residual.dt = it->second.getValue();
+   // }
+   // it = inputs.find("time");
+   // if (it != inputs.end())
+   // {
+   //    residual.time = it->second.getValue();
+   // }
+
+   setVectorFromInputs(inputs, "state", residual.state);
+   setVectorFromInputs(inputs, "state_dot", residual.state_dot);
+   setValueFromInputs(inputs, "dt", residual.dt);
+   setValueFromInputs(inputs, "time", residual.time);
    setInputs(residual.res_, inputs);
 }
 
@@ -86,13 +92,13 @@ void evaluate(TimeDependentResidual &residual,
    auto &work = residual.work;
    if (dt == 0.0)
    {
-      MachInputs input{{"state", state.GetData()}};
+      MachInputs input{{"state", &state}};
       evaluate(residual.res_, input, res_vec);
    }
    else
    {
       add(state, dt, state_dot, work);
-      MachInputs input{{"state", work.GetData()}};
+      MachInputs input{{"state", &work}};
       evaluate(residual.res_, input, res_vec);
    }
 
@@ -115,7 +121,7 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto &state_dot = residual.state_dot;
    auto &work = residual.work;
    add(state, dt, state_dot, work);
-   MachInputs input{{"state", work.GetData()}};
+   MachInputs input{{"state", &work}};
    auto &spatial_jac = getJacobian(residual.res_, input, std::move(wrt));
    addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
    return *residual.jac_;
@@ -210,10 +216,8 @@ void FirstOrderODE::solve(const double dt,
                           const mfem::Vector &u,
                           mfem::Vector &du_dt) const
 {
-   MachInputs inputs{{"state", u.GetData()},
-                     {"state_dot", du_dt.GetData()},
-                     {"dt", dt},
-                     {"time", t}};
+   MachInputs inputs{
+       {"state", &u}, {"state_dot", &du_dt}, {"dt", dt}, {"time", t}};
 
    setInputs(residual_, inputs);
    solver_.Mult(zero_, du_dt);

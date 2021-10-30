@@ -169,7 +169,7 @@ TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
    auto &mesh_fes = *x_nodes.ParFESpace();
 
    auto inputs = MachInputs({
-      {"mesh_coords", x_nodes.GetData()}
+      {"mesh_coords", &x_nodes}
    });
    setInputs(ml, inputs);
 
@@ -205,7 +205,7 @@ TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
    x_pert.Add(delta, v);
    mesh.SetNodes(x_pert);
    fes.Update();
-   inputs.at("mesh_coords") = x_pert.GetData();
+   inputs.at("mesh_coords") = &x_pert;
    setInputs(ml, inputs);
    load_vec = 0.0;
    addLoad(ml, load_vec);
@@ -214,7 +214,7 @@ TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
    x_pert.Add(-2 * delta, v);
    mesh.SetNodes(x_pert);
    fes.Update();
-   inputs.at("mesh_coords") = x_pert.GetData();
+   inputs.at("mesh_coords") = &x_pert;
    setInputs(ml, inputs);
    load_vec = 0.0;
    addLoad(ml, load_vec);

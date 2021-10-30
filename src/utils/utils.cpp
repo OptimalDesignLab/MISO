@@ -116,7 +116,7 @@ void getEssentialBoundaries(const nlohmann::json &options,
          ess_bdr[bdr - 1] = 1;
       }
    }
-   else 
+   else
    {
       throw MachException("Unrecognized JSON value for \"ess-bdr\" options!");
    }

@@ -99,7 +99,7 @@ TEST_CASE("DivergenceFreeProjector::vectorJacobianProduct wrt mesh_coords")
          // extract mesh nodes and get their finite-element space
          auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
          auto inputs = mach::MachInputs({
-            {"mesh_coords", x_nodes.GetData()}
+            {"mesh_coords", &x_nodes}
          });
          auto &mesh_fes = *x_nodes.ParFESpace();
 

@@ -153,7 +153,7 @@ public:
    /// \return the entropy functional
    double Entropy(const mfem::Vector &u) override
    {
-      MachInputs input{{"state", u.GetData()}};
+      MachInputs input{{"state", &u}};
       return calcEntropy(residual_, input);
    }
 
@@ -167,8 +167,7 @@ public:
                         const mfem::Vector &u,
                         const mfem::Vector &du_dt) override
    {
-      MachInputs inputs{
-          {"state", u.GetData()}, {"state_dot", du_dt.GetData()}, {"dt", dt}};
+      MachInputs inputs{{"state", &u}, {"state_dot", &du_dt}, {"dt", dt}};
       return calcEntropyChange(residual_, inputs);
    }
 

@@ -803,7 +803,7 @@ double AbstractSolver::calcResidualNorm() const
 }
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
-   MachInputs inputs{{"state", state.GetTrueVector().GetData()}};
+   MachInputs inputs{{"state", &state.GetTrueVector()}};
 
    calcResidual(inputs, *scratch_tv);
    return std::sqrt(InnerProduct(comm, *scratch_tv, *scratch_tv));
@@ -901,7 +901,9 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
 
    // this only communicates once inside of res->Mult to distribute state
    // create HypreParVector that contains the data from the state input
-   auto state = bufferToHypreParVector(inputs.at("state").getField(), *fes);
+   // auto state = bufferToHypreParVector(inputs.at("state").getField(), *fes);
+   mfem::Vector state;
+   setVectorFromInputs(inputs, "state", state, false, true);
 
    res->Mult(state, residual);
 
@@ -1914,7 +1916,7 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
    HypreParVector state_true(fes.get());
    state.GetTrueDofs(state_true);
 
-   MachInputs inputs{{"state", state_true.GetData()}};
+   MachInputs inputs{{"state", &state_true}};
    return calcOutput(fun, inputs);
 }
 

@@ -104,17 +104,18 @@ public:
    friend double calcEntropyChange(MachResidual &residual,
                                    const MachInputs &inputs);
 
-   /// Return a preconditioner owned by the residual for inverting the residual's state Jacobian
-   /// \param[inout] residual - the object owning the preconditioner
-   /// \return non owning pointer to a preconditioner for inverting the state Jacobian
-   /// \note if a concrete residual type does not define a getPreconditioner function a `nullptr` will be returned
+   /// Return a preconditioner owned by the residual for inverting the
+   /// residual's state Jacobian \param[inout] residual - the object owning the
+   /// preconditioner \return non owning pointer to a preconditioner for
+   /// inverting the state Jacobian \note if a concrete residual type does not
+   /// define a getPreconditioner function a `nullptr` will be returned
    friend mfem::Solver *getPreconditioner(MachResidual &residual);
 
    /// We need to support these overrides so that the MachResidual type can be
    /// directly set as the operator for an MFEM NonlinearSolver
    void Mult(const mfem::Vector &state, mfem::Vector &res_vec) const override
    {
-      MachInputs inputs{{"state", state.GetData()}};
+      MachInputs inputs{{"state", &state}};
       self_->eval_(inputs, res_vec);
    }
 
@@ -122,7 +123,7 @@ public:
    /// directly set as the operator for an MFEM NonlinearSolver
    mfem::Operator &GetGradient(const mfem::Vector &state) const override
    {
-      MachInputs inputs{{"state", state.GetData()}};
+      MachInputs inputs{{"state", &state}};
       return self_->getJac_(inputs, "state");
    }
 
@@ -184,10 +185,7 @@ private:
       {
          return calcEntropyChange(data_, inputs);
       }
-      mfem::Solver *getPrec_() override
-      {
-         return getPreconditioner(data_);
-      }
+      mfem::Solver *getPrec_() override { return getPreconditioner(data_); }
 
       T data_;
    };

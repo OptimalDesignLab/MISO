@@ -48,11 +48,14 @@ public:
    {
       setInputs(residual.res, inputs);
       setInputs(*residual.load, inputs);
-      auto input = inputs.find("time");
-      if (input != inputs.end())
-      {
-         residual.force->SetTime(input->second.getValue());
-      }
+      // auto input = inputs.find("time");
+      // if (input != inputs.end())
+      // {
+      //    residual.force->SetTime(input->second.getValue());
+      // }
+      double time;
+      mach::setValueFromInputs(inputs, "time", time);
+      residual.force->SetTime(time);
    }
 
    friend void setOptions(ThermalResidual &residual, const nlohmann::json &options)

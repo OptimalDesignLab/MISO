@@ -94,7 +94,7 @@ TEST_CASE("Torque Loop Regression Test")
    MachInputs inputs {
       {"current_density", current_density},
       {"fill-factor", 1.0},
-      {"state", em_state->GetData()}
+      {"state", em_state.get()}
    };
    em_solver->solveForState(inputs, *em_state);
 
