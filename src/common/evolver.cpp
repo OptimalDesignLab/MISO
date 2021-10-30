@@ -15,8 +15,7 @@ void ODESystemOperator::Mult(const mfem::Vector &k, mfem::Vector &r) const
    r = 0.0;
    // Use x_work to store x + dt*k
    add(1.0, *x, dt, k, x_work);
-   auto inputs =
-       MachInputs({{"state", x_work}, {"dxdt", k}});
+   auto inputs = MachInputs({{"state", x_work}, {"dxdt", k}});
    evaluate(*res, inputs, r);
 }
 
@@ -24,8 +23,7 @@ Operator &ODESystemOperator::GetGradient(const mfem::Vector &k) const
 {
    // Use x_work to store x + dt*k
    add(1.0, *x, dt, k, x_work);
-   auto inputs = MachInputs(
-       {{"dt", dt}, {"state", x_work}, {"dxdt", k}});
+   auto inputs = MachInputs({{"dt", dt}, {"state", x_work}, {"dxdt", k}});
    return getJacobian(*res, inputs, "dxdt");
 }
 
