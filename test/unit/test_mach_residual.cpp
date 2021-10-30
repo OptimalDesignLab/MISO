@@ -97,7 +97,7 @@ TEST_CASE("MachResidual Scalar Input Test",
 
    // set the time using a MachInput to pi, and set state
    auto inputs = MachInputs({
-      {"time", M_PI}, {"state", &state}
+      {"time", M_PI}, {"state", state}
    });
    setInputs(res, inputs);
 

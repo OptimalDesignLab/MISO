@@ -115,7 +115,7 @@ public:
    /// directly set as the operator for an MFEM NonlinearSolver
    void Mult(const mfem::Vector &state, mfem::Vector &res_vec) const override
    {
-      MachInputs inputs{{"state", &state}};
+      MachInputs inputs{{"state", state}};
       self_->eval_(inputs, res_vec);
    }
 
@@ -123,7 +123,7 @@ public:
    /// directly set as the operator for an MFEM NonlinearSolver
    mfem::Operator &GetGradient(const mfem::Vector &state) const override
    {
-      MachInputs inputs{{"state", &state}};
+      MachInputs inputs{{"state", state}};
       return self_->getJac_(inputs, "state");
    }
 

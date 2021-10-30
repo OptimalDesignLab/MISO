@@ -803,7 +803,7 @@ double AbstractSolver::calcResidualNorm() const
 }
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
-   MachInputs inputs{{"state", &state.GetTrueVector()}};
+   MachInputs inputs{{"state", state.GetTrueVector()}};
 
    calcResidual(inputs, *scratch_tv);
    return std::sqrt(InnerProduct(comm, *scratch_tv, *scratch_tv));
@@ -1916,7 +1916,7 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
    HypreParVector state_true(fes.get());
    state.GetTrueDofs(state_true);
 
-   MachInputs inputs{{"state", &state_true}};
+   MachInputs inputs{{"state", state_true}};
    return calcOutput(fun, inputs);
 }
 

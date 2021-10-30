@@ -221,7 +221,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
    auto current_density = 1e6;
    auto inputs = MachInputs({
       {"current_density", current_density},
-      {"mesh_coords", &x_nodes}
+      {"mesh_coords", x_nodes}
    });
    setInputs(ml, inputs);
 
@@ -257,7 +257,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
    x_pert.Add(delta, v);
    mesh->SetNodes(x_pert);
    fes.Update();
-   inputs.at("mesh_coords") = &x_pert;
+   inputs.at("mesh_coords") = x_pert;
    setInputs(ml, inputs);
    load_vec = 0.0;
    addLoad(ml, load_vec);
@@ -266,7 +266,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
    x_pert.Add(-2 * delta, v);
    mesh->SetNodes(x_pert);
    fes.Update();
-   inputs.at("mesh_coords") = &x_pert;
+   inputs.at("mesh_coords") = x_pert;
    setInputs(ml, inputs);
    load_vec = 0.0;
    addLoad(ml, load_vec);

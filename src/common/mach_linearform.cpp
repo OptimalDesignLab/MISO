@@ -30,7 +30,7 @@ void setInputs(MachLinearForm &load, const MachInputs &inputs)
    for (const auto &in : inputs)
    {
       const auto &input = in.second;
-      if (std::holds_alternative<const mfem::Vector *>(input))
+      if (std::holds_alternative<InputVector>(input))
       {
          const auto &name = in.first;
          auto it = load.lf_fields->find(name);

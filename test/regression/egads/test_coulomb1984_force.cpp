@@ -78,7 +78,7 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
    auto current_density = 3e6;
    MachInputs inputs {
       {"current_density", current_density},
-      {"state", em_state.get()}
+      {"state", *em_state}
    };
    em_solver->solveForState(inputs, *em_state);
    // em_solver->printField("B", "B");

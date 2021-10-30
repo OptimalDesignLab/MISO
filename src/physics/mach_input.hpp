@@ -51,18 +51,18 @@ namespace mach
 
 /// Helper class that gives mfem::Vector reference semantics allowing
 /// shallow-copy emplacement into MachInput
-// class InputVector final
-// {
-// public:
-//    InputVector(const mfem::Vector &v) : data(v.GetData()), size(v.Size()) { }
-//    operator mfem::Vector() const { return mfem::Vector(data, size); }
-// private:
-//    double *data;
-//    int size;
-// }
+struct InputVector final
+{
+   InputVector(double *data, int size) : data(data), size(size) { }
+   InputVector(const mfem::Vector &v) : data(v.GetData()), size(v.Size()) { }
+   operator mfem::Vector() const { return mfem::Vector(data, size); }
+
+   double *data;
+   int size;
+};
 
 /// Convenient alias representing the possible input types for mach solvers
-using MachInput = std::variant<double, const mfem::Vector *>;
+using MachInput = std::variant<double, InputVector>;
 
 /// Convenient shorthand for a map of inputs since each input must be named
 using MachInputs = std::unordered_map<std::string, MachInput>;

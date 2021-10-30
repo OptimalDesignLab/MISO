@@ -29,15 +29,15 @@ void setVectorFromInput(const MachInput &input,
                         mfem::Vector &vec,
                         bool deep_copy)
 {
-   auto *tmp = std::get<const mfem::Vector *>(input);
+   auto &tmp = std::get<InputVector>(input);
    if (deep_copy)
    {
-      vec.SetSize(tmp->Size());
-      vec = *tmp;
+      vec.SetSize(tmp.size);
+      vec = tmp.data;
    }
    else
    {
-      vec.NewDataAndSize(tmp->GetData(), tmp->Size());
+      vec.NewDataAndSize(tmp.data, tmp.size);
    }
 }
 

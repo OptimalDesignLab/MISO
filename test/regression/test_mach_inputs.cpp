@@ -75,8 +75,8 @@ TEST_CASE("MachInputs Scalar Input Test",
 
    auto inputs = MachInputs({
       {"test_val", 2.0},
-      {"test_field", test_field.get()},
-      {"state", state.get()}
+      {"test_field", *test_field},
+      {"state", *state}
    });
 
    solver->createOutput("testMachInput");
@@ -105,8 +105,8 @@ TEST_CASE("MachInputs Field Input Test",
 
    auto inputs = MachInputs{
       {"test_val", 0.0},
-      {"test_field", test_field.get()},
-      {"state", state.get()}
+      {"test_field", *test_field},
+      {"state", *state}
    };
 
    solver->createOutput("testMachInput");

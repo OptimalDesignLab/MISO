@@ -36,7 +36,7 @@ void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
    for (const auto &in : inputs)
    {
       const auto &input = in.second;
-      if (std::holds_alternative<const mfem::Vector*>(input))
+      if (std::holds_alternative<InputVector>(input))
       {
          const auto &name = in.first;
          auto it = form.nf_fields->find(name);

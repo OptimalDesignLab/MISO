@@ -131,7 +131,7 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             auto state = solver->getNewField();
             solver->setFieldValue(*state, aexact);
             MachInputs inputs {
-               {"state", state.get()}
+               {"state", *state}
             };
             solver->solveForState(inputs, *state);
 

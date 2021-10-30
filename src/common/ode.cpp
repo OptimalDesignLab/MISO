@@ -92,13 +92,13 @@ void evaluate(TimeDependentResidual &residual,
    auto &work = residual.work;
    if (dt == 0.0)
    {
-      MachInputs input{{"state", &state}};
+      MachInputs input{{"state", state}};
       evaluate(residual.res_, input, res_vec);
    }
    else
    {
       add(state, dt, state_dot, work);
-      MachInputs input{{"state", &work}};
+      MachInputs input{{"state", work}};
       evaluate(residual.res_, input, res_vec);
    }
 
@@ -121,7 +121,7 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto &state_dot = residual.state_dot;
    auto &work = residual.work;
    add(state, dt, state_dot, work);
-   MachInputs input{{"state", &work}};
+   MachInputs input{{"state", work}};
    auto &spatial_jac = getJacobian(residual.res_, input, std::move(wrt));
    addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
    return *residual.jac_;
@@ -217,7 +217,7 @@ void FirstOrderODE::solve(const double dt,
                           mfem::Vector &du_dt) const
 {
    MachInputs inputs{
-       {"state", &u}, {"state_dot", &du_dt}, {"dt", dt}, {"time", t}};
+       {"state", u}, {"state_dot", du_dt}, {"dt", dt}, {"time", t}};
 
    setInputs(residual_, inputs);
    solver_.Mult(zero_, du_dt);

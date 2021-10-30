@@ -97,9 +97,8 @@ JacobianFree<T>::JacobianFree(T &residual, MPI_Comm incomm)
 template <typename T>
 void JacobianFree<T>::setState(const mfem::Vector &baseline)
 {
-   state = &baseline;
    // initialize the res_at_state vector for later use
-   auto inputs = MachInputs({{"state", state}});
+   auto inputs = MachInputs({{"state", baseline}});
    evaluate(res, inputs, res_at_state);
 }
 
@@ -109,7 +108,7 @@ void JacobianFree<T>::Mult(const mfem::Vector &x, mfem::Vector &y) const
    double eps_fd = getStepSize(*state, x);
    // create the perturbed vector, and evaluate the residual
    add(*state, eps_fd, x, state_pert);
-   auto inputs = MachInputs({{"state", &state_pert}});
+   auto inputs = MachInputs({{"state", state_pert}});
    evaluate(res, inputs, y);
    // subtract the baseline residual and divide by eps_fd to get product
    subtract(1 / eps_fd, y, res_at_state, y);
