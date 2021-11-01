@@ -10,6 +10,8 @@ target_sources(mach
       euler.cpp
       euler.hpp
       fluidflow.hpp
+      fluid_residual.cpp
+      fluid_residual.hpp
       galer_diff.cpp
       galer_diff.hpp
       inviscid_integ_def.hpp

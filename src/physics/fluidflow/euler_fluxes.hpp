@@ -35,6 +35,36 @@ inline xdouble pressure(const xdouble *q)
           (q[dim + 1] - 0.5 * dot<xdouble, dim>(q + 1, q + 1) / q[0]);
 }
 
+/// Sets `q` to the (non-dimensionalized) free-stream conservative variables
+/// \param[in] mach_fs - free-stream Mach number 
+/// \param[in] aoa_fs - free-stream angle of attack 
+/// \param[in] iroll - coordinate index aligned with roll axis
+/// \param[in] ipitch - coordinate index aligned with pitch axis
+/// \param[out] q - the free-stream conservative variables 
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true u = conservative vars, if false u = entropy vars
+template <typename xdouble, int dim, bool entvar = false>
+void getFreeStreamQ(xdouble mach_fs, xdouble aoa_fs, int iroll, int ipitch, 
+                    xdouble *q)
+{
+   q(0) = 1.0;
+   for (int i = 1; i < dim+2; ++i)
+   {
+      q[i] = 0.0;
+   }
+   if (dim == 1)
+   {
+      q(1) = q(0) * mach_fs;  // ignore angle of attack
+   }
+   else
+   {
+      q(iroll + 1) = q(0) * mach_fs * cos(aoa_fs);
+      q(ipitch + 1) = q(0) * mach_fs * sin(aoa_fs);
+   }
+   q(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+}
+
 /// Convert conservative variables `q` to entropy variables `w`
 /// \param[in] q - conservative variables that we want to convert from
 /// \param[out] w - entropy variables we want to convert to
