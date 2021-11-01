@@ -18,6 +18,11 @@ class AbstractSolver2
 {
 public:
    /// Solve for the state based on the residual `res` and `options`
+   /// \param[inout] state - the solution to the governing equation
+   /// \note On input, `state` should hold the initial condition
+   void solveForState(mfem::Vector &state) { solveForState({}, state); }
+
+   /// Solve for the state based on the residual `res` and `options`
    /// \param[in] inputs - scalars and fields that the `res` may depend on
    /// \param[inout] state - the solution to the governing equation
    /// \note On input, `state` should hold the initial condition
