@@ -284,6 +284,9 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
    solver.solveForState(inputs, state.trueVec());
    state.distributeSharedDofs();
 
+   auto res_norm = solver.calcResidualNorm(state.trueVec());
+   std::cout << "final res norm: " << res_norm << "\n";
+
    // Check that solution is reasonable accurate
    auto tfinal = options["time-dis"]["t-final"].get<double>();
    exact_sol.SetTime(tfinal);

@@ -60,6 +60,37 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
    terminalHook(ti, t, state);
 }
 
+void AbstractSolver2::calcResidual(const mfem::Vector &state,
+                                   mfem::Vector &residual) const
+{
+   MachInputs inputs{{"state", state}};
+   calcResidual(inputs, residual);
+}
+
+void AbstractSolver2::calcResidual(const MachInputs &inputs,
+                     mfem::Vector &residual) const
+{
+   auto timestepper = options["time-dis"]["type"].get<std::string>();
+   if (!(timestepper == "steady" || timestepper == "PTC"))
+   {
+      throw MachException("calcResidual should only be called for steady problems!\n");
+   }
+   evaluate(*res, inputs, residual);
+}
+
+double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
+{
+   MachInputs inputs{{"state", state}};
+   return calcResidualNorm(inputs);
+}
+   
+double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
+{
+   work.SetSize(getSize(*res));
+   calcResidual(inputs, work);
+   return sqrt(InnerProduct(comm, work, work));
+}
+
 void AbstractSolver2::initialHook(const mfem::Vector &state)
 {
    for (auto &pair : loggers)

@@ -36,6 +36,30 @@ public:
    MachResidual &residual() { return *res; }
    const MachResidual &residual() const { return *res; }
 
+   /// Compute the residual and store the it in @a residual
+   /// \param[in] state - the state to evaluate the residual at
+   /// \param[out] residual - the discrete residual vector
+   void calcResidual(const mfem::Vector &state,
+                     mfem::Vector &residual) const;
+
+   /// Compute the residual based on inputs and store the it in @a residual
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating residual
+   /// \param[out] residual - the discrete residual vector
+   void calcResidual(const MachInputs &inputs,
+                     mfem::Vector &residual) const;
+
+   /// Compute the residual norm based on inputs
+   /// \param[in] state - the state to evaluate the residual at
+   /// \return the norm of the discrete residual vector
+   double calcResidualNorm(const mfem::Vector &state) const;
+   
+   /// Compute the residual norm based on inputs
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating residual
+   /// \return the norm of the discrete residual vector
+   double calcResidualNorm(const MachInputs &inputs) const;
+
    // /// Creates the nonlinear form for the functional
    // /// \param[in] fun - specifies the desired functional
    // /// \param[in] options - options needed for calculating functional
@@ -59,6 +83,9 @@ protected:
    MPI_Comm comm;
    /// MPI process rank
    int rank;
+
+   /// work vector for solvers
+   mutable mfem::Vector work;
 
    /// solver options
    nlohmann::json options;
