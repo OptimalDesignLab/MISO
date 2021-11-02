@@ -3,7 +3,6 @@
 
 namespace mach
 {
-
 void setValueFromInput(const MachInput &input, double &value)
 {
    value = std::get<double>(input);

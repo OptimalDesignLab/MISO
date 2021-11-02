@@ -2,6 +2,7 @@
 #define MACH_NONLINEAR_FORM
 
 #include <vector>
+#include <list>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -55,9 +56,8 @@ public:
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
-   void addBdrFaceIntegrator(
-       T *integrator,
-       const std::vector<int> &bdr_attr_marker);
+   void addBdrFaceIntegrator(T *integrator,
+                             const std::vector<int> &bdr_attr_marker);
 
    /// Adds the given interior face integrator to the nonlinear form
    /// \param[in] integrator - face nonlinear form integrator for interfaces
@@ -89,7 +89,7 @@ private:
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
    /// Collection of boundary markers for boundary integrators
-   std::vector<mfem::Array<int>> bdr_markers;
+   std::list<mfem::Array<int>> bdr_markers;
 
    /// map of external fields that the nonlinear form depends on
    std::unordered_map<std::string, mfem::ParGridFunction> *nf_fields;
@@ -122,7 +122,8 @@ void MachNonlinearForm::addBdrFaceIntegrator(T *integrator)
 
 template <typename T>
 void MachNonlinearForm::addBdrFaceIntegrator(
-   T *integrator, const std::vector<int> &bdr_attr_marker)
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
    bdr_markers.emplace_back(bdr_attr_marker.size());

@@ -26,8 +26,8 @@ auto options = R"(
       "flux-fun": "Euler"
    },
    "bcs": {
-      "far-field": [1, 1, 1, 0],
-      "slip-wall": [0, 0, 0, 1]
+      "far-field": [0, 1, 1, 1],
+      "slip-wall": [1, 0, 0, 0]
    }
 })"_json;
 
@@ -62,4 +62,7 @@ TEST_CASE("FluidResidual construction", "[FluidResidual]")
    auto inputs = MachInputs({{"state", q}});
    Vector res_vec(num_var);
    evaluate(res, inputs, res_vec);
+
+   // the res_vec should be zero, since we are differentiating a constant flux
+   REQUIRE( res_vec.Norml2() == Approx(0.0).margin(1e-14) );
 }

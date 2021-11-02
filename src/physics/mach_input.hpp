@@ -9,7 +9,6 @@
 
 namespace mach
 {
-
 /// Helper class that gives mfem::Vector reference semantics allowing
 /// shallow-copy emplacement into MachInput
 struct InputVector final

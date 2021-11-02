@@ -9,53 +9,56 @@ using namespace mfem;
 
 namespace mach
 {
-
 FluidResidual::FluidResidual(const nlohmann::json &options,
                              ParFiniteElementSpace &fespace,
-                             adept::Stack &diff_stack) 
- : fes(fespace), stack(diff_stack),
-   fields(std::make_unique<std::unordered_map<std::string, mfem::ParGridFunction>>()),
+                             adept::Stack &diff_stack)
+ : fes(fespace),
+   stack(diff_stack),
+   fields(std::make_unique<
+          std::unordered_map<std::string, mfem::ParGridFunction>>()),
    res(fes, *fields)
 {
    setOptions(*this, options);
    int dim = fes.GetMesh()->SpaceDimension();
-   switch(dim) {
-      case 1 : 
-         addFluidIntegrators<1>(options);
-         break;
-      case 2 :
-         addFluidIntegrators<2>(options);
-         break;
-      case 3 :
-         addFluidIntegrators<3>(options);
-         break;
-      default :
-         throw MachException("Invalid space dimension for FluidResidual!\n");
+   switch (dim)
+   {
+   case 1:
+      addFluidIntegrators<1>(options);
+      break;
+   case 2:
+      addFluidIntegrators<2>(options);
+      break;
+   case 3:
+      addFluidIntegrators<3>(options);
+      break;
+   default:
+      throw MachException("Invalid space dimension for FluidResidual!\n");
    }
 }
 
 template <int dim>
 void FluidResidual::addFluidIntegrators(const nlohmann::json &options)
 {
-   if ( !options.contains("flow-param") || !options.contains("space-dis") ||
-        !options.contains("bcs") )
+   if (!options.contains("flow-param") || !options.contains("space-dis") ||
+       !options.contains("bcs"))
    {
-      throw MachException("FluidResidual::addFluidIntegrators: options must"
-                          "contain flow-param, space-dis, and bcs!\n");
+      throw MachException(
+          "FluidResidual::addFluidIntegrators: options must"
+          "contain flow-param, space-dis, and bcs!\n");
    }
    nlohmann::json flow = options["flow-param"];
    nlohmann::json space_dis = options["space-dis"];
    nlohmann::json bcs = options["bcs"];
    if (state_is_entvar)
    {
-      // Use entropy variables for the state 
+      // Use entropy variables for the state
       addFluidDomainIntegrators<dim, true>(flow, space_dis);
       addFluidInterfaceIntegrators<dim, true>(flow, space_dis);
       addFluidBoundaryIntegrators<dim, true>(flow, space_dis, bcs);
    }
    else
    {
-      // Use the conservative variables for the state 
+      // Use the conservative variables for the state
       addFluidDomainIntegrators<dim>(flow, space_dis);
       addFluidInterfaceIntegrators<dim>(flow, space_dis);
       addFluidBoundaryIntegrators<dim>(flow, space_dis, bcs);
@@ -63,8 +66,8 @@ void FluidResidual::addFluidIntegrators(const nlohmann::json &options)
 }
 
 template <int dim, bool entvar = false>
-void FluidResidual::addFluidDomainIntegrators(
-   const nlohmann::json &flow, const nlohmann::json &space_dis)
+void FluidResidual::addFluidDomainIntegrators(const nlohmann::json &flow,
+                                              const nlohmann::json &space_dis)
 {
    if (space_dis["flux-fun"].get<string>() == "IR")
    {
@@ -74,8 +77,9 @@ void FluidResidual::addFluidDomainIntegrators(
    {
       if (entvar)
       {
-         throw MachException("Invalid inviscid integrator for entropy"
-                             " state!\n");
+         throw MachException(
+             "Invalid inviscid integrator for entropy"
+             " state!\n");
       }
       res.addDomainIntegrator(new EulerIntegrator<dim>(stack));
    }
@@ -84,13 +88,14 @@ void FluidResidual::addFluidDomainIntegrators(
    if (lps_coeff > 0.0)
    {
       res.addDomainIntegrator(
-         new EntStableLPSIntegrator<dim, entvar>(stack, lps_coeff));
+          new EntStableLPSIntegrator<dim, entvar>(stack, lps_coeff));
    }
 }
 
 template <int dim, bool entvar = false>
 void FluidResidual::addFluidInterfaceIntegrators(
-   const nlohmann::json &flow, const nlohmann::json &space_dis)
+    const nlohmann::json &flow,
+    const nlohmann::json &space_dis)
 {
    // add the integrators based on if discretization is continuous or discrete
    if (space_dis["basis-type"].get<string>() == "dsbp")
@@ -102,9 +107,9 @@ void FluidResidual::addFluidInterfaceIntegrators(
 }
 
 template <int dim, bool entvar = false>
-void FluidResidual::addFluidBoundaryIntegrators(
-   const nlohmann::json &flow, const nlohmann::json &space_dis,
-   const nlohmann::json &bcs)
+void FluidResidual::addFluidBoundaryIntegrators(const nlohmann::json &flow,
+                                                const nlohmann::json &space_dis,
+                                                const nlohmann::json &bcs)
 {
    if (bcs.contains("vortex"))
    {  // isentropic vortex BC
@@ -122,37 +127,31 @@ void FluidResidual::addFluidBoundaryIntegrators(
    if (bcs.contains("slip-wall"))
    {  // slip-wall boundary condition
       vector<int> bdr_attr_marker = bcs["slip-wall"].get<vector<int>>();
-      res.addBdrFaceIntegrator(
-          new SlipWallBC<dim, entvar>(stack, fes.FEColl()),
-          bdr_attr_marker);
+      res.addBdrFaceIntegrator(new SlipWallBC<dim, entvar>(stack, fes.FEColl()),
+                               bdr_attr_marker);
    }
    if (bcs.contains("far-field"))
    {
       // far-field boundary conditions
       vector<int> bdr_attr_marker = bcs["far-field"].get<vector<int>>();
       mfem::Vector qfar(dim + 2);
-      getFreeStreamQ<double, dim, entvar>(mach_fs, aoa_fs, iroll, ipitch,
-                                          qfar.GetData());
+      getFreeStreamQ<double, dim, entvar>(
+          mach_fs, aoa_fs, iroll, ipitch, qfar.GetData());
       res.addBdrFaceIntegrator(
           new FarFieldBC<dim, entvar>(stack, fes.FEColl(), qfar),
           bdr_attr_marker);
    }
 }
 
-int getSize(const FluidResidual &residual)
-{
-   return getSize(residual.res);
-}
+int getSize(const FluidResidual &residual) { return getSize(residual.res); }
 
-void setInputs(FluidResidual &residual,
-               const MachInputs &inputs)
+void setInputs(FluidResidual &residual, const MachInputs &inputs)
 {
    // What if aoa_fs or mach_fs are being changed?
    setInputs(residual.res, inputs);
 }
 
-void setOptions(FluidResidual &residual,
-                const nlohmann::json &options)
+void setOptions(FluidResidual &residual, const nlohmann::json &options)
 {
    residual.is_implicit = options.value("implicit", false);
    // define free-stream parameters; may or may not be used, depending on case
@@ -190,4 +189,4 @@ mfem::Operator &getJacobian(FluidResidual &residual,
    return getJacobian(residual.res, inputs, std::move(wrt));
 }
 
-} // namespace mach
+}  // namespace mach
