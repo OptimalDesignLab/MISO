@@ -48,21 +48,21 @@ template <typename xdouble, int dim, bool entvar = false>
 void getFreeStreamQ(xdouble mach_fs, xdouble aoa_fs, int iroll, int ipitch, 
                     xdouble *q)
 {
-   q(0) = 1.0;
+   q[0] = 1.0;
    for (int i = 1; i < dim+2; ++i)
    {
       q[i] = 0.0;
    }
    if (dim == 1)
    {
-      q(1) = q(0) * mach_fs;  // ignore angle of attack
+      q[1] = q[0] * mach_fs;  // ignore angle of attack
    }
    else
    {
-      q(iroll + 1) = q(0) * mach_fs * cos(aoa_fs);
-      q(ipitch + 1) = q(0) * mach_fs * sin(aoa_fs);
+      q[iroll + 1] = q[0] * mach_fs * cos(aoa_fs);
+      q[ipitch + 1] = q[0] * mach_fs * sin(aoa_fs);
    }
-   q(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+   q[dim + 1] = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
 }
 
 /// Convert conservative variables `q` to entropy variables `w`

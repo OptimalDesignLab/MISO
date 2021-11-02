@@ -80,8 +80,7 @@ private:
    mach::MachNonlinearForm res;
 
    template <int dim>
-   void addFluidIntegrators(const nlohmann::json &flow,
-                                 const nlohmann::json &space_dis);
+   void addFluidIntegrators(const nlohmann::json &options);
 
    template <int dim, bool entvar = false>
    void addFluidDomainIntegrators(
