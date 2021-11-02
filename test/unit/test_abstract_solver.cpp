@@ -158,7 +158,7 @@ TEST_CASE("Testing AbstractSolver using RK4", "[abstract-solver]")
 
    // Create solver and solve for the state 
    ExponentialODESolver solver(MPI_COMM_WORLD, options);
-   Vector u(2);
+   Vector u(solver.getStateSize());
    u(0) = 1.0;
    u(1) = 0.5;
    MachInputs inputs;
@@ -218,7 +218,7 @@ TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
 
    // Create solver and solve for the state 
    ExponentialODESolver solver(MPI_COMM_WORLD, options);
-   Vector u0(2), u(2);
+   Vector u0(solver.getStateSize()), u(solver.getStateSize());
    u0(0) = 1.0;
    u0(1) = 0.5;
    u = u0;

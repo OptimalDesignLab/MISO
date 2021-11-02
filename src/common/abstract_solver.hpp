@@ -60,6 +60,9 @@ public:
    /// \return the norm of the discrete residual vector
    double calcResidualNorm(const MachInputs &inputs) const;
 
+   int getStateSize() const { return getSize(*res); }
+   virtual int getFieldSize(std::string name) const;
+
    // /// Creates the nonlinear form for the functional
    // /// \param[in] fun - specifies the desired functional
    // /// \param[in] options - options needed for calculating functional

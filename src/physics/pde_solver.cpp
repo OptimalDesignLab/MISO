@@ -89,6 +89,22 @@ mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
 
 namespace mach
 {
+
+int PDESolver::getFieldSize(std::string name) const
+{
+   auto size = AbstractSolver2::getFieldSize(name);
+   if (size != 0)
+   {
+      return size;
+   }
+   auto field = fields.find(name);
+   if (field != fields.end())
+   {
+      return field->second.space().GetTrueVSize();
+   }
+   return 0;
+}
+
 PDESolver::PDESolver(MPI_Comm incomm,
                      const nlohmann::json &solver_options,
                      const int num_states,
@@ -96,14 +112,17 @@ PDESolver::PDESolver(MPI_Comm incomm,
  : AbstractSolver2(incomm, solver_options),
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
    materials(material_library),
-   vis("mach", mesh_.get())
 {
-   fields.push_back(
-       createState(*mesh_, options["space-dis"], num_states, "state"));
-   fields.push_back(
+   fields.emplace(
+       "state", createState(*mesh_, options["space-dis"], num_states, "state"));
+   fields.emplace(
+       "adjoint",
        createState(*mesh_, options["space-dis"], num_states, "adjoint"));
-   duals.push_back(
+   duals.emplace(
+       "residual",
        createDual(*mesh_, options["space-dis"], num_states, "residual"));
+
+   setUpExternalFields();
 }
 
 std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
@@ -257,13 +276,16 @@ void PDESolver::setUpExternalFields()
       auto *mesh_fespace = mesh_gf.ParFESpace();
 
       /// create new state vector copying the mesh's fe space
-      fields.emplace_back(*mesh_, *mesh_fespace, "mesh_coords");
-      FiniteElementState &mesh_coords = fields.back();
+      fields.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple("mesh_coords"),
+          std::forward_as_tuple(*mesh_, *mesh_fespace, "mesh_coords"));
+      FiniteElementState &mesh_coords = fields.at("mesh_coords");
       /// set the values of the new GF to those of the mesh's old nodes
       mesh_coords.gridFunc() = mesh_gf;
       mesh_coords.initializeTrueVec();  // distribute coords
-      /// tell the mesh to use this GF for its Nodes (and that it doesn't own
-      /// it)
+      /// tell the mesh to use this GF for its Nodes
+      /// (and that it doesn't own it)
       mesh_->NewNodes(mesh_coords.gridFunc(), false);
    }
 
@@ -277,41 +299,10 @@ void PDESolver::setUpExternalFields()
 
          /// this approach will only work for fields on the same mesh
          auto num_states = field["num-states"].get<int>();
-         fields.emplace_back(
-             createState(*mesh_, field, num_states, std::move(name)));
+         fields.emplace(
+             name, createState(*mesh_, field, num_states, std::move(name)));
       }
    }
-}
-
-void PDESolver::initialHook(const mfem::Vector &state)
-{
-   vis.SetPrefixPath("ParaView");
-
-   vis.RegisterField(fields[0].name(), &fields[0].gridFunc());
-   vis.SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
-   vis.SetDataFormat(mfem::VTKFormat::BINARY);
-   vis.SetHighOrderOutput(true);
-}
-
-void PDESolver::iterationHook(int iter,
-                              double t,
-                              double dt,
-                              const mfem::Vector &state)
-{
-   fields[0].distributeSharedDofs();
-   vis.SetCycle(iter);
-   vis.SetTime(t);
-   vis.Save();
-}
-
-void PDESolver::terminalHook(int iter,
-                             double t_final,
-                             const mfem::Vector &state)
-{
-   fields[0].distributeSharedDofs();
-   vis.SetCycle(iter);
-   vis.SetTime(t_final);
-   vis.Save();
 }
 
 }  // namespace mach

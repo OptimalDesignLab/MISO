@@ -91,6 +91,16 @@ double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
    return sqrt(InnerProduct(comm, work, work));
 }
 
+int AbstractSolver2::getFieldSize(std::string name) const
+{
+   if (name == "state" || name == "residual" || name == "adjoint")
+   {
+      return getSize(*res);
+   }
+   // may be better way to return something not found without throwing error
+   return 0; 
+}
+
 void AbstractSolver2::initialHook(const mfem::Vector &state)
 {
    for (auto &pair : loggers)
