@@ -5,11 +5,19 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <variant>
 
 #include "mfem.hpp"
 
 namespace mach
 {
+
+struct LoggingOptions
+{
+   bool initial_state = true;
+   bool each_timestep = false;
+   bool final_state = true;
+};
 
 class ASCIILogger
 {
@@ -18,10 +26,11 @@ public:
                   std::string fieldname,
                   int timestep,
                   double time,
-                  int rank)
+                  int rank) const
    {
       std::filesystem::create_directory(prefix);
-      auto filename = prefix + "/" + fieldname + "_" + std::to_string(timestep) + "_" + std::to_string(rank);
+      auto filename = prefix + "/" + fieldname + "_" +
+                      std::to_string(timestep) + "_" + std::to_string(rank);
       const double *data = state.GetData();
       int size = state.Size();
       std::ofstream file(filename, std::ios::out);
@@ -40,7 +49,8 @@ public:
                   double &time,
                   mfem::Vector &state)
    {
-      auto filename = prefix + "/" + fieldname + "_" + std::to_string(timestep) + "_" + std::to_string(rank);
+      auto filename = prefix + "/" + fieldname + "_" +
+                      std::to_string(timestep) + "_" + std::to_string(rank);
       std::ifstream infile(filename);
       infile >> time;
 
@@ -54,7 +64,6 @@ public:
       }
    }
 
-
 private:
    inline static const std::string prefix = "ASCIILogger";
 };
@@ -66,16 +75,18 @@ public:
                   std::string fieldname,
                   int timestep,
                   double time,
-                  int rank)
+                  int rank) const
    {
       std::filesystem::create_directory(prefix);
-      auto filename = prefix + "/" + fieldname + "_" + std::to_string(timestep) + "_" + std::to_string(rank);
+      auto filename = prefix + "/" + fieldname + "_" +
+                      std::to_string(timestep) + "_" + std::to_string(rank);
       const double *data = state.GetData();
       int size = state.Size();
       std::ofstream file(filename, std::ios::out | std::ios::binary);
-      file.write(reinterpret_cast<const char*>(&time), sizeof(double));
-      file.write(reinterpret_cast<const char*>(&size), sizeof(int));
-      file.write(reinterpret_cast<const char*>(data), std::streamsize(size*sizeof(double)));
+      file.write(reinterpret_cast<const char *>(&time), sizeof(double));
+      file.write(reinterpret_cast<const char *>(&size), sizeof(int));
+      file.write(reinterpret_cast<const char *>(data),
+                 std::streamsize(size * sizeof(double)));
    }
 
    void readState(std::string fieldname,
@@ -84,14 +95,16 @@ public:
                   double &time,
                   mfem::Vector &state)
    {
-      auto filename = prefix + "/" + fieldname + "_" + std::to_string(timestep) + "_" + std::to_string(rank);
+      auto filename = prefix + "/" + fieldname + "_" +
+                      std::to_string(timestep) + "_" + std::to_string(rank);
       std::ifstream infile(filename, std::ios::binary);
-      infile.read(reinterpret_cast<char*>(&time), sizeof(double));
+      infile.read(reinterpret_cast<char *>(&time), sizeof(double));
       int size;
-      infile.read(reinterpret_cast<char*>(&size), sizeof(int));
+      infile.read(reinterpret_cast<char *>(&size), sizeof(int));
       state.SetSize(size);
       auto *data = state.GetData();
-      infile.read(reinterpret_cast<char*>(data), std::streamsize(size*sizeof(double)));
+      infile.read(reinterpret_cast<char *>(data),
+                  std::streamsize(size * sizeof(double)));
    }
 
 private:
@@ -101,7 +114,7 @@ private:
 class ParaViewLogger
 {
 public:
-   void saveState(const mfem::Vector &state, 
+   void saveState(const mfem::Vector &state,
                   std::string fieldname,
                   int timestep,
                   double time,
@@ -119,9 +132,8 @@ public:
       refine = field_order > refine ? field_order : refine;
    }
 
-   ParaViewLogger(const std::string &name,
-                  mfem::ParMesh *mesh = nullptr)
-   : pv(name, mesh)
+   ParaViewLogger(const std::string &name, mfem::ParMesh *mesh = nullptr)
+    : pv(name, mesh)
    {
       pv.SetPrefixPath("ParaView");
       pv.SetLevelsOfDetail(refine);
@@ -138,6 +150,9 @@ private:
    int refine = 1;
 };
 
-} // namespace mach
+using DataLogger = std::variant<ASCIILogger, BinaryLogger, ParaViewLogger>;
+using DataLoggerWithOpts = std::pair<DataLogger, LoggingOptions>;
+
+}  // namespace mach
 
 #endif

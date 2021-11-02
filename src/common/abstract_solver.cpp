@@ -3,6 +3,22 @@
 
 #include "abstract_solver.hpp"
 
+namespace
+{
+void logState(mach::DataLogger &logger,
+              const mfem::Vector &state,
+              std::string fieldname,
+              int timestep,
+              double time,
+              int rank)
+{
+   std::visit([&](auto &&log)
+              { log.saveState(state, fieldname, timestep, time, rank); },
+              logger);
+}
+
+}  // namespace
+
 namespace mach
 {
 AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
@@ -44,6 +60,35 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
    terminalHook(ti, t, state);
 }
 
+void AbstractSolver2::initialHook(const mfem::Vector &state)
+{
+   for (auto &pair : loggers)
+   {
+      auto &logger = pair.first;
+      auto &options = pair.second;
+      if (options.initial_state)
+      {
+         logState(logger, state, "state", 0, 0.0, rank);
+      }
+   }
+}
+
+void AbstractSolver2::iterationHook(int iter,
+                                    double t,
+                                    double dt,
+                                    const mfem::Vector &state)
+{
+   for (auto &pair : loggers)
+   {
+      auto &logger = pair.first;
+      auto &options = pair.second;
+      if (options.each_timestep)
+      {
+         logState(logger, state, "state", iter, t, rank);
+      }
+   }
+}
+
 double AbstractSolver2::calcStepSize(int iter,
                                      double t,
                                      double t_final,
@@ -62,6 +107,21 @@ bool AbstractSolver2::iterationExit(int iter,
                                     const mfem::Vector &state) const
 {
    return t >= t_final - 1e-14 * dt;
+}
+
+void AbstractSolver2::terminalHook(int iter,
+                                   double t_final,
+                                   const mfem::Vector &state)
+{
+   for (auto &pair : loggers)
+   {
+      auto &logger = pair.first;
+      auto &options = pair.second;
+      if (options.final_state)
+      {
+         logState(logger, state, "state", iter, t_final, rank);
+      }
+   }
 }
 
 }  // namespace mach

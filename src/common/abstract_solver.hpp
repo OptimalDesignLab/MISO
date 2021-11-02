@@ -1,9 +1,14 @@
 #ifndef MACH_ABSTRACT_SOLVER
 #define MACH_ABSTRACT_SOLVER
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "data_logging.hpp"
 #include "equation_solver.hpp"
 #include "mach_input.hpp"
 #include "mach_output.hpp"
@@ -65,9 +70,18 @@ protected:
    /// the state variables
    std::unique_ptr<FirstOrderODE> ode;
 
+   /// Optional data loggers that will save state vectors during timestepping
+   std::vector<DataLoggerWithOpts> loggers;
+
+   void addLogger(DataLogger logger, LoggingOptions options)
+   {
+      loggers.emplace_back(std::make_pair<DataLogger, LoggingOptions>(
+          std::move(logger), std::move(options)));
+   }
+
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
-   virtual void initialHook(const mfem::Vector &state) { }
+   virtual void initialHook(const mfem::Vector &state);
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
@@ -77,8 +91,7 @@ protected:
    virtual void iterationHook(int iter,
                               double t,
                               double dt,
-                              const mfem::Vector &state)
-   { }
+                              const mfem::Vector &state);
 
    /// Find the step size based on the options
    /// \param[in] iter - the current iteration
@@ -114,8 +127,7 @@ protected:
    /// \param[in] state - the current state
    virtual void terminalHook(int iter,
                              double t_final,
-                             const mfem::Vector &state)
-   { }
+                             const mfem::Vector &state);
 
    /// linear system solver used in newton solver
    std::unique_ptr<mfem::Solver> linear_solver;
