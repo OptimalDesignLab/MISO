@@ -55,7 +55,9 @@ public:
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
-   void addBdrFaceIntegrator(T *integrator, std::vector<int> bdr_attr_marker);
+   void addBdrFaceIntegrator(
+       T *integrator,
+       const std::vector<int> &bdr_attr_marker);
 
    /// Adds the given interior face integrator to the nonlinear form
    /// \param[in] integrator - face nonlinear form integrator for interfaces
@@ -119,8 +121,8 @@ void MachNonlinearForm::addBdrFaceIntegrator(T *integrator)
 }
 
 template <typename T>
-void MachNonlinearForm::addBdrFaceIntegrator(T *integrator,
-                                             std::vector<int> bdr_attr_marker)
+void MachNonlinearForm::addBdrFaceIntegrator(
+   T *integrator, const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
    bdr_markers.emplace_back(bdr_attr_marker.size());
