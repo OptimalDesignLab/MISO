@@ -32,7 +32,6 @@ namespace mach
 class PDESolver : public AbstractSolver2
 {
 public:
-
    int getFieldSize(std::string name) const override;
 
    FiniteElementState &getState() { return state(); }

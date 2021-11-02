@@ -60,7 +60,13 @@ public:
    /// \return the norm of the discrete residual vector
    double calcResidualNorm(const MachInputs &inputs) const;
 
+   /// \return the size of the state vector
    int getStateSize() const { return getSize(*res); }
+
+   /// Gets the size of a field @a name known by the solver
+   /// \param[in] name - the name of the field to look up the size of
+   /// \return the discrete size of the field identified by @a name
+   /// \note if the field @a name is unrecognized by the solver, 0 is returned
    virtual int getFieldSize(std::string name) const;
 
    // /// Creates the nonlinear form for the functional
