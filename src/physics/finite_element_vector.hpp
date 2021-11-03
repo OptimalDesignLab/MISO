@@ -119,9 +119,13 @@ public:
 
    /**
     * @brief Set the internal grid function using the true DOF values
-    * @param[in] true_vec - the true dof vector containing the values to distribute
+    * @param[in] true_vec - the true dof vector containing the values to
+    * distribute
     */
-   void distributeSharedDofs(const mfem::Vector &true_vec) { gf->SetFromTrueDofs(true_vec); }
+   void distributeSharedDofs(const mfem::Vector &true_vec)
+   {
+      gf->SetFromTrueDofs(true_vec);
+   }
 
    /**
     * @brief Initialize the true DOF vector by extracting true DOFs from the

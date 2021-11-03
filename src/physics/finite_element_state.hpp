@@ -53,7 +53,8 @@ public:
    /**
     * Projects a coefficient (vector or scalar) onto the field
     * @param[in] coef The coefficient to project
-    * @param[out] true_vec The true degree of freedom vector with the projected dofs
+    * @param[out] true_vec The true degree of freedom vector with the projected
+    * dofs
     */
    void project(mfem::Coefficient &coef, mfem::Vector &true_vec)
    {

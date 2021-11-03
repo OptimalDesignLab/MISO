@@ -68,12 +68,13 @@ void AbstractSolver2::calcResidual(const mfem::Vector &state,
 }
 
 void AbstractSolver2::calcResidual(const MachInputs &inputs,
-                     mfem::Vector &residual) const
+                                   mfem::Vector &residual) const
 {
    auto timestepper = options["time-dis"]["type"].get<std::string>();
    if (!(timestepper == "steady" || timestepper == "PTC"))
    {
-      throw MachException("calcResidual should only be called for steady problems!\n");
+      throw MachException(
+          "calcResidual should only be called for steady problems!\n");
    }
    evaluate(*res, inputs, residual);
 }
@@ -83,7 +84,7 @@ double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
    MachInputs inputs{{"state", state}};
    return calcResidualNorm(inputs);
 }
-   
+
 double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
 {
    work.SetSize(getSize(*res));
@@ -98,7 +99,7 @@ int AbstractSolver2::getFieldSize(std::string name) const
       return getSize(*res);
    }
    // may be better way to return something not found without throwing error
-   return 0; 
+   return 0;
 }
 
 void AbstractSolver2::initialHook(const mfem::Vector &state)

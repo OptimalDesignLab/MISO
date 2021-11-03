@@ -93,7 +93,6 @@ protected:
    const mfem::ParFiniteElementSpace &fes() const { return state().space(); }
 
    void setUpExternalFields();
-
 };
 
 }  // namespace mach
