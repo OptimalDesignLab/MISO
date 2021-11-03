@@ -5,6 +5,7 @@ target_sources(mach
       coefficient.cpp
       coefficient.hpp
       common.hpp
+      data_logging.hpp
       default_options.cpp
       default_options.hpp
       equation_solver.cpp

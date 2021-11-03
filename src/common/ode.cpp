@@ -47,7 +47,7 @@ int getSize(const TimeDependentResidual &residual)
 
 void setInputs(TimeDependentResidual &residual, const mach::MachInputs &inputs)
 {
-   auto it = inputs.find("state");
+   // auto it = inputs.find("state");
    // if (it != inputs.end())
    // {
    //    residual.state.SetDataAndSize(it->second.getField(),

@@ -1,9 +1,14 @@
 #ifndef MACH_ABSTRACT_SOLVER
 #define MACH_ABSTRACT_SOLVER
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "data_logging.hpp"
 #include "equation_solver.hpp"
 #include "mach_input.hpp"
 #include "mach_output.hpp"
@@ -18,6 +23,11 @@ class AbstractSolver2
 {
 public:
    /// Solve for the state based on the residual `res` and `options`
+   /// \param[inout] state - the solution to the governing equation
+   /// \note On input, `state` should hold the initial condition
+   void solveForState(mfem::Vector &state) { solveForState({}, state); }
+
+   /// Solve for the state based on the residual `res` and `options`
    /// \param[in] inputs - scalars and fields that the `res` may depend on
    /// \param[inout] state - the solution to the governing equation
    /// \note On input, `state` should hold the initial condition
@@ -25,6 +35,37 @@ public:
 
    MachResidual &residual() { return *res; }
    const MachResidual &residual() const { return *res; }
+
+   /// Compute the residual and store the it in @a residual
+   /// \param[in] state - the state to evaluate the residual at
+   /// \param[out] residual - the discrete residual vector
+   void calcResidual(const mfem::Vector &state, mfem::Vector &residual) const;
+
+   /// Compute the residual based on inputs and store the it in @a residual
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating residual
+   /// \param[out] residual - the discrete residual vector
+   void calcResidual(const MachInputs &inputs, mfem::Vector &residual) const;
+
+   /// Compute the residual norm based on inputs
+   /// \param[in] state - the state to evaluate the residual at
+   /// \return the norm of the discrete residual vector
+   double calcResidualNorm(const mfem::Vector &state) const;
+
+   /// Compute the residual norm based on inputs
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating residual
+   /// \return the norm of the discrete residual vector
+   double calcResidualNorm(const MachInputs &inputs) const;
+
+   /// \return the size of the state vector
+   int getStateSize() const { return getSize(*res); }
+
+   /// Gets the size of a field @a name known by the solver
+   /// \param[in] name - the name of the field to look up the size of
+   /// \return the discrete size of the field identified by @a name
+   /// \note if the field @a name is unrecognized by the solver, 0 is returned
+   virtual int getFieldSize(std::string name) const;
 
    // /// Creates the nonlinear form for the functional
    // /// \param[in] fun - specifies the desired functional
@@ -50,6 +91,9 @@ protected:
    /// MPI process rank
    int rank;
 
+   /// work vector for solvers
+   mutable mfem::Vector work;
+
    /// solver options
    nlohmann::json options;
 
@@ -60,9 +104,18 @@ protected:
    /// the state variables
    std::unique_ptr<FirstOrderODE> ode;
 
+   /// Optional data loggers that will save state vectors during timestepping
+   std::vector<DataLoggerWithOpts> loggers;
+
+   void addLogger(DataLogger logger, LoggingOptions options)
+   {
+      loggers.emplace_back(std::make_pair<DataLogger, LoggingOptions>(
+          std::move(logger), std::move(options)));
+   }
+
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
-   virtual void initialHook(const mfem::Vector &state) { }
+   virtual void initialHook(const mfem::Vector &state);
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
@@ -72,8 +125,7 @@ protected:
    virtual void iterationHook(int iter,
                               double t,
                               double dt,
-                              const mfem::Vector &state)
-   { }
+                              const mfem::Vector &state);
 
    /// Find the step size based on the options
    /// \param[in] iter - the current iteration
@@ -109,8 +161,7 @@ protected:
    /// \param[in] state - the current state
    virtual void terminalHook(int iter,
                              double t_final,
-                             const mfem::Vector &state)
-   { }
+                             const mfem::Vector &state);
 
    /// linear system solver used in newton solver
    std::unique_ptr<mfem::Solver> linear_solver;

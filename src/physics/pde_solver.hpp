@@ -32,11 +32,13 @@ namespace mach
 class PDESolver : public AbstractSolver2
 {
 public:
+   int getFieldSize(std::string name) const override;
+
    FiniteElementState &getState() { return state(); }
    const FiniteElementState &getState() const { return state(); }
 
-   FiniteElementDual &getResidual() { return res_vec(); }
-   const FiniteElementDual &getResidual() const { return res_vec(); }
+   FiniteElementDual &getResVec() { return res_vec(); }
+   const FiniteElementDual &getResVec() const { return res_vec(); }
 
    PDESolver(MPI_Comm incomm,
              const nlohmann::json &solver_options,
@@ -71,41 +73,26 @@ protected:
    nlohmann::json materials;
 
    /// Members associated with fields
-   /// Vector of all state vectors used by the solver
-   std::vector<FiniteElementState> fields;
-   /// Vector of dual vectors used by the solver
-   std::vector<FiniteElementDual> duals;
+   /// Map of all state vectors used by the solver
+   std::map<std::string, FiniteElementState> fields;
+   /// Map of dual vectors used by the solver
+   std::map<std::string, FiniteElementDual> duals;
 
    /// Reference to solver state vector
-   FiniteElementState &state() { return fields[0]; }
-   const FiniteElementState &state() const { return fields[0]; }
+   FiniteElementState &state() { return fields.at("state"); }
+   const FiniteElementState &state() const { return fields.at("state"); }
    /// Reference to solver adjoint vector
-   FiniteElementState &adjoint() { return fields[1]; }
-   const FiniteElementState &adjoint() const { return fields[1]; }
+   FiniteElementState &adjoint() { return fields.at("adjoint"); }
+   const FiniteElementState &adjoint() const { return fields.at("adjoint"); }
    /// Reference to solver residual dual vec
-   FiniteElementDual &res_vec() { return duals[0]; }
-   const FiniteElementDual &res_vec() const { return duals[0]; }
+   FiniteElementDual &res_vec() { return duals.at("residual"); }
+   const FiniteElementDual &res_vec() const { return duals.at("residual"); }
 
    /// Reference to the state vectors finite element space
    mfem::ParFiniteElementSpace &fes() { return state().space(); }
    const mfem::ParFiniteElementSpace &fes() const { return state().space(); }
 
    void setUpExternalFields();
-
-   /// ParaView object for saving fields
-   mfem::ParaViewDataCollection vis;
-
-   /// Time-stepping overrides
-   void initialHook(const mfem::Vector &state) override;
-
-   void iterationHook(int iter,
-                      double t,
-                      double dt,
-                      const mfem::Vector &state) override;
-
-   void terminalHook(int iter,
-                     double t_final,
-                     const mfem::Vector &state) override;
 };
 
 }  // namespace mach

@@ -6,6 +6,7 @@
 #include "nlohmann/json.hpp"
 
 #include "abstract_solver.hpp"
+#include "data_logging.hpp"
 #include "mach_input.hpp"
 #include "mach_linearform.hpp"
 #include "mach_load.hpp"
@@ -150,6 +151,10 @@ public:
 
       auto ode_opts = options["time-dis"];
       ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, *nonlinear_solver);
+
+      // mach::ParaViewLogger paraview("test_pde_solver", mesh_.get());
+      // paraview.registerField("state", fields.at("state").gridFunc());
+      // addLogger(std::move(paraview), {.each_timestep=true});
    }
 private:
    static constexpr int num_states = 1;
@@ -200,6 +205,7 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
 
    // Create solver and solve for the state 
    ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
+   mfem::Vector state_tv(solver.getStateSize());
    auto &state = solver.getState();
 
    FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
@@ -208,10 +214,11 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
       return pow(x, 2) + exp(-t) * (sin(x) + sin(2*x) + sin(3*x));
    });
    exact_sol.SetTime(0.0);
-   state.project(exact_sol);
+   state.project(exact_sol, state_tv);
+
    MachInputs inputs;
-   solver.solveForState(inputs, state.trueVec());
-   state.distributeSharedDofs();
+   solver.solveForState(inputs, state_tv);
+   state.distributeSharedDofs(state_tv);
 
    // Check that solution is reasonable accurate
    auto tfinal = options["time-dis"]["t-final"].get<double>();
@@ -279,10 +286,16 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
    mfem::Array<int> bdr_attr(4);
    bdr_attr = 1; bdr_attr[1] = 1; bdr_attr[3] = 1;
    state.gridFunc().ProjectBdrCoefficient(exact_sol, bdr_attr);
-   state.initializeTrueVec();
-   MachInputs inputs;
-   solver.solveForState(inputs, state.trueVec());
-   state.distributeSharedDofs();
+
+   mfem::Vector state_tv(solver.getStateSize());
+   state.initializeTrueVec(state_tv);
+
+   mach::MachInputs inputs;
+   solver.solveForState(inputs, state_tv);
+   state.distributeSharedDofs(state_tv);
+
+   auto res_norm = solver.calcResidualNorm(state_tv);
+   std::cout << "final res norm: " << res_norm << "\n";
 
    // Check that solution is reasonable accurate
    auto tfinal = options["time-dis"]["t-final"].get<double>();
