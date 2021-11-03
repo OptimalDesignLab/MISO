@@ -31,7 +31,7 @@ auto options = R"(
    }
 })"_json;
 
-TEST_CASE("FluidResidual construction", "[FluidResidual]")
+TEST_CASE("FluidResidual construction and evaluation", "[FluidResidual]")
 {
    const int dim = 2; // templating is hard here because mesh constructors
    int num_state = dim + 2;

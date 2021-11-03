@@ -16,7 +16,8 @@ FluidResidual::FluidResidual(const nlohmann::json &options,
    stack(diff_stack),
    fields(std::make_unique<
           std::unordered_map<std::string, mfem::ParGridFunction>>()),
-   res(fes, *fields)
+   res(fes, *fields),
+   ent(fes, *fields)
 {
    setOptions(*this, options);
    int dim = fes.GetMesh()->SpaceDimension();
@@ -55,6 +56,7 @@ void FluidResidual::addFluidIntegrators(const nlohmann::json &options)
       addFluidDomainIntegrators<dim, true>(flow, space_dis);
       addFluidInterfaceIntegrators<dim, true>(flow, space_dis);
       addFluidBoundaryIntegrators<dim, true>(flow, space_dis, bcs);
+      addEntropyIntegrators<dim, true>();
    }
    else
    {
@@ -62,10 +64,11 @@ void FluidResidual::addFluidIntegrators(const nlohmann::json &options)
       addFluidDomainIntegrators<dim>(flow, space_dis);
       addFluidInterfaceIntegrators<dim>(flow, space_dis);
       addFluidBoundaryIntegrators<dim>(flow, space_dis, bcs);
+      addEntropyIntegrators<dim, true>();
    }
 }
 
-template <int dim, bool entvar = false>
+template <int dim, bool entvar>
 void FluidResidual::addFluidDomainIntegrators(const nlohmann::json &flow,
                                               const nlohmann::json &space_dis)
 {
@@ -92,7 +95,7 @@ void FluidResidual::addFluidDomainIntegrators(const nlohmann::json &flow,
    }
 }
 
-template <int dim, bool entvar = false>
+template <int dim, bool entvar>
 void FluidResidual::addFluidInterfaceIntegrators(
     const nlohmann::json &flow,
     const nlohmann::json &space_dis)
@@ -106,7 +109,7 @@ void FluidResidual::addFluidInterfaceIntegrators(
    }
 }
 
-template <int dim, bool entvar = false>
+template <int dim, bool entvar>
 void FluidResidual::addFluidBoundaryIntegrators(const nlohmann::json &flow,
                                                 const nlohmann::json &space_dis,
                                                 const nlohmann::json &bcs)
@@ -141,6 +144,12 @@ void FluidResidual::addFluidBoundaryIntegrators(const nlohmann::json &flow,
           new FarFieldBC<dim, entvar>(stack, fes.FEColl(), qfar),
           bdr_attr_marker);
    }
+}
+
+template <int dim, bool entvar>
+void FluidResidual::addEntropyIntegrators()
+{
+   ent.addDomainIntegrator(new EntropyIntegrator<dim, entvar>(stack));
 }
 
 int getSize(const FluidResidual &residual) { return getSize(residual.res); }
