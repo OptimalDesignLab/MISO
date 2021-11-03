@@ -167,7 +167,8 @@ public:
                         const mfem::Vector &u,
                         const mfem::Vector &du_dt) override
    {
-      MachInputs inputs{{"state", u}, {"state_dot", du_dt}, {"dt", dt}};
+      MachInputs inputs{
+          {"state", u}, {"state_dot", du_dt}, {"time", t}, {"dt", dt}};
       return calcEntropyChange(residual_, inputs);
    }
 

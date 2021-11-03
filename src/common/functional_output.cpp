@@ -49,8 +49,8 @@ void setOptions(FunctionalOutput &output, const nlohmann::json &options)
 double calcOutput(FunctionalOutput &output, const MachInputs &inputs)
 {
    setInputs(output, inputs);
-
-   auto &state = output.func_fields->at("state");
+   Vector state;
+   setVectorFromInputs(inputs, "state", state, false, true);
    return output.output.GetEnergy(state);
 }
 

@@ -80,6 +80,14 @@ void setOptions(MachNonlinearForm &form, const nlohmann::json &options)
    }
 }
 
+double calcFormOutput(MachNonlinearForm &form, const MachInputs &inputs)
+{
+   mfem::Vector state;
+   setVectorFromInputs(inputs, "state", state, false, true);
+   setInputs(form.integs, inputs);
+   return form.nf.GetEnergy(state);
+}
+
 void evaluate(MachNonlinearForm &form,
               const MachInputs &inputs,
               mfem::Vector &res_vec)
