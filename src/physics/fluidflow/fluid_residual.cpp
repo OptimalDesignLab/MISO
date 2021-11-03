@@ -206,10 +206,12 @@ double calcEntropy(FluidResidual &residual, const MachInputs &inputs)
 
 double calcEntropyChange(FluidResidual &residual, const MachInputs &inputs)
 {
-   Vector x, dxdt;
+   Vector x;
    setVectorFromInputs(inputs, "state", x, false, true);
+   Vector dxdt;
    setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
-   double dt, time;
+   double dt = NAN;
+   double time = NAN;
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
    auto &y = residual.work;
