@@ -214,7 +214,7 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
    state.gridFunc().ProjectCoefficient(exact_sol);
    // state.gridFunc().ProjectBdrCoefficientTangent(exact_sol, bdr_attr);
    mfem::Vector state_tv(solver.getStateSize());
-   state.initializeTrueVec(state_tv);
+   state.setTrueVec(state_tv);
 
    mach::MachInputs inputs;
    solver.solveForState(inputs, state_tv);
