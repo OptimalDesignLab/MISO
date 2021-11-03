@@ -34,7 +34,7 @@ public:
       const double *data = state.GetData();
       int size = state.Size();
       std::ofstream file(filename, std::ios::out);
-      file << std::setprecision(std::numeric_limits<int>::max());
+      file << std::setprecision(18);
       file << time << "\n";
       file << size << "\n";
       for (int i = 0; i < size; ++i)
