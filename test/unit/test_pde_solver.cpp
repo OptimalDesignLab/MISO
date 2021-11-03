@@ -6,6 +6,7 @@
 #include "nlohmann/json.hpp"
 
 #include "abstract_solver.hpp"
+#include "data_logging.hpp"
 #include "mach_input.hpp"
 #include "mach_linearform.hpp"
 #include "mach_load.hpp"
@@ -150,6 +151,10 @@ public:
 
       auto ode_opts = options["time-dis"];
       ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, *nonlinear_solver);
+
+      // mach::ParaViewLogger paraview("test_pde_solver", mesh_.get());
+      // paraview.registerField("state", fields.at("state").gridFunc());
+      // addLogger(std::move(paraview), {.each_timestep=true});
    }
 private:
    static constexpr int num_states = 1;

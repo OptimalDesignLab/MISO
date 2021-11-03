@@ -120,6 +120,7 @@ public:
                   double time,
                   int rank)
    {
+      fields.at(fieldname)->SetFromTrueDofs(state);
       pv.SetCycle(timestep);
       pv.SetTime(time);
       pv.Save();
@@ -127,9 +128,14 @@ public:
 
    void registerField(std::string name, mfem::ParGridFunction &field)
    {
+      pv.RegisterField(name, &field);
       fields.emplace(std::move(name), &field);
       auto field_order = field.ParFESpace()->GetMaxElementOrder();
-      refine = field_order > refine ? field_order : refine;
+      if (field_order > refine)
+      {
+         refine = field_order;
+         pv.SetLevelsOfDetail(refine);
+      }
    }
 
    ParaViewLogger(const std::string &name, mfem::ParMesh *mesh = nullptr)
