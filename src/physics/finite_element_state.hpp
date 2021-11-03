@@ -53,34 +53,35 @@ public:
    /**
     * Projects a coefficient (vector or scalar) onto the field
     * @param[in] coef The coefficient to project
+    * @param[out] true_vec The true degree of freedom vector with the projected dofs
     */
-   void project(mfem::Coefficient &coef)
+   void project(mfem::Coefficient &coef, mfem::Vector &true_vec)
    {
       gf->ProjectCoefficient(coef);
-      initializeTrueVec();
+      initializeTrueVec(true_vec);
    }
    /// \overload
-   void project(mfem::VectorCoefficient &coef)
+   void project(mfem::VectorCoefficient &coef, mfem::Vector &true_vec)
    {
       gf->ProjectCoefficient(coef);
-      initializeTrueVec();
+      initializeTrueVec(true_vec);
    }
 
-   /**
-    * @brief Set a finite element state to a constant value
-    *
-    * @param value The constant to set the finite element state to
-    * @return The modified finite element state
-    * @note This sets the true degrees of freedom and then broadcasts to the
-    * shared grid function entries. This means that if a different value is
-    * given on different processors, a shared DOF will be set to the owning
-    * processor value.
-    */
-   FiniteElementState &operator=(const double value)
-   {
-      FiniteElementVector::operator=(value);
-      return *this;
-   }
+   // /**
+   //  * @brief Set a finite element state to a constant value
+   //  *
+   //  * @param value The constant to set the finite element state to
+   //  * @return The modified finite element state
+   //  * @note This sets the true degrees of freedom and then broadcasts to the
+   //  * shared grid function entries. This means that if a different value is
+   //  * given on different processors, a shared DOF will be set to the owning
+   //  * processor value.
+   //  */
+   // FiniteElementState &operator=(const double value)
+   // {
+   //    FiniteElementVector::operator=(value);
+   //    return *this;
+   // }
 };
 
 /**

@@ -111,7 +111,7 @@ PDESolver::PDESolver(MPI_Comm incomm,
                      std::unique_ptr<mfem::Mesh> smesh)
  : AbstractSolver2(incomm, solver_options),
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
-   materials(material_library),
+   materials(material_library)
 {
    fields.emplace(
        "state", createState(*mesh_, options["space-dis"], num_states, "state"));
@@ -283,7 +283,7 @@ void PDESolver::setUpExternalFields()
       FiniteElementState &mesh_coords = fields.at("mesh_coords");
       /// set the values of the new GF to those of the mesh's old nodes
       mesh_coords.gridFunc() = mesh_gf;
-      mesh_coords.initializeTrueVec();  // distribute coords
+      // mesh_coords.initializeTrueVec();  // distribute coords
       /// tell the mesh to use this GF for its Nodes
       /// (and that it doesn't own it)
       mesh_->NewNodes(mesh_coords.gridFunc(), false);
