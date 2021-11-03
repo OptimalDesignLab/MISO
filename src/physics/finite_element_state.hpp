@@ -29,14 +29,18 @@ public:
    /// \param[in] true_vec - the true dof vector containing the values to
    /// \note This sets the finite element dofs by multiplying the true dofs
    /// by the prolongation operator.
-   /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for details
-   void distributeSharedDofs(const mfem::Vector &true_vec) { gridFunc().SetFromTrueDofs(true_vec); }
+   /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for
+   /// details
+   void distributeSharedDofs(const mfem::Vector &true_vec)
+   {
+      gridFunc().SetFromTrueDofs(true_vec);
+   }
 
    /// \brief Set the true vector from the grid function values
    /// \param[out] true_vec - the true dof vector to set from the local field
-   /// \note This sets the true vector dofs by multiplying the finite element dofs
-   /// by the restriction operator.
-   /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for details
+   /// \note This sets the true vector dofs by multiplying the finite element
+   /// dofs by the restriction operator. \see <a
+   /// href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for details
    void setTrueVec(mfem::Vector &true_vec) { gridFunc().GetTrueDofs(true_vec); }
 
    /// Returns a GridFunctionCoefficient referencing the internal grid function

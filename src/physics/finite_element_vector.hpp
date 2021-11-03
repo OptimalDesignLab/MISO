@@ -53,9 +53,9 @@ public:
    /// \brief Minimal constructor for a FiniteElementVector given a finite
    /// element space
    /// \param[in] mesh The problem mesh (object does not take ownership)
-   /// \param[in] space The space to use for the finite element state. This space
-   /// is deep copied into the new FE state
-   /// \param[in] name The name of the field
+   /// \param[in] space The space to use for the finite element state. This
+   /// space is deep copied into the new FE state \param[in] name The name of
+   /// the field
    FiniteElementVector(mfem::ParMesh &mesh,
                        mfem::ParFiniteElementSpace &space,
                        std::string name = "");

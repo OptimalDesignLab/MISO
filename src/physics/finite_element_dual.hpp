@@ -33,7 +33,8 @@ public:
    /// \param[in] true_vec - the true dof vector containing the values to
    /// \note This sets the finite element dofs by multiplying the true dofs
    /// by the transponse of the restriction operator.
-   /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for details
+   /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for
+   /// details
    void distributeSharedDofs(const mfem::Vector &true_vec)
    {
       space().GetRestrictionOperator()->MultTranspose(true_vec, localVec());
@@ -41,9 +42,9 @@ public:
 
    /// \brief Set the true vector from the grid function values
    /// \param[out] true_vec - the true dof vector to set from the local field
-   /// \note This sets the true vector dofs by multiplying the finite element dofs
-   /// by the transpose of the prolongation operator.
-   /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for details
+   /// \note This sets the true vector dofs by multiplying the finite element
+   /// dofs by the transpose of the prolongation operator. \see <a
+   /// href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for details
    void setTrueVec(mfem::Vector &true_vec) { gf->ParallelAssemble(true_vec); }
 
    // /// \brief Set a finite element dual to a constant value
