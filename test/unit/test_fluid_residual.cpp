@@ -68,7 +68,7 @@ TEST_CASE("FluidResidual construction and evaluation", "[FluidResidual]")
 
    // check the entropy calculation; grabs the first 4 vars from q.GetData() to
    // compute the entropy, and then scales by domain size (which is 1 unit sqrd)
-   double total_ent = entropy<double, 2, false>(q.GetData());
+   auto total_ent = entropy<double, 2, false>(q.GetData());
    REQUIRE( calcEntropy(res, inputs) == Approx(total_ent) );
 }
 
