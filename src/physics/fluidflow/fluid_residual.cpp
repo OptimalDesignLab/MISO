@@ -17,7 +17,8 @@ FluidResidual::FluidResidual(const nlohmann::json &options,
    fields(std::make_unique<
           std::unordered_map<std::string, mfem::ParGridFunction>>()),
    res(fes, *fields),
-   ent(fes, *fields)
+   ent(fes, *fields),
+   work(getSize(res))
 {
    setOptions(*this, options);
    int dim = fes.GetMesh()->SpaceDimension();
@@ -201,6 +202,20 @@ mfem::Operator &getJacobian(FluidResidual &residual,
 double calcEntropy(FluidResidual &residual, const MachInputs &inputs)
 {
    return calcOutput(residual.ent, inputs);
+}
+
+double calcEntropyChange(FluidResidual &residual, const MachInputs &inputs)
+{
+   Vector x, dxdt;
+   setVectorFromInputs(inputs, "state", x, false, true);
+   setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
+   double dt, time;
+   setValueFromInputs(inputs, "time", time, true);
+   setValueFromInputs(inputs, "dt", dt, true);
+   auto &y = residual.work;
+   add(x, dt, dxdt, y);
+   auto form_inputs = MachInputs({{"state", y}, {"time", time + dt}});
+   return calcFormOutput(residual.res, form_inputs);
 }
 
 }  // namespace mach

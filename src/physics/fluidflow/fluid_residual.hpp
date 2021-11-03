@@ -64,8 +64,16 @@ public:
    /// \param[in] inputs - defines values and fields needed for the entropy
    /// \note The entropy depends only on the state, but the residual helps
    /// distinguish if conservative or entropy-variables are used for the state.
-   friend double calcEntropy(FluidResidual &residual,
-                             const mach::MachInputs &inputs);
+   friend double calcEntropy(FluidResidual &residual, const MachInputs &inputs);
+
+   /// Evaluate the residual weighted by the entropy variables
+   /// \param[inout] residual - function with an associated entropy
+   /// \param[in] inputs - the variables needed to evaluate the entropy
+   /// \return the product `w^T res`
+   /// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
+   /// `t+dt` \note optional, but must be implemented for relaxation RK
+   friend double calcEntropyChange(FluidResidual &residual,
+                                   const MachInputs &inputs);
 
 private:
    /// free-stream Mach number
@@ -80,15 +88,19 @@ private:
    bool state_is_entvar = false;
    /// Determines if the residual is for explicit or implicit time-marching
    bool is_implicit;
+   /// Finite-element space associated with inputs to the residual
    mfem::ParFiniteElementSpace &fes;
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
+   /// TBD
    std::unique_ptr<std::unordered_map<std::string, mfem::ParGridFunction>>
        fields;
    /// Defines the nonlinear form used to compute the residual and its Jacobian
    mach::MachNonlinearForm res;
    /// Defines the output used to evaluate the entropy
    mach::FunctionalOutput ent;
+   /// Work vector
+   mfem::Vector work;
 
    template <int dim>
    void addFluidIntegrators(const nlohmann::json &options);

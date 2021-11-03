@@ -24,6 +24,10 @@ public:
    friend void setOptions(MachNonlinearForm &form,
                           const nlohmann::json &options);
 
+   /// Calls GetEnergy() for the underlying form using "state" in inputs.
+   friend double calcFormOutput(MachNonlinearForm &form,
+                                const MachInputs &inputs);
+
    /// Evaluate the nonlinear form using `inputs` and return result in `res_vec`
    friend void evaluate(MachNonlinearForm &form,
                         const MachInputs &inputs,
