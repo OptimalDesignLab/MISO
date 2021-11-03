@@ -213,11 +213,12 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
    bdr_attr = 1;
    state.gridFunc().ProjectCoefficient(exact_sol);
    // state.gridFunc().ProjectBdrCoefficientTangent(exact_sol, bdr_attr);
-   state.initializeTrueVec();
+   mfem::Vector state_tv(solver.getStateSize());
+   state.initializeTrueVec(state_tv);
 
    mach::MachInputs inputs;
-   solver.solveForState(inputs, state.trueVec());
-   state.distributeSharedDofs();
+   solver.solveForState(inputs, state_tv);
+   state.distributeSharedDofs(state_tv);
 
    auto error = state.gridFunc().ComputeLpError(2, exact_sol);
 
