@@ -1,6 +1,8 @@
 #ifndef MACH_FUNCTIONAL_OUTPUT
 #define MACH_FUNCTIONAL_OUTPUT
 
+#include <list>
+
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -65,7 +67,7 @@ private:
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
    /// Collection of boundary markers for boundary integrators
-   std::vector<mfem::Array<int>> bdr_markers;
+   std::list<mfem::Array<int>> bdr_markers;
 
    /// map of linear forms that will compute \frac{\partial J}{\partial field}
    /// for each field the functional depends on

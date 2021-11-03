@@ -64,7 +64,7 @@ void FluidResidual::addFluidIntegrators(const nlohmann::json &options)
       addFluidDomainIntegrators<dim>(flow, space_dis);
       addFluidInterfaceIntegrators<dim>(flow, space_dis);
       addFluidBoundaryIntegrators<dim>(flow, space_dis, bcs);
-      addEntropyIntegrators<dim, true>();
+      addEntropyIntegrators<dim>();
    }
 }
 
@@ -149,7 +149,7 @@ void FluidResidual::addFluidBoundaryIntegrators(const nlohmann::json &flow,
 template <int dim, bool entvar>
 void FluidResidual::addEntropyIntegrators()
 {
-   ent.addDomainIntegrator(new EntropyIntegrator<dim, entvar>(stack));
+   ent.addOutputDomainIntegrator(new EntropyIntegrator<dim, entvar>(stack));
 }
 
 int getSize(const FluidResidual &residual) { return getSize(residual.res); }
@@ -196,6 +196,11 @@ mfem::Operator &getJacobian(FluidResidual &residual,
                             string wrt)
 {
    return getJacobian(residual.res, inputs, std::move(wrt));
+}
+
+double calcEntropy(FluidResidual &residual, const MachInputs &inputs)
+{
+   return calcOutput(residual.ent, inputs);
 }
 
 }  // namespace mach

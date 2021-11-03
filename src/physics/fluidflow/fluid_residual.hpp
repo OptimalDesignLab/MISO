@@ -7,6 +7,7 @@
 
 #include "mach_input.hpp"
 #include "mach_nonlinearform.hpp"
+#include "functional_output.hpp"
 
 namespace mach
 {
@@ -60,12 +61,11 @@ public:
 
    /// Returns the total integrated entropy over the domain
    /// \param[inout] residual - the fluid residual, which helps compute entropy
-   /// \param[in] inputs - defines values and fields needed for the entropy 
-   /// \note The entropy depends only on the state, but the residual helps 
+   /// \param[in] inputs - defines values and fields needed for the entropy
+   /// \note The entropy depends only on the state, but the residual helps
    /// distinguish if conservative or entropy-variables are used for the state.
    friend double calcEntropy(FluidResidual &residual,
-                             const mach::MachInputs &inputs) {}
-
+                             const mach::MachInputs &inputs);
 
 private:
    /// free-stream Mach number
@@ -87,8 +87,8 @@ private:
        fields;
    /// Defines the nonlinear form used to compute the residual and its Jacobian
    mach::MachNonlinearForm res;
-   /// Defines the nonlinear form used to evaluate the entropy 
-   mach::MachNonlinearForm ent;
+   /// Defines the output used to evaluate the entropy
+   mach::FunctionalOutput ent;
 
    template <int dim>
    void addFluidIntegrators(const nlohmann::json &options);

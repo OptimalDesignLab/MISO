@@ -65,4 +65,10 @@ TEST_CASE("FluidResidual construction and evaluation", "[FluidResidual]")
 
    // the res_vec should be zero, since we are differentiating a constant flux
    REQUIRE( res_vec.Norml2() == Approx(0.0).margin(1e-14) );
+
+   // check the entropy calculation; grabs the first 4 vars from q.GetData() to
+   // compute the entropy, and then scales by domain size (which is 1 unit sqrd)
+   double total_ent = entropy<double, 2, false>(q.GetData());
+   REQUIRE( calcEntropy(res, inputs) == Approx(total_ent) );
+
 }
