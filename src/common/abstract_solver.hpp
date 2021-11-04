@@ -24,6 +24,13 @@ namespace mach
 class AbstractSolver2
 {
 public:
+   /// \brief Generic function that allows derived classes to set the state
+   /// based on the type T
+   /// \param[in] function - any object that a derived solver will know how to
+   /// interpret and use to set the state
+   /// \param[out] state - the true dof vector to set
+   /// \param[in] name - name of the vector to set, defaults to "state"
+   /// \tparam T - generic type T, the derived classes must know how to use it
    template <typename T>
    void setState(T function, mfem::Vector &state, std::string name = "state");
 
@@ -218,9 +225,16 @@ protected:
    virtual void addOutput(const std::string &out, const nlohmann::json &options)
    { }
 
+   /// \brief Virtual method that allows derivated solvers to deal with inputs
+   /// from templated function setState
+   /// \param[in] function - input function use to set the state
+   /// \param[in] name - name of the vector to set
+   /// \param[out] state - the true dof vector to set
+   /// \note the derived classes must know what types @a function may hold and
+   /// how to access/use them
    virtual void setState_(std::any function,
-                          mfem::Vector &state,
-                          std::string name);
+                          std::string name,
+                          mfem::Vector &state);
 };
 
 template <typename T>
@@ -228,16 +242,19 @@ void AbstractSolver2::setState(T function,
                                mfem::Vector &state,
                                std::string name)
 {
+   /// compile time conditional that checks if @a function is callable, and 
+   /// thus should be converted to a std::function
    if constexpr (is_callable_v<T>)
    {
       auto fun = make_function(function);
       auto any = std::make_any<decltype(fun)>(fun);
-      setState_(any, state, name);
+      setState_(any, name, state);
    }
+   /// if @a function is not callable, we just pass it directly along
    else
    {
       auto any = std::make_any<decltype(function)>(function);
-      setState_(any, state, name);
+      setState_(any, name, state);
    }
 }
 

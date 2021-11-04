@@ -126,14 +126,6 @@ public:
                                                   *nonlinear_solver);
    }
 
-   void setState_(std::any function,
-                 mfem::Vector &state,
-                 std::string name = "state") override
-   {
-      std::cout << "has value: " << function.has_value() << "\n";
-      auto sol = std::any_cast<std::function<void(mfem::Vector &)>>(function);
-      sol(state);
-   }
 };
 
 TEST_CASE("Testing AbstractSolver using RK4", "[abstract-solver]")
@@ -239,8 +231,6 @@ TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
    ExponentialODESolver solver(MPI_COMM_WORLD, options);
    Vector u0(solver.getStateSize()), u(solver.getStateSize());
    solver.setState([&](mfem::Vector &u) {exact_sol(0.0, u); }, u0);
-   // u0(0) = 1.0;
-   // u0(1) = 0.5;
    u = u0;
    MachInputs inputs;
    solver.solveForState(inputs, u);

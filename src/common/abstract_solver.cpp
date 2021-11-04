@@ -34,10 +34,14 @@ AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
 }
 
 void AbstractSolver2::setState_(std::any function,
-                                mfem::Vector &state,
-                                std::string name)
+                                std::string name,
+                                mfem::Vector &state)
 {
-   throw MachException("setState not overode in derived class!\n");
+   auto *fun = std::any_cast<std::function<void(mfem::Vector &)>>(&function);
+   if (fun != nullptr)
+   {
+      (*fun)(state);
+   }
 }
 
 void AbstractSolver2::solveForState(const MachInputs &inputs,
