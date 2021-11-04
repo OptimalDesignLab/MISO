@@ -109,7 +109,7 @@ void AbstractSolver2::createOutput(const std::string &output)
 }
 
 void AbstractSolver2::createOutput(const std::string &output,
-                                  const nlohmann::json &options)
+                                   const nlohmann::json &options)
 {
    if (outputs.count(output) == 0)
    {
@@ -122,7 +122,7 @@ void AbstractSolver2::createOutput(const std::string &output,
 }
 
 void AbstractSolver2::setOutputOptions(const std::string &output,
-                                      const nlohmann::json &options)
+                                       const nlohmann::json &options)
 {
    try
    {
@@ -140,7 +140,7 @@ void AbstractSolver2::setOutputOptions(const std::string &output,
 }
 
 double AbstractSolver2::calcOutput(const std::string &output,
-                                  const MachInputs &inputs)
+                                   const MachInputs &inputs)
 {
    try
    {
@@ -159,9 +159,9 @@ double AbstractSolver2::calcOutput(const std::string &output,
 }
 
 void AbstractSolver2::calcOutputPartial(const std::string &of,
-                                       const std::string &wrt,
-                                       const MachInputs &inputs,
-                                       double &partial)
+                                        const std::string &wrt,
+                                        const MachInputs &inputs,
+                                        double &partial)
 {
    try
    {
@@ -181,9 +181,9 @@ void AbstractSolver2::calcOutputPartial(const std::string &of,
 }
 
 void AbstractSolver2::calcOutputPartial(const std::string &of,
-                                       const std::string &wrt,
-                                       const MachInputs &inputs,
-                                       mfem::Vector &partial)
+                                        const std::string &wrt,
+                                        const MachInputs &inputs,
+                                        mfem::Vector &partial)
 {
    try
    {

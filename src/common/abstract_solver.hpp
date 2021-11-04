@@ -85,7 +85,8 @@ public:
    /// \param[in] options - options needed for configuring the output
    /// \note will only have an effect if a concrete output supports setting
    ///       options
-   void setOutputOptions(const std::string &output, const nlohmann::json &options);
+   void setOutputOptions(const std::string &output,
+                         const nlohmann::json &options);
 
    /// Evaluates and returns the output specifed by @a output
    /// \param[in] output - specifies the desired output
@@ -146,7 +147,7 @@ protected:
    /// the state variables
    std::unique_ptr<FirstOrderODE> ode;
 
-   /// map of outputs the solver can compute 
+   /// map of outputs the solver can compute
    std::map<std::string, MachOutput> outputs;
 
    /// Optional data loggers that will save state vectors during timestepping
@@ -211,7 +212,6 @@ protected:
    /// Add output @a out based on @a options
    virtual void addOutput(const std::string &out, const nlohmann::json &options)
    { }
-
 };
 
 }  // namespace mach
