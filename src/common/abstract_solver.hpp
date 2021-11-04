@@ -1,6 +1,7 @@
 #ifndef MACH_ABSTRACT_SOLVER
 #define MACH_ABSTRACT_SOLVER
 
+#include <any>
 #include <memory>
 #include <string>
 #include <vector>
@@ -17,11 +18,15 @@
 
 namespace mach
 {
+
 /// Serves as a base class for specific solvers
 /// \todo Rename to AbstractSolver once we have old AbstractSolver inherit it
 class AbstractSolver2
 {
 public:
+   template <typename T>
+   void setState(T function, mfem::Vector &state, std::string name = "state");
+
    /// Solve for the state based on the residual `res` and `options`
    /// \param[inout] state - the solution to the governing equation
    /// \note On input, `state` should hold the initial condition
@@ -212,7 +217,29 @@ protected:
    /// Add output @a out based on @a options
    virtual void addOutput(const std::string &out, const nlohmann::json &options)
    { }
+
+   virtual void setState_(std::any function,
+                          mfem::Vector &state,
+                          std::string name);
 };
+
+template <typename T>
+void AbstractSolver2::setState(T function,
+                               mfem::Vector &state,
+                               std::string name)
+{
+   if constexpr (is_callable_v<T>)
+   {
+      auto fun = make_function(function);
+      auto any = std::make_any<decltype(fun)>(fun);
+      setState_(any, state, name);
+   }
+   else
+   {
+      auto any = std::make_any<decltype(function)>(function);
+      setState_(any, state, name);
+   }
+}
 
 }  // namespace mach
 
