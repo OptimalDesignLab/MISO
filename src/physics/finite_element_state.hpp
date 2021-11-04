@@ -39,8 +39,9 @@ public:
    /// \brief Set the true vector from the grid function values
    /// \param[out] true_vec - the true dof vector to set from the local field
    /// \note This sets the true vector dofs by multiplying the finite element
-   /// dofs by the restriction operator. \see <a
-   /// href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for details
+   /// dofs by the restriction operator.
+   /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for
+   /// details
    void setTrueVec(mfem::Vector &true_vec) { gridFunc().GetTrueDofs(true_vec); }
 
    /// Returns a GridFunctionCoefficient referencing the internal grid function

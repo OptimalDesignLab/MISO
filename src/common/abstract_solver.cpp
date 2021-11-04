@@ -102,6 +102,104 @@ int AbstractSolver2::getFieldSize(std::string name) const
    return 0;
 }
 
+void AbstractSolver2::createOutput(const std::string &output)
+{
+   nlohmann::json options;
+   createOutput(output, options);
+}
+
+void AbstractSolver2::createOutput(const std::string &output,
+                                  const nlohmann::json &options)
+{
+   if (outputs.count(output) == 0)
+   {
+      addOutput(output, options);
+   }
+   else
+   {
+      throw MachException("Output with name " + output + " already created!\n");
+   }
+}
+
+void AbstractSolver2::setOutputOptions(const std::string &output,
+                                      const nlohmann::json &options)
+{
+   try
+   {
+      auto output_iter = outputs.find(output);
+      if (output_iter == outputs.end())
+      {
+         throw MachException("Did not find " + output + " in output map?");
+      }
+      mach::setOptions(output_iter->second, options);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << std::endl;
+   }
+}
+
+double AbstractSolver2::calcOutput(const std::string &output,
+                                  const MachInputs &inputs)
+{
+   try
+   {
+      auto output_iter = outputs.find(output);
+      if (output_iter == outputs.end())
+      {
+         throw MachException("Did not find " + output + " in output map?");
+      }
+      return mach::calcOutput(output_iter->second, inputs);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << std::endl;
+      return std::nan("");
+   }
+}
+
+void AbstractSolver2::calcOutputPartial(const std::string &of,
+                                       const std::string &wrt,
+                                       const MachInputs &inputs,
+                                       double &partial)
+{
+   try
+   {
+      auto output_iter = outputs.find(of);
+      if (output_iter == outputs.end())
+      {
+         throw MachException("Did not find " + of + " in output map?");
+      }
+      double part = mach::calcOutputPartial(output_iter->second, wrt, inputs);
+      partial += part;
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << std::endl;
+      partial = std::nan("");
+   }
+}
+
+void AbstractSolver2::calcOutputPartial(const std::string &of,
+                                       const std::string &wrt,
+                                       const MachInputs &inputs,
+                                       mfem::Vector &partial)
+{
+   try
+   {
+      auto output_iter = outputs.find(of);
+      if (output_iter == outputs.end())
+      {
+         throw MachException("Did not find " + of + " in output map?");
+      }
+      mach::calcOutputPartial(output_iter->second, wrt, inputs, partial);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << std::endl;
+   }
+}
+
 void AbstractSolver2::initialHook(const mfem::Vector &state)
 {
    for (auto &pair : loggers)

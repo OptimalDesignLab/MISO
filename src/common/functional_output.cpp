@@ -64,17 +64,12 @@ double calcOutputPartial(FunctionalOutput &output,
 void calcOutputPartial(FunctionalOutput &output,
                        const std::string &wrt,
                        const MachInputs &inputs,
-                       HypreParVector &partial)
+                       Vector &partial)
 {
    setInputs(output, inputs);
 
    if (wrt == "state")
    {
-      // auto *fes = output.output.ParFESpace();
-      // HypreParVector state(fes->GetComm(),
-      //                      fes->GlobalTrueVSize(),
-      //                      inputs.at("state").getField(),
-      //                      fes->GetTrueDofOffsets());
       Vector state;
       setVectorFromInputs(inputs, "state", state, false, true);
       output.output.Mult(state, partial);

@@ -67,19 +67,56 @@ public:
    /// \note if the field @a name is unrecognized by the solver, 0 is returned
    virtual int getFieldSize(std::string name) const;
 
-   // /// Creates the nonlinear form for the functional
-   // /// \param[in] fun - specifies the desired functional
-   // /// \param[in] options - options needed for calculating functional
-   // /// \note if a nonlinear form for `fun` has already been created an
-   // /// exception will be thrown
-   // void createOutput(const std::string &fun, const nlohmann::json &options);
+   /// Creates a MachOutput for the specified @a output based on @a options
+   /// \param[in] output - specifies the desired output
+   /// \note if an output for @a output has already been created an
+   /// exception will be thrown
+   void createOutput(const std::string &output);
 
-   // /// Evaluates and returns the output functional specifed by `fun`
-   // /// \param[in] fun - specifies the desired functional
-   // /// \param[in] inputs - collection of field or scalar inputs to set before
-   // ///                     evaluating functional
-   // /// \return scalar value of estimated functional value
-   // double calcOutput(const std::string &fun, const MachInputs &inputs);
+   /// Creates a MachOutput for the specified @a output based on @a options
+   /// \param[in] output - specifies the desired output
+   /// \param[in] options - options needed for configuring the output
+   /// \note if an output for @a output has already been created an
+   /// exception will be thrown
+   void createOutput(const std::string &output, const nlohmann::json &options);
+
+   /// Sets options for the output specifed by @a output
+   /// \param[in] output - specifies the desired output
+   /// \param[in] options - options needed for configuring the output
+   /// \note will only have an effect if a concrete output supports setting
+   ///       options
+   void setOutputOptions(const std::string &output, const nlohmann::json &options);
+
+   /// Evaluates and returns the output specifed by @a output
+   /// \param[in] output - specifies the desired output
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating the output
+   /// \return scalar value of estimated output value
+   double calcOutput(const std::string &output, const MachInputs &inputs);
+
+   /// Evaluates and returns the partial derivative of output specifed by
+   /// `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired output
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating the output partial
+   /// \param[out] partial - the partial with respect to a scalar-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          double &partial);
+
+   /// Evaluates and returns the partial derivative of the output specifed by
+   /// `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired output
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating the output partial
+   /// \param[out] partial - the partial with respect to a vector-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          mfem::Vector &partial);
 
    AbstractSolver2(MPI_Comm incomm, const nlohmann::json &solver_options);
 
@@ -100,9 +137,17 @@ protected:
    /// residual defines the dynamics of an ODE (including steady ODEs)
    std::unique_ptr<MachResidual> res;
 
+   /// linear system solver used in newton solver
+   std::unique_ptr<mfem::Solver> linear_solver;
+   /// newton solver for solving implicit problems
+   std::unique_ptr<mfem::NewtonSolver> nonlinear_solver;
+
    /// \brief the ordinary differential equation that describes how to evolve
    /// the state variables
    std::unique_ptr<FirstOrderODE> ode;
+
+   /// map of outputs the solver can compute 
+   std::map<std::string, MachOutput> outputs;
 
    /// Optional data loggers that will save state vectors during timestepping
    std::vector<DataLoggerWithOpts> loggers;
@@ -163,10 +208,10 @@ protected:
                              double t_final,
                              const mfem::Vector &state);
 
-   /// linear system solver used in newton solver
-   std::unique_ptr<mfem::Solver> linear_solver;
-   /// newton solver for solving implicit problems
-   std::unique_ptr<mfem::NewtonSolver> nonlinear_solver;
+   /// Add output @a out based on @a options
+   virtual void addOutput(const std::string &out, const nlohmann::json &options)
+   { }
+
 };
 
 }  // namespace mach
