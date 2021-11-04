@@ -309,7 +309,8 @@ void PDESolver::setState_(std::any function,
                           std::string name,
                           mfem::Vector &state)
 {
-   auto *coeff_func = std::any_cast<std::function<double(const mfem::Vector &)>>(&function);
+   auto *coeff_func =
+       std::any_cast<std::function<double(const mfem::Vector &)>>(&function);
    if (coeff_func != nullptr)
    {
       mfem::FunctionCoefficient coeff(*coeff_func);
@@ -322,7 +323,6 @@ void PDESolver::setState_(std::any function,
       fields.at(name).project(*coeff, state);
       return;
    }
-
 }
 
 }  // namespace mach

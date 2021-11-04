@@ -94,7 +94,9 @@ protected:
 
    void setUpExternalFields();
 
-   void setState_(std::any function, std::string name, mfem::Vector &u) override;
+   void setState_(std::any function,
+                  std::string name,
+                  mfem::Vector &u) override;
 };
 
 }  // namespace mach

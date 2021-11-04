@@ -242,7 +242,7 @@ void AbstractSolver2::setState(T function,
                                mfem::Vector &state,
                                std::string name)
 {
-   /// compile time conditional that checks if @a function is callable, and 
+   /// compile time conditional that checks if @a function is callable, and
    /// thus should be converted to a std::function
    if constexpr (is_callable_v<T>)
    {
