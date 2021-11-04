@@ -305,4 +305,24 @@ void PDESolver::setUpExternalFields()
    }
 }
 
+void PDESolver::setState_(std::any function,
+                          std::string name,
+                          mfem::Vector &state)
+{
+   auto *coeff_func = std::any_cast<std::function<double(const mfem::Vector &)>>(&function);
+   if (coeff_func != nullptr)
+   {
+      mfem::FunctionCoefficient coeff(*coeff_func);
+      fields.at(name).project(coeff, state);
+      return;
+   }
+   auto *coeff = std::any_cast<mfem::Coefficient>(&function);
+   if (coeff != nullptr)
+   {
+      fields.at(name).project(*coeff, state);
+      return;
+   }
+
+}
+
 }  // namespace mach
