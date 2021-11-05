@@ -15,6 +15,7 @@
 #include "mach_output.hpp"
 #include "mach_residual.hpp"
 #include "ode.hpp"
+#include "utils.hpp"
 
 namespace mach
 {
@@ -255,6 +256,10 @@ void AbstractSolver2::setState(T function,
    {
       auto any = [&]() constexpr
       {
+         /// If T is either an mfem::Coefficient or an mfem::VectorCoefficient,
+         /// we create the std::any to be a pointer to the base class, so that
+         /// when casting the any to a concrete type we can just interact with
+         /// the coefficient through the base class pointer
          if constexpr (std::is_base_of_v<mfem::Coefficient, T>)
          {
             return std::make_any<mfem::Coefficient *>(&function);
