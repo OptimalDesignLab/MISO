@@ -73,6 +73,22 @@ public:
       setTrueVec(true_vec);
    }
 
+   void project(std::function<double(const mfem::Vector &)> fun,
+                mfem::Vector &true_vec)
+   {
+      mfem::FunctionCoefficient coeff(std::move(fun));
+      project(coeff, true_vec);
+   }
+
+   void project(std::function<void(const mfem::Vector &, mfem::Vector &)> fun,
+                mfem::Vector &true_vec)
+   {
+      int vdim = gridFunc().VectorDim();
+      mfem::VectorFunctionCoefficient coeff(vdim, std::move(fun));
+      project(coeff, true_vec);
+   }
+
+
    // /// \brief Set a finite element state to a constant value
    // /// \param value The constant to set the finite element state to
    // /// \return The modified finite element state

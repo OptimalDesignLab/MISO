@@ -253,7 +253,20 @@ void AbstractSolver2::setState(T function,
    /// if @a function is not callable, we just pass it directly along
    else
    {
-      auto any = std::make_any<decltype(function)>(function);
+      auto any = [&]() constexpr {
+         if constexpr (std::is_base_of_v<mfem::Coefficient, T>)
+         {
+            return std::make_any<mfem::Coefficient *>(&function);
+         }
+         else if constexpr (std::is_base_of_v<mfem::VectorCoefficient, T>)
+         {
+            return std::make_any<mfem::VectorCoefficient *>(&function);
+         }
+         else
+         {
+            return std::make_any<decltype(function)>(function);
+         }
+      }();
       setState_(any, name, state);
    }
 }

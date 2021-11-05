@@ -203,20 +203,17 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
    auto mesh = std::make_unique<mfem::Mesh>(
       Mesh::MakeCartesian2D(nxy, nxy, Element::TRIANGLE, true, M_PI, M_PI));
 
-   auto exact_sol = [](const mfem::Vector &p, double t)
+
+   mfem::FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
    {
       auto x = p(0);
       return pow(x, 2) + exp(-t) * (sin(x) + sin(2*x) + sin(3*x));
-   };
-   mfem::FunctionCoefficient exact_sol_coeff(exact_sol);
+   });
 
    // Create solver and solve for the state 
    ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
    mfem::Vector state_tv(solver.getStateSize());
-   solver.setState([&exact_sol](const mfem::Vector &p) {
-      return exact_sol(p, 0.0);
-   }, state_tv);
-   // solver.setState(exact_sol_coeff, state_tv);
+   solver.setState(exact_sol, state_tv);
 
    MachInputs inputs;
    solver.solveForState(inputs, state_tv);
@@ -225,8 +222,8 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
 
    // Check that solution is reasonable accurate
    auto tfinal = options["time-dis"]["t-final"].get<double>();
-   exact_sol_coeff.SetTime(tfinal);
-   auto error = state.gridFunc().ComputeLpError(2, exact_sol_coeff);
+   exact_sol.SetTime(tfinal);
+   auto error = state.gridFunc().ComputeLpError(2, exact_sol);
 
    if (verbose)
    {
