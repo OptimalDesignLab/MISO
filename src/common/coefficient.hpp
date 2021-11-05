@@ -582,17 +582,13 @@ public:
    ///						  is not found in the map. If not set, will default
    ///						  to zero
    ElementFunctionCoefficient(double (*f)(const mfem::Vector &, int))
-   {
-      Function = f;
-      TDFunction = nullptr;
-   }
+   : Function(f), TDFunction(nullptr)
+   { }
 
    // Time Dependent Version
    ElementFunctionCoefficient(double (*tdf)(const mfem::Vector &, int, double))
-   {
-      Function = nullptr;
-      TDFunction = tdf;
-   }
+   : Function(nullptr), TDFunction(tdf)
+   { }
 
    /// \brief Get element number from the transformation and accept as argument
    /// 		for the given function coefficient.

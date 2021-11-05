@@ -34,7 +34,7 @@ AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
 }
 
 void AbstractSolver2::setState_(std::any function,
-                                std::string name,
+                                const std::string &name,
                                 mfem::Vector &state)
 {
    auto *fun = std::any_cast<std::function<void(mfem::Vector &)>>(&function);
@@ -66,7 +66,10 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       std::cout << std::endl;
       iterationHook(ti, t, dt, state);
       ode->step(state, t, dt);
-      if (iterationExit(ti, t, t_final, dt, state)) break;
+      if (iterationExit(ti, t, t_final, dt, state))
+      {
+         break;
+      }
    }
    terminalHook(ti, t, state);
 }
@@ -103,7 +106,7 @@ double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
    return sqrt(InnerProduct(comm, work, work));
 }
 
-int AbstractSolver2::getFieldSize(std::string name) const
+int AbstractSolver2::getFieldSize(const std::string &name) const
 {
    if (name == "state" || name == "residual" || name == "adjoint")
    {

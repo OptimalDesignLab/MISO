@@ -70,19 +70,19 @@ T createFiniteElementVector(mfem::ParMesh &mesh,
 mach::FiniteElementState createState(mfem::ParMesh &mesh,
                                      const nlohmann::json &space_options,
                                      const int num_states,
-                                     std::string name)
+                                     const std::string &name)
 {
    return createFiniteElementVector<mach::FiniteElementState>(
-       mesh, space_options, num_states, std::move(name));
+       mesh, space_options, num_states, name);
 }
 
 mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
                                    const nlohmann::json &space_options,
                                    const int num_states,
-                                   std::string name)
+                                   const std::string &name)
 {
    return createFiniteElementVector<mach::FiniteElementDual>(
-       mesh, space_options, num_states, std::move(name));
+       mesh, space_options, num_states, name);
 }
 
 }  // namespace
@@ -90,7 +90,7 @@ mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
 namespace mach
 {
 
-int PDESolver::getFieldSize(std::string name) const
+int PDESolver::getFieldSize(const std::string &name) const
 {
    auto size = AbstractSolver2::getFieldSize(name);
    if (size != 0)
@@ -306,7 +306,7 @@ void PDESolver::setUpExternalFields()
 }
 
 void PDESolver::setState_(std::any function,
-                          std::string name,
+                          const std::string &name,
                           mfem::Vector &state)
 {
    auto *coeff_func =

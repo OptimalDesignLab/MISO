@@ -164,21 +164,21 @@ struct function : public function<decltype(&T::operator())>
 template <typename ClassType, typename ReturnType, typename... Args>
 struct function<ReturnType (ClassType::*)(Args...) const>
 {
-   typedef std::function<ReturnType(Args...)> type;
+   using type = std::function<ReturnType(Args...)>;
 };
 
 /// For pointers to a member function
 template <typename ClassType, typename ReturnType, typename... Args>
 struct function<ReturnType (ClassType::*)(Args...)>
 {
-   typedef std::function<ReturnType(Args...)> type;
+   using type = std::function<ReturnType(Args...)>;
 };
 
 /// For function pointers
 template <typename ReturnType, typename... Args>
 struct function<ReturnType (*)(Args...)>
 {
-   typedef std::function<ReturnType(Args...)> type;
+   using type = std::function<ReturnType(Args...)>;
 };
 
 }  // namespace detail

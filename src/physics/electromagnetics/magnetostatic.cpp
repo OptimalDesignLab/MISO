@@ -2676,7 +2676,7 @@ void addLoad(MagnetostaticLoad &load, mfem::Vector &tv)
 }
 
 double vectorJacobianProduct(MagnetostaticLoad &load,
-                             const mfem::HypreParVector &res_bar,
+                             const mfem::Vector &res_bar,
                              const std::string &wrt)
 {
    double wrt_bar = 0.0;
@@ -2686,9 +2686,9 @@ double vectorJacobianProduct(MagnetostaticLoad &load,
 }
 
 void vectorJacobianProduct(MagnetostaticLoad &load,
-                           const mfem::HypreParVector &res_bar,
+                           const mfem::Vector &res_bar,
                            const std::string &wrt,
-                           mfem::HypreParVector &wrt_bar)
+                           mfem::Vector &wrt_bar)
 {
    vectorJacobianProduct(load.current_load, res_bar, wrt, wrt_bar);
    vectorJacobianProduct(load.magnetic_load, res_bar, wrt, wrt_bar);

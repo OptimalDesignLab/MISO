@@ -22,11 +22,11 @@ struct LoggingOptions
 class ASCIILogger
 {
 public:
-   void saveState(const mfem::Vector &state,
-                  std::string fieldname,
+   static void saveState(const mfem::Vector &state,
+                  const std::string &fieldname,
                   int timestep,
                   double time,
-                  int rank) const
+                  int rank)
    {
       std::filesystem::create_directory(prefix);
       auto filename = prefix + "/" + fieldname + "_" +
@@ -43,7 +43,7 @@ public:
       }
    }
 
-   void readState(std::string fieldname,
+   static void readState(const std::string &fieldname,
                   int timestep,
                   int rank,
                   double &time,
@@ -54,7 +54,7 @@ public:
       std::ifstream infile(filename);
       infile >> time;
 
-      int size;
+      int size = 0;
       infile >> size;
 
       state.SetSize(size);
@@ -71,11 +71,11 @@ private:
 class BinaryLogger
 {
 public:
-   void saveState(const mfem::Vector &state,
-                  std::string fieldname,
+   static void saveState(const mfem::Vector &state,
+                  const std::string &fieldname,
                   int timestep,
                   double time,
-                  int rank) const
+                  int rank)
    {
       std::filesystem::create_directory(prefix);
       auto filename = prefix + "/" + fieldname + "_" +
@@ -83,13 +83,13 @@ public:
       const double *data = state.GetData();
       int size = state.Size();
       std::ofstream file(filename, std::ios::out | std::ios::binary);
-      file.write(reinterpret_cast<const char *>(&time), sizeof(double));
-      file.write(reinterpret_cast<const char *>(&size), sizeof(int));
-      file.write(reinterpret_cast<const char *>(data),
+      file.write(reinterpret_cast<const char *>(&time), sizeof(double)); // NOLINT
+      file.write(reinterpret_cast<const char *>(&size), sizeof(int)); // NOLINT
+      file.write(reinterpret_cast<const char *>(data), // NOLINT
                  std::streamsize(size * sizeof(double)));
    }
 
-   void readState(std::string fieldname,
+   static void readState(const std::string &fieldname,
                   int timestep,
                   int rank,
                   double &time,
@@ -98,12 +98,12 @@ public:
       auto filename = prefix + "/" + fieldname + "_" +
                       std::to_string(timestep) + "_" + std::to_string(rank);
       std::ifstream infile(filename, std::ios::binary);
-      infile.read(reinterpret_cast<char *>(&time), sizeof(double));
-      int size;
-      infile.read(reinterpret_cast<char *>(&size), sizeof(int));
+      infile.read(reinterpret_cast<char *>(&time), sizeof(double)); // NOLINT
+      int size = 0;
+      infile.read(reinterpret_cast<char *>(&size), sizeof(int)); // NOLINT
       state.SetSize(size);
       auto *data = state.GetData();
-      infile.read(reinterpret_cast<char *>(data),
+      infile.read(reinterpret_cast<char *>(data), // NOLINT
                   std::streamsize(size * sizeof(double)));
    }
 
@@ -115,7 +115,7 @@ class ParaViewLogger
 {
 public:
    void saveState(const mfem::Vector &state,
-                  std::string fieldname,
+                  const std::string &fieldname,
                   int timestep,
                   double time,
                   int rank)
@@ -126,10 +126,10 @@ public:
       pv.Save();
    }
 
-   void registerField(std::string name, mfem::ParGridFunction &field)
+   void registerField(const std::string &name, mfem::ParGridFunction &field)
    {
       pv.RegisterField(name, &field);
-      fields.emplace(std::move(name), &field);
+      fields.emplace(name, &field);
       auto field_order = field.ParFESpace()->GetMaxElementOrder();
       if (field_order > refine)
       {

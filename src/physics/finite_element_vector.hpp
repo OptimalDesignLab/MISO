@@ -34,7 +34,7 @@ public:
       mfem::Ordering::Type ordering = mfem::Ordering::byVDIM;
 
       /// \brief The name of the field encapsulated by the state object
-      std::string name = "";
+      std::string name;
    };
 
    /// \brief Main constructor for building a new finite element vector
@@ -105,7 +105,7 @@ public:
    virtual void setTrueVec(mfem::Vector &true_vec) = 0;
 
    /// \brief Destroy the Finite Element Vector object
-   virtual ~FiniteElementVector() { }
+   virtual ~FiniteElementVector() = default;
 
 protected:
    /// \brief A non-owning pointer to the mesh on which the field is defined
@@ -121,7 +121,7 @@ protected:
    std::unique_ptr<mfem::ParGridFunction> gf;
 
    /// \brief The name of the finite element vector
-   std::string name_ = "";
+   std::string name_;
 
    static mfem::Vector true_vec;
 };

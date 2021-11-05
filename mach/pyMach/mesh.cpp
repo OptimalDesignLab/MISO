@@ -64,7 +64,7 @@ void initMesh(py::module &m)
 
                    // mesh->SetCurvature(order, false, -1, 0);
                    auto parmesh =
-                       std::unique_ptr<ParMesh>(new ParMesh(comm, mesh));
+                       std::make_unique<ParMesh>(comm, mesh);
                    parmesh->SetCurvature(order, false, -1, 1);
                    return parmesh;
                 }),
@@ -91,7 +91,7 @@ void initMesh(py::module &m)
                       nx, ny, nz, Element::TETRAHEDRON, sx, sy, sz, true);
 
                   auto parmesh =
-                      std::unique_ptr<ParMesh>(new ParMesh(comm, mesh));
+                      std::make_unique<ParMesh>(comm, mesh);
                   return parmesh;
                }),
            "Creates mesh for the parallelepiped [0,1]x[0,1]x[0,1], divided into"
@@ -278,15 +278,16 @@ void initMesh(py::module &m)
               bool high_order,
               int compression_level)
            {
-              VTKFormat format;
-              if (binary)
-              {
-                 format = VTKFormat::BINARY;
-              }
-              else
-              {
-                 format = VTKFormat::ASCII;
-              }
+              VTKFormat format = [&]() {
+               if (binary)
+               {
+                  return VTKFormat::BINARY;
+               }
+               else
+               {
+                  return VTKFormat::ASCII;
+               }
+              }();
               self.PrintVTU(filename, format, high_order, compression_level);
            },
            "Print the mesh in VTU format with given filename "

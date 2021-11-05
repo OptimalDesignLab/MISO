@@ -28,13 +28,13 @@ public:
    friend void addLoad(MagnetostaticLoad &load, mfem::Vector &tv);
 
    friend double vectorJacobianProduct(MagnetostaticLoad &load,
-                                       const mfem::HypreParVector &res_bar,
+                                       const mfem::Vector &res_bar,
                                        const std::string &wrt);
 
    friend void vectorJacobianProduct(MagnetostaticLoad &load,
-                                     const mfem::HypreParVector &res_bar,
+                                     const mfem::Vector &res_bar,
                                      const std::string &wrt,
-                                     mfem::HypreParVector &wrt_bar);
+                                     mfem::Vector &wrt_bar);
 
    MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
                      mfem::VectorCoefficient &current_coeff,

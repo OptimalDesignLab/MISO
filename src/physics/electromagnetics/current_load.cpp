@@ -55,7 +55,7 @@ void addLoad(CurrentLoad &load, Vector &tv)
 }
 
 double vectorJacobianProduct(CurrentLoad &load,
-                             const mfem::HypreParVector &load_bar,
+                             const mfem::Vector &load_bar,
                              const std::string &wrt)
 {
    if (wrt == "current_density")
@@ -72,9 +72,9 @@ double vectorJacobianProduct(CurrentLoad &load,
 }
 
 void vectorJacobianProduct(CurrentLoad &load,
-                           const mfem::HypreParVector &load_bar,
+                           const mfem::Vector &load_bar,
                            const std::string &wrt,
-                           mfem::HypreParVector &wrt_bar)
+                           mfem::Vector &wrt_bar)
 {
    if (wrt == "mesh_coords")
    {
@@ -162,7 +162,7 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    j(&fes),
    div_free_current_vec(&fes),
    scratch(&fes),
-   load(&fes),
+   load(fes.GetTrueVSize()),
    div_free_proj(h1_fes,
                  fes,
                  h1_fes.GetElementTransformation(0)->OrderW() +

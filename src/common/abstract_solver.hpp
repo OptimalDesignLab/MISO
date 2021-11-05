@@ -33,7 +33,7 @@ public:
    /// \param[in] name - name of the vector to set, defaults to "state"
    /// \tparam T - generic type T, the derived classes must know how to use it
    template <typename T>
-   void setState(T function, mfem::Vector &state, std::string name = "state");
+   void setState(T function, mfem::Vector &state, const std::string &name = "state");
 
    /// Solve for the state based on the residual `res` and `options`
    /// \param[inout] state - the solution to the governing equation
@@ -78,7 +78,7 @@ public:
    /// \param[in] name - the name of the field to look up the size of
    /// \return the discrete size of the field identified by @a name
    /// \note if the field @a name is unrecognized by the solver, 0 is returned
-   virtual int getFieldSize(std::string name) const;
+   virtual int getFieldSize(const std::string &name) const;
 
    /// Creates a MachOutput for the specified @a output based on @a options
    /// \param[in] output - specifies the desired output
@@ -166,7 +166,7 @@ protected:
    /// Optional data loggers that will save state vectors during timestepping
    std::vector<DataLoggerWithOpts> loggers;
 
-   void addLogger(DataLogger logger, LoggingOptions options)
+   void addLogger(DataLogger logger, LoggingOptions &&options)
    {
       loggers.emplace_back(std::make_pair<DataLogger, LoggingOptions>(
           std::move(logger), std::move(options)));
@@ -234,14 +234,14 @@ protected:
    /// \note the derived classes must know what types @a function may hold and
    /// how to access/use them
    virtual void setState_(std::any function,
-                          std::string name,
+                          const std::string &name,
                           mfem::Vector &state);
 };
 
 template <typename T>
 void AbstractSolver2::setState(T function,
                                mfem::Vector &state,
-                               std::string name)
+                               const std::string &name)
 {
    /// compile time conditional that checks if @a function is callable, and
    /// thus should be converted to a std::function

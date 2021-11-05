@@ -108,7 +108,7 @@ void evaluate(TimeDependentResidual &residual,
 
 mfem::Operator &getJacobian(TimeDependentResidual &residual,
                             const mach::MachInputs &inputs,
-                            std::string wrt)
+                            const std::string &wrt)
 {
    auto &dt = residual.dt;
    /// dt is zero when using explicit time marching
@@ -122,7 +122,7 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto &work = residual.work;
    add(state, dt, state_dot, work);
    MachInputs input{{"state", work}};
-   auto &spatial_jac = getJacobian(residual.res_, input, std::move(wrt));
+   auto &spatial_jac = getJacobian(residual.res_, input, wrt);
    addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
    return *residual.jac_;
 }
@@ -167,11 +167,11 @@ FirstOrderODE::FirstOrderODE(MachResidual &residual,
  : EntropyConstrainedOperator(getSize(residual), 0.0),
    //  : TimeDependentOperator(getSize(residual), 0.0),
    residual_(residual),
-   solver_(solver),
-   zero_(getSize(residual))
+   solver_(solver)
+   // zero_(getSize(residual))
 {
    solver_.iterative_mode = false;
-   zero_ = 0.0;
+   // zero_ = 0.0;
    setTimestepper(ode_options);
 }
 

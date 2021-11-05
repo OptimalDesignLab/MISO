@@ -27,7 +27,7 @@ public:
    /// Returns the Jacobian of the residual with respect to `du_dt`
    friend mfem::Operator &getJacobian(TimeDependentResidual &residual,
                                       const mach::MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    friend double calcEntropy(TimeDependentResidual &residual,
                              const MachInputs &inputs);

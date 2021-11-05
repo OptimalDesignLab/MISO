@@ -31,7 +31,7 @@ public:
    /// by the prolongation operator.
    /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for
    /// details
-   void distributeSharedDofs(const mfem::Vector &true_vec)
+   void distributeSharedDofs(const mfem::Vector &true_vec) override
    {
       gridFunc().SetFromTrueDofs(true_vec);
    }
@@ -42,7 +42,7 @@ public:
    /// dofs by the restriction operator.
    /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for
    /// details
-   void setTrueVec(mfem::Vector &true_vec) { gridFunc().GetTrueDofs(true_vec); }
+   void setTrueVec(mfem::Vector &true_vec) override { gridFunc().GetTrueDofs(true_vec); }
 
    /// Returns a GridFunctionCoefficient referencing the internal grid function
    mfem::GridFunctionCoefficient gridFuncCoef() const

@@ -28,7 +28,7 @@ void setVectorFromInput(const MachInput &input,
                         mfem::Vector &vec,
                         bool deep_copy)
 {
-   auto &tmp = std::get<InputVector>(input);
+   const auto &tmp = std::get<InputVector>(input);
    if (deep_copy)
    {
       vec.SetSize(tmp.size);
