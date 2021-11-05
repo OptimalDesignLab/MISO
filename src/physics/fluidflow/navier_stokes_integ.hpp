@@ -918,10 +918,11 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
+      exactSolution(fun),
       qexact(dim + 2),
       work_vec(dim + 2)
    {
-      exactSolution = fun;
+      
    }
 
    /// converts conservative variables to entropy variables

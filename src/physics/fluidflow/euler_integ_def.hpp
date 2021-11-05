@@ -833,7 +833,7 @@ void PressureForce<dim, entvar>::calcFlux(const mfem::Vector &x,
    std::vector<adouble> flux_a(q.Size());
    mach::calcSlipWallFlux<adouble, dim, entvar>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
-   adouble fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
+   auto fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
    fun_a.set_gradient(1.0);
    this->stack.compute_adjoint();
    adept::get_gradients(q_a.data(), q.Size(), flux_vec.GetData());

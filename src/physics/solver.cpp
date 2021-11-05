@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <memory>
 #include <utility>
 
 #ifdef MFEM_USE_PUMI
@@ -57,30 +58,30 @@ AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
 }
 
 // Note: the following constructor is protected
-AbstractSolver::AbstractSolver(const string &opt_file_name, MPI_Comm incomm)
-{
-   // Some of the following code would normally happen in initBase, but this is
-   // a parred down version of the AbstractSolver that does not need most of
-   // the functionality (e.g. multiphysics code)
-   // TODO: Do we need a separate super class for this case?
+// AbstractSolver::AbstractSolver(const string &opt_file_name, MPI_Comm incomm)
+//  : out(getOutStream(rank))
+// {
+//    // Some of the following code would normally happen in initBase, but this is
+//    // a parred down version of the AbstractSolver that does not need most of
+//    // the functionality (e.g. multiphysics code)
+//    // TODO: Do we need a separate super class for this case?
 
-   // Set the options; the defaults are overwritten by the values in the file
-   // using the merge_patch method
-   nlohmann::json file_options;
-   ifstream options_file(opt_file_name);
-   options_file >> file_options;
-   options = default_options;
-   options.merge_patch(file_options);
+//    // Set the options; the defaults are overwritten by the values in the file
+//    // using the merge_patch method
+//    nlohmann::json file_options;
+//    ifstream options_file(opt_file_name);
+//    options_file >> file_options;
+//    options = default_options;
+//    options.merge_patch(file_options);
 
-   bool silent = options.value("silent", false);
-   out = getOutStream(rank, silent);
-   *out << setw(3) << options << endl;
+//    bool silent = options.value("silent", false);
+//    out = getOutStream(rank, silent);
+//    *out << setw(3) << options << endl;
 
-   // comm = incomm;
-   MPI_Comm_dup(incomm, &comm);
-   MPI_Comm_rank(comm, &rank);
-   out = getOutStream(rank);
-}
+//    // comm = incomm;
+//    MPI_Comm_dup(incomm, &comm);
+//    MPI_Comm_rank(comm, &rank);
+// }
 
 void AbstractSolver::initBase(const nlohmann::json &file_options,
                               std::unique_ptr<Mesh> smesh,
@@ -120,24 +121,24 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
         << options["time-dis"]["ode-solver"].template get<string>() << endl;
    if (options["time-dis"]["ode-solver"].template get<string>() == "RK1")
    {
-      ode_solver.reset(new ForwardEulerSolver);
+      ode_solver = std::make_unique<ForwardEulerSolver>();
    }
    else if (options["time-dis"]["ode-solver"].template get<string>() == "RK4")
    {
-      ode_solver.reset(new RK4Solver);
+      ode_solver = std::make_unique<RK4Solver>();
    }
    else if (options["time-dis"]["ode-solver"].template get<string>() ==
             "MIDPOINT")
    {
-      ode_solver.reset(new ImplicitMidpointSolver);
+      ode_solver = std::make_unique<ImplicitMidpointSolver>();
    }
    else if (options["time-dis"]["ode-solver"].get<string>() == "RRK")
    {
-      ode_solver.reset(new RRKImplicitMidpointSolver(out));
+      ode_solver = std::make_unique<RRKImplicitMidpointSolver>(out);
    }
    else if (options["time-dis"]["ode-solver"].template get<string>() == "PTC")
    {
-      ode_solver.reset(new PseudoTransientSolver(out));
+      ode_solver = std::make_unique<PseudoTransientSolver>(out);
    }
    else
    {
@@ -166,34 +167,35 @@ void AbstractSolver::initDerived()
    // standard FEM. and here it is for first two
    if (basis_type == "csbp")
    {
-      fec.reset(new SBPCollection(fe_order, dim));
+      fec = std::make_unique<SBPCollection>(fe_order, dim);
    }
    else if (basis_type == "dsbp" || galerkin_diff)
    {
-      fec.reset(new DSBPCollection(fe_order, dim));
+      fec = std::make_unique<DSBPCollection>(fe_order, dim);
    }
    else if (basis_type == "nedelec")
    {
-      fec.reset(new ND_FECollection(fe_order, dim));
+      fec = std::make_unique<ND_FECollection>(fe_order, dim);
    }
    else if (basis_type == "H1")
    {
-      fec.reset(new H1_FECollection(fe_order, dim));
+      fec = std::make_unique<H1_FECollection>(fe_order, dim);
    }
 
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState();  // <--- this is a virtual fun
    *out << "Num states = " << num_state << endl;
-   fes.reset(new SpaceType(mesh.get(), fec.get(), num_state, Ordering::byVDIM));
+   fes = std::make_unique<SpaceType>(
+       mesh.get(), fec.get(), num_state, Ordering::byVDIM);
    /// we'll stop using `u` eventually
    /// start creating your own state vector with `getNewField`
-   u.reset(new GridFunType(fes.get()));
+   u = std::make_unique<GridFunType>(fes.get());
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize()
         << endl;
 
    /// initialize scratch work vectors
-   scratch.reset(new ParGridFunction(fes.get()));
-   scratch_tv.reset(new HypreParVector(fes.get()));
+   scratch = std::make_unique<ParGridFunction>(fes.get());
+   scratch_tv = std::make_unique<HypreParVector>(fes.get());
 
    double alpha = 1.0;
 
@@ -323,14 +325,14 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
-      mesh.reset(new MeshType(comm, *smesh));
+      mesh = std::make_unique<MeshType>(comm, *smesh);
    }
    // native MFEM mesh
    else if (mesh_ext == "mesh")
    {
       // read in the serial mesh
-      smesh.reset(new Mesh(mesh_file.c_str(), 1, 1));
-      mesh.reset(new MeshType(comm, *smesh));
+      smesh = std::make_unique<Mesh>(mesh_file.c_str(), 1, 1);
+      mesh = std::make_unique<MeshType>(comm, *smesh);
    }
    // PUMI mesh
    else if (mesh_ext == "smb")
@@ -833,19 +835,17 @@ std::unique_ptr<HypreParVector> AbstractSolver::getNewField(double *data)
 {
    if (data == nullptr)
    {
-      auto field =
-          std::unique_ptr<HypreParVector>(new HypreParVector(fes.get()));
+      auto field = std::make_unique<HypreParVector>(fes.get());
 
       *field = 0.0;
       return field;
    }
    else
    {
-      auto field = std::unique_ptr<HypreParVector>(
-          new HypreParVector(fes->GetComm(),
-                             fes->GlobalTrueVSize(),
-                             data,
-                             fes->GetTrueDofOffsets()));
+      auto field = std::make_unique<HypreParVector>(fes->GetComm(),
+                                                    fes->GlobalTrueVSize(),
+                                                    data,
+                                                    fes->GetTrueDofOffsets());
       return field;
    }
 }
@@ -1518,7 +1518,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    std::unique_ptr<ParaViewDataCollection> pd;
    if (paraview)
    {
-      pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
+      pd = std::make_unique<ParaViewDataCollection>("time_hist", mesh.get());
       pd->SetPrefixPath("ParaView");
       pd->RegisterField("state", &state);
       pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
@@ -1673,7 +1673,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    unique_ptr<Solver> lin_solver;
    if (solver_type == "hypregmres")
    {
-      lin_solver.reset(new HypreGMRES(comm));
+      lin_solver = std::make_unique<HypreGMRES>(comm);
       auto *gmres = dynamic_cast<HypreGMRES *>(lin_solver.get());
       gmres->SetTol(reltol);
       gmres->SetMaxIter(maxiter);
@@ -1686,7 +1686,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    }
    else if (solver_type == "gmres")
    {
-      lin_solver.reset(new GMRESSolver(comm));
+      lin_solver = std::make_unique<GMRESSolver>(comm);
       auto *gmres = dynamic_cast<GMRESSolver *>(lin_solver.get());
       gmres->SetRelTol(reltol);
       gmres->SetMaxIter(maxiter);
@@ -1699,7 +1699,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    }
    else if (solver_type == "hyprefgmres")
    {
-      lin_solver.reset(new HypreFGMRES(comm));
+      lin_solver = std::make_unique<HypreFGMRES>(comm);
       auto *fgmres = dynamic_cast<HypreFGMRES *>(lin_solver.get());
       fgmres->SetTol(reltol);
       fgmres->SetMaxIter(maxiter);
@@ -1712,7 +1712,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    }
    else if (solver_type == "hyprepcg")
    {
-      lin_solver.reset(new HyprePCG(comm));
+      lin_solver = std::make_unique<HyprePCG>(comm);
       auto *pcg = dynamic_cast<HyprePCG *>(lin_solver.get());
       pcg->SetTol(reltol);
       pcg->SetMaxIter(maxiter);
@@ -1721,7 +1721,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    }
    else if (solver_type == "pcg")
    {
-      lin_solver.reset(new CGSolver(comm));
+      lin_solver = std::make_unique<CGSolver>(comm);
       auto *pcg = dynamic_cast<CGSolver *>(lin_solver.get());
       pcg->SetRelTol(reltol);
       pcg->SetMaxIter(maxiter);
@@ -1730,7 +1730,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    }
    else if (solver_type == "minres")
    {
-      lin_solver.reset(new MINRESSolver(comm));
+      lin_solver = std::make_unique<MINRESSolver>(comm);
       auto *minres = dynamic_cast<MINRESSolver *>(lin_solver.get());
       minres->SetRelTol(reltol);
       minres->SetMaxIter(maxiter);
@@ -1754,7 +1754,7 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    unique_ptr<Solver> precond;
    if (prec_type == "hypreeuclid")
    {
-      precond.reset(new HypreEuclid(comm));
+      precond = std::make_unique<HypreEuclid>(comm);
       // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
       *out << "WARNING! Euclid fill level is hard-coded"
            << "(see AbstractSolver::constructLinearSolver() for details)"
@@ -1765,7 +1765,7 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    }
    else if (prec_type == "hypreilu")
    {
-      precond.reset(new HypreILU());
+      precond = std::make_unique<HypreILU>();
       auto *ilu = dynamic_cast<HypreILU *>(precond.get());
       HYPRE_ILUSetType(*ilu, _options["ilu-type"].get<int>());
       HYPRE_ILUSetLevelOfFill(*ilu, _options["lev-fill"].get<int>());
@@ -1780,20 +1780,20 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    }
    else if (prec_type == "hypreams")
    {
-      precond.reset(new HypreAMS(fes.get()));
+      precond = std::make_unique<HypreAMS>(fes.get());
       auto *ams = dynamic_cast<HypreAMS *>(precond.get());
       ams->SetPrintLevel(_options["printlevel"].get<int>());
       ams->SetSingularProblem();
    }
    else if (prec_type == "hypreboomeramg")
    {
-      precond.reset(new HypreBoomerAMG());
+      precond = std::make_unique<HypreBoomerAMG>();
       auto *amg = dynamic_cast<HypreBoomerAMG *>(precond.get());
       amg->SetPrintLevel(_options["printlevel"].get<int>());
    }
    else if (prec_type == "blockilu")
    {
-      precond.reset(new BlockILU(getNumState()));
+      precond = std::make_unique<BlockILU>(getNumState());
    }
    else
    {
@@ -1817,11 +1817,11 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    unique_ptr<NewtonSolver> nonlin_solver;
    if (solver_type == "newton")
    {
-      nonlin_solver.reset(new NewtonSolver(comm));
+      nonlin_solver = std::make_unique<NewtonSolver>(comm);
    }
    else if (solver_type == "inexactnewton")
    {
-      nonlin_solver.reset(new NewtonSolver(comm));
+      nonlin_solver = std::make_unique<NewtonSolver>(comm);
       auto *newton = dynamic_cast<NewtonSolver *>(nonlin_solver.get());
 
       /// use defaults from SetAdaptiveLinRtol unless specified
@@ -1852,17 +1852,18 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
 void AbstractSolver::constructEvolver()
 {
    bool newton_abort = options["nonlin-solver"]["abort"].get<bool>();
-   evolver.reset(new MachEvolver(ess_bdr,
-                                 nonlinear_mass.get(),
-                                 mass.get(),
-                                 res.get(),
-                                 stiff.get(),
-                                 load.get(),
-                                 ent.get(),
-                                 *out,
-                                 0.0,
-                                 TimeDependentOperator::Type::IMPLICIT,
-                                 newton_abort));
+   evolver =
+       std::make_unique<MachEvolver>(ess_bdr,
+                                     nonlinear_mass.get(),
+                                     mass.get(),
+                                     res.get(),
+                                     stiff.get(),
+                                     load.get(),
+                                     ent.get(),
+                                     *out,
+                                     0.0,
+                                     TimeDependentOperator::Type::IMPLICIT,
+                                     newton_abort);
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

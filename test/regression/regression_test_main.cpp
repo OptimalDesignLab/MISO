@@ -15,10 +15,7 @@ int main(int argc, char *argv[])
 
    // global setup...
    // Initialize MPI if parallel
-   int num_procs, myid;
    MPI_Init(&argc, &argv);
-   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
    int result = Catch::Session().run(argc, argv);
 

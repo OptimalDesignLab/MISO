@@ -120,17 +120,16 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
    mesh->FinalizeTopology();
 
    // Copy GridFunction describing nodes if present
-   if (vol_mesh.GetNodes())
+   if (vol_mesh.GetNodes() != nullptr)
    {
       FiniteElementSpace *fes = vol_mesh.GetNodes()->FESpace();
       const FiniteElementCollection *fec = fes->FEColl();
-      if (dynamic_cast<const H1_FECollection *>(fec))
+      if (dynamic_cast<const H1_FECollection *>(fec) != nullptr)
       {
          FiniteElementCollection *fec_copy =
              FiniteElementCollection::New(fec->Name());
-         FiniteElementSpace *fes_copy =
-             new FiniteElementSpace(*fes, mesh, fec_copy);
-         GridFunction *bdr_nodes = new GridFunction(fes_copy);
+         auto *fes_copy = new FiniteElementSpace(*fes, mesh, fec_copy);
+         auto *bdr_nodes = new GridFunction(fes_copy);
          bdr_nodes->MakeOwner(fec_copy);
 
          mesh->NewNodes(*bdr_nodes, true);
@@ -292,7 +291,7 @@ double Surface<dim>::solveDistance(mfem::ElementTransformation &trans,
       xi += step;
       ip_new.Set(xi.GetData(), dim - 1);
       // check that point is not outside element geometry
-      if (!Geometries.ProjectPoint(trans.GetGeometryType(), ip, ip_new))
+      if (!mfem::Geometry::ProjectPoint(trans.GetGeometryType(), ip, ip_new))
       {
          // If we get here, ip_new was outside the element and had to be
          // projected to boundary

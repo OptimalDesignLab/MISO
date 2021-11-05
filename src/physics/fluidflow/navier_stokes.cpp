@@ -16,11 +16,11 @@ NavierStokesSolver<dim, entvar>::NavierStokesSolver(
     const nlohmann::json &json_options,
     unique_ptr<mfem::Mesh> smesh,
     MPI_Comm comm)
- : EulerSolver<dim, entvar>(json_options, move(smesh), comm)
+ : EulerSolver<dim, entvar>(json_options, move(smesh), comm),
+   re_fs(this->options["flow-param"]["Re"].template get<double>()),
+   pr_fs(this->options["flow-param"]["Pr"].template get<double>())
 {
    // define NS-related parameters; may or may not be used, depending on case
-   re_fs = this->options["flow-param"]["Re"].template get<double>();
-   pr_fs = this->options["flow-param"]["Pr"].template get<double>();
 
    // Note: the viscous terms are added to the semi-linear form `res` via
    // virtual function calls to addVolumeIntegrators(), addBoundaryIntegrators,

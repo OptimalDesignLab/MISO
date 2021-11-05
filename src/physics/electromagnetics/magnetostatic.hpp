@@ -68,7 +68,7 @@ public:
 
    friend mfem::Operator &getJacobian(MagnetostaticResidual &residual,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    MagnetostaticResidual(
        mfem::ParFiniteElementSpace &pfes,

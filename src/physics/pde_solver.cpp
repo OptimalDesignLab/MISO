@@ -299,8 +299,7 @@ void PDESolver::setUpExternalFields()
 
          /// this approach will only work for fields on the same mesh
          auto num_states = field["num-states"].get<int>();
-         fields.emplace(
-             name, createState(*mesh_, field, num_states, std::move(name)));
+         fields.emplace(name, createState(*mesh_, field, num_states, name));
       }
    }
 }

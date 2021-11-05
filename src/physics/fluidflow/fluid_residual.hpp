@@ -57,7 +57,7 @@ public:
    /// passing this to `setOptions`.
    friend mfem::Operator &getJacobian(FluidResidual &residual,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    /// Returns the total integrated entropy over the domain
    /// \param[inout] residual - the fluid residual, which helps compute entropy

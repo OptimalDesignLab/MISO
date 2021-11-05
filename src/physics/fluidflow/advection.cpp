@@ -3,6 +3,8 @@
 #include "diag_mass_integ.hpp"
 #include "advection.hpp"
 
+#include <memory>
+
 using namespace mfem;
 using namespace std;
 
@@ -49,10 +51,10 @@ void AdvectionIntegrator::AssembleElementMatrix(const FiniteElement &el,
 AdvectLPSIntegrator::AdvectLPSIntegrator(VectorCoefficient &velc,
                                          double a,
                                          double diss_coeff)
- : vel_coeff(velc)
+ : vel_coeff(velc), alpha(a), lps_coeff(diss_coeff)
 {
-   alpha = a;
-   lps_coeff = diss_coeff;
+   
+   
 }
 
 void AdvectLPSIntegrator::AssembleElementMatrix(const FiniteElement &el,
@@ -98,9 +100,11 @@ AdvectionSolver<dim>::AdvectionSolver(const nlohmann::json &json_options,
  : AbstractSolver(json_options, nullptr, comm)
 {
    // set up the stiffness matrix
-   velocity.reset(new VectorFunctionCoefficient(mesh->Dimension(), vel_field));
+   velocity = std::make_unique<VectorFunctionCoefficient>(mesh->Dimension(),
+                                                          vel_field);
    *out << "dimension is " << mesh->Dimension() << endl;
-   stiff.reset(new BilinearFormType(static_cast<SpaceType *>(fes.get())));
+   stiff =
+       std::make_unique<BilinearFormType>(static_cast<SpaceType *>(fes.get()));
    stiff->AddDomainIntegrator(new AdvectionIntegrator(*velocity, -1.0));
    // add the LPS stabilization
    auto lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();

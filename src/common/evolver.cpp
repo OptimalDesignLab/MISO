@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 
 #include "utils.hpp"
 #include "mach_load.hpp"
@@ -149,7 +150,7 @@ public:
       }
       else
       {
-         local_jac.reset(new SparseMatrix(res_local_jac, false));
+         local_jac = std::make_unique<SparseMatrix>(res_local_jac, false);
       }
 
       /// TODO: this is taken from ParNonlinearForm::GetGradient
@@ -256,7 +257,8 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
       if (mass_assem == AssemblyLevel::PARTIAL)
       {
          mass.Reset(_mass, false);
-         mass_prec.reset(new OperatorJacobiSmoother(*_mass, ess_tdof_list));
+         mass_prec =
+             std::make_unique<OperatorJacobiSmoother>(*_mass, ess_tdof_list);
       }
       else if (mass_assem == AssemblyLevel::LEGACYFULL)
       {
@@ -264,8 +266,8 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
          auto *Me = Mmat->EliminateRowsCols(ess_tdof_list);
          delete Me;
          mass.Reset(Mmat, true);
-         mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
-                                           HypreSmoother::Jacobi));
+         mass_prec = std::make_unique<HypreSmoother>(*mass.As<HypreParMatrix>(),
+                                                     HypreSmoother::Jacobi);
       }
       else
       {
@@ -305,8 +307,8 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
              "for stiffness matrix!");
       }
    }
-   combined_oper.reset(
-       new SystemOperator(ess_bdr, _nonlinear_mass, _mass, _res, _load));
+   combined_oper = std::make_unique<SystemOperator>(
+       ess_bdr, _nonlinear_mass, _mass, _res, _load);
 }
 
 MachEvolver::~MachEvolver() = default;

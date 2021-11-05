@@ -15,6 +15,8 @@ IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
    diffusion(&h1_fes),
    weak_div(&nd_fes, &h1_fes),
    grad(&h1_fes, &nd_fes),
+   diff_mesh_sens(new DiffusionIntegratorMeshSens),
+   div_mesh_sens(new VectorFEWeakDivergenceIntegratorMeshSens),
    psi(&h1_fes),
    div_x(&h1_fes),
    pcg(h1_fes.GetComm())
@@ -39,9 +41,9 @@ IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
    auto &x_nodes = dynamic_cast<ParGridFunction &>(*mesh.GetNodes());
    auto &mesh_fes = *x_nodes.ParFESpace();
    mesh_sens.Update(&mesh_fes);
-   diff_mesh_sens = new DiffusionIntegratorMeshSens;
+
    mesh_sens.AddDomainIntegrator(diff_mesh_sens);
-   div_mesh_sens = new VectorFEWeakDivergenceIntegratorMeshSens;
+
    mesh_sens.AddDomainIntegrator(div_mesh_sens);
 }
 

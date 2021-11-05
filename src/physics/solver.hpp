@@ -927,11 +927,11 @@ protected:
    /// Constructs the operator that defines ODE evolution
    virtual void constructEvolver();
 
-   /// Used by derived classes that themselves construct solver objects that
-   /// don't need all the memory for a fully featured solver, that just need to
-   /// support the AbstractSolver interface (JouleSolver)
-   AbstractSolver(const std::string &opt_file_name,
-                  MPI_Comm comm = MPI_COMM_WORLD);
+   // /// Used by derived classes that themselves construct solver objects that
+   // /// don't need all the memory for a fully featured solver, that just need to
+   // /// support the AbstractSolver interface (JouleSolver)
+   // AbstractSolver(const std::string &opt_file_name,
+   //                MPI_Comm comm = MPI_COMM_WORLD);
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
    /// reference to it to in fun_integrators as a MachIntegrator

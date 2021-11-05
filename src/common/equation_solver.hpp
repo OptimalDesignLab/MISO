@@ -75,7 +75,7 @@ private:
    /// \brief Builds an iterative solver given a set of linear solver parameters
    /// \param[in] comm - The MPI communicator object
    /// \param[in] lin_options - The parameters for the linear solver
-   std::unique_ptr<mfem::Solver> constructLinearSolver(
+   static std::unique_ptr<mfem::Solver> constructLinearSolver(
        MPI_Comm comm,
        const nlohmann::json &lin_options);
 
