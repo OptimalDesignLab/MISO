@@ -88,7 +88,6 @@ public:
       project(coeff, true_vec);
    }
 
-
    // /// \brief Set a finite element state to a constant value
    // /// \param value The constant to set the finite element state to
    // /// \return The modified finite element state
