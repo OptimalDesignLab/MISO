@@ -252,8 +252,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
       Array<int> mass_ess_tdof_list;
       _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, mass_ess_tdof_list);
 
-      AssemblyLevel mass_assem;
-      mass_assem = _mass->GetAssemblyLevel();
+      auto mass_assem = _mass->GetAssemblyLevel();
       if (mass_assem == AssemblyLevel::PARTIAL)
       {
          mass.Reset(_mass, false);
@@ -287,8 +286,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
       // Array<int> ess_tdof_list;
       _stiff->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
-      AssemblyLevel stiff_assem;
-      stiff_assem = _stiff->GetAssemblyLevel();
+      auto stiff_assem = _stiff->GetAssemblyLevel();
       if (stiff_assem == AssemblyLevel::PARTIAL)
       {
          stiff.Reset(_stiff, false);

@@ -1,11 +1,10 @@
+#include <cmath>
 #include <fstream>
 
 #include "adept.h"
 
 #include "utils.hpp"
 #include "flow_control.hpp"
-
-#include <math.h>
 
 using namespace std;
 using namespace mfem;

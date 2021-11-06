@@ -181,6 +181,8 @@ public:
    /// Remove the copy constructor and assignment constructors
    kdtree(const kdtree &) = delete;
    kdtree &operator=(const kdtree &) = delete;
+   kdtree(kdtree &&) = delete;
+   kdtree &operator=(kdtree &&) = delete;
 
    /// Construct an empty tree; use with set_size and add_node, and finalize
    kdtree() = default;
@@ -196,8 +198,9 @@ public:
    }
 
    /// Constructor taking a function object that generates points. The function
-   /// /// object will be called n times to populate the tree. \param[in] f -
-   /// function that returns a point \param[in] n - number of points to add
+   /// object will be called n times to populate the tree.
+   /// \param[in] f - function that returns a point
+   /// \param[in] n - number of points to add
    template <typename func>
    kdtree(func &&f, size_t n)
    {
