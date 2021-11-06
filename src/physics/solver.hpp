@@ -928,7 +928,8 @@ protected:
    virtual void constructEvolver();
 
    // /// Used by derived classes that themselves construct solver objects that
-   // /// don't need all the memory for a fully featured solver, that just need to
+   // /// don't need all the memory for a fully featured solver, that just need
+   // to
    // /// support the AbstractSolver interface (JouleSolver)
    // AbstractSolver(const std::string &opt_file_name,
    //                MPI_Comm comm = MPI_COMM_WORLD);

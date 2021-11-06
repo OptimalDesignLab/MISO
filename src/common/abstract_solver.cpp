@@ -44,6 +44,34 @@ void AbstractSolver2::setState_(std::any function,
    }
 }
 
+double AbstractSolver2::calcStateError_(std::any ex_sol,
+                                        const std::string &name,
+                                        mfem::Vector &state)
+{
+   auto *fun = std::any_cast<std::function<void(mfem::Vector &)>>(&ex_sol);
+   if (fun != nullptr)
+   {
+      work.SetSize(state.Size());
+      (*fun)(work);
+      subtract(work, state, work);
+      return work.Norml2();
+   }
+   auto *vec = std::any_cast<mfem::Vector>(&ex_sol);
+   if (vec != nullptr)
+   {
+      if (vec->Size() != state.Size())
+      {
+         throw MachException(
+             "Input vector for exact solution is not the same size as the "
+             "state vector!");
+      }
+      work.SetSize(state.Size());
+      subtract(*vec, state, work);
+      return work.Norml2();
+   }
+   return NAN;
+}
+
 void AbstractSolver2::solveForState(const MachInputs &inputs,
                                     mfem::Vector &state)
 {

@@ -61,7 +61,8 @@ AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
 // AbstractSolver::AbstractSolver(const string &opt_file_name, MPI_Comm incomm)
 //  : out(getOutStream(rank))
 // {
-//    // Some of the following code would normally happen in initBase, but this is
+//    // Some of the following code would normally happen in initBase, but this
+//    is
 //    // a parred down version of the AbstractSolver that does not need most of
 //    // the functionality (e.g. multiphysics code)
 //    // TODO: Do we need a separate super class for this case?

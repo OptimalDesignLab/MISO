@@ -235,13 +235,15 @@ TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
    MachInputs inputs;
    solver.solveForState(inputs, u);
 
-
+   auto t_final = options["time-dis"]["t-final"].get<double>();
    Vector u_exact;
    exact_sol(options["time-dis"]["t-final"].get<double>(), u_exact);
-   double error = sqrt( pow(u(0) - u_exact(0),2) + pow(u(1) - u_exact(1),2));
+   // auto error = solver.calcStateError([&](mfem::Vector &u) {exact_sol(t_final, u); }, u);
+   auto error = solver.calcStateError(u_exact, u);
    double entropy0 = exp(u0(0)) + exp(u0(1));
    double entropy = exp(u(0)) + exp(u(1));
 
+// -19.8579: 1.47408
    if (verbose)
    {
       std::cout << "discrete solution = " << u(0) << ": " << u(1) << std::endl;

@@ -31,8 +31,8 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[out] elvect - element local dF/dx
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                                       mfem::ElementTransformation &trans,
-                                       mfem::Vector &elvect) override;
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
 
 protected:
    /// The state vector used to evaluate fluxes
@@ -92,16 +92,16 @@ public:
 
    /// **Do not use**: only included because it is required by base class
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                                       mfem::ElementTransformation &trans,
-                                       mfem::Vector &elvect) override;
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
 
    /// Construct the contribution to the element local dF/dX
    /// \param[in] el_bnd - the finite element whose dF/dX we want to update
    /// \param[in] trans - holds geometry and mapping information about the face
    /// \param[out] elvect - element local dF/dX
    void AssembleRHSElementVect(const mfem::FiniteElement &el_bnd,
-                                       mfem::FaceElementTransformations &trans,
-                                       mfem::Vector &elvect) override;
+                               mfem::FaceElementTransformations &trans,
+                               mfem::Vector &elvect) override;
 
 protected:
    /// The state vector used to evaluate fluxes

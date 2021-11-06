@@ -14,6 +14,7 @@
 #include "mach_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "pde_solver.hpp"
+#include "sbp_fe.hpp"
 #include "utils.hpp"
 
 /// Class for ODE that follows the MachResidual API
@@ -268,11 +269,11 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
    })"_json;
 
    constexpr int nxy = 4;
-   auto mesh = std::make_unique<mfem::Mesh>(
+   auto smesh = std::make_unique<mfem::Mesh>(
       Mesh::MakeCartesian2D(nxy, nxy, Element::TRIANGLE, true, M_PI, M_PI));
 
    // Create solver and solve for the state 
-   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
+   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
    mfem::Vector state_tv(solver.getStateSize());
 
    FunctionCoefficient init_state([](const mfem::Vector &p, double t)
@@ -304,10 +305,33 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
       return pow(x, 2);
    });
    auto error = state.gridFunc().ComputeLpError(2, exact_sol);
+   auto error2 = state.gridFunc().ComputeL2Error(exact_sol);
+
+   auto err = solver.calcStateError(exact_sol, state_tv);
+
+   auto &mesh = state.mesh();
+   auto fec = std::make_unique<mfem::SBPCollection>(1, 2);
+   FiniteElementState sbp_state(mesh, {.coll = std::move(fec)});
+
+   auto sol_gf_coeff = state.gridFuncCoef();
+   mfem::Vector sbp_state_tv(sbp_state.space().GetTrueVSize());
+   sbp_state.project(sol_gf_coeff, sbp_state_tv);
+   auto sbp_error = mach::error(sbp_state, exact_sol);
+
+   ParaViewLogger pv("thermal_sbp", &mesh);
+   pv.registerField("sbp", sbp_state.gridFunc());
+   pv.saveState(sbp_state_tv, "sbp", 0, 0, 0);
+
+   ParaViewLogger pvh1("thermal_h1", &mesh);
+   pvh1.registerField("h1", state.gridFunc());
+   pvh1.saveState(state_tv, "h1", 0, 0, 0);
 
    if (verbose)
    {
       std::cout << "terminal solution error = " << error << std::endl;
+      std::cout << "terminal solution error = " << error2 << std::endl;
+      std::cout << "terminal solution error = " << err << std::endl;
+      std::cout << "terminal solution error = " << sbp_error << std::endl;
    }
    REQUIRE(error == Approx(0.353809).margin(1e-8));
 }

@@ -97,6 +97,10 @@ protected:
    void setState_(std::any function,
                   const std::string &name,
                   mfem::Vector &state) override;
+
+   double calcStateError_(std::any ex_sol,
+                          const std::string &name,
+                          mfem::Vector &state) override;
 };
 
 }  // namespace mach

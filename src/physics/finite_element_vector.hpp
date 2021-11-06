@@ -84,7 +84,13 @@ public:
    /// \return The underlying mesh
    mfem::ParMesh &mesh() { return *mesh_; }
 
-   /// \brief Returns a non-owning reference to the internal FESpace
+   /// \brief Returns a non-owning reference to the internal FE collection
+   /// \return The underlying finite element collection
+   // mfem::FiniteElementCollection &coll() { return retrieve(coll_); }
+   /// \overload
+   const mfem::FiniteElementCollection &coll() const { return retrieve(coll_); }
+
+   /// \brief Returns a non-owning reference to the internal FE space
    /// \return The underlying finite element space
    mfem::ParFiniteElementSpace &space() { return retrieve(space_); }
    /// \overload
@@ -112,7 +118,7 @@ protected:
    mfem::ParMesh *mesh_ = nullptr;
 
    /// \brief Finite element or SBP operators
-   MaybeOwningPointer<const mfem::FiniteElementCollection> coll;
+   MaybeOwningPointer<const mfem::FiniteElementCollection> coll_;
 
    /// \brief Discrete finite element space
    MaybeOwningPointer<mfem::ParFiniteElementSpace> space_;

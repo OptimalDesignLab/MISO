@@ -52,10 +52,7 @@ AdvectLPSIntegrator::AdvectLPSIntegrator(VectorCoefficient &velc,
                                          double a,
                                          double diss_coeff)
  : vel_coeff(velc), alpha(a), lps_coeff(diss_coeff)
-{
-   
-   
-}
+{ }
 
 void AdvectLPSIntegrator::AssembleElementMatrix(const FiniteElement &el,
                                                 ElementTransformation &Trans,

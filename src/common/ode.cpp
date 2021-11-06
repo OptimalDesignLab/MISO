@@ -168,7 +168,7 @@ FirstOrderODE::FirstOrderODE(MachResidual &residual,
    //  : TimeDependentOperator(getSize(residual), 0.0),
    residual_(residual),
    solver_(solver)
-   // zero_(getSize(residual))
+// zero_(getSize(residual))
 {
    solver_.iterative_mode = false;
    // zero_ = 0.0;

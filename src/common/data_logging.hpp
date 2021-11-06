@@ -23,10 +23,10 @@ class ASCIILogger
 {
 public:
    static void saveState(const mfem::Vector &state,
-                  const std::string &fieldname,
-                  int timestep,
-                  double time,
-                  int rank)
+                         const std::string &fieldname,
+                         int timestep,
+                         double time,
+                         int rank)
    {
       std::filesystem::create_directory(prefix);
       auto filename = prefix + "/" + fieldname + "_" +
@@ -44,10 +44,10 @@ public:
    }
 
    static void readState(const std::string &fieldname,
-                  int timestep,
-                  int rank,
-                  double &time,
-                  mfem::Vector &state)
+                         int timestep,
+                         int rank,
+                         double &time,
+                         mfem::Vector &state)
    {
       auto filename = prefix + "/" + fieldname + "_" +
                       std::to_string(timestep) + "_" + std::to_string(rank);
@@ -72,10 +72,10 @@ class BinaryLogger
 {
 public:
    static void saveState(const mfem::Vector &state,
-                  const std::string &fieldname,
-                  int timestep,
-                  double time,
-                  int rank)
+                         const std::string &fieldname,
+                         int timestep,
+                         double time,
+                         int rank)
    {
       std::filesystem::create_directory(prefix);
       auto filename = prefix + "/" + fieldname + "_" +
@@ -83,27 +83,28 @@ public:
       const double *data = state.GetData();
       int size = state.Size();
       std::ofstream file(filename, std::ios::out | std::ios::binary);
-      file.write(reinterpret_cast<const char *>(&time), sizeof(double)); // NOLINT
-      file.write(reinterpret_cast<const char *>(&size), sizeof(int)); // NOLINT
-      file.write(reinterpret_cast<const char *>(data), // NOLINT
+      file.write(reinterpret_cast<const char *>(&time),
+                 sizeof(double));                                      // NOLINT
+      file.write(reinterpret_cast<const char *>(&size), sizeof(int));  // NOLINT
+      file.write(reinterpret_cast<const char *>(data),                 // NOLINT
                  std::streamsize(size * sizeof(double)));
    }
 
    static void readState(const std::string &fieldname,
-                  int timestep,
-                  int rank,
-                  double &time,
-                  mfem::Vector &state)
+                         int timestep,
+                         int rank,
+                         double &time,
+                         mfem::Vector &state)
    {
       auto filename = prefix + "/" + fieldname + "_" +
                       std::to_string(timestep) + "_" + std::to_string(rank);
       std::ifstream infile(filename, std::ios::binary);
-      infile.read(reinterpret_cast<char *>(&time), sizeof(double)); // NOLINT
+      infile.read(reinterpret_cast<char *>(&time), sizeof(double));  // NOLINT
       int size = 0;
-      infile.read(reinterpret_cast<char *>(&size), sizeof(int)); // NOLINT
+      infile.read(reinterpret_cast<char *>(&size), sizeof(int));  // NOLINT
       state.SetSize(size);
       auto *data = state.GetData();
-      infile.read(reinterpret_cast<char *>(data), // NOLINT
+      infile.read(reinterpret_cast<char *>(data),  // NOLINT
                   std::streamsize(size * sizeof(double)));
    }
 

@@ -308,6 +308,8 @@ void PDESolver::setState_(std::any function,
                           const std::string &name,
                           mfem::Vector &state)
 {
+   AbstractSolver2::setState_(function, name, state);
+
    auto *coeff_func =
        std::any_cast<std::function<double(const mfem::Vector &)>>(&function);
    if (coeff_func != nullptr)
@@ -335,6 +337,51 @@ void PDESolver::setState_(std::any function,
       fields.at(name).project(**vec_coeff, state);
       return;
    }
+}
+
+double PDESolver::calcStateError_(std::any ex_sol,
+                                  const std::string &name,
+                                  mfem::Vector &state)
+{
+   auto err = AbstractSolver2::calcStateError_(ex_sol, name, state);
+   if (!std::isnan(err))
+   {
+      return err;
+   }
+
+   auto *coeff_func =
+       std::any_cast<std::function<double(const mfem::Vector &)>>(&ex_sol);
+   if (coeff_func != nullptr)
+   {
+      auto &field = fields.at(name);
+      field.distributeSharedDofs(state);
+      return error(field, *coeff_func);
+   }
+   auto *coeff = std::any_cast<mfem::Coefficient *>(&ex_sol);
+   if (coeff != nullptr)
+   {
+      auto &field = fields.at(name);
+      field.distributeSharedDofs(state);
+      return error(field, **coeff);
+   }
+   auto *vec_coeff_func =
+       std::any_cast<std::function<void(const mfem::Vector &, mfem::Vector
+       &)>>(
+           &ex_sol);
+   if (vec_coeff_func != nullptr)
+   {
+      auto &field = fields.at(name);
+      field.distributeSharedDofs(state);
+      return error(field, *vec_coeff_func);
+   }
+   auto *vec_coeff = std::any_cast<mfem::VectorCoefficient *>(&ex_sol);
+   if (vec_coeff != nullptr)
+   {
+      auto &field = fields.at(name);
+      field.distributeSharedDofs(state);
+      return error(field, **vec_coeff);
+   }
+   return NAN;
 }
 
 }  // namespace mach

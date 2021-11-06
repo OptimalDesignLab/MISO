@@ -30,19 +30,17 @@ public:
       addLoad(load.lf, tv);
    }
 
-   friend inline double vectorJacobianProduct(
-       MagneticLoad &load,
-       const mfem::Vector &load_bar,
-       const std::string &wrt)
+   friend inline double vectorJacobianProduct(MagneticLoad &load,
+                                              const mfem::Vector &load_bar,
+                                              const std::string &wrt)
    {
       return vectorJacobianProduct(load.lf, load_bar, wrt);
    }
 
-   friend inline void vectorJacobianProduct(
-       MagneticLoad &load,
-       const mfem::Vector &load_bar,
-       const std::string &wrt,
-       mfem::Vector &wrt_bar)
+   friend inline void vectorJacobianProduct(MagneticLoad &load,
+                                            const mfem::Vector &load_bar,
+                                            const std::string &wrt,
+                                            mfem::Vector &wrt_bar)
    {
       vectorJacobianProduct(load.lf, load_bar, wrt, wrt_bar);
    }

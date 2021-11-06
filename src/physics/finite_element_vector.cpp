@@ -37,12 +37,12 @@ namespace mach
 FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                          FiniteElementVector::Options &&options)
  : mesh_(&mesh),
-   coll(options.coll
-            ? std::move(options.coll)
-            : std::make_unique<mfem::H1_FECollection>(options.order,
-                                                      mesh.Dimension())),
+   coll_(options.coll
+             ? std::move(options.coll)
+             : std::make_unique<mfem::H1_FECollection>(options.order,
+                                                       mesh.Dimension())),
    space_(std::make_unique<mfem::ParFiniteElementSpace>(&mesh,
-                                                        &retrieve(coll),
+                                                        &retrieve(coll_),
                                                         options.num_states,
                                                         options.ordering)),
    gf(std::make_unique<mfem::ParGridFunction>(&retrieve(space_))),
@@ -56,10 +56,10 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                          mfem::ParFiniteElementSpace &space,
                                          std::string name)
  : mesh_(&mesh),
-   coll(copyFEColl(*space.FEColl())),
+   coll_(copyFEColl(*space.FEColl())),
    space_(std::make_unique<mfem::ParFiniteElementSpace>(space,
                                                         mesh_,
-                                                        &retrieve(coll))),
+                                                        &retrieve(coll_))),
    gf(std::make_unique<mfem::ParGridFunction>(&retrieve(space_))),
    // true_vec(std::make_unique<mfem::HypreParVector>(&retrieve(space_))),
    name_(std::move(name))
@@ -96,7 +96,7 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
 
 FiniteElementVector::FiniteElementVector(FiniteElementVector &&other) noexcept
  : mesh_(other.mesh_),
-   coll(std::move(other.coll)),
+   coll_(std::move(other.coll_)),
    space_(std::move(other.space_)),
    gf(std::move(other.gf)),
    // true_vec(std::move(other.true_vec)),
@@ -110,7 +110,7 @@ FiniteElementVector &FiniteElementVector::operator=(
     FiniteElementVector &&other) noexcept
 {
    mesh_ = other.mesh_;
-   coll = std::move(other.coll);
+   coll_ = std::move(other.coll_);
    space_ = std::move(other.space_);
    gf = std::move(other.gf);
    // auto *par_vec = other.true_vec.StealParVector();

@@ -921,9 +921,7 @@ public:
       exactSolution(fun),
       qexact(dim + 2),
       work_vec(dim + 2)
-   {
-      
-   }
+   { }
 
    /// converts conservative variables to entropy variables
    /// \param[in] q - conservative variables that are to be converted
