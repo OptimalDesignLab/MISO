@@ -341,7 +341,7 @@ void PDESolver::setState_(std::any function,
 
 double PDESolver::calcStateError_(std::any ex_sol,
                                   const std::string &name,
-                                  mfem::Vector &state)
+                                  const mfem::Vector &state)
 {
    auto err = AbstractSolver2::calcStateError_(ex_sol, name, state);
    if (!std::isnan(err))

@@ -46,7 +46,7 @@ void AbstractSolver2::setState_(std::any function,
 
 double AbstractSolver2::calcStateError_(std::any ex_sol,
                                         const std::string &name,
-                                        mfem::Vector &state)
+                                        const mfem::Vector &state)
 {
    auto *fun = std::any_cast<std::function<void(mfem::Vector &)>>(&ex_sol);
    if (fun != nullptr)

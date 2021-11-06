@@ -46,7 +46,7 @@ public:
    /// \tparam T - generic type T, the derived classes must know how to use it
    template <typename T>
    double calcStateError(T ex_sol,
-                         mfem::Vector &state,
+                         const mfem::Vector &state,
                          const std::string &name = "state");
 
    /// Solve for the state based on the residual `res` and `options`
@@ -260,7 +260,7 @@ protected:
    /// how to access/use them
    virtual double calcStateError_(std::any ex_sol,
                                   const std::string &name,
-                                  mfem::Vector &state);
+                                  const mfem::Vector &state);
 };
 
 template <typename T>
@@ -305,7 +305,7 @@ void AbstractSolver2::setState(T function,
 
 template <typename T>
 double AbstractSolver2::calcStateError(T ex_sol,
-                                       mfem::Vector &state,
+                                       const mfem::Vector &state,
                                        const std::string &name)
 {
    /// compile time conditional that checks if @a ex_sol is callable, and

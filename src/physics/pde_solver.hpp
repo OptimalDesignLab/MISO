@@ -100,7 +100,7 @@ protected:
 
    double calcStateError_(std::any ex_sol,
                           const std::string &name,
-                          mfem::Vector &state) override;
+                          const mfem::Vector &state) override;
 };
 
 }  // namespace mach
