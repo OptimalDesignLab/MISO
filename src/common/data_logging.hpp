@@ -83,7 +83,7 @@ public:
       const double *data = state.GetData();
       int size = state.Size();
       std::ofstream file(filename, std::ios::out | std::ios::binary);
-      file.write(reinterpret_cast<const char *>(&time),                // NOLINT
+      file.write(reinterpret_cast<const char *>(&time),  // NOLINT
                  sizeof(double));
       file.write(reinterpret_cast<const char *>(&size), sizeof(int));  // NOLINT
       file.write(reinterpret_cast<const char *>(data),                 // NOLINT
