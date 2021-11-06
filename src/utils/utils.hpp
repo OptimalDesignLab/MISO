@@ -1,6 +1,7 @@
 #ifndef MACH_UTILS
 #define MACH_UTILS
 
+#include <any>
 #include <functional>
 #include <exception>
 #include <iostream>
@@ -155,6 +156,13 @@ inline constexpr bool is_callable_v = is_callable<T>::value;
 /// `function`'s type, construct a std::function from the input
 namespace detail
 {
+
+template <typename T, typename... Ts>
+struct first_arg
+{
+   using type = T;
+};
+
 /// For generic types that are functors, delegate to its 'operator()'
 template <typename T>
 struct function : public function<decltype(&T::operator())>
@@ -165,6 +173,8 @@ template <typename ClassType, typename ReturnType, typename... Args>
 struct function<ReturnType (ClassType::*)(Args...) const>
 {
    using type = std::function<ReturnType(Args...)>;
+   using return_type = ReturnType;
+   using arg = typename first_arg<Args...>::type;
 };
 
 /// For pointers to a member function
@@ -172,6 +182,8 @@ template <typename ClassType, typename ReturnType, typename... Args>
 struct function<ReturnType (ClassType::*)(Args...)>
 {
    using type = std::function<ReturnType(Args...)>;
+   using return_type = ReturnType;
+   using arg = typename first_arg<Args...>::type;
 };
 
 /// For function pointers
@@ -179,6 +191,8 @@ template <typename ReturnType, typename... Args>
 struct function<ReturnType (*)(Args...)>
 {
    using type = std::function<ReturnType(Args...)>;
+   using return_type = ReturnType;
+   using arg = typename first_arg<Args...>::type;
 };
 
 }  // namespace detail
@@ -192,6 +206,36 @@ typename detail::function<T>::type make_function(T fun)
 {
    return (typename detail::function<T>::type)(fun);
 }
+
+template <typename T, typename... Ts>
+auto useAny(std::any &any, T t, Ts... rest) -> typename detail::function<T>::return_type
+{
+   using arg = std::remove_reference_t<std::remove_const_t<typename detail::function<T>::arg>>;
+
+   auto *concrete = std::any_cast<arg>(&any);
+   if (concrete != nullptr)
+   {
+      return t(*concrete);
+   }
+
+   if constexpr (sizeof...(rest) > 0)
+   {
+      return useAny(any, rest...);
+   }
+   return NAN;
+}
+
+// template <typename T, typename L>
+// bool useAny(const std::any &any, L lambda)
+// {
+//    auto *concrete = std::any_cast<T>(&any);
+//    if (concrete != nullptr)
+//    {
+//       lambda(*concrete);
+//       return true;
+//    }
+//    return false;
+// }
 
 /// \brief helper function to populate the @a ess_bdr array based on options
 /// \param[in] options - options dictionary containing "ess-bdr" key

@@ -1,5 +1,6 @@
 #include "default_options.hpp"
 #include "mfem_extensions.hpp"
+#include "utils.hpp"
 
 #include "abstract_solver.hpp"
 
@@ -48,28 +49,79 @@ double AbstractSolver2::calcStateError_(std::any ex_sol,
                                         const std::string &name,
                                         const mfem::Vector &state)
 {
-   auto *fun = std::any_cast<std::function<void(mfem::Vector &)>>(&ex_sol);
-   if (fun != nullptr)
+   // double error = NAN;
+   // if (useAny<std::function<void(mfem::Vector &)>>(
+   //         ex_sol,
+   //         [&](auto &fun)
+   //         {
+   //            work.SetSize(state.Size());
+   //            fun(work);
+   //            subtract(work, state, work);
+   //            error = work.Norml2();
+   //         }))
+   // { }
+
+   // else if (useAny<mfem::Vector>(
+   //              ex_sol,
+   //              [&](auto &vec)
+   //              {
+   //                 if (vec.Size() != state.Size())
+   //                 {
+   //                    throw MachException(
+   //                        "Input vector for exact solution is not "
+   //                        "the same size as the "
+   //                        "state vector!");
+   //                 }
+   //                 work.SetSize(state.Size());
+   //                 subtract(vec, state, work);
+   //                 error = work.Norml2();
+   //              }))
+   // { }
+
+   return useAny(ex_sol,
+   [&](std::function<void(mfem::Vector &)> &fun)
    {
       work.SetSize(state.Size());
-      (*fun)(work);
+      fun(work);
       subtract(work, state, work);
       return work.Norml2();
-   }
-   auto *vec = std::any_cast<mfem::Vector>(&ex_sol);
-   if (vec != nullptr)
+   },
+   [&](mfem::Vector &vec)
    {
-      if (vec->Size() != state.Size())
+      if (vec.Size() != state.Size())
       {
          throw MachException(
-             "Input vector for exact solution is not the same size as the "
-             "state vector!");
+            "Input vector for exact solution is not "
+            "the same size as the "
+            "state vector!");
       }
       work.SetSize(state.Size());
-      subtract(*vec, state, work);
+      subtract(vec, state, work);
       return work.Norml2();
-   }
-   return NAN;
+   });
+
+   // auto *fun = std::any_cast<std::function<void(mfem::Vector &)>>(&ex_sol);
+   // if (fun != nullptr)
+   // {
+   //    work.SetSize(state.Size());
+   //    (*fun)(work);
+   //    subtract(work, state, work);
+   //    return work.Norml2();
+   // }
+   // auto *vec = std::any_cast<mfem::Vector>(&ex_sol);
+   // if (vec != nullptr)
+   // {
+   //    if (vec->Size() != state.Size())
+   //    {
+   //       throw MachException(
+   //           "Input vector for exact solution is not the same size as the "
+   //           "state vector!");
+   //    }
+   //    work.SetSize(state.Size());
+   //    subtract(*vec, state, work);
+   //    return work.Norml2();
+   // }
+   // return error;
 }
 
 void AbstractSolver2::solveForState(const MachInputs &inputs,
