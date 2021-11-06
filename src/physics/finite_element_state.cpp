@@ -8,7 +8,7 @@ double calcLpNorm(const FiniteElementState &state, const double p)
    {
       mfem::ConstantCoefficient zero(0.0);
       // return state.gridFunc().ComputeLpError(p, zero);
-      return calcLpError(state, zero, p); 
+      return calcLpError(state, zero, p);
    }
    else
    {
@@ -16,7 +16,7 @@ double calcLpNorm(const FiniteElementState &state, const double p)
       zero = 0.0;
       mfem::VectorConstantCoefficient zerovec(zero);
       // return state.gridFunc().ComputeLpError(p, zerovec);
-      return calcLpError(state, zerovec, p); 
+      return calcLpError(state, zerovec, p);
    }
 }
 
@@ -176,7 +176,7 @@ double calcL2Error(const FiniteElementState &state,
 }
 
 double calcLpError(const FiniteElementState &state,
-                     mfem::Coefficient &exsol,
+                   mfem::Coefficient &exsol,
                    const double p)
 {
    double loc_error = 0.0;
@@ -225,11 +225,11 @@ double calcLpError(const FiniteElementState &state,
       // negative quadrature weights may cause the error to be negative
       if (loc_error < 0.0)
       {
-         loc_error = -pow(-loc_error, 1./p);
+         loc_error = -pow(-loc_error, 1.0 / p);
       }
       else
       {
-         loc_error = pow(loc_error, 1./p);
+         loc_error = pow(loc_error, 1.0 / p);
       }
    }
 
@@ -256,8 +256,7 @@ double calcLpError(const FiniteElementState &state,
       const auto *fe = space.GetFE(i);
       const auto *ir = [&]()
       {
-         if ((strncmp(name, "SBP", 3) == 0) ||
-               (strncmp(name, "DSBP", 4) == 0))
+         if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
          {
             return &(fe->GetNodes());
          }
@@ -304,11 +303,11 @@ double calcLpError(const FiniteElementState &state,
       // negative quadrature weights may cause the error to be negative
       if (loc_error < 0.0)
       {
-         loc_error = -pow(-loc_error, 1./p);
+         loc_error = -pow(-loc_error, 1.0 / p);
       }
       else
       {
-         loc_error = pow(loc_error, 1./p);
+         loc_error = pow(loc_error, 1.0 / p);
       }
    }
 
