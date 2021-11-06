@@ -158,10 +158,13 @@ namespace detail
 {
 
 template <typename T, typename... Ts>
-struct first_arg
+struct first
 {
    using type = T;
 };
+
+template <typename... T>
+using first_t = typename first<T...>::type;
 
 /// For generic types that are functors, delegate to its 'operator()'
 template <typename T>
@@ -173,8 +176,8 @@ template <typename ClassType, typename ReturnType, typename... Args>
 struct function<ReturnType (ClassType::*)(Args...) const>
 {
    using type = std::function<ReturnType(Args...)>;
-   using return_type = ReturnType;
-   using arg = typename first_arg<Args...>::type;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
 };
 
 /// For pointers to a member function
@@ -182,8 +185,8 @@ template <typename ClassType, typename ReturnType, typename... Args>
 struct function<ReturnType (ClassType::*)(Args...)>
 {
    using type = std::function<ReturnType(Args...)>;
-   using return_type = ReturnType;
-   using arg = typename first_arg<Args...>::type;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
 };
 
 /// For function pointers
@@ -191,8 +194,8 @@ template <typename ReturnType, typename... Args>
 struct function<ReturnType (*)(Args...)>
 {
    using type = std::function<ReturnType(Args...)>;
-   using return_type = ReturnType;
-   using arg = typename first_arg<Args...>::type;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
 };
 
 }  // namespace detail
@@ -208,11 +211,13 @@ typename detail::function<T>::type make_function(T fun)
 }
 
 template <typename T, typename... Ts>
-auto useAny(std::any &any, T t, Ts... rest) -> typename detail::function<T>::return_type
+auto useAny(std::any &any, T t, Ts... rest) ->
+    typename detail::function<T>::return_t
 {
-   using arg = std::remove_reference_t<std::remove_const_t<typename detail::function<T>::arg>>;
+   using arg_t = std::remove_reference_t<
+       std::remove_const_t<typename detail::function<T>::arg_t>>;
 
-   auto *concrete = std::any_cast<arg>(&any);
+   auto *concrete = std::any_cast<arg_t>(&any);
    if (concrete != nullptr)
    {
       return t(*concrete);
@@ -222,7 +227,11 @@ auto useAny(std::any &any, T t, Ts... rest) -> typename detail::function<T>::ret
    {
       return useAny(any, rest...);
    }
-   return NAN;
+
+   if constexpr (std::is_same_v<typename detail::function<T>::return_t, double>)
+   {
+      return NAN;
+   }
 }
 
 // template <typename T, typename L>
