@@ -126,17 +126,18 @@ double error(const FiniteElementState &state,
              double p = 2);
 
 inline double error(const FiniteElementState &state,
-             std::function<double(const mfem::Vector &)> ex_sol,
-             double p = 2)
+                    std::function<double(const mfem::Vector &)> ex_sol,
+                    double p = 2)
 {
    mfem::FunctionCoefficient coeff(std::move(ex_sol));
    return error(state, coeff, p);
 }
 /// \overload
-inline double error(const FiniteElementState &state,
-             std::function<void(const mfem::Vector &, mfem::Vector &)> ex_sol,
-             int entry = -1,
-             double p = 2)
+inline double error(
+    const FiniteElementState &state,
+    std::function<void(const mfem::Vector &, mfem::Vector &)> ex_sol,
+    int entry = -1,
+    double p = 2)
 {
    int vdim = state.gridFunc().VectorDim();
    mfem::VectorFunctionCoefficient coeff(vdim, std::move(ex_sol));

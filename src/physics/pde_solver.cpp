@@ -365,8 +365,7 @@ double PDESolver::calcStateError_(std::any ex_sol,
       return error(field, **coeff);
    }
    auto *vec_coeff_func =
-       std::any_cast<std::function<void(const mfem::Vector &, mfem::Vector
-       &)>>(
+       std::any_cast<std::function<void(const mfem::Vector &, mfem::Vector &)>>(
            &ex_sol);
    if (vec_coeff_func != nullptr)
    {
