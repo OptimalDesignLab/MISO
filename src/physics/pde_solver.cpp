@@ -355,14 +355,14 @@ double PDESolver::calcStateError_(std::any ex_sol,
    {
       auto &field = fields.at(name);
       field.distributeSharedDofs(state);
-      return error(field, *coeff_func);
+      return calcLpError(field, *coeff_func, 2);
    }
    auto *coeff = std::any_cast<mfem::Coefficient *>(&ex_sol);
    if (coeff != nullptr)
    {
       auto &field = fields.at(name);
       field.distributeSharedDofs(state);
-      return error(field, **coeff);
+      return calcLpError(field, **coeff, 2);
    }
    auto *vec_coeff_func =
        std::any_cast<std::function<void(const mfem::Vector &, mfem::Vector &)>>(
@@ -371,14 +371,14 @@ double PDESolver::calcStateError_(std::any ex_sol,
    {
       auto &field = fields.at(name);
       field.distributeSharedDofs(state);
-      return error(field, *vec_coeff_func);
+      return calcLpError(field, *vec_coeff_func, 2);
    }
    auto *vec_coeff = std::any_cast<mfem::VectorCoefficient *>(&ex_sol);
    if (vec_coeff != nullptr)
    {
       auto &field = fields.at(name);
       field.distributeSharedDofs(state);
-      return error(field, **vec_coeff);
+      return calcLpError(field, **vec_coeff, 2);
    }
    return NAN;
 }

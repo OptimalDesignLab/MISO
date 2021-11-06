@@ -109,39 +109,60 @@ public:
 /// \param[in] state - The state variable to compute a norm of
 /// \param[in] p - Order of the norm
 /// \return The norm value
-double norm(const FiniteElementState &state, double p = 2);
+double calcLpNorm(const FiniteElementState &state, double p = 2);
+
+/// \brief Calculate the L2 error of a finite element state
+/// \param[in] state - The state variable to compute a error of
+/// \param[in] ex_sol - Coefficient describing the exact solution
+/// \return The error value
+double calcL2Error(const FiniteElementState &state, mfem::Coefficient &ex_sol);
+
+/// \brief Calculate the L2 error of a finite element state
+/// \param[in] state - The state variable to compute a error of
+/// \param[in] ex_sol - Coefficient describing the exact solution
+/// \param[in] entry - if >= 0, the Lp error of state `entry` is returned
+/// \return The error value
+double calcL2Error(const FiniteElementState &state,
+                   mfem::VectorCoefficient &ex_sol,
+                   const int entry);
 
 /// \brief Calculate the Lp error of a finite element state
 /// \param[in] state - The state variable to compute a error of
 /// \param[in] ex_sol - Coefficient describing the exact solution
 /// \param[in] p - Order of the norm
 /// \return The error value
-double error(const FiniteElementState &state,
-             mfem::Coefficient &ex_sol,
-             double p = 2);
-/// \overload
-double error(const FiniteElementState &state,
-             mfem::VectorCoefficient &ex_sol,
-             int entry = -1,
-             double p = 2);
-
-inline double error(const FiniteElementState &state,
-                    std::function<double(const mfem::Vector &)> ex_sol,
-                    double p = 2)
+double calcLpError(const FiniteElementState &state,
+                   mfem::Coefficient &exsol,
+                   const double p = 2);
+///\overload
+inline double calcLpError(const FiniteElementState &state,
+                          std::function<double(const mfem::Vector &)> ex_sol,
+                          double p = 2)
 {
    mfem::FunctionCoefficient coeff(std::move(ex_sol));
-   return error(state, coeff, p);
+   return calcLpError(state, coeff, p);
 }
+
+/// \brief Calculate the Lp error of a finite element state
+/// \param[in] state - The state variable to compute a error of
+/// \param[in] ex_sol - Coefficient describing the exact solution
+/// \param[in] p - Order of the norm
+/// \param[in] entry - if >= 0, the Lp error of state `entry` is returned
+/// \return The error value
+double calcLpError(const FiniteElementState &state,
+                   mfem::VectorCoefficient &ex_sol,
+                   const double p = 2,
+                   const int entry = -1);
 /// \overload
-inline double error(
+inline double calcLpError(
     const FiniteElementState &state,
     std::function<void(const mfem::Vector &, mfem::Vector &)> ex_sol,
-    int entry = -1,
-    double p = 2)
+    double p = 2,
+    int entry = -1)
 {
    int vdim = state.gridFunc().VectorDim();
    mfem::VectorFunctionCoefficient coeff(vdim, std::move(ex_sol));
-   return error(state, coeff, p);
+   return calcLpError(state, coeff, p, entry);
 }
 
 }  // namespace mach

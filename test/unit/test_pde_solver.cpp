@@ -276,7 +276,7 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
    ThermalSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
    mfem::Vector state_tv(solver.getStateSize());
 
-   FunctionCoefficient init_state([](const mfem::Vector &p, double t)
+   FunctionCoefficient init_state([](const mfem::Vector &p)
    {
       auto x = p(0);
       auto y = p(1);
@@ -296,42 +296,20 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
    std::cout << "final res norm: " << res_norm << "\n";
 
    // Check that solution is reasonable accurate
-   auto &state = solver.getState();
-   state.distributeSharedDofs(state_tv);
-   auto tfinal = options["time-dis"]["t-final"].get<double>();
-   FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
+   // auto &state = solver.getState();
+   // state.distributeSharedDofs(state_tv);
+   // auto tfinal = options["time-dis"]["t-final"].get<double>();
+   FunctionCoefficient exact_sol([](const mfem::Vector &p)
    {
       auto x = p(0);
       return pow(x, 2);
    });
-   auto error = state.gridFunc().ComputeLpError(2, exact_sol);
-   auto error2 = state.gridFunc().ComputeL2Error(exact_sol);
 
-   auto err = solver.calcStateError(exact_sol, state_tv);
-
-   auto &mesh = state.mesh();
-   auto fec = std::make_unique<mfem::SBPCollection>(1, 2);
-   FiniteElementState sbp_state(mesh, {.coll = std::move(fec)});
-
-   auto sol_gf_coeff = state.gridFuncCoef();
-   mfem::Vector sbp_state_tv(sbp_state.space().GetTrueVSize());
-   sbp_state.project(sol_gf_coeff, sbp_state_tv);
-   auto sbp_error = mach::error(sbp_state, exact_sol);
-
-   ParaViewLogger pv("thermal_sbp", &mesh);
-   pv.registerField("sbp", sbp_state.gridFunc());
-   pv.saveState(sbp_state_tv, "sbp", 0, 0, 0);
-
-   ParaViewLogger pvh1("thermal_h1", &mesh);
-   pvh1.registerField("h1", state.gridFunc());
-   pvh1.saveState(state_tv, "h1", 0, 0, 0);
+   auto error = solver.calcStateError(exact_sol, state_tv);
 
    if (verbose)
    {
-      std::cout << "terminal solution error = " << error << std::endl;
-      std::cout << "terminal solution error = " << error2 << std::endl;
-      std::cout << "terminal solution error = " << err << std::endl;
-      std::cout << "terminal solution error = " << sbp_error << std::endl;
+      std::cout << "H1 L2 solution error = " << error << std::endl;
    }
    REQUIRE(error == Approx(0.353809).margin(1e-8));
 }
