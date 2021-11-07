@@ -239,7 +239,7 @@ auto useAny(std::any &any, T lambda, Ts... rest) ->
    /// Then we try to cast the any to that argument type
    auto *concrete = std::any_cast<arg_t>(&any);
 
-   /// If the cast succeeds, we call the lambda with that argument 
+   /// If the cast succeeds, we call the lambda with that argument
    if (concrete != nullptr)
    {
       return lambda(*concrete);
