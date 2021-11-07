@@ -228,7 +228,10 @@ auto useAny(std::any &any, T t, Ts... rest) ->
       return useAny(any, rest...);
    }
 
-   if constexpr (std::is_same_v<typename detail::function<T>::return_t, double>)
+   using return_t = decltype(useAny(any, t));
+   // if constexpr (std::is_same_v<typename detail::function<T>::return_t,
+   // double>)
+   if constexpr (std::is_same_v<return_t, double>)
    {
       return NAN;
    }
