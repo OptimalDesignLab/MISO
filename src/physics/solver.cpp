@@ -168,7 +168,11 @@ void AbstractSolver::initDerived()
    {
       fec.reset(new SBPCollection(fe_order, dim));
    }
-   else if (basis_type == "dsbp" || galerkin_diff)
+   else if (basis_type == "dg")
+   {
+      fec.reset(new DG_FECollection(fe_order, dim));
+   }
+   else if (basis_type == "dsbp")
    {
       fec.reset(new DSBPCollection(fe_order, dim));
    }
@@ -179,6 +183,12 @@ void AbstractSolver::initDerived()
    else if (basis_type == "H1")
    {
       fec.reset(new H1_FECollection(fe_order, dim));
+   }
+   else
+   {
+      throw MachException(
+         "Unknown basis type " +
+          options["space-dis"]["basis-type"].template get<string>());
    }
 
    // define the number of states, the fes, and the state grid function
@@ -1117,7 +1127,6 @@ void AbstractSolver::solveForState(ParGridFunction &state)
    state.GetTrueVector().SetDataAndSize(state_true.GetData(),
                                         state_true.Size());
    state.SetTrueVector();
-
    if (options["steady"].get<bool>())
    {
       solveSteady(state);
@@ -1497,7 +1506,6 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    double t = 0.0;
    evolver->SetTime(t);
    ode_solver->Init(*evolver);
-
    // output the mesh and initial condition
    // TODO: need to swtich to vtk for SBP
    int precision = 8;
@@ -1509,7 +1517,6 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       osol.precision(precision);
       state.Save(osol);
    }
-
    /// TODO: put this in options
    // bool paraview = !options["time-dis"]["steady"].get<bool>();
    bool paraview = true;
@@ -1526,7 +1533,6 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       pd->SetTime(t);
       pd->Save();
    }
-
    std::cout.precision(16);
    std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
@@ -1548,7 +1554,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
          *out << " (" << round(100 * t / t_final) << "% complete)";
       }
       *out << endl;
-      iterationHook(ti, t, dt, state);
+      // iterationHook(ti, t, dt, state);
       auto &u_true = state.GetTrueVector();
       ode_solver->Step(u_true, t, dt);
       state.SetFromTrueDofs(u_true);
@@ -1571,8 +1577,8 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       osol.precision(std::numeric_limits<long double>::digits10 + 1);
       state.Save(osol);
    }
-   terminalHook(ti, t, state);
-
+   // terminalHook(ti, t, state);
+   // std::cout << "after terminalHook " << std::endl;
    // Save the final solution. This output can be viewed later using GLVis:
    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
    {
@@ -1594,6 +1600,18 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
       printField("final", state, "Solution");
    }
    else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
+   {
+      ofstream sol_ofs("final_dg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs,
+                     options["space-dis"]["degree"].template get<int>() + 1);
+      state.SaveVTK(sol_ofs,
+                    "Solution",
+                    options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      printField("final", state, "Solution");
+   }
+   else if (options["space-dis"]["basis-type"].template get<string>() == "dg")
    {
       ofstream sol_ofs("final_dg.vtk");
       sol_ofs.precision(14);
@@ -1792,6 +1810,9 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    else if (prec_type == "blockilu")
    {
       precond.reset(new BlockILU(getNumState()));
+      // int block_size = fes->GetFE(0)->GetDof();
+      // precond.reset(new BlockILU(block_size,
+      //                            BlockILU::Reordering::MINIMUM_DISCARDED_FILL));
    }
    else
    {

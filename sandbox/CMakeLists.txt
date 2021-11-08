@@ -15,10 +15,12 @@ endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
    steady_vortex
+   steady_vortex_dg
    steady_vortex_adjoint
    unsteady_vortex
    viscous_shock
    airfoil_steady
+   airfoil_steady_dg
    airfoil_chaotic
    # magnetostatic_box
    magnetostatic_motor

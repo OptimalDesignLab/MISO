@@ -26,6 +26,7 @@ set(FLUID_TEST_SRCS
    test_euler_fluxes 
    test_euler_integ
    test_euler_assemble
+   test_euler_assemble_dg
    test_euler_sens_integ
    test_evolver
    test_inexact_newton

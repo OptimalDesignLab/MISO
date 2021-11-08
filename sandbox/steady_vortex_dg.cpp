@@ -7,7 +7,7 @@ constexpr bool entvar = false;
 #include "adept.h"
 
 #include "mfem.hpp"
-#include "euler.hpp"
+#include "euler_dg.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -39,7 +39,7 @@ Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang);
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "steady_vortex_options.json";
+   const char *options_file = "steady_vortex_dg_options.json";
 #ifdef MFEM_USE_PETSC
    const char *petscrc_file = "eulersteady.petsc";
    // Get the option file
@@ -91,34 +91,33 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh(new Mesh(buildQuarterAnnulusMesh(degree, nx, ny)));
       *out << "Number of elements " << smesh->GetNE() <<'\n';
-      ofstream sol_ofs("steady_vortex_mesh.vtk");
+      ofstream sol_ofs("steady_vortex_mesh_dg.vtk");
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,0);
 
       // construct the solver and set initial conditions
-      auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
+      auto solver = createSolver<EulerDGSolver<2, entvar>>(opt_file_name,
                                                          move(smesh));
       solver->setInitialCondition(uexact);
-      solver->printSolution("euler_init", 0);
+      solver->printSolution("vortex_dg_init", 0);
 
       // get the initial density error
-      double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+      double l2_error = (static_cast<EulerDGSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("euler_final",0);
+      solver->printSolution("vortex_dg_final",0);
       // get the final density error
-      l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+      l2_error = (static_cast<EulerDGSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
       auto drag_opts = R"({ "boundaries": [0, 0, 0, 1]})"_json;
       solver->createOutput("drag", drag_opts);
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
       // double entropy = solver->calcOutput("entropy");
-
       out->precision(15);
       *out << "\nfinal residual norm = " << res_error;
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;

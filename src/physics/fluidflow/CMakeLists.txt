@@ -32,3 +32,6 @@ target_include_directories(mach
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
+add_subdirectory(dg)
+
+
