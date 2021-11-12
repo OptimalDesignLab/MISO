@@ -59,6 +59,10 @@ int main(int argc, char *argv[])
       solver->printSolution("airfoil-steady-final");
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
+      auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
+      solver->createOutput("drag", drag_opts);
+      double drag = abs(solver->calcOutput("drag"));
+      mfem::out << "\nDrag error = " << drag << endl;
    }
    catch (MachException &exception)
    {
