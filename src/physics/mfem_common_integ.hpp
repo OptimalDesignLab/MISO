@@ -66,7 +66,8 @@ class IECurlMagnitudeAggregateIntegratorDenominator
  : public mfem::NonlinearFormIntegrator
 {
 public:
-   IECurlMagnitudeAggregateIntegratorDenominator(const double rho) : rho(rho) { }
+   IECurlMagnitudeAggregateIntegratorDenominator(const double rho)
+    : rho(rho) { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
