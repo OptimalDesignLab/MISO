@@ -18,13 +18,22 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
       if (input.isField())
       {
          const auto &name = in.first;
-         auto &field = output.func_fields->at(name);
-         field.GetTrueVector().SetDataAndSize(
-             input.getField(), field.ParFESpace()->GetTrueVSize());
-         field.SetFromTrueVector();
+         auto it = output.func_fields->find(name);
+         if (it != output.func_fields->end())
+         {
+            auto &field = it->second;
+            field.GetTrueVector().SetDataAndSize(
+                input.getField(), field.ParFESpace()->GetTrueVSize());
+            field.SetFromTrueVector();
+         }
       }
    }
    setInputs(output.integs, inputs);
+}
+
+void setOptions(FunctionalOutput &output, const nlohmann::json &options)
+{
+   setOptions(output.integs, options);
 }
 
 double calcOutput(FunctionalOutput &output, const MachInputs &inputs)

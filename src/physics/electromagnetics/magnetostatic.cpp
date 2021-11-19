@@ -775,8 +775,8 @@ void MagnetostaticSolver::solveUnsteady(ParGridFunction &state)
 // state.ProjectBdrCoefficientTangent(*bc_coef, ess_bdr);
 // }
 
-void MagnetostaticSolver::addOutputs(const std::string &fun,
-                                     const nlohmann::json &options)
+void MagnetostaticSolver::addOutput(const std::string &fun,
+                                    const nlohmann::json &options)
 {
    if (fun == "energy")
    {
@@ -833,6 +833,9 @@ std::vector<GridFunType *> MagnetostaticSolver::getFields()
 
 void MagnetostaticSolver::constructForms()
 {
+   MagnetostaticResidual mres(
+       *fes, res_fields, *current_coeff, *mag_coeff, *nu);
+   new_res.reset(new MachResidual(std::move(mres)));
    // mass.reset(new BilinearFormType(fes.get()));
    res.reset(new NonlinearFormType(fes.get()));
    magnetostatic_load.reset(
@@ -2675,6 +2678,12 @@ void setInputs(MagnetostaticLoad &load, const MachInputs &inputs)
    setInputs(load.magnetic_load, inputs);
 }
 
+void setOptions(MagnetostaticLoad &load, const nlohmann::json &options)
+{
+   setOptions(load.current_load, options);
+   setOptions(load.magnetic_load, options);
+}
+
 void addLoad(MagnetostaticLoad &load, mfem::Vector &tv)
 {
    addLoad(load.current_load, tv);
@@ -2698,6 +2707,39 @@ void vectorJacobianProduct(MagnetostaticLoad &load,
 {
    vectorJacobianProduct(load.current_load, res_bar, wrt, wrt_bar);
    vectorJacobianProduct(load.magnetic_load, res_bar, wrt, wrt_bar);
+}
+
+int getSize(const MagnetostaticResidual &residual)
+{
+   return getSize(residual.nlf);
+}
+
+void setInputs(MagnetostaticResidual &residual, const MachInputs &inputs)
+{
+   setInputs(residual.nlf, inputs);
+   setInputs(*residual.load, inputs);
+}
+
+void setOptions(MagnetostaticResidual &residual, const nlohmann::json &options)
+{
+   setOptions(residual.nlf, options);
+   setOptions(*residual.load, options);
+}
+
+void evaluate(MagnetostaticResidual &residual,
+              const MachInputs &inputs,
+              mfem::Vector &res_vec)
+{
+   evaluate(residual.nlf, inputs, res_vec);
+   setInputs(*residual.load, inputs);
+   addLoad(*residual.load, res_vec);
+}
+
+mfem::Operator &getJacobian(MagnetostaticResidual &residual,
+                            const MachInputs &inputs,
+                            std::string wrt)
+{
+   return getJacobian(residual.nlf, inputs, std::move(wrt));
 }
 
 }  // namespace mach

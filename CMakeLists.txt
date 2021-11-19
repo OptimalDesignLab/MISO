@@ -143,7 +143,7 @@ endif (MFEM_USE_EGADS)
 
 target_compile_features(mach
    PUBLIC
-      cxx_std_11
+      cxx_std_17
 )
 
 set_target_properties(mach
@@ -275,7 +275,7 @@ if (BUILD_PYTHON_WRAPPER)
 
    target_compile_features(pyMach
    PUBLIC
-      cxx_std_11
+      cxx_std_17
    )
 
    if (MACH_USE_CLANG_TIDY)

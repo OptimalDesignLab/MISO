@@ -176,8 +176,8 @@ void NavierStokesSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void NavierStokesSolver<dim, entvar>::addOutputs(const std::string &fun,
-                                                 const nlohmann::json &options)
+void NavierStokesSolver<dim, entvar>::addOutput(const std::string &fun,
+                                                const nlohmann::json &options)
 {
    auto mu = this->options["flow-param"]["mu"].template get<double>();
    Vector q_ref(dim + 2);
