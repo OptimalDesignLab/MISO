@@ -5,9 +5,9 @@
 
 #include "mfem_common_integ.hpp"
 #include "common_outputs.hpp"
+
 namespace mach
 {
-
 IEAggregateFunctional::IEAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
     std::unordered_map<std::string, mfem::ParGridFunction> &fields,
