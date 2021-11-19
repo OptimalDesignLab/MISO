@@ -45,7 +45,7 @@ public:
    /// this output, and adds a reference to it to in integs as a MachIntegrator
    /// \param[in] integrator - integrator to add to functional
    /// \param[in] bdr_attr_marker - lists element attributes this integrator
-   /// should be used on 
+   /// should be used on
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
    void addOutputDomainIntegrator(T *integrator,
@@ -71,7 +71,7 @@ public:
    /// MachIntegrator
    /// \param[in] integrator - integrator to add to functional
    /// \param[in] bdr_attr_marker - lists boundary attributes this integrator
-   /// should be used on 
+   /// should be used on
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
    void addOutputBdrFaceIntegrator(T *integrator,
@@ -117,8 +117,8 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 
 template <typename T>
 void FunctionalOutput::addOutputDomainIntegrator(
-   T *integrator,
-   std::vector<int> bdr_attr_marker)
+    T *integrator,
+    std::vector<int> bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
    auto &marker = domain_markers.emplace_back(bdr_attr_marker.size());
@@ -138,8 +138,7 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
 }
 
 template <typename T>
-void FunctionalOutput::addOutputBdrFaceIntegrator(
-    T *integrator)
+void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddBdrFaceIntegrator(integrator);
