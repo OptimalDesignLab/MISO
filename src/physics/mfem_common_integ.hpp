@@ -9,6 +9,77 @@ using namespace mfem;
 
 namespace mach
 {
+
+class IEAggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
+{
+public:
+   IEAggregateIntegratorNumerator(const double rho) : rho(rho) { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// aggregation parameter rho
+   double rho;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+};
+
+class IEAggregateIntegratorDenominator : public mfem::NonlinearFormIntegrator
+{
+public:
+   IEAggregateIntegratorDenominator(const double rho) : rho(rho) { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// aggregation parameter rho
+   double rho;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+};
+
+class IECurlMagnitudeAggregateIntegratorNumerator
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   IECurlMagnitudeAggregateIntegratorNumerator(const double rho) : rho(rho) { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// aggregation parameter rho
+   double rho;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt;
+#endif
+};
+
+class IECurlMagnitudeAggregateIntegratorDenominator
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   IECurlMagnitudeAggregateIntegratorDenominator(const double rho) : rho(rho) { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// aggregation parameter rho
+   double rho;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt;
+#endif
+};
+
 class DiffusionIntegratorMeshSens final : public mfem::LinearFormIntegrator
 {
 public:
@@ -34,7 +105,7 @@ private:
    /// the adjoint to use when evaluating d(psi^T D u)/dX
    const mfem::GridFunction *adjoint{nullptr};
 #ifndef MFEM_THREAD_SAFE
-   DenseMatrix dshape, dshapedxt;
+   mfem::DenseMatrix dshape, dshapedxt;
    mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
    mfem::Array<int> vdofs;
    mfem::Vector elfun, psi;

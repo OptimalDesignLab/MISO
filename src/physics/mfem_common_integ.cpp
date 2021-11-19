@@ -8,6 +8,152 @@ using namespace mfem;
 
 namespace mach
 {
+
+double IEAggregateIntegratorNumerator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape(elfun.Size());
+#else
+   shape.SetSize(elfun.Size());
+#endif
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      el.CalcShape(ip, shape);
+      double g = shape * elfun;
+      fun += ip.weight * trans.Weight() * g * exp(rho * g);
+   }
+   return fun;
+}
+
+double IEAggregateIntegratorDenominator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape(elfun.Size());
+#else
+   shape.SetSize(elfun.Size());
+#endif
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      el.CalcShape(ip, shape);
+      double g = shape * elfun;
+      fun += ip.weight * trans.Weight() * exp(rho * g);
+   }
+   return fun;
+}
+
+double IECurlMagnitudeAggregateIntegratorNumerator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape(ndof, dimc);
+   mfem::DenseMatrix curlshape_dFt(ndof, dimc);
+#else
+   curlshape.SetSize(ndof, dimc);
+   curlshape_dFt.SetSize(ndof, dimc);
+#endif
+
+   double curl_vec_buffer[3];
+   Vector curl_vec(curl_vec_buffer, dimc);
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      curl_vec = 0.0;
+
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      if (dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+      curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+      const double curl_vec_norm = curl_vec.Norml2();
+      const double curl_mag = curl_vec_norm / trans.Weight();
+
+      fun += ip.weight * trans.Weight() * curl_mag * exp(rho * curl_mag);
+   }
+   return fun;
+}
+
+double IECurlMagnitudeAggregateIntegratorDenominator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape(ndof, dimc);
+   mfem::DenseMatrix curlshape_dFt(ndof, dimc);
+#else
+   curlshape.SetSize(ndof, dimc);
+   curlshape_dFt.SetSize(ndof, dimc);
+#endif
+
+   double curl_vec_buffer[3];
+   Vector curl_vec(curl_vec_buffer, dimc);
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      curl_vec = 0.0;
+
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      if (dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+      curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+      const double curl_vec_norm = curl_vec.Norml2();
+      const double curl_mag = curl_vec_norm / trans.Weight();
+
+      fun += ip.weight * trans.Weight() * exp(rho * curl_mag);
+   }
+   return fun;
+}
+
 void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
     const mfem::FiniteElement &mesh_el,
     mfem::ElementTransformation &mesh_trans,

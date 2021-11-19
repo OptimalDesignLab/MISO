@@ -11,7 +11,7 @@ auto options = R"(
 {
    "space-dis": {
       "basis-type": "nedelec",
-      "degree": 4
+      "degree": 1
    },
    "components": {
       "winding": {

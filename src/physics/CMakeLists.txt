@@ -1,5 +1,7 @@
 target_sources(mach
    PRIVATE
+      common_outputs.cpp
+      common_outputs.hpp
       diag_mass_integ.cpp
       diag_mass_integ.hpp
       mach_input.cpp

@@ -1051,14 +1051,15 @@ inline void addSensitivityIntegrator<ForceIntegrator>(
 }
 
 // /** Class for constructing the (local) discrete curl matrix which can be used
-//     as an integrator in a DiscreteLinearOperator object to assemble the global
-//     discrete curl matrix. */
+//     as an integrator in a DiscreteLinearOperator object to assemble the
+//     global discrete curl matrix. */
 // class CurlInterpolator : public mfem::DiscreteInterpolator
 // {
 // public:
 //    /// Construct the element local residual
 //    /// \param[in] nd_el - the ND finite element used to take the curl
-//    /// \param[in] rt_el - the RT finite element used to represent the curl field
+//    /// \param[in] rt_el - the RT finite element used to represent the curl
+//    field
 //    /// \param[in] trans - defines the reference to physical element mapping
 //    /// \param[out] elmat - local discrete curl matrix
 //    void AssembleElementMatrix2(const FiniteElement &nd_fe,
