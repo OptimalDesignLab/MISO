@@ -5,11 +5,8 @@
 
 #include "mach_integrator.hpp"
 
-using namespace mfem;
-
 namespace mach
 {
-
 class IEAggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
 {
 public:
@@ -114,8 +111,8 @@ private:
 };
 
 template <>
-inline void addSensitivityIntegrator<DiffusionIntegrator>(
-    DiffusionIntegrator &primal_integ,
+inline void addSensitivityIntegrator<mfem::DiffusionIntegrator>(
+    mfem::DiffusionIntegrator &primal_integ,
     std::unordered_map<std::string, mfem::ParGridFunction> &fields,
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
@@ -159,8 +156,8 @@ private:
 };
 
 template <>
-inline void addSensitivityIntegrator<VectorFEWeakDivergenceIntegrator>(
-    VectorFEWeakDivergenceIntegrator &primal_integ,
+inline void addSensitivityIntegrator<mfem::VectorFEWeakDivergenceIntegrator>(
+    mfem::VectorFEWeakDivergenceIntegrator &primal_integ,
     std::unordered_map<std::string, mfem::ParGridFunction> &fields,
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
@@ -254,8 +251,8 @@ private:
 };
 
 template <>
-inline void addSensitivityIntegrator<VectorFEMassIntegrator>(
-    VectorFEMassIntegrator &primal_integ,
+inline void addSensitivityIntegrator<mfem::VectorFEMassIntegrator>(
+    mfem::VectorFEMassIntegrator &primal_integ,
     std::unordered_map<std::string, mfem::ParGridFunction> &fields,
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
@@ -325,9 +322,9 @@ public:
     : mfem::VectorFEDomainLFCurlIntegrator(V), F(V), alpha(alpha)
    { }
 
-   inline void AssembleRHSElementVect(const FiniteElement &el,
-                                      ElementTransformation &trans,
-                                      Vector &elvect) override
+   inline void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                                      mfem::ElementTransformation &trans,
+                                      mfem::Vector &elvect) override
    {
       mfem::VectorFEDomainLFCurlIntegrator::AssembleRHSElementVect(
           el, trans, elvect);
@@ -494,21 +491,24 @@ private:
 /// for a DomainLFIntegrator (lininteg)
 class DomainResIntegrator : public mfem::NonlinearFormIntegrator
 {
-   Vector shape;
-   Coefficient &Q;
+   mfem::Vector shape;
+   mfem::Coefficient &Q;
    int oa, ob;
-   GridFunction *adjoint;
+   mfem::GridFunction *adjoint;
 
 public:
    /// Constructs a domain integrator with a given Coefficient
-   DomainResIntegrator(Coefficient &QF, GridFunction *adj, int a = 2, int b = 0)
+   DomainResIntegrator(mfem::Coefficient &QF,
+                       mfem::GridFunction *adj,
+                       int a = 2,
+                       int b = 0)
     : Q(QF), oa(a), ob(b), adjoint(adj)
    { }
 
    /// Constructs a domain integrator with a given Coefficient
-   DomainResIntegrator(Coefficient &QF,
-                       GridFunction *adj,
-                       const IntegrationRule *ir)
+   DomainResIntegrator(mfem::Coefficient &QF,
+                       mfem::GridFunction *adj,
+                       const mfem::IntegrationRule *ir)
     : Q(QF), oa(1), ob(1), adjoint(adj)
    { }
 
@@ -518,26 +518,26 @@ public:
    //                                    const Vector &elfunx);
 
    /// Computes dR/dX, X being mesh node locations
-   void AssembleElementVector(const FiniteElement &elx,
-                              ElementTransformation &Trx,
-                              const Vector &elfunx,
-                              Vector &elvect) override;
+   void AssembleElementVector(const mfem::FiniteElement &elx,
+                              mfem::ElementTransformation &Trx,
+                              const mfem::Vector &elfunx,
+                              mfem::Vector &elvect) override;
 
    /// Computes R at an integration point
    double calcFunctional(int elno,
-                         const IntegrationPoint &ip,
-                         Vector &x_q,
-                         ElementTransformation &Tr,
-                         DenseMatrix &Jac_q);
+                         const mfem::IntegrationPoint &ip,
+                         mfem::Vector &x_q,
+                         mfem::ElementTransformation &Tr,
+                         mfem::DenseMatrix &Jac_q);
 
    /// Computes dR/dX at an integration point using reverse mode
    static double calcFunctionalRevDiff(int elno,
-                                       IntegrationPoint &ip,
-                                       Vector &x_q,
-                                       ElementTransformation &Tr,
-                                       DenseMatrix &Jac_q,
-                                       Vector &x_bar,
-                                       DenseMatrix &Jac_bar)
+                                       mfem::IntegrationPoint &ip,
+                                       mfem::Vector &x_q,
+                                       mfem::ElementTransformation &Tr,
+                                       mfem::DenseMatrix &Jac_q,
+                                       mfem::Vector &x_bar,
+                                       mfem::DenseMatrix &Jac_bar)
    {
       return 0.0;
    }
@@ -548,24 +548,24 @@ public:
 class MassResIntegrator : public mfem::NonlinearFormIntegrator
 {
 protected:
-   Vector shape;
-   Coefficient *Q;
-   GridFunction *state;
-   GridFunction *adjoint;
+   mfem::Vector shape;
+   mfem::Coefficient *Q;
+   mfem::GridFunction *state;
+   mfem::GridFunction *adjoint;
 
 public:
    /// Constructs a domain integrator with a given Coefficient
-   MassResIntegrator(GridFunction *u,
-                     GridFunction *adj,
-                     const IntegrationRule *ir = nullptr)
+   MassResIntegrator(mfem::GridFunction *u,
+                     mfem::GridFunction *adj,
+                     const mfem::IntegrationRule *ir = nullptr)
     : Q(nullptr), state(u), adjoint(adj)
    { }
 
    /// Constructs a domain integrator with a given Coefficient
-   MassResIntegrator(Coefficient &QF,
-                     GridFunction *u,
-                     GridFunction *adj,
-                     const IntegrationRule *ir = nullptr)
+   MassResIntegrator(mfem::Coefficient &QF,
+                     mfem::GridFunction *u,
+                     mfem::GridFunction *adj,
+                     const mfem::IntegrationRule *ir = nullptr)
     : Q(&QF), state(u), adjoint(adj)
    { }
 
@@ -575,26 +575,26 @@ public:
    //                                    const Vector &elfun);
 
    /// Computes dR/dX, X being mesh node locations
-   void AssembleElementVector(const FiniteElement &elx,
-                              ElementTransformation &Trx,
-                              const Vector &elfunx,
-                              Vector &elvect) override;
+   void AssembleElementVector(const mfem::FiniteElement &elx,
+                              mfem::ElementTransformation &Trx,
+                              const mfem::Vector &elfunx,
+                              mfem::Vector &elvect) override;
 
    /// Computes R at an integration point
    double calcFunctional(int elno,
-                         IntegrationPoint &ip,
-                         Vector &x_q,
-                         ElementTransformation &Tr,
-                         DenseMatrix &Jac_q);
+                         mfem::IntegrationPoint &ip,
+                         mfem::Vector &x_q,
+                         mfem::ElementTransformation &Tr,
+                         mfem::DenseMatrix &Jac_q);
 
    /// Computes dR/dX at an integration point using reverse mode
    static double calcFunctionalRevDiff(int elno,
-                                       IntegrationPoint &ip,
-                                       Vector &x_q,
-                                       ElementTransformation &Tr,
-                                       DenseMatrix &Jac_q,
-                                       Vector &x_bar,
-                                       DenseMatrix &Jac_bar)
+                                       mfem::IntegrationPoint &ip,
+                                       mfem::Vector &x_q,
+                                       mfem::ElementTransformation &Tr,
+                                       mfem::DenseMatrix &Jac_q,
+                                       mfem::Vector &x_bar,
+                                       mfem::DenseMatrix &Jac_bar)
    {
       return 0.0;
    }
@@ -607,18 +607,18 @@ class DiffusionResIntegrator : public mfem::NonlinearFormIntegrator,
                                public mfem::LinearFormIntegrator
 {
 protected:
-   Vector shape;
-   DenseMatrix dshape;
-   Coefficient *Q;
-   GridFunction *state;
-   GridFunction *adjoint;
+   mfem::Vector shape;
+   mfem::DenseMatrix dshape;
+   mfem::Coefficient *Q;
+   mfem::GridFunction *state;
+   mfem::GridFunction *adjoint;
 
 public:
    /// Constructs a domain integrator with a given Coefficient
-   DiffusionResIntegrator(Coefficient &QF,
-                          GridFunction *u,
-                          GridFunction *adj,
-                          const IntegrationRule *ir = nullptr)
+   DiffusionResIntegrator(mfem::Coefficient &QF,
+                          mfem::GridFunction *u,
+                          mfem::GridFunction *adj,
+                          const mfem::IntegrationRule *ir = nullptr)
     : Q(&QF), state(u), adjoint(adj)
    { }
 
@@ -628,10 +628,10 @@ public:
    //                                    const Vector &elfun);
 
    /// Computes dR/dX, X being mesh node locations
-   void AssembleElementVector(const FiniteElement &elx,
-                              ElementTransformation &Trx,
-                              const Vector &elfunx,
-                              Vector &elvect) override;
+   void AssembleElementVector(const mfem::FiniteElement &elx,
+                              mfem::ElementTransformation &Trx,
+                              const mfem::Vector &elfunx,
+                              mfem::Vector &elvect) override;
 
    /// Computes dR/dX, X being mesh node locations
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
@@ -644,32 +644,32 @@ public:
 /// NOTE: Add using AddBdrFaceIntegrator
 class BoundaryNormalResIntegrator : public mfem::LinearFormIntegrator
 {
-   Vector shape;
-   VectorCoefficient &Q;
+   mfem::Vector shape;
+   mfem::VectorCoefficient &Q;
    int oa, ob;
-   GridFunction *state;
-   GridFunction *adjoint;
+   mfem::GridFunction *state;
+   mfem::GridFunction *adjoint;
 
 public:
    /// Constructs a boundary integrator with a given Coefficient
-   BoundaryNormalResIntegrator(VectorCoefficient &QF,
-                               GridFunction *u,
-                               GridFunction *adj,
+   BoundaryNormalResIntegrator(mfem::VectorCoefficient &QF,
+                               mfem::GridFunction *u,
+                               mfem::GridFunction *adj,
                                int a = 2,
                                int b = 0)
     : Q(QF), oa(a), ob(b), state(u), adjoint(adj)
    { }
 
    /// Computes dR/dX, X being mesh node locations (DO NOT USE)
-   void AssembleRHSElementVect(const FiniteElement &elx,
-                               ElementTransformation &Trx,
-                               Vector &elvect) override
+   void AssembleRHSElementVect(const mfem::FiniteElement &elx,
+                               mfem::ElementTransformation &Trx,
+                               mfem::Vector &elvect) override
    { }
 
    /// Computes dR/dX, X being mesh node locations
-   void AssembleRHSElementVect(const FiniteElement &elx,
-                               FaceElementTransformations &Trx,
-                               Vector &elvect) override;
+   void AssembleRHSElementVect(const mfem::FiniteElement &elx,
+                               mfem::FaceElementTransformations &Trx,
+                               mfem::Vector &elvect) override;
 };
 
 }  // namespace mach
