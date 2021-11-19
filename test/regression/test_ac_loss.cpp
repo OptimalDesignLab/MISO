@@ -28,7 +28,7 @@ auto options = R"(
 /// \param[in] b0 - width of conducting slot opening
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] A - magnetic vector potential
-void aexact(double h, double b, double b0, double N, double Ipk,const Vector &x, Vector &A);
+void aexact(double h, double b, double b0, double N, double Ipk, const mfem::Vector &x, mfem::Vector &A);
 
 TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
 {
@@ -43,7 +43,7 @@ TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
    
    std::unique_ptr<mfem::Mesh> mesh( new mfem::Mesh(
       mfem::Mesh::MakeCartesian3D(32, 64, 1,
-                                  Element::TETRAHEDRON,
+                                  mfem::Element::TETRAHEDRON,
                                   b, h, 0.001, true)));
       // mfem::Mesh::MakeCartesian2D(16, 32,
       //                             Element::TRIANGLE, true,
@@ -53,7 +53,7 @@ TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
    auto em_solver = dynamic_cast<MagnetostaticSolver*>(solver.get());
 
    auto state = solver->getNewField();
-   solver->setFieldValue(*state, [&](const Vector &X, Vector &A)
+   solver->setFieldValue(*state, [&](const mfem::Vector &X, mfem::Vector &A)
    {
       aexact(h, b, b0, N, Ipk, X, A);
    });
@@ -117,8 +117,8 @@ void aexact(double h,
             double b0,
             double N,
             double Ipk,
-            const Vector &X,
-            Vector &A)
+            const mfem::Vector &X,
+            mfem::Vector &A)
 {
    double mu0 = 4*M_PI * 1e-7;
 
