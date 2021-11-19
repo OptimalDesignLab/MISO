@@ -8,7 +8,6 @@ using namespace mfem;
 
 namespace mach
 {
-
 double IEAggregateIntegratorNumerator::GetElementEnergy(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
