@@ -12,6 +12,8 @@ target_sources(mach
       fluidflow.hpp
       galer_diff.cpp
       galer_diff.hpp
+      gd.cpp
+      gd.hpp
       inviscid_integ_def.hpp
       inviscid_integ.hpp
       mesh_sens_integ.hpp
@@ -23,6 +25,8 @@ target_sources(mach
       navier_stokes_integ.hpp
       navier_stokes.cpp
       navier_stokes.hpp
+      pcentgridfunc.cpp
+      pcentgridfunc.hpp
       viscous_integ_def.hpp
       viscous_integ.hpp
 )

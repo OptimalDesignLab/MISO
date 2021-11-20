@@ -160,7 +160,7 @@ void AbstractSolver::initDerived()
    int fe_order = options["space-dis"]["degree"].template get<int>();
    std::string basis_type =
        options["space-dis"]["basis-type"].template get<string>();
-   bool galerkin_diff = options["space-dis"].value("GD", false);
+   gd = options["space-dis"].value("GD", false);
    // Define the SBP elements and finite-element space; eventually, we will want
    // to have a case or if statement here for both CSBP and DSBP, and (?)
    // standard FEM. and here it is for first two
@@ -187,7 +187,7 @@ void AbstractSolver::initDerived()
    else
    {
       throw MachException(
-         "Unknown basis type " +
+          "Unknown basis type " +
           options["space-dis"]["basis-type"].template get<string>());
    }
 
@@ -200,10 +200,23 @@ void AbstractSolver::initDerived()
    u.reset(new GridFunType(fes.get()));
    *out << "Number of finite element unknowns: " << fes->GlobalTrueVSize()
         << endl;
-
-   /// initialize scratch work vectors
-   scratch.reset(new ParGridFunction(fes.get()));
-   scratch_tv.reset(new HypreParVector(fes.get()));
+   if (gd)
+   {
+      fes_gd.reset(new GDSpaceType(
+          mesh.get(), fec.get(), num_state, Ordering::byVDIM, fe_order, comm));
+      u_gd.reset(new GDGridFunType(fes_gd.get()));
+      *out << "Number of finite element unknowns in gd: "
+           << fes_gd->GlobalTrueVSize() << endl;
+      /// initialize scratch work vectors
+      scratch.reset(new ParCentGridFunction(fes_gd.get()));
+      scratch_tv.reset(new HypreParVector(fes_gd.get()));
+   }
+   else
+   {
+      /// initialize scratch work vectors
+      scratch.reset(new ParGridFunction(fes.get()));
+      scratch_tv.reset(new HypreParVector(fes.get()));
+   }
 
    double alpha = 1.0;
 
@@ -218,6 +231,9 @@ void AbstractSolver::initDerived()
 
    // construct/initialize the forms needed by derived class
    constructForms();
+   *out << "res size is " << res->Height() << " x " << res->Width() << endl;
+   *out << "mass size is " << mass->Height() << " x " << mass->Width() << endl;
+   *out << "ent size is " << ent->Height() << " x " << ent->Width() << endl;
 
    if (nonlinear_mass)
    {
@@ -493,13 +509,40 @@ void AbstractSolver::setInitialCondition(
    // state.ProjectBdrCoefficient(u0, ess_bdr);
    // std::cout << "ess_bdr: "; ess_bdr.Print();
 }
-
 void AbstractSolver::setInitialCondition(
     ParGridFunction &state,
     const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
    VectorFunctionCoefficient u0(num_state, u_init);
    state.ProjectCoefficient(u0);
+}
+
+void AbstractSolver::setInitialCondition(
+    ParCentGridFunction &state,
+    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+{
+   VectorFunctionCoefficient u0(num_state, u_init);
+   cout << "before ProjectCoefficient() " << endl;
+   state.ProjectCoefficient(u0);
+   cout << "state projected " << endl;
+   GridFunType u_test(fes.get());
+   u_test.ProjectCoefficient(u0);
+   // write the solution to vtk file
+   ofstream sol_ofs("airfoil_initial_sol.vtk");
+   sol_ofs.precision(14);
+   mesh->PrintVTK(sol_ofs,
+                  options["space-dis"]["degree"].template get<int>() + 1);
+   u_test.SaveVTK(sol_ofs,
+                  "Solution",
+                  options["space-dis"]["degree"].template get<int>() + 1);
+   sol_ofs.close();
+   HypreParMatrix *Q;
+   Q = fes_gd->Dof_TrueDof_Matrix();
+   Q->Mult(state, *u);
+   u_test -= *u;
+
+   cout << "After projection, the difference norm is " << u_test.Norml2()
+        << '\n';
 }
 
 void AbstractSolver::setInitialCondition(ParGridFunction &state,
@@ -805,20 +848,35 @@ double AbstractSolver::calcL2Error(
 }
 double AbstractSolver::calcResidualNorm() const
 {
+   if (gd)
+   {
+      GDGridFunType r(fes_gd.get());
+      HypreParVector *u_true = u_gd->GetTrueDofs();
+      HypreParVector *r_true = r.GetTrueDofs();
+      res->Mult(*u_true, *r_true);
+      return std::sqrt(InnerProduct(comm, *r_true, *r_true));
+   }
    HypreParVector u_true(fes.get());
    u->GetTrueVector().SetDataAndSize(u_true.GetData(), u_true.Size());
    u->SetTrueVector();
-
    return calcResidualNorm(*u);
 }
+
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
    MachInputs inputs{{"state", state.GetTrueVector().GetData()}};
-
    calcResidual(inputs, *scratch_tv);
    return std::sqrt(InnerProduct(comm, *scratch_tv, *scratch_tv));
 }
 
+double AbstractSolver::calcResidualNorm(const ParCentGridFunction &state) const
+{
+   HypreParVector *u_true = state.GetTrueDofs();
+   GDGridFunType r(fes_gd.get());
+   HypreParVector *r_true = r.GetTrueDofs();
+   res->Mult(*u_true, *r_true);
+   return std::sqrt(InnerProduct(comm, *r_true, *r_true));
+}
 // std::unique_ptr<ParGridFunction> AbstractSolver::getNewField(
 //    double *data)
 // {
@@ -864,8 +922,10 @@ std::unique_ptr<HypreParVector> AbstractSolver::getNewField(double *data)
 void AbstractSolver::calcResidual(const ParGridFunction &state,
                                   ParGridFunction &residual) const
 {
+   cout << "inside calcResidual " << endl;
    auto *u_true = state.GetTrueDofs();
    auto *r_true = residual.GetTrueDofs();
+   cout << "state size " << u_true->Size() << endl;
    res->Mult(*u_true, *r_true);
    if (load)
    {
@@ -888,12 +948,49 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
    delete u_true;
    delete r_true;
 }
-
+/// NOTE: the load vectors must have previously been assembled
+void AbstractSolver::calcResidual(const ParCentGridFunction &state,
+                                  ParCentGridFunction &residual) const
+{
+   cout << "inside calcResidual " << endl;
+   auto *u_true = state.GetTrueDofs();
+   auto *r_true = residual.GetTrueDofs();
+   cout << "state size " << u_true->Size() << endl;
+   res->Mult(*u_true, *r_true);
+   if (load)
+   {
+      // auto load_lf = dynamic_cast<ParLinearForm*>(load.get());
+      // if (load_lf)
+      // {
+      //    auto *l_true = load_lf->ParallelAssemble();
+      //    *r_true += *l_true;
+      //    delete l_true;
+      // }
+      // auto load_gf = dynamic_cast<ParGridFunction*>(load.get());
+      // if (load_gf)
+      // {
+      //    auto *l_true = load_gf->GetTrueDofs();
+      //    *r_true += *l_true;
+      //    delete l_true;
+      // }
+   }
+   residual.SetFromTrueDofs(*r_true);
+   delete u_true;
+   delete r_true;
+}
 void AbstractSolver::calcResidual(const MachInputs &inputs,
                                   double *res_buffer) const
 {
-   auto residual = bufferToHypreParVector(res_buffer, *fes);
-   calcResidual(inputs, residual);
+   if (!gd)
+   {
+      auto residual = bufferToHypreParVector(res_buffer, *fes);
+      calcResidual(inputs, residual);
+   }
+   else
+   {
+      auto residual = bufferToHypreParVector(res_buffer, *fes_gd);
+      calcResidual(inputs, residual);
+   }
 }
 
 void AbstractSolver::calcResidual(const MachInputs &inputs,
@@ -911,9 +1008,19 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
 
    // this only communicates once inside of res->Mult to distribute state
    // create HypreParVector that contains the data from the state input
-   auto state = bufferToHypreParVector(inputs.at("state").getField(), *fes);
+   if (!gd)
+   {
+      auto state = bufferToHypreParVector(inputs.at("state").getField(), *fes);
 
-   res->Mult(state, residual);
+      res->Mult(state, residual);
+   }
+   else
+   {
+      auto state =
+          bufferToHypreParVector(inputs.at("state").getField(), *fes_gd);
+
+      res->Mult(state, residual);
+   }
 
    if (load)
    {
@@ -1007,11 +1114,31 @@ double AbstractSolver::calcStepSize(int iter,
    return dt;
 }
 
+double AbstractSolver::calcStepSize(int iter,
+                                    double t,
+                                    double t_final,
+                                    double dt_old,
+                                    const ParCentGridFunction &state) const
+{
+   auto dt = options["time-dis"]["dt"].get<double>();
+   dt = min(dt, t_final - t);
+   return dt;
+}
+
 bool AbstractSolver::iterationExit(int iter,
                                    double t,
                                    double t_final,
                                    double dt,
                                    const ParGridFunction &state) const
+{
+   return t >= t_final - 1e-14 * dt;
+}
+
+bool AbstractSolver::iterationExit(int iter,
+                                   double t,
+                                   double t_final,
+                                   double dt,
+                                   const ParCentGridFunction &state) const
 {
    return t >= t_final - 1e-14 * dt;
 }
@@ -1135,6 +1262,10 @@ void AbstractSolver::solveForState(ParGridFunction &state)
    {
       solveUnsteady(state);
    }
+}
+void AbstractSolver::solveForState(ParCentGridFunction &state)
+{
+   solveUnsteady(state);
 }
 
 void AbstractSolver::solveForState(const MachInputs &inputs,
@@ -1565,7 +1696,6 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
          pd->SetTime(t);
          pd->Save();
       }
-      // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 
       if (iterationExit(ti, t, t_final, dt, state))
       {
@@ -1625,7 +1755,138 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    }
    // TODO: These mfem functions do not appear to be parallelized
 }
+void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
+{
+   cout << "inside solveUnsteady() " << endl;
+   double t = 0.0;
+   evolver->SetTime(t);
+   ode_solver->Init(*evolver);
+   cout << "evolver set " << endl;
+   GridFunType u_state(fes.get());
+   fes_gd->GetProlongationMatrix()->Mult(*u_gd, u_state);
+   // output the mesh and initial condition
+   // TODO: need to swtich to vtk for SBP
+   int precision = 8;
+   {
+      ofstream omesh("initial.mesh");
+      omesh.precision(precision);
+      mesh->Print(omesh);
+      ofstream osol("initial-sol.gf");
+      osol.precision(precision);
+      u_state.Save(osol);
+   }
+   /// TODO: put this in options
+   // bool paraview = !options["time-dis"]["steady"].get<bool>();
+   bool paraview = true;
+   std::unique_ptr<ParaViewDataCollection> pd;
+   if (paraview)
+   {
+      pd.reset(new ParaViewDataCollection("time_hist", mesh.get()));
+      pd->SetPrefixPath("ParaView");
+      pd->RegisterField("state", &u_state);
+      pd->SetLevelsOfDetail(options["space-dis"]["degree"].get<int>() + 1);
+      pd->SetDataFormat(VTKFormat::BINARY);
+      pd->SetHighOrderOutput(true);
+      pd->SetCycle(0);
+      pd->SetTime(t);
+      pd->Save();
+   }
+   std::cout.precision(16);
+   std::cout << "initial res norm: " << calcResidualNorm(state) << "\n";
 
+   // auto &residual = res_fields.at("residual");
+   // calcResidual(state, residual);
+   // printFields("init", {&residual, &state}, {"Residual", "Solution"});
+
+   auto t_final = options["time-dis"]["t-final"].template get<double>();
+   *out << "t_final is " << t_final << '\n';
+   int ti = 0;
+   double dt = 0.0;
+   initialHook(state);
+   for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
+   {
+      dt = calcStepSize(ti, t, t_final, dt, state);
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
+      if (!options["time-dis"]["steady"].get<bool>())
+      {
+         *out << " (" << round(100 * t / t_final) << "% complete)";
+      }
+      *out << endl;
+      // iterationHook(ti, t, dt, state);
+      // auto &u_true = state.GetTrueVector();
+      // ode_solver->Step(u_true, t, dt);
+      // state.SetFromTrueDofs(u_true);
+      HypreParVector *u_true = state.GetTrueDofs();
+      ode_solver->Step(*u_true, t, dt);
+      state = *u_true;
+
+      // if (paraview)
+      // {
+      //    pd->SetCycle(ti);
+      //    pd->SetTime(t);
+      //    pd->Save();
+      std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+
+      if (iterationExit(ti, t, t_final, dt, state))
+      {
+         break;
+      }
+   }
+   fes_gd->GetProlongationMatrix()->Mult(state, *u);
+   {
+      ofstream osol("final_before_TH.gf");
+      osol.precision(std::numeric_limits<long double>::digits10 + 1);
+      u->Save(osol);
+   }
+   // terminalHook(ti, t, state);
+   // std::cout << "after terminalHook " << std::endl;
+   // Save the final solution. This output can be viewed later using GLVis:
+   // glvis -m unitGridTestMesh.msh -g adv-final.gf".
+   {
+      ofstream osol("final.gf");
+      osol.precision(std::numeric_limits<long double>::digits10 + 1);
+      u->Save(osol);
+   }
+   // write the solution to vtk file
+   if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
+   {
+      ofstream sol_ofs("final_cg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs,
+                     options["space-dis"]["degree"].template get<int>() + 1);
+      u->SaveVTK(sol_ofs,
+                 "Solution",
+                 options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      printField("final", *u, "Solution");
+   }
+   else if (options["space-dis"]["basis-type"].template get<string>() == "dsbp")
+   {
+      ofstream sol_ofs("final_dg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs,
+                     options["space-dis"]["degree"].template get<int>() + 1);
+      u->SaveVTK(sol_ofs,
+                 "Solution",
+                 options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      printField("final", *u, "Solution");
+   }
+   else if (options["space-dis"]["basis-type"].template get<string>() == "dg")
+   {
+      ofstream sol_ofs("final_dg.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs,
+                     options["space-dis"]["degree"].template get<int>() + 1);
+      u->SaveVTK(sol_ofs,
+                 "Solution",
+                 options["space-dis"]["degree"].template get<int>() + 1);
+      sol_ofs.close();
+      printField("final", *u, "Solution");
+   }
+   cout << "solution written " << endl;
+   // TODO: These mfem functions do not appear to be parallelized
+}
 void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 {
    // double time_beg = NAN;
@@ -2019,45 +2280,90 @@ void AbstractSolver::checkJacobian(
     const ParGridFunction &state,
     std::function<double(const Vector &)> pert_fun)
 {
-   // initialize some variables
    const double delta = 1e-5;
+   if (gd)
+   {
+// initialize some variables
+#if 0
+      GDGridFunType u_plus(state);
+      GDGridFunType u_minus(state);
+      GDGridFunType pert_vec(fes_gd.get());
+      FunctionCoefficient up(std::move(pert_fun));
+      pert_vec.ProjectCoefficient(up);
 
-   GridFunType u_plus(state);
-   GridFunType u_minus(state);
-   GridFunType pert_vec(fes.get());
-   FunctionCoefficient up(std::move(pert_fun));
-   pert_vec.ProjectCoefficient(up);
+      Array<int> ess_tdof_list;
+      fes_gd->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      pert_vec.SetSubVector(ess_tdof_list, 0.0);
 
-   Array<int> ess_tdof_list;
-   fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-   pert_vec.SetSubVector(ess_tdof_list, 0.0);
+      // perturb in the positive and negative pert_vec directions
+      u_plus.Add(delta, pert_vec);
+      u_minus.Add(-delta, pert_vec);
 
-   // perturb in the positive and negative pert_vec directions
-   u_plus.Add(delta, pert_vec);
-   u_minus.Add(-delta, pert_vec);
+      // Get the product using a 2nd-order finite-difference approximation
+      GDGridFunType res_plus(fes_gd.get());
+      GDGridFunType res_minus(fes_gd.get());
 
-   // Get the product using a 2nd-order finite-difference approximation
-   GridFunType res_plus(fes.get());
-   GridFunType res_minus(fes.get());
+      calcResidual(u_plus, res_plus);
+      calcResidual(u_minus, res_minus);
+      // res_plus = 1/(2*delta)*(res_plus - res_minus)
+      subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
 
-   calcResidual(u_plus, res_plus);
-   calcResidual(u_minus, res_minus);
-   // res_plus = 1/(2*delta)*(res_plus - res_minus)
-   subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
+      // Get the product directly using Jacobian from GetGradient
+      GDGridFunType jac_v(fes_gd.get());
+      HypreParVector *u_true = state.GetTrueDofs();
+      HypreParVector *pert = pert_vec.GetTrueDofs();
+      HypreParVector *prod = jac_v.GetTrueDofs();
+      mfem::Operator &jac = res->GetGradient(*u_true);
+      jac.Mult(*pert, *prod);
+      jac_v.SetFromTrueDofs(*prod);
 
-   // Get the product directly using Jacobian from GetGradient
-   GridFunType jac_v(fes.get());
-   HypreParVector *u_true = state.GetTrueDofs();
-   HypreParVector *pert = pert_vec.GetTrueDofs();
-   HypreParVector *prod = jac_v.GetTrueDofs();
-   mfem::Operator &jac = res->GetGradient(*u_true);
-   jac.Mult(*pert, *prod);
-   jac_v.SetFromTrueDofs(*prod);
+      // check the difference norm
+      jac_v -= res_plus;
+      double error = calcInnerProduct(jac_v, jac_v);
+      *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+#endif
+   }
+   else
+   {
+      // initialize some variables
+      GridFunType u_plus(state);
+      GridFunType u_minus(state);
+      GridFunType pert_vec(fes.get());
+      FunctionCoefficient up(std::move(pert_fun));
+      pert_vec.ProjectCoefficient(up);
 
-   // check the difference norm
-   jac_v -= res_plus;
-   double error = calcInnerProduct(jac_v, jac_v);
-   *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+      Array<int> ess_tdof_list;
+      fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      pert_vec.SetSubVector(ess_tdof_list, 0.0);
+
+      // perturb in the positive and negative pert_vec directions
+      u_plus.Add(delta, pert_vec);
+      u_minus.Add(-delta, pert_vec);
+
+      // Get the product using a 2nd-order finite-difference approximation
+      GridFunType res_plus(fes.get());
+      GridFunType res_minus(fes.get());
+
+      calcResidual(u_plus, res_plus);
+      calcResidual(u_minus, res_minus);
+      // res_plus = 1/(2*delta)*(res_plus - res_minus)
+      subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
+
+      // Get the product directly using Jacobian from GetGradient
+      GridFunType jac_v(fes.get());
+      HypreParVector *u_true = state.GetTrueDofs();
+      HypreParVector *pert = pert_vec.GetTrueDofs();
+      HypreParVector *prod = jac_v.GetTrueDofs();
+      mfem::Operator &jac = res->GetGradient(*u_true);
+      jac.Mult(*pert, *prod);
+      jac_v.SetFromTrueDofs(*prod);
+
+      // check the difference norm
+      jac_v -= res_plus;
+      double error = calcInnerProduct(jac_v, jac_v);
+      *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+   }
+
    // for (int i = 0; i < jac_v.Size(); ++i)
    // {
    //    if (jac_v(i) > 1e-6)
@@ -2106,6 +2412,10 @@ void AbstractSolver::checkJacobian(
 void AbstractSolver::checkJacobian(void (*pert_fun)(const mfem::Vector &,
                                                     mfem::Vector &))
 {
+   if (gd)
+   {
+      fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u);
+   }
    // initialize some variables
    const double delta = 1e-5;
    GridFunType u_plus(*u);

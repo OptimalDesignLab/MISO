@@ -66,7 +66,9 @@ public:
    {
       if (_mass != nullptr)
       {
-         _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      //    std::cout << "is this called yet ? " << std::endl;
+      //   _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+      //    std::cout << "no problem here ? " << std::endl;
       }
       // else if (_stiff)
       // {
@@ -74,7 +76,8 @@ public:
       // }
       else if (_res != nullptr)
       {
-         _res->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+          std::cout << "how about res ? " << std::endl;
+          _res->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       }
       // if (load)
       //    load_tv = _res->ParFESpace()->NewTrueDofVector();
@@ -250,9 +253,10 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
 
    if (_mass != nullptr)
    {
-      Array<int> mass_ess_tdof_list;
-      _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, mass_ess_tdof_list);
-
+      std::cout << "problem here " << std::endl;
+      // Array<int> mass_ess_tdof_list;
+      // _mass->ParFESpace()->GetEssentialTrueDofs(ess_bdr, mass_ess_tdof_list);
+      // std::cout << "Nope " << std::endl;
       AssemblyLevel mass_assem;
       mass_assem = _mass->GetAssemblyLevel();
       if (mass_assem == AssemblyLevel::PARTIAL)

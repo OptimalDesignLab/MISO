@@ -16,6 +16,8 @@
 #include "mach_residual.hpp"
 #include "mach_types.hpp"
 #include "utils.hpp"
+#include "gd.hpp"
+#include "pcentgridfunc.hpp"
 
 #ifdef MFEM_USE_PUMI
 namespace apf
@@ -84,7 +86,14 @@ public:
    /// \param[in] u_init - field that defines the initial condition
    inline virtual void setInitialCondition(const mfem::ParGridFunction &u_init)
    {
-      setInitialCondition(*u, u_init);
+      if (!gd)
+      {
+         setInitialCondition(*u, u_init);
+      }
+      else
+      {
+         setInitialCondition(*u_gd, u_init);
+      }
    }
 
    /// Initializes the state vector to a given scalar function.
@@ -92,7 +101,14 @@ public:
    inline virtual void setInitialCondition(
        const std::function<double(const mfem::Vector &)> &u_init)
    {
-      setInitialCondition(*u, u_init);
+      if (!gd)
+      {
+         setInitialCondition(*u, u_init);
+      }
+      else
+      {
+         setInitialCondition(*u_gd, u_init);
+      }
    }
 
    /// Initializes the state vector to a given function.
@@ -102,7 +118,15 @@ public:
    inline virtual void setInitialCondition(
        const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
    {
-      setInitialCondition(*u, u_init);
+      if (!gd)
+      {
+         setInitialCondition(*u, u_init);
+      }
+      else
+      {
+         cout << "inside initial condition " << endl;
+         setInitialCondition(*u_gd, u_init);
+      }
    }
 
    /// Initializes the state variable to a given constant
@@ -142,6 +166,15 @@ public:
    /// condition value.  This may be a vector of length 1 for scalar.
    virtual void setInitialCondition(
        mfem::ParGridFunction &state,
+       const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
+
+   /// Initializes the state vector to a given function.
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - function that defines the initial condition
+   /// \note The second argument in the function `u_init` is the initial
+   /// condition value.  This may be a vector of length 1 for scalar.
+   virtual void setInitialCondition(
+       mfem::ParCentGridFunction &state,
        const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init);
 
    /// Initializes the state variable to a given constant
@@ -278,7 +311,20 @@ public:
                                double t_final,
                                double dt_old,
                                const mfem::ParGridFunction &state) const;
-
+   /// Find the step size based on the options
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt_old - the step size that was just taken
+   /// \param[in] state - the current state
+   /// \returns dt - the step size appropriate to the problem
+   /// This base method simply returns the option in ["time-dis"]["dt"],
+   /// truncated as necessary such that `t + dt = t_final`.
+   virtual double calcStepSize(int iter,
+                               double t,
+                               double t_final,
+                               double dt_old,
+                               const mfem::ParCentGridFunction &state) const;
    /// Write the mesh and solution to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
    /// \param[in] refine - if >=0, indicates the number of refinements to make
@@ -363,11 +409,22 @@ public:
 
    /// DEPRECIATED -> use version with HypreParVector
    /// Solve for the state variables based on current mesh, solver, etc.
-   virtual void solveForState() { solveForState(*u); }
+   virtual void solveForState()
+   {
+      if (!gd)
+      {
+         solveForState(*u);
+      }
+
+      else
+      {
+         solveForState(*u_gd);
+      }
+   }
 
    /// DEPRECIATED -> use version with HypreParVector
    virtual void solveForState(mfem::ParGridFunction &state);
-
+   virtual void solveForState(mfem::ParCentGridFunction &state);
    inline virtual void solveForState(double *state)
    {
       MachInputs inputs;
@@ -488,6 +545,9 @@ public:
    /// \returns the l2 (discrete) norm of the residual evaluated at `u`
    double calcResidualNorm(const mfem::ParGridFunction &state) const;
 
+   /// Compute the residual norm based on the input `GD state`
+   /// \returns the l2 (discrete) norm of the residual evaluated at `u`
+   double calcResidualNorm(const mfem::ParCentGridFunction &state) const;
    /// Return a state sized vector constructed from an externally allocated
    /// array \param[in] data - external data array \note If `data` is nullptr a
    /// new array will be allocated. If `data` is not `nullptr` it is assumed to
@@ -514,6 +574,11 @@ public:
    virtual void calcResidual(const mfem::ParGridFunction &state,
                              mfem::ParGridFunction &residual) const;
 
+   /// Compute the residual based on `gd state` and store the it in `residual`
+   /// \param[in] state - the current state to evaluate the residual at
+   /// \param[out] residual - the residual
+   virtual void calcResidual(const mfem::ParCentGridFunction &state,
+                             mfem::ParCentGridFunction &residual) const;
    /// Compute the residual based on inputs and store the it in `residual`
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating residual
@@ -674,9 +739,13 @@ protected:
    //--------------------------------------------------------------------------
    // Members associated with fields
    /// finite element or SBP operators
+   bool gd;
+   using GDSpaceType = mfem::ParGalerkinDifference;
+   using GDGridFunType = mfem::ParCentGridFunction;
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// discrete finite element space
    std::unique_ptr<SpaceType> fes;
+   std::unique_ptr<GDSpaceType> fes_gd;
    /// pointer to mesh's underlying finite element space
    SpaceType *mesh_fes;
    /// state sized work vector
@@ -685,6 +754,7 @@ protected:
    mutable std::unique_ptr<mfem::HypreParVector> scratch_tv;
    /// state variable
    std::unique_ptr<GridFunType> u;
+   std::unique_ptr<GDGridFunType> u_gd;
    /// initial state variable
    std::unique_ptr<GridFunType> u_init;
    /// prior state variable
@@ -855,10 +925,16 @@ protected:
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady(mfem::ParGridFunction &state);
 
+   /// Solve for a transient state using a selected time-marching scheme
+   virtual void solveUnsteady(mfem::ParCentGridFunction &state);
+
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
    virtual void initialHook(const mfem::ParGridFunction &state) { }
 
+   /// For code that should be executed before the time stepping begins
+   /// \param[in] state - the current state
+   virtual void initialHook(const mfem::ParCentGridFunction &state) { }
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
@@ -881,6 +957,18 @@ protected:
                               double t_final,
                               double dt,
                               const mfem::ParGridFunction &state) const;
+
+   /// Determines when to exit the time stepping loop
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (after the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt - the step size that was just taken
+   /// \param[in] state - the current state
+   virtual bool iterationExit(int iter,
+                              double t,
+                              double t_final,
+                              double dt,
+                              const mfem::ParCentGridFunction &state) const;
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration

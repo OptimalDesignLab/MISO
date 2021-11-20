@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
       double res_error = solver->calcResidualNorm();
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
-      solver->checkJacobian(pert);
+      // solver->checkJacobian(pert);
       solver->solveForState();
       solver->printSolution("vortex_dg_final",0);
       // get the final density error

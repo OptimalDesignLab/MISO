@@ -51,18 +51,36 @@ EulerDGSolver<dim, entvar>::EulerDGSolver(const nlohmann::json &json_options,
 template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::constructForms()
 {
-   res.reset(new NonlinearFormType(fes.get()));
-   if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
+   if (gd)
    {
-      nonlinear_mass.reset(new NonlinearFormType(fes.get()));
-      mass.reset();
+      res.reset(new NonlinearFormType(fes_gd.get()));
+      if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
+      {
+         nonlinear_mass.reset(new NonlinearFormType(fes_gd.get()));
+         mass.reset();
+      }
+      else
+      {
+         mass.reset(new BilinearFormType(fes_gd.get()));
+         nonlinear_mass.reset();
+      }
+      ent.reset(new NonlinearFormType(fes_gd.get()));
    }
    else
    {
-      mass.reset(new BilinearFormType(fes.get()));
-      nonlinear_mass.reset();
+      res.reset(new NonlinearFormType(fes.get()));
+      if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
+      {
+         nonlinear_mass.reset(new NonlinearFormType(fes.get()));
+         mass.reset();
+      }
+      else
+      {
+         mass.reset(new BilinearFormType(fes.get()));
+         nonlinear_mass.reset();
+      }
+      ent.reset(new NonlinearFormType(fes.get()));
    }
-   ent.reset(new NonlinearFormType(fes.get()));
 }
 
 template <int dim, bool entvar>
@@ -168,7 +186,23 @@ void EulerDGSolver<dim, entvar>::initialHook(const ParGridFunction &state)
    // entropylog.open("entropylog.txt", fstream::app);
    // entropylog << setprecision(14);
 }
-
+template <int dim, bool entvar>
+void EulerDGSolver<dim, entvar>::initialHook(const ParCentGridFunction &state)
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // res_norm0 is used to compute the time step in PTC
+      res_norm0 = calcResidualNorm(state);
+   }
+   // TODO: this should only be output if necessary
+   GridFunType u_state(fes.get());
+   fes_gd->GetProlongationMatrix()->Mult(state, u_state );
+   // double entropy = ent->GetEnergy(u_state);
+   // *out << "before time stepping, entropy is " << entropy << endl;
+   // remove("entropylog.txt");
+   // entropylog.open("entropylog.txt", fstream::app);
+   // entropylog << setprecision(14);
+}
 template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::iterationHook(int iter,
                                              double t,
@@ -185,6 +219,36 @@ bool EulerDGSolver<dim, entvar>::iterationExit(int iter,
                                              double t_final,
                                              double dt,
                                              const ParGridFunction &state) const
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // use tolerance options for Newton's method
+      double norm = calcResidualNorm(state);
+      if (norm <= options["time-dis"]["steady-abstol"].template get<double>())
+      {
+         return true;
+      }
+      if (norm <=
+          res_norm0 *
+              options["time-dis"]["steady-reltol"].template get<double>())
+      {
+         return true;
+      }
+      return false;
+   }
+   else
+   {
+      return AbstractSolver::iterationExit(iter, t, t_final, dt, state);
+   }
+}
+
+template <int dim, bool entvar>
+bool EulerDGSolver<dim, entvar>::iterationExit(
+    int iter,
+    double t,
+    double t_final,
+    double dt,
+    const ParCentGridFunction &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
@@ -293,6 +357,85 @@ double EulerDGSolver<dim, entvar>::calcStepSize(
     double t_final,
     double dt_old,
     const ParGridFunction &state) const
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // ramp up time step for pseudo-transient continuation
+      // TODO: the l2 norm of the weak residual is probably not ideal here
+      // A better choice might be the l1 norm
+      double res_norm = calcResidualNorm(state);
+      double exponent = options["time-dis"]["res-exp"];
+      double dt = options["time-dis"]["dt"].template get<double>() *
+                  pow(res_norm0 / res_norm, exponent);
+      return max(dt, dt_old);
+   }
+   if (!options["time-dis"]["const-cfl"].template get<bool>())
+   {
+      return options["time-dis"]["dt"].template get<double>();
+   }
+   // Otherwise, use a constant CFL condition
+   auto cfl = options["time-dis"]["cfl"].template get<double>();
+   Vector q(dim + 2);
+   auto calcSpect = [&q](const double *dir, const double *u)
+   {
+      if (entvar)
+      {
+         calcConservativeVars<double, dim>(u, q);
+         return calcSpectralRadius<double, dim>(dir, q);
+      }
+      else
+      {
+         return calcSpectralRadius<double, dim>(dir, u);
+      }
+   };
+   double dt_local = 1e100;
+   Vector xi(dim);
+   Vector dxij(dim);
+   Vector ui;
+   Vector dxidx;
+   DenseMatrix uk;
+   DenseMatrix adjJt(dim);
+   for (int k = 0; k < fes->GetNE(); k++)
+   {
+      // get the element, its transformation, and the state values on element
+      const FiniteElement *fe = fes->GetFE(k);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *trans = fes->GetElementTransformation(k);
+      state.GetVectorValues(*trans, *ir, uk);
+      for (int i = 0; i < fe->GetDof(); ++i)
+      {
+         trans->SetIntPoint(&fe->GetNodes().IntPoint(i));
+         trans->Transform(fe->GetNodes().IntPoint(i), xi);
+         CalcAdjugateTranspose(trans->Jacobian(), adjJt);
+         uk.GetColumnReference(i, ui);
+         for (int j = 0; j < fe->GetDof(); ++j)
+         {
+            if (j == i)
+            {
+               continue;
+            }
+            trans->Transform(fe->GetNodes().IntPoint(j), dxij);
+            dxij -= xi;
+            double dx = dxij.Norml2();
+            dt_local =
+                min(dt_local,
+                    cfl * dx * dx /
+                        calcSpect(dxij, ui));  // extra dx is to normalize dxij
+         }
+      }
+   }
+   double dt_min = NAN;
+   MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
+   return dt_min;
+}
+
+template <int dim, bool entvar>
+double EulerDGSolver<dim, entvar>::calcStepSize(
+    int iter,
+    double t,
+    double t_final,
+    double dt_old,
+    const ParCentGridFunction &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {

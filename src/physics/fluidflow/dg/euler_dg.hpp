@@ -37,6 +37,23 @@ public:
                        double dt_old,
                        const mfem::ParGridFunction &state) const override;
 
+   /// Find the global time step size
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt_old - the step size that was just taken
+   /// \param[in] state - the current `gd` state
+   /// \returns dt - appropriate step size
+   /// \note If "const-cfl" option is invoked, this uses the average spectral
+   /// radius to estimate the largest wave speed, and uses the minimum distance
+   /// between nodes for the length in the CFL number.
+   /// \note If "steady" option is involved, the time step will increase based
+   /// on the baseline value of "dt" and the inverse residual norm.
+   double calcStepSize(int iter,
+                       double t,
+                       double t_final,
+                       double dt_old,
+                       const mfem::ParCentGridFunction &state) const override;
    /// Sets `q_ref` to the free-stream conservative variables
    void getFreeStreamState(mfem::Vector &q_ref);
 
@@ -117,6 +134,10 @@ protected:
    /// \param[in] state - the current state
    void initialHook(const mfem::ParGridFunction &state) override;
 
+   /// For code that should be executed before the time stepping begins
+   /// \param[in] state - the current `gd` state
+   void initialHook(const mfem::ParCentGridFunction &state) override;
+
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
@@ -138,6 +159,18 @@ protected:
                       double t_final,
                       double dt,
                       const mfem::ParGridFunction &state) const override;
+   
+   /// Determines when to exit the time stepping loop
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (after the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt - the step size that was just taken
+   /// \param[in] state - the current `gd` state
+   bool iterationExit(int iter,
+                      double t,
+                      double t_final,
+                      double dt,
+                      const mfem::ParCentGridFunction &state) const override;
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration
