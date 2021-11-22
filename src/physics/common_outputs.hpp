@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "functional_output.hpp"
 #include "mach_input.hpp"
@@ -17,7 +18,14 @@ public:
    IEAggregateFunctional(
        mfem::ParFiniteElementSpace &fes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-       double rho);
+       const nlohmann::json &options);
+
+   friend void setOptions(IEAggregateFunctional &output,
+                          const nlohmann::json &options)
+   {
+      setOptions(output.numerator, options);
+      setOptions(output.denominator, options);
+   }
 
    friend void setInputs(IEAggregateFunctional &output,
                          const MachInputs &inputs)
@@ -45,7 +53,15 @@ public:
    IECurlMagnitudeAggregateFunctional(
        mfem::ParFiniteElementSpace &fes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-       double rho);
+       const nlohmann::json &options);
+
+   friend void setOptions(IECurlMagnitudeAggregateFunctional &output,
+                          const nlohmann::json &options)
+   {
+      setOptions(output.numerator, options);
+      setOptions(output.denominator, options);
+   }
+
 
    friend void setInputs(IECurlMagnitudeAggregateFunctional &output,
                          const MachInputs &inputs)

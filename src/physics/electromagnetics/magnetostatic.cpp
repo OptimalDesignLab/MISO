@@ -4,6 +4,7 @@
 
 #include "adept.h"
 
+#include "common_outputs.hpp"
 #include "solver.hpp"
 #include "evolver.hpp"
 #include "electromag_integ.hpp"
@@ -816,6 +817,11 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       res_fields.emplace("v" + fun, mesh_gf.ParFESpace());
 
       TorqueFunctional out(*fes, res_fields, options, *nu);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun == "max_flux")
+   {
+      IECurlMagnitudeAggregateFunctional out(*fes, res_fields, options);
       outputs.emplace(fun, std::move(out));
    }
    else

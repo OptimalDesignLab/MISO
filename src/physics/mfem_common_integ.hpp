@@ -2,6 +2,7 @@
 #define MACH_MFEM_COMMON_INTEG
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_integrator.hpp"
 
@@ -10,6 +11,9 @@ namespace mach
 class IEAggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
 {
 public:
+   friend void setOptions(IEAggregateIntegratorNumerator &integ,
+                          const nlohmann::json &options);
+
    IEAggregateIntegratorNumerator(const double rho) : rho(rho) { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
@@ -27,6 +31,9 @@ private:
 class IEAggregateIntegratorDenominator : public mfem::NonlinearFormIntegrator
 {
 public:
+   friend void setOptions(IEAggregateIntegratorDenominator &integ,
+                          const nlohmann::json &options);
+
    IEAggregateIntegratorDenominator(const double rho) : rho(rho) { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
@@ -45,6 +52,9 @@ class IECurlMagnitudeAggregateIntegratorNumerator
  : public mfem::NonlinearFormIntegrator
 {
 public:
+   friend void setOptions(IECurlMagnitudeAggregateIntegratorNumerator &integ,
+                          const nlohmann::json &options);
+
    IECurlMagnitudeAggregateIntegratorNumerator(const double rho) : rho(rho) { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
@@ -63,6 +73,9 @@ class IECurlMagnitudeAggregateIntegratorDenominator
  : public mfem::NonlinearFormIntegrator
 {
 public:
+   friend void setOptions(IECurlMagnitudeAggregateIntegratorDenominator &integ,
+                          const nlohmann::json &options);
+
    IECurlMagnitudeAggregateIntegratorDenominator(const double rho)
     : rho(rho) { }
 

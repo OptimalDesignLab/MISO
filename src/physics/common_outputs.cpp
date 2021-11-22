@@ -11,24 +11,51 @@ namespace mach
 IEAggregateFunctional::IEAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
     std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-    double rho)
+    const nlohmann::json &options)
  : numerator(fes, fields), denominator(fes, fields)
 {
-   numerator.addOutputDomainIntegrator(new IEAggregateIntegratorNumerator(rho));
-   denominator.addOutputDomainIntegrator(
-       new IEAggregateIntegratorDenominator(rho));
+   auto rho = options["rho"].get<double>();
+
+   if (options.contains("attributes"))
+   {
+      auto attributes = options["attributes"].get<std::vector<int>>();
+      numerator.addOutputDomainIntegrator(
+         new IEAggregateIntegratorNumerator(rho), attributes);
+      denominator.addOutputDomainIntegrator(
+         new IEAggregateIntegratorDenominator(rho), attributes);
+   }
+   else
+   {
+      numerator.addOutputDomainIntegrator(
+         new IEAggregateIntegratorNumerator(rho));
+      denominator.addOutputDomainIntegrator(
+         new IEAggregateIntegratorDenominator(rho));
+   }
 }
 
 IECurlMagnitudeAggregateFunctional::IECurlMagnitudeAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
     std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-    double rho)
+    const nlohmann::json &options)
  : numerator(fes, fields), denominator(fes, fields)
 {
-   numerator.addOutputDomainIntegrator(
-       new IECurlMagnitudeAggregateIntegratorNumerator(rho));
-   denominator.addOutputDomainIntegrator(
-       new IECurlMagnitudeAggregateIntegratorDenominator(rho));
+   auto rho = options["rho"].get<double>();
+
+   if (options.contains("attributes"))
+   {
+      auto attributes = options["attributes"].get<std::vector<int>>();
+      numerator.addOutputDomainIntegrator(
+         new IECurlMagnitudeAggregateIntegratorNumerator(rho), attributes);
+      denominator.addOutputDomainIntegrator(
+         new IECurlMagnitudeAggregateIntegratorDenominator(rho), attributes);
+   }
+   else
+   {
+      numerator.addOutputDomainIntegrator(
+         new IECurlMagnitudeAggregateIntegratorNumerator(rho));
+      denominator.addOutputDomainIntegrator(
+         new IECurlMagnitudeAggregateIntegratorDenominator(rho));
+   }
 }
 
 }  // namespace mach

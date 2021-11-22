@@ -25,9 +25,8 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    auto &state = fields.at("state");
    mfem::HypreParVector state_tv(&fes);
 
-   double rho = 50.0;
-   mach::IEAggregateFunctional out(fes, fields, rho);
-
+   nlohmann::json output_opts{{"rho", 50.0}};
+   mach::IEAggregateFunctional out(fes, fields, output_opts);
 
    mfem::FunctionCoefficient state_coeff([](const mfem::Vector &p)
    {
@@ -45,6 +44,13 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
 
    /// Should be 1.0
    REQUIRE(max_state == Approx(0.9919141335));
+
+   output_opts["rho"] = 1.0;
+   setOptions(out, output_opts);
+
+   max_state = calcOutput(out, inputs);
+   /// Should be sqrt(sin(1.0)^2 + 1.0)
+   REQUIRE(max_state == Approx(0.8544376503));
 }
 
 TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
@@ -66,9 +72,8 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
    auto &state = fields.at("state");
    mfem::HypreParVector state_tv(&fes);
 
-   double rho = 50.0;
-   mach::IECurlMagnitudeAggregateFunctional out(fes, fields, rho);
-
+   nlohmann::json output_opts{{"rho", 50.0}};
+   mach::IECurlMagnitudeAggregateFunctional out(fes, fields, output_opts);
 
    mfem::VectorFunctionCoefficient state_coeff(dim, [](const mfem::Vector &p, mfem::Vector &A)
    {
@@ -88,6 +93,13 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
 
    /// Should be sqrt(sin(1.0)^2 + 1.0)
    REQUIRE(max_state == Approx(1.3026749725));
+
+   output_opts["rho"] = 1.0;
+   setOptions(out, output_opts);
+
+   max_state = calcOutput(out, inputs);
+   /// Should be sqrt(sin(1.0)^2 + 1.0)
+   REQUIRE(max_state == Approx(1.0152746915));
 
 }
 

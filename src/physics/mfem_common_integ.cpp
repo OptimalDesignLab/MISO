@@ -8,6 +8,15 @@ using namespace mfem;
 
 namespace mach
 {
+void setOptions(IEAggregateIntegratorNumerator &integ,
+                  const nlohmann::json &options)
+{
+   if (options.contains("rho"))
+   {
+      integ.rho = options["rho"].get<double>();
+   }
+}
+
 double IEAggregateIntegratorNumerator::GetElementEnergy(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -33,6 +42,15 @@ double IEAggregateIntegratorNumerator::GetElementEnergy(
    return fun;
 }
 
+void setOptions(IEAggregateIntegratorDenominator &integ,
+               const nlohmann::json &options)
+{
+   if (options.contains("rho"))
+   {
+      integ.rho = options["rho"].get<double>();
+   }
+}
+
 double IEAggregateIntegratorDenominator::GetElementEnergy(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -55,6 +73,15 @@ double IEAggregateIntegratorDenominator::GetElementEnergy(
       fun += ip.weight * trans.Weight() * exp(rho * g);
    }
    return fun;
+}
+
+void setOptions(IECurlMagnitudeAggregateIntegratorNumerator &integ,
+               const nlohmann::json &options)
+{
+   if (options.contains("rho"))
+   {
+      integ.rho = options["rho"].get<double>();
+   }
 }
 
 double IECurlMagnitudeAggregateIntegratorNumerator::GetElementEnergy(
@@ -103,6 +130,15 @@ double IECurlMagnitudeAggregateIntegratorNumerator::GetElementEnergy(
       fun += ip.weight * trans.Weight() * curl_mag * exp(rho * curl_mag);
    }
    return fun;
+}
+
+void setOptions(IECurlMagnitudeAggregateIntegratorDenominator &integ,
+               const nlohmann::json &options)
+{
+   if (options.contains("rho"))
+   {
+      integ.rho = options["rho"].get<double>();
+   }
 }
 
 double IECurlMagnitudeAggregateIntegratorDenominator::GetElementEnergy(
