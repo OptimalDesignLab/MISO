@@ -20,16 +20,16 @@ IEAggregateFunctional::IEAggregateFunctional(
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       numerator.addOutputDomainIntegrator(
-         new IEAggregateIntegratorNumerator(rho), attributes);
+          new IEAggregateIntegratorNumerator(rho), attributes);
       denominator.addOutputDomainIntegrator(
-         new IEAggregateIntegratorDenominator(rho), attributes);
+          new IEAggregateIntegratorDenominator(rho), attributes);
    }
    else
    {
       numerator.addOutputDomainIntegrator(
-         new IEAggregateIntegratorNumerator(rho));
+          new IEAggregateIntegratorNumerator(rho));
       denominator.addOutputDomainIntegrator(
-         new IEAggregateIntegratorDenominator(rho));
+          new IEAggregateIntegratorDenominator(rho));
    }
 }
 
@@ -45,16 +45,16 @@ IECurlMagnitudeAggregateFunctional::IECurlMagnitudeAggregateFunctional(
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       numerator.addOutputDomainIntegrator(
-         new IECurlMagnitudeAggregateIntegratorNumerator(rho), attributes);
+          new IECurlMagnitudeAggregateIntegratorNumerator(rho), attributes);
       denominator.addOutputDomainIntegrator(
-         new IECurlMagnitudeAggregateIntegratorDenominator(rho), attributes);
+          new IECurlMagnitudeAggregateIntegratorDenominator(rho), attributes);
    }
    else
    {
       numerator.addOutputDomainIntegrator(
-         new IECurlMagnitudeAggregateIntegratorNumerator(rho));
+          new IECurlMagnitudeAggregateIntegratorNumerator(rho));
       denominator.addOutputDomainIntegrator(
-         new IECurlMagnitudeAggregateIntegratorDenominator(rho));
+          new IECurlMagnitudeAggregateIntegratorDenominator(rho));
    }
 }
 

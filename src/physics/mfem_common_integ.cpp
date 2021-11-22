@@ -9,7 +9,7 @@ using namespace mfem;
 namespace mach
 {
 void setOptions(IEAggregateIntegratorNumerator &integ,
-                  const nlohmann::json &options)
+                const nlohmann::json &options)
 {
    if (options.contains("rho"))
    {
@@ -43,7 +43,7 @@ double IEAggregateIntegratorNumerator::GetElementEnergy(
 }
 
 void setOptions(IEAggregateIntegratorDenominator &integ,
-               const nlohmann::json &options)
+                const nlohmann::json &options)
 {
    if (options.contains("rho"))
    {
@@ -76,7 +76,7 @@ double IEAggregateIntegratorDenominator::GetElementEnergy(
 }
 
 void setOptions(IECurlMagnitudeAggregateIntegratorNumerator &integ,
-               const nlohmann::json &options)
+                const nlohmann::json &options)
 {
    if (options.contains("rho"))
    {
@@ -133,7 +133,7 @@ double IECurlMagnitudeAggregateIntegratorNumerator::GetElementEnergy(
 }
 
 void setOptions(IECurlMagnitudeAggregateIntegratorDenominator &integ,
-               const nlohmann::json &options)
+                const nlohmann::json &options)
 {
    if (options.contains("rho"))
    {

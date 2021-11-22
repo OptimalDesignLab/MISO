@@ -62,7 +62,6 @@ public:
       setOptions(output.denominator, options);
    }
 
-
    friend void setInputs(IECurlMagnitudeAggregateFunctional &output,
                          const MachInputs &inputs)
    {
