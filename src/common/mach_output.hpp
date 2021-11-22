@@ -15,7 +15,6 @@
 
 namespace mach
 {
-
 template <typename T>
 void setInputs(T & /*unused*/, const MachInputs & /*unused*/)
 { }
