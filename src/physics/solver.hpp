@@ -86,16 +86,16 @@ public:
    /// \param[in] u_init - field that defines the initial condition
    inline virtual void setInitialCondition(const mfem::ParGridFunction &u_init)
    {
-      if (!gd)
-      {
-         setInitialCondition(*u, u_init);
-      }
-      else
-      {
-         setInitialCondition(*u_gd, u_init);
-      }
+      setInitialCondition(*u, u_init);
    }
 
+   // /// Initializes the state vector to a given field.
+   // /// \param[in] u_init - field that defines the initial condition
+   // inline virtual void setInitialCondition(const mfem::ParCentGridFunction &u_init)
+   // {
+   //    setInitialCondition(*u_gd, u_init);
+   // }
+   
    /// Initializes the state vector to a given scalar function.
    /// \param[in] u_init - function that defines the initial condition
    inline virtual void setInitialCondition(
@@ -124,7 +124,6 @@ public:
       }
       else
       {
-         cout << "inside initial condition " << endl;
          setInitialCondition(*u_gd, u_init);
       }
    }
@@ -135,12 +134,24 @@ public:
    {
       setInitialCondition(*u, u_init);
    }
-
+   /// Initializes the state variable to a given constant vector
+   /// \param[in] state - the state vector to initialize
+   /// \param[in] u_init - vector that defines the initial condition
+   virtual void setInitialCondition(mfem::ParCentGridFunction &state,
+                                    const mfem::Vector &u_init);
    /// Initializes the state variable to a given constant vector
    /// \param[in] u_init - vector that defines the initial condition
    inline virtual void setInitialCondition(const mfem::Vector &u_init)
    {
-      setInitialCondition(*u, u_init);
+      if (!gd)
+      {
+         setInitialCondition(*u, u_init);
+      }
+      else
+      {
+         cout << "inside initial condition " << endl;
+         setInitialCondition(*u_gd, u_init);
+      }
    }
 
    /// Initializes the state vector to a given field.
@@ -188,6 +199,7 @@ public:
    /// \param[in] u_init - vector that defines the initial condition
    virtual void setInitialCondition(mfem::ParGridFunction &state,
                                     const mfem::Vector &u_init);
+
 
    /// Initializes the field to a given constant
    /// \param[in] field - the field to set

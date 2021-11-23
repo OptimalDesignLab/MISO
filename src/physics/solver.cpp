@@ -509,6 +509,7 @@ void AbstractSolver::setInitialCondition(
    // state.ProjectBdrCoefficient(u0, ess_bdr);
    // std::cout << "ess_bdr: "; ess_bdr.Print();
 }
+
 void AbstractSolver::setInitialCondition(
     ParGridFunction &state,
     const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
@@ -553,6 +554,14 @@ void AbstractSolver::setInitialCondition(ParGridFunction &state,
 }
 
 void AbstractSolver::setInitialCondition(ParGridFunction &state,
+                                         const Vector &u_init)
+{
+   VectorConstantCoefficient u0(u_init);
+   state.ProjectCoefficient(u0);
+}
+
+
+void AbstractSolver::setInitialCondition(ParCentGridFunction &state,
                                          const Vector &u_init)
 {
    VectorConstantCoefficient u0(u_init);
@@ -846,6 +855,7 @@ double AbstractSolver::calcL2Error(
    *scratch = field;
    return calcL2Error(scratch.get(), u_exact, entry);
 }
+
 double AbstractSolver::calcResidualNorm() const
 {
    if (gd)

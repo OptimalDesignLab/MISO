@@ -54,8 +54,8 @@ int main(int argc, char *argv[])
       // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
       solver->setInitialCondition(qfar);
       solver->printSolution("airfoil-steady-dg-init");
-      solver->checkJacobian(pert);
-      solver->printResidual("residual-init");
+      //solver->checkJacobian(pert);
+     // solver->printResidual("residual-init");
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
       solver->solveForState();
