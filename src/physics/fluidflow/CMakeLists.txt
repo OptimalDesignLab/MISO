@@ -37,5 +37,5 @@ target_include_directories(mach
 )
 
 add_subdirectory(dg)
-
+add_subdirectory(cut-cell)
 

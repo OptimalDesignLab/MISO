@@ -22,6 +22,7 @@ set(SANDBOX_SRCS
    viscous_shock
    airfoil_steady
    airfoil_steady_dg
+   airfoil_steady_dg_cut
    airfoil_chaotic
    # magnetostatic_box
    magnetostatic_motor

@@ -1,0 +1,16 @@
+target_sources(mach
+   PRIVATE
+      euler_integ_def_dg_cut.hpp
+      euler_integ_dg_cut.hpp
+      euler_dg_cut.cpp
+      euler_dg_cut.hpp 
+      inviscid_integ_def_dg_cut.hpp
+      inviscid_integ_dg_cut.hpp
+      cut_quad.hpp
+     )
+
+target_include_directories(mach
+   PUBLIC
+      "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
