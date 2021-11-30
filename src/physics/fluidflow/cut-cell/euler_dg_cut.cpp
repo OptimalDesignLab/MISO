@@ -57,12 +57,12 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
       if (cutcell.cutByGeom(i) == true)
       {
          cutelems.push_back(i);
-         cout << "cut element id " << i << endl;
+         // cout << "cut element id " << i << endl;
       }
       if (cutcell.insideBoundary(i) == true)
       {
          embeddedElements.push_back(true);
-         cout << "embedded element id " << i << endl;
+         // cout << "embedded element id " << i << endl;
       }
       else
       {
@@ -110,14 +110,15 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
       }
    }
    double radius = 0.5;
+   /// int rule for cut elements
    cutcell.GetCutElementIntRule(cutelems, deg, radius, cutSquareIntRules);
    /// int rule for cut boundaries and interior faces
-   cutcell.GetCutSegmentIntRule(cutelems,
-                           cutInteriorFaces,
-                           deg,
-                           radius,
-                           cutSegmentIntRules,
-                           cutInteriorFaceIntRules);
+   // cutcell.GetCutSegmentIntRule(cutelems,
+   //                         cutInteriorFaces,
+   //                         deg,
+   //                         radius,
+   //                         cutSegmentIntRules,
+   //                         cutInteriorFaceIntRules);
 }
 
 template <int dim, bool entvar>
@@ -698,7 +699,7 @@ void CutEulerDGSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
    }
    else
    {
-      Array<int> vdofs(num_state);
+      mfem::Array<int> vdofs(num_state);
       Vector el_con;
       Vector el_ent;
       for (int i = 0; i < fes->GetNE(); i++)

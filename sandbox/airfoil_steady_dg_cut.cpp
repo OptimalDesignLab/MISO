@@ -35,16 +35,18 @@ int main(int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    ostream *out = getOutStream(rank);
+     int N = 4;
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options", "Options file to use.");
+   args.AddOption(&N, "-n", "--#elements", "number of elements");
    args.Parse();
    if (!args.Good())
    {
       args.PrintUsage(cout);
       return 1;
    }
-   int N = 4;
+ 
    try
    {
       // construct the solver, set the initial condition, and solve

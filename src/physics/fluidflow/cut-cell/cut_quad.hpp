@@ -3,7 +3,8 @@
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
-#include "algoim_quad.hpp"
+// #include "algoim_quad.hpp"
+#include "algoim_levelset.hpp"
 #include <list>
 using namespace mfem;
 using namespace std;
@@ -54,35 +55,48 @@ public:
       cout << "nbnd " << nbnd << endl;
       /// parameters
       double rho = 10.0 * nbnd;
+      double delta = 1e-10;
       /// radius
       double a = 0.5;
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
          TinyVector<double, N> x, nrm;
-         x(0) = a * cos(theta);
-         x(1) = a * sin(theta);
-         nrm(0) = 2.0 * x(0);
-         nrm(1) = 2.0 * x(1);
+         x(0) = a * cos(theta) + 0.5;
+         x(1) = a * sin(theta) + 0.5;
+         nrm(0) = 2.0 * (x(0) - 0.5);
+         nrm(1) = 2.0 * (x(1) - 0.5);
          double ds = mag(nrm);
          TinyVector<double, N> ni;
          ni = nrm / ds;
          Xc.push_back(x);
          nor.push_back(ni);
       }
-      /// evaluate levelset and it's gradient
-      // Algoim::LevelSet<N> phi(Xc, nor, rho, delta);
+      /// initialize levelset
+      //phi.LevelSet(Xc, nor, rho, delta);
+      phi.initializeLevelSet(Xc, nor, rho, delta);
       phi.xscale = 1.0;
       phi.yscale = 1.0;
-      phi.xmin = 0.0;
-      phi.ymin = 0.0;
-      phi.radius = 0.5;
+      phi.min_x = 0.0;
+      phi.min_y = 0.0;
+      TinyVector<double, N> x;
+      x(0) = 0.5;
+      x(1) = 1.0;
+
+      std::cout << std::setprecision(10) << std::endl;
+      cout << "phi " << phi(x) << endl;
+      phi_e.xscale = 1.0;
+      phi_e.yscale = 1.0;
+      phi_e.xmin = 0.0;
+      phi_e.ymin = 0.0;
+      phi_e.radius = 0.5;
+      cout << "exact phi " << phi_e(x) << endl;
    }
    /// function that checks if an element is `cut` by `embedded geometry` or not
    bool cutByGeom(int &elemid) const
    {
       Element *el = mesh->GetElement(elemid);
-      Array<int> v;
+      mfem::Array<int> v;
       el->GetVertices(v);
       int k, l, n;
       k = 0;
@@ -128,7 +142,7 @@ public:
    bool insideBoundary(int &elemid) const
    {
       Element *el = mesh->GetElement(elemid);
-      Array<int> v;
+      mfem::Array<int> v;
       el->GetVertices(v);
       int k;
       k = 0;
@@ -170,7 +184,7 @@ public:
                         blitz::TinyVector<double, N> &xmax) const
    {
       Element *el = mesh->GetElement(id);
-      Array<int> v;
+      mfem::Array<int> v;
       Vector min, max;
       min.SetSize(N);
       max.SetSize(N);
@@ -230,9 +244,8 @@ public:
          findBoundingBox(elemid, xmin, xmax);
          phi.xscale = xmax[0] - xmin[0];
          phi.yscale = xmax[1] - xmin[1];
-         phi.xmin = xmin[0];
-         phi.ymin = xmin[1];
-         // phi.radius = radius;
+         phi.min_x = xmin[0];
+         phi.min_y = xmin[1];;
          auto q =
              Algoim::quadGen<N>(phi,
                                 Algoim::BoundingBox<double, N>(xlower, xupper),
@@ -286,10 +299,12 @@ public:
          xupper = {1, 1};
          int elemid = cutelems.at(k);
          findBoundingBox(elemid, xmin, xmax);
+         // xlower = {xmin[0], xmin[1]};
+         // xupper = {xmax[0], xmax[1]};
          phi.xscale = xmax[0] - xmin[0];
          phi.yscale = xmax[1] - xmin[1];
-         phi.xmin = xmin[0];
-         phi.ymin = xmin[1];
+         phi.min_x = xmin[0];
+         phi.min_y = xmin[1];
          // phi.radius = radius;
          dir = N;
          side = -1;
@@ -309,16 +324,16 @@ public:
             ip.weight = pt.w;
             i = i + 1;
             // cout << "elem " << elemid << " , " << ip.weight << endl;
-            double xqp = (pt.x[0] * phi.xscale) + phi.xmin;
-            double yqp = (pt.x[1] * phi.yscale) + phi.ymin;
+            double xqp = (pt.x[0] * phi.xscale) + phi.min_x;
+            double yqp = (pt.x[1] * phi.yscale) + phi.min_y;
             MFEM_ASSERT(
                 ip.weight > 0,
                 "integration point weight is negative in curved surface "
                 "int rule from Saye's method");
          }
          cutSegmentIntRules[elemid] = ir;
-         Array<int> orient;
-         Array<int> fids;
+         mfem::Array<int> orient;
+         mfem::Array<int> fids;
          mesh->GetElementEdges(elemid, fids, orient);
          int fid;
          for (int c = 0; c < fids.Size(); ++c)
@@ -329,7 +344,7 @@ public:
             {
                if (cutInteriorFaceIntRules[fid] == NULL)
                {
-                  Array<int> v;
+                  mfem::Array<int> v;
                   mesh->GetEdgeVertices(fid, v);
                   double *v1coord, *v2coord;
                   v1coord = mesh->GetVertex(v[0]);
@@ -395,8 +410,8 @@ public:
                      ip.weight = pt.w;
                      i = i + 1;
                      // scaled to original element space
-                     double xq = (pt.x[0] * phi.xscale) + phi.xmin;
-                     double yq = (pt.x[1] * phi.yscale) + phi.ymin;
+                     double xq = (pt.x[0] * phi.xscale) + phi.min_x;
+                     double yq = (pt.x[1] * phi.yscale) + phi.min_y;
                      MFEM_ASSERT(ip.weight > 0,
                                  "integration point weight is negative from "
                                  "Saye's method");
@@ -425,7 +440,8 @@ public:
 
 protected:
    mfem::Mesh *mesh;
-   mutable circle<N> phi;
+   mutable circle<N> phi_e;
+   mutable Algoim::LevelSet<2> phi;
 };
 }  // namespace mach
 
