@@ -233,7 +233,6 @@ void AbstractSolver::initDerived()
    constructForms();
    *out << "res size is " << res->Height() << " x " << res->Width() << endl;
    *out << "mass size is " << mass->Height() << " x " << mass->Width() << endl;
-   *out << "ent size is " << ent->Height() << " x " << ent->Width() << endl;
 
    if (nonlinear_mass)
    {
@@ -559,7 +558,6 @@ void AbstractSolver::setInitialCondition(ParGridFunction &state,
    VectorConstantCoefficient u0(u_init);
    state.ProjectCoefficient(u0);
 }
-
 
 void AbstractSolver::setInitialCondition(ParCentGridFunction &state,
                                          const Vector &u_init)

@@ -17,7 +17,7 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
 {
    if (embeddedElements.at(trans.ElementNo) == true)
    {
-      return 0;
+      return 0.0;
    }
   // int dof = el.GetDof();
    double energy;
@@ -26,6 +26,10 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
    if (!ir)
    {
       ir = &(IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + 3));  // <---
+   }
+   if (ir == NULL)
+   {
+      return 0.0;
    }
    energy = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)

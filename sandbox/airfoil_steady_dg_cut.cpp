@@ -23,12 +23,18 @@ std::uniform_real_distribution<double> normal_rand(-1.0, 1.0);
 /// \param[out] u - conservative variables stored as a 4-vector
 void pert(const Vector &x, Vector &p);
 
+/// Generate quarter annulus mesh 
+/// \param[in] N - number of elements in x-y direction
+Mesh buildMesh(int N);
 int main(int argc, char *argv[])
 {
    const char *options_file = "airfoil_steady_dg_cut_options.json";
    // Initialize MPI
+   int num_procs, rank;
    MPI_Init(&argc, &argv);
-
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   ostream *out = getOutStream(rank);
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options", "Options file to use.");
@@ -38,12 +44,17 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
-
+   int N = 4;
    try
    {
       // construct the solver, set the initial condition, and solve
+      unique_ptr<Mesh> smesh(new Mesh(buildMesh(N)));
+      *out << "Number of elements " << smesh->GetNE() <<'\n';
+      ofstream sol_ofs("cart_mesh_dg_cut.vtk");
+      sol_ofs.precision(14);
+      smesh->PrintVTK(sol_ofs,0);
       string opt_file_name(options_file);
-      auto solver = createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name);
+      auto solver = createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
     //   Vector qfar(4);
     //   static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
     //       ->getFreeStreamState(qfar);
@@ -87,4 +98,11 @@ void pert(const Vector &x, Vector &p)
    {
       p(i) = normal_rand(gen);
    }
+}
+
+Mesh buildMesh(int N)
+{
+   Mesh mesh = Mesh::MakeCartesian2D(
+       N, N, Element::QUADRILATERAL, true, 1.0, 1.0, true);
+   return mesh;
 }

@@ -107,6 +107,8 @@ protected:
    std::vector<int> cutInteriorFaces;
    // tells if face is immersed
    std::map<int, bool> immersedFaces;
+   // find the elements cut by geometry
+   std::vector<int> cutelems;
 
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
