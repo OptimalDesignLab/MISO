@@ -109,7 +109,8 @@ protected:
    std::map<int, bool> immersedFaces;
    // find the elements cut by geometry
    std::vector<int> cutelems;
-
+   /// levelset to calculate normal vectors
+   Algoim::LevelSet<2> phi;
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem

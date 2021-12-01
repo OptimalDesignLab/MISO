@@ -16,8 +16,8 @@ struct circle
 {
    double xscale;
    double yscale;
-   double xmin;
-   double ymin;
+   double min_x;
+   double min_y;
    double radius;
    double xc = 0.5;
    double yc = 0.5;
@@ -29,8 +29,8 @@ struct circle
       //               ((x[1]- 5) * (x[1] - 5)) - (0.5 * 0.5));
       // level-set function for reference elements
       return -1 *
-             ((((x[0] * xscale) + xmin - xc) * ((x[0] * xscale) + xmin - xc)) +
-              (((x[1] * yscale) + ymin - yc) * ((x[1] * yscale) + ymin - yc)) -
+             ((((x[0] * xscale) + min_x - xc) * ((x[0] * xscale) + min_x - xc)) +
+              (((x[1] * yscale) + min_y - yc) * ((x[1] * yscale) + min_y - yc)) -
               (radius * radius));
    }
    template <typename T>
@@ -39,8 +39,8 @@ struct circle
       // return blitz::TinyVector<T, N>(-1 * (2.0 * (x(0) - 5)), -1 * (2.0 *
       // (x(1) - 5)));
       return blitz::TinyVector<T, N>(
-          -1 * (2.0 * xscale * ((x(0) * xscale) + xmin - xc)),
-          -1 * (2.0 * yscale * ((x(1) * yscale) + ymin - yc)));
+          -1 * (2.0 * xscale * ((x(0) * xscale) + min_x - xc)),
+          -1 * (2.0 * yscale * ((x(1) * yscale) + min_y - yc)));
    }
 };
 template <int N>
@@ -49,9 +49,14 @@ class CutCell
 public:
    CutCell(mfem::Mesh *_mesh) : mesh(_mesh)
    {
+      phi = constructLevelSet();
+   }
+   /// construct levelset using given geometry points
+   Algoim::LevelSet<2> constructLevelSet()
+   {
       std::vector<TinyVector<double, N>> Xc;
       std::vector<TinyVector<double, N>> nor;
-      int nbnd = 64;
+      int nbnd = 256;
       cout << "nbnd " << nbnd << endl;
       /// parameters
       double rho = 10.0 * nbnd;
@@ -79,19 +84,47 @@ public:
       phi.yscale = 1.0;
       phi.min_x = 0.0;
       phi.min_y = 0.0;
+      // phi.radius = 0.5;
       TinyVector<double, N> x;
-      x(0) = 0.5;
-      x(1) = 1.0;
+      x(0) = 0.2;
+      x(1) = 0.8;
 
       std::cout << std::setprecision(10) << std::endl;
       cout << "phi " << phi(x) << endl;
+      cout << "grad phi "<< phi.grad(x) << endl;
       phi_e.xscale = 1.0;
       phi_e.yscale = 1.0;
-      phi_e.xmin = 0.0;
-      phi_e.ymin = 0.0;
+      phi_e.min_x = 0.0;
+      phi_e.min_y = 0.0;
       phi_e.radius = 0.5;
       cout << "exact phi " << phi_e(x) << endl;
+      cout << "exact grad phi "<< phi_e.grad(x) << endl;
+      cout << "norm vectors " << endl;
+      blitz::TinyVector<double, 2> beta, beta_e;
+      beta = phi.grad(x);
+      beta_e = phi_e.grad(x);
+      double xc = 0.5;
+      double yc = 0.5;
+      double nx = beta(0);
+      double ny = beta(1);
+      double nx_e = beta_e(0);
+      double ny_e = beta_e(1);
+      double ds = sqrt((nx * nx) + (ny * ny));
+      double ds_e = sqrt((nx_e * nx_e) + (ny_e * ny_e));
+      Vector nrm, nrm_e;
+      nrm.SetSize(2);
+      nrm_e.SetSize(2);
+      nrm(0) = -nx / ds;
+      nrm(1) = -ny / ds;
+      nrm_e(0) = nx_e / ds_e;
+      nrm_e(1) = ny_e / ds_e;;
+      cout << "exact norm vector: " << endl;
+      nrm_e.Print();
+      cout << "norm vector using ls: " << endl;
+      nrm.Print();
+      return phi;
    }
+
    /// function that checks if an element is `cut` by `embedded geometry` or not
    bool cutByGeom(int &elemid) const
    {

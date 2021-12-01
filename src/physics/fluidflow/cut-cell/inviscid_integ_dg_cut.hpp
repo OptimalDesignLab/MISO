@@ -3,6 +3,7 @@
 
 #include "adept.h"
 #include "mfem.hpp"
+#include "cut_quad.hpp"
 using namespace mfem;
 namespace mach
 {
@@ -154,11 +155,12 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGInviscidBoundaryIntegrator(adept::Stack &diff_stack, 
                               const mfem::FiniteElementCollection *fe_coll,
-                              std::map<int, IntegrationRule *> _cutSegmentIntRules,
+                              std::map<int, IntegrationRule *> _cutSegmentIntRules, 
+                              Algoim::LevelSet<2> _phi,
                               int num_state_vars = 1,
                               double a = 1.0)
     : num_states(num_state_vars), alpha(a), 
-     stack(diff_stack), fec(fe_coll), cutSegmentIntRules(_cutSegmentIntRules)
+     stack(diff_stack), fec(fe_coll), cutSegmentIntRules(_cutSegmentIntRules), phi(_phi)
    { }
 
    
@@ -213,6 +215,8 @@ protected:
    mfem::DenseMatrix flux_jac_face;
    /// integration rule for embedded geom boundary
    std::map<int, IntegrationRule *> cutSegmentIntRules;
+   // /// levelset to calculate normal vectors
+   Algoim::LevelSet<2> phi;
 #endif
 
    /// Compute a scalar boundary function

@@ -199,6 +199,35 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       const IntegrationPoint &face_ip = ir->IntPoint(i);
       // get the normal vector, and then add contribution to function
       trans.SetIntPoint(&face_ip);
+      trans.Transform(face_ip, x);
+      double nx;
+      double ny;
+      double ds;
+      double xc, yc;
+      blitz::TinyVector<double, 2> xs, beta;
+      xs(0) = 0.2;
+      xs(1) = 0.8;
+      xc = 0.5;
+      yc = 0.5;
+      nx = 2 * (xs(0) - xc);
+      ny = 2 * (xs(1) - yc);
+      /// n_hat = grad_phi/|\grad_phi|
+
+      beta = phi.grad(xs);
+      double nx_e = beta(0);
+      double ny_e = beta(1);
+      double ds_e = sqrt((nx_e * nx_e) + (ny_e * ny_e));
+      Vector nrm_e;
+      nrm_e.SetSize(2);
+      ds = sqrt((nx * nx) + (ny * ny));
+      nrm(0) = -nx / ds;
+      nrm(1) = -ny / ds;
+      nrm_e(0) = nx_e/ds_e;
+      nrm_e(1) = ny_e/ds_e;
+      cout << "norm vector: " << endl;
+      nrm.Print();
+      cout << "norm using levelset " << endl;
+      nrm_e.Print();
       double area = sqrt(trans.Weight());
       fun += face_ip.weight * alpha * area;
    }
@@ -246,13 +275,25 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementVector(
       double ny;
       double ds;
       double xc, yc;
-      xc = 20.0;
-      yc = 20.0;
+      xc = 0.5;
+      yc = 0.5;
       nx = 2 * (x(0) - xc);
       ny = 2 * (x(1) - yc);
+      /// n_hat = grad_phi/|\grad_phi|
+      blitz::TinyVector<double, 2> xs, beta;
+      xs(0) = x(0);
+      xs(1) = x(1);
+      beta = phi.grad(xs);
+
       ds = sqrt((nx * nx) + (ny * ny));
       nrm(0) = -nx / ds;
       nrm(1) = -ny / ds;
+      nx = beta(0)/mag(beta);
+      ny = beta(1)/mag(beta);
+      cout << "norm vector: " << endl;
+      nrm.Print();
+      cout << "norm using levelset " << endl;
+      cout << nx  << " , " << ny << endl;
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
       flux(x, nrm, u_face, flux_face);

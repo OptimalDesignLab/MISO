@@ -82,12 +82,13 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGIsentropicVortexBC(adept::Stack &diff_stack,
                            const mfem::FiniteElementCollection *fe_coll,
-                           std::map<int, IntegrationRule *> cutSegmentIntRules,
+                           std::map<int, IntegrationRule *> cutSegmentIntRules, 
+                           Algoim::LevelSet<2> phi,
                            double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGIsentropicVortexBC<dim, entvar>>(
           diff_stack,
           fe_coll,
-          cutSegmentIntRules,
+          cutSegmentIntRules, phi, 
           dim + 2,
           a)
    { }
@@ -146,12 +147,13 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGSlipWallBC(adept::Stack &diff_stack,
                    const mfem::FiniteElementCollection *fe_coll,
-                   std::map<int, IntegrationRule *> cutSegmentIntRules,
+                   std::map<int, IntegrationRule *> cutSegmentIntRules, 
+                   Algoim::LevelSet<2> phi,
                    double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipWallBC<dim, entvar>>(
           diff_stack,
           fe_coll,
-          cutSegmentIntRules,
+          cutSegmentIntRules, phi, 
           dim + 2,
           a)
    { }
@@ -431,11 +433,12 @@ public:
    CutDGPressureForce(adept::Stack &diff_stack,
                       const mfem::FiniteElementCollection *fe_coll,
                       const mfem::Vector &force_dir,
-                      std::map<int, IntegrationRule *> cutSegmentIntRules)
+                      std::map<int, IntegrationRule *> cutSegmentIntRules, 
+                      Algoim::LevelSet<2> phi)
     : CutDGInviscidBoundaryIntegrator<CutDGPressureForce<dim, entvar>>(
           diff_stack,
           fe_coll,
-          cutSegmentIntRules,
+          cutSegmentIntRules, phi,
           dim + 2,
           1.0),
       force_nrm(force_dir),
