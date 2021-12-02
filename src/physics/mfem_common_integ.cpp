@@ -24,10 +24,9 @@ double VolumeIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
    return vol;
 }
 
-double StateIntegrator::GetElementEnergy(
-   const mfem::FiniteElement &el,
-   mfem::ElementTransformation &trans,
-   const mfem::Vector &elfun)
+double StateIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
+                                         mfem::ElementTransformation &trans,
+                                         const mfem::Vector &elfun)
 {
    const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
 

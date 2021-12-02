@@ -2754,7 +2754,7 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       // const auto b_vec_norm = b_vec.Norml2();
       // const auto b_mag = b_vec_norm / trans.Weight();
 
-      const auto b_mag = max_flux;// / (2 * slot_area);
+      const auto b_mag = max_flux;  // / (2 * slot_area);
 
       const auto sigma_val = sigma.Eval(trans, ip);
 

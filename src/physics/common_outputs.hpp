@@ -16,8 +16,8 @@ class StateAverageFunctional
 {
 public:
    StateAverageFunctional(
-      mfem::ParFiniteElementSpace &fes,
-      std::unordered_map<std::string, mfem::ParGridFunction> &fields);
+       mfem::ParFiniteElementSpace &fes,
+       std::unordered_map<std::string, mfem::ParGridFunction> &fields);
 
    StateAverageFunctional(
        mfem::ParFiniteElementSpace &fes,

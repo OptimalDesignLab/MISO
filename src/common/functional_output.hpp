@@ -49,8 +49,7 @@ public:
    /// should be used on
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
-   void addOutputDomainIntegrator(T *integrator,
-                                  std::vector<int> attr_marker);
+   void addOutputDomainIntegrator(T *integrator, std::vector<int> attr_marker);
 
    /// Adds interface integrator to the nonlinear form that backs this output,
    /// and adds a reference to it to in integs as a MachIntegrator
@@ -117,9 +116,8 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 }
 
 template <typename T>
-void FunctionalOutput::addOutputDomainIntegrator(
-    T *integrator,
-    std::vector<int> attr_marker)
+void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
+                                                 std::vector<int> attr_marker)
 {
    integs.emplace_back(*integrator);
    // auto &marker = domain_markers.emplace_back(attr_marker.size());
@@ -156,8 +154,8 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
     std::vector<int> bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-//    auto &marker = bdr_markers.emplace_back(bdr_attr_marker.size());
-//    marker.Assign(bdr_attr_marker.data());
+   //    auto &marker = bdr_markers.emplace_back(bdr_attr_marker.size());
+   //    marker.Assign(bdr_attr_marker.data());
    auto mesh_attr_size = output.ParFESpace()->GetMesh()->attributes.Size();
    auto &marker = bdr_markers.emplace_back(mesh_attr_size);
    attrVecToArray(bdr_attr_marker, marker);
