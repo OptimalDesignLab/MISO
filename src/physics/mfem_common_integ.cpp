@@ -8,6 +8,40 @@ using namespace mfem;
 
 namespace mach
 {
+double VolumeIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
+                                          mfem::ElementTransformation &trans,
+                                          const mfem::Vector &elfun)
+{
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   double vol = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      vol += ip.weight * trans.Weight();
+   }
+   return vol;
+}
+
+double StateIntegrator::GetElementEnergy(
+   const mfem::FiniteElement &el,
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun)
+{
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      el.CalcShape(ip, shape);
+      fun += ip.weight * (shape * elfun) * trans.Weight();
+   }
+   return fun;
+}
+
 void setOptions(IEAggregateIntegratorNumerator &integ,
                 const nlohmann::json &options)
 {

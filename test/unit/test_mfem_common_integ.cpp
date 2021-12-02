@@ -26,6 +26,94 @@ void funcRevDiff(const Vector &x, const double Q_bar, Vector &x_bar)
 
 } // namespace
 
+TEST_CASE("VolumeIntegrator::GetElementEnergy (2D)")
+{
+   using namespace mfem;
+
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                      Element::TRIANGLE, true,
+                                      2.0, 3.0);
+
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+   auto dim = mesh.Dimension();
+
+   auto p = 1;
+   H1_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(&mesh, &fec);
+
+   ParNonlinearForm form(&fes);
+   form.AddDomainIntegrator(new mach::VolumeIntegrator);
+
+   HypreParVector tv(&fes);
+   auto area = form.GetEnergy(tv);
+
+   REQUIRE(area == Approx(6.0).margin(1e-10));
+}
+
+TEST_CASE("VolumeIntegrator::GetElementEnergy (3D)")
+{
+   using namespace mfem;
+
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                      Element::TETRAHEDRON,
+                                      2.0, 1.0, 1.0, true);
+
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+   auto dim = mesh.Dimension();
+
+   auto p = 1;
+   H1_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(&mesh, &fec);
+
+   ParNonlinearForm form(&fes);
+   form.AddDomainIntegrator(new mach::VolumeIntegrator);
+
+   HypreParVector tv(&fes);
+   auto volume = form.GetEnergy(tv);
+
+   REQUIRE(volume == Approx(2.0).margin(1e-10));
+}
+
+TEST_CASE("StateIntegrator::GetElementEnergy (3D)")
+{
+   using namespace mfem;
+
+   int num_edge = 3;
+   auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                      Element::TETRAHEDRON,
+                                      2*M_PI, 1.0, 1.0, true);
+
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+   auto dim = mesh.Dimension();
+
+   auto p = 1;
+   H1_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(&mesh, &fec);
+
+   ParNonlinearForm form(&fes);
+   form.AddDomainIntegrator(new mach::StateIntegrator);
+
+   ParGridFunction gf(&fes);
+   FunctionCoefficient coeff([](const mfem::Vector &p){
+      return sin(p(0)) * sin(p(0));
+   });
+   gf.ProjectCoefficient(coeff);
+   HypreParVector tv(&fes);
+   gf.GetTrueDofs(tv);
+
+   ParNonlinearForm v_form(&fes);
+   v_form.AddDomainIntegrator(new mach::VolumeIntegrator);
+   auto volume = v_form.GetEnergy(tv);
+
+   auto rms = sqrt(form.GetEnergy(tv) / volume);
+   REQUIRE(rms == Approx(sqrt(2)/2).margin(1e-10));
+}
+
 TEST_CASE("DiffusionIntegratorMeshSens::AssembleRHSElementVect")
 {
    using namespace mfem;

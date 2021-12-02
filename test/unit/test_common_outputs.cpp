@@ -6,6 +6,43 @@
 
 #include "common_outputs.hpp"
 
+TEST_CASE("StateAverageFunctional::calcOutput (3D)")
+{
+   using namespace mfem;
+
+   int num_edge = 3;
+   auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                      Element::TETRAHEDRON,
+                                      2*M_PI, 1.0, 1.0, true);
+
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+   auto dim = mesh.Dimension();
+
+   auto p = 1;
+   H1_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(&mesh, &fec);
+
+   std::unordered_map<std::string, mfem::ParGridFunction> fields;
+
+   mach::StateAverageFunctional out(fes, fields);
+
+   fields.emplace("state", &fes);
+   auto &state = fields.at("state");
+   FunctionCoefficient state_coeff([](const mfem::Vector &p){
+      return sin(p(0)) * sin(p(0));
+   });
+   state.ProjectCoefficient(state_coeff);
+
+   mfem::HypreParVector state_tv(&fes);
+   state.GetTrueDofs(state_tv);
+
+   mach::MachInputs inputs{{"state", state_tv.GetData()}};
+   double rms = sqrt(calcOutput(out, inputs));
+
+   REQUIRE(rms == Approx(sqrt(2)/2).margin(1e-10));
+}
+
 TEST_CASE("IEAggregateFunctional::calcOutput")
 {
    auto smesh = mfem::Mesh::MakeCartesian2D(3, 3, mfem::Element::TRIANGLE);
@@ -49,7 +86,7 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    setOptions(out, output_opts);
 
    max_state = calcOutput(out, inputs);
-   /// Should be sqrt(sin(1.0)^2 + 1.0)
+   /// Should be 1.0
    REQUIRE(max_state == Approx(0.8544376503));
 }
 

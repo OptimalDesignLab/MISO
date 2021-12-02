@@ -8,6 +8,27 @@
 
 namespace mach
 {
+class VolumeIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+};
+
+class StateIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+};
+
 class IEAggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
 {
 public:

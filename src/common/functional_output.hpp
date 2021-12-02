@@ -11,6 +11,7 @@
 
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
+#include "utils.hpp"
 
 namespace mach
 {
@@ -49,7 +50,7 @@ public:
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
    void addOutputDomainIntegrator(T *integrator,
-                                  std::vector<int> bdr_attr_marker);
+                                  std::vector<int> attr_marker);
 
    /// Adds interface integrator to the nonlinear form that backs this output,
    /// and adds a reference to it to in integs as a MachIntegrator
@@ -118,11 +119,14 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 template <typename T>
 void FunctionalOutput::addOutputDomainIntegrator(
     T *integrator,
-    std::vector<int> bdr_attr_marker)
+    std::vector<int> attr_marker)
 {
    integs.emplace_back(*integrator);
-   auto &marker = domain_markers.emplace_back(bdr_attr_marker.size());
-   marker.Assign(bdr_attr_marker.data());
+   // auto &marker = domain_markers.emplace_back(attr_marker.size());
+   // marker.Assign(attr_marker.data());
+   auto mesh_attr_size = output.ParFESpace()->GetMesh()->attributes.Size();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(attr_marker, marker);
    output.AddDomainIntegrator(integrator, marker);
    mach::addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
@@ -152,8 +156,11 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
     std::vector<int> bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-   auto &marker = bdr_markers.emplace_back(bdr_attr_marker.size());
-   marker.Assign(bdr_attr_marker.data());
+//    auto &marker = bdr_markers.emplace_back(bdr_attr_marker.size());
+//    marker.Assign(bdr_attr_marker.data());
+   auto mesh_attr_size = output.ParFESpace()->GetMesh()->attributes.Size();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(bdr_attr_marker, marker);
    output.AddBdrFaceIntegrator(integrator, marker);
    mach::addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);

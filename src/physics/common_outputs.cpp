@@ -8,6 +8,36 @@
 
 namespace mach
 {
+StateAverageFunctional::StateAverageFunctional(
+    mfem::ParFiniteElementSpace &fes,
+    std::unordered_map<std::string, mfem::ParGridFunction> &fields)
+ : StateAverageFunctional(fes, fields, {})
+{}
+
+StateAverageFunctional::StateAverageFunctional(
+    mfem::ParFiniteElementSpace &fes,
+    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    const nlohmann::json &options)
+ : state_integ(fes, fields), volume(fes, fields)
+{
+   if (options.contains("attributes"))
+   {
+      auto attributes = options["attributes"].get<std::vector<int>>();
+      state_integ.addOutputDomainIntegrator(
+          new StateIntegrator, attributes);
+      volume.addOutputDomainIntegrator(
+          new VolumeIntegrator, attributes);
+   }
+   else
+   {
+      state_integ.addOutputDomainIntegrator(
+          new StateIntegrator);
+        volume.addOutputDomainIntegrator(
+          new VolumeIntegrator);
+   }
+
+}
+
 IEAggregateFunctional::IEAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
     std::unordered_map<std::string, mfem::ParGridFunction> &fields,

@@ -12,6 +12,45 @@
 
 namespace mach
 {
+class StateAverageFunctional
+{
+public:
+   StateAverageFunctional(
+      mfem::ParFiniteElementSpace &fes,
+      std::unordered_map<std::string, mfem::ParGridFunction> &fields);
+
+   StateAverageFunctional(
+       mfem::ParFiniteElementSpace &fes,
+       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+       const nlohmann::json &options);
+
+   friend void setOptions(StateAverageFunctional &output,
+                          const nlohmann::json &options)
+   {
+      setOptions(output.state_integ, options);
+      setOptions(output.volume, options);
+   }
+
+   friend void setInputs(StateAverageFunctional &output,
+                         const MachInputs &inputs)
+   {
+      setInputs(output.state_integ, inputs);
+      setInputs(output.volume, inputs);
+   }
+
+   friend double calcOutput(StateAverageFunctional &output,
+                            const MachInputs &inputs)
+   {
+      double state = calcOutput(output.state_integ, inputs);
+      double volume = calcOutput(output.volume, inputs);
+      return state / volume;
+   }
+
+private:
+   FunctionalOutput state_integ;
+   FunctionalOutput volume;
+};
+
 class IEAggregateFunctional
 {
 public:

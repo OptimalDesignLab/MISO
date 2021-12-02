@@ -103,6 +103,16 @@ mfem::HypreParVector bufferToHypreParVector(
     double *buffer,
     const mfem::ParFiniteElementSpace &fes);
 
+/// \brief Convert std::vector containing decimal attribute identifies to
+/// binary array expected by mfem interfaces
+/// \param[in] vec_attributes - vector containing real number attribute IDs
+/// \param[out] attributes - mfem binary array where a `1` at index ID-1
+/// indicates attribute ID is active
+/// \note If @a vec_attributes was holding {2, 4}, then @a attributes would be
+/// set to [0 1 0 1]
+void attrVecToArray(const std::vector<int> &vec_attributes,
+                    mfem::Array<int> &attributes);
+
 // /// The following are adapted from MFEM's pfem_extras.xpp
 // class DiscreteGradOperator : public mfem::ParDiscreteLinearOperator
 // {

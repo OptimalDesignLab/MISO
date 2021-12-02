@@ -2668,15 +2668,25 @@ void setInputs(ACLossFunctionalIntegrator &integ, const MachInputs &inputs)
    {
       integ.effective_length = it->second.getValue();
    }
-   it = inputs.find("num_strands");
+   it = inputs.find("num_sih");
    if (it != inputs.end())
    {
-      integ.num_strands = it->second.getValue();
+      integ.num_sih = it->second.getValue();
+   }
+   it = inputs.find("num_turns");
+   if (it != inputs.end())
+   {
+      integ.num_turns = it->second.getValue();
    }
    it = inputs.find("slot_area");
    if (it != inputs.end())
    {
       integ.slot_area = it->second.getValue();
+   }
+   it = inputs.find("max_flux");
+   if (it != inputs.end())
+   {
+      integ.max_flux = it->second.getValue();
    }
 }
 
@@ -2730,28 +2740,31 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       /// holds quadrature weight
       const double w = ip.weight * trans.Weight();
 
-      if (dim == 3)
-      {
-         el.CalcCurlShape(ip, curlshape);
-         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-      }
-      else
-      {
-         el.CalcCurlShape(ip, curlshape_dFt);
-      }
+      // if (dim == 3)
+      // {
+      //    el.CalcCurlShape(ip, curlshape);
+      //    MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      // }
+      // else
+      // {
+      //    el.CalcCurlShape(ip, curlshape_dFt);
+      // }
 
-      curlshape_dFt.MultTranspose(elfun, b_vec);
-      const auto b_vec_norm = b_vec.Norml2();
-      const auto b_mag = b_vec_norm / trans.Weight();
+      // curlshape_dFt.MultTranspose(elfun, b_vec);
+      // const auto b_vec_norm = b_vec.Norml2();
+      // const auto b_mag = b_vec_norm / trans.Weight();
+
+      const auto b_mag = max_flux;// / (2 * slot_area);
 
       const auto sigma_val = sigma.Eval(trans, ip);
 
       const auto loss = effective_length * M_PI * pow(radius, 4) * sigma_val *
                         pow(freq * b_mag, 2) / 32.0;
 
-      const auto copper_area = num_strands * M_PI * pow(radius, 2);
+      const auto copper_area = num_sih * num_turns * M_PI * pow(radius, 2);
       const auto fill_factor = copper_area / slot_area;
-      fun += loss * w * num_strands * fill_factor / slot_area;
+      // fun += loss * w * num_strands * fill_factor / slot_area;
+      fun += loss * w * pow(num_sih, 2) * num_turns * fill_factor / slot_area;
    }
    return fun;
 }
