@@ -308,6 +308,96 @@ void CutDGFarFieldBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
 }
 
 template <int dim, bool entvar>
+double CutDGEulerFarFieldBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                                  const mfem::Vector &dir,
+                                                  const mfem::Vector &q)
+{
+   mfem::Vector flux_vec(q.Size());
+   calcFlux(x, dir, q, flux_vec);
+   mfem::Vector w(q.Size());
+   if (entvar)
+   {
+      w = q;
+   }
+   else
+   {
+      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   }
+   return w * flux_vec;
+}
+
+template <int dim, bool entvar>
+void CutDGEulerFarFieldBC<dim, entvar>::calcFlux(const mfem::Vector &x,
+                                            const mfem::Vector &dir,
+                                            const mfem::Vector &q,
+                                            mfem::Vector &flux_vec)
+{
+   calcFarFieldFlux<double, dim, entvar>(dir.GetData(),
+                                         qfs.GetData(),
+                                         q.GetData(),
+                                         work_vec.GetData(),
+                                         flux_vec.GetData());
+}
+
+template <int dim, bool entvar>
+void CutDGEulerFarFieldBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
+                                                    const mfem::Vector &dir,
+                                                    const mfem::Vector &q,
+                                                    mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> qfs_a(qfs.Size());
+   std::vector<adouble> work_vec_a(work_vec.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(qfs_a.data(), qfs.Size(), qfs.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcFarFieldFlux<adouble, dim, entvar>(dir_a.data(),
+                                                qfs_a.data(),
+                                                q_a.data(),
+                                                work_vec_a.data(),
+                                                flux_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
+void CutDGEulerFarFieldBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
+                                                  const mfem::Vector &dir,
+                                                  const mfem::Vector &q,
+                                                  mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> qfs_a(qfs.Size());
+   std::vector<adouble> work_vec_a(work_vec.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(qfs_a.data(), qfs.Size(), qfs.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcFarFieldFlux<adouble, dim, entvar>(dir_a.data(),
+                                                qfs_a.data(),
+                                                q_a.data(),
+                                                work_vec_a.data(),
+                                                flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
 CutDGInterfaceIntegrator<dim, entvar>::CutDGInterfaceIntegrator(
     adept::Stack &diff_stack,
     double coeff,

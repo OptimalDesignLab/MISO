@@ -109,6 +109,10 @@ protected:
    std::map<int, bool> immersedFaces;
    // find the elements cut by geometry
    std::vector<int> cutelems;
+   /// domain boundary faces cut by geometry  
+   vector<int> cutFaces;
+   /// domain boundary faces cut by geometry  
+   vector<int> cutBdrFaces;
    /// levelset to calculate normal vectors
    Algoim::LevelSet<2> phi;
    /// Class constructor (protected to prevent misuse)

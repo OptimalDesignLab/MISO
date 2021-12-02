@@ -17,6 +17,7 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
 {
    if (embeddedElements.at(trans.ElementNo) == true)
    {
+      cout << "embedded element " << trans.ElementNo << endl;
       return 0.0;
    }
   // int dof = el.GetDof();
@@ -25,6 +26,7 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
    ir = cutSquareIntRules[trans.ElementNo];
    if (!ir)
    {
+      cout << "element not cut " << trans.ElementNo << endl;
       ir = &(IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + 3));  // <---
    }
    if (ir == NULL)
@@ -168,7 +170,187 @@ void CutDGInviscidIntegrator<Derived>::AssembleElementGrad(
       }
    }
 }
+template <typename Derived>
+double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
+    const mfem::FiniteElement &el_bnd,
+    const mfem::FiniteElement &el_unused,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun)
+{
+   using namespace mfem;
+   const int num_nodes = el_bnd.GetDof();
+   int dim = el_bnd.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face, x, nrm, flux_face;
+#endif
+   u_face.SetSize(num_states);
+   x.SetSize(dim);
+   nrm.SetSize(dim);
+   shape.SetSize(num_nodes);
+   double fun = 0.0;  // initialize the functional value
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+    const IntegrationRule *ir;
+   if (embeddedElements.at(trans.Elem1No) == true)
+   {
+      return 0;
+   }
+   ir = cutBdrFaceIntRules[trans.Elem1No];
+   if (!ir)
+   {
+   int intorder;
+   intorder = trans.Elem1->OrderW() + 2 * el_bnd.GetOrder();
+   ir = &IntRules.Get(trans.FaceGeom, intorder);
+   }
+   IntegrationPoint el_ip;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &face_ip = ir->IntPoint(i);
+      trans.Loc1.Transform(face_ip, el_ip);
+      trans.Elem1->Transform(el_ip, x);
+      el_bnd.CalcShape(el_ip, shape);
+      u.MultTranspose(shape, u_face);
+      // get the normal vector, and then add contribution to function
+      trans.Face->SetIntPoint(&face_ip);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
+   }
+   return fun;
+}
 
+template <typename Derived>
+void CutDGEulerBoundaryIntegrator<Derived>::AssembleFaceVector(
+    const mfem::FiniteElement &el_bnd,
+    const mfem::FiniteElement &el_unused,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elvect)
+{
+   using namespace mfem;
+   const int dof = el_bnd.GetDof();
+#ifdef MFEM_THREAD_SAFE
+   Vector u_face, x, nrm, flux_face, shape;
+#endif
+   int dim = el_bnd.GetDim();
+   u_face.SetSize(num_states);
+   x.SetSize(dim);
+   nrm.SetSize(dim);
+   flux_face.SetSize(num_states);
+   elvect.SetSize(num_states * dof);
+   elvect = 0.0;
+   shape.SetSize(dof);
+   DenseMatrix u(elfun.GetData(), dof, num_states);
+   DenseMatrix res(elvect.GetData(), dof, num_states);
+   if (embeddedElements.at(trans.Elem1No) == true)
+   {
+      elvect = 0.0;
+   }
+   else
+   {
+   const IntegrationRule *ir;
+   ir = cutBdrFaceIntRules[trans.Elem1No];
+   if (!ir)
+   {
+         int intorder;
+     intorder = trans.Elem1->OrderW() + 2 * el_bnd.GetOrder();
+    ir = &IntRules.Get(trans.FaceGeom, intorder);
+   }
+
+   IntegrationPoint eip1;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.Loc1.Transform(ip, eip1);
+      trans.Elem1->Transform(eip1, x);
+      el_bnd.CalcShape(eip1, shape);
+      // get the normal vector and the flux on the face
+      trans.Face->SetIntPoint(&ip);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      // Interpolate elfun at the point
+      u.MultTranspose(shape, u_face);
+      flux(x, nrm, u_face, flux_face);
+      flux_face *= ip.weight;
+      // multiply by test function
+      for (int n = 0; n < num_states; ++n)
+      {
+         for (int s = 0; s < dof; s++)
+         {
+            res(s, n) += shape(s) * flux_face(n);
+         }
+      }
+   }
+   res *= alpha;
+}
+}
+
+template <typename Derived>
+void CutDGEulerBoundaryIntegrator<Derived>::AssembleFaceGrad(
+    const mfem::FiniteElement &el_bnd,
+    const mfem::FiniteElement &el_unused,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::DenseMatrix &elmat)
+{
+   using namespace mfem;
+   int dim = el_bnd.GetDim();
+   const int dof = el_bnd.GetDof();
+   int ndof = elfun.Size();
+   elmat.SetSize(ndof);
+   u_face.SetSize(num_states);
+   x.SetSize(dim);
+   nrm.SetSize(dim);
+   flux_face.SetSize(num_states);
+   shape.SetSize(dof);
+   DenseMatrix u(elfun.GetData(), dof, num_states);
+   elmat = 0.0;
+   flux_jac_face.SetSize(num_states);
+   if (embeddedElements.at(trans.Elem1No) == true)
+   {
+      elmat = 0.0;
+   }
+   else
+   {
+   const IntegrationRule *ir;
+   ir = cutBdrFaceIntRules[trans.Elem1No];
+   if (!ir)
+   {
+         int intorder;
+     intorder = trans.Elem1->OrderW() + 2 * el_bnd.GetOrder();
+    ir = &IntRules.Get(trans.FaceGeom, intorder);
+   }
+   IntegrationPoint eip1;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.Loc1.Transform(ip, eip1);
+      trans.Elem1->Transform(eip1, x);
+      el_bnd.CalcShape(eip1, shape);
+      // get the normal vector and the flux on the face
+      trans.Face->SetIntPoint(&ip);
+      CalcOrtho(trans.Face->Jacobian(), nrm);
+      // Interpolate elfun at the point
+      u.MultTranspose(shape, u_face);
+      // flux(x, nrm, u_face, flux_face);
+      fluxJacState(x, nrm, u_face, flux_jac_face);
+      for (int j = 0; j < dof; ++j)
+      {
+         for (int k = 0; k < dof; ++k)
+         {
+            double Q = shape(j) * shape(k);
+            // multiply by test function
+            for (int n = 0; n < num_states; ++n)
+            {
+               for (int m = 0; m < num_states; ++m)
+               {
+                  // res(j, n) += alpha*flux_face(n);
+                  elmat(m * dof + k, n * dof + j) +=
+                      ip.weight * Q * alpha * flux_jac_face(m, n);
+               }
+            }
+         }
+      }
+   }
+}
+}
 template <typename Derived>
 double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
     const mfem::FiniteElement &el_bnd,
@@ -200,34 +382,6 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       // get the normal vector, and then add contribution to function
       trans.SetIntPoint(&face_ip);
       trans.Transform(face_ip, x);
-      double nx;
-      double ny;
-      double ds;
-      double xc, yc;
-      blitz::TinyVector<double, 2> xs, beta;
-      xs(0) = 0.2;
-      xs(1) = 0.8;
-      xc = 0.5;
-      yc = 0.5;
-      nx = 2 * (xs(0) - xc);
-      ny = 2 * (xs(1) - yc);
-      /// n_hat = grad_phi/|\grad_phi|
-
-      beta = phi.grad(xs);
-      double nx_e = beta(0);
-      double ny_e = beta(1);
-      double ds_e = sqrt((nx_e * nx_e) + (ny_e * ny_e));
-      Vector nrm_e;
-      nrm_e.SetSize(2);
-      ds = sqrt((nx * nx) + (ny * ny));
-      nrm(0) = -nx / ds;
-      nrm(1) = -ny / ds;
-      nrm_e(0) = nx_e/ds_e;
-      nrm_e(1) = ny_e/ds_e;
-      cout << "norm vector: " << endl;
-      nrm.Print();
-      cout << "norm using levelset " << endl;
-      nrm_e.Print();
       double area = sqrt(trans.Weight());
       fun += face_ip.weight * alpha * area;
    }

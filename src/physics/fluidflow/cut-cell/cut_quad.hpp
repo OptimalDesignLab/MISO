@@ -49,28 +49,30 @@ class CutCell
 public:
    CutCell(mfem::Mesh *_mesh) : mesh(_mesh)
    {
-      phi = constructLevelSet();
+      phi = constructLevelSet(); 
    }
    /// construct levelset using given geometry points
-   Algoim::LevelSet<2> constructLevelSet()
+   Algoim::LevelSet<2> constructLevelSet() const
    {
       std::vector<TinyVector<double, N>> Xc;
       std::vector<TinyVector<double, N>> nor;
-      int nbnd = 256;
+      int nbnd = 32;
       cout << "nbnd " << nbnd << endl;
       /// parameters
-      double rho = 10.0 * nbnd;
+      double rho = nbnd;
       double delta = 1e-10;
+      double xc = 0.5;
+      double yc = 0.5;
       /// radius
-      double a = 0.5;
+      double a = 0.3;
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
          TinyVector<double, N> x, nrm;
-         x(0) = a * cos(theta) + 0.5;
-         x(1) = a * sin(theta) + 0.5;
-         nrm(0) = 2.0 * (x(0) - 0.5);
-         nrm(1) = 2.0 * (x(1) - 0.5);
+         x(0) = a * cos(theta) + xc;
+         x(1) = a * sin(theta) + yc;
+         nrm(0) = 2.0 * (x(0) - xc);
+         nrm(1) = 2.0 * (x(1) - yc);
          double ds = mag(nrm);
          TinyVector<double, N> ni;
          ni = nrm / ds;
@@ -78,27 +80,18 @@ public:
          nor.push_back(ni);
       }
       /// initialize levelset
-      //phi.LevelSet(Xc, nor, rho, delta);
-      phi.initializeLevelSet(Xc, nor, rho, delta);
-      phi.xscale = 1.0;
-      phi.yscale = 1.0;
-      phi.min_x = 0.0;
-      phi.min_y = 0.0;
-      // phi.radius = 0.5;
-      TinyVector<double, N> x;
-      x(0) = 0.2;
-      x(1) = 0.8;
+      Algoim::LevelSet<2> phi_ls;
+      phi_ls.initializeLevelSet(Xc, nor, rho, delta);
+      // phi_e.radius = 0.3;
+      // TinyVector<double, N> x;
+      // x(0) = 0.1;
+      // x(1) = 0.8;
 
-      std::cout << std::setprecision(10) << std::endl;
-      cout << "phi " << phi(x) << endl;
-      cout << "grad phi "<< phi.grad(x) << endl;
-      phi_e.xscale = 1.0;
-      phi_e.yscale = 1.0;
-      phi_e.min_x = 0.0;
-      phi_e.min_y = 0.0;
-      phi_e.radius = 0.5;
-      cout << "exact phi " << phi_e(x) << endl;
-      cout << "exact grad phi "<< phi_e.grad(x) << endl;
+      // std::cout << std::setprecision(10) << std::endl;
+      // cout << "phi " << phi(x) << endl;
+      // cout << "grad phi "<< phi.grad(x) << endl;
+      /// just checking normal vectors
+      #if 0 
       cout << "norm vectors " << endl;
       blitz::TinyVector<double, 2> beta, beta_e;
       beta = phi.grad(x);
@@ -114,15 +107,16 @@ public:
       Vector nrm, nrm_e;
       nrm.SetSize(2);
       nrm_e.SetSize(2);
-      nrm(0) = -nx / ds;
-      nrm(1) = -ny / ds;
+      nrm(0) = nx / ds;
+      nrm(1) = ny / ds;
       nrm_e(0) = nx_e / ds_e;
       nrm_e(1) = ny_e / ds_e;;
       cout << "exact norm vector: " << endl;
       nrm_e.Print();
       cout << "norm vector using ls: " << endl;
       nrm.Print();
-      return phi;
+      #endif
+      return phi_ls;
    }
 
    /// function that checks if an element is `cut` by `embedded geometry` or not
@@ -261,6 +255,8 @@ public:
        std::map<int, IntegrationRule *> &cutSquareIntRules) const
    {
       double tol = 1e-16;
+      QuadratureRule<N> qp;
+      double area = 0.0;
       for (int k = 0; k < cutelems.size(); ++k)
       {
          IntegrationRule *ir;
@@ -275,10 +271,15 @@ public:
          int side = -1;
          int elemid = cutelems.at(k);
          findBoundingBox(elemid, xmin, xmax);
+         Algoim::LevelSet<2> phi;
+         phi = constructLevelSet();
          phi.xscale = xmax[0] - xmin[0];
          phi.yscale = xmax[1] - xmin[1];
          phi.min_x = xmin[0];
-         phi.min_y = xmin[1];;
+         phi.min_y = xmin[1];
+         double xscale = xmax[0] - xmin[0];
+         double yscale = xmax[1] - xmin[1];
+         // cout << "x/ymin inside cut rule() " << phi.min_x << " , " << phi.min_y << endl;
          auto q =
              Algoim::quadGen<N>(phi,
                                 Algoim::BoundingBox<double, N>(xlower, xupper),
@@ -291,8 +292,15 @@ public:
          {
             IntegrationPoint &ip = ir->IntPoint(i);
             ip.x = pt.x[0];
-            ip.y = pt.x[1];
+            ip.y = pt.x[1];;
             ip.weight = pt.w;
+            // if (elemid == 9)
+            // {
+               TinyVector<double, N> xp;
+               xp[0] = (pt.x[0] * phi.xscale) + phi.min_x;
+               xp[1] = (pt.x[1] * phi.yscale) + phi.min_y;
+               qp.evalIntegrand(xp, pt.w);
+            //}
             i = i + 1;
             MFEM_ASSERT(ip.weight > 0,
                         "integration point weight is negative in domain "
@@ -306,6 +314,10 @@ public:
          }
          cutSquareIntRules[elemid] = ir;
       }
+      std::ofstream f("element_quad_rule_ls_bnds.vtp");
+      Algoim::outputQuadratureRuleAsVtpXML(qp, f);
+      std::cout << "  scheme.vtp file written, containing " << qp.nodes.size()
+                << " quadrature points\n";
    }
 
    /// get integration rule for cut segments
@@ -470,11 +482,166 @@ public:
          }
       }
    }
+/// get integration rule for cut segments
+void GetCutBdrSegmentIntRule(Mesh *mesh, vector<int> cutelems, vector<int> cutBdrFaces,
+                             int order, double radius, std::map<int, IntegrationRule *> &cutBdrFaceIntRules)
+{
+    for (int k = 0; k < cutelems.size(); ++k)
+    {
+        IntegrationRule *ir;
+        blitz::TinyVector<double, N> xmin;
+        blitz::TinyVector<double, N> xmax;
+        blitz::TinyVector<double, N> xupper;
+        blitz::TinyVector<double, N> xlower;
+        int side;
+        int dir;
+        double tol = 1e-16;
+        // standard reference element
+        xlower = {0, 0};
+        xupper = {1, 1};
+        int elemid = cutelems.at(k);
+        findBoundingBox<N>(mesh, elemid, xmin, xmax);
+        phi.xscale = xmax[0] - xmin[0];
+        phi.yscale = xmax[1] - xmin[1];
+        phi.min_x = xmin[0];
+        phi.min_y = xmin[1];
+        mfem::Array<int> orient;
+        mfem::Array<int> fids;
+        mesh->GetElementEdges(elemid, fids, orient);
+        int fid;
+        for (int c = 0; c < fids.Size(); ++c)
+        {
+            fid = fids[c];
+            if (find(cutBdrFaces.begin(), cutBdrFaces.end(), fid) != cutBdrFaces.end())
+            {
+                if (cutBdrFaceIntRules[elemid] == NULL)
+                {
+                    //cout << "bdr face int rule for " << fid << endl;
+                    mfem::Array<int> v;
+                    mesh->GetEdgeVertices(fid, v);
+                    double *v1coord, *v2coord;
+                    v1coord = mesh->GetVertex(v[0]);
+                    v2coord = mesh->GetVertex(v[1]);
+                    // cout << " x vert " << v1coord[0] << " , " << v2coord[0] << endl;
+                    // cout << " y vert " << v1coord[1] << " , " << v2coord[1] << endl;
+                    // cout << abs(v1coord[0] - v2coord[0]) << endl;
+                    if (abs(v1coord[0] - v2coord[0]) < 1e-15)
+                    {
+                        dir = 0;
 
+                        if (abs(v1coord[0] - xmax[0]) > 1e-15)
+                        {
+                            side = 0;
+                        }
+                        else
+                        {
+                            side = 1;
+                        }
+                    }
+                    else
+                    {
+                        dir = 1;
+                        if (abs(v1coord[1] - xmax[1]) > 1e-15)
+                        {
+                            side = 0;
+                        }
+                        else
+                        {
+                            side = 1;
+                        }
+                    }
+
+                    // cout << "dir " << dir << endl;
+                    // cout << "side " << side << endl;
+
+                    auto q = Algoim::quadGen<N>(phi, Algoim::BoundingBox<double, N>(xlower, xupper), dir, side, order);
+                    int i = 0;
+                    ir = new IntegrationRule(q.nodes.size());
+                    for (const auto &pt : q.nodes)
+                    {
+                        IntegrationPoint &ip = ir->IntPoint(i);
+                        ip.y = 0.0;
+                        if (dir == 0)
+                        {
+                            if (v1coord[1] < v2coord[1])
+                            {
+                                if (-1 == orient[c])
+                                {
+                                    ip.x = 1 - pt.x[1];
+                                }
+                                else
+                                {
+                                    ip.x = pt.x[1];
+                                }
+                            }
+                            else
+                            {
+                                if (1 == orient[c])
+                                {
+                                    ip.x = 1 - pt.x[1];
+                                }
+                                else
+                                {
+                                    ip.x = pt.x[1];
+                                }
+                            }
+                        }
+                        else if (dir == 1)
+                        {
+                            if (v1coord[0] < v2coord[0])
+                            {
+                                if (-1 == orient[c])
+                                {
+                                    ip.x = 1.0 - pt.x[0];
+                                }
+                                else
+                                {
+                                    ip.x = pt.x[0];
+                                }
+                            }
+                            else
+                            {
+                                if (1 == orient[c])
+                                {
+                                    ip.x = 1.0 - pt.x[0];
+                                }
+                                else
+                                {
+                                    ip.x = pt.x[0];
+                                }
+                            }
+                        }
+                        ip.weight = pt.w;
+                        i = i + 1;
+                                    // scaled to original element space
+
+                        double xq = (pt.x[0] * phi.xscale) + phi.min_x;
+                        double yq = (pt.x[1] * phi.yscale) + phi.min_y;
+                        // cout << setprecision(
+                        //             11)
+                        //      << "int rule " << xq << " , " << yq << " : " << pt.w << endl;
+                        // cout << "ymax " << v2coord[1] << " , ymin " << v1coord[1] << endl;
+
+                        // cout << "phi(pt.x) " << phi(pt.x) << endl;
+
+                        MFEM_ASSERT(ip.weight > 0, "integration point weight is negative from Saye's method");
+                        MFEM_ASSERT((phi(pt.x) < tol), " phi = " << phi(pt.x) << " : "
+                                                                 << "levelset function positive at the quadrature point (Saye's method)");
+                        MFEM_ASSERT((xq <= (max(v1coord[0], v2coord[0]))) && (xq >= (min(v1coord[0], v2coord[0]))),
+                                    "integration point (xcoord) not on element face (Saye's rule)");
+                        MFEM_ASSERT((yq <= (max(v1coord[1], v2coord[1]))) && (yq >= (min(v1coord[1], v2coord[1]))),
+                                    "integration point (ycoord) not on element face (Saye's rule)");
+                    }
+                    cutBdrFaceIntRules[elemid] = ir;
+                }
+            }
+        }
+    }
+}
 protected:
    mfem::Mesh *mesh;
    mutable circle<N> phi_e;
-   mutable Algoim::LevelSet<2> phi;
+   Algoim::LevelSet<2> phi;
 };
 }  // namespace mach
 
