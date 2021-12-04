@@ -83,7 +83,7 @@ public:
    CutDGIsentropicVortexBC(adept::Stack &diff_stack,
                            const mfem::FiniteElementCollection *fe_coll,
                            std::map<int, IntegrationRule *> cutSegmentIntRules, 
-                           Algoim::LevelSet<2> phi,
+                           circle<2> phi,
                            double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGIsentropicVortexBC<dim, entvar>>(
           diff_stack,
@@ -148,7 +148,7 @@ public:
    CutDGSlipWallBC(adept::Stack &diff_stack,
                    const mfem::FiniteElementCollection *fe_coll,
                    std::map<int, IntegrationRule *> cutSegmentIntRules, 
-                   Algoim::LevelSet<2> phi,
+                   circle<2> phi,
                    double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipWallBC<dim, entvar>>(
           diff_stack,
@@ -272,8 +272,8 @@ private:
 /// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
 template <int dim, bool entvar = false>
-class CutDGEulerFarFieldBC
- : public CutDGEulerBoundaryIntegrator<CutDGEulerFarFieldBC<dim, entvar>>
+class CutDGVortexBC
+ : public CutDGEulerBoundaryIntegrator<CutDGVortexBC<dim, entvar>>
 {
 public:
    /// Constructs an integrator for a far-field boundary flux
@@ -281,19 +281,16 @@ public:
    /// \param[in] fe_coll - used to determine the face elements
    /// \param[in] q_far - state at the far-field
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   CutDGEulerFarFieldBC(adept::Stack &diff_stack,
+   CutDGVortexBC(adept::Stack &diff_stack,
                 const mfem::FiniteElementCollection *fe_coll,
-                const mfem::Vector &q_far,
                 std::map<int, IntegrationRule *> cutBdrFaceIntRules,
                 std::vector<bool> embeddedElements,
                 double a = 1.0)
-    : CutDGEulerBoundaryIntegrator<CutDGEulerFarFieldBC<dim, entvar>>(diff_stack,
+    : CutDGEulerBoundaryIntegrator<CutDGVortexBC<dim, entvar>>(diff_stack,
                                                               fe_coll,cutBdrFaceIntRules,
                                                               embeddedElements,
                                                               dim + 2,
-                                                              a),
-      qfs(q_far),
-      work_vec(dim + 2)
+                                                              a)
    { }
 
    /// Contracts flux with the entropy variables
@@ -358,7 +355,6 @@ public:
        adept::Stack &diff_stack,
        double coeff,
        const mfem::FiniteElementCollection *fe_coll,
-       std::vector<int> cutInteriorFaces,
        std::map<int, bool> immersedFaces,
        std::map<int, IntegrationRule *> cutInteriorFaceIntRules,
        double a = 1.0);
@@ -507,7 +503,7 @@ public:
                       const mfem::FiniteElementCollection *fe_coll,
                       const mfem::Vector &force_dir,
                       std::map<int, IntegrationRule *> cutSegmentIntRules, 
-                      Algoim::LevelSet<2> phi)
+                      circle<2> phi)
     : CutDGInviscidBoundaryIntegrator<CutDGPressureForce<dim, entvar>>(
           diff_stack,
           fe_coll,

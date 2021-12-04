@@ -164,7 +164,6 @@ double DGInviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
    shape.SetSize(num_nodes);
    double fun = 0.0;  // initialize the functional value
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-
    int intorder;
    intorder = trans.Elem1->OrderW() + 2 * el_bnd.GetOrder();
    const IntegrationRule *ir = &IntRules.Get(trans.FaceGeom, intorder);
@@ -179,6 +178,7 @@ double DGInviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
       // get the normal vector, and then add contribution to function
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
+      //fun += face_ip.weight * trans.Weight();
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
    return fun;

@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    ostream *out = getOutStream(rank);
-   int N = 4;
+   int N = 5;
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options", "Options file to use.");
@@ -57,28 +57,28 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs,0);
       string opt_file_name(options_file);
       auto solver = createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
-    //   Vector qfar(4);
-    //   static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
-    //       ->getFreeStreamState(qfar);
-    //   qfar.Print();
-    //   // Vector wfar(4);
-    //   // TODO: I do not like that we have to perform this conversion outside the
-    //   // solver...
-    //   // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-    //   solver->setInitialCondition(qfar);
-    //   solver->printSolution("airfoil-steady-dg-init");
-    //   //solver->checkJacobian(pert);
-    //  // solver->printResidual("residual-init");
-    //   mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-    //             << endl;
-    //   solver->solveForState();
-    //   solver->printSolution("airfoil-steady-dg-cut-final");
-    //   mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-    //             << endl;
-    //   auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
-    //   solver->createOutput("drag", drag_opts);
-    //   double drag = abs(solver->calcOutput("drag"));
-    //   mfem::out << "\nDrag error = " << drag << endl;
+      Vector qfar(4);
+      static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
+          ->getFreeStreamState(qfar);
+      qfar.Print();
+      // Vector wfar(4);
+      // TODO: I do not like that we have to perform this conversion outside the
+      // solver...
+      // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
+    solver->setInitialCondition(qfar);
+    solver->printSolution("airfoil-steady-dg-cut-init");
+   //    //solver->checkJacobian(pert);
+   //   // solver->printResidual("residual-init");
+    mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
+              << endl;
+   //  solver->solveForState();
+   //  solver->printSolution("airfoil-steady-dg-cut-final");
+   //  mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
+   //            << endl;
+   //  auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
+   //  solver->createOutput("drag", drag_opts);
+   //  double drag = abs(solver->calcOutput("drag"));
+   //  mfem::out << "\nDrag error = " << drag << endl;
    }
    catch (MachException &exception)
    {
@@ -105,6 +105,6 @@ void pert(const Vector &x, Vector &p)
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 1.0, 1.0, true);
+       N, N, Element::QUADRILATERAL, true, 3.0, 3.0, true);
    return mesh;
 }

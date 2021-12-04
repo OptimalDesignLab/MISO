@@ -96,10 +96,18 @@ protected:
    /// related to cut-cell integrators
    // int rule for cut elements
    std::map<int, IntegrationRule *> cutSquareIntRules;
+   /// for vortex case  
+   // int rule for cut elements by outer circle
+   std::map<int, IntegrationRule *> cutSquareIntRules_outer;
    // int rule for embedded boundary
    std::map<int, IntegrationRule *> cutSegmentIntRules;
+   /// for vortex case
+   std::map<int, IntegrationRule *> cutSegmentIntRules_inner;
+   std::map<int, IntegrationRule *> cutSegmentIntRules_outer;
    // interior face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules;
+   // boundary face int rule that is cut by the embedded geometry
+   std::map<int, IntegrationRule *> cutBdrFaceIntRules;
 
    /// embedded elements boolean vector
    std::vector<bool> embeddedElements;
@@ -114,7 +122,9 @@ protected:
    /// domain boundary faces cut by geometry  
    vector<int> cutBdrFaces;
    /// levelset to calculate normal vectors
-   Algoim::LevelSet<2> phi;
+   // Algoim::LevelSet<2> phi_e;
+   circle<2> phi_inner;
+   circle<2> phi_outer;
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem

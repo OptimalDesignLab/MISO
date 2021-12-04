@@ -209,7 +209,7 @@ void uexact(const Vector &x, Vector& q)
 
 Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {
-   Mesh mesh = Mesh::MakeCartesian2D(num_rad, num_ang, Element::TRIANGLE,
+   Mesh mesh = Mesh::MakeCartesian2D(num_rad, num_ang, Element::QUADRILATERAL,
                                      true /* gen. edges */, 2.0, M_PI*0.5,
                                      true);
    // strategy:

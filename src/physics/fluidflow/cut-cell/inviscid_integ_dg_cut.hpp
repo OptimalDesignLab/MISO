@@ -297,7 +297,7 @@ public:
    CutDGInviscidBoundaryIntegrator(adept::Stack &diff_stack, 
                               const mfem::FiniteElementCollection *fe_coll,
                               std::map<int, IntegrationRule *> _cutSegmentIntRules, 
-                              Algoim::LevelSet<2> _phi,
+                              circle<2> _phi,
                               int num_state_vars = 1,
                               double a = 1.0)
     : num_states(num_state_vars), alpha(a), 
@@ -357,7 +357,7 @@ protected:
    /// integration rule for embedded geom boundary
    std::map<int, IntegrationRule *> cutSegmentIntRules;
    // /// levelset to calculate normal vectors
-   Algoim::LevelSet<2> phi;
+   circle<2> phi;
 #endif
 
    /// Compute a scalar boundary function
@@ -435,7 +435,6 @@ public:
    CutDGInviscidFaceIntegrator(
        adept::Stack &diff_stack,
        const mfem::FiniteElementCollection *fe_coll,
-       std::vector<int> _cutInteriorFaces,
        std::map<int, bool> _immersedFaces,
        std::map<int, IntegrationRule *> _cutInteriorFaceIntRules,
        int num_state_vars = 1,
@@ -444,7 +443,6 @@ public:
       alpha(a),
       stack(diff_stack),
       fec(fe_coll),
-      cutInteriorFaces(_cutInteriorFaces),
       immersedFaces(_immersedFaces),
       cutInteriorFaceIntRules(_cutInteriorFaceIntRules)
    { }

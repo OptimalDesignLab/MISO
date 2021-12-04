@@ -867,6 +867,7 @@ double AbstractSolver::calcResidualNorm() const
    HypreParVector u_true(fes.get());
    u->GetTrueVector().SetDataAndSize(u_true.GetData(), u_true.Size());
    u->SetTrueVector();
+   cout << "inside calcResidualNorm() " << endl;
    return calcResidualNorm(*u);
 }
 
