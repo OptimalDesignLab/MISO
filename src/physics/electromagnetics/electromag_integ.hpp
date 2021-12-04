@@ -633,6 +633,24 @@ private:
 #endif
 };
 
+/// Integrator to compute the norm of the magnetic field
+class BNormSquaredIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the norm of the magnetic field calculated over an element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape, curlshape_dFt;
+#endif
+};
+
 class BNormdJdx : public mfem::LinearFormIntegrator
 {
 public:

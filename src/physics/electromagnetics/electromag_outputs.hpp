@@ -10,9 +10,60 @@
 #include "electromag_integ.hpp"
 #include "functional_output.hpp"
 #include "mach_input.hpp"
+#include "mfem_common_integ.hpp"
 
 namespace mach
 {
+class BNormSquaredAverageFunctional final
+{
+public:
+   friend void setOptions(BNormSquaredAverageFunctional &output,
+                          const nlohmann::json &options)
+   {
+      setOptions(output.bnormsquared, options);
+      setOptions(output.volume, options);
+   }
+
+   friend void setInputs(BNormSquaredAverageFunctional &output,
+                         const MachInputs &inputs)
+   {
+      setInputs(output.bnormsquared, inputs);
+      setInputs(output.volume, inputs);
+   }
+
+   friend double calcOutput(BNormSquaredAverageFunctional &output,
+                            const MachInputs &inputs)
+   {
+      double bnormsquared = calcOutput(output.bnormsquared, inputs);
+      double volume = calcOutput(output.volume, inputs);
+      return bnormsquared / volume;
+   }
+
+   BNormSquaredAverageFunctional(
+       mfem::ParFiniteElementSpace &fes,
+       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+       const nlohmann::json &options)
+    : bnormsquared(fes, fields), volume(fes, fields)
+   {
+      if (options.contains("attributes"))
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         bnormsquared.addOutputDomainIntegrator(new BNormSquaredIntegrator,
+                                                attributes);
+         volume.addOutputDomainIntegrator(new VolumeIntegrator, attributes);
+      }
+      else
+      {
+         bnormsquared.addOutputDomainIntegrator(new BNormSquaredIntegrator);
+         volume.addOutputDomainIntegrator(new VolumeIntegrator);
+      }
+   }
+
+private:
+   FunctionalOutput bnormsquared;
+   FunctionalOutput volume;
+};
+
 class ForceFunctional final
 {
 public:

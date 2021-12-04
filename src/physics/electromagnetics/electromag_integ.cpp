@@ -1961,6 +1961,72 @@ void BNormIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
    }
 }
 
+double BNormSquaredIntegrator::GetElementEnergy(const FiniteElement &el,
+                                                ElementTransformation &trans,
+                                                const Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+
+   /// I believe this takes advantage of a 2D problem not having
+   /// a properly defined curl? Need more investigation
+   int dimc = (dim == 3) ? 3 : 1;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc);
+#else
+   curlshape.SetSize(ndof, dimc);
+   curlshape_dFt.SetSize(ndof, dimc);
+#endif
+
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, dimc);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      if (dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+
+      b_vec = 0.0;
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+
+      auto trans_weight = trans.Weight();
+      const double b_mag = b_vec.Norml2() / trans_weight;
+      fun += b_mag * b_mag * ip.weight * trans_weight;
+   }
+   return fun;
+}
+
 void BNormdJdx::AssembleRHSElementVect(const FiniteElement &mesh_el,
                                        ElementTransformation &mesh_trans,
                                        Vector &elvect)
