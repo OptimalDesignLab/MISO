@@ -53,7 +53,6 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    cout << "#elements " << mesh->GetNE() << endl;
    int order = options["space-dis"]["degree"].template get<int>();
    int deg = min((order + 2) * (order + 2), 10);
-   // deg = 1;
    CutCell<2,1> cutcell(mesh.get());
    phi_inner = cutcell.constructLevelSet();
    CutCell<2,2> cutcell2(mesh.get());
@@ -146,7 +145,7 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
          }
          else
          {
-            cout << "immersed Face element is: " << tr->Elem1No << endl;
+            //cout << "immersed Face element is: " << tr->Elem1No << endl;
             immersedFaces[tr->Face->ElementNo] = true;
          }
       }
@@ -321,7 +320,7 @@ void CutEulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
                                          embeddedElements,
                                          alpha),
           bndry_marker[idx]);
-      //double perim_far = res->GetEnergy(x);
+      // double perim_far = res->GetEnergy(x);
       // cout << "calculated far-field perimeter " << perim_far << endl;
       // cout << "correct far-field perimeter " << 4.0 << endl;
       idx++;

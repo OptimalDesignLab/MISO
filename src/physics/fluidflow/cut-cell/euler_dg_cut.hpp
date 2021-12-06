@@ -123,8 +123,10 @@ protected:
    vector<int> cutBdrFaces;
    /// levelset to calculate normal vectors
    // Algoim::LevelSet<2> phi_e;
-   circle<2> phi_inner;
-   circle<2> phi_outer;
+   // circle<2> phi_inner;
+   // circle<2> phi_outer;
+   Algoim::LevelSet<2> phi_inner;
+   Algoim::LevelSet<2> phi_outer;
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem

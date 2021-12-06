@@ -51,19 +51,27 @@ class CutCell
 public:
    CutCell(mfem::Mesh *_mesh) : mesh(_mesh) { phi = constructLevelSet(); }
    /// construct levelset using given geometry points
-   circle<2> constructLevelSet() const
+   Algoim::LevelSet<2> constructLevelSet() const
    {
       std::vector<TinyVector<double, N>> Xc;
       std::vector<TinyVector<double, N>> nor;
-      int nbnd = 32;
+      int nbnd = 64;
       cout << "nbnd " << nbnd << endl;
       /// parameters
-      double rho = 10 * nbnd;
+      double rho = nbnd;
       double delta = 1e-10;
-      double xc = 0.5;
-      double yc = 0.5;
+      double xc = 0.0;
+      double yc = 0.0;
       /// radius
-      double a = 0.3;
+      double a;
+      if (ls ==1)
+      {
+         a = 1.0;
+      }
+      else
+      {
+         a = 3.0;
+      }
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
@@ -78,23 +86,25 @@ public:
          Xc.push_back(x);
          nor.push_back(ni);
       }
+      double lsign;
       /// initialize levelset
+      if (ls == 1)
+      {
+         // phi.radius = 1.0;
+         lsign = -1.0;
+      }
+      else
+      {
+         //   phi.radius = 3.0;
+         lsign = 1.0;
+      }
       Algoim::LevelSet<2> phi_ls;
-      phi_ls.initializeLevelSet(Xc, nor, rho, delta);
+      phi.initializeLevelSet(Xc, nor, rho, lsign, delta);
       phi.xscale = 1.0;
       phi.yscale = 1.0;
       phi.min_x = 0.0;
       phi.min_y = 0.0;
-      if (ls == 1)
-      {
-         phi.radius = 1.0;
-         phi.lsign = -1.0;
-      }
-      else
-      {
-        phi.radius = 3.0;
-        phi.lsign = 1.0;  
-      }
+  
 
 // TinyVector<double, N> x;
 // x(0) = 0.1;
@@ -149,8 +159,12 @@ public:
          x(1) = coord[1];
          Vector lvsval(v.Size());
          lvsval(i) = -phi(x);
+         // if (elemid == 13)
+         // {
+         //    cout << "lvsval cut " << lvsval(i) << endl;
+         // }
          // cout << "lsv is " << lsv << endl;
-         if ((lvsval(i) < 0) && (abs(lvsval(i)) > 1e-16))
+         if ((lvsval(i) < 1e-02) && (abs(lvsval(i)) > 1e-16) || lvsval(i) < 0)
          {
             k = k + 1;
          }
@@ -185,6 +199,7 @@ public:
       el->GetVertices(v);
       int k;
       k = 0;
+      // cout << "elemid " << elemid << endl;
       for (int i = 0; i < v.Size(); ++i)
       {
          double *coord = mesh->GetVertex(v[i]);
@@ -199,8 +214,12 @@ public:
          else
          {
             lvsval(i) = -phi(x);
+            if (elemid == 13)
+            {
+               cout << "lvsval " << lvsval(i) << endl;
+            }
          }
-         if ((lvsval(i) < 0) || (lvsval(i) == 0))
+         if ((lvsval(i) < 0) || (lvsval(i) < 1e-02))
          {
             k = k + 1;
          }
@@ -276,7 +295,6 @@ public:
       cout <<  "#cut elements " << cutelems.size() << endl;
       double tol = 1e-16;
       QuadratureRule<N> qp;
-      double area = 0.0;
       for (int k = 0; k < cutelems.size(); ++k)
       {
          IntegrationRule *ir;
@@ -339,7 +357,7 @@ public:
          }
          cutSquareIntRules[elemid] = ir;
       }
-      std::ofstream f("element_quad_rule_ls_bnds.vtp");
+      std::ofstream f("element_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
       std::cout << "  scheme.vtp file written, containing " << qp.nodes.size()
                 << " quadrature points\n";
@@ -533,12 +551,12 @@ public:
             }
          }
       } /// loop over cut elements
-      std::ofstream f("cut_segment_quad_rule_ls_bnds.vtp");
+      std::ofstream f("cut_segment_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
       std::cout << "  scheme.vtp file written, containing " << qp.nodes.size()
                 << " quadrature points\n";
       /// quad rule for faces
-      std::ofstream face("cut_face_quad_rule_ls_bnds.vtp");
+      std::ofstream face("cut_face_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qface, face);
       std::cout << "  scheme.vtp file written, containing " << qface.nodes.size()
                 << " quadrature points\n";
@@ -551,6 +569,7 @@ public:
        double radius,
        std::map<int, IntegrationRule *> &cutBdrFaceIntRules)
    {
+      QuadratureRule<N> qbdrface;
       for (int k = 0; k < cutelems.size(); ++k)
       {
          IntegrationRule *ir;
@@ -693,10 +712,12 @@ public:
                      }
                      trans->SetIntPoint(&ip);
                      ip.weight = pt.w / trans->Weight();
-                     ip.weight = pt.w / trans->Weight();
                      i = i + 1;
                      // scaled to original element space
-
+                     TinyVector<double, N> xp;
+                     xp[0] = pt.x[0];
+                     xp[1] = pt.x[1];
+                     qbdrface.evalIntegrand(xp, pt.w);
                      double xq = (pt.x[0] * phi.xscale) + phi.min_x;
                      double yq = (pt.x[1] * phi.yscale) + phi.min_y;
                      // cout << setprecision(
@@ -730,12 +751,17 @@ public:
             }
          }
       }
+      /// quad rule for faces
+      std::ofstream face("cut_face_quad_rule_ls_bnds_fbdr_outer.vtp");
+      Algoim::outputQuadratureRuleAsVtpXML(qbdrface, face);
+      std::cout << "  scheme.vtp file written, containing "
+                << qbdrface.nodes.size() << " quadrature points\n";
    }
 
 protected:
    mfem::Mesh *mesh;
-   mutable circle<N> phi;
-   Algoim::LevelSet<2> phi_e;
+   mutable circle<N> phi_e;
+   mutable Algoim::LevelSet<2> phi;
 };
 }  // namespace mach
 

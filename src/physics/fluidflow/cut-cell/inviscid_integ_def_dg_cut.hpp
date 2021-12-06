@@ -111,31 +111,31 @@ void CutDGInviscidIntegrator<Derived>::AssembleElementGrad(
     const mfem::Vector &elfun,
     mfem::DenseMatrix &elmat)
 {
-   int num_nodes = el.GetDof();
-   int ndof = elfun.Size();
-   elmat.SetSize(ndof);
-   elmat = 0.0;
-   double delta = 1e-5;
-   for (int i = 0; i < ndof; ++i)
-   {
-      Vector elfun_plus(elfun);
-      Vector elfun_minus(elfun);
-      elfun_plus(i) += delta;
-      Vector elvect_plus;
-      AssembleElementVector(el, trans, elfun_plus, elvect_plus);
-      elfun_minus(i) -= delta;
-      Vector elvect_minus;
-      AssembleElementVector(el, trans, elfun_minus, elvect_minus);
+   // int num_nodes = el.GetDof();
+   // int ndof = elfun.Size();
+   // elmat.SetSize(ndof);
+   // elmat = 0.0;
+   // double delta = 1e-5;
+   // for (int i = 0; i < ndof; ++i)
+   // {
+   //    Vector elfun_plus(elfun);
+   //    Vector elfun_minus(elfun);
+   //    elfun_plus(i) += delta;
+   //    Vector elvect_plus;
+   //    AssembleElementVector(el, trans, elfun_plus, elvect_plus);
+   //    elfun_minus(i) -= delta;
+   //    Vector elvect_minus;
+   //    AssembleElementVector(el, trans, elfun_minus, elvect_minus);
 
-      elvect_plus -= elvect_minus;
-      elvect_plus /= 2 * delta;
+   //    elvect_plus -= elvect_minus;
+   //    elvect_plus /= 2 * delta;
 
-      for (int j = 0; j < ndof; ++j)
-      {
-         elmat(j, i) = elvect_plus(j);
-      }
-   }
-#if 0
+   //    for (int j = 0; j < ndof; ++j)
+   //    {
+   //       elmat(j, i) = elvect_plus(j);
+   //    }
+   // }
+#if 1
    using namespace mfem;
    int num_nodes = el.GetDof();
    int dim = el.GetDim();
@@ -424,18 +424,27 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       double nx;
       double ny;
       double ds;
-      double xc, yc;
-      xc = 0.0;
-      yc = 0.0;
-      nx = 2 * (x(0) - xc);
-      ny = 2 * (x(1) - yc);
+      // double xc, yc;
+      // xc = 0.0;
+      // yc = 0.0;
+      // nx = 2 * (x(0) - xc);
+      // ny = 2 * (x(1) - yc);
+      // ds = sqrt((nx * nx) + (ny * ny));
+      // nrm(0) = phi.sign_phi * nx / ds;
+      // nrm(1) = phi.sign_phi * ny / ds;
       /// n_hat = grad_phi/|\grad_phi|
-      ds = sqrt((nx * nx) + (ny * ny));
-      nrm(0) = phi.lsign * nx / ds;
-      nrm(1) = phi.lsign * ny / ds;
+      TinyVector<double, 2> beta, xs;
+      xs(0) = x(0);
+      xs(1) = x(1);
+      beta = phi.grad(xs);
+      ds = mag(beta);
+      nx = beta(0);
+      ny = beta(1);
+      nrm(0) = nx / ds;
+      nrm(1) = ny / ds;
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
-      double area = sqrt(trans.Weight());
+     // double area = sqrt(trans.Weight());
       //fun += face_ip.weight * alpha * area;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight *
              sqrt(trans.Weight()) * alpha;
@@ -485,15 +494,24 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementVector(
          double nx;
          double ny;
          double ds;
-         double xc, yc;
-         xc = 0.0;
-         yc = 0.0;
-         nx = 2 * (x(0) - xc);
-         ny = 2 * (x(1) - yc);
-         /// n_hat = grad_phi/|\grad_phi|
-         ds = sqrt((nx * nx) + (ny * ny));
-         nrm(0) = phi.lsign * nx / ds;
-         nrm(1) = phi.lsign * ny / ds;
+         // double xc, yc;
+         // xc = 0.0;
+         // yc = 0.0;
+         // nx = 2 * (x(0) - xc);
+         // ny = 2 * (x(1) - yc);
+         // /// n_hat = grad_phi/|\grad_phi|
+         // ds = sqrt((nx * nx) + (ny * ny));
+         // nrm(0) = phi.sign_phi * nx / ds;
+         // nrm(1) = phi.sign_phi * ny / ds;
+         TinyVector<double, 2> beta, xs;
+         xs(0) = x(0);
+         xs(1) = x(1);
+         beta = phi.grad(xs);
+         ds = mag(beta);
+         nx = beta(0);
+         ny = beta(1);
+         nrm(0) = nx / ds;
+         nrm(1) = ny / ds;
          // Interpolate elfun at the point
          u.MultTranspose(shape, u_face);
          flux(x, nrm, u_face, flux_face);
@@ -551,14 +569,23 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementGrad(
          double nx;
          double ny;
          double ds;
-         double xc, yc;
-         xc = 0.0;
-         yc = 0.0;
-         nx = 2 * (x(0) - xc);
-         ny = 2 * (x(1) - yc);
-         ds = sqrt((nx * nx) + (ny * ny));
-         nrm(0) = phi.lsign * nx / ds;
-         nrm(1) = phi.lsign * ny / ds;
+         // double xc, yc;
+         // xc = 0.0;
+         // yc = 0.0;
+         // nx = 2 * (x(0) - xc);
+         // ny = 2 * (x(1) - yc);
+         // ds = sqrt((nx * nx) + (ny * ny));
+         // nrm(0) = phi.sign_phi * nx / ds;
+         // nrm(1) = phi.sign_phi * ny / ds;
+         TinyVector<double, 2> beta, xs;
+         xs(0) = x(0);
+         xs(1) = x(1);
+         beta = phi.grad(xs);
+         ds = mag(beta);
+         nx = beta(0);
+         ny = beta(1);
+         nrm(0) = nx / ds;
+         nrm(1) = ny / ds;
          // Interpolate elfun at the point
          u.MultTranspose(shape, u_face);
          // flux(x, nrm, u_face, flux_face);
