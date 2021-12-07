@@ -154,7 +154,7 @@ public:
 
       // mach::ParaViewLogger paraview("test_pde_solver", mesh_.get());
       // paraview.registerField("state", fields.at("state").gridFunc());
-      // addLogger(std::move(paraview), {.each_timestep=true});
+      // addLogger(std::move(paraview), {.each_timestep=false});
    }
 private:
    static constexpr int num_states = 1;
@@ -203,21 +203,21 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
    auto mesh = std::make_unique<mfem::Mesh>(
       Mesh::MakeCartesian2D(nxy, nxy, Element::TRIANGLE, true, M_PI, M_PI));
 
-   // Create solver and solve for the state 
-   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
-   mfem::Vector state_tv(solver.getStateSize());
-   auto &state = solver.getState();
 
-   FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
+   mfem::FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
    {
       auto x = p(0);
       return pow(x, 2) + exp(-t) * (sin(x) + sin(2*x) + sin(3*x));
    });
-   exact_sol.SetTime(0.0);
-   state.project(exact_sol, state_tv);
+
+   // Create solver and solve for the state 
+   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
+   mfem::Vector state_tv(solver.getStateSize());
+   solver.setState(exact_sol, state_tv);
 
    MachInputs inputs;
    solver.solveForState(inputs, state_tv);
+   auto &state = solver.getState();
    state.distributeSharedDofs(state_tv);
 
    // Check that solution is reasonable accurate
@@ -273,33 +273,36 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
 
    // Create solver and solve for the state 
    ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
-   auto &state = solver.getState();
+   mfem::Vector state_tv(solver.getStateSize());
 
-   FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
+   FunctionCoefficient init_state([](const mfem::Vector &p, double t)
    {
       auto x = p(0);
-      return pow(x, 2);
+      auto y = p(1);
+      auto tol = 1e-10;
+      if (fabs(x - M_PI) < tol || fabs(y - M_PI) < tol|| fabs(x) < tol || fabs(y) < tol )
+      {
+         return pow(x, 2);
+      }
+      return 0.0;
    });
-   // state.project(exact_sol);
-   ConstantCoefficient one(1.0);
-   state.gridFunc().ProjectCoefficient(one);
-   mfem::Array<int> bdr_attr(4);
-   bdr_attr = 1; bdr_attr[1] = 1; bdr_attr[3] = 1;
-   state.gridFunc().ProjectBdrCoefficient(exact_sol, bdr_attr);
-
-   mfem::Vector state_tv(solver.getStateSize());
-   state.initializeTrueVec(state_tv);
+   solver.setState(init_state, state_tv);
 
    mach::MachInputs inputs;
    solver.solveForState(inputs, state_tv);
-   state.distributeSharedDofs(state_tv);
 
    auto res_norm = solver.calcResidualNorm(state_tv);
    std::cout << "final res norm: " << res_norm << "\n";
 
    // Check that solution is reasonable accurate
+   auto &state = solver.getState();
+   state.distributeSharedDofs(state_tv);
    auto tfinal = options["time-dis"]["t-final"].get<double>();
-   exact_sol.SetTime(tfinal);
+   FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
+   {
+      auto x = p(0);
+      return pow(x, 2);
+   });
    auto error = state.gridFunc().ComputeLpError(2, exact_sol);
 
    if (verbose)

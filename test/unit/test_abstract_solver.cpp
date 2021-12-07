@@ -125,6 +125,7 @@ public:
       ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, 
                                                   *nonlinear_solver);
    }
+
 };
 
 TEST_CASE("Testing AbstractSolver using RK4", "[abstract-solver]")
@@ -216,15 +217,6 @@ TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
       }
    })"_json;
 
-   // Create solver and solve for the state 
-   ExponentialODESolver solver(MPI_COMM_WORLD, options);
-   Vector u0(solver.getStateSize()), u(solver.getStateSize());
-   u0(0) = 1.0;
-   u0(1) = 0.5;
-   u = u0;
-   MachInputs inputs;
-   solver.solveForState(inputs, u);
-
    // Check that solution is reasonable accurate
    auto exact_sol = [](double t, Vector &u)
    {
@@ -234,6 +226,16 @@ TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
       u(0) = log(e + pow(e,1.5)) - log(sqrt(e) + exp(sepe*t));
       u(1) = log((sepe*exp(sepe*t))/(sqrt(e) + exp(sepe*t)));
    };
+
+   // Create solver and solve for the state 
+   ExponentialODESolver solver(MPI_COMM_WORLD, options);
+   Vector u0(solver.getStateSize()), u(solver.getStateSize());
+   solver.setState([&](mfem::Vector &u) {exact_sol(0.0, u); }, u0);
+   u = u0;
+   MachInputs inputs;
+   solver.solveForState(inputs, u);
+
+
    Vector u_exact;
    exact_sol(options["time-dis"]["t-final"].get<double>(), u_exact);
    double error = sqrt( pow(u(0) - u_exact(0),2) + pow(u(1) - u_exact(1),2));

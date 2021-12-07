@@ -283,7 +283,7 @@ void PDESolver::setUpExternalFields()
       FiniteElementState &mesh_coords = fields.at("mesh_coords");
       /// set the values of the new GF to those of the mesh's old nodes
       mesh_coords.gridFunc() = mesh_gf;
-      // mesh_coords.initializeTrueVec();  // distribute coords
+      // mesh_coords.setTrueVec();  // distribute coords
       /// tell the mesh to use this GF for its Nodes
       /// (and that it doesn't own it)
       mesh_->NewNodes(mesh_coords.gridFunc(), false);
@@ -302,6 +302,39 @@ void PDESolver::setUpExternalFields()
          fields.emplace(
              name, createState(*mesh_, field, num_states, std::move(name)));
       }
+   }
+}
+
+void PDESolver::setState_(std::any function,
+                          std::string name,
+                          mfem::Vector &state)
+{
+   auto *coeff_func =
+       std::any_cast<std::function<double(const mfem::Vector &)>>(&function);
+   if (coeff_func != nullptr)
+   {
+      fields.at(name).project(*coeff_func, state);
+      return;
+   }
+   auto *coeff = std::any_cast<mfem::Coefficient *>(&function);
+   if (coeff != nullptr)
+   {
+      fields.at(name).project(**coeff, state);
+      return;
+   }
+   auto *vec_coeff_func =
+       std::any_cast<std::function<void(const mfem::Vector &, mfem::Vector &)>>(
+           &function);
+   if (vec_coeff_func != nullptr)
+   {
+      fields.at(name).project(*vec_coeff_func, state);
+      return;
+   }
+   auto *vec_coeff = std::any_cast<mfem::VectorCoefficient *>(&function);
+   if (vec_coeff != nullptr)
+   {
+      fields.at(name).project(**vec_coeff, state);
+      return;
    }
 }
 

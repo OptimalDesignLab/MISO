@@ -93,6 +93,10 @@ protected:
    const mfem::ParFiniteElementSpace &fes() const { return state().space(); }
 
    void setUpExternalFields();
+
+   void setState_(std::any function,
+                  std::string name,
+                  mfem::Vector &u) override;
 };
 
 }  // namespace mach

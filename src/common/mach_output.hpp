@@ -37,7 +37,7 @@ public:
    friend void calcOutputPartial(MachOutput &output,
                                  const std::string &wrt,
                                  const MachInputs &inputs,
-                                 mfem::HypreParVector &partial);
+                                 mfem::Vector &partial);
 
    template <typename T>
    MachOutput(T x) : self_(new model<T>(std::move(x)))
@@ -55,7 +55,7 @@ private:
                                         const MachInputs &inputs) = 0;
       virtual void calcOutputPartial_(const std::string &wrt,
                                       const MachInputs &inputs,
-                                      mfem::HypreParVector &partial) = 0;
+                                      mfem::Vector &partial) = 0;
    };
 
    template <typename T>
@@ -82,7 +82,7 @@ private:
       }
       void calcOutputPartial_(const std::string &wrt,
                               const MachInputs &inputs,
-                              mfem::HypreParVector &partial) override
+                              mfem::Vector &partial) override
       {
          calcOutputPartial(data_, wrt, inputs, partial);
       }
@@ -118,7 +118,7 @@ inline double calcOutputPartial(MachOutput &output,
 inline void calcOutputPartial(MachOutput &output,
                               const std::string &wrt,
                               const MachInputs &inputs,
-                              mfem::HypreParVector &partial)
+                              mfem::Vector &partial)
 {
    output.self_->calcOutputPartial_(wrt, inputs, partial);
 }

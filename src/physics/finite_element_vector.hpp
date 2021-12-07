@@ -11,15 +11,10 @@
 
 namespace mach
 {
-/**
-   @brief Class for encapsulating the data associated with a vector derived
-   from a MFEM finite element space. Specifically, it contains the information
-   needed for both primal finite element state fields and dual finite element
-   vectors.
-
-   Namely: the Mesh, FiniteElementCollection, GridFunction, and a distributed
-   vector of the solution
-*/
+/// \brief Class for encapsulating the data associated with a vector derived
+/// from a MFEM finite element space. Specifically, it contains the information
+/// needed for both primal finite element state fields and dual finite element
+/// vectors.
 class FiniteElementVector
 {
 public:
@@ -40,47 +35,37 @@ public:
 
       /// \brief The name of the field encapsulated by the state object
       std::string name = "";
-
-      /// \brief Optional external true vector buffer to use
-      std::optional<double *> true_vec_buffer = std::nullopt;
    };
 
-   /**
-    * @brief Main constructor for building a new finite element vector
-    * @param[in] mesh The problem mesh (object does not take ownership)
-    * @param[in] options The options specified, namely those relating to the
-    * order of the problem, the dimension of the FESpace, the type of FEColl,
-    * the DOF ordering that should be used, the name of the field, and an
-    * optional externally allocated buffer for the true dof vector
-    */
+   /// \brief Main constructor for building a new finite element vector
+   /// \param[in] mesh The problem mesh (object does not take ownership)
+   /// \param[in] options The options specified, namely those relating to the
+   /// order of the problem, the dimension of the FESpace, the type of FEColl,
+   /// the DOF ordering that should be used, the name of the field, and an
+   /// optional externally allocated buffer for the true dof vector
    FiniteElementVector(mfem::ParMesh &mesh,
                        Options &&options = {.order = 1,
                                             .num_states = 1,
                                             .coll = {},
                                             .ordering = mfem::Ordering::byVDIM,
-                                            .name = "",
-                                            .true_vec_buffer = std::nullopt});
+                                            .name = ""});
 
-   /**
-    * @brief Minimal constructor for a FiniteElementVector given a finite
-    * element space
-    * @param[in] mesh The problem mesh (object does not take ownership)
-    * @param[in] space The space to use for the finite element state. This space
-    * is deep copied into the new FE state
-    * @param[in] name The name of the field
-    */
+   /// \brief Minimal constructor for a FiniteElementVector given a finite
+   /// element space
+   /// \param[in] mesh The problem mesh (object does not take ownership)
+   /// \param[in] space The space to use for the finite element state. This
+   /// space is deep copied into the new FE state \param[in] name The name of
+   /// the field
    FiniteElementVector(mfem::ParMesh &mesh,
                        mfem::ParFiniteElementSpace &space,
                        std::string name = "");
 
-   // /**
-   //  * @brief Constructor for a FiniteElementVector given a finite
-   //  * element space and collection
-   //  * @param[in] mesh The problem mesh (object does not take ownership)
-   //  * @param[in] coll The collection to use for the finite element state.
-   //  * @param[in] space The space to use for the finite element state.
-   //  * @param[in] name The name of the field
-   //  */
+   // /// \brief Constructor for a FiniteElementVector given a finite
+   // /// element space and collection
+   // /// \param[in] mesh The problem mesh (object does not take ownership)
+   // /// \param[in] coll The collection to use for the finite element state.
+   // /// \param[in] space The space to use for the finite element state.
+   // /// \param[in] name The name of the field
    // FiniteElementVector(mfem::ParMesh &mesh,
    //                     mfem::FiniteElementCollection *coll,
    //                     mfem::ParFiniteElementSpace *space,
@@ -91,48 +76,36 @@ public:
    FiniteElementVector(FiniteElementVector &&other) noexcept;
    FiniteElementVector &operator=(FiniteElementVector &&other) noexcept;
 
-   /**
-    * @brief Returns the MPI communicator for the state
-    * @return The underlying MPI communicator
-    */
+   /// \brief Returns the MPI communicator for the state
+   /// \return The underlying MPI communicator
    MPI_Comm comm() const { return retrieve(space_).GetComm(); }
 
-   /**
-    * @brief Returns a non-owning reference to the internal mesh object
-    * @return The underlying mesh
-    */
+   /// \brief Returns a non-owning reference to the internal mesh object
+   /// \return The underlying mesh
    mfem::ParMesh &mesh() { return *mesh_; }
 
-   /**
-    * @brief Returns a non-owning reference to the internal FESpace
-    * @return The underlying finite element space
-    */
+   /// \brief Returns a non-owning reference to the internal FESpace
+   /// \return The underlying finite element space
    mfem::ParFiniteElementSpace &space() { return retrieve(space_); }
    /// \overload
    const mfem::ParFiniteElementSpace &space() const { return retrieve(space_); }
 
-   /**
-    * @brief Returns the name of the FEState (field)
-    * @return The name of the finite element vector
-    */
+   /// \brief Returns the name of the FEState (field)
+   /// \return The name of the finite element vector
    std::string name() const { return name_; }
 
-   /**
-    * @brief Set the internal grid function using the true DOF values
-    * @param[in] true_vec - the true dof vector containing the values to
-    * distribute
-    */
-   void distributeSharedDofs(const mfem::Vector &true_vec)
-   {
-      gf->SetFromTrueDofs(true_vec);
-   }
+   /// \brief Set the internal grid function using the true DOF values
+   /// \param[in] true_vec - the true dof vector containing the values to
+   /// distribute
+   virtual void distributeSharedDofs(const mfem::Vector &true_vec) = 0;
 
-   /**
-    * @brief Initialize the true DOF vector by extracting true DOFs from the
-    * internal grid function/local into the internal true DOF vector
-    * @param[out] true_vec - the true dof vector to set from the local field
-    */
-   void initializeTrueVec(mfem::Vector &true_vec) { gf->GetTrueDofs(true_vec); }
+   /// \brief Initialize the true DOF vector by extracting true DOFs from the
+   /// internal grid function/local into the internal true DOF vector
+   /// \param[out] true_vec - the true dof vector to set from the local field
+   virtual void setTrueVec(mfem::Vector &true_vec) = 0;
+
+   /// \brief Destroy the Finite Element Vector object
+   virtual ~FiniteElementVector() { }
 
 protected:
    /// \brief A non-owning pointer to the mesh on which the field is defined
@@ -149,39 +122,32 @@ protected:
 
    /// \brief The name of the finite element vector
    std::string name_ = "";
+
+   static mfem::Vector true_vec;
 };
 
-// /**
-//  * @brief Find the average value of a finite element vector across all dofs
-//  *
-//  * @param fe_vector The state variable to compute the average of
-//  * @return The average value
-//  * @note This acts on the actual scalar degree of freedom values, not the
-//  * interpolated shape function values. This implies these may or may not be
-//  * nodal averages depending on the choice of finite element basis.
-//  */
+// /// \brief Find the average value of a finite element vector across all dofs
+// /// \param fe_vector The state variable to compute the average of
+// /// \return The average value
+// /// \note This acts on the actual scalar degree of freedom values, not the
+// /// interpolated shape function values. This implies these may or may not be
+// /// nodal averages depending on the choice of finite element basis.
 // double avg(const FiniteElementVector &fe_vector);
 
-// /**
-//  * @brief Find the max value of a finite element vector across all dofs
-//  *
-//  * @param fe_vector The state variable to compute a max of
-//  * @return The max value
-//  * @note This acts on the actual scalar degree of freedom values, not the
-//  * interpolated shape function values. This implies these may or may not be
-//  * nodal averages depending on the choice of finite element basis.
-//  */
+// /// \brief Find the max value of a finite element vector across all dofs
+// /// \param fe_vector The state variable to compute a max of
+// /// \return The max value
+// /// \note This acts on the actual scalar degree of freedom values, not the
+// /// interpolated shape function values. This implies these may or may not be
+// /// nodal averages depending on the choice of finite element basis.
 // double max(const FiniteElementVector &fe_vector);
 
-// /**
-//  * @brief Find the min value of a finite element vector across all dofs
-//  *
-//  * @param fe_vector The state variable to compute a min of
-//  * @return The min value
-//  * @note This acts on the actual scalar degree of freedom values, not the
-//  * interpolated shape function values. This implies these may or may not be
-//  * nodal averages depending on the choice of finite element basis.
-//  */
+// /// \brief Find the min value of a finite element vector across all dofs
+// /// \param fe_vector The state variable to compute a min of
+// /// \return The min value
+// /// \note This acts on the actual scalar degree of freedom values, not the
+// /// interpolated shape function values. This implies these may or may not be
+// /// nodal averages depending on the choice of finite element basis.
 // double min(const FiniteElementVector &fe_vector);
 
 }  // namespace mach

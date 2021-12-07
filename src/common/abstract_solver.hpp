@@ -1,6 +1,7 @@
 #ifndef MACH_ABSTRACT_SOLVER
 #define MACH_ABSTRACT_SOLVER
 
+#include <any>
 #include <memory>
 #include <string>
 #include <vector>
@@ -17,11 +18,22 @@
 
 namespace mach
 {
+
 /// Serves as a base class for specific solvers
 /// \todo Rename to AbstractSolver once we have old AbstractSolver inherit it
 class AbstractSolver2
 {
 public:
+   /// \brief Generic function that allows derived classes to set the state
+   /// based on the type T
+   /// \param[in] function - any object that a derived solver will know how to
+   /// interpret and use to set the state
+   /// \param[out] state - the true dof vector to set
+   /// \param[in] name - name of the vector to set, defaults to "state"
+   /// \tparam T - generic type T, the derived classes must know how to use it
+   template <typename T>
+   void setState(T function, mfem::Vector &state, std::string name = "state");
+
    /// Solve for the state based on the residual `res` and `options`
    /// \param[inout] state - the solution to the governing equation
    /// \note On input, `state` should hold the initial condition
@@ -67,19 +79,57 @@ public:
    /// \note if the field @a name is unrecognized by the solver, 0 is returned
    virtual int getFieldSize(std::string name) const;
 
-   // /// Creates the nonlinear form for the functional
-   // /// \param[in] fun - specifies the desired functional
-   // /// \param[in] options - options needed for calculating functional
-   // /// \note if a nonlinear form for `fun` has already been created an
-   // /// exception will be thrown
-   // void createOutput(const std::string &fun, const nlohmann::json &options);
+   /// Creates a MachOutput for the specified @a output based on @a options
+   /// \param[in] output - specifies the desired output
+   /// \note if an output for @a output has already been created an
+   /// exception will be thrown
+   void createOutput(const std::string &output);
 
-   // /// Evaluates and returns the output functional specifed by `fun`
-   // /// \param[in] fun - specifies the desired functional
-   // /// \param[in] inputs - collection of field or scalar inputs to set before
-   // ///                     evaluating functional
-   // /// \return scalar value of estimated functional value
-   // double calcOutput(const std::string &fun, const MachInputs &inputs);
+   /// Creates a MachOutput for the specified @a output based on @a options
+   /// \param[in] output - specifies the desired output
+   /// \param[in] options - options needed for configuring the output
+   /// \note if an output for @a output has already been created an
+   /// exception will be thrown
+   void createOutput(const std::string &output, const nlohmann::json &options);
+
+   /// Sets options for the output specifed by @a output
+   /// \param[in] output - specifies the desired output
+   /// \param[in] options - options needed for configuring the output
+   /// \note will only have an effect if a concrete output supports setting
+   ///       options
+   void setOutputOptions(const std::string &output,
+                         const nlohmann::json &options);
+
+   /// Evaluates and returns the output specifed by @a output
+   /// \param[in] output - specifies the desired output
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating the output
+   /// \return scalar value of estimated output value
+   double calcOutput(const std::string &output, const MachInputs &inputs);
+
+   /// Evaluates and returns the partial derivative of output specifed by
+   /// `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired output
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating the output partial
+   /// \param[out] partial - the partial with respect to a scalar-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          double &partial);
+
+   /// Evaluates and returns the partial derivative of the output specifed by
+   /// `of` with respect to the input specified by `wrt`
+   /// \param[in] of - specifies the desired output
+   /// \param[in] wrt - specifies the input to differentiate with respect to
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating the output partial
+   /// \param[out] partial - the partial with respect to a vector-valued input
+   void calcOutputPartial(const std::string &of,
+                          const std::string &wrt,
+                          const MachInputs &inputs,
+                          mfem::Vector &partial);
 
    AbstractSolver2(MPI_Comm incomm, const nlohmann::json &solver_options);
 
@@ -100,9 +150,17 @@ protected:
    /// residual defines the dynamics of an ODE (including steady ODEs)
    std::unique_ptr<MachResidual> res;
 
+   /// linear system solver used in newton solver
+   std::unique_ptr<mfem::Solver> linear_solver;
+   /// newton solver for solving implicit problems
+   std::unique_ptr<mfem::NewtonSolver> nonlinear_solver;
+
    /// \brief the ordinary differential equation that describes how to evolve
    /// the state variables
    std::unique_ptr<FirstOrderODE> ode;
+
+   /// map of outputs the solver can compute
+   std::map<std::string, MachOutput> outputs;
 
    /// Optional data loggers that will save state vectors during timestepping
    std::vector<DataLoggerWithOpts> loggers;
@@ -163,11 +221,57 @@ protected:
                              double t_final,
                              const mfem::Vector &state);
 
-   /// linear system solver used in newton solver
-   std::unique_ptr<mfem::Solver> linear_solver;
-   /// newton solver for solving implicit problems
-   std::unique_ptr<mfem::NewtonSolver> nonlinear_solver;
+   /// Add output @a out based on @a options
+   virtual void addOutput(const std::string &out, const nlohmann::json &options)
+   { }
+
+   /// \brief Virtual method that allows derived solvers to deal with inputs
+   /// from templated function setState
+   /// \param[in] function - input function used to set the state
+   /// \param[in] name - name of the vector to set
+   /// \param[out] state - the true dof vector to set
+   /// \note the derived classes must know what types @a function may hold and
+   /// how to access/use them
+   virtual void setState_(std::any function,
+                          std::string name,
+                          mfem::Vector &state);
 };
+
+template <typename T>
+void AbstractSolver2::setState(T function,
+                               mfem::Vector &state,
+                               std::string name)
+{
+   /// compile time conditional that checks if @a function is callable, and
+   /// thus should be converted to a std::function
+   if constexpr (is_callable_v<T>)
+   {
+      auto fun = make_function(function);
+      auto any = std::make_any<decltype(fun)>(fun);
+      setState_(any, name, state);
+   }
+   /// if @a function is not callable, we just pass it directly along
+   else
+   {
+      auto any = [&]() constexpr
+      {
+         if constexpr (std::is_base_of_v<mfem::Coefficient, T>)
+         {
+            return std::make_any<mfem::Coefficient *>(&function);
+         }
+         else if constexpr (std::is_base_of_v<mfem::VectorCoefficient, T>)
+         {
+            return std::make_any<mfem::VectorCoefficient *>(&function);
+         }
+         else
+         {
+            return std::make_any<decltype(function)>(function);
+         }
+      }
+      ();
+      setState_(any, name, state);
+   }
+}
 
 }  // namespace mach
 

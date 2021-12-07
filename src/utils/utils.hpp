@@ -123,6 +123,76 @@ static const T &retrieve(const MaybeOwningPointer<T> &obj)
    return std::visit([](auto &&ptr) -> const T & { return *ptr; }, obj);
 }
 
+/// Compile time code that allows determining if a type defines a call operator
+namespace detail
+{
+/// This overload is available if T defines operator(), meaning that
+/// `decltype(&T::operator())` produces a valid type
+template <typename T, typename = decltype(&T::operator())>
+std::true_type is_callable_helper(const T &);
+/// This is the catch-all overload, only used when the first is not valid
+/// (when T does not define operator() and thus decltype(&T::operator()) is
+/// invalid)
+std::false_type is_callable_helper(...);
+
+}  // namespace detail
+
+/// Compile time check if T defines operator()
+template <typename T>
+using is_callable = decltype(detail::is_callable_helper(std::declval<T>()));
+
+/// Shorthand for `is_callable` that accesses the underlying value
+template <typename T>
+inline constexpr bool is_callable_v = is_callable<T>::value;
+
+/// This group of code enables the conversion from lambdas, member functions,
+/// and function pointers to std::functions of the appropriate signature,
+/// deduced at compile time.
+/// These `function` structs deduce the return and argument types based on the
+/// input, and define their `type` member to be a std::function with the
+/// matching return and argument types. This allows `make_function` to
+/// deduce the appropriate `function` from the callable input, and using that
+/// `function`'s type, construct a std::function from the input
+namespace detail
+{
+/// For generic types that are functors, delegate to its 'operator()'
+template <typename T>
+struct function : public function<decltype(&T::operator())>
+{ };
+
+/// For const pointers to a member function
+template <typename ClassType, typename ReturnType, typename... Args>
+struct function<ReturnType (ClassType::*)(Args...) const>
+{
+   typedef std::function<ReturnType(Args...)> type;
+};
+
+/// For pointers to a member function
+template <typename ClassType, typename ReturnType, typename... Args>
+struct function<ReturnType (ClassType::*)(Args...)>
+{
+   typedef std::function<ReturnType(Args...)> type;
+};
+
+/// For function pointers
+template <typename ReturnType, typename... Args>
+struct function<ReturnType (*)(Args...)>
+{
+   typedef std::function<ReturnType(Args...)> type;
+};
+
+}  // namespace detail
+
+/// \brief converts a callable object @a fun into a std::function with the same
+/// signature needed to call @a fun
+/// \param[in] fun - callable object to be converted to std::function
+/// \return std::function wrapping @a fun with appropriately deduced signature
+template <typename T>
+typename detail::function<T>::type make_function(T fun)
+{
+   return (typename detail::function<T>::type)(fun);
+}
+
 /// \brief helper function to populate the @a ess_bdr array based on options
 /// \param[in] options - options dictionary containing "ess-bdr" key
 /// \param[out] ess_bdr - binary array that marks essential boundaries
