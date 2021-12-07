@@ -101,7 +101,7 @@ void evaluate(MachNonlinearForm &form,
 
 mfem::Operator &getJacobian(MachNonlinearForm &form,
                             const MachInputs &inputs,
-                            std::string wrt)
+                            const std::string &wrt)
 {
    // auto *pfes = form.nf.ParFESpace();
    // auto state = bufferToHypreParVector(inputs.at("state").getField(), *pfes);

@@ -70,19 +70,19 @@ T createFiniteElementVector(mfem::ParMesh &mesh,
 mach::FiniteElementState createState(mfem::ParMesh &mesh,
                                      const nlohmann::json &space_options,
                                      const int num_states,
-                                     std::string name)
+                                     const std::string &name)
 {
    return createFiniteElementVector<mach::FiniteElementState>(
-       mesh, space_options, num_states, std::move(name));
+       mesh, space_options, num_states, name);
 }
 
 mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
                                    const nlohmann::json &space_options,
                                    const int num_states,
-                                   std::string name)
+                                   const std::string &name)
 {
    return createFiniteElementVector<mach::FiniteElementDual>(
-       mesh, space_options, num_states, std::move(name));
+       mesh, space_options, num_states, name);
 }
 
 }  // namespace
@@ -90,7 +90,7 @@ mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
 namespace mach
 {
 
-int PDESolver::getFieldSize(std::string name) const
+int PDESolver::getFieldSize(const std::string &name) const
 {
    auto size = AbstractSolver2::getFieldSize(name);
    if (size != 0)
@@ -299,43 +299,65 @@ void PDESolver::setUpExternalFields()
 
          /// this approach will only work for fields on the same mesh
          auto num_states = field["num-states"].get<int>();
-         fields.emplace(
-             name, createState(*mesh_, field, num_states, std::move(name)));
+         fields.emplace(name, createState(*mesh_, field, num_states, name));
       }
    }
 }
 
 void PDESolver::setState_(std::any function,
-                          std::string name,
+                          const std::string &name,
                           mfem::Vector &state)
 {
-   auto *coeff_func =
-       std::any_cast<std::function<double(const mfem::Vector &)>>(&function);
-   if (coeff_func != nullptr)
+   AbstractSolver2::setState_(function, name, state);
+
+   useAny(
+       function,
+       [&](std::function<double(const mfem::Vector &)> &fun)
+       { fields.at(name).project(fun, state); },
+       [&](mfem::Coefficient *coeff)
+       { fields.at(name).project(*coeff, state); },
+       [&](std::function<void(const mfem::Vector &, mfem::Vector &)> &vec_fun)
+       { fields.at(name).project(vec_fun, state); },
+       [&](mfem::VectorCoefficient *vec_coeff)
+       { fields.at(name).project(*vec_coeff, state); });
+}
+
+double PDESolver::calcStateError_(std::any ex_sol,
+                                  const std::string &name,
+                                  const mfem::Vector &state)
+{
+   auto err = AbstractSolver2::calcStateError_(ex_sol, name, state);
+   if (!std::isnan(err))
    {
-      fields.at(name).project(*coeff_func, state);
-      return;
+      return err;
    }
-   auto *coeff = std::any_cast<mfem::Coefficient *>(&function);
-   if (coeff != nullptr)
-   {
-      fields.at(name).project(**coeff, state);
-      return;
-   }
-   auto *vec_coeff_func =
-       std::any_cast<std::function<void(const mfem::Vector &, mfem::Vector &)>>(
-           &function);
-   if (vec_coeff_func != nullptr)
-   {
-      fields.at(name).project(*vec_coeff_func, state);
-      return;
-   }
-   auto *vec_coeff = std::any_cast<mfem::VectorCoefficient *>(&function);
-   if (vec_coeff != nullptr)
-   {
-      fields.at(name).project(**vec_coeff, state);
-      return;
-   }
+
+   return useAny(
+       ex_sol,
+       [&](std::function<double(const mfem::Vector &)> &fun)
+       {
+          auto &field = fields.at(name);
+          field.distributeSharedDofs(state);
+          return calcLpError(field, fun, 2);
+       },
+       [&](mfem::Coefficient *coeff)
+       {
+          auto &field = fields.at(name);
+          field.distributeSharedDofs(state);
+          return calcLpError(field, *coeff, 2);
+       },
+       [&](std::function<void(const mfem::Vector &, mfem::Vector &)> &fun)
+       {
+          auto &field = fields.at(name);
+          field.distributeSharedDofs(state);
+          return calcLpError(field, fun, 2);
+       },
+       [&](mfem::VectorCoefficient *coeff)
+       {
+          auto &field = fields.at(name);
+          field.distributeSharedDofs(state);
+          return calcLpError(field, *coeff, 2);
+       });
 }
 
 }  // namespace mach

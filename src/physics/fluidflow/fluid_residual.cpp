@@ -194,9 +194,9 @@ void evaluate(FluidResidual &residual,
 
 mfem::Operator &getJacobian(FluidResidual &residual,
                             const MachInputs &inputs,
-                            string wrt)
+                            const string &wrt)
 {
-   return getJacobian(residual.res, inputs, std::move(wrt));
+   return getJacobian(residual.res, inputs, wrt);
 }
 
 double calcEntropy(FluidResidual &residual, const MachInputs &inputs)

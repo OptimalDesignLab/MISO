@@ -15,7 +15,7 @@ struct InputVector final
 {
    InputVector(double *data, int size) : data(data), size(size) { }
    InputVector(const mfem::Vector &v) : data(v.GetData()), size(v.Size()) { }
-   operator mfem::Vector() const { return mfem::Vector(data, size); }
+   operator mfem::Vector() const { return {data, size}; }
 
    double *data;
    int size;

@@ -14,6 +14,7 @@
 #include "mach_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "pde_solver.hpp"
+#include "sbp_fe.hpp"
 #include "utils.hpp"
 
 /// Class for ODE that follows the MachResidual API
@@ -268,14 +269,14 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
    })"_json;
 
    constexpr int nxy = 4;
-   auto mesh = std::make_unique<mfem::Mesh>(
+   auto smesh = std::make_unique<mfem::Mesh>(
       Mesh::MakeCartesian2D(nxy, nxy, Element::TRIANGLE, true, M_PI, M_PI));
 
    // Create solver and solve for the state 
-   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
+   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
    mfem::Vector state_tv(solver.getStateSize());
 
-   FunctionCoefficient init_state([](const mfem::Vector &p, double t)
+   FunctionCoefficient init_state([](const mfem::Vector &p)
    {
       auto x = p(0);
       auto y = p(1);
@@ -295,19 +296,20 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
    std::cout << "final res norm: " << res_norm << "\n";
 
    // Check that solution is reasonable accurate
-   auto &state = solver.getState();
-   state.distributeSharedDofs(state_tv);
-   auto tfinal = options["time-dis"]["t-final"].get<double>();
-   FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
+   // auto &state = solver.getState();
+   // state.distributeSharedDofs(state_tv);
+   // auto tfinal = options["time-dis"]["t-final"].get<double>();
+   FunctionCoefficient exact_sol([](const mfem::Vector &p)
    {
       auto x = p(0);
       return pow(x, 2);
    });
-   auto error = state.gridFunc().ComputeLpError(2, exact_sol);
+
+   auto error = solver.calcStateError(exact_sol, state_tv);
 
    if (verbose)
    {
-      std::cout << "terminal solution error = " << error << std::endl;
+      std::cout << "H1 L2 solution error = " << error << std::endl;
    }
    REQUIRE(error == Approx(0.353809).margin(1e-8));
 }

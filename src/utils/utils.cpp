@@ -84,8 +84,8 @@ std::ostream *getOutStream(int rank, bool silent)
 HypreParVector bufferToHypreParVector(double *buffer,
                                       const ParFiniteElementSpace &fes)
 {
-   return HypreParVector(
-       fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets());
+   return {
+       fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets()};
 }
 
 void getEssentialBoundaries(const nlohmann::json &options,

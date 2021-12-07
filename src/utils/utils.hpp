@@ -1,6 +1,7 @@
 #ifndef MACH_UTILS
 #define MACH_UTILS
 
+#include <any>
 #include <functional>
 #include <exception>
 #include <iostream>
@@ -138,10 +139,12 @@ std::false_type is_callable_helper(...);
 }  // namespace detail
 
 /// Compile time check if T defines operator()
+/// \tparam T - generic (maybe callable) type
 template <typename T>
 using is_callable = decltype(detail::is_callable_helper(std::declval<T>()));
 
 /// Shorthand for `is_callable` that accesses the underlying value
+/// \tparam T - generic (maybe callable) type
 template <typename T>
 inline constexpr bool is_callable_v = is_callable<T>::value;
 
@@ -155,6 +158,16 @@ inline constexpr bool is_callable_v = is_callable<T>::value;
 /// `function`'s type, construct a std::function from the input
 namespace detail
 {
+
+template <typename T, typename... Ts>
+struct first
+{
+   using type = T;
+};
+
+template <typename... T>
+using first_t = typename first<T...>::type;
+
 /// For generic types that are functors, delegate to its 'operator()'
 template <typename T>
 struct function : public function<decltype(&T::operator())>
@@ -164,21 +177,27 @@ struct function : public function<decltype(&T::operator())>
 template <typename ClassType, typename ReturnType, typename... Args>
 struct function<ReturnType (ClassType::*)(Args...) const>
 {
-   typedef std::function<ReturnType(Args...)> type;
+   using type = std::function<ReturnType(Args...)>;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
 };
 
 /// For pointers to a member function
 template <typename ClassType, typename ReturnType, typename... Args>
 struct function<ReturnType (ClassType::*)(Args...)>
 {
-   typedef std::function<ReturnType(Args...)> type;
+   using type = std::function<ReturnType(Args...)>;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
 };
 
 /// For function pointers
 template <typename ReturnType, typename... Args>
 struct function<ReturnType (*)(Args...)>
 {
-   typedef std::function<ReturnType(Args...)> type;
+   using type = std::function<ReturnType(Args...)>;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
 };
 
 }  // namespace detail
@@ -186,11 +205,60 @@ struct function<ReturnType (*)(Args...)>
 /// \brief converts a callable object @a fun into a std::function with the same
 /// signature needed to call @a fun
 /// \param[in] fun - callable object to be converted to std::function
+/// \tparam T - generic callable type
 /// \return std::function wrapping @a fun with appropriately deduced signature
 template <typename T>
 typename detail::function<T>::type make_function(T fun)
 {
    return (typename detail::function<T>::type)(fun);
+}
+
+/// \brief Convenience function that handles casting std::any to a usable type
+/// and then applies a user supplied function on the casted any
+/// \param[in] any - std::any that holds some concrete type
+/// \param[in] lambda - user supplied function to be called with the result of
+/// the any cast as its argument
+/// \param[in] rest... - variadic argument that can accept any number of
+/// aditional lambdas to try if the previous ones have not been callable with
+/// the result of the any cast
+/// \tparam T - generic callable type
+/// \tparam Ts... - variadic template types for additional callable types
+/// \return whatever the user supplied lambdas return, type is deduced from the
+/// return type of the lambdas
+/// \note In the case where the user supplied lambdas return a double, this
+/// function will return NAN if all the any casts field
+template <typename T, typename... Ts>
+auto useAny(std::any &any, T lambda, Ts... rest) ->
+    typename detail::function<T>::return_t
+{
+   /// For the first lambda given, we deduce the type of its argument,
+   /// removing const and reference qualifiers
+   using arg_t = std::remove_reference_t<
+       std::remove_const_t<typename detail::function<T>::arg_t>>;
+
+   /// Then we try to cast the any to that argument type
+   auto *concrete = std::any_cast<arg_t>(&any);
+
+   /// If the cast succeeds, we call the lambda with that argument
+   if (concrete != nullptr)
+   {
+      return lambda(*concrete);
+   }
+
+   /// If the cast failed, we recursively call this function with the next user
+   /// supplied lambda until we've exhausted all lambdas
+   if constexpr (sizeof...(rest) > 0)
+   {
+      return useAny(any, rest...);
+   }
+
+   /// If all any_casts failed, and the return type is a double
+   /// we return a NAN to indicate this function couldn't use the any
+   using return_t = decltype(useAny(any, lambda));
+   if constexpr (std::is_same_v<return_t, double>)
+   {
+      return NAN;
+   }
 }
 
 /// \brief helper function to populate the @a ess_bdr array based on options

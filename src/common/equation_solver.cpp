@@ -8,8 +8,8 @@ EquationSolver::EquationSolver(
     const nlohmann::json &lin_options,
     std::unique_ptr<mfem::Solver> prec,
     const std::optional<nlohmann::json> &nonlin_options)
+ : prec_(std::move(prec))
 {
-   prec_ = std::move(prec);
    lin_solver_ = constructLinearSolver(comm, lin_options);
    if (nonlin_options)
    {

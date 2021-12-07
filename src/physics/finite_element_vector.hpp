@@ -34,7 +34,7 @@ public:
       mfem::Ordering::Type ordering = mfem::Ordering::byVDIM;
 
       /// \brief The name of the field encapsulated by the state object
-      std::string name = "";
+      std::string name;
    };
 
    /// \brief Main constructor for building a new finite element vector
@@ -84,7 +84,13 @@ public:
    /// \return The underlying mesh
    mfem::ParMesh &mesh() { return *mesh_; }
 
-   /// \brief Returns a non-owning reference to the internal FESpace
+   /// \brief Returns a non-owning reference to the internal FE collection
+   /// \return The underlying finite element collection
+   // mfem::FiniteElementCollection &coll() { return retrieve(coll_); }
+   /// \overload
+   const mfem::FiniteElementCollection &coll() const { return retrieve(coll_); }
+
+   /// \brief Returns a non-owning reference to the internal FE space
    /// \return The underlying finite element space
    mfem::ParFiniteElementSpace &space() { return retrieve(space_); }
    /// \overload
@@ -105,14 +111,14 @@ public:
    virtual void setTrueVec(mfem::Vector &true_vec) = 0;
 
    /// \brief Destroy the Finite Element Vector object
-   virtual ~FiniteElementVector() { }
+   virtual ~FiniteElementVector() = default;
 
 protected:
    /// \brief A non-owning pointer to the mesh on which the field is defined
    mfem::ParMesh *mesh_ = nullptr;
 
    /// \brief Finite element or SBP operators
-   MaybeOwningPointer<const mfem::FiniteElementCollection> coll;
+   MaybeOwningPointer<const mfem::FiniteElementCollection> coll_;
 
    /// \brief Discrete finite element space
    MaybeOwningPointer<mfem::ParFiniteElementSpace> space_;
@@ -121,7 +127,7 @@ protected:
    std::unique_ptr<mfem::ParGridFunction> gf;
 
    /// \brief The name of the finite element vector
-   std::string name_ = "";
+   std::string name_;
 
    static mfem::Vector true_vec;
 };

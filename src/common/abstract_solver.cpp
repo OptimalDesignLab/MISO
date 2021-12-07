@@ -1,5 +1,6 @@
 #include "default_options.hpp"
 #include "mfem_extensions.hpp"
+#include "utils.hpp"
 
 #include "abstract_solver.hpp"
 
@@ -34,14 +35,39 @@ AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
 }
 
 void AbstractSolver2::setState_(std::any function,
-                                std::string name,
+                                const std::string &name,
                                 mfem::Vector &state)
 {
-   auto *fun = std::any_cast<std::function<void(mfem::Vector &)>>(&function);
-   if (fun != nullptr)
-   {
-      (*fun)(state);
-   }
+   useAny(function,
+          [&](std::function<void(mfem::Vector &)> &fun) { fun(state); });
+}
+
+double AbstractSolver2::calcStateError_(std::any ex_sol,
+                                        const std::string &name,
+                                        const mfem::Vector &state)
+{
+   return useAny(
+       ex_sol,
+       [&](std::function<void(mfem::Vector &)> &fun)
+       {
+          work.SetSize(state.Size());
+          fun(work);
+          subtract(work, state, work);
+          return work.Norml2();
+       },
+       [&](mfem::Vector &vec)
+       {
+          if (vec.Size() != state.Size())
+          {
+             throw MachException(
+                 "Input vector for exact solution is not "
+                 "the same size as the "
+                 "state vector!");
+          }
+          work.SetSize(state.Size());
+          subtract(vec, state, work);
+          return work.Norml2();
+       });
 }
 
 void AbstractSolver2::solveForState(const MachInputs &inputs,
@@ -66,7 +92,10 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       std::cout << std::endl;
       iterationHook(ti, t, dt, state);
       ode->step(state, t, dt);
-      if (iterationExit(ti, t, t_final, dt, state)) break;
+      if (iterationExit(ti, t, t_final, dt, state))
+      {
+         break;
+      }
    }
    terminalHook(ti, t, state);
 }
@@ -103,7 +132,7 @@ double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
    return sqrt(InnerProduct(comm, work, work));
 }
 
-int AbstractSolver2::getFieldSize(std::string name) const
+int AbstractSolver2::getFieldSize(const std::string &name) const
 {
    if (name == "state" || name == "residual" || name == "adjoint")
    {

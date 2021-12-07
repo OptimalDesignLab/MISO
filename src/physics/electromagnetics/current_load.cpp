@@ -55,7 +55,7 @@ void addLoad(CurrentLoad &load, Vector &tv)
 }
 
 double vectorJacobianProduct(CurrentLoad &load,
-                             const mfem::HypreParVector &load_bar,
+                             const mfem::Vector &load_bar,
                              const std::string &wrt)
 {
    if (wrt == "current_density")
@@ -72,9 +72,9 @@ double vectorJacobianProduct(CurrentLoad &load,
 }
 
 void vectorJacobianProduct(CurrentLoad &load,
-                           const mfem::HypreParVector &load_bar,
+                           const mfem::Vector &load_bar,
                            const std::string &wrt,
-                           mfem::HypreParVector &wrt_bar)
+                           mfem::Vector &wrt_bar)
 {
    if (wrt == "mesh_coords")
    {
@@ -162,11 +162,14 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    j(&fes),
    div_free_current_vec(&fes),
    scratch(&fes),
-   load(&fes),
+   load(fes.GetTrueVSize()),
    div_free_proj(h1_fes,
                  fes,
                  h1_fes.GetElementTransformation(0)->OrderW() +
                      2 * fes.GetFE(0)->GetOrder()),
+   m_j_mesh_sens(new VectorFEMassIntegratorMeshSens),
+   J_mesh_sens(new VectorFEDomainLFIntegratorMeshSens(current, -1.0)),
+   m_l_mesh_sens(new VectorFEMassIntegratorMeshSens),
    dirty(true)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
@@ -179,11 +182,10 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
    auto &mesh_fes = *x_nodes.ParFESpace();
    mesh_sens.Update(&mesh_fes);
 
-   m_j_mesh_sens = new VectorFEMassIntegratorMeshSens;
    mesh_sens.AddDomainIntegrator(m_j_mesh_sens);
-   J_mesh_sens = new VectorFEDomainLFIntegratorMeshSens(current, -1.0);
+
    mesh_sens.AddDomainIntegrator(J_mesh_sens);
-   m_l_mesh_sens = new VectorFEMassIntegratorMeshSens;
+
    mesh_sens.AddDomainIntegrator(m_l_mesh_sens);
 
    setOptions(*this, options);

@@ -16,12 +16,12 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    class DenseMatrixSolver : public Solver
    {
    public:
-      void SetOperator(const Operator &op)
+      void SetOperator(const Operator &op) override
       {
          mat = dynamic_cast<const DenseMatrix*>(&op);
       }
 
-      void Mult(const Vector &x, Vector &y) const
+      void Mult(const Vector &x, Vector &y) const override
       {
          y = x;
          DenseMatrix A(*mat);
@@ -50,20 +50,20 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
          newton_solver->iterative_mode = false;
       }
 
-      double Entropy(const Vector &x_)
+      double Entropy(const Vector &x_) override
       {
          return exp(x_(0)) + exp(x_(1));
       }
 
       double EntropyChange(double dt, const Vector &x_,
-                           const Vector &k_)
+                           const Vector &k_) override
       {
          Vector y(x_.Size());
          add(x_, dt, k_, y);
          return exp(y(0))*exp(y(1)) - exp(y(1))*exp(y(0)); // should be zero
       }
 
-      void Mult(const Vector &k_, Vector &y_) const
+      void Mult(const Vector &k_, Vector &y_) const override
       {
          Vector x_new(x);
          x_new.Add(dt, k_);
@@ -72,7 +72,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
          y_(1) = k_(1) - exp(x_new(0));
       }
 
-      Operator &GetGradient(const Vector &k_) const
+      Operator &GetGradient(const Vector &k_) const override
       {
          Vector x_new(x);
          x_new.Add(dt, k_);
@@ -85,7 +85,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
          return *Jac;
       }
 
-      void ImplicitSolve(const double dt_, const Vector &x_, Vector &k_)
+      void ImplicitSolve(const double dt_, const Vector &x_, Vector &k_) override
       {
          dt = dt_;
          x = x_;

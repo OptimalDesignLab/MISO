@@ -36,7 +36,7 @@ public:
    /// Compute Jacobian of `form` with respect to `wrt` and return
    friend mfem::Operator &getJacobian(MachNonlinearForm &form,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    /// Adds the given domain integrator to the nonlinear form
    /// \param[in] integrator - nonlinear form integrator for domain

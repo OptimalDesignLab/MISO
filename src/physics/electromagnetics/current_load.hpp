@@ -26,13 +26,13 @@ public:
    friend void addLoad(CurrentLoad &load, mfem::Vector &tv);
 
    friend double vectorJacobianProduct(CurrentLoad &load,
-                                       const mfem::HypreParVector &load_bar,
+                                       const mfem::Vector &load_bar,
                                        const std::string &wrt);
 
    friend void vectorJacobianProduct(CurrentLoad &load,
-                                     const mfem::HypreParVector &load_bar,
+                                     const mfem::Vector &load_bar,
                                      const std::string &wrt,
-                                     mfem::HypreParVector &wrt_bar);
+                                     mfem::Vector &wrt_bar);
 
    CurrentLoad(mfem::ParFiniteElementSpace &pfes,
                const nlohmann::json &options,
@@ -54,8 +54,8 @@ private:
    mfem::ParGridFunction j;
    mfem::ParGridFunction div_free_current_vec;
    mfem::ParGridFunction scratch;
-   // mfem::HypreParVector scratch;
-   mfem::HypreParVector load;
+   // mfem::Vector scratch;
+   mfem::Vector load;
 
    DivergenceFreeProjector div_free_proj;
 

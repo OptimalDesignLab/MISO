@@ -78,7 +78,7 @@ void addLoad(MachLinearForm &load, mfem::Vector &tv)
 }
 
 double vectorJacobianProduct(MachLinearForm &load,
-                             const mfem::HypreParVector &load_bar,
+                             const mfem::Vector &load_bar,
                              const std::string &wrt)
 {
    if (load.scalar_sens.count(wrt) != 0)
@@ -96,9 +96,9 @@ double vectorJacobianProduct(MachLinearForm &load,
 }
 
 void vectorJacobianProduct(MachLinearForm &load,
-                           const mfem::HypreParVector &load_bar,
+                           const mfem::Vector &load_bar,
                            const std::string &wrt,
-                           mfem::HypreParVector &wrt_bar)
+                           mfem::Vector &wrt_bar)
 {
    if (load.sens.count(wrt) != 0)
    {

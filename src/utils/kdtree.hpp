@@ -23,7 +23,9 @@ public:
    point(const mfem::Vector &x)
    {
       for (size_t i = 0; i < dim; ++i)
+      {
          coords_[i] = x(i);
+      }
    }
 
    /// Copy construction from point to point
@@ -65,7 +67,10 @@ std::ostream &operator<<(std::ostream &out, const point<coord_type, dim> &pt)
    out << '(';
    for (size_t i = 0; i < dim; ++i)
    {
-      if (i > 0) out << ", ";
+      if (i > 0)
+      {
+         out << ", ";
+      }
       out << pt.get(i);
    }
    out << ')';
@@ -79,7 +84,7 @@ template <typename coord_type, size_t dim>
 class kdtree
 {
 public:
-   typedef point<coord_type, dim> point_type;
+   using point_type = point<coord_type, dim>;
 
 private:
    /// Defines a node in the tree
@@ -131,7 +136,10 @@ private:
    /// Recursive function to build a tree
    node *make_tree(size_t begin, size_t end, size_t index)
    {
-      if (end <= begin) return nullptr;
+      if (end <= begin)
+      {
+         return nullptr;
+      }
       size_t n = begin + (end - begin) / 2;
       std::nth_element(
           &nodes_[begin], &nodes_[n], &nodes_[0] + end, node_cmp(index));
@@ -144,7 +152,10 @@ private:
    /// Find the nearest node in tree to `point`
    void nearest(node *root, const point_type &point, size_t index)
    {
-      if (root == nullptr) return;
+      if (root == nullptr)
+      {
+         return;
+      }
       ++visited_;
       double d = root->distance(point);
       if (best_ == nullptr || d < best_dist_)
@@ -152,11 +163,17 @@ private:
          best_dist_ = d;
          best_ = root;
       }
-      if (best_dist_ == 0) return;
+      if (best_dist_ == 0)
+      {
+         return;
+      }
       double dx = root->get(index) - point.get(index);
       index = (index + 1) % dim;
       nearest(dx > 0 ? root->left_ : root->right_, point, index);
-      if (dx * dx >= best_dist_) return;
+      if (dx * dx >= best_dist_)
+      {
+         return;
+      }
       nearest(dx > 0 ? root->right_ : root->left_, point, index);
    }
 
@@ -164,9 +181,11 @@ public:
    /// Remove the copy constructor and assignment constructors
    kdtree(const kdtree &) = delete;
    kdtree &operator=(const kdtree &) = delete;
+   kdtree(kdtree &&) = delete;
+   kdtree &operator=(kdtree &&) = delete;
 
    /// Construct an empty tree; use with set_size and add_node, and finalize
-   kdtree() { }
+   kdtree() = default;
 
    /// Constructor taking a pair of iterators. Adds each point in the range
    /// [begin, end) to the tree.
@@ -179,14 +198,17 @@ public:
    }
 
    /// Constructor taking a function object that generates points. The function
-   /// /// object will be called n times to populate the tree. \param[in] f -
-   /// function that returns a point \param[in] n - number of points to add
+   /// object will be called n times to populate the tree.
+   /// \param[in] f - function that returns a point
+   /// \param[in] n - number of points to add
    template <typename func>
    kdtree(func &&f, size_t n)
    {
       nodes_.reserve(n);
       for (size_t i = 0; i < n; ++i)
+      {
          nodes_.emplace_back(f());
+      }
       root_ = make_tree(0, nodes_.size(), 0);
    }
 
@@ -229,7 +251,10 @@ public:
    /// \note It is not valid to call this function if the tree is empty.
    int nearest(const point_type &pt)
    {
-      if (root_ == nullptr) throw std::logic_error("tree is empty");
+      if (root_ == nullptr)
+      {
+         throw std::logic_error("tree is empty");
+      }
       best_ = nullptr;
       visited_ = 0;
       best_dist_ = 0;

@@ -1,3 +1,4 @@
+#include <cmath>
 #include <fstream>
 
 #include "adept.h"
@@ -40,7 +41,7 @@ void evaluate(PassiveControlResidual &residual, const MachInputs &inputs,
    // extract the control variables ("state") and entropy from inputs
    const bool error_if_not_found = true;
    setVectorFromInputs(inputs, "state", residual.x, error_if_not_found);
-   double entropy;
+   double entropy = NAN;
    setValueFromInputs(inputs, "entropy", entropy, error_if_not_found);
    // evaluate the residual
    double e = entropy_targ - entropy;
@@ -88,7 +89,7 @@ void evaluate(FlowControlResidual &residual, const MachInputs &inputs,
    double time = std::get<double>(inputs.at("time"));
 
    Vector state;
-   getVectorFromInput(inputs.at("state"), state);
+   setVectorFromInput(inputs.at("state"), state);
    Vector control_state(state.begin(), num_control);
    Vector flow_state(state.begin() + num_control, num_flow_state);
 
@@ -116,8 +117,9 @@ void evaluate(FlowControlResidual &residual, const MachInputs &inputs,
    evaluate(residual.control_res, control_inputs, control_res_vec);
 }
 
-Operator &getJacobian(FlowControlResidual &residual, const MachInputs &inputs,
-                      std::string wrt)
+Operator &getJacobian(FlowControlResidual &residual,
+                      const MachInputs &inputs,
+                      const std::string &wrt)
 {
    if (wrt != "state")
    {
@@ -128,7 +130,7 @@ Operator &getJacobian(FlowControlResidual &residual, const MachInputs &inputs,
    double time = inputs.at("time");
 
    Vector state;
-   getVectorFromInput(inputs.at("state"), state);
+   setVectorFromInput(inputs.at("state"), state);
    Vector control_state(state.begin(), num_control);
    Vector flow_state(state.begin() + num_control, num_flow_state);
 

@@ -3,7 +3,13 @@
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
+
+#include "mach_input.hpp"
 #include "mach_nonlinearform.hpp"
+#include "functional_output.hpp"
+
+namespace mach
+{
 
 /// Defines the ODE for passive system control-law
 class PassiveControlResidual final 
@@ -120,7 +126,7 @@ public:
    /// \note the underlying `Operator` is owned by `residual`
    friend mfem::Operator &getJacobian(FlowControlResidual &residual,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    /// Evaluate the entropy/Lyapunov functional at the given state
    /// \param[inout] residual - flow-control residual whose entropy we want
@@ -152,7 +158,8 @@ private:
    MachNonlinearForm flow_res;
    PassiveControlResidual control_res;
    FunctionalOutput boundary_entropy;
-
-
-
 };
+
+} // namespace mach
+
+#endif

@@ -15,6 +15,7 @@
 #include "mach_output.hpp"
 #include "mach_residual.hpp"
 #include "ode.hpp"
+#include "utils.hpp"
 
 namespace mach
 {
@@ -32,7 +33,21 @@ public:
    /// \param[in] name - name of the vector to set, defaults to "state"
    /// \tparam T - generic type T, the derived classes must know how to use it
    template <typename T>
-   void setState(T function, mfem::Vector &state, std::string name = "state");
+   void setState(T function,
+                 mfem::Vector &state,
+                 const std::string &name = "state");
+
+   /// \brief Generic function that allows derived classes to calculate the
+   /// error in the state
+   /// \param[in] ex_sol - any object that a derived solver will know how to
+   /// interpret and use to calculate the error in the state
+   /// \param[out] state - the true dof vector we're getting the error of
+   /// \param[in] name - name of the state vector, defaults to "state"
+   /// \tparam T - generic type T, the derived classes must know how to use it
+   template <typename T>
+   double calcStateError(T ex_sol,
+                         const mfem::Vector &state,
+                         const std::string &name = "state");
 
    /// Solve for the state based on the residual `res` and `options`
    /// \param[inout] state - the solution to the governing equation
@@ -77,7 +92,7 @@ public:
    /// \param[in] name - the name of the field to look up the size of
    /// \return the discrete size of the field identified by @a name
    /// \note if the field @a name is unrecognized by the solver, 0 is returned
-   virtual int getFieldSize(std::string name) const;
+   virtual int getFieldSize(const std::string &name) const;
 
    /// Creates a MachOutput for the specified @a output based on @a options
    /// \param[in] output - specifies the desired output
@@ -165,7 +180,7 @@ protected:
    /// Optional data loggers that will save state vectors during timestepping
    std::vector<DataLoggerWithOpts> loggers;
 
-   void addLogger(DataLogger logger, LoggingOptions options)
+   void addLogger(DataLogger logger, LoggingOptions &&options)
    {
       loggers.emplace_back(std::make_pair<DataLogger, LoggingOptions>(
           std::move(logger), std::move(options)));
@@ -233,14 +248,25 @@ protected:
    /// \note the derived classes must know what types @a function may hold and
    /// how to access/use them
    virtual void setState_(std::any function,
-                          std::string name,
+                          const std::string &name,
                           mfem::Vector &state);
+
+   /// \brief Virtual method that allows derivated solvers to deal with inputs
+   /// from templated function calcStateError
+   /// \param[in] ex_sol - input function describing exact solution
+   /// \param[in] name - name of the state vector
+   /// \param[out] state - the true dof vector we're getting the error of
+   /// \note the derived classes must know what types @a ex_sol may hold and
+   /// how to access/use them
+   virtual double calcStateError_(std::any ex_sol,
+                                  const std::string &name,
+                                  const mfem::Vector &state);
 };
 
 template <typename T>
 void AbstractSolver2::setState(T function,
                                mfem::Vector &state,
-                               std::string name)
+                               const std::string &name)
 {
    /// compile time conditional that checks if @a function is callable, and
    /// thus should be converted to a std::function
@@ -255,6 +281,10 @@ void AbstractSolver2::setState(T function,
    {
       auto any = [&]() constexpr
       {
+         /// If T is either an mfem::Coefficient or an mfem::VectorCoefficient,
+         /// we create the std::any to be a pointer to the base class, so that
+         /// when casting the any to a concrete type we can just interact with
+         /// the coefficient through the base class pointer
          if constexpr (std::is_base_of_v<mfem::Coefficient, T>)
          {
             return std::make_any<mfem::Coefficient *>(&function);
@@ -270,6 +300,46 @@ void AbstractSolver2::setState(T function,
       }
       ();
       setState_(any, name, state);
+   }
+}
+
+template <typename T>
+double AbstractSolver2::calcStateError(T ex_sol,
+                                       const mfem::Vector &state,
+                                       const std::string &name)
+{
+   /// compile time conditional that checks if @a ex_sol is callable, and
+   /// thus should be converted to a std::function
+   if constexpr (is_callable_v<T>)
+   {
+      auto fun = make_function(ex_sol);
+      auto any = std::make_any<decltype(fun)>(fun);
+      return calcStateError_(any, name, state);
+   }
+   /// if @a ex_sol is not callable, we just pass it directly along
+   else
+   {
+      auto any = [&]() constexpr
+      {
+         /// If T is either an mfem::Coefficient or an mfem::VectorCoefficient,
+         /// we create the std::any to be a pointer to the base class, so that
+         /// when casting the any to a concrete type we can just interact with
+         /// the coefficient through the base class pointer
+         if constexpr (std::is_base_of_v<mfem::Coefficient, T>)
+         {
+            return std::make_any<mfem::Coefficient *>(&ex_sol);
+         }
+         else if constexpr (std::is_base_of_v<mfem::VectorCoefficient, T>)
+         {
+            return std::make_any<mfem::VectorCoefficient *>(&ex_sol);
+         }
+         else
+         {
+            return std::make_any<decltype(ex_sol)>(ex_sol);
+         }
+      }
+      ();
+      return calcStateError_(any, name, state);
    }
 }
 

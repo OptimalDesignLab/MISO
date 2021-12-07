@@ -32,7 +32,7 @@ namespace mach
 class PDESolver : public AbstractSolver2
 {
 public:
-   int getFieldSize(std::string name) const override;
+   int getFieldSize(const std::string &name) const override;
 
    FiniteElementState &getState() { return state(); }
    const FiniteElementState &getState() const { return state(); }
@@ -95,8 +95,12 @@ protected:
    void setUpExternalFields();
 
    void setState_(std::any function,
-                  std::string name,
-                  mfem::Vector &u) override;
+                  const std::string &name,
+                  mfem::Vector &state) override;
+
+   double calcStateError_(std::any ex_sol,
+                          const std::string &name,
+                          const mfem::Vector &state) override;
 };
 
 }  // namespace mach

@@ -1,5 +1,6 @@
 #include <fstream>
 #include <algorithm>
+#include <memory>
 
 #include "solver.hpp"
 #include "coefficient.hpp"
@@ -113,20 +114,20 @@ void LEAnalogySolver::constructCoefficients()
       auto lambda =
           options["problem-opts"]["uniform-stiff"]["lambda"].get<double>();
       auto mu = options["problem-opts"]["uniform-stiff"]["mu"].get<double>();
-      lambda_c.reset(new ConstantCoefficient(lambda));
-      mu_c.reset(new ConstantCoefficient(mu));
+      lambda_c = std::make_unique<ConstantCoefficient>(lambda);
+      mu_c = std::make_unique<ConstantCoefficient>(mu);
    }
    else
    {
-      lambda_c.reset(new LameFirstParameter());
-      mu_c.reset(new LameSecondParameter());
+      lambda_c = std::make_unique<LameFirstParameter>();
+      mu_c = std::make_unique<LameSecondParameter>();
    }
 }
 
 void LEAnalogySolver::constructForms()
 {
-   mass.reset(new BilinearFormType(fes.get()));
-   res.reset(new NonlinearFormType(fes.get()));
+   mass = std::make_unique<BilinearFormType>(fes.get());
+   res = std::make_unique<NonlinearFormType>(fes.get());
 }
 
 void LEAnalogySolver::addMassIntegrators(double alpha)

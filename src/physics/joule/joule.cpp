@@ -1,5 +1,7 @@
 #include "joule.hpp"
 
+#include <memory>
+
 #include "magnetostatic.hpp"
 #include "thermal.hpp"
 
@@ -85,11 +87,13 @@ JouleSolver::JouleSolver(const std::string &opt_file_name,
    *out << "EM options:\n";
    *out << setw(3) << em_opts << endl;
 
-   em_solver.reset(new MagnetostaticSolver(em_opt_filename, nullptr, comm));
+   em_solver =
+       std::make_unique<MagnetostaticSolver>(em_opt_filename, nullptr, comm);
    /// TODO: this should be moved to an init derived when a factory is made
    // em_solver->initDerived();
 
-   thermal_solver.reset(new ThermalSolver(thermal_opts, nullptr, comm));
+   thermal_solver =
+       std::make_unique<ThermalSolver>(thermal_opts, nullptr, comm);
    // thermal_solver->initDerived();
 }
 

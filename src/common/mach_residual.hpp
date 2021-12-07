@@ -10,29 +10,29 @@
 namespace mach
 {
 template <typename T>
-void setInputs(T &, const MachInputs &)
+void setInputs(T & /*unused*/, const MachInputs & /*unused*/)
 { }
 
 template <typename T>
-void setOptions(T &, const nlohmann::json &)
+void setOptions(T & /*unused*/, const nlohmann::json & /*unused*/)
 { }
 
 template <typename T>
-double calcEntropy(T &, const MachInputs &)
+double calcEntropy(T & /*unused*/, const MachInputs & /*unused*/)
 {
    throw MachException(
        "calcEntropy not specialized for concrete residual type!\n");
 }
 
 template <typename T>
-double calcEntropyChange(T &, const MachInputs &)
+double calcEntropyChange(T & /*unused*/, const MachInputs & /*unused*/)
 {
    throw MachException(
        "calcEntropyChange not specialized for concrete residual type!\n");
 }
 
 template <typename T>
-mfem::Solver *getPreconditioner(T &)
+mfem::Solver *getPreconditioner(T & /*unused*/)
 {
    return nullptr;
 }
@@ -86,7 +86,7 @@ public:
    /// \note the underlying `Operator` is owned by `residual`
    friend mfem::Operator &getJacobian(MachResidual &residual,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    /// Evaluate the entropy functional at the given state
    /// \param[inout] residual - function with an associated entropy
@@ -146,7 +146,7 @@ private:
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
       virtual mfem::Operator &getJac_(const MachInputs &inputs,
-                                      std::string wrt) = 0;
+                                      const std::string &wrt) = 0;
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
       virtual mfem::Solver *getPrec_() = 0;
@@ -173,9 +173,9 @@ private:
          evaluate(data_, inputs, res_vec);
       }
       mfem::Operator &getJac_(const MachInputs &inputs,
-                              std::string wrt) override
+                              const std::string &wrt) override
       {
-         return getJacobian(data_, inputs, std::move(wrt));
+         return getJacobian(data_, inputs, wrt);
       }
       double calcEntropy_(const MachInputs &inputs) override
       {
@@ -224,11 +224,11 @@ inline void evaluate(MachResidual &residual,
 
 inline mfem::Operator &getJacobian(MachResidual &residual,
                                    const MachInputs &inputs,
-                                   std::string wrt)
+                                   const std::string &wrt)
 {
    // passes `inputs` and `res_vec` on to the `getJacobian` function for the
    // concrete residual type
-   return residual.self_->getJac_(inputs, std::move(wrt));
+   return residual.self_->getJac_(inputs, wrt);
 }
 
 inline double calcEntropy(MachResidual &residual, const MachInputs &inputs)

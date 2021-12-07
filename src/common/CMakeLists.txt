@@ -8,8 +8,8 @@ target_sources(mach
       data_logging.hpp
       default_options.cpp
       default_options.hpp
-      equation_solver.cpp
-      equation_solver.hpp
+      #equation_solver.cpp
+      #equation_solver.hpp
       evolver.cpp
       evolver.hpp
       functional_output.cpp

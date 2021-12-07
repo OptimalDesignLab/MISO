@@ -48,16 +48,16 @@ void addLoad(LegacyMagneticLoad &load, Vector &tv)
 }
 
 double vectorJacobianProduct(LegacyMagneticLoad &load,
-                             const mfem::HypreParVector &res_bar,
+                             const mfem::Vector &res_bar,
                              const std::string &wrt)
 {
    return 0.0;
 }
 
 void vectorJacobianProduct(LegacyMagneticLoad &load,
-                           const mfem::HypreParVector &res_bar,
+                           const mfem::Vector &res_bar,
                            const std::string &wrt,
-                           mfem::HypreParVector &wrt_bar)
+                           mfem::Vector &wrt_bar)
 {
    throw std::logic_error(
        "vectorJacobianProduct not implemented for LegacyMagneticLoad!\n");
@@ -70,7 +70,7 @@ LegacyMagneticLoad::LegacyMagneticLoad(ParFiniteElementSpace &pfes,
    rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    rt_fes(fes.GetParMesh(), &rt_coll),
    mag_coeff(mag_coeff),
-   load(&fes),
+   load(fes.GetTrueVSize()),
    weakCurlMuInv(&rt_fes, &fes),
    M(&rt_fes),
    scratch(&fes),
