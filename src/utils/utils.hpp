@@ -7,6 +7,7 @@
 #include <iostream>
 #include <utility>
 #include <variant>
+#include <memory>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -427,6 +428,14 @@ void transferSolution(MeshType &old_mesh,
                       MeshType &new_mesh,
                       const GridFunType &in,
                       GridFunType &out);
+
+/// Generate quarter annulus mesh, \f$r \in [1,3], \theta \in [0,\pi/2]\f$.
+/// \param[in] degree - polynomial degree of the mapping
+/// \param[in] num_rad - number of nodes in the radial direction
+/// \param[in] num_ang - number of nodes in the angular direction
+/// \returns unique pointer to a serial `Mesh` object.
+std::unique_ptr<mfem::Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
+                                                    int num_ang);
 
 }  // namespace mach
 

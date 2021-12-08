@@ -153,8 +153,12 @@ public:
 protected:
    /// communicator used by MPI group for communication
    MPI_Comm comm;
+   
    /// MPI process rank
    int rank;
+
+   /// storage for algorithmic differentiation (shared by all solvers)
+   static adept::Stack diff_stack;
 
    /// work vector for solvers
    mutable mfem::Vector work;

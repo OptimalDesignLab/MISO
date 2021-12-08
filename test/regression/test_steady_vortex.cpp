@@ -81,12 +81,6 @@ void qexact(const Vector &x, Vector& q);
 /// \param[out] w - entropy variables stored as a 4-vector
 void wexact(const Vector &x, Vector& w);
 
-/// Generate quarter annulus mesh 
-/// \param[in] degree - polynomial degree of the mapping
-/// \param[in] num_rad - number of nodes in the radial direction
-/// \param[in] num_ang - number of nodes in the angular direction
-Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang);
-
 TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
                        "[Euler-Vortex]", ((bool entvar), entvar), true, false)
 {
@@ -117,8 +111,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
       DYNAMIC_SECTION("...for mesh sizing nx = " << nx)
       {
          // construct the solver, set the initial condition, and solve
-         unique_ptr<Mesh> smesh(new Mesh(
-            buildQuarterAnnulusMesh(mesh_degree, nx, nx)));
+         auto smesh = buildQuarterAnnulusMesh(mesh_degree, nx, nx);
          auto solver = createSolver<EulerSolver<2,entvar>>(options,
                                                            move(smesh));
          solver->setInitialCondition(uexact);
@@ -183,35 +176,4 @@ void wexact(const Vector &x, Vector& w)
    Vector q(4);
    qexact(x, q);
    calcEntropyVars<double, 2>(q.GetData(), w.GetData());
-}
-
-Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
-{
-   Mesh mesh = Mesh::MakeCartesian2D(num_rad, num_ang, Element::TRIANGLE,
-                                     true /* gen. edges */, 2.0, M_PI * 0.5, 
-                                     true);
-   // strategy:
-   // 1) generate a fes for Lagrange elements of desired degree
-   // 2) create a Grid Function using a VectorFunctionCoefficient
-   // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
-   
-   // Problem: fes does not own fec, which is generated in this function's scope
-   // Solution: the grid function can own both the fec and fes
-   H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
-   FiniteElementSpace *fes = new FiniteElementSpace(&mesh, fec, 2,
-                                                    Ordering::byVDIM);
-
-   // This lambda function transforms from (r,\theta) space to (x,y) space
-   auto xy_fun = [](const Vector& rt, Vector &xy)
-   {
-      xy(0) = (rt(0) + 1.0)*cos(rt(1)); // need + 1.0 to shift r away from origin
-      xy(1) = (rt(0) + 1.0)*sin(rt(1));
-   };
-   VectorFunctionCoefficient xy_coeff(2, xy_fun);
-   GridFunction *xy = new GridFunction(fes);
-   xy->MakeOwner(fec);
-   xy->ProjectCoefficient(xy_coeff);
-
-   mesh.NewNodes(*xy, true);
-   return mesh;
 }

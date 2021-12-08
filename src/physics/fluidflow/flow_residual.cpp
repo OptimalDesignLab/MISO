@@ -10,8 +10,8 @@ using namespace mfem;
 namespace mach
 {
 FlowResidual::FlowResidual(const nlohmann::json &options,
-                             ParFiniteElementSpace &fespace,
-                             adept::Stack &diff_stack)
+                           ParFiniteElementSpace &fespace,
+                           adept::Stack &diff_stack)
  : fes(fespace),
    stack(diff_stack),
    fields(std::make_unique<
@@ -73,7 +73,8 @@ template <int dim, bool entvar>
 void FlowResidual::addFlowDomainIntegrators(const nlohmann::json &flow,
                                               const nlohmann::json &space_dis)
 {
-   if (space_dis["flux-fun"].get<string>() == "IR")
+   auto flux = space_dis.value("flux-fun", "Euler");
+   if (flux == "IR")
    {
       res.addDomainIntegrator(new IsmailRoeIntegrator<dim, entvar>(stack));
    }
@@ -166,7 +167,7 @@ void setOptions(FlowResidual &residual, const nlohmann::json &options)
    residual.is_implicit = options.value("implicit", false);
    // define free-stream parameters; may or may not be used, depending on case
    residual.mach_fs = options["flow-param"]["mach"].get<double>();
-   residual.aoa_fs = options["flow-param"]["aoa"].get<double>() * M_PI / 180;
+   residual.aoa_fs = options["flow-param"].value("aoa", 0.0) * M_PI / 180;
    residual.iroll = options["flow-param"].value("roll-axis", 0);
    residual.ipitch = options["flow-param"].value("pitch-axis", 1);
    residual.state_is_entvar = options["flow-param"].value("entvar", false);

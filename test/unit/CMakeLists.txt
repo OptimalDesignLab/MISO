@@ -47,6 +47,7 @@ set(EM_TEST_SRCS
 # group fluid MPI tests
 set(FLUID_MPI_TEST_SRCS
    test_flow_residual
+   test_flow_solver
    test_mfem_common_integ
    test_mach_residual
 )
