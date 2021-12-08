@@ -1,5 +1,7 @@
+constexpr bool entvar = true;
 #include "mfem.hpp"
 #include "euler.hpp"
+#include "RBFSpace.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -20,9 +22,61 @@ void uexact(const Vector &x, Vector& u);
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
 
-int main()
+int main(int argc, char *argv[])
 {
+   const char *options_file = "rbf_test.json";
+   int myid = 0;
+   // Parse command-line options
+   OptionsParser args(argc, argv);
+   int degree = 2;
+   int nx = 1;
+   int ny = 1;
+   args.AddOption(&options_file, "-o", "--options",
+                  "Options file to use.");
+   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
+   args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
+   args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
+   args.Parse();
+   if (!args.Good())
+   {
+      args.PrintUsage(cout);
+      return 1;
+   }
+   try
+   {
+      // generate the mesh
+      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree+1, nx, ny);
+      std::cout << "Number of elements " << smesh->GetNE() <<'\n';
+      ofstream sol_ofs("rbf_test.vtk");
+      sol_ofs.precision(14);
+      smesh->PrintVTK(sol_ofs,0);
+      sol_ofs.close();
 
+      // initialize the basis centers
+      int numbasis = smesh->GetNE();
+      int interval = static_cast<int> (floor(smesh->GetNE()/numbasis));
+
+      Array<Vector> center(numbasis);
+      int i = 0;
+      for (int k = 0; k < numbasis; i+=interval)
+      {
+         smesh->GetElementCenter(i,center[k]);
+         k++; 
+      }
+
+      // initialize the fe collection and rbf space
+      DSBPCollection fec(degree,smesh->Dimension());
+      //RBFSpace rbfspace(smesh.get(),&fec,center,1,Ordering::byVDIM,degree);
+
+   }   
+   catch (MachException &exception)
+   {
+      exception.print_message();
+   }
+   catch (std::exception &exception)
+   {
+      cerr << exception.what() << endl;
+   }
 }
 
 // Exact solution; note that I reversed the flow direction to be clockwise, so

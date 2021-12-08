@@ -10,8 +10,12 @@ class RBFSpace : public mfem::FiniteElementSpace
 {
 public:
    /// class constructor
-   RBFSpace(mfem::Mesh *m, const mfem::FiniteElementCollection *fec, int vdim = 1,
+   RBFSpace(mfem::Mesh *m, const mfem::FiniteElementCollection *fec,
+            mfem::Array<mfem::Vector> center, int vdim = 1,
             int ordering = mfem::Ordering::byVDIM, int degree = 0);
+
+   /// build the prolongation matrix with RBF
+   void buildProlongationMatrix();
 
 protected:
    
@@ -21,11 +25,16 @@ protected:
    int polyOrder;
    
    /// location of the basis centers
-   mfem::Array<Vector *> basisCenter;
+   mfem::Array<Vector> basisCenter;
    /// the shape parameters
-   mfem::Array<DenseMatrix *> shapeParam;
+   mfem::Array<DenseMatrix> shapeParam;
+   /// selected basis for each element (currently it is fixed upon setup)
+   mfem::Array<Vector> selectedBasis;
 
-
+   /// Initialize the patches/stencil given poly order
+   void InitializeStencil();
+   /// Initialize the shape parameters
+   void InitializeShapeParameter();
 };
 
 } // end of namespace mfem

@@ -11,5 +11,6 @@
 #include "navier_stokes.hpp"
 #include "viscous_integ.hpp"
 #include "galer_diff.hpp"
+#include "RBFSpace.hpp"
 
 #endif
