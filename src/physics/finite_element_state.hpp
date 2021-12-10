@@ -10,7 +10,6 @@
 
 namespace mach
 {
-
 /// \brief Class for encapsulating the critical MFEM components of a primal
 /// finite element field
 class FiniteElementState : public FiniteElementVector

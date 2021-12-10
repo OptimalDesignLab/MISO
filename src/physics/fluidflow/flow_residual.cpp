@@ -71,7 +71,7 @@ void FlowResidual::addFlowIntegrators(const nlohmann::json &options)
 
 template <int dim, bool entvar>
 void FlowResidual::addFlowDomainIntegrators(const nlohmann::json &flow,
-                                              const nlohmann::json &space_dis)
+                                            const nlohmann::json &space_dis)
 {
    auto flux = space_dis.value("flux-fun", "Euler");
    if (flux == "IR")
@@ -98,9 +98,8 @@ void FlowResidual::addFlowDomainIntegrators(const nlohmann::json &flow,
 }
 
 template <int dim, bool entvar>
-void FlowResidual::addFlowInterfaceIntegrators(
-    const nlohmann::json &flow,
-    const nlohmann::json &space_dis)
+void FlowResidual::addFlowInterfaceIntegrators(const nlohmann::json &flow,
+                                               const nlohmann::json &space_dis)
 {
    // add the integrators based on if discretization is continuous or discrete
    if (space_dis["basis-type"].get<string>() == "dsbp")
@@ -113,8 +112,8 @@ void FlowResidual::addFlowInterfaceIntegrators(
 
 template <int dim, bool entvar>
 void FlowResidual::addFlowBoundaryIntegrators(const nlohmann::json &flow,
-                                                const nlohmann::json &space_dis,
-                                                const nlohmann::json &bcs)
+                                              const nlohmann::json &space_dis,
+                                              const nlohmann::json &bcs)
 {
    if (bcs.contains("vortex"))
    {  // isentropic vortex BC
@@ -186,9 +185,7 @@ void setOptions(FlowResidual &residual, const nlohmann::json &options)
    setOptions(residual.res, options);
 }
 
-void evaluate(FlowResidual &residual,
-              const MachInputs &inputs,
-              Vector &res_vec)
+void evaluate(FlowResidual &residual, const MachInputs &inputs, Vector &res_vec)
 {
    evaluate(residual.res, inputs, res_vec);
 }

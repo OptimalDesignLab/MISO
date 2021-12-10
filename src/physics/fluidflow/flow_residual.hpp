@@ -17,8 +17,8 @@ class FlowResidual final
 public:
    /// Constructor for flow equations
    FlowResidual(const nlohmann::json &options,
-                 mfem::ParFiniteElementSpace &fespace,
-                 adept::Stack &diff_stack);
+                mfem::ParFiniteElementSpace &fespace,
+                adept::Stack &diff_stack);
 
    /// Returns the number of equations/unknowns in the flow system
    /// \param[in] residual - flow residual being queried
@@ -107,16 +107,16 @@ private:
 
    template <int dim, bool entvar = false>
    void addFlowDomainIntegrators(const nlohmann::json &flow,
-                                  const nlohmann::json &space_dis);
+                                 const nlohmann::json &space_dis);
 
    template <int dim, bool entvar = false>
    void addFlowInterfaceIntegrators(const nlohmann::json &flow,
-                                     const nlohmann::json &space_dis);
+                                    const nlohmann::json &space_dis);
 
    template <int dim, bool entvar = false>
    void addFlowBoundaryIntegrators(const nlohmann::json &flow,
-                                    const nlohmann::json &space_dis,
-                                    const nlohmann::json &bcs);
+                                   const nlohmann::json &space_dis,
+                                   const nlohmann::json &bcs);
 
    template <int dim, bool entvar = false>
    void addEntropyIntegrators();

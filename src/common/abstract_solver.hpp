@@ -19,7 +19,6 @@
 
 namespace mach
 {
-
 /// Serves as a base class for specific solvers
 /// \todo Rename to AbstractSolver once we have old AbstractSolver inherit it
 class AbstractSolver2
@@ -153,9 +152,12 @@ public:
 protected:
    /// communicator used by MPI group for communication
    MPI_Comm comm;
-   
+
    /// MPI process rank
    int rank;
+
+   /// print object
+   std::ostream *out;
 
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;

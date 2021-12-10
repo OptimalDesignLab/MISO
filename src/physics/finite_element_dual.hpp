@@ -9,7 +9,6 @@
 
 namespace mach
 {
-
 /// \brief Class for encapsulating the dual vector space of a finite element
 /// space (i.e. the space of linear forms as applied to a specific basis set)
 class FiniteElementDual : public FiniteElementVector

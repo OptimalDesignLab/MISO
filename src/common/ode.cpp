@@ -177,6 +177,12 @@ FirstOrderODE::FirstOrderODE(MachResidual &residual,
 
 void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
 {
+   if (ode_options.contains("ode-solver"))
+   {
+      throw MachException(
+          "The option key \"ode-solver\" is deprecated.\n"
+          "Please use the key \"type\" instead.");
+   }
    auto timestepper = ode_options["type"].get<std::string>();
    if (timestepper == "RK1")
    {

@@ -42,8 +42,8 @@ public:
    const FiniteElementDual &getResVec() const { return res_vec(); }
 
    /// Construct a `PDESolver`
-   /// \param[in] incomm - MPI communicator to associate with the solver 
-   /// \param[in] solver_options - options used to define the solver 
+   /// \param[in] incomm - MPI communicator to associate with the solver
+   /// \param[in] solver_options - options used to define the solver
    /// \param[in] num_states - number of states at each degree of freedom
    /// \param[in] smesh - serial mesh for the solver (optional)
    PDESolver(MPI_Comm incomm,
@@ -52,13 +52,17 @@ public:
              std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
    /// Construct a `PDESolver` whose num of states is determined by a function
-   /// \param[in] incomm - MPI communicator to associate with the solver 
-   /// \param[in] solver_options - options used to define the solver 
-   /// \param[in] num_states - a function that returns the number of states 
+   /// \param[in] incomm - MPI communicator to associate with the solver
+   /// \param[in] solver_options - options used to define the solver
+   /// \param[in] num_states - a function that returns the number of states
    /// \param[in] smesh - serial mesh for the solver (optional)
+   /// \note This version is needed when the number of states depends on the
+   /// mesh, but the mesh is not available until after it has been loaded.  In
+   /// this case, the `num_states` function can be used after the mesh is
+   /// available to determine the number of states.
    PDESolver(MPI_Comm incomm,
              const nlohmann::json &solver_options,
-             std::function<int(const nlohmann::json&, int)> num_states,
+             std::function<int(const nlohmann::json &, int)> num_states,
              std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
 protected:

@@ -33,16 +33,16 @@ const nlohmann::json default_options{
     {"steady", false},  // deprecated; now included in "time-dis"
     {"time-dis",        // options related to unsteady time-marching
      {
+         {"type", "RK4"},           // type of ODE solver to use
          {"steady", false},         // if true, solve a steady problem
          {"steady-abstol", 1e-12},  // absolute convergence tolerance for steady
          {"steady-reltol", 1e-10},  // relative convergence tolerance for steady
          {"res-exp",
           2.0},  // for steady problems, controls the step-size growth
-         {"ode-solver", "RK4"},  // type of ODE solver to use
-         {"const-cfl", false},   // if true, adapt dt to keep cfl constant
-         {"t-final", 1.0},       // final time to simulate to
-         {"dt", 0.01},           // time-step size when `const-cfl` is false
-         {"cfl", 1.0},           // target CFL number
+         {"const-cfl", false},  // if true, adapt dt to keep cfl constant
+         {"t-final", 1.0},      // final time to simulate to
+         {"dt", 0.01},          // time-step size when `const-cfl` is false
+         {"cfl", 1.0},          // target CFL number
          {"max-iter", 10000}  // safe-guard upper bound on number of iterations
      }},
 

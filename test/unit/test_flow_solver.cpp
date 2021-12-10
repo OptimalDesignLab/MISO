@@ -3,6 +3,42 @@
 #include "nlohmann/json.hpp"
 
 #include "flow_solver.hpp"
+#include "euler_fluxes.hpp"
+
+/// Steady isentropic exact solution for conservative variables
+/// \param[in] x - spatial location at which exact solution is sought
+/// \param[out] q - conservative variables at `x`.
+void vortexExact(const mfem::Vector &x, mfem::Vector& q)
+{
+   using namespace mach;
+   q.SetSize(4);
+   double ri = 1.0;
+   double Mai = 0.5; //0.95 
+   double rhoi = 2.0;
+   double prsi = 1.0/euler::gamma;
+   double rinv = ri/sqrt(x(0)*x(0) + x(1)*x(1));
+   double rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
+                         1.0/euler::gami);
+   double Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
+                    (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
+   double theta;
+   if (x(0) > 1e-15)
+   {
+      theta = atan(x(1)/x(0));
+   }
+   else
+   {
+      theta = M_PI/2.0;
+   }
+   double press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
+                 (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
+   double a = sqrt(euler::gamma*press/rho);
+
+   q(0) = rho;
+   q(1) = -rho*a*Ma*sin(theta);
+   q(2) = rho*a*Ma*cos(theta);
+   q(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+}
 
 TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
 {
@@ -25,10 +61,10 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
          "flux-fun": "IR"
       },
       "time-dis": {
+         "type": "PTC",
          "steady": true,
          "steady-abstol": 1e-12,
          "steady-restol": 1e-10,
-         "ode-solver": "PTC",
          "t-final": 100,
          "dt": 1e12,
          "cfl": 1.0,
@@ -67,11 +103,24 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
          int mesh_degree = options["space-dis"]["degree"].get<int>() + 1;
          auto mesh = buildQuarterAnnulusMesh(mesh_degree, nx, nx);
 
-         // Create solver and solve for the state 
+         // Create solver and set initial guess to exact
          FlowSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
+         mfem::Vector state_tv(solver.getStateSize());
+         std::function<void(const Vector&, Vector&)> exact_sol = vortexExact;
+         solver.setState(exact_sol, state_tv);
+
+         // write the initial state for debugging 
+         auto &state = solver.getState();
+         mach::ParaViewLogger paraview("test_flow_solver",
+            state.gridFunc().ParFESpace()->GetParMesh());
+         paraview.registerField("state", state.gridFunc());
+         paraview.saveState(state_tv, "state", 0, 1.0, 0);
+
+         // Solve for the state
          MachInputs inputs;
-         //solver.solveForState(inputs, state_tv);
-         //auto &state = solver.getState();
+         solver.solveForState(inputs, state_tv);
+         state.distributeSharedDofs(state_tv);
+
       }
    }
 }

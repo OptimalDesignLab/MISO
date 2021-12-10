@@ -159,7 +159,6 @@ inline constexpr bool is_callable_v = is_callable<T>::value;
 /// `function`'s type, construct a std::function from the input
 namespace detail
 {
-
 template <typename T, typename... Ts>
 struct first
 {
@@ -434,7 +433,8 @@ void transferSolution(MeshType &old_mesh,
 /// \param[in] num_rad - number of nodes in the radial direction
 /// \param[in] num_ang - number of nodes in the angular direction
 /// \returns unique pointer to a serial `Mesh` object.
-std::unique_ptr<mfem::Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
+std::unique_ptr<mfem::Mesh> buildQuarterAnnulusMesh(int degree,
+                                                    int num_rad,
                                                     int num_ang);
 
 }  // namespace mach

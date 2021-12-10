@@ -89,7 +89,6 @@ mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
 
 namespace mach
 {
-
 int PDESolver::getFieldSize(const std::string &name) const
 {
    auto size = AbstractSolver2::getFieldSize(name);
@@ -127,21 +126,19 @@ PDESolver::PDESolver(MPI_Comm incomm,
 
 PDESolver::PDESolver(MPI_Comm incomm,
                      const nlohmann::json &solver_options,
-                     std::function<int(const nlohmann::json&, int)> num_states,
+                     std::function<int(const nlohmann::json &, int)> num_states,
                      std::unique_ptr<mfem::Mesh> smesh)
  : AbstractSolver2(incomm, solver_options),
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
    materials(material_library)
 {
    int ns = num_states(solver_options, mesh_->SpaceDimension());
-   fields.emplace(
-       "state", createState(*mesh_, options["space-dis"], ns, "state"));
-   fields.emplace(
-       "adjoint",
-       createState(*mesh_, options["space-dis"], ns, "adjoint"));
-   duals.emplace(
-       "residual",
-       createDual(*mesh_, options["space-dis"], ns, "residual"));
+   fields.emplace("state",
+                  createState(*mesh_, options["space-dis"], ns, "state"));
+   fields.emplace("adjoint",
+                  createState(*mesh_, options["space-dis"], ns, "adjoint"));
+   duals.emplace("residual",
+                 createDual(*mesh_, options["space-dis"], ns, "residual"));
 
    setUpExternalFields();
 }

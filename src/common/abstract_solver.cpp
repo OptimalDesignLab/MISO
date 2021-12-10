@@ -34,6 +34,9 @@ AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
 
    MPI_Comm_dup(incomm, &comm);
    MPI_Comm_rank(comm, &rank);
+
+   bool silent = options.value("silent", false);
+   out = getOutStream(rank, silent);
 }
 
 void AbstractSolver2::setState_(std::any function,
