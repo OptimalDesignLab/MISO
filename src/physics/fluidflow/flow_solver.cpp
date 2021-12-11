@@ -113,6 +113,22 @@ unique_ptr<Solver> FlowSolver::constructPreconditioner(
    return precond;
 }
 
+void FlowSolver::initialHook(const mfem::Vector &state)
+{
+   AbstractSolver2::initialHook(state);
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // res_norm0 is used to compute the time step in PTC
+      res_norm0 = calcResidualNorm(state);
+   }
+   // TODO: this should only be output if necessary
+   //double entropy = ent->GetEnergy(state);
+   //*out << "before time stepping, entropy is " << entropy << endl;
+   //remove("entropylog.txt");
+   //entropylog.open("entropylog.txt", fstream::app);
+   //entropylog << setprecision(14);
+}
+
 /*
 Notes:
 ode will call nonlinear_solver->Mult, which will use the residual res.  The

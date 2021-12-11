@@ -40,6 +40,7 @@ const nlohmann::json default_options{
          {"res-exp",
           2.0},  // for steady problems, controls the step-size growth
          {"const-cfl", false},  // if true, adapt dt to keep cfl constant
+         {"t-initial", 0.0},    // initial time at which to start the simulation
          {"t-final", 1.0},      // final time to simulate to
          {"dt", 0.01},          // time-step size when `const-cfl` is false
          {"cfl", 1.0},          // target CFL number

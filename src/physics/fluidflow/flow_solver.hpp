@@ -25,6 +25,8 @@ public:
               std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
 private:
+   /// Initial residual norm for PTC and convergence checks
+   double res_norm0 = -1.0;
    /// Bilinear form for the mass-matrix operator
    mfem::ParBilinearForm mass;
    /// Mass matrix as HypreParMatrix
@@ -37,6 +39,10 @@ private:
    /// \returns unique pointer to the preconditioner object
    std::unique_ptr<mfem::Solver> constructPreconditioner(
        nlohmann::json &_options);
+
+   /// For code that should be executed before the time stepping begins
+   /// \param[in] state - the current state
+   virtual void initialHook(const mfem::Vector &state) override;  
 };
 
 }  // namespace mach
