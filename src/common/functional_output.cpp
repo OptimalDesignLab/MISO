@@ -34,6 +34,18 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
 void setOptions(FunctionalOutput &output, const nlohmann::json &options)
 {
    setOptions(output.integs, options);
+   if (options.contains("attributes"))
+   {
+      auto attributes = options["attributes"].get<std::vector<int>>();
+      for (auto &marker : output.domain_markers)
+      {
+         attrVecToArray(attributes, marker);
+      }
+      for (auto &marker : output.bdr_markers)
+      {
+         attrVecToArray(attributes, marker);
+      }
+   }
 }
 
 double calcOutput(FunctionalOutput &output, const MachInputs &inputs)

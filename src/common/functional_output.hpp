@@ -123,7 +123,7 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
    // auto &marker = domain_markers.emplace_back(attr_marker.size());
    // marker.Assign(attr_marker.data());
    auto mesh_attr_size = output.ParFESpace()->GetMesh()->attributes.Size();
-   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
+   auto &marker = domain_markers.emplace_back(mesh_attr_size);
    attrVecToArray(attr_marker, marker);
    output.AddDomainIntegrator(integrator, marker);
    mach::addSensitivityIntegrator(

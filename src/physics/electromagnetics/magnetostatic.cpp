@@ -824,6 +824,11 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       IECurlMagnitudeAggregateFunctional out(*fes, res_fields, options);
       outputs.emplace(fun, std::move(out));
    }
+   else if (fun == "flux_squared_avg")
+   {
+      BNormSquaredAverageFunctional out(*fes, res_fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
    else
    {
       throw MachException("Output with name " + fun +
