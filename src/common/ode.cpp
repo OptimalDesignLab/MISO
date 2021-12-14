@@ -86,7 +86,6 @@ void evaluate(TimeDependentResidual &residual,
               const mach::MachInputs &inputs,
               mfem::Vector &res_vec)
 {
-   setInputs(residual, inputs);
    auto &dt = residual.dt;
    auto &state = residual.state;
    auto &state_dot = residual.state_dot;

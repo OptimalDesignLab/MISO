@@ -205,20 +205,21 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
    auto mesh = std::make_unique<mfem::Mesh>(
       Mesh::MakeCartesian2D(nxy, nxy, Element::TRIANGLE, true, M_PI, M_PI));
 
+   // Create solver and solve for the state 
+   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
+   mfem::Vector state_tv(solver.getStateSize());
 
    mfem::FunctionCoefficient exact_sol([](const mfem::Vector &p, double t)
    {
       auto x = p(0);
       return pow(x, 2) + exp(-t) * (sin(x) + sin(2*x) + sin(3*x));
    });
-
-   // Create solver and solve for the state 
-   ThermalSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
-   mfem::Vector state_tv(solver.getStateSize());
    solver.setState(exact_sol, state_tv);
 
    MachInputs inputs;
    solver.solveForState(inputs, state_tv);
+
+
    auto &state = solver.getState();
    state.distributeSharedDofs(state_tv);
 
