@@ -139,9 +139,7 @@ void AbstractSolver2::calcResidual(const MachInputs &inputs,
 
 double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
 {
-   // dt must be set to zero, so that the TimeDependentResidual knows to just
-   // evaluate the spatial residual.
-   MachInputs inputs{{"state", state}, {"dt", 0.0}};
+   MachInputs inputs{{"state", state}};
    return calcResidualNorm(inputs);
 }
 
