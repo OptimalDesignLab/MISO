@@ -42,7 +42,7 @@ private:
 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
-   virtual void initialHook(const mfem::Vector &state) override;  
+   virtual void initialHook(const mfem::Vector &state) override;
 };
 
 }  // namespace mach

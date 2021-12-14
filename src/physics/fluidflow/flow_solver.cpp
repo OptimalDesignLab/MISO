@@ -25,7 +25,8 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
    mass(&fes())
 {
    // Construct space-time residual from spatial residual and mass matrix
-   spatial_res = std::make_unique<mach::MachResidual>(FlowResidual(solver_options, fes(), diff_stack));
+   spatial_res = std::make_unique<mach::MachResidual>(
+       FlowResidual(solver_options, fes(), diff_stack));
    const char *name = fes().FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {
@@ -53,7 +54,8 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
 
    // construct the ODE solver (also used for pseudo-transient continuation)
    auto ode_opts = options["time-dis"];
-   ode = make_unique<FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
+   ode =
+       make_unique<FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
 }
 
 unique_ptr<Solver> FlowSolver::constructPreconditioner(
@@ -122,18 +124,18 @@ void FlowSolver::initialHook(const mfem::Vector &state)
       res_norm0 = calcResidualNorm(state);
    }
    // TODO: this should only be output if necessary
-   //double entropy = ent->GetEnergy(state);
+   // double entropy = ent->GetEnergy(state);
    //*out << "before time stepping, entropy is " << entropy << endl;
-   //remove("entropylog.txt");
-   //entropylog.open("entropylog.txt", fstream::app);
-   //entropylog << setprecision(14);
+   // remove("entropylog.txt");
+   // entropylog.open("entropylog.txt", fstream::app);
+   // entropylog << setprecision(14);
 }
 
 /*
 Notes:
 ode will call nonlinear_solver->Mult, which will use the residual
-space_time_res. The residual will be passed references to {"state", u}, 
-{"state_dot", du_dt}, {"dt", dt}, {"time", t} via MachInputs before the 
+space_time_res. The residual will be passed references to {"state", u},
+{"state_dot", du_dt}, {"dt", dt}, {"time", t} via MachInputs before the
 nonlinear solve happens.  The residual can use this information to decide if
 this is an explicit or implicit solve.
 
