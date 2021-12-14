@@ -7,6 +7,7 @@
 #include "utils.hpp"
 #include "mach_residual.hpp"
 #include "mach_nonlinearform.hpp"
+#include "flow_residual.hpp"
 
 class TestIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -88,6 +89,13 @@ TEST_CASE("MachResidual Scalar Input Test",
    MachNonlinearForm nf(fes, fields);
    nf.addDomainIntegrator(new TestIntegrator);
    MachResidual res(std::move(nf));
+
+   REQUIRE_NOTHROW([&](){
+      MachNonlinearForm &nf_ref = getConcrete<MachNonlinearForm>(res);
+   }());
+   REQUIRE_THROWS([&](){
+      FlowResidual &flow_ref = getConcrete<FlowResidual>(res);
+   }());
 
    // These steps create a grid function for x+y
    FunctionCoefficient coeff(

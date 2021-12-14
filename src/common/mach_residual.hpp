@@ -51,6 +51,13 @@ mfem::Solver *getPreconditioner(T & /*unused*/)
 class MachResidual final : public mfem::Operator
 {
 public:
+   /// Returns a reference to the underlying concrete type
+   /// \tparam T - a residual class
+   /// \note This is useful when the underlying concrete type is known at the
+   /// client side, and methods specific to the concrete type need to be called.
+   template <typename T>
+   friend T &getConcrete(MachResidual &residual);
+
    /// Gets the number of equations/unknowns of the underlying residual type
    /// \param[inout] residual - the residual whose size is being queried
    /// \returns the number of equations/unknowns
@@ -193,6 +200,20 @@ private:
    /// Pointer to `model` via its abstract base class `concept_t`
    std::unique_ptr<concept_t> self_;
 };
+
+template <typename T>
+inline T &getConcrete(MachResidual &residual)
+{
+   auto *model = dynamic_cast<MachResidual::model<T> *>(residual.self_.get());
+   if (model == nullptr)
+   {
+      throw MachException("getConcrete() called with inconsistent template!");
+   }
+   else
+   {
+      return model->data_;
+   }
+}
 
 inline int getSize(const MachResidual &residual)
 {
