@@ -25,7 +25,7 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
    mass(&fes())
 {
    // Construct space-time residual from spatial residual and mass matrix
-   FlowResidual spatial_res(solver_options, fes(), diff_stack);
+   spatial_res = std::make_unique<mach::MachResidual>(FlowResidual(solver_options, fes(), diff_stack));
    const char *name = fes().FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {
@@ -38,8 +38,8 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
    mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
    mass.Finalize(0);
    mass_mat.reset(mass.ParallelAssemble());
-   res = std::make_unique<mach::MachResidual>(
-       mach::TimeDependentResidual(std::move(spatial_res), mass_mat.get()));
+   space_time_res = std::make_unique<mach::MachResidual>(
+       mach::TimeDependentResidual(*spatial_res, mass_mat.get()));
 
    // construct the preconditioner, linear solver, and nonlinear solver
    auto prec_solver_opts = options["lin-prec"];
@@ -49,11 +49,11 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
    auto nonlin_solver_opts = options["nonlin-solver"];
    nonlinear_solver =
        constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
-   nonlinear_solver->SetOperator(*res);
+   nonlinear_solver->SetOperator(*space_time_res);
 
    // construct the ODE solver (also used for pseudo-transient continuation)
    auto ode_opts = options["time-dis"];
-   ode = make_unique<FirstOrderODE>(*res, ode_opts, *nonlinear_solver);
+   ode = make_unique<FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
 }
 
 unique_ptr<Solver> FlowSolver::constructPreconditioner(
@@ -131,11 +131,11 @@ void FlowSolver::initialHook(const mfem::Vector &state)
 
 /*
 Notes:
-ode will call nonlinear_solver->Mult, which will use the residual res.  The
-residual will be passed references to {"state", u}, {"state_dot", du_dt}, {"dt",
-dt}, {"time", t} via MachInputs before the nonlinear solve happens.  The
-residual can use this information to decide if this is an explicit or implicit
-solve.
+ode will call nonlinear_solver->Mult, which will use the residual
+space_time_res. The residual will be passed references to {"state", u}, 
+{"state_dot", du_dt}, {"dt", dt}, {"time", t} via MachInputs before the 
+nonlinear solve happens.  The residual can use this information to decide if
+this is an explicit or implicit solve.
 
 Explict: solves `M du_dt + R(u, p, t) = 0` for du_dt.
 Implicit: solves `M du_dt + R(u + dt * du_dt, p, t + dt) = 0` for `du_dt`
