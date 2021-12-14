@@ -60,9 +60,6 @@ public:
    /// \note On input, `state` should hold the initial condition
    void solveForState(const MachInputs &inputs, mfem::Vector &state);
 
-   MachResidual &residual() { return *res; }
-   const MachResidual &residual() const { return *res; }
-
    /// Compute the residual and store the it in @a residual
    /// \param[in] state - the state to evaluate the residual at
    /// \param[out] residual - the discrete residual vector
@@ -86,7 +83,7 @@ public:
    double calcResidualNorm(const MachInputs &inputs) const;
 
    /// \return the size of the state vector
-   int getStateSize() const { return getSize(*res); }
+   int getStateSize() const;
 
    /// Gets the size of a field @a name known by the solver
    /// \param[in] name - the name of the field to look up the size of
@@ -162,8 +159,10 @@ protected:
    /// solver options
    nlohmann::json options;
 
+   /// residual defines the just the spatial dynamics of a problem
+   std::unique_ptr<MachResidual> spatial_res;
    /// residual defines the dynamics of an ODE (including steady ODEs)
-   std::unique_ptr<MachResidual> res;
+   std::unique_ptr<MachResidual> space_time_res;
 
    /// linear system solver used in newton solver
    std::unique_ptr<mfem::Solver> linear_solver;

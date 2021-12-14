@@ -111,18 +111,17 @@ public:
    ExponentialODESolver(MPI_Comm comm, const nlohmann::json &solver_options)
       : AbstractSolver2(comm, solver_options)
    {
-      // res = std::make_unique<mach::MachResidual>(ExpODEResidual());
-      res = std::make_unique<mach::MachResidual>(ExpODEResidual());
+      space_time_res = std::make_unique<mach::MachResidual>(ExpODEResidual());
 
       auto lin_solver_opts = options["lin-solver"];
       linear_solver = mach::constructLinearSolver(comm, lin_solver_opts);
       auto nonlin_solver_opts = options["nonlin-solver"];
       nonlinear_solver = mach::constructNonlinearSolver(
          comm, nonlin_solver_opts, *linear_solver);
-      nonlinear_solver->SetOperator(*res);
+      nonlinear_solver->SetOperator(*space_time_res);
 
       auto ode_opts = options["time-dis"];
-      ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, 
+      ode = std::make_unique<mach::FirstOrderODE>(*space_time_res, ode_opts, 
                                                   *nonlinear_solver);
    }
 

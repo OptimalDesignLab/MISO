@@ -42,7 +42,7 @@ namespace mach
 {
 int getSize(const TimeDependentResidual &residual)
 {
-   return getSize(residual.res_);
+   return getSize(residual.spatial_res_);
 }
 
 void setInputs(TimeDependentResidual &residual, const mach::MachInputs &inputs)
@@ -74,12 +74,12 @@ void setInputs(TimeDependentResidual &residual, const mach::MachInputs &inputs)
    setVectorFromInputs(inputs, "state_dot", residual.state_dot);
    setValueFromInputs(inputs, "dt", residual.dt);
    setValueFromInputs(inputs, "time", residual.time);
-   setInputs(residual.res_, inputs);
+   setInputs(residual.spatial_res_, inputs);
 }
 
 void setOptions(TimeDependentResidual &residual, const nlohmann::json &options)
 {
-   setOptions(residual.res_, options);
+   setOptions(residual.spatial_res_, options);
 }
 
 void evaluate(TimeDependentResidual &residual,
@@ -93,13 +93,13 @@ void evaluate(TimeDependentResidual &residual,
    if (dt == 0.0)
    {
       MachInputs input{{"state", state}};
-      evaluate(residual.res_, input, res_vec);
+      evaluate(residual.spatial_res_, input, res_vec);
    }
    else
    {
       add(state, dt, state_dot, work);
       MachInputs input{{"state", work}};
-      evaluate(residual.res_, input, res_vec);
+      evaluate(residual.spatial_res_, input, res_vec);
    }
 
    residual.mass_matrix_->Mult(residual.state_dot, residual.work);
@@ -122,20 +122,20 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto &work = residual.work;
    add(state, dt, state_dot, work);
    MachInputs input{{"state", work}};
-   auto &spatial_jac = getJacobian(residual.res_, input, wrt);
+   auto &spatial_jac = getJacobian(residual.spatial_res_, input, wrt);
    addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
    return *residual.jac_;
 }
 
 double calcEntropy(TimeDependentResidual &residual, const MachInputs &inputs)
 {
-   return calcEntropy(residual.res_, inputs);
+   return calcEntropy(residual.spatial_res_, inputs);
 }
 
 double calcEntropyChange(TimeDependentResidual &residual,
                          const MachInputs &inputs)
 {
-   return calcEntropyChange(residual.res_, inputs);
+   return calcEntropyChange(residual.spatial_res_, inputs);
 }
 
 // template <typename T>

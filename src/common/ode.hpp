@@ -37,26 +37,26 @@ public:
 
    friend mfem::Solver *getPreconditioner(TimeDependentResidual &residual)
    {
-      return getPreconditioner(residual.res_);
+      return getPreconditioner(residual.spatial_res_);
    }
 
    /** \brief constructs a time dependent residual of the form
             M du_dt + R(u, p, t) = 0
 
-       \param[in] spatial_res - The spatial residual, R above
+       \param[in] spatial_res - Reference to externally owned spatial residual
        \param[in] mass_matrix - Non-owning pointer to the optional mass matrix
        \tparam T - The concrete type of the spatial residual
        \note If no mass matrix is provided an IdentityOperator will be used */
    template <typename T>
-   TimeDependentResidual(T spatial_res, mfem::Operator *mass_matrix = nullptr)
-    : res_(std::move(spatial_res)),
+   TimeDependentResidual(T &spatial_res, mfem::Operator *mass_matrix = nullptr)
+    : spatial_res_(spatial_res),
       mass_matrix_(mass_matrix),
-      work(getSize(res_))
+      work(getSize(spatial_res_))
    {
       /// If no mass matrix is provided, we'll use an IdentityOperator
       if (mass_matrix_ == nullptr)
       {
-         identity_ = std::make_unique<mfem::IdentityOperator>(getSize(res_));
+         identity_ = std::make_unique<mfem::IdentityOperator>(getSize(spatial_res_));
          mass_matrix_ = identity_.get();
       }
 
@@ -70,13 +70,13 @@ public:
       }
       else if (iden_mass != nullptr)
       {
-         jac_ = std::make_unique<mfem::DenseMatrix>(getSize(res_));
+         jac_ = std::make_unique<mfem::DenseMatrix>(getSize(spatial_res_));
       }
    }
 
 private:
    /// \brief reference to the residual that defines the dynamics of the ODE
-   MachResidual res_;
+   MachResidual &spatial_res_;
    /// \brief pointer to mass matrix used for ODE integration
    mfem::Operator *mass_matrix_;
    /// \brief default mass matrix if none provided
