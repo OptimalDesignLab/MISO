@@ -19,7 +19,6 @@
 
 namespace mach
 {
-
 /// Serves as a base class for specific solvers
 /// \todo Rename to AbstractSolver once we have old AbstractSolver inherit it
 class AbstractSolver2
@@ -150,8 +149,15 @@ public:
 protected:
    /// communicator used by MPI group for communication
    MPI_Comm comm;
+
    /// MPI process rank
    int rank;
+
+   /// print object
+   std::ostream *out;
+
+   /// storage for algorithmic differentiation (shared by all solvers)
+   static adept::Stack diff_stack;
 
    /// work vector for solvers
    mutable mfem::Vector work;
@@ -239,9 +245,9 @@ protected:
    virtual void addOutput(const std::string &out, const nlohmann::json &options)
    { }
 
-   /// \brief Virtual method that allows derivated solvers to deal with inputs
+   /// \brief Virtual method that allows derived solvers to deal with inputs
    /// from templated function setState
-   /// \param[in] function - input function use to set the state
+   /// \param[in] function - input function used to set the state
    /// \param[in] name - name of the vector to set
    /// \param[out] state - the true dof vector to set
    /// \note the derived classes must know what types @a function may hold and

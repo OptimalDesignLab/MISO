@@ -4,7 +4,7 @@
 #include "mfem.hpp"
 #include "adept.h"
 
-#include "fluid_residual.hpp"
+#include "flow_residual.hpp"
 #include "sbp_fe.hpp"
 #include "euler_fluxes.hpp"
 #include "mach_input.hpp"
@@ -31,7 +31,7 @@ auto options = R"(
    }
 })"_json;
 
-TEST_CASE("FluidResidual construction and evaluation", "[FluidResidual]")
+TEST_CASE("FlowResidual construction and evaluation", "[FlowResidual]")
 {
    const int dim = 2; // templating is hard here because mesh constructors
    int num_state = dim + 2;
@@ -47,7 +47,7 @@ TEST_CASE("FluidResidual construction and evaluation", "[FluidResidual]")
    ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
 
    // construct the residual
-   FluidResidual res(options, fespace, diff_stack);
+   FlowResidual res(options, fespace, diff_stack);
    int num_var = getSize(res);
    REQUIRE(num_var == 132);
 
@@ -72,7 +72,7 @@ TEST_CASE("FluidResidual construction and evaluation", "[FluidResidual]")
    REQUIRE( calcEntropy(res, inputs) == Approx(total_ent) );
 }
 
-TEST_CASE("FluidResidual calcEntropyChange", "[FluidResidual]")
+TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
 {
    const int dim = 2; // templating is hard here because mesh constructors
    int num_state = dim + 2;
@@ -96,7 +96,7 @@ TEST_CASE("FluidResidual calcEntropyChange", "[FluidResidual]")
    // construct the residual with no dissipation and using IR flux
    options["space-dis"]["lps-coeff"] = 0.0;
    options["space-dis"]["flux-fun"] = "IR"; 
-   FluidResidual res(options, fespace, diff_stack);
+   FlowResidual res(options, fespace, diff_stack);
    int num_var = getSize(res);
 
    // create a randomly perturbed conservative variable state

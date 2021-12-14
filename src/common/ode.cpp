@@ -86,6 +86,7 @@ void evaluate(TimeDependentResidual &residual,
               const mach::MachInputs &inputs,
               mfem::Vector &res_vec)
 {
+   setInputs(residual, inputs);
    auto &dt = residual.dt;
    auto &state = residual.state;
    auto &state_dot = residual.state_dot;
@@ -101,7 +102,6 @@ void evaluate(TimeDependentResidual &residual,
       MachInputs input{{"state", work}};
       evaluate(residual.spatial_res_, input, res_vec);
    }
-
    residual.mass_matrix_->Mult(residual.state_dot, residual.work);
    res_vec += residual.work;
 }
@@ -177,6 +177,12 @@ FirstOrderODE::FirstOrderODE(MachResidual &residual,
 
 void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
 {
+   if (ode_options.contains("ode-solver"))
+   {
+      throw MachException(
+          "The option key \"ode-solver\" is deprecated.\n"
+          "Please use the key \"type\" instead.");
+   }
    auto timestepper = ode_options["type"].get<std::string>();
    if (timestepper == "RK1")
    {

@@ -22,6 +22,8 @@ void logState(mach::DataLogger &logger,
 
 namespace mach
 {
+adept::Stack AbstractSolver2::diff_stack;
+
 AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
                                  const nlohmann::json &solver_options)
 {
@@ -32,6 +34,9 @@ AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
 
    MPI_Comm_dup(incomm, &comm);
    MPI_Comm_rank(comm, &rank);
+
+   bool silent = options.value("silent", false);
+   out = getOutStream(rank, silent);
 }
 
 void AbstractSolver2::setState_(std::any function,
@@ -78,21 +83,21 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
    {
       auto ode_opts = options["time-dis"];
 
-      double t = 0.0;  // this should probably be based on an option
+      double t = ode_opts["t-initial"].get<double>();
       auto t_final = ode_opts["t-final"].get<double>();
-      std::cout << "t_final is " << t_final << '\n';
+      *out << "t_final is " << t_final << '\n';
       int ti = 0;
       double dt = 0.0;
       initialHook(state);
       for (ti = 0; ti < ode_opts["max-iter"].get<int>(); ++ti)
       {
          dt = calcStepSize(ti, t, t_final, dt, state);
-         std::cout << "iter " << ti << ": time = " << t << ": dt = " << dt;
+         *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
          if (!ode_opts["steady"].get<bool>())
          {
-            std::cout << " (" << round(100 * t / t_final) << "% complete)";
+            *out << " (" << round(100 * t / t_final) << "% complete)";
          }
-         std::cout << std::endl;
+         *out << std::endl;
          iterationHook(ti, t, dt, state);
          ode->step(state, t, dt);
          if (iterationExit(ti, t, t_final, dt, state))
@@ -134,14 +139,19 @@ void AbstractSolver2::calcResidual(const MachInputs &inputs,
 
 double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
 {
-   MachInputs inputs{{"state", state}};
+   // dt must be set to zero, so that the TimeDependentResidual knows to just
+   // evaluate the spatial residual.
+   MachInputs inputs{{"state", state}, {"dt", 0.0}};
    return calcResidualNorm(inputs);
 }
 
 double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
 {
    work.SetSize(getSize(*spatial_res));
+   *out << "before calcResidual..." << std::endl;
+   *out << "work.Size() = " << work.Size() << std::endl;
    calcResidual(inputs, work);
+   *out << "after calcResidual..." << std::endl;
    return sqrt(InnerProduct(comm, work, work));
 }
 

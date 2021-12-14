@@ -1,5 +1,5 @@
-#ifndef FLUID_RESIDUAL
-#define FLUID_RESIDUAL
+#ifndef FLOW_RESIDUAL
+#define FLOW_RESIDUAL
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -11,60 +11,60 @@
 
 namespace mach
 {
-/// Class for fluid equations that follows the MachResidual API
-class FluidResidual final
+/// Class for flow equations that follows the MachResidual API
+class FlowResidual final
 {
 public:
-   /// Constructor for fluid equations
-   FluidResidual(const nlohmann::json &options,
-                 mfem::ParFiniteElementSpace &fespace,
-                 adept::Stack &diff_stack);
+   /// Constructor for flow equations
+   FlowResidual(const nlohmann::json &options,
+                mfem::ParFiniteElementSpace &fespace,
+                adept::Stack &diff_stack);
 
-   /// Returns the number of equations/unknowns in the fluid system
-   /// \param[in] residual - fluid residual being queried
-   friend int getSize(const FluidResidual &residual);
+   /// Returns the number of equations/unknowns in the flow system
+   /// \param[in] residual - flow residual being queried
+   friend int getSize(const FlowResidual &residual);
 
-   /// Set inputs in the given fluid residual
-   /// \param[inout] residual - fluid residual whose inputs are set
+   /// Set inputs in the given flow residual
+   /// \param[inout] residual - flow residual whose inputs are set
    /// \param[in] inputs - defines values and fields being set
-   friend void setInputs(FluidResidual &residual, const MachInputs &inputs);
+   friend void setInputs(FlowResidual &residual, const MachInputs &inputs);
 
-   /// Set options in the given fluid residual
-   /// \param[inout] residual - fluid residual whose options are being set
+   /// Set options in the given flow residual
+   /// \param[inout] residual - flow residual whose options are being set
    /// \param[in] options - object containing the options
-   friend void setOptions(FluidResidual &residual,
+   friend void setOptions(FlowResidual &residual,
                           const nlohmann::json &options);
 
-   /// Evaluate the fully-discrete fluid residual equations
-   /// \param[inout] residual - defines the fluid residual being evaluated
+   /// Evaluate the fully-discrete flow residual equations
+   /// \param[inout] residual - defines the flow residual being evaluated
    /// \param[in] inputs - defines values and fields needed for the evaluation
    /// \param[out] res_vec - where the resulting residual is stored
    /// \note The behavior of evaluate can be changed depending on whether the
    /// residual is used in an explicit or implicit time integration.  This
    /// behavior is controlled by setting `options["implicit"]` to true and
    /// passing this to `setOptions`.
-   friend void evaluate(FluidResidual &residual,
+   friend void evaluate(FlowResidual &residual,
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
 
-   /// Returns the Jacobian of the fully-discrete fluid residual equations
-   /// \param[inout] residual - the fluid residual whose Jacobian is sought
+   /// Returns the Jacobian of the fully-discrete flow residual equations
+   /// \param[inout] residual - the flow residual whose Jacobian is sought
    /// \param[in] inputs - defines values and fields needed for the Jacobian
    /// \param[out] wrt - variable that we want to differentiate with respect to
    /// \note The behavior of getJacobian can be changed depending on whether
    /// the residual is used in an explicit or implicit time integration.  This
    /// behavior is controlled by setting `options["implicit"]` to true and
    /// passing this to `setOptions`.
-   friend mfem::Operator &getJacobian(FluidResidual &residual,
+   friend mfem::Operator &getJacobian(FlowResidual &residual,
                                       const MachInputs &inputs,
                                       const std::string &wrt);
 
    /// Returns the total integrated entropy over the domain
-   /// \param[inout] residual - the fluid residual, which helps compute entropy
+   /// \param[inout] residual - the flow residual, which helps compute entropy
    /// \param[in] inputs - defines values and fields needed for the entropy
    /// \note The entropy depends only on the state, but the residual helps
    /// distinguish if conservative or entropy-variables are used for the state.
-   friend double calcEntropy(FluidResidual &residual, const MachInputs &inputs);
+   friend double calcEntropy(FlowResidual &residual, const MachInputs &inputs);
 
    /// Evaluate the residual weighted by the entropy variables
    /// \param[inout] residual - function with an associated entropy
@@ -72,7 +72,7 @@ public:
    /// \return the product `w^T res`
    /// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
    /// `t+dt` \note optional, but must be implemented for relaxation RK
-   friend double calcEntropyChange(FluidResidual &residual,
+   friend double calcEntropyChange(FlowResidual &residual,
                                    const MachInputs &inputs);
 
 private:
@@ -103,20 +103,20 @@ private:
    mfem::Vector work;
 
    template <int dim>
-   void addFluidIntegrators(const nlohmann::json &options);
+   void addFlowIntegrators(const nlohmann::json &options);
 
    template <int dim, bool entvar = false>
-   void addFluidDomainIntegrators(const nlohmann::json &flow,
-                                  const nlohmann::json &space_dis);
+   void addFlowDomainIntegrators(const nlohmann::json &flow,
+                                 const nlohmann::json &space_dis);
 
    template <int dim, bool entvar = false>
-   void addFluidInterfaceIntegrators(const nlohmann::json &flow,
-                                     const nlohmann::json &space_dis);
+   void addFlowInterfaceIntegrators(const nlohmann::json &flow,
+                                    const nlohmann::json &space_dis);
 
    template <int dim, bool entvar = false>
-   void addFluidBoundaryIntegrators(const nlohmann::json &flow,
-                                    const nlohmann::json &space_dis,
-                                    const nlohmann::json &bcs);
+   void addFlowBoundaryIntegrators(const nlohmann::json &flow,
+                                   const nlohmann::json &space_dis,
+                                   const nlohmann::json &bcs);
 
    template <int dim, bool entvar = false>
    void addEntropyIntegrators();
@@ -124,4 +124,4 @@ private:
 
 }  // namespace mach
 
-#endif  // FLUID_RESIDUAL
+#endif  // FLOW_RESIDUAL

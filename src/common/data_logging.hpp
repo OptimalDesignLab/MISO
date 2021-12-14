@@ -11,7 +11,6 @@
 
 namespace mach
 {
-
 struct LoggingOptions
 {
    bool initial_state = true;
@@ -139,6 +138,8 @@ public:
       }
    }
 
+   /// \todo Is the mesh really optional here?  There is a SetMesh method for
+   /// ParaViewDataCollection, but it seems to take a serial mesh?
    ParaViewLogger(const std::string &name, mfem::ParMesh *mesh = nullptr)
     : pv(name, mesh)
    {

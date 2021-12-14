@@ -9,6 +9,10 @@
 
 namespace mach
 {
+/// Builds a space-time residual out of a given spatial residual
+/// \note The class assumes the mass matrix is a HypreParMatrix.  If we need to
+/// consider nonlinear mass operators (e.g. entropy-stable DGD), we can provide
+/// the mass operator as a separate residual.
 class TimeDependentResidual final
 {
 public:
