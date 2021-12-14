@@ -56,7 +56,8 @@ public:
       /// If no mass matrix is provided, we'll use an IdentityOperator
       if (mass_matrix_ == nullptr)
       {
-         identity_ = std::make_unique<mfem::IdentityOperator>(getSize(spatial_res_));
+         identity_ =
+             std::make_unique<mfem::IdentityOperator>(getSize(spatial_res_));
          mass_matrix_ = identity_.get();
       }
 

@@ -102,7 +102,7 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       }
       terminalHook(ti, t, state);
    }
-   else /// steady problem, use Newton on spatial residual directly
+   else  /// steady problem, use Newton on spatial residual directly
    {
       /// use input state as initial guess
       nonlinear_solver->iterative_mode = true;
@@ -157,7 +157,8 @@ int AbstractSolver2::getStateSize() const
    }
    else
    {
-      throw MachException("getStateSize(): residual not defined! State size unknown.\n");
+      throw MachException(
+          "getStateSize(): residual not defined! State size unknown.\n");
    }
 }
 
