@@ -136,18 +136,15 @@ public:
       })
    {
       options["time-dis"]["type"] = "steady";
-      res = std::make_unique<mach::MachResidual>(MagnetostaticResidual(fes(), options, current_coeff, nu));
-      setOptions(*res, options);
+      spatial_res = std::make_unique<mach::MachResidual>(MagnetostaticResidual(fes(), options, current_coeff, nu));
+      setOptions(*spatial_res, options);
 
-      auto *prec = getPreconditioner(*res);
+      auto *prec = getPreconditioner(*spatial_res);
       auto lin_solver_opts = options["lin-solver"];
       linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
       auto nonlin_solver_opts = options["nonlin-solver"];
       nonlinear_solver = mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
-      nonlinear_solver->SetOperator(*res);
-
-      auto ode_opts = options["time-dis"];
-      ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, *nonlinear_solver);
+      nonlinear_solver->SetOperator(*spatial_res);
    }
 private:
    static constexpr int num_states = 1;

@@ -116,11 +116,18 @@ public:
                  std::unique_ptr<mfem::Mesh> smesh)
       : PDESolver(comm, solver_options, num_states, std::move(smesh))
    {
-      if (options["time-dis"]["steady"].get<bool>())
-      {
-         res = std::make_unique<mach::MachResidual>(ThermalResidual(fes(), options));
-      }
-      else
+      spatial_res = std::make_unique<mach::MachResidual>(ThermalResidual(fes(), options));
+      setOptions(*spatial_res, options);
+
+      auto *prec = getPreconditioner(*spatial_res);
+      auto lin_solver_opts = options["lin-solver"];
+      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
+      auto nonlin_solver_opts = options["nonlin-solver"];
+      nonlinear_solver = mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
+      nonlinear_solver->SetOperator(*spatial_res);
+
+      /// if solving an unsteady problem
+      if (!options["time-dis"]["steady"].get<bool>())
       {
          mass.emplace(&fes());
          mass->AddDomainIntegrator(new mfem::MassIntegrator);
@@ -138,24 +145,18 @@ public:
          mass_mat.emplace();
          mass->FormSystemMatrix(ess_tdof_list, *mass_mat);
 
-         res = std::make_unique<mach::MachResidual>(
-            mach::TimeDependentResidual(ThermalResidual(fes(), options), &(*mass_mat)));
+         space_time_res = std::make_unique<mach::MachResidual>(
+            mach::TimeDependentResidual(*spatial_res, &(*mass_mat)));
+
+         nonlinear_solver->SetOperator(*space_time_res);
+
+         auto ode_opts = options["time-dis"];
+         ode = std::make_unique<mach::FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
       }
-      setOptions(*res, options);
 
-      auto *prec = getPreconditioner(*res);
-      auto lin_solver_opts = options["lin-solver"];
-      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
-      auto nonlin_solver_opts = options["nonlin-solver"];
-      nonlinear_solver = mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
-      nonlinear_solver->SetOperator(*res);
-
-      auto ode_opts = options["time-dis"];
-      ode = std::make_unique<mach::FirstOrderODE>(*res, ode_opts, *nonlinear_solver);
-
-      // mach::ParaViewLogger paraview("test_pde_solver", mesh_.get());
-      // paraview.registerField("state", fields.at("state").gridFunc());
-      // addLogger(std::move(paraview), {.each_timestep=false});
+      mach::ParaViewLogger paraview("test_pde_solver", mesh_.get());
+      paraview.registerField("state", fields.at("state").gridFunc());
+      addLogger(std::move(paraview), {.each_timestep=false});
    }
 private:
    static constexpr int num_states = 1;
@@ -289,8 +290,7 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
    });
    solver.setState(init_state, state_tv);
 
-   mach::MachInputs inputs;
-   solver.solveForState(inputs, state_tv);
+   solver.solveForState(state_tv);
 
    auto res_norm = solver.calcResidualNorm(state_tv);
    std::cout << "final res norm: " << res_norm << "\n";

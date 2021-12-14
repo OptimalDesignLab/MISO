@@ -78,31 +78,50 @@ double AbstractSolver2::calcStateError_(std::any ex_sol,
 void AbstractSolver2::solveForState(const MachInputs &inputs,
                                     mfem::Vector &state)
 {
-   auto ode_opts = options["time-dis"];
-
-   double t = ode_opts["t-initial"].get<double>();
-   auto t_final = ode_opts["t-final"].get<double>();
-   *out << "t_final is " << t_final << '\n';
-   int ti = 0;
-   double dt = 0.0;
-   initialHook(state);
-   for (ti = 0; ti < ode_opts["max-iter"].get<int>(); ++ti)
+   /// if solving an unsteady problem
+   if (ode)
    {
-      dt = calcStepSize(ti, t, t_final, dt, state);
-      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
-      if (!ode_opts["steady"].get<bool>())
+      auto ode_opts = options["time-dis"];
+
+      double t = ode_opts["t-initial"].get<double>();
+      auto t_final = ode_opts["t-final"].get<double>();
+      *out << "t_final is " << t_final << '\n';
+      int ti = 0;
+      double dt = 0.0;
+      initialHook(state);
+      for (ti = 0; ti < ode_opts["max-iter"].get<int>(); ++ti)
       {
-         *out << " (" << round(100 * t / t_final) << "% complete)";
+         dt = calcStepSize(ti, t, t_final, dt, state);
+         *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
+         if (!ode_opts["steady"].get<bool>())
+         {
+            *out << " (" << round(100 * t / t_final) << "% complete)";
+         }
+         *out << std::endl;
+         iterationHook(ti, t, dt, state);
+         ode->step(state, t, dt);
+         if (iterationExit(ti, t, t_final, dt, state))
+         {
+            break;
+         }
       }
-      *out << std::endl;
-      iterationHook(ti, t, dt, state);
-      ode->step(state, t, dt);
-      if (iterationExit(ti, t, t_final, dt, state))
+      terminalHook(ti, t, state);
+   }
+   else  /// steady problem, use Newton on spatial residual directly
+   {
+      /// use input state as initial guess
+      nonlinear_solver->iterative_mode = true;
+
+      mfem::Vector zero;
+      nonlinear_solver->Mult(zero, state);
+
+      /// log final state
+      for (auto &pair : loggers)
       {
-         break;
+         auto &logger = pair.first;
+         logState(logger, state, "state", 0, 0.0, rank);
       }
    }
-   terminalHook(ti, t, state);
 }
 
 void AbstractSolver2::calcResidual(const mfem::Vector &state,
@@ -115,13 +134,7 @@ void AbstractSolver2::calcResidual(const mfem::Vector &state,
 void AbstractSolver2::calcResidual(const MachInputs &inputs,
                                    mfem::Vector &residual) const
 {
-   auto timestepper = options["time-dis"]["type"].get<std::string>();
-   if (!(timestepper == "steady" || timestepper == "PTC"))
-   {
-      throw MachException(
-          "calcResidual should only be called for steady problems!\n");
-   }
-   evaluate(*res, inputs, residual);
+   evaluate(*spatial_res, inputs, residual);
 }
 
 double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
@@ -134,7 +147,7 @@ double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
 
 double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
 {
-   work.SetSize(getSize(*res));
+   work.SetSize(getSize(*spatial_res));
    *out << "before calcResidual..." << std::endl;
    *out << "work.Size() = " << work.Size() << std::endl;
    calcResidual(inputs, work);
@@ -142,11 +155,28 @@ double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
    return sqrt(InnerProduct(comm, work, work));
 }
 
+int AbstractSolver2::getStateSize() const
+{
+   if (spatial_res)
+   {
+      return getSize(*spatial_res);
+   }
+   else if (space_time_res)
+   {
+      return getSize(*space_time_res);
+   }
+   else
+   {
+      throw MachException(
+          "getStateSize(): residual not defined! State size unknown.\n");
+   }
+}
+
 int AbstractSolver2::getFieldSize(const std::string &name) const
 {
    if (name == "state" || name == "residual" || name == "adjoint")
    {
-      return getSize(*res);
+      return getStateSize();
    }
    // may be better way to return something not found without throwing error
    return 0;
