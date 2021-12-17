@@ -110,6 +110,16 @@ public:
    /// \param[out] true_vec - the true dof vector to set from the local field
    virtual void setTrueVec(mfem::Vector &true_vec) = 0;
 
+   /// \brief Retrieve a reference to the cached true_vec
+   mfem::Vector& getTrueVec() { return true_vec_; }
+   const mfem::Vector& getTrueVec() const { return true_vec_; }
+
+   /// Implicit conversion operators that allow conversion from a
+   /// FiniteElementVector to a true degree of freedom mfem::Vector using the
+   /// cached tdof vector
+   operator mfem::Vector() { return mfem::Vector(true_vec_.GetData(), true_vec_.Size()); }
+   operator mfem::Vector() const { return mfem::Vector(true_vec_.GetData(), true_vec_.Size()); }
+
    /// \brief Destroy the Finite Element Vector object
    virtual ~FiniteElementVector() = default;
 
@@ -129,7 +139,7 @@ protected:
    /// \brief The name of the finite element vector
    std::string name_;
 
-   static mfem::Vector true_vec;
+   mfem::Vector true_vec_;
 };
 
 // /// \brief Find the average value of a finite element vector across all dofs

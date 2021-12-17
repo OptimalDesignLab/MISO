@@ -46,10 +46,8 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                                         options.num_states,
                                                         options.ordering)),
    gf(std::make_unique<mfem::ParGridFunction>(&retrieve(space_))),
-   // true_vec(std::make_unique<mfem::HypreParVector>(&retrieve(space_))),
    name_(options.name)
 {
-   // *true_vec = 0.0;
 }
 
 FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
@@ -61,10 +59,8 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                                         mesh_,
                                                         &retrieve(coll_))),
    gf(std::make_unique<mfem::ParGridFunction>(&retrieve(space_))),
-   // true_vec(std::make_unique<mfem::HypreParVector>(&retrieve(space_))),
    name_(std::move(name))
 {
-   // *true_vec = 0.0;
 }
 
 // FiniteElementVector::FiniteElementVector(const FiniteElementVector &other)
@@ -74,10 +70,8 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
 //                                                         &mesh_.get(),
 //                                                         coll_.get())),
 //    gf_(std::make_unique<mfem::ParGridFunction>(*other.gf_)),
-//    true_vec_(space_.get()),
 //    name_(other.name_)
 // {
-//    true_vec_ = other.true_vec_;
 // }
 
 // FiniteElementVector &FiniteElementVector::operator=(
@@ -88,8 +82,6 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
 //    space_ = std::make_unique<mfem::ParFiniteElementSpace>(
 //        *other.space_, &mesh_.get(), coll_.get());
 //    gf_ = std::make_unique<mfem::ParGridFunction>(*other.gf_);
-//    true_vec_ = mfem::HypreParVector(space_.get());
-//    true_vec_ = other.true_vec_;
 //    name_ = other.name_;
 //    return *this;
 // }
@@ -99,11 +91,8 @@ FiniteElementVector::FiniteElementVector(FiniteElementVector &&other) noexcept
    coll_(std::move(other.coll_)),
    space_(std::move(other.space_)),
    gf(std::move(other.gf)),
-   // true_vec(std::move(other.true_vec)),
    name_(std::move(other.name_))
 {
-   // auto *par_vec = other.true_vec.StealParVector();
-   // true_vec.WrapHypreParVector(par_vec);
 }
 
 FiniteElementVector &FiniteElementVector::operator=(
@@ -113,9 +102,6 @@ FiniteElementVector &FiniteElementVector::operator=(
    coll_ = std::move(other.coll_);
    space_ = std::move(other.space_);
    gf = std::move(other.gf);
-   // auto *par_vec = other.true_vec.StealParVector();
-   // true_vec.WrapHypreParVector(par_vec);
-   // true_vec = std::move(other.true_vec);
    name_ = std::move(other.name_);
    return *this;
 }

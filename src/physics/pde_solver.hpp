@@ -134,7 +134,7 @@ protected:
    /// Code in a derived class that should be executed before time-stepping
    /// \note state is not passed through here, because it will be available to 
    /// the client via the state field.
-   virtual void derivedPDEinitialHook() = 0;
+   virtual void derivedPDEinitialHook() { };
    
 };
 

@@ -41,8 +41,7 @@ private:
        nlohmann::json &_options);
 
    /// For code that should be executed before the time stepping begins
-   /// \param[in] state - the current state
-   virtual void initialHook(const mfem::Vector &state) override;
+   virtual void derivedPDEinitialHook() override;
 };
 
 }  // namespace mach
