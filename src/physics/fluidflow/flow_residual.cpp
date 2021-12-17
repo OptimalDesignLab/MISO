@@ -9,9 +9,10 @@ using namespace mfem;
 
 namespace mach
 {
-FlowResidual::FlowResidual(const nlohmann::json &options,
-                           ParFiniteElementSpace &fespace,
-                           adept::Stack &diff_stack)
+template <int dim, bool entvar>
+FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
+                                        ParFiniteElementSpace &fespace,
+                                        adept::Stack &diff_stack)
  : fes(fespace),
    stack(diff_stack),
    fields(std::make_unique<
@@ -20,26 +21,13 @@ FlowResidual::FlowResidual(const nlohmann::json &options,
    ent(fes, *fields),
    work(getSize(res))
 {
-   setOptions(*this, options);
-   int dim = fes.GetMesh()->SpaceDimension();
-   switch (dim)
-   {
-   case 1:
-      addFlowIntegrators<1>(options);
-      break;
-   case 2:
-      addFlowIntegrators<2>(options);
-      break;
-   case 3:
-      addFlowIntegrators<3>(options);
-      break;
-   default:
-      throw MachException("Invalid space dimension for FlowResidual!\n");
-   }
+   setOptions_(options);
+   addFlowIntegrators(options);
 }
 
-template <int dim>
-void FlowResidual::addFlowIntegrators(const nlohmann::json &options)
+template <int dim, bool entvar>
+void FlowResidual<dim, entvar>::addFlowIntegrators(
+   const nlohmann::json &options)
 {
    if (!options.contains("flow-param") || !options.contains("space-dis") ||
        !options.contains("bcs"))
@@ -51,27 +39,16 @@ void FlowResidual::addFlowIntegrators(const nlohmann::json &options)
    nlohmann::json flow = options["flow-param"];
    nlohmann::json space_dis = options["space-dis"];
    nlohmann::json bcs = options["bcs"];
-   if (state_is_entvar)
-   {
-      // Use entropy variables for the state
-      addFlowDomainIntegrators<dim, true>(flow, space_dis);
-      addFlowInterfaceIntegrators<dim, true>(flow, space_dis);
-      addFlowBoundaryIntegrators<dim, true>(flow, space_dis, bcs);
-      addEntropyIntegrators<dim, true>();
-   }
-   else
-   {
-      // Use the conservative variables for the state
-      addFlowDomainIntegrators<dim>(flow, space_dis);
-      addFlowInterfaceIntegrators<dim>(flow, space_dis);
-      addFlowBoundaryIntegrators<dim>(flow, space_dis, bcs);
-      addEntropyIntegrators<dim>();
-   }
+   addFlowDomainIntegrators(flow, space_dis);
+   addFlowInterfaceIntegrators(flow, space_dis);
+   addFlowBoundaryIntegrators(flow, space_dis, bcs);
+   addEntropyIntegrators();
 }
 
 template <int dim, bool entvar>
-void FlowResidual::addFlowDomainIntegrators(const nlohmann::json &flow,
-                                            const nlohmann::json &space_dis)
+void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
+   const nlohmann::json &flow,
+   const nlohmann::json &space_dis)
 {
    auto flux = space_dis.value("flux-fun", "Euler");
    if (flux == "IR")
@@ -98,8 +75,9 @@ void FlowResidual::addFlowDomainIntegrators(const nlohmann::json &flow,
 }
 
 template <int dim, bool entvar>
-void FlowResidual::addFlowInterfaceIntegrators(const nlohmann::json &flow,
-                                               const nlohmann::json &space_dis)
+void FlowResidual<dim, entvar>::addFlowInterfaceIntegrators(
+   const nlohmann::json &flow,
+   const nlohmann::json &space_dis)
 {
    // add the integrators based on if discretization is continuous or discrete
    if (space_dis["basis-type"].get<string>() == "dsbp")
@@ -111,9 +89,9 @@ void FlowResidual::addFlowInterfaceIntegrators(const nlohmann::json &flow,
 }
 
 template <int dim, bool entvar>
-void FlowResidual::addFlowBoundaryIntegrators(const nlohmann::json &flow,
-                                              const nlohmann::json &space_dis,
-                                              const nlohmann::json &bcs)
+void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
+   const nlohmann::json &flow, const nlohmann::json &space_dis,
+   const nlohmann::json &bcs)
 {
    if (bcs.contains("vortex"))
    {  // isentropic vortex BC
@@ -148,61 +126,71 @@ void FlowResidual::addFlowBoundaryIntegrators(const nlohmann::json &flow,
 }
 
 template <int dim, bool entvar>
-void FlowResidual::addEntropyIntegrators()
+void FlowResidual<dim, entvar>::addEntropyIntegrators()
 {
    ent.addOutputDomainIntegrator(new EntropyIntegrator<dim, entvar>(stack));
 }
 
-int getSize(const FlowResidual &residual) { return getSize(residual.res); }
-
-void setInputs(FlowResidual &residual, const MachInputs &inputs)
+template <int dim, bool entvar>
+int FlowResidual<dim, entvar>::getSize_() const
 {
-   // What if aoa_fs or mach_fs are being changed?
-   setInputs(residual.res, inputs);
+   return getSize(res);
 }
 
-void setOptions(FlowResidual &residual, const nlohmann::json &options)
+template <int dim, bool entvar>
+void FlowResidual<dim, entvar>::setInputs_(const MachInputs &inputs)
 {
-   residual.is_implicit = options.value("implicit", false);
+   // What if aoa_fs or mach_fs are being changed?
+   setInputs(res, inputs);
+}
+
+template <int dim, bool entvar>
+void FlowResidual<dim, entvar>::setOptions_(const nlohmann::json &options)
+{
+   is_implicit = options.value("implicit", false);
    // define free-stream parameters; may or may not be used, depending on case
-   residual.mach_fs = options["flow-param"]["mach"].get<double>();
-   residual.aoa_fs = options["flow-param"].value("aoa", 0.0) * M_PI / 180;
-   residual.iroll = options["flow-param"].value("roll-axis", 0);
-   residual.ipitch = options["flow-param"].value("pitch-axis", 1);
-   residual.state_is_entvar = options["flow-param"].value("entvar", false);
-   if (residual.iroll == residual.ipitch)
+   mach_fs = options["flow-param"]["mach"].get<double>();
+   aoa_fs = options["flow-param"].value("aoa", 0.0) * M_PI / 180;
+   iroll = options["flow-param"].value("roll-axis", 0);
+   ipitch = options["flow-param"].value("pitch-axis", 1);
+   state_is_entvar = options["flow-param"].value("entropy-state", false);
+   if (iroll == ipitch)
    {
       throw MachException("iroll and ipitch must be distinct dimensions!");
    }
-   if ((residual.iroll < 0) || (residual.iroll > 2))
+   if ((iroll < 0) || (iroll > 2))
    {
       throw MachException("iroll axis must be between 0 and 2!");
    }
-   if ((residual.ipitch < 0) || (residual.ipitch > 2))
+   if ((ipitch < 0) || (ipitch > 2))
    {
       throw MachException("ipitch axis must be between 0 and 2!");
    }
-   setOptions(residual.res, options);
+   setOptions(res, options);
 }
 
-void evaluate(FlowResidual &residual, const MachInputs &inputs, Vector &res_vec)
+template <int dim, bool entvar>
+void FlowResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
+                                         Vector &res_vec)
 {
-   evaluate(residual.res, inputs, res_vec);
+   evaluate(res, inputs, res_vec);
 }
 
-mfem::Operator &getJacobian(FlowResidual &residual,
-                            const MachInputs &inputs,
-                            const string &wrt)
+template <int dim, bool entvar>
+mfem::Operator &FlowResidual<dim, entvar>::getJacobian_(
+   const MachInputs &inputs, const string &wrt)
 {
-   return getJacobian(residual.res, inputs, wrt);
+   return getJacobian(res, inputs, wrt);
 }
 
-double calcEntropy(FlowResidual &residual, const MachInputs &inputs)
+template <int dim, bool entvar>
+double FlowResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
 {
-   return calcOutput(residual.ent, inputs);
+   return calcOutput(ent, inputs);
 }
 
-double calcEntropyChange(FlowResidual &residual, const MachInputs &inputs)
+template <int dim, bool entvar>
+double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
 {
    Vector x;
    setVectorFromInputs(inputs, "state", x, false, true);
@@ -212,10 +200,77 @@ double calcEntropyChange(FlowResidual &residual, const MachInputs &inputs)
    double time = NAN;
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
-   auto &y = residual.work;
+   auto &y = work;
    add(x, dt, dxdt, y);
    auto form_inputs = MachInputs({{"state", y}, {"time", time + dt}});
-   return calcFormOutput(residual.res, form_inputs);
+   return calcFormOutput(res, form_inputs);
 }
+
+template <int dim, bool entvar>
+double FlowResidual<dim, entvar>::minCFLTimeStep(
+   double cfl, const mfem::ParGridFunction &state)
+{
+   Vector q(dim + 2);
+   auto calcSpect = [&q](const double *dir, const double *u)
+   {
+      if (entvar)
+      {
+         calcConservativeVars<double, dim>(u, q.GetData());
+         return calcSpectralRadius<double, dim>(dir, q.GetData());
+      }
+      else
+      {
+         return calcSpectralRadius<double, dim>(dir, u);
+      }
+   };
+   double dt_local = 1e100;
+   Vector xi(dim);
+   Vector dxij(dim);
+   Vector ui;
+   Vector dxidx;
+   DenseMatrix uk;
+   DenseMatrix adjJt(dim);
+   for (int k = 0; k < fes.GetNE(); k++)
+   {
+      // get the element, its transformation, and the state values on element
+      const FiniteElement *fe = fes.GetFE(k);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *trans = fes.GetElementTransformation(k);
+      state.GetVectorValues(*trans, *ir, uk);
+      for (int i = 0; i < fe->GetDof(); ++i)
+      {
+         trans->SetIntPoint(&fe->GetNodes().IntPoint(i));
+         trans->Transform(fe->GetNodes().IntPoint(i), xi);
+         CalcAdjugateTranspose(trans->Jacobian(), adjJt);
+         uk.GetColumnReference(i, ui);
+         for (int j = 0; j < fe->GetDof(); ++j)
+         {
+            if (j == i)
+            {
+               continue;
+            }
+            trans->Transform(fe->GetNodes().IntPoint(j), dxij);
+            dxij -= xi;
+            double dx = dxij.Norml2();
+            dt_local =
+                min(dt_local,
+                    cfl * dx * dx /
+                        calcSpect(dxij, ui));  // extra dx is to normalize dxij
+         }
+      }
+   }
+   double dt_min = NAN;
+   MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN,
+                 state.ParFESpace()->GetComm());
+   return dt_min;
+}
+
+// explicit instantiation
+template class FlowResidual<1, true>;
+template class FlowResidual<1, false>;
+template class FlowResidual<2, true>;
+template class FlowResidual<2, false>;
+template class FlowResidual<3, true>;
+template class FlowResidual<3, false>;
 
 }  // namespace mach

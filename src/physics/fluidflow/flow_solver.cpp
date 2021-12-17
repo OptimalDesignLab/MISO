@@ -24,9 +24,49 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
  : PDESolver(incomm, solver_options, getNumFlowStates, std::move(smesh)),
    mass(&fes())
 {
-   // Construct space-time residual from spatial residual and mass matrix
-   spatial_res = std::make_unique<mach::MachResidual>(
-       FlowResidual(solver_options, fes(), diff_stack));
+   // Construct spatial residual
+   int dim = mesh_->SpaceDimension();
+   bool ent_state = options["flow-param"].value("entropy-state", false);
+   // the following could be done with template meta-programming
+   switch(dim)
+   {
+      case 1:
+         if (ent_state)
+         {
+            spatial_res = std::make_unique<mach::MachResidual>(
+               FlowResidual<1,true>(solver_options, fes(), diff_stack));
+         }
+         else
+         {
+            spatial_res = std::make_unique<mach::MachResidual>(
+               FlowResidual<1,false>(solver_options, fes(), diff_stack));
+         }
+         break;
+      case 2:
+         if (ent_state)
+         {
+            spatial_res = std::make_unique<mach::MachResidual>(
+               FlowResidual<2,true>(solver_options, fes(), diff_stack));
+         }
+         else
+         {
+            spatial_res = std::make_unique<mach::MachResidual>(
+               FlowResidual<2,false>(solver_options, fes(), diff_stack));
+         }
+         break;
+      case 3:
+         if (ent_state)
+         {
+            spatial_res = std::make_unique<mach::MachResidual>(
+               FlowResidual<3,true>(solver_options, fes(), diff_stack));
+         }
+         else
+         {
+            spatial_res = std::make_unique<mach::MachResidual>(
+               FlowResidual<3,false>(solver_options, fes(), diff_stack));
+         }
+         break;
+   }
    const char *name = fes().FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {
@@ -115,13 +155,13 @@ unique_ptr<Solver> FlowSolver::constructPreconditioner(
    return precond;
 }
 
-void FlowSolver::derivedPDEinitialHook()
+void FlowSolver::derivedPDEInitialHook(const mfem::Vector &state)
 {
    // AbstractSolver2::initialHook(state);
    if (options["time-dis"]["steady"].template get<bool>())
    {
       // res_norm0 is used to compute the time step in PTC
-      res_norm0 = calcResidualNorm(getState());
+      res_norm0 = calcResidualNorm(state);
    }
    // TODO: this should only be output if necessary
    // double entropy = ent->GetEnergy(state);
@@ -152,7 +192,11 @@ double FlowSolver::calcStepSize(int iter, double t, double t_final,
    // Otherwise, use a constant CFL condition
    auto cfl = options["time-dis"]["cfl"].get<double>();
    if (options["flow-param"][""])
-   return getConcrete<FlowResidual>(spatial_res).minCFLTimeStep(cfl, state);
+   // here we call the FlowResidual method for the min time step, which needs 
+   // the current state; this is provided by the state field of PDESolver, 
+   // which we access with getState()
+   return getConcrete<FlowResidual>(spatial_res).
+      minCFLTimeStep(cfl, getState().gridFunc());
 }
 
 

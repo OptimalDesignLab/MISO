@@ -132,9 +132,8 @@ protected:
    virtual void initialHook(const mfem::Vector &state) final;
 
    /// Code in a derived class that should be executed before time-stepping
-   /// \note state is not passed through here, because it will be available to 
-   /// the client via the state field.
-   virtual void derivedPDEinitialHook() { };
+   /// \param[in] state - the current state
+   virtual void derivedPDEInitialHook(const mfem::Vector &state) { };
    
 };
 

@@ -41,7 +41,8 @@ private:
        nlohmann::json &_options);
 
    /// For code that should be executed before the time stepping begins
-   virtual void derivedPDEInitialHook() override;
+   /// \param[in] state - the current state
+   virtual void derivedPDEInitialHook(const mfem::Vector &state) override;
 
    /// Find the step size based on the options; e.g. for constant CFL or PTC
    /// \param[in] iter - the current iteration
@@ -57,7 +58,7 @@ private:
    /// on the baseline value of "dt" and the residual norm.
    virtual double calcStepSize(int iter, double t, double t_final,
                                double dt_old,
-                               const mfem::Vector &state) const override {}
+                               const mfem::Vector &state) const override;
 };
 
 }  // namespace mach
