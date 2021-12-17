@@ -36,6 +36,7 @@ public:
    /// details
    void distributeSharedDofs(const mfem::Vector &true_vec) override
    {
+      true_vec_ = mfem::Vector(true_vec.GetData(), true_vec.Size());
       space().GetRestrictionOperator()->MultTranspose(true_vec, localVec());
    }
 

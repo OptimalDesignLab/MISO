@@ -115,13 +115,13 @@ unique_ptr<Solver> FlowSolver::constructPreconditioner(
    return precond;
 }
 
-void FlowSolver::initialHook(const Vector &state)
+void FlowSolver::derivedPDEinitialHook()
 {
-   AbstractSolver2::initialHook(state);
+   // AbstractSolver2::initialHook(state);
    if (options["time-dis"]["steady"].template get<bool>())
    {
       // res_norm0 is used to compute the time step in PTC
-      res_norm0 = calcResidualNorm(state);
+      res_norm0 = calcResidualNorm(getState());
    }
    // TODO: this should only be output if necessary
    // double entropy = ent->GetEnergy(state);
