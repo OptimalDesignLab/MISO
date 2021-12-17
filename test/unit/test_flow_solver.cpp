@@ -106,8 +106,7 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
          // Create solver and set initial guess to exact
          FlowSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
          mfem::Vector state_tv(solver.getStateSize());
-         std::function<void(const Vector&, Vector&)> exact_sol = vortexExact;
-         solver.setState(exact_sol, state_tv);
+         solver.setState(vortexExact, state_tv);
 
          // write the initial state for debugging 
          auto &state = solver.getState();

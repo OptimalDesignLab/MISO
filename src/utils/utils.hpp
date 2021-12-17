@@ -125,30 +125,6 @@ static const T &retrieve(const MaybeOwningPointer<T> &obj)
    return std::visit([](auto &&ptr) -> const T & { return *ptr; }, obj);
 }
 
-/// Compile time code that allows determining if a type defines a call operator
-namespace detail
-{
-/// This overload is available if T defines operator(), meaning that
-/// `decltype(&T::operator())` produces a valid type
-template <typename T, typename = decltype(&T::operator())>
-std::true_type is_callable_helper(const T &);
-/// This is the catch-all overload, only used when the first is not valid
-/// (when T does not define operator() and thus decltype(&T::operator()) is
-/// invalid)
-std::false_type is_callable_helper(...);
-
-}  // namespace detail
-
-/// Compile time check if T defines operator()
-/// \tparam T - generic (maybe callable) type
-template <typename T>
-using is_callable = decltype(detail::is_callable_helper(std::declval<T>()));
-
-/// Shorthand for `is_callable` that accesses the underlying value
-/// \tparam T - generic (maybe callable) type
-template <typename T>
-inline constexpr bool is_callable_v = is_callable<T>::value;
-
 /// This group of code enables the conversion from lambdas, member functions,
 /// and function pointers to std::functions of the appropriate signature,
 /// deduced at compile time.
@@ -168,9 +144,18 @@ struct first
 template <typename... T>
 using first_t = typename first<T...>::type;
 
+/// If a type cannot be converted to a function, this definition will be used
+/// which does not contain a `type` definition, so code that tries to access
+/// the function's type will not compile with a template substituion failure
+template <typename /*unused*/, typename = void>
+struct function
+{ };
+
 /// For generic types that are functors, delegate to its 'operator()'
+/// (if defined)
 template <typename T>
-struct function : public function<decltype(&T::operator())>
+struct function<T, std::void_t<decltype(&T::operator())>>
+ : public function<decltype(&T::operator())>
 { };
 
 /// For const pointers to a member function
@@ -212,6 +197,29 @@ typename detail::function<T>::type make_function(T fun)
 {
    return (typename detail::function<T>::type)(fun);
 }
+
+/// Compile time check if T is callable
+/// \tparam T - generic (maybe callable) type
+/// \note A type being callable means it defines a call operator or can be
+/// converted to a function
+template <typename /*unused*/, typename = void>
+struct is_callable : std::false_type
+{ };
+
+/// Compile time check if T is callable
+/// \tparam T - generic (maybe callable) type
+/// For types that can be converted to a function
+/// \note A type being callable means it defines a call operator or can be
+/// converted to a function
+template <typename T>
+struct is_callable<T, std::void_t<typename detail::function<T>::type>>
+ : std::true_type
+{ };
+
+/// Shorthand for `is_callable` that accesses the underlying value
+/// \tparam T - generic (maybe callable) type
+template <typename T>
+inline constexpr bool is_callable_v = is_callable<T>::value;
 
 /// \brief Convenience function that handles casting std::any to a usable type
 /// and then applies a user supplied function on the casted any
