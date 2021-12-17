@@ -10,6 +10,7 @@ const nlohmann::json default_options{
     {"print-options", true},  // print out options when solver is constructed
     {"flow-param",            // options related to flow simulations
      {
+         {"entropy-state", false}, // if true, the states are entropy variables
          {"mach", 0.5},      // far-field mach number
          {"aoa", 0.0},       // far-field angle of attack
          {"roll-axis", 0},   // axis aligned with nose to tail of aircraft

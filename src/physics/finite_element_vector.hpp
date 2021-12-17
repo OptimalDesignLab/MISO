@@ -114,11 +114,11 @@ public:
    mfem::Vector& getTrueVec() { return true_vec_; }
    const mfem::Vector& getTrueVec() const { return true_vec_; }
 
-   /// Implicit conversion operators that allow conversion from a
-   /// FiniteElementVector to a true degree of freedom mfem::Vector using the
-   /// cached tdof vector
-   operator mfem::Vector() { return mfem::Vector(true_vec_.GetData(), true_vec_.Size()); }
-   operator mfem::Vector() const { return mfem::Vector(true_vec_.GetData(), true_vec_.Size()); }
+   /// Implicit conversion operators to `mfem::Vector`
+   /// \note These allow conversion from a FiniteElementVector to a true degree 
+   /// of freedom mfem::Vector using the cached tdof vector
+   operator mfem::Vector&() { return getTrueVec(); }
+   operator const mfem::Vector&() const { return getTrueVec(); }
 
    /// \brief Destroy the Finite Element Vector object
    virtual ~FiniteElementVector() = default;

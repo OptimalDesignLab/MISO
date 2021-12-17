@@ -146,10 +146,7 @@ double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
 double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
 {
    work.SetSize(getSize(*spatial_res));
-   *out << "before calcResidual..." << std::endl;
-   *out << "work.Size() = " << work.Size() << std::endl;
    calcResidual(inputs, work);
-   *out << "after calcResidual..." << std::endl;
    return sqrt(InnerProduct(comm, work, work));
 }
 
