@@ -121,6 +121,21 @@ protected:
    double calcStateError_(std::any ex_sol,
                           const std::string &name,
                           const mfem::Vector &state) override;
+
+   /// For code that should be executed before the time stepping begins
+   /// \param[in] state - the current state
+   /// \note This is `final` because we want to ensure the `state` Vector gets
+   /// associated with the state field.  This association may not happen if the 
+   /// client overwrites this definition; however, there is a call to the 
+   /// virtual function derivedPDEinitialHook(state) that the client can 
+   /// overwrite.
+   virtual void initialHook(const mfem::Vector &state) final;
+
+   /// Code in a derived class that should be executed before time-stepping
+   /// \note state is not passed through here, because it will be available to 
+   /// the client via the state field.
+   virtual void derivedPDEinitialHook() = 0;
+   
 };
 
 }  // namespace mach

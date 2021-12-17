@@ -378,4 +378,11 @@ double PDESolver::calcStateError_(std::any ex_sol,
        });
 }
 
+void PDESolver::initialHook(const mfem::Vector &state)
+{
+   AbstractSolver2::initialHook(state);
+   getState().distributeSharedDofs(state);
+   derivedPDEinitialHook();
+}
+
 }  // namespace mach
