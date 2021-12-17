@@ -115,7 +115,7 @@ unique_ptr<Solver> FlowSolver::constructPreconditioner(
    return precond;
 }
 
-void FlowSolver::initialHook(const mfem::Vector &state)
+void FlowSolver::initialHook(const Vector &state)
 {
    AbstractSolver2::initialHook(state);
    if (options["time-dis"]["steady"].template get<bool>())
@@ -130,6 +130,31 @@ void FlowSolver::initialHook(const mfem::Vector &state)
    // entropylog.open("entropylog.txt", fstream::app);
    // entropylog << setprecision(14);
 }
+
+double FlowSolver::calcStepSize(int iter, double t, double t_final,
+                                double dt_old, const Vector &state) const
+{
+   if (options["time-dis"]["steady"].template get<bool>())
+   {
+      // ramp up time step for pseudo-transient continuation
+      // TODO: the l2 norm of the weak residual is probably not ideal here
+      // A better choice might be the l1 norm
+      double res_norm = calcResidualNorm(state);
+      double exponent = options["time-dis"]["res-exp"];
+      double dt = options["time-dis"]["dt"].get<double>() *
+                  pow(res_norm0 / res_norm, exponent);
+      return max(dt, dt_old);
+   }
+   if (!options["time-dis"]["const-cfl"].get<bool>())
+   {
+      return AbstractSolver2::calcStepSize(iter, t, t_final, dt_old, state);
+   }
+   // Otherwise, use a constant CFL condition
+   auto cfl = options["time-dis"]["cfl"].get<double>();
+   if (options["flow-param"][""])
+   return getConcrete<FlowResidual>(spatial_res).minCFLTimeStep(cfl, state);
+}
+
 
 /*
 Notes:

@@ -41,8 +41,23 @@ private:
        nlohmann::json &_options);
 
    /// For code that should be executed before the time stepping begins
+   virtual void derivedPDEInitialHook() override;
+
+   /// Find the step size based on the options; e.g. for constant CFL or PTC
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt_old - the step size that was just taken
    /// \param[in] state - the current state
-   virtual void initialHook(const mfem::Vector &state) override;
+   /// \returns dt - the step size appropriate to the problem
+   /// \note If "const-cfl" option is invoked, this uses the average spectral
+   /// radius to estimate the largest wave speed, and uses the minimum distance
+   /// between nodes for the length in the CFL number.
+   /// \note If the "steady" option is true, the time step will increase based
+   /// on the baseline value of "dt" and the residual norm.
+   virtual double calcStepSize(int iter, double t, double t_final,
+                               double dt_old,
+                               const mfem::Vector &state) const override {}
 };
 
 }  // namespace mach
