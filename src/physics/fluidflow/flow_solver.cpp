@@ -175,7 +175,6 @@ double FlowSolver::calcStepSize(int iter, double t, double t_final,
    }
    // Otherwise, use a constant CFL condition
    auto cfl = options["time-dis"]["cfl"].get<double>();
-   if (options["flow-param"][""])
    return calcCFLTimeStep(cfl);
 }
 
@@ -226,6 +225,31 @@ double FlowSolver::calcCFLTimeStep(double cfl) const
    return dt_min;
 }
 
+bool FlowSolver::iterationExit(int iter,
+                               double t,
+                               double t_final,
+                               double dt,
+                               const mfem::Vector &state) const
+{
+   if (options["time-dis"]["steady"].get<bool>())
+   {
+      double norm = calcResidualNorm(state);
+      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
+      {
+         return true;
+      }
+      if (norm <=
+          res_norm0 * options["time-dis"]["steady-reltol"].get<double>())
+      {
+         return true;
+      }
+      return false;
+   }
+   else
+   {
+      return AbstractSolver2::iterationExit(iter, t, t_final, dt, state);
+   }
+}
 
 /*
 Notes:
