@@ -382,7 +382,7 @@ void PDESolver::initialHook(const mfem::Vector &state)
 {
    AbstractSolver2::initialHook(state);
    getState().distributeSharedDofs(state);
-   derivedPDEinitialHook();
+   derivedPDEInitialHook();
 }
 
 }  // namespace mach

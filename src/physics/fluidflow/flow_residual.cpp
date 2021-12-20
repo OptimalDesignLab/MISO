@@ -22,6 +22,7 @@ FlowResidual::FlowResidual(const nlohmann::json &options,
 {
    setOptions(*this, options);
    int dim = fes.GetMesh()->SpaceDimension();
+   state_is_entvar = options["flow-param"].value("entropy-state", false);
    switch (dim)
    {
    case 1:

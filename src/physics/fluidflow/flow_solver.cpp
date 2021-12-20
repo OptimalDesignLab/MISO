@@ -3,6 +3,7 @@
 #include "flow_solver.hpp"
 #include "flow_residual.hpp"
 #include "mfem_extensions.hpp"
+#include "euler_fluxes.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -14,6 +15,29 @@ using namespace mfem;
 int getNumFlowStates(const nlohmann::json &solver_options, int space_dim)
 {
    return space_dim + 2;
+}
+
+/// Return the appropriate function for computing the spectral radius
+/// \param[in] dim - dimension of the problem
+/// \param[in] entvar - if true, the states are the entropy variables
+std::function<double(const double *, const double *)> getSpectralRadiusFunction(
+    int dim,
+    bool entvar)
+{
+   switch (dim)
+   {
+   case 1:
+      return (entvar ? mach::calcSpectralRadius<double, 1, true>
+                     : mach::calcSpectralRadius<double, 1>);
+   case 2:
+      return (entvar ? mach::calcSpectralRadius<double, 2, true>
+                     : mach::calcSpectralRadius<double, 2>);
+   case 3:
+      return (entvar ? mach::calcSpectralRadius<double, 3, true>
+                     : mach::calcSpectralRadius<double, 3>);
+   default:
+      throw mach::MachException("Invalid space dimension!\n");
+   }
 }
 
 namespace mach
@@ -115,7 +139,7 @@ unique_ptr<Solver> FlowSolver::constructPreconditioner(
    return precond;
 }
 
-void FlowSolver::derivedPDEinitialHook()
+void FlowSolver::derivedPDEInitialHook()
 {
    // AbstractSolver2::initialHook(state);
    if (options["time-dis"]["steady"].template get<bool>())
@@ -152,7 +176,54 @@ double FlowSolver::calcStepSize(int iter, double t, double t_final,
    // Otherwise, use a constant CFL condition
    auto cfl = options["time-dis"]["cfl"].get<double>();
    if (options["flow-param"][""])
-   return getConcrete<FlowResidual>(spatial_res).minCFLTimeStep(cfl, state);
+   return calcCFLTimeStep(cfl);
+}
+
+double FlowSolver::calcCFLTimeStep(double cfl) const
+{
+   int dim = mesh_->SpaceDimension();
+   bool entvar = options["flow-param"].value("entropy-state", false);
+   auto calcSpec = getSpectralRadiusFunction(dim, entvar);
+   double dt_local = 1e100;
+   Vector xi(dim);
+   Vector dxij(dim);
+   Vector ui;
+   Vector dxidx;
+   DenseMatrix uk;
+   DenseMatrix adjJt(dim);
+   const mfem::ParGridFunction &state_gf = getState().gridFunc();
+   for (int k = 0; k < fes().GetNE(); k++)
+   {
+      // get the element, its transformation, and the state values on element
+      const FiniteElement *fe = fes().GetFE(k);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *trans = fes().GetElementTransformation(k);
+      state_gf.GetVectorValues(*trans, *ir, uk);
+      for (int i = 0; i < fe->GetDof(); ++i)
+      {
+         trans->SetIntPoint(&fe->GetNodes().IntPoint(i));
+         trans->Transform(fe->GetNodes().IntPoint(i), xi);
+         CalcAdjugateTranspose(trans->Jacobian(), adjJt);
+         uk.GetColumnReference(i, ui);
+         for (int j = 0; j < fe->GetDof(); ++j)
+         {
+            if (j == i)
+            {
+               continue;
+            }
+            trans->Transform(fe->GetNodes().IntPoint(j), dxij);
+            dxij -= xi;
+            double dx = dxij.Norml2();
+            dt_local =
+                min(dt_local,
+                    cfl * dx * dx /
+                        calcSpec(dxij, ui));  // extra dx is to normalize dxij
+         }
+      }
+   }
+   double dt_min = NAN;
+   MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
+   return dt_min;
 }
 
 

@@ -57,7 +57,9 @@ private:
    /// on the baseline value of "dt" and the residual norm.
    virtual double calcStepSize(int iter, double t, double t_final,
                                double dt_old,
-                               const mfem::Vector &state) const override {}
+                               const mfem::Vector &state) const override;
+
+    double calcCFLTimeStep(double cfl) const;
 };
 
 }  // namespace mach
