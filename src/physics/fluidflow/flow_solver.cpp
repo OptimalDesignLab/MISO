@@ -40,6 +40,69 @@ std::function<double(const double *, const double *)> getSpectralRadiusFunction(
    }
 }
 
+/// Return the node error for either conservative or entropy-based state
+/// \param[in] discrete - the numerical solution at the node
+/// \param[in] exact - the exact solution at the node
+/// \param[in] entry - the entry to compute the error for
+/// \returns the error in the conservative variables
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, the entropy variables are used in the integrators
+template <int dim, bool entvar = false>
+double getNodeError(const mfem::Vector &discrete,
+                    const mfem::Vector &exact,
+                    int entry)
+{
+   mfem::Vector qdiscrete(dim + 2);
+   mfem::Vector qexact(dim + 2);
+   if (entvar)
+   {
+      mach::calcConservativeVars<double, dim>(discrete.GetData(),
+                                              qdiscrete.GetData());
+      mach::calcConservativeVars<double, dim>(exact.GetData(),
+                                              qexact.GetData());
+   }
+   else
+   {
+      qdiscrete = discrete;
+      qexact = exact;
+   }
+   double err = 0.0;
+   if (entry < 0)
+   {
+      for (int i = 0; i < dim + 2; ++i)
+      {
+         double dq = qdiscrete(i) - qexact(i);
+         err += dq * dq;
+      }
+   }
+   else
+   {
+      err = qdiscrete(entry) - qexact(entry);
+      err = err * err;
+   }
+   return err;
+}
+
+/// Return a function to compute the node error
+/// \param[in] dim - dimension of the problem
+/// \param[in] entvar - if true, convert to entropy vars before computing error
+/// \returns function to compute the error in the conservative variables
+std::function<double(const mfem::Vector &, const mfem::Vector &, int)>
+getNodeErrorFunction(int dim, bool entvar)
+{
+   switch (dim)
+   {
+   case 1:
+      return (entvar ? getNodeError<1, true> : getNodeError<1>);
+   case 2:
+      return (entvar ? getNodeError<2, true> : getNodeError<2>);
+   case 3:
+      return (entvar ? getNodeError<3, true> : getNodeError<3>);
+   default:
+      throw mach::MachException("Invalid space dimension!\n");
+   }
+}
+
 namespace mach
 {
 FlowSolver::FlowSolver(MPI_Comm incomm,
@@ -249,6 +312,47 @@ bool FlowSolver::iterationExit(int iter,
    {
       return AbstractSolver2::iterationExit(iter, t, t_final, dt, state);
    }
+}
+
+double FlowSolver::calcConservativeVarsL2Error(
+    void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+    int entry)
+{
+   int dim = mesh_->SpaceDimension();
+   bool entvar = options["flow-param"].value("entropy-state", false);
+   // Following function, defined earlier in file, computes the error at a node
+   // Beware: this is not particularly efficient, and **NOT thread safe!**
+   auto node_error = getNodeErrorFunction(dim, entvar);
+   VectorFunctionCoefficient exsol(dim + 2, u_exact);
+   DenseMatrix vals;
+   DenseMatrix exact_vals;
+   Vector u_j;
+   Vector exsol_j;
+   double loc_norm = 0.0;
+   const mfem::ParGridFunction &state_gf = getState().gridFunc();
+   for (int i = 0; i < fes().GetNE(); i++)
+   {
+      const FiniteElement *fe = fes().GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *T = fes().GetElementTransformation(i);
+      state_gf.GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         vals.GetColumnReference(j, u_j);
+         exact_vals.GetColumnReference(j, exsol_j);
+         loc_norm += ip.weight * T->Weight() * node_error(u_j, exsol_j, entry);
+      }
+   }
+   double norm = NAN;
+   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+   if (norm < 0.0)  // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
 }
 
 /*
