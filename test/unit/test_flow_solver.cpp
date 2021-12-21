@@ -40,18 +40,31 @@ void vortexExact(const mfem::Vector &x, mfem::Vector& q)
    q(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 }
 
-TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
+/// Steady isentropic exact solution for entropy variables
+/// \param[in] x - spatial location at which exact solution is sought
+/// \param[out] w - entropy variables at `x`.
+void vortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
+{
+   w.SetSize(4);
+   mfem::Vector q(4);
+   vortexExact(x, q);
+   mach::calcEntropyVars<double, 2>(q.GetData(), w.GetData());
+}
+
+TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on steady isentropic vortex",
+                       "[Euler-Vortex]", ((bool entvar), entvar), true, false)
 {
    const bool verbose = true; // set to true for some output 
    std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
    using namespace mfem;
    using namespace mach;
-  
+   auto uexact = !entvar ? vortexExact : vortexExactEntVars;
+
    // Provide the options explicitly for regression tests
    auto options = R"(
    {
       "flow-param": {
-         "entvar": false,
+         "entropy-state": false,
          "mach": 0.5
       },
       "space-dis": {
@@ -94,6 +107,21 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
          "drag": [0, 0, 0, 1]
       }
    })"_json;
+   if (entvar)
+   {
+      options["flow-param"].at("entropy-state") = true;
+   }
+
+   // Both the conservative and entropy-based states should give the same error
+   // for the CSBP scheme (the error is the density error)
+   std::vector target_error = {0.0901571779707352,
+                               0.0311496716090168,
+                               0.0160317976193675,
+                               0.0098390277746438};
+   std::vector target_drag_error = {0.0149959859366922,
+                                    0.00323047181284186,
+                                    0.00103944525942667,
+                                    0.000475003178886935};
 
    for (int nx = 1; nx <= 4; ++nx)
    {
@@ -104,9 +132,9 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
          auto mesh = buildQuarterAnnulusMesh(mesh_degree, nx, nx);
 
          // Create solver and set initial guess to exact
-         FlowSolver solver(MPI_COMM_WORLD, options, std::move(mesh));
+         FlowSolver<2,entvar> solver(MPI_COMM_WORLD, options, std::move(mesh));
          mfem::Vector state_tv(solver.getStateSize());
-         solver.setState(vortexExact, state_tv);
+         solver.setState(uexact, state_tv);
 
          // write the initial state for debugging 
          auto &state = solver.getState();
@@ -120,6 +148,13 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
          solver.solveForState(inputs, state_tv);
          state.distributeSharedDofs(state_tv);
 
+         double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
+         std::cout << "l2 error = " << l2_error << std::endl;
+         REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
+
+         //solver.createOutput("drag", options["outputs"]["drag"]);
+         //double drag_error = fabs(solver.calcOutput("drag") - (-1 /mach::euler::gamma));
+         //REQUIRE(drag_error == Approx(target_drag_error[nx-1]).margin(1e-10));
       }
    }
 }

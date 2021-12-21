@@ -94,7 +94,7 @@ TEST_CASE("MachResidual Scalar Input Test",
       MachNonlinearForm &nf_ref = getConcrete<MachNonlinearForm>(res);
    }());
    REQUIRE_THROWS([&](){
-      FlowResidual &flow_ref = getConcrete<FlowResidual>(res);
+      FlowResidual<2> &flow_ref = getConcrete<FlowResidual<2>>(res);
    }());
 
    // These steps create a grid function for x+y

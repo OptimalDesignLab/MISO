@@ -58,6 +58,9 @@ public:
    template <typename T>
    friend T &getConcrete(MachResidual &residual);
 
+   template <typename T>
+   friend const T &getConcrete(const MachResidual &residual);
+
    /// Gets the number of equations/unknowns of the underlying residual type
    /// \param[inout] residual - the residual whose size is being queried
    /// \returns the number of equations/unknowns
@@ -203,6 +206,20 @@ private:
 
 template <typename T>
 inline T &getConcrete(MachResidual &residual)
+{
+   auto *model = dynamic_cast<MachResidual::model<T> *>(residual.self_.get());
+   if (model == nullptr)
+   {
+      throw MachException("getConcrete() called with inconsistent template!");
+   }
+   else
+   {
+      return model->data_;
+   }
+}
+
+template <typename T>
+inline const T &getConcrete(const MachResidual &residual)
 {
    auto *model = dynamic_cast<MachResidual::model<T> *>(residual.self_.get());
    if (model == nullptr)

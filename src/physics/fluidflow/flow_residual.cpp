@@ -208,21 +208,9 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
 
 template <int dim, bool entvar>
 double FlowResidual<dim, entvar>::minCFLTimeStep(
-   double cfl, const mfem::ParGridFunction &state)
+    double cfl,
+    const mfem::ParGridFunction &state)
 {
-   Vector q(dim + 2);
-   auto calcSpect = [&q](const double *dir, const double *u)
-   {
-      if (entvar)
-      {
-         calcConservativeVars<double, dim>(u, q.GetData());
-         return calcSpectralRadius<double, dim>(dir, q.GetData());
-      }
-      else
-      {
-         return calcSpectralRadius<double, dim>(dir, u);
-      }
-   };
    double dt_local = 1e100;
    Vector xi(dim);
    Vector dxij(dim);
@@ -255,14 +243,89 @@ double FlowResidual<dim, entvar>::minCFLTimeStep(
             dt_local =
                 min(dt_local,
                     cfl * dx * dx /
-                        calcSpect(dxij, ui));  // extra dx is to normalize dxij
+                     calcSpectralRadius<double, dim, entvar>(dxij, ui)); // extra dx is to normalize dxij
          }
       }
    }
    double dt_min = NAN;
-   MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN,
+   MPI_Allreduce(&dt_local,
+                 &dt_min,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_MIN,
                  state.ParFESpace()->GetComm());
    return dt_min;
+}
+
+template <int dim, bool entvar>
+double FlowResidual<dim, entvar>::calcConservativeVarsL2Error(
+    const mfem::ParGridFunction &state,
+    void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+    int entry)
+{
+   // Following function, defined earlier in file, computes the error at a node
+   // Beware: this is not particularly efficient, and **NOT thread safe!**
+   Vector qdiscrete(dim + 2);
+   Vector qexact(dim + 2);  // define here to avoid reallocation
+   auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
+   {
+      if constexpr(entvar)
+      {
+         calcConservativeVars<double, dim>(discrete.GetData(),
+                                           qdiscrete.GetData());
+         calcConservativeVars<double, dim>(exact.GetData(), qexact.GetData());
+      }
+      else
+      {
+         qdiscrete = discrete;
+         qexact = exact;
+      }
+      double err = 0.0;
+      if (entry < 0)
+      {
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            double dq = qdiscrete(i) - qexact(i);
+            err += dq * dq;
+         }
+      }
+      else
+      {
+         err = qdiscrete(entry) - qexact(entry);
+         err = err * err;
+      }
+      return err;
+   };
+   VectorFunctionCoefficient exsol(dim + 2, u_exact);
+   DenseMatrix vals;
+   DenseMatrix exact_vals;
+   Vector u_j;
+   Vector exsol_j;
+   double loc_norm = 0.0;
+   for (int i = 0; i < fes.GetNE(); i++)
+   {
+      const FiniteElement *fe = fes.GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *T = fes.GetElementTransformation(i);
+      state.GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         vals.GetColumnReference(j, u_j);
+         exact_vals.GetColumnReference(j, exsol_j);
+         loc_norm += ip.weight * T->Weight() * node_error(u_j, exsol_j);
+      }
+   }
+   double norm = NAN;
+   MPI_Allreduce(
+       &loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, state.ParFESpace()->GetComm());
+   if (norm < 0.0)  // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
 }
 
 // explicit instantiation

@@ -8,11 +8,14 @@
 namespace mach
 {
 /// Class for solving FlowResidual based problems
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, the entropy variables are used in the integrators
 /// \note This assumes a constant mass matrix at present; that is, it does not
 /// accommodate entropy variables as states with modal or DGD-type
 /// discretizations.  However, this could be accommodated by making the mass
 /// operator its own MachResidual, and then modifying the
 /// `TimeDependentResidual` accordingly.
+template <int dim, bool entvar = false>
 class FlowSolver : public PDESolver
 {
 public:
@@ -23,6 +26,18 @@ public:
    FlowSolver(MPI_Comm incomm,
               const nlohmann::json &solver_options,
               std::unique_ptr<mfem::Mesh> smesh = nullptr);
+
+   /// Returns the L2 error between the discrete and exact conservative vars.
+   /// \param[in] u_exact - function that defines the exact **state**
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \returns L2 error
+   /// \note The solution given by `u_exact` is for the state, conservative or
+   /// entropy variables.  **Do not give the exact solution for the conservative
+   /// variables if using entropy variables**.   The conversion to conservative
+   /// variables is done by this function.
+   double calcConservativeVarsL2Error(void (*u_exact)(const mfem::Vector &,
+                                                      mfem::Vector &),
+                                      int entry);
 
 private:
    /// Initial residual norm for PTC and convergence checks
@@ -59,6 +74,25 @@ private:
    virtual double calcStepSize(int iter, double t, double t_final,
                                double dt_old,
                                const mfem::Vector &state) const override;
+
+   /// Determines when to exit the time stepping loop
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (after the step)
+   /// \param[in] t_final - the final time
+   /// \param[in] dt - the step size that was just taken
+   /// \param[in] state - the current state
+   /// \note If a steady problem is being solved, the "steady-abstol" and 
+   /// "steady-reltol" options from "time-dis" to determine convergence.
+   virtual bool iterationExit(int iter,
+                              double t,
+                              double t_final,
+                              double dt,
+                              const mfem::Vector &state) const override;
+
+   /// Add output @a fun based on @a options
+   void addOutput(const std::string &fun,
+                  const nlohmann::json &options) override;
+
 };
 
 }  // namespace mach

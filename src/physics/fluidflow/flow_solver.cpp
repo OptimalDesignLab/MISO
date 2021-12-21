@@ -18,55 +18,32 @@ int getNumFlowStates(const nlohmann::json &solver_options, int space_dim)
 
 namespace mach
 {
-FlowSolver::FlowSolver(MPI_Comm incomm,
-                       const nlohmann::json &solver_options,
-                       std::unique_ptr<mfem::Mesh> smesh)
+template <int dim, bool entvar>
+FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
+                                    const nlohmann::json &solver_options,
+                                    std::unique_ptr<mfem::Mesh> smesh)
  : PDESolver(incomm, solver_options, getNumFlowStates, std::move(smesh)),
    mass(&fes())
 {
-   // Construct spatial residual
-   int dim = mesh_->SpaceDimension();
-   bool ent_state = options["flow-param"].value("entropy-state", false);
-   // the following could be done with template meta-programming
-   switch(dim)
+   // Check for consistency between the template parameters, mesh, and options
+   if (mesh_->SpaceDimension() != dim)
    {
-      case 1:
-         if (ent_state)
-         {
-            spatial_res = std::make_unique<mach::MachResidual>(
-               FlowResidual<1,true>(solver_options, fes(), diff_stack));
-         }
-         else
-         {
-            spatial_res = std::make_unique<mach::MachResidual>(
-               FlowResidual<1,false>(solver_options, fes(), diff_stack));
-         }
-         break;
-      case 2:
-         if (ent_state)
-         {
-            spatial_res = std::make_unique<mach::MachResidual>(
-               FlowResidual<2,true>(solver_options, fes(), diff_stack));
-         }
-         else
-         {
-            spatial_res = std::make_unique<mach::MachResidual>(
-               FlowResidual<2,false>(solver_options, fes(), diff_stack));
-         }
-         break;
-      case 3:
-         if (ent_state)
-         {
-            spatial_res = std::make_unique<mach::MachResidual>(
-               FlowResidual<3,true>(solver_options, fes(), diff_stack));
-         }
-         else
-         {
-            spatial_res = std::make_unique<mach::MachResidual>(
-               FlowResidual<3,false>(solver_options, fes(), diff_stack));
-         }
-         break;
+      throw MachException(
+          "FlowSolver<dim,entvar> constructor:\n"
+          "\tMesh space dimension does not match template"
+          "parameter dim");
    }
+   bool ent_state = options["flow-param"].value("entropy-state", false);
+   if (ent_state != entvar)
+   {
+      throw MachException(
+          "FlowSolver<dim,entvar> constructor:\n"
+          "\tentropy-state option is inconsistent with entvar"
+          "template parameter");
+   }
+   // Construct spatial residual
+   spatial_res = std::make_unique<mach::MachResidual>(
+       FlowResidual<dim, entvar>(solver_options, fes(), diff_stack));
    const char *name = fes().FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {
@@ -98,7 +75,8 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
        make_unique<FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
 }
 
-unique_ptr<Solver> FlowSolver::constructPreconditioner(
+template <int dim, bool entvar>
+unique_ptr<Solver> FlowSolver<dim, entvar>::constructPreconditioner(
     nlohmann::json &prec_options)
 {
    std::string prec_type = prec_options["type"].get<std::string>();
@@ -155,7 +133,8 @@ unique_ptr<Solver> FlowSolver::constructPreconditioner(
    return precond;
 }
 
-void FlowSolver::derivedPDEInitialHook(const mfem::Vector &state)
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDEInitialHook(const Vector &state)
 {
    // AbstractSolver2::initialHook(state);
    if (options["time-dis"]["steady"].template get<bool>())
@@ -171,7 +150,8 @@ void FlowSolver::derivedPDEInitialHook(const mfem::Vector &state)
    // entropylog << setprecision(14);
 }
 
-double FlowSolver::calcStepSize(int iter, double t, double t_final,
+template <int dim, bool entvar>
+double FlowSolver<dim, entvar>::calcStepSize(int iter, double t, double t_final,
                                 double dt_old, const Vector &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
@@ -191,14 +171,118 @@ double FlowSolver::calcStepSize(int iter, double t, double t_final,
    }
    // Otherwise, use a constant CFL condition
    auto cfl = options["time-dis"]["cfl"].get<double>();
-   if (options["flow-param"][""])
    // here we call the FlowResidual method for the min time step, which needs 
    // the current state; this is provided by the state field of PDESolver, 
    // which we access with getState()
-   return getConcrete<FlowResidual>(spatial_res).
+   return getConcrete<FlowResidual<dim, entvar>>(*spatial_res).
       minCFLTimeStep(cfl, getState().gridFunc());
 }
 
+template <int dim, bool entvar>
+bool FlowSolver<dim, entvar>::iterationExit(int iter,
+                               double t,
+                               double t_final,
+                               double dt,
+                               const mfem::Vector &state) const
+{
+   if (options["time-dis"]["steady"].get<bool>())
+   {
+      double norm = calcResidualNorm(state);
+      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
+      {
+         return true;
+      }
+      if (norm <=
+          res_norm0 * options["time-dis"]["steady-reltol"].get<double>())
+      {
+         return true;
+      }
+      return false;
+   }
+   else
+   {
+      return AbstractSolver2::iterationExit(iter, t, t_final, dt, state);
+   }
+}
+
+template <int dim, bool entvar>
+double FlowSolver<dim, entvar>::calcConservativeVarsL2Error(
+    void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+    int entry)
+{
+   return getConcrete<FlowResidual<dim, entvar>>(*spatial_res)
+       .calcConservativeVarsL2Error(getState().gridFunc(), u_exact, entry);
+}
+
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::addOutput(const std::string &fun,
+                           const nlohmann::json &options)
+{
+   // const FlowResidual<dim, entvar> &flow_res = 
+   //    getConcrete<FlowResidual<dim, entvar>>(*spatial_res);
+   // double mach_fs = flow_res.getMach();
+   // double aoa_fs = flow_res.getAoA();
+   // int iroll = flow_res.getIRoll();
+   // int ipitch = flow_res.getIPitch();
+   // if (fun == "drag")
+   // {
+   //    // drag on the specified boundaries
+   //    auto bdrs = options["boundaries"].get<vector<int>>();
+   //    Vector drag_dir(dim);
+   //    drag_dir = 0.0;
+   //    if (dim == 1)
+   //    {
+   //       drag_dir(0) = 1.0;
+   //    }
+   //    else
+   //    {
+   //       drag_dir(iroll) = cos(aoa_fs);
+   //       drag_dir(ipitch) = sin(aoa_fs);
+   //    }
+   //    drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+   //    FunctionalOutput out(fes(), res_fields);
+   //    out.addOutputBdrFaceIntegrator(
+   //        new PressureForce<dim, entvar>(diff_stack, fec().get(), drag_dir),
+   //        std::move(bdrs));
+   //    outputs.emplace(fun, std::move(out));
+   // }
+   // else if (fun == "lift")
+   //    // lift on the specified boundaries
+   //    auto bdrs = options["boundaries"].get<vector<int>>();
+   //    Vector lift_dir(dim);
+   //    lift_dir = 0.0;
+   //    if (dim == 1)
+   //    {
+   //       lift_dir(0) = 0.0;
+   //    }
+   //    else
+   //    {
+   //       lift_dir(iroll) = -sin(aoa_fs);
+   //       lift_dir(ipitch) = cos(aoa_fs);
+   //    }
+   //    lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
+
+   //    FunctionalOutput out(fes(), res_fields);
+   //    out.addOutputBdrFaceIntegrator(
+   //        new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+   //        std::move(bdrs));
+   //    outputs.emplace(fun, std::move(out));
+   // }
+   // else
+   // {
+   //    throw MachException("Output with name " + fun +
+   //                        " not supported by "
+   //                        "FlowSolver!\n");
+   // }
+}
+
+// explicit instantiation
+template class FlowSolver<1, true>;
+template class FlowSolver<1, false>;
+template class FlowSolver<2, true>;
+template class FlowSolver<2, false>;
+template class FlowSolver<3, true>;
+template class FlowSolver<3, false>;
 
 /*
 Notes:

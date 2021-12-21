@@ -78,6 +78,24 @@ public:
    /// \param[in] state - the state which defines the velocity field
    double minCFLTimeStep(double cfl, const mfem::ParGridFunction &state);
 
+   /// Returns the L2 error between the discrete and exact conservative vars.
+   /// \param[in] u_exact - function that defines the exact **state**
+   /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned
+   /// \returns L2 error
+   /// \note The solution given by `u_exact` is for the state, conservative or
+   /// entropy variables.  **Do not give the exact solution for the conservative
+   /// variables if using entropy variables**.   The conversion to conservative
+   /// variables is done by this function.
+   double calcConservativeVarsL2Error(const mfem::ParGridFunction &state,
+                                      void (*u_exact)(const mfem::Vector &,
+                                                      mfem::Vector &),
+                                      int entry);
+
+   double getMach() const { return mach_fs; }
+   double getAoA() const { return aoa_fs; }
+   int getIRoll() const { return iroll; }
+   int getIPitch() const { return ipitch; }
+
 private:
    /// free-stream Mach number
    double mach_fs;
