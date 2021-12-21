@@ -105,7 +105,7 @@ TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on the steady isentropic vortex",
       "saveresults": false,
       "outputs":
       { 
-         "drag": [0, 0, 0, 1]
+         "drag": { "boundaries": [0, 0, 0, 1] }
       }
    })"_json;
    if (entvar)
@@ -153,7 +153,9 @@ TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on the steady isentropic vortex",
          std::cout << "l2 error = " << l2_error << std::endl;
          REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
 
-         
+         solver.createOutput("drag", options["outputs"]["drag"]);
+         double drag_error = fabs(solver.calcOutput("drag") - (-1 /mach::euler::gamma));
+         REQUIRE(drag_error == Approx(target_drag_error[nx-1]).margin(1e-10));
       }
    }
 }

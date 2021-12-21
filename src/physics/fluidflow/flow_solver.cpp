@@ -355,6 +355,67 @@ double FlowSolver::calcConservativeVarsL2Error(
    return sqrt(norm);
 }
 
+void FlowSolver::addOutput(const std::string &fun,
+                           const nlohmann::json &options)
+{
+   int dim = mesh_->SpaceDimension();
+   double mach_fs = getConcrete<FlowResidual>(*spatial_res).getMach();
+   double aoa_fs = getConcrete<FlowResidual>(*spatial_res).getAoA();
+   int iroll = getConcrete<FlowResidual>(*spatial_res).getIRoll();
+   int ipitch = getConcrete<FlowResidual>(*spatial_res).getIPitch();
+   if (fun == "drag")
+   {
+      // drag on the specified boundaries
+      auto bdrs = options["boundaries"].get<vector<int>>();
+      Vector drag_dir(dim);
+      drag_dir = 0.0;
+      if (dim == 1)
+      {
+         drag_dir(0) = 1.0;
+      }
+      else
+      {
+         drag_dir(iroll) = cos(aoa_fs);
+         drag_dir(ipitch) = sin(aoa_fs);
+      }
+      drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+      FunctionalOutput out(fes(), res_fields);
+      out.addOutputBdrFaceIntegrator(
+          new PressureForce<dim, entvar>(diff_stack, fec().get(), drag_dir),
+          std::move(bdrs));
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun == "lift")
+   {
+      // lift on the specified boundaries
+      auto bdrs = options["boundaries"].get<vector<int>>();
+      Vector lift_dir(dim);
+      lift_dir = 0.0;
+      if (dim == 1)
+      {
+         lift_dir(0) = 0.0;
+      }
+      else
+      {
+         lift_dir(iroll) = -sin(aoa_fs);
+         lift_dir(ipitch) = cos(aoa_fs);
+      }
+      lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
+
+      FunctionalOutput out(fes(), res_fields);
+      out.addOutputBdrFaceIntegrator(
+          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+          std::move(bdrs));
+      outputs.emplace(fun, std::move(out));
+   }
+   else
+   {
+      throw MachException("Output with name " + fun +
+                          " not supported by "
+                          "FlowSolver!\n");
+   }
+}
+
 /*
 Notes:
 ode will call nonlinear_solver->Mult, which will use the residual

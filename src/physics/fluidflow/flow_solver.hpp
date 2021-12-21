@@ -93,6 +93,10 @@ private:
                               double t_final,
                               double dt,
                               const mfem::Vector &state) const override;
+
+   /// Add output @a fun based on @a options
+   void addOutput(const std::string &fun,
+                  const nlohmann::json &options) override;
 };
 
 }  // namespace mach

@@ -75,6 +75,11 @@ public:
    friend double calcEntropyChange(FlowResidual &residual,
                                    const MachInputs &inputs);
 
+   double getMach() const { return mach_fs; }
+   double getAoA() const { return aoa_fs; }
+   int getIRoll() const { return iroll; }
+   int getIPitch() const { return ipitch; }
+
 private:
    /// free-stream Mach number
    double mach_fs;
