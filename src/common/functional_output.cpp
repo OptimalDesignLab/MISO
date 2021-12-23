@@ -18,23 +18,37 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
       if (std::holds_alternative<InputVector>(input))
       {
          const auto &name = in.first;
-         auto it = output.func_fields->find(name);
-         if (it != output.func_fields->end())
+         if (output.func_fields)
          {
-            auto &field = it->second;
-            setVectorFromInput(input, field.GetTrueVector());
-            // if (field.GetTrueVector().Size() !=
-            //     field.ParFESpace()->GetTrueVSize())
-            // {
-            //    throw MachException("Input field " + name +
-            //                        " is wrong size!\n"
-            //                        "Size is " +
-            //                        field.GetTrueVector().Size() +
-            //                        ", should be " +
-            //                        field.ParFESpace()->GetTrueVSize() +
-            //                        "!\n");
-            // }
-            field.SetFromTrueVector();
+            auto it = output.func_fields->find(name);
+            if (it != output.func_fields->end())
+            {
+               auto &field = it->second;
+               setVectorFromInput(input, field.GetTrueVector());
+               // if (field.GetTrueVector().Size() !=
+               //     field.ParFESpace()->GetTrueVSize())
+               // {
+               //    throw MachException("Input field " + name +
+               //                        " is wrong size!\n"
+               //                        "Size is " +
+               //                        field.GetTrueVector().Size() +
+               //                        ", should be " +
+               //                        field.ParFESpace()->GetTrueVSize() +
+               //                        "!\n");
+               // }
+               field.SetFromTrueVector();
+            }
+         }
+         else // fun_fields is used rather than func_fields
+         { 
+            auto it = output.fun_fields->find(name);
+            if (it != output.fun_fields->end())
+            {
+               auto &fem_vector = it->second;
+               Vector true_vec;
+               setVectorFromInput(input, true_vec);
+               fem_vector.distributeSharedDofs(true_vec);
+            }
          }
       }
    }
