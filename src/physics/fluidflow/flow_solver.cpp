@@ -42,6 +42,14 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
           "\tentropy-state option is inconsistent with entvar"
           "template parameter");
    }
+   if ( (entvar) && (!options["time-dis"]["steady"]) )
+   {
+      throw MachException(
+         "FlowSolver<dim,entvar> constructor:\n"
+         "\tnot set up for using entropy-variables as states for unsteady "
+         "problem (need nonlinear mass-integrator).");
+   }
+
    // Construct spatial residual
    spatial_res = std::make_unique<mach::MachResidual>(
        FlowResidual<dim, entvar>(solver_options, fes(), diff_stack));
@@ -273,7 +281,7 @@ template <int dim, bool entvar>
 void FlowSolver<dim, entvar>::addOutput(const std::string &fun,
                                         const nlohmann::json &options)
 {
-   const FlowResidual<dim, entvar> &flow_res =
+   FlowResidual<dim, entvar> &flow_res =
        getConcrete<FlowResidual<dim, entvar>>(*spatial_res);
    double mach_fs = flow_res.getMach();
    double aoa_fs = flow_res.getAoA();
@@ -295,11 +303,11 @@ void FlowSolver<dim, entvar>::addOutput(const std::string &fun,
          drag_dir(ipitch) = sin(aoa_fs);
       }
       drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
-      FunctionalOutput out(fes(), fields);
-      out.addOutputBdrFaceIntegrator(
+      FunctionalOutput fun_out(fes(), fields);
+      fun_out.addOutputBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, &state().coll(), drag_dir),
           std::move(bdrs));
-      outputs.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(fun_out));
    }
    else if (fun == "lift")
    {
@@ -317,11 +325,17 @@ void FlowSolver<dim, entvar>::addOutput(const std::string &fun,
          lift_dir(ipitch) = cos(aoa_fs);
       }
       lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
-      FunctionalOutput out(fes(), fields);
-      out.addOutputBdrFaceIntegrator(
+      FunctionalOutput fun_out(fes(), fields);
+      fun_out.addOutputBdrFaceIntegrator(
           new PressureForce<dim, entvar>(diff_stack, &state().coll(), lift_dir),
           std::move(bdrs));
-      outputs.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(fun_out));
+   }
+   else if (fun == "entropy")
+   {
+      // global entropy
+      EntropyOutput<dim,entvar> fun_out(flow_res);
+      outputs.emplace(fun, std::move(fun_out));
    }
    else
    {

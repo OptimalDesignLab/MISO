@@ -44,7 +44,7 @@ void vortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
 // TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on unsteady isentropic vortex",
 //                        "[Euler-Vortex]", ((bool entvar), entvar), true, false)
 // {
-TEST_CASE("FlowSolver Test", "[FlowSolver]")
+TEST_CASE("Testing FlowSolver on unsteady isentropic vortex", "[FlowSolver]")
 {
    const bool entvar = false;
 
@@ -75,7 +75,7 @@ TEST_CASE("FlowSolver Test", "[FlowSolver]")
       "time-dis": {
          "type": "RRK",
          "steady": false,
-         "t-final": 1,
+         "t-final": 0.2,
          "dt": 0.1,
          "cfl": 1.0,
          "entropy-log": true
@@ -94,7 +94,11 @@ TEST_CASE("FlowSolver Test", "[FlowSolver]")
          "reltol": 1e-2,
          "abstol": 1e-12
       },
-      "saveresults": false
+      "saveresults": false,
+      "outputs":
+      { 
+         "entropy": {}
+      }
    })"_json;
    if (entvar)
    {
@@ -102,7 +106,7 @@ TEST_CASE("FlowSolver Test", "[FlowSolver]")
    }
 
    // Build a periodic uniform mesh over the square domain
-   const int num = 10;
+   const int num = 5;
    Mesh mesh = Mesh::MakeCartesian2D(
        num, num, Element::TRIANGLE, true /* gen. edges */, 10.0, 10.0, true);
    std::vector<Vector> translations;
@@ -110,7 +114,7 @@ TEST_CASE("FlowSolver Test", "[FlowSolver]")
    translations.push_back(Vector({0.0, 10.0}));
    std::vector<int> v2v = mesh.CreatePeriodicVertexMapping(translations);
 
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for polynomial degree p = " << p)
       {
@@ -131,20 +135,23 @@ TEST_CASE("FlowSolver Test", "[FlowSolver]")
          paraview.registerField("state", state.gridFunc());
          paraview.saveState(state_tv, "state", 0, 1.0, 0);
 
-         // Solve for the state
-         MachInputs inputs;
+         // get the initial entropy 
+         solver.createOutput("entropy", options["outputs"].at("entropy"));
+         MachInputs inputs({{"state", state_tv}});
+         double entropy0 = solver.calcOutput("entropy", inputs);
+
+         // Solve for the state; inputs are not used at present...
          solver.solveForState(inputs, state_tv);
          state.distributeSharedDofs(state_tv);
 
-         //double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
-         //std::cout << "l2 error = " << l2_error << std::endl;
-         //REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
- 
+         // get the final entropy 
+         double entropy = solver.calcOutput("entropy", inputs);
+         REQUIRE(entropy == Approx(entropy0).margin(1e-10));
+         //std::cout << "entropy change = " << entropy0 - entropy << std::endl;
       }
    }
 }
 
-#if 0
 /// Steady isentropic exact solution for conservative variables
 /// \param[in] x - spatial location at which exact solution is sought
 /// \param[out] q - conservative variables at `x`.
@@ -304,5 +311,3 @@ TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on steady isentropic vortex",
       }
    }
 }
-
-#endif
