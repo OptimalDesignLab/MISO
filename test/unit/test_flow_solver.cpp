@@ -5,10 +5,150 @@
 #include "flow_solver.hpp"
 #include "euler_fluxes.hpp"
 
+/// Unsteady isentropic exact solution for conservative variables
+/// \param[in] x - spatial location at which exact solution is sought
+/// \param[out] q - conservative variables at `x`.
+void vortexExact(const mfem::Vector &xy, mfem::Vector& q)
+{
+   using namespace mach;
+
+   double t = 0.0;
+   double x = xy(0) - 5.0 - t; // x0 = 5.0
+   double y = xy(1) - 5.0; // y0 = 5.0
+   const double Mach = 0.5;
+   const double epsilon = 1.0;
+   double expf = exp(0.5*(1 - x*x - y*y));
+
+   q.SetSize(4);
+   q(0) = pow(1 - euler::gami*pow(epsilon*expf*Mach/M_PI,2.0)/8.0,
+              -1.0/euler::gami);
+   q(1) = 1.0 - epsilon*y*expf/(2*M_PI);
+   q(2) = epsilon*x*expf/(2*M_PI);
+   double press = pow(q(0), euler::gamma)/(euler::gamma * Mach * Mach);
+   q(3) = press/euler::gami + 0.5*q(0)*(q(1)*q(1) + q(2)*q(2));
+   q(1) *= q(0);
+   q(2) *= q(1);
+}
+
+/// Unsteady isentropic exact solution for entropy variables
+/// \param[in] x - spatial location at which exact solution is sought
+/// \param[out] w - entropy variables at `x`.
+void vortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
+{
+   w.SetSize(4);
+   mfem::Vector q(4);
+   vortexExact(x, q);
+   mach::calcEntropyVars<double, 2>(q.GetData(), w.GetData());
+}
+
+// TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on unsteady isentropic vortex",
+//                        "[Euler-Vortex]", ((bool entvar), entvar), true, false)
+// {
+TEST_CASE("FlowSolver Test", "[FlowSolver]")
+{
+   const bool entvar = false;
+
+   const bool verbose = true; // set to true for some output 
+   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   using namespace mfem;
+   using namespace mach;
+   auto uexact = !entvar ? vortexExact : vortexExactEntVars;
+
+   // Provide the options explicitly for regression tests
+   auto options = R"(
+   {
+      "silent" : false,
+      "paraview": {
+         "each-timestep": true,
+         "directory": "isentropic-vortex"
+      },
+      "flow-param": {
+         "entropy-state": false,
+         "mach": 0.5
+      },
+      "space-dis": {
+         "degree": 1,
+         "lps-coeff": 0.0,
+         "basis-type": "csbp",
+         "flux-fun": "IR"
+      },
+      "time-dis": {
+         "type": "RRK",
+         "steady": false,
+         "t-final": 1,
+         "dt": 0.1,
+         "cfl": 1.0,
+         "entropy-log": true
+      },
+      "nonlin-solver": {
+         "printlevel": 0,
+         "maxiter": 50,
+         "reltol": 1e-8,
+         "abstol": 1e-10
+      },
+      "lin-solver": {
+         "type": "hyprefgmres",
+         "printlevel": 0,
+         "filllevel": 3,
+         "maxiter": 100,
+         "reltol": 1e-2,
+         "abstol": 1e-12
+      },
+      "saveresults": false
+   })"_json;
+   if (entvar)
+   {
+      options["flow-param"].at("entropy-state") = true;
+   }
+
+   // Build a periodic uniform mesh over the square domain
+   const int num = 10;
+   Mesh mesh = Mesh::MakeCartesian2D(
+       num, num, Element::TRIANGLE, true /* gen. edges */, 10.0, 10.0, true);
+   std::vector<Vector> translations;
+   translations.push_back(Vector({10.0, 0.0}));
+   translations.push_back(Vector({0.0, 10.0}));
+   std::vector<int> v2v = mesh.CreatePeriodicVertexMapping(translations);
+
+   for (int p = 1; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION("...for polynomial degree p = " << p)
+      {
+         options["space-dis"].at("degree") = p;
+
+         // Create solver and set initial guess to exact
+         std::unique_ptr<Mesh> smesh =
+             std::make_unique<Mesh>(Mesh::MakePeriodic(mesh, v2v));
+         FlowSolver<2, entvar> solver(
+             MPI_COMM_WORLD, options, std::move(smesh));
+         mfem::Vector state_tv(solver.getStateSize());
+         solver.setState(uexact, state_tv);
+
+         // write the initial state for debugging 
+         auto &state = solver.getState();
+         mach::ParaViewLogger paraview("test_flow_solver",
+            state.gridFunc().ParFESpace()->GetParMesh());
+         paraview.registerField("state", state.gridFunc());
+         paraview.saveState(state_tv, "state", 0, 1.0, 0);
+
+         // Solve for the state
+         MachInputs inputs;
+         solver.solveForState(inputs, state_tv);
+         state.distributeSharedDofs(state_tv);
+
+         //double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
+         //std::cout << "l2 error = " << l2_error << std::endl;
+         //REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
+ 
+      }
+   }
+}
+
+#if 0
 /// Steady isentropic exact solution for conservative variables
 /// \param[in] x - spatial location at which exact solution is sought
 /// \param[out] q - conservative variables at `x`.
-void vortexExact(const mfem::Vector &x, mfem::Vector& q)
+void steadyVortexExact(const mfem::Vector &x, mfem::Vector& q)
 {
    using namespace mach;
    q.SetSize(4);
@@ -43,11 +183,11 @@ void vortexExact(const mfem::Vector &x, mfem::Vector& q)
 /// Steady isentropic exact solution for entropy variables
 /// \param[in] x - spatial location at which exact solution is sought
 /// \param[out] w - entropy variables at `x`.
-void vortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
+void steadyVortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
 {
    w.SetSize(4);
    mfem::Vector q(4);
-   vortexExact(x, q);
+   steadyVortexExact(x, q);
    mach::calcEntropyVars<double, 2>(q.GetData(), w.GetData());
 }
 
@@ -58,7 +198,7 @@ TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on steady isentropic vortex",
    std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
    using namespace mfem;
    using namespace mach;
-   auto uexact = !entvar ? vortexExact : vortexExactEntVars;
+   auto uexact = !entvar ? steadyVortexExact : steadyVortexExactEntVars;
 
    // Provide the options explicitly for regression tests
    auto options = R"(
@@ -164,3 +304,5 @@ TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on steady isentropic vortex",
       }
    }
 }
+
+#endif

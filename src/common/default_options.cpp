@@ -8,6 +8,12 @@ namespace mach
 
 const nlohmann::json default_options{
     {"print-options", true},  // print out options when solver is constructed
+    {"paraview", // options related to paraview visualization 
+     { 
+         {"directory", "solver"},
+         {"each-timestep", false} // if true, paraview file is saved each step
+     }},
+
     {"flow-param",            // options related to flow simulations
      {
          {"entropy-state", false}, // if true, the states are entropy variables
@@ -19,7 +25,7 @@ const nlohmann::json default_options{
          {"Pr", 0.72},       // the Prandtl number
          {"mu",
           -1.0},  // nondimensional viscosity (if negative, use Sutherland's)
-         {"viscous-mms", false}  // if true, include MMS terms for viscous test
+         {"viscous-mms", false} // if true, include MMS terms for viscous test
      }},
 
     {"space-dis",  // options related to spatial discretization
@@ -45,7 +51,8 @@ const nlohmann::json default_options{
          {"t-final", 1.0},      // final time to simulate to
          {"dt", 0.01},          // time-step size when `const-cfl` is false
          {"cfl", 1.0},          // target CFL number
-         {"max-iter", 10000}  // safe-guard upper bound on number of iterations
+         {"max-iter", 10000},   // safe-guard upper bound number of iterations
+         {"entropy-log", false}  // if true, time history of entropy is written
      }},
 
     {"nonlin-solver",  // options related to root-finding algorithms

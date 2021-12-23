@@ -22,26 +22,24 @@ FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
    work(getSize(res))
 {
    setOptions_(options);
-   addFlowIntegrators(options);
-}
 
-template <int dim, bool entvar>
-void FlowResidual<dim, entvar>::addFlowIntegrators(
-   const nlohmann::json &options)
-{
-   if (!options.contains("flow-param") || !options.contains("space-dis") ||
-       !options.contains("bcs"))
+   if (!options.contains("flow-param") || !options.contains("space-dis") )
    {
       throw MachException(
           "FlowResidual::addFlowIntegrators: options must"
-          "contain flow-param, space-dis, and bcs!\n");
+          "contain flow-param and space-dis!\n");
    }
    nlohmann::json flow = options["flow-param"];
    nlohmann::json space_dis = options["space-dis"];
-   nlohmann::json bcs = options["bcs"];
    addFlowDomainIntegrators(flow, space_dis);
    addFlowInterfaceIntegrators(flow, space_dis);
-   addFlowBoundaryIntegrators(flow, space_dis, bcs);
+
+   if (options.contains("bcs"))
+   {
+      nlohmann::json bcs = options["bcs"];
+      addFlowBoundaryIntegrators(flow, space_dis, bcs);
+   }
+
    addEntropyIntegrators();
 }
 

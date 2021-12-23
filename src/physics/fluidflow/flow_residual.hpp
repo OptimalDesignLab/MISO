@@ -123,8 +123,6 @@ private:
    /// Work vector
    mfem::Vector work;
 
-   void addFlowIntegrators(const nlohmann::json &options);
-
    void addFlowDomainIntegrators(const nlohmann::json &flow,
                                  const nlohmann::json &space_dis);
 

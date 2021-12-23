@@ -385,4 +385,18 @@ void PDESolver::initialHook(const mfem::Vector &state)
    derivedPDEInitialHook(state);
 }
 
+void PDESolver::iterationHook(int iter, double t, double dt,
+                              const mfem::Vector &state)
+{
+   AbstractSolver2::iterationHook(iter, t, dt, state);
+   derivedPDEIterationHook(iter, t, dt, state);
+}
+
+void PDESolver::terminalHook(int iter,
+                             double t_final,
+                             const mfem::Vector &state)
+{
+   AbstractSolver2::terminalHook(iter, t_final, state);
+}
+
 }  // namespace mach

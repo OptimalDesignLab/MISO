@@ -74,6 +74,13 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
    auto ode_opts = options["time-dis"];
    ode =
        make_unique<FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
+
+   if (options["paraview"].at("each-timestep"))
+   {
+      ParaViewLogger paraview(options["paraview"]["directory"] , mesh_.get());
+      paraview.registerField("state", fields.at("state").gridFunc());
+      addLogger(std::move(paraview), {.each_timestep=true});
+   }
 }
 
 template <int dim, bool entvar>
@@ -143,12 +150,40 @@ void FlowSolver<dim, entvar>::derivedPDEInitialHook(const Vector &state)
       // res_norm0 is used to compute the time step in PTC
       res_norm0 = calcResidualNorm(state);
    }
-   // TODO: this should only be output if necessary
-   // double entropy = ent->GetEnergy(state);
-   //*out << "before time stepping, entropy is " << entropy << endl;
-   // remove("entropylog.txt");
-   // entropylog.open("entropylog.txt", fstream::app);
-   // entropylog << setprecision(14);
+   if (options["time-dis"]["entropy-log"])
+   {
+      double t0 = options["time-dis"]["t-initial"]; // Should be passed in!!!
+      auto inputs = MachInputs({
+         {"time", t0}, {"state", state}
+      });
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         *out << "before time stepping, entropy is " << entropy << endl;
+         remove("entropy-log.txt");
+         entropy_log.open("entropy-log.txt", fstream::app);
+         entropy_log << setprecision(16);
+      }
+   }
+}
+
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDEIterationHook(int iter,
+                                                      double t,
+                                                      double dt,
+                                                      const Vector &state)
+{
+   if (options["time-dis"]["entropy-log"])
+   {
+      auto inputs = MachInputs({
+         {"time", t}, {"state", state}
+      });
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         entropy_log << t << ' ' << entropy << endl;
+      }
+   }
 }
 
 template <int dim, bool entvar>
@@ -181,10 +216,10 @@ double FlowSolver<dim, entvar>::calcStepSize(int iter, double t, double t_final,
 
 template <int dim, bool entvar>
 bool FlowSolver<dim, entvar>::iterationExit(int iter,
-                               double t,
-                               double t_final,
-                               double dt,
-                               const mfem::Vector &state) const
+                                            double t,
+                                            double t_final,
+                                            double dt,
+                                            const Vector &state) const
 {
    if (options["time-dis"]["steady"].get<bool>())
    {
@@ -203,6 +238,25 @@ bool FlowSolver<dim, entvar>::iterationExit(int iter,
    else
    {
       return AbstractSolver2::iterationExit(iter, t, t_final, dt, state);
+   }
+}
+
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDETerminalHook(int iter,
+                                    double t_final,
+                                    const mfem::Vector &state)
+{
+   if (options["time-dis"]["entropy-log"])
+   {
+      auto inputs = MachInputs({
+         {"time", t_final}, {"state", state}
+      });
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         entropy_log << t_final << ' ' << entropy << endl;
+         entropy_log.close();
+      }
    }
 }
 
