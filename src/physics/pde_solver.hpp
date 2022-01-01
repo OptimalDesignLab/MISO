@@ -129,13 +129,51 @@ protected:
    /// client overwrites this definition; however, there is a call to the 
    /// virtual function derivedPDEinitialHook(state) that the client can 
    /// overwrite.
-   virtual void initialHook(const mfem::Vector &state) final;
+   virtual void initialHook(const mfem::Vector &state) override final;
 
    /// Code in a derived class that should be executed before time-stepping
-   /// \note state is not passed through here, because it will be available to 
-   /// the client via the state field.
-   virtual void derivedPDEInitialHook() { };
-   
+   /// \param[in] state - the current state
+   virtual void derivedPDEInitialHook(const mfem::Vector &state) { }
+
+   /// For code that should be executed before `ode_solver->Step`
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   /// \param[in] state - the current state
+   /// \note This is `final` because we want to ensure that 
+   /// AbstractSolver2::iterationHook() is called.
+   virtual void iterationHook(int iter,
+                              double t,
+                              double dt,
+                              const mfem::Vector &state) override final;
+
+   /// Code in a derived class that should be executed each time step
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   /// \param[in] state - the current state
+   virtual void derivedPDEIterationHook(int iter,
+                                        double t,
+                                        double dt,
+                                        const mfem::Vector &state)
+   { }
+
+   /// For code that should be executed after the time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   virtual void terminalHook(int iter,
+                             double t_final,
+                             const mfem::Vector &state) override final;
+
+   /// Code in a derived class that should be executed after time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   virtual void derivedPDETerminalHook(int iter,
+                                       double t_final,
+                                       const mfem::Vector &state)
+   { }
 };
 
 }  // namespace mach

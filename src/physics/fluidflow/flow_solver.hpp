@@ -3,16 +3,20 @@
 
 #include "mfem.hpp"
 
+#include "flow_residual.hpp"
 #include "pde_solver.hpp"
 
 namespace mach
 {
 /// Class for solving FlowResidual based problems
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, the entropy variables are used in the integrators
 /// \note This assumes a constant mass matrix at present; that is, it does not
 /// accommodate entropy variables as states with modal or DGD-type
 /// discretizations.  However, this could be accommodated by making the mass
 /// operator its own MachResidual, and then modifying the
 /// `TimeDependentResidual` accordingly.
+template <int dim, bool entvar = false>
 class FlowSolver : public PDESolver
 {
 public:
@@ -37,6 +41,7 @@ public:
                                       int entry);
 
 private:
+   using FlowResType = FlowResidual<dim,entvar>;
    /// Initial residual norm for PTC and convergence checks
    double res_norm0 = -1.0;
    /// Bilinear form for the mass-matrix operator
@@ -45,6 +50,8 @@ private:
    std::unique_ptr<mfem::HypreParMatrix> mass_mat;
    /// Solver used for preconditioning Newton linear updates
    std::unique_ptr<mfem::Solver> prec;
+   /// used to record the total entropy
+   std::ofstream entropy_log;
 
    /// Construct a preconditioner based on the given options
    /// \param[in] options - options structure that determines preconditioner
@@ -53,7 +60,26 @@ private:
        nlohmann::json &_options);
 
    /// For code that should be executed before the time stepping begins
-   virtual void derivedPDEInitialHook() override;
+   /// \param[in] state - the current state
+   virtual void derivedPDEInitialHook(const mfem::Vector &state) override;
+
+   /// Code that should be executed each time step, before `ode_solver->Step`
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   /// \param[in] state - the current state
+   virtual void derivedPDEIterationHook(int iter,
+                                        double t,
+                                        double dt,
+                                        const mfem::Vector &state) override;
+
+   /// Code that should be executed after time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   virtual void derivedPDETerminalHook(int iter,
+                                       double t_final,
+                                       const mfem::Vector &state) override;
 
    /// Find the step size based on the options; e.g. for constant CFL or PTC
    /// \param[in] iter - the current iteration
@@ -72,13 +98,6 @@ private:
                                double t_final,
                                double dt_old,
                                const mfem::Vector &state) const override;
-
-   /// Finds the minimum time step that satisfies a given CFL number
-   /// \param[in] cfl - the target CFL number 
-   /// \returns the step size that satisfies the given CFL condition
-   /// \note I would have liked this to be a member function of the residual, 
-   /// but this works well enough for now.
-   double calcCFLTimeStep(double cfl) const;
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration

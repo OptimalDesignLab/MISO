@@ -1,5 +1,6 @@
 
 #include "diag_mass_integ.hpp"
+#include "euler_integ.hpp"
 #include "flow_solver.hpp"
 #include "flow_residual.hpp"
 #include "mfem_extensions.hpp"
@@ -105,15 +106,40 @@ getNodeErrorFunction(int dim, bool entvar)
 
 namespace mach
 {
-FlowSolver::FlowSolver(MPI_Comm incomm,
-                       const nlohmann::json &solver_options,
-                       std::unique_ptr<mfem::Mesh> smesh)
+template <int dim, bool entvar>
+FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
+                                    const nlohmann::json &solver_options,
+                                    std::unique_ptr<mfem::Mesh> smesh)
  : PDESolver(incomm, solver_options, getNumFlowStates, std::move(smesh)),
    mass(&fes())
 {
-   // Construct space-time residual from spatial residual and mass matrix
+   // Check for consistency between the template parameters, mesh, and options
+   if (mesh_->SpaceDimension() != dim)
+   {
+      throw MachException(
+          "FlowSolver<dim,entvar> constructor:\n"
+          "\tMesh space dimension does not match template"
+          "parameter dim");
+   }
+   bool ent_state = options["flow-param"].value("entropy-state", false);
+   if (ent_state != entvar)
+   {
+      throw MachException(
+          "FlowSolver<dim,entvar> constructor:\n"
+          "\tentropy-state option is inconsistent with entvar"
+          "template parameter");
+   }
+   if ( (entvar) && (!options["time-dis"]["steady"]) )
+   {
+      throw MachException(
+         "FlowSolver<dim,entvar> constructor:\n"
+         "\tnot set up for using entropy-variables as states for unsteady "
+         "problem (need nonlinear mass-integrator).");
+   }
+
+   // Construct spatial residual
    spatial_res = std::make_unique<mach::MachResidual>(
-       FlowResidual(solver_options, fes(), diff_stack));
+       FlowResidual<dim, entvar>(solver_options, fes(), diff_stack));
    const char *name = fes().FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {
@@ -121,7 +147,7 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
    }
    else
    {
-      mass.AddDomainIntegrator(new MassIntegrator());
+      mass.AddDomainIntegrator(new mfem::MassIntegrator());
    }
    mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
    mass.Finalize(0);
@@ -143,9 +169,17 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
    auto ode_opts = options["time-dis"];
    ode =
        make_unique<FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
+
+   if (options["paraview"].at("each-timestep"))
+   {
+      ParaViewLogger paraview(options["paraview"]["directory"] , mesh_.get());
+      paraview.registerField("state", fields.at("state").gridFunc());
+      addLogger(std::move(paraview), {.each_timestep=true});
+   }
 }
 
-unique_ptr<Solver> FlowSolver::constructPreconditioner(
+template <int dim, bool entvar>
+unique_ptr<Solver> FlowSolver<dim, entvar>::constructPreconditioner(
     nlohmann::json &prec_options)
 {
    std::string prec_type = prec_options["type"].get<std::string>();
@@ -202,23 +236,53 @@ unique_ptr<Solver> FlowSolver::constructPreconditioner(
    return precond;
 }
 
-void FlowSolver::derivedPDEInitialHook()
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDEInitialHook(const Vector &state)
 {
    // AbstractSolver2::initialHook(state);
    if (options["time-dis"]["steady"].template get<bool>())
    {
       // res_norm0 is used to compute the time step in PTC
-      res_norm0 = calcResidualNorm(getState());
+      res_norm0 = calcResidualNorm(state);
    }
-   // TODO: this should only be output if necessary
-   // double entropy = ent->GetEnergy(state);
-   //*out << "before time stepping, entropy is " << entropy << endl;
-   // remove("entropylog.txt");
-   // entropylog.open("entropylog.txt", fstream::app);
-   // entropylog << setprecision(14);
+   if (options["time-dis"]["entropy-log"])
+   {
+      double t0 = options["time-dis"]["t-initial"]; // Should be passed in!!!
+      auto inputs = MachInputs({
+         {"time", t0}, {"state", state}
+      });
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         *out << "before time stepping, entropy is " << entropy << endl;
+         remove("entropy-log.txt");
+         entropy_log.open("entropy-log.txt", fstream::app);
+         entropy_log << setprecision(16);
+      }
+   }
 }
 
-double FlowSolver::calcStepSize(int iter, double t, double t_final,
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDEIterationHook(int iter,
+                                                      double t,
+                                                      double dt,
+                                                      const Vector &state)
+{
+   if (options["time-dis"]["entropy-log"])
+   {
+      auto inputs = MachInputs({
+         {"time", t}, {"state", state}
+      });
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         entropy_log << t << ' ' << entropy << endl;
+      }
+   }
+}
+
+template <int dim, bool entvar>
+double FlowSolver<dim, entvar>::calcStepSize(int iter, double t, double t_final,
                                 double dt_old, const Vector &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
@@ -238,61 +302,19 @@ double FlowSolver::calcStepSize(int iter, double t, double t_final,
    }
    // Otherwise, use a constant CFL condition
    auto cfl = options["time-dis"]["cfl"].get<double>();
-   return calcCFLTimeStep(cfl);
+   // here we call the FlowResidual method for the min time step, which needs 
+   // the current state; this is provided by the state field of PDESolver, 
+   // which we access with getState()
+   return getConcrete<FlowResidual<dim, entvar>>(*spatial_res).
+      minCFLTimeStep(cfl, getState().gridFunc());
 }
 
-double FlowSolver::calcCFLTimeStep(double cfl) const
-{
-   int dim = mesh_->SpaceDimension();
-   bool entvar = options["flow-param"].value("entropy-state", false);
-   auto calcSpec = getSpectralRadiusFunction(dim, entvar);
-   double dt_local = 1e100;
-   Vector xi(dim);
-   Vector dxij(dim);
-   Vector ui;
-   Vector dxidx;
-   DenseMatrix uk;
-   DenseMatrix adjJt(dim);
-   const mfem::ParGridFunction &state_gf = getState().gridFunc();
-   for (int k = 0; k < fes().GetNE(); k++)
-   {
-      // get the element, its transformation, and the state values on element
-      const FiniteElement *fe = fes().GetFE(k);
-      const IntegrationRule *ir = &(fe->GetNodes());
-      ElementTransformation *trans = fes().GetElementTransformation(k);
-      state_gf.GetVectorValues(*trans, *ir, uk);
-      for (int i = 0; i < fe->GetDof(); ++i)
-      {
-         trans->SetIntPoint(&fe->GetNodes().IntPoint(i));
-         trans->Transform(fe->GetNodes().IntPoint(i), xi);
-         CalcAdjugateTranspose(trans->Jacobian(), adjJt);
-         uk.GetColumnReference(i, ui);
-         for (int j = 0; j < fe->GetDof(); ++j)
-         {
-            if (j == i)
-            {
-               continue;
-            }
-            trans->Transform(fe->GetNodes().IntPoint(j), dxij);
-            dxij -= xi;
-            double dx = dxij.Norml2();
-            dt_local =
-                min(dt_local,
-                    cfl * dx * dx /
-                        calcSpec(dxij, ui));  // extra dx is to normalize dxij
-         }
-      }
-   }
-   double dt_min = NAN;
-   MPI_Allreduce(&dt_local, &dt_min, 1, MPI_DOUBLE, MPI_MIN, comm);
-   return dt_min;
-}
-
-bool FlowSolver::iterationExit(int iter,
-                               double t,
-                               double t_final,
-                               double dt,
-                               const mfem::Vector &state) const
+template <int dim, bool entvar>
+bool FlowSolver<dim, entvar>::iterationExit(int iter,
+                                            double t,
+                                            double t_final,
+                                            double dt,
+                                            const Vector &state) const
 {
    if (options["time-dis"]["steady"].get<bool>())
    {
@@ -314,55 +336,44 @@ bool FlowSolver::iterationExit(int iter,
    }
 }
 
-double FlowSolver::calcConservativeVarsL2Error(
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDETerminalHook(int iter,
+                                    double t_final,
+                                    const mfem::Vector &state)
+{
+   if (options["time-dis"]["entropy-log"])
+   {
+      auto inputs = MachInputs({
+         {"time", t_final}, {"state", state}
+      });
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         entropy_log << t_final << ' ' << entropy << endl;
+         entropy_log.close();
+      }
+   }
+}
+
+template <int dim, bool entvar>
+double FlowSolver<dim, entvar>::calcConservativeVarsL2Error(
     void (*u_exact)(const mfem::Vector &, mfem::Vector &),
     int entry)
 {
-   int dim = mesh_->SpaceDimension();
-   bool entvar = options["flow-param"].value("entropy-state", false);
-   // Following function, defined earlier in file, computes the error at a node
-   // Beware: this is not particularly efficient, and **NOT thread safe!**
-   auto node_error = getNodeErrorFunction(dim, entvar);
-   VectorFunctionCoefficient exsol(dim + 2, u_exact);
-   DenseMatrix vals;
-   DenseMatrix exact_vals;
-   Vector u_j;
-   Vector exsol_j;
-   double loc_norm = 0.0;
-   const mfem::ParGridFunction &state_gf = getState().gridFunc();
-   for (int i = 0; i < fes().GetNE(); i++)
-   {
-      const FiniteElement *fe = fes().GetFE(i);
-      const IntegrationRule *ir = &(fe->GetNodes());
-      ElementTransformation *T = fes().GetElementTransformation(i);
-      state_gf.GetVectorValues(*T, *ir, vals);
-      exsol.Eval(exact_vals, *T, *ir);
-      for (int j = 0; j < ir->GetNPoints(); j++)
-      {
-         const IntegrationPoint &ip = ir->IntPoint(j);
-         T->SetIntPoint(&ip);
-         vals.GetColumnReference(j, u_j);
-         exact_vals.GetColumnReference(j, exsol_j);
-         loc_norm += ip.weight * T->Weight() * node_error(u_j, exsol_j, entry);
-      }
-   }
-   double norm = NAN;
-   MPI_Allreduce(&loc_norm, &norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   if (norm < 0.0)  // This was copied from mfem...should not happen for us
-   {
-      return -sqrt(-norm);
-   }
-   return sqrt(norm);
+   return getConcrete<FlowResidual<dim, entvar>>(*spatial_res)
+       .calcConservativeVarsL2Error(getState().gridFunc(), u_exact, entry);
 }
 
-void FlowSolver::addOutput(const std::string &fun,
-                           const nlohmann::json &options)
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::addOutput(const std::string &fun,
+                                        const nlohmann::json &options)
 {
-   int dim = mesh_->SpaceDimension();
-   double mach_fs = getConcrete<FlowResidual>(*spatial_res).getMach();
-   double aoa_fs = getConcrete<FlowResidual>(*spatial_res).getAoA();
-   int iroll = getConcrete<FlowResidual>(*spatial_res).getIRoll();
-   int ipitch = getConcrete<FlowResidual>(*spatial_res).getIPitch();
+   FlowResidual<dim, entvar> &flow_res =
+       getConcrete<FlowResidual<dim, entvar>>(*spatial_res);
+   double mach_fs = flow_res.getMach();
+   double aoa_fs = flow_res.getAoA();
+   int iroll = flow_res.getIRoll();
+   int ipitch = flow_res.getIPitch();
    if (fun == "drag")
    {
       // drag on the specified boundaries
@@ -379,11 +390,11 @@ void FlowSolver::addOutput(const std::string &fun,
          drag_dir(ipitch) = sin(aoa_fs);
       }
       drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
-      FunctionalOutput out(fes(), res_fields);
-      out.addOutputBdrFaceIntegrator(
-          new PressureForce<dim, entvar>(diff_stack, fec().get(), drag_dir),
+      FunctionalOutput fun_out(fes(), fields);
+      fun_out.addOutputBdrFaceIntegrator(
+          new PressureForce<dim, entvar>(diff_stack, &state().coll(), drag_dir),
           std::move(bdrs));
-      outputs.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(fun_out));
    }
    else if (fun == "lift")
    {
@@ -401,12 +412,17 @@ void FlowSolver::addOutput(const std::string &fun,
          lift_dir(ipitch) = cos(aoa_fs);
       }
       lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
-
-      FunctionalOutput out(fes(), res_fields);
-      out.addOutputBdrFaceIntegrator(
-          new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+      FunctionalOutput fun_out(fes(), fields);
+      fun_out.addOutputBdrFaceIntegrator(
+          new PressureForce<dim, entvar>(diff_stack, &state().coll(), lift_dir),
           std::move(bdrs));
-      outputs.emplace(fun, std::move(out));
+      outputs.emplace(fun, std::move(fun_out));
+   }
+   else if (fun == "entropy")
+   {
+      // global entropy
+      EntropyOutput<dim,entvar> fun_out(flow_res);
+      outputs.emplace(fun, std::move(fun_out));
    }
    else
    {
@@ -415,6 +431,14 @@ void FlowSolver::addOutput(const std::string &fun,
                           "FlowSolver!\n");
    }
 }
+
+// explicit instantiation
+template class FlowSolver<1, true>;
+template class FlowSolver<1, false>;
+template class FlowSolver<2, true>;
+template class FlowSolver<2, false>;
+template class FlowSolver<3, true>;
+template class FlowSolver<3, false>;
 
 /*
 Notes:

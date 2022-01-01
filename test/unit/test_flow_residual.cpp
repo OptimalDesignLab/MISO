@@ -47,7 +47,7 @@ TEST_CASE("FlowResidual construction and evaluation", "[FlowResidual]")
    ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
 
    // construct the residual
-   FlowResidual res(options, fespace, diff_stack);
+   FlowResidual<dim,false> res(options, fespace, diff_stack);
    int num_var = getSize(res);
    REQUIRE(num_var == 132);
 
@@ -96,7 +96,7 @@ TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
    // construct the residual with no dissipation and using IR flux
    options["space-dis"]["lps-coeff"] = 0.0;
    options["space-dis"]["flux-fun"] = "IR"; 
-   FlowResidual res(options, fespace, diff_stack);
+   FlowResidual<dim,false> res(options, fespace, diff_stack);
    int num_var = getSize(res);
 
    // create a randomly perturbed conservative variable state

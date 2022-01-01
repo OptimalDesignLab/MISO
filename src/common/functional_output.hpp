@@ -6,6 +6,7 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "finite_element_state.hpp"
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
 
@@ -58,11 +59,20 @@ public:
     : output(&fes), func_fields(&fields)
    { }
 
+   FunctionalOutput(
+      mfem::ParFiniteElementSpace &fes,
+      std::map<std::string, FiniteElementState> &fields)
+    : output(&fes), fun_fields(&fields)
+   { }
+
 private:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm output;
    /// map of external fields the functional depends on
-   std::unordered_map<std::string, mfem::ParGridFunction> *func_fields;
+   std::unordered_map<std::string, mfem::ParGridFunction> *func_fields =
+       nullptr;
+   /// map of external fields the functional depends on
+   std::map<std::string, FiniteElementState> *fun_fields = nullptr;
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
@@ -82,8 +92,16 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddDomainIntegrator(integrator);
-   mach::addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   if (func_fields)
+   {
+      mach::addSensitivityIntegrator(
+          *integrator, *func_fields, output_sens, output_scalar_sens);
+   }
+   else
+   {
+      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator" <<
+          "is not set up to work with FiniteElementState.\n";
+   }
 }
 
 template <typename T>
@@ -91,8 +109,16 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddInteriorFaceIntegrator(integrator);
-   mach::addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   if (func_fields)
+   {
+      mach::addSensitivityIntegrator(
+          *integrator, *func_fields, output_sens, output_scalar_sens);
+   }
+   else
+   {
+      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator" <<
+          "is not set up to work with FiniteElementState.\n";
+   }
 }
 
 template <typename T>
@@ -104,8 +130,17 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
    bdr_markers.emplace_back(bdr_attr_marker.size());
    bdr_markers.back().Assign(bdr_attr_marker.data());
    output.AddBdrFaceIntegrator(integrator, bdr_markers.back());
-   mach::addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   if (func_fields)
+   {
+      mach::addSensitivityIntegrator(
+          *integrator, *func_fields, output_sens, output_scalar_sens);
+   }
+   else
+   {
+      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator" <<
+          "is not set up to work with FiniteElementState.\n";
+   }
+
 }
 
 }  // namespace mach
