@@ -399,6 +399,36 @@ TEST_CASE( "calcBoundaryFlux is correct", "[bndry-flux]")
    }
 }
 
+TEST_CASE( "calcBoundaryFluxEC is correct", "[bndry-flux]")
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors
+   mfem::Vector q(4);
+   mfem::Vector flux(4);
+   mfem::Vector qbnd(4);
+   mfem::Vector nrm(2);
+   mfem::Vector w(4);
+   q(0) = rho;
+   q(3) = rhoe;
+   qbnd(0) = rho2;
+   qbnd(3) = rhoe2;
+   for (int di = 0; di < 2; ++di)
+   {
+      q(di+1) = rhou[di];
+      qbnd(di+1) = rhou2[di];
+      nrm(di) = dir[di];
+   }
+   double psi = mach::dot<double,2>(rhou, dir);
+   double Un = mach::dot<double,2>(rhou2, dir)/rho2;
+   double entflux = Un*mach::entropy<double,2>(qbnd.GetData());
+   mach::calcBoundaryFluxEC<double,2>(nrm.GetData(), qbnd.GetData(),
+                                      q.GetData(), entflux, 
+                                      flux.GetData());
+   mach::calcEntropyVars<double,2>(q.GetData(), w.GetData());
+   REQUIRE( mach::dot<double,4>(w.GetData(), flux.GetData())
+            == Approx(entflux + psi) );
+}
+
 TEST_CASE( "calcIsentropicVortexFlux is correct", "[vortex-flux]")
 {
    using namespace euler_data;

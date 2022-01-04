@@ -679,6 +679,39 @@ void calcBoundaryFlux(const xdouble *dir,
    flux[dim + 1] += Edq * (E2dq_fac * Un + E34dq_fac * H);
 }
 
+/// Boundary flux that is constrained to have given entropy flux
+/// \param[in] dir - direction in which the flux is desired
+/// \param[in] qbnd - boundary values of the conservative variables
+/// \param[in] q - interior domain values of the conservative variables
+/// \param[in] entflux - entropy flux constraint
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcBoundaryFluxEC(const xdouble *dir,
+                        const xdouble *qbnd,
+                        const xdouble *q,
+                        const xdouble entflux,
+                        xdouble *flux)
+{
+   // first, get the conventional boundary flux and entropy variables
+   xdouble w[dim+2];
+   calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, w, flux);
+   calcEntropyVars<xdouble, dim>(q, w);
+   // next, get the entropy flux difference
+   const xdouble psi = dot<xdouble, dim>(q + 1, dir);
+   xdouble dF = dot<xdouble, dim+2>(w, flux) - psi - entflux;
+   // Compute A_0*w, and w^T A_0 w
+   xdouble Aw[dim+2];
+   calcdQdWProduct<xdouble, dim>(q, w, Aw);
+   dF /= dot<xdouble, dim+2>(w, Aw);
+   // subtract the flux correction
+   for (int i = 0; i < dim+2; ++i)
+   {
+      flux[i] -= dF*Aw[i]; 
+   }
+}
+
 /// Boundary flux that uses characteristics to determine which state to use
 /// \param[in] dir - direction in which the flux is desired
 /// \param[in] qbnd - boundary values of the **conservative** variables
@@ -842,6 +875,7 @@ void calcSlipWallFlux(const xdouble *x,
    }
    flux[dim + 1] = 0.0;
 }
+
 /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
 /// \param[in] q - conservative variables that are to be converted
 /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
