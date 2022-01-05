@@ -267,17 +267,10 @@ double FlowResidual<dim, entvar>::calcConservativeVarsL2Error(
    Vector qexact(dim + 2);  // define here to avoid reallocation
    auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
    {
-      if constexpr(entvar)
-      {
-         calcConservativeVars<double, dim>(discrete.GetData(),
-                                           qdiscrete.GetData());
-         calcConservativeVars<double, dim>(exact.GetData(), qexact.GetData());
-      }
-      else
-      {
-         qdiscrete = discrete;
-         qexact = exact;
-      }
+      calcConservativeVars<double, dim, entvar>(discrete.GetData(),
+                                                qdiscrete.GetData());
+      calcConservativeVars<double, dim, entvar>(exact.GetData(),
+                                                qexact.GetData());
       double err = 0.0;
       if (entry < 0)
       {

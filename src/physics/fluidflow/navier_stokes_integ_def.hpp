@@ -103,7 +103,7 @@ double NoSlipAdiabaticWallBC<dim>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(u.Size());
    calcFlux(x, dir, jac, u, Dw, flux_vec);
    mfem::Vector w(u.Size());
-   calcEntropyVars<double, dim>(u.GetData(), w.GetData());
+   calcEntropyVars<double, dim, false>(u.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -193,7 +193,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(const mfem::Vector &x,
    mu_Re /= Re;
    mach::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
-   for (int i = 0; i < flux_a.size(); ++i)
+   for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
    }
@@ -206,7 +206,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(const mfem::Vector &x,
                                              q_a.data(),
                                              work_vec_a.data());
 
-   for (int i = 0; i < flux_a.size(); ++i)
+   for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] += work_vec_a[i];
    }
@@ -253,7 +253,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(
    mu_Re /= Re;
    mach::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
-   for (int i = 0; i < flux_a.size(); ++i)
+   for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
    }
@@ -265,7 +265,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(
                                              qfs_a.data(),
                                              q_a.data(),
                                              work_vec_a.data());
-   for (int i = 0; i < flux_a.size(); ++i)
+   for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] += work_vec_a[i];
    }
@@ -334,7 +334,7 @@ double ViscousSlipWallBC<dim>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(u.Size());
    calcFlux(x, dir, jac, u, Dw, flux_vec);
    mfem::Vector w(u.Size());
-   calcEntropyVars<double, dim>(u.GetData(), w.GetData());
+   calcEntropyVars<double, dim, false>(u.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -520,7 +520,7 @@ double ViscousInflowBC<dim>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(u.Size());
    calcFlux(x, dir, jac, u, Dw, flux_vec);
    mfem::Vector w(u.Size());
-   calcEntropyVars<double, dim>(u.GetData(), w.GetData());
+   calcEntropyVars<double, dim, false>(u.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -630,7 +630,7 @@ double ViscousOutflowBC<dim>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(u.Size());
    calcFlux(x, dir, jac, u, Dw, flux_vec);
    mfem::Vector w(u.Size());
-   calcEntropyVars<double, dim>(u.GetData(), w.GetData());
+   calcEntropyVars<double, dim, false>(u.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -756,7 +756,7 @@ double ViscousFarFieldBC<dim>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(u.Size());
    calcFlux(x, dir, jac, u, Dw, flux_vec);
    mfem::Vector w(u.Size());
-   calcEntropyVars<double, dim>(u.GetData(), w.GetData());
+   calcEntropyVars<double, dim, false>(u.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -821,7 +821,7 @@ double ViscousExactBC<dim>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(u.Size());
    calcFlux(x, dir, jac, u, Dw, flux_vec);
    mfem::Vector w(u.Size());
-   calcEntropyVars<double, dim>(u.GetData(), w.GetData());
+   calcEntropyVars<double, dim, false>(u.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -1062,7 +1062,7 @@ void SurfaceForce<dim>::calcBndryFunJacState(const mfem::Vector &x,
    mu_Re /= Re;
    mach::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
-   for (int i = 0; i < flux_a.size(); ++i)
+   for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
    }
@@ -1074,7 +1074,7 @@ void SurfaceForce<dim>::calcBndryFunJacState(const mfem::Vector &x,
                                              qfs_a.data(),
                                              q_a.data(),
                                              work_vec_a.data());
-   for (int i = 0; i < flux_a.size(); ++i)
+   for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] += work_vec_a[i];
    }
@@ -1124,7 +1124,7 @@ void SurfaceForce<dim>::calcBndryFunJacDw(const mfem::Vector &x,
    mu_Re /= Re;
    mach::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
-   for (int i = 0; i < flux_a.size(); ++i)
+   for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
    }
@@ -1136,7 +1136,7 @@ void SurfaceForce<dim>::calcBndryFunJacDw(const mfem::Vector &x,
                                              qfs_a.data(),
                                              q_a.data(),
                                              work_vec_a.data());
-   for (int i = 0; i < flux_a.size(); ++i)
+   for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] += work_vec_a[i];
    }

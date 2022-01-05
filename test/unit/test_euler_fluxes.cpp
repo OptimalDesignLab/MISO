@@ -46,7 +46,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    SECTION("Entropy function is correct when using entropy variables")
    {
       mfem::Vector w(dim + 2);
-      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
       REQUIRE(mach::entropy<double, dim, true>(w.GetData()) ==
               Approx(entropy_check[dim - 1]));
    }
@@ -110,8 +110,8 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       DYNAMIC_SECTION( "Ismail-Roe flux (based on entropy vars) is correct in direction " << di )
       {
          mfem::Vector wL(dim + 2), wR(dim + 2);
-         mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
-         mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+         mach::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
+         mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
          mach::calcIsmailRoeFluxUsingEntVars<double, dim>(di, wL.GetData(),
                                                           wR.GetData(),
                                                           flux.GetData());
@@ -148,8 +148,8 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // evaluate the dissipation externally (since we cannot use fluxIR_check
       // data here directly)
       mfem::Vector wL(dim+2), wR(dim+2);
-      mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
-      mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+      mach::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
+      mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
       mfem::Vector q_avg(dim+2);
       add(0.5, q, 0.5, qR, q_avg);
       mfem::Vector dqdw(dim+2);
@@ -175,8 +175,8 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       // get flux from function
       mfem::Vector wL(dim+2), wR(dim+2);
-      mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
-      mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+      mach::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
+      mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
       mach::calcIsmailRoeFaceFluxUsingEntVars<double, dim>(
          nrm.GetData(), wL.GetData(), wR.GetData(), flux.GetData());
       for (int i = 0; i < dim+2; ++i)
@@ -195,8 +195,8 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       // get flux from function
       mfem::Vector wL(dim+2), wR(dim+2);
-      mach::calcEntropyVars<double, dim>(q.GetData(), wL.GetData());
-      mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+      mach::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
+      mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
       double diss_coeff = 1.0;
       mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
           nrm.GetData(), diss_coeff, wL.GetData(), wR.GetData(), flux.GetData());
@@ -230,7 +230,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // the following constructor is to find the appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector entvar_vec(entvar_check + offset, dim + 2);
-      mach::calcEntropyVars<double,dim>(q.GetData(), qR.GetData());
+      mach::calcEntropyVars<double,dim,false>(q.GetData(), qR.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
          REQUIRE( qR(i) == Approx(entvar_vec(i)) );
@@ -243,7 +243,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // the following constructor is to find the appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector w(entvar_check + offset, dim + 2);
-      mach::calcConservativeVars<double,dim>(w.GetData(), qR.GetData());
+      mach::calcConservativeVars<double,dim,true>(w.GetData(), qR.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
          REQUIRE( qR(i) == Approx(q(i)) );
@@ -307,7 +307,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector flux_vec(flux_check + offset, dim + 2);
       mfem::Vector w(dim+2);
-      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
       mach::calcFarFieldFlux<double, dim, true>(nrm.GetData(), q.GetData(),
                                                 w.GetData(), work.GetData(),
                                                 flux.GetData());
@@ -358,7 +358,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // term flux[1:dim] = pressure*dir[0:dim-1]
       mfem::Vector x(dim);
       mfem::Vector w(dim + 2);
-      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
       mach::calcSlipWallFlux<double, dim, true>(x.GetData(), q.GetData() + 1,
                                                 w.GetData(), flux.GetData());
       double press = mach::pressure<double,dim>(q.GetData());
@@ -424,7 +424,7 @@ TEST_CASE( "calcBoundaryFluxEC is correct", "[bndry-flux]")
    mach::calcBoundaryFluxEC<double,2>(nrm.GetData(), qbnd.GetData(),
                                       q.GetData(), entflux, 
                                       flux.GetData());
-   mach::calcEntropyVars<double,2>(q.GetData(), w.GetData());
+   mach::calcEntropyVars<double,2,false>(q.GetData(), w.GetData());
    REQUIRE( mach::dot<double,4>(w.GetData(), flux.GetData())
             == Approx(entflux + psi) );
 }

@@ -75,7 +75,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -186,7 +186,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -327,7 +327,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -474,7 +474,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -623,7 +623,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -772,7 +772,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -929,7 +929,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -1120,7 +1120,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`

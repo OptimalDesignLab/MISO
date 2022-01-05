@@ -84,10 +84,10 @@ void randBaselineVectorPert(const Vector &x, Vector &u)
     {
         u(di + 1) = rhou[di] * (1.0 + scale * uniform_rand(gen));
     }
-    if (entvar)
+    if constexpr(entvar)
     {
        Vector q(u);
-       mach::calcEntropyVars<double, dim>(q.GetData(), u.GetData());
+       mach::calcEntropyVars<double, dim, false>(q.GetData(), u.GetData());
     }
 }
 // explicit instantiation of the templated function above

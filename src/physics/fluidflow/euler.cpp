@@ -325,15 +325,8 @@ double EulerSolver<dim, entvar>::calcStepSize(
    Vector q(dim + 2);
    auto calcSpect = [&q](const double *dir, const double *u)
    {
-      if (entvar)
-      {
-         calcConservativeVars<double, dim>(u, q);
-         return calcSpectralRadius<double, dim>(dir, q);
-      }
-      else
-      {
-         return calcSpectralRadius<double, dim>(dir, u);
-      }
+      calcConservativeVars<double, dim, entvar>(u, q);
+      return calcSpectralRadius<double, dim>(dir, q);
    };
    double dt_local = 1e100;
    Vector xi(dim);
@@ -405,17 +398,10 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    Vector qexact(dim + 2);  // define here to avoid reallocation
    auto node_error = [&](const Vector &discrete, const Vector &exact) -> double
    {
-      if (entvar)
-      {
-         calcConservativeVars<double, dim>(discrete.GetData(),
-                                           qdiscrete.GetData());
-         calcConservativeVars<double, dim>(exact.GetData(), qexact.GetData());
-      }
-      else
-      {
-         qdiscrete = discrete;
-         qexact = exact;
-      }
+      calcConservativeVars<double, dim, entvar>(discrete.GetData(),
+                                                qdiscrete.GetData());
+      calcConservativeVars<double, dim, entvar>(exact.GetData(),
+                                                qexact.GetData());
       double err = 0.0;
       if (entry < 0)
       {
@@ -467,7 +453,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
 {
-   if (entvar)
+   if constexpr(entvar)
    {
       return;
    }
@@ -488,7 +474,8 @@ void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
                vdofs[k] = offset + k;
             }
             u->GetSubVector(vdofs, el_con);
-            calcEntropyVars<double, dim>(el_con.GetData(), el_ent.GetData());
+            calcEntropyVars<double, dim, false>(el_con.GetData(),
+                                                el_ent.GetData());
             state.SetSubVector(vdofs, el_ent);
          }
       }

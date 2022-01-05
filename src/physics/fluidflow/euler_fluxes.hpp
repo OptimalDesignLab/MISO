@@ -68,54 +68,76 @@ void getFreeStreamQ(xdouble mach_fs,
    q[dim + 1] = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
 }
 
-/// Convert conservative variables `q` to entropy variables `w`
-/// \param[in] q - conservative variables that we want to convert from
+/// Convert state variables `q` to entropy variables `w`
+/// \param[in] q - state variables that we want to convert from
 /// \param[out] w - entropy variables we want to convert to
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
+/// \tparam entvar - if true q = conservative vars, if false q = entropy vars
+template <typename xdouble, int dim, bool entvar>
 void calcEntropyVars(const xdouble *q, xdouble *w)
 {
-   xdouble u[dim];
-   for (int i = 0; i < dim; ++i)
+   if constexpr(entvar)
    {
-      u[i] = q[i + 1] / q[0];
+      for (int i = 0; i < dim+2; ++i)
+      {
+         w[i] = q[i];
+      }
    }
-   auto p = pressure<xdouble, dim>(q);
-   xdouble s = log(p / pow(q[0], euler::gamma));
-   xdouble fac = 1.0 / p;
-   w[0] = (euler::gamma - s) / euler::gami -
-          0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
-   for (int i = 0; i < dim; ++i)
+   else 
    {
-      w[i + 1] = q[i + 1] * fac;
+      xdouble u[dim];
+      for (int i = 0; i < dim; ++i)
+      {
+         u[i] = q[i + 1] / q[0];
+      }
+      auto p = pressure<xdouble, dim>(q);
+      xdouble s = log(p / pow(q[0], euler::gamma));
+      xdouble fac = 1.0 / p;
+      w[0] = (euler::gamma - s) / euler::gami -
+              0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
+      for (int i = 0; i < dim; ++i)
+      {
+         w[i + 1] = q[i + 1] * fac;
+      }
+      w[dim + 1] = -q[0] * fac;
    }
-   w[dim + 1] = -q[0] * fac;
 }
 
 /// Convert entropy variables `w` to conservative variables `q`
-/// \param[in] w - entropy variables we want to convert from
+/// \param[in] w - state variables we want to convert from
 /// \param[out] q - conservative variables that we want to convert to
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
+/// \tparam entvar - if true q = conservative vars, if false q = entropy vars
+template <typename xdouble, int dim, bool entvar>
 void calcConservativeVars(const xdouble *w, xdouble *q)
 {
-   xdouble u[dim];
-   xdouble Vel2 = 0.0;
-   for (int i = 0; i < dim; ++i)
+   if constexpr(entvar)
    {
-      u[i] = -w[i + 1] / w[dim + 1];
-      Vel2 += u[i] * u[i];
+      xdouble u[dim];
+      xdouble Vel2 = 0.0;
+      for (int i = 0; i < dim; ++i)
+      {
+         u[i] = -w[i + 1] / w[dim + 1];
+         Vel2 += u[i] * u[i];
+      }
+      xdouble s = euler::gamma + euler::gami * (0.5 * Vel2 * w[dim + 1] - w[0]);
+      q[0] = pow(-exp(-s) / w[dim + 1], 1.0 / euler::gami);
+      for (int i = 0; i < dim; ++i)
+      {
+         q[i + 1] = q[0] * u[i];
+      }
+      xdouble p = -q[0] / w[dim + 1];
+      q[dim + 1] = p / euler::gami + 0.5 * q[0] * Vel2;
    }
-   xdouble s = euler::gamma + euler::gami * (0.5 * Vel2 * w[dim + 1] - w[0]);
-   q[0] = pow(-exp(-s) / w[dim + 1], 1.0 / euler::gami);
-   for (int i = 0; i < dim; ++i)
+   else
    {
-      q[i + 1] = q[0] * u[i];
+      for (int i = 0; i < dim+2; ++i)
+      {
+         q[i] = w[i];
+      }
    }
-   xdouble p = -q[0] / w[dim + 1];
-   q[dim + 1] = p / euler::gami + 0.5 * q[0] * Vel2;
 }
 
 /// Mathematical entropy function rho*s/(gamma-1), where s = ln(p/rho^gamma)
@@ -129,9 +151,9 @@ inline xdouble entropy(const xdouble *q)
    if (entvar)
    {
       auto Vel2 = dot<xdouble, dim>(q + 1, q + 1);  // Vel2*rho^2/p^2
-      double s =
+      xdouble s =
           -euler::gamma + euler::gami * (q[0] - 0.5 * Vel2 / q[dim + 1]);  // -s
-      double rho = pow(-exp(s) / q[dim + 1], 1.0 / euler::gami);
+      xdouble rho = pow(-exp(s) / q[dim + 1], 1.0 / euler::gami);
       return rho * s / euler::gami;
    }
    else
@@ -497,17 +519,7 @@ template <typename xdouble, int dim, bool entvar = false>
 xdouble calcSpectralRadius(const xdouble *dir, const xdouble *u)
 {
    xdouble q[dim + 2];
-   if (entvar)
-   {
-      calcConservativeVars<xdouble, dim>(u, q);
-   }
-   else
-   {
-      for (int i = 0; i < dim + 2; ++i)
-      {
-         q[i] = u[i];
-      }
-   }
+   calcConservativeVars<xdouble, dim, entvar>(u, q);
    auto press = pressure<xdouble, dim>(q);
    xdouble sndsp = sqrt(euler::gamma * press / q[0]);
    // U = u*dir[0] + v*dir[1] + ...
@@ -596,7 +608,7 @@ void applyLPSScalingUsingEntVars(const xdouble *adjJ,
                                  xdouble *mat_vec)
 {
    xdouble q[dim + 2];
-   calcConservativeVars<xdouble, dim>(w, q);
+   calcConservativeVars<xdouble, dim, true>(w, q);
    applyLPSScaling<xdouble, dim>(adjJ, q, vec, mat_vec);
 }
 
@@ -697,7 +709,7 @@ void calcBoundaryFluxEC(const xdouble *dir,
    // first, get the conventional boundary flux and entropy variables
    xdouble w[dim+2];
    calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, w, flux);
-   calcEntropyVars<xdouble, dim>(q, w);
+   calcEntropyVars<xdouble, dim, false>(q, w);
    // next, get the entropy flux difference
    const xdouble psi = dot<xdouble, dim>(q + 1, dir);
    xdouble dF = dot<xdouble, dim+2>(w, flux) - psi - entflux;
@@ -730,16 +742,9 @@ void calcFarFieldFlux(const xdouble *dir,
                       xdouble *work,
                       xdouble *flux)
 {
-   if (entvar)
-   {
-      xdouble qcons[dim + 2];
-      calcConservativeVars<xdouble, dim>(q, qcons);
-      calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
-   }
-   else
-   {
-      calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, work, flux);
-   }
+   xdouble qcons[dim + 2];
+   calcConservativeVars<xdouble, dim, entvar>(q, qcons);
+   calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
 }
 
 /// Isentropic vortex exact state as a function of position
@@ -800,16 +805,9 @@ void calcIsentropicVortexFlux(const xdouble *x,
    xdouble qbnd[4];
    xdouble work[4];
    calcIsentropicVortexState<xdouble>(x, qbnd);
-   if (entvar)
-   {
-      xdouble qcons[4];
-      calcConservativeVars<xdouble, 2>(q, qcons);
-      calcBoundaryFlux<xdouble, 2>(dir, qbnd, qcons, work, flux);
-   }
-   else
-   {
-      calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
-   }
+   xdouble qcons[4];
+   calcConservativeVars<xdouble, 2, entvar>(q, qcons);
+   calcBoundaryFlux<xdouble, 2>(dir, qbnd, qcons, work, flux);
 }
 
 /// removes the component of momentum normal to the wall from `q`
@@ -893,7 +891,7 @@ void convertVarsJac(const mfem::Vector &q,
    // create vector of active output variables
    std::vector<adouble> w_a(q.Size());
    // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+   calcEntropyVars<adouble, dim, false>(q_a.data(), w_a.data());
    // identify independent and dependent variables
    stack.independent(q_a.data(), q.Size());
    stack.dependent(w_a.data(), q.Size());
@@ -1008,8 +1006,8 @@ void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir,
    xdouble wR[dim + 2];
    xdouble w_diff[dim + 2];
    xdouble dqdw_vec[dim + 2];
-   calcEntropyVars<xdouble, dim>(qL, wL);  // first convert to entropy vars
-   calcEntropyVars<xdouble, dim>(qR, wR);
+   calcEntropyVars<xdouble, dim, false>(qL, wL);  // convert to entropy vars
+   calcEntropyVars<xdouble, dim, false>(qR, wR);
    for (int i = 0; i < dim + 2; i++)
    {
       q_ave[i] = 0.5 * (qL[i] + qR[i]);
@@ -1089,8 +1087,8 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    xdouble q_ave[dim + 2];
    xdouble w_diff[dim + 2];
    xdouble dqdw_vec[dim + 2];
-   calcConservativeVars<xdouble, dim>(wL, qL);
-   calcConservativeVars<xdouble, dim>(wR, qR);
+   calcConservativeVars<xdouble, dim, true>(wL, qL);
+   calcConservativeVars<xdouble, dim, true>(wR, qR);
    for (int i = 0; i < dim + 2; i++)
    {
       q_ave[i] = 0.5 * (qL[i] + qR[i]);

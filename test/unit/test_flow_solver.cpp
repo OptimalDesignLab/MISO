@@ -38,7 +38,7 @@ void vortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
    w.SetSize(4);
    mfem::Vector q(4);
    vortexExact(x, q);
-   mach::calcEntropyVars<double, 2>(q.GetData(), w.GetData());
+   mach::calcEntropyVars<double, 2, true>(q.GetData(), w.GetData());
 }
 
 // TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on unsteady isentropic vortex",
@@ -100,7 +100,7 @@ TEST_CASE("Testing FlowSolver on unsteady isentropic vortex", "[FlowSolver]")
          "entropy": {}
       }
    })"_json;
-   if (entvar)
+   if constexpr(entvar)
    {
       options["flow-param"].at("entropy-state") = true;
    }
@@ -195,7 +195,7 @@ void steadyVortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
    w.SetSize(4);
    mfem::Vector q(4);
    steadyVortexExact(x, q);
-   mach::calcEntropyVars<double, 2>(q.GetData(), w.GetData());
+   mach::calcEntropyVars<double, 2, false>(q.GetData(), w.GetData());
 }
 
 TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on steady isentropic vortex",
