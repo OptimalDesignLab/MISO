@@ -20,6 +20,7 @@ set(SANDBOX_SRCS
    viscous_shock
    airfoil_steady
    airfoil_chaotic
+   forced_box
    # magnetostatic_box
    magnetostatic_motor
    magnetostatic_wire

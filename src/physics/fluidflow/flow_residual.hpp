@@ -15,9 +15,9 @@ namespace mach
 /// Class for flow equations that follows the MachResidual API
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, the entropy variables are used in the integrators
-/// \note We do not use friend functions with this class because it is 
+/// \note We do not use friend functions with this class because it is
 /// templated, which would require a large number of forward declaration.
-/// Instead we define member functions needed by the MachResidual interface, 
+/// Instead we define member functions needed by the MachResidual interface,
 /// and then use these in non-friend functions.
 template <int dim, bool entvar = false>
 class FlowResidual final
@@ -181,7 +181,8 @@ void setOptions(FlowResidual<dim, entvar> &residual,
 /// behavior is controlled by setting `options["implicit"]` to true and
 /// passing this to `setOptions`.
 template <int dim, bool entvar>
-void evaluate(FlowResidual<dim, entvar> &residual, const MachInputs &inputs,
+void evaluate(FlowResidual<dim, entvar> &residual,
+              const MachInputs &inputs,
               mfem::Vector &res_vec)
 {
    residual.evaluate_(inputs, res_vec);
@@ -252,7 +253,9 @@ public:
    friend double calcOutputPartial(EntropyOutput &output,
                                    const std::string &wrt,
                                    const MachInputs &inputs)
-   { return 0.0; }
+   {
+      return 0.0;
+   }
    friend void calcOutputPartial(EntropyOutput &output,
                                  const std::string &wrt,
                                  const MachInputs &inputs,

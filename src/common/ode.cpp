@@ -162,11 +162,13 @@ double calcEntropyChange(TimeDependentResidual &residual,
 
 FirstOrderODE::FirstOrderODE(MachResidual &residual,
                              const nlohmann::json &ode_options,
-                             mfem::Solver &solver)
+                             mfem::Solver &solver,
+                             std::ostream *out_stream)
  : EntropyConstrainedOperator(getSize(residual), 0.0),
    //  : TimeDependentOperator(getSize(residual), 0.0),
    residual_(residual),
-   solver_(solver)
+   solver_(solver),
+   out(out_stream)
 // zero_(getSize(residual))
 {
    solver_.iterative_mode = false;
@@ -197,7 +199,7 @@ void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
    }
    else if (timestepper == "RRK")
    {
-      ode_solver_ = std::make_unique<mach::RRKImplicitMidpointSolver>();
+      ode_solver_ = std::make_unique<mach::RRKImplicitMidpointSolver>(out);
    }
    else if (timestepper == "PTC")
    {

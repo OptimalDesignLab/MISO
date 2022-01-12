@@ -8,24 +8,24 @@ namespace mach
 
 const nlohmann::json default_options{
     {"print-options", true},  // print out options when solver is constructed
-    {"paraview", // options related to paraview visualization 
-     { 
+    {"paraview",              // options related to paraview visualization
+     {
          {"directory", "solver"},
-         {"each-timestep", false} // if true, paraview file is saved each step
+         {"each-timestep", false}  // if true, paraview file is saved each step
      }},
 
-    {"flow-param",            // options related to flow simulations
+    {"flow-param",  // options related to flow simulations
      {
-         {"entropy-state", false}, // if true, the states are entropy variables
-         {"mach", 0.5},      // far-field mach number
-         {"aoa", 0.0},       // far-field angle of attack
+         {"entropy-state", false},  // if true, the states are entropy variables
+         {"mach", 0.5},             // far-field mach number
+         {"aoa", 0.0},              // far-field angle of attack
          {"roll-axis", 0},   // axis aligned with nose to tail of aircraft
          {"pitch-axis", 1},  // axis in the "vertical" direction
          {"Re", 0.0},        // far-field Reynolds number
          {"Pr", 0.72},       // the Prandtl number
          {"mu",
           -1.0},  // nondimensional viscosity (if negative, use Sutherland's)
-         {"viscous-mms", false} // if true, include MMS terms for viscous test
+         {"viscous-mms", false}  // if true, include MMS terms for viscous test
      }},
 
     {"space-dis",  // options related to spatial discretization

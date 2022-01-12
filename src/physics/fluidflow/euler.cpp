@@ -453,7 +453,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
 template <int dim, bool entvar>
 void EulerSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
 {
-   if constexpr(entvar)
+   if constexpr (entvar)
    {
       return;
    }

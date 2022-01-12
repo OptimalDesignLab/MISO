@@ -427,11 +427,12 @@ private:
 /// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
 template <int dim, bool entvar = false>
-class EntropyConserveBC : public InviscidBoundaryIntegrator<EntropyConserveBC<dim, entvar>>
+class EntropyConserveBC
+ : public InviscidBoundaryIntegrator<EntropyConserveBC<dim, entvar>>
 {
 public:
-   using BCFun = std::function<void(double, const mfem::Vector &, 
-                                    mfem::Vector &)>;
+   using BCFun =
+       std::function<void(double, const mfem::Vector &, mfem::Vector &)>;
 
    /// Constructs an integrator for an entropy conservative boundary flux
    /// \param[in] diff_stack - for algorithmic differentiation
@@ -444,9 +445,13 @@ public:
                      const mfem::FiniteElementCollection *fe_coll,
                      BCFun bnd_state,
                      double a = 1.0)
-    : InviscidBoundaryIntegrator<EntropyConserveBC<dim, entvar>>(
-       diff_stack, fe_coll, dim + 2, a), bc_fun(bnd_state), work1(dim+2),
-       work2(dim+2)
+    : InviscidBoundaryIntegrator<EntropyConserveBC<dim, entvar>>(diff_stack,
+                                                                 fe_coll,
+                                                                 dim + 2,
+                                                                 a),
+      bc_fun(bnd_state),
+      work1(dim + 2),
+      work2(dim + 2)
    { }
 
    /// Contracts flux with the entropy variables
@@ -497,13 +502,13 @@ public:
    }
 
 private:
-   /// stores the current time 
+   /// stores the current time
    double t;
    /// reference to the boundary condition function
    BCFun bc_fun;
    /// Work vector for boundary flux computation
    mfem::Vector work1;
-   /// Work vector 
+   /// Work vector
    mfem::Vector work2;
 };
 

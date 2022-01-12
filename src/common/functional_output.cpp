@@ -39,8 +39,8 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
                field.SetFromTrueVector();
             }
          }
-         else // fun_fields is used rather than func_fields
-         { 
+         else  // fun_fields is used rather than func_fields
+         {
             auto it = output.fun_fields->find(name);
             if (it != output.fun_fields->end())
             {

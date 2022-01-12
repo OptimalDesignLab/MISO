@@ -122,7 +122,7 @@ void IsmailRoeIntegrator<dim, entvar>::calcFluxJacStates(
    // create vector of active output variables
    std::vector<adouble> flux_a(qL.Size());
    // run algorithm
-   if constexpr(entvar)
+   if constexpr (entvar)
    {
       mach::calcIsmailRoeFluxUsingEntVars<adouble, dim>(
           di, qL_a.data(), qR_a.data(), flux_a.data());
@@ -182,7 +182,7 @@ void EntStableLPSIntegrator<dim, entvar>::convertVarsJacState(
     const mfem::Vector &q,
     mfem::DenseMatrix &dwdu)
 {
-   if constexpr(entvar)
+   if constexpr (entvar)
    {
       dwdu = 0.0;
       for (int i = 0; i < dim + 2; ++i)
@@ -349,7 +349,7 @@ template <int dim, bool entvar>
 void MassIntegrator<dim, entvar>::convertVarsJacState(const mfem::Vector &u,
                                                       mfem::DenseMatrix &dqdu)
 {
-   if constexpr(entvar)
+   if constexpr (entvar)
    {
       // vector of active input variables
       std::vector<adouble> u_a(u.Size());
@@ -626,20 +626,24 @@ void EntropyConserveBC<dim, entvar>::calcFlux(const mfem::Vector &x,
    bc_fun(t, x, work1);
    calcConservativeVars<double, dim, entvar>(q.GetData(), work2.GetData());
    // Next, compute the target entropy flux
-   double Un = dot<double, dim>(work1.GetData()+1, dir.GetData())/work1(0);
-   double entflux = Un*entropy<double, dim>(work1.GetData());
+   double Un = dot<double, dim>(work1.GetData() + 1, dir.GetData()) / work1(0);
+   double entflux = Un * entropy<double, dim>(work1.GetData());
    // Evaluate the boundary flux
-   calcBoundaryFluxEC<double, dim>(dir.GetData(), work1.GetData(),
-                                   work2.GetData(), entflux,
+   calcBoundaryFluxEC<double, dim>(dir.GetData(),
+                                   work1.GetData(),
+                                   work2.GetData(),
+                                   entflux,
                                    flux_vec.GetData());
 }
 
 template <int dim, bool entvar>
 void EntropyConserveBC<dim, entvar>::calcFluxJacState(
-   const mfem::Vector &x, const mfem::Vector &dir, const mfem::Vector &q,
-   mfem::DenseMatrix &flux_jac)
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    const mfem::Vector &q,
+    mfem::DenseMatrix &flux_jac)
 {
-   // evaluate the boundary state, which does not depend on state 
+   // evaluate the boundary state, which does not depend on state
    bc_fun(t, x, work1);
    // create containers for active double objects for each input
    std::vector<adouble> work1_a(work1.Size());
@@ -655,22 +659,23 @@ void EntropyConserveBC<dim, entvar>::calcFluxJacState(
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    calcConservativeVars<adouble, dim, entvar>(q_a.data(), work2_a.data());
-   adouble Un_a = dot<adouble, dim>(work1_a.data()+1, dir_a.data())/work1_a[0];
-   adouble entflux_a = Un_a*entropy<adouble, dim>(work1_a.data());
-   calcBoundaryFluxEC<adouble, dim>(dir_a.data(), work1_a.data(),
-                                    work2_a.data(), entflux_a,
-                                    flux_a.data());
+   adouble Un_a =
+       dot<adouble, dim>(work1_a.data() + 1, dir_a.data()) / work1_a[0];
+   adouble entflux_a = Un_a * entropy<adouble, dim>(work1_a.data());
+   calcBoundaryFluxEC<adouble, dim>(
+       dir_a.data(), work1_a.data(), work2_a.data(), entflux_a, flux_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
 }
 
 template <int dim, bool entvar>
-void EntropyConserveBC<dim, entvar>::calcFluxJacDir(
-   const mfem::Vector &x, const mfem::Vector &dir, const mfem::Vector &q,
-   mfem::DenseMatrix &flux_jac)
+void EntropyConserveBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
+                                                    const mfem::Vector &dir,
+                                                    const mfem::Vector &q,
+                                                    mfem::DenseMatrix &flux_jac)
 {
-   // evaluate the boundary state, which does not depend on state 
+   // evaluate the boundary state, which does not depend on state
    bc_fun(t, x, work1);
    // create containers for active double objects for each input
    std::vector<adouble> work1_a(work1.Size());
@@ -686,11 +691,11 @@ void EntropyConserveBC<dim, entvar>::calcFluxJacDir(
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    calcConservativeVars<adouble, dim, entvar>(q_a.data(), work2_a.data());
-   adouble Un_a = dot<adouble, dim>(work1_a.data()+1, dir_a.data())/work1_a[0];
-   adouble entflux_a = Un_a*entropy<adouble, dim>(work1_a.data());
-   calcBoundaryFluxEC<adouble, dim>(dir_a.data(), work1_a.data(),
-                                    work2_a.data(), entflux_a,
-                                    flux_a.data());
+   adouble Un_a =
+       dot<adouble, dim>(work1_a.data() + 1, dir_a.data()) / work1_a[0];
+   adouble entflux_a = Un_a * entropy<adouble, dim>(work1_a.data());
+   calcBoundaryFluxEC<adouble, dim>(
+       dir_a.data(), work1_a.data(), work2_a.data(), entflux_a, flux_a.data());
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
@@ -734,7 +739,7 @@ void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
                                                 const mfem::Vector &qR,
                                                 mfem::Vector &flux)
 {
-   if constexpr(entvar)
+   if constexpr (entvar)
    {
       calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(dir.GetData(),
                                                              diss_coeff,

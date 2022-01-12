@@ -47,8 +47,7 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                                         options.ordering)),
    gf(std::make_unique<mfem::ParGridFunction>(&retrieve(space_))),
    name_(options.name)
-{
-}
+{ }
 
 FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                          mfem::ParFiniteElementSpace &space,
@@ -60,8 +59,7 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                                         &retrieve(coll_))),
    gf(std::make_unique<mfem::ParGridFunction>(&retrieve(space_))),
    name_(std::move(name))
-{
-}
+{ }
 
 // FiniteElementVector::FiniteElementVector(const FiniteElementVector &other)
 //  : mesh_(other.mesh_),
@@ -92,8 +90,7 @@ FiniteElementVector::FiniteElementVector(FiniteElementVector &&other) noexcept
    space_(std::move(other.space_)),
    gf(std::move(other.gf)),
    name_(std::move(other.name_))
-{
-}
+{ }
 
 FiniteElementVector &FiniteElementVector::operator=(
     FiniteElementVector &&other) noexcept

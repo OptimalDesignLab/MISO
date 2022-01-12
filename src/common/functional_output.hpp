@@ -59,9 +59,8 @@ public:
     : output(&fes), func_fields(&fields)
    { }
 
-   FunctionalOutput(
-      mfem::ParFiniteElementSpace &fes,
-      std::map<std::string, FiniteElementState> &fields)
+   FunctionalOutput(mfem::ParFiniteElementSpace &fes,
+                    std::map<std::string, FiniteElementState> &fields)
     : output(&fes), fun_fields(&fields)
    { }
 
@@ -99,8 +98,8 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
    }
    else
    {
-      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator" <<
-          "is not set up to work with FiniteElementState.\n";
+      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator"
+                << "is not set up to work with FiniteElementState.\n";
    }
 }
 
@@ -116,8 +115,8 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
    }
    else
    {
-      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator" <<
-          "is not set up to work with FiniteElementState.\n";
+      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator"
+                << "is not set up to work with FiniteElementState.\n";
    }
 }
 
@@ -137,10 +136,9 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
    }
    else
    {
-      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator" <<
-          "is not set up to work with FiniteElementState.\n";
+      std::cout << "WARNING: FunctionalOutput::addSensitivityIntegrator"
+                << "is not set up to work with FiniteElementState.\n";
    }
-
 }
 
 }  // namespace mach

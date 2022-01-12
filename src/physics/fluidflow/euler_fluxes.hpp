@@ -77,14 +77,14 @@ void getFreeStreamQ(xdouble mach_fs,
 template <typename xdouble, int dim, bool entvar>
 void calcEntropyVars(const xdouble *q, xdouble *w)
 {
-   if constexpr(entvar)
+   if constexpr (entvar)
    {
-      for (int i = 0; i < dim+2; ++i)
+      for (int i = 0; i < dim + 2; ++i)
       {
          w[i] = q[i];
       }
    }
-   else 
+   else
    {
       xdouble u[dim];
       for (int i = 0; i < dim; ++i)
@@ -95,7 +95,7 @@ void calcEntropyVars(const xdouble *q, xdouble *w)
       xdouble s = log(p / pow(q[0], euler::gamma));
       xdouble fac = 1.0 / p;
       w[0] = (euler::gamma - s) / euler::gami -
-              0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
+             0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
       for (int i = 0; i < dim; ++i)
       {
          w[i + 1] = q[i + 1] * fac;
@@ -113,7 +113,7 @@ void calcEntropyVars(const xdouble *q, xdouble *w)
 template <typename xdouble, int dim, bool entvar>
 void calcConservativeVars(const xdouble *w, xdouble *q)
 {
-   if constexpr(entvar)
+   if constexpr (entvar)
    {
       xdouble u[dim];
       xdouble Vel2 = 0.0;
@@ -133,7 +133,7 @@ void calcConservativeVars(const xdouble *w, xdouble *q)
    }
    else
    {
-      for (int i = 0; i < dim+2; ++i)
+      for (int i = 0; i < dim + 2; ++i)
       {
          q[i] = w[i];
       }
@@ -707,20 +707,23 @@ void calcBoundaryFluxEC(const xdouble *dir,
                         xdouble *flux)
 {
    // first, get the conventional boundary flux and entropy variables
-   xdouble w[dim+2];
+   xdouble w[dim + 2];
    calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, w, flux);
    calcEntropyVars<xdouble, dim, false>(q, w);
    // next, get the entropy flux difference
    const xdouble psi = dot<xdouble, dim>(q + 1, dir);
-   xdouble dF = dot<xdouble, dim+2>(w, flux) - psi - entflux;
+   // std::cout << "-----------------------------------------" << std::endl;
+   // std::cout << "psi = " << psi << ": entflux = " << entflux << std::endl;
+   // std::cout << "w^T f = " << dot<xdouble, dim+2>(w, flux) << std::endl;
+   xdouble dF = dot<xdouble, dim + 2>(w, flux) - psi - entflux;
    // Compute A_0*w, and w^T A_0 w
-   xdouble Aw[dim+2];
+   xdouble Aw[dim + 2];
    calcdQdWProduct<xdouble, dim>(q, w, Aw);
-   dF /= dot<xdouble, dim+2>(w, Aw);
+   dF /= dot<xdouble, dim + 2>(w, Aw);
    // subtract the flux correction
-   for (int i = 0; i < dim+2; ++i)
+   for (int i = 0; i < dim + 2; ++i)
    {
-      flux[i] -= dF*Aw[i]; 
+      flux[i] -= dF * Aw[i];
    }
 }
 

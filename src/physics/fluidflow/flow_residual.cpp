@@ -23,7 +23,7 @@ FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
 {
    setOptions_(options);
 
-   if (!options.contains("flow-param") || !options.contains("space-dis") )
+   if (!options.contains("flow-param") || !options.contains("space-dis"))
    {
       throw MachException(
           "FlowResidual::addFlowIntegrators: options must"
@@ -45,8 +45,8 @@ FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
 
 template <int dim, bool entvar>
 void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
-   const nlohmann::json &flow,
-   const nlohmann::json &space_dis)
+    const nlohmann::json &flow,
+    const nlohmann::json &space_dis)
 {
    auto flux = space_dis.value("flux-fun", "Euler");
    if (flux == "IR")
@@ -74,8 +74,8 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
 
 template <int dim, bool entvar>
 void FlowResidual<dim, entvar>::addFlowInterfaceIntegrators(
-   const nlohmann::json &flow,
-   const nlohmann::json &space_dis)
+    const nlohmann::json &flow,
+    const nlohmann::json &space_dis)
 {
    // add the integrators based on if discretization is continuous or discrete
    if (space_dis["basis-type"].get<string>() == "dsbp")
@@ -88,8 +88,9 @@ void FlowResidual<dim, entvar>::addFlowInterfaceIntegrators(
 
 template <int dim, bool entvar>
 void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
-   const nlohmann::json &flow, const nlohmann::json &space_dis,
-   const nlohmann::json &bcs)
+    const nlohmann::json &flow,
+    const nlohmann::json &space_dis,
+    const nlohmann::json &bcs)
 {
    if (bcs.contains("vortex"))
    {  // isentropic vortex BC
@@ -119,6 +120,26 @@ void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
           mach_fs, aoa_fs, iroll, ipitch, qfar.GetData());
       res.addBdrFaceIntegrator(
           new FarFieldBC<dim, entvar>(stack, fes.FEColl(), qfar),
+          bdr_attr_marker);
+   }
+   if (bcs.contains("pump"))
+   {
+      // Boundary is forced in an oscillatory way; the BC function should be
+      // passed in
+      vector<int> bdr_attr_marker = bcs["pump"].get<vector<int>>();
+      // define the boundary condition state function
+      auto pump = [](double t, const mfem::Vector &x, mfem::Vector &q)
+      {
+         double uL = 0.05;
+         double xL = uL * (1.0 - cos(t));
+         q[0] = 1.0 / (1.0 - xL);
+         q[1] = q[0] * uL * sin(t);
+         q[2] = 0.0;
+         double press = pow(q[0], mach::euler::gamma);
+         q[3] = press / mach::euler::gami + 0.5 * q[1] * q[1] / q[0];
+      };
+      res.addBdrFaceIntegrator(
+          new EntropyConserveBC<dim, entvar>(stack, fes.FEColl(), pump),
           bdr_attr_marker);
    }
 }
@@ -169,14 +190,15 @@ void FlowResidual<dim, entvar>::setOptions_(const nlohmann::json &options)
 
 template <int dim, bool entvar>
 void FlowResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
-                                         Vector &res_vec)
+                                          Vector &res_vec)
 {
    evaluate(res, inputs, res_vec);
 }
 
 template <int dim, bool entvar>
 mfem::Operator &FlowResidual<dim, entvar>::getJacobian_(
-   const MachInputs &inputs, const string &wrt)
+    const MachInputs &inputs,
+    const string &wrt)
 {
    return getJacobian(res, inputs, wrt);
 }
@@ -238,10 +260,10 @@ double FlowResidual<dim, entvar>::minCFLTimeStep(
             trans->Transform(fe->GetNodes().IntPoint(j), dxij);
             dxij -= xi;
             double dx = dxij.Norml2();
-            dt_local =
-                min(dt_local,
-                    cfl * dx * dx /
-                     calcSpectralRadius<double, dim, entvar>(dxij, ui)); // extra dx is to normalize dxij
+            dt_local = min(dt_local,
+                           cfl * dx * dx /
+                               calcSpectralRadius<double, dim, entvar>(
+                                   dxij, ui));  // extra dx is to normalize dxij
          }
       }
    }

@@ -43,12 +43,12 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
           "\tentropy-state option is inconsistent with entvar"
           "template parameter");
    }
-   if ( (entvar) && (!options["time-dis"]["steady"]) )
+   if ((entvar) && (!options["time-dis"]["steady"]))
    {
       throw MachException(
-         "FlowSolver<dim,entvar> constructor:\n"
-         "\tnot set up for using entropy-variables as states for unsteady "
-         "problem (need nonlinear mass-integrator).");
+          "FlowSolver<dim,entvar> constructor:\n"
+          "\tnot set up for using entropy-variables as states for unsteady "
+          "problem (need nonlinear mass-integrator).");
    }
 
    // Construct spatial residual
@@ -81,14 +81,14 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
 
    // construct the ODE solver (also used for pseudo-transient continuation)
    auto ode_opts = options["time-dis"];
-   ode =
-       make_unique<FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
+   ode = make_unique<FirstOrderODE>(
+       *space_time_res, ode_opts, *nonlinear_solver, out);
 
    if (options["paraview"].at("each-timestep"))
    {
-      ParaViewLogger paraview(options["paraview"]["directory"] , mesh_.get());
+      ParaViewLogger paraview(options["paraview"]["directory"], mesh_.get());
       paraview.registerField("state", fields.at("state").gridFunc());
-      addLogger(std::move(paraview), {.each_timestep=true});
+      addLogger(std::move(paraview), {.each_timestep = true});
    }
 }
 
@@ -161,10 +161,8 @@ void FlowSolver<dim, entvar>::derivedPDEInitialHook(const Vector &state)
    }
    if (options["time-dis"]["entropy-log"])
    {
-      double t0 = options["time-dis"]["t-initial"]; // Should be passed in!!!
-      auto inputs = MachInputs({
-         {"time", t0}, {"state", state}
-      });
+      double t0 = options["time-dis"]["t-initial"];  // Should be passed in!!!
+      auto inputs = MachInputs({{"time", t0}, {"state", state}});
       double entropy = calcEntropy(*spatial_res, inputs);
       if (rank == 0)
       {
@@ -184,9 +182,7 @@ void FlowSolver<dim, entvar>::derivedPDEIterationHook(int iter,
 {
    if (options["time-dis"]["entropy-log"])
    {
-      auto inputs = MachInputs({
-         {"time", t}, {"state", state}
-      });
+      auto inputs = MachInputs({{"time", t}, {"state", state}});
       double entropy = calcEntropy(*spatial_res, inputs);
       if (rank == 0)
       {
@@ -196,8 +192,11 @@ void FlowSolver<dim, entvar>::derivedPDEIterationHook(int iter,
 }
 
 template <int dim, bool entvar>
-double FlowSolver<dim, entvar>::calcStepSize(int iter, double t, double t_final,
-                                double dt_old, const Vector &state) const
+double FlowSolver<dim, entvar>::calcStepSize(int iter,
+                                             double t,
+                                             double t_final,
+                                             double dt_old,
+                                             const Vector &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
@@ -216,11 +215,11 @@ double FlowSolver<dim, entvar>::calcStepSize(int iter, double t, double t_final,
    }
    // Otherwise, use a constant CFL condition
    auto cfl = options["time-dis"]["cfl"].get<double>();
-   // here we call the FlowResidual method for the min time step, which needs 
-   // the current state; this is provided by the state field of PDESolver, 
+   // here we call the FlowResidual method for the min time step, which needs
+   // the current state; this is provided by the state field of PDESolver,
    // which we access with getState()
-   return getConcrete<FlowResidual<dim, entvar>>(*spatial_res).
-      minCFLTimeStep(cfl, getState().gridFunc());
+   return getConcrete<FlowResidual<dim, entvar>>(*spatial_res)
+       .minCFLTimeStep(cfl, getState().gridFunc());
 }
 
 template <int dim, bool entvar>
@@ -252,14 +251,12 @@ bool FlowSolver<dim, entvar>::iterationExit(int iter,
 
 template <int dim, bool entvar>
 void FlowSolver<dim, entvar>::derivedPDETerminalHook(int iter,
-                                    double t_final,
-                                    const mfem::Vector &state)
+                                                     double t_final,
+                                                     const mfem::Vector &state)
 {
    if (options["time-dis"]["entropy-log"])
    {
-      auto inputs = MachInputs({
-         {"time", t_final}, {"state", state}
-      });
+      auto inputs = MachInputs({{"time", t_final}, {"state", state}});
       double entropy = calcEntropy(*spatial_res, inputs);
       if (rank == 0)
       {
@@ -335,7 +332,7 @@ void FlowSolver<dim, entvar>::addOutput(const std::string &fun,
    else if (fun == "entropy")
    {
       // global entropy
-      EntropyOutput<dim,entvar> fun_out(flow_res);
+      EntropyOutput<dim, entvar> fun_out(flow_res);
       outputs.emplace(fun, std::move(fun_out));
    }
    else

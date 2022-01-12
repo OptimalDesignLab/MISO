@@ -41,7 +41,7 @@ public:
                                       int entry);
 
 private:
-   using FlowResType = FlowResidual<dim,entvar>;
+   using FlowResType = FlowResidual<dim, entvar>;
    /// Initial residual norm for PTC and convergence checks
    double res_norm0 = -1.0;
    /// Bilinear form for the mass-matrix operator
@@ -105,7 +105,7 @@ private:
    /// \param[in] t_final - the final time
    /// \param[in] dt - the step size that was just taken
    /// \param[in] state - the current state
-   /// \note If a steady problem is being solved, the "steady-abstol" and 
+   /// \note If a steady problem is being solved, the "steady-abstol" and
    /// "steady-reltol" options from "time-dis" to determine convergence.
    virtual bool iterationExit(int iter,
                               double t,

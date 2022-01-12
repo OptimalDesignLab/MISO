@@ -125,9 +125,9 @@ protected:
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
    /// \note This is `final` because we want to ensure the `state` Vector gets
-   /// associated with the state field.  This association may not happen if the 
-   /// client overwrites this definition; however, there is a call to the 
-   /// virtual function derivedPDEinitialHook(state) that the client can 
+   /// associated with the state field.  This association may not happen if the
+   /// client overwrites this definition; however, there is a call to the
+   /// virtual function derivedPDEinitialHook(state) that the client can
    /// overwrite.
    virtual void initialHook(const mfem::Vector &state) override final;
 
@@ -140,7 +140,7 @@ protected:
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
    /// \param[in] state - the current state
-   /// \note This is `final` because we want to ensure that 
+   /// \note This is `final` because we want to ensure that
    /// AbstractSolver2::iterationHook() is called.
    virtual void iterationHook(int iter,
                               double t,

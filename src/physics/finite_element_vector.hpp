@@ -111,14 +111,14 @@ public:
    virtual void setTrueVec(mfem::Vector &true_vec) = 0;
 
    /// \brief Retrieve a reference to the cached true_vec
-   mfem::Vector& getTrueVec() { return true_vec_; }
-   const mfem::Vector& getTrueVec() const { return true_vec_; }
+   mfem::Vector &getTrueVec() { return true_vec_; }
+   const mfem::Vector &getTrueVec() const { return true_vec_; }
 
    /// Implicit conversion operators to `mfem::Vector`
-   /// \note These allow conversion from a FiniteElementVector to a true degree 
+   /// \note These allow conversion from a FiniteElementVector to a true degree
    /// of freedom mfem::Vector using the cached tdof vector
-   operator mfem::Vector&() { return getTrueVec(); }
-   operator const mfem::Vector&() const { return getTrueVec(); }
+   operator mfem::Vector &() { return getTrueVec(); }
+   operator const mfem::Vector &() const { return getTrueVec(); }
 
    /// \brief Destroy the Finite Element Vector object
    virtual ~FiniteElementVector() = default;

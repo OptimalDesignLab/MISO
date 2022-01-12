@@ -109,6 +109,7 @@ public:
        \param[in] solver - the solver that operates on
                   the residual
 
+
        Implements mfem::TimeDependentOperator::Mult and
        mfem::TimeDependentOperator::ImplicitSolve (described in more detail
       here:
@@ -121,7 +122,8 @@ public:
        where dt is nonzero */
    FirstOrderODE(MachResidual &residual,
                  const nlohmann::json &ode_options,
-                 mfem::Solver &solver);
+                 mfem::Solver &solver,
+                 std::ostream *out_stream = nullptr);
 
    /// \brief Performs a time step
    /// \param[inout] u - the predicted solution
@@ -187,6 +189,9 @@ private:
 
    /// \brief MFEM solver object for first-order ODEs
    std::unique_ptr<mfem::ODESolver> ode_solver_;
+
+   /// print object
+   std::ostream *out;
 
    mfem::Vector zero_;
 
