@@ -10,6 +10,8 @@ target_sources(mach
       euler.cpp
       euler.hpp
       fluidflow.hpp
+      flow_control_residual.cpp 
+      flow_control_residual.hpp
       flow_residual.cpp
       flow_residual.hpp
       flow_solver.hpp
