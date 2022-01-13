@@ -60,6 +60,11 @@ public:
    /// \note This function also evaluates the residual at `baseline`
    void setState(const mfem::Vector &baseline);
 
+   /// Sets the state at which the Jacobian is evaluated
+   /// \param[in] inputs - contains key "state" where Jacobian is evaluated
+   /// \note This function also evaluates the residual at given state
+   void setState(const MachInputs &inputs);
+
    /// Approximates `y = J*x` using a forward difference approximation
    /// \param[in] x - the vector being multiplied by the Jacobian
    /// \param[out] y - the result of the product
@@ -70,8 +75,8 @@ private:
    MPI_Comm comm;
    /// residual that defines the Jacobian
    T &res;
-   /// pointer to the baseline state
-   const mfem::Vector *state;
+   /// baseline state about which we perturb
+   mfem::Vector state;
    /// residual evaluated at `state`
    mfem::Vector res_at_state;
    /// work vector needed to compute the Jacobian-free product
@@ -90,6 +95,7 @@ JacobianFree<T>::JacobianFree(T &residual, MPI_Comm incomm)
  : Operator(getSize(residual)),
    comm(incomm),
    res(residual),
+   state(getSize(res)),
    res_at_state(getSize(res)),
    state_pert(getSize(res))
 { }
@@ -97,17 +103,27 @@ JacobianFree<T>::JacobianFree(T &residual, MPI_Comm incomm)
 template <typename T>
 void JacobianFree<T>::setState(const mfem::Vector &baseline)
 {
+   // store baseline state, because we need to perturb it later
+   state = baseline;
    // initialize the res_at_state vector for later use
    auto inputs = MachInputs({{"state", baseline}});
    evaluate(res, inputs, res_at_state);
 }
 
 template <typename T>
+void JacobianFree<T>::setState(const MachInputs &inputs)
+{
+   // store baseline state, because we need to perturb it later
+   setVectorFromInputs(inputs, "state", state, true, true);
+   evaluate(res, inputs, res_at_state);
+}
+
+template <typename T>
 void JacobianFree<T>::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
-   double eps_fd = getStepSize(*state, x);
+   double eps_fd = getStepSize(state, x);
    // create the perturbed vector, and evaluate the residual
-   add(*state, eps_fd, x, state_pert);
+   add(state, eps_fd, x, state_pert);
    auto inputs = MachInputs({{"state", state_pert}});
    evaluate(res, inputs, y);
    // subtract the baseline residual and divide by eps_fd to get product

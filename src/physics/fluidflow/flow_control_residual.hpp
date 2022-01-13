@@ -7,6 +7,7 @@
 
 #include "flow_residual.hpp"
 #include "mach_input.hpp"
+#include "matrix_operators.hpp"
 
 namespace mach
 {
@@ -177,9 +178,12 @@ private:
    FlowResidual<dim, entvar> flow_res;
    /// Defines the control problem
    ControlResidual control_res;
+   /// The Jacobian-free operator
+   JacobianFree<FlowControlResidual<dim, entvar>> jac;
    
-   int num_control() { return getSize(control_res); }
-   int num_flow() { return getSize(flow_res); }
+   // These could be public
+   int num_control() const { return getSize(control_res); }
+   int num_flow() const { return getSize(flow_res); }
 
    /// Helper function that extracts state input into separate vectors
    /// \param[in] inputs - must include a state input 

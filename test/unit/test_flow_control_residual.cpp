@@ -5,6 +5,7 @@
 #include "adept.h"
 
 #include "flow_control_residual.hpp"
+#include "flow_residual.hpp"
 #include "sbp_fe.hpp"
 #include "euler_fluxes.hpp"
 #include "mach_input.hpp"
@@ -74,4 +75,77 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
        {{"state", x}, {"time", time}, {"state_dot", v}, {"dt", 0.0}});
    double entropy_change = calcEntropyChange(res, inputs);
    REQUIRE(entropy_change == Approx(0.0).margin(1e-14));
+}
+
+TEST_CASE("FlowControlResidual construction and evaluation",
+          "[FlowControlResidual]")
+{
+   const int dim = 2; // templating is hard here because mesh constructors
+   int num_state = dim + 2;
+   adept::Stack diff_stack;
+
+   // generate a 8 element mesh and build the finite-element space
+   int num_edge = 2;
+   Mesh smesh(Mesh::MakeCartesian2D(num_edge, num_edge, Element::TRIANGLE,
+                                    true /* gen. edges */, 1.0, 1.0, true));
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   int p = options["space-dis"]["degree"].get<int>();
+   SBPCollection fec(p, dim);
+   ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
+
+   // construct the residual
+   FlowControlResidual<dim,false> res(options, fespace, diff_stack);
+   FlowResidual<dim,false> flow_res(options, fespace, diff_stack);
+   ControlResidual control_res(options);
+   int num_var = getSize(res);
+   REQUIRE(num_var == getSize(flow_res) + getSize(control_res));
+
+   // evaluate the flow residual using a perturbed state, and the 
+   // control residual using a random state.
+   Vector q(num_var);
+   std::default_random_engine gen(std::random_device{}());
+   std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
+   double mach = options["flow-param"]["mach"].get<double>();
+   double aoa = options["flow-param"]["aoa"].get<double>();
+   int ptr = 0;
+   for (int i = 0; i < getSize(control_res); ++i)
+   {
+      q(ptr) = uniform_rand(gen);
+      ptr += 1;
+   }
+   for (int i = 0; i < getSize(flow_res)/num_state; ++i)
+   {
+      getFreeStreamQ<double, dim>(mach, aoa, 0, 1,
+                                  q.GetData()+ptr+num_state*i);
+      for (int j = 0; j < num_state; ++j)
+      {
+         q(ptr+i*num_state+j) += uniform_rand(gen)*0.01;
+      }
+   }
+   double time = 0.0;
+   auto inputs = MachInputs({{"state", q}, {"time", time}});
+   auto control_inputs = MachInputs({{"state", q}, {"time", time}});
+   Vector flow_state(q.GetData()+ptr, getSize(flow_res));
+   auto flow_inputs = MachInputs({{"state", flow_state}, {"time", time}});
+   Vector res_vec(num_var);
+   Vector res_vec_control(getSize(control_res));
+   Vector res_vec_flow(getSize(flow_res));
+   evaluate(res, inputs, res_vec);
+   evaluate(control_res, control_inputs, res_vec_control);
+   evaluate(flow_res, flow_inputs, res_vec_flow);
+   for (int i = 0; i < getSize(control_res); ++i)
+   {
+      REQUIRE( res_vec(i) == Approx(res_vec_control(i)).margin(1e-14) );
+   }
+   for (int i = 0; i < getSize(flow_res); ++i)
+   {
+      REQUIRE( res_vec(ptr+i) == Approx(res_vec_flow(i)).margin(1e-14) );
+   }
+
+   // check the entropy calculation for consistency between the compound and 
+   // individual residuals
+   double entropy = calcEntropy(res, inputs);
+   double control_entropy = calcEntropy(control_res, control_inputs);
+   double flow_entropy = calcEntropy(flow_res, flow_inputs);
+   REQUIRE( entropy == Approx(control_entropy + flow_entropy).margin(1e-14) );
 }

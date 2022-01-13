@@ -94,7 +94,9 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
     const nlohmann::json &options,
     mfem::ParFiniteElementSpace &pfes,
     adept::Stack &diff_stack)
- : flow_res(options, pfes, diff_stack), control_res(options)
+ : flow_res(options, pfes, diff_stack),
+   control_res(options),
+   jac(*this, pfes.GetComm())
 {
    // flow-control specific set-up?
 }
@@ -116,14 +118,16 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
                                                  mfem::Vector &res_vec)
 {
    Vector control_res_vec(res_vec.GetData() + 0, getSize(control_res));
-   Vector flow_res_vec(res_vec.GetData() + num_control,
-                       getSize(flow_res));
-
-   // Compute the outputs of the flow and control problems needed by the other
+   Vector flow_res_vec(res_vec.GetData() + num_control(), num_flow());
    double time = std::get<double>(inputs.at("time"));
 
+   // This version does not account for coupling yet
    Vector control_state, flow_state;
    extractStatesFromInputs(inputs, control_state, flow_state);
+   auto flow_inputs = MachInputs({{"state", flow_state}, {"time", time}});
+   auto control_inputs = MachInputs({{"state", control_state}, {"time", time}});
+   evaluate(flow_res, flow_inputs, flow_res_vec);
+   evaluate(control_res, control_inputs, control_res_vec);
 
    // double * control_state_ptr = inputs.at("state").getField();
    // double * flow_state_ptr = inputs.at("state").getField() + num_control;
@@ -150,6 +154,11 @@ Operator &FlowControlResidual<dim, entvar>::getJacobian_(
                       const MachInputs &inputs,
                       const std::string &wrt)
 {
+   // set the state 
+   jac.setState(inputs);
+   return jac;
+
+
    // if (wrt != "state")
    // {
    //    throw MachException(
@@ -180,8 +189,9 @@ double FlowControlResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
    // extract flow and control states to compute entropy
    Vector control_state, flow_state;
    extractStatesFromInputs(inputs, control_state, flow_state);
-   auto flow_inputs = MachInputs(
-       {{"state", flow_state}, {"time", time}, {"control", control_state}});
+   double time = std::get<double>(inputs.at("time"));
+
+   auto flow_inputs = MachInputs({{"state", flow_state}, {"time", time}});
    auto control_inputs = MachInputs({{"state", control_state}, {"time", time}});
    return calcEntropy(flow_res, flow_inputs) +
           calcEntropy(control_res, control_inputs);
@@ -206,5 +216,12 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
    return 0.0;
 }
 
+// explicit instantiation
+template class FlowControlResidual<1, true>;
+template class FlowControlResidual<1, false>;
+template class FlowControlResidual<2, true>;
+template class FlowControlResidual<2, false>;
+template class FlowControlResidual<3, true>;
+template class FlowControlResidual<3, false>;
 
 } // namespace mach
