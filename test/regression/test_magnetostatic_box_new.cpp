@@ -68,7 +68,8 @@ public:
       return getJacobian(residual.res, inputs, std::move(wrt));
    }
 
-   friend mfem::Solver *getPreconditioner(MagnetostaticResidual &residual)
+   friend mfem::Solver *getPreconditioner(MagnetostaticResidual &residual,
+                                          const nlohmann::json &options)
    {
       return residual.prec.get();
    }
@@ -139,7 +140,8 @@ public:
       spatial_res = std::make_unique<mach::MachResidual>(MagnetostaticResidual(fes(), options, current_coeff, nu));
       setOptions(*spatial_res, options);
 
-      auto *prec = getPreconditioner(*spatial_res);
+      nlohmann::json prec_options;
+      auto *prec = getPreconditioner(*spatial_res, prec_options);
       auto lin_solver_opts = options["lin-solver"];
       linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
       auto nonlin_solver_opts = options["nonlin-solver"];

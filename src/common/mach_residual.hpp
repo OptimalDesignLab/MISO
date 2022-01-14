@@ -32,7 +32,8 @@ double calcEntropyChange(T & /*unused*/, const MachInputs & /*unused*/)
 }
 
 template <typename T>
-mfem::Solver *getPreconditioner(T & /*unused*/)
+mfem::Solver *getPreconditioner(T & /*unused*/,
+                                const nlohmann::json & /*unused*/)
 {
    return nullptr;
 }
@@ -114,12 +115,15 @@ public:
    friend double calcEntropyChange(MachResidual &residual,
                                    const MachInputs &inputs);
 
-   /// Return a preconditioner owned by the residual for inverting the
-   /// residual's state Jacobian \param[inout] residual - the object owning the
-   /// preconditioner \return non owning pointer to a preconditioner for
-   /// inverting the state Jacobian \note if a concrete residual type does not
-   /// define a getPreconditioner function a `nullptr` will be returned
-   friend mfem::Solver *getPreconditioner(MachResidual &residual);
+   /// Return a preconditioner for the residual's state Jacobian
+   /// \param[inout] residual - the object owning the preconditioner
+   /// \param[in] options - options specific to the preconditioner (if needed)
+   /// \return pointer to preconditioner for the state Jacobian
+   /// \note if a concrete residual type does not define a getPreconditioner
+   /// function a `nullptr` will be returned.
+   /// \note pointer owned by the residual.
+   friend mfem::Solver *getPreconditioner(MachResidual &residual,
+                                          const nlohmann::json &options);
 
    /// We need to support these overrides so that the MachResidual type can be
    /// directly set as the operator for an MFEM NonlinearSolver
@@ -159,7 +163,7 @@ private:
                                       const std::string &wrt) = 0;
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
-      virtual mfem::Solver *getPrec_() = 0;
+      virtual mfem::Solver *getPrec_(const nlohmann::json &options) = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -195,7 +199,10 @@ private:
       {
          return calcEntropyChange(data_, inputs);
       }
-      mfem::Solver *getPrec_() override { return getPreconditioner(data_); }
+      mfem::Solver *getPrec_(const nlohmann::json &options) override
+      { 
+         return getPreconditioner(data_, options);
+      }
 
       T data_;
    };
@@ -280,9 +287,10 @@ inline double calcEntropyChange(MachResidual &residual,
    return residual.self_->calcEntropyChange_(inputs);
 }
 
-inline mfem::Solver *getPreconditioner(MachResidual &residual)
+inline mfem::Solver *getPreconditioner(MachResidual &residual,
+                                       const nlohmann::json &options)
 {
-   return residual.self_->getPrec_();
+   return residual.self_->getPrec_(options);
 }
 
 }  // namespace mach

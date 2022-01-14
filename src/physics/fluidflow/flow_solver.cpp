@@ -53,7 +53,7 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
 
    // Construct spatial residual
    spatial_res = std::make_unique<mach::MachResidual>(
-       FlowResidual<dim, entvar>(solver_options, fes(), diff_stack));
+       FlowResidual<dim, entvar>(solver_options, fes(), diff_stack, *out));
    const char *name = fes().FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {
@@ -71,9 +71,9 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
 
    // construct the preconditioner, linear solver, and nonlinear solver
    auto prec_solver_opts = options["lin-prec"];
-   prec = constructPreconditioner(prec_solver_opts);
+   prec = getPreconditioner(*spatial_res, prec_solver_opts);
    auto lin_solver_opts = options["lin-solver"];
-   linear_solver = constructLinearSolver(comm, lin_solver_opts, prec.get());
+   linear_solver = constructLinearSolver(comm, lin_solver_opts, prec);
    auto nonlin_solver_opts = options["nonlin-solver"];
    nonlinear_solver =
        constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
@@ -90,64 +90,6 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
       paraview.registerField("state", fields.at("state").gridFunc());
       addLogger(std::move(paraview), {.each_timestep = true});
    }
-}
-
-template <int dim, bool entvar>
-unique_ptr<Solver> FlowSolver<dim, entvar>::constructPreconditioner(
-    nlohmann::json &prec_options)
-{
-   std::string prec_type = prec_options["type"].get<std::string>();
-   unique_ptr<Solver> precond;
-   if (prec_type == "hypreeuclid")
-   {
-      precond = std::make_unique<HypreEuclid>(comm);
-      // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
-      *out << "WARNING! Euclid fill level is hard-coded"
-           << "(see AbstractSolver::constructLinearSolver() for details)"
-           << endl;
-      // int fill = options["lin-solver"]["filllevel"].get<int>();
-      // HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(precond.get())->GetPrec(),
-      // fill);
-   }
-   else if (prec_type == "hypreilu")
-   {
-      precond = std::make_unique<HypreILU>();
-      auto *ilu = dynamic_cast<HypreILU *>(precond.get());
-      HYPRE_ILUSetType(*ilu, prec_options["ilu-type"].get<int>());
-      HYPRE_ILUSetLevelOfFill(*ilu, prec_options["lev-fill"].get<int>());
-      HYPRE_ILUSetLocalReordering(*ilu, prec_options["ilu-reorder"].get<int>());
-      HYPRE_ILUSetPrintLevel(*ilu, prec_options["printlevel"].get<int>());
-      // Just listing the options below in case we need them in the future
-      // HYPRE_ILUSetSchurMaxIter(ilu, schur_max_iter);
-      // HYPRE_ILUSetNSHDropThreshold(ilu, nsh_thres); needs type = 20,21
-      // HYPRE_ILUSetDropThreshold(ilu, drop_thres);
-      // HYPRE_ILUSetMaxNnzPerRow(ilu, nz_max);
-   }
-   else if (prec_type == "hypreams")
-   {
-      precond = std::make_unique<HypreAMS>(&(fes()));
-      auto *ams = dynamic_cast<HypreAMS *>(precond.get());
-      ams->SetPrintLevel(prec_options["printlevel"].get<int>());
-      ams->SetSingularProblem();
-   }
-   else if (prec_type == "hypreboomeramg")
-   {
-      precond = std::make_unique<HypreBoomerAMG>();
-      auto *amg = dynamic_cast<HypreBoomerAMG *>(precond.get());
-      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
-   }
-   else if (prec_type == "blockilu")
-   {
-      precond = std::make_unique<BlockILU>(fes().GetVDim());
-   }
-   else
-   {
-      throw MachException(
-          "Unsupported preconditioner type!\n"
-          "\tavilable options are: HypreEuclid, HypreILU, HypreAMS,"
-          " HypreBoomerAMG.\n");
-   }
-   return precond;
 }
 
 template <int dim, bool entvar>

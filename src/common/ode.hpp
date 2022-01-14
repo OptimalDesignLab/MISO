@@ -39,9 +39,10 @@ public:
    friend double calcEntropyChange(TimeDependentResidual &residual,
                                    const MachInputs &inputs);
 
-   friend mfem::Solver *getPreconditioner(TimeDependentResidual &residual)
+   friend mfem::Solver *getPreconditioner(TimeDependentResidual &residual,
+                                          const nlohmann::json &options)
    {
-      return getPreconditioner(residual.spatial_res_);
+      return getPreconditioner(residual.spatial_res_, options);
    }
 
    /** \brief constructs a time dependent residual of the form

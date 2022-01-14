@@ -26,7 +26,8 @@ public:
    /// Constructor for flow equations
    FlowResidual(const nlohmann::json &options,
                 mfem::ParFiniteElementSpace &fespace,
-                adept::Stack &diff_stack);
+                adept::Stack &diff_stack,
+                std::ostream &outstream = std::cout);
 
    /// Returns the number of equations/unknowns in the flow system
    int getSize_() const;
@@ -74,6 +75,13 @@ public:
    /// \note optional, but must be implemented for relaxation RK
    double calcEntropyChange_(const MachInputs &inputs);
 
+   /// Return a preconditioner for the flow residual's state Jacobian
+   /// \param[in] options - options specific to the preconditioner
+   /// \return pointer to preconditioner for the state Jacobian
+   /// \note Constructs the preconditioner, and the returned pointer is owned
+   /// by the residual
+   mfem::Solver *getPreconditioner_(const nlohmann::json &options);
+
    /// Returns the minimum time step for a given state and CFL number
    /// \param[in] cfl - the target maximum allowable CFL number
    /// \param[in] state - the state which defines the velocity field
@@ -98,6 +106,8 @@ public:
    int getIPitch() const { return ipitch; }
 
 private:
+   /// print object
+   std::ostream &out;
    /// free-stream Mach number
    double mach_fs;
    /// free-stream angle of attack
@@ -119,6 +129,8 @@ private:
        fields;
    /// Defines the nonlinear form used to compute the residual and its Jacobian
    mach::MachNonlinearForm res;
+   /// Preconditioner for the spatial Jacobian
+   std::unique_ptr<mfem::Solver> prec;
    /// Defines the output used to evaluate the entropy
    mach::FunctionalOutput ent;
    /// Work vector
@@ -235,6 +247,19 @@ double calcEntropyChange(FlowResidual<dim, entvar> &residual,
                          const MachInputs &inputs)
 {
    return residual.calcEntropyChange_(inputs);
+}
+
+/// Return a preconditioner for the flow residual's state Jacobian
+/// \param[inout] residual - residual whose preconditioner is desired
+/// \param[in] options - options specific to the preconditioner
+/// \return pointer to preconditioner for the state Jacobian
+/// \note Constructs the preconditioner, and the returned pointer is owned
+/// by the `residual`
+template <int dim, bool entvar>
+mfem::Solver *getPreconditioner(FlowResidual<dim, entvar> &residual,
+                                const nlohmann::json &prec_options)
+{
+   return residual.getPreconditioner_(prec_options);
 }
 
 /// Wrapper for FlowResidual to access its calcEntropy function as a MachOutput

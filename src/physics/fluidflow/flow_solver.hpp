@@ -48,8 +48,8 @@ private:
    mfem::ParBilinearForm mass;
    /// Mass matrix as HypreParMatrix
    std::unique_ptr<mfem::HypreParMatrix> mass_mat;
-   /// Solver used for preconditioning Newton linear updates
-   std::unique_ptr<mfem::Solver> prec;
+   /// Solver used for preconditioning Newton linear updates (not owed here)
+   mfem::Solver *prec;
    /// used to record the total entropy
    std::ofstream entropy_log;
 

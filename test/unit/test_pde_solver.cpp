@@ -82,7 +82,8 @@ public:
       return getJacobian(residual.res, inputs, std::move(wrt));
    }
 
-   friend mfem::Solver *getPreconditioner(ThermalResidual &residual)
+   friend mfem::Solver *getPreconditioner(ThermalResidual &residual,
+                                          const nlohmann::json &options)
    {
       return residual.prec.get();
    }
@@ -119,7 +120,8 @@ public:
       spatial_res = std::make_unique<mach::MachResidual>(ThermalResidual(fes(), options));
       setOptions(*spatial_res, options);
 
-      auto *prec = getPreconditioner(*spatial_res);
+      nlohmann::json prec_options;
+      auto *prec = getPreconditioner(*spatial_res, prec_options);
       auto lin_solver_opts = options["lin-solver"];
       linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
       auto nonlin_solver_opts = options["nonlin-solver"];
