@@ -44,20 +44,8 @@ private:
    using FlowResType = FlowResidual<dim, entvar>;
    /// Initial residual norm for PTC and convergence checks
    double res_norm0 = -1.0;
-   /// Bilinear form for the mass-matrix operator
-   mfem::ParBilinearForm mass;
-   /// Mass matrix as HypreParMatrix
-   std::unique_ptr<mfem::HypreParMatrix> mass_mat;
-   /// Solver used for preconditioning Newton linear updates (not owed here)
-   mfem::Solver *prec;
    /// used to record the total entropy
    std::ofstream entropy_log;
-
-   /// Construct a preconditioner based on the given options
-   /// \param[in] options - options structure that determines preconditioner
-   /// \returns unique pointer to the preconditioner object
-   std::unique_ptr<mfem::Solver> constructPreconditioner(
-       nlohmann::json &_options);
 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state

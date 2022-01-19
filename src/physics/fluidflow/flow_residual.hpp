@@ -75,6 +75,13 @@ public:
    /// \note optional, but must be implemented for relaxation RK
    double calcEntropyChange_(const MachInputs &inputs);
 
+   /// Return mass matrix for the flow equations
+   /// \param[in] options - options (not presently used)
+   /// \return pointer to mass matrix for the flow equations
+   /// \note Constructs the mass form and matrix, and the returned pointer is 
+   /// owned by the residual
+   mfem::Operator *getMassMatrix_(const nlohmann::json &options);
+
    /// Return a preconditioner for the flow residual's state Jacobian
    /// \param[in] options - options specific to the preconditioner
    /// \return pointer to preconditioner for the state Jacobian
@@ -129,6 +136,10 @@ private:
        fields;
    /// Defines the nonlinear form used to compute the residual and its Jacobian
    mach::MachNonlinearForm res;
+   /// Bilinear form for the mass-matrix operator (make a MachNonlinearForm?)
+   mfem::ParBilinearForm mass;
+   /// Mass matrix as HypreParMatrix
+   std::unique_ptr<mfem::Operator> mass_mat;
    /// Preconditioner for the spatial Jacobian
    std::unique_ptr<mfem::Solver> prec;
    /// Defines the output used to evaluate the entropy
@@ -249,9 +260,22 @@ double calcEntropyChange(FlowResidual<dim, entvar> &residual,
    return residual.calcEntropyChange_(inputs);
 }
 
+/// Return mass matrix for the flow equations
+/// \param[in] mass_options - options (not presently used)
+/// \return pointer to mass matrix for the flow equations
+/// \note Constructs the mass form and matrix, and the returned pointer is 
+/// owned by the residual
+template <int dim, bool entvar>
+mfem::Operator *getMassMatrix(FlowResidual<dim, entvar> &residual,
+                              const nlohmann::json &mass_options)
+{
+   return residual.getMassMatrix_(mass_options);
+}
+
+
 /// Return a preconditioner for the flow residual's state Jacobian
 /// \param[inout] residual - residual whose preconditioner is desired
-/// \param[in] options - options specific to the preconditioner
+/// \param[in] prec_options - options specific to the preconditioner
 /// \return pointer to preconditioner for the state Jacobian
 /// \note Constructs the preconditioner, and the returned pointer is owned
 /// by the `residual`

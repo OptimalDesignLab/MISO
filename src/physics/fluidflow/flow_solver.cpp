@@ -1,10 +1,11 @@
-
-#include "diag_mass_integ.hpp"
 #include "euler_integ.hpp"
 #include "flow_solver.hpp"
 #include "flow_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "euler_fluxes.hpp"
+
+#include "diag_mass_integ.hpp"  /// TEMP !!!!
+
 
 using namespace std;
 using namespace mfem;
@@ -24,8 +25,7 @@ template <int dim, bool entvar>
 FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
                                     const nlohmann::json &solver_options,
                                     std::unique_ptr<mfem::Mesh> smesh)
- : PDESolver(incomm, solver_options, getNumFlowStates, std::move(smesh)),
-   mass(&fes())
+ : PDESolver(incomm, solver_options, getNumFlowStates, std::move(smesh))
 {
    // Check for consistency between the template parameters, mesh, and options
    if (mesh_->SpaceDimension() != dim)
@@ -51,27 +51,16 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
           "problem (need nonlinear mass-integrator).");
    }
 
-   // Construct spatial residual
+   // Construct spatial residual and the space-time residual
    spatial_res = std::make_unique<mach::MachResidual>(
        FlowResidual<dim, entvar>(solver_options, fes(), diff_stack, *out));
-   const char *name = fes().FEColl()->Name();
-   if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
-   {
-      mass.AddDomainIntegrator(new DiagMassIntegrator(fes().GetVDim()));
-   }
-   else
-   {
-      mass.AddDomainIntegrator(new mfem::MassIntegrator());
-   }
-   mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
-   mass.Finalize(0);
-   mass_mat.reset(mass.ParallelAssemble());
+   auto mass_matrix = getMassMatrix(*spatial_res, solver_options);
    space_time_res = std::make_unique<mach::MachResidual>(
-       mach::TimeDependentResidual(*spatial_res, mass_mat.get()));
+       mach::TimeDependentResidual(*spatial_res, mass_matrix));
 
    // construct the preconditioner, linear solver, and nonlinear solver
    auto prec_solver_opts = options["lin-prec"];
-   prec = getPreconditioner(*spatial_res, prec_solver_opts);
+   auto prec = getPreconditioner(*spatial_res, prec_solver_opts);
    auto lin_solver_opts = options["lin-solver"];
    linear_solver = constructLinearSolver(comm, lin_solver_opts, prec);
    auto nonlin_solver_opts = options["nonlin-solver"];

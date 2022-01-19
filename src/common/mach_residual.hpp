@@ -32,6 +32,12 @@ double calcEntropyChange(T & /*unused*/, const MachInputs & /*unused*/)
 }
 
 template <typename T>
+mfem::Operator *getMassMatrix(T & /*unused*/, const nlohmann::json & /*unused*/)
+{
+   return nullptr;
+}
+
+template <typename T>
 mfem::Solver *getPreconditioner(T & /*unused*/,
                                 const nlohmann::json & /*unused*/)
 {
@@ -115,6 +121,16 @@ public:
    friend double calcEntropyChange(MachResidual &residual,
                                    const MachInputs &inputs);
 
+   /// Return the mass matrix corresponding to the residual
+   /// \param[inout] residual - the object owning the mass matrix
+   /// \param[in] options - options specific to the mass matrix (if needed)
+   /// \return pointer to the mass matrix
+   /// \note if a concrete residual type does not define a getMassMatrix
+   /// function a `nullptr` will be returned.
+   /// \note pointer owned by the residual.
+   friend mfem::Operator *getMassMatrix(MachResidual &residual,
+                                        const nlohmann::json &options);
+
    /// Return a preconditioner for the residual's state Jacobian
    /// \param[inout] residual - the object owning the preconditioner
    /// \param[in] options - options specific to the preconditioner (if needed)
@@ -163,6 +179,7 @@ private:
                                       const std::string &wrt) = 0;
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
+      virtual mfem::Operator *getMass_(const nlohmann::json &options) = 0;
       virtual mfem::Solver *getPrec_(const nlohmann::json &options) = 0;
    };
 
@@ -198,6 +215,10 @@ private:
       double calcEntropyChange_(const MachInputs &inputs) override
       {
          return calcEntropyChange(data_, inputs);
+      }
+      mfem::Operator *getMass_(const nlohmann::json &options) override 
+      {
+         return getMassMatrix(data_, options);
       }
       mfem::Solver *getPrec_(const nlohmann::json &options) override
       { 
@@ -285,6 +306,12 @@ inline double calcEntropyChange(MachResidual &residual,
                                 const MachInputs &inputs)
 {
    return residual.self_->calcEntropyChange_(inputs);
+}
+
+inline mfem::Operator *getMassMatrix(MachResidual &residual,
+                                     const nlohmann::json &options)
+{
+   return residual.self_->getMass_(options);
 }
 
 inline mfem::Solver *getPreconditioner(MachResidual &residual,

@@ -1,5 +1,6 @@
 #include "mfem.hpp"
 
+#include "diag_mass_integ.hpp"
 #include "flow_residual.hpp"
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
@@ -20,6 +21,7 @@ FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
    fields(std::make_unique<
           std::unordered_map<std::string, mfem::ParGridFunction>>()),
    res(fes, *fields),
+   mass(&fespace),
    ent(fes, *fields),
    work(getSize(res))
 {
@@ -35,13 +37,29 @@ FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
    nlohmann::json space_dis = options["space-dis"];
    addFlowDomainIntegrators(flow, space_dis);
    addFlowInterfaceIntegrators(flow, space_dis);
-
    if (options.contains("bcs"))
    {
       nlohmann::json bcs = options["bcs"];
       addFlowBoundaryIntegrators(flow, space_dis, bcs);
    }
 
+   // set up the mass bilinear form, but do not construct the matrix unless
+   // necessary (see getMassMatrix_)
+   const char *name = fes.FEColl()->Name();
+   if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
+   {      
+      mass.AddDomainIntegrator(new DiagMassIntegrator(fes.GetVDim()));
+   }
+   else
+   {
+      mass.AddDomainIntegrator(new mfem::MassIntegrator());
+   }
+   // This should be in getMassMatrix, but there is an issue with mfem
+   mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
+   mass.Finalize(0);
+   mass_mat.reset(mass.ParallelAssemble());
+
+   // Set up the entropy function integrators
    addEntropyIntegrators();
 }
 
@@ -226,6 +244,23 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    add(x, dt, dxdt, y);
    auto form_inputs = MachInputs({{"state", y}, {"time", time + dt}});
    return calcFormOutput(res, form_inputs);
+}
+
+template <int dim, bool entvar>
+Operator *FlowResidual<dim, entvar>::getMassMatrix_(
+    const nlohmann::json &options)
+{
+   if (mass_mat)
+   {
+      return mass_mat.get();
+   }
+   else
+   {
+      //mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
+      //mass.Finalize(0);
+      //mass_mat.reset(mass.ParallelAssemble());
+      return mass_mat.get();
+   }
 }
 
 template <int dim, bool entvar>
