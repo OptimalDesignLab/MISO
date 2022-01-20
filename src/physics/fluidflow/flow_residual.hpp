@@ -272,7 +272,6 @@ mfem::Operator *getMassMatrix(FlowResidual<dim, entvar> &residual,
    return residual.getMassMatrix_(mass_options);
 }
 
-
 /// Return a preconditioner for the flow residual's state Jacobian
 /// \param[inout] residual - residual whose preconditioner is desired
 /// \param[in] prec_options - options specific to the preconditioner

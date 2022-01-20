@@ -54,10 +54,6 @@ FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
    {
       mass.AddDomainIntegrator(new mfem::MassIntegrator());
    }
-   // This should be in getMassMatrix, but there is an issue with mfem
-   mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
-   mass.Finalize(0);
-   mass_mat.reset(mass.ParallelAssemble());
 
    // Set up the entropy function integrators
    addEntropyIntegrators();
@@ -256,9 +252,9 @@ Operator *FlowResidual<dim, entvar>::getMassMatrix_(
    }
    else
    {
-      //mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
-      //mass.Finalize(0);
-      //mass_mat.reset(mass.ParallelAssemble());
+      mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
+      mass.Finalize(0);
+      mass_mat.reset(mass.ParallelAssemble());
       return mass_mat.get();
    }
 }

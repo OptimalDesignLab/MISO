@@ -29,6 +29,13 @@ auto options = R"(
    "bcs": {
       "far-field": [0, 1, 1, 1],
       "slip-wall": [1, 0, 0, 0]
+   },
+   "lin-prec": {
+      "type": "hypreilu",
+      "lev-fill": 1,
+      "ilu-type": 0,
+      "ilu-reorder": 1,
+      "printlevel": 0
    }
 })"_json;
 
@@ -64,6 +71,14 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    Jac.Mult(v, Jac_v);
    REQUIRE( Jac_v(0) == Approx(-v(1)).margin(1e-14) );
    REQUIRE( Jac_v(1) == Approx(v(0)).margin(1e-14) );
+
+   // get the Preconditioner, which should be the exact inverse here    
+   Vector w(num_var);
+   Solver * prec = getPreconditioner(res, options["lin-prec"]);
+   prec->SetOperator(Jac);
+   prec->Mult(Jac_v, w);
+   REQUIRE( w(0) == Approx(v(0)).margin(1e-14) );
+   REQUIRE( w(1) == Approx(v(1)).margin(1e-14) );
 
    // check the entropy 
    double entropy = calcEntropy(res, inputs);
@@ -148,4 +163,39 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    double control_entropy = calcEntropy(control_res, control_inputs);
    double flow_entropy = calcEntropy(flow_res, flow_inputs);
    REQUIRE( entropy == Approx(control_entropy + flow_entropy).margin(1e-14) );
+
+   // check for consistency between Jacobians 
+   Operator &jac = getJacobian(res, inputs, "state");
+   Operator &control_jac = getJacobian(control_res, control_inputs, "state");
+   Operator &flow_jac = getJacobian(flow_res, flow_inputs, "state");
+
+   // Check consistency with control Jacobian.
+   Vector v(num_var), Jac_v(num_var);
+   v = 0.0;
+   for (int i = 0; i < getSize(control_res); ++i)
+   {
+      v(i) = uniform_rand(gen);
+   }
+   jac.Mult(v, Jac_v);
+   Vector vc(v.GetData(), getSize(control_res)), Jac_vc(getSize(control_res));
+   control_jac.Mult(vc, Jac_vc);
+   for (int i = 0; i < getSize(control_res); ++i)
+   {
+      REQUIRE( Jac_v(i) == Approx(Jac_vc(i)).margin(1e-14) );
+   }
+
+   // Check consistency with the flow Jacobian 
+   v = 0.0;
+   for (int i = 0; i < getSize(flow_res); ++i)
+   {
+      v(ptr+i) = uniform_rand(gen);
+   }
+   jac.Mult(v, Jac_v);
+   Vector vf(v.GetData()+ptr, getSize(flow_res)), Jac_vf(getSize(flow_res));
+   flow_jac.Mult(vf, Jac_vf);
+   for (int i = 0; i < getSize(flow_res); ++i)
+   {
+      REQUIRE( Jac_v(ptr+i) == Approx(Jac_vf(i)).margin(1e-5) );
+   }
+
 }

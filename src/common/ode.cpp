@@ -1,5 +1,6 @@
 #include "mfem.hpp"
 
+#include "matrix_operators.hpp"
 #include "mfem_extensions.hpp"
 #include "utils.hpp"
 
@@ -32,6 +33,15 @@ void addJacobians(mfem::Operator &A,
       auto *dense_C = dynamic_cast<mfem::DenseMatrix *>(&C);
       dense_C->Diag(1.0, dense_B->Width());
       dense_C->Add(dt, *dense_B);
+      return;
+   }
+   // JacobianFree is templated, so just check A for type
+   auto *block_A = dynamic_cast<mfem::BlockOperator *>(&A);
+   ///auto *matfree_B = dynamic_cast<JacobianFree *>(&B); 
+   if (block_A != nullptr)
+   {
+      auto *sum_C = dynamic_cast<SumOfOperators *>(&C);
+      sum_C->Add(1.0, A, dt, B);
       return;
    }
 }

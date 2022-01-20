@@ -6,6 +6,7 @@
 #include "equation_solver.hpp"
 #include "evolver.hpp"
 #include "mach_residual.hpp"
+#include "matrix_operators.hpp"
 
 namespace mach
 {
@@ -70,6 +71,7 @@ public:
       /// Jacobian
       auto *hypre_mass = dynamic_cast<mfem::HypreParMatrix *>(mass_matrix_);
       auto *iden_mass = dynamic_cast<mfem::IdentityOperator *>(mass_matrix_);
+      auto *block_mass = dynamic_cast<mfem::BlockOperator *>(mass_matrix_);
       if (hypre_mass != nullptr)
       {
          jac_ = std::make_unique<mfem::HypreParMatrix>(*hypre_mass);
@@ -77,6 +79,10 @@ public:
       else if (iden_mass != nullptr)
       {
          jac_ = std::make_unique<mfem::DenseMatrix>(getSize(spatial_res_));
+      }
+      else if (block_mass != nullptr)
+      {
+         jac_ = std::make_unique<SumOfOperators>(getSize(spatial_res_));
       }
    }
 

@@ -94,6 +94,121 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    t += gamma * dt;
 }
 
+BlockJacobiPreconditioner::BlockJacobiPreconditioner(const Array<int> &offsets_)
+ : Solver(offsets_.Last()),
+   owns_blocks(0),
+   nBlocks(offsets_.Size() - 1),
+   offsets(0),
+   op(nBlocks)
+{
+   op = static_cast<Solver *>(NULL);
+   offsets.MakeRef(offsets_);
+}
+
+void BlockJacobiPreconditioner::SetDiagonalBlock(int iblock, Solver *opt)
+{
+   // Cannot check for consistency here, since some preconditioners do not 
+   // provide Width() and Height()
+   //MFEM_VERIFY(offsets[iblock+1] - offsets[iblock] == opt->Height() &&
+   //            offsets[iblock+1] - offsets[iblock] == opt->Width(),
+   //            "incompatible Operator dimensions");
+   if (owns_blocks && op[iblock])
+   {
+      delete op[iblock];
+   }
+   op[iblock] = opt;
+}
+
+void BlockJacobiPreconditioner::SetOperator(const Operator &input_op)
+{
+   auto block_op = dynamic_cast<const BlockOperator*>(&input_op);
+   if (block_op == nullptr)
+   {
+      throw MachException("BlockJacobiPreconditioner::SetOperator:\n"
+                          "input operator must be castable to"
+                          "mfem::BlockOperator!\n");
+   }
+   for (int i = 0; i < nBlocks; ++i)
+   {
+      if (op[i])
+      {
+         op[i]->SetOperator(block_op->GetBlock(i, i));
+      }
+   }
+}
+
+void BlockJacobiPreconditioner::Mult(const Vector &x, Vector &y) const
+{
+   MFEM_ASSERT(x.Size() == width, "incorrect input Vector size");
+   MFEM_ASSERT(y.Size() == height, "incorrect output Vector size");
+
+   x.Read();
+   y.Write();
+   y = 0.0;
+
+   xblock.Update(const_cast<Vector &>(x), offsets);
+   yblock.Update(y, offsets);
+
+   for (int i = 0; i < nBlocks; ++i)
+   {
+      if (op[i])
+      {
+         op[i]->Mult(xblock.GetBlock(i), yblock.GetBlock(i));
+      }
+      else
+      {
+         yblock.GetBlock(i) = xblock.GetBlock(i);
+      }
+   }
+
+   for (int i = 0; i < nBlocks; ++i)
+   {
+      yblock.GetBlock(i).SyncAliasMemory(y);
+   }
+}
+
+// Action of the transpose operator
+void BlockJacobiPreconditioner::MultTranspose(const Vector &x, Vector &y) const
+{
+   MFEM_ASSERT(x.Size() == height, "incorrect input Vector size");
+   MFEM_ASSERT(y.Size() == width, "incorrect output Vector size");
+
+   x.Read();
+   y.Write();
+   y = 0.0;
+
+   xblock.Update(const_cast<Vector &>(x), offsets);
+   yblock.Update(y, offsets);
+
+   for (int i=0; i<nBlocks; ++i)
+   {
+      if (op[i])
+      {
+         (op[i])->MultTranspose(xblock.GetBlock(i), yblock.GetBlock(i));
+      }
+      else
+      {
+         yblock.GetBlock(i) = xblock.GetBlock(i);
+      }
+   }
+
+   for (int i=0; i<nBlocks; ++i)
+   {
+      yblock.GetBlock(i).SyncAliasMemory(y);
+   }
+}
+
+BlockJacobiPreconditioner::~BlockJacobiPreconditioner()
+{
+   if (owns_blocks)
+   {
+      for (int i=0; i<nBlocks; ++i)
+      {
+         delete op[i];
+      }
+   }
+}
+
 std::unique_ptr<mfem::Solver> constructLinearSolver(
     MPI_Comm comm,
     const nlohmann::json &lin_options,

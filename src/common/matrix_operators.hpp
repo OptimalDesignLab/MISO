@@ -12,6 +12,22 @@ namespace mach
 class SumOfOperators : public mfem::Operator
 {
 public:
+   /// Construct an empty operator with a pre-defined number of inputs/outputs
+   /// \param[in] height - the number of outputs
+   /// \param[in] width - the number of inputs
+   SumOfOperators(int height, int width)
+    : Operator(height, width),
+      a(0.0),
+      b(0.0),
+      oper_a(nullptr),
+      oper_b(nullptr),
+      work_vec(width)
+   { }
+
+   /// Construct an empty operator with a pre-defined height
+   /// \param[in] height - the number of rows in the operator
+   SumOfOperators(int height) : SumOfOperators(height, height) { }
+
    /// Construct an operator out of the given linear combination
    /// \param[in] alpha - scalar multiplying `oper1`
    /// \param[in] oper1 - first operator in the sum
@@ -24,6 +40,16 @@ public:
                   double beta,
                   mfem::Operator &oper2);
 
+   /// Define the SumOfOperator based on the given inputs
+   /// \param[in] alpha - scalar multiplying `oper1`
+   /// \param[in] oper1 - first operator in the sum
+   /// \param[in] beta - scalar multiplying `oper2`
+   /// \param[in] oper2 - second operator in the sum
+   void Add(double alpha,
+            mfem::Operator &oper1,
+            double beta,
+            mfem::Operator &oper2);
+
    /// Performs the linear combination of the operators on `x` to produce `y`
    /// \param[in] x - the vector being acted/operated on
    /// \param[out] y - the result of the action
@@ -33,9 +59,9 @@ private:
    /// scalars in the linear combination
    double a, b;
    /// first operator making up the sum
-   mfem::Operator &oper_a;
+   mfem::Operator *oper_a;
    /// second operator making up the sum
-   mfem::Operator &oper_b;
+   mfem::Operator *oper_b;
    /// work vector
    mutable mfem::Vector work_vec;
 };

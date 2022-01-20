@@ -20,7 +20,7 @@ void setValueFromInputs(const MachInputs &inputs,
    }
    else if (error_if_not_found)
    {
-      throw MachException("key = " + key + "not found in inputs!\n");
+      throw MachException("key = " + key + " not found in inputs!\n");
    }
 }
 
@@ -53,7 +53,7 @@ void setVectorFromInputs(const MachInputs &inputs,
    }
    else if (error_if_not_found)
    {
-      throw MachException("key = " + key + "not found in inputs!\n");
+      throw MachException("key = " + key + " not found in inputs!\n");
    }
 }
 

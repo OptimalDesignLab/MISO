@@ -8,6 +8,7 @@
 #include "flow_residual.hpp"
 #include "mach_input.hpp"
 #include "matrix_operators.hpp"
+#include "mfem_extensions.hpp"
 
 namespace mach
 {
@@ -72,15 +73,42 @@ public:
    friend double calcEntropyChange(ControlResidual &residual,
                                    const MachInputs &inputs);
 
-   /// Constructor 
+   /// Return mass matrix (operator) for the control equations
+   /// \param[inout] residual - residual whose mass matrix is desired
+   /// \param[in] mass_options - options (not presently used)
+   /// \return pointer to mass matrix for the control equations
+   /// \note The returned pointer is owned by the residual
+   friend mfem::Operator *getMassMatrix(ControlResidual &residual,
+                                        const nlohmann::json &mass_options)
+   {
+      return &(residual.mass_mat);
+   }
+
+   /// Return a preconditioner for the control state Jacobian
+   /// \param[inout] residual - residual whose preconditioner is desired
+   /// \param[in] prec_options - options specific to the preconditioner
+   /// \return pointer to preconditioner for the state Jacobian
+   /// \note The preconditioner's operator is set and factored when SetOperator 
+   /// is called by the linear solver's SetOperator
+   friend mfem::Solver *getPreconditioner(ControlResidual &residual,
+                                          const nlohmann::json &prec_options)
+   {
+      return &(residual.prec);
+   }
+
+   /// Constructor
    /// \param[in] control_options - options used to define the residual
-   /// \note the number of control variables is hard-coded, but this could 
+   /// \note the number of control variables is hard-coded, but this could
    /// easily be changed.
    ControlResidual(const nlohmann::json &control_options)
-    : num_var(2), time(0.0), x(num_var), work(num_var), Jac(num_var)
-    { 
-
-    }
+    : num_var(2),
+      time(0.0),
+      x(num_var),
+      work(num_var),
+      mass_mat(num_var),
+      Jac(num_var),
+      prec(Jac)
+   { }
 
 private:
    /// number of control ODE variables/equations
@@ -95,8 +123,12 @@ private:
    mfem::Vector x;
    /// generic work vector
    mfem::Vector work;
+   /// Mass matrix for the ODE (the identity)
+   mfem::IdentityOperator mass_mat;
    /// Jacobian of the ODE right-hand side
    mfem::DenseMatrix Jac;
+   /// Preconditioner for the ODE Jacobian
+   mfem::DenseMatrixInverse prec;
 };
 
 /// Class for flow-control equations that follows the MachResidual API
@@ -119,14 +151,8 @@ public:
    }
 
    /// Set inputs in the underlying residual
-   /// \param[inout] residual - the flow-control residual being assigned inputs
    /// \param[in] inputs - the inputs that are being assigned
-   friend void setInputs(FlowControlResidual &residual,
-                         const MachInputs &inputs)
-   {
-      setInputs(residual.flow_res, inputs);
-      setInputs(residual.control_res, inputs);
-   }
+   void setInputs_(const MachInputs &inputs);
 
    /// Set options in the underlying residual type
    /// \param[inout] residual - flow-control residual whose options are set
@@ -142,6 +168,8 @@ public:
    /// \param[inout] residual - the flow-control residual being evaluated
    /// \param[in] inputs - the independent variables at which to evaluate `res`
    /// \param[out] res_vec - the dependent variable, the output from `residual`
+   /// \note This assumes that inputs like `time` have already been set using a 
+   /// call to `setInputs`
    void evaluate_(const MachInputs &inputs, mfem::Vector &res_vec);
 
    /// Compute the Jacobian of the flow-control residual and return a reference
@@ -166,6 +194,29 @@ public:
    /// \note optional, but must be implemented for relaxation RK
    double calcEntropyChange_(const MachInputs &inputs);
 
+   /// Return mass matrix (operator) for the flow-control equations
+   /// \param[inout] residual - residual whose mass matrix is desired
+   /// \param[in] mass_options - options (not presently used)
+   /// \return pointer to mass matrix for the flow-control equations
+   /// \note The returned pointer is owned by the residual
+   friend mfem::Operator *getMassMatrix(FlowControlResidual &residual,
+                                 const nlohmann::json &mass_options)
+   {
+      return residual.mass_mat.get();
+   }
+
+   /// Return a preconditioner for the flow-control state Jacobian
+   /// \param[inout] residual - residual whose preconditioner is desired
+   /// \param[in] prec_options - options specific to the preconditioner
+   /// \return pointer to preconditioner for the state Jacobian
+   /// \note Constructs the preconditioner, and the returned pointer is owned
+   /// by the `residual`
+   friend  mfem::Solver *getPreconditioner(FlowControlResidual &residual,
+                                   const nlohmann::json &prec_options)
+   {
+      return residual.prec.get();
+   }
+
    /// Construct a flow-control residual object
    /// \param[in] options - options that define the flow and control problems
    /// \param[in] pfes - defines the finite-element space needed by flow 
@@ -174,13 +225,23 @@ public:
        mfem::ParFiniteElementSpace &pfes, adept::Stack &diff_stack);
 
 private:
-   /// Defines the CFD discretization of the problem 
+   /// Offsets to mark the start of each row/column block
+   mfem::Array<int> offsets;
+   /// Defines the CFD discretization of the problem
    FlowResidual<dim, entvar> flow_res;
    /// Defines the control problem
    ControlResidual control_res;
+   /// Block operator for the mass-matrix operator
+   std::unique_ptr<mfem::BlockOperator> mass_mat;
+   /// Preconditioner for the Jacobian
+   std::unique_ptr<BlockJacobiPreconditioner> prec;
    /// The Jacobian-free operator
    JacobianFree<FlowControlResidual<dim, entvar>> jac;
-   
+   /// Work vector for the control state
+   mfem::Vector control_state;
+   /// Work vector for the flow state
+   mfem::Vector flow_state;
+
    // These could be public
    int num_control() const { return getSize(control_res); }
    int num_flow() const { return getSize(flow_res); }
@@ -196,6 +257,18 @@ private:
                                 mfem::Vector &control_state,
                                 mfem::Vector &flow_state);
 };
+
+/// Set inputs in the flow-control residual
+/// \param[inout] residual - the flow-control residual being assigned inputs
+/// \param[in] inputs - the inputs that are being assigned
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, the entropy variables are used in the integrators
+template <int dim, bool entvar>
+void setInputs(FlowControlResidual<dim, entvar> &residual,
+               const MachInputs &inputs)
+{
+   residual.setInputs_(inputs);
+}
 
 /// Evaluate the fully-discrete flow-control equations
 /// \param[inout] residual - defines the flow-control residual being evaluated
