@@ -37,7 +37,7 @@ void addJacobians(mfem::Operator &A,
    }
    // JacobianFree is templated, so just check A for type
    auto *block_A = dynamic_cast<mfem::BlockOperator *>(&A);
-   ///auto *matfree_B = dynamic_cast<JacobianFree *>(&B); 
+   /// auto *matfree_B = dynamic_cast<JacobianFree *>(&B);
    if (block_A != nullptr)
    {
       auto *sum_C = dynamic_cast<SumOfOperators *>(&C);
@@ -135,7 +135,7 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto *jac_free = dynamic_cast<JacobianFree *>(residual.jac_.get());
    if (jac_free)
    {
-      // Using a Jacobian-free implementation 
+      // Using a Jacobian-free implementation
       jac_free->setScaling(dt);
       jac_free->setState(input);
    }

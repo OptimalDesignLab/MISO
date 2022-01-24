@@ -55,8 +55,8 @@ protected:
 /// For block-Jacobian preconditioning of block operator systems
 /// \note This class is almost identical to mfem::BlockDiagonalPreconditioner;
 /// however, unlike MFEM's solver, this one does not check for consistency
-/// between the offsets and the given block operator when using 
-/// SetDiagonalBlock.  This change was needed to permit the use of HYPRE's 
+/// between the offsets and the given block operator when using
+/// SetDiagonalBlock.  This change was needed to permit the use of HYPRE's
 /// preconditioners, which do not define Width().  Furthermore, SetOperator is
 /// called recursively on the block entries.
 class BlockJacobiPreconditioner : public mfem::Solver
@@ -64,15 +64,15 @@ class BlockJacobiPreconditioner : public mfem::Solver
 public:
    /// Constructor that specifies the block structure
    /// \param[in] offsets - mark the start of each row/column block
-   BlockJacobiPreconditioner(const mfem::Array<int> & offsets);
+   BlockJacobiPreconditioner(const mfem::Array<int> &offsets);
 
    /// Add a square block op in the block-entry (iblock, iblock)
    /// \param[in] iblock - the index of row-column block entry being set
    /// \param[in] op - the solver used to define the (iblock, iblock) entry
    void SetDiagonalBlock(int iblock, mfem::Solver *op);
 
-   /// Calls SetOperator on the diagonal block operators 
-   /// \param[in] op - a BlockOperator whose diagonal entries are used 
+   /// Calls SetOperator on the diagonal block operators
+   /// \param[in] op - a BlockOperator whose diagonal entries are used
    virtual void SetOperator(const mfem::Operator &op) override;
 
    /// Return the number of blocks
@@ -80,22 +80,28 @@ public:
    int NumBlocks() const { return nBlocks; }
 
    /// Get a reference to block `iblock`,`iblock`
-   /// \param[in] iblock - index of the desired diagonal entry 
+   /// \param[in] iblock - index of the desired diagonal entry
    /// \returns a reference to block `iblock`,`iblock`
-   Operator & GetDiagonalBlock(int iblock)
-   { MFEM_VERIFY(op[iblock], ""); return *op[iblock]; }
+   Operator &GetDiagonalBlock(int iblock)
+   {
+      MFEM_VERIFY(op[iblock], "");
+      return *op[iblock];
+   }
 
    /// Get a reference to block `iblock`,`iblock` (const version)
-   /// \param[in] iblock - index of the desired diagonal entry 
+   /// \param[in] iblock - index of the desired diagonal entry
    /// \returns a reference to block `iblock`,`iblock`
-   const Operator & GetDiagonalBlock(int iblock) const
-   { MFEM_VERIFY(op[iblock], ""); return *op[iblock]; }
+   const Operator &GetDiagonalBlock(int iblock) const
+   {
+      MFEM_VERIFY(op[iblock], "");
+      return *op[iblock];
+   }
 
    /// Return the offsets for block starts
-   mfem::Array<int> & Offsets() { return offsets; }
+   mfem::Array<int> &Offsets() { return offsets; }
 
    /// Read only access to the offsets for block starts
-   const mfem::Array<int> & Offsets() const { return offsets; }
+   const mfem::Array<int> &Offsets() const { return offsets; }
 
    /// Operator application
    /// \param[in] x - the vector being preconditioned
@@ -107,11 +113,11 @@ public:
    /// \param[in] y - the preconditioned vector
    virtual void MultTranspose(const mfem::Vector &x, mfem::Vector &y) const;
 
-   /// Preconditioner destructor 
+   /// Preconditioner destructor
    ~BlockJacobiPreconditioner();
 
    /// Controls the ownership of the blocks
-   /// \note if nonzero, BlockJacobiPreconditioner will delete all blocks that 
+   /// \note if nonzero, BlockJacobiPreconditioner will delete all blocks that
    /// are set (non-NULL); the default value is zero.
    int owns_blocks;
 
@@ -121,12 +127,11 @@ private:
    /// Offsets for the starting position of each block
    mfem::Array<int> offsets;
    /// 1D array that stores each block of the operator.
-   mfem::Array<Solver*> op;
+   mfem::Array<Solver *> op;
    /// Temporary Vectors used to efficiently apply the Mult and MultTranspose
    mutable mfem::BlockVector xblock;
    mutable mfem::BlockVector yblock;
 };
-
 
 /// Constuct a linear system solver based on the given options
 /// \param[in] comm - MPI communicator used by linear solver

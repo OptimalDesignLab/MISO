@@ -26,12 +26,12 @@ SumOfOperators::SumOfOperators(double alpha,
 }
 
 void SumOfOperators::Add(double alpha,
-                               Operator &oper1,
-                               double beta,
-                               Operator &oper2)
+                         Operator &oper1,
+                         double beta,
+                         Operator &oper2)
 {
-   a = alpha; 
-   b = beta; 
+   a = alpha;
+   b = beta;
    oper_a = &oper1;
    oper_b = &oper2;
 }
@@ -105,7 +105,7 @@ void JacobianFree::Mult(const mfem::Vector &x, mfem::Vector &y) const
    }
    if (explicit_part)
    {
-      // Include contribution from explicit operator, if necessary 
+      // Include contribution from explicit operator, if necessary
       explicit_part->Mult(x, state_pert);
       y += state_pert;
    }
@@ -114,15 +114,16 @@ void JacobianFree::Mult(const mfem::Vector &x, mfem::Vector &y) const
 mfem::Operator &JacobianFree::getDiagonalBlock(int i) const
 {
    // First, extract the Jacobian block and cast the explicit part
-   // We assume that `state` holds where the Jacobian is to be evaluated 
+   // We assume that `state` holds where the Jacobian is to be evaluated
    auto inputs = MachInputs({{"state", state}});
    Operator &jac = getJacobianBlock(res, inputs, i);
    BlockOperator *block_op = dynamic_cast<BlockOperator *>(explicit_part);
    if (explicit_part != nullptr && block_op == nullptr)
    {
-      throw MachException("JacobianFree::getDiagonalBlock:\n"
-                          "explicit part of operator must be castable to "
-                          "BlockOperator!\n");
+      throw MachException(
+          "JacobianFree::getDiagonalBlock:\n"
+          "explicit part of operator must be castable to "
+          "BlockOperator!\n");
    }
 
    // Case 1: HypreParMatrix
@@ -132,32 +133,33 @@ mfem::Operator &JacobianFree::getDiagonalBlock(int i) const
       *hypre_jac *= scale;
       if (block_op)
       {
-         Operator &exp_block = block_op->GetBlock(i,i);
+         Operator &exp_block = block_op->GetBlock(i, i);
          HypreParMatrix *hypre_exp = dynamic_cast<HypreParMatrix *>(&exp_block);
          *hypre_jac += *hypre_exp;
       }
       return jac;
    }
-   // Case 2: DenseMatrix 
+   // Case 2: DenseMatrix
    DenseMatrix *dense_jac = dynamic_cast<DenseMatrix *>(&jac);
    if (dense_jac)
    {
       *dense_jac *= scale;
       if (block_op)
       {
-         Operator &exp_block = block_op->GetBlock(i,i);
+         Operator &exp_block = block_op->GetBlock(i, i);
          DenseMatrix *dense_exp = dynamic_cast<DenseMatrix *>(&exp_block);
          *dense_jac += *dense_exp;
       }
       return jac;
    }
-   // If we get here, there was some kind of problem 
-   throw MachException("JacobianFree::getDiagonalBlock:\n"
-                       "incompatible operators/matrices!\n");
+   // If we get here, there was some kind of problem
+   throw MachException(
+       "JacobianFree::getDiagonalBlock:\n"
+       "incompatible operators/matrices!\n");
 }
 
 double JacobianFree::getStepSize(const mfem::Vector &baseline,
-                                    const mfem::Vector &pert) const
+                                 const mfem::Vector &pert) const
 {
    // This is based on the step size suggested by Chisholm and Zingg in
    // "A Jacobian-Free Newton-Krylov Algorithm for Compressible Turbulent Fluid

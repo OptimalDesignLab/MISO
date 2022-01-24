@@ -6,7 +6,6 @@
 
 #include "diag_mass_integ.hpp"  /// TEMP !!!!
 
-
 using namespace std;
 using namespace mfem;
 

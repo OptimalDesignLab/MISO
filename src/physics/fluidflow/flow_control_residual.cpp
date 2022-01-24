@@ -10,9 +10,8 @@
 using namespace std;
 using namespace mfem;
 
-namespace mach 
+namespace mach
 {
-
 void setInputs(ControlResidual &residual, const MachInputs &inputs)
 {
    // setValueFromInputs(inputs, "Kp", residual.Kp);
@@ -27,10 +26,11 @@ void setInputs(ControlResidual &residual, const MachInputs &inputs)
 
 void setOptions(ControlResidual &residual, const nlohmann::json &options)
 {
-   // set options here 
+   // set options here
 }
 
-void evaluate(ControlResidual &residual, const MachInputs &inputs, 
+void evaluate(ControlResidual &residual,
+              const MachInputs &inputs,
               mfem::Vector &res_vec)
 {
    setInputs(residual, inputs);
@@ -40,7 +40,7 @@ void evaluate(ControlResidual &residual, const MachInputs &inputs,
    res_vec(0) = -residual.x(1);
    res_vec(1) = residual.x(0);
 
-   // // define some aliases 
+   // // define some aliases
    // double &Kp = residual.Kp;
    // double &Td = residual.Td;
    // double &Ti = residual.Ti;
@@ -54,10 +54,11 @@ void evaluate(ControlResidual &residual, const MachInputs &inputs,
    // setValueFromInputs(inputs, "entropy", entropy, error_if_not_found);
    // // evaluate the residual
    // double e = entropy_targ - entropy;
-   // res_vec(0) = -((1.0 - 1.0/(alpha*beta))*Kp*e - residual.x(1)/beta)/(alpha*Ti*Td);
-   // res_vec(1) = -( ((Td + Ti) - (alpha*Td + beta*Ti)/(alpha*beta))*Kp*e / 
-   //                 (alpha*Ti*Td) + residual.x(0) - residual.x(1)*(alpha*Td + beta*Ti) /
-   //                 (alpha*beta*Ti*Td) );
+   // res_vec(0) = -((1.0 - 1.0/(alpha*beta))*Kp*e -
+   // residual.x(1)/beta)/(alpha*Ti*Td); res_vec(1) = -( ((Td + Ti) - (alpha*Td
+   // + beta*Ti)/(alpha*beta))*Kp*e /
+   //                 (alpha*Ti*Td) + residual.x(0) - residual.x(1)*(alpha*Td +
+   //                 beta*Ti) / (alpha*beta*Ti*Td) );
 }
 
 Operator &getJacobian(ControlResidual &residual,
@@ -66,15 +67,15 @@ Operator &getJacobian(ControlResidual &residual,
 {
    setInputs(residual, inputs);
    residual.Jac = 0.0;
-   residual.Jac(0,1) = -1.0;
-   residual.Jac(1,0) = 1.0;
+   residual.Jac(0, 1) = -1.0;
+   residual.Jac(1, 0) = 1.0;
    return residual.Jac;
 }
 
 double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
 {
    setInputs(residual, inputs);
-   return residual.x(0)*residual.x(0) + residual.x(1)*residual.x(1);
+   return residual.x(0) * residual.x(0) + residual.x(1) * residual.x(1);
 }
 
 double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
@@ -87,7 +88,7 @@ double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
    setValueFromInputs(inputs, "dt", dt, true);
    auto &y = residual.work;
    add(residual.x, dt, dxdt, y);
-   return -y(0)*y(1) + y(1)*y(0);
+   return -y(0) * y(1) + y(1) * y(0);
 }
 
 template <int dim, bool entvar>
@@ -97,19 +98,19 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
     adept::Stack &diff_stack)
  : offsets(3),
    flow_res(options, pfes, diff_stack),
-   control_res(options)//, jac(*this, pfes.GetComm())
+   control_res(options)  //, jac(*this, pfes.GetComm())
 {
    // offsets mark the start of each row/column block
    offsets[0] = 0;
    offsets[1] = num_control();
    offsets[2] = offsets[1] + num_flow();
-   // create the mass operator 
+   // create the mass operator
    mass_mat = make_unique<BlockOperator>(offsets);
    auto control_mass = getMassMatrix(control_res, options);
    auto flow_mass = getMassMatrix(flow_res, options);
    mass_mat->SetDiagonalBlock(0, control_mass);
    mass_mat->SetDiagonalBlock(1, flow_mass);
-   // create the preconditioner 
+   // create the preconditioner
    auto prec_opts = options["lin-prec"];
    prec = make_unique<BlockJacobiPreconditioner>(offsets);
    auto control_prec = getPreconditioner(control_res, prec_opts);
@@ -137,9 +138,9 @@ void FlowControlResidual<dim, entvar>::setInputs_(const MachInputs &inputs)
    auto flow_inputs = MachInputs(inputs);
    if (inputs.find("state") != inputs.end())
    {
-       extractStatesFromInputs(inputs, control_state, flow_state);
-       control_inputs.at("state") = control_state;
-       flow_inputs.at("state") = flow_state;
+      extractStatesFromInputs(inputs, control_state, flow_state);
+      control_inputs.at("state") = control_state;
+      flow_inputs.at("state") = flow_state;
    }
    setInputs(control_res, control_inputs);
    setInputs(flow_res, flow_inputs);
@@ -152,16 +153,18 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
    setInputs_(inputs);
    Vector control_res_vec(res_vec.GetData() + 0, num_control());
    Vector flow_res_vec(res_vec.GetData() + num_control(), num_flow());
-   //double time;
-   //setValueFromInputs(inputs, "time", time, true);
-   //double time = std::get<double>(inputs.at("time"));
+   // double time;
+   // setValueFromInputs(inputs, "time", time, true);
+   // double time = std::get<double>(inputs.at("time"));
 
    // This version does not account for coupling yet
-   //Vector control_state, flow_state;
-   //extractStatesFromInputs(inputs, control_state, flow_state);
+   // Vector control_state, flow_state;
+   // extractStatesFromInputs(inputs, control_state, flow_state);
    // control_state and flow_state should have been defined by setInputs_
-   auto flow_inputs = MachInputs({{"state", flow_state}}); // ,{"time", time}});
-   auto control_inputs = MachInputs({{"state", control_state}}); //, {"time", time}});
+   auto flow_inputs =
+       MachInputs({{"state", flow_state}});  // ,{"time", time}});
+   auto control_inputs =
+       MachInputs({{"state", control_state}});  //, {"time", time}});
    evaluate(flow_res, flow_inputs, flow_res_vec);
    evaluate(control_res, control_inputs, control_res_vec);
 
@@ -191,13 +194,14 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
 //                       const std::string &wrt)
 // {
 //    setInputs_(inputs);
-//    // set the state 
+//    // set the state
 //    jac.setState(inputs);
 //    return jac;
 //    // if (wrt != "state")
 //    // {
 //    //    throw MachException(
-//    //        "Unsupported value for wrt in getJacobian(FlowControlResidual)!\n"
+//    //        "Unsupported value for wrt in
+//    getJacobian(FlowControlResidual)!\n"
 //    //        "\tvalue provided for wrt was " + wrt "\n");
 //    // }
 //    // double time = inputs.at("time");
@@ -206,16 +210,19 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
 //    // extractStatesFromInputs(inputs, control_state, flow_state);
 
 //    // // double * control_state_ptr = inputs.at("state").getField();
-//    // // double * flow_state_ptr = inputs.at("state").getField() + num_control;
+//    // // double * flow_state_ptr = inputs.at("state").getField() +
+//    num_control;
 //    // // set inputs for flow Jacobian and get a reference to it
 //    // auto flow_inputs = MachInputs({
 //    //    {"state", flow_state}, {"time", time}, {"control", control_state}
 //    // });
-//    // Operator &flow_jac = getJacobian(residual.flow_res, flow_inputs, "state");
+//    // Operator &flow_jac = getJacobian(residual.flow_res, flow_inputs,
+//    "state");
 
 //    // // Use a Block Operator?
 //    // // Probably easier to use Matrix-Free approach, or a hybrid approach
-//    // // For preconditioner, we can use block Jacobi and ignore the coupling terms
+//    // // For preconditioner, we can use block Jacobi and ignore the coupling
+//    terms
 // }
 
 template <int dim, bool entvar>
@@ -234,7 +241,7 @@ double FlowControlResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
 
 template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::calcEntropyChange_(
-   const MachInputs &inputs)
+    const MachInputs &inputs)
 {
    // Vector x;
    // setVectorFromInputs(inputs, "state", x, false, true);
@@ -283,4 +290,4 @@ template class FlowControlResidual<2, false>;
 template class FlowControlResidual<3, true>;
 template class FlowControlResidual<3, false>;
 
-} // namespace mach
+}  // namespace mach

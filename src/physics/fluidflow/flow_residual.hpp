@@ -84,7 +84,7 @@ public:
    /// Return mass matrix for the flow equations
    /// \param[in] options - options (not presently used)
    /// \return pointer to mass matrix for the flow equations
-   /// \note Constructs the mass form and matrix, and the returned pointer is 
+   /// \note Constructs the mass form and matrix, and the returned pointer is
    /// owned by the residual
    mfem::Operator *getMassMatrix_(const nlohmann::json &options);
 
@@ -269,7 +269,7 @@ double calcEntropyChange(FlowResidual<dim, entvar> &residual,
 /// Return mass matrix for the flow equations
 /// \param[in] mass_options - options (not presently used)
 /// \return pointer to mass matrix for the flow equations
-/// \note Constructs the mass form and matrix, and the returned pointer is 
+/// \note Constructs the mass form and matrix, and the returned pointer is
 /// owned by the residual
 template <int dim, bool entvar>
 mfem::Operator *getMassMatrix(FlowResidual<dim, entvar> &residual,

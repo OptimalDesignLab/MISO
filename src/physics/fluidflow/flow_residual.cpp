@@ -47,7 +47,7 @@ FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
    // necessary (see getMassMatrix_)
    const char *name = fes.FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
-   {      
+   {
       mass.AddDomainIntegrator(new DiagMassIntegrator(fes.GetVDim()));
    }
    else
@@ -261,7 +261,7 @@ Operator *FlowResidual<dim, entvar>::getMassMatrix_(
 
 template <int dim, bool entvar>
 Solver *FlowResidual<dim, entvar>::getPreconditioner_(
-   const nlohmann::json &prec_options)
+    const nlohmann::json &prec_options)
 {
    std::string prec_type = prec_options["type"].get<std::string>();
    if (prec_type == "hypreeuclid")

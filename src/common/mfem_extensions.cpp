@@ -108,9 +108,9 @@ BlockJacobiPreconditioner::BlockJacobiPreconditioner(const Array<int> &offsets_)
 
 void BlockJacobiPreconditioner::SetDiagonalBlock(int iblock, Solver *opt)
 {
-   // Cannot check for consistency here, since some preconditioners do not 
+   // Cannot check for consistency here, since some preconditioners do not
    // provide Width() and Height()
-   //MFEM_VERIFY(offsets[iblock+1] - offsets[iblock] == opt->Height() &&
+   // MFEM_VERIFY(offsets[iblock+1] - offsets[iblock] == opt->Height() &&
    //            offsets[iblock+1] - offsets[iblock] == opt->Width(),
    //            "incompatible Operator dimensions");
    if (owns_blocks && op[iblock])
@@ -122,10 +122,10 @@ void BlockJacobiPreconditioner::SetDiagonalBlock(int iblock, Solver *opt)
 
 void BlockJacobiPreconditioner::SetOperator(const Operator &input_op)
 {
-   auto block_op = dynamic_cast<const BlockOperator*>(&input_op);
+   auto block_op = dynamic_cast<const BlockOperator *>(&input_op);
    if (block_op != nullptr)
    {
-      // input_op is a BlockOperator 
+      // input_op is a BlockOperator
       for (int i = 0; i < nBlocks; ++i)
       {
          if (op[i])
@@ -135,7 +135,7 @@ void BlockJacobiPreconditioner::SetOperator(const Operator &input_op)
       }
       return;
    }
-   auto jacfree_op = dynamic_cast<const JacobianFree*>(&input_op);
+   auto jacfree_op = dynamic_cast<const JacobianFree *>(&input_op);
    if (jacfree_op != nullptr)
    {
       // input op is a JacobianFree operator
@@ -149,9 +149,10 @@ void BlockJacobiPreconditioner::SetOperator(const Operator &input_op)
       return;
    }
    // if we get here, input_op was neither a BlockOperator nor a JacobianFree
-   throw MachException("BlockJacobiPreconditioner::SetOperator:\n"
-                          "input operator must be castable to"
-                          "mfem::BlockOperator or JacobianFree!\n");
+   throw MachException(
+       "BlockJacobiPreconditioner::SetOperator:\n"
+       "input operator must be castable to"
+       "mfem::BlockOperator or JacobianFree!\n");
 }
 
 void BlockJacobiPreconditioner::Mult(const Vector &x, Vector &y) const
@@ -197,7 +198,7 @@ void BlockJacobiPreconditioner::MultTranspose(const Vector &x, Vector &y) const
    xblock.Update(const_cast<Vector &>(x), offsets);
    yblock.Update(y, offsets);
 
-   for (int i=0; i<nBlocks; ++i)
+   for (int i = 0; i < nBlocks; ++i)
    {
       if (op[i])
       {
@@ -209,7 +210,7 @@ void BlockJacobiPreconditioner::MultTranspose(const Vector &x, Vector &y) const
       }
    }
 
-   for (int i=0; i<nBlocks; ++i)
+   for (int i = 0; i < nBlocks; ++i)
    {
       yblock.GetBlock(i).SyncAliasMemory(y);
    }
@@ -219,7 +220,7 @@ BlockJacobiPreconditioner::~BlockJacobiPreconditioner()
 {
    if (owns_blocks)
    {
-      for (int i=0; i<nBlocks; ++i)
+      for (int i = 0; i < nBlocks; ++i)
       {
          delete op[i];
       }

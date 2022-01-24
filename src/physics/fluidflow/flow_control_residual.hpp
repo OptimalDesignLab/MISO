@@ -12,11 +12,10 @@
 
 namespace mach
 {
-
 /// Defines the ODE for passive system control-law
-class ControlResidual final 
+class ControlResidual final
 {
-public: 
+public:
    /// Gets the number of control ODEs/unknwons
    /// \param[inout] residual - the residual whose size is being queried
    /// \returns the number of equations/unknowns
@@ -28,8 +27,7 @@ public:
    /// Set inputs in the underlying passive-control residual
    /// \param[inout] residual - passive-control residual being assigned inputs
    /// \param[in] inputs - the inputs that are being assigned
-   friend void setInputs(ControlResidual &residual,
-                         const MachInputs &inputs);
+   friend void setInputs(ControlResidual &residual, const MachInputs &inputs);
 
    /// Set options in the passive-control residual
    /// \param[inout] residual - passive-control residual whose options are set
@@ -88,7 +86,7 @@ public:
    /// \param[inout] residual - residual whose preconditioner is desired
    /// \param[in] prec_options - options specific to the preconditioner
    /// \return pointer to preconditioner for the state Jacobian
-   /// \note The preconditioner's operator is set and factored when SetOperator 
+   /// \note The preconditioner's operator is set and factored when SetOperator
    /// is called by the linear solver's SetOperator
    friend mfem::Solver *getPreconditioner(ControlResidual &residual,
                                           const nlohmann::json &prec_options)
@@ -106,7 +104,7 @@ public:
       x(num_var),
       work(num_var),
       mass_mat(num_var),
-      Jac(num_var), 
+      Jac(num_var),
       prec()
    { }
 
@@ -114,11 +112,11 @@ private:
    /// number of control ODE variables/equations
    int num_var;
    /// parameters in the control law
-   //double Kp, Td, Ti, alpha, beta;
+   // double Kp, Td, Ti, alpha, beta;
    /// desired, or target, entropy from flow
-   //double entropy_targ;
+   // double entropy_targ;
    /// Stores the current simulation time
-   double time; 
+   double time;
    /// work vector to store the "state" (i.e. the control variables)
    mfem::Vector x;
    /// generic work vector
@@ -134,9 +132,9 @@ private:
 /// Class for flow-control equations that follows the MachResidual API
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, the entropy variables are used in the integrators
-/// \note We do not use friend functions in all cases with this class because 
+/// \note We do not use friend functions in all cases with this class because
 /// it is templated and would require a large number of forward declarations.
-/// Instead, for more involved functions, we define member functions needed by 
+/// Instead, for more involved functions, we define member functions needed by
 /// the MachResidual interface and then use these in non-friend functions.
 template <int dim, bool entvar = false>
 class FlowControlResidual final
@@ -173,7 +171,7 @@ public:
    /// \param[inout] residual - the flow-control residual being evaluated
    /// \param[in] inputs - the independent variables at which to evaluate `res`
    /// \param[out] res_vec - the dependent variable, the output from `residual`
-   /// \note This assumes that inputs like `time` have already been set using a 
+   /// \note This assumes that inputs like `time` have already been set using a
    /// call to `setInputs`
    void evaluate_(const MachInputs &inputs, mfem::Vector &res_vec);
 
@@ -182,14 +180,14 @@ public:
    /// \param[in] wrt - the input we are differentiating with respect to
    /// \returns a reference to the residual's Jacobian with respect to `wrt`
    /// \note the underlying `Operator` is owned by `residual`
-   //mfem::Operator &getJacobian_(const MachInputs &inputs,
+   // mfem::Operator &getJacobian_(const MachInputs &inputs,
    //                             const std::string &wrt);
    friend mfem::Operator &getJacobian(FlowControlResidual &residual,
                                       const MachInputs &inputs,
                                       const std::string &wrt)
    {
       throw MachException(
-       "getJacobian not implemented for FlowControlResidual!\n");
+          "getJacobian not implemented for FlowControlResidual!\n");
    }
 
    /// Evaluate the entropy/Lyapunov functional at the given state
@@ -212,7 +210,7 @@ public:
    /// \return pointer to mass matrix for the flow-control equations
    /// \note The returned pointer is owned by the residual
    friend mfem::Operator *getMassMatrix(FlowControlResidual &residual,
-                                 const nlohmann::json &mass_options)
+                                        const nlohmann::json &mass_options)
    {
       return residual.mass_mat.get();
    }
@@ -224,7 +222,7 @@ public:
    /// \note Constructs the preconditioner, and the returned pointer is owned
    /// by the `residual`
    friend mfem::Solver *getPreconditioner(FlowControlResidual &residual,
-                                   const nlohmann::json &prec_options)
+                                          const nlohmann::json &prec_options)
    {
       return residual.prec.get();
    }
@@ -237,10 +235,11 @@ public:
 
    /// Construct a flow-control residual object
    /// \param[in] options - options that define the flow and control problems
-   /// \param[in] pfes - defines the finite-element space needed by flow 
+   /// \param[in] pfes - defines the finite-element space needed by flow
    /// \param[in] diff_stack - used for algorithmic differentiation
    FlowControlResidual(const nlohmann::json &options,
-       mfem::ParFiniteElementSpace &pfes, adept::Stack &diff_stack);
+                       mfem::ParFiniteElementSpace &pfes,
+                       adept::Stack &diff_stack);
 
 private:
    /// Offsets to mark the start of each row/column block
@@ -254,7 +253,7 @@ private:
    /// Preconditioner for the Jacobian
    std::unique_ptr<BlockJacobiPreconditioner> prec;
    /// The Jacobian-free operator
-   //JacobianFree jac;
+   // JacobianFree jac;
    /// Work vector for the control state
    mfem::Vector control_state;
    /// Work vector for the flow state
@@ -265,10 +264,10 @@ private:
    int num_flow() const { return getSize(flow_res); }
 
    /// Helper function that extracts state input into separate vectors
-   /// \param[in] inputs - must include a state input 
+   /// \param[in] inputs - must include a state input
    /// \param[out] control_state - on exit, holds the control state vector
    /// \param[out] flow_state - on exit, holds the flow state vector
-   /// \note No memory is allocated for the output states, they simply wrap the 
+   /// \note No memory is allocated for the output states, they simply wrap the
    /// data passed in by inputs.
    /// \note An exception is raised if `inputs` does not hold a `state` element.
    void extractStatesFromInputs(const MachInputs &inputs,
@@ -370,6 +369,6 @@ mfem::Operator &getJacobianBlock(FlowControlResidual<dim, entvar> &residual,
    return residual.getJacobianBlock_(inputs, i);
 }
 
-} // namespace mach
+}  // namespace mach
 
 #endif

@@ -61,8 +61,8 @@ public:
    /// \returns an operator associated with the (i,j) block
    /// \note This assumes that *oper_a and *oper_b are BlockOperators.  If not
    /// an exception will be thrown.
-   //const mfem::Operator &GetBlock(int i, int j) const { }
-   //mfem::Operator &GetBlock(int i, int j) { }
+   // const mfem::Operator &GetBlock(int i, int j) const { }
+   // mfem::Operator &GetBlock(int i, int j) { }
 
 private:
    /// scalars in the linear combination
@@ -194,7 +194,7 @@ double JacobianFree<T>::getStepSize(const mfem::Vector &baseline,
       return 1e-7;
    }
 }
-#endif 
+#endif
 
 /// Defines Jacobian-vector products using finite-differences
 /// \note Presently the object computes the residual at the given baseline
@@ -237,7 +237,7 @@ public:
 
    /// Return operator corresponding to the `i`th block
    /// \param[in] i - the block that is desired
-   /// \note If the underlying residual does not support `getJacobianBlock`, an 
+   /// \note If the underlying residual does not support `getJacobianBlock`, an
    /// exception will be thrown by MachResidual.
    mfem::Operator &getDiagonalBlock(int i) const;
 
@@ -246,7 +246,7 @@ private:
    /// MPI communicator for vector dot products
    MPI_Comm comm;
    /// Scaling that is applied to the Jacobian-free part of the operator
-   double scale; 
+   double scale;
    /// residual that defines the Jacobian
    MachResidual &res;
    /// matrix-explicit part of the operator (optional)
