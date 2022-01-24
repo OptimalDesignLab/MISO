@@ -4,6 +4,7 @@
 
 #include "evolver.hpp"
 #include "utils.hpp"
+#include "matrix_operators.hpp"
 #include "mfem_extensions.hpp"
 
 using namespace mfem;
@@ -122,19 +123,35 @@ void BlockJacobiPreconditioner::SetDiagonalBlock(int iblock, Solver *opt)
 void BlockJacobiPreconditioner::SetOperator(const Operator &input_op)
 {
    auto block_op = dynamic_cast<const BlockOperator*>(&input_op);
-   if (block_op == nullptr)
+   if (block_op != nullptr)
    {
-      throw MachException("BlockJacobiPreconditioner::SetOperator:\n"
-                          "input operator must be castable to"
-                          "mfem::BlockOperator!\n");
-   }
-   for (int i = 0; i < nBlocks; ++i)
-   {
-      if (op[i])
+      // input_op is a BlockOperator 
+      for (int i = 0; i < nBlocks; ++i)
       {
-         op[i]->SetOperator(block_op->GetBlock(i, i));
+         if (op[i])
+         {
+            op[i]->SetOperator(block_op->GetBlock(i, i));
+         }
       }
+      return;
    }
+   auto jacfree_op = dynamic_cast<const JacobianFree*>(&input_op);
+   if (jacfree_op != nullptr)
+   {
+      // input op is a JacobianFree operator
+      for (int i = 0; i < nBlocks; ++i)
+      {
+         if (op[i])
+         {
+            op[i]->SetOperator(jacfree_op->getDiagonalBlock(i));
+         }
+      }
+      return;
+   }
+   // if we get here, input_op was neither a BlockOperator nor a JacobianFree
+   throw MachException("BlockJacobiPreconditioner::SetOperator:\n"
+                          "input operator must be castable to"
+                          "mfem::BlockOperator or JacobianFree!\n");
 }
 
 void BlockJacobiPreconditioner::Mult(const Vector &x, Vector &y) const

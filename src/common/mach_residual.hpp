@@ -9,6 +9,14 @@
 
 namespace mach
 {
+
+template <typename T>
+MPI_Comm getMPIComm(const T & /*unused*/)
+{
+   throw MachException(
+       "getComm not specialized for concrete residual type!\n");
+}
+
 template <typename T>
 void setInputs(T & /*unused*/, const MachInputs & /*unused*/)
 { }
@@ -44,6 +52,15 @@ mfem::Solver *getPreconditioner(T & /*unused*/,
    return nullptr;
 }
 
+template <typename T>
+mfem::Operator &getJacobianBlock(T & /*unused*/,
+                                 const MachInputs & /*unused*/,
+                                 int)
+{
+   throw MachException(
+       "getJacobianBlock not specialized for concrete residual type!\n");
+}
+
 /// Defines a common interface for residual functions used by mach.
 /// A MachResidual can wrap any type `T` that has the interface of a residual
 /// function.  For example, one instance of `T` is given by `MachNonlinearForm`,
@@ -67,6 +84,12 @@ public:
 
    template <typename T>
    friend const T &getConcrete(const MachResidual &residual);
+
+   /// Get the MPI Communicator associated with the residual
+   /// \param[in] residual - the residual whose comm is desired
+   /// \returns the MPI Communicator for the residual
+   /// \note Optional.  Needed for some global operations (inner products)
+   friend int getMPIComm(const MachResidual &residual);
 
    /// Gets the number of equations/unknowns of the underlying residual type
    /// \param[inout] residual - the residual whose size is being queried
@@ -104,6 +127,15 @@ public:
    friend mfem::Operator &getJacobian(MachResidual &residual,
                                       const MachInputs &inputs,
                                       const std::string &wrt);
+
+   /// Get a reference to `iblock`th block of the Jacobian for a block system
+   /// \param[inout] residual - function whose Jacobian we want
+   /// \param[in] inputs - the variables needed to evaluate the Jacobian
+   /// \param[in] iblock - the block whose Jacobian is sought
+   /// \note this is for the state Jacobian only
+   friend mfem::Operator &getJacobianBlock(MachResidual &residual, 
+                                           const MachInputs &inputs,
+                                           int iblock);
 
    /// Evaluate the entropy functional at the given state
    /// \param[inout] residual - function with an associated entropy
@@ -171,12 +203,15 @@ private:
    {
    public:
       virtual ~concept_t() = default;
+      virtual MPI_Comm getComm_() const = 0;
       virtual int getSize_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) = 0;
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
       virtual mfem::Operator &getJac_(const MachInputs &inputs,
                                       const std::string &wrt) = 0;
+      virtual mfem::Operator &getJacBlock_(const MachInputs &inputs,
+                                           int iblock) = 0;
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
       virtual mfem::Operator *getMass_(const nlohmann::json &options) = 0;
@@ -190,6 +225,7 @@ private:
    {
    public:
       model(T x) : data_(std::move(x)) { }
+      MPI_Comm getComm_() const override { return getMPIComm(data_); }
       int getSize_() const override { return getSize(data_); }
       void setInputs_(const MachInputs &inputs) override
       {
@@ -207,6 +243,11 @@ private:
                               const std::string &wrt) override
       {
          return getJacobian(data_, inputs, wrt);
+      }
+      mfem::Operator &getJacBlock_(const MachInputs &inputs,
+                                   int iblock) override 
+      {
+         return getJacobianBlock(data_, inputs, iblock);
       }
       double calcEntropy_(const MachInputs &inputs) override
       {
@@ -260,6 +301,11 @@ inline const T &getConcrete(const MachResidual &residual)
    }
 }
 
+inline MPI_Comm getMPIComm(const MachResidual &residual)
+{
+   return residual.self_->getComm_();
+}
+
 inline int getSize(const MachResidual &residual)
 {
    return residual.self_->getSize_();
@@ -295,6 +341,15 @@ inline mfem::Operator &getJacobian(MachResidual &residual,
    // passes `inputs` and `res_vec` on to the `getJacobian` function for the
    // concrete residual type
    return residual.self_->getJac_(inputs, wrt);
+}
+
+inline mfem::Operator &getJacobianBlock(MachResidual &residual,
+                                        const MachInputs &inputs,
+                                        int iblock)
+{
+   // passes `inputs` and `res_vec` on to the `getJacobianBlock` function for 
+   // the concrete residual type
+   return residual.self_->getJacBlock_(inputs, iblock);
 }
 
 inline double calcEntropy(MachResidual &residual, const MachInputs &inputs)

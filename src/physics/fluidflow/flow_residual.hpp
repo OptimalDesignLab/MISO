@@ -29,6 +29,12 @@ public:
                 adept::Stack &diff_stack,
                 std::ostream &outstream = std::cout);
 
+   /// Returns the MPI communicator associated with the underlying space
+   friend MPI_Comm getMPIComm(const FlowResidual &residual)
+   {
+      return residual.fes.GetComm();
+   }
+
    /// Returns the number of equations/unknowns in the flow system
    int getSize_() const;
 

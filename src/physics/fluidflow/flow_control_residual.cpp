@@ -97,8 +97,7 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
     adept::Stack &diff_stack)
  : offsets(3),
    flow_res(options, pfes, diff_stack),
-   control_res(options),
-   jac(*this, pfes.GetComm())
+   control_res(options)//, jac(*this, pfes.GetComm())
 {
    // offsets mark the start of each row/column block
    offsets[0] = 0;
@@ -186,38 +185,38 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
    // evaluate(residual.control_res, control_inputs, control_res_vec);
 }
 
-template <int dim, bool entvar>
-Operator &FlowControlResidual<dim, entvar>::getJacobian_(
-                      const MachInputs &inputs,
-                      const std::string &wrt)
-{
-   setInputs_(inputs);
-   // set the state 
-   jac.setState(inputs);
-   return jac;
-   // if (wrt != "state")
-   // {
-   //    throw MachException(
-   //        "Unsupported value for wrt in getJacobian(FlowControlResidual)!\n"
-   //        "\tvalue provided for wrt was " + wrt "\n");
-   // }
-   // double time = inputs.at("time");
+// template <int dim, bool entvar>
+// Operator &FlowControlResidual<dim, entvar>::getJacobian_(
+//                       const MachInputs &inputs,
+//                       const std::string &wrt)
+// {
+//    setInputs_(inputs);
+//    // set the state 
+//    jac.setState(inputs);
+//    return jac;
+//    // if (wrt != "state")
+//    // {
+//    //    throw MachException(
+//    //        "Unsupported value for wrt in getJacobian(FlowControlResidual)!\n"
+//    //        "\tvalue provided for wrt was " + wrt "\n");
+//    // }
+//    // double time = inputs.at("time");
 
-   // Vector control_state, flow_state;
-   // extractStatesFromInputs(inputs, control_state, flow_state);
+//    // Vector control_state, flow_state;
+//    // extractStatesFromInputs(inputs, control_state, flow_state);
 
-   // // double * control_state_ptr = inputs.at("state").getField();
-   // // double * flow_state_ptr = inputs.at("state").getField() + num_control;
-   // // set inputs for flow Jacobian and get a reference to it
-   // auto flow_inputs = MachInputs({
-   //    {"state", flow_state}, {"time", time}, {"control", control_state}
-   // });
-   // Operator &flow_jac = getJacobian(residual.flow_res, flow_inputs, "state");
+//    // // double * control_state_ptr = inputs.at("state").getField();
+//    // // double * flow_state_ptr = inputs.at("state").getField() + num_control;
+//    // // set inputs for flow Jacobian and get a reference to it
+//    // auto flow_inputs = MachInputs({
+//    //    {"state", flow_state}, {"time", time}, {"control", control_state}
+//    // });
+//    // Operator &flow_jac = getJacobian(residual.flow_res, flow_inputs, "state");
 
-   // // Use a Block Operator?
-   // // Probably easier to use Matrix-Free approach, or a hybrid approach
-   // // For preconditioner, we can use block Jacobi and ignore the coupling terms
-}
+//    // // Use a Block Operator?
+//    // // Probably easier to use Matrix-Free approach, or a hybrid approach
+//    // // For preconditioner, we can use block Jacobi and ignore the coupling terms
+// }
 
 template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
@@ -252,7 +251,29 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
    return 0.0;
 }
 
-
+template <int dim, bool entvar>
+mfem::Operator &FlowControlResidual<dim, entvar>::getJacobianBlock_(
+    const MachInputs &inputs,
+    int i)
+{
+   setInputs_(inputs);
+   if (i == 0)
+   {
+      auto control_inputs = MachInputs({{"state", control_state}});
+      return getJacobian(control_res, control_inputs, "state");
+   }
+   else if (i == 1)
+   {
+      auto flow_inputs = MachInputs({{"state", flow_state}});
+      return getJacobian(flow_res, flow_inputs, "state");
+   }
+   else
+   {
+      throw MachException(
+          "FlowControlResidual::GetJacobianBlock: \n"
+          "invalid block index (must be 0 or 1)!\n");
+   }
+}
 
 // explicit instantiation
 template class FlowControlResidual<1, true>;

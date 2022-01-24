@@ -55,6 +55,15 @@ public:
    /// \param[out] y - the result of the action
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
+   /// Get the `i`th, `j`th block of the operator
+   /// \param[in] i - block row index
+   /// \param[in] j - block column index
+   /// \returns an operator associated with the (i,j) block
+   /// \note This assumes that *oper_a and *oper_b are BlockOperators.  If not
+   /// an exception will be thrown.
+   //const mfem::Operator &GetBlock(int i, int j) const { }
+   //mfem::Operator &GetBlock(int i, int j) { }
+
 private:
    /// scalars in the linear combination
    double a, b;
@@ -66,6 +75,7 @@ private:
    mutable mfem::Vector work_vec;
 };
 
+#if 0
 /// Defines Jacobian-vector products using finite-differences
 /// \note Presently the object computes the residual at the given baseline
 /// state; this is likely unnecessary, since the residual at that state will be
@@ -95,6 +105,10 @@ public:
    /// \param[in] x - the vector being multiplied by the Jacobian
    /// \param[out] y - the result of the product
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
+
+   /// Return operator corresponding to the `i`th block
+   /// \param[in] i - the block that is desired
+   mfem::Operator &GetDiagonalBlock(int i);
 
 private:
    /// MPI communicator for vector dot products
@@ -157,6 +171,12 @@ void JacobianFree<T>::Mult(const mfem::Vector &x, mfem::Vector &y) const
 }
 
 template <typename T>
+mfem::Operator &JacobianFree<T>::GetDiagonalBlock(int i)
+{
+   return res.GetJacobianBlock(i);
+}
+
+template <typename T>
 double JacobianFree<T>::getStepSize(const mfem::Vector &baseline,
                                     const mfem::Vector &pert) const
 {
@@ -174,6 +194,77 @@ double JacobianFree<T>::getStepSize(const mfem::Vector &baseline,
       return 1e-7;
    }
 }
+#endif 
+
+/// Defines Jacobian-vector products using finite-differences
+/// \note Presently the object computes the residual at the given baseline
+/// state; this is likely unnecessary, since the residual at that state will be
+/// needed elsewhere.  Therefore, passing in the evaluated residual should be
+/// considered in the future.
+class JacobianFree : public mfem::Operator
+{
+public:
+   /// Construct a Jacobian-free matrix-vector product operator
+   /// \param[in] residual - the equation/residual that defines the Jacobian
+   JacobianFree(MachResidual &residual);
+
+   /// Construct a Jacobian-free matrix-vector product operator
+   /// \param[in] residual - the equation/residual that defines the Jacobian
+   /// \param[in] mat_explicit - (optional) explicit part of the operator
+   JacobianFree(MachResidual &residual, mfem::Operator &mat_explicit)
+    : JacobianFree(residual)
+   {
+      explicit_part = &mat_explicit;
+   }
+
+   /// Sets the scaling applied to the Jacobian-free part of the operator
+   void setScaling(double scaling) { scale = scaling; }
+
+   /// Sets the state at which the Jacobian is evaluated
+   /// \param[in] baseline - state where Jacobian is to be evaluated
+   /// \note This function also evaluates the residual at `baseline`
+   void setState(const mfem::Vector &baseline);
+
+   /// Sets the state at which the Jacobian is evaluated
+   /// \param[in] inputs - contains key "state" where Jacobian is evaluated
+   /// \note This function also evaluates the residual at given state
+   void setState(const MachInputs &inputs);
+
+   /// Approximates `y = J*x` using a forward difference approximation
+   /// \param[in] x - the vector being multiplied by the Jacobian
+   /// \param[out] y - the result of the product
+   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
+
+   /// Return operator corresponding to the `i`th block
+   /// \param[in] i - the block that is desired
+   /// \note If the underlying residual does not support `getJacobianBlock`, an 
+   /// exception will be thrown by MachResidual.
+   mfem::Operator &getDiagonalBlock(int i) const;
+
+private:
+   static constexpr double zero = 1e-16;
+   /// MPI communicator for vector dot products
+   MPI_Comm comm;
+   /// Scaling that is applied to the Jacobian-free part of the operator
+   double scale; 
+   /// residual that defines the Jacobian
+   MachResidual &res;
+   /// matrix-explicit part of the operator (optional)
+   mfem::Operator *explicit_part;
+   /// baseline state about which we perturb
+   mfem::Vector state;
+   /// residual evaluated at `state`
+   mfem::Vector res_at_state;
+   /// work vector needed to compute the Jacobian-free product
+   mutable mfem::Vector state_pert;
+
+   /// Returns a (hopefully) appropriate forward-difference step size
+   /// \param[in] baseline - the state at which the Jacobian is computed
+   /// \param[in] pert - the perturbed state
+   /// \returns the forward difference step size
+   double getStepSize(const mfem::Vector &baseline,
+                      const mfem::Vector &pert) const;
+};
 
 }  // namespace mach
 

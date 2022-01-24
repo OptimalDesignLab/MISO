@@ -131,8 +131,20 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto &work = residual.work;
    add(state, dt, state_dot, work);
    MachInputs input{{"state", work}};
-   auto &spatial_jac = getJacobian(residual.spatial_res_, input, wrt);
-   addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
+
+   auto *jac_free = dynamic_cast<JacobianFree *>(residual.jac_.get());
+   if (jac_free)
+   {
+      // Using a Jacobian-free implementation 
+      jac_free->setScaling(dt);
+      jac_free->setState(input);
+   }
+   else
+   {
+      // The spatial Jacobian is stored explicitly (e.g. HypreParMatrix)
+      auto &spatial_jac = getJacobian(residual.spatial_res_, input, wrt);
+      addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
+   }
    return *residual.jac_;
 }
 

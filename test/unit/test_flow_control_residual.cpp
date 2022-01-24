@@ -109,8 +109,9 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
 
    // construct the residual
-   FlowControlResidual<dim,false> res(options, fespace, diff_stack);
-   FlowResidual<dim,false> flow_res(options, fespace, diff_stack);
+   MachResidual res(
+       FlowControlResidual<dim, false>(options, fespace, diff_stack));
+   FlowResidual<dim, false> flow_res(options, fespace, diff_stack);
    ControlResidual control_res(options);
    int num_var = getSize(res);
    REQUIRE(num_var == getSize(flow_res) + getSize(control_res));
@@ -165,7 +166,9 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    REQUIRE( entropy == Approx(control_entropy + flow_entropy).margin(1e-14) );
 
    // check for consistency between Jacobians 
-   Operator &jac = getJacobian(res, inputs, "state");
+   JacobianFree jac(res);
+   jac.setState(inputs);
+   //Operator &jac = getJacobian(res, inputs, "state");
    Operator &control_jac = getJacobian(control_res, control_inputs, "state");
    Operator &flow_jac = getJacobian(flow_res, flow_inputs, "state");
 
@@ -179,6 +182,14 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    jac.Mult(v, Jac_v);
    Vector vc(v.GetData(), getSize(control_res)), Jac_vc(getSize(control_res));
    control_jac.Mult(vc, Jac_vc);
+   for (int i = 0; i < getSize(control_res); ++i)
+   {
+      REQUIRE( Jac_v(i) == Approx(Jac_vc(i)).margin(1e-14) );
+   }
+
+   // Check that the extracted block Jacobian works 
+   Operator &sub_jac = jac.getDiagonalBlock(0);
+   sub_jac.Mult(vc, Jac_vc);
    for (int i = 0; i < getSize(control_res); ++i)
    {
       REQUIRE( Jac_v(i) == Approx(Jac_vc(i)).margin(1e-14) );
@@ -198,4 +209,11 @@ TEST_CASE("FlowControlResidual construction and evaluation",
       REQUIRE( Jac_v(ptr+i) == Approx(Jac_vf(i)).margin(1e-5) );
    }
 
+   // Check that the extracted block Jacobian works 
+   Operator &sub_jac2 = jac.getDiagonalBlock(1);
+   sub_jac2.Mult(vf, Jac_vf);
+   for (int i = 0; i < getSize(flow_res); ++i)
+   {
+      REQUIRE( Jac_v(ptr+i) == Approx(Jac_vf(i)).margin(1e-5) );
+   }
 }

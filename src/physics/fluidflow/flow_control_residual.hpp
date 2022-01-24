@@ -106,8 +106,8 @@ public:
       x(num_var),
       work(num_var),
       mass_mat(num_var),
-      Jac(num_var),
-      prec(Jac)
+      Jac(num_var), 
+      prec()
    { }
 
 private:
@@ -142,6 +142,11 @@ template <int dim, bool entvar = false>
 class FlowControlResidual final
 {
 public:
+   friend MPI_Comm getMPIComm(const FlowControlResidual &residual)
+   {
+      return getMPIComm(residual.flow_res);
+   }
+
    /// Gets the number of equations/unknowns; # of FEM unknowns + # control vars
    /// \param[inout] residual - the residual whose size is being queried
    /// \returns the number of equations/unknowns
@@ -177,8 +182,15 @@ public:
    /// \param[in] wrt - the input we are differentiating with respect to
    /// \returns a reference to the residual's Jacobian with respect to `wrt`
    /// \note the underlying `Operator` is owned by `residual`
-   mfem::Operator &getJacobian_(const MachInputs &inputs,
-                                const std::string &wrt);
+   //mfem::Operator &getJacobian_(const MachInputs &inputs,
+   //                             const std::string &wrt);
+   friend mfem::Operator &getJacobian(FlowControlResidual &residual,
+                                      const MachInputs &inputs,
+                                      const std::string &wrt)
+   {
+      throw MachException(
+       "getJacobian not implemented for FlowControlResidual!\n");
+   }
 
    /// Evaluate the entropy/Lyapunov functional at the given state
    /// \param[in] inputs - the variables needed to evaluate the entropy
@@ -211,11 +223,17 @@ public:
    /// \return pointer to preconditioner for the state Jacobian
    /// \note Constructs the preconditioner, and the returned pointer is owned
    /// by the `residual`
-   friend  mfem::Solver *getPreconditioner(FlowControlResidual &residual,
+   friend mfem::Solver *getPreconditioner(FlowControlResidual &residual,
                                    const nlohmann::json &prec_options)
    {
       return residual.prec.get();
    }
+
+   /// Returns either the control (`i==0`) or flow Jacobian (`i==1`)
+   /// \param[in] inputs - the variables needed to evaluate the Jacobian
+   /// \param[in] i - selects either the control or flow Jacobian to return
+   /// \returns the Jacobian operator for the control or flow residual
+   mfem::Operator &getJacobianBlock_(const MachInputs &inputs, int i);
 
    /// Construct a flow-control residual object
    /// \param[in] options - options that define the flow and control problems
@@ -236,7 +254,7 @@ private:
    /// Preconditioner for the Jacobian
    std::unique_ptr<BlockJacobiPreconditioner> prec;
    /// The Jacobian-free operator
-   JacobianFree<FlowControlResidual<dim, entvar>> jac;
+   //JacobianFree jac;
    /// Work vector for the control state
    mfem::Vector control_state;
    /// Work vector for the flow state
@@ -299,13 +317,13 @@ void evaluate(FlowControlResidual<dim, entvar> &residual,
 /// the residual is used in an explicit or implicit time integration.  This
 /// behavior is controlled by setting `options["implicit"]` to true and
 /// passing this to `setOptions`.
-template <int dim, bool entvar>
-mfem::Operator &getJacobian(FlowControlResidual<dim, entvar> &residual,
-                            const MachInputs &inputs,
-                            const std::string &wrt)
-{
-   return residual.getJacobian_(inputs, wrt);
-}
+// template <int dim, bool entvar>
+// mfem::Operator &getJacobian(FlowControlResidual<dim, entvar> &residual,
+//                             const MachInputs &inputs,
+//                             const std::string &wrt)
+// {
+//    return residual.getJacobian_(inputs, wrt);
+// }
 
 /// Returns the total integrated entropy for the flow-control problem
 /// \param[inout] residual - the flow-control residual; helps compute entropy
@@ -335,6 +353,21 @@ double calcEntropyChange(FlowControlResidual<dim, entvar> &residual,
                          const MachInputs &inputs)
 {
    return residual.calcEntropyChange_(inputs);
+}
+
+/// Returns either the control (`i==0`) or flow Jacobian (`i==1`)
+/// \param[inout] residual - flow-control residual whose block we want
+/// \param[in] inputs - the variables needed to evaluate the Jacobian
+/// \param[in] i - selects either the control or flow Jacobian to return
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, the entropy variables are used in the integrators
+/// \returns the Jacobian operator for the control or flow residual
+template <int dim, bool entvar>
+mfem::Operator &getJacobianBlock(FlowControlResidual<dim, entvar> &residual,
+                                 const MachInputs &inputs,
+                                 int i)
+{
+   return residual.getJacobianBlock_(inputs, i);
 }
 
 } // namespace mach
