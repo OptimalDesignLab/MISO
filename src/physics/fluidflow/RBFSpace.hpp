@@ -37,13 +37,15 @@ protected:
    /// store the element centers
    mfem::Array<Vector *> elementCenter;
    /// array of map that holds the distance from element center to basisCenter
-   mfem::Array<std::map<int, double> *> elementBasisDist;
+   // mfem::Array<std::map<int, double> *> elementBasisDist;
+   mfem::Array<std::vector<double> *> elementBasisDist;
 
  
    /// Initialize the patches/stencil given poly order
    void InitializeStencil();
    /// Initialize the shape parameters
    void InitializeShapeParameter();
+   std::vector<std::size_t> sort_indexes(const std::vector<double> &v);
 };
 
 } // end of namespace mfem
