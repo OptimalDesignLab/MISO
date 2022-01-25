@@ -46,14 +46,31 @@ void RBFSpace::InitializeStencil()
    for (int i = 0; i < GetMesh()->GetNE(); i++)
    {
       elementCenter[i] = new Vector(dim);
+      elementBasisDist[i] = new std::map<int, double>;
       GetMesh()->GetElementCenter(i,*elementCenter[i]);
       for (int j = 0; j < numBasis; j++)
       {
          diff = *basisCenter[j];
          diff -= *elementCenter[i];
          dist = diff.Norml2();
+         elementBasisDist[i]->insert({j, dist});
       }
    }
+
+   cout << "Check the initial stencil\n";
+   // check element <---> basis center distance
+   for (int i = 0; i < GetMesh()->GetNE(); i++)
+   {
+      cout << "element " << i << ": ";
+      for (int j = 0; j < numBasis; j++)
+      {
+         cout << (*elementBasisDist[i])[j] << ' ';
+      }
+      cout << '\n';
+   }
+
+
+   
 }
 
 RBFSpace::~RBFSpace()
