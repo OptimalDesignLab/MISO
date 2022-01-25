@@ -13,6 +13,11 @@
 
 #include "mach_input.hpp"
 
+/// TODO: add some compile time check that makes sure that the type used to
+/// construct MachOutput has calcOutput for scalar or field outputs. Maybe take
+/// inspiration from:
+/// https://stackoverflow.com/questions/87372/check-if-a-class-has-a-member-function-of-a-given-signature
+
 namespace mach
 {
 template <typename T>
