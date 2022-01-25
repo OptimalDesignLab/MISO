@@ -53,6 +53,60 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
 }
 
 FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
+                                         const nlohmann::json &space_options,
+                                         const int num_states,
+                                         std::string name)
+ : FiniteElementVector(
+       mesh,
+       [&]() -> FiniteElementVector::Options
+       {
+          const int dim = mesh.Dimension();
+          const auto order = space_options["degree"].get<int>();
+          const auto basis_type =
+              space_options["basis-type"].get<std::string>();
+          const bool galerkin_diff = space_options.value("GD", false);
+          // Define the SBP elements and finite-element space; eventually, we
+          // will want to have a case or if statement here for both CSBP and
+          // DSBP, and (?) standard FEM. and here it is for first two
+          std::unique_ptr<mfem::FiniteElementCollection> fec;
+          if (basis_type == "CSBP" || basis_type == "csbp")
+          {
+             fec = std::make_unique<mfem::SBPCollection>(order, dim);
+          }
+          else if (basis_type == "DSBP" || basis_type == "dsbp" ||
+                   galerkin_diff)
+          {
+             fec = std::make_unique<mfem::DSBPCollection>(order, dim);
+          }
+          else if (basis_type == "ND" || basis_type == "nd" ||
+                   basis_type == "nedelec")
+          {
+             fec = std::make_unique<mfem::ND_FECollection>(order, dim);
+          }
+          else if (basis_type == "RT" || basis_type == "rt")
+          {
+             fec = std::make_unique<mfem::RT_FECollection>(order, dim);
+          }
+          else if (basis_type == "H1" || basis_type == "h1" ||
+                   basis_type == "CG" || basis_type == "cg")
+          {
+             fec = std::make_unique<mfem::H1_FECollection>(order, dim);
+          }
+          else if (basis_type == "L2" || basis_type == "l2" ||
+                   basis_type == "DG" || basis_type == "dg")
+          {
+             fec = std::make_unique<mfem::L2_FECollection>(order, dim);
+          }
+
+          return {.order = order,
+                  .num_states = num_states,
+                  .coll = std::move(fec),
+                  .ordering = mfem::Ordering::byVDIM,
+                  .name = std::move(name)};
+       }())
+{ }
+
+FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                          mfem::ParFiniteElementSpace &space,
                                          std::string name)
  : mesh_(&mesh),

@@ -69,6 +69,7 @@ set(EM_MPI_TEST_SRCS
    test_abstract_solver
    test_pde_solver
    test_data_logging
+   test_mixed_nonlinear_operator
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)

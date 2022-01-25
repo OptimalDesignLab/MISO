@@ -50,6 +50,17 @@ public:
                                             .ordering = mfem::Ordering::byVDIM,
                                             .name = ""});
 
+   /// \brief Alternative constructor for building new finite element vector
+   /// \param[in] mesh The problem mesh (object does not take ownership)
+   /// \param[in] space_options The FE space options specified, namely the
+   /// order of the problem, and the type of FE collection
+   /// \param[in] num_states The dimension of the FE Space
+   /// \param[in] name The name of the field encapsulated by the state object
+   FiniteElementVector(mfem::ParMesh &mesh,
+                       const nlohmann::json &space_options,
+                       const int num_states = 1,
+                       std::string name = "");
+
    /// \brief Minimal constructor for a FiniteElementVector given a finite
    /// element space
    /// \param[in] mesh The problem mesh (object does not take ownership)

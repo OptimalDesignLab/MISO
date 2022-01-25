@@ -1,7 +1,10 @@
 #ifndef MACH_MIXED_NONLINEAR_OPERATOR
 #define MACH_MIXED_NONLINEAR_OPERATOR
 
+#include "mfem.hpp"
+
 #include "finite_element_state.hpp"
+#include "mach_input.hpp"
 
 namespace mach
 {
@@ -11,6 +14,11 @@ namespace mach
 class MixedNonlinearOperator
 {
 public:
+   void apply(const mfem::Vector in_vec, mfem::Vector &out_vec)
+   {
+      MachInputs inputs{{"state", in_vec}};
+      apply(inputs, out_vec);
+   }
    /// compute the action of the operator
    void apply(const MachInputs &inputs, mfem::Vector &out_vec);
 
