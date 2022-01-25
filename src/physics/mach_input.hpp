@@ -6,6 +6,7 @@
 #include <variant>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 namespace mach
 {
@@ -61,6 +62,14 @@ void setVectorFromInputs(const MachInputs &inputs,
                          mfem::Vector &vec,
                          bool deep_copy = false,
                          bool error_if_not_found = false);
+
+template <typename T>
+void setInputs(T & /*unused*/, const MachInputs & /*unused*/)
+{ }
+
+template <typename T>
+void setOptions(T & /*unused*/, const nlohmann::json & /*unused*/)
+{ }
 
 }  // namespace mach
 

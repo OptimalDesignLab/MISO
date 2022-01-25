@@ -21,14 +21,6 @@
 namespace mach
 {
 template <typename T>
-void setInputs(T & /*unused*/, const MachInputs & /*unused*/)
-{ }
-
-template <typename T>
-void setOptions(T & /*unused*/, const nlohmann::json & /*unused*/)
-{ }
-
-template <typename T>
 double calcOutputPartial(T & /*unused*/,
                          const std::string & /*unused*/,
                          const MachInputs & /*unused*/)
@@ -40,7 +32,7 @@ template <typename T>
 void calcOutputPartial(T & /*unused*/,
                        const std::string & /*unused*/,
                        const MachInputs & /*unused*/,
-                       mfem::HypreParVector & /*unused*/)
+                       mfem::Vector & /*unused*/)
 { }
 
 template <typename T>

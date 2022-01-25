@@ -2720,41 +2720,48 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
 
 void setInputs(ACLossFunctionalIntegrator &integ, const MachInputs &inputs)
 {
-   auto it = inputs.find("strand_radius");
-   if (it != inputs.end())
-   {
-      integ.radius = it->second.getValue();
-   }
-   it = inputs.find("frequency");
-   if (it != inputs.end())
-   {
-      integ.freq = it->second.getValue();
-   }
-   it = inputs.find("effective_length");
-   if (it != inputs.end())
-   {
-      integ.effective_length = it->second.getValue();
-   }
-   it = inputs.find("num_sih");
-   if (it != inputs.end())
-   {
-      integ.num_sih = it->second.getValue();
-   }
-   it = inputs.find("num_turns");
-   if (it != inputs.end())
-   {
-      integ.num_turns = it->second.getValue();
-   }
-   it = inputs.find("slot_area");
-   if (it != inputs.end())
-   {
-      integ.slot_area = it->second.getValue();
-   }
-   it = inputs.find("max_flux");
-   if (it != inputs.end())
-   {
-      integ.max_flux = it->second.getValue();
-   }
+   // auto it = inputs.find("strand_radius");
+   // if (it != inputs.end())
+   // {
+   //    integ.radius = it->second.getValue();
+   // }
+   // it = inputs.find("frequency");
+   // if (it != inputs.end())
+   // {
+   //    integ.freq = it->second.getValue();
+   // }
+   // it = inputs.find("effective_length");
+   // if (it != inputs.end())
+   // {
+   //    integ.effective_length = it->second.getValue();
+   // }
+   // it = inputs.find("num_sih");
+   // if (it != inputs.end())
+   // {
+   //    integ.num_sih = it->second.getValue();
+   // }
+   // it = inputs.find("num_turns");
+   // if (it != inputs.end())
+   // {
+   //    integ.num_turns = it->second.getValue();
+   // }
+   // it = inputs.find("slot_area");
+   // if (it != inputs.end())
+   // {
+   //    integ.slot_area = it->second.getValue();
+   // }
+   // it = inputs.find("max_flux");
+   // if (it != inputs.end())
+   // {
+   //    integ.max_flux = it->second.getValue();
+   // }
+   setValueFromInputs(inputs, "strand_radius", integ.radius);
+   setValueFromInputs(inputs, "frequency", integ.freq);
+   setValueFromInputs(inputs, "effective_length", integ.effective_length);
+   setValueFromInputs(inputs, "num_sih", integ.num_sih);
+   setValueFromInputs(inputs, "num_turns", integ.num_turns);
+   setValueFromInputs(inputs, "slot_area", integ.slot_area);
+   setValueFromInputs(inputs, "max_flux", integ.max_flux);
 }
 
 double ACLossFunctionalIntegrator::GetElementEnergy(

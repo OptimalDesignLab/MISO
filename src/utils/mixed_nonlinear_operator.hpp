@@ -1,7 +1,7 @@
 #ifndef MACH_MIXED_NONLINEAR_OPERATOR
 #define MACH_MIXED_NONLINEAR_OPERATOR
 
-#include "finite_element_vector.hpp"
+#include "finite_element_state.hpp"
 
 namespace mach
 {
@@ -12,14 +12,28 @@ class MixedNonlinearOperator
 {
 public:
    /// compute the action of the operator
-   void apply(const mfem::Vector &x, mfem::Vector &y);
+   void apply(const MachInputs &inputs, mfem::Vector &out_vec);
 
-   MixedNonlinearOperator(FiniteElementVector &domain,
-                          FiniteElementVector &range);
+   MixedNonlinearOperator(FiniteElementState &domain,
+                          FiniteElementState &range,
+                          std::function<void(const mfem::FiniteElement &,
+                                             const mfem::FiniteElement &,
+                                             mfem::ElementTransformation &,
+                                             const mfem::Vector &,
+                                             mfem::Vector &)> operation)
+    : domain(domain), range(range), operation(std::move(operation))
+   { }
 
 private:
-   FiniteElementVector &domain;
-   FiniteElementVector &range;
+   FiniteElementState &domain;
+   FiniteElementState &range;
+
+   std::function<void(const mfem::FiniteElement &,
+                      const mfem::FiniteElement &,
+                      mfem::ElementTransformation &,
+                      const mfem::Vector &,
+                      mfem::Vector &)>
+       operation;
 };
 
 }  // namespace mach

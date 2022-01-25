@@ -10,14 +10,6 @@
 namespace mach
 {
 template <typename T>
-void setInputs(T & /*unused*/, const MachInputs & /*unused*/)
-{ }
-
-template <typename T>
-void setOptions(T & /*unused*/, const nlohmann::json & /*unused*/)
-{ }
-
-template <typename T>
 double calcEntropy(T & /*unused*/, const MachInputs & /*unused*/)
 {
    throw MachException(
