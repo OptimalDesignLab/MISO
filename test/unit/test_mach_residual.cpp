@@ -7,6 +7,7 @@
 #include "utils.hpp"
 #include "mach_residual.hpp"
 #include "mach_nonlinearform.hpp"
+#include "flow_residual.hpp"
 
 class TestIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -58,11 +59,12 @@ private:
 
 void setInputs(TestIntegrator &integ, const mach::MachInputs &inputs)
 {
-   auto it = inputs.find("time");
-   if (it != inputs.end())
-   {
-      integ.time = it->second.getValue();
-   }
+   // auto it = inputs.find("time");
+   // if (it != inputs.end())
+   // {
+   //    integ.time = it->second.getValue();
+   // }
+   mach::setValueFromInputs(inputs, "time", integ.time);
 }
 
 using namespace mach;
@@ -88,6 +90,13 @@ TEST_CASE("MachResidual Scalar Input Test",
    nf.addDomainIntegrator(new TestIntegrator);
    MachResidual res(std::move(nf));
 
+   REQUIRE_NOTHROW([&](){
+      MachNonlinearForm &nf_ref = getConcrete<MachNonlinearForm>(res);
+   }());
+   REQUIRE_THROWS([&](){
+      FlowResidual &flow_ref = getConcrete<FlowResidual>(res);
+   }());
+
    // These steps create a grid function for x+y
    FunctionCoefficient coeff(
       [](const mfem::Vector&xy) { return xy(0) + xy(1); });
@@ -96,7 +105,7 @@ TEST_CASE("MachResidual Scalar Input Test",
 
    // set the time using a MachInput to pi, and set state
    auto inputs = MachInputs({
-      {"time", M_PI}, {"state", state.GetData()}
+      {"time", M_PI}, {"state", state}
    });
    setInputs(res, inputs);
 

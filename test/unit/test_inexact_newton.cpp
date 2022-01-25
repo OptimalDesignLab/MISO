@@ -19,17 +19,12 @@ private:
 public:
    nonlinearFunc(int s);
    // This Mult calculate the value of quadratic function.
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
-   virtual mfem::Operator &GetGradient(const mfem::Vector &k) const;
-   virtual ~nonlinearFunc();
+   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
+   mfem::Operator &GetGradient(const mfem::Vector &k) const override;
 };
 
 nonlinearFunc::nonlinearFunc(int s)
     : Operator(s), Jac(s)
-{
-}
-
-nonlinearFunc::~nonlinearFunc()
 {
 }
 
@@ -54,7 +49,7 @@ private:
 
 public:
    nonlinearSolver(){};
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &c) const;
+   void Mult(const mfem::Vector &x, mfem::Vector &c) const override;
    virtual const mfem::Operator *GetOper() { return oper; }
 };
 

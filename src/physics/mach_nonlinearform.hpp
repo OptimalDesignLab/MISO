@@ -2,6 +2,7 @@
 #define MACH_NONLINEAR_FORM
 
 #include <vector>
+#include <list>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -23,6 +24,10 @@ public:
    friend void setOptions(MachNonlinearForm &form,
                           const nlohmann::json &options);
 
+   /// Calls GetEnergy() for the underlying form using "state" in inputs.
+   friend double calcFormOutput(MachNonlinearForm &form,
+                                const MachInputs &inputs);
+
    /// Evaluate the nonlinear form using `inputs` and return result in `res_vec`
    friend void evaluate(MachNonlinearForm &form,
                         const MachInputs &inputs,
@@ -31,7 +36,7 @@ public:
    /// Compute Jacobian of `form` with respect to `wrt` and return
    friend mfem::Operator &getJacobian(MachNonlinearForm &form,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    /// Adds the given domain integrator to the nonlinear form
    /// \param[in] integrator - nonlinear form integrator for domain
@@ -55,7 +60,8 @@ public:
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
-   void addBdrFaceIntegrator(T *integrator, std::vector<int> bdr_attr_marker);
+   void addBdrFaceIntegrator(T *integrator,
+                             const std::vector<int> &bdr_attr_marker);
 
    /// Adds the given interior face integrator to the nonlinear form
    /// \param[in] integrator - face nonlinear form integrator for interfaces
@@ -87,7 +93,7 @@ private:
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
    /// Collection of boundary markers for boundary integrators
-   std::vector<mfem::Array<int>> bdr_markers;
+   std::list<mfem::Array<int>> bdr_markers;
 
    /// map of external fields that the nonlinear form depends on
    std::unordered_map<std::string, mfem::ParGridFunction> *nf_fields;
@@ -119,8 +125,9 @@ void MachNonlinearForm::addBdrFaceIntegrator(T *integrator)
 }
 
 template <typename T>
-void MachNonlinearForm::addBdrFaceIntegrator(T *integrator,
-                                             std::vector<int> bdr_attr_marker)
+void MachNonlinearForm::addBdrFaceIntegrator(
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
    bdr_markers.emplace_back(bdr_attr_marker.size());

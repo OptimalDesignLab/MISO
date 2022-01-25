@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 
 #include "utils.hpp"
 #include "mach_load.hpp"
@@ -15,8 +16,7 @@ void ODESystemOperator::Mult(const mfem::Vector &k, mfem::Vector &r) const
    r = 0.0;
    // Use x_work to store x + dt*k
    add(1.0, *x, dt, k, x_work);
-   auto inputs =
-       MachInputs({{"state", x_work.GetData()}, {"dxdt", k.GetData()}});
+   auto inputs = MachInputs({{"state", x_work}, {"dxdt", k}});
    evaluate(*res, inputs, r);
 }
 
@@ -24,8 +24,7 @@ Operator &ODESystemOperator::GetGradient(const mfem::Vector &k) const
 {
    // Use x_work to store x + dt*k
    add(1.0, *x, dt, k, x_work);
-   auto inputs = MachInputs(
-       {{"dt", dt}, {"state", x_work.GetData()}, {"dxdt", k.GetData()}});
+   auto inputs = MachInputs({{"dt", dt}, {"state", x_work}, {"dxdt", k}});
    return getJacobian(*res, inputs, "dxdt");
 }
 
@@ -151,7 +150,7 @@ public:
       }
       else
       {
-         local_jac.reset(new SparseMatrix(res_local_jac, false));
+         local_jac = std::make_unique<SparseMatrix>(res_local_jac, false);
       }
 
       /// TODO: this is taken from ParNonlinearForm::GetGradient
@@ -253,12 +252,12 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
       Array<int> mass_ess_tdof_list;
       _mass->FESpace()->GetEssentialTrueDofs(ess_bdr, mass_ess_tdof_list);
 
-      AssemblyLevel mass_assem;
-      mass_assem = _mass->GetAssemblyLevel();
+      auto mass_assem = _mass->GetAssemblyLevel();
       if (mass_assem == AssemblyLevel::PARTIAL)
       {
          mass.Reset(_mass, false);
-         mass_prec.reset(new OperatorJacobiSmoother(*_mass, ess_tdof_list));
+         mass_prec =
+             std::make_unique<OperatorJacobiSmoother>(*_mass, ess_tdof_list);
       }
       else if (mass_assem == AssemblyLevel::LEGACYFULL)
       {
@@ -266,8 +265,8 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
          auto *Me = Mmat->EliminateRowsCols(ess_tdof_list);
          delete Me;
          mass.Reset(Mmat, true);
-         mass_prec.reset(new HypreSmoother(*mass.As<HypreParMatrix>(),
-                                           HypreSmoother::Jacobi));
+         mass_prec = std::make_unique<HypreSmoother>(*mass.As<HypreParMatrix>(),
+                                                     HypreSmoother::Jacobi);
       }
       else
       {
@@ -287,8 +286,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
       // Array<int> ess_tdof_list;
       _stiff->FESpace()->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
 
-      AssemblyLevel stiff_assem;
-      stiff_assem = _stiff->GetAssemblyLevel();
+      auto stiff_assem = _stiff->GetAssemblyLevel();
       if (stiff_assem == AssemblyLevel::PARTIAL)
       {
          stiff.Reset(_stiff, false);
@@ -307,8 +305,8 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
              "for stiffness matrix!");
       }
    }
-   combined_oper.reset(
-       new SystemOperator(ess_bdr, _nonlinear_mass, _mass, _res, _load));
+   combined_oper = std::make_unique<SystemOperator>(
+       ess_bdr, _nonlinear_mass, _mass, _res, _load);
 }
 
 MachEvolver::~MachEvolver() = default;
@@ -357,20 +355,20 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
    }
 }
 
-void MachEvolver::ImplicitSolve(const double dt_stage,
-                                const double dt,
-                                const Vector &x,
-                                Vector &k)
-{
-   setOperParameters(dt, &x, dt_stage);
-   Vector zero;  // empty vector is interpreted as zero r.h.s. by NewtonSolver
-   k = 0.0;      // In case iterative mode is set to true
-   newton->Mult(zero, k);
-   if (abort_on_no_converge)
-   {
-      MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
-   }
-}
+// void MachEvolver::ImplicitSolve(const double dt_stage,
+//                                 const double dt,
+//                                 const Vector &x,
+//                                 Vector &k)
+// {
+//    setOperParameters(dt, &x, dt_stage);
+//    Vector zero;  // empty vector is interpreted as zero r.h.s. by
+//    NewtonSolver k = 0.0;      // In case iterative mode is set to true
+//    newton->Mult(zero, k);
+//    if (abort_on_no_converge)
+//    {
+//       MFEM_VERIFY(newton->GetConverged(), "Newton solver did not converge!");
+//    }
+// }
 
 void MachEvolver::SetLinearSolver(Solver *_linsolver)
 {

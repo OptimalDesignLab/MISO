@@ -28,22 +28,24 @@ public:
    friend void addLoad(MagnetostaticLoad &load, mfem::Vector &tv);
 
    friend double vectorJacobianProduct(MagnetostaticLoad &load,
-                                       const mfem::HypreParVector &res_bar,
+                                       const mfem::Vector &res_bar,
                                        const std::string &wrt);
 
    friend void vectorJacobianProduct(MagnetostaticLoad &load,
-                                     const mfem::HypreParVector &res_bar,
+                                     const mfem::Vector &res_bar,
                                      const std::string &wrt,
-                                     mfem::HypreParVector &wrt_bar);
+                                     mfem::Vector &wrt_bar);
 
    MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
                      mfem::VectorCoefficient &current_coeff,
                      mfem::VectorCoefficient &mag_coeff,
                      mfem::Coefficient &nu)
-    : current_load(pfes, current_coeff), magnetic_load(pfes, mag_coeff, nu)
+    : current_load(pfes, options, current_coeff),
+      magnetic_load(pfes, mag_coeff, nu)
    { }
 
 private:
+   nlohmann::json options;
    CurrentLoad current_load;
    MagneticLoad magnetic_load;
    // LegacyMagneticLoad magnetic_load;
@@ -66,7 +68,7 @@ public:
 
    friend mfem::Operator &getJacobian(MagnetostaticResidual &residual,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    MagnetostaticResidual(
        mfem::ParFiniteElementSpace &pfes,

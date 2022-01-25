@@ -46,6 +46,8 @@ set(EM_TEST_SRCS
 
 # group fluid MPI tests
 set(FLUID_MPI_TEST_SRCS
+   test_flow_residual
+   test_flow_solver
    test_mfem_common_integ
    test_mach_residual
 )
@@ -64,6 +66,9 @@ set(EM_MPI_TEST_SRCS
    test_magnetostatic_load
    #test_mass_operator
    test_common_outputs
+   test_abstract_solver
+   test_pde_solver
+   test_data_logging
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)

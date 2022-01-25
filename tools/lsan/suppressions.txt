@@ -7,6 +7,7 @@
 leak:libmpi
 leak:libopen-rte
 leak:libdispatch
+leak:libopen-pal
 
 # leaks reported in Python
 leak:_PyObject_Malloc

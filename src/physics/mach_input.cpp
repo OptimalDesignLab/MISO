@@ -3,27 +3,57 @@
 
 namespace mach
 {
-double *MachInput::getField() const
+void setValueFromInput(const MachInput &input, double &value)
 {
-   if (active != Type::Field)
+   value = std::get<double>(input);
+}
+
+void setValueFromInputs(const MachInputs &inputs,
+                        const std::string &key,
+                        double &value,
+                        bool error_if_not_found)
+{
+   auto input = inputs.find(key);
+   if (input != inputs.end())
    {
-      throw MachException("Input type is not a field!\n");
+      setValueFromInput(input->second, value);
    }
-   else
+   else if (error_if_not_found)
    {
-      return input.field;
+      throw MachException("key = " + key + "not found in inputs!\n");
    }
 }
 
-double MachInput::getValue() const
+void setVectorFromInput(const MachInput &input,
+                        mfem::Vector &vec,
+                        bool deep_copy)
 {
-   if (active != Type::Value)
+   const auto &tmp = std::get<InputVector>(input);
+   if (deep_copy)
    {
-      throw MachException("Input type is not a value!\n");
+      vec.SetSize(tmp.size);
+      vec = tmp.data;
    }
    else
    {
-      return input.value;
+      vec.NewDataAndSize(tmp.data, tmp.size);
+   }
+}
+
+void setVectorFromInputs(const MachInputs &inputs,
+                         const std::string &key,
+                         mfem::Vector &vec,
+                         bool deep_copy,
+                         bool error_if_not_found)
+{
+   auto input = inputs.find(key);
+   if (input != inputs.end())
+   {
+      setVectorFromInput(input->second, vec, deep_copy);
+   }
+   else if (error_if_not_found)
+   {
+      throw MachException("key = " + key + "not found in inputs!\n");
    }
 }
 

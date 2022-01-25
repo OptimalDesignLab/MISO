@@ -30,10 +30,8 @@ public:
    /// \param[in] velc - represents the (possibly) spatially varying velocity
    /// \param[in] alpha - scales the terms; can be used to move from lhs to rhs
    AdvectionIntegrator(mfem::VectorCoefficient &velc, double a = 1.0)
-    : vel_coeff(velc)
-   {
-      alpha = a;
-   }
+    : vel_coeff(velc), alpha(a)
+   { }
 
    /// Create the element stiffness matrix for linear advection.
    /// \param[in] el - the finite element whose stiffness matrix we want

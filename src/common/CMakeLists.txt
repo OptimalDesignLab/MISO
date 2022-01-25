@@ -1,10 +1,15 @@
 target_sources(mach
    PRIVATE
+      abstract_solver.cpp
+      abstract_solver.hpp
       coefficient.cpp
       coefficient.hpp
       common.hpp
+      data_logging.hpp
       default_options.cpp
       default_options.hpp
+      #equation_solver.cpp
+      #equation_solver.hpp
       evolver.cpp
       evolver.hpp
       functional_output.cpp
@@ -16,8 +21,12 @@ target_sources(mach
       mach_output.hpp
       mach_residual.hpp
       material_library.hpp
+      matrix_operators.hpp
+      matrix_operators.cpp
       mfem_extensions.cpp
       mfem_extensions.hpp
+      ode.cpp
+      ode.hpp
       orthopoly.cpp
       orthopoly.hpp
       sbp_fe.cpp

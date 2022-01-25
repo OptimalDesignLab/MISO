@@ -53,18 +53,7 @@ private:
 void setInputs(TestMachLoadIntegrator &integ,
                const mach::MachInputs &inputs)
 {
-   auto it = inputs.find("test_val");
-   if (it != inputs.end())
-   {
-      if (it->second.isValue())
-      {
-         integ.test_val = it->second.getValue();
-      }
-      else
-      {
-         throw mach::MachException("Bad input type for test_val!");
-      }
-   }
+   mach::setValueFromInputs(inputs, "test_val", integ.test_val);
 }
 
 // } // anonymous namespace

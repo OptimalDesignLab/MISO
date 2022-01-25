@@ -90,7 +90,7 @@ public:
    friend void calcOutputPartial(MachOutput &output,
                                  const std::string &wrt,
                                  const MachInputs &inputs,
-                                 mfem::HypreParVector &partial);
+                                 mfem::Vector &partial);
 
    /// Compute the vector output based on the inputs
    friend void calcOutput(MachOutput &output,
@@ -128,7 +128,7 @@ private:
                                         const MachInputs &inputs) = 0;
       virtual void calcOutputPartial_(const std::string &wrt,
                                       const MachInputs &inputs,
-                                      mfem::HypreParVector &partial) = 0;
+                                      mfem::Vector &partial) = 0;
       virtual void calcOutput_(const MachInputs &inputs,
                                mfem::Vector &out_vec) = 0;
       virtual double vectorJacobianProduct_(const std::string &wrt,
@@ -164,7 +164,7 @@ private:
       }
       void calcOutputPartial_(const std::string &wrt,
                               const MachInputs &inputs,
-                              mfem::HypreParVector &partial) override
+                              mfem::Vector &partial) override
       {
          calcOutputPartial(data_, wrt, inputs, partial);
       }
@@ -218,7 +218,7 @@ inline double calcOutputPartial(MachOutput &output,
 inline void calcOutputPartial(MachOutput &output,
                               const std::string &wrt,
                               const MachInputs &inputs,
-                              mfem::HypreParVector &partial)
+                              mfem::Vector &partial)
 {
    output.self_->calcOutputPartial_(wrt, inputs, partial);
 }

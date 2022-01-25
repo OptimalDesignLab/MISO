@@ -1078,7 +1078,7 @@ void SurfaceForce<dim>::calcBndryFunJacState(const mfem::Vector &x,
    {
       flux_a[i] += work_vec_a[i];
    }
-   adouble fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
+   auto fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
    fun_a.set_gradient(1.0);
    this->stack.compute_adjoint();
    adept::get_gradients(q_a.data(), q.Size(), flux_vec.GetData());
@@ -1140,7 +1140,7 @@ void SurfaceForce<dim>::calcBndryFunJacDw(const mfem::Vector &x,
    {
       flux_a[i] += work_vec_a[i];
    }
-   adouble fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
+   auto fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
    fun_a.set_gradient(1.0);
    this->stack.compute_adjoint();
    mfem::Vector work(Dw_size);

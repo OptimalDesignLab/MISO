@@ -5,9 +5,38 @@
 #include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
+#include "utils.hpp"
 
 namespace mach
 {
+template <typename T>
+void setInputs(T & /*unused*/, const MachInputs & /*unused*/)
+{ }
+
+template <typename T>
+void setOptions(T & /*unused*/, const nlohmann::json & /*unused*/)
+{ }
+
+template <typename T>
+double calcEntropy(T & /*unused*/, const MachInputs & /*unused*/)
+{
+   throw MachException(
+       "calcEntropy not specialized for concrete residual type!\n");
+}
+
+template <typename T>
+double calcEntropyChange(T & /*unused*/, const MachInputs & /*unused*/)
+{
+   throw MachException(
+       "calcEntropyChange not specialized for concrete residual type!\n");
+}
+
+template <typename T>
+mfem::Solver *getPreconditioner(T & /*unused*/)
+{
+   return nullptr;
+}
+
 /// Defines a common interface for residual functions used by mach.
 /// A MachResidual can wrap any type `T` that has the interface of a residual
 /// function.  For example, one instance of `T` is given by `MachNonlinearForm`,
@@ -19,9 +48,16 @@ namespace mach
 /// we have pointers to base classes.
 /// \note This approach is based on the example in Sean Parent's talk:
 /// ``Inheritance is the base class of evil''
-class MachResidual final
+class MachResidual final : public mfem::Operator
 {
 public:
+   /// Returns a reference to the underlying concrete type
+   /// \tparam T - a residual class
+   /// \note This is useful when the underlying concrete type is known at the
+   /// client side, and methods specific to the concrete type need to be called.
+   template <typename T>
+   friend T &getConcrete(MachResidual &residual);
+
    /// Gets the number of equations/unknowns of the underlying residual type
    /// \param[inout] residual - the residual whose size is being queried
    /// \returns the number of equations/unknowns
@@ -57,14 +93,53 @@ public:
    /// \note the underlying `Operator` is owned by `residual`
    friend mfem::Operator &getJacobian(MachResidual &residual,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
+
+   /// Evaluate the entropy functional at the given state
+   /// \param[inout] residual - function with an associated entropy
+   /// \param[in] inputs - the variables needed to evaluate the entropy
+   /// \return the entropy functional
+   /// \note optional, but must be implemented for relaxation RK
+   friend double calcEntropy(MachResidual &residual, const MachInputs &inputs);
+
+   /// Evaluate the residual weighted by the entropy variables
+   /// \param[inout] residual - function with an associated entropy
+   /// \param[in] inputs - the variables needed to evaluate the entropy
+   /// \return the product `w^T res`
+   /// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
+   /// `t+dt` \note optional, but must be implemented for relaxation RK
+   friend double calcEntropyChange(MachResidual &residual,
+                                   const MachInputs &inputs);
+
+   /// Return a preconditioner owned by the residual for inverting the
+   /// residual's state Jacobian \param[inout] residual - the object owning the
+   /// preconditioner \return non owning pointer to a preconditioner for
+   /// inverting the state Jacobian \note if a concrete residual type does not
+   /// define a getPreconditioner function a `nullptr` will be returned
+   friend mfem::Solver *getPreconditioner(MachResidual &residual);
+
+   /// We need to support these overrides so that the MachResidual type can be
+   /// directly set as the operator for an MFEM NonlinearSolver
+   void Mult(const mfem::Vector &state, mfem::Vector &res_vec) const override
+   {
+      MachInputs inputs{{"state", state}};
+      self_->eval_(inputs, res_vec);
+   }
+
+   /// We need to support these overrides so that the MachResidual type can be
+   /// directly set as the operator for an MFEM NonlinearSolver
+   mfem::Operator &GetGradient(const mfem::Vector &state) const override
+   {
+      MachInputs inputs{{"state", state}};
+      return self_->getJac_(inputs, "state");
+   }
 
    // TODO: we will eventual want to add functions for Jacobian products
 
    // The following constructors, assignment operators, and destructors allow
    // the `MachResidual` to wrap the generic type `T`.
    template <typename T>
-   MachResidual(T x) : self_(new model<T>(std::move(x)))
+   MachResidual(T x) : Operator(getSize(x)), self_(new model<T>(std::move(x)))
    { }
 
 private:
@@ -78,7 +153,10 @@ private:
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
       virtual mfem::Operator &getJac_(const MachInputs &inputs,
-                                      std::string wrt) = 0;
+                                      const std::string &wrt) = 0;
+      virtual double calcEntropy_(const MachInputs &inputs) = 0;
+      virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
+      virtual mfem::Solver *getPrec_() = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -102,10 +180,19 @@ private:
          evaluate(data_, inputs, res_vec);
       }
       mfem::Operator &getJac_(const MachInputs &inputs,
-                              std::string wrt) override
+                              const std::string &wrt) override
       {
-         return getJacobian(data_, inputs, std::move(wrt));
+         return getJacobian(data_, inputs, wrt);
       }
+      double calcEntropy_(const MachInputs &inputs) override
+      {
+         return calcEntropy(data_, inputs);
+      }
+      double calcEntropyChange_(const MachInputs &inputs) override
+      {
+         return calcEntropyChange(data_, inputs);
+      }
+      mfem::Solver *getPrec_() override { return getPreconditioner(data_); }
 
       T data_;
    };
@@ -113,6 +200,20 @@ private:
    /// Pointer to `model` via its abstract base class `concept_t`
    std::unique_ptr<concept_t> self_;
 };
+
+template <typename T>
+inline T &getConcrete(MachResidual &residual)
+{
+   auto *model = dynamic_cast<MachResidual::model<T> *>(residual.self_.get());
+   if (model == nullptr)
+   {
+      throw MachException("getConcrete() called with inconsistent template!");
+   }
+   else
+   {
+      return model->data_;
+   }
+}
 
 inline int getSize(const MachResidual &residual)
 {
@@ -144,11 +245,27 @@ inline void evaluate(MachResidual &residual,
 
 inline mfem::Operator &getJacobian(MachResidual &residual,
                                    const MachInputs &inputs,
-                                   std::string wrt)
+                                   const std::string &wrt)
 {
    // passes `inputs` and `res_vec` on to the `getJacobian` function for the
    // concrete residual type
-   return residual.self_->getJac_(inputs, std::move(wrt));
+   return residual.self_->getJac_(inputs, wrt);
+}
+
+inline double calcEntropy(MachResidual &residual, const MachInputs &inputs)
+{
+   return residual.self_->calcEntropy_(inputs);
+}
+
+inline double calcEntropyChange(MachResidual &residual,
+                                const MachInputs &inputs)
+{
+   return residual.self_->calcEntropyChange_(inputs);
+}
+
+inline mfem::Solver *getPreconditioner(MachResidual &residual)
+{
+   return residual.self_->getPrec_();
 }
 
 }  // namespace mach

@@ -32,7 +32,7 @@ public:
    friend void calcOutputPartial(FunctionalOutput &output,
                                  const std::string &wrt,
                                  const MachInputs &inputs,
-                                 mfem::HypreParVector &partial);
+                                 mfem::Vector &partial);
 
    /// Adds domain integrator to the nonlinear form that backs this output,
    /// and adds a reference to it to in integs as a MachIntegrator

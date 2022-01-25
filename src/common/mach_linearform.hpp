@@ -28,13 +28,13 @@ public:
    /// Assemble the linear form's sensitivity to a scalar and contract it with
    /// load_bar
    friend double vectorJacobianProduct(MachLinearForm &load,
-                                       const mfem::HypreParVector &load_bar,
+                                       const mfem::Vector &load_bar,
                                        const std::string &wrt);
 
    friend void vectorJacobianProduct(MachLinearForm &load,
-                                     const mfem::HypreParVector &load_bar,
+                                     const mfem::Vector &load_bar,
                                      const std::string &wrt,
-                                     mfem::HypreParVector &wrt_bar);
+                                     mfem::Vector &wrt_bar);
 
    /// Adds domain integrator to linear form
    /// \param[in] integrator - linear form integrator for domain
@@ -80,7 +80,7 @@ public:
    MachLinearForm(
        mfem::ParFiniteElementSpace &pfes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields)
-    : lf(&pfes), scratch(&pfes), lf_fields(&fields)
+    : lf(&pfes), scratch(pfes.GetTrueVSize()), lf_fields(&fields)
    {
       if (lf_fields->count("adjoint") == 0)
       {
@@ -91,8 +91,11 @@ public:
 private:
    /// underlying linear form object
    mfem::ParLinearForm lf;
+   /// essential tdofs
+   mfem::Array<int> ess_tdof_list;
+
    /// work vector
-   mfem::HypreParVector scratch;
+   mfem::Vector scratch;
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;

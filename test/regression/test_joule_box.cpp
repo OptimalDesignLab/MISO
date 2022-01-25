@@ -215,7 +215,7 @@ TEST_CASE("Joule Box Solver Regression Test",
             therm_solver->setFieldValue(*therm_state, initialTemp);
 
             MachInputs therm_inputs = {
-               {"mvp", em_state->GetData()}
+               {"mvp", *em_state}
             };
             therm_solver->solveForState(therm_inputs, *therm_state);
 

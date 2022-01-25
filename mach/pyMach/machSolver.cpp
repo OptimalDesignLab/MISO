@@ -146,7 +146,7 @@ MachInputs pyDictToMachInputs(const py::dict &py_inputs)
          }
          else
          {
-            inputs.emplace(key, value);
+            inputs.emplace(key, InputVector(value, shape[0]));
          }
       }
    }

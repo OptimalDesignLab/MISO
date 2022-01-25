@@ -92,7 +92,7 @@ public:
    friend inline void calcOutputPartial(ForceFunctional &output,
                                         const std::string &wrt,
                                         const MachInputs &inputs,
-                                        mfem::HypreParVector &partial)
+                                        mfem::Vector &partial)
    {
       calcOutputPartial(output.output, wrt, inputs, partial);
    }
@@ -144,7 +144,7 @@ public:
    friend inline void calcOutputPartial(TorqueFunctional &output,
                                         const std::string &wrt,
                                         const MachInputs &inputs,
-                                        mfem::HypreParVector &partial)
+                                        mfem::Vector &partial)
    {
       calcOutputPartial(output.output, wrt, inputs, partial);
    }

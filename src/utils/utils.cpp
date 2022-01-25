@@ -84,8 +84,42 @@ std::ostream *getOutStream(int rank, bool silent)
 HypreParVector bufferToHypreParVector(double *buffer,
                                       const ParFiniteElementSpace &fes)
 {
-   return HypreParVector(
-       fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets());
+   return {
+       fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets()};
+}
+
+void getEssentialBoundaries(const nlohmann::json &options,
+                            mfem::Array<int> &ess_bdr)
+{
+   ess_bdr = 0;
+   if (options["ess-bdr"].is_string())
+   {
+      auto tmp = options["ess-bdr"].get<std::string>();
+      if (tmp == "all")
+      {
+         ess_bdr = 1;
+      }
+      else if (tmp == "none")
+      {
+         ess_bdr = 0;
+      }
+      else
+      {
+         throw MachException("Unrecognized string for \"ess-bdr\" options!");
+      }
+   }
+   else if (options["ess-bdr"].is_array())
+   {
+      auto tmp = options["ess-bdr"].get<std::vector<int>>();
+      for (auto &bdr : tmp)
+      {
+         ess_bdr[bdr - 1] = 1;
+      }
+   }
+   else
+   {
+      throw MachException("Unrecognized JSON value for \"ess-bdr\" options!");
+   }
 }
 
 void attrVecToArray(const std::vector<int> &vec_attributes,
@@ -97,6 +131,7 @@ void attrVecToArray(const std::vector<int> &vec_attributes,
       attributes[attr - 1] = 1;
    }
 }
+
 /// performs quadratic interpolation given x0, y0, dy0/dx0, x1, and y1.
 double quadInterp(double x0, double y0, double dydx0, double x1, double y1)
 {
@@ -731,5 +766,41 @@ void transferSolution(MeshType &old_mesh,
        "\trecompile MFEM with GSLIB!");
 }
 #endif
+
+unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
+{
+   Mesh mesh = Mesh::MakeCartesian2D(num_rad,
+                                     num_ang,
+                                     Element::TRIANGLE,
+                                     true /* gen. edges */,
+                                     2.0,
+                                     M_PI * 0.5,
+                                     true);
+   // strategy:
+   // 1) generate a fes for Lagrange elements of desired degree
+   // 2) create a Grid Function using a VectorFunctionCoefficient
+   // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
+
+   // fes does not own fec, which is generated in this function's scope, but
+   // the grid function can own both the fec and fes
+   H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
+   FiniteElementSpace *fes =
+       new FiniteElementSpace(&mesh, fec, 2, Ordering::byVDIM);
+
+   // This lambda function transforms from (r,\theta) space to (x,y) space
+   auto xy_fun = [](const Vector &rt, Vector &xy)
+   {
+      xy(0) =
+          (rt(0) + 1.0) * cos(rt(1));  // need + 1.0 to shift r away from origin
+      xy(1) = (rt(0) + 1.0) * sin(rt(1));
+   };
+   VectorFunctionCoefficient xy_coeff(2, xy_fun);
+   GridFunction *xy = new GridFunction(fes);
+   xy->MakeOwner(fec);
+   xy->ProjectCoefficient(xy_coeff);
+
+   mesh.NewNodes(*xy, true);
+   return make_unique<Mesh>(mesh);
+}
 
 }  // namespace mach

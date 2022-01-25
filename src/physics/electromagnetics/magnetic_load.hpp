@@ -30,19 +30,17 @@ public:
       addLoad(load.lf, tv);
    }
 
-   friend inline double vectorJacobianProduct(
-       MagneticLoad &load,
-       const mfem::HypreParVector &load_bar,
-       const std::string &wrt)
+   friend inline double vectorJacobianProduct(MagneticLoad &load,
+                                              const mfem::Vector &load_bar,
+                                              const std::string &wrt)
    {
       return vectorJacobianProduct(load.lf, load_bar, wrt);
    }
 
-   friend inline void vectorJacobianProduct(
-       MagneticLoad &load,
-       const mfem::HypreParVector &load_bar,
-       const std::string &wrt,
-       mfem::HypreParVector &wrt_bar)
+   friend inline void vectorJacobianProduct(MagneticLoad &load,
+                                            const mfem::Vector &load_bar,
+                                            const std::string &wrt,
+                                            mfem::Vector &wrt_bar)
    {
       vectorJacobianProduct(load.lf, load_bar, wrt, wrt_bar);
    }
@@ -73,13 +71,13 @@ public:
    friend void addLoad(LegacyMagneticLoad &load, mfem::Vector &tv);
 
    friend double vectorJacobianProduct(LegacyMagneticLoad &load,
-                                       const mfem::HypreParVector &res_bar,
+                                       const mfem::Vector &res_bar,
                                        const std::string &wrt);
 
    friend void vectorJacobianProduct(LegacyMagneticLoad &load,
-                                     const mfem::HypreParVector &res_bar,
+                                     const mfem::Vector &res_bar,
                                      const std::string &wrt,
-                                     mfem::HypreParVector &wrt_bar);
+                                     mfem::Vector &wrt_bar);
 
    LegacyMagneticLoad(mfem::ParFiniteElementSpace &pfes,
                       mfem::VectorCoefficient &mag_coeff,
@@ -91,7 +89,7 @@ private:
    mfem::ParFiniteElementSpace rt_fes;
 
    mfem::VectorCoefficient &mag_coeff;
-   mfem::HypreParVector load;
+   mfem::Vector load;
 
    mfem::ParMixedBilinearForm weakCurlMuInv;
    mfem::ParGridFunction M;

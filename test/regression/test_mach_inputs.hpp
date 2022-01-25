@@ -56,18 +56,7 @@ private:
 void setInputs(TestMachInputIntegrator &integ,
                const MachInputs &inputs)
 {
-   auto it = inputs.find("test_val");
-   if (it != inputs.end())
-   {
-      if (it->second.isValue())
-      {
-         integ.test_val = it->second.getValue();
-      }
-      else
-      {
-         throw MachException("Bad input type for test_val!");
-      }
-   }
+   setValueFromInputs(inputs, "test_val", integ.test_val);
 }
 
 class TestMachInputSolver : public AbstractSolver

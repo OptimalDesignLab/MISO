@@ -1,4 +1,5 @@
 #include <fstream>
+#include <memory>
 #include <random>
 #include <memory>
 
@@ -39,7 +40,8 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
       std::unique_ptr<mach::StateCoefficient> nonlin_coeff;
 
       auto mu_r = materials[material]["mu_r"].get<double>();
-      lin_coeff.reset(new mfem::ConstantCoefficient(1.0 / (mu_r * mu_0)));
+      lin_coeff =
+          std::make_unique<mfem::ConstantCoefficient>(1.0 / (mu_r * mu_0));
 
       // if (material == "team13")
       // {
@@ -49,11 +51,11 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
       // {
       auto b = materials[material]["B"].get<std::vector<double>>();
       auto h = materials[material]["H"].get<std::vector<double>>();
-      nonlin_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+      nonlin_coeff = std::make_unique<mach::ReluctivityCoefficient>(b, h);
       // }
 
-      temp_coeff.reset(new mach::ParameterContinuationCoefficient(
-          move(lin_coeff), move(nonlin_coeff)));
+      temp_coeff = std::make_unique<mach::ParameterContinuationCoefficient>(
+          move(lin_coeff), move(nonlin_coeff));
 
       // if (material == "team13")
       // {
@@ -69,7 +71,8 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
    else
    {
       auto mu_r = materials[material]["mu_r"].get<double>();
-      temp_coeff.reset(new mfem::ConstantCoefficient(1.0 / (mu_r * mu_0)));
+      temp_coeff =
+          std::make_unique<mfem::ConstantCoefficient>(1.0 / (mu_r * mu_0));
       // std::cout << "new coeff with mu_r: " << mu_r << "\n";
    }
    return temp_coeff;
@@ -472,7 +475,7 @@ namespace mach
 MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json &json_options,
                                          std::unique_ptr<mfem::Mesh> smesh,
                                          MPI_Comm comm)
- : AbstractSolver(json_options, move(smesh), comm)
+ : AbstractSolver(json_options, move(smesh), comm), dim(mesh->Dimension())
 {
    mesh->RemoveInternalBoundaries();
 
@@ -846,14 +849,14 @@ void MagnetostaticSolver::constructForms()
 {
    MagnetostaticResidual mres(
        *fes, res_fields, *current_coeff, *mag_coeff, *nu);
-   new_res.reset(new MachResidual(std::move(mres)));
+   new_res = std::make_unique<MachResidual>(std::move(mres));
    // mass.reset(new BilinearFormType(fes.get()));
-   res.reset(new NonlinearFormType(fes.get()));
-   magnetostatic_load.reset(
-       new MagnetostaticLoad(*fes, *current_coeff, *mag_coeff, *nu));
-   load.reset(new MachLoad(*magnetostatic_load));
+   res = std::make_unique<NonlinearFormType>(fes.get());
+   magnetostatic_load = std::make_unique<MagnetostaticLoad>(
+       *fes, *current_coeff, *mag_coeff, *nu);
+   load = std::make_unique<MachLoad>(*magnetostatic_load);
    // old_load.reset(new ParGridFunction(fes.get()));
-   ent.reset(new ParNonlinearForm(fes.get()));
+   ent = std::make_unique<ParNonlinearForm>(fes.get());
 }
 
 // GridFunction *MagnetostaticSolver::getMeshSensitivities()
@@ -1243,7 +1246,7 @@ double MagnetostaticSolver::calcStepSize(int iter,
 
 void MagnetostaticSolver::constructCoefficients()
 {
-   div_free_current_vec.reset(new GridFunType(fes.get()));
+   div_free_current_vec = std::make_unique<GridFunType>(fes.get());
 
    /// read options file to set the proper values of static member variables
    setStaticMembers();
@@ -1300,7 +1303,7 @@ void MagnetostaticSolver::constructReluctivity()
    // const double mu_0 = 4e-7*M_PI;
    std::unique_ptr<Coefficient> nu_free_space(
        new ConstantCoefficient(1.0 / mu_0));
-   nu.reset(new MeshDependentCoefficient(move(nu_free_space)));
+   nu = std::make_unique<MeshDependentCoefficient>(move(nu_free_space));
 
    /// loop over all components, construct either a linear or nonlinear
    ///    reluctivity coefficient for each
@@ -1330,7 +1333,7 @@ void MagnetostaticSolver::constructReluctivity()
 ///        magnetization cannot be described by a single vector function
 void MagnetostaticSolver::constructMagnetization()
 {
-   mag_coeff.reset(new VectorMeshDependentCoefficient(dim));
+   mag_coeff = std::make_unique<VectorMeshDependentCoefficient>(dim);
 
    if (options["problem-opts"].contains("magnets"))
    {
@@ -1426,7 +1429,7 @@ void MagnetostaticSolver::constructMagnetization()
 
 void MagnetostaticSolver::constructCurrent()
 {
-   current_coeff.reset(new VectorMeshDependentCoefficient());
+   current_coeff = std::make_unique<VectorMeshDependentCoefficient>();
 
    if (options["problem-opts"].contains("current"))
    {
@@ -1557,7 +1560,7 @@ void MagnetostaticSolver::constructCurrent()
 
 void MagnetostaticSolver::constructSigma()
 {
-   sigma.reset(new MeshDependentCoefficient);
+   sigma = std::make_unique<MeshDependentCoefficient>();
 
    /// loop over all components, construct conductivity for each
    for (auto &component : options["components"])
@@ -1570,7 +1573,7 @@ void MagnetostaticSolver::constructSigma()
       if (-1 != attr)
       {
          std::unique_ptr<mfem::Coefficient> temp_coeff;
-         temp_coeff.reset(new ConstantCoefficient(sigma_val));
+         temp_coeff = std::make_unique<ConstantCoefficient>(sigma_val);
          sigma->addCoefficient(attr, move(temp_coeff));
       }
       else
@@ -1579,7 +1582,7 @@ void MagnetostaticSolver::constructSigma()
          for (auto &attribute : attrs)
          {
             std::unique_ptr<mfem::Coefficient> temp_coeff;
-            temp_coeff.reset(new ConstantCoefficient(sigma_val));
+            temp_coeff = std::make_unique<ConstantCoefficient>(sigma_val);
             sigma->addCoefficient(attribute, move(temp_coeff));
          }
       }
@@ -1857,7 +1860,7 @@ void MagnetostaticSolver::getCurrentSourceMeshSens(
 
 Vector *MagnetostaticSolver::getResidual()
 {
-   residual.reset(new GridFunType(fes.get()));
+   residual = std::make_unique<GridFunType>(fes.get());
    *residual = 0.0;
    /// state needs to be the same as the current density changes, zero is
    /// arbitrary
@@ -2702,7 +2705,7 @@ void addLoad(MagnetostaticLoad &load, mfem::Vector &tv)
 }
 
 double vectorJacobianProduct(MagnetostaticLoad &load,
-                             const mfem::HypreParVector &res_bar,
+                             const mfem::Vector &res_bar,
                              const std::string &wrt)
 {
    double wrt_bar = 0.0;
@@ -2712,9 +2715,9 @@ double vectorJacobianProduct(MagnetostaticLoad &load,
 }
 
 void vectorJacobianProduct(MagnetostaticLoad &load,
-                           const mfem::HypreParVector &res_bar,
+                           const mfem::Vector &res_bar,
                            const std::string &wrt,
-                           mfem::HypreParVector &wrt_bar)
+                           mfem::Vector &wrt_bar)
 {
    vectorJacobianProduct(load.current_load, res_bar, wrt, wrt_bar);
    vectorJacobianProduct(load.magnetic_load, res_bar, wrt, wrt_bar);
@@ -2748,9 +2751,9 @@ void evaluate(MagnetostaticResidual &residual,
 
 mfem::Operator &getJacobian(MagnetostaticResidual &residual,
                             const MachInputs &inputs,
-                            std::string wrt)
+                            const std::string &wrt)
 {
-   return getJacobian(residual.nlf, inputs, std::move(wrt));
+   return getJacobian(residual.nlf, inputs, wrt);
 }
 
 }  // namespace mach

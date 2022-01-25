@@ -1,5 +1,6 @@
 #include <cmath>
 #include <fstream>
+#include <memory>
 #include <unordered_set>
 
 #include "mfem.hpp"
@@ -335,7 +336,7 @@ void ThermalSolver::solveUnsteady(ParGridFunction &state)
 
 void ThermalSolver::constructDensityCoeff()
 {
-   rho.reset(new MeshDependentCoefficient());
+   rho = std::make_unique<MeshDependentCoefficient>();
 
    for (auto &component : options["components"])
    {
@@ -344,7 +345,7 @@ void ThermalSolver::constructDensityCoeff()
       std::cout << material << '\n';
       {
          auto rho_val = materials[material]["rho"].get<double>();
-         rho_coeff.reset(new ConstantCoefficient(rho_val));
+         rho_coeff = std::make_unique<ConstantCoefficient>(rho_val);
       }
       // int attrib = component["attr"].get<int>();
       rho->addCoefficient(component["attr"].get<int>(), move(rho_coeff));
@@ -353,7 +354,7 @@ void ThermalSolver::constructDensityCoeff()
 
 void ThermalSolver::constructHeatCoeff()
 {
-   cv.reset(new MeshDependentCoefficient());
+   cv = std::make_unique<MeshDependentCoefficient>();
 
    for (auto &component : options["components"])
    {
@@ -362,7 +363,7 @@ void ThermalSolver::constructHeatCoeff()
       std::cout << material << '\n';
       {
          auto cv_val = materials[material]["cv"].get<double>();
-         cv_coeff.reset(new ConstantCoefficient(cv_val));
+         cv_coeff = std::make_unique<ConstantCoefficient>(cv_val);
       }
       cv->addCoefficient(component["attr"].get<int>(), move(cv_coeff));
    }
@@ -370,7 +371,7 @@ void ThermalSolver::constructHeatCoeff()
 
 void ThermalSolver::constructMassCoeff()
 {
-   rho_cv.reset(new MeshDependentCoefficient());
+   rho_cv = std::make_unique<MeshDependentCoefficient>();
 
    for (auto &component : options["components"])
    {
@@ -383,7 +384,7 @@ void ThermalSolver::constructMassCoeff()
       if (-1 != attr)
       {
          std::unique_ptr<mfem::Coefficient> temp_coeff;
-         temp_coeff.reset(new ConstantCoefficient(cv_val * rho_val));
+         temp_coeff = std::make_unique<ConstantCoefficient>(cv_val * rho_val);
          rho_cv->addCoefficient(attr, move(temp_coeff));
       }
       else
@@ -392,7 +393,8 @@ void ThermalSolver::constructMassCoeff()
          for (auto &attribute : attrs)
          {
             std::unique_ptr<mfem::Coefficient> temp_coeff;
-            temp_coeff.reset(new ConstantCoefficient(cv_val * rho_val));
+            temp_coeff =
+                std::make_unique<ConstantCoefficient>(cv_val * rho_val);
             rho_cv->addCoefficient(attribute, move(temp_coeff));
          }
       }
@@ -401,7 +403,7 @@ void ThermalSolver::constructMassCoeff()
 
 void ThermalSolver::constructConductivity()
 {
-   kappa.reset(new MeshDependentCoefficient());
+   kappa = std::make_unique<MeshDependentCoefficient>();
 
    for (auto &component : options["components"])
    {
@@ -413,7 +415,7 @@ void ThermalSolver::constructConductivity()
       if (-1 != attr)
       {
          std::unique_ptr<mfem::Coefficient> temp_coeff;
-         temp_coeff.reset(new ConstantCoefficient(kappa_val));
+         temp_coeff = std::make_unique<ConstantCoefficient>(kappa_val);
          kappa->addCoefficient(attr, move(temp_coeff));
       }
       else
@@ -422,7 +424,7 @@ void ThermalSolver::constructConductivity()
          for (auto &attribute : attrs)
          {
             std::unique_ptr<mfem::Coefficient> temp_coeff;
-            temp_coeff.reset(new ConstantCoefficient(kappa_val));
+            temp_coeff = std::make_unique<ConstantCoefficient>(kappa_val);
             kappa->addCoefficient(attribute, move(temp_coeff));
          }
       }
@@ -437,7 +439,7 @@ void ThermalSolver::constructConvection()
       if (options["problem-opts"].contains("convection-coeff"))
       {
          auto h = options["problem-opts"]["convection-coeff"].get<double>();
-         convection.reset(new ConstantCoefficient(h));
+         convection = std::make_unique<ConstantCoefficient>(h);
       }
       else
       {
@@ -450,7 +452,7 @@ void ThermalSolver::constructConvection()
 
 void ThermalSolver::constructJoule()
 {
-   i2sigmainv.reset(new MeshDependentCoefficient());
+   i2sigmainv = std::make_unique<MeshDependentCoefficient>();
 
    if (options["problem-opts"].contains("current"))
    {
@@ -471,8 +473,8 @@ void ThermalSolver::constructJoule()
             if (sigma > 1e-12)
             {
                std::unique_ptr<mfem::Coefficient> temp_coeff;
-               temp_coeff.reset(
-                   new ConstantCoefficient(-current * current / sigma));
+               temp_coeff = std::make_unique<ConstantCoefficient>(
+                   -current * current / sigma);
                i2sigmainv->addCoefficient(attr, move(temp_coeff));
             }
          }
@@ -484,8 +486,8 @@ void ThermalSolver::constructJoule()
                if (sigma > 1e-12)
                {
                   std::unique_ptr<mfem::Coefficient> temp_coeff;
-                  temp_coeff.reset(
-                      new ConstantCoefficient(-current * current / sigma));
+                  temp_coeff = std::make_unique<ConstantCoefficient>(
+                      -current * current / sigma);
                   i2sigmainv->addCoefficient(attribute, move(temp_coeff));
                }
             }
@@ -502,7 +504,7 @@ void ThermalSolver::constructCore()
    {
       return;
    }
-   coreloss.reset(new MeshDependentCoefficient());
+   coreloss = std::make_unique<MeshDependentCoefficient>();
 
    for (auto &component : options["components"])
    {
@@ -530,8 +532,8 @@ void ThermalSolver::constructCore()
             // temp_coeff.reset(new SteinmetzCoefficient(rho_val, alpha, freq,
             //                                           kh, ke,
             //                                           res_fields.at("mvp")));
-            temp_coeff.reset(new SteinmetzCoefficient(
-                rho_val, alpha, freq, ks, beta, res_fields.at("mvp")));
+            temp_coeff = std::make_unique<SteinmetzCoefficient>(
+                rho_val, alpha, freq, ks, beta, res_fields.at("mvp"));
             coreloss->addCoefficient(attr, move(temp_coeff));
          }
       }
@@ -547,8 +549,8 @@ void ThermalSolver::constructCore()
                // freq,
                //                                           kh, ke,
                //                                           res_fields.at("mvp")));
-               temp_coeff.reset(new SteinmetzCoefficient(
-                   rho_val, alpha, freq, ks, beta, res_fields.at("mvp")));
+               temp_coeff = std::make_unique<SteinmetzCoefficient>(
+                   rho_val, alpha, freq, ks, beta, res_fields.at("mvp"));
 
                coreloss->addCoefficient(attribute, move(temp_coeff));
             }
@@ -652,10 +654,10 @@ void ThermalSolver::constructCoefficients()
 
 void ThermalSolver::constructForms()
 {
-   mass.reset(new BilinearFormType(fes.get()));
-   res.reset(new ParNonlinearForm(fes.get()));
-   therm_load.reset(new MachLinearForm(*fes, res_fields));
-   load.reset(new MachLoad(*therm_load));
+   mass = std::make_unique<BilinearFormType>(fes.get());
+   res = std::make_unique<ParNonlinearForm>(fes.get());
+   therm_load = std::make_unique<MachLinearForm>(*fes, res_fields);
+   load = std::make_unique<MachLoad>(*therm_load);
 }
 
 void ThermalSolver::addMassIntegrators(double alpha)
@@ -726,8 +728,8 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
          if (options["problem-opts"]["outflux-type"].get<string>() == "test")
          {
             int dim = mesh->Dimension();
-            flux_coeff.reset(
-                new VectorFunctionCoefficient(dim, test_flux_func));
+            flux_coeff = std::make_unique<VectorFunctionCoefficient>(
+                dim, test_flux_func);
          }
          else
          {
@@ -754,13 +756,8 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 
 void ThermalSolver::constructEvolver()
 {
-   evolver.reset(new ThermalEvolver(ess_bdr,
-                                    mass.get(),
-                                    res.get(),
-                                    load.get(),
-                                    *out,
-                                    0.0,
-                                    flux_coeff.get()));
+   evolver = std::make_unique<ThermalEvolver>(
+       ess_bdr, mass.get(), res.get(), load.get(), *out, 0.0, flux_coeff.get());
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

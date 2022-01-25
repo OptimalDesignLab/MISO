@@ -1,12 +1,16 @@
 #ifndef MACH_UTILS
 #define MACH_UTILS
 
+#include <any>
 #include <functional>
 #include <exception>
 #include <iostream>
 #include <utility>
+#include <variant>
+#include <memory>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "mach_types.hpp"
 
@@ -112,6 +116,166 @@ mfem::HypreParVector bufferToHypreParVector(
 /// set to [0 1 0 1]
 void attrVecToArray(const std::vector<int> &vec_attributes,
                     mfem::Array<int> &attributes);
+
+/// \brief A helper type for uniform semantics over owning/non-owning pointers
+template <typename T>
+using MaybeOwningPointer = std::variant<T *, std::unique_ptr<T>>;
+
+/// \brief Retrieves a reference to the underlying object in a
+/// MaybeOwningPointer \param[in] obj The object to dereference
+template <typename T>
+static T &retrieve(MaybeOwningPointer<T> &obj)
+{
+   return std::visit([](auto &&ptr) -> T & { return *ptr; }, obj);
+}
+/// \overload
+template <typename T>
+static const T &retrieve(const MaybeOwningPointer<T> &obj)
+{
+   return std::visit([](auto &&ptr) -> const T & { return *ptr; }, obj);
+}
+
+/// Compile time code that allows determining if a type defines a call operator
+namespace detail
+{
+/// This overload is available if T defines operator(), meaning that
+/// `decltype(&T::operator())` produces a valid type
+template <typename T, typename = decltype(&T::operator())>
+std::true_type is_callable_helper(const T &);
+/// This is the catch-all overload, only used when the first is not valid
+/// (when T does not define operator() and thus decltype(&T::operator()) is
+/// invalid)
+std::false_type is_callable_helper(...);
+
+}  // namespace detail
+
+/// Compile time check if T defines operator()
+/// \tparam T - generic (maybe callable) type
+template <typename T>
+using is_callable = decltype(detail::is_callable_helper(std::declval<T>()));
+
+/// Shorthand for `is_callable` that accesses the underlying value
+/// \tparam T - generic (maybe callable) type
+template <typename T>
+inline constexpr bool is_callable_v = is_callable<T>::value;
+
+/// This group of code enables the conversion from lambdas, member functions,
+/// and function pointers to std::functions of the appropriate signature,
+/// deduced at compile time.
+/// These `function` structs deduce the return and argument types based on the
+/// input, and define their `type` member to be a std::function with the
+/// matching return and argument types. This allows `make_function` to
+/// deduce the appropriate `function` from the callable input, and using that
+/// `function`'s type, construct a std::function from the input
+namespace detail
+{
+template <typename T, typename... Ts>
+struct first
+{
+   using type = T;
+};
+
+template <typename... T>
+using first_t = typename first<T...>::type;
+
+/// For generic types that are functors, delegate to its 'operator()'
+template <typename T>
+struct function : public function<decltype(&T::operator())>
+{ };
+
+/// For const pointers to a member function
+template <typename ClassType, typename ReturnType, typename... Args>
+struct function<ReturnType (ClassType::*)(Args...) const>
+{
+   using type = std::function<ReturnType(Args...)>;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
+};
+
+/// For pointers to a member function
+template <typename ClassType, typename ReturnType, typename... Args>
+struct function<ReturnType (ClassType::*)(Args...)>
+{
+   using type = std::function<ReturnType(Args...)>;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
+};
+
+/// For function pointers
+template <typename ReturnType, typename... Args>
+struct function<ReturnType (*)(Args...)>
+{
+   using type = std::function<ReturnType(Args...)>;
+   using return_t = ReturnType;
+   using arg_t = first_t<Args...>;
+};
+
+}  // namespace detail
+
+/// \brief converts a callable object @a fun into a std::function with the same
+/// signature needed to call @a fun
+/// \param[in] fun - callable object to be converted to std::function
+/// \tparam T - generic callable type
+/// \return std::function wrapping @a fun with appropriately deduced signature
+template <typename T>
+typename detail::function<T>::type make_function(T fun)
+{
+   return (typename detail::function<T>::type)(fun);
+}
+
+/// \brief Convenience function that handles casting std::any to a usable type
+/// and then applies a user supplied function on the casted any
+/// \param[in] any - std::any that holds some concrete type
+/// \param[in] lambda - user supplied function to be called with the result of
+/// the any cast as its argument
+/// \param[in] rest... - variadic argument that can accept any number of
+/// aditional lambdas to try if the previous ones have not been callable with
+/// the result of the any cast
+/// \tparam T - generic callable type
+/// \tparam Ts... - variadic template types for additional callable types
+/// \return whatever the user supplied lambdas return, type is deduced from the
+/// return type of the lambdas
+/// \note In the case where the user supplied lambdas return a double, this
+/// function will return NAN if all the any casts field
+template <typename T, typename... Ts>
+auto useAny(std::any &any, T lambda, Ts... rest) ->
+    typename detail::function<T>::return_t
+{
+   /// For the first lambda given, we deduce the type of its argument,
+   /// removing const and reference qualifiers
+   using arg_t = std::remove_reference_t<
+       std::remove_const_t<typename detail::function<T>::arg_t>>;
+
+   /// Then we try to cast the any to that argument type
+   auto *concrete = std::any_cast<arg_t>(&any);
+
+   /// If the cast succeeds, we call the lambda with that argument
+   if (concrete != nullptr)
+   {
+      return lambda(*concrete);
+   }
+
+   /// If the cast failed, we recursively call this function with the next user
+   /// supplied lambda until we've exhausted all lambdas
+   if constexpr (sizeof...(rest) > 0)
+   {
+      return useAny(any, rest...);
+   }
+
+   /// If all any_casts failed, and the return type is a double
+   /// we return a NAN to indicate this function couldn't use the any
+   using return_t = decltype(useAny(any, lambda));
+   if constexpr (std::is_same_v<return_t, double>)
+   {
+      return NAN;
+   }
+}
+
+/// \brief helper function to populate the @a ess_bdr array based on options
+/// \param[in] options - options dictionary containing "ess-bdr" key
+/// \param[out] ess_bdr - binary array that marks essential boundaries
+void getEssentialBoundaries(const nlohmann::json &options,
+                            mfem::Array<int> &ess_bdr);
 
 // /// The following are adapted from MFEM's pfem_extras.xpp
 // class DiscreteGradOperator : public mfem::ParDiscreteLinearOperator
@@ -273,6 +437,15 @@ void transferSolution(MeshType &old_mesh,
                       MeshType &new_mesh,
                       const GridFunType &in,
                       GridFunType &out);
+
+/// Generate quarter annulus mesh, \f$r \in [1,3], \theta \in [0,\pi/2]\f$.
+/// \param[in] degree - polynomial degree of the mapping
+/// \param[in] num_rad - number of nodes in the radial direction
+/// \param[in] num_ang - number of nodes in the angular direction
+/// \returns unique pointer to a serial `Mesh` object.
+std::unique_ptr<mfem::Mesh> buildQuarterAnnulusMesh(int degree,
+                                                    int num_rad,
+                                                    int num_ang);
 
 }  // namespace mach
 

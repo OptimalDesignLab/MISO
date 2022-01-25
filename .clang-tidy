@@ -7,6 +7,8 @@ Checks: 'clang-diagnostic*,
          performance*,
          portability*,
          readability*,
+         -bugprone-easily-swappable-parameters,
+         -bugprone-implicit-widening-of-multiplication-result,
          -bugprone-narrowing-conversions,
          -clang-analyzer-core.CallAndMessage,
          -cppcoreguidelines-avoid-c-arrays,
@@ -24,7 +26,9 @@ Checks: 'clang-diagnostic*,
          -cppcoreguidelines-pro-type-union-access,
          -cppcoreguidelines-pro-type-vararg,
          -modernize-avoid-c-arrays,
+         -modernize-use-nodiscard,
          -modernize-use-trailing-return-type,
+         -readability-avoid-const-params-in-decls,
          -readability-else-after-return,
          -readability-magic-numbers'
 
@@ -36,6 +40,6 @@ CheckOptions:
   - key: readability-function-cognitive-complexity.Threshold
     value: 60
 
-WarningsAsErrors: '*'
+# WarningsAsErrors: '*'
 
 HeaderFilterRegex: 'mach/src/'
