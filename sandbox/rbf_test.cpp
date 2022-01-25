@@ -56,18 +56,23 @@ int main(int argc, char *argv[])
       int numbasis = smesh->GetNE();
       int interval = static_cast<int> (floor(smesh->GetNE()/numbasis));
 
-      Array<Vector> center(numbasis);
+      Array<Vector *> center(numbasis);
       int i = 0;
       for (int k = 0; k < numbasis; i+=interval)
-      {
-         smesh->GetElementCenter(i,center[k]);
-         k++; 
+      {  
+         center[k] = new Vector(2);
+         smesh->GetElementCenter(i,*center[k]);
+         k++;
       }
 
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
-      //RBFSpace rbfspace(smesh.get(),&fec,center,1,Ordering::byVDIM,degree);
+      RBFSpace rbfspace(smesh.get(),&fec,center,1,Ordering::byVDIM,degree);
 
+      for (int k = 0; k < numbasis; k++)
+      {
+         delete center[k];
+      }
    }   
    catch (MachException &exception)
    {
