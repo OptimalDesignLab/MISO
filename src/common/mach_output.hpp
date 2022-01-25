@@ -38,6 +38,28 @@ void calcOutputPartial(T & /*unused*/,
                        mfem::HypreParVector & /*unused*/)
 { }
 
+template <typename T>
+void calcOutput(T & /*unused*/,
+                           const MachInputs & /*unused*/,
+                           mfem::Vector & /*unused*/)
+{ }
+template <typename T>
+double vectorJacobianProduct(T & /*unused*/,
+                                    const std::string & /*unused*/,
+                                    const MachInputs & /*unused*/,
+                                    const mfem::Vector & /*unused*/)
+{
+   return NAN;
+}
+
+template <typename T>
+void vectorJacobianProduct(T &load,
+                                    const std::string & /*unused*/,
+                                    const MachInputs & /*unused*/,
+                                    const mfem::Vector & /*unused*/,
+                                    mfem::Vector & /*unused*/)
+{ }
+
 /// Creates common interface for outputs computable by mach
 /// A MachOutput can wrap any type `T` that has the interface of an output.
 class MachOutput final
@@ -52,16 +74,36 @@ public:
    /// Compute the scalar output based on the inputs
    friend double calcOutput(MachOutput &output, const MachInputs &inputs);
 
-   /// Compute the output's sensitivity to a scalar
+   /// Compute the scalar output's sensitivity to a scalar
    friend double calcOutputPartial(MachOutput &output,
                                    const std::string &wrt,
                                    const MachInputs &inputs);
 
-   /// Compute the output's sensitivity to a field and store in @a partial
+   /// Compute the scalar output's sensitivity to a field and store in @a partial
    friend void calcOutputPartial(MachOutput &output,
                                  const std::string &wrt,
                                  const MachInputs &inputs,
                                  mfem::HypreParVector &partial);
+
+   /// Compute the vector output based on the inputs
+   friend void calcOutput(MachOutput &output,
+                            const MachInputs &inputs,
+                            mfem::Vector &out_vec);
+   
+   /// Assemble the output vector's sensitivity to a scalar and contract it
+   /// with out_bar
+   friend double vectorJacobianProduct(MachOutput &load,
+                                       std::string wrt,
+                                       const MachInputs &inputs,
+                                       const mfem::Vector &res_bar);
+
+   /// Assemble the output vector's sensitivity to a field and contract it with
+   /// out_bar
+   friend void vectorJacobianProduct(MachOutput &load,
+                                     std::string wrt,
+                                     const MachInputs &inputs,
+                                     const mfem::Vector &res_bar,
+                                     mfem::Vector &wrt_bar);
 
    template <typename T>
    MachOutput(T x) : self_(new model<T>(std::move(x)))
