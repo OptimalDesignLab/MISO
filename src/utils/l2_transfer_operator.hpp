@@ -77,6 +77,7 @@ private:
 /// representation
 class L2IdentityProjection : public L2TransferOperator
 {
+public:
    L2IdentityProjection(FiniteElementState &state, FiniteElementState &output);
 };
 
@@ -84,6 +85,7 @@ class L2IdentityProjection : public L2TransferOperator
 /// DG representation
 class L2CurlProjection : public L2TransferOperator
 {
+public:
    L2CurlProjection(FiniteElementState &state, FiniteElementState &output);
 };
 
@@ -91,6 +93,7 @@ class L2CurlProjection : public L2TransferOperator
 /// the state to its DG representation
 class L2CurlMagnitudeProjection : public L2TransferOperator
 {
+public:
    L2CurlMagnitudeProjection(FiniteElementState &state,
                              FiniteElementState &output);
 };

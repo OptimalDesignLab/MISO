@@ -5,28 +5,28 @@
 #include "irrotational_projector.hpp"
 #include "l2_transfer_operator.hpp"
 
-void identity_operator(
-   const mfem::FiniteElement &domain_fe,
-   const mfem::FiniteElement &range_fe,
-   mfem::ElementTransformation &trans,
-   const mfem::Vector &el_domain,
-   mfem::Vector &el_range);
+// void identity_operator(
+//    const mfem::FiniteElement &domain_fe,
+//    const mfem::FiniteElement &range_fe,
+//    mfem::ElementTransformation &trans,
+//    const mfem::Vector &el_domain,
+//    mfem::Vector &el_range);
 
-void curl_operator(
-   const mfem::FiniteElement &domain_fe,
-   const mfem::FiniteElement &range_fe,
-   mfem::ElementTransformation &trans,
-   const mfem::Vector &el_domain,
-   mfem::Vector &el_range);
+// void curl_operator(
+//    const mfem::FiniteElement &domain_fe,
+//    const mfem::FiniteElement &range_fe,
+//    mfem::ElementTransformation &trans,
+//    const mfem::Vector &el_domain,
+//    mfem::Vector &el_range);
 
-void curl_magnitude_operator(
-   const mfem::FiniteElement &domain_fe,
-   const mfem::FiniteElement &range_fe,
-   mfem::ElementTransformation &trans,
-   const mfem::Vector &el_domain,
-   mfem::Vector &el_range);
+// void curl_magnitude_operator(
+//    const mfem::FiniteElement &domain_fe,
+//    const mfem::FiniteElement &range_fe,
+//    mfem::ElementTransformation &trans,
+//    const mfem::Vector &el_domain,
+//    mfem::Vector &el_range);
 
-TEST_CASE("L2TransferOperator::apply (identity)")
+TEST_CASE("L2IdentityProjection::apply")
 {
    int nxy = 2;
    int nz = 1;
@@ -50,7 +50,7 @@ TEST_CASE("L2TransferOperator::apply (identity)")
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2TransferOperator op(state, dg_state, identity_operator);
+   mach::L2IdentityProjection op(state, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -79,7 +79,7 @@ TEST_CASE("L2TransferOperator::apply (identity)")
    pv.Save();
 }
 
-TEST_CASE("L2TransferOperator::apply (curl)")
+TEST_CASE("L2CurlProjection::apply")
 {
    int nxy = 2;
    int nz = 1;
@@ -107,7 +107,7 @@ TEST_CASE("L2TransferOperator::apply (curl)")
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2TransferOperator op(state, dg_curl, curl_operator);
+   mach::L2CurlProjection op(state, dg_curl);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
@@ -141,7 +141,7 @@ TEST_CASE("L2TransferOperator::apply (curl)")
    pv.Save();
 }
 
-TEST_CASE("L2TransferOperator::apply (curl magnitude)")
+TEST_CASE("L2CurlMagnitudeProjection::apply")
 {
    int nxy = 2;
    int nz = 1;
@@ -168,7 +168,7 @@ TEST_CASE("L2TransferOperator::apply (curl magnitude)")
       {"degree", p},
       {"basis-type", "DG"}});
 
-   mach::L2TransferOperator op(state, dg_curl, curl_magnitude_operator);
+   mach::L2CurlMagnitudeProjection op(state, dg_curl);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
@@ -205,117 +205,117 @@ TEST_CASE("L2TransferOperator::apply (curl magnitude)")
    pv.Save();
 }
 
-void identity_operator(
-   const mfem::FiniteElement &domain_fe,
-   const mfem::FiniteElement &range_fe,
-   mfem::ElementTransformation &trans,
-   const mfem::Vector &el_domain,
-   mfem::Vector &el_range)
-{
-   int domain_dof = domain_fe.GetDof();
-   int range_dof = range_fe.GetDof();
+// void identity_operator(
+//    const mfem::FiniteElement &domain_fe,
+//    const mfem::FiniteElement &range_fe,
+//    mfem::ElementTransformation &trans,
+//    const mfem::Vector &el_domain,
+//    mfem::Vector &el_range)
+// {
+//    int domain_dof = domain_fe.GetDof();
+//    int range_dof = range_fe.GetDof();
 
-   int space_dim = trans.GetSpaceDim();
+//    int space_dim = trans.GetSpaceDim();
 
-   mfem::DenseMatrix vshape(domain_dof, space_dim);
+//    mfem::DenseMatrix vshape(domain_dof, space_dim);
 
-   double shape_vec_buffer[3];
-   mfem::Vector shape_vec(shape_vec_buffer, space_dim);
+//    double shape_vec_buffer[3];
+//    mfem::Vector shape_vec(shape_vec_buffer, space_dim);
 
-   mfem::DenseMatrix range(el_range.GetData(), range_dof, space_dim);
+//    mfem::DenseMatrix range(el_range.GetData(), range_dof, space_dim);
 
-   const auto &ir = range_fe.GetNodes();
-   for (int i = 0; i < ir.GetNPoints(); ++i)
-   {
-      const auto &ip = ir.IntPoint(i);
-      trans.SetIntPoint(&ip);
+//    const auto &ir = range_fe.GetNodes();
+//    for (int i = 0; i < ir.GetNPoints(); ++i)
+//    {
+//       const auto &ip = ir.IntPoint(i);
+//       trans.SetIntPoint(&ip);
 
-      domain_fe.CalcVShape(trans, vshape);
-      vshape.MultTranspose(el_domain, shape_vec);
+//       domain_fe.CalcVShape(trans, vshape);
+//       vshape.MultTranspose(el_domain, shape_vec);
 
-      for (int j = 0; j < space_dim; j++)
-      {
-         range(i, j) = shape_vec(j);
-      }
-   }
-}
+//       for (int j = 0; j < space_dim; j++)
+//       {
+//          range(i, j) = shape_vec(j);
+//       }
+//    }
+// }
 
-void curl_operator(
-   const mfem::FiniteElement &domain_fe,
-   const mfem::FiniteElement &range_fe,
-   mfem::ElementTransformation &trans,
-   const mfem::Vector &el_domain,
-   mfem::Vector &el_range)
-{
-   int domain_dof = domain_fe.GetDof();
-   int range_dof = range_fe.GetDof();
+// void curl_operator(
+//    const mfem::FiniteElement &domain_fe,
+//    const mfem::FiniteElement &range_fe,
+//    mfem::ElementTransformation &trans,
+//    const mfem::Vector &el_domain,
+//    mfem::Vector &el_range)
+// {
+//    int domain_dof = domain_fe.GetDof();
+//    int range_dof = range_fe.GetDof();
 
-   int space_dim = trans.GetSpaceDim();
-   int curl_dim = space_dim == 3 ? 3 : 1;
+//    int space_dim = trans.GetSpaceDim();
+//    int curl_dim = space_dim == 3 ? 3 : 1;
 
-   mfem::DenseMatrix curlshape(domain_dof, curl_dim);
-   mfem::DenseMatrix curlshape_dFt(domain_dof, curl_dim);
+//    mfem::DenseMatrix curlshape(domain_dof, curl_dim);
+//    mfem::DenseMatrix curlshape_dFt(domain_dof, curl_dim);
 
-   double curl_vec_buffer[3];
-   mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
+//    double curl_vec_buffer[3];
+//    mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
 
-   mfem::DenseMatrix range(el_range.GetData(), range_dof, curl_dim);
+//    mfem::DenseMatrix range(el_range.GetData(), range_dof, curl_dim);
 
-   const auto &ir = range_fe.GetNodes();
-   for (int i = 0; i < ir.GetNPoints(); ++i)
-   {
-      const auto &ip = ir.IntPoint(i);
-      trans.SetIntPoint(&ip);
+//    const auto &ir = range_fe.GetNodes();
+//    for (int i = 0; i < ir.GetNPoints(); ++i)
+//    {
+//       const auto &ip = ir.IntPoint(i);
+//       trans.SetIntPoint(&ip);
 
-      domain_fe.CalcCurlShape(ip, curlshape);
-      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-      curlshape_dFt.MultTranspose(el_domain, curl_vec);
+//       domain_fe.CalcCurlShape(ip, curlshape);
+//       MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+//       curlshape_dFt.MultTranspose(el_domain, curl_vec);
 
-      curl_vec /= trans.Weight();
+//       curl_vec /= trans.Weight();
 
-      for (int j = 0; j < curl_dim; j++)
-      {
-         range(i, j) = curl_vec(j);
-      }
-   }
-}
+//       for (int j = 0; j < curl_dim; j++)
+//       {
+//          range(i, j) = curl_vec(j);
+//       }
+//    }
+// }
 
-void curl_magnitude_operator(
-   const mfem::FiniteElement &domain_fe,
-   const mfem::FiniteElement &range_fe,
-   mfem::ElementTransformation &trans,
-   const mfem::Vector &el_domain,
-   mfem::Vector &el_range)
-{
-   int domain_dof = domain_fe.GetDof();
+// void curl_magnitude_operator(
+//    const mfem::FiniteElement &domain_fe,
+//    const mfem::FiniteElement &range_fe,
+//    mfem::ElementTransformation &trans,
+//    const mfem::Vector &el_domain,
+//    mfem::Vector &el_range)
+// {
+//    int domain_dof = domain_fe.GetDof();
 
-   int space_dim = trans.GetSpaceDim();
-   int curl_dim = space_dim == 3 ? 3 : 1;
+//    int space_dim = trans.GetSpaceDim();
+//    int curl_dim = space_dim == 3 ? 3 : 1;
 
-   mfem::DenseMatrix curlshape(domain_dof, curl_dim);
-   mfem::DenseMatrix curlshape_dFt(domain_dof, curl_dim);
+//    mfem::DenseMatrix curlshape(domain_dof, curl_dim);
+//    mfem::DenseMatrix curlshape_dFt(domain_dof, curl_dim);
 
-   double curl_vec_buffer[3];
-   mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
+//    double curl_vec_buffer[3];
+//    mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
 
-   const auto &ir = range_fe.GetNodes();
-   for (int i = 0; i < ir.GetNPoints(); ++i)
-   {
-      const auto &ip = ir.IntPoint(i);
-      trans.SetIntPoint(&ip);
+//    const auto &ir = range_fe.GetNodes();
+//    for (int i = 0; i < ir.GetNPoints(); ++i)
+//    {
+//       const auto &ip = ir.IntPoint(i);
+//       trans.SetIntPoint(&ip);
 
-      domain_fe.CalcCurlShape(ip, curlshape);
-      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-      curlshape_dFt.MultTranspose(el_domain, curl_vec);
+//       domain_fe.CalcCurlShape(ip, curlshape);
+//       MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+//       curlshape_dFt.MultTranspose(el_domain, curl_vec);
 
-      const double curl_vec_norm = curl_vec.Norml2();
-      const double curl_mag = curl_vec_norm / trans.Weight();
-      if (curl_mag <= 0.0)
-      {
-         std::cout << "negative at ip: " << i << "\n";
-      }
-      std::cout << curl_mag << "\n";
+//       const double curl_vec_norm = curl_vec.Norml2();
+//       const double curl_mag = curl_vec_norm / trans.Weight();
+//       if (curl_mag <= 0.0)
+//       {
+//          std::cout << "negative at ip: " << i << "\n";
+//       }
+//       std::cout << curl_mag << "\n";
 
-      el_range(i) = curl_mag;
-   }
-}
+//       el_range(i) = curl_mag;
+//    }
+// }
