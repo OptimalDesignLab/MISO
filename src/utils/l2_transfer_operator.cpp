@@ -1,6 +1,6 @@
 #include "mach_input.hpp"
 
-#include "mixed_nonlinear_operator.hpp"
+#include "l2_transfer_operator.hpp"
 
 namespace
 {

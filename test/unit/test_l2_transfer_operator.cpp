@@ -3,7 +3,7 @@
 #include "nlohmann/json.hpp"
 
 #include "irrotational_projector.hpp"
-#include "mixed_nonlinear_operator.hpp"
+#include "l2_transfer_operator.hpp"
 
 void identity_operator(
    const mfem::FiniteElement &domain_fe,

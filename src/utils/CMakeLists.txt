@@ -6,8 +6,8 @@ target_sources(mach
       irrotational_projector.hpp
       kdtree.hpp
       mach_types.hpp
-      mixed_nonlinear_operator.cpp
-      mixed_nonlinear_operator.hpp
+      l2_transfer_operator.cpp
+      l2_transfer_operator.hpp
       utilities.hpp
       utils.cpp
       utils.hpp
