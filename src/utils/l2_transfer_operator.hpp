@@ -36,12 +36,19 @@ public:
                                          const mfem::FiniteElement &,
                                          mfem::ElementTransformation &,
                                          const mfem::Vector &,
-                                         mfem::Vector &)> operation)
+                                         mfem::Vector &)> operation,
+                      std::function<void(const mfem::FiniteElement &,
+                                         const mfem::FiniteElement &,
+                                         mfem::ElementTransformation &,
+                                         const mfem::Vector &,
+                                         const mfem::Vector &,
+                                         mfem::Vector &)> operation_state_bar)
     : state(state),
       output(output),
       output_adjoint(output.mesh(), output.space()),
       state_bar(state.mesh(), state.space()),
-      operation(std::move(operation))
+      operation(std::move(operation)),
+      operation_state_bar(std::move(operation_state_bar))
    { }
 
 private:
@@ -56,6 +63,14 @@ private:
                       const mfem::Vector &,
                       mfem::Vector &)>
        operation;
+
+   std::function<void(const mfem::FiniteElement &,
+                      const mfem::FiniteElement &,
+                      mfem::ElementTransformation &,
+                      const mfem::Vector &,
+                      const mfem::Vector &,
+                      mfem::Vector &)>
+       operation_state_bar;
 };
 
 /// Conveniece class that wraps the projection of a state to its DG
