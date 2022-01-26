@@ -3,6 +3,7 @@
 
 #include "mfem.hpp"
 
+#include "finite_element_dual.hpp"
 #include "finite_element_state.hpp"
 #include "mach_input.hpp"
 
@@ -18,9 +19,9 @@ public:
    /// compute the action of the operator
    void apply(const MachInputs &inputs, mfem::Vector &out_vec);
    /// \overload
-   void apply(const mfem::Vector &state, mfem::Vector &out_vec)
+   void apply(const mfem::Vector &state_tv, mfem::Vector &out_vec)
    {
-      MachInputs inputs{{"state", state}};
+      MachInputs inputs{{"state", state_tv}};
       apply(inputs, out_vec);
    }
 
@@ -29,19 +30,25 @@ public:
                               const mfem::Vector &out_bar,
                               mfem::Vector &wrt_bar);
 
-   L2TransferOperator(FiniteElementState &domain,
-                      FiniteElementState &range,
+   L2TransferOperator(FiniteElementState &state,
+                      FiniteElementState &output,
                       std::function<void(const mfem::FiniteElement &,
                                          const mfem::FiniteElement &,
                                          mfem::ElementTransformation &,
                                          const mfem::Vector &,
                                          mfem::Vector &)> operation)
-    : domain(domain), range(range), operation(std::move(operation))
+    : state(state),
+      output(output),
+      output_adjoint(output.mesh(), output.space()),
+      state_bar(state.mesh(), state.space()),
+      operation(std::move(operation))
    { }
 
 private:
-   FiniteElementState &domain;
-   FiniteElementState &range;
+   FiniteElementState &state;
+   FiniteElementState &output;
+   FiniteElementState output_adjoint;
+   FiniteElementDual state_bar;
 
    std::function<void(const mfem::FiniteElement &,
                       const mfem::FiniteElement &,
@@ -51,20 +58,26 @@ private:
        operation;
 };
 
+/// Conveniece class that wraps the projection of a state to its DG
+/// representation
 class L2IdentityProjection : public L2TransferOperator
 {
-   L2IdentityProjection(FiniteElementState &domain, FiniteElementState &range);
+   L2IdentityProjection(FiniteElementState &state, FiniteElementState &output);
 };
 
+/// Conveniece class that wraps the projection of the curl of the state to its
+/// DG representation
 class L2CurlProjection : public L2TransferOperator
 {
-   L2CurlProjection(FiniteElementState &domain, FiniteElementState &range);
+   L2CurlProjection(FiniteElementState &state, FiniteElementState &output);
 };
 
+/// Conveniece class that wraps the projection of the magnitude of the curl of
+/// the state to its DG representation
 class L2CurlMagnitudeProjection : public L2TransferOperator
 {
-   L2CurlMagnitudeProjection(FiniteElementState &domain,
-                             FiniteElementState &range);
+   L2CurlMagnitudeProjection(FiniteElementState &state,
+                             FiniteElementState &output);
 };
 
 inline void calcOutput(L2TransferOperator &output,
