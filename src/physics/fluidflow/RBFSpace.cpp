@@ -29,10 +29,28 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f,
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
    // initialize the stencil/patch
-   cout << "req_basis is " << req_basis << '\n';
    req_basis += extra_basis;
    cout << "req_basis is " << req_basis << '\n';
    InitializeStencil();
+
+   // initialize the prolongation matrix
+   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
+
+   // loop over element to build local and global prolongation matrix
+
+   for (int i = 0; i < GetMesh()->GetNE(); i++)
+   {
+      // 1. Get the quad and basis centers
+      buildBasisMat();
+
+      // 2. build the interpolation matrix
+      
+
+      // 3. Assemble prolongation matrix
+      // AssembleProlongationMatrix();
+
+   }
+
 
 }
 
