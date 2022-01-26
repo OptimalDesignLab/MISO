@@ -49,6 +49,7 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
    // true_vec(std::make_unique<mfem::HypreParVector>(&retrieve(space_))),
    name_(options.name)
 {
+   *gf = 0.0;
    // *true_vec = 0.0;
 }
 
@@ -118,6 +119,7 @@ FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
    // true_vec(std::make_unique<mfem::HypreParVector>(&retrieve(space_))),
    name_(std::move(name))
 {
+   *gf = 0.0;
    // *true_vec = 0.0;
 }
 

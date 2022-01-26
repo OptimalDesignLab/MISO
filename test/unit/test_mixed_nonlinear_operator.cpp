@@ -26,7 +26,7 @@ void curl_magnitude_operator(
    const mfem::Vector &el_domain,
    mfem::Vector &el_range);
 
-TEST_CASE("MixedNonlinearOperator::apply (identity)")
+TEST_CASE("L2TransferOperator::apply (identity)")
 {
    int nxy = 2;
    int nz = 1;
@@ -50,7 +50,7 @@ TEST_CASE("MixedNonlinearOperator::apply (identity)")
       {"basis-type", "DG"}},
       dim);
 
-   mach::MixedNonlinearOperator op(state, dg_state, identity_operator);
+   mach::L2TransferOperator op(state, dg_state, identity_operator);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -79,7 +79,7 @@ TEST_CASE("MixedNonlinearOperator::apply (identity)")
    pv.Save();
 }
 
-TEST_CASE("MixedNonlinearOperator::apply (curl)")
+TEST_CASE("L2TransferOperator::apply (curl)")
 {
    int nxy = 2;
    int nz = 1;
@@ -107,7 +107,7 @@ TEST_CASE("MixedNonlinearOperator::apply (curl)")
       {"basis-type", "DG"}},
       dim);
 
-   mach::MixedNonlinearOperator op(state, dg_curl, curl_operator);
+   mach::L2TransferOperator op(state, dg_curl, curl_operator);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
@@ -141,7 +141,7 @@ TEST_CASE("MixedNonlinearOperator::apply (curl)")
    pv.Save();
 }
 
-TEST_CASE("MixedNonlinearOperator::apply (curl magnitude)")
+TEST_CASE("L2TransferOperator::apply (curl magnitude)")
 {
    int nxy = 2;
    int nz = 1;
@@ -153,7 +153,7 @@ TEST_CASE("MixedNonlinearOperator::apply (curl magnitude)")
    auto mesh = mfem::ParMesh(MPI_COMM_WORLD, smesh);
    mesh.EnsureNodes();
 
-   const auto p = 1;
+   const auto p = 2;
    const auto dim = mesh.Dimension();
 
    mach::FiniteElementState state(mesh, nlohmann::json{
@@ -168,7 +168,7 @@ TEST_CASE("MixedNonlinearOperator::apply (curl magnitude)")
       {"degree", p},
       {"basis-type", "DG"}});
 
-   mach::MixedNonlinearOperator op(state, dg_curl, curl_magnitude_operator);
+   mach::L2TransferOperator op(state, dg_curl, curl_magnitude_operator);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
@@ -176,14 +176,17 @@ TEST_CASE("MixedNonlinearOperator::apply (curl magnitude)")
    mfem::VectorFunctionCoefficient state_coeff(3,
    [](const mfem::Vector &x, mfem::Vector &A)
    {
-      A(0) = x(1);
-      A(1) = -x(0);
+      A(0) = x(1)*x(1)*x(1);
+      A(1) = -x(0)*x(0)*x(0);
       A(2) = 0.0;
    });
    state.project(state_coeff, state_tv);
 
    op.apply(state_tv, dg_curl_tv);
    dg_curl.distributeSharedDofs(dg_curl_tv);
+
+   std::cout << "\nDG TV:\n";
+   dg_curl_tv.Print(std::cout, 1);
 
    /// Compute curl conventionally
    mach::DiscreteCurlOperator curl_op(&state.space(), &curl.space());
@@ -285,7 +288,6 @@ void curl_magnitude_operator(
    mfem::Vector &el_range)
 {
    int domain_dof = domain_fe.GetDof();
-   int range_dof = range_fe.GetDof();
 
    int space_dim = trans.GetSpaceDim();
    int curl_dim = space_dim == 3 ? 3 : 1;
@@ -308,6 +310,11 @@ void curl_magnitude_operator(
 
       const double curl_vec_norm = curl_vec.Norml2();
       const double curl_mag = curl_vec_norm / trans.Weight();
+      if (curl_mag <= 0.0)
+      {
+         std::cout << "negative at ip: " << i << "\n";
+      }
+      std::cout << curl_mag << "\n";
 
       el_range(i) = curl_mag;
    }
