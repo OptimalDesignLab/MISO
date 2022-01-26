@@ -29,6 +29,7 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 2;
+   int extra_basis = 1;
    int nx = 1;
    int ny = 1;
    args.AddOption(&options_file, "-o", "--options",
@@ -36,6 +37,7 @@ int main(int argc, char *argv[])
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
+   args.AddOption(&extra_basis,"-e", "--extra", "extra number of basis");
    args.Parse();
    if (!args.Good())
    {
@@ -67,7 +69,7 @@ int main(int argc, char *argv[])
 
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
-      RBFSpace rbfspace(smesh.get(),&fec,center,1,Ordering::byVDIM,degree);
+      RBFSpace rbfspace(smesh.get(),&fec,center,1,extra_basis,Ordering::byVDIM,degree);
 
       for (int k = 0; k < numbasis; k++)
       {
