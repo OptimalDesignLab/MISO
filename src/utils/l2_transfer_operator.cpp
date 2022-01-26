@@ -98,7 +98,7 @@ void identity_operator_state_bar(const mfem::FiniteElement &state_fe,
       /// output_fe.CalcPhysShape(trans, shape);
 
       /// vshape.MultTranspose(el_state, state_vec);
-      vshape.AddMultTranspose(state_vec_bar, el_state_bar);
+      vshape.AddMult(state_vec_bar, el_state_bar);
 
       /// only need state derivative
       /// state_fe.CalcVShape(trans, vshape);
@@ -222,6 +222,7 @@ L2CurlMagnitudeProjection::L2CurlMagnitudeProjection(FiniteElementState &state,
 void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
 {
    out_vec = 0.0;
+   output.gridFunc() = 0.0;
    if (!operation)
    {
       return;
@@ -281,7 +282,6 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
    else if (wrt == "state")
    {
       output_adjoint.distributeSharedDofs(out_bar);
-      output_adjoint.gridFunc() *= -1.0;
 
       mfem::Vector state_tv;
       setVectorFromInputs(inputs, "state", state_tv, false, true);
