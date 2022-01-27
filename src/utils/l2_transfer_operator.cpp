@@ -308,7 +308,10 @@ void curl_magnitude_operator_state_bar(const mfem::FiniteElement &state_fe,
       double curl_vec_bar_buffer[3];
       mfem::Vector curl_vec_bar(curl_vec_bar_buffer, space_dim);
       curl_vec_bar = 0.0;
-      add(curl_vec_bar, curl_vec_norm_bar / curl_vec_norm, curl_vec, curl_vec_bar);
+      add(curl_vec_bar,
+          curl_vec_norm_bar / curl_vec_norm,
+          curl_vec,
+          curl_vec_bar);
 
       /// only need state derivative
       // double output_adj_vec_bar_buffer[3];
