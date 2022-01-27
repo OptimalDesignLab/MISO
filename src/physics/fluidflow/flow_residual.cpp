@@ -431,6 +431,69 @@ double FlowResidual<dim, entvar>::calcConservativeVarsL2Error(
    return sqrt(norm);
 }
 
+template <int dim, bool entvar>
+MachOutput FlowResidual<dim, entvar>::constructOutput(
+    const std::string &fun,
+    const nlohmann::json &options)
+{ 
+   if (fun == "drag")
+   {
+      // drag on the specified boundaries
+      auto bdrs = options["boundaries"].get<vector<int>>();
+      Vector drag_dir(dim);
+      drag_dir = 0.0;
+      if (dim == 1)
+      {
+         drag_dir(0) = 1.0;
+      }
+      else
+      {
+         drag_dir(iroll) = cos(aoa_fs);
+         drag_dir(ipitch) = sin(aoa_fs);
+      }
+      drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+      FunctionalOutput fun_out(fes, *fields);
+      fun_out.addOutputBdrFaceIntegrator(
+          new PressureForce<dim, entvar>(stack, fes.FEColl(), drag_dir),
+          std::move(bdrs));
+      return fun_out;
+   }
+   else if (fun == "lift")
+   {
+      // lift on the specified boundaries
+      auto bdrs = options["boundaries"].get<vector<int>>();
+      Vector lift_dir(dim);
+      lift_dir = 0.0;
+      if (dim == 1)
+      {
+         lift_dir(0) = 0.0;
+      }
+      else
+      {
+         lift_dir(iroll) = -sin(aoa_fs);
+         lift_dir(ipitch) = cos(aoa_fs);
+      }
+      lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
+      FunctionalOutput fun_out(fes, *fields);
+      fun_out.addOutputBdrFaceIntegrator(
+          new PressureForce<dim, entvar>(stack, fes.FEColl(), lift_dir),
+          std::move(bdrs));
+      return fun_out;
+   }
+   else if (fun == "entropy")
+   {
+      // global entropy
+      EntropyOutput<dim, entvar> fun_out(*this);
+      return fun_out;
+   }
+   else
+   {
+      throw MachException("Output with name " + fun +
+                          " not supported by "
+                          "FlowResidual!\n");
+   }
+}
+
 // explicit instantiation
 template class FlowResidual<1, true>;
 template class FlowResidual<1, false>;

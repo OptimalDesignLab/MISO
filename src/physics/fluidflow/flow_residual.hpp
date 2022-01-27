@@ -113,6 +113,13 @@ public:
                                                       mfem::Vector &),
                                       int entry);
 
+   /// Returns an output capable of evaluting `fun`
+   /// \param[in] fun - the name of the output to be constructed
+   /// \param[in] options - used to define the output
+   /// \returns a `MachOutput`, which is **not** owned by residual
+   MachOutput constructOutput(const std::string &fun,
+                              const nlohmann::json &options);
+
    double getMach() const { return mach_fs; }
    double getAoA() const { return aoa_fs; }
    int getIRoll() const { return iroll; }
