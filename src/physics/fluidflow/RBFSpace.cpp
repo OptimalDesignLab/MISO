@@ -113,52 +113,59 @@ void RBFSpace::InitializeStencil()
 
 void RBFSpace::buildProlongationMatrix()
 {
-   DenseMatrix mat_dof;
+   // get the current element number of dofs
+   // assume uniform type of element
+   Array<Vector *> dof_coord;
+   const Element *el = mesh->GetElement(0);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
+   const int num_dofs = fe->GetDof();
+   dof_coord.SetSize(num_dofs);
+   for (int k = 0; k <num_dofs; k++)
+   {
+      dof_coord[k] = new Vector(dim);
+   }
+
    // loop over element to build local and global prolongation matrix
    for (int i = 0; i < GetMesh()->GetNE(); i++)
    {
       cout << "element " << i << ": \n";
       // 1. Get the quad and basis centers
-      buildDofMat(i, mat_dof);
-      cout << "Quadrature points id matrix:\n";
-      mat_dof.Print(cout, mat_dof.Width());
+      buildDofMat(i, num_dofs, fe, dof_coord);
+      cout << "dof points:\n";
+      for (int j = 0; j < num_dofs; j++)
+      {
+         dof_coord[j]->Print();
+      }
       cout << endl;
 
-      // 2. build the interpolation matrix
-      solveProlongationCoefficient();
+      // // 2. build the interpolation matrix
+      // solveProlongationCoefficient();
 
-      // 3. Assemble prolongation matrix
-      AssembleProlongationMatrix();
+      // // 3. Assemble prolongation matrix
+      // AssembleProlongationMatrix();
+   }
+
+   // free the aux variable
+   for (int k = 0; k < num_dofs; k++)
+   {
+      delete dof_coord[k];
    }
 }
 
 
-void RBFSpace::buildDofMat(int el_id, DenseMatrix &mat_dof) const
+void RBFSpace::buildDofMat(int el_id, const int num_dofs,
+                           const FiniteElement *fe,
+                           Array<Vector *> &dofs_coord) const
 {
-   // get the current element number of dofs
-   const Element *el = mesh->GetElement(el_id);
-   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
-   const int num_dofs = fe->GetDof();
-
-   mat_dof.Clear();
-   mat_dof.SetSize(dim, num_dofs);
-
    Vector coord(dim);
    ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
    for (int i = 0; i < num_dofs; i++)
    {
       eltransf->Transform(fe->GetNodes().IntPoint(i), coord);
-      for (int j = 0; j < dim; j++)
-      {
-         mat_dof(j,i) = coord(j);
-      }
+      *dofs_coord[i] = coord;
    }
 }
 
-void RBFSpace::solveProlongationCoefficient()
-{
-   
-}
 
 RBFSpace::~RBFSpace()
 {

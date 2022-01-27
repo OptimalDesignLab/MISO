@@ -19,15 +19,18 @@ public:
    void buildProlongationMatrix();
 
    /// build the dof coordinate matrix
+   /// note: Assume the mesh only has one type of element
    /// \param[in] el_id - global element id
-   /// \param[in/out] mat_dof - matrix that hold the dofs' coordinates
-   void buildDofMat(int el_id, mfem::DenseMatrix &mat_dof) const;
+   /// \param[in/out dofs - matrix that hold the dofs' coordinates
+   void buildDofMat(int el_id, const int num_dofs, 
+                    const mfem::FiniteElement *fe,
+                    mfem::Array<mfem::Vector *> &dofs) const;
 
-   /// Solve and store the local prolongation coefficient
-   void solveProlongationCoefficient();
+   // /// Solve and store the local prolongation coefficient
+   // void solveProlongationCoefficient();
 
-   /// Assemble the global prolongation matrix
-   void AssembleProlongationMatrix() const;
+   // /// Assemble the global prolongation matrix
+   // void AssembleProlongationMatrix() const;
 
 protected:
    /// mesh dimension
