@@ -73,10 +73,10 @@ TEST_CASE("ACLossFunctionalIntegrator - Reddy Paper")
    for (const auto &freq : frequencies)
    {
       MachInputs inputs {
-         {"state", state->GetData()},
+         {"state", *state},
          {"strand_radius", 0.00081}, // 14 AWG
          {"frequency", freq}, // 14000 * 10 / 60}, // 14000 RPM, 10 poles
-         {"num_strands", 10 * 18}, 
+         {"num_strands", 10.0 * 18.0},
          {"slot_area", h * b},
          {"length", 0.075}
       };

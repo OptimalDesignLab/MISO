@@ -37,7 +37,7 @@ TEST_CASE("StateAverageFunctional::calcOutput (3D)")
    mfem::HypreParVector state_tv(&fes);
    state.GetTrueDofs(state_tv);
 
-   mach::MachInputs inputs{{"state", state_tv.GetData()}};
+   mach::MachInputs inputs{{"state", state_tv}};
    double rms = sqrt(calcOutput(out, inputs));
 
    REQUIRE(rms == Approx(sqrt(2)/2).margin(1e-10));
@@ -76,7 +76,7 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    state.ProjectCoefficient(state_coeff);
    state.GetTrueDofs(state_tv);
 
-   mach::MachInputs inputs{{"state", state_tv.GetData()}};
+   mach::MachInputs inputs{{"state", state_tv}};
    double max_state = calcOutput(out, inputs);
 
    /// Should be 1.0
@@ -125,7 +125,7 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
    state.ProjectCoefficient(state_coeff);
    state.GetTrueDofs(state_tv);
 
-   mach::MachInputs inputs{{"state", state_tv.GetData()}};
+   mach::MachInputs inputs{{"state", state_tv}};
    double max_state = calcOutput(out, inputs);
 
    /// Should be sqrt(sin(1.0)^2 + 1.0)
