@@ -18,6 +18,17 @@ public:
    /// build the prolongation matrix with RBF
    void buildProlongationMatrix();
 
+   /// build the dof coordinate matrix
+   /// \param[in] el_id - global element id
+   /// \param[in/out] mat_dof - matrix that hold the dofs' coordinates
+   void buildDofMat(int el_id, mfem::DenseMatrix &mat_dof) const;
+
+   /// Solve and store the local prolongation coefficient
+   void solveProlongationCoefficient();
+
+   /// Assemble the global prolongation matrix
+   void AssembleProlongationMatrix() const;
+
 protected:
    /// mesh dimension
    int dim;

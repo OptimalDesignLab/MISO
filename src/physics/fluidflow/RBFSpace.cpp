@@ -36,22 +36,7 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f,
    // initialize the prolongation matrix
    cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
 
-   // loop over element to build local and global prolongation matrix
-
-   for (int i = 0; i < GetMesh()->GetNE(); i++)
-   {
-      // 1. Get the quad and basis centers
-      buildBasisMat();
-
-      // 2. build the interpolation matrix
-      
-
-      // 3. Assemble prolongation matrix
-      // AssembleProlongationMatrix();
-
-   }
-
-
+   buildProlongationMatrix();
 }
 
 void RBFSpace::InitializeStencil()
@@ -124,6 +109,55 @@ void RBFSpace::InitializeStencil()
       }
       cout << '\n';
    }
+}
+
+void RBFSpace::buildProlongationMatrix()
+{
+   DenseMatrix mat_dof;
+   // loop over element to build local and global prolongation matrix
+   for (int i = 0; i < GetMesh()->GetNE(); i++)
+   {
+      cout << "element " << i << ": \n";
+      // 1. Get the quad and basis centers
+      buildDofMat(i, mat_dof);
+      cout << "Quadrature points id matrix:\n";
+      mat_dof.Print(cout, mat_dof.Width());
+      cout << endl;
+
+      // 2. build the interpolation matrix
+      solveProlongationCoefficient();
+
+      // 3. Assemble prolongation matrix
+      AssembleProlongationMatrix();
+   }
+}
+
+
+void RBFSpace::buildDofMat(int el_id, DenseMatrix &mat_dof) const
+{
+   // get the current element number of dofs
+   const Element *el = mesh->GetElement(el_id);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
+   const int num_dofs = fe->GetDof();
+
+   mat_dof.Clear();
+   mat_dof.SetSize(dim, num_dofs);
+
+   Vector coord(dim);
+   ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
+   for (int i = 0; i < num_dofs; i++)
+   {
+      eltransf->Transform(fe->GetNodes().IntPoint(i), coord);
+      for (int j = 0; j < dim; j++)
+      {
+         mat_dof(j,i) = coord(j);
+      }
+   }
+}
+
+void RBFSpace::solveProlongationCoefficient()
+{
+   
 }
 
 RBFSpace::~RBFSpace()
