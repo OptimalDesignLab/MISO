@@ -150,7 +150,75 @@ void curl_operator_state_bar(const mfem::FiniteElement &state_fe,
                              const mfem::Vector &el_output_adj,
                              const mfem::Vector &el_state,
                              mfem::Vector &el_state_bar)
-{ }
+{
+   int state_dof = state_fe.GetDof();
+   int output_dof = output_fe.GetDof();
+
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = space_dim == 3 ? 3 : 1;
+
+   mfem::DenseMatrix curlshape(state_dof, curl_dim);
+   mfem::DenseMatrix curlshape_dFt(state_dof, curl_dim);
+   mfem::Vector shape(output_dof);
+
+   double curl_vec_buffer[3];
+   mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
+   double output_adj_vec_buffer[3];
+   mfem::Vector output_adj_vec(output_adj_vec_buffer, curl_dim);
+
+   mfem::DenseMatrix output_adj(el_output_adj.GetData(), output_dof, curl_dim);
+
+   const auto &ir = output_fe.GetNodes();
+   el_state_bar = 0.0;
+   for (int i = 0; i < ir.GetNPoints(); ++i)
+   {
+      const auto &ip = ir.IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      state_fe.CalcCurlShape(ip, curlshape);
+      MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      curlshape_dFt.MultTranspose(el_state, curl_vec);
+
+      curl_vec /= trans.Weight();
+
+      output_fe.CalcPhysShape(trans, shape);
+      output_adj.MultTranspose(shape, output_adj_vec);
+
+      /// dummy functional for adjoint-weighted residual
+      // double fun = output_adj_vec * curl_vec;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// double fun = output_adj_vec * curl_vec;
+      /// only need state derivative
+      // double output_adj_vec_bar_buffer[3];
+      // mfem::Vector output_adj_vec_bar(output_adj_vec_bar_buffer, space_dim);
+      // output_adj_vec_bar = 0.0;
+      // add(output_adj_vec_bar, fun_bar, curl_vec, output_adj_vec_bar);
+      double curl_vec_bar_buffer[3];
+      mfem::Vector curl_vec_bar(curl_vec_bar_buffer, space_dim);
+      curl_vec_bar = 0.0;
+      add(curl_vec_bar, fun_bar, output_adj_vec, curl_vec_bar);
+
+      /// only need state derivative
+      /// output_adj.MultTranspose(shape, output_adj_vec);
+      /// output_fe.CalcPhysShape(trans, shape);
+
+      /// only need state derivative
+      /// curl_vec /= trans.Weight();
+      curl_vec_bar /= trans.Weight();
+
+      /// curlshape_dFt.MultTranspose(el_state, curl_vec);
+      curlshape_dFt.AddMult(curl_vec_bar, el_state_bar);
+
+      /// only need state derivative
+      /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+
+      /// only need state derivative
+      /// state_fe.CalcVShape(trans, vshape);
+   }
+}
 
 void curl_magnitude_operator(const mfem::FiniteElement &state_fe,
                              const mfem::FiniteElement &output_fe,
