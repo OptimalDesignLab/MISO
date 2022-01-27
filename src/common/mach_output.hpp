@@ -123,6 +123,35 @@ inline void calcOutputPartial(MachOutput &output,
    output.self_->calcOutputPartial_(wrt, inputs, partial);
 }
 
+/// Wrapper for residuals to access its calcEntropy function as a MachOutput
+template <typename T>
+class EntropyOutput final
+{
+public:
+   EntropyOutput(T &res_) : res(res_) { }
+   friend void setInputs(EntropyOutput &output, const MachInputs &inputs) { }
+   friend void setOptions(EntropyOutput &output, const nlohmann::json &options)
+   { }
+   friend double calcOutput(EntropyOutput &output, const MachInputs &inputs)
+   {
+      return calcEntropy(output.res, inputs);
+   }
+   friend double calcOutputPartial(EntropyOutput &output,
+                                   const std::string &wrt,
+                                   const MachInputs &inputs)
+   {
+      return 0.0;
+   }
+   friend void calcOutputPartial(EntropyOutput &output,
+                                 const std::string &wrt,
+                                 const MachInputs &inputs,
+                                 mfem::Vector &partial)
+   { }
+
+private:
+   T &res;
+};
+
 }  // namespace mach
 
 #endif

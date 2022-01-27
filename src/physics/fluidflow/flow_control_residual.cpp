@@ -282,6 +282,37 @@ mfem::Operator &FlowControlResidual<dim, entvar>::getJacobianBlock_(
    }
 }
 
+template <int dim, bool entvar>
+double FlowControlResidual<dim, entvar>::minCFLTimeStep(
+    double cfl,
+    const mfem::ParGridFunction &state)
+{
+   return flow_res.minCFLTimeStep(cfl, state);
+}
+
+template <int dim, bool entvar>
+MachOutput FlowControlResidual<dim, entvar>::constructOutput(
+    const std::string &fun,
+    const nlohmann::json &options)
+{ 
+   if (fun == "drag" ||  fun == "lift")
+   {
+      return flow_res.constructOutput(fun, options);
+   }
+   else if (fun == "entropy")
+   {
+      // global entropy
+      EntropyOutput<FlowControlResidual<dim, entvar>> fun_out(*this);
+      return fun_out;
+   }
+   else
+   {
+      throw MachException("Output with name " + fun +
+                          " not supported by "
+                          "FlowControlResidual!\n");
+   }
+}
+
 // explicit instantiation
 template class FlowControlResidual<1, true>;
 template class FlowControlResidual<1, false>;

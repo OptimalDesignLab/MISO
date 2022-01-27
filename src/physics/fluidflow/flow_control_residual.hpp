@@ -233,6 +233,20 @@ public:
    /// \returns the Jacobian operator for the control or flow residual
    mfem::Operator &getJacobianBlock_(const MachInputs &inputs, int i);
 
+   /// Returns the minimum time step for a given state and CFL number
+   /// \param[in] cfl - the target maximum allowable CFL number
+   /// \param[in] state - the state which defines the velocity field
+   /// \note The `state` here refers to the flow state only (it is a 
+   /// `ParGridFunction`)
+   double minCFLTimeStep(double cfl, const mfem::ParGridFunction &state);
+
+   /// Returns an output capable of evaluting `fun`
+   /// \param[in] fun - the name of the output to be constructed
+   /// \param[in] options - used to define the output
+   /// \returns a `MachOutput`, which is **not** owned by residual
+   MachOutput constructOutput(const std::string &fun,
+                              const nlohmann::json &options);
+
    /// Construct a flow-control residual object
    /// \param[in] options - options that define the flow and control problems
    /// \param[in] pfes - defines the finite-element space needed by flow

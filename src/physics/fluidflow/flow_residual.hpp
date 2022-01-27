@@ -298,35 +298,6 @@ mfem::Solver *getPreconditioner(FlowResidual<dim, entvar> &residual,
    return residual.getPreconditioner_(prec_options);
 }
 
-/// Wrapper for FlowResidual to access its calcEntropy function as a MachOutput
-template <int dim, bool entvar = false>
-class EntropyOutput final
-{
-public:
-   EntropyOutput(FlowResidual<dim, entvar> &res) : flow_res(res) { }
-   friend void setInputs(EntropyOutput &output, const MachInputs &inputs) { }
-   friend void setOptions(EntropyOutput &output, const nlohmann::json &options)
-   { }
-   friend double calcOutput(EntropyOutput &output, const MachInputs &inputs)
-   {
-      return calcEntropy(output.flow_res, inputs);
-   }
-   friend double calcOutputPartial(EntropyOutput &output,
-                                   const std::string &wrt,
-                                   const MachInputs &inputs)
-   {
-      return 0.0;
-   }
-   friend void calcOutputPartial(EntropyOutput &output,
-                                 const std::string &wrt,
-                                 const MachInputs &inputs,
-                                 mfem::Vector &partial)
-   { }
-
-private:
-   FlowResidual<dim, entvar> &flow_res;
-};
-
 }  // namespace mach
 
 #endif  // FLOW_RESIDUAL

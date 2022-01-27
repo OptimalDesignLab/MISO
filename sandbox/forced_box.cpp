@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
          num, num, Element::TRIANGLE, true /* gen. edges */, 1.0, 1.0, true));
 
       // Create solver and set initial guess to constant
-      FlowSolver<2> solver(MPI_COMM_WORLD, options, std::move(smesh));
+      FlowControlSolver<2> solver(MPI_COMM_WORLD, options, std::move(smesh));
       mfem::Vector state_tv(solver.getStateSize());
       solver.setState(uinit, state_tv);
 

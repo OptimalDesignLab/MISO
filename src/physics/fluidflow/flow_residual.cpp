@@ -483,7 +483,7 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
    else if (fun == "entropy")
    {
       // global entropy
-      EntropyOutput<dim, entvar> fun_out(*this);
+      EntropyOutput<FlowResidual<dim, entvar>> fun_out(*this);
       return fun_out;
    }
    else
