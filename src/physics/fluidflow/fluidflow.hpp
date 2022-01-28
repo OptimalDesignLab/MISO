@@ -6,6 +6,7 @@
 #include "euler_integ.hpp"
 #include "euler_sens_integ.hpp"
 #include "euler.hpp"
+#include "flow_control_solver.hpp"
 #include "flow_solver.hpp"
 #include "inviscid_integ.hpp"
 #include "mesh_sens_integ.hpp"

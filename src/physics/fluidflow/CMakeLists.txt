@@ -12,6 +12,8 @@ target_sources(mach
       fluidflow.hpp
       flow_control_residual.cpp 
       flow_control_residual.hpp
+      flow_control_solver.cpp 
+      flow_control_solver.hpp
       flow_residual.cpp
       flow_residual.hpp
       flow_solver.hpp

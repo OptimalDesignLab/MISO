@@ -94,9 +94,11 @@ double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
 template <int dim, bool entvar>
 FlowControlResidual<dim, entvar>::FlowControlResidual(
     const nlohmann::json &options,
-    mfem::ParFiniteElementSpace &pfes,
-    adept::Stack &diff_stack)
- : offsets(3),
+    ParFiniteElementSpace &pfes,
+    adept::Stack &diff_stack,
+    std::ostream &outstream)
+ : out(outstream),
+   offsets(3),
    flow_res(options, pfes, diff_stack),
    control_res(options)  //, jac(*this, pfes.GetComm())
 {
@@ -122,8 +124,8 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
 template <int dim, bool entvar>
 void FlowControlResidual<dim, entvar>::extractStatesFromInputs(
     const MachInputs &inputs,
-    mfem::Vector &control_state,
-    mfem::Vector &flow_state)
+    Vector &control_state,
+    Vector &flow_state)
 {
    Vector state;
    setVectorFromInputs(inputs, "state", state, false, true);
@@ -148,7 +150,7 @@ void FlowControlResidual<dim, entvar>::setInputs_(const MachInputs &inputs)
 
 template <int dim, bool entvar>
 void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
-                                                 mfem::Vector &res_vec)
+                                                 Vector &res_vec)
 {
    setInputs_(inputs);
    Vector control_res_vec(res_vec.GetData() + 0, num_control());
@@ -285,7 +287,7 @@ mfem::Operator &FlowControlResidual<dim, entvar>::getJacobianBlock_(
 template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::minCFLTimeStep(
     double cfl,
-    const mfem::ParGridFunction &state)
+    const ParGridFunction &state)
 {
    return flow_res.minCFLTimeStep(cfl, state);
 }

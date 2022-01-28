@@ -52,8 +52,8 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
 
    // Construct spatial residual and the space-time residual
    spatial_res = std::make_unique<mach::MachResidual>(
-       FlowResidual<dim, entvar>(solver_options, fes(), diff_stack, *out));
-   auto mass_matrix = getMassMatrix(*spatial_res, solver_options);
+       FlowResidual<dim, entvar>(options, fes(), diff_stack, *out));
+   auto mass_matrix = getMassMatrix(*spatial_res, options);
    space_time_res = std::make_unique<mach::MachResidual>(
        mach::TimeDependentResidual(*spatial_res, mass_matrix));
 

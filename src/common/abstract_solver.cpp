@@ -37,6 +37,10 @@ AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
 
    bool silent = options.value("silent", false);
    out = getOutStream(rank, silent);
+   if (options["print-options"])
+   {
+      *out << std::setw(3) << options << std::endl;
+   }
 }
 
 void AbstractSolver2::setState_(std::any function,

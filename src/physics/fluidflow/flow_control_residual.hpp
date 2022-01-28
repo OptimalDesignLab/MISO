@@ -140,6 +140,16 @@ template <int dim, bool entvar = false>
 class FlowControlResidual final
 {
 public:
+   /// Construct a flow-control residual object
+   /// \param[in] options - options that define the flow and control problems
+   /// \param[in] pfes - defines the finite-element space needed by flow
+   /// \param[in] diff_stack - used for algorithmic differentiation
+   /// \param[in] outstream - for writing information to screen/file
+   FlowControlResidual(const nlohmann::json &options,
+                       mfem::ParFiniteElementSpace &pfes,
+                       adept::Stack &diff_stack,
+                       std::ostream &outstream = std::cout);
+
    friend MPI_Comm getMPIComm(const FlowControlResidual &residual)
    {
       return getMPIComm(residual.flow_res);
@@ -247,15 +257,9 @@ public:
    MachOutput constructOutput(const std::string &fun,
                               const nlohmann::json &options);
 
-   /// Construct a flow-control residual object
-   /// \param[in] options - options that define the flow and control problems
-   /// \param[in] pfes - defines the finite-element space needed by flow
-   /// \param[in] diff_stack - used for algorithmic differentiation
-   FlowControlResidual(const nlohmann::json &options,
-                       mfem::ParFiniteElementSpace &pfes,
-                       adept::Stack &diff_stack);
-
 private:
+   /// print object
+   std::ostream &out;
    /// Offsets to mark the start of each row/column block
    mfem::Array<int> offsets;
    /// Defines the CFD discretization of the problem
