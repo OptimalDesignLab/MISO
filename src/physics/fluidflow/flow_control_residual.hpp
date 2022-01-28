@@ -257,6 +257,27 @@ public:
    MachOutput constructOutput(const std::string &fun,
                               const nlohmann::json &options);
 
+   /// Helper function that separates `state` into control and flow states
+   /// \param[in] state - vector holding both control and flow states
+   /// \param[out] control_state - on exit, holds the control state vector
+   /// \param[out] flow_state - on exit, holds the flow state vector
+   /// \note No memory is allocated for the output states, they simply wrap the
+   /// data passed in by state
+   void extractStates(mfem::Vector &state,
+                      mfem::Vector &control_state,
+                      mfem::Vector &flow_state) const;
+
+   /// Helper function that extracts state input into separate vectors
+   /// \param[in] inputs - must include a state input
+   /// \param[out] control_state - on exit, holds the control state vector
+   /// \param[out] flow_state - on exit, holds the flow state vector
+   /// \note No memory is allocated for the output states, they simply wrap the
+   /// data passed in by inputs.
+   /// \note An exception is raised if `inputs` does not hold a `state` element.
+   void extractStates(const MachInputs &inputs,
+                      mfem::Vector &control_state,
+                      mfem::Vector &flow_state) const;
+
 private:
    /// print object
    std::ostream &out;
@@ -273,24 +294,13 @@ private:
    /// The Jacobian-free operator
    // JacobianFree jac;
    /// Work vector for the control state
-   mfem::Vector control_state;
+   mfem::Vector control_work;
    /// Work vector for the flow state
-   mfem::Vector flow_state;
+   mfem::Vector flow_work;
 
    // These could be public
    int num_control() const { return getSize(control_res); }
    int num_flow() const { return getSize(flow_res); }
-
-   /// Helper function that extracts state input into separate vectors
-   /// \param[in] inputs - must include a state input
-   /// \param[out] control_state - on exit, holds the control state vector
-   /// \param[out] flow_state - on exit, holds the flow state vector
-   /// \note No memory is allocated for the output states, they simply wrap the
-   /// data passed in by inputs.
-   /// \note An exception is raised if `inputs` does not hold a `state` element.
-   void extractStatesFromInputs(const MachInputs &inputs,
-                                mfem::Vector &control_state,
-                                mfem::Vector &flow_state);
 };
 
 /// Set inputs in the flow-control residual

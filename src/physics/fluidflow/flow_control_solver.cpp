@@ -1,19 +1,98 @@
+#include <any>
+
+#include "mfem.hpp"
+
+#ifdef MFEM_USE_PUMI
+#include "apf.h"
+#include "apfMDS.h"
+#include "apfMesh.h"
+#include "apfNumbering.h"
+#include "PCU.h"
+#include "crv.h"
+#include "gmi_mesh.h"
+#include "gmi_null.h"
+#ifdef MFEM_USE_SIMMETRIX
+#include "SimUtil.h"
+#include "gmi_sim.h"
+#endif  // MFEM_USE_SIMMETRIX
+#ifdef MFEM_USE_EGADS
+#include "gmi_egads.h"
+#endif  // MFEM_USE_EGADS
+#endif  // MFEM_USE_PUMI
+
 #include "diag_mass_integ.hpp"
-#include "flow_control_solver.hpp"
+#include "finite_element_state.hpp"
 #include "flow_control_residual.hpp"
 #include "mfem_extensions.hpp"
+#include "sbp_fe.hpp"
+#include "utils.hpp"
+
+#include "flow_control_solver.hpp"
 
 using namespace std;
 using namespace mfem;
 
-/// Return the number of flow state variables
-/// \param[in] solver_options - helps define/determine the number of states
-/// \param[in] space_dim - the number of spatial dimensions, consistent mesh
-/// \todo update for any RANS models, since this assumes no additional states
-int getNumFlowStates(const nlohmann::json &solver_options, int space_dim)
+namespace
 {
-   return space_dim + 2;
+template <typename T>
+T createFiniteElementVector(mfem::ParMesh &mesh,
+                            const nlohmann::json &space_options,
+                            const int num_states,
+                            const std::string &name)
+{
+   const int dim = mesh.Dimension();
+   const auto order = space_options["degree"].get<int>();
+   const auto basis_type = space_options["basis-type"].get<std::string>();
+   const bool galerkin_diff = space_options.value("GD", false);
+   // Define the SBP elements and finite-element space; eventually, we will want
+   // to have a case or if statement here for both CSBP and DSBP, and (?)
+   // standard FEM. and here it is for first two
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   if (basis_type == "csbp")
+   {
+      fec = std::make_unique<mfem::SBPCollection>(order, dim);
+   }
+   else if (basis_type == "dsbp" || galerkin_diff)
+   {
+      fec = std::make_unique<mfem::DSBPCollection>(order, dim);
+   }
+   else if (basis_type == "nedelec" || basis_type == "nd")
+   {
+      fec = std::make_unique<mfem::ND_FECollection>(order, dim);
+   }
+   else if (basis_type == "H1")
+   {
+      fec = std::make_unique<mfem::H1_FECollection>(order, dim);
+   }
+
+   T vec(mesh,
+         {.order = order,
+          .num_states = num_states,
+          .coll = std::move(fec),
+          .ordering = mfem::Ordering::byVDIM,
+          .name = name});
+   return vec;
 }
+
+mach::FiniteElementState createState(mfem::ParMesh &mesh,
+                                     const nlohmann::json &space_options,
+                                     const int num_states,
+                                     const std::string &name)
+{
+   return createFiniteElementVector<mach::FiniteElementState>(
+       mesh, space_options, num_states, name);
+}
+
+mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
+                                   const nlohmann::json &space_options,
+                                   const int num_states,
+                                   const std::string &name)
+{
+   return createFiniteElementVector<mach::FiniteElementDual>(
+       mesh, space_options, num_states, name);
+}
+
+}  // namespace
 
 namespace mach
 {
@@ -27,7 +106,7 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
 {
    int num_states = dim + 2;
    fields.emplace(
-       "flow_state", createState(*mesh_, options["space-dis"], num_states, "state"));
+       "flow_state", createState(*mesh_, options["space-dis"], num_states, "flow_state"));
    // We may need the following method from PDESolver eventually
    //setUpExternalFields();
 
@@ -137,28 +216,27 @@ void FlowControlSolver<dim, entvar>::setState_(std::any function,
                                                const std::string &name,
                                                mfem::Vector &state)
 {
-   // We need a function to separate state into its control and flow states
-   // This function could be owned by the Solver or the Residual.
-
    AbstractSolver2::setState_(function, name, state);
 
-   useAny(
-       function,
-       [&](std::function<double(const mfem::Vector &)> &fun)
-       { fields.at(name).project(fun, state); },
-       [&](mfem::Coefficient *coeff)
-       { fields.at(name).project(*coeff, state); },
-       [&](std::function<void(const mfem::Vector &, mfem::Vector &)> &vec_fun)
-       { fields.at(name).project(vec_fun, state); },
-       [&](mfem::VectorCoefficient *vec_coeff)
-       { fields.at(name).project(*vec_coeff, state); });
+   useAny(function,
+          [&](std::pair<std::function<void(Vector &)>,
+                        std::function<void(const Vector &, Vector &)>> &pair)
+          {
+             auto &control_func = pair.first;
+             auto &flow_func = pair.second;
+             Vector control_state;
+             Vector flow_state;
+             extractStates(state, control_state, flow_state);
+             control_func(control_state);
+             fields.at("flow_state").project(flow_func, flow_state);
+          });
 }
 
 template <int dim, bool entvar>
 void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
 {
    AbstractSolver2::initialHook(state);
-   getState().distributeSharedDofs(state);
+   //getState().distributeSharedDofs(state);
    if (options["time-dis"]["steady"].template get<bool>())
    {
       throw MachException("FlowControlSolver not set up to handle steady "
@@ -217,10 +295,11 @@ double FlowControlSolver<dim, entvar>::calcStepSize(int iter,
    // Otherwise, use a constant CFL condition
    auto cfl = options["time-dis"]["cfl"].get<double>();
    // here we call the FlowResidual method for the min time step, which needs
-   // the current state; this is provided by the state field of PDESolver,
-   // which we access with getState()
+   // the current flow state as a grid function
+   auto &flow_field = flowField(); 
+   flow_field.distributeSharedDofs(state);
    return getConcrete<ResType>(*spatial_res)
-       .minCFLTimeStep(cfl, getState().gridFunc());
+       .minCFLTimeStep(cfl, flow_field.gridFunc());
 }
 
 template <int dim, bool entvar>
@@ -265,7 +344,7 @@ void FlowControlSolver<dim, entvar>::addOutput(const std::string &fun,
                                                const nlohmann::json &options)
 {
    FlowControlResidual<dim, entvar> &flow_control_res =
-       getConcrete<FlowControlResidual<dim, entvar>>(*spatial_res);
+       getConcrete<ResType>(*spatial_res);
    outputs.emplace(fun, flow_control_res.constructOutput(fun, options));
 }
 

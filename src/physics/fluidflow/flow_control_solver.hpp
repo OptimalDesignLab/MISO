@@ -1,10 +1,33 @@
 #ifndef MACH_FLOW_CONTROL_SOLVER
 #define MACH_FLOW_CONTROL_SOLVER
 
-#include "mfem.hpp"
+#include <memory>
+#include <vector>
+#include <functional>
 
+#include "mfem.hpp"
+#include "nlohmann/json.hpp"
+#ifdef MFEM_USE_PUMI
+#include "apf.h"
+#include "apfMesh2.h"
+namespace mach
+{
+struct pumiDeleter
+{
+   void operator()(apf::Mesh2 *mesh) const
+   {
+      mesh->destroyNative();
+      apf::destroyMesh(mesh);
+   }
+};
+
+}  // namespace mach
+#endif
+
+#include "abstract_solver.hpp"
+#include "finite_element_state.hpp"
+#include "finite_element_dual.hpp"
 #include "flow_control_residual.hpp"
-#include "pde_solver.hpp"
 
 namespace mach
 {
@@ -30,20 +53,32 @@ private:
    /// used to record the total entropy
    std::ofstream entropy_log;
    /// Map of all grid-function-based state vectors used by the solver
-   std::map<std::string, FiniteElementState> fields;
+   mutable std::map<std::string, FiniteElementState> fields;
 
    /// Reference to flow solver state vector
-   FiniteElementState &flowState() { return fields.at("flow_state"); }
-   const FiniteElementState &flowState() const
+   FiniteElementState &flowField() { return fields.at("flow_state"); }
+   const FiniteElementState &flowField() const
    {
       return fields.at("flow_state");
    }
 
    /// Reference to the flow-state vector's finite element space
-   mfem::ParFiniteElementSpace &fes() { return flowState().space(); }
+   mfem::ParFiniteElementSpace &fes() { return flowField().space(); }
    const mfem::ParFiniteElementSpace &fes() const
    {
-      return flowState().space();
+      return flowField().space();
+   }
+
+   /// Helper function that separates `state` into control and flow states
+   /// \note This just wraps the underlying `FlowControlResidual` method
+   /// \note No memory is allocated for the output states, they simply wrap the
+   /// data passed in by state
+   void extractStates(mfem::Vector &state,
+                      mfem::Vector &control_state,
+                      mfem::Vector &flow_state) const
+   {
+      getConcrete<ResType>(*spatial_res)
+          .extractStates(state, control_state, flow_state);
    }
 
    /// Constructs the mesh member based on c preprocesor defs
@@ -52,6 +87,12 @@ private:
        MPI_Comm comm,
        const nlohmann::json &mesh_options,
        std::unique_ptr<mfem::Mesh> smesh);
+
+   /// Set the flow and control states using a function
+   /// \note See AbstractSolver2::setState_ for more information
+   void setState_(std::any function,
+                  const std::string &name,
+                  mfem::Vector &state) override;
 
    /// Add output @a fun based on @a options
    void addOutput(const std::string &fun,
