@@ -129,7 +129,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
 
          // Compute drag and check against target
          auto drag_opts = R"({ 
-            "boundaries": [0, 0, 0, 1]
+            "boundaries": [4]
          })"_json;
          solver->createOutput("drag", drag_opts);
          double drag_error = fabs(solver->calcOutput("drag") - (-1 /mach::euler::gamma));

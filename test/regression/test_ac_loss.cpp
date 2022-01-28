@@ -13,6 +13,9 @@ auto options = R"(
       "basis-type": "nedelec",
       "degree": 1
    },
+   "time-dis": {
+      "ode-solver": "RK4"
+   },
    "components": {
       "winding": {
          "material": "copperwire",
