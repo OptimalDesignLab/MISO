@@ -73,7 +73,15 @@ private:
        operation_state_bar;
 };
 
-/// Conveniece class that wraps the projection of a state to its DG
+/// Conveniece class that wraps the projection of an H1 state to its DG
+/// representation
+class ScalarL2IdentityProjection : public L2TransferOperator
+{
+public:
+   ScalarL2IdentityProjection(FiniteElementState &state, FiniteElementState &output);
+};
+
+/// Conveniece class that wraps the projection of an state to its DG
 /// representation
 class L2IdentityProjection : public L2TransferOperator
 {

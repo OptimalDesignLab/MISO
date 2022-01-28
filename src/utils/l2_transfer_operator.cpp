@@ -4,6 +4,60 @@
 
 namespace
 {
+void scalar_identity_operator(const mfem::FiniteElement &state_fe,
+                       const mfem::FiniteElement &output_fe,
+                       mfem::ElementTransformation &trans,
+                       const mfem::Vector &el_state,
+                       mfem::Vector &el_output)
+{
+   int state_dof = state_fe.GetDof();
+   mfem::Vector shape(state_dof);
+
+   const auto &ir = output_fe.GetNodes();
+   for (int i = 0; i < ir.GetNPoints(); ++i)
+   {
+      const auto &ip = ir.IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      state_fe.CalcPhysShape(trans, shape);
+      el_output(i) = shape * el_state;
+   }
+}
+
+void scalar_identity_operator_state_bar(const mfem::FiniteElement &state_fe,
+                                 const mfem::FiniteElement &output_fe,
+                                 mfem::ElementTransformation &trans,
+                                 const mfem::Vector &el_output_adj,
+                                 const mfem::Vector &el_state,
+                                 mfem::Vector &el_state_bar)
+{
+   int state_dof = state_fe.GetDof();
+   int output_dof = output_fe.GetDof();
+
+   mfem::Vector shape(state_dof);
+   mfem::Vector adj_shape(output_dof);
+
+   const auto &ir = output_fe.GetNodes();
+   el_state_bar = 0.0;
+   for (int i = 0; i < ir.GetNPoints(); ++i)
+   {
+      const auto &ip = ir.IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      state_fe.CalcPhysShape(trans, shape);
+
+      output_fe.CalcPhysShape(trans, adj_shape);
+      double adj = el_output_adj * adj_shape;
+
+      /// dummy functional
+      /// double fun = adj * state;
+      double fun_bar = 1.0;
+      double state_bar = fun_bar * adj;
+
+      /// double state = shape * el_state;
+      add(el_state_bar, state_bar, shape, el_state_bar);
+   }
+}
 void identity_operator(const mfem::FiniteElement &state_fe,
                        const mfem::FiniteElement &output_fe,
                        mfem::ElementTransformation &trans,
@@ -338,6 +392,13 @@ void curl_magnitude_operator_state_bar(const mfem::FiniteElement &state_fe,
 
 namespace mach
 {
+ScalarL2IdentityProjection::ScalarL2IdentityProjection(FiniteElementState &state,
+                                           FiniteElementState &output)
+ : L2TransferOperator(state,
+                      output,
+                      scalar_identity_operator,
+                      scalar_identity_operator_state_bar)
+{ }
 
 L2IdentityProjection::L2IdentityProjection(FiniteElementState &state,
                                            FiniteElementState &output)
@@ -468,13 +529,51 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
 
          if (state_dof_trans)
          {
+            std::cout << "state_dof_trans\n";
             state_dof_trans->TransformDual(el_state_bar);
+            // state_dof_trans->TransformPrimal(el_state_bar);
          }
          state_bar.localVec().AddElementVector(state_vdofs, el_state_bar);
+         // state_bar.gridFunc().AddElementVector(state_vdofs, el_state_bar);
       }
 
+      // int rank, nranks;
+      // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      // MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+      // for (int i = 0; i < nranks; ++i)
+      // {
+      //    if (rank == i)
+      //    {
+      //       std::cout << "lvec rank " << i << ":\n";
+      //       state_bar.localVec().Print(std::cout, 1);
+      //       std::cout << "\n";
+      //    }
+      //    MPI_Barrier(MPI_COMM_WORLD);
+      // }
       /// this should maybe accumulate into wrt_bar
       state_bar.setTrueVec(wrt_bar);
+      auto &grid_func = dynamic_cast<mfem::ParGridFunction &>(state_bar.localVec());
+      // grid_func.ParallelAssemble(wrt_bar);
+      // grid_func.ParallelAverage(wrt_bar);
+
+
+      state_bar.distributeSharedDofs(wrt_bar);
+      grid_func.ExchangeFaceNbrData();
+      // state_bar.gridFunc().ParallelAssemble(wrt_bar);
+      // state_bar.space().GetRestrictionOperator()->MultTranspose(wrt_bar, state_bar.gridFunc());
+
+      /// Print fields
+      mfem::ParaViewDataCollection pv("state_bar", &state_bar.mesh());
+      pv.SetPrefixPath("ParaView");
+      pv.SetLevelsOfDetail(1);
+      pv.SetDataFormat(mfem::VTKFormat::ASCII);
+      pv.SetHighOrderOutput(true);
+      pv.RegisterField("state_bar", dynamic_cast<mfem::ParGridFunction *>(&state_bar.localVec()));
+      // pv.RegisterField("state_bar", &state_bar.gridFunc());
+      pv.Save();
+
+      // /// this should maybe accumulate into wrt_bar
+      // state_bar.setTrueVec(wrt_bar);
    }
 }
 
