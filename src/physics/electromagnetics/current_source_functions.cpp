@@ -1,0 +1,682 @@
+#include "mfem.hpp"
+
+#include "current_source_functions.hpp"
+
+namespace
+{
+template <typename xdouble = double>
+void cw_stator_current(int n_slots,
+                       double stack_length,
+                       const xdouble *x,
+                       xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = 0.0;
+   J[2] = 0.0;
+
+   xdouble zb = -stack_length / 2;  // bottom of stator
+   xdouble zt = stack_length / 2;   // top of stator
+
+   // compute theta from x and y
+   xdouble tha = atan2(x[1], x[0]);
+   xdouble thw = 2 * M_PI / n_slots;  // total angle of slot
+
+   // check which winding we're in
+   xdouble w = round(tha / thw);  // current slot
+   xdouble th = tha - w * thw;
+
+   // check if we're in the stator body
+   if (x[2] >= zb && x[2] <= zt)
+   {
+      // check if we're in left or right half
+      if (th > 0)
+      {
+         J[2] = -1;  // set to 1 for now, and direction depends on current
+                     // direction
+      }
+      if (th < 0)
+      {
+         J[2] = 1;
+      }
+   }
+   else  // outside of the stator body, check if above or below
+   {
+      // 'subtract' z position to 0 depending on if above or below
+      xdouble rx[] = {x[0], x[1], x[2]};
+      if (x[2] > zt)
+      {
+         rx[2] -= zt;
+      }
+      if (x[2] < zb)
+      {
+         rx[2] -= zb;
+      }
+
+      // draw top rotation axis
+      xdouble ax[] = {0.0, 0.0, 0.0};
+      ax[0] = cos(w * thw);
+      ax[1] = sin(w * thw);
+
+      // take x cross ax, normalize
+      J[0] = rx[1] * ax[2] - rx[2] * ax[1];
+      J[1] = rx[2] * ax[0] - rx[0] * ax[2];
+      J[2] = rx[0] * ax[1] - rx[1] * ax[0];
+      xdouble norm_J = sqrt(J[0] * J[0] + J[1] * J[1] + J[2] * J[2]);
+      J[0] /= norm_J;
+      J[1] /= norm_J;
+      J[2] /= norm_J;
+   }
+   J[0] *= -1.0;
+   J[1] *= -1.0;
+   J[2] *= -1.0;
+}
+
+template <typename xdouble = double>
+void ccw_stator_current(int n_slots,
+                        double stack_length,
+                        const xdouble *x,
+                        xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = 0.0;
+   J[2] = 0.0;
+
+   xdouble zb = -stack_length / 2;  // bottom of stator
+   xdouble zt = stack_length / 2;   // top of stator
+
+   // compute theta from x and y
+   xdouble tha = atan2(x[1], x[0]);
+   xdouble thw = 2 * M_PI / n_slots;  // total angle of slot
+
+   // check which winding we're in
+   xdouble w = round(tha / thw);  // current slot
+   xdouble th = tha - w * thw;
+
+   // check if we're in the stator body
+   if (x[2] >= zb && x[2] <= zt)
+   {
+      // check if we're in left or right half
+      if (th > 0)
+      {
+         J[2] = -1;  // set to 1 for now, and direction depends on current
+                     // direction
+      }
+      if (th < 0)
+      {
+         J[2] = 1;
+      }
+   }
+   else  // outside of the stator body, check if above or below
+   {
+      // 'subtract' z position to 0 depending on if above or below
+      xdouble rx[] = {x[0], x[1], x[2]};
+      if (x[2] > zt)
+      {
+         rx[2] -= zt;
+      }
+      if (x[2] < zb)
+      {
+         rx[2] -= zb;
+      }
+
+      // draw top rotation axis
+      xdouble ax[] = {0.0, 0.0, 0.0};
+      ax[0] = cos(w * thw);
+      ax[1] = sin(w * thw);
+
+      // take x cross ax, normalize
+      J[0] = rx[1] * ax[2] - rx[2] * ax[1];
+      J[1] = rx[2] * ax[0] - rx[0] * ax[2];
+      J[2] = rx[0] * ax[1] - rx[1] * ax[0];
+      xdouble norm_J = sqrt(J[0] * J[0] + J[1] * J[1] + J[2] * J[2]);
+      J[0] /= norm_J;
+      J[1] /= norm_J;
+      J[2] /= norm_J;
+   }
+}
+
+template <typename xdouble = double, int sign = 1>
+void x_axis_current(const xdouble *x, xdouble *J)
+{
+   J[0] = sign;
+   J[1] = 0.0;
+   J[2] = 0.0;
+}
+
+template <typename xdouble = double, int sign = 1>
+void y_axis_current(const xdouble *x, xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = sign;
+   J[2] = 0.0;
+}
+
+template <typename xdouble = double, int sign = 1>
+void z_axis_current(const xdouble *x, xdouble *J)
+{
+   J[0] = 0.0;
+   J[1] = 0.0;
+   J[2] = sign;
+}
+
+template <typename xdouble = double>
+void ring_current(const xdouble *x, xdouble *J)
+{
+   for (int i = 0; i < 3; ++i)
+   {
+      J[i] = 0.0;
+   }
+   xdouble r[] = {0.0, 0.0, 0.0};
+   r[0] = x[0];
+   r[1] = x[1];
+   xdouble norm_r = sqrt(r[0] * r[0] + r[1] * r[1]);
+   r[0] /= norm_r;
+   r[1] /= norm_r;
+   J[0] = -r[1];
+   J[1] = r[0];
+}
+
+template <typename xdouble = double>
+void box1_current(const xdouble *x, xdouble *J)
+{
+   for (int i = 0; i < 3; ++i)
+   {
+      J[i] = 0.0;
+   }
+
+   xdouble y = x[1] - .5;
+
+   // J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   J[2] = -6 * y;
+}
+
+template <typename xdouble = double>
+void box2_current(const xdouble *x, xdouble *J)
+{
+   for (int i = 0; i < 3; ++i)
+   {
+      J[i] = 0.0;
+   }
+
+   xdouble y = x[1] - .5;
+
+   // J[2] = current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   J[2] = 6 * y;
+}
+
+/// function to get the sign of a number
+template <typename T>
+int sgn(T val)
+{
+   return (T(0) < val) - (val < T(0));
+}
+
+template <typename xdouble = double>
+void team13_current(const xdouble *X, xdouble *J)
+{
+   for (int i = 0; i < 3; ++i)
+   {
+      J[i] = 0.0;
+   }
+
+   auto x = X[0];
+   auto y = X[1];
+
+   if (y >= -0.075 && y <= 0.075)
+   {
+      J[1] = sgn(x);
+   }
+   else if (x >= -0.075 && x <= 0.075)
+   {
+      J[0] = -sgn(y);
+   }
+   else if (x > 0.075 && y > 0.075)
+   {
+      J[0] = -(y - 0.075);
+      J[1] = (x - 0.075);
+   }
+   else if (x < 0.075 && y > 0.075)
+   {
+      J[0] = -(y - 0.075);
+      J[1] = (x + 0.075);
+   }
+   else if (x < 0.075 && y < 0.075)
+   {
+      J[0] = -(y + 0.075);
+      J[1] = (x + 0.075);
+   }
+   else if (x > 0.075 && y < 0.075)
+   {
+      J[0] = -(y + 0.075);
+      J[1] = (x - 0.075);
+   }
+
+   auto norm = sqrt(J[0] * J[0] + J[1] * J[1]);
+
+   J[0] /= norm;
+   J[1] /= norm;
+}
+
+/// function describing current density in clock-wise wound windings
+/// \param[in] n_slots - number of slots in the stator
+/// \param[in] stack_length - axial depth of the stator
+/// \param[in] x - position x in space of evaluation
+/// \param[out] J - current density at position x
+void cwStatorCurrentSource(int n_slots,
+                           double stack_length,
+                           const mfem::Vector &x,
+                           mfem::Vector &J)
+{
+   cw_stator_current(n_slots, stack_length, x.GetData(), J.GetData());
+}
+
+void cwStatorCurrentSourceRevDiff(int n_slots,
+                                  double stack_length,
+                                  const mfem::Vector &x,
+                                  const mfem::Vector &V_bar,
+                                  mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   cw_stator_current<adouble>(n_slots, stack_length, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t position
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+/// function describing current density in counter-clock-wise wound windings
+/// \param[in] n_slots - number of slots in the stator
+/// \param[in] stack_length - axial depth of the stator
+/// \param[in] x - position x in space of evaluation
+/// \param[out] J - current density at position x
+void ccwStatorCurrentSource(int n_slots,
+                            double stack_length,
+                            const mfem::Vector &x,
+                            mfem::Vector &J)
+{
+   ccw_stator_current(n_slots, stack_length, x.GetData(), J.GetData());
+}
+
+void ccwStatorCurrentSourceRevDiff(int n_slots,
+                                   double stack_length,
+                                   const mfem::Vector &x,
+                                   const mfem::Vector &V_bar,
+                                   mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   ccw_stator_current<adouble>(n_slots, stack_length, x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t position
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void xAxisCurrentSource(const mfem::Vector &x, mfem::Vector &J)
+{
+   x_axis_current(x.GetData(), J.GetData());
+}
+
+void xAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                               const mfem::Vector &V_bar,
+                               mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   x_axis_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void yAxisCurrentSource(const mfem::Vector &x, mfem::Vector &J)
+{
+   y_axis_current(x.GetData(), J.GetData());
+}
+
+void yAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                               const mfem::Vector &V_bar,
+                               mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   y_axis_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void zAxisCurrentSource(const mfem::Vector &x, mfem::Vector &J)
+{
+   z_axis_current(x.GetData(), J.GetData());
+}
+
+void zAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                               const mfem::Vector &V_bar,
+                               mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   z_axis_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void nzAxisCurrentSource(const mfem::Vector &x, mfem::Vector &J)
+{
+   z_axis_current<double, -1>(x.GetData(), J.GetData());
+}
+
+void nzAxisCurrentSourceRevDiff(const mfem::Vector &x,
+                                const mfem::Vector &V_bar,
+                                mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   z_axis_current<adouble, -1>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void ringCurrentSource(const mfem::Vector &x, mfem::Vector &J)
+{
+   ring_current(x.GetData(), J.GetData());
+}
+
+void ringCurrentSourceRevDiff(const mfem::Vector &x,
+                              const mfem::Vector &V_bar,
+                              mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   ring_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void box1CurrentSource(const mfem::Vector &x, mfem::Vector &J)
+{
+   box1_current(x.GetData(), J.GetData());
+}
+
+void box1CurrentSourceRevDiff(const mfem::Vector &x,
+                              const mfem::Vector &V_bar,
+                              mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   box1_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void box2CurrentSource(const mfem::Vector &x, mfem::Vector &J)
+{
+   box2_current(x.GetData(), J.GetData());
+}
+
+void box2CurrentSourceRevDiff(const mfem::Vector &x,
+                              const mfem::Vector &V_bar,
+                              mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   box2_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+void team13CurrentSource(const mfem::Vector &x, mfem::Vector &J)
+{
+   team13_current(x.GetData(), J.GetData());
+}
+
+void team13CurrentSourceRevDiff(const mfem::Vector &x,
+                                const mfem::Vector &V_bar,
+                                mfem::Vector &x_bar)
+{
+   DenseMatrix source_jac(3);
+   // declare vectors of active input variables
+   std::vector<adouble> x_a(x.Size());
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start recording
+   diff_stack.new_recording();
+   // the depedent variable must be declared after the recording
+   std::vector<adouble> J_a(x.Size());
+   team13_current<adouble>(x_a.data(), J_a.data());
+   // set the independent and dependent variable
+   diff_stack.independent(x_a.data(), x.Size());
+   diff_stack.dependent(J_a.data(), x.Size());
+   // calculate the jacobian w.r.t state vaiables
+   diff_stack.jacobian(source_jac.GetData());
+   source_jac.MultTranspose(V_bar, x_bar);
+}
+
+}  // anonymous namespace
+
+namespace mach
+{
+std::unique_ptr<mfem::VectorCoefficient> constructCurrent(
+    const nlohmann::json &current_options)
+{
+   auto current_coeff = std::make_unique<VectorMeshDependentCoefficient>();
+
+   if (current_options.contains("Phase-A"))
+   {
+      auto attrs = current_options["Phase-A"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, phaseACurrentSource, phaseACurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("Phase-B"))
+   {
+      auto attrs = current_options["Phase-B"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, phaseBCurrentSource, phaseBCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("Phase-C"))
+   {
+      auto attrs = current_options["Phase-C"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, phaseCCurrentSource, phaseCCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("x"))
+   {
+      auto attrs = current_options["x"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, xAxisCurrentSource, xAxisCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("y"))
+   {
+      auto attrs = current_options["y"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, yAxisCurrentSource, yAxisCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("z"))
+   {
+      auto attrs = current_options["z"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, zAxisCurrentSource, zAxisCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("-z"))
+   {
+      auto attrs = current_options["-z"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, nzAxisCurrentSource, nzAxisCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("ring"))
+   {
+      auto attrs = current_options["ring"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, ringCurrentSource, ringCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("box1"))
+   {
+      auto attrs = current_options["box1"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, box1CurrentSource, box1CurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("box2"))
+   {
+      auto attrs = current_options["box2"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, box2CurrentSource, box2CurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("team13"))
+   {
+      auto attrs = current_options["team13"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, team13CurrentSource, team13CurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+}
+
+}  // namespace mach

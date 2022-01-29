@@ -5,10 +5,10 @@
 namespace
 {
 void scalar_identity_operator(const mfem::FiniteElement &state_fe,
-                       const mfem::FiniteElement &output_fe,
-                       mfem::ElementTransformation &trans,
-                       const mfem::Vector &el_state,
-                       mfem::Vector &el_output)
+                              const mfem::FiniteElement &output_fe,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &el_state,
+                              mfem::Vector &el_output)
 {
    int state_dof = state_fe.GetDof();
    mfem::Vector shape(state_dof);
@@ -25,11 +25,11 @@ void scalar_identity_operator(const mfem::FiniteElement &state_fe,
 }
 
 void scalar_identity_operator_state_bar(const mfem::FiniteElement &state_fe,
-                                 const mfem::FiniteElement &output_fe,
-                                 mfem::ElementTransformation &trans,
-                                 const mfem::Vector &el_output_adj,
-                                 const mfem::Vector &el_state,
-                                 mfem::Vector &el_state_bar)
+                                        const mfem::FiniteElement &output_fe,
+                                        mfem::ElementTransformation &trans,
+                                        const mfem::Vector &el_output_adj,
+                                        const mfem::Vector &el_state,
+                                        mfem::Vector &el_state_bar)
 {
    int state_dof = state_fe.GetDof();
    int output_dof = output_fe.GetDof();
@@ -392,8 +392,9 @@ void curl_magnitude_operator_state_bar(const mfem::FiniteElement &state_fe,
 
 namespace mach
 {
-ScalarL2IdentityProjection::ScalarL2IdentityProjection(FiniteElementState &state,
-                                           FiniteElementState &output)
+ScalarL2IdentityProjection::ScalarL2IdentityProjection(
+    FiniteElementState &state,
+    FiniteElementState &output)
  : L2TransferOperator(state,
                       output,
                       scalar_identity_operator,
@@ -552,15 +553,16 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
       // }
       /// this should maybe accumulate into wrt_bar
       state_bar.setTrueVec(wrt_bar);
-      auto &grid_func = dynamic_cast<mfem::ParGridFunction &>(state_bar.localVec());
+      auto &grid_func =
+          dynamic_cast<mfem::ParGridFunction &>(state_bar.localVec());
       // grid_func.ParallelAssemble(wrt_bar);
       // grid_func.ParallelAverage(wrt_bar);
-
 
       state_bar.distributeSharedDofs(wrt_bar);
       grid_func.ExchangeFaceNbrData();
       // state_bar.gridFunc().ParallelAssemble(wrt_bar);
-      // state_bar.space().GetRestrictionOperator()->MultTranspose(wrt_bar, state_bar.gridFunc());
+      // state_bar.space().GetRestrictionOperator()->MultTranspose(wrt_bar,
+      // state_bar.gridFunc());
 
       /// Print fields
       mfem::ParaViewDataCollection pv("state_bar", &state_bar.mesh());
@@ -568,7 +570,9 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
       pv.SetLevelsOfDetail(1);
       pv.SetDataFormat(mfem::VTKFormat::ASCII);
       pv.SetHighOrderOutput(true);
-      pv.RegisterField("state_bar", dynamic_cast<mfem::ParGridFunction *>(&state_bar.localVec()));
+      pv.RegisterField(
+          "state_bar",
+          dynamic_cast<mfem::ParGridFunction *>(&state_bar.localVec()));
       // pv.RegisterField("state_bar", &state_bar.gridFunc());
       pv.Save();
 

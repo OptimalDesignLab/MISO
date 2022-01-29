@@ -78,7 +78,8 @@ private:
 class ScalarL2IdentityProjection : public L2TransferOperator
 {
 public:
-   ScalarL2IdentityProjection(FiniteElementState &state, FiniteElementState &output);
+   ScalarL2IdentityProjection(FiniteElementState &state,
+                              FiniteElementState &output);
 };
 
 /// Conveniece class that wraps the projection of an state to its DG

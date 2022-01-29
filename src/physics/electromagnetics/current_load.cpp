@@ -1,13 +1,146 @@
-#include <random>
+#include <memory>
 
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
+#include "current_source_functions.hpp"
 #include "mach_input.hpp"
 #include "mfem_common_integ.hpp"
+
 #include "current_load.hpp"
 
-using namespace mfem;
+namespace
+{
+std::unique_ptr<mfem::VectorCoefficient> constructCurrent(
+    const nlohmann::json &current_options)
+{
+   auto current_coeff = std::make_unique<VectorMeshDependentCoefficient>();
+
+   if (current.contains("Phase-A"))
+   {
+      auto attrs = current_options["Phase-A"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, phaseACurrentSource, phaseACurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("Phase-B"))
+   {
+      auto attrs = current_options["Phase-B"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, phaseBCurrentSource, phaseBCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("Phase-C"))
+   {
+      auto attrs = current_options["Phase-C"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, phaseCCurrentSource, phaseCCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("x"))
+   {
+      auto attrs = current_options["x"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, xAxisCurrentSource, xAxisCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("y"))
+   {
+      auto attrs = current_options["y"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, yAxisCurrentSource, yAxisCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("z"))
+   {
+      auto attrs = current_options["z"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, zAxisCurrentSource, zAxisCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("-z"))
+   {
+      auto attrs = current_options["-z"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, nzAxisCurrentSource, nzAxisCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("ring"))
+   {
+      auto attrs = current_options["ring"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, ringCurrentSource, ringCurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("box1"))
+   {
+      auto attrs = current_options["box1"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, box1CurrentSource, box1CurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("box2"))
+   {
+      auto attrs = current_options["box2"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, box2CurrentSource, box2CurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+   if (current_options.contains("team13"))
+   {
+      auto attrs = current_options["team13"].get<std::vector<int>>();
+      for (auto &attr : attrs)
+      {
+         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+             new VectorFunctionCoefficient(
+                 dim, team13CurrentSource, team13CurrentSourceRevDiff));
+         current_coeff->addCoefficient(attr, move(temp_coeff));
+      }
+   }
+}
+
+}  // anonymous namespace
 
 namespace mach
 {
