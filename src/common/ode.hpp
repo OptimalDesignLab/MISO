@@ -65,7 +65,7 @@ public:
          identity_ =
              std::make_unique<mfem::IdentityOperator>(getSize(spatial_res_));
          mass_matrix_ = identity_.get();
-      }
+      }      
 
       /// Determine what type of mass matrix we're using and pre-allocate the
       /// Jacobian
@@ -82,6 +82,7 @@ public:
       }
       else if (block_mass != nullptr)
       {
+         std::cout << "row_offsets = " << block_mass->RowOffsets()[0] << ", " << block_mass->RowOffsets()[1] << ", " << block_mass->RowOffsets()[2] << std::endl;
          jac_ = std::make_unique<JacobianFree>(spatial_res_, *mass_matrix_);
       }
    }

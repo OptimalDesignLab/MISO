@@ -7,6 +7,13 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
+/// Set the initial value of the control state
+/// \param[out] u0 - the control state at time t0
+void cinit(Vector & u0);
+
+/// Set the initial value of the flow state
+/// \param[in] x - spatial location
+/// \param[out] u0 - value of the state at `x`
 void uinit(const Vector &x, Vector& u0);
 
 int main(int argc, char *argv[])
@@ -47,7 +54,11 @@ int main(int argc, char *argv[])
       // Create solver and set initial guess to constant
       FlowControlSolver<2> solver(MPI_COMM_WORLD, options, std::move(smesh));
       mfem::Vector state_tv(solver.getStateSize());
-      solver.setState(uinit, state_tv);
+      //solver.setState(uinit, state_tv);
+      //solver.setState({.control_func = cinit, .flow_func = uinit}, state_tv);
+
+      solver.setState(
+          std::make_pair(std::function(cinit), std::function(uinit)), state_tv);
 
       // get the initial entropy 
       solver.createOutput("entropy", options["outputs"].at("entropy"));
@@ -73,7 +84,13 @@ int main(int argc, char *argv[])
    MPI_Finalize();
 }
 
-void uinit(const Vector &x, Vector& u0)
+void cinit(Vector &u)
+{
+   u(0) = 0.0;
+   u(1) = 1.0;
+}
+
+void uinit(const Vector &x, Vector &u0)
 {
    u0.SetSize(4);
    u0(0) = 1.0;

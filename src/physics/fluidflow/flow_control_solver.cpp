@@ -138,7 +138,11 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
    spatial_res =
        std::make_unique<mach::MachResidual>(FlowControlResidual<dim, entvar>(
            options, fes(), diff_stack, *out));
-   auto mass_matrix = getMassMatrix(*spatial_res, options);
+   auto *mass_matrix = getMassMatrix(*spatial_res, options);
+   
+   auto *block_mass = dynamic_cast<mfem::BlockOperator *>(mass_matrix);
+   std::cout << "row_offsets = " << block_mass->RowOffsets()[0] << ", " << block_mass->RowOffsets()[1] << ", " << block_mass->RowOffsets()[2] << std::endl;
+
    space_time_res = std::make_unique<mach::MachResidual>(
        mach::TimeDependentResidual(*spatial_res, mass_matrix));
 
@@ -160,7 +164,7 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
    if (options["paraview"].at("each-timestep"))
    {
       ParaViewLogger paraview(options["paraview"]["directory"], mesh_.get());
-      paraview.registerField("state", fields.at("state").gridFunc());
+      paraview.registerField("state", fields.at("flow_state").gridFunc());
       addLogger(std::move(paraview), {.each_timestep = true});
    }
 }
@@ -296,7 +300,8 @@ double FlowControlSolver<dim, entvar>::calcStepSize(int iter,
    auto cfl = options["time-dis"]["cfl"].get<double>();
    // here we call the FlowResidual method for the min time step, which needs
    // the current flow state as a grid function
-   auto &flow_field = flowField(); 
+   FiniteElementState &flow_field = fields.at("flow_state");
+   //auto &flow_field = flowField(); 
    flow_field.distributeSharedDofs(state);
    return getConcrete<ResType>(*spatial_res)
        .minCFLTimeStep(cfl, flow_field.gridFunc());

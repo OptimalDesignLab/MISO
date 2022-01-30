@@ -100,7 +100,7 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
  : out(outstream),
    offsets(3),
    flow_res(options, pfes, diff_stack),
-   control_res(options)  //, jac(*this, pfes.GetComm())
+   control_res(options) //, jac(*this, pfes.GetComm())
 {
    // offsets mark the start of each row/column block
    offsets[0] = 0;
