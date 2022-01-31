@@ -564,6 +564,36 @@ void team13CurrentSourceRevDiff(adept::Stack &diff_stack,
 
 namespace mach
 {
+
+void setInputs(CurrentDensityCoefficient &current, const MachInputs &inputs)
+{
+   for (auto &[group, coeff] : current.group_map)
+   {
+      std::string cd_group_id = "current_density:" + group;
+      setValueFromInputs(inputs, cd_group_id, coeff.constant);
+   }
+
+   for (auto &[input, value] : current.cached_inputs)
+   {
+      setValueFromInputs(inputs, input, value);
+   }
+}
+
+void CurrentDensityCoefficient::Eval(mfem::Vector &V,
+                                     mfem::ElementTransformation &trans,
+                                     const mfem::IntegrationPoint &ip)
+{
+   current_coeff.Eval(V, trans, ip);
+}
+
+void CurrentDensityCoefficient::EvalRevDiff(const mfem::Vector &V_bar,
+                                            mfem::ElementTransformation &trans,
+                                            const mfem::IntegrationPoint &ip,
+                                            mfem::DenseMatrix &PointMat_bar)
+{
+   current_coeff.EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+}
+
 CurrentDensityCoefficient::CurrentDensityCoefficient(
     adept::Stack &diff_stack,
     const nlohmann::json &current_options,
@@ -612,130 +642,224 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
                        group_coeff, source_coeff));
             }
          }
+         else if (source == "ccwStator")
+         {
+            cached_inputs.emplace("n_slots", 24.0);
+            auto n_slots = cached_inputs.at("n_slots");
+            cached_inputs.emplace("stack_length", 0.345);
+            auto stack_length = cached_inputs.at("stack_length");
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       [&n_slots, &stack_length](const mfem::Vector &x,
+                                                 mfem::Vector &J)
+                       { ccwStatorCurrentSource(n_slots, stack_length, x, J); },
+                       [&diff_stack, &n_slots, &stack_length](
+                           const mfem::Vector &x,
+                           const mfem::Vector &J_bar,
+                           mfem::Vector &x_bar)
+                       {
+                          ccwStatorCurrentSourceRevDiff(diff_stack,
+                                                        n_slots,
+                                                        stack_length,
+                                                        x,
+                                                        J_bar,
+                                                        x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
+         else if (source == "x")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       xAxisCurrentSource,
+                       [&diff_stack](const mfem::Vector &x,
+                                     const mfem::Vector &J_bar,
+                                     mfem::Vector &x_bar) {
+                          xAxisCurrentSourceRevDiff(
+                              diff_stack, x, J_bar, x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
+         else if (source == "y")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       yAxisCurrentSource,
+                       [&diff_stack](const mfem::Vector &x,
+                                     const mfem::Vector &J_bar,
+                                     mfem::Vector &x_bar) {
+                          yAxisCurrentSourceRevDiff(
+                              diff_stack, x, J_bar, x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
+         else if (source == "z")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       zAxisCurrentSource,
+                       [&diff_stack](const mfem::Vector &x,
+                                     const mfem::Vector &J_bar,
+                                     mfem::Vector &x_bar) {
+                          zAxisCurrentSourceRevDiff(
+                              diff_stack, x, J_bar, x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
+         else if (source == "-z")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       nzAxisCurrentSource,
+                       [&diff_stack](const mfem::Vector &x,
+                                     const mfem::Vector &J_bar,
+                                     mfem::Vector &x_bar) {
+                          nzAxisCurrentSourceRevDiff(
+                              diff_stack, x, J_bar, x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
+         else if (source == "ring")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       ringCurrentSource,
+                       [&diff_stack](const mfem::Vector &x,
+                                     const mfem::Vector &J_bar,
+                                     mfem::Vector &x_bar) {
+                          ringCurrentSourceRevDiff(diff_stack, x, J_bar, x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
+         else if (source == "box1")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       box1CurrentSource,
+                       [&diff_stack](const mfem::Vector &x,
+                                     const mfem::Vector &J_bar,
+                                     mfem::Vector &x_bar) {
+                          box1CurrentSourceRevDiff(diff_stack, x, J_bar, x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
+         else if (source == "box2")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       box2CurrentSource,
+                       [&diff_stack](const mfem::Vector &x,
+                                     const mfem::Vector &J_bar,
+                                     mfem::Vector &x_bar) {
+                          box2CurrentSourceRevDiff(diff_stack, x, J_bar, x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
+         else if (source == "team13")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       team13CurrentSource,
+                       [&diff_stack](const mfem::Vector &x,
+                                     const mfem::Vector &J_bar,
+                                     mfem::Vector &x_bar) {
+                          team13CurrentSourceRevDiff(
+                              diff_stack, x, J_bar, x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
       }
    }
-
-   // if (current_options.contains("phaseA"))
-   // {
-   //    auto attrs = current_options["phaseA"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, phaseACurrentSource, phaseACurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("phaseB"))
-   // {
-   //    auto attrs = current_options["phaseB"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, phaseBCurrentSource, phaseBCurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("phaseC"))
-   // {
-   //    auto attrs = current_options["phaseC"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, phaseCCurrentSource, phaseCCurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("x"))
-   // {
-   //    auto attrs = current_options["x"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, xAxisCurrentSource, xAxisCurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("y"))
-   // {
-   //    auto attrs = current_options["y"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, yAxisCurrentSource, yAxisCurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("z"))
-   // {
-   //    auto attrs = current_options["z"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, zAxisCurrentSource, zAxisCurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("-z"))
-   // {
-   //    auto attrs = current_options["-z"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, nzAxisCurrentSource, nzAxisCurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("ring"))
-   // {
-   //    auto attrs = current_options["ring"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, ringCurrentSource, ringCurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("box1"))
-   // {
-   //    auto attrs = current_options["box1"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, box1CurrentSource, box1CurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("box2"))
-   // {
-   //    auto attrs = current_options["box2"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, box2CurrentSource, box2CurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (current_options.contains("team13"))
-   // {
-   //    auto attrs = current_options["team13"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, team13CurrentSource, team13CurrentSourceRevDiff));
-   //       current_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
 }
 
 }  // namespace mach

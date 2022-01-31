@@ -17,14 +17,15 @@ namespace mach
 class CurrentDensityCoefficient : public mfem::VectorCoefficient
 {
 public:
-   friend void setInputs(const MachInputs &inputs);
+   friend void setInputs(CurrentDensityCoefficient &current,
+                         const MachInputs &inputs);
 
    void Eval(mfem::Vector &V,
-             mfem::ElementTransformation &T,
+             mfem::ElementTransformation &trans,
              const mfem::IntegrationPoint &ip) override;
 
    void EvalRevDiff(const mfem::Vector &V_bar,
-                    mfem::ElementTransformation &T,
+                    mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
                     mfem::DenseMatrix &PointMat_bar) override;
 
