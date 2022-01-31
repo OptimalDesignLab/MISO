@@ -1,7 +1,9 @@
+#include <memory>
+
 #include "adept.h"
 #include "mfem.hpp"
 
-#include "current_source_functions.hpp"
+#include "magnetic_source_functions.hpp"
 
 namespace
 {
@@ -361,97 +363,260 @@ void zAxisMagnetizationSourceRevDiff(adept::Stack &diff_stack,
 
 namespace mach
 {
-std::unique_ptr<mfem::VectorCoefficient> constructMagnetization(
-    const nlohmann::json &mag_options)
+void MagnetizationCoefficient::Eval(mfem::Vector &V,
+                                    mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip)
 {
-   // auto mag_coeff = std::make_unique<VectorMeshDependentCoefficient>();
-
-   // if (mag_options.contains("north"))
-   // {
-   //    auto attrs = mag_options["north"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(dim,
-   //                                         northMagnetizationSource,
-   //                                         northMagnetizationSourceRevDiff));
-   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (mag_options.contains("south"))
-   // {
-   //    auto attrs = mag_options["south"].get<std::vector<int>>();
-
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(dim,
-   //                                         southMagnetizationSource,
-   //                                         southMagnetizationSourceRevDiff));
-   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (mag_options.contains("cw"))
-   // {
-   //    auto attrs = mag_options["cw"].get<std::vector<int>>();
-
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, cwMagnetizationSource, cwMagnetizationSourceRevDiff));
-   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (mag_options.contains("ccw"))
-   // {
-   //    auto attrs = mag_options["ccw"].get<std::vector<int>>();
-
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(
-   //               dim, ccwMagnetizationSource,
-   //               ccwMagnetizationSourceRevDiff));
-   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (mag_options.contains("x"))
-   // {
-   //    auto attrs = mag_options["x"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(dim,
-   //                                         xAxisMagnetizationSource,
-   //                                         xAxisMagnetizationSourceRevDiff));
-   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (mag_options.contains("y"))
-   // {
-   //    auto attrs = mag_options["y"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(dim,
-   //                                         yAxisMagnetizationSource,
-   //                                         yAxisMagnetizationSourceRevDiff));
-   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
-   // if (mag_options.contains("z"))
-   // {
-   //    auto attrs = mag_options["z"].get<std::vector<int>>();
-   //    for (auto &attr : attrs)
-   //    {
-   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-   //           new VectorFunctionCoefficient(dim,
-   //                                         zAxisMagnetizationSource,
-   //                                         zAxisMagnetizationSourceRevDiff));
-   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
-   //    }
-   // }
+   mag_coeff.Eval(V, trans, ip);
 }
+
+void MagnetizationCoefficient::EvalRevDiff(const mfem::Vector &V_bar,
+                                           mfem::ElementTransformation &trans,
+                                           const mfem::IntegrationPoint &ip,
+                                           mfem::DenseMatrix &PointMat_bar)
+{
+   mag_coeff.EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+}
+
+MagnetizationCoefficient::MagnetizationCoefficient(
+    adept::Stack &diff_stack,
+    const nlohmann::json &magnet_options,
+    const nlohmann::json &materials,
+    int vdim)
+ : mfem::VectorCoefficient(vdim), mag_coeff(vdim)
+{
+   for (auto &[material, group_details] : magnet_options.items())
+   {
+      remnant_flux_map.emplace(material,
+                               materials[material]["B_r"].get<double>());
+      auto &remnant_flux = remnant_flux_map.at(material);
+
+      for (auto &[source, attrs] : group_details.items())
+      {
+         if (source == "north")
+         {
+            for (auto &attr : attrs)
+            {
+               mag_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::VectorFunctionCoefficient>(
+                       vdim,
+                       [&remnant_flux](const mfem::Vector &x, mfem::Vector &M)
+                       { northMagnetizationSource(remnant_flux, x, M); },
+                       [&diff_stack, &remnant_flux](const mfem::Vector &x,
+                                                    const mfem::Vector &M_bar,
+                                                    mfem::Vector &x_bar)
+                       {
+                          northMagnetizationSourceRevDiff(
+                              diff_stack, remnant_flux, x, M_bar, x_bar);
+                       }));
+            }
+         }
+         else if (source == "south")
+         {
+            for (auto &attr : attrs)
+            {
+               mag_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::VectorFunctionCoefficient>(
+                       vdim,
+                       [&remnant_flux](const mfem::Vector &x, mfem::Vector &M)
+                       { southMagnetizationSource(remnant_flux, x, M); },
+                       [&diff_stack, &remnant_flux](const mfem::Vector &x,
+                                                    const mfem::Vector &M_bar,
+                                                    mfem::Vector &x_bar)
+                       {
+                          southMagnetizationSourceRevDiff(
+                              diff_stack, remnant_flux, x, M_bar, x_bar);
+                       }));
+            }
+         }
+         else if (source == "cw")
+         {
+            for (auto &attr : attrs)
+            {
+               mag_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::VectorFunctionCoefficient>(
+                       vdim,
+                       [&remnant_flux](const mfem::Vector &x, mfem::Vector &M)
+                       { cwMagnetizationSource(remnant_flux, x, M); },
+                       [&diff_stack, &remnant_flux](const mfem::Vector &x,
+                                                    const mfem::Vector &M_bar,
+                                                    mfem::Vector &x_bar) {
+                          cwMagnetizationSourceRevDiff(
+                              diff_stack, remnant_flux, x, M_bar, x_bar);
+                       }));
+            }
+         }
+         else if (source == "ccw")
+         {
+            for (auto &attr : attrs)
+            {
+               mag_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::VectorFunctionCoefficient>(
+                       vdim,
+                       [&remnant_flux](const mfem::Vector &x, mfem::Vector &M)
+                       { ccwMagnetizationSource(remnant_flux, x, M); },
+                       [&diff_stack, &remnant_flux](const mfem::Vector &x,
+                                                    const mfem::Vector &M_bar,
+                                                    mfem::Vector &x_bar) {
+                          ccwMagnetizationSourceRevDiff(
+                              diff_stack, remnant_flux, x, M_bar, x_bar);
+                       }));
+            }
+         }
+         else if (source == "x")
+         {
+            for (auto &attr : attrs)
+            {
+               mag_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::VectorFunctionCoefficient>(
+                       vdim,
+                       [&remnant_flux](const mfem::Vector &x, mfem::Vector &M)
+                       { xAxisMagnetizationSource(remnant_flux, x, M); },
+                       [&diff_stack, &remnant_flux](const mfem::Vector &x,
+                                                    const mfem::Vector &M_bar,
+                                                    mfem::Vector &x_bar)
+                       {
+                          xAxisMagnetizationSourceRevDiff(
+                              diff_stack, remnant_flux, x, M_bar, x_bar);
+                       }));
+            }
+         }
+         else if (source == "y")
+         {
+            for (auto &attr : attrs)
+            {
+               mag_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::VectorFunctionCoefficient>(
+                       vdim,
+                       [&remnant_flux](const mfem::Vector &x, mfem::Vector &M)
+                       { yAxisMagnetizationSource(remnant_flux, x, M); },
+                       [&diff_stack, &remnant_flux](const mfem::Vector &x,
+                                                    const mfem::Vector &M_bar,
+                                                    mfem::Vector &x_bar)
+                       {
+                          yAxisMagnetizationSourceRevDiff(
+                              diff_stack, remnant_flux, x, M_bar, x_bar);
+                       }));
+            }
+         }
+         else if (source == "z")
+         {
+            for (auto &attr : attrs)
+            {
+               mag_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::VectorFunctionCoefficient>(
+                       vdim,
+                       [&remnant_flux](const mfem::Vector &x, mfem::Vector &M)
+                       { zAxisMagnetizationSource(remnant_flux, x, M); },
+                       [&diff_stack, &remnant_flux](const mfem::Vector &x,
+                                                    const mfem::Vector &M_bar,
+                                                    mfem::Vector &x_bar)
+                       {
+                          zAxisMagnetizationSourceRevDiff(
+                              diff_stack, remnant_flux, x, M_bar, x_bar);
+                       }));
+            }
+         }
+      }
+   }
+}
+
+// {
+// auto mag_coeff = std::make_unique<VectorMeshDependentCoefficient>();
+
+// if (mag_options.contains("north"))
+// {
+//    auto attrs = mag_options["north"].get<std::vector<int>>();
+//    for (auto &attr : attrs)
+//    {
+//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+//           new VectorFunctionCoefficient(dim,
+//                                         northMagnetizationSource,
+//                                         northMagnetizationSourceRevDiff));
+//       mag_coeff->addCoefficient(attr, move(temp_coeff));
+//    }
+// }
+// if (mag_options.contains("south"))
+// {
+//    auto attrs = mag_options["south"].get<std::vector<int>>();
+
+//    for (auto &attr : attrs)
+//    {
+//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+//           new VectorFunctionCoefficient(dim,
+//                                         southMagnetizationSource,
+//                                         southMagnetizationSourceRevDiff));
+//       mag_coeff->addCoefficient(attr, move(temp_coeff));
+//    }
+// }
+// if (mag_options.contains("cw"))
+// {
+//    auto attrs = mag_options["cw"].get<std::vector<int>>();
+
+//    for (auto &attr : attrs)
+//    {
+//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+//           new VectorFunctionCoefficient(
+//               dim, cwMagnetizationSource, cwMagnetizationSourceRevDiff));
+//       mag_coeff->addCoefficient(attr, move(temp_coeff));
+//    }
+// }
+// if (mag_options.contains("ccw"))
+// {
+//    auto attrs = mag_options["ccw"].get<std::vector<int>>();
+
+//    for (auto &attr : attrs)
+//    {
+//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+//           new VectorFunctionCoefficient(
+//               dim, ccwMagnetizationSource,
+//               ccwMagnetizationSourceRevDiff));
+//       mag_coeff->addCoefficient(attr, move(temp_coeff));
+//    }
+// }
+// if (mag_options.contains("x"))
+// {
+//    auto attrs = mag_options["x"].get<std::vector<int>>();
+//    for (auto &attr : attrs)
+//    {
+//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+//           new VectorFunctionCoefficient(dim,
+//                                         xAxisMagnetizationSource,
+//                                         xAxisMagnetizationSourceRevDiff));
+//       mag_coeff->addCoefficient(attr, move(temp_coeff));
+//    }
+// }
+// if (mag_options.contains("y"))
+// {
+//    auto attrs = mag_options["y"].get<std::vector<int>>();
+//    for (auto &attr : attrs)
+//    {
+//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+//           new VectorFunctionCoefficient(dim,
+//                                         yAxisMagnetizationSource,
+//                                         yAxisMagnetizationSourceRevDiff));
+//       mag_coeff->addCoefficient(attr, move(temp_coeff));
+//    }
+// }
+// if (mag_options.contains("z"))
+// {
+//    auto attrs = mag_options["z"].get<std::vector<int>>();
+//    for (auto &attr : attrs)
+//    {
+//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+//           new VectorFunctionCoefficient(dim,
+//                                         zAxisMagnetizationSource,
+//                                         zAxisMagnetizationSourceRevDiff));
+//       mag_coeff->addCoefficient(attr, move(temp_coeff));
+//    }
+// }
+// }
 
 }  // namespace mach

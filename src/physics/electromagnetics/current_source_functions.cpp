@@ -1,3 +1,7 @@
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "adept.h"
 #include "mfem.hpp"
 
