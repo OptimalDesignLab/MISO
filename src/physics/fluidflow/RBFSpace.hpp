@@ -11,7 +11,7 @@ class RBFSpace : public mfem::FiniteElementSpace
 public:
    /// class constructor
    RBFSpace(mfem::Mesh *m, const mfem::FiniteElementCollection *fec,
-            mfem::Array<Vector*> center, int vdim = 1, int extra = 1,
+            mfem::Array<Vector*> center, double shape, int vdim = 1, int extra = 1,
             int ordering = mfem::Ordering::byVDIM, int degree = 0);
    virtual ~RBFSpace();
 
@@ -26,8 +26,12 @@ public:
                     const mfem::FiniteElement *fe,
                     mfem::Array<mfem::Vector *> &dofs) const;
 
-   // /// Solve and store the local prolongation coefficient
-   // void solveProlongationCoefficient();
+   /// Solve and store the local prolongation coefficient
+   /// \param[in] el_id - the element id
+   /// \param[in] numDofs - degrees of freedom in the element
+   /// \param[in] dof_coord - dofs coordinat location
+   void solveProlongationCoefficient(int el_id, int numDofs,
+                                     mfem::Array<mfem::Vector *> dof_coord);
 
    // /// Assemble the global prolongation matrix
    // void AssembleProlongationMatrix() const;
@@ -47,7 +51,7 @@ protected:
    /// location of the basis centers
    mfem::Array<mfem::Vector *> basisCenter;
    /// the shape parameters
-   // mfem::Array<DenseMatrix> shapeParam;
+   mfem::DenseMatrix shapeParam;
    /// selected basis for each element (currently it is fixed upon setup)
    mfem::Array<mfem::Array<int> *> selectedBasis;
    mfem::Array<mfem::Array<int> *> selectedElement;

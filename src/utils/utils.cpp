@@ -412,6 +412,21 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
    }
 }
 
+double radialBasisKernel(const mfem::Vector &loc,
+                         const mfe::DenseMatrix &shapeParam;
+                         const mfem::Vector &center)
+{
+   // get the difference vector 
+   Vector vec1 = loc;
+   vec1 -= center;
+
+   Vector vec2;
+   shapeParam.Mult(vec1, vec2);
+   double val = vec1 * vec2;
+
+   return exp(-val);
+}
+
 #endif
 
 } // namespace mach

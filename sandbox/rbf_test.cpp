@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
-      RBFSpace rbfspace(smesh.get(),&fec,center,1,extra_basis,Ordering::byVDIM,degree);
+      RBFSpace rbfspace(smesh.get(),&fec,center,1.0,1,extra_basis,Ordering::byVDIM,degree);
 
       for (int k = 0; k < numbasis; k++)
       {

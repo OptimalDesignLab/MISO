@@ -11,7 +11,7 @@ namespace mfem
 {
 
 RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f, 
-                   Array<Vector*> center, int vdim, int e,
+                   Array<Vector*> center, double shape, int vdim, int e,
                    int ordering, int degree)
    : SpaceType(m, f, vdim, ordering), basisCenter(center),
      extra_basis(e)
@@ -33,6 +33,15 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f,
    cout << "req_basis is " << req_basis << '\n';
    InitializeStencil();
 
+   // initialize the shape parameter matrix
+   cout << "Print the shapeParam.\n";
+   shapeParam.SetSize(dim);
+   for (int i = 0; i < dim; i++)
+   {
+      shapeParam(i,i) = shape;
+   }
+   shapeParam.Print(cout,dim);
+
    // initialize the prolongation matrix
    cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
 
@@ -45,6 +54,7 @@ void RBFSpace::InitializeStencil()
    elementCenter.SetSize(GetMesh()->GetNE());
    elementBasisDist.SetSize(GetMesh()->GetNE());
    selectedBasis.SetSize(GetMesh()->GetNE());
+   coef.SetSize(GetMesh()->GetNE());
    selectedElement.SetSize(numBasis);
    Vector diff;
    double dist;
@@ -167,6 +177,59 @@ void RBFSpace::buildDofMat(int el_id, const int num_dofs,
 }
 
 
+void RBFSpace::solveProlongationCoefficient(int el_id, int numDofs,
+                                            Array<Vector *> dof_coord)
+{
+   // some basic inf
+   int numLocalBasis = selectedBasis[el_id]->Size();
+   // declare the basis matrix
+   DenseMatrix W(numLocalBasis);
+   DenseMatrix V(numLocalBasis,polyOrder+1);
+   DenseMatrix Wn(numDofs, numLocalBasis);
+   DenseMatrix Vn(numDofs, polyOrder+1);
+
+   int i,j;
+   int b_id, bb_id;
+   Vector b_center, bb_center;
+
+   // RBF matrix section
+   for (i = 0; i < numLocalBasis; i++)
+   {
+      b_id = (*selectedBasis[el_id])[i];
+      b_center = *basisCenter[b_id];
+
+      // evalute the basis matrix
+      for (j = 0; j < numLocalBasis; j++)
+      {
+         bb_id = (*selecedBasis[el_id])[j];
+         bb_center = *basisCenter[bb_id];
+         W(j,i) = radialBasisKernel(bb_center,shapeParam,b_center);
+      }
+
+      // evaluate the dofs matrix
+      for (j = 0; j < numDofs; j++)
+      {
+         Wn(j,i) = radialBasisKernel(dof_coord[j],shapeParam,b_center);
+      }
+   }
+
+   // Form the polynomial matrice
+   Vector center_diff, dof_diff;
+   Vector el_center = elementCenter[el_id];
+   for (i = 0;  < polyOrder+1; i++)
+   {
+      for (j = 0; j < numLocalBasis; j++)
+      {
+
+      }
+
+      for (j = 0; j < numDofs; j++)
+      {
+
+      }
+   }
+}
+
 RBFSpace::~RBFSpace()
 {
    for (int k = 0; k < GetMesh()->GetNE(); k++)
@@ -174,6 +237,7 @@ RBFSpace::~RBFSpace()
       delete selectedBasis[k];
       delete elementCenter[k];
       delete elementBasisDist[k];
+      delete coef[k];
    }
 
    for (int k = 0; k < numBasis; k++)
