@@ -176,4 +176,50 @@ double JacobianFree::getStepSize(const mfem::Vector &baseline,
    }
 }
 
+void JacobianFree::print(string file_name) const
+{
+   remove(file_name.c_str());
+   ofstream matrix_file(file_name, fstream::app);
+   matrix_file << setprecision(16);
+
+   Vector y(state.Size());
+   Vector work(state.Size());
+   double eps_fd = getStepSize(state, state);
+   cout << "eps_fd " << eps_fd << endl;
+   for (int j = 0; j < width; ++j)
+   {
+      // perturb state in jth variable 
+      state_pert = state;
+      state_pert(j) += eps_fd;
+      auto inputs = MachInputs({{"state", state_pert}});
+      evaluate(res, inputs, y);
+      // subtract the baseline residual and divide by eps_fd to get product
+      subtract(1 / eps_fd, y, res_at_state, y);
+      if (fabs(scale - 1.0) > zero)
+      {
+         y *= scale;
+      }
+      if (explicit_part)
+      {
+         state_pert = 0.0;
+         state_pert(j) = 1.0;
+         explicit_part->Mult(state_pert, work);
+         y += work;
+      }
+      for (int i = 0; i < height; ++i)
+      {
+         matrix_file << y(i);
+         if (i != height-1)
+         {
+            matrix_file << ", ";
+         }
+         else
+         {
+            matrix_file << endl;
+         }
+      }
+   }
+   matrix_file.close();
+}
+
 }  // namespace mach

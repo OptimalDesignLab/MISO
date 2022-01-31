@@ -138,6 +138,9 @@ void BlockJacobiPreconditioner::SetOperator(const Operator &input_op)
    auto jacfree_op = dynamic_cast<const JacobianFree *>(&input_op);
    if (jacfree_op != nullptr)
    {
+      //jacfree_op->print("jac-free-matrix.dat");
+      //throw(-1);
+
       // input op is a JacobianFree operator
       for (int i = 0; i < nBlocks; ++i)
       {
@@ -295,7 +298,10 @@ std::unique_ptr<mfem::Solver> constructLinearSolver(
       fgmres->SetRelTol(reltol);
       fgmres->SetAbsTol(abstol);
       fgmres->SetMaxIter(maxiter);
-      fgmres->SetPrintLevel(ptl);
+      if (ptl > 0)
+      {
+         fgmres->SetPrintLevel(IterativeSolver::PrintLevel().Iterations());
+      }
       if (kdim != -1)
       {
          fgmres->SetKDim(kdim);  // set FGMRES subspace size

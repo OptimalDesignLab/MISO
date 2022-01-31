@@ -79,7 +79,7 @@ public:
    friend mfem::Operator *getMassMatrix(ControlResidual &residual,
                                         const nlohmann::json &mass_options)
    {
-      return &(residual.mass_mat);
+      return residual.mass_mat.get();
    }
 
    /// Return a preconditioner for the control state Jacobian
@@ -91,7 +91,7 @@ public:
    friend mfem::Solver *getPreconditioner(ControlResidual &residual,
                                           const nlohmann::json &prec_options)
    {
-      return &(residual.prec);
+      return residual.prec.get();
    }
 
    /// Constructor
@@ -103,10 +103,15 @@ public:
       time(0.0),
       x(num_var),
       work(num_var),
-      mass_mat(num_var),
-      Jac(num_var),
       prec()
-   { }
+   { 
+      mass_mat = std::make_unique<mfem::DenseMatrix>(num_var);
+      (*mass_mat) = 0.0;
+      (*mass_mat)(0,0) = 1.0;
+      (*mass_mat)(1,1) = 1.0;
+      Jac = std::make_unique<mfem::DenseMatrix>(num_var);
+      prec = std::make_unique<mfem::DenseMatrixInverse>();
+   }
 
 private:
    /// number of control ODE variables/equations
@@ -121,12 +126,13 @@ private:
    mfem::Vector x;
    /// generic work vector
    mfem::Vector work;
-   /// Mass matrix for the ODE (the identity)
-   mfem::IdentityOperator mass_mat;
+   /// Mass matrix for the ODE (cannot use IdentityOperator
+   /// \note cannote use the identity matrix because we need to add this to Jac
+   std::unique_ptr<mfem::DenseMatrix> mass_mat;
    /// Jacobian of the ODE right-hand side
-   mfem::DenseMatrix Jac;
+   std::unique_ptr<mfem::DenseMatrix> Jac;
    /// Preconditioner for the ODE Jacobian
-   mfem::DenseMatrixInverse prec;
+   std::unique_ptr<mfem::DenseMatrixInverse> prec;
 };
 
 /// Class for flow-control equations that follows the MachResidual API
@@ -293,10 +299,14 @@ private:
    std::unique_ptr<BlockJacobiPreconditioner> prec;
    /// The Jacobian-free operator
    // JacobianFree jac;
+   /// Reference to control state-sized array; memory not owned
+   mfem::Vector control_ref;
+   /// Reference to flow state-sized array; memory not owned
+   mfem::Vector flow_ref;
    /// Work vector for the control state
-   mfem::Vector control_work;
+   //mfem::Vector control_work;
    /// Work vector for the flow state
-   mfem::Vector flow_work;
+   //mfem::Vector flow_work;
 
    // These could be public
    int num_control() const { return getSize(control_res); }

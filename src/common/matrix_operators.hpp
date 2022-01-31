@@ -241,6 +241,10 @@ public:
    /// exception will be thrown by MachResidual.
    mfem::Operator &getDiagonalBlock(int i) const;
 
+   /// Write a file with the explicit matrix entries
+   /// \param[in] file_name - file name to open and write to
+   void print(std::string file_name) const;
+
 private:
    static constexpr double zero = 1e-16;
    /// MPI communicator for vector dot products

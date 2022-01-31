@@ -82,7 +82,6 @@ public:
       }
       else if (block_mass != nullptr)
       {
-         std::cout << "row_offsets = " << block_mass->RowOffsets()[0] << ", " << block_mass->RowOffsets()[1] << ", " << block_mass->RowOffsets()[2] << std::endl;
          jac_ = std::make_unique<JacobianFree>(spatial_res_, *mass_matrix_);
       }
    }

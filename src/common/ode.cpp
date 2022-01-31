@@ -138,6 +138,8 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
       // Using a Jacobian-free implementation
       jac_free->setScaling(dt);
       jac_free->setState(input);
+      //jac_free->print("jac-free-matrix.dat");
+      //throw(-1);
    }
    else
    {

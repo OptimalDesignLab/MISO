@@ -139,10 +139,6 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
        std::make_unique<mach::MachResidual>(FlowControlResidual<dim, entvar>(
            options, fes(), diff_stack, *out));
    auto *mass_matrix = getMassMatrix(*spatial_res, options);
-   
-   auto *block_mass = dynamic_cast<mfem::BlockOperator *>(mass_matrix);
-   std::cout << "row_offsets = " << block_mass->RowOffsets()[0] << ", " << block_mass->RowOffsets()[1] << ", " << block_mass->RowOffsets()[2] << std::endl;
-
    space_time_res = std::make_unique<mach::MachResidual>(
        mach::TimeDependentResidual(*spatial_res, mass_matrix));
 

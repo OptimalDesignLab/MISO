@@ -66,10 +66,10 @@ Operator &getJacobian(ControlResidual &residual,
                       std::string wrt)
 {
    setInputs(residual, inputs);
-   residual.Jac = 0.0;
-   residual.Jac(0, 1) = -1.0;
-   residual.Jac(1, 0) = 1.0;
-   return residual.Jac;
+   (*residual.Jac) = 0.0;
+   (*residual.Jac)(0, 1) = -1.0;
+   (*residual.Jac)(1, 0) = 1.0;
+   return *residual.Jac;
 }
 
 double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
@@ -150,9 +150,9 @@ void FlowControlResidual<dim, entvar>::setInputs_(const MachInputs &inputs)
    auto flow_inputs = MachInputs(inputs);
    if (inputs.find("state") != inputs.end())
    {
-      extractStates(inputs, control_work, flow_work);
-      control_inputs.at("state") = control_work;
-      flow_inputs.at("state") = flow_work;
+      extractStates(inputs, control_ref, flow_ref);
+      control_inputs.at("state") = control_ref;
+      flow_inputs.at("state") = flow_ref;
    }
    setInputs(control_res, control_inputs);
    setInputs(flow_res, flow_inputs);
@@ -174,9 +174,9 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
    // extractStatesFromInputs(inputs, control_state, flow_state);
    // control_state and flow_state should have been defined by setInputs_
    auto flow_inputs =
-       MachInputs({{"state", flow_work}});  // ,{"time", time}});
+       MachInputs({{"state", flow_ref}});  // ,{"time", time}});
    auto control_inputs =
-       MachInputs({{"state", control_work}});  //, {"time", time}});
+       MachInputs({{"state", control_ref}});  //, {"time", time}});
    evaluate(flow_res, flow_inputs, flow_res_vec);
    evaluate(control_res, control_inputs, control_res_vec);
 
@@ -241,11 +241,9 @@ template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
 {
    // extract flow and control states to compute entropy
-   extractStates(inputs, control_work, flow_work);
-   double time = std::get<double>(inputs.at("time"));
-
-   auto flow_inputs = MachInputs({{"state", flow_work}, {"time", time}});
-   auto control_inputs = MachInputs({{"state", control_work}, {"time", time}});
+   extractStates(inputs, control_ref, flow_ref);
+   auto flow_inputs = MachInputs({{"state", flow_ref}});
+   auto control_inputs = MachInputs({{"state", control_ref}});
    return calcEntropy(flow_res, flow_inputs) +
           calcEntropy(control_res, control_inputs);
 }
@@ -254,19 +252,31 @@ template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::calcEntropyChange_(
     const MachInputs &inputs)
 {
-   // Vector x;
-   // setVectorFromInputs(inputs, "state", x, false, true);
-   // Vector dxdt;
-   // setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
-   // double dt = NAN;
-   // double time = NAN;
-   // setValueFromInputs(inputs, "time", time, true);
-   // setValueFromInputs(inputs, "dt", dt, true);
-   // auto &y = work;
-   // add(x, dt, dxdt, y);
-   // auto form_inputs = MachInputs({{"state", y}, {"time", time + dt}});
-   // return calcFormOutput(res, form_inputs);
-   return 0.0;
+   // extract flow and control states to compute entropy
+   Vector state;
+   setVectorFromInputs(inputs, "state", state, false, true);
+   extractStates(state, control_ref, flow_ref);
+   // extract time derivative of states
+   Vector dxdt, control_dxdt, flow_dxdt;
+   setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
+   extractStates(dxdt, control_dxdt, flow_dxdt);
+   // extract time and time-step size
+   double time = NAN;
+   double dt = NAN;
+   setValueFromInputs(inputs, "time", time, true);
+   setValueFromInputs(inputs, "dt", dt, true);
+
+   // set inputs for flow and control residuals and evaluate change
+   auto flow_inputs = MachInputs({{"state", flow_ref},
+                                  {"state_dot", flow_dxdt},
+                                  {"time", time},
+                                  {"dt", dt}});
+   auto control_inputs = MachInputs({{"state", control_ref},
+                                     {"state_dot", control_dxdt},
+                                     {"time", time},
+                                     {"dt", dt}});
+   return calcEntropyChange(flow_res, flow_inputs) +
+          calcEntropyChange(control_res, control_inputs);
 }
 
 template <int dim, bool entvar>
@@ -277,12 +287,12 @@ mfem::Operator &FlowControlResidual<dim, entvar>::getJacobianBlock_(
    setInputs_(inputs);
    if (i == 0)
    {
-      auto control_inputs = MachInputs({{"state", control_work}});
+      auto control_inputs = MachInputs({{"state", control_ref}});
       return getJacobian(control_res, control_inputs, "state");
    }
    else if (i == 1)
    {
-      auto flow_inputs = MachInputs({{"state", flow_work}});
+      auto flow_inputs = MachInputs({{"state", flow_ref}});
       return getJacobian(flow_res, flow_inputs, "state");
    }
    else
