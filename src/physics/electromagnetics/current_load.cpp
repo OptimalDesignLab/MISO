@@ -18,21 +18,7 @@ namespace mach
 void setInputs(CurrentLoad &load, const MachInputs &inputs)
 {
    setInputs(load.div_free_proj, inputs);
-
-   auto it = inputs.find("current_density");
-   if (it != inputs.end())
-   {
-      setValueFromInput(it->second, load.current_density);
-      // load.current_density = it->second.getValue();
-      load.current.SetAConst(load.current_density);
-      load.dirty = true;
-   }
-
-   it = inputs.find("mesh_coords");
-   if (it != inputs.end())
-   {
-      load.dirty = true;
-   }
+   setInputs(load.current, inputs);
 }
 
 void setOptions(CurrentLoad &load, const nlohmann::json &options)
@@ -48,11 +34,7 @@ void setOptions(CurrentLoad &load, const nlohmann::json &options)
 
 void addLoad(CurrentLoad &load, Vector &tv)
 {
-   if (load.dirty)
-   {
-      load.assembleLoad();
-      load.dirty = false;
-   }
+   load.assembleLoad();
    load.load.SetSubVector(load.ess_tdof_list, 0.0);
    subtract(tv, load.load, tv);
 }
@@ -63,13 +45,14 @@ double vectorJacobianProduct(CurrentLoad &load,
 {
    if (wrt == "current_density")
    {
-      load.current.SetAConst(1.0);
-      load.nd_mass.Update();
-      load.assembleLoad();
-      load.current.SetAConst(load.current_density);
-      load.dirty = true;
+      // load.current.SetAConst(1.0);
+      // load.nd_mass.Update();
+      // load.assembleLoad();
+      // load.current.SetAConst(load.current_density);
+      // load.dirty = true;
 
-      return -(load.load * load_bar);
+      // return -(load.load * load_bar);
+      return NAN;
    }
    return 0.0;
 }
@@ -81,11 +64,7 @@ void vectorJacobianProduct(CurrentLoad &load,
 {
    if (wrt == "mesh_coords")
    {
-      if (load.dirty)
-      {
-         load.assembleLoad();
-         load.dirty = false;
-      }
+      // load.assembleLoad();
       /// begin reverse pass
       ParGridFunction psi_l(&load.fes);
       psi_l = load_bar;
@@ -150,12 +129,12 @@ void vectorJacobianProduct(CurrentLoad &load,
    }
 }
 
-CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
-                         const nlohmann::json &options,
-                         VectorCoefficient &current_coeff)
- : current_density(1.0),
-   current(1.0, current_coeff),
-   fes(pfes),
+CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
+                         mfem::ParFiniteElementSpace &fes,
+                         std::map<std::string, FintieElementState> &fields,
+                         const nlohmann::json &options)
+ : current(diff_stack, options["current"]),
+   fes(fes),
    h1_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    h1_fes(fes.GetParMesh(), &h1_coll),
    rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
@@ -172,8 +151,7 @@ CurrentLoad::CurrentLoad(ParFiniteElementSpace &pfes,
                      2 * fes.GetFE(0)->GetOrder()),
    m_j_mesh_sens(new VectorFEMassIntegratorMeshSens),
    J_mesh_sens(new VectorFEDomainLFIntegratorMeshSens(current, -1.0)),
-   m_l_mesh_sens(new VectorFEMassIntegratorMeshSens),
-   dirty(true)
+   m_l_mesh_sens(new VectorFEMassIntegratorMeshSens)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);

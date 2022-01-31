@@ -6,16 +6,20 @@
 #include "mfem_common_integ.hpp"
 #include "magnetic_load.hpp"
 
-using namespace mfem;
-
 namespace mach
 {
-MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
-                           VectorCoefficient &mag_coeff,
-                           Coefficient &nu)
- : lf(pfes, mag_load_fields), nuM(nu, mag_coeff)
+MagneticLoad::MagneticLoad(adept::Stack &diff_stack,
+                           mfem::ParFiniteElementSpace &fes,
+                           std::map<std::string, FintieElementState> &fields,
+                           const nlohmann::json &options,
+                           const nlohmann::json &materials,
+                           mfem::Coefficient &nu)
+ : lf(pfes, mag_load_fields),
+   mag_coeff(diff_stack, options["magnets"], materials),
+   nuM(nu, mag_coeff)
 {
-   auto &mesh_gf = dynamic_cast<ParGridFunction &>(*pfes.GetMesh()->GetNodes());
+   auto &mesh_gf =
+       dynamic_cast<mfem::ParGridFunction &>(*pfes.GetMesh()->GetNodes());
    auto *mesh_fes = mesh_gf.ParFESpace();
    mag_load_fields.emplace(std::piecewise_construct,
                            std::make_tuple("mesh_coords"),
@@ -63,9 +67,9 @@ void vectorJacobianProduct(LegacyMagneticLoad &load,
        "vectorJacobianProduct not implemented for LegacyMagneticLoad!\n");
 }
 
-LegacyMagneticLoad::LegacyMagneticLoad(ParFiniteElementSpace &pfes,
-                                       VectorCoefficient &mag_coeff,
-                                       Coefficient &nu)
+LegacyMagneticLoad::LegacyMagneticLoad(mfem::ParFiniteElementSpace &pfes,
+                                       mfem::VectorCoefficient &mag_coeff,
+                                       mfem::Coefficient &nu)
  : fes(pfes),
    rt_coll(fes.GetFE(0)->GetOrder(), fes.GetMesh()->Dimension()),
    rt_fes(fes.GetParMesh(), &rt_coll),

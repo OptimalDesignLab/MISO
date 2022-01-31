@@ -15,7 +15,7 @@ namespace mach
 class MagnetizationCoefficient : public mfem::VectorCoefficient
 {
 public:
-   friend void setInputs(MagnetizationCoefficient &current,
+   friend void setInputs(MagnetizationCoefficient &mag_coeff,
                          const MachInputs &inputs)
    { }
 

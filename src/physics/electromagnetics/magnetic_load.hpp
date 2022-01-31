@@ -7,6 +7,7 @@
 #include "coefficient.hpp"
 #include "mach_input.hpp"
 #include "mach_linearform.hpp"
+#include "magnetic_source_functions.hpp"
 
 namespace mach
 {
@@ -45,13 +46,18 @@ public:
       vectorJacobianProduct(load.lf, load_bar, wrt, wrt_bar);
    }
 
-   MagneticLoad(mfem::ParFiniteElementSpace &pfes,
-                mfem::VectorCoefficient &mag_coeff,
+   MagneticLoad(adept::Stack &diff_stack,
+                mfem::ParFiniteElementSpace &fes,
+                std::map<std::string, FintieElementState> &fields,
+                const nlohmann::json &options,
+                const nlohmann::json &materials,
                 mfem::Coefficient &nu);
 
 private:
    std::unordered_map<std::string, mfem::ParGridFunction> mag_load_fields;
    MachLinearForm lf;
+   /// Coefficient to represent magnetization
+   MagnetizationCoefficient mag_coeff;
    mfem::ScalarVectorProductCoefficient nuM;
 };
 

@@ -4,6 +4,7 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "current_source_functions.hpp"
 #include "div_free_projector.hpp"
 #include "mach_input.hpp"
 
@@ -34,14 +35,14 @@ public:
                                      const std::string &wrt,
                                      mfem::Vector &wrt_bar);
 
-   CurrentLoad(mfem::ParFiniteElementSpace &pfes,
-               const nlohmann::json &options,
-               mfem::VectorCoefficient &current_coeff);
+   CurrentLoad(adept::Stack &diff_stack,
+               mfem::ParFiniteElementSpace &fes,
+               std::map<std::string, FintieElementState> &fields,
+               const nlohmann::json &options);
 
 private:
-   double current_density;
-   /// Coefficient to represent current_density*current_coeff
-   mfem::ScalarVectorProductCoefficient current;
+   /// Coefficient to represent current density
+   CurrentDensityCoefficient current;
    /// Finite element spaces and collections needed for divergence cleaning
    mfem::ParFiniteElementSpace &fes;
    mfem::H1_FECollection h1_coll;
@@ -66,9 +67,6 @@ private:
 
    /// essential tdofs
    mfem::Array<int> ess_tdof_list;
-
-   /// flag to know if the load vector should be reassembled
-   bool dirty;
 
    /// Assemble the divergence free load vector
    void assembleLoad();
