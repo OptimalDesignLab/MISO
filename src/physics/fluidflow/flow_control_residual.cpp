@@ -98,23 +98,24 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
     adept::Stack &diff_stack,
     std::ostream &outstream)
  : out(outstream),
-   offsets(3),
    flow_res(options, pfes, diff_stack),
    control_res(options) //, jac(*this, pfes.GetComm())
 {
-   // offsets mark the start of each row/column block
-   offsets[0] = 0;
-   offsets[1] = num_control();
-   offsets[2] = offsets[1] + num_flow();
+   // offsets mark the start of each row/column block; note that offsets must
+   // be a unique pointer because move semantics are not set up for mfem::Array
+   offsets = make_unique<Array<int>>(3);
+   (*offsets)[0] = 0;
+   (*offsets)[1] = num_control();
+   (*offsets)[2] = (*offsets)[1] + num_flow();
    // create the mass operator
-   mass_mat = make_unique<BlockOperator>(offsets);
+   mass_mat = make_unique<BlockOperator>(*offsets);
    auto control_mass = getMassMatrix(control_res, options);
    auto flow_mass = getMassMatrix(flow_res, options);
    mass_mat->SetDiagonalBlock(0, control_mass);
    mass_mat->SetDiagonalBlock(1, flow_mass);
    // create the preconditioner
    auto prec_opts = options["lin-prec"];
-   prec = make_unique<BlockJacobiPreconditioner>(offsets);
+   prec = make_unique<BlockJacobiPreconditioner>(*offsets);
    auto control_prec = getPreconditioner(control_res, prec_opts);
    auto flow_prec = getPreconditioner(flow_res, prec_opts);
    prec->SetDiagonalBlock(0, control_prec);

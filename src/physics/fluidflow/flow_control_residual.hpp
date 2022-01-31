@@ -281,8 +281,8 @@ public:
 private:
    /// print object
    std::ostream &out;
-   /// Offsets to mark the start of each row/column block
-   mfem::Array<int> offsets;
+   /// Offsets to mark the start of each row/column block; must be unique_ptr
+   std::unique_ptr<mfem::Array<int>> offsets;
    /// Defines the CFD discretization of the problem
    FlowResidual<dim, entvar> flow_res;
    /// Defines the control problem

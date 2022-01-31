@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 
       // get the initial entropy 
       solver.createOutput("entropy", options["outputs"].at("entropy"));
-      MachInputs inputs({{"state", state_tv}});
+      MachInputs inputs({{"state", state_tv}, {"time", 0.0}});
       double entropy0 = solver.calcOutput("entropy", inputs);
       cout << "initial entropy = " << entropy0 << endl;
 
