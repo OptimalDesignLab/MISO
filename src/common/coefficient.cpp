@@ -130,6 +130,47 @@ double MeshDependentCoefficient::EvalStateDeriv(ElementTransformation &trans,
    return value;
 }
 
+double MeshDependentCoefficient::EvalState2ndDeriv(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<StateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->EvalState2ndDeriv(trans, ip, state);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<StateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->EvalState2ndDeriv(trans, ip, state);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
 void MeshDependentCoefficient::EvalRevDiff(const double Q_bar,
                                            ElementTransformation &trans,
                                            const IntegrationPoint &ip,
@@ -151,8 +192,9 @@ void MeshDependentCoefficient::EvalRevDiff(const double Q_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
-ReluctivityCoefficient::ReluctivityCoefficient(const std::vector<double> &B,
-                                               const std::vector<double> &H)
+NonlinearReluctivityCoefficient::NonlinearReluctivityCoefficient(
+    const std::vector<double> &B,
+    const std::vector<double> &H)
  // : b_max(B[B.size()-1]), nu(H.size(), 1, 3)
  : b_max(B[B.size() - 1]), h_max(H[H.size() - 1]), bh(H.size(), 1, 3)
 {
@@ -168,9 +210,9 @@ ReluctivityCoefficient::ReluctivityCoefficient(const std::vector<double> &B,
    // dnudb = nu.derive();
 }
 
-double ReluctivityCoefficient::Eval(ElementTransformation &trans,
-                                    const IntegrationPoint &ip,
-                                    const double state)
+double NonlinearReluctivityCoefficient::Eval(ElementTransformation &trans,
+                                             const IntegrationPoint &ip,
+                                             const double state)
 {
    constexpr double nu0 = 1 / (4e-7 * M_PI);
    // std::cout << "eval state state: " << state << "\n";
@@ -193,9 +235,10 @@ double ReluctivityCoefficient::Eval(ElementTransformation &trans,
    }
 }
 
-double ReluctivityCoefficient::EvalStateDeriv(ElementTransformation &trans,
-                                              const IntegrationPoint &ip,
-                                              const double state)
+double NonlinearReluctivityCoefficient::EvalStateDeriv(
+    ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    const double state)
 {
    constexpr double nu0 = 1 / (4e-7 * M_PI);
 

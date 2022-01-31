@@ -146,6 +146,10 @@ public:
                          const mfem::IntegrationPoint &ip,
                          double state) override;
 
+   double EvalState2ndDeriv(mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            const double state) override;
+
    /// \brief Search the map of coefficients and evaluate the one whose key is
    ///        the same as the element's `Attribute` at the point defined by
    ///        `ip`.
@@ -354,15 +358,15 @@ private:
    std::map<const int, std::unique_ptr<mfem::Coefficient>> material_map;
 };
 
-class ReluctivityCoefficient : public StateCoefficient
+class NonlinearReluctivityCoefficient : public StateCoefficient
 {
 public:
    /// \brief Define a reluctivity model from a B-Spline fit with linear
    /// extrapolation at the far end
    /// \param[in] B - magnetic flux density values from B-H curve
    /// \param[in] H - magnetic field intensity valyes from B-H curve
-   ReluctivityCoefficient(const std::vector<double> &B,
-                          const std::vector<double> &H);
+   NonlinearReluctivityCoefficient(const std::vector<double> &B,
+                                   const std::vector<double> &H);
 
    /// \brief Evaluate the reluctivity in the element described by trans at the
    /// point ip.

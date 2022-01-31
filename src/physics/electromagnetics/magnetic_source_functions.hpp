@@ -16,7 +16,8 @@ class MagnetizationCoefficient : public mfem::VectorCoefficient
 {
 public:
    friend void setInputs(MagnetizationCoefficient &current,
-                         const MachInputs &inputs);
+                         const MachInputs &inputs)
+   { }
 
    void Eval(mfem::Vector &V,
              mfem::ElementTransformation &trans,

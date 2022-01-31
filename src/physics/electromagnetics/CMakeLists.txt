@@ -16,6 +16,8 @@ target_sources(mach
       magnetostatic_residual.hpp
       magnetostatic.cpp
       magnetostatic.hpp
+      reluctivity_coefficient.cpp
+      reluctivity_coefficient.hpp
 )
 
 target_include_directories(mach

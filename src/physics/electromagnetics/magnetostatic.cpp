@@ -51,7 +51,8 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
       // {
       auto b = materials[material]["B"].get<std::vector<double>>();
       auto h = materials[material]["H"].get<std::vector<double>>();
-      nonlin_coeff = std::make_unique<mach::ReluctivityCoefficient>(b, h);
+      nonlin_coeff =
+          std::make_unique<mach::NonlinearReluctivityCoefficient>(b, h);
       // }
 
       temp_coeff = std::make_unique<mach::ParameterContinuationCoefficient>(
