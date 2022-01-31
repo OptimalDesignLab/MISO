@@ -15,6 +15,41 @@
 #include "magnetic_load.hpp"
 #include "solver.hpp"
 
+namespace mach
+{
+class MagnetostaticLoad final
+{
+public:
+   friend void setInputs(MagnetostaticLoad &load, const MachInputs &inputs);
+
+   friend void setOptions(MagnetostaticLoad &load,
+                          const nlohmann::json &options);
+
+   friend void addLoad(MagnetostaticLoad &load, mfem::Vector &tv);
+
+   friend double vectorJacobianProduct(MagnetostaticLoad &load,
+                                       const mfem::Vector &res_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(MagnetostaticLoad &load,
+                                     const mfem::Vector &res_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
+   MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes,
+                     mfem::VectorCoefficient &current_coeff,
+                     mfem::VectorCoefficient &mag_coeff,
+                     mfem::Coefficient &nu)
+    : current_load(pfes, options, current_coeff),
+      magnetic_load(pfes, mag_coeff, nu)
+   { }
+
+private:
+   nlohmann::json options;
+   CurrentLoad current_load;
+   MagneticLoad magnetic_load;
+};
+
 /// Solver for magnetostatic electromagnetic problems
 /// dim - number of spatial dimensions (only 3 supported)
 class MagnetostaticSolver : public AbstractSolver

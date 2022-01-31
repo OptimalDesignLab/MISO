@@ -1,9 +1,12 @@
+#include "adept.h"
 #include "mfem.hpp"
 
 #include "current_source_functions.hpp"
 
 namespace
 {
+using adept::adouble;
+
 template <typename xdouble = double>
 void cw_stator_current(int n_slots,
                        double stack_length,
@@ -270,13 +273,14 @@ void cwStatorCurrentSource(int n_slots,
    cw_stator_current(n_slots, stack_length, x.GetData(), J.GetData());
 }
 
-void cwStatorCurrentSourceRevDiff(int n_slots,
+void cwStatorCurrentSourceRevDiff(adept::Stack &diff_stack,
+                                  int n_slots,
                                   double stack_length,
                                   const mfem::Vector &x,
                                   const mfem::Vector &V_bar,
                                   mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -307,13 +311,14 @@ void ccwStatorCurrentSource(int n_slots,
    ccw_stator_current(n_slots, stack_length, x.GetData(), J.GetData());
 }
 
-void ccwStatorCurrentSourceRevDiff(int n_slots,
+void ccwStatorCurrentSourceRevDiff(adept::Stack &diff_stack,
+                                   int n_slots,
                                    double stack_length,
                                    const mfem::Vector &x,
                                    const mfem::Vector &V_bar,
                                    mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -336,11 +341,12 @@ void xAxisCurrentSource(const mfem::Vector &x, mfem::Vector &J)
    x_axis_current(x.GetData(), J.GetData());
 }
 
-void xAxisCurrentSourceRevDiff(const mfem::Vector &x,
+void xAxisCurrentSourceRevDiff(adept::Stack &diff_stack,
+                               const mfem::Vector &x,
                                const mfem::Vector &V_bar,
                                mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -363,11 +369,12 @@ void yAxisCurrentSource(const mfem::Vector &x, mfem::Vector &J)
    y_axis_current(x.GetData(), J.GetData());
 }
 
-void yAxisCurrentSourceRevDiff(const mfem::Vector &x,
+void yAxisCurrentSourceRevDiff(adept::Stack &diff_stack,
+                               const mfem::Vector &x,
                                const mfem::Vector &V_bar,
                                mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -390,11 +397,12 @@ void zAxisCurrentSource(const mfem::Vector &x, mfem::Vector &J)
    z_axis_current(x.GetData(), J.GetData());
 }
 
-void zAxisCurrentSourceRevDiff(const mfem::Vector &x,
+void zAxisCurrentSourceRevDiff(adept::Stack &diff_stack,
+                               const mfem::Vector &x,
                                const mfem::Vector &V_bar,
                                mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -417,11 +425,12 @@ void nzAxisCurrentSource(const mfem::Vector &x, mfem::Vector &J)
    z_axis_current<double, -1>(x.GetData(), J.GetData());
 }
 
-void nzAxisCurrentSourceRevDiff(const mfem::Vector &x,
+void nzAxisCurrentSourceRevDiff(adept::Stack &diff_stack,
+                                const mfem::Vector &x,
                                 const mfem::Vector &V_bar,
                                 mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -444,11 +453,12 @@ void ringCurrentSource(const mfem::Vector &x, mfem::Vector &J)
    ring_current(x.GetData(), J.GetData());
 }
 
-void ringCurrentSourceRevDiff(const mfem::Vector &x,
+void ringCurrentSourceRevDiff(adept::Stack &diff_stack,
+                              const mfem::Vector &x,
                               const mfem::Vector &V_bar,
                               mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -471,11 +481,12 @@ void box1CurrentSource(const mfem::Vector &x, mfem::Vector &J)
    box1_current(x.GetData(), J.GetData());
 }
 
-void box1CurrentSourceRevDiff(const mfem::Vector &x,
+void box1CurrentSourceRevDiff(adept::Stack &diff_stack,
+                              const mfem::Vector &x,
                               const mfem::Vector &V_bar,
                               mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -498,11 +509,12 @@ void box2CurrentSource(const mfem::Vector &x, mfem::Vector &J)
    box2_current(x.GetData(), J.GetData());
 }
 
-void box2CurrentSourceRevDiff(const mfem::Vector &x,
+void box2CurrentSourceRevDiff(adept::Stack &diff_stack,
+                              const mfem::Vector &x,
                               const mfem::Vector &V_bar,
                               mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -525,11 +537,12 @@ void team13CurrentSource(const mfem::Vector &x, mfem::Vector &J)
    team13_current(x.GetData(), J.GetData());
 }
 
-void team13CurrentSourceRevDiff(const mfem::Vector &x,
+void team13CurrentSourceRevDiff(adept::Stack &diff_stack,
+                                const mfem::Vector &x,
                                 const mfem::Vector &V_bar,
                                 mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -551,132 +564,178 @@ void team13CurrentSourceRevDiff(const mfem::Vector &x,
 
 namespace mach
 {
-std::unique_ptr<mfem::VectorCoefficient> constructCurrent(
-    const nlohmann::json &current_options)
+CurrentDensityCoefficient::CurrentDensityCoefficient(
+    adept::Stack &diff_stack,
+    const nlohmann::json &current_options,
+    int vdim)
+ : mfem::VectorCoefficient(vdim), current_coeff(vdim)
 {
-   auto current_coeff = std::make_unique<VectorMeshDependentCoefficient>();
+   for (auto &[group, group_details] : current_options.items())
+   {
+      group_map.emplace(group, mfem::ConstantCoefficient{1.0});
+      auto &group_coeff = group_map.at(group);
 
-   if (current_options.contains("Phase-A"))
-   {
-      auto attrs = current_options["Phase-A"].get<std::vector<int>>();
-      for (auto &attr : attrs)
+      for (auto &[source, attrs] : group_details.items())
       {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, phaseACurrentSource, phaseACurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
+         if (source == "cwStator")
+         {
+            cached_inputs.emplace("n_slots", 24.0);
+            auto n_slots = cached_inputs.at("n_slots");
+            cached_inputs.emplace("stack_length", 0.345);
+            auto stack_length = cached_inputs.at("stack_length");
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::VectorFunctionCoefficient(
+                       vdim,
+                       [&n_slots, &stack_length](const mfem::Vector &x,
+                                                 mfem::Vector &J)
+                       { cwStatorCurrentSource(n_slots, stack_length, x, J); },
+                       [&diff_stack, &n_slots, &stack_length](
+                           const mfem::Vector &x,
+                           const mfem::Vector &J_bar,
+                           mfem::Vector &x_bar)
+                       {
+                          cwStatorCurrentSourceRevDiff(diff_stack,
+                                                       n_slots,
+                                                       stack_length,
+                                                       x,
+                                                       J_bar,
+                                                       x_bar);
+                       }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ScalarVectorProductCoefficient>(
+                       group_coeff, source_coeff));
+            }
+         }
       }
    }
-   if (current_options.contains("Phase-B"))
-   {
-      auto attrs = current_options["Phase-B"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, phaseBCurrentSource, phaseBCurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("Phase-C"))
-   {
-      auto attrs = current_options["Phase-C"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, phaseCCurrentSource, phaseCCurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("x"))
-   {
-      auto attrs = current_options["x"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, xAxisCurrentSource, xAxisCurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("y"))
-   {
-      auto attrs = current_options["y"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, yAxisCurrentSource, yAxisCurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("z"))
-   {
-      auto attrs = current_options["z"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, zAxisCurrentSource, zAxisCurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("-z"))
-   {
-      auto attrs = current_options["-z"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, nzAxisCurrentSource, nzAxisCurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("ring"))
-   {
-      auto attrs = current_options["ring"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, ringCurrentSource, ringCurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("box1"))
-   {
-      auto attrs = current_options["box1"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, box1CurrentSource, box1CurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("box2"))
-   {
-      auto attrs = current_options["box2"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, box2CurrentSource, box2CurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (current_options.contains("team13"))
-   {
-      auto attrs = current_options["team13"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, team13CurrentSource, team13CurrentSourceRevDiff));
-         current_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
+
+   // if (current_options.contains("phaseA"))
+   // {
+   //    auto attrs = current_options["phaseA"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, phaseACurrentSource, phaseACurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("phaseB"))
+   // {
+   //    auto attrs = current_options["phaseB"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, phaseBCurrentSource, phaseBCurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("phaseC"))
+   // {
+   //    auto attrs = current_options["phaseC"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, phaseCCurrentSource, phaseCCurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("x"))
+   // {
+   //    auto attrs = current_options["x"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, xAxisCurrentSource, xAxisCurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("y"))
+   // {
+   //    auto attrs = current_options["y"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, yAxisCurrentSource, yAxisCurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("z"))
+   // {
+   //    auto attrs = current_options["z"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, zAxisCurrentSource, zAxisCurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("-z"))
+   // {
+   //    auto attrs = current_options["-z"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, nzAxisCurrentSource, nzAxisCurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("ring"))
+   // {
+   //    auto attrs = current_options["ring"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, ringCurrentSource, ringCurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("box1"))
+   // {
+   //    auto attrs = current_options["box1"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, box1CurrentSource, box1CurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("box2"))
+   // {
+   //    auto attrs = current_options["box2"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, box2CurrentSource, box2CurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (current_options.contains("team13"))
+   // {
+   //    auto attrs = current_options["team13"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, team13CurrentSource, team13CurrentSourceRevDiff));
+   //       current_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
 }
 
 }  // namespace mach

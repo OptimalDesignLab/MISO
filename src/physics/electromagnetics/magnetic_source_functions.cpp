@@ -1,9 +1,12 @@
+#include "adept.h"
 #include "mfem.hpp"
 
 #include "current_source_functions.hpp"
 
 namespace
 {
+using adept::adouble;
+
 template <typename xdouble = double>
 void north_magnetization(const xdouble &remnant_flux,
                          const xdouble *x,
@@ -102,12 +105,13 @@ void northMagnetizationSource(double remnant_flux,
 /// \param[in] x - position x in space of evaluation
 /// \param[in] V_bar -
 /// \param[out] x_bar - V_bar^T Jacobian
-void northMagnetizationSourceRevDiff(double remnant_flux,
+void northMagnetizationSourceRevDiff(adept::Stack &diff_stack,
+                                     double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -139,12 +143,13 @@ void southMagnetizationSource(double remnant_flux,
 /// \param[in] x - position x in space of evaluation
 /// \param[in] V_bar -
 /// \param[out] x_bar - V_bar^T Jacobian
-void southMagnetizationSourceRevDiff(double remnant_flux,
+void southMagnetizationSourceRevDiff(adept::Stack &diff_stack,
+                                     double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -176,12 +181,13 @@ void cwMagnetizationSource(double remnant_flux,
 /// \param[in] x - position x in space of evaluation
 /// \param[in] V_bar -
 /// \param[out] x_bar - V_bar^T Jacobian
-void cwMagnetizationSourceRevDiff(double remnant_flux,
+void cwMagnetizationSourceRevDiff(adept::Stack &diff_stack,
+                                  double remnant_flux,
                                   const mfem::Vector &x,
                                   const mfem::Vector &V_bar,
                                   mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -213,12 +219,13 @@ void ccwMagnetizationSource(double remnant_flux,
 /// \param[in] x - position x in space of evaluation
 /// \param[in] V_bar -
 /// \param[out] x_bar - V_bar^T Jacobian
-void ccwMagnetizationSourceRevDiff(double remnant_flux,
+void ccwMagnetizationSourceRevDiff(adept::Stack &diff_stack,
+                                   double remnant_flux,
                                    const mfem::Vector &x,
                                    const mfem::Vector &V_bar,
                                    mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -250,12 +257,13 @@ void xAxisMagnetizationSource(double remnant_flux,
 /// \param[in] x - position x in space of evaluation
 /// \param[in] V_bar -
 /// \param[out] x_bar - V_bar^T Jacobian
-void xAxisMagnetizationSourceRevDiff(double remnant_flux,
+void xAxisMagnetizationSourceRevDiff(adept::Stack &diff_stack,
+                                     double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -287,12 +295,13 @@ void yAxisMagnetizationSource(double remnant_flux,
 /// \param[in] x - position x in space of evaluation
 /// \param[in] V_bar -
 /// \param[out] x_bar - V_bar^T Jacobian
-void yAxisMagnetizationSourceRevDiff(double remnant_flux,
+void yAxisMagnetizationSourceRevDiff(adept::Stack &diff_stack,
+                                     double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -324,12 +333,13 @@ void zAxisMagnetizationSource(double remnant_flux,
 /// \param[in] x - position x in space of evaluation
 /// \param[in] V_bar -
 /// \param[out] x_bar - V_bar^T Jacobian
-void zAxisMagnetizationSourceRevDiff(double remnant_flux,
+void zAxisMagnetizationSourceRevDiff(adept::Stack &diff_stack,
+                                     double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
 {
-   DenseMatrix source_jac(3);
+   mfem::DenseMatrix source_jac(3);
    // declare vectors of active input variables
    std::vector<adouble> x_a(x.Size());
    // copy data from mfem::Vector
@@ -354,93 +364,94 @@ namespace mach
 std::unique_ptr<mfem::VectorCoefficient> constructMagnetization(
     const nlohmann::json &mag_options)
 {
-   auto mag_coeff = std::make_unique<VectorMeshDependentCoefficient>();
+   // auto mag_coeff = std::make_unique<VectorMeshDependentCoefficient>();
 
-   if (mag_options.contains("north"))
-   {
-      auto attrs = mag_options["north"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(dim,
-                                           northMagnetizationSource,
-                                           northMagnetizationSourceRevDiff));
-         mag_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (mag_options.contains("south"))
-   {
-      auto attrs = mag_options["south"].get<std::vector<int>>();
+   // if (mag_options.contains("north"))
+   // {
+   //    auto attrs = mag_options["north"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(dim,
+   //                                         northMagnetizationSource,
+   //                                         northMagnetizationSourceRevDiff));
+   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (mag_options.contains("south"))
+   // {
+   //    auto attrs = mag_options["south"].get<std::vector<int>>();
 
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(dim,
-                                           southMagnetizationSource,
-                                           southMagnetizationSourceRevDiff));
-         mag_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (mag_options.contains("cw"))
-   {
-      auto attrs = mag_options["cw"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(dim,
+   //                                         southMagnetizationSource,
+   //                                         southMagnetizationSourceRevDiff));
+   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (mag_options.contains("cw"))
+   // {
+   //    auto attrs = mag_options["cw"].get<std::vector<int>>();
 
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, cwMagnetizationSource, cwMagnetizationSourceRevDiff));
-         mag_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (mag_options.contains("ccw"))
-   {
-      auto attrs = mag_options["ccw"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, cwMagnetizationSource, cwMagnetizationSourceRevDiff));
+   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (mag_options.contains("ccw"))
+   // {
+   //    auto attrs = mag_options["ccw"].get<std::vector<int>>();
 
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(
-                 dim, ccwMagnetizationSource, ccwMagnetizationSourceRevDiff));
-         mag_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (mag_options.contains("x"))
-   {
-      auto attrs = mag_options["x"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(dim,
-                                           xAxisMagnetizationSource,
-                                           xAxisMagnetizationSourceRevDiff));
-         mag_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (mag_options.contains("y"))
-   {
-      auto attrs = mag_options["y"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(dim,
-                                           yAxisMagnetizationSource,
-                                           yAxisMagnetizationSourceRevDiff));
-         mag_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
-   if (mag_options.contains("z"))
-   {
-      auto attrs = mag_options["z"].get<std::vector<int>>();
-      for (auto &attr : attrs)
-      {
-         std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-             new VectorFunctionCoefficient(dim,
-                                           zAxisMagnetizationSource,
-                                           zAxisMagnetizationSourceRevDiff));
-         mag_coeff->addCoefficient(attr, move(temp_coeff));
-      }
-   }
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(
+   //               dim, ccwMagnetizationSource,
+   //               ccwMagnetizationSourceRevDiff));
+   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (mag_options.contains("x"))
+   // {
+   //    auto attrs = mag_options["x"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(dim,
+   //                                         xAxisMagnetizationSource,
+   //                                         xAxisMagnetizationSourceRevDiff));
+   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (mag_options.contains("y"))
+   // {
+   //    auto attrs = mag_options["y"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(dim,
+   //                                         yAxisMagnetizationSource,
+   //                                         yAxisMagnetizationSourceRevDiff));
+   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
+   // if (mag_options.contains("z"))
+   // {
+   //    auto attrs = mag_options["z"].get<std::vector<int>>();
+   //    for (auto &attr : attrs)
+   //    {
+   //       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+   //           new VectorFunctionCoefficient(dim,
+   //                                         zAxisMagnetizationSource,
+   //                                         zAxisMagnetizationSourceRevDiff));
+   //       mag_coeff->addCoefficient(attr, move(temp_coeff));
+   //    }
+   // }
 }
 
 }  // namespace mach

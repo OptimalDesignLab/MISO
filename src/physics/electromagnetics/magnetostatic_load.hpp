@@ -33,8 +33,7 @@ public:
                                      mfem::Vector &wrt_bar);
 
    MagnetostaticLoad(mfem::ParFiniteElementSpace &pfes, mfem::Coefficient &nu)
-    : current_load(pfes, options, current_coeff),
-      magnetic_load(pfes, mag_coeff, nu)
+    : current_load(pfes, options), magnetic_load(pfes, nu)
    { }
 
 private:
