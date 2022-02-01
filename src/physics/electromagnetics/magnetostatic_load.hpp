@@ -21,20 +21,20 @@ public:
    friend inline void setInputs(MagnetostaticLoad &load,
                                 const MachInputs &inputs)
    {
-      setInputs(load.current_load, inputs);
+      setInputs(*load.current_load, inputs);
       setInputs(load.magnetic_load, inputs);
    }
 
    friend inline void setOptions(MagnetostaticLoad &load,
                                  const nlohmann::json &options)
    {
-      setOptions(load.current_load, options);
+      setOptions(*load.current_load, options);
       setOptions(load.magnetic_load, options);
    }
 
    friend inline void addLoad(MagnetostaticLoad &load, mfem::Vector &tv)
    {
-      addLoad(load.current_load, tv);
+      addLoad(*load.current_load, tv);
       addLoad(load.magnetic_load, tv);
    }
 
@@ -43,7 +43,7 @@ public:
                                               const std::string &wrt)
    {
       double wrt_bar = 0.0;
-      wrt_bar += vectorJacobianProduct(load.current_load, res_bar, wrt);
+      wrt_bar += vectorJacobianProduct(*load.current_load, res_bar, wrt);
       wrt_bar += vectorJacobianProduct(load.magnetic_load, res_bar, wrt);
       return wrt_bar;
    }
@@ -53,7 +53,7 @@ public:
                                             const std::string &wrt,
                                             mfem::Vector &wrt_bar)
    {
-      vectorJacobianProduct(load.current_load, res_bar, wrt, wrt_bar);
+      vectorJacobianProduct(*load.current_load, res_bar, wrt, wrt_bar);
       vectorJacobianProduct(load.magnetic_load, res_bar, wrt, wrt_bar);
    }
 
@@ -63,12 +63,13 @@ public:
                      const nlohmann::json &options,
                      const nlohmann::json &materials,
                      mfem::Coefficient &nu)
-    : current_load(diff_stack, fes, fields, options),
+    : current_load(
+          std::make_unique<CurrentLoad>(diff_stack, fes, fields, options)),
       magnetic_load(diff_stack, fes, fields, options, materials, nu)
    { }
 
 private:
-   CurrentLoad current_load;
+   std::unique_ptr<CurrentLoad> current_load;
    MagneticLoad magnetic_load;
 };
 

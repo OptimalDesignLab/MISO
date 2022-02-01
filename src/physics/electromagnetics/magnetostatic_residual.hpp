@@ -12,7 +12,6 @@
 #include "mach_input.hpp"
 #include "mach_nonlinearform.hpp"
 #include "magnetostatic_load.hpp"
-#include "reluctivity_coefficient.hpp"
 
 namespace mach
 {

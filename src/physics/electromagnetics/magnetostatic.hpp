@@ -11,6 +11,7 @@
 #include "magnetostatic_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "pde_solver.hpp"
+#include "reluctivity_coefficient.hpp"
 
 namespace mach
 {
@@ -25,8 +26,9 @@ public:
       nu(options, materials)
    {
       options["time-dis"]["type"] = "steady";
-      MagnetostaticResidual res(diff_stack, fes(), fields, options, materials, nu);
-      spatial_res = std::make_unique<mach::MachResidual>(std::move(res));
+
+      spatial_res = std::make_unique<MachResidual>(MagnetostaticResidual(
+          diff_stack, fes(), fields, options, materials, nu));
       setOptions(*spatial_res, options);
 
       auto *prec = getPreconditioner(*spatial_res);

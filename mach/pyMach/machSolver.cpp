@@ -14,7 +14,7 @@
 #include "mpi4py_comm.hpp"
 
 #include "solver.hpp"
-#include "magnetostatic.hpp"
+// #include "magnetostatic.hpp"
 #include "thermal.hpp"
 #include "euler.hpp"
 #include "mesh_movement.hpp"
@@ -46,11 +46,11 @@ SolverPtr initSolver(const std::string &type,
 {
    // std::cout << "initSolver called with json options: " << json_options <<
    // "\n";
-   if (type == "Magnetostatic")
-   {
-      return createSolver<MagnetostaticSolver>(json_options, nullptr, comm);
-   }
-   else if (type == "Thermal")
+   // if (type == "Magnetostatic")
+   // {
+   //    return createSolver<MagnetostaticSolver>(json_options, nullptr, comm);
+   // }
+   if (type == "Thermal")
    {
       return createSolver<ThermalSolver>(json_options, nullptr, comm);
    }
