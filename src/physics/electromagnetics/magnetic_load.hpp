@@ -5,6 +5,7 @@
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
+#include "finite_element_state.hpp"
 #include "mach_input.hpp"
 #include "mach_linearform.hpp"
 #include "magnetic_source_functions.hpp"
@@ -48,7 +49,7 @@ public:
 
    MagneticLoad(adept::Stack &diff_stack,
                 mfem::ParFiniteElementSpace &fes,
-                std::map<std::string, FintieElementState> &fields,
+                std::map<std::string, FiniteElementState> &fields,
                 const nlohmann::json &options,
                 const nlohmann::json &materials,
                 mfem::Coefficient &nu);

@@ -6,6 +6,7 @@
 
 #include "current_source_functions.hpp"
 #include "div_free_projector.hpp"
+#include "finite_element_state.hpp"
 #include "mach_input.hpp"
 
 namespace mach
@@ -37,7 +38,7 @@ public:
 
    CurrentLoad(adept::Stack &diff_stack,
                mfem::ParFiniteElementSpace &fes,
-               std::map<std::string, FintieElementState> &fields,
+               std::map<std::string, FiniteElementState> &fields,
                const nlohmann::json &options);
 
 private:

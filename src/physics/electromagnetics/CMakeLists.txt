@@ -13,6 +13,7 @@ target_sources(mach
       magnetic_source_functions.cpp
       magnetic_source_functions.hpp
       magnetostatic_load.hpp
+      magnetostatic_residual.cpp
       magnetostatic_residual.hpp
       magnetostatic.cpp
       magnetostatic.hpp
