@@ -77,17 +77,23 @@ public:
    void addOutputBdrFaceIntegrator(T *integrator,
                                    std::vector<int> bdr_attr_marker);
 
+   FunctionalOutput(mfem::ParFiniteElementSpace &fes,
+                    std::map<std::string, FiniteElementState> &fields)
+    : output(&fes), func_fields(&fields)
+   { }
+
+   /// constructor just for compatibility with older solvers
    FunctionalOutput(
        mfem::ParFiniteElementSpace &fes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields)
-    : output(&fes), func_fields(&fields)
+    : output(&fes), func_fields(nullptr)
    { }
 
 private:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm output;
    /// map of external fields the functional depends on
-   std::unordered_map<std::string, mfem::ParGridFunction> *func_fields;
+   std::map<std::string, FiniteElementState> *func_fields;
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;

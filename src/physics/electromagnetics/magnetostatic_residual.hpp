@@ -41,22 +41,19 @@ public:
                          mfem::ParFiniteElementSpace &fes,
                          std::map<std::string, FiniteElementState> &fields,
                          const nlohmann::json &options,
-                         const nlohmann::json &materials)
-    : nu(options, materials),
-      nlf(fes, old_fields),
+                         const nlohmann::json &materials,
+                         StateCoefficient &nu)
+    : res(fes, fields),
       load(diff_stack, fes, fields, options, materials, nu),
       prec(constructPreconditioner(fes, options["lin-prec"]))
 
    {
-      nlf.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));
+      res.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));
    }
 
 private:
-   /// Coefficient representing the potentially nonlinear magnetic reluctivity
-   ReluctivityCoefficient nu;
-   std::unordered_map<std::string, mfem::ParGridFunction> old_fields;
    /// Nonlinear form that handles the curl curl term of the weak form
-   MachNonlinearForm nlf;
+   MachNonlinearForm res;
    /// Load vector for current and magnetic sources
    MagnetostaticLoad load;
 

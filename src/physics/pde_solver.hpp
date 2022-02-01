@@ -69,6 +69,11 @@ protected:
    /// Members associated with the mesh
    /// object defining the mfem computational mesh
    std::unique_ptr<mfem::ParMesh> mesh_ = nullptr;
+
+   /// Reference to solver state vector
+   mfem::ParMesh &mesh() { return *mesh_; }
+   const mfem::ParMesh &mesh() const { return *mesh_; }
+
    // #ifdef MFEM_USE_PUMI
    //    /// pumi mesh object
    //    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;

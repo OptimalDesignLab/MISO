@@ -59,7 +59,7 @@ public:
 
    MagnetostaticLoad(adept::Stack &diff_stack,
                      mfem::ParFiniteElementSpace &fes,
-                     std::map<std::string, FintieElementState> &fields,
+                     std::map<std::string, FiniteElementState> &fields,
                      const nlohmann::json &options,
                      const nlohmann::json &materials,
                      mfem::Coefficient &nu)

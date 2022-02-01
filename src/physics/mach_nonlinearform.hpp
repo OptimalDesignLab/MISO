@@ -73,14 +73,16 @@ public:
    /// Constructor for nonlinear form types
    /// \param[in] pfes - FEM space for the state (and possibly the adjoint)
    /// \param[in] fields - map of grid functions
-   MachNonlinearForm(
-       mfem::ParFiniteElementSpace &pfes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields)
-    : nf(&pfes), scratch(&pfes), nf_fields(&fields)
+   MachNonlinearForm(mfem::ParFiniteElementSpace &pfes,
+                     std::map<std::string, FiniteElementState> &fields)
+    : nf(&pfes), scratch(&pfes), nf_fields(fields)
    {
-      if (nf_fields->count("adjoint") == 0)
+      if (nf_fields.count("adjoint") == 0)
       {
-         nf_fields->emplace("adjoint", &pfes);
+         // nf_fields.emplace("adjoint", {*pfes.GetParMesh(), pfes});
+         nf_fields.emplace(std::piecewise_construct,
+                           std::make_tuple("adjoint"),
+                           std::forward_as_tuple(*pfes.GetParMesh(), pfes));
       }
    }
 
@@ -96,7 +98,7 @@ private:
    std::list<mfem::Array<int>> bdr_markers;
 
    /// map of external fields that the nonlinear form depends on
-   std::unordered_map<std::string, mfem::ParGridFunction> *nf_fields;
+   std::map<std::string, FiniteElementState> &nf_fields;
 
    /// map of linear forms that will compute d(psi^T F) / d(field)
    /// for each field the nonlinear form depends on
@@ -111,7 +113,7 @@ void MachNonlinearForm::addDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddDomainIntegrator(integrator);
-   // mach::addSensitivityIntegrator(*integrator, *nf_fields, sens,
+   // mach::addSensitivityIntegrator(*integrator, nf_fields, sens,
    // scalar_sens);
 }
 
@@ -120,7 +122,7 @@ void MachNonlinearForm::addBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddBdrFaceIntegrator(integrator);
-   // mach::addSensitivityIntegrator(*integrator, *nf_fields, sens,
+   // mach::addSensitivityIntegrator(*integrator, nf_fields, sens,
    // scalar_sens);
 }
 
@@ -133,7 +135,7 @@ void MachNonlinearForm::addBdrFaceIntegrator(
    bdr_markers.emplace_back(bdr_attr_marker.size());
    bdr_markers.back().Assign(bdr_attr_marker.data());
    nf.AddBdrFaceIntegrator(integrator, bdr_markers.back());
-   // mach::addSensitivityIntegrator(*integrator, *nf_fields, sens,
+   // mach::addSensitivityIntegrator(*integrator, nf_fields, sens,
    // scalar_sens);
 }
 
@@ -142,7 +144,7 @@ void MachNonlinearForm::addInteriorFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddInteriorFaceIntegrator(integrator);
-   // mach::addSensitivityIntegrator(*integrator, *nf_fields, sens,
+   // mach::addSensitivityIntegrator(*integrator, nf_fields, sens,
    // scalar_sens);
 }
 

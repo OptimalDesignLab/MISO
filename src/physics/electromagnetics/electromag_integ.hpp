@@ -133,15 +133,17 @@ private:
 template <>
 inline void addSensitivityIntegrator<CurlCurlNLFIntegrator>(
     CurlCurlNLFIntegrator &primal_integ,
-    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+    std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &res_sens,
     std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens)
 {
-   auto *mesh_fes = res_fields.at("mesh_coords").ParFESpace();
-   res_sens.emplace("mesh_coords", mesh_fes);
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   res_sens.emplace("mesh_coords", &mesh_fes);
    res_sens.at("mesh_coords")
-       .AddDomainIntegrator(new CurlCurlNLFIntegratorMeshSens(
-           res_fields.at("state"), res_fields.at("res_bar"), primal_integ));
+       .AddDomainIntegrator(
+           new CurlCurlNLFIntegratorMeshSens(fields.at("state").gridFunc(),
+                                             fields.at("adjoint").gridFunc(),
+                                             primal_integ));
 }
 
 /// Integrator for (\nu(u) M, curl v) for Nedelec Elements
@@ -506,15 +508,15 @@ private:
 template <>
 inline void addSensitivityIntegrator<MagneticEnergyIntegrator>(
     MagneticEnergyIntegrator &primal_integ,
-    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+    std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
     std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
 {
-   auto *mesh_fes = res_fields.at("mesh_coords").ParFESpace();
-   output_sens.emplace("mesh_coords", mesh_fes);
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
    output_sens.at("mesh_coords")
        .AddDomainIntegrator(new MagneticEnergyIntegratorMeshSens(
-           res_fields.at("state"), primal_integ));
+           fields.at("state").gridFunc(), primal_integ));
 }
 
 /** commenting out co-energy stuff since I'm stopping maintaining it
@@ -1061,15 +1063,15 @@ private:
 template <>
 inline void addSensitivityIntegrator<ForceIntegrator>(
     ForceIntegrator &primal_integ,
-    std::unordered_map<std::string, mfem::ParGridFunction> &res_fields,
+    std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
     std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
 {
-   auto *mesh_fes = res_fields.at("mesh_coords").ParFESpace();
-   output_sens.emplace("mesh_coords", mesh_fes);
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
    output_sens.at("mesh_coords")
-       .AddDomainIntegrator(
-           new ForceIntegratorMeshSens(res_fields.at("state"), primal_integ));
+       .AddDomainIntegrator(new ForceIntegratorMeshSens(
+           fields.at("state").gridFunc(), primal_integ));
 }
 
 // /** Class for constructing the (local) discrete curl matrix which can be used

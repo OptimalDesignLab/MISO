@@ -77,16 +77,23 @@ public:
    template <typename T>
    void addBdrFaceIntegrator(T *integrator, mfem::Array<int> &bdr_attr_marker);
 
-   MachLinearForm(
-       mfem::ParFiniteElementSpace &pfes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields)
+   MachLinearForm(mfem::ParFiniteElementSpace &pfes,
+                  std::map<std::string, FiniteElementState> &fields)
     : lf(&pfes), scratch(pfes.GetTrueVSize()), lf_fields(&fields)
    {
       if (lf_fields->count("adjoint") == 0)
       {
-         lf_fields->emplace("adjoint", &pfes);
+         lf_fields->emplace(std::piecewise_construct,
+                            std::make_tuple("adjoint"),
+                            std::forward_as_tuple(*pfes.GetParMesh(), pfes));
       }
    }
+
+   MachLinearForm(
+       mfem::ParFiniteElementSpace &pfes,
+       std::unordered_map<std::string, mfem::ParGridFunction> &fields)
+    : lf(&pfes), scratch(pfes.GetTrueVSize()), lf_fields(nullptr)
+   { }
 
 private:
    /// underlying linear form object
@@ -103,7 +110,7 @@ private:
    std::vector<mfem::Array<int>> bdr_marker;
 
    /// map of external fields the linear form depends on
-   std::unordered_map<std::string, mfem::ParGridFunction> *lf_fields;
+   std::map<std::string, FiniteElementState> *lf_fields;
 
    /// map of linear forms that will compute d(psi^T F) / d(field)
    /// for each field the linear form depends on

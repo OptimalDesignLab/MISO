@@ -93,8 +93,7 @@ private:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
    /// TBD
-   std::unique_ptr<std::unordered_map<std::string, mfem::ParGridFunction>>
-       fields;
+   std::map<std::string, FiniteElementState> fields;
    /// Defines the nonlinear form used to compute the residual and its Jacobian
    mach::MachNonlinearForm res;
    /// Defines the output used to evaluate the entropy

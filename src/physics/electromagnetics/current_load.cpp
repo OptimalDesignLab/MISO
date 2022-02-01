@@ -131,7 +131,7 @@ void vectorJacobianProduct(CurrentLoad &load,
 
 CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
                          mfem::ParFiniteElementSpace &fes,
-                         std::map<std::string, FintieElementState> &fields,
+                         std::map<std::string, FiniteElementState> &fields,
                          const nlohmann::json &options)
  : current(diff_stack, options["current"]),
    fes(fes),

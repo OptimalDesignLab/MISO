@@ -14,55 +14,55 @@
 
 namespace mach
 {
-class BNormSquaredAverageFunctional final
-{
-public:
-   friend void setOptions(BNormSquaredAverageFunctional &output,
-                          const nlohmann::json &options)
-   {
-      setOptions(output.bnormsquared, options);
-      setOptions(output.volume, options);
-   }
+// class BNormSquaredAverageFunctional final
+// {
+// public:
+//    friend void setOptions(BNormSquaredAverageFunctional &output,
+//                           const nlohmann::json &options)
+//    {
+//       setOptions(output.bnormsquared, options);
+//       setOptions(output.volume, options);
+//    }
 
-   friend void setInputs(BNormSquaredAverageFunctional &output,
-                         const MachInputs &inputs)
-   {
-      setInputs(output.bnormsquared, inputs);
-      setInputs(output.volume, inputs);
-   }
+//    friend void setInputs(BNormSquaredAverageFunctional &output,
+//                          const MachInputs &inputs)
+//    {
+//       setInputs(output.bnormsquared, inputs);
+//       setInputs(output.volume, inputs);
+//    }
 
-   friend double calcOutput(BNormSquaredAverageFunctional &output,
-                            const MachInputs &inputs)
-   {
-      double bnormsquared = calcOutput(output.bnormsquared, inputs);
-      double volume = calcOutput(output.volume, inputs);
-      return bnormsquared / volume;
-   }
+//    friend double calcOutput(BNormSquaredAverageFunctional &output,
+//                             const MachInputs &inputs)
+//    {
+//       double bnormsquared = calcOutput(output.bnormsquared, inputs);
+//       double volume = calcOutput(output.volume, inputs);
+//       return bnormsquared / volume;
+//    }
 
-   BNormSquaredAverageFunctional(
-       mfem::ParFiniteElementSpace &fes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-       const nlohmann::json &options)
-    : bnormsquared(fes, fields), volume(fes, fields)
-   {
-      if (options.contains("attributes"))
-      {
-         auto attributes = options["attributes"].get<std::vector<int>>();
-         bnormsquared.addOutputDomainIntegrator(new BNormSquaredIntegrator,
-                                                attributes);
-         volume.addOutputDomainIntegrator(new VolumeIntegrator, attributes);
-      }
-      else
-      {
-         bnormsquared.addOutputDomainIntegrator(new BNormSquaredIntegrator);
-         volume.addOutputDomainIntegrator(new VolumeIntegrator);
-      }
-   }
+//    BNormSquaredAverageFunctional(
+//        mfem::ParFiniteElementSpace &fes,
+//        std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+//        const nlohmann::json &options)
+//     : bnormsquared(fes, fields), volume(fes, fields)
+//    {
+//       if (options.contains("attributes"))
+//       {
+//          auto attributes = options["attributes"].get<std::vector<int>>();
+//          bnormsquared.addOutputDomainIntegrator(new BNormSquaredIntegrator,
+//                                                 attributes);
+//          volume.addOutputDomainIntegrator(new VolumeIntegrator, attributes);
+//       }
+//       else
+//       {
+//          bnormsquared.addOutputDomainIntegrator(new BNormSquaredIntegrator);
+//          volume.addOutputDomainIntegrator(new VolumeIntegrator);
+//       }
+//    }
 
-private:
-   FunctionalOutput bnormsquared;
-   FunctionalOutput volume;
-};
+// private:
+//    FunctionalOutput bnormsquared;
+//    FunctionalOutput volume;
+// };
 
 class ForceFunctional final
 {
@@ -97,23 +97,22 @@ public:
       calcOutputPartial(output.output, wrt, inputs, partial);
    }
 
-   ForceFunctional(
-       mfem::ParFiniteElementSpace &fes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-       const nlohmann::json &options,
-       mach::StateCoefficient &nu)
-    : output(fes, fields), fields(&fields)
+   ForceFunctional(mfem::ParFiniteElementSpace &fes,
+                   std::map<std::string, FiniteElementState> &fields,
+                   const nlohmann::json &options,
+                   mach::StateCoefficient &nu)
+    : output(fes, fields), fields(fields)
    {
       setOptions(*this, options);
 
       auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
       output.addOutputDomainIntegrator(
-          new ForceIntegrator(nu, fields.at("vforce"), attrs));
+          new ForceIntegrator(nu, fields.at("vforce").gridFunc(), attrs));
    }
 
 private:
    FunctionalOutput output;
-   std::unordered_map<std::string, mfem::ParGridFunction> *fields;
+   std::map<std::string, FiniteElementState> &fields;
 };
 
 class TorqueFunctional final
@@ -149,23 +148,22 @@ public:
       calcOutputPartial(output.output, wrt, inputs, partial);
    }
 
-   TorqueFunctional(
-       mfem::ParFiniteElementSpace &fes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-       const nlohmann::json &options,
-       mach::StateCoefficient &nu)
-    : output(fes, fields), fields(&fields)
+   TorqueFunctional(mfem::ParFiniteElementSpace &fes,
+                    std::map<std::string, FiniteElementState> &fields,
+                    const nlohmann::json &options,
+                    mach::StateCoefficient &nu)
+    : output(fes, fields), fields(fields)
    {
       setOptions(*this, options);
 
       auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
       output.addOutputDomainIntegrator(
-          new ForceIntegrator(nu, fields.at("vtorque"), attrs));
+          new ForceIntegrator(nu, fields.at("vtorque").gridFunc(), attrs));
    }
 
 private:
    FunctionalOutput output;
-   std::unordered_map<std::string, mfem::ParGridFunction> *fields;
+   std::map<std::string, FiniteElementState> &fields;
 };
 
 inline void setOptions(ForceFunctional &output, const nlohmann::json &options)
@@ -175,7 +173,7 @@ inline void setOptions(ForceFunctional &output, const nlohmann::json &options)
    mfem::VectorConstantCoefficient axis_vector(
        mfem::Vector(&axis[0], axis.size()));
 
-   auto &v = output.fields->at("vforce");
+   auto &v = output.fields.at("vforce").gridFunc();
    v = 0.0;
    for (const auto &attr : attrs)
    {
@@ -206,7 +204,7 @@ inline void setOptions(TorqueFunctional &output, const nlohmann::json &options)
           //    v /= v.Norml2();
        });
 
-   auto &v = output.fields->at("vtorque");
+   auto &v = output.fields.at("vtorque").gridFunc();
    v = 0.0;
    for (const auto &attr : attrs)
    {

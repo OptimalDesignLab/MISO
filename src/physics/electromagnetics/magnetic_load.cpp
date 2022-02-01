@@ -10,20 +10,21 @@ namespace mach
 {
 MagneticLoad::MagneticLoad(adept::Stack &diff_stack,
                            mfem::ParFiniteElementSpace &fes,
-                           std::map<std::string, FintieElementState> &fields,
+                           std::map<std::string, FiniteElementState> &fields,
                            const nlohmann::json &options,
                            const nlohmann::json &materials,
                            mfem::Coefficient &nu)
- : lf(pfes, mag_load_fields),
+ : lf(fes, fields),
    mag_coeff(diff_stack, options["magnets"], materials),
    nuM(nu, mag_coeff)
 {
-   auto &mesh_gf =
-       dynamic_cast<mfem::ParGridFunction &>(*pfes.GetMesh()->GetNodes());
-   auto *mesh_fes = mesh_gf.ParFESpace();
-   mag_load_fields.emplace(std::piecewise_construct,
-                           std::make_tuple("mesh_coords"),
-                           std::forward_as_tuple(mesh_fes, mesh_gf.GetData()));
+   // auto &mesh_gf =
+   //     dynamic_cast<mfem::ParGridFunction &>(*fes.GetMesh()->GetNodes());
+   // auto *mesh_fes = mesh_gf.ParFESpace();
+   // mag_load_fields.emplace(std::piecewise_construct,
+   //                         std::make_tuple("mesh_coords"),
+   //                         std::forward_as_tuple(mesh_fes,
+   //                         mesh_gf.GetData()));
 
    lf.addDomainIntegrator(new mach::VectorFEDomainLFCurlIntegrator(nuM, -1.0));
    /// only needed if magnets are on the boundary and not normal to boundary
@@ -41,7 +42,7 @@ void setInputs(LegacyMagneticLoad &load, const MachInputs &inputs)
    }
 }
 
-void addLoad(LegacyMagneticLoad &load, Vector &tv)
+void addLoad(LegacyMagneticLoad &load, mfem::Vector &tv)
 {
    if (load.dirty)
    {
@@ -81,7 +82,7 @@ LegacyMagneticLoad::LegacyMagneticLoad(mfem::ParFiniteElementSpace &pfes,
    dirty(true)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
-   weakCurlMuInv.AddDomainIntegrator(new VectorFECurlIntegrator(nu));
+   weakCurlMuInv.AddDomainIntegrator(new mfem::VectorFECurlIntegrator(nu));
 }
 
 void LegacyMagneticLoad::assembleLoad()

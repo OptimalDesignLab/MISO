@@ -14,10 +14,10 @@ FlowResidual::FlowResidual(const nlohmann::json &options,
                            adept::Stack &diff_stack)
  : fes(fespace),
    stack(diff_stack),
-   fields(std::make_unique<
-          std::unordered_map<std::string, mfem::ParGridFunction>>()),
-   res(fes, *fields),
-   ent(fes, *fields),
+   // fields(std::make_unique<
+   //        std::unordered_map<std::string, mfem::ParGridFunction>>()),
+   res(fes, fields),
+   ent(fes, fields),
    work(getSize(res))
 {
    setOptions(*this, options);

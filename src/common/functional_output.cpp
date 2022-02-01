@@ -22,19 +22,10 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
          if (it != output.func_fields->end())
          {
             auto &field = it->second;
-            setVectorFromInput(input, field.GetTrueVector());
-            // if (field.GetTrueVector().Size() !=
-            //     field.ParFESpace()->GetTrueVSize())
-            // {
-            //    throw MachException("Input field " + name +
-            //                        " is wrong size!\n"
-            //                        "Size is " +
-            //                        field.GetTrueVector().Size() +
-            //                        ", should be " +
-            //                        field.ParFESpace()->GetTrueVSize() +
-            //                        "!\n");
-            // }
-            field.SetFromTrueVector();
+            mfem::Vector field_tv;
+            setVectorFromInput(input, field_tv);
+
+            field.distributeSharedDofs(field_tv);
          }
       }
    }

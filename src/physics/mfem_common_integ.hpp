@@ -4,6 +4,7 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "finite_element_state.hpp"
 #include "mach_integrator.hpp"
 
 namespace mach
@@ -147,12 +148,12 @@ private:
 template <>
 inline void addSensitivityIntegrator<mfem::DiffusionIntegrator>(
     mfem::DiffusionIntegrator &primal_integ,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 {
-   auto *mesh_fes = fields.at("mesh_coords").ParFESpace();
-   sens.emplace("mesh_coords", mesh_fes);
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   sens.emplace("mesh_coords", &mesh_fes);
    sens.at("mesh_coords").AddDomainIntegrator(new DiffusionIntegratorMeshSens);
 }
 
@@ -192,12 +193,12 @@ private:
 template <>
 inline void addSensitivityIntegrator<mfem::VectorFEWeakDivergenceIntegrator>(
     mfem::VectorFEWeakDivergenceIntegrator &primal_integ,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 {
-   auto *mesh_fes = fields.at("mesh_coords").ParFESpace();
-   sens.emplace("mesh_coords", mesh_fes);
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   sens.emplace("mesh_coords", &mesh_fes);
    sens.at("mesh_coords")
        .AddDomainIntegrator(new VectorFEWeakDivergenceIntegratorMeshSens);
 }
@@ -287,15 +288,15 @@ private:
 template <>
 inline void addSensitivityIntegrator<mfem::VectorFEMassIntegrator>(
     mfem::VectorFEMassIntegrator &primal_integ,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 {
-   auto *mesh_fes = fields.at("mesh_coords").ParFESpace();
-   sens.emplace("mesh_coords", mesh_fes);
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   sens.emplace("mesh_coords", &mesh_fes);
 
    auto *integ = new VectorFEMassIntegratorMeshSens;
-   integ->setState(fields.at("in"));
+   integ->setState(fields.at("in").gridFunc());
    sens.at("mesh_coords").AddDomainIntegrator(integ);
 }
 
@@ -337,7 +338,7 @@ private:
 // template <>
 // inline void addSensitivityIntegrator<VectorFEDomainLFIntegrator>(
 //    VectorFEDomainLFIntegrator &primal_integ,
-//    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+//    std::map<std::string, FiniteElementState> &fields,
 //    std::map<std::string, mfem::ParLinearForm> &sens,
 //    std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 // {
@@ -415,14 +416,14 @@ private:
 template <>
 inline void addSensitivityIntegrator<VectorFEDomainLFCurlIntegrator>(
     VectorFEDomainLFCurlIntegrator &primal_integ,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 {
-   auto *mesh_fes = fields.at("mesh_coords").ParFESpace();
-   sens.emplace("mesh_coords", mesh_fes);
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   sens.emplace("mesh_coords", &mesh_fes);
    auto *sens_integ = new VectorFEDomainLFCurlIntegratorMeshSens(primal_integ);
-   sens_integ->setAdjoint(fields.at("adjoint"));
+   sens_integ->setAdjoint(fields.at("adjoint").gridFunc());
    sens.at("mesh_coords").AddDomainIntegrator(sens_integ);
 }
 

@@ -1,14 +1,15 @@
 #ifndef MACH_INTEGRATOR
 #define MACH_INTEGRATOR
 
+#include <map>
 #include <memory>
 #include <vector>
 #include <string>
-#include <algorithm>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "finite_element_state.hpp"
 #include "mach_input.hpp"
 
 namespace mach
@@ -131,7 +132,7 @@ void setOptions(MachIntegrator &integ, const nlohmann::json &options);
 template <typename T>
 inline void addSensitivityIntegrator(
     T &primal_integ,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &sens,
     std::map<std::string, mfem::ParNonlinearForm> &scalar_sens)
 { }

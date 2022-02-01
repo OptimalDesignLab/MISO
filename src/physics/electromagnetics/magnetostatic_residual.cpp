@@ -7,6 +7,8 @@
 
 #include "magnetostatic_residual.hpp"
 
+namespace mach
+{
 int getSize(const MagnetostaticResidual &residual)
 {
    return getSize(residual.res);
@@ -35,12 +37,14 @@ void evaluate(MagnetostaticResidual &residual,
 
 mfem::Operator &getJacobian(MagnetostaticResidual &residual,
                             const mach::MachInputs &inputs,
-                            std::string wrt)
+                            const std::string &wrt)
 {
-   return getJacobian(residual.res, inputs, std::move(wrt));
+   return getJacobian(residual.res, inputs, wrt);
 }
 
 mfem::Solver *getPreconditioner(MagnetostaticResidual &residual)
 {
    return residual.prec.get();
 }
+
+}  // namespace mach
