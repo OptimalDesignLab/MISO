@@ -107,6 +107,11 @@ public:
                              FiniteElementState &output);
 };
 
+inline double calcOutput(L2TransferOperator &output, const MachInputs &inputs)
+{
+   return NAN;
+}
+
 inline void calcOutput(L2TransferOperator &output,
                        const MachInputs &inputs,
                        mfem::Vector &out_vec)

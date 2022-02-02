@@ -6,6 +6,7 @@
 #include "electromag_integ.hpp"
 #include "electromag_outputs.hpp"
 #include "functional_output.hpp"
+#include "l2_transfer_operator.hpp"
 
 #include "magnetostatic.hpp"
 
@@ -43,7 +44,18 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       outputs.emplace(fun, std::move(out));
    }
    else if (fun == "flux_magnitude")
-   { }
+   {
+      auto state_degree = AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      nlohmann::json dg_field_options{{"degree", state_degree},
+                                      {"basis-type", "DG"}};
+      fields.emplace(std::piecewise_construct,
+                     std::forward_as_tuple(fun),
+                     std::forward_as_tuple(mesh(), dg_field_options));
+
+      auto &dg_field = fields.at(fun);
+      L2CurlMagnitudeProjection out(state(), dg_field);
+      outputs.emplace(fun, std::move(out));
+   }
    else
    {
       throw MachException("Output with name " + fun +
@@ -77,7 +89,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
 //       auto mu_r = materials[material]["mu_r"].get<double>();
 //       lin_coeff =
-//           std::make_unique<mfem::ConstantCoefficient>(1.0 / (mu_r * mu_0));
+//           std::make_unique<mfem::ConstantCoefficient>(1.0 / (mu_r *
+//           mu_0));
 
 //       // if (material == "team13")
 //       // {
@@ -91,7 +104,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //           std::make_unique<mach::NonlinearReluctivityCoefficient>(b, h);
 //       // }
 
-//       temp_coeff = std::make_unique<mach::ParameterContinuationCoefficient>(
+//       temp_coeff =
+//       std::make_unique<mach::ParameterContinuationCoefficient>(
 //           move(lin_coeff), move(nonlin_coeff));
 
 //       // if (material == "team13")
@@ -109,7 +123,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    {
 //       auto mu_r = materials[material]["mu_r"].get<double>();
 //       temp_coeff =
-//           std::make_unique<mfem::ConstantCoefficient>(1.0 / (mu_r * mu_0));
+//           std::make_unique<mfem::ConstantCoefficient>(1.0 / (mu_r *
+//           mu_0));
 //       // std::cout << "new coeff with mu_r: " << mu_r << "\n";
 //    }
 //    return temp_coeff;
@@ -203,7 +218,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    auto jmag = sqrt(J[0] * J[0] + J[1] * J[1] + J[2] * J[2]);
 //    if (abs(jmag - 1.0) >= 1e-14)
 //    {
-//       std::cout << "J mag: " << sqrt(J[0] * J[0] + J[1] * J[1] + J[2] * J[2])
+//       std::cout << "J mag: " << sqrt(J[0] * J[0] + J[1] * J[1] + J[2] *
+//       J[2])
 //                 << "\n";
 //    }
 // }
@@ -312,8 +328,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // }
 
 // template <typename xdouble = double>
-// void cw_magnetization(const xdouble &remnant_flux, const xdouble *x, xdouble
-// *M)
+// void cw_magnetization(const xdouble &remnant_flux, const xdouble *x,
+// xdouble *M)
 // {
 //    xdouble r[] = {0.0, 0.0, 0.0};
 //    r[0] = x[0];
@@ -419,8 +435,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
 //    xdouble y = x[1] - .5;
 
-//    // J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
-//    J[2] = -6 * y;
+//    // J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled
+//    problem J[2] = -6 * y;
 // }
 
 // template <typename xdouble = double>
@@ -433,8 +449,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
 //    xdouble y = x[1] - .5;
 
-//    // J[2] = current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
-//    J[2] = 6 * y;
+//    // J[2] = current_density*6*y*(1/(M_PI*4e-7)); // for real scaled
+//    problem J[2] = 6 * y;
 // }
 
 // /// function to get the sign of a number
@@ -510,9 +526,10 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
 // namespace mach
 // {
-// MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json &json_options,
-//                                          std::unique_ptr<mfem::Mesh> smesh,
-//                                          MPI_Comm comm)
+// MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json
+// &json_options,
+//                                          std::unique_ptr<mfem::Mesh>
+//                                          smesh, MPI_Comm comm)
 //  : AbstractSolver(json_options, move(smesh), comm), dim(mesh->Dimension())
 // {
 //    mesh->RemoveInternalBoundaries();
@@ -660,8 +677,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    // double dlambda = 1.0/(max_iter-1);
 //    // std::vector<double> lambda =
 //    // {0.0, 1./8, 1./3, 2./3, 3./4, 7./8, 15./16, 31./32, 63./64,
-//    // 127./128, 1.0}; std::vector<double> lambda = {0.0, 0.67, 1.0}; // just
-//    for
+//    // 127./128, 1.0}; std::vector<double> lambda = {0.0, 0.67, 1.0}; //
+//    just for
 //    // a test
 //    std::vector<double> lambda = {1.0};  // just for a test
 //    // for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
@@ -698,7 +715,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    // }
 //    terminalHook(ti, t, state);
 
-//    // Save the final solution. This output can be viewed later using GLVis:
+//    // Save the final solution. This output can be viewed later using
+//    GLVis:
 //    // glvis -m unitGridTestMesh.msh -g adv-final.gf".
 //    {
 //       ofstream osol("final.gf");
@@ -706,15 +724,18 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //       state.Save(osol);
 //    }
 //    // write the solution to vtk file
-//    if (options["space-dis"]["basis-type"].template get<string>() == "csbp")
+//    if (options["space-dis"]["basis-type"].template get<string>() ==
+//    "csbp")
 //    {
 //       ofstream sol_ofs("final_cg.vtk");
 //       sol_ofs.precision(14);
 //       mesh->PrintVTK(sol_ofs,
-//                      options["space-dis"]["degree"].template get<int>() + 1);
+//                      options["space-dis"]["degree"].template get<int>() +
+//                      1);
 //       state.SaveVTK(sol_ofs,
 //                     "Solution",
-//                     options["space-dis"]["degree"].template get<int>() + 1);
+//                     options["space-dis"]["degree"].template get<int>() +
+//                     1);
 //       sol_ofs.close();
 //       printField("final", state, "Solution");
 //    }
@@ -724,10 +745,12 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //       ofstream sol_ofs("final_dg.vtk");
 //       sol_ofs.precision(14);
 //       mesh->PrintVTK(sol_ofs,
-//                      options["space-dis"]["degree"].template get<int>() + 1);
+//                      options["space-dis"]["degree"].template get<int>() +
+//                      1);
 //       state.SaveVTK(sol_ofs,
 //                     "Solution",
-//                     options["space-dis"]["degree"].template get<int>() + 1);
+//                     options["space-dis"]["degree"].template get<int>() +
+//                     1);
 //       sol_ofs.close();
 //       printField("final", state, "Solution");
 //    }
@@ -796,7 +819,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // // HypreParVector *current_true = load_gf->GetTrueDofs();
 // // newton_solver->Mult(*current_true, *u_true);
 // // MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not
-// // converge."); u->SetFromTrueDofs(*u_true); Vector Zero(3); Zero = 0.0; bool
+// // converge."); u->SetFromTrueDofs(*u_true); Vector Zero(3); Zero = 0.0;
+// bool
 // // box_prob = options["problem-opts"].value("box", false);
 
 // // if (!box_prob)
@@ -808,7 +832,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // // computeSecondaryFields();
 // // }
 
-// // void MagnetostaticSolver::initialHook(const mfem::ParGridFunction &state)
+// // void MagnetostaticSolver::initialHook(const mfem::ParGridFunction
+// &state)
 // // {
 // /// TODO!!
 // // Vector Zero(3);
@@ -917,7 +942,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // //    new MagneticCoenergyIntegrator(*u, nu.get()));
 // // dJdX.Assemble();
 // // std::cout << "dJdX norm: " << dJdX.Norml2() << "\n";
-// // /// TODO I don't know if this works in parallel / when we need to use tdof
+// // /// TODO I don't know if this works in parallel / when we need to use
+// tdof
 // // vectors
 // // // *dLdX -= dJdX;
 
@@ -942,8 +968,10 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // // j_mesh_sens = 0.0;
 // // auto *j_mesh_sens_true = j_mesh_sens.GetTrueDofs();
 // // getCurrentSourceMeshSens(*adj, *j_mesh_sens_true);
-// // std::cout << "residual dJdX norm: " << res_mesh_sens_l->Norml2() << "\n";
-// // std::cout << "current source dJdX norm: " << j_mesh_sens_true->Norml2() <<
+// // std::cout << "residual dJdX norm: " << res_mesh_sens_l->Norml2() <<
+// "\n";
+// // std::cout << "current source dJdX norm: " << j_mesh_sens_true->Norml2()
+// <<
 // // "\n";
 // // /// dJdX = \partialJ / \partial X + \psi^T \partial R / \partial X
 // // dLdX->Add(1, *res_mesh_sens_l);
@@ -981,7 +1009,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    // FiniteElementSpace *mesh_fes = x_nodes->FESpace();
 //    // GridFunction dJdX(mesh_fes, dJdX_vect->GetData());
 //    // GridFunction dJdX_fd(mesh_fes); GridFunction dJdX_cd(mesh_fes);
-//    // GridFunction dJdX_fd_err(mesh_fes); GridFunction dJdX_cd_err(mesh_fes);
+//    // GridFunction dJdX_fd_err(mesh_fes); GridFunction
+//    dJdX_cd_err(mesh_fes);
 //    // // initialize the vector that we use to perturb the mesh nodes
 //    // GridFunction v(mesh_fes);
 //    // v.ProjectCoefficient(v_rand);
@@ -1107,13 +1136,16 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    // std::cout << "Volume Mesh Sensititivies:  " << std::endl;
 //    // // std::cout << "Finite Difference:          " << dJdX_fd_v <<
 //    std::endl;
-//    // std::cout << "Central Difference:         " << dJdX_cd_v << std::endl;
+//    // std::cout << "Central Difference:         " << dJdX_cd_v <<
+//    std::endl;
 //    // std::cout << "Analytic:                   " << dJdX_v << std::endl;
 //    // // std::cout << "FD Relative:                " <<
 //    // (dJdX_v-dJdX_fd_v)/dJdX_v << std::endl;
-//    // // std::cout << "FD Absolute:                " << dJdX_v - dJdX_fd_v <<
+//    // // std::cout << "FD Absolute:                " << dJdX_v - dJdX_fd_v
+//    <<
 //    // std::endl; std::cout << "CD Relative:                " <<
-//    // (dJdX_v-dJdX_cd_v)/dJdX_v << std::endl; std::cout << "CD Absolute: " <<
+//    // (dJdX_v-dJdX_cd_v)/dJdX_v << std::endl; std::cout << "CD Absolute: "
+//    <<
 //    // dJdX_v - dJdX_cd_v << std::endl;
 // }
 
@@ -1156,7 +1188,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
 // void MagnetostaticSolver::setInitialCondition(
 //     mfem::ParGridFunction &state,
-//     const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
+//     const std::function<void(const mfem::Vector &, mfem::Vector &)>
+//     &u_init)
 // {
 //    state = 0.0;
 
@@ -1189,7 +1222,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //                                         double t,
 //                                         double t_final,
 //                                         double dt,
-//                                         const ParGridFunction &state) const
+//                                         const ParGridFunction &state)
+//                                         const
 // {
 //    if (options["time-dis"]["steady"].template get<bool>())
 //    {
@@ -1202,7 +1236,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    }
 //    else
 //    {
-//       throw MachException("MagnetostaticSolver requires steady time-dis!\n");
+//       throw MachException("MagnetostaticSolver requires steady
+//       time-dis!\n");
 //    }
 // }
 
@@ -1220,7 +1255,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //                                          double t,
 //                                          double t_final,
 //                                          double dt_old,
-//                                          const ParGridFunction &state) const
+//                                          const ParGridFunction &state)
+//                                          const
 // {
 //    if (options["time-dis"]["steady"].template get<bool>())
 //    {
@@ -1239,7 +1275,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    }
 //    else
 //    {
-//       throw MachException("MagnetostaticSolver requires steady time-dis!\n");
+//       throw MachException("MagnetostaticSolver requires steady
+//       time-dis!\n");
 //    }
 // }
 
@@ -1266,7 +1303,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // //    int type = _options.value("inexacttype", 2);
 // //    double rtol0 = _options.value("rtol0", 0.5);
 // //    double rtol_max = _options.value("rtol_max", 0.9);
-// //    double alpha = _options.value("alpha", (0.5) * ((1.0) + sqrt((5.0))));
+// //    double alpha = _options.value("alpha", (0.5) * ((1.0) +
+// sqrt((5.0))));
 // //    double gamma = _options.value("gamma", 1.0);
 // //    newton->SetAdaptiveLinRtol(type, rtol0, rtol_max, alpha, gamma);
 // //    }
@@ -1293,8 +1331,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // {
 //    div_free_current_vec = std::make_unique<GridFunType>(fes.get());
 
-//    /// read options file to set the proper values of static member variables
-//    setStaticMembers();
+//    /// read options file to set the proper values of static member
+//    variables setStaticMembers();
 //    /// Construct current source coefficient
 //    constructCurrent();
 //    /// Construct magnetization coefficient
@@ -1375,7 +1413,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    }
 // }
 
-// /// TODO - this approach cannot support general magnet topologies where the
+// /// TODO - this approach cannot support general magnet topologies where
+// the
 // ///        magnetization cannot be described by a single vector function
 // void MagnetostaticSolver::constructMagnetization()
 // {
@@ -1488,7 +1527,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //          {
 //             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
 //                 new VectorFunctionCoefficient(
-//                     dim, phaseACurrentSource, phaseACurrentSourceRevDiff));
+//                     dim, phaseACurrentSource,
+//                     phaseACurrentSourceRevDiff));
 //             current_coeff->addCoefficient(attr, move(temp_coeff));
 //          }
 //       }
@@ -1499,7 +1539,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //          {
 //             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
 //                 new VectorFunctionCoefficient(
-//                     dim, phaseBCurrentSource, phaseBCurrentSourceRevDiff));
+//                     dim, phaseBCurrentSource,
+//                     phaseBCurrentSourceRevDiff));
 //             current_coeff->addCoefficient(attr, move(temp_coeff));
 //          }
 //       }
@@ -1510,7 +1551,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //          {
 //             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
 //                 new VectorFunctionCoefficient(
-//                     dim, phaseCCurrentSource, phaseCCurrentSourceRevDiff));
+//                     dim, phaseCCurrentSource,
+//                     phaseCCurrentSourceRevDiff));
 //             current_coeff->addCoefficient(attr, move(temp_coeff));
 //          }
 //       }
@@ -1554,7 +1596,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //          {
 //             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
 //                 new VectorFunctionCoefficient(
-//                     dim, nzAxisCurrentSource, nzAxisCurrentSourceRevDiff));
+//                     dim, nzAxisCurrentSource,
+//                     nzAxisCurrentSourceRevDiff));
 //             current_coeff->addCoefficient(attr, move(temp_coeff));
 //          }
 //       }
@@ -1598,7 +1641,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //          {
 //             std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
 //                 new VectorFunctionCoefficient(
-//                     dim, team13CurrentSource, team13CurrentSourceRevDiff));
+//                     dim, team13CurrentSource,
+//                     team13CurrentSourceRevDiff));
 //             current_coeff->addCoefficient(attr, move(temp_coeff));
 //          }
 //       }
@@ -1647,7 +1691,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    // const IntegrationRule *ir = &IntRules.Get(geom, irOrder);
 
 //    // /// Create a H(curl) mass matrix for integrating grid functions
-//    // BilinearFormIntegrator *h_curl_mass_integ = new VectorFEMassIntegrator;
+//    // BilinearFormIntegrator *h_curl_mass_integ = new
+//    VectorFEMassIntegrator;
 //    // h_curl_mass_integ->SetIntRule(ir);
 //    // ParBilinearForm h_curl_mass(fes.get());
 //    // h_curl_mass.AddDomainIntegrator(h_curl_mass_integ);
@@ -1656,7 +1701,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    // h_curl_mass.Finalize();
 
 //    // ParLinearForm J(fes.get());
-//    // J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(*current_coeff));
+//    // J.AddDomainIntegrator(new
+//    VectorFEDomainLFIntegrator(*current_coeff));
 //    // J.Assemble();
 
 //    // ParGridFunction j(fes.get());
@@ -1694,9 +1740,11 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    // h_curl_mass.Finalize();
 
 //    // /// compute the divergence free current source
-//    // auto div_free_proj = mfem::common::DivergenceFreeProjector(*h1_space,
+//    // auto div_free_proj =
+//    mfem::common::DivergenceFreeProjector(*h1_space,
 //    // *fes,
-//    //                                           irOrder, NULL, NULL, NULL);
+//    //                                           irOrder, NULL, NULL,
+//    NULL);
 
 //    // // Compute the discretely divergence-free portion of j
 //    // *div_free_current_vec = 0.0;
@@ -1706,14 +1754,16 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    div_free_current_vec->Norml2()
 //    // << "\n\n";
 
-//    // // printFields("current", {&j, div_free_current_vec.get()}, {"jhcurl",
+//    // // printFields("current", {&j, div_free_current_vec.get()},
+//    {"jhcurl",
 //    // "jdivfree"});
 
 //    // // *old_load = 0.0;
 //    // // h_curl_mass.AddMult(*div_free_current_vec, *old_load);
 //    // // *old_load *= -1.0;
 //    // // printField("current_source",
-//    // *dynamic_cast<ParGridFunction*>(old_load.get()), "current", 5); *out <<
+//    // *dynamic_cast<ParGridFunction*>(old_load.get()), "current", 5); *out
+//    <<
 //    // "below h_curl add mult\n";
 // }
 
@@ -1741,7 +1791,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    // h_curl_mass.MultTranspose(psi_a, psi_j_hat);
 //    // psi_j_hat *= -1.0; // (\psi_j_hat = -M^T \psi_A)
 
-//    // mfem::common::ParDiscreteGradOperator grad(h1_space.get(), fes.get());
+//    // mfem::common::ParDiscreteGradOperator grad(h1_space.get(),
+//    fes.get());
 //    // grad.Assemble();
 //    // grad.Finalize();
 
@@ -1817,7 +1868,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
 //    // /// compute j
 //    // LinearFormType J(fes.get());
-//    // J.AddDomainIntegrator(new VectorFEDomainLFIntegrator(*current_coeff));
+//    // J.AddDomainIntegrator(new
+//    VectorFEDomainLFIntegrator(*current_coeff));
 //    // J.Assemble();
 
 //    // GridFunType j(fes.get());
@@ -1990,7 +2042,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // // void MagnetostaticSolver::phase_a_source(const Vector &x,
 // //                                        Vector &J)
 // // {
-// //    // example of needed geometric parameters, this should be all you need
+// //    // example of needed geometric parameters, this should be all you
+// need
 // //    int n_s = 12; //number of slots
 // //    double zb = 0.0; //bottom of stator
 // //    double zt = 0.25; //top of stator
@@ -2013,7 +2066,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // //       // check if we're in left or right half
 // //       if(th > 0)
 // //       {
-// //          J(2) = -1; // set to 1 for now, and direction depends on current
+// //          J(2) = -1; // set to 1 for now, and direction depends on
+// current
 // //          direction
 // //       }
 // //       if(th < 0)
@@ -2054,7 +2108,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // // void MagnetostaticSolver::phase_b_source(const Vector &x,
 // //                                        Vector &J)
 // // {
-// //    // example of needed geometric parameters, this should be all you need
+// //    // example of needed geometric parameters, this should be all you
+// need
 // //    int n_s = 12; //number of slots
 // //    double zb = 0.0; //bottom of stator
 // //    double zt = 0.25; //top of stator
@@ -2077,7 +2132,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // //       // check if we're in left or right half
 // //       if(th > 0)
 // //       {
-// //          J(2) = -1; // set to 1 for now, and direction depends on current
+// //          J(2) = -1; // set to 1 for now, and direction depends on
+// current
 // //          direction
 // //       }
 // //       if(th < 0)
@@ -2353,14 +2409,16 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    source_jac.MultTranspose(V_bar, x_bar);
 // }
 
-// void MagnetostaticSolver::cwMagnetizationSource(const Vector &x, Vector &M)
+// void MagnetostaticSolver::cwMagnetizationSource(const Vector &x, Vector
+// &M)
 // {
 //    cw_magnetization(remnant_flux, x.GetData(), M.GetData());
 // }
 
 // void MagnetostaticSolver::cwMagnetizationSourceRevDiff(const Vector &x,
-//                                                        const Vector &V_bar,
-//                                                        Vector &x_bar)
+//                                                        const Vector
+//                                                        &V_bar, Vector
+//                                                        &x_bar)
 // {
 //    DenseMatrix source_jac(3);
 //    // declare vectors of active input variables
@@ -2380,14 +2438,16 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    source_jac.MultTranspose(V_bar, x_bar);
 // }
 
-// void MagnetostaticSolver::ccwMagnetizationSource(const Vector &x, Vector &M)
+// void MagnetostaticSolver::ccwMagnetizationSource(const Vector &x, Vector
+// &M)
 // {
 //    ccw_magnetization(remnant_flux, x.GetData(), M.GetData());
 // }
 
 // void MagnetostaticSolver::ccwMagnetizationSourceRevDiff(const Vector &x,
-//                                                         const Vector &V_bar,
-//                                                         Vector &x_bar)
+//                                                         const Vector
+//                                                         &V_bar, Vector
+//                                                         &x_bar)
 // {
 //    DenseMatrix source_jac(3);
 //    // declare vectors of active input variables
