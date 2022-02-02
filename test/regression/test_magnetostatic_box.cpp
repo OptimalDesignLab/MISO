@@ -31,7 +31,7 @@ auto options = R"(
       "max-iter": 5
    },
    "lin-solver": {
-      "type": "hypregmres",
+      "type": "minres",
       "printlevel": 0,
       "maxiter": 100,
       "abstol": 1e-14,
@@ -68,7 +68,8 @@ auto options = R"(
    },
    "bcs": {
       "essential": "all"
-   }
+   },
+   "ess-bdr": "all"
 })"_json;
 
 /// \brief Exact solution for magnetic vector potential
@@ -145,12 +146,14 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             // REQUIRE(l2_error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
             solver.createOutput("energy");
-
             MachInputs inputs{{"state", state_tv}};
             double energy = solver.calcOutput("energy", inputs);
             std::cout.precision(10);
             std::cout << "energy: " << energy << "\n";
             REQUIRE(energy == Approx(target_energy[order-1][ref - 1]).margin(1e-10));
+
+            // double error = solver.calcStateError(aexact, state_tv);
+            // REQUIRE(error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
          }
       }
    }
