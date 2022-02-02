@@ -7,6 +7,7 @@
 
 #include "abstract_solver.hpp"
 #include "data_logging.hpp"
+#include "finite_element_state.hpp"
 #include "mach_input.hpp"
 #include "mach_linearform.hpp"
 #include "mach_load.hpp"
@@ -23,12 +24,12 @@ class ThermalResidual final
 
 public:
    ThermalResidual(mfem::ParFiniteElementSpace &fes,
+                   std::map<std::string, mach::FiniteElementState> &fields,
                    const nlohmann::json &options)
     : fes_(fes),
-      fields(std::make_unique<std::unordered_map<std::string, mfem::ParGridFunction>>()),
-      res(fes_, *fields),
+      res(fes_, fields),
       // kappa(std::make_unique<mfem::ConstantCoefficient>(1.0))
-      load(std::make_unique<mach::MachLinearForm>(fes_, *fields)),
+      load(std::make_unique<mach::MachLinearForm>(fes_, fields)),
       force(std::make_unique<mfem::FunctionCoefficient>([](const mfem::Vector &p, double t)
       {
          auto x = p(0);
@@ -89,7 +90,7 @@ public:
 
 private:
    mfem::ParFiniteElementSpace &fes_;
-   std::unique_ptr<std::unordered_map<std::string, mfem::ParGridFunction>> fields;
+   // std::unique_ptr<std::unordered_map<std::string, mfem::ParGridFunction>> fields;
    mach::MachNonlinearForm res;
    // std::unique_ptr<mfem::ConstantCoefficient> kappa;
    std::unique_ptr<mach::MachLinearForm> load;
@@ -116,7 +117,7 @@ public:
                  std::unique_ptr<mfem::Mesh> smesh)
       : PDESolver(comm, solver_options, num_states, std::move(smesh))
    {
-      spatial_res = std::make_unique<mach::MachResidual>(ThermalResidual(fes(), options));
+      spatial_res = std::make_unique<mach::MachResidual>(ThermalResidual(fes(), fields, options));
       setOptions(*spatial_res, options);
 
       auto *prec = getPreconditioner(*spatial_res);
