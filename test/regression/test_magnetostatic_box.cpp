@@ -91,16 +91,16 @@ std::unique_ptr<Mesh> buildMesh(int nxy,
 TEST_CASE("Magnetostatic Box Solver Regression Test",
           "[Magnetostatic-Box]")
 {
-   // define the appropriate exact solution error
+   // define the target state solution error
    std::vector<std::vector<double>> target_error = {
-      // nxy = 2,    nxy = 4,      nyx = 8,      nyx = 16,     nxy = 32
-      {0.1909560005, 0.0714431496, 0.0254173455, 0.0089731459, 0.0031667063}, // p = 1
-      {0.0503432775, 0.0103611278, 0.0022325345, 0.0005048188, 0.0001186963}, // p = 2
-      {0.0056063669, 0.0006908125, 8.56636e-05,  1.0664e-05,   1.33025e-06},  // p = 3
-      {0.0,          0.0,          0.0,          0.0,          0.0}           // p = 4
+      //     nxy = 2, nxy = 4, nyx = 8, nyx = 16, nxy = 32
+      {0.04538234599,     0.0,     0.0,      0.0,      0.0}, // p = 1
+      {0.01203088004,     0.0,     0.0,      0.0,      0.0}, // p = 2
+      {0.00257648892,     0.0,     0.0,      0.0,      0.0}, // p = 3
+      {0.0,               0.0,     0.0,      0.0,      0.0}  // p = 4
    };
 
-   /// TODO:
+   // define the target computed energy
    std::vector<std::vector<double>> target_energy = {
       {0.0456124231, 0.0, 0.0, 0.0},
       {0.05807012599, 0.0, 0.0, 0.0},
@@ -126,34 +126,22 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             auto &state = solver.getState();
             mfem::Vector state_tv(solver.getStateSize());
 
+            /// Set initial/boundary conditions
             solver.setState(aexact, state_tv);
-
             solver.solveForState(state_tv);
 
-            // auto state = solver->getNewField();
-            // solver->setFieldValue(*state, aexact);
-            // MachInputs inputs {
-            //    {"state", *state}
-            // };
-            // solver->solveForState(inputs, *state);
+            /// Compute state error and check against target error
+            double error = solver.calcStateError(aexact, state_tv);
+            std::cout.precision(10);
+            std::cout << "error: " << error << "\n";
+            REQUIRE(error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
-            // auto fields = solver->getFields();
-
-            // // Compute error and check against appropriate target
-            // mfem::VectorFunctionCoefficient bEx(3, bexact);
-            // double l2_error = fields[1]->ComputeL2Error(bEx);
-            // std::cout << "\n\nl2 error in B: " << l2_error << "\n\n\n";
-            // REQUIRE(l2_error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
-
+            /// Calculate the magnetic energy and check against target energy
             solver.createOutput("energy");
             MachInputs inputs{{"state", state_tv}};
             double energy = solver.calcOutput("energy", inputs);
-            std::cout.precision(10);
             std::cout << "energy: " << energy << "\n";
             REQUIRE(energy == Approx(target_energy[order-1][ref - 1]).margin(1e-10));
-
-            // double error = solver.calcStateError(aexact, state_tv);
-            // REQUIRE(error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
          }
       }
    }
@@ -161,47 +149,18 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
 
 void aexact(const Vector &x, Vector& A)
 {
-   // A.SetSize(3);
-   // A = 0.0;
-   // double y = x(1) - .5;
-   // if ( x(1) <= .5)
-   // {
-   //    A(2) = y*y*y; 
-   //    // A(2) = y*y; 
-   // }
-   // else 
-   // {
-   //    A(2) = -y*y*y;
-   //    // A(2) = -y*y;
-   // }
-
    int dim = x.Size();
-   int dimc = (dimc == 3) ? 3 : 1;
-   A.SetSize(dimc);
-   double y = x(1) - .5;
+   A.SetSize(dim);
 
-   if (dimc == 1)
+   A = 0.0;
+   double y = x(1) - 0.5;
+   if ( x(1) <= .5)
    {
-      if ( x(1) <= .5)
-      {
-         A = y*y*y; 
-      }
-      else 
-      {
-         A = -y*y*y;
-      }
+      A(2) = y*y*y; 
    }
-   else
+   else 
    {
-      A = 0.0;
-      if ( x(1) <= .5)
-      {
-         A(2) = y*y*y; 
-      }
-      else 
-      {
-         A(2) = -y*y*y;
-      }
+      A(2) = -y*y*y;
    }
 }
 
