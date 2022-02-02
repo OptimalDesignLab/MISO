@@ -25,7 +25,7 @@
    "nonlin-solver": {
       "printlevel": 0,
       "maxiter": 50,
-      "reltol": 1e-2,
+      "reltol": 1e-6,
       "abstol": 1e-10
    },
    "lin-solver": {

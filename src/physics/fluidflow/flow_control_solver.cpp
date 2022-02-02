@@ -227,7 +227,10 @@ void FlowControlSolver<dim, entvar>::setState_(std::any function,
              Vector control_state;
              Vector flow_state;
              extractStates(state, control_state, flow_state);
-             control_func(control_state);
+             if (rank == 0)
+             {
+                control_func(control_state);
+             }
              fields.at("flow_state").project(flow_func, flow_state);
           });
 }
@@ -235,7 +238,12 @@ void FlowControlSolver<dim, entvar>::setState_(std::any function,
 template <int dim, bool entvar>
 void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
 {
-   AbstractSolver2::initialHook(state);
+   // The base class method initialHook assumes state is one discipline,
+   // so we call it here with flow_state
+   Vector control_state;
+   Vector flow_state;
+   extractStates(state, control_state, flow_state);
+   AbstractSolver2::initialHook(flow_state);
    //getState().distributeSharedDofs(state);
    if (options["time-dis"]["steady"].template get<bool>())
    {
@@ -263,7 +271,13 @@ void FlowControlSolver<dim, entvar>::iterationHook(int iter,
                               double dt,
                               const mfem::Vector &state)
 {
-   AbstractSolver2::iterationHook(iter, t, dt, state);
+   // The base class method iterationHook assumes state is one discipline,
+   // so we call it here with flow_state
+   Vector control_state;
+   Vector flow_state;
+   extractStates(state, control_state, flow_state);
+   AbstractSolver2::iterationHook(iter, t, dt, flow_state);
+
    if (options["time-dis"]["entropy-log"])
    {
       auto inputs = MachInputs({{"time", t}, {"state", state}});
@@ -327,7 +341,12 @@ void FlowControlSolver<dim, entvar>::terminalHook(int iter,
                              double t_final,
                              const mfem::Vector &state)
 {
-   AbstractSolver2::terminalHook(iter, t_final, state);
+   // The base class method terminalHook assumes state is one discipline,
+   // so we call it here with flow_state
+   Vector control_state;
+   Vector flow_state;
+   extractStates(state, control_state, flow_state);
+   AbstractSolver2::terminalHook(iter, t_final, flow_state);
    if (options["time-dis"]["entropy-log"])
    {
       auto inputs = MachInputs({{"time", t_final}, {"state", state}});

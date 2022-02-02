@@ -34,11 +34,14 @@ void evaluate(ControlResidual &residual,
               mfem::Vector &res_vec)
 {
    setInputs(residual, inputs);
-   // This is a simple non-dissipative, decoupled system for testing
-   // Residual is defined on left-hand side!
-   res_vec.SetSize(2);
-   res_vec(0) = -residual.x(1);
-   res_vec(1) = residual.x(0);
+   res_vec.SetSize(residual.num_var);
+   if (residual.rank == 0)
+   {
+      // This is a simple non-dissipative, decoupled system for testing
+      // Residual is defined on left-hand side!
+      res_vec(0) = -residual.x(1);
+      res_vec(1) = residual.x(0);
+   }
 
    // // define some aliases
    // double &Kp = residual.Kp;
@@ -66,16 +69,25 @@ Operator &getJacobian(ControlResidual &residual,
                       std::string wrt)
 {
    setInputs(residual, inputs);
-   (*residual.Jac) = 0.0;
-   (*residual.Jac)(0, 1) = -1.0;
-   (*residual.Jac)(1, 0) = 1.0;
+   if (residual.rank == 0)
+   {
+      (*residual.Jac) = 0.0;
+      (*residual.Jac)(0, 1) = -1.0;
+      (*residual.Jac)(1, 0) = 1.0;
+   }
    return *residual.Jac;
 }
 
 double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
 {
    setInputs(residual, inputs);
-   return residual.x(0) * residual.x(0) + residual.x(1) * residual.x(1);
+   double ent = 0.0;
+   if (residual.rank == 0)
+   {
+      ent += residual.x(0) * residual.x(0) + residual.x(1) * residual.x(1);
+   }
+   MPI_Bcast(&ent, 1, MPI_DOUBLE, 0, residual.comm);
+   return ent;
 }
 
 double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
@@ -88,7 +100,13 @@ double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
    setValueFromInputs(inputs, "dt", dt, true);
    auto &y = residual.work;
    add(residual.x, dt, dxdt, y);
-   return -y(0) * y(1) + y(1) * y(0);
+   double ent_change = 0.0;
+   if (residual.rank == 0)
+   {
+      ent_change += -y(0) * y(1) + y(1) * y(0);
+   }
+   MPI_Bcast(&ent_change, 1, MPI_DOUBLE, 0, residual.comm);
+   return ent_change;
 }
 
 template <int dim, bool entvar>
@@ -99,7 +117,7 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
     std::ostream &outstream)
  : out(outstream),
    flow_res(options, pfes, diff_stack),
-   control_res(options) //, jac(*this, pfes.GetComm())
+   control_res(pfes.GetComm(), options)
 {
    // offsets mark the start of each row/column block; note that offsets must
    // be a unique pointer because move semantics are not set up for mfem::Array
@@ -124,12 +142,12 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
 
 template <int dim, bool entvar>
 void FlowControlResidual<dim, entvar>::extractStates(
-    Vector &state,
+    const Vector &state,
     Vector &control_state,
     Vector &flow_state) const
 {
-   control_state.NewDataAndSize(state.begin(), num_control());
-   flow_state.NewDataAndSize(state.begin() + num_control(), num_flow());
+   control_state.NewDataAndSize(state.GetData(), num_control());
+   flow_state.NewDataAndSize(state.GetData() + num_control(), num_flow());
 }
 
 template <int dim, bool entvar>

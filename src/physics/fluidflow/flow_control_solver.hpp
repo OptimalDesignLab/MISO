@@ -73,7 +73,7 @@ private:
    /// \note This just wraps the underlying `FlowControlResidual` method
    /// \note No memory is allocated for the output states, they simply wrap the
    /// data passed in by state
-   void extractStates(mfem::Vector &state,
+   void extractStates(const mfem::Vector &state,
                       mfem::Vector &control_state,
                       mfem::Vector &flow_state) const
    {

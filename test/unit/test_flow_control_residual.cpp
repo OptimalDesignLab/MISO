@@ -42,9 +42,18 @@ auto options = R"(
 TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
 {
    // construct the residual
-   ControlResidual res(options);
+   ControlResidual res(MPI_COMM_WORLD, options);
+   int rank;
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    int num_var = getSize(res);
-   REQUIRE(num_var == 2);
+   if (rank == 0)
+   {
+      REQUIRE(num_var == 2);
+   }
+   else
+   {
+      REQUIRE(num_var == 0);
+   }
 
    // evaluate the residual at an arbitrary state
    Vector x(num_var);
@@ -58,8 +67,15 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    auto inputs = MachInputs({{"state", x}, {"time", time}});
    Vector res_vec(num_var);
    evaluate(res, inputs, res_vec);
-   REQUIRE( res_vec(0) == Approx(-x(1)).margin(1e-14) );
-   REQUIRE( res_vec(1) == Approx(x(0)).margin(1e-14) );
+   if (rank == 0)
+   {
+      REQUIRE( res_vec(0) == Approx(-x(1)).margin(1e-14) );
+      REQUIRE( res_vec(1) == Approx(x(0)).margin(1e-14) );
+   }
+   else
+   {
+      REQUIRE( res_vec.Size() == 0 );
+   }
 
    // evaluate the Jacobian; perform matrix-vector product on random vector
    Operator &Jac = getJacobian(res, inputs, "state");
@@ -69,27 +85,39 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
       v(i) = uniform_rand(gen);
    }
    Jac.Mult(v, Jac_v);
-   REQUIRE( Jac_v(0) == Approx(-v(1)).margin(1e-14) );
-   REQUIRE( Jac_v(1) == Approx(v(0)).margin(1e-14) );
+   if (rank == 0)
+   {
+      REQUIRE( Jac_v(0) == Approx(-v(1)).margin(1e-14) );
+      REQUIRE( Jac_v(1) == Approx(v(0)).margin(1e-14) );
+   }
 
    // get the Preconditioner, which should be the exact inverse here    
    Vector w(num_var);
    Solver * prec = getPreconditioner(res, options["lin-prec"]);
    prec->SetOperator(Jac);
    prec->Mult(Jac_v, w);
-   REQUIRE( w(0) == Approx(v(0)).margin(1e-14) );
-   REQUIRE( w(1) == Approx(v(1)).margin(1e-14) );
+   if (rank == 0)
+   {
+      REQUIRE( w(0) == Approx(v(0)).margin(1e-14) );
+      REQUIRE( w(1) == Approx(v(1)).margin(1e-14) );
+   }
 
    // check the entropy 
    double entropy = calcEntropy(res, inputs);
-   REQUIRE(entropy == Approx(x(0) * x(0) + x(1) * x(1)).margin(1e-14));
+   if (rank == 0)
+   {
+      REQUIRE(entropy == Approx(x(0) * x(0) + x(1) * x(1)).margin(1e-14));
+   }
 
    // check entropy change
    v = 0.0;
    inputs = MachInputs(
        {{"state", x}, {"time", time}, {"state_dot", v}, {"dt", 0.0}});
    double entropy_change = calcEntropyChange(res, inputs);
-   REQUIRE(entropy_change == Approx(0.0).margin(1e-14));
+   if (rank == 0)
+   {
+      REQUIRE(entropy_change == Approx(0.0).margin(1e-14));
+   }
 }
 
 TEST_CASE("FlowControlResidual construction and evaluation",
@@ -112,7 +140,7 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    MachResidual res(
        FlowControlResidual<dim, false>(options, fespace, diff_stack));
    FlowResidual<dim, false> flow_res(options, fespace, diff_stack);
-   ControlResidual control_res(options);
+   ControlResidual control_res(MPI_COMM_WORLD, options);
    int num_var = getSize(res);
    REQUIRE(num_var == getSize(flow_res) + getSize(control_res));
 

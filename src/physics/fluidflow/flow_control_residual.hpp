@@ -98,23 +98,31 @@ public:
    /// \param[in] control_options - options used to define the residual
    /// \note the number of control variables is hard-coded, but this could
    /// easily be changed.
-   ControlResidual(const nlohmann::json &control_options)
-    : num_var(2),
-      time(0.0),
-      x(num_var),
-      work(num_var),
-      prec()
+   ControlResidual(MPI_Comm incomm, const nlohmann::json &control_options)
    { 
+      time = 0.0;
+      MPI_Comm_dup(incomm, &comm);
+      MPI_Comm_rank(comm, &rank);
+      rank == 0 ? num_var = 2 : num_var = 0;
+      x.SetSize(num_var);
+      work.SetSize(num_var);
       mass_mat = std::make_unique<mfem::DenseMatrix>(num_var);
-      (*mass_mat) = 0.0;
-      (*mass_mat)(0,0) = 1.0;
-      (*mass_mat)(1,1) = 1.0;
       Jac = std::make_unique<mfem::DenseMatrix>(num_var);
       prec = std::make_unique<mfem::DenseMatrixInverse>();
+      if (rank == 0)
+      {
+         (*mass_mat) = 0.0;
+         (*mass_mat)(0,0) = 1.0;
+         (*mass_mat)(1,1) = 1.0;
+      }
    }
 
 private:
-   /// number of control ODE variables/equations
+   /// communicator used by MPI group for communication
+   MPI_Comm comm;
+   /// MPI process rank
+   int rank;
+   /// number of control ODE variables/equations on this process
    int num_var;
    /// parameters in the control law
    // double Kp, Td, Ti, alpha, beta;
@@ -269,7 +277,7 @@ public:
    /// \param[out] flow_state - on exit, holds the flow state vector
    /// \note No memory is allocated for the output states, they simply wrap the
    /// data passed in by state
-   void extractStates(mfem::Vector &state,
+   void extractStates(const mfem::Vector &state,
                       mfem::Vector &control_state,
                       mfem::Vector &flow_state) const;
 
