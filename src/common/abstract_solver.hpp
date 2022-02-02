@@ -118,6 +118,15 @@ public:
    /// \return scalar value of estimated output value
    double calcOutput(const std::string &output, const MachInputs &inputs);
 
+   /// Evaluates the vector-valued output specifed by @a output
+   /// \param[in] output - specifies the desired output
+   /// \param[in] inputs - collection of field or scalar inputs to set before
+   ///                     evaluating the output
+   /// \param[out] out_vec - estimated vector-valued output
+   void calcOutput(const std::string &output,
+                   const MachInputs &inputs,
+                   mfem::Vector &out_vec);
+
    /// Evaluates and returns the partial derivative of output specifed by
    /// `of` with respect to the input specified by `wrt`
    /// \param[in] of - specifies the desired output

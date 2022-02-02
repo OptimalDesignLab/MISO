@@ -238,6 +238,25 @@ double AbstractSolver2::calcOutput(const std::string &output,
    }
 }
 
+void AbstractSolver2::calcOutput(const std::string &output,
+                                 const MachInputs &inputs,
+                                 mfem::Vector &out_vec)
+{
+   try
+   {
+      auto output_iter = outputs.find(output);
+      if (output_iter == outputs.end())
+      {
+         throw MachException("Did not find " + output + " in output map?");
+      }
+      mach::calcOutput(output_iter->second, inputs, out_vec);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << std::endl;
+   }
+}
+
 void AbstractSolver2::calcOutputPartial(const std::string &of,
                                         const std::string &wrt,
                                         const MachInputs &inputs,

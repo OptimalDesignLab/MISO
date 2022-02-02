@@ -189,7 +189,6 @@ void initSolver(py::module &m)
             py::arg("type"),
             py::arg("opt_file_name"),
             py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
-
        .def(py::init([](const std::string &type,
                         const nlohmann::json &json_options,
                         mpi4py_comm comm)
@@ -211,7 +210,6 @@ void initSolver(py::module &m)
            py::arg("fun"),
            py::arg("state"),
            py::arg("name") = "state")
-
        .def(
            "setState",
            [](AbstractSolver2 &self,
@@ -225,20 +223,24 @@ void initSolver(py::module &m)
            py::arg("fun"),
            py::arg("state"),
            py::arg("name") = "state")
-
        .def(
            "setState",
            [](AbstractSolver2 &self,
-              std::function<void(const mfem::Vector &, mfem::Vector &)> fun,
+              std::function<void(const mfem::Vector &, mfem::Vector *const)>
+                  fun,
               const py::array_t<double> &state,
               const std::string &name)
            {
               auto state_vec = npBufferToMFEMVector(state);
-              self.setState(fun, state_vec, name);
+              self.setState([&fun](const mfem::Vector &x, mfem::Vector &u)
+                            { fun(x, &u); },
+                            state_vec,
+                            name);
            },
            py::arg("fun"),
            py::arg("state"),
            py::arg("name") = "state")
+
        .def(
            "calcStateError",
            [](AbstractSolver2 &self,
@@ -261,29 +263,157 @@ void initSolver(py::module &m)
            py::arg("ex_sol"),
            py::arg("state"),
            py::arg("name") = "state")
-
        .def(
            "calcStateError",
            [](AbstractSolver2 &self,
-              std::function<void(const mfem::Vector &, mfem::Vector &)> ex_sol,
+              std::function<void(const mfem::Vector &, mfem::Vector *const)>
+                  ex_sol,
               const py::array_t<double> &state,
               const std::string &name)
-           { self.calcStateError(ex_sol, npBufferToMFEMVector(state), name); },
+           {
+              self.calcStateError([&ex_sol](const mfem::Vector &x,
+                                            mfem::Vector &u) { ex_sol(x, &u); },
+                                  npBufferToMFEMVector(state),
+                                  name);
+           },
            py::arg("ex_sol"),
            py::arg("state"),
            py::arg("name") = "state")
 
-       //  .def(
-       //      "solveForState",
-       //      [](AbstractSolver &self,
-       //         const py::dict &py_inputs,
-       //         const py::array_t<double> &state)
-       //      {
-       // self.solveForState(pyDictToMachInputs(py_inputs),
-       //                    npBufferToDoubleArray(state));
-       //      },
-       //      py::arg("inputs"),
-       //      py::arg("state"))
+       .def(
+           "solveForState",
+           [](AbstractSolver2 &self, const py::array_t<double> &state)
+           {
+              auto state_vec = npBufferToMFEMVector(state);
+              self.solveForState(state_vec);
+           },
+           py::arg("state"))
+       .def(
+           "solveForState",
+           [](AbstractSolver2 &self,
+              const py::dict &py_inputs,
+              const py::array_t<double> &state)
+           {
+              auto state_vec = npBufferToMFEMVector(state);
+              self.solveForState(pyDictToMachInputs(py_inputs), state_vec);
+           },
+           py::arg("inputs"),
+           py::arg("state"))
+
+       .def(
+           "calcResidual",
+           [](AbstractSolver2 &self,
+              const py::array_t<double> &state,
+              const py::array_t<double> &residual)
+           {
+              auto state_vec = npBufferToMFEMVector(state);
+              auto res_vec = npBufferToMFEMVector(residual);
+              self.calcResidual(state_vec, res_vec);
+           },
+           py::arg("state"),
+           py::arg("residual"))
+       .def(
+           "calcResidual",
+           [](AbstractSolver2 &self,
+              const py::dict &py_inputs,
+              const py::array_t<double> &residual)
+           {
+              auto res_vec = npBufferToMFEMVector(residual);
+              self.calcResidual(pyDictToMachInputs(py_inputs), res_vec);
+           },
+           py::arg("inputs"),
+           py::arg("residual"))
+
+       .def(
+           "calcResidualNorm",
+           [](AbstractSolver2 &self, const py::array_t<double> &state)
+           {
+              auto state_vec = npBufferToMFEMVector(state);
+              return self.calcResidualNorm(state_vec);
+           },
+           py::arg("state"))
+       .def(
+           "calcResidualNorm",
+           [](AbstractSolver2 &self, const py::dict &py_inputs)
+           { return self.calcResidualNorm(pyDictToMachInputs(py_inputs)); },
+           py::arg("inputs"))
+
+       .def("getStateSize", &AbstractSolver2::getStateSize)
+       .def("getFieldSize", &AbstractSolver2::getFieldSize, py::arg("name"))
+
+       .def("createOutput",
+            static_cast<void (AbstractSolver2::*)(const std::string &)>(
+                &AbstractSolver2::createOutput),
+            "Initialize the given output",
+            py::arg("output"))
+       .def("createOutput",
+            static_cast<void (AbstractSolver2::*)(const std::string &,
+                                                  const nlohmann::json &)>(
+                &AbstractSolver2::createOutput),
+            "Initialize the given output with options",
+            py::arg("output"),
+            py::arg("options"))
+
+       .def("setOutputOptions",
+            &AbstractSolver2::setOutputOptions,
+            "Set options for the output specified by \"output\"",
+            py::arg("output"),
+            py::arg("options"))
+
+       .def(
+           "calcOutput",
+           [](AbstractSolver2 &self,
+              const std::string &output,
+              const py::dict &py_inputs)
+           { return self.calcOutput(output, pyDictToMachInputs(py_inputs)); },
+           "Calculate the output specified by \"output\" using \"inputs\"",
+           py::arg("output"),
+           py::arg("inputs"))
+       .def(
+           "calcOutput",
+           [](AbstractSolver2 &self,
+              const std::string &output,
+              const py::dict &py_inputs,
+              const py::array_t<double> &out)
+           {
+              auto out_vec = npBufferToMFEMVector(out);
+              return self.calcOutput(
+                  output, pyDictToMachInputs(py_inputs), out_vec);
+           },
+           "Calculate the vector-valued output specified by \"output\" using "
+           "\"inputs\"",
+           py::arg("output"),
+           py::arg("inputs"),
+           py::arg("out_vec"))
+
+       .def(
+           "calcOutputPartial",
+           [](AbstractSolver2 &self,
+              const std::string &of,
+              const std::string &wrt,
+              const py::dict &py_inputs,
+              const py::array_t<double> &partial_buffer)
+           {
+              std::vector<pybind11::ssize_t> shape;
+              auto *partial = npBufferToDoubleArray(partial_buffer, shape);
+
+              auto inputs = pyDictToMachInputs(py_inputs);
+              if (shape[0] == 1)
+              {
+                 self.calcOutputPartial(of, wrt, inputs, *partial);
+              }
+              else
+              {
+                 auto partial_vec = mfem::Vector(partial, shape[0]);
+                 self.calcOutputPartial(of, wrt, inputs, partial_vec);
+              }
+           },
+           "Evaluates and returns the partial derivative of output functional "
+           "specifed by \"of\" with respect to the input specified by \"wrt\"",
+           py::arg("of"),
+           py::arg("wrt"),
+           py::arg("inputs"),
+           py::arg("partial"))
 
        //  .def(
        //      "linearize",
