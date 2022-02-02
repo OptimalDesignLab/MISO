@@ -3,6 +3,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "mfem.hpp"
@@ -21,21 +22,39 @@ public:
    friend inline void setInputs(MagnetostaticLoad &load,
                                 const MachInputs &inputs)
    {
-      setInputs(*load.current_load, inputs);
-      setInputs(load.magnetic_load, inputs);
+      if (load.current_load.has_value())
+      {
+         setInputs(*load.current_load.value(), inputs);
+      }
+      if (load.magnetic_load.has_value())
+      {
+         setInputs(load.magnetic_load.value(), inputs);
+      }
    }
 
    friend inline void setOptions(MagnetostaticLoad &load,
                                  const nlohmann::json &options)
    {
-      setOptions(*load.current_load, options);
-      setOptions(load.magnetic_load, options);
+      if (load.current_load.has_value())
+      {
+         setOptions(*load.current_load.value(), options);
+      }
+      if (load.magnetic_load.has_value())
+      {
+         setOptions(load.magnetic_load.value(), options);
+      }
    }
 
    friend inline void addLoad(MagnetostaticLoad &load, mfem::Vector &tv)
    {
-      addLoad(*load.current_load, tv);
-      addLoad(load.magnetic_load, tv);
+      if (load.current_load.has_value())
+      {
+         addLoad(*load.current_load.value(), tv);
+      }
+      if (load.magnetic_load.has_value())
+      {
+         addLoad(load.magnetic_load.value(), tv);
+      }
    }
 
    friend inline double vectorJacobianProduct(MagnetostaticLoad &load,
@@ -43,8 +62,14 @@ public:
                                               const std::string &wrt)
    {
       double wrt_bar = 0.0;
-      wrt_bar += vectorJacobianProduct(*load.current_load, res_bar, wrt);
-      wrt_bar += vectorJacobianProduct(load.magnetic_load, res_bar, wrt);
+      if (load.current_load.has_value())
+      {
+         wrt_bar += vectorJacobianProduct(*load.current_load.value(), res_bar, wrt);
+      }
+      if (load.magnetic_load.has_value())
+      {
+         wrt_bar += vectorJacobianProduct(load.magnetic_load.value(), res_bar, wrt);
+      }
       return wrt_bar;
    }
 
@@ -53,8 +78,14 @@ public:
                                             const std::string &wrt,
                                             mfem::Vector &wrt_bar)
    {
-      vectorJacobianProduct(*load.current_load, res_bar, wrt, wrt_bar);
-      vectorJacobianProduct(load.magnetic_load, res_bar, wrt, wrt_bar);
+      if (load.current_load.has_value())
+      {
+         vectorJacobianProduct(*load.current_load.value(), res_bar, wrt, wrt_bar);
+      }
+      if (load.magnetic_load.has_value())
+      {
+         vectorJacobianProduct(load.magnetic_load.value(), res_bar, wrt, wrt_bar);
+      }
    }
 
    MagnetostaticLoad(adept::Stack &diff_stack,
@@ -64,13 +95,36 @@ public:
                      const nlohmann::json &materials,
                      mfem::Coefficient &nu)
     : current_load(
-          std::make_unique<CurrentLoad>(diff_stack, fes, fields, options)),
-      magnetic_load(diff_stack, fes, fields, options, materials, nu)
+          [&]() -> std::optional<std::unique_ptr<CurrentLoad>>
+          {
+             if (options.contains("current"))
+             {
+                return std::make_unique<CurrentLoad>(
+                    diff_stack, fes, fields, options);
+             }
+             else
+             {
+                return std::nullopt;
+             }
+          }()),
+      magnetic_load(
+          [&]() -> std::optional<MagneticLoad>
+          {
+             if (options.contains("magnets"))
+             {
+                return MagneticLoad(
+                    diff_stack, fes, fields, options, materials, nu);
+             }
+             else
+             {
+                return std::nullopt;
+             }
+          }())
    { }
 
 private:
-   std::unique_ptr<CurrentLoad> current_load;
-   MagneticLoad magnetic_load;
+   std::optional<std::unique_ptr<CurrentLoad>> current_load;
+   std::optional<MagneticLoad> magnetic_load;
 };
 
 }  // namespace mach

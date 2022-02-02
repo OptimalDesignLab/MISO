@@ -66,37 +66,39 @@ private:
    //                                     double t_final,
    //                                     const mfem::Vector &state) override;
 
-   /// Find the step size based on the options; e.g. for constant CFL or PTC
-   /// \param[in] iter - the current iteration
-   /// \param[in] t - the current time (before the step)
-   /// \param[in] t_final - the final time
-   /// \param[in] dt_old - the step size that was just taken
-   /// \param[in] state - the current state
-   /// \returns dt - the step size appropriate to the problem
-   /// \note If "const-cfl" option is invoked, this uses the average spectral
-   /// radius to estimate the largest wave speed, and uses the minimum distance
-   /// between nodes for the length in the CFL number.
-   /// \note If the "steady" option is true, the time step will increase based
-   /// on the baseline value of "dt" and the residual norm.
-   double calcStepSize(int iter,
-                       double t,
-                       double t_final,
-                       double dt_old,
-                       const mfem::Vector &state) const override;
+   // /// Find the step size based on the options; e.g. for constant CFL or PTC
+   // /// \param[in] iter - the current iteration
+   // /// \param[in] t - the current time (before the step)
+   // /// \param[in] t_final - the final time
+   // /// \param[in] dt_old - the step size that was just taken
+   // /// \param[in] state - the current state
+   // /// \returns dt - the step size appropriate to the problem
+   // /// \note If "const-cfl" option is invoked, this uses the average spectral
+   // /// radius to estimate the largest wave speed, and uses the minimum
+   // distance
+   // /// between nodes for the length in the CFL number.
+   // /// \note If the "steady" option is true, the time step will increase
+   // based
+   // /// on the baseline value of "dt" and the residual norm.
+   // double calcStepSize(int iter,
+   //                     double t,
+   //                     double t_final,
+   //                     double dt_old,
+   //                     const mfem::Vector &state) const override;
 
-   /// Determines when to exit the time stepping loop
-   /// \param[in] iter - the current iteration
-   /// \param[in] t - the current time (after the step)
-   /// \param[in] t_final - the final time
-   /// \param[in] dt - the step size that was just taken
-   /// \param[in] state - the current state
-   /// \note If a steady problem is being solved, the "steady-abstol" and
-   /// "steady-reltol" options from "time-dis" to determine convergence.
-   bool iterationExit(int iter,
-                      double t,
-                      double t_final,
-                      double dt,
-                      const mfem::Vector &state) const override;
+   // /// Determines when to exit the time stepping loop
+   // /// \param[in] iter - the current iteration
+   // /// \param[in] t - the current time (after the step)
+   // /// \param[in] t_final - the final time
+   // /// \param[in] dt - the step size that was just taken
+   // /// \param[in] state - the current state
+   // /// \note If a steady problem is being solved, the "steady-abstol" and
+   // /// "steady-reltol" options from "time-dis" to determine convergence.
+   // bool iterationExit(int iter,
+   //                    double t,
+   //                    double t_final,
+   //                    double dt,
+   //                    const mfem::Vector &state) const override;
 
    /// Add output @a fun based on @a options
    void addOutput(const std::string &fun,

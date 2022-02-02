@@ -60,16 +60,11 @@ auto options = R"(
          "linear": true
       }
    },
-   "problem-opts": {
-      "fill-factor": 1.0,
-      "current_density": 1.0,
-      "current": {
+   "current": {
+      "box": {
          "box1": [1],
          "box2": [2]
       }
-   },
-   "outputs": {
-      "co-energy": {}
    },
    "bcs": {
       "essential": "all"
@@ -126,14 +121,20 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
          {
             // construct the solver, set the initial condition, and solve
             unique_ptr<Mesh> smesh = buildMesh(nxy, nz);
-            auto solver = createSolver<MagnetostaticSolver>(options, move(smesh));
+            MagnetostaticSolver2 solver(MPI_COMM_WORLD, options, std::move(smesh));
+            auto &state = solver.getState();
+            mfem::Vector state_tv(solver.getStateSize());
 
-            auto state = solver->getNewField();
-            solver->setFieldValue(*state, aexact);
-            MachInputs inputs {
-               {"state", *state}
-            };
-            solver->solveForState(inputs, *state);
+            solver.setState(aexact, state_tv);
+
+            solver.solveForState(state_tv);
+
+            // auto state = solver->getNewField();
+            // solver->setFieldValue(*state, aexact);
+            // MachInputs inputs {
+            //    {"state", *state}
+            // };
+            // solver->solveForState(inputs, *state);
 
             // auto fields = solver->getFields();
 
@@ -143,8 +144,10 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
             // std::cout << "\n\nl2 error in B: " << l2_error << "\n\n\n";
             // REQUIRE(l2_error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
-            solver->createOutput("energy");
-            double energy = solver->calcOutput("energy", inputs);
+            solver.createOutput("energy");
+
+            MachInputs inputs{{"state", state_tv}};
+            double energy = solver.calcOutput("energy", inputs);
             std::cout.precision(10);
             std::cout << "energy: " << energy << "\n";
             REQUIRE(energy == Approx(target_energy[order-1][ref - 1]).margin(1e-10));
