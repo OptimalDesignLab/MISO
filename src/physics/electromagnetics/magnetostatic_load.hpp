@@ -64,11 +64,13 @@ public:
       double wrt_bar = 0.0;
       if (load.current_load.has_value())
       {
-         wrt_bar += vectorJacobianProduct(*load.current_load.value(), res_bar, wrt);
+         wrt_bar +=
+             vectorJacobianProduct(*load.current_load.value(), res_bar, wrt);
       }
       if (load.magnetic_load.has_value())
       {
-         wrt_bar += vectorJacobianProduct(load.magnetic_load.value(), res_bar, wrt);
+         wrt_bar +=
+             vectorJacobianProduct(load.magnetic_load.value(), res_bar, wrt);
       }
       return wrt_bar;
    }
@@ -80,11 +82,13 @@ public:
    {
       if (load.current_load.has_value())
       {
-         vectorJacobianProduct(*load.current_load.value(), res_bar, wrt, wrt_bar);
+         vectorJacobianProduct(
+             *load.current_load.value(), res_bar, wrt, wrt_bar);
       }
       if (load.magnetic_load.has_value())
       {
-         vectorJacobianProduct(load.magnetic_load.value(), res_bar, wrt, wrt_bar);
+         vectorJacobianProduct(
+             load.magnetic_load.value(), res_bar, wrt, wrt_bar);
       }
    }
 

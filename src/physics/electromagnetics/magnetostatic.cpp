@@ -11,8 +11,8 @@
 
 namespace mach
 {
-void MagnetostaticSolver2::addOutput(const std::string &fun,
-                                     const nlohmann::json &options)
+void MagnetostaticSolver::addOutput(const std::string &fun,
+                                    const nlohmann::json &options)
 {
    if (fun == "energy")
    {

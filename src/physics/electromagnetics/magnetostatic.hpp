@@ -16,12 +16,12 @@
 namespace mach
 {
 /// Solver for magnetostatic electromagnetic problems
-class MagnetostaticSolver2 : public PDESolver
+class MagnetostaticSolver : public PDESolver
 {
 public:
-   MagnetostaticSolver2(MPI_Comm comm,
-                        const nlohmann::json &solver_options,
-                        std::unique_ptr<mfem::Mesh> smesh)
+   MagnetostaticSolver(MPI_Comm comm,
+                       const nlohmann::json &solver_options,
+                       std::unique_ptr<mfem::Mesh> smesh)
     : PDESolver(comm, solver_options, 1, std::move(smesh)),
       nu(options, materials)
    {
