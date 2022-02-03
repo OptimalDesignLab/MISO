@@ -113,8 +113,7 @@ ReluctivityCoefficient::ReluctivityCoefficient(const nlohmann::json &nu_options,
       }
       else
       {
-         auto attrs = component["attrs"].get<std::vector<int>>();
-         for (auto &attribute : attrs)
+         for (auto &attribute : component["attrs"])
          {
             nu.addCoefficient(attribute,
                               constructReluctivityCoeff(component, materials));

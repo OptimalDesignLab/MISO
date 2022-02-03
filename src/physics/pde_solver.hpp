@@ -69,11 +69,11 @@ public:
              std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
 protected:
-   #ifdef MFEM_USE_PUMI
-      /// pumi mesh object
-      std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh = nullptr;
-      bool PCU_previously_initialized = false;
-   #endif
+#ifdef MFEM_USE_PUMI
+   /// pumi mesh object
+   std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh = nullptr;
+   bool PCU_previously_initialized = false;
+#endif
 
    /// Members associated with the mesh
    /// object defining the mfem computational mesh

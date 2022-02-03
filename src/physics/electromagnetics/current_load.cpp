@@ -201,14 +201,14 @@ void CurrentLoad::assembleLoad()
 
    /// project current coeff as initial guess for iterative solve
    j.ProjectCoefficient(current);
-   mfem::ParaViewDataCollection pv("CurrentDensity", j.ParFESpace()->GetParMesh());
+   mfem::ParaViewDataCollection pv("CurrentDensity",
+                                   j.ParFESpace()->GetParMesh());
    pv.SetPrefixPath("ParaView");
    pv.SetLevelsOfDetail(3);
    pv.SetDataFormat(mfem::VTKFormat::ASCII);
    pv.SetHighOrderOutput(true);
    pv.RegisterField("CurrentDensity", &j);
    pv.Save();
-
 
    HypreParMatrix M;
    Vector X;

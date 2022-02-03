@@ -1,8 +1,10 @@
+#include <memory>
 #include <string>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "coefficient.hpp"
 #include "electromag_integ.hpp"
 #include "electromag_outputs.hpp"
 #include "functional_output.hpp"
@@ -10,8 +12,63 @@
 
 #include "magnetostatic.hpp"
 
+namespace
+{
+mach::MeshDependentCoefficient constructSigma(const nlohmann::json &options,
+                                              const nlohmann::json &materials)
+{
+   mach::MeshDependentCoefficient sigma;
+   /// loop over all components, construct conductivity for each
+   for (auto &component : options["components"])
+   {
+      int attr = component.value("attr", -1);
+
+      const auto &material = component["material"].get<std::string>();
+      double sigma_val = materials[material].value("sigma", 0.0);
+
+      if (-1 != attr)
+      {
+         auto coeff = std::make_unique<mfem::ConstantCoefficient>(sigma_val);
+         sigma.addCoefficient(attr, move(coeff));
+      }
+      else
+      {
+         for (auto &attribute : component["attrs"])
+         {
+            auto coeff = std::make_unique<mfem::ConstantCoefficient>(sigma_val);
+            sigma.addCoefficient(attribute, move(coeff));
+         }
+      }
+   }
+   return sigma;
+}
+
+}  // anonymous namespace
+
 namespace mach
 {
+MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
+                                         const nlohmann::json &solver_options,
+                                         std::unique_ptr<mfem::Mesh> smesh)
+ : PDESolver(comm, solver_options, 1, std::move(smesh)),
+   nu(options, materials),
+   sigma(constructSigma(options, materials))
+{
+   options["time-dis"]["type"] = "steady";
+
+   spatial_res = std::make_unique<MachResidual>(MagnetostaticResidual(
+       diff_stack, fes(), fields, options, materials, nu));
+   setOptions(*spatial_res, options);
+
+   auto *prec = getPreconditioner(*spatial_res);
+   auto lin_solver_opts = options["lin-solver"];
+   linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
+   auto nonlin_solver_opts = options["nonlin-solver"];
+   nonlinear_solver =
+       mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
+   nonlinear_solver->SetOperator(*spatial_res);
+}
+
 void MagnetostaticSolver::addOutput(const std::string &fun,
                                     const nlohmann::json &options)
 {
@@ -45,7 +102,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun == "flux_magnitude")
    {
-      auto state_degree = AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      auto state_degree =
+          AbstractSolver2::options["space-dis"]["degree"].get<int>();
       nlohmann::json dg_field_options{{"degree", state_degree},
                                       {"basis-type", "DG"}};
       fields.emplace(std::piecewise_construct,

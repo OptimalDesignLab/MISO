@@ -17,7 +17,8 @@ namespace mach
 class CurrentDensityCoefficient : public mfem::VectorCoefficient
 {
 public:
-   /// Variation on setInputs that returns true if any inputs were actually updated
+   /// Variation on setInputs that returns true if any inputs were actually
+   /// updated
    friend bool setInputs(CurrentDensityCoefficient &current,
                          const MachInputs &inputs);
 

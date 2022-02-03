@@ -27,7 +27,8 @@
 
 namespace
 {
-/// TODO: Get rid of this function and instead opt for FiniteElementVector constructor
+/// TODO: Get rid of this function and instead opt for FiniteElementVector
+/// constructor
 template <typename T>
 T createFiniteElementVector(mfem::ParMesh &mesh,
                             const nlohmann::json &space_options,
@@ -219,7 +220,8 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
    gmi_egads_start();
 #endif
    gmi_register_mesh();
-   pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str()));
+   pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(
+       apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str()));
 
    /// TODO: change this to use options
    /// If it is higher order change shape

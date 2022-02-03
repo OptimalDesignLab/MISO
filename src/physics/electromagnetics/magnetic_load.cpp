@@ -15,7 +15,9 @@ MagneticLoad::MagneticLoad(adept::Stack &diff_stack,
                            const nlohmann::json &materials,
                            mfem::Coefficient &nu)
  : lf(fes, fields),
-   mag_coeff(std::make_unique<MagnetizationCoefficient>(diff_stack, options["magnets"], materials)),
+   mag_coeff(std::make_unique<MagnetizationCoefficient>(diff_stack,
+                                                        options["magnets"],
+                                                        materials)),
    nuM(std::make_unique<mfem::ScalarVectorProductCoefficient>(nu, *mag_coeff))
 {
    // auto &mesh_gf =

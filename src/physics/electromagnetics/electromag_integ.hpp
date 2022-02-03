@@ -895,8 +895,7 @@ public:
       effective_length(1.0),
       num_sih(1.0),
       num_turns(1.0),
-      slot_area(1.0),
-      max_flux(1.0)
+      slot_area(1.0)
    { }
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
@@ -917,10 +916,9 @@ private:
    double num_sih;
    double num_turns;
    double slot_area;
-   double max_flux;
 
 #ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix curlshape, curlshape_dFt;
+   mfem::Vector shape;
 #endif
 };
 

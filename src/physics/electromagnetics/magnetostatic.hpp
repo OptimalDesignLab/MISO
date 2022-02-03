@@ -21,28 +21,13 @@ class MagnetostaticSolver : public PDESolver
 public:
    MagnetostaticSolver(MPI_Comm comm,
                        const nlohmann::json &solver_options,
-                       std::unique_ptr<mfem::Mesh> smesh)
-    : PDESolver(comm, solver_options, 1, std::move(smesh)),
-      nu(options, materials)
-   {
-      options["time-dis"]["type"] = "steady";
-
-      spatial_res = std::make_unique<MachResidual>(MagnetostaticResidual(
-          diff_stack, fes(), fields, options, materials, nu));
-      setOptions(*spatial_res, options);
-
-      auto *prec = getPreconditioner(*spatial_res);
-      auto lin_solver_opts = options["lin-solver"];
-      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
-      auto nonlin_solver_opts = options["nonlin-solver"];
-      nonlinear_solver = mach::constructNonlinearSolver(
-          comm, nonlin_solver_opts, *linear_solver);
-      nonlinear_solver->SetOperator(*spatial_res);
-   }
+                       std::unique_ptr<mfem::Mesh> smesh);
 
 private:
    /// Coefficient representing the potentially nonlinear magnetic reluctivity
    ReluctivityCoefficient nu;
+   /// Material dependent coefficient representing electrical conductivity
+   MeshDependentCoefficient sigma;
 
    // /// For code that should be executed before the time stepping begins
    // /// \param[in] state - the current state

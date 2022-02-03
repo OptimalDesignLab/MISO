@@ -2720,48 +2720,12 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
 
 void setInputs(ACLossFunctionalIntegrator &integ, const MachInputs &inputs)
 {
-   // auto it = inputs.find("strand_radius");
-   // if (it != inputs.end())
-   // {
-   //    integ.radius = it->second.getValue();
-   // }
-   // it = inputs.find("frequency");
-   // if (it != inputs.end())
-   // {
-   //    integ.freq = it->second.getValue();
-   // }
-   // it = inputs.find("effective_length");
-   // if (it != inputs.end())
-   // {
-   //    integ.effective_length = it->second.getValue();
-   // }
-   // it = inputs.find("num_sih");
-   // if (it != inputs.end())
-   // {
-   //    integ.num_sih = it->second.getValue();
-   // }
-   // it = inputs.find("num_turns");
-   // if (it != inputs.end())
-   // {
-   //    integ.num_turns = it->second.getValue();
-   // }
-   // it = inputs.find("slot_area");
-   // if (it != inputs.end())
-   // {
-   //    integ.slot_area = it->second.getValue();
-   // }
-   // it = inputs.find("max_flux");
-   // if (it != inputs.end())
-   // {
-   //    integ.max_flux = it->second.getValue();
-   // }
    setValueFromInputs(inputs, "strand_radius", integ.radius);
    setValueFromInputs(inputs, "frequency", integ.freq);
    setValueFromInputs(inputs, "effective_length", integ.effective_length);
    setValueFromInputs(inputs, "num_sih", integ.num_sih);
    setValueFromInputs(inputs, "num_turns", integ.num_turns);
    setValueFromInputs(inputs, "slot_area", integ.slot_area);
-   setValueFromInputs(inputs, "max_flux", integ.max_flux);
 }
 
 double ACLossFunctionalIntegrator::GetElementEnergy(
@@ -2771,21 +2735,12 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
 {
    /// number of degrees of freedom
    int ndof = el.GetDof();
-   int dim = el.GetDim();
-
-   /// I believe this takes advantage of a 2D problem not having
-   /// a properly defined curl? Need more investigation
-   int dimc = (dim == 3) ? 3 : 1;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc), M;
+   Vector shape(ndof);
 #else
-   curlshape.SetSize(ndof, dimc);
-   curlshape_dFt.SetSize(ndof, dimc);
+   shape.SetSize(ndof);
 #endif
-
-   double b_vec_buffer[3];
-   Vector b_vec(b_vec_buffer, dimc);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
@@ -2814,31 +2769,20 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       /// holds quadrature weight
       const double w = ip.weight * trans.Weight();
 
-      // if (dim == 3)
-      // {
-      //    el.CalcCurlShape(ip, curlshape);
-      //    MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-      // }
-      // else
-      // {
-      //    el.CalcCurlShape(ip, curlshape_dFt);
-      // }
-
-      // curlshape_dFt.MultTranspose(elfun, b_vec);
-      // const auto b_vec_norm = b_vec.Norml2();
-      // const auto b_mag = b_vec_norm / trans.Weight();
-
-      const auto b_mag = max_flux;  // / (2 * slot_area);
+      el.CalcPhysShape(trans, shape);
+      const auto b_mag = shape * elfun;
 
       const auto sigma_val = sigma.Eval(trans, ip);
 
       const auto loss = effective_length * M_PI * pow(radius, 4) * sigma_val *
                         pow(freq * b_mag, 2) / 32.0;
 
-      const auto copper_area = num_sih * num_turns * M_PI * pow(radius, 2);
-      const auto fill_factor = copper_area / slot_area;
+      // const auto copper_area = num_sih * num_turns * M_PI * pow(radius, 2);
+      // const auto fill_factor = copper_area / slot_area;
       // fun += loss * w * num_strands * fill_factor / slot_area;
-      fun += loss * w * pow(num_sih, 2) * num_turns * fill_factor / slot_area;
+      fun += loss * num_turns * num_sih * w / slot_area;
+      // fun += loss * w * pow(num_sih, 2) * num_turns * fill_factor /
+      // slot_area;
    }
    return fun;
 }
