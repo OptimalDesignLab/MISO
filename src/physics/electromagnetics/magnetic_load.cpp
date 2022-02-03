@@ -15,8 +15,8 @@ MagneticLoad::MagneticLoad(adept::Stack &diff_stack,
                            const nlohmann::json &materials,
                            mfem::Coefficient &nu)
  : lf(fes, fields),
-   mag_coeff(diff_stack, options["magnets"], materials),
-   nuM(nu, mag_coeff)
+   mag_coeff(std::make_unique<MagnetizationCoefficient>(diff_stack, options["magnets"], materials)),
+   nuM(std::make_unique<mfem::ScalarVectorProductCoefficient>(nu, *mag_coeff))
 {
    // auto &mesh_gf =
    //     dynamic_cast<mfem::ParGridFunction &>(*fes.GetMesh()->GetNodes());
@@ -26,7 +26,7 @@ MagneticLoad::MagneticLoad(adept::Stack &diff_stack,
    //                         std::forward_as_tuple(mesh_fes,
    //                         mesh_gf.GetData()));
 
-   lf.addDomainIntegrator(new mach::VectorFEDomainLFCurlIntegrator(nuM, -1.0));
+   lf.addDomainIntegrator(new mach::VectorFEDomainLFCurlIntegrator(*nuM, -1.0));
    /// only needed if magnets are on the boundary and not normal to boundary
    // lf.addBdrFaceIntegrator(new mach::VectorFEBoundaryTangentLFIntegrator(nuM,
    // -1.0));

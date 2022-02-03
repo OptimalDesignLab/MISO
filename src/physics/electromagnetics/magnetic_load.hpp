@@ -58,8 +58,8 @@ private:
    std::unordered_map<std::string, mfem::ParGridFunction> mag_load_fields;
    MachLinearForm lf;
    /// Coefficient to represent magnetization
-   MagnetizationCoefficient mag_coeff;
-   mfem::ScalarVectorProductCoefficient nuM;
+   std::unique_ptr<MagnetizationCoefficient> mag_coeff;
+   std::unique_ptr<mfem::ScalarVectorProductCoefficient> nuM;
 };
 
 class LegacyMagneticLoad final

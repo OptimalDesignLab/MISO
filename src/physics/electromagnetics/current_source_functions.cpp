@@ -569,18 +569,30 @@ void team13CurrentSourceRevDiff(adept::Stack &diff_stack,
 namespace mach
 {
 
-void setInputs(CurrentDensityCoefficient &current, const MachInputs &inputs)
+bool setInputs(CurrentDensityCoefficient &current, const MachInputs &inputs)
 {
+   bool updated = false;
    for (auto &[group, coeff] : current.group_map)
    {
+      auto old_const = coeff.constant;
       std::string cd_group_id = "current_density:" + group;
       setValueFromInputs(inputs, cd_group_id, coeff.constant);
+      if (coeff.constant != old_const)
+      {
+         updated = true;
+      }
    }
 
    for (auto &[input, value] : current.cached_inputs)
    {
+      auto old_value = value;
       setValueFromInputs(inputs, input, value);
+      if (value != old_value)
+      {
+         updated = true;
+      }
    }
+   return updated;
 }
 
 void CurrentDensityCoefficient::Eval(mfem::Vector &V,

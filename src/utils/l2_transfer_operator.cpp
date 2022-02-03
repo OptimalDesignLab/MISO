@@ -471,6 +471,15 @@ void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
    }
 
    output.setTrueVec(out_vec);
+
+   /// Print fields
+   mfem::ParaViewDataCollection pv("DG_transfer_outout", &output.mesh());
+   pv.SetPrefixPath("ParaView");
+   pv.SetLevelsOfDetail(3);
+   pv.SetDataFormat(mfem::VTKFormat::ASCII);
+   pv.SetHighOrderOutput(true);
+   pv.RegisterField("DG_field", &output.gridFunc());
+   pv.Save();
 }
 
 void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,

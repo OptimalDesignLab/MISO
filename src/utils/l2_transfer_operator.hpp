@@ -112,6 +112,13 @@ inline double calcOutput(L2TransferOperator &output, const MachInputs &inputs)
    return NAN;
 }
 
+inline void calcOutput(L2CurlMagnitudeProjection &output,
+                       const MachInputs &inputs,
+                       mfem::Vector &out_vec)
+{
+   output.apply(inputs, out_vec);
+}
+
 inline void calcOutput(L2TransferOperator &output,
                        const MachInputs &inputs,
                        mfem::Vector &out_vec)

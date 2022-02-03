@@ -18,7 +18,14 @@ namespace mach
 void setInputs(CurrentLoad &load, const MachInputs &inputs)
 {
    setInputs(load.div_free_proj, inputs);
-   setInputs(load.current, inputs);
+   auto dirty_coeff = setInputs(load.current, inputs);
+   load.dirty = load.dirty || dirty_coeff;
+
+   auto it = inputs.find("mesh_coords");
+   if (it != inputs.end())
+   {
+      load.dirty = true;
+   }
 }
 
 void setOptions(CurrentLoad &load, const nlohmann::json &options)
@@ -34,7 +41,11 @@ void setOptions(CurrentLoad &load, const nlohmann::json &options)
 
 void addLoad(CurrentLoad &load, Vector &tv)
 {
-   load.assembleLoad();
+   if (load.dirty)
+   {
+      load.assembleLoad();
+      load.dirty = false;
+   }
    load.load.SetSubVector(load.ess_tdof_list, 0.0);
    subtract(tv, load.load, tv);
 }
@@ -64,7 +75,12 @@ void vectorJacobianProduct(CurrentLoad &load,
 {
    if (wrt == "mesh_coords")
    {
-      // load.assembleLoad();
+      if (load.dirty)
+      {
+         load.assembleLoad();
+         load.dirty = false;
+      }
+
       /// begin reverse pass
       ParGridFunction psi_l(&load.fes);
       psi_l = load_bar;
@@ -151,7 +167,8 @@ CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
                      2 * fes.GetFE(0)->GetOrder()),
    m_j_mesh_sens(new VectorFEMassIntegratorMeshSens),
    J_mesh_sens(new VectorFEDomainLFIntegratorMeshSens(current, -1.0)),
-   m_l_mesh_sens(new VectorFEMassIntegratorMeshSens)
+   m_l_mesh_sens(new VectorFEMassIntegratorMeshSens),
+   dirty(true)
 {
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
@@ -183,7 +200,15 @@ void CurrentLoad::assembleLoad()
    J.Assemble();
 
    /// project current coeff as initial guess for iterative solve
-   // j.ProjectCoefficient(current);
+   j.ProjectCoefficient(current);
+   mfem::ParaViewDataCollection pv("CurrentDensity", j.ParFESpace()->GetParMesh());
+   pv.SetPrefixPath("ParaView");
+   pv.SetLevelsOfDetail(3);
+   pv.SetDataFormat(mfem::VTKFormat::ASCII);
+   pv.SetHighOrderOutput(true);
+   pv.RegisterField("CurrentDensity", &j);
+   pv.Save();
+
 
    HypreParMatrix M;
    Vector X;

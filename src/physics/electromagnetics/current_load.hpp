@@ -69,6 +69,9 @@ private:
    /// essential tdofs
    mfem::Array<int> ess_tdof_list;
 
+   /// flag to know if the load vector should be reassembled
+   bool dirty;
+
    /// Assemble the divergence free load vector
    void assembleLoad();
 };

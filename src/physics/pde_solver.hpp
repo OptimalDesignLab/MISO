@@ -16,8 +16,11 @@ struct pumiDeleter
 {
    void operator()(apf::Mesh2 *mesh) const
    {
-      mesh->destroyNative();
-      apf::destroyMesh(mesh);
+      if (mesh != nullptr)
+      {
+         mesh->destroyNative();
+         apf::destroyMesh(mesh);
+      }
    }
 };
 
@@ -66,6 +69,12 @@ public:
              std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
 protected:
+   #ifdef MFEM_USE_PUMI
+      /// pumi mesh object
+      std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh = nullptr;
+      bool PCU_previously_initialized = false;
+   #endif
+
    /// Members associated with the mesh
    /// object defining the mfem computational mesh
    std::unique_ptr<mfem::ParMesh> mesh_ = nullptr;
@@ -74,12 +83,6 @@ protected:
    mfem::ParMesh &mesh() { return *mesh_; }
    const mfem::ParMesh &mesh() const { return *mesh_; }
 
-   // #ifdef MFEM_USE_PUMI
-   //    /// pumi mesh object
-   //    std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh;
-   //    bool PCU_previously_initialized = false;
-   // #endif
-
    /// Constructs the mesh member based on c preprocesor defs
    /// \param[in] smesh - if provided, defines the mesh for the problem
    std::unique_ptr<mfem::ParMesh> constructMesh(
@@ -87,12 +90,10 @@ protected:
        const nlohmann::json &mesh_options,
        std::unique_ptr<mfem::Mesh> smesh);
 
-   /*
    /// Construct PUMI Mesh
    std::unique_ptr<mfem::ParMesh> constructPumiMesh(
        MPI_Comm comm,
        const nlohmann::json &mesh_options);
-   */
 
    /// solver material properties
    nlohmann::json materials;

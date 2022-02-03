@@ -27,6 +27,7 @@
 
 namespace
 {
+/// TODO: Get rid of this function and instead opt for FiniteElementVector constructor
 template <typename T>
 T createFiniteElementVector(mfem::ParMesh &mesh,
                             const nlohmann::json &space_options,
@@ -49,7 +50,7 @@ T createFiniteElementVector(mfem::ParMesh &mesh,
    {
       fec = std::make_unique<mfem::DSBPCollection>(order, dim);
    }
-   else if (basis_type == "nedelec" || basis_type == "nd")
+   else if (basis_type == "nedelec" || basis_type == "nd" || basis_type == "ND")
    {
       fec = std::make_unique<mfem::ND_FECollection>(order, dim);
    }
@@ -175,11 +176,15 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
       smesh = std::make_unique<mfem::Mesh>(mesh_file.c_str(), 1, 1);
       mesh = std::make_unique<mfem::ParMesh>(comm, *smesh);
    }
-   // // PUMI mesh
-   // else if (mesh_ext == "smb")
-   // {
-   //    mesh = constructPumiMesh(comm, mesh_options);
-   // }
+   // PUMI mesh
+   else if (mesh_ext == "smb")
+   {
+      mesh = constructPumiMesh(comm, mesh_options);
+   }
+   else
+   {
+      throw MachException("Unrecognized mesh file extension!\n");
+   }
    mesh->EnsureNodes();
 
    mesh->RemoveInternalBoundaries();
@@ -188,7 +193,6 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
    return mesh;
 }
 
-/*
 std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
     MPI_Comm comm,
     const nlohmann::json &mesh_options)
@@ -215,7 +219,7 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
    gmi_egads_start();
 #endif
    gmi_register_mesh();
-   pumi_mesh.reset(apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str()));
+   pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str()));
 
    /// TODO: change this to use options
    /// If it is higher order change shape
@@ -283,7 +287,6 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
        "\trecompile MFEM with PUMI\n");
 #endif  // MFEM_USE_PUMI
 }
-*/
 
 void PDESolver::setUpExternalFields()
 {
