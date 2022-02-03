@@ -884,19 +884,7 @@ public:
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
    /// \param[in] sigma - the electrical conductivity coefficient
-   /// \param[in] freq - the electrical excitation frequency
-   /// \param[in] radius - the radius of a strand in the bundle
-   ACLossFunctionalIntegrator(mfem::Coefficient &sigma,
-                              double freq,
-                              double radius)
-    : sigma(sigma),
-      freq(freq),
-      radius(radius),
-      effective_length(1.0),
-      num_sih(1.0),
-      num_turns(1.0),
-      slot_area(1.0)
-   { }
+   ACLossFunctionalIntegrator(mfem::Coefficient &sigma) : sigma(sigma) { }
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
@@ -910,12 +898,12 @@ public:
 
 private:
    mfem::Coefficient &sigma;
-   double freq;
-   double radius;
-   double effective_length;
-   double num_sih;
-   double num_turns;
-   double slot_area;
+   double freq = 1.0;
+   double radius = 1.0;
+   double effective_length = 1.0;
+   double num_sih = 1.0;
+   double num_turns = 1.0;
+   double slot_area = 1.0;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;

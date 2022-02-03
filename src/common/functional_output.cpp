@@ -21,11 +21,11 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
          auto it = output.func_fields->find(name);
          if (it != output.func_fields->end())
          {
-            auto &field = it->second;
-            mfem::Vector field_tv;
-            setVectorFromInput(input, field_tv);
+            // auto &field = it->second;
+            // mfem::Vector field_tv;
+            // setVectorFromInput(input, field_tv);
 
-            field.distributeSharedDofs(field_tv);
+            // field.distributeSharedDofs(field_tv);
          }
       }
    }

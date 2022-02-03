@@ -166,6 +166,30 @@ private:
    std::map<std::string, FiniteElementState> &fields;
 };
 
+class ACLossFunctional final
+{
+public:
+   friend void setInputs(ACLossFunctional &output, const MachInputs &inputs);
+
+   friend double calcOutput(ACLossFunctional &output, const MachInputs &inputs);
+
+   friend double calcOutputPartial(ACLossFunctional &output,
+                                   const std::string &wrt,
+                                   const MachInputs &inputs);
+
+   friend void calcOutputPartial(ACLossFunctional &output,
+                                 const std::string &wrt,
+                                 const MachInputs &inputs,
+                                 mfem::Vector &partial);
+
+   ACLossFunctional(std::map<std::string, FiniteElementState> &fields,
+                    mfem::Coefficient &sigma);
+
+private:
+   FunctionalOutput output;
+   std::map<std::string, FiniteElementState> &fields;
+};
+
 inline void setOptions(ForceFunctional &output, const nlohmann::json &options)
 {
    auto &&attrs = options["attributes"].get<std::unordered_set<int>>();

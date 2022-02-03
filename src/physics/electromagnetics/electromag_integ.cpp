@@ -2777,9 +2777,6 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       const auto loss = effective_length * M_PI * pow(radius, 4) * sigma_val *
                         pow(freq * b_mag, 2) / 32.0;
 
-      // const auto copper_area = num_sih * num_turns * M_PI * pow(radius, 2);
-      // const auto fill_factor = copper_area / slot_area;
-      // fun += loss * w * num_strands * fill_factor / slot_area;
       fun += loss * num_turns * num_sih * w / slot_area;
       // fun += loss * w * pow(num_sih, 2) * num_turns * fill_factor /
       // slot_area;
