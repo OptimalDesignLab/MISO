@@ -417,12 +417,11 @@ double radialBasisKernel(const mfem::Vector &loc,
                          const mfem::Vector &center)
 {
    // get the difference vector 
-   Vector vec1 = loc;
-   vec1 -= center;
-
-   Vector vec2;
-   shapeParam.Mult(vec1, vec2);
-   double val = vec1 * vec2;
+   Vector diff = loc;
+   diff -= center;
+   Vector vec2(loc.Size());
+   shapeParam.Mult(diff, vec2);
+   double val = diff * vec2;
 
    return exp(-val);
 }

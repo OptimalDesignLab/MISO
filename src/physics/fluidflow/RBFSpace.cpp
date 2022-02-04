@@ -192,19 +192,24 @@ void RBFSpace::solveProlongationCoefficient(const int el_id, const int numDofs,
    }
    
    // declare the basis matrix
-   DenseMatrix W(numLocalBasis);
+   DenseMatrix W(numLocalBasis,numLocalBasis);
    DenseMatrix V(numLocalBasis,numPolyBasis);
    DenseMatrix Wn(numDofs, numLocalBasis);
    DenseMatrix Vn(numDofs, numPolyBasis);
 
    // RBF matrix section
    buildElementRadialBasisMat(el_id,numDofs,dofs_coord,W,Wn);
-   // buildElementPolyBasisMat(el_id,polyOrder,numDofs,dofs_coord,V,Vn);
-
+   buildElementPolyBasisMat(el_id,polyOrder,numDofs,dofs_coord,V,Vn);
    cout << "W mat:\n";
    W.Print(cout,W.Width());
-   cout << "Wn mat:\n";
-   Wn.Print(cout,Wn.Width());
+   cout << "V mat:\n";
+   V.Print(cout,V.Width());
+
+   
+   // next is to solve the coefficients
+
+
+   // Get the local prolongation operator ?
 }
 
 void RBFSpace::buildElementRadialBasisMat(const int el_id,
@@ -255,7 +260,7 @@ void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
    if (1 == dim)
    {
       // form the V matrix
-      for (i = 0; i < numBasis; i++)
+      for (i = 0; i < numLocalBasis; i++)
       {
          loc_id = (*selectedBasis[el_id])[i];
          loc_coord = *basisCenter[loc_id];
@@ -280,7 +285,7 @@ void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
    else if (2 == dim)
    {
       // form the V matrix
-      for (i = 0; i < numBasis; i++)
+      for (i = 0; i < numLocalBasis; i++)
       {
          loc_id = (*selectedBasis[el_id])[i];
          loc_coord = *basisCenter[loc_id];
@@ -318,7 +323,7 @@ void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
    else if (3 == dim)
    {
       // form the V matrix
-      for (i = 0; i < numBasis; i++)
+      for (i = 0; i < numLocalBasis; i++)
       {
          loc_id = (*selectedBasis[el_id])[i];
          loc_coord = *basisCenter[loc_id];
