@@ -512,6 +512,106 @@ private:
    mfem::Vector work2;
 };
 
+/// Integrator for inviscid, boundary-control BCs
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class ControlBC
+ : public InviscidBoundaryIntegrator<ControlBC<dim, entvar>>
+{
+public:
+   using BCScaleFun = std::function<
+       double(double, const mfem::Vector &, const mfem::Vector &)>;
+
+   /// Constructs an integrator for a control-based boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] scale - function that scales the control
+   /// \param[in] xc - position of the control actuator
+   /// \param[in] len - length scale that determines decay rate of control
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   ControlBC(adept::Stack &diff_stack,
+             const mfem::FiniteElementCollection *fe_coll,
+             BCScaleFun scale,
+             const mfem::Vector &xc,
+             double len = 1.0,
+             double a = 1.0)
+    : InviscidBoundaryIntegrator<ControlBC<dim, entvar>>(diff_stack,
+                                                         fe_coll,
+                                                         dim + 2,
+                                                         a),
+      len_scale(len),
+      x_actuator(xc),
+      control(0.0),
+      control_scale(scale),
+      work1(dim + 2),
+      work2(dim + 2)
+   { }
+
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variable at which to evaluate the flux
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Compute the boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec);
+
+   /// Compute the Jacobian of the boundary flux w.r.t. `q`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute the Jacobian of the boundary flux w.r.t. `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac);
+
+   /// Set the control for the integrator
+   /// \param[in/out] integ - the boundary integrator whose control is being set
+   /// \param[in] inputs - holds the control value
+   friend void setInputs(ControlBC &integ,
+                         const mach::MachInputs &inputs)
+   {
+      setValueFromInputs(inputs, "control", integ.control);
+      setVectorFromInputs(inputs, "x_actuator", integ.x_actuator);
+   }
+
+private:
+   /// length scale that determine range of influence of control
+   double len_scale;
+   /// position of the actuator
+   mfem::Vector x_actuator;
+   /// The value of the control at a particular time instance
+   double control;
+   /// This function scales the control based on spatial location
+   BCScaleFun control_scale;
+   /// Work vector for boundary flux computation
+   mfem::Vector work1;
+   /// Work vector
+   mfem::Vector work2;
+};
+
 /// Interface integrator for the DG method
 /// \tparam dim - number of spatial dimension (1, 2 or 3)
 /// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.

@@ -727,6 +727,32 @@ void calcBoundaryFluxEC(const xdouble *dir,
    }
 }
 
+/// Boundary flux that is determined by a control-velocity parameter
+/// \param[in] dir - direction in which the flux is desired
+/// \param[in] q - interior domain values of the conservative variables
+/// \param[in] vel_control - value of the control velocity
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcControlFlux(const xdouble *dir,
+                     const xdouble *q,
+                     const xdouble vel_control,
+                     xdouble *flux)
+{
+   for (int i = 0; i < dim + 2; ++i)
+   {
+      flux[i] = -q[i]*vel_control;
+   }
+   xdouble press = pressure<xdouble, dim>(q);
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i+1] += dir[i] * press;
+   }
+   flux[dim+1] -= press*vel_control;
+}
+
+
 /// Boundary flux that uses characteristics to determine which state to use
 /// \param[in] dir - direction in which the flux is desired
 /// \param[in] qbnd - boundary values of the **conservative** variables

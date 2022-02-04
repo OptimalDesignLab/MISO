@@ -158,6 +158,22 @@ void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
           new EntropyConserveBC<dim, entvar>(stack, fes.FEColl(), pump),
           bdr_attr_marker);
    }
+   if (bcs.contains("control"))
+   {
+      // Boundary control 
+      vector<int> bdr_attr_marker = bcs["control"].get<vector<int>>();
+      // define the scaling function for the control 
+      auto scale = [](double len, const Vector &xc, const Vector &x)
+      {
+         double prod2 = x*x - 2.0*(x*xc) + xc*xc; // avoid memory allocation 
+         return exp(-prod2/pow(len,2.0));
+      };
+      // Should pass in xc and len...
+      double len = 0.05;
+      Vector xc({0.5, 0.0});
+      res.addBdrFaceIntegrator(
+         new ControlBC<dim, entvar>(stack, fes.FEColl(), scale, xc, len),  bdr_attr_marker);
+   }
 }
 
 template <int dim, bool entvar>

@@ -702,6 +702,88 @@ void EntropyConserveBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
 }
 
 template <int dim, bool entvar>
+double ControlBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                            const mfem::Vector &dir,
+                                            const mfem::Vector &q)
+{
+   calcFlux(x, dir, q, work1);
+   calcEntropyVars<double, dim, entvar>(q.GetData(), work2.GetData());
+   return work2 * work1;
+}
+
+template <int dim, bool entvar>
+void ControlBC<dim, entvar>::calcFlux(const mfem::Vector &x,
+                                      const mfem::Vector &dir,
+                                      const mfem::Vector &q,
+                                      mfem::Vector &flux_vec)
+{
+   // use x to determine how we scale the control locally
+   double uc = control * control_scale(len_scale, x_actuator, x);
+   // convert variable to conservative, if necessary
+   calcConservativeVars<double, dim, entvar>(q.GetData(), work1.GetData());
+   // compute the flux
+   calcControlFlux<double, dim>(
+       dir.GetData(), work1.GetData(), uc, flux_vec.GetData());
+}
+
+template <int dim, bool entvar>
+void ControlBC<dim, entvar>::calcFluxJacState(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    const mfem::Vector &q,
+    mfem::DenseMatrix &flux_jac)
+{
+   // evaluate the scaled control, which does not depend on the flow state
+   adouble uc_a = control * control_scale(len_scale, x_actuator, x);
+   // create containers for active double objects for each input
+   std::vector<adouble> work1_a(work1.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(work1_a.data(), work1.Size(), work1.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcConservativeVars<adouble, dim, entvar>(q_a.data(), work1_a.data());
+   calcControlFlux<adouble, dim>(
+       dir_a.data(), work1_a.data(), uc_a, flux_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
+void ControlBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
+                                                    const mfem::Vector &dir,
+                                                    const mfem::Vector &q,
+                                                    mfem::DenseMatrix &flux_jac)
+{
+   // evaluate the scaled control, which does not depend on dir
+   adouble uc_a = control * control_scale(len_scale, x_actuator, x);
+   // create containers for active double objects for each input
+   std::vector<adouble> work1_a(work1.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(work1_a.data(), work1.Size(), work1.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcConservativeVars<adouble, dim, entvar>(q_a.data(), work1_a.data());
+   calcControlFlux<adouble, dim>(
+       dir_a.data(), work1_a.data(), uc_a, flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
 InterfaceIntegrator<dim, entvar>::InterfaceIntegrator(
     adept::Stack &diff_stack,
     double coeff,
