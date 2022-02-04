@@ -25,7 +25,7 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f,
    {
       case 1: req_basis = polyOrder + 1; break;
       case 2: req_basis = (polyOrder+1) * (polyOrder+2) / 2; break;
-      case 3: throw MachException("Not implemeneted yet.\n"); break;
+      case 3: req_basis = (polyOrder+1)*(polyOrder+2)*(polyOrder+3) / 6; break;
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
    // initialize the stencil/patch
@@ -125,31 +125,31 @@ void RBFSpace::buildProlongationMatrix()
 {
    // get the current element number of dofs
    // assume uniform type of element
-   Array<Vector *> dof_coord;
+   Array<Vector *> dofs_coord;
    const Element *el = mesh->GetElement(0);
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
-   dof_coord.SetSize(num_dofs);
+   dofs_coord.SetSize(num_dofs);
    for (int k = 0; k <num_dofs; k++)
    {
-      dof_coord[k] = new Vector(dim);
+      dofs_coord[k] = new Vector(dim);
    }
 
    // loop over element to build local and global prolongation matrix
-   for (int i = 0; i < GetMesh()->GetNE(); i++)
+   for (int i = 0; i < 1; i++)
    {
       cout << "element " << i << ": \n";
       // 1. Get the quad and basis centers
-      buildDofMat(i, num_dofs, fe, dof_coord);
+      buildDofMat(i, num_dofs, fe, dofs_coord);
       cout << "dof points:\n";
       for (int j = 0; j < num_dofs; j++)
       {
-         dof_coord[j]->Print();
+         dofs_coord[j]->Print();
       }
       cout << endl;
 
-      // // 2. build the interpolation matrix
-      // solveProlongationCoefficient();
+      // 2. build the interpolation matrix
+      solveProlongationCoefficient(i,num_dofs,dofs_coord);
 
       // // 3. Assemble prolongation matrix
       // AssembleProlongationMatrix();
@@ -158,7 +158,7 @@ void RBFSpace::buildProlongationMatrix()
    // free the aux variable
    for (int k = 0; k < num_dofs; k++)
    {
-      delete dof_coord[k];
+      delete dofs_coord[k];
    }
 }
 
@@ -177,55 +177,188 @@ void RBFSpace::buildDofMat(int el_id, const int num_dofs,
 }
 
 
-void RBFSpace::solveProlongationCoefficient(int el_id, int numDofs,
-                                            Array<Vector *> dof_coord)
+void RBFSpace::solveProlongationCoefficient(const int el_id, const int numDofs,
+                                            const Array<Vector *> &dofs_coord)
 {
    // some basic inf
    int numLocalBasis = selectedBasis[el_id]->Size();
+   int numPolyBasis=-1;
+   switch(dim)
+   {
+      case 1: numPolyBasis = polyOrder + 1; break;
+      case 2: numPolyBasis = (polyOrder+1) * (polyOrder+2) / 2; break;
+      case 3: numPolyBasis = (polyOrder+1)*(polyOrder+2)*(polyOrder+3)/6; break;
+      default: throw MachException("dim must be 1, 2 or 3.\n");
+   }
+   
    // declare the basis matrix
    DenseMatrix W(numLocalBasis);
-   DenseMatrix V(numLocalBasis,polyOrder+1);
+   DenseMatrix V(numLocalBasis,numPolyBasis);
    DenseMatrix Wn(numDofs, numLocalBasis);
-   DenseMatrix Vn(numDofs, polyOrder+1);
-
-   int i,j;
-   int b_id, bb_id;
-   Vector b_center, bb_center;
+   DenseMatrix Vn(numDofs, numPolyBasis);
 
    // RBF matrix section
+   buildElementRadialBasisMat(el_id,numDofs,dofs_coord,W,Wn);
+   // buildElementPolyBasisMat(el_id,polyOrder,numDofs,dofs_coord,V,Vn);
+
+   cout << "W mat:\n";
+   W.Print(cout,W.Width());
+   cout << "Wn mat:\n";
+   Wn.Print(cout,Wn.Width());
+}
+
+void RBFSpace::buildElementRadialBasisMat(const int el_id,
+                                          const int numDofs,
+                                          const Array<Vector *> &dofs_coord,
+                                          DenseMatrix &W, DenseMatrix &Wn)
+{
+   const int numLocalBasis = selectedBasis[el_id]->Size();
+   int i,j,center_id, loc_id;
+   Vector center_coord, loc_coord;
+
+   // loop over the column of basis mat
    for (i = 0; i < numLocalBasis; i++)
    {
-      b_id = (*selectedBasis[el_id])[i];
-      b_center = *basisCenter[b_id];
+      center_id = (*selectedBasis[el_id])[i];
+      center_coord = *basisCenter[center_id];
 
-      // evalute the basis matrix
+      // coefficient matrix
+      // loop over the row
       for (j = 0; j < numLocalBasis; j++)
       {
-         bb_id = (*selecedBasis[el_id])[j];
-         bb_center = *basisCenter[bb_id];
-         W(j,i) = radialBasisKernel(bb_center,shapeParam,b_center);
+         loc_id = (*selectedBasis[el_id])[j];
+         loc_coord = *basisCenter[loc_id];
+         W(j,i) = radialBasisKernel(loc_coord,shapeParam,center_coord);
       }
 
-      // evaluate the dofs matrix
+      // actual prolongation matrix
       for (j = 0; j < numDofs; j++)
       {
-         Wn(j,i) = radialBasisKernel(dof_coord[j],shapeParam,b_center);
+         Wn(j,i) = radialBasisKernel(*dofs_coord[j],shapeParam,center_coord);
       }
    }
+}
 
-   // Form the polynomial matrice
-   Vector center_diff, dof_diff;
-   Vector el_center = elementCenter[el_id];
-   for (i = 0;  < polyOrder+1; i++)
+void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
+                                        const int numDofs,
+                                        const Array<Vector *> &dofs_coord,
+                                        DenseMatrix &V, DenseMatrix &Vn)
+{
+   const int numLocalBasis = selectedBasis[el_id]->Size();
+
+   int i,j,k,l;
+   double dx,dy,dz;
+   int loc_id;
+   Vector loc_coord;
+   Vector el_center = *elementCenter[el_id];
+
+   if (1 == dim)
    {
-      for (j = 0; j < numLocalBasis; j++)
+      // form the V matrix
+      for (i = 0; i < numBasis; i++)
       {
-
+         loc_id = (*selectedBasis[el_id])[i];
+         loc_coord = *basisCenter[loc_id];
+         dx = loc_coord[0] - el_center[0];
+         for (j = 0; j <= polyOrder; j++)
+         {
+            V(i,j) = pow(dx,j);
+         }
       }
 
-      for (j = 0; j < numDofs; j++)
+      // form the Vn matrix
+      for (i = 0; i < numDofs; i++)
       {
+         loc_coord = *dofs_coord[i];
+         dx = loc_coord[0] - el_center[0];
+         for (j = 0; j <= polyOrder; j++)
+         {
+            Vn(i,j) = pow(dx,j);
+         }
+      }
+   }
+   else if (2 == dim)
+   {
+      // form the V matrix
+      for (i = 0; i < numBasis; i++)
+      {
+         loc_id = (*selectedBasis[el_id])[i];
+         loc_coord = *basisCenter[loc_id];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         int col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               V(i,col) = pow(dx,j-k)*pow(dy,k);
+               col++;
+            }
+         }
+      }
 
+      // form the Vn matrix
+      for (i = 0; i < numDofs; i++)
+      {
+         loc_coord = *dofs_coord[i];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         int col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               Vn(i,col) = pow(dx,j-k)*pow(dy,k);
+               col++;
+            }
+         }
+      }
+
+   }
+   else if (3 == dim)
+   {
+      // form the V matrix
+      for (i = 0; i < numBasis; i++)
+      {
+         loc_id = (*selectedBasis[el_id])[i];
+         loc_coord = *basisCenter[loc_id];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         dz = loc_coord[2] - el_center[2];
+         int col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               for (l = 0; l <= j-k; l++)
+               {
+                  V(i,col) = pow(dx,j-k-l)*pow(dy,l)*pow(dz,k);
+                  col++;
+               }
+            }
+         }
+      }
+
+
+      // form the Vn matrix
+      for (i = 0; i < numDofs; i++)
+      {
+         loc_coord = *dofs_coord[i];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         dz = loc_coord[2] - el_center[2];
+         int col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               for (l = 0; l <= j-k; l++)
+               {
+                  Vn(i,col) = pow(dx,j-k-l)*pow(dy,l)*pow(dz,k);
+                  col++;
+               }
+            }
+         }
       }
    }
 }

@@ -30,11 +30,24 @@ public:
    /// \param[in] el_id - the element id
    /// \param[in] numDofs - degrees of freedom in the element
    /// \param[in] dof_coord - dofs coordinat location
-   void solveProlongationCoefficient(int el_id, int numDofs,
-                                     mfem::Array<mfem::Vector *> dof_coord);
+   void solveProlongationCoefficient(const int el_id, const int numDofs,
+                                     const mfem::Array<mfem::Vector *> &dof_coord);
 
    // /// Assemble the global prolongation matrix
    // void AssembleProlongationMatrix() const;
+
+   /// build the element element-wise basis matrix
+   void buildElementRadialBasisMat(const int el_id,
+                                   const int numDofs,
+                                   const mfem::Array<mfem::Vector *> &dofs_coord,
+                                   mfem::DenseMatrix &W,
+                                   mfem::DenseMatrix &Wn);
+
+   void buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
+                                 const int numDofs,
+                                 const mfem::Array<mfem::Vector *> &dofs_coord,
+                                 mfem::DenseMatrix &V,
+                                 mfem::DenseMatrix &Vn);
 
 protected:
    /// mesh dimension
@@ -62,8 +75,6 @@ protected:
    mfem::Array<std::vector<double> *> elementBasisDist;
    // local element prolongation matrix coefficient
    mfem::Array<mfem::DenseMatrix *> coef;
-
- 
    /// Initialize the patches/stencil given poly order
    void InitializeStencil();
    /// Initialize the shape parameters

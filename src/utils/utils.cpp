@@ -413,7 +413,7 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
 }
 
 double radialBasisKernel(const mfem::Vector &loc,
-                         const mfe::DenseMatrix &shapeParam;
+                         const mfem::DenseMatrix &shapeParam,
                          const mfem::Vector &center)
 {
    // get the difference vector 

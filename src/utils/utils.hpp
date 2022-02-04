@@ -168,7 +168,7 @@ void buildLSInterpolation(int dim, int degree,
 /// \param[in] shapeParam - the shape parameter in the kernel
 /// \param[in] center - basis center
 double radialBasisKernel(const mfem::Vector &loc,
-                         const mfe::DenseMatrix &shapeParam;
+                         const mfem::DenseMatrix &shapeParam,
                          const mfem::Vector &center);
 
 /// evalute the derivative of RBF kernel w.r.t center
