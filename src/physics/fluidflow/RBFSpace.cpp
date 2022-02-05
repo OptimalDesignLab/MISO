@@ -196,18 +196,31 @@ void RBFSpace::solveProlongationCoefficient(const int el_id, const int numDofs,
    DenseMatrix V(numLocalBasis,numPolyBasis);
    DenseMatrix Wn(numDofs, numLocalBasis);
    DenseMatrix Vn(numDofs, numPolyBasis);
+   DenseMatrix WV(numLocalBasis+numPolyBasis, numLocalBasis+numPolyBasis);
+   DenseMatrix WnVn(numDofs,numLocalBasis+numPolyBasis);
+   coef[el_id] = new DenseMatrix(numLocalBasis+numPolyBasis,numLocalBasis);
+   for (int i = 0; i < numLocalBasis; i++)
+   {
+      (*coef[el_id])(i,i) = 1.0;
+   }
+   cout << "coefficient is:\n";
+   coef[el_id]->Print();
 
    // RBF matrix section
    buildElementRadialBasisMat(el_id,numDofs,dofs_coord,W,Wn);
    buildElementPolyBasisMat(el_id,polyOrder,numDofs,dofs_coord,V,Vn);
-   cout << "W mat:\n";
-   W.Print(cout,W.Width());
-   cout << "V mat:\n";
-   V.Print(cout,V.Width());
+   buildWVMat(W,V,WV);
+   buildWnVnMat(Wn,Vn,WnVn);
+   cout << "WV mat:\n";
+   WV.Print(cout,WV.Width());
+   cout << "WVn mat:\n";
+   WnVn.Print(cout,WnVn.Width());
 
-   
-   // next is to solve the coefficients
 
+   // Solve the coefficient
+   buildRBFInterpolation(numLocalBasis,numPolyBasis,WV,*coef[el_id]);
+   cout << "coefficient is:\n";
+   coef[el_id]->Print();
 
    // Get the local prolongation operator ?
 }
@@ -368,6 +381,63 @@ void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
    }
 }
 
+void RBFSpace::buildWVMat(const DenseMatrix &W, const DenseMatrix &V,
+                          DenseMatrix &WV)
+{
+   int i,j;
+   int numLocalBasis = W.Width();
+   int numPolyBasis =  V.Width();
+
+   // fill W
+   for (i = 0; i < numLocalBasis; i++)
+   {
+      for (j = 0; j < numLocalBasis; j++)
+      {
+         WV(j,i) = W(j,i);
+      }
+   }
+
+   // fill V and V'
+   for (i = 0; i < numPolyBasis; i ++)
+   {
+      for (j = 0; j < numLocalBasis; j++)
+      {
+         // V
+         WV(j,i+numLocalBasis) = V(j,i);
+         
+         // V'
+         WV(i+numLocalBasis,j) = V(j,i);
+      }
+   }
+}
+
+
+void RBFSpace::buildWnVnMat(const DenseMatrix &Wn, const DenseMatrix &Vn,
+                  DenseMatrix &WnVn)
+{
+   int i, j;
+   int numDofs = Wn.Height();
+   int numLocalBasis = Wn.Width();
+   int numPolyBasis = Vn.Width();
+
+   // fill Wn
+   for (i = 0; i < numLocalBasis; i++)
+   {
+      for (j = 0; j < numDofs; j++)
+      {
+         WnVn(j,i) = Wn(j,i);
+      }
+   }
+
+   // fill Vn
+   for (i = 0; i < numPolyBasis; i++)
+   {
+      for (j = 0; j < numDofs; j++)
+      {
+         WnVn(j,i+numLocalBasis) = Vn(j,i);
+      }
+   }
+}
 RBFSpace::~RBFSpace()
 {
    for (int k = 0; k < GetMesh()->GetNE(); k++)

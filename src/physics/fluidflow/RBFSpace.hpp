@@ -36,18 +36,27 @@ public:
    // /// Assemble the global prolongation matrix
    // void AssembleProlongationMatrix() const;
 
-   /// build the element element-wise basis matrix
+   /// build the element-wise radial basis matrix
    void buildElementRadialBasisMat(const int el_id,
                                    const int numDofs,
                                    const mfem::Array<mfem::Vector *> &dofs_coord,
                                    mfem::DenseMatrix &W,
                                    mfem::DenseMatrix &Wn);
 
+   /// build the element-wise polynomial basis matrix
    void buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
                                  const int numDofs,
                                  const mfem::Array<mfem::Vector *> &dofs_coord,
                                  mfem::DenseMatrix &V,
                                  mfem::DenseMatrix &Vn);
+   
+   /// build the 
+   void buildWVMat(const mfem::DenseMatrix &W, const mfem::DenseMatrix &V,
+                   mfem::DenseMatrix &WV);
+   
+   /// build the WnVn matrix
+   void buildWnVnMat(const mfem::DenseMatrix &Wn, const mfem::DenseMatrix &Vn,
+                     mfem::DenseMatrix &WnVn);
 
 protected:
    /// mesh dimension

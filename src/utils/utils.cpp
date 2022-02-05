@@ -412,6 +412,19 @@ void buildLSInterpolation(int dim, int degree, const DenseMatrix &x_center,
    }
 }
 
+void buildRBFInterpolation(int numRadialBasis, int numPolyBasis, const DenseMatrix &WV,
+                           DenseMatrix &coef)
+{
+   char TRANS = 'N';
+   int info;
+   int M = numRadialBasis+numPolyBasis;
+   int lwork = 2*M*numPolyBasis;
+   double work[lwork];
+   dgels_(&TRANS, &M, &M, &numRadialBasis, WV.GetData(), &M,
+          coef.GetData(), &M, work, &lwork, &info);
+   MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
+}
+
 double radialBasisKernel(const mfem::Vector &loc,
                          const mfem::DenseMatrix &shapeParam,
                          const mfem::Vector &center)
