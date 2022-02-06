@@ -25,13 +25,18 @@ public:
    void buildDofMat(int el_id, const int num_dofs, 
                     const mfem::FiniteElement *fe,
                     mfem::Array<mfem::Vector *> &dofs) const;
+   
+   void buildDataMat(const int el_id, mfem::DenseMatrix &W, mfem::DenseMatrix &V,
+                     mfem::DenseMatrix &Wn, mfem::DenseMatrix &Vn,
+                     mfem::DenseMatrix &WV, mfem::DenseMatrix &WnVn);
 
    /// Solve and store the local prolongation coefficient
    /// \param[in] el_id - the element id
    /// \param[in] numDofs - degrees of freedom in the element
    /// \param[in] dof_coord - dofs coordinat location
-   void solveProlongationCoefficient(const int el_id, const int numDofs,
-                                     const mfem::Array<mfem::Vector *> &dof_coord);
+   void solveLocalProlongationMat(const int el_id, const mfem::DenseMatrix &WV,
+                                     const mfem::DenseMatrix &WnVn,
+                                     mfem::DenseMatrix &localMat);
 
    // /// Assemble the global prolongation matrix
    // void AssembleProlongationMatrix() const;
@@ -50,7 +55,7 @@ public:
                                  mfem::DenseMatrix &V,
                                  mfem::DenseMatrix &Vn);
    
-   /// build the 
+   /// build the j
    void buildWVMat(const mfem::DenseMatrix &W, const mfem::DenseMatrix &V,
                    mfem::DenseMatrix &WV);
    
