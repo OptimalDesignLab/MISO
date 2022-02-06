@@ -23,14 +23,16 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f,
 
    switch(dim)
    {
-      case 1: req_basis = polyOrder + 1; break;
-      case 2: req_basis = (polyOrder+1) * (polyOrder+2) / 2; break;
-      case 3: req_basis = (polyOrder+1)*(polyOrder+2)*(polyOrder+3) / 6; break;
+      case 1: numPolyBasis = polyOrder + 1;  break;
+      case 2: numPolyBasis = (polyOrder+1) * (polyOrder+2) / 2; break;
+      case 3: numPolyBasis = (polyOrder+1)*(polyOrder+2)*(polyOrder+3) / 6; break;
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
+   req_basis = numPolyBasis + extra_basis;
+   cout << "Number of polynomial basis is " << numPolyBasis << '\n';
+   cout << "Number of required basis is " << req_basis << '\n';
+
    // initialize the stencil/patch
-   req_basis += extra_basis;
-   cout << "req_basis is " << req_basis << '\n';
    InitializeStencil();
 
    // initialize the shape parameter matrix
@@ -123,18 +125,11 @@ void RBFSpace::InitializeStencil()
 
 void RBFSpace::buildProlongationMatrix()
 {
-   // get the current element number of dofs
-   // assume uniform type of element
-   Array<Vector *> dofs_coord;
-   const Element *el = mesh->GetElement(0);
-   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
-   const int num_dofs = fe->GetDof();
-   dofs_coord.SetSize(num_dofs);
-   for (int k = 0; k <num_dofs; k++)
-   {
-      dofs_coord[k] = new Vector(dim);
-   }
-
+   // declare soma matrix variables
+   DenseMatrix W,V;
+   DenseMatrix Wn,Vn;
+   DenseMatrix WV,WnVn;
+   DenseMatrix localMat;
    // loop over element to build local and global prolongation matrix
    for (int i = 0; i < 1; i++)
    {
@@ -147,12 +142,13 @@ void RBFSpace::buildProlongationMatrix()
          dofs_coord[j]->Print();
       }
       cout << endl;
+      buildDataMat(el_id,);
 
       // 2. build the interpolation matrix
-      solveProlongationCoefficient(i,num_dofs,dofs_coord);
+      solveProlongationCoefficient(i,num_dofs,dofs_coord,localMat);
 
-      // // 3. Assemble prolongation matrix
-      // AssembleProlongationMatrix();
+      // 3. Assemble prolongation matrix
+      AssembleProlongationMatrix(el_id,localMat);
    }
 
    // free the aux variable
@@ -162,13 +158,50 @@ void RBFSpace::buildProlongationMatrix()
    }
 }
 
+void RBFSpace::buildDataMat(int el_id,)
+{
+   // get element related data
+   const Element *el = mesh->GetElement(el_id);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
+   const int num_dofs = fe->GetDof();
+   const ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
+   
+   // get the dofs coord
+   Array<Vector *> dofs_coord;
+   dofs_coord.SetSize(num_dofs);
+   for (int k = 0; k <num_dofs; k++)
+   {
+      dofs_coord[k] = new Vector(dim);
+   }
+   Vector coord(dim);
+   for (int i = 0; i < num_dofs; i++)
+   {
+      eltransf->Transform(fe->GetNodes().IntPoint(i), coord);
+      *dofs_coord[i] = coord;
+   }
+
+   // build the data mat
+   const int numLocalBasis = selectedBasis[el_id]->Size(); 
+
+   W.SetSize(numLocalBasis,numLocalBasis);
+   V.SetSize(numLocalBasis,numPolyBasis);
+   Wn.SetSize(num_dofs,numLocalBasis);
+   Vn.SetSize(num_dofs,numPolyBasis);
+
+
+   // free the aux variable
+   for (int k = 0; k < num_dofs; k++)
+   {
+      delete dofs_coord[k];
+   }
+}
 
 void RBFSpace::buildDofMat(int el_id, const int num_dofs,
                            const FiniteElement *fe,
                            Array<Vector *> &dofs_coord) const
 {
    Vector coord(dim);
-   ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
+   const ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
    for (int i = 0; i < num_dofs; i++)
    {
       eltransf->Transform(fe->GetNodes().IntPoint(i), coord);
@@ -178,7 +211,8 @@ void RBFSpace::buildDofMat(int el_id, const int num_dofs,
 
 
 void RBFSpace::solveProlongationCoefficient(const int el_id, const int numDofs,
-                                            const Array<Vector *> &dofs_coord)
+                                            const Array<Vector *> &dofs_coord,
+                                            DenseMatrix &localMat)
 {
    // some basic inf
    int numLocalBasis = selectedBasis[el_id]->Size();
@@ -199,30 +233,31 @@ void RBFSpace::solveProlongationCoefficient(const int el_id, const int numDofs,
    DenseMatrix WV(numLocalBasis+numPolyBasis, numLocalBasis+numPolyBasis);
    DenseMatrix WnVn(numDofs,numLocalBasis+numPolyBasis);
    coef[el_id] = new DenseMatrix(numLocalBasis+numPolyBasis,numLocalBasis);
-   for (int i = 0; i < numLocalBasis; i++)
-   {
-      (*coef[el_id])(i,i) = 1.0;
-   }
-   cout << "coefficient is:\n";
-   coef[el_id]->Print();
+
 
    // RBF matrix section
    buildElementRadialBasisMat(el_id,numDofs,dofs_coord,W,Wn);
    buildElementPolyBasisMat(el_id,polyOrder,numDofs,dofs_coord,V,Vn);
    buildWVMat(W,V,WV);
    buildWnVnMat(Wn,Vn,WnVn);
-   cout << "WV mat:\n";
-   WV.Print(cout,WV.Width());
-   cout << "WVn mat:\n";
-   WnVn.Print(cout,WnVn.Width());
 
 
-   // Solve the coefficient
-   buildRBFInterpolation(numLocalBasis,numPolyBasis,WV,*coef[el_id]);
-   cout << "coefficient is:\n";
-   coef[el_id]->Print();
+   // Solve the coefficient with Lapack
+   // for (int i = 0; i < numLocalBasis; i++)
+   // {
+   //    (*coef[el_id])(i,i) = 1.0;
+   // }
+   // buildRBFInterpolation(numLocalBasis,numPolyBasis,WV,*coef[el_id]);
 
-   // Get the local prolongation operator ?
+
+   // solve with LU factor (it looks like this is better)
+   DenseMatrix b(numLocalBasis+numPolyBasis,numLocalBasis);
+   for (int i = 0; i < numLocalBasis; i++)
+   {
+      b(i,i) = 1.0;
+   }
+   DenseMatrixInverse WVinv(WV);
+   WVinv.Mult(b,*coef[el_id]);
 }
 
 void RBFSpace::buildElementRadialBasisMat(const int el_id,
@@ -453,6 +488,40 @@ RBFSpace::~RBFSpace()
       delete selectedElement[k];
    }
 
+}
+
+void RBFSpace::AssembleProlongationMatrix(const int el_id, const DenseMatrix &localMat)
+{
+   // element id coresponds to the column indices
+   // dofs id coresponds to the row indices
+   // the local reconstruction matrix needs to be assembled `vdim` times
+   // assume the mesh only contains only 1 type of element
+   const Element* el = mesh->GetElement(el_id);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
+   const int numDofs = fe->GetDof();
+
+   int numLocalBasis= selectedBasis[el_id]->Size();
+   Array<int> el_dofs;
+   Array<int> col_index(numLocalBasis);
+   Array<int> row_index(numDofs);
+
+   GetElementVDofs(el_id, el_dofs);
+   for(int e = 0; e < numLocalBasis; e++)
+   {
+      col_index[e] = vdim * (*selectedBasis[el_id])[e];
+   }
+
+   for (int v = 0; v < vdim; v++)
+   {
+      el_dofs.GetSubArray(v * numDofs, numDofs, row_index);
+      cP->SetSubMatrix(row_index, col_index, local_mat, 1);
+      row_index.LoseData();
+      // elements id also need to be shift accordingly
+      for (int e = 0; e < numLocalBasis; e++)
+      {
+         col_index[e]++;
+      }
+   }
 }
 
 vector<size_t> RBFSpace::sort_indexes(const vector<double> &v)

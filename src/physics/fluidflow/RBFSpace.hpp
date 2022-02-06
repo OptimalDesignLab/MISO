@@ -58,11 +58,16 @@ public:
    void buildWnVnMat(const mfem::DenseMatrix &Wn, const mfem::DenseMatrix &Vn,
                      mfem::DenseMatrix &WnVn);
 
+   /// Assemble the local prolongation to the global matrix
+   void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat);
+
 protected:
    /// mesh dimension
    int dim;
    /// number of radial basis function
    int numBasis;
+   /// number of polynomial basis
+   int numPolyBasis;
    /// polynomial order
    int polyOrder;
    /// minimum number of basis for each element
