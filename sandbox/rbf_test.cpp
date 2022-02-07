@@ -2,6 +2,7 @@ constexpr bool entvar = true;
 #include "mfem.hpp"
 #include "euler.hpp"
 #include "RBFSpace.hpp"
+#include "rbfgridfunc.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -15,6 +16,7 @@ using namespace mach;
 /// \param[out] u - state variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
 void upoly(const Vector &x, Vector& u);
+void utest(const Vector &x, Vector &u);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -22,6 +24,7 @@ void upoly(const Vector &x, Vector& u);
 /// \param[in] num_ang - number of nodes in the angular direction
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
+Array<Vector *> buildBasisCenters(int, int);
 
 int main(int argc, char *argv[])
 {
@@ -33,12 +36,18 @@ int main(int argc, char *argv[])
    int extra_basis = 1;
    int nx = 1;
    int ny = 1;
+   int numRad = 10;
+   int numTheta = 10;
+   double sp = 1.0;
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
+   args.AddOption(&numRad,"-br","--numrad","number of radius points");
+   args.AddOption(&numTheta,"-bt","--numtheta","number of anglular points");
    args.AddOption(&extra_basis,"-e", "--extra", "extra number of basis");
+   args.AddOption(&sp,"-s","-shape","shapeParameter in RBF kernel");
    args.Parse();
    if (!args.Good())
    {
@@ -54,14 +63,21 @@ int main(int argc, char *argv[])
       int num_state = dim +2;
 
       // initialize the basis centers
-      int numbasis = smesh->GetNE();
-
-      Array<Vector *> center(numbasis);
-      for (int k = 0; k < numbasis; k++)
+      int numBasis = smesh->GetNE();
+      Array<Vector *> center(numBasis);
+      for (int k = 0; k < numBasis; k++)
       {  
          center[k] = new Vector(dim);
          smesh->GetElementCenter(k,*center[k]);
       }
+
+      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      // int numBasis = numRad * numTheta;
+      // for (int i = 0; i < numBasis; i++)
+      // {
+      //    cout << "basis " << i << ": ";
+      //    center[i]->Print();
+      // }
 
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
@@ -77,6 +93,9 @@ int main(int argc, char *argv[])
       x_cent.ProjectCoefficient(u0_fun);
       x_exact.ProjectCoefficient(u0_fun);
       x = 0.0;
+      ofstream x_centprint("x_cent.txt");
+      x_cent.Print(x_centprint,4);
+      x_centprint.close();
 
       //============== Prolong the solution to SBP nodes =================================
       //============== and check the simple l2 norm error ================================
@@ -84,14 +103,23 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs,0);
       x_exact.SaveVTK(sol_ofs,"exact",0);
+
+
       rbfspace.GetProlongationMatrix()->Mult(x_cent, x);
+      ofstream x_prolongprint("x_prolong.txt");
+      x.Print(x_prolongprint,4);
+      x_prolongprint.close();
+      x_cent.Print(x_centprint,4);
+      x_centprint.close();
+
+      //============== Prolong the solution to SBP nodes =================================
+      //============== and check the simple l2 norm error ======
       x.SaveVTK(sol_ofs,"prolong",0);
       x -= x_exact;
       x.SaveVTK(sol_ofs,"error",0);
       sol_ofs.close();
       cout << "Check the projection l2 error: " << x.Norml2() << '\n';
-
-      for (int k = 0; k < numbasis; k++)
+      for (int k = 0; k < numBasis; k++)
       {
          delete center[k];
       }
@@ -160,6 +188,14 @@ void upoly(const mfem::Vector &x, mfem::Vector &u)
    }
 }
 
+void utest(const mfem::Vector &x, mfem::Vector &u)
+{
+   u.SetSize(4);
+   u(0) = 1.0;
+   u(1) = 2.0;
+   u(2) = 3.0;
+   u(3) = 4.0;
+}
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 {
@@ -190,4 +226,39 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 
    mesh_ptr->NewNodes(*xy, true);
    return mesh_ptr;
+}
+
+mfem::Array<mfem::Vector *> buildBasisCenters(int numRad, int numTheta)
+{
+   int i,j;
+   double rad_inv = 2.0/(numRad -1);
+   double theta_inv = 0.5*M_PI/(numTheta - 1);
+
+   Vector radPoints(numRad), thetaPoints(numTheta);
+   for (i = 0; i < numRad; i++)
+   {
+      radPoints(i) = 1.0 + i * rad_inv;
+   }
+   for (i = 0; i < numTheta; i++)
+   {
+      thetaPoints(i) = theta_inv * i;
+   }
+
+   Array<Vector *> basisCenter(numRad*numTheta);
+
+   int b_id;
+   Vector b_coord(2);
+   for (i = 0; i < numRad; i++)
+   {
+      for (j = 0; j < numTheta; j++)
+      {
+         b_coord(0) = radPoints(i) * cos(thetaPoints(j));
+         b_coord(1) = radPoints(i) * sin(thetaPoints(j));
+         b_id = i * numTheta + j;
+         basisCenter[b_id] = new Vector(2);
+         (*basisCenter[b_id]) = b_coord;
+      }
+   }
+
+   return basisCenter;
 }

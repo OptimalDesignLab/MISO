@@ -36,13 +36,11 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f,
    InitializeStencil();
 
    // initialize the shape parameter matrix
-   cout << "Print the shapeParam.\n";
    shapeParam.SetSize(dim);
    for (int i = 0; i < dim; i++)
    {
       shapeParam(i,i) = shape;
    }
-   shapeParam.Print(cout,dim);
 
    // initialize the prolongation matrix
    cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
@@ -138,7 +136,7 @@ void RBFSpace::buildRBFProlongation()
    DenseMatrix WV,WnVn;
    DenseMatrix localMat;
    // loop over element to build local and global prolongation matrix
-   for (int i = 0; i < 2; i++)
+   for (int i = 0; i < GetMesh()->GetNE(); i++)
    {
       // 1. build basis matrix
       buildDataMat(i,W,V,Wn,Vn,WV,WnVn);
@@ -188,6 +186,31 @@ void RBFSpace::buildDataMat(int el_id, DenseMatrix &W, DenseMatrix &V,
    buildElementPolyBasisMat(el_id,numDofs,dofs_coord,V,Vn);
    buildWVMat(W,V,WV);
    buildWnVnMat(Wn,Vn,WnVn);
+   cout << setprecision(16);
+   // if (el_id == 46)
+   // {
+   //    int b_id;
+   //    cout << "element center is: ";
+   //    elementCenter[el_id]->Print();
+   //    cout << "basis centers loc are:\n";
+   //    for (int i = 0; i <selectedBasis[el_id]->Size();i++)
+   //    {
+   //       b_id =(*selectedBasis[el_id])[i];
+   //       cout << "basis " <<  b_id << " : ";
+   //       basisCenter[b_id]->Print();
+   //    }
+   //    cout << "WV is:\n";
+   //    //WV.Print(cout,WV.Width());
+   //    for (int i = 0; i < WV.Height(); i++)
+   //    {
+   //       for (int j = 0; j <WV.Width(); j++)
+   //       {
+   //          cout << WV(i,j) << ' ';
+   //       }
+   //       cout << '\n';
+   //    }
+   // }
+   
    
    // free the aux variable
    for (int k = 0; k < numDofs; k++)
@@ -226,8 +249,14 @@ void RBFSpace::solveLocalProlongationMat(const int el_id,
    WVinv.Mult(b,*coef[el_id]);
 
    // check solve
-   // DenseMatrix temp(numDofs,numLocalBasis);
+   // DenseMatrix temp(numLocalBasis+numPolyBasis,numLocalBasis);
    // Mult(WV,*coef[el_id],temp);
+   // if (el_id == 46)
+   // {
+   //    cout << "\nMultiplication results is:\n";
+   //    temp.Print(cout,temp.Width());
+   // }
+
    // cout << "solve results is:\n" << setprecision(16);
    // for (int i = 0; i < numLocalBasis+numPolyBasis; i++)
    // {

@@ -44,47 +44,47 @@ void GalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
    double bot_threshold = 0.25;
    bool left = false, right = false, top = false, bot = false;
 
-   if (cent_coord(0) > right_threshold) {right = true;}
-   if (cent_coord(0) < left_threshold) {left = true;}
-   if (cent_coord(1) < bot_threshold) {bot = true;}
-   if (cent_coord(1) > top_threshold) {top = true;}
+   // if (cent_coord(0) > right_threshold) {right = true;}
+   // if (cent_coord(0) < left_threshold) {left = true;}
+   // if (cent_coord(1) < bot_threshold) {bot = true;}
+   // if (cent_coord(1) > top_threshold) {top = true;}
 
    for(int j = 0; j < num_el; j++)
    {
       // Get and store the element center
       GetElementCenter(elmt_id[j], cent_coord);
 
-      if (right)
-      {
-         if (cent_coord(0)+1.0 < 1.5 )
-         {
-            cent_coord(0) = cent_coord(0) + 1.0;
-         }
-      }
+      // if (right)
+      // {
+      //    if (cent_coord(0)+1.0 < 1.5 )
+      //    {
+      //       cent_coord(0) = cent_coord(0) + 1.0;
+      //    }
+      // }
 
-      if (left)
-      {
-         if (cent_coord(0)-1.0 > -0.5)
-         {
-            cent_coord(0) = cent_coord(0) - 1.0;
-         }
-      }
+      // if (left)
+      // {
+      //    if (cent_coord(0)-1.0 > -0.5)
+      //    {
+      //       cent_coord(0) = cent_coord(0) - 1.0;
+      //    }
+      // }
 
-      if (top)
-      {
-         if (cent_coord(1)+1.0 < 1.5)
-         {
-            cent_coord(1) = cent_coord(1) + 1.0;
-         }
-      }
+      // if (top)
+      // {
+      //    if (cent_coord(1)+1.0 < 1.5)
+      //    {
+      //       cent_coord(1) = cent_coord(1) + 1.0;
+      //    }
+      // }
 
-      if (bot)
-      {
-         if (cent_coord(1)-1.0 > -0.5)
-         {
-            cent_coord(1) = cent_coord(1) - 1.0;
-         }
-      }
+      // if (bot)
+      // {
+      //    if (cent_coord(1)-1.0 > -0.5)
+      //    {
+      //       cent_coord(1) = cent_coord(1) - 1.0;
+      //    }
+      // }
       
 
       for(int i = 0; i < dim; i++)
@@ -194,8 +194,12 @@ void GalerkinDifference::BuildGDProlongation() const
    for (int i = 0; i < nEle; i++)
    {
       GetNeighbourSet(i, nelmt, elmt_id);
-      // cout << "id(s) in patch " << i << ": ";
-      // elmt_id.Print(cout, elmt_id.Size());
+      if (i == 46)
+      {
+         cout << "id(s) in patch " << i << ": ";
+         elmt_id.Print(cout, elmt_id.Size());
+      }
+
       
       // 2. build the quadrature and barycenter coordinate matrices
       BuildNeighbourMat(elmt_id, cent_mat, quad_mat);

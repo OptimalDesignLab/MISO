@@ -67,10 +67,7 @@ int main(int argc, char *argv[])
       // {
       //    mesh->UniformRefinement();
       // }
-      ofstream sol_ofs("gd_test.vtk");
-      sol_ofs.precision(14);
-      mesh->PrintVTK(sol_ofs, 0);
-      sol_ofs.close();
+      
       std::cout << "Number of elements " << mesh->GetNE() << '\n';
       dim = mesh->Dimension();
       int num_state = dim +2;
@@ -121,10 +118,19 @@ int main(int argc, char *argv[])
 
    //============== Prolong the solution to SBP nodes =================================
    //============== and check the simple l2 norm error ================================
+
+      ofstream sol_ofs("gd_test.vtk");
+      sol_ofs.precision(14);
+      mesh->PrintVTK(sol_ofs, 0);
+      x_exact.SaveVTK(sol_ofs,"exact",0);
+      
       gd.GetProlongationMatrix()->Mult(x_cent, x);
-      PrintCentTXT(mesh.get(), &gd,x_cent, num_state);
-      PrintQuadTXT(mesh.get(),&fes,x,x_exact,num_state);
+      x.SaveVTK(sol_ofs,"prolong",0);
+      // PrintCentTXT(mesh.get(), &gd,x_cent, num_state);
+      // PrintQuadTXT(mesh.get(),&fes,x,x_exact,num_state);
       x -= x_exact;
+      x.SaveVTK(sol_ofs,"error",0);
+      sol_ofs.close();
       // cout << "\nCheck the nodal error:\n";
       // x.Print(cout, num_state);
       cout << "Check the projection l2 error: " << x.Norml2() << '\n';
@@ -201,8 +207,8 @@ void u_linear(const mfem::Vector &x, mfem::Vector &u)
    u.SetSize(4);
    u(0) = 1.0;
    u(1) = 2.0;
-   u(2) = x(0);
-   u(3) = x(1); 
+   u(2) = 3.0;
+   u(3) = 4.0; 
 }
 
 void u_poly(const mfem::Vector &x, mfem::Vector &u)

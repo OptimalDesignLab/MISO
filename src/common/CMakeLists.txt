@@ -12,6 +12,8 @@ target_sources(mach
       sbp_fe.hpp
 		centgridfunc.cpp
 		centgridfunc.hpp
+      rbfgridfunc.cpp
+      rbfgridfunc.hpp
 )
 
 target_include_directories(mach
