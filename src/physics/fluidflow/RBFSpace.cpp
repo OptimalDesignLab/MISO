@@ -46,7 +46,7 @@ RBFSpace::RBFSpace(Mesh *m, const FiniteElementCollection *f,
 
    // initialize the prolongation matrix
    cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
-   buildProlongationMatrix();
+   buildRBFProlongation();
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
@@ -99,38 +99,38 @@ void RBFSpace::InitializeStencil()
       }
    }
 
-   cout << "------Check the stencil------\n";
-   cout << "------Basis center loca------\n";
-   for (int i = 0; i < numBasis; i++)
-   {  
-      cout << "basis " << i << ": ";
-      basisCenter[i]->Print();
-   }
-   cout << '\n';
-   cout << "------Elem's  stencil------\n";
-   for (int i = 0; i < GetMesh()->GetNE(); i++)
-   {
-      cout << "Element " << i << ": ";
-      for (int j = 0; j < selectedBasis[i]->Size(); j++)
-      {
-         cout << (*selectedBasis[i])[j] << ' ';
-      }
-      cout << '\n';
-   }
-   cout << '\n';
-   cout << "------Basis's  element------\n";
-   for (int k = 0; k < numBasis; k++)
-   {
-      cout << "basis " << k << ": ";
-      for (int l = 0; l < selectedElement[k]->Size(); l++)
-      {
-         cout << (*selectedElement[k])[l] << ' ';
-      }
-      cout << '\n';
-   }
+   // cout << "------Check the stencil------\n";
+   // cout << "------Basis center loca------\n";
+   // for (int i = 0; i < numBasis; i++)
+   // {  
+   //    cout << "basis " << i << ": ";
+   //    basisCenter[i]->Print();
+   // }
+   // cout << '\n';
+   // cout << "------Elem's  stencil------\n";
+   // for (int i = 0; i < GetMesh()->GetNE(); i++)
+   // {
+   //    cout << "Element " << i << ": ";
+   //    for (int j = 0; j < selectedBasis[i]->Size(); j++)
+   //    {
+   //       cout << (*selectedBasis[i])[j] << ' ';
+   //    }
+   //    cout << '\n';
+   // }
+   // cout << '\n';
+   // cout << "------Basis's  element------\n";
+   // for (int k = 0; k < numBasis; k++)
+   // {
+   //    cout << "basis " << k << ": ";
+   //    for (int l = 0; l < selectedElement[k]->Size(); l++)
+   //    {
+   //       cout << (*selectedElement[k])[l] << ' ';
+   //    }
+   //    cout << '\n';
+   // }
 }
 
-void RBFSpace::buildProlongationMatrix()
+void RBFSpace::buildRBFProlongation()
 {
    // declare soma matrix variables
    DenseMatrix W,V;

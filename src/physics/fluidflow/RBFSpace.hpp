@@ -16,7 +16,7 @@ public:
    virtual ~RBFSpace();
 
    /// build the prolongation matrix with RBF
-   void buildProlongationMatrix();
+   void buildRBFProlongation();
 
    /// build the dof coordinate matrix
    /// note: Assume the mesh only has one type of element
@@ -66,6 +66,18 @@ public:
    /// Assemble the local prolongation to the global matrix
    void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat);
 
+   virtual const Operator *GetProlongationMatrix()
+   { 
+      if (!cP)
+      {
+         buildRBFProlongation();
+         return cP;
+      }
+      else
+      {
+         return cP; 
+      }
+   }
 protected:
    /// mesh dimension
    int dim;

@@ -14,6 +14,7 @@ using namespace mach;
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - state variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
+void upoly(const Vector &x, Vector& u);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -28,7 +29,7 @@ int main(int argc, char *argv[])
    int myid = 0;
    // Parse command-line options
    OptionsParser args(argc, argv);
-   int degree = 2;
+   int degree = 1;
    int extra_basis = 1;
    int nx = 1;
    int ny = 1;
@@ -49,27 +50,46 @@ int main(int argc, char *argv[])
       // generate the mesh
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree+1, nx, ny);
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
-      ofstream sol_ofs("rbf_test.vtk");
-      sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,0);
-      sol_ofs.close();
+      int dim = smesh->Dimension();
+      int num_state = dim +2;
 
       // initialize the basis centers
       int numbasis = smesh->GetNE();
-      int interval = static_cast<int> (floor(smesh->GetNE()/numbasis));
 
       Array<Vector *> center(numbasis);
-      int i = 0;
-      for (int k = 0; k < numbasis; i+=interval)
+      for (int k = 0; k < numbasis; k++)
       {  
-         center[k] = new Vector(2);
-         smesh->GetElementCenter(i,*center[k]);
-         k++;
+         center[k] = new Vector(dim);
+         smesh->GetElementCenter(k,*center[k]);
       }
 
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
-      RBFSpace rbfspace(smesh.get(),&fec,center,1.0,1,extra_basis,Ordering::byVDIM,degree);
+      RBFSpace rbfspace(smesh.get(),&fec,center,1.0,num_state,extra_basis,Ordering::byVDIM,degree);
+      FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
+
+      //================== Construct the gridfunction and apply the exact solution =======
+      mfem::CentGridFunction x_cent(&rbfspace);
+      mfem::GridFunction x(&fes);
+      mfem::GridFunction x_exact(&fes);
+
+      mfem::VectorFunctionCoefficient u0_fun(num_state, upoly);
+      x_cent.ProjectCoefficient(u0_fun);
+      x_exact.ProjectCoefficient(u0_fun);
+      x = 0.0;
+
+      //============== Prolong the solution to SBP nodes =================================
+      //============== and check the simple l2 norm error ================================
+      ofstream sol_ofs("rbf_test.vtk");
+      sol_ofs.precision(14);
+      smesh->PrintVTK(sol_ofs,0);
+      x_exact.SaveVTK(sol_ofs,"exact",0);
+      rbfspace.GetProlongationMatrix()->Mult(x_cent, x);
+      x.SaveVTK(sol_ofs,"prolong",0);
+      x -= x_exact;
+      x.SaveVTK(sol_ofs,"error",0);
+      sol_ofs.close();
+      cout << "Check the projection l2 error: " << x.Norml2() << '\n';
 
       for (int k = 0; k < numbasis; k++)
       {
@@ -127,6 +147,16 @@ void uexact(const Vector &x, Vector& q)
    else
    {
       calcEntropyVars<double, 2>(u.GetData(), q.GetData());
+   }
+}
+
+void upoly(const mfem::Vector &x, mfem::Vector &u)
+{
+   u.SetSize(4);
+   u = 0.0;
+   for (int p = 0; p < 4; p++)
+   {
+      u(p) = pow(x(0), p);
    }
 }
 
