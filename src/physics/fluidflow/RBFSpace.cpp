@@ -138,13 +138,14 @@ void RBFSpace::buildRBFProlongation()
    DenseMatrix WV,WnVn;
    DenseMatrix localMat;
    // loop over element to build local and global prolongation matrix
-   for (int i = 0; i < GetMesh()->GetNE(); i++)
+   for (int i = 0; i < 2; i++)
    {
       // 1. build basis matrix
       buildDataMat(i,W,V,Wn,Vn,WV,WnVn);
-
+      
       // 2. build the interpolation matrix
       solveLocalProlongationMat(i,WV,WnVn,localMat);
+
 
       // 3. Assemble prolongation matrix
       AssembleProlongationMatrix(i,localMat);
@@ -184,10 +185,10 @@ void RBFSpace::buildDataMat(int el_id, DenseMatrix &W, DenseMatrix &V,
 
    // build the data matrix
    buildElementRadialBasisMat(el_id,numDofs,dofs_coord,W,Wn);
-   buildElementPolyBasisMat(el_id,polyOrder,numDofs,dofs_coord,V,Vn);
+   buildElementPolyBasisMat(el_id,numDofs,dofs_coord,V,Vn);
    buildWVMat(W,V,WV);
    buildWnVnMat(Wn,Vn,WnVn);
-
+   
    // free the aux variable
    for (int k = 0; k < numDofs; k++)
    {
@@ -228,7 +229,14 @@ void RBFSpace::solveLocalProlongationMat(const int el_id,
    // DenseMatrix temp(numDofs,numLocalBasis);
    // Mult(WV,*coef[el_id],temp);
    // cout << "solve results is:\n" << setprecision(16);
-   // temp.Print();
+   // for (int i = 0; i < numLocalBasis+numPolyBasis; i++)
+   // {
+   //    for (int j = 0; j < numLocalBasis; j++)
+   //    {
+   //       cout << temp(i,j) << ' ';
+   //    }
+   //    cout << '\n';
+   // }
 
    // Get Local prolongation matrix
    localMat.SetSize(numDofs,numLocalBasis);
@@ -274,13 +282,11 @@ void RBFSpace::buildElementRadialBasisMat(const int el_id,
    }
 }
 
-void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
-                                        const int numDofs,
+void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numDofs,
                                         const Array<Vector *> &dofs_coord,
                                         DenseMatrix &V, DenseMatrix &Vn)
 {
    const int numLocalBasis = selectedBasis[el_id]->Size();
-
    int i,j,k,l;
    double dx,dy,dz;
    int loc_id;

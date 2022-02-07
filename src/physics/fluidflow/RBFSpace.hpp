@@ -49,8 +49,7 @@ public:
                                    mfem::DenseMatrix &Wn);
 
    /// build the element-wise polynomial basis matrix
-   void buildElementPolyBasisMat(const int el_id, const int numPolyBasis,
-                                 const int numDofs,
+   void buildElementPolyBasisMat(const int el_id, const int numDofs,
                                  const mfem::Array<mfem::Vector *> &dofs_coord,
                                  mfem::DenseMatrix &V,
                                  mfem::DenseMatrix &Vn);
