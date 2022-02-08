@@ -63,16 +63,16 @@ int main(int argc, char *argv[])
       int num_state = dim +2;
 
       // initialize the basis centers
-      int numBasis = smesh->GetNE();
-      Array<Vector *> center(numBasis);
-      for (int k = 0; k < numBasis; k++)
-      {  
-         center[k] = new Vector(dim);
-         smesh->GetElementCenter(k,*center[k]);
-      }
+      // int numBasis = smesh->GetNE();
+      // Array<Vector *> center(numBasis);
+      // for (int k = 0; k < numBasis; k++)
+      // {  
+      //    center[k] = new Vector(dim);
+      //    smesh->GetElementCenter(k,*center[k]);
+      // }
 
-      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      // int numBasis = numRad * numTheta;
+      Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      int numBasis = numRad * numTheta;
       // for (int i = 0; i < numBasis; i++)
       // {
       //    cout << "basis " << i << ": ";
@@ -83,6 +83,13 @@ int main(int argc, char *argv[])
       DSBPCollection fec(degree,smesh->Dimension());
       RBFSpace rbfspace(smesh.get(),&fec,center,1.0,num_state,extra_basis,Ordering::byVDIM,degree);
       FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
+
+      // test rbf grid function
+      mfem::RBFGridFunction x_rbf(&rbfspace,center, upoly);
+      x_rbf.ProjectCoefficient();
+      ofstream x_rbfprint("x_rbf.txt");
+      x_rbf.Print(x_rbfprint,4);
+      x_rbfprint.close();
 
       //================== Construct the gridfunction and apply the exact solution =======
       mfem::CentGridFunction x_cent(&rbfspace);
@@ -105,7 +112,7 @@ int main(int argc, char *argv[])
       x_exact.SaveVTK(sol_ofs,"exact",0);
 
 
-      rbfspace.GetProlongationMatrix()->Mult(x_cent, x);
+      rbfspace.GetProlongationMatrix()->Mult(x_rbf, x);
       ofstream x_prolongprint("x_prolong.txt");
       x.Print(x_prolongprint,4);
       x_prolongprint.close();

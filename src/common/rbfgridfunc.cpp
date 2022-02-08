@@ -50,7 +50,7 @@ RBFGridFunction::RBFGridFunction(FiniteElementSpace *f, Array<Vector *> &center,
 //    }
 // }
 
-void RBFGridFunction::ProjectCoefficient(std::function<void(const Vector &, Vector &)> F)
+void RBFGridFunction::ProjectCoefficient()
 {
    int vdim = fes->GetVDim();
    Array<int> vdofs(vdim);
@@ -62,7 +62,7 @@ void RBFGridFunction::ProjectCoefficient(std::function<void(const Vector &, Vect
       {
          vdofs[j] = i * vdim + j;
       }
-      F(*basisCenter[i], vals);
+      Function(*basisCenter[i], vals);
       SetSubVector(vdofs, vals);
    }
 }
