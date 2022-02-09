@@ -4,7 +4,6 @@ constexpr bool entvar = true;
 
 #include<random>
 #include "adept.h"
-
 #include "mfem.hpp"
 #include "euler.hpp"
 #include <fstream>
@@ -61,31 +60,20 @@ int main(int argc, char *argv[])
    try
    {
       // construct the solver, set the initial condition, and solve
-      // string opt_file_name(options_file);
-      // unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      // ofstream sol_ofs("steady_vortex_mesh.vtk");
-      // sol_ofs.precision(14);
-      // smesh->PrintVTK(sol_ofs);
-      // sol_ofs.close();
       string opt_file_name(options_file);
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("steady_vortex_mesh.vtk");
-      ofstream meshsave("steady_vortex_mesh.mesh");
-      sol_ofs.precision(14);
+      sol_ofs.precision(15);
       smesh->PrintVTK(sol_ofs,0);
-      smesh->Print(meshsave);
       sol_ofs.close();
-      meshsave.close();
 
       unique_ptr<AbstractSolver> solver(
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
-      //unique_ptr<AbstractSolver> solver(new EulerSolver<2>(opt_file_name, nullptr));
       solver->initDerived();
 
       solver->setInitialCondition(uexact);
-      //solver->setMinL2ErrorInitialCondition(uexact);
-      solver->printSolution("gd_init", 0);
+      solver->printSolution("rbf_init", 0);
 
       // get the initial density error
       double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
@@ -97,10 +85,9 @@ int main(int argc, char *argv[])
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
       solver->checkJacobian(pert);
-      solver->feedpert(pert);
       solver->solveForState();
-      solver->printSolution("gd_final",0);
-      solver->printError("gd_final_error", 0, uexact);
+      solver->printSolution("rbf_final",0);
+      solver->printError("rbf_final_error", 0, uexact);
       // get the final density error
       l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
