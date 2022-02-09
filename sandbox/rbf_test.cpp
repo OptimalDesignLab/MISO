@@ -60,19 +60,19 @@ int main(int argc, char *argv[])
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree+1, nx, ny);
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       int dim = smesh->Dimension();
-      int num_state = dim +2;
+      int num_state = dim+2;
 
       // initialize the basis centers
-      // int numBasis = smesh->GetNE();
-      // Array<Vector *> center(numBasis);
-      // for (int k = 0; k < numBasis; k++)
-      // {  
-      //    center[k] = new Vector(dim);
-      //    smesh->GetElementCenter(k,*center[k]);
-      // }
+      int numBasis = smesh->GetNE();
+      Array<Vector *> center(numBasis);
+      for (int k = 0; k < numBasis; k++)
+      {  
+         center[k] = new Vector(dim);
+         smesh->GetElementCenter(k,*center[k]);
+      }
 
-      Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      int numBasis = numRad * numTheta;
+      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      // int numBasis = numRad * numTheta;
       // for (int i = 0; i < numBasis; i++)
       // {
       //    cout << "basis " << i << ": ";
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
-      RBFSpace rbfspace(smesh.get(),&fec,center,1.0,num_state,extra_basis,Ordering::byVDIM,degree);
+      RBFSpace rbfspace(smesh.get(),&fec,center,sp,num_state,extra_basis,Ordering::byVDIM,degree);
       FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
 
       // test rbf grid function
@@ -200,8 +200,8 @@ void utest(const mfem::Vector &x, mfem::Vector &u)
    u.SetSize(4);
    u(0) = 1.0;
    u(1) = 2.0;
-   u(2) = 3.0;
-   u(3) = 4.0;
+   u(2) = x(0);
+   u(3) = x(1);
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)

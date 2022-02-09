@@ -196,8 +196,12 @@ void RBFSpace::buildDataMat(int el_id, DenseMatrix &W, DenseMatrix &V,
    //    for (int i = 0; i <selectedBasis[el_id]->Size();i++)
    //    {
    //       b_id =(*selectedBasis[el_id])[i];
-   //       cout << "basis " <<  b_id << " : ";
-   //       basisCenter[b_id]->Print();
+   //       //cout << "basis " <<  b_id << " : ";
+   //       for (int j = 0; j < dim; j++)
+   //       {
+   //          cout << (*basisCenter[b_id])[j] << ' ';
+   //       }
+   //       cout << '\n';
    //    }
    //    cout << "WV is:\n";
    //    //WV.Print(cout,WV.Width());
