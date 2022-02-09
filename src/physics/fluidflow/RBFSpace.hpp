@@ -65,6 +65,9 @@ public:
    /// Assemble the local prolongation to the global matrix
    void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat);
 
+   virtual int GetTrueVSize() const {return vdim * numBasis;}
+   virtual int GetNDofs() const {return numBasis;}
+
    virtual const Operator *GetProlongationMatrix()
    { 
       if (!cP)

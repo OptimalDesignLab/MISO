@@ -10,6 +10,7 @@
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
 #include "galer_diff.hpp"
+#include "RBFSpace.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -159,6 +160,34 @@ void AbstractSolver::masslumpCheck( void (*u_init)(const Vector &, Vector &))
    // double exact = 4.0; // nonliear
    cout << "Integration error is " <<  std::setprecision(14) << 4.0 - integration << endl;
 }
+
+void AbstractSolver::initDerived(Array<Vector *> &center)
+{
+   num_state = this->getNumState();
+   int rbf_degree = options["space-dis"]["RBF-degree"].get<int>();
+   int extra_basis = options["space-dis"]["extra-basis"].get<int>();
+   double shape = options["space-dis"]["shape-param"].get<double>();
+   
+   // set the finite element space
+   fes.reset(new RBFSpace(mesh.get(),fec.get(),center,shape,num_state,
+                          extra_basis,Ordering::byVDIM,rbf_degree));
+   fes_normal.reset(new SpaceType(mesh.get(),fec.get(),num_state,
+                                  Ordering::byVDIM));
+
+   // set the grid functions
+   uc.reset(new CentGridFunction(fes.get()));
+   u.reset(new GridFunType(fes_normal.get()));
+
+   *out << "Num of state variables: " << num_state << '\n';
+   *out << "rbf_degree is: " << rbf_degree << '\n';
+   *out << "extra basis is: " << extra_basis << '\n';
+   *out << "shapeParameter is: "<< shape << '\n';
+   *out << "uc size is " << uc->Size() << '\n';
+   *out << "u size is " << u->Size() << '\n';
+   *out << "Number of finite element unknowns: "<< fes->GetTrueVSize() << '\n';
+
+}
+
 void AbstractSolver::initDerived()
 {
    // define the number of states, the fes, and the state grid function
