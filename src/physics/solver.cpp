@@ -606,6 +606,23 @@ void AbstractSolver::setInitialCondition(const Vector &uic)
    // TODO: Need to verify that this is ok for scalar fields
    VectorConstantCoefficient u0(uic);
    u->ProjectCoefficient(u0);
+   uc->ProjectCoefficient(u0);
+
+   uc->Print();
+
+   GridFunType u_test(fes_normal.get());
+   dynamic_cast<RBFSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);
+
+   ofstream initial("initial_condition.vtk");
+   initial.precision(14);
+   mesh->PrintVTK(initial, 0);
+   u->SaveVTK(initial, "initial", 0);
+   u_test.SaveVTK(initial,"projection",0);
+
+   u_test -= *u;
+   cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+   u_test.SaveVTK(initial,"project_error", 0);
+   initial.close();
 }
 
 void AbstractSolver::printError(const std::string &file_name,

@@ -6,8 +6,10 @@
       "pitch-axis": 1
    },
    "space-dis": {
-      "GD": false,
-      "GD-degree": 1,
+      "RBF": false,
+      "RBF-degree": 1,
+      "extra-basis": 4,
+      "shape-param": 10.0,
       "degree": 1,
       "lps-coeff": 1.0,
       "basis-type": "csbp"

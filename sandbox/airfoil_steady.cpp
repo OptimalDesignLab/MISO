@@ -1,14 +1,13 @@
 // Solve for the steady flow around a NACA0012
 
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = true;
+constexpr bool entvar = false;
 
 #include<random>
 #include <fstream>
 #include <iostream>
 
 #include "mfem.hpp"
-
 #include "euler.hpp"
 
 using namespace std;
@@ -30,10 +29,11 @@ int main(int argc, char *argv[])
    // Initialize MPI if parallel
    MPI_Init(&argc, &argv);
 #endif
+   int refine = 0;
    // Parse command-line options
    OptionsParser args(argc, argv);
-   args.AddOption(&options_file, "-o", "--options",
-                  "Options file to use.");
+   args.AddOption(&options_file, "-o", "--options","Options file to use.");
+   args.AddOption(&refine,"-r","--refine","mesh refine level");
    args.Parse();
    if (!args.Good())
    {
@@ -44,24 +44,47 @@ int main(int argc, char *argv[])
    try
    {
       // construct the solver, set the initial condition, and solve
+      unique_ptr<Mesh> smesh(new Mesh("naca0012.mesh",1));
+      for (int l = 0; l < refine; l++)
+      {
+         smesh->UniformRefinement();
+      }
+      int numBasis = smesh->GetNE();
+      Array<Vector *> center(numBasis);
+      for (int k = 0; k < numBasis; k++)
+      {  
+         center[k] = new Vector(2);
+         smesh->GetElementCenter(k,*center[k]);
+      }
+
+
+      std::cout << "Number of elements " << smesh->GetNE() <<'\n';
+      ofstream sol_ofs("airfoil_steady.vtk");
+      sol_ofs.precision(15);
+      smesh->PrintVTK(sol_ofs,0);
+      sol_ofs.close();
+
       string opt_file_name(options_file);
-      unique_ptr<AbstractSolver> solver(
-         new EulerSolver<2, entvar>(opt_file_name, nullptr));
-      solver->initDerived();
+      unique_ptr<AbstractSolver> solver(new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
+      solver->initDerived(center);
       Vector qfar(4);
       static_cast<EulerSolver<2, entvar>*>(solver.get())->getFreeStreamState(qfar);
-      Vector wfar(4);
-      // TODO: I do not like that we have to perform this conversion outside the solver...
-      calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      solver->setInitialCondition(wfar);
-      solver->printSolution("airfoil-steady-init");
-      solver->checkJacobian(pert);
+      // Vector wfar(4);
+      // // TODO: I do not like that we have to perform this conversion outside the solver...
+      // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
+      solver->setInitialCondition(qfar);
+      // solver->printSolution("airfoil-steady-init");
+      // solver->checkJacobian(pert);
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
       solver->solveForState();
       solver->printSolution("airfoil-steady-final");
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
+      for (int k = 0; k < numBasis; k++)
+      {
+         delete center[k];
+      }
    }
    catch (MachException &exception)
    {
