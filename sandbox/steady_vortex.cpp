@@ -1,6 +1,6 @@
 /// Solve the steady isentropic vortex problem on a quarter annulus
 // set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = true;
+constexpr bool entvar = false;
 
 #include<random>
 #include "adept.h"
@@ -80,38 +80,37 @@ int main(int argc, char *argv[])
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
       solver->initDerived(center);
 
-      // solver->setInitialCondition(uexact);
-      // solver->printSolution("rbf_init", 0);
+      solver->setInitialCondition(uexact);
 
-      // // get the initial density error
-      // double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
-      //                       .calcConservativeVarsL2Error(uexact, 0));
-      // double res_error = solver->calcResidualNorm();
-      // if (0==myid)
-      // {
-      //    mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
-      //    mfem::out << "\ninitial residual norm = " << res_error << endl;
-      // }
-      // solver->checkJacobian(pert);
-      // solver->solveForState();
-      // solver->printSolution("rbf_final",0);
-      // solver->printError("rbf_final_error", 0, uexact);
-      // // get the final density error
-      // l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
-      //                       .calcConservativeVarsL2Error(uexact, 0));
-      // res_error = solver->calcResidualNorm();
-      // double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
-      // double entropy = solver->calcOutput("entropy");
+      // get the initial density error
+      double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
+      double res_error = solver->calcResidualNorm();
+      if (0==myid)
+      {
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
+         mfem::out << "\ninitial residual norm = " << res_error << endl;
+      }
+      solver->checkJacobian(pert);
+      solver->solveForState();
+      solver->printSolution("rbf_final",0);
+      solver->printError("rbf_final_error", 0, uexact);
+      // get the final density error
+      l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
+                            .calcConservativeVarsL2Error(uexact, 0));
+      res_error = solver->calcResidualNorm();
+      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      double entropy = solver->calcOutput("entropy");
 
-      // if (0==myid)
-      // {
-      //    mfem::out << "\nfinal residual norm = " << res_error;
-      //    mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      //    mfem::out << "\nDrag error = " << drag << endl;
-      //    mfem::out << "\nTotal entropy = " << entropy;
-      //    mfem::out << "\nEntropy error = "
-      //              << fabs(entropy - calcEntropyTotalExact()) << endl;
-      // }
+      if (0==myid)
+      {
+         mfem::out << "\nfinal residual norm = " << res_error;
+         mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+         mfem::out << "\nDrag error = " << drag << endl;
+         mfem::out << "\nTotal entropy = " << entropy;
+         mfem::out << "\nEntropy error = "
+                   << fabs(entropy - calcEntropyTotalExact()) << endl;
+      }
       for (int k = 0; k < numBasis; k++)
       {
          delete center[k];

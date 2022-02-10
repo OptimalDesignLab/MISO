@@ -178,6 +178,9 @@ void AbstractSolver::initDerived(Array<Vector *> &center)
    uc.reset(new CentGridFunction(fes.get()));
    u.reset(new GridFunType(fes_normal.get()));
 
+   // set the residual form
+   res.reset(new NonlinearFormType(fes.get()));
+
    *out << "Num of state variables: " << num_state << '\n';
    *out << "rbf_degree is: " << rbf_degree << '\n';
    *out << "extra basis is: " << extra_basis << '\n';
@@ -185,7 +188,39 @@ void AbstractSolver::initDerived(Array<Vector *> &center)
    *out << "uc size is " << uc->Size() << '\n';
    *out << "u size is " << u->Size() << '\n';
    *out << "Number of finite element unknowns: "<< fes->GetTrueVSize() << '\n';
+   *out << "Number of dofs is (should be number of basis): " << dynamic_cast<RBFSpace *>(fes.get())->GetNDofs() << '\n';
+   *out << "res size is " << res->Height() << " x " << res->Width() << '\n';
 
+   // add output
+   double alpha =1.0;
+   addVolumeIntegrators(alpha);
+   addInterfaceIntegrators(alpha);
+   auto &bcs = options["bcs"];
+   bndry_marker.resize(bcs.size()); // need to set this before next method
+   addBoundaryIntegrators(alpha);
+   if (0 == rank)
+   {
+      for (int k = 0; k < bndry_marker.size(); ++k)
+      {
+         cout << "boundary_marker[" << k << "]: ";
+         for (int i = 0; i < bndry_marker[k].Size(); ++i)
+         {
+            cout << bndry_marker[k][i] << " ";
+         }
+         cout << endl;
+      }
+   }
+
+   // addoutput
+   auto &fun = options["outputs"];
+   using json_iter = nlohmann::json::iterator;
+   int num_bndry_outputs = 0;
+   for (json_iter it = fun.begin(); it != fun.end(); ++it) {
+      if (it->is_array()) ++num_bndry_outputs;
+   }
+   output_bndry_marker.resize(num_bndry_outputs);
+   addOutputs(); // virtual function
+   // ode solver and mass matrix is not set
 }
 
 void AbstractSolver::initDerived()
@@ -505,21 +540,25 @@ void AbstractSolver::setInitialCondition(
    // TODO: Need to verify that this is ok for scalar fields
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
+   uc->ProjectCoefficient(u0);
+
+   GridFunType u_test(fes_normal.get());
+   dynamic_cast<RBFSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);
+
 
    ofstream initial("initial_condition.vtk");
    initial.precision(14);
    mesh->PrintVTK(initial, 0);
    u->SaveVTK(initial, "initial", 0);
+   u_test.SaveVTK(initial,"projection",0);
+
+   u_test -= *u;
+   cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+   u_test.SaveVTK(initial,"project_error", 0);
    initial.close();
-   
-   uc->ProjectCoefficient(u0);
-   GridFunType u_test(fes.get());
-   fes->GetProlongationMatrix()->Mult(*uc, u_test);
-   ofstream projection("initial_projection.vtk");
-   projection.precision(14);
-   mesh->PrintVTK(projection, 0);
-   u_test.SaveVTK(projection, "projection", 0);
-   projection.close();
+
+
+
    // cout << "check nodal values\n";
    // mfem::Array<int> vdofs;
    // int num_dofs;
@@ -538,14 +577,7 @@ void AbstractSolver::setInitialCondition(
    //       cout << std::endl;
    //    }
    // }
-   
-   u_test -= *u;
-   cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
-   ofstream sol_ofs("projection_error.vtk");
-   sol_ofs.precision(14);
-   mesh->PrintVTK(sol_ofs, 0);
-   u_test.SaveVTK(sol_ofs, "project_error", 0);
-   sol_ofs.close();
+
 
    // ofstream u_write("u_init.txt");
    // ofstream uc_write("uc_init.txt");
@@ -868,22 +900,8 @@ double AbstractSolver::calcResidualNorm()
    //GridFunType r(fes.get());
    CentGridFunction r(fes.get());
    double res_norm;
-#ifdef MFEM_USE_MPI
-   // HypreParVector *U = u->GetTrueDofs();
-   // HypreParVector *R = r.GetTrueDofs();
-   // cout << "U size is " << U->Size() << '\n';
-   // cout << "R size is " << R->Size() << '\n';
-   // res->Mult(*U, *R);
-   // double loc_norm = (*R) * (*R);
-   // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   res->Mult(*uc, r);
-   // cout << "Residual now is:\n";
-   // r.Print(cout, 4);
-   res_norm = r * r;
-#else
    res->Mult(*uc, r);
    res_norm = r * r;
-#endif
    res_norm = sqrt(res_norm);
    return res_norm;
 }

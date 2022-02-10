@@ -4,6 +4,7 @@
 #include "euler.hpp"
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
+#include "RBFSpace.hpp"
 #include <iostream>
 using namespace mfem;
 using namespace std;
@@ -333,7 +334,7 @@ double EulerSolver<dim, entvar>::calcConservativeVarsL2Error(
    VectorFunctionCoefficient exsol(num_state, u_exact);
    DenseMatrix vals, exact_vals;
    Vector u_j, exsol_j;
-   fes->GetProlongationMatrix()->Mult(*uc, *u);
+   dynamic_cast<RBFSpace*>(fes.get())->GetProlongationMatrix()->Mult(*uc, *u);
    double loc_norm = 0.0;
    for (int i = 0; i < fes->GetNE(); i++)
    {

@@ -16,7 +16,7 @@ public:
    virtual ~RBFSpace();
 
    /// build the prolongation matrix with RBF
-   void buildRBFProlongation();
+   void buildRBFProlongation() const;
 
    /// build the dof coordinate matrix
    /// note: Assume the mesh only has one type of element
@@ -28,7 +28,7 @@ public:
    
    void buildDataMat(const int el_id, mfem::DenseMatrix &W, mfem::DenseMatrix &V,
                      mfem::DenseMatrix &Wn, mfem::DenseMatrix &Vn,
-                     mfem::DenseMatrix &WV, mfem::DenseMatrix &WnVn);
+                     mfem::DenseMatrix &WV, mfem::DenseMatrix &WnVn) const;
 
    /// Solve and store the local prolongation coefficient
    /// \param[in] el_id - the element id
@@ -36,7 +36,7 @@ public:
    /// \param[in] dof_coord - dofs coordinat location
    void solveLocalProlongationMat(const int el_id, const mfem::DenseMatrix &WV,
                                      const mfem::DenseMatrix &WnVn,
-                                     mfem::DenseMatrix &localMat);
+                                     mfem::DenseMatrix &localMat) const;
 
    // /// Assemble the global prolongation matrix
    // void AssembleProlongationMatrix() const;
@@ -46,29 +46,29 @@ public:
                                    const int numDofs,
                                    const mfem::Array<mfem::Vector *> &dofs_coord,
                                    mfem::DenseMatrix &W,
-                                   mfem::DenseMatrix &Wn);
+                                   mfem::DenseMatrix &Wn) const;
 
    /// build the element-wise polynomial basis matrix
    void buildElementPolyBasisMat(const int el_id, const int numDofs,
                                  const mfem::Array<mfem::Vector *> &dofs_coord,
                                  mfem::DenseMatrix &V,
-                                 mfem::DenseMatrix &Vn);
+                                 mfem::DenseMatrix &Vn) const;
    
    /// build the j
    void buildWVMat(const mfem::DenseMatrix &W, const mfem::DenseMatrix &V,
-                   mfem::DenseMatrix &WV);
+                   mfem::DenseMatrix &WV) const;
    
    /// build the WnVn matrix
    void buildWnVnMat(const mfem::DenseMatrix &Wn, const mfem::DenseMatrix &Vn,
-                     mfem::DenseMatrix &WnVn);
+                     mfem::DenseMatrix &WnVn) const;
 
    /// Assemble the local prolongation to the global matrix
-   void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat);
+   void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat) const;
 
    virtual int GetTrueVSize() const {return vdim * numBasis;}
-   virtual int GetNDofs() const {return numBasis;}
+   inline int GetNDofs() const {return numBasis;}
 
-   virtual const Operator *GetProlongationMatrix()
+   const Operator *GetProlongationMatrix() const
    { 
       if (!cP)
       {
@@ -107,7 +107,7 @@ protected:
    // mfem::Array<std::map<int, double> *> elementBasisDist;
    mfem::Array<std::vector<double> *> elementBasisDist;
    // local element prolongation matrix coefficient
-   mfem::Array<mfem::DenseMatrix *> coef;
+   mutable mfem::Array<mfem::DenseMatrix *> coef;
    /// Initialize the patches/stencil given poly order
    void InitializeStencil();
    /// Initialize the shape parameters

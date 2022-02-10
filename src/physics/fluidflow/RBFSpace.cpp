@@ -128,7 +128,7 @@ void RBFSpace::InitializeStencil()
    // }
 }
 
-void RBFSpace::buildRBFProlongation()
+void RBFSpace::buildRBFProlongation() const
 {
    // declare soma matrix variables
    DenseMatrix W,V;
@@ -152,7 +152,7 @@ void RBFSpace::buildRBFProlongation()
 
 void RBFSpace::buildDataMat(int el_id, DenseMatrix &W, DenseMatrix &V,
                             DenseMatrix &Wn, DenseMatrix &Vn,
-                            DenseMatrix &WV, DenseMatrix &WnVn)
+                            DenseMatrix &WV, DenseMatrix &WnVn) const
 {
    // get element related data
    const Element *el = mesh->GetElement(el_id);
@@ -240,7 +240,7 @@ void RBFSpace::buildDofMat(int el_id, const int numDofs,
 void RBFSpace::solveLocalProlongationMat(const int el_id,
                                          const DenseMatrix &WV,
                                          const DenseMatrix &WnVn,
-                                         DenseMatrix &localMat)
+                                         DenseMatrix &localMat) const
 {
    int numLocalBasis = selectedBasis[el_id]->Size();
    int numDofs = WnVn.Height();
@@ -286,7 +286,7 @@ void RBFSpace::solveLocalProlongationMat(const int el_id,
 void RBFSpace::buildElementRadialBasisMat(const int el_id,
                                           const int numDofs,
                                           const Array<Vector *> &dofs_coord,
-                                          DenseMatrix &W, DenseMatrix &Wn)
+                                          DenseMatrix &W, DenseMatrix &Wn) const
 {
    const int numLocalBasis = selectedBasis[el_id]->Size();
    int i,j,center_id, loc_id;
@@ -317,7 +317,7 @@ void RBFSpace::buildElementRadialBasisMat(const int el_id,
 
 void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numDofs,
                                         const Array<Vector *> &dofs_coord,
-                                        DenseMatrix &V, DenseMatrix &Vn)
+                                        DenseMatrix &V, DenseMatrix &Vn) const
 {
    const int numLocalBasis = selectedBasis[el_id]->Size();
    int i,j,k,l;
@@ -438,7 +438,7 @@ void RBFSpace::buildElementPolyBasisMat(const int el_id, const int numDofs,
 }
 
 void RBFSpace::buildWVMat(const DenseMatrix &W, const DenseMatrix &V,
-                          DenseMatrix &WV)
+                          DenseMatrix &WV) const
 {
    int i,j;
    int numLocalBasis = W.Width();
@@ -469,7 +469,7 @@ void RBFSpace::buildWVMat(const DenseMatrix &W, const DenseMatrix &V,
 
 
 void RBFSpace::buildWnVnMat(const DenseMatrix &Wn, const DenseMatrix &Vn,
-                  DenseMatrix &WnVn)
+                  DenseMatrix &WnVn) const
 {
    int i, j;
    int numDofs = Wn.Height();
@@ -511,7 +511,7 @@ RBFSpace::~RBFSpace()
 
 }
 
-void RBFSpace::AssembleProlongationMatrix(const int el_id, const DenseMatrix &localMat)
+void RBFSpace::AssembleProlongationMatrix(const int el_id, const DenseMatrix &localMat) const
 {
    // element id coresponds to the column indices
    // dofs id coresponds to the row indices
