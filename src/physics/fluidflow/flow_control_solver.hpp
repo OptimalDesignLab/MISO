@@ -153,6 +153,6 @@ private:
                              const mfem::Vector &state) override final;
 };
 
-} // namespace mach
+}  // namespace mach
 
 #endif

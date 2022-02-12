@@ -706,8 +706,9 @@ double ControlBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
                                             const mfem::Vector &dir,
                                             const mfem::Vector &q)
 {
-   calcFlux(x, dir, q, work1);
-   calcEntropyVars<double, dim, entvar>(q.GetData(), work2.GetData());
+   // don't use work1 for flux here, since it is used in calcFlux
+   calcFlux(x, dir, q, work2);
+   calcEntropyVars<double, dim, entvar>(q.GetData(), work1.GetData());
    return work2 * work1;
 }
 
@@ -727,11 +728,10 @@ void ControlBC<dim, entvar>::calcFlux(const mfem::Vector &x,
 }
 
 template <int dim, bool entvar>
-void ControlBC<dim, entvar>::calcFluxJacState(
-    const mfem::Vector &x,
-    const mfem::Vector &dir,
-    const mfem::Vector &q,
-    mfem::DenseMatrix &flux_jac)
+void ControlBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
+                                              const mfem::Vector &dir,
+                                              const mfem::Vector &q,
+                                              mfem::DenseMatrix &flux_jac)
 {
    // evaluate the scaled control, which does not depend on the flow state
    adouble uc_a = control * control_scale(len_scale, x_actuator, x);
@@ -757,9 +757,9 @@ void ControlBC<dim, entvar>::calcFluxJacState(
 
 template <int dim, bool entvar>
 void ControlBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
-                                                    const mfem::Vector &dir,
-                                                    const mfem::Vector &q,
-                                                    mfem::DenseMatrix &flux_jac)
+                                            const mfem::Vector &dir,
+                                            const mfem::Vector &q,
+                                            mfem::DenseMatrix &flux_jac)
 {
    // evaluate the scaled control, which does not depend on dir
    adouble uc_a = control * control_scale(len_scale, x_actuator, x);
@@ -962,6 +962,18 @@ double EntropyIntegrator<dim, entvar>::calcVolFun(const mfem::Vector &x,
                                                   const mfem::Vector &u)
 {
    return entropy<double, dim, entvar>(u.GetData());
+}
+
+template <int dim, bool entvar>
+double BoundaryEntropy<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                                  const mfem::Vector &dir,
+                                                  const mfem::Vector &q)
+{
+   // evaluate the entropy, then return the scaled value
+   double S = entropy<double, dim, entvar>(q.GetData());
+   double scale = control_scale(len_scale, x_actuator, x);
+   double dA = sqrt(dot<double, dim>(dir.GetData(), dir.GetData()));
+   return scale * S * dA;
 }
 
 }  // namespace mach

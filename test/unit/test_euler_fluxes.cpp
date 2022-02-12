@@ -370,6 +370,30 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       REQUIRE( flux(dim+1) == Approx(0.0).margin(abs_tol) );
    }
 
+   SECTION("calcControlFlux is correct")
+   {
+      mfem::Vector flux2(dim + 2);
+      double control = -mach::dot<double, dim>(nrm.GetData(), q.GetData() + 1);
+      double dA = sqrt(mach::dot<double, dim>(nrm.GetData(), nrm.GetData()));
+      control /= dA * q(0);
+      mach::calcControlFlux<double, dim>(
+          nrm.GetData(), q.GetData(), control, flux.GetData());
+      mach::calcEulerFlux<double, dim>(
+          nrm.GetData(), q.GetData(), flux2.GetData());
+      for (int i = 0; i < dim + 2; ++i)
+      {
+         REQUIRE(flux(i) == Approx(flux2(i)));
+      }
+      control = 1.352;
+      mach::calcControlFlux<double, dim>(
+          nrm.GetData(), q.GetData(), control, flux.GetData());
+      mfem::Vector w(dim + 2);
+      mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+      double dS = mach::dot<double, dim + 2>(flux.GetData(), w.GetData());
+      double rhou = mach::dot<double, dim>(nrm.GetData(), q.GetData() + 1);
+      double S = mach::entropy<double, dim>(q.GetData());
+      REQUIRE(dS == Approx(-S * control * dA + rhou));
+   }
 }
 
 TEST_CASE( "calcBoundaryFlux is correct", "[bndry-flux]")
@@ -454,4 +478,3 @@ TEST_CASE( "calcIsentropicVortexFlux is correct", "[vortex-flux]")
       REQUIRE( flux(i) == Approx(flux2(i)) );
    }
 }
-

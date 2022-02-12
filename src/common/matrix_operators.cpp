@@ -188,7 +188,7 @@ void JacobianFree::print(string file_name) const
    cout << "eps_fd " << eps_fd << endl;
    for (int j = 0; j < width; ++j)
    {
-      // perturb state in jth variable 
+      // perturb state in jth variable
       state_pert = state;
       state_pert(j) += eps_fd;
       auto inputs = MachInputs({{"state", state_pert}});
@@ -209,7 +209,7 @@ void JacobianFree::print(string file_name) const
       for (int i = 0; i < height; ++i)
       {
          matrix_file << y(i);
-         if (i != height-1)
+         if (i != height - 1)
          {
             matrix_file << ", ";
          }

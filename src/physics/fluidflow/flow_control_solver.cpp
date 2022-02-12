@@ -106,9 +106,10 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
 {
    int num_states = dim + 2;
    fields.emplace(
-       "flow_state", createState(*mesh_, options["space-dis"], num_states, "flow_state"));
+       "flow_state",
+       createState(*mesh_, options["space-dis"], num_states, "flow_state"));
    // We may need the following method from PDESolver eventually
-   //setUpExternalFields();
+   // setUpExternalFields();
 
    // Check for consistency between the template parameters, mesh, and options
    if (mesh_->SpaceDimension() != dim)
@@ -135,9 +136,8 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
    }
 
    // Construct spatial residual and the space-time residual
-   spatial_res =
-       std::make_unique<mach::MachResidual>(FlowControlResidual<dim, entvar>(
-           options, fes(), diff_stack, *out));
+   spatial_res = std::make_unique<mach::MachResidual>(
+       FlowControlResidual<dim, entvar>(options, fes(), diff_stack, *out));
    auto *mass_matrix = getMassMatrix(*spatial_res, options);
    space_time_res = std::make_unique<mach::MachResidual>(
        mach::TimeDependentResidual(*spatial_res, mass_matrix));
@@ -244,11 +244,12 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
    Vector flow_state;
    extractStates(state, control_state, flow_state);
    AbstractSolver2::initialHook(flow_state);
-   //getState().distributeSharedDofs(state);
+   // getState().distributeSharedDofs(state);
    if (options["time-dis"]["steady"].template get<bool>())
    {
-      throw MachException("FlowControlSolver not set up to handle steady "
-                          "simulations!\n");
+      throw MachException(
+          "FlowControlSolver not set up to handle steady "
+          "simulations!\n");
    }
    if (options["time-dis"]["entropy-log"])
    {
@@ -267,9 +268,9 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
 
 template <int dim, bool entvar>
 void FlowControlSolver<dim, entvar>::iterationHook(int iter,
-                              double t,
-                              double dt,
-                              const mfem::Vector &state)
+                                                   double t,
+                                                   double dt,
+                                                   const mfem::Vector &state)
 {
    // The base class method iterationHook assumes state is one discipline,
    // so we call it here with flow_state
@@ -311,7 +312,7 @@ double FlowControlSolver<dim, entvar>::calcStepSize(int iter,
    // here we call the FlowResidual method for the min time step, which needs
    // the current flow state as a grid function
    FiniteElementState &flow_field = fields.at("flow_state");
-   //auto &flow_field = flowField(); 
+   // auto &flow_field = flowField();
    flow_field.distributeSharedDofs(state);
    return getConcrete<ResType>(*spatial_res)
        .minCFLTimeStep(cfl, flow_field.gridFunc());
@@ -338,8 +339,8 @@ bool FlowControlSolver<dim, entvar>::iterationExit(int iter,
 
 template <int dim, bool entvar>
 void FlowControlSolver<dim, entvar>::terminalHook(int iter,
-                             double t_final,
-                             const mfem::Vector &state)
+                                                  double t_final,
+                                                  const mfem::Vector &state)
 {
    // The base class method terminalHook assumes state is one discipline,
    // so we call it here with flow_state

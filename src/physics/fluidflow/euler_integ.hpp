@@ -517,8 +517,7 @@ private:
 /// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
 template <int dim, bool entvar = false>
-class ControlBC
- : public InviscidBoundaryIntegrator<ControlBC<dim, entvar>>
+class ControlBC : public InviscidBoundaryIntegrator<ControlBC<dim, entvar>>
 {
 public:
    using BCScaleFun = std::function<
@@ -590,11 +589,10 @@ public:
    /// Set the control for the integrator
    /// \param[in/out] integ - the boundary integrator whose control is being set
    /// \param[in] inputs - holds the control value
-   friend void setInputs(ControlBC &integ,
-                         const mach::MachInputs &inputs)
+   friend void setInputs(ControlBC &integ, const mach::MachInputs &inputs)
    {
       setValueFromInputs(inputs, "control", integ.control);
-      setVectorFromInputs(inputs, "x_actuator", integ.x_actuator);
+      setVectorFromInputs(inputs, "x-actuator", integ.x_actuator);
    }
 
 private:
@@ -703,19 +701,19 @@ public:
    { }
 
    /// Return an adjoint-consistent slip-wall normal (pressure) stress term
-   /// \param[in] x - coordinate location at which stress is evaluated (not
-   /// used) \param[in] dir - vector normal to the boundary at `x` \param[in] q
-   /// - conservative variables at which to evaluate the stress \returns
-   /// conmponent of stress due to pressure in `force_nrm` direction
+   /// \param[in] x - coordinate location at which stress is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the stress
+   /// \returns conmponent of stress due to pressure in `force_nrm` direction
    double calcBndryFun(const mfem::Vector &x,
                        const mfem::Vector &dir,
                        const mfem::Vector &q);
 
    /// Returns the gradient of the stress with respect to `q`
-   /// \param[in] x - coordinate location at which stress is evaluated (not
-   /// used) \param[in] dir - vector normal to the boundary at `x` \param[in] q
-   /// - conservative variables at which to evaluate the stress \param[out]
-   /// flux_vec - derivative of stress with respect to `q`
+   /// \param[in] x - coordinate location at which stress is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the stress
+   /// \param[out] flux_vec - derivative of stress with respect to `q`
    void calcFlux(const mfem::Vector &x,
                  const mfem::Vector &dir,
                  const mfem::Vector &q,
@@ -760,8 +758,8 @@ public:
    { }
 
    /// Return the entropy for the state `u`
-   /// \param[in] x - coordinate location at which stress is evaluated (not
-   /// used) \param[in] u - state variables at which to evaluate the entropy
+   /// \param[in] x - coordinate location at which stress is evaluated
+   /// \param[in] u - state variables at which to evaluate the entropy
    /// \returns mathematical entropy based on `u`
    double calcVolFun(const mfem::Vector &x, const mfem::Vector &u);
 
@@ -782,6 +780,85 @@ public:
                        const mfem::Vector &u,
                        mfem::DenseMatrix &flux_jac)
    { }
+};
+
+/// Integrator for weighted entropy over the boundary (for flow-control)
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class BoundaryEntropy
+ : public InviscidBoundaryIntegrator<BoundaryEntropy<dim, entvar>>
+{
+public:
+   using BCScaleFun = std::function<
+       double(double, const mfem::Vector &, const mfem::Vector &)>;
+
+   /// Constructs an integrator that computes weighted entropy
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] scale - scales the entropy (must match control scaling!!!)
+   /// \param[in] xc - position of the control actuator
+   /// \param[in] len - length scale that determines decay rate of control
+   BoundaryEntropy(adept::Stack &diff_stack,
+                   const mfem::FiniteElementCollection *fe_coll,
+                   BCScaleFun scale,
+                   const mfem::Vector &xc,
+                   double len = 1.0)
+    : InviscidBoundaryIntegrator<BoundaryEntropy<dim, entvar>>(diff_stack,
+                                                               fe_coll,
+                                                               dim + 2,
+                                                               1.0),
+      len_scale(len),
+      x_actuator(xc),
+      control_scale(scale)
+   { }
+
+   /// Returns the entropy, weighted by given scalar function, at a given point
+   /// \param[in] x - coordinate location at which entropy is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the stress
+   /// \returns scaled entropy
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Not used at present
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec)
+   { }
+
+   /// Not used
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac)
+   { }
+
+   /// Not used
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac)
+   { }
+
+   /// Set the inputs that define the integrator
+   /// \param[in/out] integ - the boundary integrator whose inputs are being set
+   /// \param[in] inputs - holds the actuator position
+   friend void setInputs(BoundaryEntropy &integ, const mach::MachInputs &inputs)
+   {
+      setVectorFromInputs(inputs, "x-actuator", integ.x_actuator);
+   }
+
+private:
+   /// length scale that determine range of influence of control
+   double len_scale;
+   /// position of the actuator
+   mfem::Vector x_actuator;
+   /// This function scales the control based on spatial location
+   BCScaleFun control_scale;
 };
 
 }  // namespace mach

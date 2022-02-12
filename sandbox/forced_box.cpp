@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
 
       // Build mesh over the square domain
-      const int num = 5;
+      const int num = 20;
       auto smesh = std::make_unique<Mesh>(Mesh::MakeCartesian2D(
          num, num, Element::TRIANGLE, true /* gen. edges */, 1.0, 1.0, true));
 
@@ -60,9 +60,13 @@ int main(int argc, char *argv[])
       solver.setState(
           std::make_pair(std::function(cinit), std::function(uinit)), state_tv);
 
+      // Set all the necessary inputs
+      mfem::Vector x_actuator({0.0, 0.5});
+      MachInputs inputs(
+          {{"state", state_tv}, {"time", 0.0}, {"x-actuator", x_actuator}});
+
       // get the initial entropy 
       solver.createOutput("entropy", options["outputs"].at("entropy"));
-      MachInputs inputs({{"state", state_tv}, {"time", 0.0}});
       double entropy0 = solver.calcOutput("entropy", inputs);
       cout << "initial entropy = " << entropy0 << endl;
 
@@ -87,7 +91,7 @@ int main(int argc, char *argv[])
 void cinit(Vector &u)
 {
    u(0) = 0.0;
-   u(1) = 1.0;
+   u(1) = 0.1;
 }
 
 void uinit(const Vector &x, Vector &u0)

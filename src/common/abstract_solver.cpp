@@ -82,6 +82,10 @@ double AbstractSolver2::calcStateError_(std::any ex_sol,
 void AbstractSolver2::solveForState(const MachInputs &inputs,
                                     mfem::Vector &state)
 {
+   if (spatial_res)
+   {
+      setInputs(*spatial_res, inputs);
+   }
    /// if solving an unsteady problem
    if (ode)
    {
@@ -315,7 +319,10 @@ double AbstractSolver2::calcStepSize(int iter,
                                      const mfem::Vector &state) const
 {
    auto dt = options["time-dis"]["dt"].get<double>();
-   dt = std::min(dt, t_final - t);
+   if (options["time-dis"].value("exact-t-final", true))
+   {
+      dt = std::min(dt, t_final - t);
+   }
    return dt;
 }
 

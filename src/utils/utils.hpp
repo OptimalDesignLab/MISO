@@ -98,6 +98,14 @@ inline xdouble dot(const xdouble *a, const xdouble *b)
    return DotProduct<xdouble, dim>::result(a, b);
 }
 
+/// Evaluate the squared exponential exp(- ||x - xc||^2 /len^2 )
+/// \param[in] len - a length scale for the squared exponential
+/// \param[in] xc - the center for this radial basis function
+/// \param[in] x - the point at which to evaluate the function
+double squaredExponential(double len,
+                          const mfem::Vector &xc,
+                          const mfem::Vector &x);
+
 std::ostream *getOutStream(int rank, bool silent = false);
 
 /// Construct a HypreParVector on the a given FES using external data

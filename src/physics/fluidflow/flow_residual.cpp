@@ -160,19 +160,17 @@ void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
    }
    if (bcs.contains("control"))
    {
-      // Boundary control 
+      // Boundary control
       vector<int> bdr_attr_marker = bcs["control"].get<vector<int>>();
-      // define the scaling function for the control 
-      auto scale = [](double len, const Vector &xc, const Vector &x)
-      {
-         double prod2 = x*x - 2.0*(x*xc) + xc*xc; // avoid memory allocation 
-         return exp(-prod2/pow(len,2.0));
-      };
+      // define the scaling function for the control
+      std::function<double(double, const Vector &, const Vector &)> scale =
+          squaredExponential;
       // Should pass in xc and len...
-      double len = 0.05;
+      double len = 0.1;
       Vector xc({0.5, 0.0});
       res.addBdrFaceIntegrator(
-         new ControlBC<dim, entvar>(stack, fes.FEColl(), scale, xc, len),  bdr_attr_marker);
+          new ControlBC<dim, entvar>(stack, fes.FEColl(), scale, xc, len),
+          bdr_attr_marker);
    }
 }
 
@@ -224,6 +222,7 @@ template <int dim, bool entvar>
 void FlowResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
                                           Vector &res_vec)
 {
+   setInputs(res, inputs);
    evaluate(res, inputs, res_vec);
 }
 
@@ -238,12 +237,14 @@ mfem::Operator &FlowResidual<dim, entvar>::getJacobian_(
 template <int dim, bool entvar>
 double FlowResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
 {
+   setInputs(ent, inputs);  // needed to set parameters in integrators
    return calcOutput(ent, inputs);
 }
 
 template <int dim, bool entvar>
 double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
 {
+   setInputs(res, inputs);  // needed to set parameters in integrators
    Vector x;
    setVectorFromInputs(inputs, "state", x, false, true);
    Vector dxdt;
@@ -451,7 +452,7 @@ template <int dim, bool entvar>
 MachOutput FlowResidual<dim, entvar>::constructOutput(
     const std::string &fun,
     const nlohmann::json &options)
-{ 
+{
    if (fun == "drag")
    {
       // drag on the specified boundaries
@@ -500,6 +501,22 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
    {
       // global entropy
       EntropyOutput<FlowResidual<dim, entvar>> fun_out(*this);
+      return fun_out;
+   }
+   else if (fun == "boundary-entropy")
+   {
+      // weighted entropy over specified boundaries
+      auto bdrs = options["boundaries"].get<vector<int>>();
+      // define the scaling function for the entropy
+      std::function<double(double, const Vector &, const Vector &)> scale =
+          squaredExponential;
+      // Should pass in xc and len...
+      double len = 0.1;
+      Vector xc({0.5, 0.0});
+      FunctionalOutput fun_out(fes, *fields);
+      fun_out.addOutputBdrFaceIntegrator(
+          new BoundaryEntropy<dim, entvar>(stack, fes.FEColl(), scale, xc, len),
+          std::move(bdrs));
       return fun_out;
    }
    else

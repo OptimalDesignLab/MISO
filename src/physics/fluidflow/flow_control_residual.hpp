@@ -94,13 +94,28 @@ public:
       return residual.prec.get();
    }
 
+   /// Return the control velocity, which can be then fed into a flow solver
+   /// \param[in] u - control state vector
+   /// \return the control velocity
+   double getControlVelocity(const mfem::Vector &u)
+   {
+      double vel = 0.0;
+      if (rank == 0)
+      {
+         vel = u[1];
+      }
+      MPI_Bcast(&vel, 1, MPI_DOUBLE, 0, comm);
+      return vel;
+   }
+
    /// Constructor
    /// \param[in] control_options - options used to define the residual
    /// \note the number of control variables is hard-coded, but this could
    /// easily be changed.
    ControlResidual(MPI_Comm incomm, const nlohmann::json &control_options)
-   { 
+   {
       time = 0.0;
+      boundary_entropy = 0.0;
       MPI_Comm_dup(incomm, &comm);
       MPI_Comm_rank(comm, &rank);
       rank == 0 ? num_var = 2 : num_var = 0;
@@ -112,8 +127,8 @@ public:
       if (rank == 0)
       {
          (*mass_mat) = 0.0;
-         (*mass_mat)(0,0) = 1.0;
-         (*mass_mat)(1,1) = 1.0;
+         (*mass_mat)(0, 0) = 1.0;
+         (*mass_mat)(1, 1) = 1.0;
       }
    }
 
@@ -130,6 +145,8 @@ private:
    // double entropy_targ;
    /// Stores the current simulation time
    double time;
+   /// Stores the boundary entropy functional; provided by the flow solver
+   double boundary_entropy;
    /// work vector to store the "state" (i.e. the control variables)
    mfem::Vector x;
    /// generic work vector
@@ -260,7 +277,7 @@ public:
    /// Returns the minimum time step for a given state and CFL number
    /// \param[in] cfl - the target maximum allowable CFL number
    /// \param[in] state - the state which defines the velocity field
-   /// \note The `state` here refers to the flow state only (it is a 
+   /// \note The `state` here refers to the flow state only (it is a
    /// `ParGridFunction`)
    double minCFLTimeStep(double cfl, const mfem::ParGridFunction &state);
 
@@ -297,6 +314,8 @@ private:
    std::ostream &out;
    /// Offsets to mark the start of each row/column block; must be unique_ptr
    std::unique_ptr<mfem::Array<int>> offsets;
+   /// position of the actuator
+   mfem::Vector x_actuator;
    /// Defines the CFD discretization of the problem
    FlowResidual<dim, entvar> flow_res;
    /// Defines the control problem
@@ -305,6 +324,8 @@ private:
    std::unique_ptr<mfem::BlockOperator> mass_mat;
    /// Preconditioner for the Jacobian
    std::unique_ptr<BlockJacobiPreconditioner> prec;
+   /// Defines the flow output fed into the control
+   mach::MachOutput boundary_entropy;
    /// The Jacobian-free operator
    // JacobianFree jac;
    /// Reference to control state-sized array; memory not owned
@@ -312,9 +333,9 @@ private:
    /// Reference to flow state-sized array; memory not owned
    mfem::Vector flow_ref;
    /// Work vector for the control state
-   //mfem::Vector control_work;
+   mfem::Vector control_work;
    /// Work vector for the flow state
-   //mfem::Vector flow_work;
+   mfem::Vector flow_work;
 
    // These could be public
    int num_control() const { return getSize(control_res); }

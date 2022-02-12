@@ -16,6 +16,7 @@
    },
    "time-dis": {
       "type": "RRK",
+      "exact-t-final": false,
       "steady": false,
       "t-final": 9.42477796076938,
       "dt": 0.1,
@@ -23,14 +24,14 @@
       "entropy-log": true
    },
    "nonlin-solver": {
-      "printlevel": 0,
+      "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-6,
       "abstol": 1e-10
    },
    "lin-solver": {
       "type": "fgmres",
-      "printlevel": 0,
+      "printlevel": 1,
       "filllevel": 3,
       "maxiter": 100,
       "reltol": 1e-2,
@@ -38,11 +39,14 @@
    },
    "bcs": {
       "slip-wall": [1, 1, 1, 0],
-      "pump": [0, 0, 0, 1]
+      "control": [0, 0, 0, 1]
    },
    "saveresults":false,
    "outputs":
    { 
+      "boundary-entropy": {
+         "boundaries": [0, 0, 0, 1]
+      },
       "entropy": {}
    }
 }

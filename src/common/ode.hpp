@@ -65,7 +65,7 @@ public:
          identity_ =
              std::make_unique<mfem::IdentityOperator>(getSize(spatial_res_));
          mass_matrix_ = identity_.get();
-      }      
+      }
 
       /// Determine what type of mass matrix we're using and pre-allocate the
       /// Jacobian

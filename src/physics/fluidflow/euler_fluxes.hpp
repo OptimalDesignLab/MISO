@@ -740,18 +740,18 @@ void calcControlFlux(const xdouble *dir,
                      const xdouble vel_control,
                      xdouble *flux)
 {
+   xdouble U = -vel_control * sqrt(dot<xdouble, dim>(dir, dir));
    for (int i = 0; i < dim + 2; ++i)
    {
-      flux[i] = -q[i]*vel_control;
+      flux[i] = q[i] * U;
    }
    xdouble press = pressure<xdouble, dim>(q);
    for (int i = 0; i < dim; ++i)
    {
-      flux[i+1] += dir[i] * press;
+      flux[i + 1] += dir[i] * press;
    }
-   flux[dim+1] -= press*vel_control;
+   flux[dim + 1] += press * U;
 }
-
 
 /// Boundary flux that uses characteristics to determine which state to use
 /// \param[in] dir - direction in which the flux is desired

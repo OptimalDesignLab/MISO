@@ -47,6 +47,12 @@ void invertElementwise(const Vector &x, Vector &y)
    }
 }
 
+double squaredExponential(double len, const Vector &xc, const Vector &x)
+{
+   double prod2 = x * x - 2.0 * (x * xc) + xc * xc;  // avoid memory allocation
+   return exp(-prod2 / pow(len, 2.0));
+}
+
 /// Handles print in parallel case
 template <typename CharT, typename Traits>
 class basic_oblackholestream : virtual public std::basic_ostream<CharT, Traits>

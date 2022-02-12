@@ -28,7 +28,7 @@ auto options = R"(
    },
    "bcs": {
       "far-field": [0, 1, 1, 1],
-      "slip-wall": [1, 0, 0, 0]
+      "control": [1, 0, 0, 0]
    },
    "lin-prec": {
       "type": "hypreilu",
@@ -36,7 +36,13 @@ auto options = R"(
       "ilu-type": 0,
       "ilu-reorder": 1,
       "printlevel": 0
-   }
+   },
+   "outputs":
+      { 
+         "boundary-entropy": {
+            "boundaries": [1, 0, 0, 0]
+         }
+      }
 })"_json;
 
 TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
@@ -69,8 +75,8 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    evaluate(res, inputs, res_vec);
    if (rank == 0)
    {
-      REQUIRE( res_vec(0) == Approx(-x(1)).margin(1e-14) );
-      REQUIRE( res_vec(1) == Approx(x(0)).margin(1e-14) );
+      REQUIRE( res_vec(0) == Approx(-0.05*x(1)).margin(1e-14) );
+      REQUIRE( res_vec(1) == Approx(0.05*x(0)).margin(1e-14) );
    }
    else
    {
@@ -87,8 +93,8 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    Jac.Mult(v, Jac_v);
    if (rank == 0)
    {
-      REQUIRE( Jac_v(0) == Approx(-v(1)).margin(1e-14) );
-      REQUIRE( Jac_v(1) == Approx(v(0)).margin(1e-14) );
+      REQUIRE( Jac_v(0) == Approx(-0.05*v(1)).margin(1e-14) );
+      REQUIRE( Jac_v(1) == Approx(0.05*v(0)).margin(1e-14) );
    }
 
    // get the Preconditioner, which should be the exact inverse here    
@@ -144,7 +150,7 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    int num_var = getSize(res);
    REQUIRE(num_var == getSize(flow_res) + getSize(control_res));
 
-   // evaluate the flow residual using a perturbed state, and the 
+   // We will evaluate the flow residual using a perturbed state, and the
    // control residual using a random state.
    Vector q(num_var);
    std::default_random_engine gen(std::random_device{}());
@@ -157,20 +163,33 @@ TEST_CASE("FlowControlResidual construction and evaluation",
       q(ptr) = uniform_rand(gen);
       ptr += 1;
    }
-   for (int i = 0; i < getSize(flow_res)/num_state; ++i)
+   for (int i = 0; i < getSize(flow_res) / num_state; ++i)
    {
-      getFreeStreamQ<double, dim>(mach, aoa, 0, 1,
-                                  q.GetData()+ptr+num_state*i);
+      getFreeStreamQ<double, dim>(
+          mach, aoa, 0, 1, q.GetData() + ptr + num_state * i);
       for (int j = 0; j < num_state; ++j)
       {
-         q(ptr+i*num_state+j) += uniform_rand(gen)*0.01;
+         q(ptr + i * num_state + j) += uniform_rand(gen) * 0.01;
       }
    }
+
+   // Set up the inputs to the three residuals
+   Vector x_actuator({0.0, 0.5});
+   double vel_control = control_res.getControlVelocity(q);
+   MachOutput boundary_entropy(flow_res.constructOutput(
+       "boundary-entropy", options["outputs"]["boundary-entropy"]));
+   Vector flow_state(q.GetData() + ptr, getSize(flow_res));
    double time = 0.0;
-   auto inputs = MachInputs({{"state", q}, {"time", time}});
-   auto control_inputs = MachInputs({{"state", q}, {"time", time}});
-   Vector flow_state(q.GetData()+ptr, getSize(flow_res));
-   auto flow_inputs = MachInputs({{"state", flow_state}, {"time", time}});
+   auto flow_inputs = MachInputs({{"state", flow_state},
+                                  {"time", time},
+                                  {"x-actuator", x_actuator},
+                                  {"control", vel_control}});
+   double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
+   auto inputs =
+       MachInputs({{"state", q}, {"time", time}, {"x-actuator", x_actuator}});
+   auto control_inputs = MachInputs(
+       {{"state", q}, {"time", time}, {"boundary-entropy", bndry_ent}});
+
    Vector res_vec(num_var);
    Vector res_vec_control(getSize(control_res));
    Vector res_vec_flow(getSize(flow_res));
