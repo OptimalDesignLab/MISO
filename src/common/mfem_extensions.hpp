@@ -52,6 +52,41 @@ protected:
    std::ostream *out;
 };
 
+/// Generic explicit relaxation Runge-Kutta (RRK) solver (base class)
+/// \note This just modifies mfem's `ExplicitRKSolver` step method
+class ExplicitRRKSolver : public mfem::ODESolver
+{
+public:
+   ExplicitRRKSolver(int s_, const double *a_, const double *b_,
+                     const double *c_, std::ostream *out_stream = nullptr);
+
+   void Init(mfem::TimeDependentOperator &f_) override;
+
+   void Step(mfem::Vector &x, double &t, double &dt) override;
+
+   virtual ~ExplicitRRKSolver();
+
+protected:
+   int s;
+   const double *a, *b, *c;
+   mfem::Vector y;
+   mfem::Vector x_new;
+   mfem::Vector *k;
+   std::ostream *out;
+};
+
+/// An 8-stage, 6th order RK method (Verner's "efficient" 9-stage 6(5) pair).
+/// \note This is effectively a copy paste of mfem's RK6Solver.
+class RRK6Solver : public ExplicitRRKSolver
+{
+public:
+   RRK6Solver(std::ostream *out_stream = nullptr)
+    : ExplicitRRKSolver(8, a, b, c, out_stream) { }
+
+protected:
+   static const double a[28], b[8], c[7];
+};
+
 /// For block-Jacobian preconditioning of block operator systems
 /// \note This class is almost identical to mfem::BlockDiagonalPreconditioner;
 /// however, unlike MFEM's solver, this one does not check for consistency

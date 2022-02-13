@@ -255,3 +255,72 @@ TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
 
    REQUIRE( entropy == Approx(entropy0).margin(1e-12) );
 }
+
+TEST_CASE("Testing AbstractSolver using RRK6", "[abstract-solver]")
+{
+   const bool verbose = true; // set to true for some output 
+   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   using namespace mfem;
+   using namespace mach;
+
+   // Provide the options explicitly for regression tests
+   auto options = R"(
+   {
+      "print-options": true,
+      "time-dis": {
+         "type": "RRK6",
+         "t-final": 5.0,
+         "dt": 0.05
+      },
+      "lin-solver": {
+         "type": "gmres",
+         "reltol": 1e-14,
+         "abstol": 0.0,
+         "printlevel": -1,
+         "maxiter": 500
+      },
+      "nonlin-solver": {
+         "maxiter": 10,
+         "printlevel": -1
+      }
+   })"_json;
+
+   // Check that solution is reasonable accurate
+   auto exact_sol = [](double t, Vector &u)
+   {
+      const double e = std::exp(1.0);
+      const double sepe = sqrt(e) + e;
+      u.SetSize(2);
+      u(0) = log(e + pow(e,1.5)) - log(sqrt(e) + exp(sepe*t));
+      u(1) = log((sepe*exp(sepe*t))/(sqrt(e) + exp(sepe*t)));
+   };
+
+   // Create solver and solve for the state 
+   ExponentialODESolver solver(MPI_COMM_WORLD, options);
+   Vector u0(solver.getStateSize()), u(solver.getStateSize());
+   solver.setState([&](mfem::Vector &u) {exact_sol(0.0, u); }, u0);
+   u = u0;
+   MachInputs inputs;
+   solver.solveForState(inputs, u);
+
+   auto t_final = options["time-dis"]["t-final"].get<double>();
+   Vector u_exact;
+   exact_sol(options["time-dis"]["t-final"].get<double>(), u_exact);
+   // auto error = solver.calcStateError([&](mfem::Vector &u) {exact_sol(t_final, u); }, u);
+   auto error = solver.calcStateError(u_exact, u);
+   double entropy0 = exp(u0(0)) + exp(u0(1));
+   double entropy = exp(u(0)) + exp(u(1));
+
+// -19.8579: 1.47408
+   if (verbose)
+   {
+      std::cout << "discrete solution = " << u(0) << ": " << u(1) << std::endl;
+      std::cout << "exact solution    = " << u_exact(0) << ": " << u_exact(1)
+                << std::endl;
+      std::cout << "terminal solution error = " << error << std::endl;
+      std::cout << "entropy error = " << entropy - entropy0 << std::endl;
+   }
+   REQUIRE( error == Approx(6.97e-5).margin(1e-7) );
+
+   REQUIRE( entropy == Approx(entropy0).margin(1e-12) );
+}

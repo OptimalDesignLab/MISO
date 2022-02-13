@@ -221,9 +221,13 @@ void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
    {
       ode_solver_ = std::make_unique<mfem::ImplicitMidpointSolver>();
    }
-   else if (timestepper == "RRK")
+   else if ( (timestepper == "RRK") || (timestepper == "RRKMIDPOINT") )
    {
       ode_solver_ = std::make_unique<mach::RRKImplicitMidpointSolver>(out);
+   }
+   else if (timestepper == "RRK6")
+   {
+      ode_solver_ = std::make_unique<mach::RRK6Solver>(out);
    }
    else if (timestepper == "PTC")
    {
