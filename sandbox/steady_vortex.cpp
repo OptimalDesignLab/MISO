@@ -72,21 +72,21 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs,0);
       sol_ofs.close();
 
-      // int numBasis = smesh->GetNE();
-      // Array<Vector *> center(numBasis);
-      // for (int k = 0; k < numBasis; k++)
-      // {  
-      //    center[k] = new Vector(2);
-      //    smesh->GetElementCenter(k,*center[k]);
-      // }
-
-      Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      int numBasis = numRad * numTheta;
-      for (int i = 0; i < numBasis; i++)
-      {
-         cout << "basis " << i << ": ";
-         center[i]->Print();
+      int numBasis = smesh->GetNE();
+      Array<Vector *> center(numBasis);
+      for (int k = 0; k < numBasis; k++)
+      {  
+         center[k] = new Vector(2);
+         smesh->GetElementCenter(k,*center[k]);
       }
+
+      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      // int numBasis = numRad * numTheta;
+      // for (int i = 0; i < numBasis; i++)
+      // {
+      //    cout << "basis " << i << ": ";
+      //    center[i]->Print();
+      // }
 
       unique_ptr<AbstractSolver> solver(
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));

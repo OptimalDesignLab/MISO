@@ -3,6 +3,7 @@ constexpr bool entvar = true;
 #include "euler.hpp"
 #include "RBFSpace.hpp"
 #include "rbfgridfunc.hpp"
+#include<random>
 #include <fstream>
 #include <iostream>
 
@@ -10,6 +11,9 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
+
+std::default_random_engine gen(std::random_device{}());
+std::uniform_real_distribution<double> normal_rand(0.0,1.0);
 
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -25,6 +29,10 @@ void utest(const Vector &x, Vector &u);
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
 Array<Vector *> buildBasisCenters(int, int);
+
+template<typename T>
+void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &q, T& stream);
+
 
 int main(int argc, char *argv[])
 {
@@ -63,21 +71,24 @@ int main(int argc, char *argv[])
       int num_state = dim+2;
 
       // initialize the basis centers
-      int numBasis = smesh->GetNE();
-      Array<Vector *> center(numBasis);
-      for (int k = 0; k < numBasis; k++)
-      {  
-         center[k] = new Vector(dim);
-         smesh->GetElementCenter(k,*center[k]);
-      }
-
-      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      // int numBasis = numRad * numTheta;
-      // for (int i = 0; i < numBasis; i++)
-      // {
-      //    cout << "basis " << i << ": ";
-      //    center[i]->Print();
+      // int numBasis = smesh->GetNE();
+      // Array<Vector *> center(numBasis);
+      // for (int k = 0; k < numBasis; k++)
+      // {  
+      //    center[k] = new Vector(dim);
+      //    smesh->GetElementCenter(k,*center[k]);
       // }
+
+      Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      int numBasis = numRad * numTheta;
+      ofstream centerwrite("center.vtp");
+      writeBasisCentervtp(center, centerwrite);
+      centerwrite.close();
+      for (int i = 0; i < numBasis; i++)
+      {
+         cout << "basis " << i << ": ";
+         center[i]->Print();
+      }
 
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
@@ -85,25 +96,23 @@ int main(int argc, char *argv[])
       FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
 
       // test rbf grid function
-      mfem::RBFGridFunction x_rbf(&rbfspace,center, upoly);
+      mfem::RBFGridFunction x_rbf(&rbfspace,center,upoly);
       x_rbf.ProjectCoefficient();
       ofstream x_rbfprint("x_rbf.txt");
       x_rbf.Print(x_rbfprint,4);
       x_rbfprint.close();
 
       //================== Construct the gridfunction and apply the exact solution =======
-      mfem::CentGridFunction x_cent(&rbfspace);
-      mfem::GridFunction x(&fes);
-      mfem::GridFunction x_exact(&fes);
-
       mfem::VectorFunctionCoefficient u0_fun(num_state, upoly);
+      mfem::CentGridFunction x_cent(&rbfspace);
       x_cent.ProjectCoefficient(u0_fun);
-      x_exact.ProjectCoefficient(u0_fun);
-      x = 0.0;
-      ofstream x_centprint("x_cent.txt");
-      x_cent.Print(x_centprint,4);
-      x_centprint.close();
+      // ofstream x_centprint("x_cent.txt");
+      // x_cent.Print(x_centprint,4);
+      // x_centprint.close();
 
+
+      mfem::GridFunction x_exact(&fes);
+      x_exact.ProjectCoefficient(u0_fun);
       //============== Prolong the solution to SBP nodes =================================
       //============== and check the simple l2 norm error ================================
       ofstream sol_ofs("rbf_test.vtk");
@@ -111,13 +120,12 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs,0);
       x_exact.SaveVTK(sol_ofs,"exact",0);
 
-
+      mfem::GridFunction x(&fes);
+      x = 0.0;
       rbfspace.GetProlongationMatrix()->Mult(x_rbf, x);
       ofstream x_prolongprint("x_prolong.txt");
       x.Print(x_prolongprint,4);
       x_prolongprint.close();
-      x_cent.Print(x_centprint,4);
-      x_centprint.close();
 
       //============== Prolong the solution to SBP nodes =================================
       //============== and check the simple l2 norm error ======
@@ -237,35 +245,57 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 
 mfem::Array<mfem::Vector *> buildBasisCenters(int numRad, int numTheta)
 {
-   int i,j;
-   double rad_inv = 2.0/(numRad -1);
-   double theta_inv = 0.5*M_PI/(numTheta - 1);
-
-   Vector radPoints(numRad), thetaPoints(numTheta);
-   for (i = 0; i < numRad; i++)
-   {
-      radPoints(i) = 1.0 + i * rad_inv;
-   }
-   for (i = 0; i < numTheta; i++)
-   {
-      thetaPoints(i) = theta_inv * i;
-   }
-
-   Array<Vector *> basisCenter(numRad*numTheta);
-
-   int b_id;
+   double r,theta;
+   int numBasis = numRad * numTheta;
+   Array<Vector *> basisCenter(numBasis);
    Vector b_coord(2);
-   for (i = 0; i < numRad; i++)
+   for (int i = 0; i < numBasis; i++)
    {
-      for (j = 0; j < numTheta; j++)
-      {
-         b_coord(0) = radPoints(i) * cos(thetaPoints(j));
-         b_coord(1) = radPoints(i) * sin(thetaPoints(j));
-         b_id = i * numTheta + j;
-         basisCenter[b_id] = new Vector(2);
-         (*basisCenter[b_id]) = b_coord;
-      }
-   }
 
+      r = 1.0 + 2.0 * normal_rand(gen);
+      theta = M_PI/2.0 * normal_rand(gen);
+      b_coord(0) = r * cos(theta);
+      b_coord(1) = r * sin(theta);
+      basisCenter[i] = new Vector(2);
+      (*basisCenter[i]) = b_coord;
+   }
    return basisCenter;
+}
+
+ // Output a QuadratureScheme as an XML .vtp file for visualisation in ParaView or anything else that
+    // supports XML VTK files
+template <typename T>
+void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &center, T &stream)
+{
+   stream << "<?xml version=\"1.0\"?>\n";
+   stream << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+   stream << "<PolyData>\n";
+   stream << "<Piece NumberOfPoints=\"" << center.Size() << "\" NumberOfVerts=\"" << center.Size() << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
+   stream << "<Points>\n";
+   stream << "  <DataArray type=\"Float32\" Name=\"Points\" NumberOfComponents=\"3\" format=\"ascii\">";
+   for (int i = 0; i < center.Size(); i++)
+   {
+      stream << (*center[i])(0) << ' ' << (*center[i])(1) << ' ' << 0.0 << ' ';
+   }
+   stream << "</DataArray>\n";
+   stream << "</Points>\n";
+   stream << "<Verts>\n";
+   stream << "  <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">";
+   for (size_t i = 0; i < center.Size(); ++i)
+      stream << i << ' ';
+   stream << "</DataArray>\n";
+   stream << "  <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">";
+   for (size_t i = 1; i <= center.Size(); ++i)
+      stream << i << ' ';
+   stream << "</DataArray>\n";
+   stream << "</Verts>\n";
+   stream << "<PointData Scalars=\"w\">\n";
+   stream << "  <DataArray type=\"Float32\" Name=\"w\" NumberOfComponents=\"1\" format=\"ascii\">";
+   for (int i = 0; i < center.Size(); i++)
+      stream << 1.0 << ' ';
+   stream << "</DataArray>\n";
+   stream << "</PointData>\n";
+   stream << "</Piece>\n";
+   stream << "</PolyData>\n";
+   stream << "</VTKFile>\n";
 }
