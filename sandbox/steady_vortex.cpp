@@ -14,7 +14,7 @@ using namespace mfem;
 using namespace mach;
 
 std::default_random_engine gen(std::random_device{}());
-std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
+std::uniform_real_distribution<double> normal_rand(0.0,1.0);
 
 /// \brief Defines the random function for the jabocian check
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -28,7 +28,7 @@ double calcEntropyTotalExact();
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - state variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
-
+Array<Vector *> buildBasisCenters(int, int);
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_rad - number of nodes in the radial direction
@@ -45,11 +45,15 @@ int main(int argc, char *argv[])
    int degree = 2;
    int nx = 1;
    int ny = 1;
+   int numRad = 10;
+   int numTheta = 10;
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
+   args.AddOption(&numRad,"-br","--numrad","number of radius points");
+   args.AddOption(&numTheta,"-bt","--numtheta","number of anglular points");
    args.Parse();
    if (!args.Good())
    {
@@ -68,12 +72,20 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs,0);
       sol_ofs.close();
 
-      int numBasis = smesh->GetNE();
-      Array<Vector *> center(numBasis);
-      for (int k = 0; k < numBasis; k++)
-      {  
-         center[k] = new Vector(2);
-         smesh->GetElementCenter(k,*center[k]);
+      // int numBasis = smesh->GetNE();
+      // Array<Vector *> center(numBasis);
+      // for (int k = 0; k < numBasis; k++)
+      // {  
+      //    center[k] = new Vector(2);
+      //    smesh->GetElementCenter(k,*center[k]);
+      // }
+
+      Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      int numBasis = numRad * numTheta;
+      for (int i = 0; i < numBasis; i++)
+      {
+         cout << "basis " << i << ": ";
+         center[i]->Print();
       }
 
       unique_ptr<AbstractSolver> solver(
@@ -221,4 +233,23 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 
    mesh_ptr->NewNodes(*xy, true);
    return mesh_ptr;
+}
+
+Array<Vector *> buildBasisCenters(int numRad, int numTheta)
+{
+   double r,theta;
+   int numBasis = numRad * numTheta;
+   Array<Vector *> basisCenter(numBasis);
+   Vector b_coord(2);
+   for (int i = 0; i < numBasis; i++)
+   {
+
+      r = 1.0 + 2.0 * normal_rand(gen);
+      theta = M_PI/2.0 * normal_rand(gen);
+      b_coord(0) = r * cos(theta);
+      b_coord(1) = r * sin(theta);
+      basisCenter[i] = new Vector(2);
+      (*basisCenter[i]) = b_coord;
+   }
+   return basisCenter;
 }

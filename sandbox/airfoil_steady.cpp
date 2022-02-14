@@ -75,12 +75,12 @@ int main(int argc, char *argv[])
       solver->setInitialCondition(qfar);
       // solver->printSolution("airfoil-steady-init");
       // solver->checkJacobian(pert);
-      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-                << endl;
-      solver->solveForState();
-      solver->printSolution("airfoil-steady-final");
-      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-                << endl;
+      // mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
+      //           << endl;
+      // solver->solveForState();
+      // solver->printSolution("airfoil-steady-final");
+      // mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
+      //           << endl;
       for (int k = 0; k < numBasis; k++)
       {
          delete center[k];

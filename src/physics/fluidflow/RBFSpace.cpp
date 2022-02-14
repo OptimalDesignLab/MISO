@@ -187,33 +187,33 @@ void RBFSpace::buildDataMat(int el_id, DenseMatrix &W, DenseMatrix &V,
    buildWVMat(W,V,WV);
    buildWnVnMat(Wn,Vn,WnVn);
    cout << setprecision(16);
-   // if (el_id == 46)
-   // {
-   //    int b_id;
-   //    cout << "element center is: ";
-   //    elementCenter[el_id]->Print();
-   //    cout << "basis centers loc are:\n";
-   //    for (int i = 0; i <selectedBasis[el_id]->Size();i++)
-   //    {
-   //       b_id =(*selectedBasis[el_id])[i];
-   //       //cout << "basis " <<  b_id << " : ";
-   //       for (int j = 0; j < dim; j++)
-   //       {
-   //          cout << (*basisCenter[b_id])[j] << ' ';
-   //       }
-   //       cout << '\n';
-   //    }
-   //    cout << "WV is:\n";
-   //    //WV.Print(cout,WV.Width());
-   //    for (int i = 0; i < WV.Height(); i++)
-   //    {
-   //       for (int j = 0; j <WV.Width(); j++)
-   //       {
-   //          cout << WV(i,j) << ' ';
-   //       }
-   //       cout << '\n';
-   //    }
-   // }
+   if (el_id == 202 )
+   {
+      int b_id;
+      cout << "element center is: ";
+      elementCenter[el_id]->Print();
+      cout << "basis centers loc are:\n";
+      for (int i = 0; i <selectedBasis[el_id]->Size();i++)
+      {
+         b_id =(*selectedBasis[el_id])[i];
+         cout << "basis " <<  b_id << " : ";
+         for (int j = 0; j < dim; j++)
+         {
+            cout << (*basisCenter[b_id])[j] << ' ';
+         }
+         cout << '\n';
+      }
+      cout << "WV is:\n";
+      //WV.Print(cout,WV.Width());
+      for (int i = 0; i < WV.Height(); i++)
+      {
+         for (int j = 0; j <WV.Width(); j++)
+         {
+            cout << WV(i,j) << ' ';
+         }
+         cout << '\n';
+      }
+   }
    
    
    // free the aux variable
@@ -253,23 +253,21 @@ void RBFSpace::solveLocalProlongationMat(const int el_id,
    WVinv.Mult(b,*coef[el_id]);
 
    // check solve
-   // DenseMatrix temp(numLocalBasis+numPolyBasis,numLocalBasis);
-   // Mult(WV,*coef[el_id],temp);
-   // if (el_id == 46)
-   // {
-   //    cout << "\nMultiplication results is:\n";
-   //    temp.Print(cout,temp.Width());
-   // }
-
-   // cout << "solve results is:\n" << setprecision(16);
-   // for (int i = 0; i < numLocalBasis+numPolyBasis; i++)
-   // {
-   //    for (int j = 0; j < numLocalBasis; j++)
-   //    {
-   //       cout << temp(i,j) << ' ';
-   //    }
-   //    cout << '\n';
-   // }
+   DenseMatrix temp(numLocalBasis+numPolyBasis,numLocalBasis);
+   Mult(WV,*coef[el_id],temp);
+   if (el_id == 202)
+   {
+      cout << "\nMultiplication results is:\n";
+      cout << "solve results is:\n" << setprecision(16);
+      for (int i = 0; i < numLocalBasis+numPolyBasis; i++)
+      {
+         for (int j = 0; j < numLocalBasis; j++)
+         {
+            cout << temp(i,j) << ' ';
+         }
+         cout << '\n';
+      }
+   }
 
    // Get Local prolongation matrix
    localMat.SetSize(numDofs,numLocalBasis);

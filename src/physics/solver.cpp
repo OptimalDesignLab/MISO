@@ -541,7 +541,7 @@ void AbstractSolver::setInitialCondition(
    VectorFunctionCoefficient u0(num_state, u_init);
    u->ProjectCoefficient(u0);
    uc->ProjectCoefficient(u0);
-
+   cout << "uc size is " << uc->Size() << '\n';
    GridFunType u_test(fes_normal.get());
    dynamic_cast<RBFSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);
 
@@ -607,8 +607,6 @@ void AbstractSolver::setInitialCondition(const Vector &uic)
    VectorConstantCoefficient u0(uic);
    u->ProjectCoefficient(u0);
    uc->ProjectCoefficient(u0);
-
-   uc->Print();
 
    GridFunType u_test(fes_normal.get());
    dynamic_cast<RBFSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);
