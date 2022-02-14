@@ -78,7 +78,11 @@ double AbstractSolver2::calcStateError_(std::any ex_sol,
 void AbstractSolver2::solveForState(const MachInputs &inputs,
                                     mfem::Vector &state)
 {
-   setInputs(*spatial_res, inputs);
+   if (spatial_res)
+   {
+      setInputs(*spatial_res, inputs);
+   }
+
    /// if solving an unsteady problem
    if (ode)
    {

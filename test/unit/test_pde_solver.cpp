@@ -56,7 +56,7 @@ public:
       // {
       //    residual.force->SetTime(input->second.getValue());
       // }
-      double time;
+      double time = 1e16;
       mach::setValueFromInputs(inputs, "time", time);
       residual.force->SetTime(time);
    }
