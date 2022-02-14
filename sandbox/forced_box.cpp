@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 void cinit(Vector &u)
 {
    u(0) = 0.0;
-   u(1) = 0.1;
+   u(1) = 0.01;
 }
 
 void uinit(const Vector &x, Vector &u0)

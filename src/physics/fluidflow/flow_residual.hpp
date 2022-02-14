@@ -264,8 +264,9 @@ double calcEntropy(FlowResidual<dim, entvar> &residual,
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, the entropy variables are used in the integrators
 /// \return the product `w^T res`
-/// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
-/// `t+dt` \note optional, but must be implemented for relaxation RK
+/// \note `w` and `res` are evaluated at `state` and time `t+dt`
+/// \note `res` is stored in `state_dot`, but may be recomputed if necessary
+/// \note optional, but must be implemented for relaxation RK
 template <int dim, bool entvar>
 double calcEntropyChange(FlowResidual<dim, entvar> &residual,
                          const MachInputs &inputs)

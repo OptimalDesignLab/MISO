@@ -97,15 +97,10 @@ double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
    setInputs(residual, inputs);
    Vector dxdt;
    setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
-   double dt = NAN;
-   setValueFromInputs(inputs, "dt", dt, true);
-   auto &y = residual.work;
-   add(residual.x, dt, dxdt, y);
    double ent_change = 0.0;
    if (residual.rank == 0)
    {
-      ent_change += -0.05 * y(0) * y(1) + 0.05 * y(1) * y(0) +
-                    y(1) * residual.boundary_entropy;
+      ent_change += residual.x * dxdt;
    }
    MPI_Bcast(&ent_change, 1, MPI_DOUBLE, 0, residual.comm);
    return ent_change;
@@ -245,37 +240,65 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
    Vector dxdt, control_dxdt, flow_dxdt;
    setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
    extractStates(dxdt, control_dxdt, flow_dxdt);
+
    // extract time and time-step size
    double time = NAN;
    double dt = NAN;
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
 
-   // get the coupling variables/outputs; these need to be computed at the
-   // updated state!!!
+   // get the control velocity for input to the calcEntropyChange for the flow; 
+   // note that the boundary entropy is not needed for the control entropy 
+   // change, because we can use `state_dot` directly.
    control_work.SetSize(control_ref.Size());
-   flow_work.SetSize(flow_ref.Size());
    add(control_ref, dt, control_dxdt, control_work);
-   add(flow_ref, dt, flow_dxdt, flow_work);
-   auto flow_inputs =
-       MachInputs({{"state", flow_work}, {"x-actuator", x_actuator}});
-   double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
    double control_vel = control_res.getControlVelocity(control_work);
 
-   // set inputs for flow and control residuals and evaluate change
-   flow_inputs = MachInputs({{"state", flow_ref},
-                             {"state_dot", flow_dxdt},
-                             {"x-actuator", x_actuator},
-                             {"control", control_vel},
-                             {"time", time},
-                             {"dt", dt}});
-   auto control_inputs = MachInputs({{"state", control_ref},
+   auto flow_inputs = MachInputs({{"state", flow_ref},
+                                  {"state_dot", flow_dxdt},
+                                  {"control", control_vel},
+                                  {"time", time},
+                                  {"dt", dt}});
+   auto control_inputs = MachInputs({{"state", control_ref}, 
                                      {"state_dot", control_dxdt},
-                                     {"boundary-entropy", bndry_ent},
                                      {"time", time},
                                      {"dt", dt}});
    return calcEntropyChange(flow_res, flow_inputs) +
           calcEntropyChange(control_res, control_inputs);
+
+//    // extract time and time-step size
+//    double time = NAN;
+//    double dt = NAN;
+//    setValueFromInputs(inputs, "time", time, true);
+//    setValueFromInputs(inputs, "dt", dt, true);
+
+//    // get the coupling variables/outputs; these need to be computed at the
+//    // updated state!!!
+//    control_work.SetSize(control_ref.Size());
+//    flow_work.SetSize(flow_ref.Size());
+//    add(control_ref, dt, control_dxdt, control_work);
+//    add(flow_ref, dt, flow_dxdt, flow_work);
+//    auto flow_inputs =
+//        MachInputs({{"state", flow_work}, {"x-actuator", x_actuator}});
+//    double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
+//    double control_vel = control_res.getControlVelocity(control_work);
+
+//    // set inputs for flow and control residuals and evaluate change
+//    flow_inputs = MachInputs({{"state", flow_ref},
+//                              {"state_dot", flow_dxdt},
+//                              {"x-actuator", x_actuator},
+//                              {"control", control_vel},
+//                              {"time", time},
+//                              {"dt", dt}});
+//    auto control_inputs = MachInputs({{"state", control_ref},
+//                                      {"state_dot", control_dxdt},
+//                                      {"boundary-entropy", bndry_ent},
+//                                      {"time", time},
+//                                      {"dt", dt}});
+//    return calcEntropyChange(flow_res, flow_inputs) +
+//           calcEntropyChange(control_res, control_inputs);
+// 
+
 }
 
 template <int dim, bool entvar>

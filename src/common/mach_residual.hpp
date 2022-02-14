@@ -146,8 +146,8 @@ public:
    /// \param[inout] residual - function with an associated entropy
    /// \param[in] inputs - the variables needed to evaluate the entropy
    /// \return the product `w^T res`
-   /// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
-   /// `t+dt` \note optional, but must be implemented for relaxation RK
+   /// \note The entropy variables, `w`, are evaluated at `state`, and `res` is 
+   /// equal to `state_dot`.
    friend double calcEntropyChange(MachResidual &residual,
                                    const MachInputs &inputs);
 

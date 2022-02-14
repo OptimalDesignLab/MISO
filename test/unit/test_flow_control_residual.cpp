@@ -116,9 +116,8 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    }
 
    // check entropy change
-   v = 0.0;
    inputs = MachInputs(
-       {{"state", x}, {"time", time}, {"state_dot", v}, {"dt", 0.0}});
+       {{"state", x}, {"state_dot", res_vec}});
    double entropy_change = calcEntropyChange(res, inputs);
    if (rank == 0)
    {

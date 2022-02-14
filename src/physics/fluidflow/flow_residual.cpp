@@ -253,9 +253,53 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    double time = NAN;
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
-   auto &y = work;
-   add(x, dt, dxdt, y);
-   auto form_inputs = MachInputs({{"state", y}, {"time", time + dt}});
+
+   // TODO: The following should be sufficient for the dot product, and it 
+   // avoids computing the form output, but there is an outstanding bug
+
+   // ParGridFunction state(&fes);
+   // ParGridFunction state_dot(&fes);
+   // state.SetFromTrueDofs(x);
+   // state_dot.SetFromTrueDofs(dxdt);
+
+   // const int num_state = dim + 2;
+   // Array<int> vdofs(num_state);
+   // Vector ui, resi;
+   // Vector wi(num_state);
+   // double loc_change = 0.0;
+   // for (int i = 0; i < fes.GetNE(); i++)
+   // {
+   //    const auto *fe = fes.GetFE(i);
+   //    int num_nodes = fe->GetDof();
+   //    for (int j = 0; j < num_nodes; j++)
+   //    {
+   //       int offset = i * num_nodes * num_state + j * num_state;
+   //       for (int k = 0; k < num_state; k++)
+   //       {
+   //          vdofs[k] = offset + k;
+   //       }
+   //       state.GetSubVector(vdofs, ui);
+   //       state_dot.GetSubVector(vdofs, resi);
+   //       calcEntropyVars<double, dim, entvar>(ui.GetData(),
+   //                                            wi.GetData());
+   //       loc_change += wi * resi;
+   //    }
+   // }
+   // double ent_change = 0.0;
+   // MPI_Allreduce(&loc_change,
+   //               &ent_change,
+   //               1,
+   //               MPI_DOUBLE,
+   //               MPI_SUM,
+   //               fes.GetComm());
+   // return ent_change;
+
+   //auto &y = work;
+   //add(x, dt, dxdt, y);
+   //auto form_inputs = inputs;
+   //form_inputs["state"] = x;
+   //form_inputs["time"] = time + dt;
+   auto form_inputs = MachInputs({{"state", x}, {"time", time + dt}});
    return calcFormOutput(res, form_inputs);
 }
 

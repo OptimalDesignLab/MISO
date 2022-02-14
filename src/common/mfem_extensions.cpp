@@ -50,8 +50,10 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    // Set-up and solve the scalar nonlinear problem for the relaxation gamma
    // cout << "x size is " << x.Size() << '\n';
    // cout << "x is empty? == " << x.GetMemory().Empty() << '\n';
-   double delta_entropy = f_ode->EntropyChange(dt / 2, x, k);
-   // double delta_entropy = f_ode->EntropyChange(dt, x, k);
+   Vector x_new(x);
+   x_new.Add(0.5*dt, k);
+   //double delta_entropy = f_ode->EntropyChange(dt / 2, x, k);
+   double delta_entropy = f_ode->EntropyChange(0.5*dt, x_new, k);
    if (out != nullptr)
    {
       *out << "delta_entropy is " << delta_entropy << '\n';
@@ -61,7 +63,7 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    {
       *out << "old entropy is " << entropy_old << '\n';
    }
-   mfem::Vector x_new(x.Size());
+   //mfem::Vector x_new(x.Size());
    // cout << "x_new size is " << x_new.Size() << '\n';
    auto entropyFun = [&](double gamma)
    {
@@ -139,7 +141,6 @@ void ExplicitRRKSolver::Step(Vector &x, double &t, double &dt)
       {
          y.Add(a[l++]*dt, k[j]);
       }
-
       f_ode->SetTime(t + c[i-1]*dt);
       f_ode->Mult(y, k[i]);
       delta_entropy += b[i]*f_ode->EntropyChange(c[i-1]*dt, y, k[i]);
@@ -162,8 +163,6 @@ void ExplicitRRKSolver::Step(Vector &x, double &t, double &dt)
       *out << "old entropy is " << entropy_old << '\n';
    }
 
-   x_new.SetSize(x.Size());
-
    // Define the lambda function for the entropy at the new step
    auto entropyFun = [&](double gamma)
    {
@@ -177,10 +176,10 @@ void ExplicitRRKSolver::Step(Vector &x, double &t, double &dt)
       {
          *out << "gamma = " << gamma << ": ";
          *out << "residual = "
-              << entropy - entropy_old + gamma * delta_entropy
+              << entropy - entropy_old + gamma * dt * delta_entropy
               << std::endl;
       }
-      return entropy - entropy_old + gamma * delta_entropy;
+      return entropy - entropy_old + gamma * dt * delta_entropy;
    };
 
    // Use secant method to find gamma scaling 

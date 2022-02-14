@@ -92,10 +92,11 @@ public:
       mach::setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
       double dt;
       mach::setValueFromInputs(inputs, "dt", dt, true);
-      auto &y = residual.work;
-      add(x, dt, dxdt, y);
+      //auto &y = residual.work;
+      //add(x, dt, dxdt, y);
       // should be zero 
-      return exp(y(0))*exp(y(1)) - exp(y(1))*exp(y(0)); 
+      return exp(x(0))*dxdt(0) + exp(x(1))*dxdt(1);
+      //return exp(y(0))*exp(y(1)) - exp(y(1))*exp(y(0)); 
    }
 private:
    double dt = NAN;
@@ -320,7 +321,7 @@ TEST_CASE("Testing AbstractSolver using RRK6", "[abstract-solver]")
       std::cout << "terminal solution error = " << error << std::endl;
       std::cout << "entropy error = " << entropy - entropy0 << std::endl;
    }
-   REQUIRE( error == Approx(6.97e-5).margin(1e-7) );
+   REQUIRE( error == Approx(6.97e-7).margin(1e-9) );
 
    REQUIRE( entropy == Approx(entropy0).margin(1e-12) );
 }
