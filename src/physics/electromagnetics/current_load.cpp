@@ -14,6 +14,11 @@ using namespace mfem;
 
 namespace mach
 {
+int getSize(const CurrentLoad &load)
+{
+   return load.fes.GetTrueVSize();
+}
+
 /// set inputs should include fields, so things can check if they're "dirty"
 void setInputs(CurrentLoad &load, const MachInputs &inputs)
 {

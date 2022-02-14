@@ -15,6 +15,11 @@ namespace mach
 class MagneticLoad final
 {
 public:
+   friend int getSize(const MagneticLoad &load)
+   {
+      return getSize(load.lf);
+   }
+
    friend inline void setInputs(MagneticLoad &load, const MachInputs &inputs)
    {
       setInputs(load.lf, inputs);

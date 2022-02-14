@@ -16,6 +16,8 @@ namespace mach
 class MachLinearForm final
 {
 public:
+   friend int getSize(const MachLinearForm &load);
+
    /// Assemble the linear form on the true dofs and add it to tv
    friend void addLoad(MachLinearForm &load, mfem::Vector &tv);
 

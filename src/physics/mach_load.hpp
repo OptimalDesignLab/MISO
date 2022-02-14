@@ -25,6 +25,11 @@ namespace mach
 class MachLoad final
 {
 public:
+   /// Gets the size of the underlying load vector
+   /// \param[in] load - the load vector whose size is being queried
+   /// \returns the size of the load vector
+   friend int getSize(const MachLoad &load);
+
    /// Used to set scalar inputs in the underlying load type
    /// Ends up calling `setInputs` on either the `MachLinearForm` or
    /// a specialized version for each particular load.

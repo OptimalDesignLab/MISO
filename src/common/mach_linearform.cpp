@@ -9,6 +9,11 @@
 
 namespace mach
 {
+int getSize(const MachLinearForm &load)
+{
+   return load.lf.ParFESpace()->GetTrueVSize();
+}
+
 void setInputs(MachLinearForm &load, const MachInputs &inputs)
 {
    // for (const auto &in : inputs)

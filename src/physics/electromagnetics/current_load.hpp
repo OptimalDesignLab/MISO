@@ -17,6 +17,8 @@ class VectorFEDomainLFIntegratorMeshSens;
 class CurrentLoad final
 {
 public:
+   friend int getSize(const CurrentLoad &load);
+
    /// Used to set scalar inputs in the underlying load type
    /// Ends up calling `setInputs` on either the `MachLinearForm` or
    /// a specialized version for each particular load.
