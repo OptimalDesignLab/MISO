@@ -273,44 +273,37 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt state")
 
    op.vectorJacobianProduct("state", {{"state", state_tv}}, out_bar, state_bar);
 
-   double dout_dstate_v = state_pert * state_bar;
-
-   int rank, nranks;
-   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-   for (int i = 0; i < nranks; ++i)
-   {
-      if (rank == i)
-      {
-         std::cout << "tvec rank " << i << ":\n";
-         state_bar.Print(std::cout, 1);
-         std::cout << "\n";
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-   }
-
-   auto *dof_to_true_dof = state.space().Dof_TrueDof_Matrix();
-   dof_to_true_dof->Print("prolong");
-   // const auto *prolong = state.space().GetProlongationMatrix();
-   // const auto *prolong_mat = dynamic_cast<const mfem::HypreParMatrix *>(prolong);
-   // prolong_mat->Print("prolong");
-   // const auto *prolong_mat = dynamic_cast<const mfem::SparseMatrix *>(prolong);
-   // prolong_mat->Print(std::cout, state.space().GetVSize());
+   auto dout_dstate_v_local = state_pert * state_bar;
+   double dout_dstate_v;
+   MPI_Allreduce(&dout_dstate_v_local,
+                 &dout_dstate_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
 
    // now compute the finite-difference approximation...
    auto delta = 1e-5;
-   double dout_dstate_v_fd = 0.0;
+   double dout_dstate_v_fd_local = 0.0;
 
    add(state_tv, delta, state_pert, state_tv);
    op.apply(state_tv, dg_state_tv);
-   dout_dstate_v_fd += out_bar * dg_state_tv;
+   dout_dstate_v_fd_local += out_bar * dg_state_tv;
 
    add(state_tv, -2*delta, state_pert, state_tv);
    op.apply(state_tv, dg_state_tv);
-   dout_dstate_v_fd -= out_bar * dg_state_tv;
+   dout_dstate_v_fd_local -= out_bar * dg_state_tv;
 
-   dout_dstate_v_fd /= 2*delta;
+   dout_dstate_v_fd_local /= 2*delta;
+   double dout_dstate_v_fd;
+   MPI_Allreduce(&dout_dstate_v_fd_local,
+                 &dout_dstate_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
 
+   auto rank = state.space().GetMyRank();
    std::cout << "dout_dstate_v: " << dout_dstate_v << " rank: " << rank << "\n";
    std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << " rank: " << rank << "\n";
 
@@ -437,21 +430,35 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt state")
 
    op.vectorJacobianProduct("state", {{"state", state_tv}}, out_bar, state_bar);
 
-   double dout_dstate_v = state_pert * state_bar;
+   auto dout_dstate_v_local = state_pert * state_bar;
+   double dout_dstate_v;
+   MPI_Allreduce(&dout_dstate_v_local,
+                 &dout_dstate_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
 
    // now compute the finite-difference approximation...
    auto delta = 1e-5;
-   double dout_dstate_v_fd = 0.0;
+   double dout_dstate_v_fd_local = 0.0;
 
    add(state_tv, delta, state_pert, state_tv);
    op.apply(state_tv, dg_state_tv);
-   dout_dstate_v_fd += out_bar * dg_state_tv;
+   dout_dstate_v_fd_local += out_bar * dg_state_tv;
 
    add(state_tv, -2*delta, state_pert, state_tv);
    op.apply(state_tv, dg_state_tv);
-   dout_dstate_v_fd -= out_bar * dg_state_tv;
+   dout_dstate_v_fd_local -= out_bar * dg_state_tv;
 
-   dout_dstate_v_fd /= 2*delta;
+   dout_dstate_v_fd_local /= 2*delta;
+   double dout_dstate_v_fd;
+   MPI_Allreduce(&dout_dstate_v_fd_local,
+                 &dout_dstate_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
 
    std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
    std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
@@ -576,37 +583,36 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt state")
    state_bar = 0.0;
 
    op.vectorJacobianProduct("state", {{"state", state_tv}}, out_bar, state_bar);
-   
-   int rank;
-   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   if (rank == 0)
-   {
-      std::cout << "rank 0:\n";
-      state_bar.Print(std::cout, 1);
-      std::cout << "\n";
-   }
-   MPI_Barrier(MPI_COMM_WORLD);
-   if (rank == 1)
-   {
-      std::cout << "rank 1:\n";
-      state_bar.Print(std::cout, 1);
-      std::cout << "\n";
-   }
-   double dout_dstate_v = state_pert * state_bar;
+
+   auto dout_dstate_v_local = state_pert * state_bar;
+   double dout_dstate_v;
+   MPI_Allreduce(&dout_dstate_v_local,
+                 &dout_dstate_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
 
    // now compute the finite-difference approximation...
    auto delta = 1e-5;
-   double dout_dstate_v_fd = 0.0;
+   double dout_dstate_v_fd_local = 0.0;
 
    add(state_tv, delta, state_pert, state_tv);
    op.apply(state_tv, dg_state_tv);
-   dout_dstate_v_fd += out_bar * dg_state_tv;
+   dout_dstate_v_fd_local += out_bar * dg_state_tv;
 
    add(state_tv, -2*delta, state_pert, state_tv);
    op.apply(state_tv, dg_state_tv);
-   dout_dstate_v_fd -= out_bar * dg_state_tv;
+   dout_dstate_v_fd_local -= out_bar * dg_state_tv;
 
-   dout_dstate_v_fd /= 2*delta;
+   dout_dstate_v_fd_local /= 2*delta;
+   double dout_dstate_v_fd;
+   MPI_Allreduce(&dout_dstate_v_fd_local,
+                 &dout_dstate_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
 
    std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
    std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
