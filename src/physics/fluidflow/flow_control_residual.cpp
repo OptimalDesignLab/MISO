@@ -12,17 +12,78 @@ using namespace mfem;
 
 namespace mach
 {
+
+ControlResidual::ControlResidual(MPI_Comm incomm,
+                                 const nlohmann::json &control_options)
+{
+   Kp = 0.0;
+   Td = 0.0;
+   Ti = 0.0;
+   eta = 0.0;
+   beta = 0.0;
+   time = 0.0;
+   target_entropy = 0.0;
+   closed_loop = true;
+   boundary_entropy = 0.0;
+   MPI_Comm_dup(incomm, &comm);
+   MPI_Comm_rank(comm, &rank);
+   rank == 0 ? num_var = 2 : num_var = 0;
+   x.SetSize(num_var);
+   work.SetSize(num_var);
+   P = std::make_unique<mfem::DenseMatrix>(num_var);
+   mass_mat = std::make_unique<mfem::DenseMatrix>(num_var);
+   Jac = std::make_unique<mfem::DenseMatrix>(num_var);
+   prec = std::make_unique<mfem::DenseMatrixInverse>();
+   if (rank == 0)
+   {
+      (*P) = 0.0;
+      (*mass_mat) = 0.0;
+      (*mass_mat)(0, 0) = 1.0;
+      (*mass_mat)(1, 1) = 1.0;
+   }
+}
+
 void setInputs(ControlResidual &residual, const MachInputs &inputs)
 {
-   // setValueFromInputs(inputs, "Kp", residual.Kp);
-   // setValueFromInputs(inputs, "Td", residual.Td);
-   // setValueFromInputs(inputs, "Ti", residual.Ti);
-   // setValueFromInputs(inputs, "alpha", residual.alpha);
-   // setValueFromInputs(inputs, "beta", residual.beta);
-   // setValueFromInputs(inputs, "entropy_targ", residual.entropy_targ);
+   // Set state, time, and boundary entropy value
    setValueFromInputs(inputs, "time", residual.time);
    setValueFromInputs(inputs, "boundary-entropy", residual.boundary_entropy);
    setVectorFromInputs(inputs, "state", residual.x);
+   // Set control parameters
+   setValueFromInputs(inputs, "Kp", residual.Kp);
+   setValueFromInputs(inputs, "Td", residual.Td);
+   setValueFromInputs(inputs, "Ti", residual.Ti);
+   setValueFromInputs(inputs, "eta", residual.eta);
+   setValueFromInputs(inputs, "beta", residual.beta);
+   setValueFromInputs(inputs, "target-entropy", residual.target_entropy);
+   double closed_double = 1.0;
+   setValueFromInputs(inputs, "closed-loop", closed_double);
+   if (fabs(closed_double) < numeric_limits<double>::epsilon())
+   {
+      residual.closed_loop = false;
+   }
+   else 
+   {
+      residual.closed_loop = true;
+   }
+   // Define the P matrix
+   if ( (residual.rank == 0) && (inputs.find("P-matrix") != inputs.end()) )
+   {
+      Vector p_vector(4);
+      setVectorFromInputs(inputs, "P-matrix", p_vector);
+      (*residual.P)(0,0) = p_vector(0);
+      (*residual.P)(0,1) = p_vector(1);
+      (*residual.P)(1,0) = p_vector(1);
+      (*residual.P)(1,1) = p_vector(3);
+      // check for symmetry
+      if (fabs(p_vector(1) - p_vector(2)) >
+          100.0*numeric_limits<double>::epsilon())
+      {
+         throw MachException(
+             "setInputs(ControlResidual, inputs): "
+            "P-matrix is not symmetric!");
+      }
+   }
 }
 
 void setOptions(ControlResidual &residual, const nlohmann::json &options)
@@ -38,31 +99,38 @@ void evaluate(ControlResidual &residual,
    res_vec.SetSize(residual.num_var);
    if (residual.rank == 0)
    {
-      // This is a simple non-dissipative, decoupled system for testing
-      // Residual is defined on left-hand side!
-      res_vec(0) = -0.05 * residual.x(1);
-      res_vec(1) = 0.05 * residual.x(0) + residual.boundary_entropy;
-   }
+      if (residual.test_ode)
+      {
+         // This is a simple non-dissipative, decoupled system for testing
+         // Residual is defined on left-hand side!
+         res_vec(0) = -0.05 * residual.x(1);
+         res_vec(1) = 0.05 * residual.x(0) + residual.boundary_entropy;
+      }
+      else
+      {
+         // define some aliases
+         double &Kp = residual.Kp;
+         double &Td = residual.Td;
+         double &Ti = residual.Ti;
+         double &eta = residual.eta;
+         double &beta = residual.beta;
 
-   // // define some aliases
-   // double &Kp = residual.Kp;
-   // double &Td = residual.Td;
-   // double &Ti = residual.Ti;
-   // double &alpha = residual.alpha;
-   // double &beta = residual.beta;
-   // double &entropy_targ = residual.entropy_targ;
-   // // extract the control variables ("state") and entropy from inputs
-   // const bool error_if_not_found = true;
-   // setVectorFromInputs(inputs, "state", residual.x, error_if_not_found);
-   // double entropy = NAN;
-   // setValueFromInputs(inputs, "entropy", entropy, error_if_not_found);
-   // // evaluate the residual
-   // double e = entropy_targ - entropy;
-   // res_vec(0) = -((1.0 - 1.0/(alpha*beta))*Kp*e -
-   // residual.x(1)/beta)/(alpha*Ti*Td); res_vec(1) = -( ((Td + Ti) - (alpha*Td
-   // + beta*Ti)/(alpha*beta))*Kp*e /
-   //                 (alpha*Ti*Td) + residual.x(0) - residual.x(1)*(alpha*Td +
-   //                 beta*Ti) / (alpha*beta*Ti*Td) );
+         // control-state coupling
+         double fac = 1 / (beta * eta * Ti * Td);
+         res_vec(0) = fac * residual.x(1);
+         res_vec(1) =
+             -residual.x(0) + fac * (beta * Ti + eta * Td) * residual.x(1);
+
+         if (residual.closed_loop)
+         {
+            double error = residual.target_entropy - residual.boundary_entropy;
+            double scaled_error = error * Kp / (eta * Ti * Td);
+            res_vec(0) += (1.0 / (eta * beta) - 1.0) * scaled_error;
+            res_vec(1) += ((beta * Ti + eta * Td) / (eta * beta) - (Ti + Td)) *
+                          scaled_error;
+         }
+      }
+   }
 }
 
 Operator &getJacobian(ControlResidual &residual,
@@ -72,9 +140,29 @@ Operator &getJacobian(ControlResidual &residual,
    setInputs(residual, inputs);
    if (residual.rank == 0)
    {
-      (*residual.Jac) = 0.0;
-      (*residual.Jac)(0, 1) = -0.05;
-      (*residual.Jac)(1, 0) = 0.05;
+      if (residual.test_ode)
+      {
+         // Jacobian for the simple problem
+         (*residual.Jac) = 0.0;
+         (*residual.Jac)(0, 1) = -0.05;
+         (*residual.Jac)(1, 0) = 0.05;
+      }
+      else
+      {
+         // define some aliases
+         double &Td = residual.Td;
+         double &Ti = residual.Ti;
+         double &eta = residual.eta;
+         double &beta = residual.beta;
+
+         DenseMatrix &Jac = *residual.Jac;
+         Jac = 0.0;
+
+         double fac = 1 / (beta * eta * Ti * Td);
+         Jac(0, 1) = fac;
+         Jac(1, 0) = -1.0;
+         Jac(1, 1) = fac * (beta * Ti + eta * Td);
+      }
    }
    return *residual.Jac;
 }
@@ -85,7 +173,15 @@ double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
    double ent = 0.0;
    if (residual.rank == 0)
    {
-      ent += residual.x(0) * residual.x(0) + residual.x(1) * residual.x(1);
+      if (residual.test_ode)
+      {
+         ent += residual.x(0) * residual.x(0) + residual.x(1) * residual.x(1);
+      }
+      else
+      {
+         Vector &x = residual.x;
+         ent += 0.5*residual.P->InnerProduct(x, x);
+      }
    }
    MPI_Bcast(&ent, 1, MPI_DOUBLE, 0, residual.comm);
    return ent;
@@ -100,10 +196,43 @@ double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
    double ent_change = 0.0;
    if (residual.rank == 0)
    {
-      ent_change += residual.x * dxdt;
+      // Note: since k = dxdt = -Res, we need to include a negative sign
+      if (residual.test_ode)
+      {
+         ent_change -= residual.x * dxdt;
+      }
+      else
+      {
+         ent_change -= residual.P->InnerProduct(residual.x, dxdt);
+      }
    }
    MPI_Bcast(&ent_change, 1, MPI_DOUBLE, 0, residual.comm);
    return ent_change;
+}
+
+double ControlResidual::getControlVelocity(const MachInputs &inputs)
+{
+   setInputs(*this, inputs);
+   double vel = 0.0;
+   if (rank == 0)
+   {
+      if (test_ode)
+      {
+         // For the simple controller
+         vel = x(1);
+      }
+      else
+      {
+         vel += x(1); // x should be set in setInputs above
+         if (closed_loop)
+         {
+            double error = target_entropy - boundary_entropy;
+            vel += Kp * error / eta;
+         }
+      }
+   }
+   MPI_Bcast(&vel, 1, MPI_DOUBLE, 0, comm);
+   return vel;
 }
 
 template <int dim, bool entvar>
@@ -210,12 +339,12 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
    auto flow_inputs =
        MachInputs({{"state", flow_ref}, {"x-actuator", x_actuator}});
    double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
-   auto control_inputs = MachInputs({{"state", control_ref}});
-   double control_vel = control_res.getControlVelocity(control_ref);
+   auto control_inputs =
+       MachInputs({{"state", control_ref}, {"boundary-entropy", bndry_ent}});
+   double control_vel = control_res.getControlVelocity(control_inputs);
 
    // evaluate the residuals
    flow_inputs.emplace("control", control_vel);
-   control_inputs.emplace("boundary-entropy", bndry_ent);
    evaluate(flow_res, flow_inputs, flow_res_vec);
    evaluate(control_res, control_inputs, control_res_vec);
 }
@@ -224,7 +353,8 @@ template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
 {
    // extract flow and control states to compute entropy
-   extractStates(inputs, control_ref, flow_ref);
+   //extractStates(inputs, control_ref, flow_ref);
+   setInputs_(inputs);
    auto flow_inputs = MachInputs({{"state", flow_ref}});
    auto control_inputs = MachInputs({{"state", control_ref}});
    return calcEntropy(flow_res, flow_inputs) +
@@ -247,58 +377,26 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
 
-   // get the control velocity for input to the calcEntropyChange for the flow; 
-   // note that the boundary entropy is not needed for the control entropy 
-   // change, because we can use `state_dot` directly.
-   control_work.SetSize(control_ref.Size());
-   add(control_ref, dt, control_dxdt, control_work);
-   double control_vel = control_res.getControlVelocity(control_work);
+   // get the control velocity; for this we need the boundary entropy at the 
+   // new state, so compute that first
+   auto flow_inputs =
+       MachInputs({{"state", flow_ref}, {"x-actuator", x_actuator}});
+   double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
+   auto control_inputs = 
+       MachInputs({{"state", control_ref}, {"boundary-entropy", bndry_ent}});
+   double control_vel = control_res.getControlVelocity(control_inputs);
 
-   auto flow_inputs = MachInputs({{"state", flow_ref},
-                                  {"state_dot", flow_dxdt},
-                                  {"control", control_vel},
-                                  {"time", time},
-                                  {"dt", dt}});
-   auto control_inputs = MachInputs({{"state", control_ref}, 
-                                     {"state_dot", control_dxdt},
-                                     {"time", time},
-                                     {"dt", dt}});
+   flow_inputs = MachInputs({{"state", flow_ref},
+                             {"state_dot", flow_dxdt},
+                             {"control", control_vel},
+                             {"time", time},
+                             {"dt", dt}});
+   control_inputs = MachInputs({{"state", control_ref},
+                                {"state_dot", control_dxdt},
+                                {"time", time},
+                                {"dt", dt}});
    return calcEntropyChange(flow_res, flow_inputs) +
           calcEntropyChange(control_res, control_inputs);
-
-//    // extract time and time-step size
-//    double time = NAN;
-//    double dt = NAN;
-//    setValueFromInputs(inputs, "time", time, true);
-//    setValueFromInputs(inputs, "dt", dt, true);
-
-//    // get the coupling variables/outputs; these need to be computed at the
-//    // updated state!!!
-//    control_work.SetSize(control_ref.Size());
-//    flow_work.SetSize(flow_ref.Size());
-//    add(control_ref, dt, control_dxdt, control_work);
-//    add(flow_ref, dt, flow_dxdt, flow_work);
-//    auto flow_inputs =
-//        MachInputs({{"state", flow_work}, {"x-actuator", x_actuator}});
-//    double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
-//    double control_vel = control_res.getControlVelocity(control_work);
-
-//    // set inputs for flow and control residuals and evaluate change
-//    flow_inputs = MachInputs({{"state", flow_ref},
-//                              {"state_dot", flow_dxdt},
-//                              {"x-actuator", x_actuator},
-//                              {"control", control_vel},
-//                              {"time", time},
-//                              {"dt", dt}});
-//    auto control_inputs = MachInputs({{"state", control_ref},
-//                                      {"state_dot", control_dxdt},
-//                                      {"boundary-entropy", bndry_ent},
-//                                      {"time", time},
-//                                      {"dt", dt}});
-//    return calcEntropyChange(flow_res, flow_inputs) +
-//           calcEntropyChange(control_res, control_inputs);
-// 
-
 }
 
 template <int dim, bool entvar>

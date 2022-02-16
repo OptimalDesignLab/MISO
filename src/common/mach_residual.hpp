@@ -147,7 +147,7 @@ public:
    /// \param[in] inputs - the variables needed to evaluate the entropy
    /// \return the product `w^T res`
    /// \note The entropy variables, `w`, are evaluated at `state`, and `res` is 
-   /// equal to `state_dot`.
+   /// equal to `-state_dot`.
    friend double calcEntropyChange(MachResidual &residual,
                                    const MachInputs &inputs);
 

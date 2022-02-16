@@ -16,6 +16,12 @@ namespace mach
 class ControlResidual final
 {
 public:
+
+   /// Constructor
+   /// \param[in] control_options - options used to define the residual
+   /// \note the number of control variables is hard-coded.
+   ControlResidual(MPI_Comm incomm, const nlohmann::json &control_options);
+
    /// Gets the number of control ODEs/unknwons
    /// \param[inout] residual - the residual whose size is being queried
    /// \returns the number of equations/unknowns
@@ -66,7 +72,7 @@ public:
    /// \param[in] inputs - the variables needed to evaluate the entropy
    /// \return the product `w^T res`
    /// \note `w` and `res` are evaluated at `state` and time `t + dt`
-   /// \note `res` is stored in `state_dot`, but may be recomputed if necessary
+   /// \note `res` is equal to `-state_dot`, but may be recomputed if necessary
    /// \note optional, but must be implemented for relaxation RK
    friend double calcEntropyChange(ControlResidual &residual,
                                    const MachInputs &inputs);
@@ -95,42 +101,9 @@ public:
    }
 
    /// Return the control velocity, which can be then fed into a flow solver
-   /// \param[in] u - control state vector
+   /// \param[in] inputs - holds the control state vector and boundary entropy
    /// \return the control velocity
-   double getControlVelocity(const mfem::Vector &u)
-   {
-      double vel = 0.0;
-      if (rank == 0)
-      {
-         vel = u[1];
-      }
-      MPI_Bcast(&vel, 1, MPI_DOUBLE, 0, comm);
-      return vel;
-   }
-
-   /// Constructor
-   /// \param[in] control_options - options used to define the residual
-   /// \note the number of control variables is hard-coded, but this could
-   /// easily be changed.
-   ControlResidual(MPI_Comm incomm, const nlohmann::json &control_options)
-   {
-      time = 0.0;
-      boundary_entropy = 0.0;
-      MPI_Comm_dup(incomm, &comm);
-      MPI_Comm_rank(comm, &rank);
-      rank == 0 ? num_var = 2 : num_var = 0;
-      x.SetSize(num_var);
-      work.SetSize(num_var);
-      mass_mat = std::make_unique<mfem::DenseMatrix>(num_var);
-      Jac = std::make_unique<mfem::DenseMatrix>(num_var);
-      prec = std::make_unique<mfem::DenseMatrixInverse>();
-      if (rank == 0)
-      {
-         (*mass_mat) = 0.0;
-         (*mass_mat)(0, 0) = 1.0;
-         (*mass_mat)(1, 1) = 1.0;
-      }
-   }
+   double getControlVelocity(const MachInputs &inputs);
 
 private:
    /// communicator used by MPI group for communication
@@ -140,9 +113,13 @@ private:
    /// number of control ODE variables/equations on this process
    int num_var;
    /// parameters in the control law
-   // double Kp, Td, Ti, alpha, beta;
-   /// desired, or target, entropy from flow
-   // double entropy_targ;
+   double Kp, Td, Ti, beta, eta;
+   /// desired, or target, flow entropy 
+   double target_entropy;
+   /// norm matrix that defines the Lyapunov function 
+   std::unique_ptr<mfem::DenseMatrix> P;
+   /// turn on/off closed loop term
+   bool closed_loop;
    /// Stores the current simulation time
    double time;
    /// Stores the boundary entropy functional; provided by the flow solver
@@ -151,13 +128,15 @@ private:
    mfem::Vector x;
    /// generic work vector
    mfem::Vector work;
-   /// Mass matrix for the ODE (cannot use IdentityOperator
-   /// \note cannote use the identity matrix because we need to add this to Jac
+   /// Mass matrix for the ODE
+   /// \note cannot use the identity matrix because we need to add this to Jac
    std::unique_ptr<mfem::DenseMatrix> mass_mat;
    /// Jacobian of the ODE right-hand side
    std::unique_ptr<mfem::DenseMatrix> Jac;
    /// Preconditioner for the ODE Jacobian
    std::unique_ptr<mfem::DenseMatrixInverse> prec;
+
+   static const bool test_ode = false;
 };
 
 /// Class for flow-control equations that follows the MachResidual API
@@ -309,6 +288,13 @@ public:
                       mfem::Vector &control_state,
                       mfem::Vector &flow_state) const;
 
+   /// Set the given vector to the free-stream value
+   /// \param[out] qfar - used to hold the free-stream state upon return
+   void getFreeStreamState(mfem::Vector &qfar)
+   {
+      flow_res.getFreeStreamState(qfar);
+   }
+
 private:
    /// print object
    std::ostream &out;
@@ -413,7 +399,7 @@ double calcEntropy(FlowControlResidual<dim, entvar> &residual,
 /// \tparam entvar - if true, the entropy variables are used in the integrators
 /// \return the product `w^T res`
 /// \note `w` and `res` are evaluated at `state` and time ` t + dt`
-/// \note `res` is stored in `state_dot`, but may be recomputed if necessary
+/// \note `res` is equal to `-state_dot`, but may be recomputed if necessary
 /// \note optional, but must be implemented for relaxation RK
 template <int dim, bool entvar>
 double calcEntropyChange(FlowControlResidual<dim, entvar> &residual,

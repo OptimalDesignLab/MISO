@@ -18,7 +18,7 @@
       "type": "RRK6",
       "exact-t-final": false,
       "steady": false,
-      "t-final": 9.42477796076938,
+      "t-final": 5,
       "dt": 0.01,
       "cfl": 1.0,
       "entropy-log": true

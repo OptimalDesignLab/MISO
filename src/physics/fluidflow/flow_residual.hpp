@@ -120,6 +120,10 @@ public:
    MachOutput constructOutput(const std::string &fun,
                               const nlohmann::json &options);
 
+   /// Set the given vector to the free-stream *conservative* variables
+   /// \param[out] qfar - used to hold the free-stream state upon return
+   void getFreeStreamState(mfem::Vector &qfar);
+
    double getMach() const { return mach_fs; }
    double getAoA() const { return aoa_fs; }
    int getIRoll() const { return iroll; }
@@ -265,7 +269,7 @@ double calcEntropy(FlowResidual<dim, entvar> &residual,
 /// \tparam entvar - if true, the entropy variables are used in the integrators
 /// \return the product `w^T res`
 /// \note `w` and `res` are evaluated at `state` and time `t+dt`
-/// \note `res` is stored in `state_dot`, but may be recomputed if necessary
+/// \note `res` is equal to `-state_dot`, but may be recomputed if necessary
 /// \note optional, but must be implemented for relaxation RK
 template <int dim, bool entvar>
 double calcEntropyChange(FlowResidual<dim, entvar> &residual,

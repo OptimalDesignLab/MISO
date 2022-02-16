@@ -177,7 +177,7 @@ public:
    /// \param[in] du_dt - the first time derivative of u
    /// \return the product `w^T R(u + dt * du_dt, p, t + dt)`
    /// \note The entropy variables, `w`, are evaluated at `u`, and `R` is 
-   /// equal to `du_dt`.  Or, if necessary, `u` and `dt` can be used to 
+   /// equal to `-du_dt`.  Or, if necessary, `u` and `dt` can be used to 
    /// evaluate `R`.
    double EntropyChange(double dt,
                         const mfem::Vector &u,

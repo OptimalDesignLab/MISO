@@ -46,6 +46,13 @@ public:
                      const nlohmann::json &solver_options,
                      std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
+   /// Set the given vector to the free-stream value
+   /// \param[out] qfar - used to hold the free-stream state upon return
+   void getFreeStreamState(mfem::Vector &qfar)
+   {
+      getConcrete<ResType>(*spatial_res).getFreeStreamState(qfar);
+   }
+
 private:
    using ResType = FlowControlResidual<dim, entvar>;
    /// object defining the mfem computational mesh

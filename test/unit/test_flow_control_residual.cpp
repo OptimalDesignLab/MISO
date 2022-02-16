@@ -61,6 +61,26 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
       REQUIRE(num_var == 0);
    }
 
+   // Define parameters for a nominal control
+   const double Kp = 0.4, Ti = 0.8, Td = 0.5, beta = 2.5, eta = 0.8;
+   const double target_entropy = 0.0, boundary_entropy = 1.0;
+   bool closed_loop = true;
+   Vector P(4);
+   P(0) = 38.2587661;
+   P(1) = -93.7535286;
+   P(2) = -93.7535286;
+   P(3) = 233.1187750;
+   auto inputs = MachInputs({{"Kp", Kp},
+                             {"Ti", Ti},
+                             {"Td", Td},
+                             {"beta", beta},
+                             {"eta", eta},
+                             {"target-entropy", target_entropy},
+                             {"boundary-entropy", boundary_entropy},
+                             {"closed-loop", float(closed_loop)},
+                             {"P-matrix", P}});
+   setInputs(res, inputs);
+
    // evaluate the residual at an arbitrary state
    Vector x(num_var);
    std::default_random_engine gen(std::random_device{}());
@@ -70,13 +90,23 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
       x(i) = uniform_rand(gen);
    }
    double time = uniform_rand(gen);
-   auto inputs = MachInputs({{"state", x}, {"time", time}});
+   inputs = MachInputs({{"state", x}, {"time", time}});
    Vector res_vec(num_var);
    evaluate(res, inputs, res_vec);
    if (rank == 0)
    {
-      REQUIRE( res_vec(0) == Approx(-0.05*x(1)).margin(1e-14) );
-      REQUIRE( res_vec(1) == Approx(0.05*x(0)).margin(1e-14) );
+      Vector r(2);
+      double fac = 1 / (beta * eta * Ti * Td);
+      r(0) = fac * x(1);
+      r(1) = -x(0) + fac * (beta * Ti + eta * Td) * x(1);
+      double error = target_entropy - boundary_entropy;
+      double scaled_error = error * Kp / (eta * Ti * Td);
+      r(0) += (1.0 / (eta * beta) - 1.0) * scaled_error;
+      r(1) +=
+          ((beta * Ti + eta * Td) / (eta * beta) - (Ti + Td)) * scaled_error;
+
+      REQUIRE(res_vec(0) == Approx(r(0)).margin(1e-14));
+      REQUIRE(res_vec(1) == Approx(r(1)).margin(1e-14));
    }
    else
    {
@@ -93,8 +123,13 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    Jac.Mult(v, Jac_v);
    if (rank == 0)
    {
-      REQUIRE( Jac_v(0) == Approx(-0.05*v(1)).margin(1e-14) );
-      REQUIRE( Jac_v(1) == Approx(0.05*v(0)).margin(1e-14) );
+      double fac = 1/(beta*eta*Ti*Td);
+      Vector prod(2);
+      prod(0) = fac*v(1);
+      prod(1) = -1.0*v(0) + fac*(beta*Ti + eta*Td)*v(1);
+
+      REQUIRE( Jac_v(0) == Approx(prod(0)).margin(1e-14) );
+      REQUIRE( Jac_v(1) == Approx(prod(1)).margin(1e-14) );
    }
 
    // get the Preconditioner, which should be the exact inverse here    
@@ -112,16 +147,22 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    double entropy = calcEntropy(res, inputs);
    if (rank == 0)
    {
-      REQUIRE(entropy == Approx(x(0) * x(0) + x(1) * x(1)).margin(1e-14));
+      double ent = 0.5*(x(0)*P(0)*x(0) + 2.0*x(0)*P(1)*x(1) + x(1)*P(3)*x(1));
+      REQUIRE(entropy == Approx(ent).margin(1e-14));
    }
 
-   // check entropy change
-   inputs = MachInputs(
-       {{"state", x}, {"state_dot", res_vec}});
+   // check entropy change; `calcEntropyChange` uses `k = -state_dot` directly,
+   // so since `k + res_vec = 0`, we need to scale res_vec by neg one.
+   res_vec *= -1.0;
+   inputs = MachInputs({{"state", x}, {"state_dot", res_vec}});
    double entropy_change = calcEntropyChange(res, inputs);
    if (rank == 0)
    {
-      REQUIRE(entropy_change == Approx(0.0).margin(1e-14));
+      double dent = x(0) * P(0) * res_vec(0) + x(0) * P(1) * res_vec(1) +
+                    x(1) * P(2) * res_vec(0) + x(1) * P(3) * res_vec(1);
+      dent *= -1.0;
+      REQUIRE(entropy_change == Approx(dent).margin(1e-14));
+      REQUIRE(entropy_change > 0.0); // positive because res is on LHS
    }
 }
 
@@ -141,13 +182,34 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    SBPCollection fec(p, dim);
    ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
 
-   // construct the residual
+   // construct the residuals
    MachResidual res(
        FlowControlResidual<dim, false>(options, fespace, diff_stack));
    FlowResidual<dim, false> flow_res(options, fespace, diff_stack);
    ControlResidual control_res(MPI_COMM_WORLD, options);
    int num_var = getSize(res);
    REQUIRE(num_var == getSize(flow_res) + getSize(control_res));
+
+   // Define parameters for a nominal control
+   const double Kp = 0.4, Ti = 0.8, Td = 0.5, beta = 2.5, eta = 0.8;
+   const double target_entropy = 0.0;
+   bool closed_loop = true;
+   Vector P(4);
+   P(0) = 38.2587661;
+   P(1) = -93.7535286;
+   P(2) = -93.7535286;
+   P(3) = 233.1187750;
+   auto inputs = MachInputs({{"Kp", Kp},
+                             {"Ti", Ti},
+                             {"Td", Td},
+                             {"beta", beta},
+                             {"eta", eta},
+                             {"target-entropy", target_entropy},
+                             {"boundary-entropy", 0.0},
+                             {"closed-loop", float(closed_loop)},
+                             {"P-matrix", P}});
+   setInputs(res, inputs);
+   setInputs(control_res, inputs);
 
    // We will evaluate the flow residual using a perturbed state, and the
    // control residual using a random state.
@@ -172,22 +234,21 @@ TEST_CASE("FlowControlResidual construction and evaluation",
       }
    }
 
-   // Set up the inputs to the three residuals
+   // Set up the inputs to the three residuals, and evaluate coupling variables
    Vector x_actuator({0.0, 0.5});
-   double vel_control = control_res.getControlVelocity(q);
    MachOutput boundary_entropy(flow_res.constructOutput(
        "boundary-entropy", options["outputs"]["boundary-entropy"]));
    Vector flow_state(q.GetData() + ptr, getSize(flow_res));
    double time = 0.0;
-   auto flow_inputs = MachInputs({{"state", flow_state},
-                                  {"time", time},
-                                  {"x-actuator", x_actuator},
-                                  {"control", vel_control}});
+   auto flow_inputs = MachInputs(
+       {{"state", flow_state}, {"time", time}, {"x-actuator", x_actuator}});
    double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
-   auto inputs =
-       MachInputs({{"state", q}, {"time", time}, {"x-actuator", x_actuator}});
    auto control_inputs = MachInputs(
        {{"state", q}, {"time", time}, {"boundary-entropy", bndry_ent}});
+   double vel_control = control_res.getControlVelocity(control_inputs);
+   flow_inputs.emplace("control", vel_control);
+   inputs =
+       MachInputs({{"state", q}, {"time", time}, {"x-actuator", x_actuator}});
 
    Vector res_vec(num_var);
    Vector res_vec_control(getSize(control_res));

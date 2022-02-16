@@ -571,6 +571,23 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
    }
 }
 
+template <int dim, bool entvar>
+void FlowResidual<dim, entvar>::getFreeStreamState(Vector &qfar)
+{
+   qfar = 0.0;
+   qfar(0) = 1.0;
+   if (dim == 1)
+   {
+      qfar(1) = qfar(0) * mach_fs;  // ignore angle of attack
+   }
+   else
+   {
+      qfar(iroll + 1) = qfar(0) * mach_fs * cos(aoa_fs);
+      qfar(ipitch + 1) = qfar(0) * mach_fs * sin(aoa_fs);
+   }
+   qfar(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+}
+
 // explicit instantiation
 template class FlowResidual<1, true>;
 template class FlowResidual<1, false>;
