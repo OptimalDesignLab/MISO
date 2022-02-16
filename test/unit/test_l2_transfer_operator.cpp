@@ -84,9 +84,6 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
       {"degree", p},
       {"basis-type", "DG"}});
 
-   auto nranks = state.space().GetNRanks();
-   auto rank = state.space().GetMyRank();
-
    mach::ScalarL2IdentityProjection op(state, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
@@ -152,8 +149,12 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
                  MPI_SUM,
                  state.space().GetComm());
 
-   std::cout << "rank: " << rank << " dout_dstate_v: " << dout_dstate_v << "\n";
-   std::cout << "rank: " << rank << " dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   auto rank = state.space().GetMyRank();
+   if (rank == 0)
+   {
+      std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
+      std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   }
 
    REQUIRE(dout_dstate_v == Approx(dout_dstate_v_fd).margin(1e-8));
 }
@@ -304,8 +305,11 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt state")
                  state.space().GetComm());
 
    auto rank = state.space().GetMyRank();
-   std::cout << "dout_dstate_v: " << dout_dstate_v << " rank: " << rank << "\n";
-   std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << " rank: " << rank << "\n";
+   if (rank == 0)
+   {
+      std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
+      std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   }
 
    REQUIRE(dout_dstate_v == Approx(dout_dstate_v_fd).margin(1e-8));
 }
@@ -460,8 +464,12 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt state")
                  MPI_SUM,
                  state.space().GetComm());
 
-   std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
-   std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   auto rank = state.space().GetMyRank();
+   if (rank == 0)
+   {
+      std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
+      std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   }
 
    REQUIRE(dout_dstate_v == Approx(dout_dstate_v_fd).margin(1e-8));
 }
@@ -614,8 +622,12 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt state")
                  MPI_SUM,
                  state.space().GetComm());
 
-   std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
-   std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   auto rank = state.space().GetMyRank();
+   if (rank == 0)
+   {
+      std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
+      std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   }
 
    REQUIRE(dout_dstate_v == Approx(dout_dstate_v_fd).margin(1e-8));
 }
