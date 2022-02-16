@@ -70,78 +70,86 @@ TEST_CASE("CurrentLoad setInputs")
    REQUIRE(norm == Approx(0.6373774392).margin(1e-10));
 }
 
-// TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
-// {
-//    auto smesh = buildMesh(1, 1);
-//    mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
-//    mesh.EnsureNodes();
+TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
+{
+   auto smesh = buildMesh(4, 4);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
 
-//    auto p = 2;
-//    const auto dim = mesh.Dimension();
+   auto p = 2;
+   const auto dim = mesh.Dimension();
 
-//    // get the finite-element space for the state
-//    ND_FECollection fec(p, dim);
-//    ParFiniteElementSpace fes(mesh.get(), &fec);
+   // get the finite-element space for the state
+   mfem::ND_FECollection fec(p, dim);
+   mfem::ParFiniteElementSpace fes(&mesh, &fec);
 
-//    // create current_coeff coefficient
-//    VectorMeshDependentCoefficient current_coeff;
-//    {
-//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-//          new VectorFunctionCoefficient(dim,
-//                                        box1CurrentSource,
-//                                        box1CurrentSourceRevDiff));
-//       current_coeff.addCoefficient(1, move(temp_coeff));
-//    }
-//    {
-//       std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
-//          new VectorFunctionCoefficient(dim,
-//                                        box2CurrentSource,
-//                                        box2CurrentSourceRevDiff));
-//       current_coeff.addCoefficient(2, move(temp_coeff));
-//    }
+   adept::Stack diff_stack;
+   std::map<std::string, FiniteElementState> fields;
+   auto options = R"({
+      "current": {
+         "test1": {
+            "box1": [1]
+         },
+         "test2": {
+            "box2": [2]
+         }
+      }
+   })"_json;
+   CurrentLoad load(diff_stack, fes, fields, options);
 
-//    nlohmann::json options;
-//    CurrentLoad load(fes, options, current_coeff);
+   auto current_density = 1e6;
+   MachInputs inputs{{"current_density:test1", current_density}};
 
-//    MachLoad ml(load);
+   mfem::Vector load_bar(getSize(load));
+   for (int i = 0; i < load_bar.Size(); ++i)
+   {
+      load_bar(i) = uniform_rand(gen);
+   }
+   setInputs(load, inputs);
+   double wrt_bar_local = vectorJacobianProduct(load, load_bar, "current_density:test1");
+   double wrt_bar;
+   MPI_Allreduce(&wrt_bar_local,
+                 &wrt_bar,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 MPI_COMM_WORLD);   
 
-//    auto current_density = 1e6;
-//    auto inputs = MachInputs({
-//       {"current_density", current_density}
-//    });
-//    setInputs(ml, inputs);
+   /// somewhat large step size since the magnitude of current density is large
+   auto delta = 1e-2;
+   double wrt_bar_fd_local = 0.0;
+   mfem::Vector tv(getSize(load));
 
-//    HypreParVector load_bar(&fes);
-//    {
-//       // std::default_random_engine gen;
-//       // std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
-//       for (int i = 0; i < load_bar.Size(); ++i)
-//       {
-//          load_bar(i) = uniform_rand(gen);
-//       }
-//    }
-//    double wrt_bar = vectorJacobianProduct(ml, load_bar, "current_density");
+   inputs.at("current_density:test1") = current_density + delta;
+   setInputs(load, inputs);
+   tv = 0.0;
+   addLoad(load, tv);
+   wrt_bar_fd_local += load_bar * tv;
 
-//    /// somewhat large step size since the magnitude of current density is large
-//    auto delta = 1e-2;
-//    HypreParVector tv(&fes);
-//    inputs.at("current_density") = current_density + delta;
-//    setInputs(ml, inputs);
-//    tv = 0.0;
-//    addLoad(ml, tv);
-//    double wrt_bar_fd = load_bar * tv;
+   inputs.at("current_density:test1") = current_density - delta;
+   setInputs(load, inputs);
+   tv = 0.0;
+   addLoad(load, tv);
+   wrt_bar_fd_local -= load_bar * tv;
 
-//    inputs.at("current_density") = current_density - delta;
-//    setInputs(ml, inputs);
-//    tv = 0.0;
-//    addLoad(ml, tv);
-//    wrt_bar_fd -= load_bar * tv;
-//    wrt_bar_fd /= 2*delta;
+   wrt_bar_fd_local /= 2*delta;
+   double wrt_bar_fd;
+   MPI_Allreduce(&wrt_bar_fd_local,
+                 &wrt_bar_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 MPI_COMM_WORLD); 
 
-//    // std::cout << "wrt_bar: " << wrt_bar << "\n";
-//    // std::cout << "wrt_bar_fd: " << wrt_bar_fd << "\n";
-//    REQUIRE(wrt_bar == Approx(wrt_bar_fd));
-// }
+   int rank;
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   if (rank == 0)
+   {
+      std::cout << "wrt_bar: " << wrt_bar << "\n";
+      std::cout << "wrt_bar_fd: " << wrt_bar_fd << "\n";
+   }
+   REQUIRE(wrt_bar == Approx(wrt_bar_fd));
+}
 
 TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
 {
@@ -302,18 +310,4 @@ mfem::Mesh buildMesh(int nxy, int nz)
       }
    }
    return mesh;
-}
-
-void simpleCurrent(const mfem::Vector &x,
-                   mfem::Vector &J)
-{
-   J = 0.0;
-   J[2] = 1.0;
-}
-
-void simpleCurrentRevDiff(const mfem::Vector &x,
-                          const mfem::Vector &J_bar,
-                          mfem::Vector &x_bar)
-{
-
 }

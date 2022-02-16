@@ -17,6 +17,15 @@ namespace mach
 class CurrentDensityCoefficient : public mfem::VectorCoefficient
 {
 public:
+   /// Cache the currently set current density values for each current group
+   void cacheCurrentDensity();
+   /// Set the current density for each current group to zero
+   void zeroCurrentDensity();
+   /// Reset the current density for each current group to the values stored
+   /// in the cache
+   /// \note If values have not previously been cached, defaults to zero
+   void resetCurrentDensityFromCache();
+
    /// Variation on setInputs that returns true if any inputs were actually
    /// updated
    friend bool setInputs(CurrentDensityCoefficient &current,

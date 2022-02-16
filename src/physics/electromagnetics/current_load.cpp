@@ -56,16 +56,23 @@ double vectorJacobianProduct(CurrentLoad &load,
                              const mfem::Vector &load_bar,
                              const std::string &wrt)
 {
-   if (wrt == "current_density")
+   // if wrt starts with prefix "current_density:"
+   if (wrt.rfind("current_density:", 0) == 0)
    {
-      // load.current.SetAConst(1.0);
-      // load.nd_mass.Update();
-      // load.assembleLoad();
-      // load.current.SetAConst(load.current_density);
-      // load.dirty = true;
+      std::string group(wrt, 16); // get group name after "current_density:"
 
-      // return -(load.load * load_bar);
-      return NAN;
+      load.current.cacheCurrentDensity();
+      load.current.zeroCurrentDensity();
+
+      MachInputs inputs{{wrt, 1.0}};
+      setInputs(load.current, inputs);
+
+      load.nd_mass.Update();
+      load.assembleLoad();
+      load.current.resetCurrentDensityFromCache();
+      load.dirty = true;
+
+      return -(load.load * load_bar);
    }
    return 0.0;
 }

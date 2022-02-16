@@ -569,6 +569,30 @@ void team13CurrentSourceRevDiff(adept::Stack &diff_stack,
 namespace mach
 {
 
+void CurrentDensityCoefficient::cacheCurrentDensity()
+{
+   for (auto &[group, coeff] : group_map)
+   {
+      cached_inputs.at(group) = coeff.constant;
+   }
+}
+
+void CurrentDensityCoefficient::zeroCurrentDensity()
+{
+   for (auto &[group, coeff] : group_map)
+   {
+      coeff.constant = 0.0;
+   }
+}
+
+void CurrentDensityCoefficient::resetCurrentDensityFromCache()
+{
+   for (auto &[group, value] : cached_inputs)
+   {
+      group_map.at(group).constant = value;
+   }
+}
+
 bool setInputs(CurrentDensityCoefficient &current, const MachInputs &inputs)
 {
    bool updated = false;
@@ -620,6 +644,8 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
    {
       group_map.emplace(group, mfem::ConstantCoefficient{1.0});
       auto &group_coeff = group_map.at(group);
+
+      cached_inputs.emplace(group, 0.0);
 
       for (auto &[source, attrs] : group_details.items())
       {
