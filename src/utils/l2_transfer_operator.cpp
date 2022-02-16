@@ -59,15 +59,8 @@ void scalar_identity_operator_state_bar(const mfem::FiniteElement &state_fe,
       /// double state = shape * el_state;
       add(el_state_bar, state_bar, shape, el_state_bar);
    }
-   el_state_bar.Print(std::cout, 9);
-   // for (int j = 0; j < state_fe.GetNodes().GetNPoints(); ++j)
-   // {
-   //    if (abs(el_state_bar(j) - 0.243865) < 1e-6)
-   //    {
-   //       std::cout << "target\n";
-   //    }
-   // }
 }
+
 void identity_operator(const mfem::FiniteElement &state_fe,
                        const mfem::FiniteElement &output_fe,
                        mfem::ElementTransformation &trans,
@@ -480,34 +473,7 @@ void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
       output.gridFunc().AddElementVector(output_vdofs, el_output);
    }
 
-   // output.setTrueVec(out_vec);
-   output.gridFunc().ParallelAssemble(out_vec);
-
-   auto nranks = state.space().GetNRanks();
-   auto rank = state.space().GetMyRank();
-   std::cout.precision(16);
-   for (int i = 0; i < nranks; ++i)
-   {
-      if (rank == i)
-      {
-         std::cout << "\nrank: " << i << "\n";
-
-         std::cout << "\nstate:\n";
-         state_tv.Print(std::cout, 100);
-         std::cout << "\nout_vec:\n";
-         out_vec.Print(std::cout, 100);
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-   }
-
-   /// Print fields
-   mfem::ParaViewDataCollection pv("DG_transfer_outout", &output.mesh());
-   pv.SetPrefixPath("ParaView");
-   pv.SetLevelsOfDetail(3);
-   pv.SetDataFormat(mfem::VTKFormat::ASCII);
-   pv.SetHighOrderOutput(true);
-   pv.RegisterField("DG_field", &output.gridFunc());
-   pv.Save();
+   output.setTrueVec(out_vec);
 }
 
 void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
@@ -522,7 +488,6 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
    else if (wrt == "state")
    {
       output_adjoint.distributeSharedDofs(out_bar);
-      // output_adjoint.space().GetRestrictionOperator()->MultTranspose(out_bar, output_adjoint.gridFunc());
 
       mfem::Vector state_tv;
       setVectorFromInputs(inputs, "state", state_tv, false, true);
@@ -537,116 +502,44 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
       mfem::Vector el_output_adj;
       mfem::Vector el_state_bar;
 
-      int rank, nranks;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-      for (int i = 0; i < nranks; ++i)
+      for (int i = 0; i < state_fes.GetNE(); ++i)
       {
-         if (rank == i)
+         const auto &state_fe = *state_fes.GetFE(i);
+         const auto &output_fe = *output_fes.GetFE(i);
+         auto &trans = *output_fes.GetElementTransformation(i);
+
+         auto *output_adj_dof_trans =
+            output_fes.GetElementVDofs(i, output_adj_vdofs);
+         el_output_adj.SetSize(output_adj_vdofs.Size());
+         auto *state_dof_trans = state_fes.GetElementVDofs(i, state_vdofs);
+         el_state.SetSize(state_vdofs.Size());
+         el_state_bar.SetSize(state_vdofs.Size());
+
+         state.gridFunc().GetSubVector(state_vdofs, el_state);
+         if (state_dof_trans)
          {
-            std::cout << "rank " << i << ":\n";
-
-            for (int i = 0; i < state_fes.GetNE(); ++i)
-            {
-               const auto &state_fe = *state_fes.GetFE(i);
-               const auto &output_fe = *output_fes.GetFE(i);
-               auto &trans = *output_fes.GetElementTransformation(i);
-
-               auto *output_adj_dof_trans =
-                  output_fes.GetElementVDofs(i, output_adj_vdofs);
-               el_output_adj.SetSize(output_adj_vdofs.Size());
-               auto *state_dof_trans = state_fes.GetElementVDofs(i, state_vdofs);
-               el_state.SetSize(state_vdofs.Size());
-               el_state_bar.SetSize(state_vdofs.Size());
-
-               state.gridFunc().GetSubVector(state_vdofs, el_state);
-               if (state_dof_trans)
-               {
-                  state_dof_trans->InvTransformPrimal(el_state);
-               }
-               output_adjoint.gridFunc().GetSubVector(output_adj_vdofs,
-                                                      el_output_adj);
-               if (output_adj_dof_trans)
-               {
-                  output_adj_dof_trans->InvTransformPrimal(el_output_adj);
-               }
-
-               /// apply the reverse mode differentiated operation
-               operation_state_bar(
-                  state_fe, output_fe, trans, el_output_adj, el_state, el_state_bar);
-
-               if (state_dof_trans)
-               {
-                  state_dof_trans->TransformDual(el_state_bar);
-               }
-               state_bar.localVec().AddElementVector(state_vdofs, el_state_bar);
-            }
+            state_dof_trans->InvTransformPrimal(el_state);
          }
-         MPI_Barrier(MPI_COMM_WORLD);
+         output_adjoint.gridFunc().GetSubVector(output_adj_vdofs,
+                                                el_output_adj);
+         if (output_adj_dof_trans)
+         {
+            output_adj_dof_trans->InvTransformPrimal(el_output_adj);
+         }
+
+         /// apply the reverse mode differentiated operation
+         operation_state_bar(
+            state_fe, output_fe, trans, el_output_adj, el_state, el_state_bar);
+
+         if (state_dof_trans)
+         {
+            state_dof_trans->TransformDual(el_state_bar);
+         }
+         state_bar.localVec().AddElementVector(state_vdofs, el_state_bar);
       }
-
-      // state_bar.localVec() = state_bar.space().GetMyRank();
-      // state_bar.localVec() = 1.0;
-
-      // auto &grid_func =
-      //     dynamic_cast<mfem::ParGridFunction &>(state_bar.localVec());
-      // grid_func.ExchangeFaceNbrData();
 
       /// this should maybe accumulate into wrt_bar
       state_bar.setTrueVec(wrt_bar);
-
-      std::cout.precision(4);
-      for (int i = 0; i < nranks; ++i)
-      {
-         if (rank == i)
-         {
-            std::cout << "rank " << i << ":\n";
-            for (int i = 0; i < state_bar.space().GetVSize(); ++i)
-            {
-               double lval = state_bar.localVec()(i);
-               auto gtdof = state_bar.space().GetGlobalTDofNumber(i);
-               auto ltdof = state_bar.space().GetLocalTDofNumber(i);
-               std::cout << "ldof: ";
-               std::cout << std::left << std::setw(3) << std::setfill(' ') << i;
-               std::cout << std::left << std::setw(6) << std::setfill(' ') << " lval: ";
-               std::cout << std::left << std::setw(6) << std::setfill(' ') << lval;
-               std::cout << std::left << std::setw(3) << std::setfill(' ') << " tdof: ";
-               std::cout << std::left << std::setw(6) << std::setfill(' ') << gtdof;
-               if (ltdof >= 0)
-               {
-                  std::cout << std::left << std::setw(6) << std::setfill(' ') << " tval: ";
-                  std::cout << std::left << std::setw(6) << std::setfill(' ') << wrt_bar(ltdof);
-               }
-               std::cout << "\n";
-            }
-         }
-         MPI_Barrier(MPI_COMM_WORLD);
-      }
-      mfem::ParGridFunction gf2(&state_bar.space());
-      gf2 = state_bar.space().GetMyRank();
-      mfem::Vector tv(wrt_bar.Size());
-      gf2.GetTrueDofs(tv);
-      gf2.Distribute(tv);
-
-      mfem::ParGridFunction gf(&state_bar.space());
-      gf.Distribute(wrt_bar);
-
-      /// Print fields
-      mfem::ParaViewDataCollection pv("state_bar", &state_bar.mesh());
-      pv.SetPrefixPath("ParaView");
-      pv.SetLevelsOfDetail(2*state_bar.space().GetElementOrder(0));
-      pv.SetDataFormat(mfem::VTKFormat::ASCII);
-      pv.SetHighOrderOutput(true);
-      // pv.RegisterField(
-      //     "state_bar",
-      //     dynamic_cast<mfem::ParGridFunction *>(&state_bar.localVec()));
-      pv.RegisterField("state_bar", &gf);
-      pv.RegisterField("state_bar_2", &gf2);
-      pv.RegisterField("output_adj", &output_adjoint.gridFunc());
-      pv.Save();
-
-      // /// this should maybe accumulate into wrt_bar
-      // state_bar.setTrueVec(wrt_bar);
    }
 }
 
