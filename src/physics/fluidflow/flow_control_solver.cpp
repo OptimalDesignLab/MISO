@@ -311,9 +311,11 @@ double FlowControlSolver<dim, entvar>::calcStepSize(int iter,
    auto cfl = options["time-dis"]["cfl"].get<double>();
    // here we call the FlowResidual method for the min time step, which needs
    // the current flow state as a grid function
+   Vector control_state;
+   Vector flow_state;
+   extractStates(state, control_state, flow_state);
    FiniteElementState &flow_field = fields.at("flow_state");
-   // auto &flow_field = flowField();
-   flow_field.distributeSharedDofs(state);
+   flow_field.distributeSharedDofs(flow_state);
    return getConcrete<ResType>(*spatial_res)
        .minCFLTimeStep(cfl, flow_field.gridFunc());
 }
