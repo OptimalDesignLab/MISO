@@ -509,7 +509,7 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
          auto &trans = *output_fes.GetElementTransformation(i);
 
          auto *output_adj_dof_trans =
-            output_fes.GetElementVDofs(i, output_adj_vdofs);
+             output_fes.GetElementVDofs(i, output_adj_vdofs);
          el_output_adj.SetSize(output_adj_vdofs.Size());
          auto *state_dof_trans = state_fes.GetElementVDofs(i, state_vdofs);
          el_state.SetSize(state_vdofs.Size());
@@ -529,7 +529,7 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
 
          /// apply the reverse mode differentiated operation
          operation_state_bar(
-            state_fe, output_fe, trans, el_output_adj, el_state, el_state_bar);
+             state_fe, output_fe, trans, el_output_adj, el_state, el_state_bar);
 
          if (state_dof_trans)
          {
