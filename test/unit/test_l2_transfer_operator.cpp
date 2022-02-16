@@ -64,23 +64,28 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
    std::default_random_engine gen;
    std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
-   int nxy = 6;
+   int nxy = 3;
    auto smesh = mfem::Mesh::MakeCartesian2D(nxy, nxy,
-                                            mfem::Element::TRIANGLE, true,
+                                          //   mfem::Element::TRIANGLE, true,
+                                            mfem::Element::QUADRILATERAL, true,
                                             1.0, 1.0);
    auto mesh = mfem::ParMesh(MPI_COMM_WORLD, smesh);
    mesh.EnsureNodes();
 
-   const auto p = 2;
+   const auto p = 4;
    const auto dim = mesh.Dimension();
 
    mach::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "H1"}});
+      // {"basis-type", "DG"}});
 
    mach::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}});
+
+   auto nranks = state.space().GetNRanks();
+   auto rank = state.space().GetMyRank();
 
    mach::ScalarL2IdentityProjection op(state, dg_state);
 
@@ -107,6 +112,7 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
    // }
 
    mfem::Vector state_pert(state.space().GetTrueVSize());
+   state_pert = 0.0;
    for (int i = 0; i < state_pert.Size(); ++i)
    {
       state_pert(i) = uniform_rand(gen);
@@ -116,24 +122,38 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
    state_bar = 0.0;
    op.vectorJacobianProduct("state", {{"state", state_tv}}, out_bar, state_bar);
 
-   double dout_dstate_v = state_pert * state_bar;
+   auto dout_dstate_v_local = state_pert * state_bar;
+   double dout_dstate_v;
+   MPI_Allreduce(&dout_dstate_v_local,
+                 &dout_dstate_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
 
    // now compute the finite-difference approximation...
    auto delta = 1e-5;
-   double dout_dstate_v_fd = 0.0;
+   double dout_dstate_v_fd_local = 0.0;
 
    add(state_tv, delta, state_pert, state_tv);
    op.apply(state_tv, dg_state_tv);
-   dout_dstate_v_fd += out_bar * dg_state_tv;
+   dout_dstate_v_fd_local += out_bar * dg_state_tv;
 
    add(state_tv, -2*delta, state_pert, state_tv);
    op.apply(state_tv, dg_state_tv);
-   dout_dstate_v_fd -= out_bar * dg_state_tv;
+   dout_dstate_v_fd_local -= out_bar * dg_state_tv;
 
-   dout_dstate_v_fd /= 2*delta;
+   dout_dstate_v_fd_local /= 2*delta;
+   double dout_dstate_v_fd;
+   MPI_Allreduce(&dout_dstate_v_fd_local,
+                 &dout_dstate_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
 
-   std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
-   std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   std::cout << "rank: " << rank << " dout_dstate_v: " << dout_dstate_v << "\n";
+   std::cout << "rank: " << rank << " dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
 
    REQUIRE(dout_dstate_v == Approx(dout_dstate_v_fd).margin(1e-8));
 }
