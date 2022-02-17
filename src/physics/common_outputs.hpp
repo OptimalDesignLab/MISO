@@ -15,14 +15,12 @@ namespace mach
 class StateAverageFunctional
 {
 public:
-   StateAverageFunctional(
-       mfem::ParFiniteElementSpace &fes,
-       std::map<std::string, FiniteElementState> &fields);
+   StateAverageFunctional(mfem::ParFiniteElementSpace &fes,
+                          std::map<std::string, FiniteElementState> &fields);
 
-   StateAverageFunctional(
-       mfem::ParFiniteElementSpace &fes,
-       std::map<std::string, FiniteElementState> &fields,
-       const nlohmann::json &options);
+   StateAverageFunctional(mfem::ParFiniteElementSpace &fes,
+                          std::map<std::string, FiniteElementState> &fields,
+                          const nlohmann::json &options);
 
    friend void setOptions(StateAverageFunctional &output,
                           const nlohmann::json &options)
@@ -54,10 +52,9 @@ private:
 class IEAggregateFunctional
 {
 public:
-   IEAggregateFunctional(
-       mfem::ParFiniteElementSpace &fes,
-       std::map<std::string, FiniteElementState> &fields,
-       const nlohmann::json &options);
+   IEAggregateFunctional(mfem::ParFiniteElementSpace &fes,
+                         std::map<std::string, FiniteElementState> &fields,
+                         const nlohmann::json &options);
 
    friend void setOptions(IEAggregateFunctional &output,
                           const nlohmann::json &options)
