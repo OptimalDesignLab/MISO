@@ -1,15 +1,9 @@
-#include <fstream>
-#include <iostream>
-#include <set>
-
 #include "catch.hpp"
-#include "nlohmann/json.hpp"
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "magnetostatic.hpp"
-#include "thermal.hpp"
 
-using namespace mfem;
 using namespace mach;
 
 // Provide the options explicitly for regression tests
@@ -61,42 +55,41 @@ auto em_options = R"(
    "bcs": {
       "essential": [1, 3]
    },
-   "problem-opts": {
-      "current": {
+   "current": {
+      "test": {
          "ring": [1, 2]
       }
-   }
+   },
+   "ess-bdr": [1, 3]
 })"_json;
 
 /// exact force is 0.078 N
 TEST_CASE("Force Regression Test Coulomb 1984 Paper")
 {
-   auto em_solver = createSolver<MagnetostaticSolver>(em_options);
-   auto em_state = em_solver->getNewField();
-   *em_state = 0.0; // initialize zero field
+   MagnetostaticSolver em_solver(MPI_COMM_WORLD, em_options, nullptr);
+   mfem::Vector em_state(em_solver.getStateSize());
+   em_state = 0.0; // initialize zero field
 
    auto current_density = 3e6;
    MachInputs inputs {
-      {"current_density", current_density},
-      {"state", *em_state}
+      {"current_density:test", current_density},
+      {"state", em_state}
    };
-   em_solver->solveForState(inputs, *em_state);
-   // em_solver->printField("B", "B");
+   em_solver.solveForState(inputs, em_state);
 
    nlohmann::json force_options = {
       {"attributes", {1}},
       {"axis", {0, 0, 1}}
    };
-   em_solver->createOutput("force", force_options);
-   // em_solver->printField("vforce", "vforce");
+   em_solver.createOutput("force", force_options);
 
-   double force = em_solver->calcOutput("force", inputs);
+   double force = em_solver.calcOutput("force", inputs);
    REQUIRE(force == Approx(-0.0791988853).margin(1e-10));
 
    force_options["attributes"] = {2};
-   em_solver->setOutputOptions("force", force_options);
+   em_solver.setOutputOptions("force", force_options);
 
-   force = em_solver->calcOutput("force", inputs);
+   force = em_solver.calcOutput("force", inputs);
    REQUIRE(force == Approx(0.0781336686).margin(1e-10));
 
    nlohmann::json torque_options = {
@@ -104,11 +97,8 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
       {"axis", {0, 0, 1}},
       {"about", {0.0, 0.0, 0.0}}
    };
-   em_solver->createOutput("torque", torque_options);
+   em_solver.createOutput("torque", torque_options);
 
-   // em_solver->printField("vtorque", "vtorque");
-
-   double torque = em_solver->calcOutput("torque", inputs);
+   double torque = em_solver.calcOutput("torque", inputs);
    REQUIRE(torque == Approx(0.0000104977).margin(1e-10));
-
 }

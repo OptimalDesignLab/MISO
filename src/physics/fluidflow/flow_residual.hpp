@@ -18,7 +18,8 @@ public:
    /// Constructor for flow equations
    FlowResidual(const nlohmann::json &options,
                 mfem::ParFiniteElementSpace &fespace,
-                adept::Stack &diff_stack);
+                adept::Stack &diff_stack,
+                std::map<std::string, FiniteElementState> &fields);
 
    /// Returns the number of equations/unknowns in the flow system
    /// \param[in] residual - flow residual being queried
@@ -93,7 +94,7 @@ private:
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
    /// TBD
-   std::map<std::string, FiniteElementState> fields;
+   // std::map<std::string, FiniteElementState> fields;
    /// Defines the nonlinear form used to compute the residual and its Jacobian
    mach::MachNonlinearForm res;
    /// Defines the output used to evaluate the entropy

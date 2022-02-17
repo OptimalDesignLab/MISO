@@ -32,12 +32,15 @@ void setInputs(CurrentLoad &load, const MachInputs &inputs)
 
 void setOptions(CurrentLoad &load, const nlohmann::json &options)
 {
-   if (options.contains("ess-bdr"))
+   if (options.contains("bcs"))
    {
-      auto fes = load.fes;
-      mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
-      getEssentialBoundaries(options, ess_bdr);
-      fes.GetEssentialTrueDofs(ess_bdr, load.ess_tdof_list);
+      if (options["bcs"].contains("essential"))
+      {
+         auto fes = load.fes;
+         mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+         getEssentialBoundaries(options["bcs"], ess_bdr);
+         fes.GetEssentialTrueDofs(ess_bdr, load.ess_tdof_list);
+      }
    }
 }
 

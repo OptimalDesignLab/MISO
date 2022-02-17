@@ -136,7 +136,7 @@ public:
          mass->Finalize(0);
          mfem::Array<int> ess_bdr(fes().GetParMesh()->bdr_attributes.Max());
          ess_bdr = 0;
-         auto tmp = options["ess-bdr"].get<std::vector<int>>();
+         auto tmp = options["bcs"]["essential"].get<std::vector<int>>();
          for (auto &bdr : tmp)
          {
             ess_bdr[bdr - 1] = 1;
@@ -199,7 +199,9 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
          "maxiter": 1,
          "printlevel": 3
       },
-      "ess-bdr": [2, 4]
+      "bcs": {
+         "essential": [2, 4]
+      }
    })"_json;
 
    constexpr int nxy = 4;
@@ -268,7 +270,9 @@ TEST_CASE("Testing PDESolver steady heat equation MMS")
          "maxiter": 1,
          "printlevel": 2
       },
-      "ess-bdr": [2, 4]
+      "bcs": {
+         "essential": [2, 4]
+      }
    })"_json;
 
    constexpr int nxy = 4;

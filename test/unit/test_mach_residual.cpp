@@ -85,7 +85,7 @@ TEST_CASE("MachResidual Scalar Input Test",
    ParFiniteElementSpace fes(mesh.get(), &fec);
 
    // create a MachNonlinearForm and wrap it into a MachResidual
-   std::unordered_map<std::string, mfem::ParGridFunction> fields;
+   std::map<std::string, FiniteElementState> fields;
    MachNonlinearForm nf(fes, fields);
    nf.addDomainIntegrator(new TestIntegrator);
    MachResidual res(std::move(nf));

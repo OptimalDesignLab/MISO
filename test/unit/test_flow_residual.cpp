@@ -45,9 +45,9 @@ TEST_CASE("FlowResidual construction and evaluation", "[FlowResidual]")
    int p = options["space-dis"]["degree"].get<int>();
    SBPCollection fec(p, dim);
    ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
-
+   std::map<std::string, FiniteElementState> fields;
    // construct the residual
-   FlowResidual res(options, fespace, diff_stack);
+   FlowResidual res(options, fespace, diff_stack, fields);
    int num_var = getSize(res);
    REQUIRE(num_var == 132);
 
@@ -96,7 +96,8 @@ TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
    // construct the residual with no dissipation and using IR flux
    options["space-dis"]["lps-coeff"] = 0.0;
    options["space-dis"]["flux-fun"] = "IR"; 
-   FlowResidual res(options, fespace, diff_stack);
+   std::map<std::string, FiniteElementState> fields;
+   FlowResidual res(options, fespace, diff_stack, fields);
    int num_var = getSize(res);
 
    // create a randomly perturbed conservative variable state

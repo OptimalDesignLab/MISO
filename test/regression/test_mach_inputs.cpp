@@ -1,10 +1,9 @@
 #include <iostream>
 
 #include "catch.hpp"
-#include "nlohmann/json.hpp"
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
-#include "solver.hpp"
 #include "test_mach_inputs.hpp"
 
 auto options = R"(
@@ -63,29 +62,28 @@ std::unique_ptr<Mesh> buildMesh(int nxy,
 TEST_CASE("MachInputs Scalar Input Test",
           "[MachInputs]")
 {
-   // construct the solver, set the initial condition, and solve
    std::unique_ptr<Mesh> mesh = buildMesh(4, 4);
-   auto solver = createSolver<TestMachInputSolver>(options,
-                                                   move(mesh));
-   auto state = solver->getNewField();
-   solver->setFieldValue(*state, 0.0);
+   TestMachInputSolver solver(MPI_COMM_WORLD, options, move(mesh));
 
-   auto test_field = solver->getNewField();
-   solver->setFieldValue(*test_field, 0.0);
+   mfem::Vector state(solver.getStateSize());
+   state = 0.0;
 
-   auto inputs = MachInputs({
+   mfem::Vector test_field(solver.getStateSize());
+   test_field = 0.0;
+
+   MachInputs inputs{
       {"test_val", 2.0},
-      {"test_field", *test_field},
-      {"state", *state}
-   });
+      {"test_field", test_field},
+      {"state", state}
+   };
 
-   solver->createOutput("testMachInput");
-   auto fun = solver->calcOutput("testMachInput", inputs);
+   solver.createOutput("testMachInput");
+   auto fun = solver.calcOutput("testMachInput", inputs);
    std::cout << "fun: " << fun << "\n";
    REQUIRE(fun == Approx(2.0).margin(1e-10));
 
    inputs.at("test_val") = 1.0;
-   fun = solver->calcOutput("testMachInput", inputs);
+   fun = solver.calcOutput("testMachInput", inputs);
    std::cout << "fun: " << fun << "\n";
    REQUIRE(fun == Approx(1.0).margin(1e-10));
 }
@@ -93,29 +91,28 @@ TEST_CASE("MachInputs Scalar Input Test",
 TEST_CASE("MachInputs Field Input Test",
           "[MachInputs]")
 {
-   // construct the solver, set the initial condition, and solve
    std::unique_ptr<Mesh> mesh = buildMesh(4, 4);
-   auto solver = createSolver<TestMachInputSolver>(options,
-                                                   move(mesh));
-   auto state = solver->getNewField();
-   solver->setFieldValue(*state, 0.0);
+   TestMachInputSolver solver(MPI_COMM_WORLD, options, move(mesh));
 
-   auto test_field = solver->getNewField();
-   solver->setFieldValue(*test_field, 0.0);
+   mfem::Vector state(solver.getStateSize());
+   state = 0.0;
 
-   auto inputs = MachInputs{
+   mfem::Vector test_field(solver.getStateSize());
+   test_field = 0.0;
+
+   MachInputs inputs{
       {"test_val", 0.0},
-      {"test_field", *test_field},
-      {"state", *state}
+      {"test_field", test_field},
+      {"state", state}
    };
 
-   solver->createOutput("testMachInput");
-   auto fun = solver->calcOutput("testMachInput", inputs);
+   solver.createOutput("testMachInput");
+   auto fun = solver.calcOutput("testMachInput", inputs);
    std::cout << "fun: " << fun << "\n";
    REQUIRE(fun == Approx(0.0).margin(1e-10));
 
-   solver->setFieldValue(*test_field, -1.0);
-   fun = solver->calcOutput("testMachInput", inputs);
+   test_field = -1.0;
+   fun = solver.calcOutput("testMachInput", inputs);
    std::cout << "fun: " << fun << "\n";
    REQUIRE(fun == Approx(-1.0).margin(1e-10));
 }

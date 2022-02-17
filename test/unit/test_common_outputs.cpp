@@ -1,5 +1,5 @@
+#include <map>
 #include <string>
-#include <unordered_map>
 
 #include "catch.hpp"
 #include "mfem.hpp"
@@ -8,34 +8,35 @@
 
 TEST_CASE("StateAverageFunctional::calcOutput (3D)")
 {
-   using namespace mfem;
-
    int num_edge = 3;
-   auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-                                      Element::TETRAHEDRON,
-                                      2*M_PI, 1.0, 1.0, true);
+   auto smesh = mfem::Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                            mfem::Element::TETRAHEDRON,
+                                            2*M_PI, 1.0, 1.0, true);
 
-   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
    mesh.EnsureNodes();
    auto dim = mesh.Dimension();
 
    auto p = 1;
-   H1_FECollection fec(p, dim);
-   ParFiniteElementSpace fes(&mesh, &fec);
+   mfem::H1_FECollection fec(p, dim);
+   mfem::ParFiniteElementSpace fes(&mesh, &fec);
 
-   std::unordered_map<std::string, mfem::ParGridFunction> fields;
+   std::map<std::string, mach::FiniteElementState> fields;
+
+   fields.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple("state"),
+      std::forward_as_tuple(mesh, fes, "state"));
 
    mach::StateAverageFunctional out(fes, fields);
 
-   fields.emplace("state", &fes);
    auto &state = fields.at("state");
-   FunctionCoefficient state_coeff([](const mfem::Vector &p){
-      return sin(p(0)) * sin(p(0));
-   });
-   state.ProjectCoefficient(state_coeff);
+   mfem::Vector state_tv(state.space().GetTrueVSize());
 
-   mfem::HypreParVector state_tv(&fes);
-   state.GetTrueDofs(state_tv);
+   state.project([](const mfem::Vector &p)
+   {
+      return sin(p(0)) * sin(p(0));
+   }, state_tv);
 
    mach::MachInputs inputs{{"state", state_tv}};
    double rms = sqrt(calcOutput(out, inputs));
@@ -48,7 +49,7 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    auto smesh = mfem::Mesh::MakeCartesian2D(3, 3, mfem::Element::TRIANGLE);
    mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
    mesh.EnsureNodes();
-   const auto dim = mesh.Dimension();
+   auto dim = mesh.Dimension();
 
    auto p = 2;
 
@@ -56,25 +57,25 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    mfem::H1_FECollection fec(p, dim);
    mfem::ParFiniteElementSpace fes(&mesh, &fec);
 
-   std::unordered_map<std::string, mfem::ParGridFunction> fields;
-   fields.emplace("state", &fes);
+   std::map<std::string, mach::FiniteElementState> fields;
+   fields.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple("state"),
+      std::forward_as_tuple(mesh, fes, "state"));
 
    auto &state = fields.at("state");
-   mfem::HypreParVector state_tv(&fes);
+   mfem::Vector state_tv(state.space().GetTrueVSize());
 
    nlohmann::json output_opts{{"rho", 50.0}};
    mach::IEAggregateFunctional out(fes, fields, output_opts);
 
-   mfem::FunctionCoefficient state_coeff([](const mfem::Vector &p)
+   state.project([](const mfem::Vector &p)
    {
       const double x = p(0);
       const double y = p(1);
 
       return - pow(x - 0.5, 2) - pow(x - 0.5, 2) + 1;
-   });
-
-   state.ProjectCoefficient(state_coeff);
-   state.GetTrueDofs(state_tv);
+   }, state_tv);
 
    mach::MachInputs inputs{{"state", state_tv}};
    double max_state = calcOutput(out, inputs);
@@ -95,7 +96,7 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
    auto smesh = mfem::Mesh::MakeCartesian3D(3, 3, 3, mfem::Element::TETRAHEDRON);
    mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
    mesh.EnsureNodes();
-   const auto dim = mesh.Dimension();
+   auto dim = mesh.Dimension();
 
    auto p = 2;
 
@@ -103,16 +104,19 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
    mfem::ND_FECollection fec(p, dim);
    mfem::ParFiniteElementSpace fes(&mesh, &fec);
 
-   std::unordered_map<std::string, mfem::ParGridFunction> fields;
-   fields.emplace("state", &fes);
+   std::map<std::string, mach::FiniteElementState> fields;
+   fields.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple("state"),
+      std::forward_as_tuple(mesh, fes, "state"));
 
    auto &state = fields.at("state");
-   mfem::HypreParVector state_tv(&fes);
+   mfem::Vector state_tv(state.space().GetTrueVSize());
 
    nlohmann::json output_opts{{"rho", 50.0}};
    mach::IECurlMagnitudeAggregateFunctional out(fes, fields, output_opts);
 
-   mfem::VectorFunctionCoefficient state_coeff(dim, [](const mfem::Vector &p, mfem::Vector &A)
+   state.project([](const mfem::Vector &p, mfem::Vector &A)
    {
       const double x = p(0);
       const double y = p(1);
@@ -120,10 +124,7 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
 
       A = 0.0;
       A(2) = sin(x) + cos(y);
-   });
-
-   state.ProjectCoefficient(state_coeff);
-   state.GetTrueDofs(state_tv);
+   }, state_tv);
 
    mach::MachInputs inputs{{"state", state_tv}};
    double max_state = calcOutput(out, inputs);
@@ -139,4 +140,3 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
    REQUIRE(max_state == Approx(1.0152746915));
 
 }
-

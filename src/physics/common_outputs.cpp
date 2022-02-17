@@ -10,13 +10,13 @@ namespace mach
 {
 StateAverageFunctional::StateAverageFunctional(
     mfem::ParFiniteElementSpace &fes,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields)
+    std::map<std::string, FiniteElementState> &fields)
  : StateAverageFunctional(fes, fields, {})
 { }
 
 StateAverageFunctional::StateAverageFunctional(
     mfem::ParFiniteElementSpace &fes,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
  : state_integ(fes, fields), volume(fes, fields)
 {
@@ -35,7 +35,7 @@ StateAverageFunctional::StateAverageFunctional(
 
 IEAggregateFunctional::IEAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
  : numerator(fes, fields), denominator(fes, fields)
 {
@@ -60,7 +60,7 @@ IEAggregateFunctional::IEAggregateFunctional(
 
 IECurlMagnitudeAggregateFunctional::IECurlMagnitudeAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
-    std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+    std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
  : numerator(fes, fields), denominator(fes, fields)
 {

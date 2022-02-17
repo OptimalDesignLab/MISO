@@ -33,12 +33,10 @@ void setInputs(MachNonlinearForm &form, const MachInputs &inputs)
    //       }
    //    }
    // }
-   for (const auto &in : inputs)
+   for (const auto &[name, input] : inputs)
    {
-      const auto &input = in.second;
       if (std::holds_alternative<InputVector>(input))
       {
-         const auto &name = in.first;
          auto it = form.nf_fields.find(name);
          if (it != form.nf_fields.end())
          {
@@ -57,16 +55,19 @@ void setOptions(MachNonlinearForm &form, const nlohmann::json &options)
 {
    setOptions(form.integs, options);
 
-   if (options.contains("ess-bdr"))
+   if (options.contains("bcs"))
    {
-      auto fes = *form.nf.ParFESpace();
-      mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
-      getEssentialBoundaries(options, ess_bdr);
-      mfem::Array<int> ess_tdof_list;
-      fes.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-      if (ess_tdof_list != nullptr)
+      if (options["bcs"].contains("essential"))
       {
-         form.nf.SetEssentialTrueDofs(ess_tdof_list);
+         auto &fes = *form.nf.ParFESpace();
+         mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+         getEssentialBoundaries(options["bcs"], ess_bdr);
+         mfem::Array<int> ess_tdof_list;
+         fes.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+         if (ess_tdof_list != nullptr)
+         {
+            form.nf.SetEssentialTrueDofs(ess_tdof_list);
+         }
       }
    }
 }

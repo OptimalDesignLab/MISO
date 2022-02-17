@@ -75,13 +75,13 @@ public:
    /// \param[in] fields - map of grid functions
    MachNonlinearForm(mfem::ParFiniteElementSpace &pfes,
                      std::map<std::string, FiniteElementState> &fields)
-    : nf(&pfes), scratch(&pfes), nf_fields(fields)
+    : nf(&pfes), scratch(0), nf_fields(fields)
    {
       if (nf_fields.count("adjoint") == 0)
       {
          // nf_fields.emplace("adjoint", {*pfes.GetParMesh(), pfes});
          nf_fields.emplace(std::piecewise_construct,
-                           std::make_tuple("adjoint"),
+                           std::forward_as_tuple("adjoint"),
                            std::forward_as_tuple(*pfes.GetParMesh(), pfes));
       }
    }
@@ -90,7 +90,7 @@ private:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm nf;
    /// work vector (needed?)
-   mfem::HypreParVector scratch;
+   mfem::Vector scratch;
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;

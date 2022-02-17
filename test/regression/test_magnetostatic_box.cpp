@@ -122,7 +122,7 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
          {
             // construct the solver, set the initial condition, and solve
             unique_ptr<Mesh> smesh = buildMesh(nxy, nz);
-            MagnetostaticSolver2 solver(MPI_COMM_WORLD, options, std::move(smesh));
+            MagnetostaticSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
             auto &state = solver.getState();
             mfem::Vector state_tv(solver.getStateSize());
 

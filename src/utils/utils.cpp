@@ -92,9 +92,9 @@ void getEssentialBoundaries(const nlohmann::json &options,
                             mfem::Array<int> &ess_bdr)
 {
    ess_bdr = 0;
-   if (options["ess-bdr"].is_string())
+   if (options["essential"].is_string())
    {
-      auto tmp = options["ess-bdr"].get<std::string>();
+      auto tmp = options["essential"].get<std::string>();
       if (tmp == "all")
       {
          ess_bdr = 1;
@@ -105,12 +105,12 @@ void getEssentialBoundaries(const nlohmann::json &options,
       }
       else
       {
-         throw MachException("Unrecognized string for \"ess-bdr\" options!");
+         throw MachException("Unrecognized string for \"essential\" options!");
       }
    }
-   else if (options["ess-bdr"].is_array())
+   else if (options["essential"].is_array())
    {
-      auto tmp = options["ess-bdr"].get<std::vector<int>>();
+      auto tmp = options["essential"].get<std::vector<int>>();
       for (auto &bdr : tmp)
       {
          ess_bdr[bdr - 1] = 1;
@@ -118,7 +118,7 @@ void getEssentialBoundaries(const nlohmann::json &options,
    }
    else
    {
-      throw MachException("Unrecognized JSON value for \"ess-bdr\" options!");
+      throw MachException("Unrecognized JSON value for \"essential\" options!");
    }
 }
 

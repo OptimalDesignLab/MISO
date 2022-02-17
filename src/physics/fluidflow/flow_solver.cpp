@@ -26,7 +26,7 @@ FlowSolver::FlowSolver(MPI_Comm incomm,
 {
    // Construct space-time residual from spatial residual and mass matrix
    spatial_res = std::make_unique<mach::MachResidual>(
-       FlowResidual(solver_options, fes(), diff_stack));
+       FlowResidual(solver_options, fes(), diff_stack, fields));
    const char *name = fes().FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {

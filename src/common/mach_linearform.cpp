@@ -32,20 +32,21 @@ void setInputs(MachLinearForm &load, const MachInputs &inputs)
    //       }
    //    }
    // }
-   for (const auto &in : inputs)
+   for (const auto &[name, input] : inputs)
    {
-      const auto &input = in.second;
       if (std::holds_alternative<InputVector>(input))
       {
-         const auto &name = in.first;
-         auto it = load.lf_fields->find(name);
-         if (it != load.lf_fields->end())
+         if (load.lf_fields)
          {
-            auto &field = it->second;
-            mfem::Vector field_tv;
-            setVectorFromInput(input, field_tv);
+            auto it = load.lf_fields->find(name);
+            if (it != load.lf_fields->end())
+            {
+               auto &field = it->second;
+               mfem::Vector field_tv;
+               setVectorFromInput(input, field_tv);
 
-            field.distributeSharedDofs(field_tv);
+               field.distributeSharedDofs(field_tv);
+            }
          }
       }
    }
@@ -56,12 +57,15 @@ void setOptions(MachLinearForm &load, const nlohmann::json &options)
 {
    setOptions(load.integs, options);
 
-   if (options.contains("ess-bdr"))
+   if (options.contains("bcs"))
    {
-      auto fes = *load.lf.ParFESpace();
-      mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
-      getEssentialBoundaries(options, ess_bdr);
-      fes.GetEssentialTrueDofs(ess_bdr, load.ess_tdof_list);
+      if (options["bcs"].contains("essential"))
+      {
+         auto &fes = *load.lf.ParFESpace();
+         mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+         getEssentialBoundaries(options["bcs"], ess_bdr);
+         fes.GetEssentialTrueDofs(ess_bdr, load.ess_tdof_list);
+      }
    }
 }
 

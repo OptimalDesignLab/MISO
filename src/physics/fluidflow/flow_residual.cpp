@@ -11,7 +11,8 @@ namespace mach
 {
 FlowResidual::FlowResidual(const nlohmann::json &options,
                            ParFiniteElementSpace &fespace,
-                           adept::Stack &diff_stack)
+                           adept::Stack &diff_stack,
+                           std::map<std::string, FiniteElementState> &fields)
  : fes(fespace),
    stack(diff_stack),
    // fields(std::make_unique<

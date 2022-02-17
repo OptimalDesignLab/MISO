@@ -17,11 +17,11 @@ class StateAverageFunctional
 public:
    StateAverageFunctional(
        mfem::ParFiniteElementSpace &fes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields);
+       std::map<std::string, FiniteElementState> &fields);
 
    StateAverageFunctional(
        mfem::ParFiniteElementSpace &fes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+       std::map<std::string, FiniteElementState> &fields,
        const nlohmann::json &options);
 
    friend void setOptions(StateAverageFunctional &output,
@@ -56,7 +56,7 @@ class IEAggregateFunctional
 public:
    IEAggregateFunctional(
        mfem::ParFiniteElementSpace &fes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+       std::map<std::string, FiniteElementState> &fields,
        const nlohmann::json &options);
 
    friend void setOptions(IEAggregateFunctional &output,
@@ -91,7 +91,7 @@ class IECurlMagnitudeAggregateFunctional
 public:
    IECurlMagnitudeAggregateFunctional(
        mfem::ParFiniteElementSpace &fes,
-       std::unordered_map<std::string, mfem::ParGridFunction> &fields,
+       std::map<std::string, FiniteElementState> &fields,
        const nlohmann::json &options);
 
    friend void setOptions(IECurlMagnitudeAggregateFunctional &output,

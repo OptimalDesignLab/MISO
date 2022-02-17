@@ -5,7 +5,8 @@
 #include "nlohmann/json.hpp"
 
 #include "functional_output.hpp"
-#include "solver.hpp"
+#include "mach_nonlinearform.hpp"
+#include "pde_solver.hpp"
 #include "utils.hpp"
 
 namespace mach
@@ -14,7 +15,7 @@ namespace mach
 class TestMachInputIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   TestMachInputIntegrator(const mfem::GridFunction &field)
+   TestMachInputIntegrator(const mfem::ParGridFunction &field)
    :  test_val(0.0), test_field(field)
    { }
 
@@ -50,7 +51,7 @@ public:
 
 private:
    double test_val;
-   const mfem::GridFunction &test_field;
+   const mfem::ParGridFunction &test_field;
 };
 
 void setInputs(TestMachInputIntegrator &integ,
@@ -59,14 +60,22 @@ void setInputs(TestMachInputIntegrator &integ,
    setValueFromInputs(inputs, "test_val", integ.test_val);
 }
 
-class TestMachInputSolver : public AbstractSolver
+class TestMachInputSolver : public PDESolver
 {
 public:
-   TestMachInputSolver(const nlohmann::json &json_options,
-                       std::unique_ptr<mfem::Mesh> smesh,
-                       MPI_Comm comm)
-   :  AbstractSolver(json_options, move(smesh), comm)
-   { }
+   TestMachInputSolver(MPI_Comm comm,
+                       const nlohmann::json &json_options,
+                       std::unique_ptr<mfem::Mesh> smesh)
+   :  PDESolver(comm, json_options, 1, move(smesh))
+   {
+      spatial_res = std::make_unique<mach::MachResidual>(
+         mach::MachNonlinearForm(fes(), fields));
+
+      fields.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple("test_field"),
+          std::forward_as_tuple(*mesh_, fes(), "test_field"));
+   }
 
 private:
    void addOutput(const std::string &fun,
@@ -74,15 +83,13 @@ private:
    {
       if (fun == "testMachInput")
       {
-         FunctionalOutput out(*fes, res_fields);
+         FunctionalOutput out(fes(), fields);
 
          out.addOutputDomainIntegrator(
-            new TestMachInputIntegrator(res_fields.at("test_field")));
+            new TestMachInputIntegrator(fields.at("test_field").gridFunc()));
          outputs.emplace(fun, std::move(out));
       }
    }
-   void constructForms() override { res.reset(new NonlinearFormType(fes.get())); }
-   int getNumState() override { return 1; }
 };
 
 } // namespace mach
