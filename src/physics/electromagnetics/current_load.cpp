@@ -59,8 +59,6 @@ double vectorJacobianProduct(CurrentLoad &load,
    // if wrt starts with prefix "current_density:"
    if (wrt.rfind("current_density:", 0) == 0)
    {
-      std::string group(wrt, 16); // get group name after "current_density:"
-
       load.current.cacheCurrentDensity();
       load.current.zeroCurrentDensity();
 
