@@ -68,6 +68,7 @@ void setOptions(MachLinearForm &load, const nlohmann::json &options)
 void addLoad(MachLinearForm &load, mfem::Vector &tv)
 {
    load.lf.Assemble();
+   load.scratch.SetSize(tv.Size());
    load.lf.ParallelAssemble(load.scratch);
    load.scratch.SetSubVector(load.ess_tdof_list, 0.0);
    add(tv, load.scratch, tv);
@@ -101,6 +102,7 @@ void vectorJacobianProduct(MachLinearForm &load,
       auto &adjoint = load.lf_fields->at("adjoint");
       adjoint.distributeSharedDofs(load_bar);
       load.sens.at(wrt).Assemble();
+      load.scratch.SetSize(wrt_bar.Size());
       load.sens.at(wrt).ParallelAssemble(load.scratch);
       wrt_bar += load.scratch;
    }

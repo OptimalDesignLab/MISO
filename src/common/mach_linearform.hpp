@@ -81,7 +81,7 @@ public:
 
    MachLinearForm(mfem::ParFiniteElementSpace &pfes,
                   std::map<std::string, FiniteElementState> &fields)
-    : lf(&pfes), scratch(pfes.GetTrueVSize()), lf_fields(&fields)
+    : lf(&pfes), scratch(0), lf_fields(&fields)
    {
       if (lf_fields->count("adjoint") == 0)
       {

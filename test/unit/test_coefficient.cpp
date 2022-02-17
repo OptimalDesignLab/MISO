@@ -457,8 +457,8 @@ TEST_CASE("SteinmetzVectorDiffCoefficient::Eval",
 }
 */
 
-TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
-          "[ReluctivityCoefficient]")
+TEST_CASE("NonlinearReluctivityCoefficient::EvalStateDeriv",
+          "[NonlinearReluctivityCoefficient]")
 {
    using namespace mfem;
    using namespace mach;
@@ -491,7 +491,7 @@ TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
       auto h = material_library["hiperco50"]["H"].get<std::vector<double>>();
       // auto b = material_library["team13"]["B"].get<std::vector<double>>();
       // auto h = material_library["team13"]["H"].get<std::vector<double>>();
-      mach::ReluctivityCoefficient coeff(b, h);
+      mach::NonlinearReluctivityCoefficient coeff(b, h);
 
       for (int j = 0; j < fes.GetNE(); j++)
       {

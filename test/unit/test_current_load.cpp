@@ -1,4 +1,5 @@
 #include <iostream>
+#include <random>
 
 #include "adept.h"
 #include "catch.hpp"
@@ -46,7 +47,6 @@ TEST_CASE("CurrentLoad setInputs")
    CurrentLoad load(diff_stack, fes, fields, options);
 
    MachInputs inputs{{"current_density:test", 1.0}};
-
    setInputs(load, inputs);
 
    mfem::Vector tv(getSize(load));

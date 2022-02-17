@@ -42,6 +42,7 @@ nlohmann::json material_library{
     {"testmat",
      {
          {"mu_r", 1},
+         {"B_r", 1.0},
          {"rho", 1},
          {"cv", 1},
          {"kappa", 1},

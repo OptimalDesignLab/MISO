@@ -7,14 +7,12 @@
 
 namespace mach
 {
-void setInputs(ACLossFunctional &output,
-               const MachInputs &inputs)
+void setInputs(ACLossFunctional &output, const MachInputs &inputs)
 {
    setInputs(output.output, inputs);
 }
 
-double calcOutput(ACLossFunctional &output,
-                  const MachInputs &inputs)
+double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
 {
    auto fun_inputs = inputs;
    fun_inputs["state"] = inputs.at("flux_magnitude");
@@ -35,29 +33,27 @@ double calcOutput(ACLossFunctional &output,
    return calcOutput(output.output, fun_inputs);
 }
 
- double calcOutputPartial(ACLossFunctional &output,
-                          const std::string &wrt,
-                          const MachInputs &inputs)
+double calcOutputPartial(ACLossFunctional &output,
+                         const std::string &wrt,
+                         const MachInputs &inputs)
 {
    return calcOutputPartial(output.output, wrt, inputs);
 }
 
- void calcOutputPartial(ACLossFunctional &output,
-                        const std::string &wrt,
-                        const MachInputs &inputs,
-                        mfem::Vector &partial)
+void calcOutputPartial(ACLossFunctional &output,
+                       const std::string &wrt,
+                       const MachInputs &inputs,
+                       mfem::Vector &partial)
 {
    calcOutputPartial(output.output, wrt, inputs, partial);
 }
 
 ACLossFunctional::ACLossFunctional(
-   std::map<std::string, FiniteElementState> &fields,
-   mfem::Coefficient &sigma)
+    std::map<std::string, FiniteElementState> &fields,
+    mfem::Coefficient &sigma)
  : output(fields.at("flux_magnitude").space(), fields), fields(fields)
 {
-   output.addOutputDomainIntegrator(
-      new ACLossFunctionalIntegrator(sigma));
+   output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma));
 }
-
 
 }  // namespace mach
