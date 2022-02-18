@@ -82,7 +82,10 @@ public:
       output(output),
       output_adjoint(output.mesh(), output.space()),
       state_bar(state.mesh(), state.space()),
-      mesh_coords_bar(state.mesh(), *dynamic_cast<mfem::ParGridFunction *>(state.mesh().GetNodes())->ParFESpace()),
+      mesh_coords_bar(
+          state.mesh(),
+          *dynamic_cast<mfem::ParGridFunction *>(state.mesh().GetNodes())
+               ->ParFESpace()),
       operation(std::move(operation))
    { }
 

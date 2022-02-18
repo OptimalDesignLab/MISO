@@ -509,13 +509,20 @@ public:
          double fun_bar = 1.0;
          /// double fun = output_adj_vec * curl_vec / trans_weight;
          output_adj_vec_bar = 0.0;
-         add(output_adj_vec_bar, fun_bar / trans_weight, curl_vec, output_adj_vec_bar);
+         add(output_adj_vec_bar,
+             fun_bar / trans_weight,
+             curl_vec,
+             output_adj_vec_bar);
 
          curl_vec_bar = 0.0;
-         add(curl_vec_bar, fun_bar / trans_weight, output_adj_vec, curl_vec_bar);
+         add(curl_vec_bar,
+             fun_bar / trans_weight,
+             output_adj_vec,
+             curl_vec_bar);
 
          double trans_weight_bar = 0.0;
-         trans_weight_bar += -fun_bar * (output_adj_vec * curl_vec) / pow(trans_weight, 2);
+         trans_weight_bar +=
+             -fun_bar * (output_adj_vec * curl_vec) / pow(trans_weight, 2);
 
          /// double trans_weight = trans.Weight();
          PointMat_bar = 0.0;
@@ -737,7 +744,8 @@ public:
 
          /// const double curl_mag = curl_vec_norm / trans_weight;
          double curl_vec_norm_bar = curl_mag_bar / trans_weight;
-         double trans_weight_bar = -curl_mag_bar * curl_vec_norm / pow(trans_weight, 2);
+         double trans_weight_bar =
+             -curl_mag_bar * curl_vec_norm / pow(trans_weight, 2);
 
          /// double trans_weight = trans.Weight();
          isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
@@ -746,7 +754,10 @@ public:
          double curl_vec_bar_buffer[3];
          mfem::Vector curl_vec_bar(curl_vec_bar_buffer, space_dim);
          curl_vec_bar = 0.0;
-         add(curl_vec_bar, curl_vec_norm_bar / curl_vec_norm, curl_vec, curl_vec_bar);
+         add(curl_vec_bar,
+             curl_vec_norm_bar / curl_vec_norm,
+             curl_vec,
+             curl_vec_bar);
 
          /// curlshape_dFt.MultTranspose(el_state, curl_vec);
          curlshape_dFt_bar = 0.0;
@@ -771,7 +782,6 @@ public:
          }
       }
    }
-
 };
 
 }  // anonymous namespace
@@ -781,16 +791,12 @@ namespace mach
 ScalarL2IdentityProjection::ScalarL2IdentityProjection(
     FiniteElementState &state,
     FiniteElementState &output)
- : L2TransferOperator(state,
-                      output,
-                      std::make_unique<ScalarIdentityOperator>())
+ : L2TransferOperator(state, output, std::make_unique<ScalarIdentityOperator>())
 { }
 
 L2IdentityProjection::L2IdentityProjection(FiniteElementState &state,
                                            FiniteElementState &output)
- : L2TransferOperator(state,
-                      output,
-                      std::make_unique<IdentityOperator>())
+ : L2TransferOperator(state, output, std::make_unique<IdentityOperator>())
 { }
 
 L2CurlProjection::L2CurlProjection(FiniteElementState &state,
@@ -800,9 +806,7 @@ L2CurlProjection::L2CurlProjection(FiniteElementState &state,
 
 L2CurlMagnitudeProjection::L2CurlMagnitudeProjection(FiniteElementState &state,
                                                      FiniteElementState &output)
- : L2TransferOperator(state,
-                      output,
-                      std::make_unique<CurlMagnitudeOperator>())
+ : L2TransferOperator(state, output, std::make_unique<CurlMagnitudeOperator>())
 { }
 
 void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
@@ -948,7 +952,8 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
          auto *state_dof_trans = state_fes.GetElementVDofs(i, state_vdofs);
          el_state.SetSize(state_vdofs.Size());
 
-         auto *mesh_coords_dof_trans = mesh_coords_fes.GetElementVDofs(i, mesh_coords_vdofs);
+         auto *mesh_coords_dof_trans =
+             mesh_coords_fes.GetElementVDofs(i, mesh_coords_vdofs);
          el_mesh_coords_bar.SetSize(mesh_coords_vdofs.Size());
 
          state.gridFunc().GetSubVector(state_vdofs, el_state);
@@ -964,14 +969,19 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
          }
 
          /// apply the reverse mode differentiated operation
-         operation->apply_mesh_coords_bar(
-             state_fe, output_fe, trans, el_output_adj, el_state, el_mesh_coords_bar);
+         operation->apply_mesh_coords_bar(state_fe,
+                                          output_fe,
+                                          trans,
+                                          el_output_adj,
+                                          el_state,
+                                          el_mesh_coords_bar);
 
          if (mesh_coords_dof_trans)
          {
             mesh_coords_dof_trans->TransformDual(el_mesh_coords_bar);
          }
-         mesh_coords_bar.localVec().AddElementVector(mesh_coords_vdofs, el_mesh_coords_bar);
+         mesh_coords_bar.localVec().AddElementVector(mesh_coords_vdofs,
+                                                     el_mesh_coords_bar);
       }
 
       /// this should maybe accumulate into wrt_bar
