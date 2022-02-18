@@ -9,6 +9,51 @@
 
 namespace mach
 {
+class L2TransferOperation
+{
+public:
+   /// \param[in] state_fe - finite element that describes the mesh element
+   /// \param[in] output_fe - finite element that describes the mesh element
+   /// \param[in] trans - transformation between reference and physical space
+   /// \param[in] el_state - input state defined on @a state_fe
+   /// \param[out] el_output - output of operation defined on @a output_fe
+   virtual void apply(const mfem::FiniteElement &state_fe,
+                      const mfem::FiniteElement &output_fe,
+                      mfem::ElementTransformation &trans,
+                      const mfem::Vector &el_state,
+                      mfem::Vector &el_output) const = 0;
+
+   /// \param[in] state_fe - finite element that describes the mesh element
+   /// \param[in] output_fe - finite element that describes the mesh element
+   /// \param[in] trans - transformation between reference and physical space
+   /// \param[in] el_output_adj - the element local output adjoint
+   /// \param[in] el_state - input state defined on @a state_fe
+   /// \param[out] el_state_bar - d(psi^T Op)/du for the element
+   virtual void apply_state_bar(const mfem::FiniteElement &state_fe,
+                                const mfem::FiniteElement &output_fe,
+                                mfem::ElementTransformation &trans,
+                                const mfem::Vector &el_output_adj,
+                                const mfem::Vector &el_state,
+                                mfem::Vector &el_state_bar) const
+   { }
+
+   /// \param[in] state_fe - finite element that describes the mesh element
+   /// \param[in] output_fe - finite element that describes the mesh element
+   /// \param[in] trans - transformation between reference and physical space
+   /// \param[in] el_output_adj - the element local output adjoint
+   /// \param[in] el_state - input state defined on @a state_fe
+   /// \param[out] mesh_coords_bar - d(psi^T Op)/dX for the element
+   virtual void apply_mesh_coords_bar(const mfem::FiniteElement &state_fe,
+                                      const mfem::FiniteElement &output_fe,
+                                      mfem::ElementTransformation &trans,
+                                      const mfem::Vector &el_output_adj,
+                                      const mfem::Vector &el_state,
+                                      mfem::Vector &mesh_coords_bar) const
+   { }
+
+   virtual ~L2TransferOperation() = default;
+};
+
 /// Class that handles the potentially nonlinear transformation from a field in
 /// an ND or RT function space to a representation of the transformed field in
 /// an L2 space
@@ -32,23 +77,13 @@ public:
 
    L2TransferOperator(FiniteElementState &state,
                       FiniteElementState &output,
-                      std::function<void(const mfem::FiniteElement &,
-                                         const mfem::FiniteElement &,
-                                         mfem::ElementTransformation &,
-                                         const mfem::Vector &,
-                                         mfem::Vector &)> operation,
-                      std::function<void(const mfem::FiniteElement &,
-                                         const mfem::FiniteElement &,
-                                         mfem::ElementTransformation &,
-                                         const mfem::Vector &,
-                                         const mfem::Vector &,
-                                         mfem::Vector &)> operation_state_bar)
+                      std::unique_ptr<L2TransferOperation> operation)
     : state(state),
       output(output),
       output_adjoint(output.mesh(), output.space()),
       state_bar(state.mesh(), state.space()),
-      operation(std::move(operation)),
-      operation_state_bar(std::move(operation_state_bar))
+      mesh_coords_bar(state.mesh(), *dynamic_cast<mfem::ParGridFunction *>(state.mesh().GetNodes())->ParFESpace()),
+      operation(std::move(operation))
    { }
 
 private:
@@ -56,21 +91,9 @@ private:
    FiniteElementState &output;
    FiniteElementState output_adjoint;
    FiniteElementDual state_bar;
+   FiniteElementDual mesh_coords_bar;
 
-   std::function<void(const mfem::FiniteElement &,
-                      const mfem::FiniteElement &,
-                      mfem::ElementTransformation &,
-                      const mfem::Vector &,
-                      mfem::Vector &)>
-       operation;
-
-   std::function<void(const mfem::FiniteElement &,
-                      const mfem::FiniteElement &,
-                      mfem::ElementTransformation &,
-                      const mfem::Vector &,
-                      const mfem::Vector &,
-                      mfem::Vector &)>
-       operation_state_bar;
+   std::unique_ptr<L2TransferOperation> operation;
 };
 
 /// Conveniece class that wraps the projection of an H1 state to its DG
