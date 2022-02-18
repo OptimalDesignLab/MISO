@@ -6,6 +6,7 @@
 namespace mfem
 {
 
+// need to think a new name for this class
 class RBFSpace : public mfem::FiniteElementSpace
 {
 public:
