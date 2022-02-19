@@ -34,7 +34,7 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
           "\tMesh space dimension does not match template"
           "parameter dim");
    }
-   bool ent_state = options["flow-param"].value("entropy-state", false);
+   bool ent_state = options["flow-param"]["entropy-state"];
    if (ent_state != entvar)
    {
       throw MachException(
@@ -84,7 +84,7 @@ template <int dim, bool entvar>
 void FlowSolver<dim, entvar>::derivedPDEInitialHook(const Vector &state)
 {
    // AbstractSolver2::initialHook(state);
-   if (options["time-dis"]["steady"].template get<bool>())
+   if (options["time-dis"]["steady"])
    {
       // res_norm0 is used to compute the time step in PTC
       res_norm0 = calcResidualNorm(state);
@@ -128,7 +128,7 @@ double FlowSolver<dim, entvar>::calcStepSize(int iter,
                                              double dt_old,
                                              const Vector &state) const
 {
-   if (options["time-dis"]["steady"].template get<bool>())
+   if (options["time-dis"]["steady"])
    {
       // ramp up time step for pseudo-transient continuation
       // TODO: the l2 norm of the weak residual is probably not ideal here
@@ -139,12 +139,12 @@ double FlowSolver<dim, entvar>::calcStepSize(int iter,
                   pow(res_norm0 / res_norm, exponent);
       return max(dt, dt_old);
    }
-   if (!options["time-dis"]["const-cfl"].get<bool>())
+   if (!options["time-dis"]["const-cfl"])
    {
       return AbstractSolver2::calcStepSize(iter, t, t_final, dt_old, state);
    }
    // Otherwise, use a constant CFL condition
-   auto cfl = options["time-dis"]["cfl"].get<double>();
+   auto cfl = options["time-dis"]["cfl"];
    // here we call the FlowResidual method for the min time step, which needs
    // the current state; this is provided by the state field of PDESolver,
    // which we access with getState()
@@ -159,10 +159,10 @@ bool FlowSolver<dim, entvar>::iterationExit(int iter,
                                             double dt,
                                             const Vector &state) const
 {
-   if (options["time-dis"]["steady"].get<bool>())
+   if (options["time-dis"]["steady"])
    {
       double norm = calcResidualNorm(state);
-      if (norm <= options["time-dis"]["steady-abstol"].get<double>())
+      if (norm <= options["time-dis"]["steady-abstol"])
       {
          return true;
       }

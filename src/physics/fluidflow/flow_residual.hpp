@@ -122,20 +122,34 @@ public:
 
    /// Set the given vector to the free-stream *conservative* variables
    /// \param[out] qfar - used to hold the free-stream state upon return
+   /// \note Helper function that wraps getFreeStreamQ and provides relevant
+   /// constants
    void getFreeStreamState(mfem::Vector &qfar);
 
+   bool isViscous() const { return viscous; }
+   double getViscosity() const { return mu; }
    double getMach() const { return mach_fs; }
    double getAoA() const { return aoa_fs; }
+   double getReynolds() const { return re_fs; } 
+   double getPrandtl() const { return pr_fs; }
    int getIRoll() const { return iroll; }
    int getIPitch() const { return ipitch; }
 
 private:
    /// print object
    std::ostream &out;
+   /// if true, viscous terms are included in the residual 
+   bool viscous;
+   /// nondimensional viscosity (if mu is negative, we use Sutherland's)
+   double mu;
    /// free-stream Mach number
    double mach_fs;
    /// free-stream angle of attack
    double aoa_fs;
+   /// free-stream Reynolds number 
+   double re_fs;
+   /// free-stream Prandtl number 
+   double pr_fs;
    /// index of dimension corresponding to nose to tail axis
    int iroll;
    /// index of "vertical" dimension in body frame
@@ -173,6 +187,14 @@ private:
    void addFlowBoundaryIntegrators(const nlohmann::json &flow,
                                    const nlohmann::json &space_dis,
                                    const nlohmann::json &bcs);
+
+   void addInviscidBoundaryIntegrators(const nlohmann::json &flow,
+                                       const nlohmann::json &space_dis,
+                                       const nlohmann::json &bcs);
+
+   void addViscousBoundaryIntegrators(const nlohmann::json &flow,
+                                      const nlohmann::json &space_dis,
+                                      const nlohmann::json &bcs);
 
    void addEntropyIntegrators();
 };

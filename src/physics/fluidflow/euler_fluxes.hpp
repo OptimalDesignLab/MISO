@@ -43,8 +43,7 @@ inline xdouble pressure(const xdouble *q)
 /// \param[out] q - the free-stream conservative variables
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-/// \tparam entvar - if true u = conservative vars, if false u = entropy vars
-template <typename xdouble, int dim, bool entvar = false>
+template <typename xdouble, int dim>
 void getFreeStreamQ(xdouble mach_fs,
                     xdouble aoa_fs,
                     int iroll,

@@ -156,11 +156,13 @@ void NavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       vector<int> tmp = bcs["viscous-mms"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
+      auto exactbc = [](const Vector &x, Vector &u)
+      { viscousMMSExact<double>(x.GetData(), u.GetData()); };
       this->res->AddBdrFaceIntegrator(new ViscousExactBC<dim>(this->diff_stack,
                                                               this->fec.get(),
                                                               re_fs,
                                                               pr_fs,
-                                                              viscousMMSExact,
+                                                              exactbc,
                                                               mu,
                                                               alpha),
                                       this->bndry_marker[idx]);

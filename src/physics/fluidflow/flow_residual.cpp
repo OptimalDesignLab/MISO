@@ -4,6 +4,7 @@
 #include "flow_residual.hpp"
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
+#include "navier_stokes_integ.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -64,7 +65,7 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
     const nlohmann::json &flow,
     const nlohmann::json &space_dis)
 {
-   auto flux = space_dis.value("flux-fun", "Euler");
+   auto flux = space_dis["flux-fun"];
    if (flux == "IR")
    {
       res.addDomainIntegrator(new IsmailRoeIntegrator<dim, entvar>(stack));
@@ -80,11 +81,25 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
       res.addDomainIntegrator(new EulerIntegrator<dim>(stack));
    }
    // add the LPS stabilization, if necessary
-   auto lps_coeff = space_dis.value("lps-coeff", 0.0);
+   auto lps_coeff = space_dis["lps-coeff"];
    if (lps_coeff > 0.0)
    {
       res.addDomainIntegrator(
           new EntStableLPSIntegrator<dim, entvar>(stack, lps_coeff));
+   }
+   // add viscous volume integrators, if necessary
+   if (flow["viscous"])
+   {
+      res.addDomainIntegrator(
+          new ESViscousIntegrator<dim>(stack, re_fs, pr_fs, mu));
+      if (flow["viscous-mms"])
+      {
+         if (dim != 2)
+         {
+            throw MachException("Viscous MMS problem only available for 2D!");
+         }
+         res.addDomainIntegrator(new NavierStokesMMSIntegrator(re_fs, pr_fs));
+      }
    }
 }
 
@@ -94,16 +109,38 @@ void FlowResidual<dim, entvar>::addFlowInterfaceIntegrators(
     const nlohmann::json &space_dis)
 {
    // add the integrators based on if discretization is continuous or discrete
-   if (space_dis["basis-type"].get<string>() == "dsbp")
+   if (space_dis["basis-type"] == "dsbp")
    {
-      auto iface_coeff = space_dis.value("iface-coeff", 0.0);
+      auto iface_coeff = space_dis["iface-coeff"];
       res.addInteriorFaceIntegrator(new InterfaceIntegrator<dim, entvar>(
           stack, iface_coeff, fes.FEColl()));
+      if (flow["viscous"])
+      {
+         throw MachException(
+             "Viscous DG interface terms have not been"
+             " implemented!");
+      }
    }
 }
 
 template <int dim, bool entvar>
 void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
+    const nlohmann::json &flow,
+    const nlohmann::json &space_dis,
+    const nlohmann::json &bcs)
+{
+   if (flow["viscous"])
+   {
+      addViscousBoundaryIntegrators(flow, space_dis, bcs);
+   }
+   else
+   {
+      addInviscidBoundaryIntegrators(flow, space_dis, bcs);
+   }
+}
+
+template <int dim, bool entvar>
+void FlowResidual<dim, entvar>::addInviscidBoundaryIntegrators(
     const nlohmann::json &flow,
     const nlohmann::json &space_dis,
     const nlohmann::json &bcs)
@@ -132,8 +169,7 @@ void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
       // far-field boundary conditions
       vector<int> bdr_attr_marker = bcs["far-field"].get<vector<int>>();
       mfem::Vector qfar(dim + 2);
-      getFreeStreamQ<double, dim, entvar>(
-          mach_fs, aoa_fs, iroll, ipitch, qfar.GetData());
+      getFreeStreamState(qfar);
       res.addBdrFaceIntegrator(
           new FarFieldBC<dim, entvar>(stack, fes.FEColl(), qfar),
           bdr_attr_marker);
@@ -144,7 +180,7 @@ void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
       // passed in
       vector<int> bdr_attr_marker = bcs["pump"].get<vector<int>>();
       // define the boundary condition state function
-      auto pump = [](double t, const mfem::Vector &x, mfem::Vector &q)
+      auto pump = [](double t, const Vector &x, Vector &q)
       {
          double uL = 0.05;
          double xL = uL * (1.0 - cos(t));
@@ -175,6 +211,55 @@ void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
 }
 
 template <int dim, bool entvar>
+void FlowResidual<dim, entvar>::addViscousBoundaryIntegrators(
+    const nlohmann::json &flow,
+    const nlohmann::json &space_dis,
+    const nlohmann::json &bcs)
+{
+   if (bcs.contains("slip-wall"))
+   {
+      // slip-wall boundary condition with appropriate Neumann BCs
+      vector<int> bdr_attr_marker = bcs["slip-wall"].get<vector<int>>();
+      res.addBdrFaceIntegrator(
+          new ViscousSlipWallBC<dim>(stack, fes.FEColl(), re_fs, pr_fs, mu),
+          bdr_attr_marker);
+   }
+   if (bcs.contains("no-slip-adiabatic"))
+   {
+      // no-slip adiabatic wall BCs
+      vector<int> bdr_attr_marker = bcs["no-slip-adiabatic"].get<vector<int>>();
+      // reference state needed by penalty flux
+      Vector q_ref(dim + 2);
+      getFreeStreamState(q_ref);
+      res.addBdrFaceIntegrator(
+          new NoSlipAdiabaticWallBC<dim>(
+              stack, fes.FEColl(), re_fs, pr_fs, q_ref, mu),
+          bdr_attr_marker);
+   }
+   if (bcs.contains("far-field"))
+   {
+      // far-field boundary conditions
+      vector<int> bdr_attr_marker = bcs["far-field"].get<vector<int>>();
+      Vector qfar(dim + 2);
+      getFreeStreamState(qfar);
+      res.addBdrFaceIntegrator(
+          new FarFieldBC<dim, entvar>(stack, fes.FEColl(), qfar),
+          bdr_attr_marker);
+   }
+   if (bcs.contains("viscous-mms"))
+   {
+      // viscous MMS boundary conditions
+      auto exactbc = [](const Vector &x, Vector &u)
+      { viscousMMSExact<double>(x.GetData(), u.GetData()); };
+      vector<int> bdr_attr_marker = bcs["viscous-mms"].get<vector<int>>();
+      res.addBdrFaceIntegrator(
+          new ViscousExactBC<dim>(
+              stack, fes.FEColl(), re_fs, pr_fs, exactbc, mu),
+          bdr_attr_marker);
+   }
+}
+
+template <int dim, bool entvar>
 void FlowResidual<dim, entvar>::addEntropyIntegrators()
 {
    ent.addOutputDomainIntegrator(new EntropyIntegrator<dim, entvar>(stack));
@@ -198,11 +283,15 @@ void FlowResidual<dim, entvar>::setOptions_(const nlohmann::json &options)
 {
    is_implicit = options.value("implicit", false);
    // define free-stream parameters; may or may not be used, depending on case
-   mach_fs = options["flow-param"]["mach"].get<double>();
-   aoa_fs = options["flow-param"].value("aoa", 0.0) * M_PI / 180;
-   iroll = options["flow-param"].value("roll-axis", 0);
-   ipitch = options["flow-param"].value("pitch-axis", 1);
-   state_is_entvar = options["flow-param"].value("entropy-state", false);
+   viscous = options["flow-param"]["viscous"];
+   mu = options["flow-param"]["mu"];
+   mach_fs = options["flow-param"]["mach"];
+   aoa_fs = options["flow-param"]["aoa"].get<double>() * M_PI / 180;
+   re_fs = options["flow-param"]["Re"];
+   pr_fs = options["flow-param"]["Pr"];
+   iroll = options["flow-param"]["roll-axis"];
+   ipitch = options["flow-param"]["pitch-axis"];
+   state_is_entvar = options["flow-param"]["entropy-state"];
    if (iroll == ipitch)
    {
       throw MachException("iroll and ipitch must be distinct dimensions!");
@@ -340,10 +429,10 @@ Solver *FlowResidual<dim, entvar>::getPreconditioner_(
    {
       prec = std::make_unique<HypreILU>();
       auto *ilu = dynamic_cast<HypreILU *>(prec.get());
-      HYPRE_ILUSetType(*ilu, prec_options["ilu-type"].get<int>());
-      HYPRE_ILUSetLevelOfFill(*ilu, prec_options["lev-fill"].get<int>());
-      HYPRE_ILUSetLocalReordering(*ilu, prec_options["ilu-reorder"].get<int>());
-      HYPRE_ILUSetPrintLevel(*ilu, prec_options["printlevel"].get<int>());
+      HYPRE_ILUSetType(*ilu, prec_options["ilu-type"]);
+      HYPRE_ILUSetLevelOfFill(*ilu, prec_options["lev-fill"]);
+      HYPRE_ILUSetLocalReordering(*ilu, prec_options["ilu-reorder"]);
+      HYPRE_ILUSetPrintLevel(*ilu, prec_options["printlevel"]);
       // Just listing the options below in case we need them in the future
       // HYPRE_ILUSetSchurMaxIter(ilu, schur_max_iter);
       // HYPRE_ILUSetNSHDropThreshold(ilu, nsh_thres); needs type = 20,21
@@ -354,14 +443,14 @@ Solver *FlowResidual<dim, entvar>::getPreconditioner_(
    {
       prec = std::make_unique<HypreAMS>(&fes);
       auto *ams = dynamic_cast<HypreAMS *>(prec.get());
-      ams->SetPrintLevel(prec_options["printlevel"].get<int>());
+      ams->SetPrintLevel(prec_options["printlevel"]);
       ams->SetSingularProblem();
    }
    else if (prec_type == "hypreboomeramg")
    {
       prec = std::make_unique<HypreBoomerAMG>();
       auto *amg = dynamic_cast<HypreBoomerAMG *>(prec.get());
-      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
+      amg->SetPrintLevel(prec_options["printlevel"]);
    }
    else if (prec_type == "blockilu")
    {
@@ -514,9 +603,26 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
       }
       drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
       FunctionalOutput fun_out(fes, *fields);
-      fun_out.addOutputBdrFaceIntegrator(
-          new PressureForce<dim, entvar>(stack, fes.FEColl(), drag_dir),
-          std::move(bdrs));
+      if (viscous)
+      {
+         Vector q_ref(dim + 2);
+         getFreeStreamState(q_ref);
+         fun_out.addOutputBdrFaceIntegrator(new SurfaceForce<dim>(stack,
+                                                                  fes.FEColl(),
+                                                                  dim + 2,
+                                                                  re_fs,
+                                                                  pr_fs,
+                                                                  q_ref,
+                                                                  drag_dir,
+                                                                  mu),
+                                            std::move(bdrs));
+      }
+      else
+      {
+         fun_out.addOutputBdrFaceIntegrator(
+             new PressureForce<dim, entvar>(stack, fes.FEColl(), drag_dir),
+             std::move(bdrs));
+      }
       return fun_out;
    }
    else if (fun == "lift")
@@ -536,9 +642,26 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
       }
       lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
       FunctionalOutput fun_out(fes, *fields);
-      fun_out.addOutputBdrFaceIntegrator(
-          new PressureForce<dim, entvar>(stack, fes.FEColl(), lift_dir),
-          std::move(bdrs));
+      if (viscous)
+      {
+         Vector q_ref(dim + 2);
+         getFreeStreamState(q_ref);
+         fun_out.addOutputBdrFaceIntegrator(new SurfaceForce<dim>(stack,
+                                                                  fes.FEColl(),
+                                                                  dim + 2,
+                                                                  re_fs,
+                                                                  pr_fs,
+                                                                  q_ref,
+                                                                  lift_dir,
+                                                                  mu),
+                                            std::move(bdrs));
+      }
+      else
+      {
+         fun_out.addOutputBdrFaceIntegrator(
+             new PressureForce<dim, entvar>(stack, fes.FEColl(), lift_dir),
+             std::move(bdrs));
+      }
       return fun_out;
    }
    else if (fun == "entropy")
@@ -572,20 +695,9 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
 }
 
 template <int dim, bool entvar>
-void FlowResidual<dim, entvar>::getFreeStreamState(Vector &qfar)
+void FlowResidual<dim, entvar>::getFreeStreamState(mfem::Vector &qfar)
 {
-   qfar = 0.0;
-   qfar(0) = 1.0;
-   if (dim == 1)
-   {
-      qfar(1) = qfar(0) * mach_fs;  // ignore angle of attack
-   }
-   else
-   {
-      qfar(iroll + 1) = qfar(0) * mach_fs * cos(aoa_fs);
-      qfar(ipitch + 1) = qfar(0) * mach_fs * sin(aoa_fs);
-   }
-   qfar(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+   getFreeStreamQ<double, dim>(mach_fs, aoa_fs, iroll, ipitch, qfar.GetData());
 }
 
 // explicit instantiation

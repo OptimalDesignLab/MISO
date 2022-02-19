@@ -16,12 +16,20 @@ using namespace mach;
 auto options = R"(
 {
    "flow-param": {
+      "viscous": false,
+      "entropy-state": false,
+      "mu": -1.0,
+      "Re": 100,
+      "Pr": 0.72,
       "mach": 0.5,
-      "aoa": 0.0
+      "aoa": 0.0,
+      "roll-axis": 0,
+      "pitch-axis": 1
    },
    "space-dis": {
       "degree": 1,
       "lps-coeff": 1.0,
+      "iface-coeff": 0.0,
       "basis-type": "csbp",
       "flux-fun": "Euler"
    },

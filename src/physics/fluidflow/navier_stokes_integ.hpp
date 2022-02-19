@@ -896,6 +896,9 @@ template <int dim>
 class ViscousExactBC : public ViscousBoundaryIntegrator<ViscousExactBC<dim>>
 {
 public:
+   using exactFun = std::function<
+       void(const mfem::Vector &, mfem::Vector &)>;
+
    /// Constructs an integrator for a viscous exact BCs
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
@@ -908,7 +911,7 @@ public:
                   const mfem::FiniteElementCollection *fe_coll,
                   double Re_num,
                   double Pr_num,
-                  void (*fun)(const mfem::Vector &, mfem::Vector &),
+                  exactFun fun,
                   double vis = -1.0,
                   double a = 1.0)
     : ViscousBoundaryIntegrator<ViscousExactBC<dim>>(diff_stack,
@@ -1034,7 +1037,7 @@ private:
    /// nondimensionalized dynamic viscosity
    double mu;
    /// Function to evaluate the exact solution at a given x value
-   void (*exactSolution)(const mfem::Vector &, mfem::Vector &);
+   exactFun exactSolution;
    /// far-field boundary state
    mfem::Vector qexact;
    /// work space for flux computations

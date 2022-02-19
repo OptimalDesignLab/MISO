@@ -302,6 +302,31 @@ void calcNoSlipDualFlux(const xdouble *dir,
 #endif
 }
 
+/// A particular MMS Exact solution
+/// \param[in] x - location at which to evaluate the exact solution
+/// \param[out] u - the exact solution
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void viscousMMSExact(const xdouble *x, xdouble *u)
+{
+   const double rho0 = 1.0;
+   const double rhop = 0.05;
+   const double U0 = 0.5;
+   const double Up = 0.05;
+   const double T0 = 1.0;
+   const double Tp = 0.05;
+   u[0] = rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1]);
+   u[1] = 4.0 * U0 * x[1] * (1.0 - x[1]) +
+          Up * sin(2 * M_PI * x[1]) * pow(sin(M_PI * x[0]), 2);
+   u[2] = -Up * pow(sin(2 * M_PI * x[0]), 2) * sin(M_PI * x[1]);
+   double T = T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                         pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2));
+   double p = u[0] * T;  // T is nondimensionalized by 1/(R*a_infty^2)
+   u[3] = p / euler::gami + 0.5 * u[0] * (u[1] * u[1] + u[2] * u[2]);
+   u[1] *= u[0];
+   u[2] *= u[0];
+}
+
 /// MMS source term for a particular Navier-Stokes verification
 /// \param[in] mu - nondimensionalized dynamic viscosity
 /// \param[in] Pr - Prandtl number

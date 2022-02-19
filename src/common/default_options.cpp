@@ -21,6 +21,7 @@ const nlohmann::json default_options{
          {"aoa", 0.0},              // far-field angle of attack
          {"roll-axis", 0},   // axis aligned with nose to tail of aircraft
          {"pitch-axis", 1},  // axis in the "vertical" direction
+         {"viscous", false}, // if true, viscous terms are added
          {"Re", 0.0},        // far-field Reynolds number
          {"Pr", 0.72},       // the Prandtl number
          {"mu",
@@ -34,7 +35,8 @@ const nlohmann::json default_options{
          {"lps-coeff",
           1.0},  // scaling coefficient for local-proj stabilization
          {"iface-coeff", 1.0},  // scaling coefficient for interface dissipation
-         {"basis-type", "csbp"}  // csbp & dsbp for continuous & discrete SBP
+         {"basis-type", "csbp"},// csbp & dsbp for continuous & discrete SBP
+         {"flux-fun", "IR"}
      }},
 
     {"steady", false},  // deprecated; now included in "time-dis"
