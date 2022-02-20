@@ -257,6 +257,22 @@ void FlowResidual<dim, entvar>::addViscousBoundaryIntegrators(
               stack, fes.FEColl(), re_fs, pr_fs, exactbc, mu),
           bdr_attr_marker);
    }
+   if (bcs.contains("control"))
+   {
+      // Boundary control
+      vector<int> bdr_attr_marker = bcs["control"].get<vector<int>>();
+      // reference state needed by penalty flux
+      Vector q_ref(dim + 2);
+      getFreeStreamState(q_ref);
+      // define the scaling function for the control
+      std::function<double(double, const Vector &, const Vector &)> scale =
+          squaredExponential;
+      // Should pass in xc and len...
+      double len = 0.1;
+      Vector xc({0.5, 0.0});
+      res.addBdrFaceIntegrator(
+          new ViscousControlBC<dim>(stack, fes.FEColl(), re_fs, pr_fs, q_ref, scale, xc, len, mu), bdr_attr_marker);
+   }
 }
 
 template <int dim, bool entvar>
@@ -343,19 +359,75 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
 
+   auto form_inputs = MachInputs({{"state", x}, {"time", time + dt}});
+   return calcFormOutput(res, form_inputs);
+
+
+   // ParGridFunction state(&fes), dstate(&fes);
+   // state.SetFromTrueDofs(x);
+   // dstate.SetFromTrueDofs(dxdt);
+   // DenseMatrix u_elem, res_elem;
+   // Vector u_j, res_j;
+   // Vector w_j(dim+2);
+   // double loc_change = 0.0;
+   // for (int i = 0; i < fes.GetNE(); i++)
+   // {
+   //    const FiniteElement *fe = fes.GetFE(i);
+   //    const IntegrationRule *ir = &(fe->GetNodes());
+   //    ElementTransformation *trans = fes.GetElementTransformation(i);
+   //    state.GetVectorValues(*trans, *ir, u_elem);
+   //    dstate.GetVectorValues(*trans, *ir, res_elem);
+   //    for (int j = 0; j < ir->GetNPoints(); j++)
+   //    {
+   //       const IntegrationPoint &ip = ir->IntPoint(j);
+   //       trans->SetIntPoint(&ip);
+   //       u_elem.GetColumnReference(j, u_j);
+   //       res_elem.GetColumnReference(j, res_j);
+   //       calcEntropyVars<double, dim, entvar>(u_j.GetData(),
+   //                                            w_j.GetData());
+   //       loc_change -= ip.weight * trans->Weight() * (w_j * res_j);
+   //    }
+   // }
+   // double ent_change = NAN;
+   // MPI_Allreduce(
+   //     &loc_change, &ent_change, 1, MPI_DOUBLE, MPI_SUM, fes.GetComm());
+   // return ent_change;
+
+   // cout << "getSize_() = " << getSize_() << endl;
+   // cout << "x.Size() = " << x.Size() << endl;
+   // // cout << "num nodes  = " << getSize_()/(dim+2) << endl;
+   // for (int i = 0; i < x.Size() / (dim + 2); ++i)
+   // {
+   //    auto ptr = (dim + 2) * i;
+   //    calcEntropyVars<double, dim, entvar>(x.GetData() + ptr,
+   //                                         work.GetData() + ptr);
+   // }
+
+
+   // // minus sign needed since dxdt = -res
+   // double loc_change = -mass.InnerProduct(work, dxdt);
+   // double ent_change = 0.0;
+   // MPI_Allreduce(&loc_change,
+   //               &ent_change,
+   //               1,
+   //               MPI_DOUBLE,
+   //               MPI_SUM,
+   //               fes.GetComm());
+   // return ent_change;
+
+   // minus sign needed since dxdt = -res
+   //return -InnerProduct(fes.GetComm(), work, dxdt);
+
    // TODO: The following should be sufficient for the dot product, and it 
    // avoids computing the form output, but there is an outstanding bug
-
-   // ParGridFunction state(&fes);
-   // ParGridFunction state_dot(&fes);
-   // state.SetFromTrueDofs(x);
-   // state_dot.SetFromTrueDofs(dxdt);
-
    // const int num_state = dim + 2;
    // Array<int> vdofs(num_state);
    // Vector ui, resi;
    // Vector wi(num_state);
    // double loc_change = 0.0;
+   // cout << "norm(x) = " << x.Norml2() << endl;
+   // cout << "norm(res) = " << dxdt.Norml2() << endl;
+   // cout << "fes.GetNE() = " << fes.GetNE() << endl;
    // for (int i = 0; i < fes.GetNE(); i++)
    // {
    //    const auto *fe = fes.GetFE(i);
@@ -367,11 +439,12 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    //       {
    //          vdofs[k] = offset + k;
    //       }
-   //       state.GetSubVector(vdofs, ui);
-   //       state_dot.GetSubVector(vdofs, resi);
+   //       x.GetSubVector(vdofs, ui);
+   //       dxdt.GetSubVector(vdofs, resi);
    //       calcEntropyVars<double, dim, entvar>(ui.GetData(),
    //                                            wi.GetData());
-   //       loc_change += wi * resi;
+   //       cout << "wi * resi = " << wi * resi << endl;
+   //       loc_change -= wi * resi;
    //    }
    // }
    // double ent_change = 0.0;
@@ -382,14 +455,6 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    //               MPI_SUM,
    //               fes.GetComm());
    // return ent_change;
-
-   //auto &y = work;
-   //add(x, dt, dxdt, y);
-   //auto form_inputs = inputs;
-   //form_inputs["state"] = x;
-   //form_inputs["time"] = time + dt;
-   auto form_inputs = MachInputs({{"state", x}, {"time", time + dt}});
-   return calcFormOutput(res, form_inputs);
 }
 
 template <int dim, bool entvar>

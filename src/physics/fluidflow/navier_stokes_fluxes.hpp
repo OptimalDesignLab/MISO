@@ -242,6 +242,57 @@ void calcNoSlipPenaltyFlux(const xdouble *dir,
    flux[dim + 1] = 0.0;
 }
 
+/// Computes an entropy stable no-slip, flow-control penalty
+/// \param[in] dir - desired (scaled) normal vector to the wall
+/// \param[in] Jac - mapping Jacobian at the wall
+/// \param[in] mu - nondimensionalized dynamic viscosity
+/// \param[in] Pr - Prandtl number
+/// \param[in] uc - control velocity magnitude (and sign)
+/// \param[in] qfs - a fixed state (e.g. free-stream value)
+/// \param[in] q - state at the wall location
+/// \param[out] flux - wall flux
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcControlPenaltyFlux(const xdouble *dir,
+                            const xdouble Jac,
+                            xdouble mu,
+                            double Pr,
+                            xdouble uc, 
+                            const xdouble *qfs,
+                            const xdouble *q,
+                            xdouble *flux)
+{
+   // evaluate the difference w - w_bc, where 
+   // w_bc = [w[0], rho*uc_x/p, rho*uc_y/p, ...,w[dim+1]]
+   xdouble dw[dim + 2];
+   dw[0] = 0.0;
+   dw[dim + 1] = 0.0;
+   auto p = pressure<xdouble, dim>(q);
+   xdouble dA = sqrt(dot<xdouble,dim>(dir, dir));
+   for (int d = 0; d < dim; ++d)
+   {
+      dw[d + 1] = (q[d + 1] - q[0]*uc*dir[d]/dA) / p;
+   }
+   // initialize flux; recall that applyCijMatrix adds to its output
+   for (int k = 0; k < dim + 2; ++k)
+   {
+      flux[k] = 0.0;
+   }
+   for (int d = 0; d < dim; ++d)
+   {
+      applyCijMatrix<xdouble, dim>(d, d, mu, Pr, qfs, dw, flux);
+   }
+   // scale the penalty
+   xdouble fac = dA / Jac;
+   for (int k = 1; k < dim + 1; ++k)
+   {
+      flux[k] *= fac;
+   }
+   // zero out the last entry; first entry should be zeroed already
+   flux[dim + 1] = 0.0;
+}
+
 /// Computes the dual-consistent term for the no-slip wall penalty
 /// \param[in] dir - desired (scaled) normal vector to the wall
 /// \param[in] mu - nondimensionalized dynamic viscosity

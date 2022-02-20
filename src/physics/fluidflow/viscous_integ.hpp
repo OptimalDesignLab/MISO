@@ -22,6 +22,15 @@ public:
     : num_states(num_state_vars), alpha(a), stack(diff_stack)
    { }
 
+   /// Get the contribution of this element to the change in entropy
+   /// \param[in] el - the finite element whose contribution we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
    /// \param[in] Trans - defines the reference to physical element mapping

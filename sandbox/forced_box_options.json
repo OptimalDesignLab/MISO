@@ -5,11 +5,14 @@
       "directory": "forced-box"
    },
    "flow-param": {
+      "viscous": true,
+      "Re": 1000,
+      "Pr": 0.72,
       "entropy-state": false,
       "mach": 0.2
    },
    "space-dis": {
-      "degree": 1,
+      "degree": 2,
       "lps-coeff": 1.0,
       "basis-type": "csbp",
       "flux-fun": "IR"
@@ -18,7 +21,7 @@
       "type": "RRK6",
       "exact-t-final": false,
       "steady": false,
-      "t-final": 5,
+      "t-final": 1,
       "dt": 0.01,
       "cfl": 1.0,
       "entropy-log": true
@@ -43,7 +46,7 @@
       "lev-fill": 0
    },
    "bcs": {
-      "slip-wall": [1, 1, 1, 0],
+      "no-slip-adiabatic": [1, 1, 1, 0],
       "control": [0, 0, 0, 1]
    },
    "saveresults":false,

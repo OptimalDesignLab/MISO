@@ -28,6 +28,13 @@ public:
               const nlohmann::json &solver_options,
               std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
+   /// Set the given vector to the free-stream value
+   /// \param[out] qfar - used to hold the free-stream state upon return
+   void getFreeStreamState(mfem::Vector &qfar)
+   {
+      getConcrete<FlowResType>(*spatial_res).getFreeStreamState(qfar);
+   }
+
    /// Returns the L2 error between the discrete and exact conservative vars.
    /// \param[in] u_exact - function that defines the exact **state**
    /// \param[in] entry - if >= 0, the L2 error of state `entry` is returned

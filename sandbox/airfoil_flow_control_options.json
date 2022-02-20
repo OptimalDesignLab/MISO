@@ -8,14 +8,14 @@
        "file": "airfoil_p2.mesh"
     },   
     "flow-param": {
+       "viscous": true,
        "mach": 0.2,
        "aoa": 20.0,
        "roll-axis": 0,
        "pitch-axis": 1,
        "Re": 3500.0,
        "Pr": 0.72,
-       "mu": -1.0,
-       "viscous-mms": false
+       "mu": -1.0
     },
     "space-dis": {
        "degree": 1,
@@ -26,16 +26,17 @@
     "time-dis": {
        "steady": false,
        "const-cfl": true,
-       "type": "RRK6",
+       "type": "RRK",
        "exact-t-final": false,
-       "t-final": 1.0,
+       "t-final": 30.0,
        "dt": 0.05,
-       "cfl": 1.0,
+       "cfl": 5.0,
        "max-iter": 100000,
        "entropy-log": true
     }, 
     "bcs": {
-       "control": [0, 0, 1, 1],
+       "control": [0, 0, 0, 1],
+       "no-slip-adiabatic": [0, 0, 1, 0],
        "far-field": [1, 1, 0, 0]
     },
     "nonlin-solver": {
@@ -55,18 +56,22 @@
     "lin-prec": {
        "ilu-reorder": 1,
        "ilu-type": 0,
-       "lev-fill": 10,
+       "lev-fill": 5,
        "printlevel": 0,
        "type": "hypreilu"
     },
     "saveresults":false,
     "outputs":
     {
+        "each-timestep": true,
         "boundary-entropy": {
-            "boundaries": [0, 0, 1, 1]
+            "boundaries": [0, 0, 0, 1]
         },
         "entropy": {},
         "drag": {
+            "boundaries": [0, 0, 1, 1]
+        },
+        "lift": {
             "boundaries": [0, 0, 1, 1]
         }
     }

@@ -251,17 +251,35 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
           "FlowControlSolver not set up to handle steady "
           "simulations!\n");
    }
-   if (options["time-dis"]["entropy-log"])
+   // Prefer to use loggers eventually
+   if (options["outputs"]["each-timestep"])
    {
       double t0 = options["time-dis"]["t-initial"];  // Should be passed in!!!
-      auto inputs = MachInputs({{"time", t0}, {"state", state}});
-      double entropy = calcEntropy(*spatial_res, inputs);
-      if (rank == 0)
+      Vector control_state;
+      Vector flow_state;
+      extractStates(state, control_state, flow_state);
+      *out << "Outputs before time marching:" << endl;
+      for (auto &pair : outputs)
       {
-         *out << "before time stepping, entropy is " << entropy << endl;
-         remove("entropy-log.txt");
-         entropy_log.open("entropy-log.txt", fstream::app);
-         entropy_log << setprecision(16);
+         auto inputs = MachInputs({});
+         if (pair.first == "entropy") // need compound state
+         {
+            inputs = MachInputs({{"time", t0}, {"state", state}});
+         }
+         else
+         {
+            inputs = MachInputs({{"time", t0}, {"state", flow_state}});
+         }
+         double fun = mach::calcOutput(pair.second, inputs);
+         *out << "\t" << pair.first << " = " << fun << endl; 
+         if (rank == 0)
+         {
+            string output_filename = pair.first + ".txt";
+            remove(output_filename.c_str());
+            output_log.emplace(pair.first, ofstream(output_filename, fstream::app));
+            //output_log[pair.first].open(output_filenam, fstream::app);
+            output_log[pair.first] << setprecision(16);
+         }
       }
    }
 }
@@ -279,13 +297,25 @@ void FlowControlSolver<dim, entvar>::iterationHook(int iter,
    extractStates(state, control_state, flow_state);
    AbstractSolver2::iterationHook(iter, t, dt, flow_state);
 
-   if (options["time-dis"]["entropy-log"])
+   if (options["outputs"]["each-timestep"])
    {
-      auto inputs = MachInputs({{"time", t}, {"state", state}});
-      double entropy = calcEntropy(*spatial_res, inputs);
-      if (rank == 0)
+      extractStates(state, control_state, flow_state);
+      for (auto &pair : outputs)
       {
-         entropy_log << t << ' ' << entropy << endl;
+         auto inputs = MachInputs({});
+         if (pair.first == "entropy") // need compound state
+         {
+            inputs = MachInputs({{"time", t}, {"state", state}});
+         }
+         else
+         {
+            inputs = MachInputs({{"time", t}, {"state", flow_state}});
+         }
+         double fun = mach::calcOutput(pair.second, inputs);         
+         if (rank == 0)
+         {
+            output_log[pair.first] << t << ' ' << fun << endl;
+         }
       }
    }
 }
@@ -350,14 +380,27 @@ void FlowControlSolver<dim, entvar>::terminalHook(int iter,
    Vector flow_state;
    extractStates(state, control_state, flow_state);
    AbstractSolver2::terminalHook(iter, t_final, flow_state);
-   if (options["time-dis"]["entropy-log"])
+
+   if (options["outputs"]["each-timestep"])
    {
-      auto inputs = MachInputs({{"time", t_final}, {"state", state}});
-      double entropy = calcEntropy(*spatial_res, inputs);
-      if (rank == 0)
+      extractStates(state, control_state, flow_state);
+      for (auto &pair : outputs)
       {
-         entropy_log << t_final << ' ' << entropy << endl;
-         entropy_log.close();
+         auto inputs = MachInputs({});
+         if (pair.first == "entropy") // need compound state
+         {
+            inputs = MachInputs({{"time", t_final}, {"state", state}});
+         }
+         else
+         {
+            inputs = MachInputs({{"time", t_final}, {"state", flow_state}});
+         }
+         double fun = mach::calcOutput(pair.second, inputs);
+         if (rank == 0)
+         {
+            output_log[pair.first] << t_final << ' ' << fun << endl;
+            output_log[pair.first].close();
+         }
       }
    }
 }

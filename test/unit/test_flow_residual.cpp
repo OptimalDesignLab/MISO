@@ -121,6 +121,7 @@ TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
          q(num_state*i + j) *= uniform_rand(gen);
       }
    }
+
    // evaluate the entropy change based on q; by setting dqdt to be the 
    // residual evaluated at q, we ensure the entropy change should be zero for 
    // the periodic domain and lps coeff = 0.0

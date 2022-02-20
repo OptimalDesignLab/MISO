@@ -57,8 +57,8 @@ private:
    using ResType = FlowControlResidual<dim, entvar>;
    /// object defining the mfem computational mesh
    std::unique_ptr<mfem::ParMesh> mesh_ = nullptr;
-   /// used to record the total entropy
-   std::ofstream entropy_log;
+   /// used to record time histories of outputs
+   mutable std::map<std::string, std::ofstream> output_log;
    /// Map of all grid-function-based state vectors used by the solver
    mutable std::map<std::string, FiniteElementState> fields;
 

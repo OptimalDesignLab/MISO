@@ -49,22 +49,20 @@ int main(int argc, char *argv[])
 
       // Create solver and set initial condition 
       FlowControlSolver<2> solver(MPI_COMM_WORLD, options);
+      //FlowSolver<2> solver(MPI_COMM_WORLD, options);
       mfem::Vector state_tv(solver.getStateSize());
       Vector qfar(4);
       solver.getFreeStreamState(qfar);
       auto uInit = [&](const Vector &x, Vector &u0) { u0 = qfar; };
       solver.setState(
           std::make_pair(std::function(cInit), std::function(uInit)), state_tv);
+      //solver.setState(uInit, state_tv);
 
       // Set all the necessary inputs
       const double Kp = 0.4, Ti = 0.8, Td = 0.5, beta = 2.5, eta = 0.8;
-      const double target_entropy = 0.0;
+      // target entropy is from boundary entropy evaluated at initial field 
+      const double target_entropy = 0.1135579764419388;
       bool closed_loop = true;
-      Vector P(4);
-      P(0) = 36.7614241; 
-      P(1) = -88.2050467;
-      P(2) = -88.2050467;
-      P(3) = 213.6134806;
       double xac = 0.25;
       double yac = yControl(xac);
       mfem::Vector x_actuator({xac, yac});
@@ -78,13 +76,14 @@ int main(int argc, char *argv[])
                          {"eta", eta},
                          {"target-entropy", target_entropy},
                          {"boundary-entropy", 0.0},
-                         {"closed-loop", float(closed_loop)},
-                         {"P-matrix", P}});
+                         {"closed-loop", float(closed_loop)}});
 
-      // get the initial entropy 
+      // create the outputs to track
       solver.createOutput("entropy", options["outputs"].at("entropy"));
-      double entropy0 = solver.calcOutput("entropy", inputs);
-      cout << "initial entropy = " << entropy0 << endl;
+      solver.createOutput("boundary-entropy",
+                          options["outputs"].at("boundary-entropy"));
+      solver.createOutput("drag", options["outputs"].at("drag"));
+      solver.createOutput("lift", options["outputs"].at("lift"));
 
       // Solve for the state
       solver.solveForState(inputs, state_tv);
