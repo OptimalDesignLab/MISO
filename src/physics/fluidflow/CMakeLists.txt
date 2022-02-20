@@ -19,8 +19,6 @@ target_sources(mach
       navier_stokes.hpp
       viscous_integ_def.hpp
       viscous_integ.hpp
-      RBFSpace.cpp
-      RBFSpace.hpp
 )
 
 target_include_directories(mach

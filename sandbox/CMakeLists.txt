@@ -23,7 +23,6 @@ set(SANDBOX_SRCS
    sod_shock
    continuous_euler
    continuous_2d_euler
-   rbf_test
 	)
 
 create_sandbox("${SANDBOX_SRCS}")

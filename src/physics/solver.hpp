@@ -148,8 +148,6 @@ public:
       return output;
    }
 
-   virtual void masslumpCheck( void (*u_init)(const mfem::Vector &, mfem::Vector &));
-
    /// A temporal funtion that print the 2d sod_shock problem
    virtual void PrintSodShock(const std::string &file_name) = 0;
    virtual void PrintSodShockCenter(const std::string &file_name) = 0;

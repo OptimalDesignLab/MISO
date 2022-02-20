@@ -10,7 +10,6 @@
 #include "diag_mass_integ.hpp"
 #include "solver.hpp"
 #include "galer_diff.hpp"
-#include "RBFSpace.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -92,85 +91,16 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    }
 
 }
-void AbstractSolver::masslumpCheck( void (*u_init)(const Vector &, Vector &))
-{
-   num_state = 1;
-   *out << "Num states = " << num_state << endl;
-   if (options["space-dis"]["GD"].get<bool>() == true)
-   {
-      int gd_degree = options["space-dis"]["GD-degree"].get<int>();
-      mesh->ElementToElementTable();
-      fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
-                                       Ordering::byVDIM, gd_degree));
-      fes_normal.reset(new SpaceType(mesh.get(), fec.get(), num_state,
-                              Ordering::byVDIM));
-      uc.reset(new CentGridFunction(fes.get()));
-      u.reset(new GridFunType(fes_normal.get()));
-   }
-   else
-   {
-      fes.reset(new SpaceType(mesh.get(), fec.get(), num_state,
-                              Ordering::byVDIM));
-      u.reset(new GridFunType(fes.get()));
-   }
-
-   double alpha = 1.0;
-   // set up the mass matrix
-   mass.reset(new BilinearFormType(fes_normal.get()));
-   if (options["space-dis"]["basis-type"].get<string>() == "dg")
-   {
-      mass->AddDomainIntegrator(new MassIntegrator);
-   }
-   else if (options["space-dis"]["basis-type"].get<string>() == "dsbp")
-   {
-      mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
-   }
-   mass->Assemble();
-   mass->Finalize();
-   mass_matrix.reset(new MatrixType(mass->SpMat()));
-   MatrixType *cp = dynamic_cast<GalerkinDifference*>(fes.get())->GetCP();
-   MatrixType *p = RAP(*cp, *mass_matrix, *cp);
-   mass_matrix_gd.reset(new MatrixType(*p));
-   // mass lumping
-   const bool lump = options["mass-matrix"]["lump"].get<bool>();
-   Vector diag(mass_matrix_gd->Height());
-   if (lump)
-   {
-      double *cols;
-      int num_in_row;
-      diag = 0.0;
-      for (int i = 0; i < mass_matrix_gd->Height(); i++)
-      {
-         cols = mass_matrix_gd->GetRowEntries(i);
-         num_in_row = mass_matrix_gd->RowSize(i);
-         for (int j = 0; j < num_in_row; j++)
-         {
-            diag(i) += cols[j];
-         }
-      }
-      mass_matrix_gd.reset(new MatrixType(diag));
-   }
-   setInitialCondition(u_init);
-   double integration = (*uc) * diag;
-   // double exact = 2 * M_PI; // 0th order
-   // double exact = 26.0/3.0; // 1st order
-   // double exact = 5.0*M_PI; // 2nd order
-   // double exact = 484.0/15.0; // 3rd order
-   // double exact = 91.0 *M_PI / 4.0; // 4th order
-   // double exact = 4.0; // nonliear
-   cout << "Integration error is " <<  std::setprecision(14) << 4.0 - integration << endl;
-}
 
 void AbstractSolver::initDerived(Array<Vector *> &center)
 {
    num_state = this->getNumState();
-   int rbf_degree = options["space-dis"]["RBF-degree"].get<int>();
-   int extra_basis = options["space-dis"]["extra-basis"].get<int>();
-   double shape = options["space-dis"]["shape-param"].get<double>();
+   int dgd_degree = options["space-dis"]["DGD-degree"].get<int>();
+   int extra = options["space-dis"]["extra-basis"].get<int>();
    
    // set the finite element space
-   fes.reset(new RBFSpace(mesh.get(),fec.get(),center,shape,num_state,
-                          extra_basis,Ordering::byVDIM,rbf_degree));
+   fes.reset(new DGDSpace(mesh.get(),fec.get(),center,dgd_degree,extra,
+                          num_state, Ordering::byVDIM));
    fes_normal.reset(new SpaceType(mesh.get(),fec.get(),num_state,
                                   Ordering::byVDIM));
 
@@ -182,13 +112,11 @@ void AbstractSolver::initDerived(Array<Vector *> &center)
    res.reset(new NonlinearFormType(fes.get()));
 
    *out << "Num of state variables: " << num_state << '\n';
-   *out << "rbf_degree is: " << rbf_degree << '\n';
-   *out << "extra basis is: " << extra_basis << '\n';
-   *out << "shapeParameter is: "<< shape << '\n';
+   *out << "dgd_degree is: " << dgd_degree << '\n';
    *out << "uc size is " << uc->Size() << '\n';
    *out << "u size is " << u->Size() << '\n';
    *out << "Number of finite element unknowns: "<< fes->GetTrueVSize() << '\n';
-   *out << "Number of dofs is (should be number of basis): " << dynamic_cast<RBFSpace *>(fes.get())->GetNDofs() << '\n';
+   *out << "Number of dofs is (should be number of basis): " << dynamic_cast<DGDSpace *>(fes.get())->GetNDofs() << '\n';
    *out << "res size is " << res->Height() << " x " << res->Width() << '\n';
 
    // add output
@@ -233,8 +161,8 @@ void AbstractSolver::initDerived()
    {
       int gd_degree = options["space-dis"]["GD-degree"].get<int>();
       mesh->ElementToElementTable();
-      fes.reset(new GalerkinDifference(mesh.get(), fec.get(), num_state,
-                                       Ordering::byVDIM, gd_degree));
+      // fes.reset(new DGDSpace(mesh.get(), fec.get(), num_state,
+      //                                  Ordering::byVDIM, gd_degree));
       fes_normal.reset(new SpaceType(mesh.get(), fec.get(), num_state,
                               Ordering::byVDIM));
       uc.reset(new CentGridFunction(fes.get()));
@@ -306,7 +234,7 @@ void AbstractSolver::initDerived()
    mass_matrix.reset(new MatrixType(mass->SpMat()));
 #else
    mass_matrix.reset(new MatrixType(mass->SpMat()));
-   MatrixType *cp = dynamic_cast<GalerkinDifference*>(fes.get())->GetCP();
+   MatrixType *cp = dynamic_cast<DGDSpace*>(fes.get())->GetCP();
    MatrixType *p = RAP(*cp, *mass_matrix, *cp);
    mass_matrix_gd.reset(new MatrixType(*p));
 
@@ -454,11 +382,11 @@ void AbstractSolver::setInverseInitialCondition(
    }
 
    //compute temp = P^t H u_{sbp}
-   dynamic_cast<GalerkinDifference*>(fes.get())->GetCP()->MultTranspose(u_weighted, temp);
+   dynamic_cast<DGDSpace*>(fes.get())->GetCP()->MultTranspose(u_weighted, temp);
 
    // assemble the mass matrix M
    MatrixType *mass_matrix = &(mass->SpMat());
-   MatrixType *cp = dynamic_cast<GalerkinDifference*>(fes.get())->GetCP();
+   MatrixType *cp = dynamic_cast<DGDSpace*>(fes.get())->GetCP();
    MatrixType *p = RAP(*cp, *mass_matrix, *cp);
 
    // Solver for M u_c = P^t H u_{sbp}
@@ -491,7 +419,7 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    cout << "After apply initial condition.\n";
 
    // Compute the projected coefficient
-   MatrixType *cp = dynamic_cast<GalerkinDifference*>(fes.get())->GetCP();
+   MatrixType *cp = dynamic_cast<DGDSpace*>(fes.get())->GetCP();
    MatrixType *p = RAP(*cp, *mass_matrix, *cp);
    cout << "p size is " << p->Height() << ' ' << p->Width() << endl;
    Vector hu(u->Size()),pthu(num_state * fes->GetNE());
@@ -543,7 +471,7 @@ void AbstractSolver::setInitialCondition(
    uc->ProjectCoefficient(u0);
    cout << "uc size is " << uc->Size() << '\n';
    GridFunType u_test(fes_normal.get());
-   dynamic_cast<RBFSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);
+   dynamic_cast<DGDSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);
 
 
    ofstream initial("initial_condition.vtk");
@@ -609,7 +537,7 @@ void AbstractSolver::setInitialCondition(const Vector &uic)
    uc->ProjectCoefficient(u0);
 
    GridFunType u_test(fes_normal.get());
-   dynamic_cast<RBFSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);
+   dynamic_cast<DGDSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);
 
    ofstream initial("initial_condition.vtk");
    initial.precision(14);

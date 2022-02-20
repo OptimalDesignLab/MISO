@@ -1,64 +1,60 @@
-#ifndef MFEM_GALER_DIFF
-#define MFEM_GALER_DIFF
+#ifndef MFEM_DGDSpace
+#define MFEM_DGDSpace
 
 #include "mfem.hpp"
-#include "solver.hpp"
 #include "mach_types.hpp"
-
 namespace mfem
 {
 
-/// Abstract class for Galerkin difference method using patch construction
-class GalerkinDifference : public FiniteElementSpace
+// need to think a new name for this class
+class DGDSpace : public mfem::FiniteElementSpace
 {
-
 public:
-   /// Class constructor.
-   /// \param[in] opt_file_name - file where options are stored
-   GalerkinDifference(const std::string &opt_file_name
-                      = std::string("mach_options.json"));
+   /// class constructor
+   DGDSpace(mfem::Mesh *m, const mfem::FiniteElementCollection *fec,
+            mfem::Array<Vector*> center, int degree, int extra, int vdim = 1,
+            int ordering = mfem::Ordering::byVDIM);
+   virtual ~DGDSpace();
 
-   /// Another convenient constructor for test the prolongation matrix
-   GalerkinDifference(int de, int vdim = 1,
-                        int ordering = mfem::Ordering::byVDIM);
+   /// build the prolongation matrix
+   void buildProlongation() const;
+
+   /// build the dof coordinate matrix
+   /// note: Assume the mesh only has one type of element
+   /// \param[in] el_id - global element id
+   /// \param[in/out dofs - matrix that hold the dofs' coordinates
+   void buildDofMat(int el_id, const int num_dofs, 
+                    const mfem::FiniteElement *fe,
+                    mfem::Array<mfem::Vector *> &dofs) const;
    
-   GalerkinDifference(mfem::Mesh *pm, const mfem::FiniteElementCollection *f,
-                      int vdim = 1, int ordering = mfem::Ordering::byVDIM,
-                      int degree = 0);
-   
-   
+   void buildDataMat(const int el_id, mfem::DenseMatrix &V,
+                     mfem::DenseMatrix &Vn) const;
 
-   /// constructs the neighbour matrices for all mesh elements. 
-   /// and second neighbours (shared vertices).
-   /// \param[out] nmat1 - matrix of first neighbours
-   /// \param[out] nmat1 - matrix of second neighbours
-   /// \warning this function is going to be removed soon
-   void BuildNeighbourMat(DenseMatrix &nmat1, DenseMatrix &nmat2);
+   /// Solve and store the local prolongation coefficient
+   /// \param[in] el_id - the element id
+   /// \param[in] numDofs - degrees of freedom in the element
+   /// \param[in] dof_coord - dofs coordinat location
+   void solveLocalProlongationMat(const int el_id, const mfem::DenseMatrix &V,
+                                     const mfem::DenseMatrix &Vn,
+                                     mfem::DenseMatrix &localMat) const;
 
-   /// An overload function for build the densmatrix
-   void BuildNeighbourMat(const Array<int> &els_id,
-                          DenseMatrix &mat_cent,
-                          DenseMatrix &mat_quad) const;
+   /// build the element-wise polynomial basis matrix
+   void buildElementPolyBasisMat(const int el_id, const int numDofs,
+                                 const mfem::Array<mfem::Vector *> &dofs_coord,
+                                 mfem::DenseMatrix &V,
+                                 mfem::DenseMatrix &Vn) const;
 
-   /// constructs the neighbour set for given mesh element. 
-   /// \param[in]  id - the id of the element for which we need neighbour
-   /// \param[in]  req_n - the required number of neighbours for patch
-   /// \param[out] nels - the set of neighbours (may contain more element than required)
-   void GetNeighbourSet(int id, int req_n, Array<int> &nels) const;
+   /// Assemble the local prolongation to the global matrix
+   void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat) const;
 
-   /// provides the center (barycenter) of an element
-   /// \param[in]  id - the id of the element for which we need barycenter
-   /// \param[out] cent - the vector of coordinates of center of an element
-   void GetElementCenter(int id, mfem::Vector &cent) const;
-   
-
+   virtual int GetTrueVSize() const {return vdim * numBasis;}
+   inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }
-   /// Get the prolongation matrix in GD method
-   virtual const Operator *GetProlongationMatrix() const
+   const Operator *GetProlongationMatrix() const
    { 
       if (!cP)
       {
-         BuildGDProlongation();
+         buildProlongation();
          return cP;
       }
       else
@@ -66,41 +62,40 @@ public:
          return cP; 
       }
    }
-
-   void checkpcp()
-   {
-      if (cP) {std::cout << "cP is set.\n";}
-      mfem::SparseMatrix *P = dynamic_cast<mfem::SparseMatrix *> (cP);
-      if (P) {std::cout << "convert succeeded.\n";}
-   }
-
-   /// Build the prolongation matrix in GD method
-   void BuildGDProlongation() const;
-
-   /// Assemble the local reconstruction matrix into the prolongation matrix
-   /// \param[in] id - vector of element id in patch
-   /// \param[in] local_mat - the local reconstruction matrix
-   /// problem to be solved: how the ensure the oder of dofs consistent with other forms?
-   void AssembleProlongationMatrix(const Array<int> &id, const DenseMatrix &local_mat) const;
-
-   virtual int GetTrueVSize() const {return nEle * vdim; }
-
 protected:
    /// mesh dimension
    int dim;
-   /// number of elements in mesh
-   int nEle;
-   /// degree of lagrange interpolation
-   int degree;
+   /// number of radial basis function
+   int numBasis;
+   /// number of polynomial basis
+   int numPolyBasis;
+   /// polynomial order
+   int polyOrder;
+   /// number of required basis to constructe certain order polynomial
+   int numLocalBasis;
+   int extra;
+   
+   /// location of the basis centers
+   mfem::Array<mfem::Vector *> basisCenter;
+   /// selected basis for each element (currently it is fixed upon setup)
+   mfem::Array<mfem::Array<int> *> selectedBasis;
+   mfem::Array<mfem::Array<int> *> selectedElement;
+   /// store the element centers
+   mfem::Array<mfem::Vector *> elementCenter;
+   /// array of map that holds the distance from element center to basisCenter
+   // mfem::Array<std::map<int, double> *> elementBasisDist;
+   mfem::Array<std::vector<double> *> elementBasisDist;
+   // local element prolongation matrix coefficient
+   mutable mfem::Array<mfem::DenseMatrix *> coef;
+   /// Initialize the patches/stencil given poly order
 
-   /// use pumi mesh
-   //using MeshType = mfem::PumiMesh;
-   /// object defining the computational mesh
-   //std::unique_ptr<mach::MeshType> pmesh;
-   /// the finite element collection pointer
-   //std::unique_ptr<const mfem::FiniteElementCollection> fec;
-   const mfem::FiniteElementCollection *fec; // not owned
 
+   // some protected function
+   void InitializeStencil();
+   /// Initialize the shape parameters
+   void InitializeShapeParameter();
+   std::vector<std::size_t> sort_indexes(const std::vector<double> &v);
 };
-} // end of namespace mach
-#endif // end of GALERKIN DIFF
+
+} // end of namespace mfem
+#endif

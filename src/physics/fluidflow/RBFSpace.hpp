@@ -68,7 +68,7 @@ public:
 
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
-
+   SparseMatrix *GetCP() { return cP; }
    const Operator *GetProlongationMatrix() const
    { 
       if (!cP)
