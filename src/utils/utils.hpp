@@ -161,7 +161,7 @@ void buildLSInterpolation(int dim, int degree,
                           const mfem::DenseMatrix &x_quad,
                           mfem::DenseMatrix &interp);
 
-void buildRBFInterpolation(int numRadialBasis, int numPolyBasis, const mfem::DenseMatrix &WV,
+void buildDGDInterpolation(int numRadialBasis, int numPolyBasis, const mfem::DenseMatrix &WV,
                            mfem::DenseMatrix &coef);
 #endif
 

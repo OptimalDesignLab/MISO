@@ -80,12 +80,7 @@ int main(int argc, char *argv[])
       ofstream centerwrite("center.vtp");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();
-      for (int i = 0; i < numBasis; i++)
-      {
-         cout << "basis " << i << ": ";
-         center[i]->Print();
-      }
-
+      
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
       DGDSpace DGDSpace(smesh.get(),&fec,center,degree,extra,num_state,Ordering::byVDIM);

@@ -18,14 +18,6 @@ public:
 
    /// build the prolongation matrix
    void buildProlongation() const;
-
-   /// build the dof coordinate matrix
-   /// note: Assume the mesh only has one type of element
-   /// \param[in] el_id - global element id
-   /// \param[in/out dofs - matrix that hold the dofs' coordinates
-   void buildDofMat(int el_id, const int num_dofs, 
-                    const mfem::FiniteElement *fe,
-                    mfem::Array<mfem::Vector *> &dofs) const;
    
    void buildDataMat(const int el_id, mfem::DenseMatrix &V,
                      mfem::DenseMatrix &Vn) const;

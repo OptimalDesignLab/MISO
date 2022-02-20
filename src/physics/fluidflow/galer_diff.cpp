@@ -22,13 +22,14 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
 
    switch(dim)
    {
-      case 1: numLocalBasis = polyOrder + 1;  break;
-      case 2: numLocalBasis = (polyOrder+1) * (polyOrder+2) / 2; break;
-      case 3: numLocalBasis = (polyOrder+1) * (polyOrder+2) * (polyOrder+3) / 6; break;
+      case 1: numPolyBasis = polyOrder + 1;  break;
+      case 2: numPolyBasis = (polyOrder+1) * (polyOrder+2) / 2; break;
+      case 3: numPolyBasis = (polyOrder+1) * (polyOrder+2) * (polyOrder+3) / 6; break;
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
-   numLocalBasis += extra;
-   cout << "Number of required polynomial basis is " << numLocalBasis << '\n';
+   numLocalBasis = numPolyBasis + extra;
+   cout << "Number of required polynomial basis is " << numPolyBasis << '\n';
+   cout << "Number of element local basis is " << numLocalBasis << '\n';
 
    // initialize the stencil/patch
    InitializeStencil();
@@ -64,7 +65,7 @@ void DGDSpace::InitializeStencil()
       elementCenter[i] = new Vector(dim);
       elementBasisDist[i] = new std::vector<double>;
       selectedBasis[i] = new Array<int>;
-      coef[i] = new DenseMatrix(numLocalBasis,numLocalBasis);
+      coef[i] = new DenseMatrix(numPolyBasis,numLocalBasis);
       GetMesh()->GetElementCenter(i,*elementCenter[i]);
       for (int j = 0; j < numBasis; j++)
       {
@@ -88,35 +89,35 @@ void DGDSpace::InitializeStencil()
       }
    }
 
-   cout << "------Check the stencil------\n";
-   cout << "------Basis center loca------\n";
-   for (int i = 0; i < numBasis; i++)
-   {  
-      cout << "basis " << i << ": ";
-      basisCenter[i]->Print();
-   }
-   cout << '\n';
-   cout << "------Elem's  stencil------\n";
-   for (int i = 0; i < GetMesh()->GetNE(); i++)
-   {
-      cout << "Element " << i << ": ";
-      for (int j = 0; j < selectedBasis[i]->Size(); j++)
-      {
-         cout << (*selectedBasis[i])[j] << ' ';
-      }
-      cout << '\n';
-   }
-   cout << '\n';
-   cout << "------Basis's  element------\n";
-   for (int k = 0; k < numBasis; k++)
-   {
-      cout << "basis " << k << ": ";
-      for (int l = 0; l < selectedElement[k]->Size(); l++)
-      {
-         cout << (*selectedElement[k])[l] << ' ';
-      }
-      cout << '\n';
-   }
+   // cout << "------Check the stencil------\n";
+   // cout << "------Basis center loca------\n";
+   // for (int i = 0; i < numBasis; i++)
+   // {  
+   //    cout << "basis " << i << ": ";
+   //    basisCenter[i]->Print();
+   // }
+   // cout << '\n';
+   // cout << "------Elem's  stencil------\n";
+   // for (int i = 0; i < GetMesh()->GetNE(); i++)
+   // {
+   //    cout << "Element " << i << ": ";
+   //    for (int j = 0; j < selectedBasis[i]->Size(); j++)
+   //    {
+   //       cout << (*selectedBasis[i])[j] << ' ';
+   //    }
+   //    cout << '\n';
+   // }
+   // cout << '\n';
+   // cout << "------Basis's  element------\n";
+   // for (int k = 0; k < numBasis; k++)
+   // {
+   //    cout << "basis " << k << ": ";
+   //    for (int l = 0; l < selectedElement[k]->Size(); l++)
+   //    {
+   //       cout << (*selectedElement[k])[l] << ' ';
+   //    }
+   //    cout << '\n';
+   // }
 }
 
 void DGDSpace::buildProlongation() const
@@ -129,9 +130,18 @@ void DGDSpace::buildProlongation() const
    {
       // 1. build basis matrix
       buildDataMat(i,V,Vn);
-      cout << "Check V:\n";
-      V.Print(cout, V.Width());
-      cout << '\n';
+      // if (i == 0)
+      // {
+      //    cout << "Check V:\n";
+      //    for (int i = 0; i < V.Height(); ++i)
+      //    {
+      //       for (int j = 0; j < V.Width(); j++)
+      //       {
+      //          cout << V(i,j) << ' ';
+      //       }
+      //       cout << '\n';
+      //    }
+      // }
       // 2. build the interpolation matrix
       solveLocalProlongationMat(i,V,Vn,localMat);
 
@@ -160,7 +170,7 @@ void DGDSpace::buildDataMat(int el_id, DenseMatrix &V,
       *dofs_coord[k] = coord;
    }
 
-   V.SetSize(numLocalBasis,numLocalBasis);
+   V.SetSize(numLocalBasis,numPolyBasis);
    Vn.SetSize(numDofs,numLocalBasis);
 
    // build the data matrix
@@ -173,20 +183,6 @@ void DGDSpace::buildDataMat(int el_id, DenseMatrix &V,
    }
 }
 
-void DGDSpace::buildDofMat(int el_id, const int numDofs,
-                           const FiniteElement *fe,
-                           Array<Vector *> &dofs_coord) const
-{
-   Vector coord(dim);
-   ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
-   for (int i = 0; i < numDofs; i++)
-   {
-      eltransf->Transform(fe->GetNodes().IntPoint(i), coord);
-      *dofs_coord[i] = coord;
-   }
-}
-
-
 void DGDSpace::solveLocalProlongationMat(const int el_id,
                                          const DenseMatrix &V,
                                          const DenseMatrix &Vn,
@@ -194,26 +190,44 @@ void DGDSpace::solveLocalProlongationMat(const int el_id,
 {
    int numDofs = Vn.Height();
    DenseMatrix b(numLocalBasis,numLocalBasis);
+   b = 0.0;
    for (int i = 0; i < numLocalBasis; i++)
    {
       b(i,i) = 1.0;
    }
-   DenseMatrixInverse WVinv(V);
-   WVinv.Mult(b,*coef[el_id]);
-
+   //buildDGDInterpolation(numLocalBasis,numPolyBasis,V,b);
+   
+   DenseMatrixInverse Vinv(V);
+   Vinv.Mult(b,*coef[el_id]);
    // check solve
-   DenseMatrix temp(numLocalBasis,numLocalBasis);
-
+   // if (el_id == 0)
+   // {
+   //    // cout << "b after solve is:\n";
+   //    // b.Print(cout,b.Width());
+   //    // for (int i = 0; i < numPolyBasis; i++)
+   //    // {
+   //    //    for (int j = 0; j < numLocalBasis; j++)
+   //    //    {
+   //    //       (*coef[el_id])(i,j) = b(i,j);
+   //    //    }
+   //    // }
+   //    cout << "coef is:\n" << setprecision(16);
+   //    for (int i = 0; i < coef[el_id]->Height(); ++i)
+   //    {
+   //       for (int j = 0; j < coef[el_id]->Width(); j++)
+   //       {
+   //          cout << (*coef[el_id])(i,j) << ' ';
+   //       }
+   //       cout << '\n';
+   //    }
+   //    DenseMatrix temp(numLocalBasis,numLocalBasis);
+   //    Mult(V,*coef[el_id],temp);
+   //    cout  << "temp results is: \n";
+   //    temp.Print(cout,temp.Width());
+   // }
    // Get Local prolongation matrix
    localMat.SetSize(numDofs,numLocalBasis);
    Mult(Vn,*coef[el_id],localMat);
-
-   // Solve the coefficient with Lapack
-   // for (int i = 0; i < numLocalBasis; i++)
-   // {
-   //    (*coef[el_id])(i,i) = 1.0;
-   // }
-   // buildRBFInterpolation(numLocalBasis,numPolyBasis,WV,*coef[el_id]);
 }
 
 
