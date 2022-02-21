@@ -171,7 +171,7 @@ void DGDSpace::buildDataMat(int el_id, DenseMatrix &V,
    }
 
    V.SetSize(numLocalBasis,numPolyBasis);
-   Vn.SetSize(numDofs,numLocalBasis);
+   Vn.SetSize(numDofs,numPolyBasis);
 
    // build the data matrix
    buildElementPolyBasisMat(el_id,numDofs,dofs_coord,V,Vn);
@@ -196,9 +196,26 @@ void DGDSpace::solveLocalProlongationMat(const int el_id,
       b(i,i) = 1.0;
    }
    //buildDGDInterpolation(numLocalBasis,numPolyBasis,V,b);
+
+   if (numPolyBasis == numLocalBasis)
+   {
+      DenseMatrixInverse Vinv(V);
+      Vinv.Mult(b,*coef[el_id]);
+   }
+   else
+   {
+      DenseMatrix Vt(V);
+      Vt.Transpose();
+      DenseMatrix VtV(numPolyBasis,numPolyBasis);
+      Mult(Vt, V, VtV);
+
+      DenseMatrixInverse Vinv(VtV);
+      DenseMatrix Vtb(numPolyBasis,numLocalBasis);
+      Mult(Vt,b,Vtb);
+      Vinv.Mult(Vtb,*coef[el_id]);
+   }
    
-   DenseMatrixInverse Vinv(V);
-   Vinv.Mult(b,*coef[el_id]);
+
    // check solve
    // if (el_id == 0)
    // {

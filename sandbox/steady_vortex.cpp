@@ -74,19 +74,19 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs,0);
       sol_ofs.close();
 
-      // int numBasis = smesh->GetNE();
-      // Array<Vector *> center(numBasis);
-      // for (int k = 0; k < numBasis; k++)
-      // {  
-      //    center[k] = new Vector(2);
-      //    smesh->GetElementCenter(k,*center[k]);
-      // }
+      int numBasis = smesh->GetNE();
+      Array<Vector *> center(numBasis);
+      for (int k = 0; k < numBasis; k++)
+      {  
+         center[k] = new Vector(2);
+         smesh->GetElementCenter(k,*center[k]);
+      }
 
-      Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      int numBasis = numRad * numTheta;
-            ofstream centerwrite("center.vtp");
-      writeBasisCentervtp(center, centerwrite);
-      centerwrite.close();
+      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      // int numBasis = numRad * numTheta;
+      // ofstream centerwrite("center.vtp");
+      // writeBasisCentervtp(center, centerwrite);
+      // centerwrite.close();
       // for (int i = 0; i < numBasis; i++)
       // {
       //    cout << "basis " << i << ": ";

@@ -67,16 +67,16 @@ int main(int argc, char *argv[])
       int num_state = dim+2;
 
       // initialize the basis centers
-      // int numBasis = smesh->GetNE();
-      // Array<Vector *> center(numBasis);
-      // for (int k = 0; k < numBasis; k++)
-      // {  
-      //    center[k] = new Vector(dim);
-      //    smesh->GetElementCenter(k,*center[k]);
-      // }
+      int numBasis = smesh->GetNE();
+      Array<Vector *> center(numBasis);
+      for (int k = 0; k < numBasis; k++)
+      {  
+         center[k] = new Vector(dim);
+         smesh->GetElementCenter(k,*center[k]);
+      }
 
-      Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      int numBasis = numRad * numTheta;
+      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      // int numBasis = numRad * numTheta;
       ofstream centerwrite("center.vtp");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();

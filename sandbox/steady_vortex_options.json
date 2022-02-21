@@ -1,7 +1,7 @@
 {
    "space-dis": {
-      "RBF": true,
-      "RBF-degree": 1,
+      "DGD": true,
+      "DGD-degree": 1,
       "extra-basis": 4,
       "shape-param": 10.0,
       "degree": 1,
