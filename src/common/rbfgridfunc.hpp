@@ -12,10 +12,9 @@ class RBFGridFunction : public mfem::GridFunction
 {
 public:
    RBFGridFunction() { }
-   RBFGridFunction(mfem::FiniteElementSpace *f, mfem::Array<mfem::Vector *> &center,
-                    std::function<void(const mfem::Vector &, mfem::Vector &)> F);
+   RBFGridFunction(mfem::FiniteElementSpace *f, mfem::Array<mfem::Vector *> &center);
 
-   virtual void ProjectCoefficient();
+   virtual void ProjectCoefficient(std::function<void(const mfem::Vector &, mfem::Vector &)> F);
    
    RBFGridFunction &operator=(const Vector &v);
    RBFGridFunction &operator=(double value);

@@ -2,6 +2,7 @@
 #define MFEM_CENTGRIDFUNC
 
 #include "mfem.hpp"
+#include "galer_diff.hpp"
 
 
 namespace mfem
@@ -12,16 +13,15 @@ class CentGridFunction : public mfem::GridFunction
 public:
    CentGridFunction() { }
    CentGridFunction(mfem::FiniteElementSpace *f);
+   CentGridFunction(mfem::FiniteElementSpace *f,mfem::Array<mfem::Vector *> center);
 
    virtual void ProjectCoefficient(mfem::VectorCoefficient &coeff);
    
    CentGridFunction &operator=(const Vector &v);
    CentGridFunction &operator=(double value);
 
-   // mfem::HypreParVector *GetTrueDofs()
-   // {
-   //    mfem::HypreParVector *tv = new HypreParVector(comm,GlobalTrueVSize(),GetTrueDofOffsets()));
-   // }
+private:
+   mfem::Array<mfem::Vector *> basisCenter;
 
 };
 

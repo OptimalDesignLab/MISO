@@ -86,20 +86,13 @@ int main(int argc, char *argv[])
       DGDSpace DGDSpace(smesh.get(),&fec,center,degree,extra,num_state,Ordering::byVDIM);
       FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
 
-      // test rbf grid function
-      mfem::RBFGridFunction x_dgd(&DGDSpace,center,upoly);
-      x_dgd.ProjectCoefficient();
-      ofstream x_dgdprint("x_dgd.txt");
-      x_dgd.Print(x_dgdprint,4);
-      x_dgdprint.close();
-
       //================== Construct the gridfunction and apply the exact solution =======
       mfem::VectorFunctionCoefficient u0_fun(num_state, upoly);
-      // mfem::CentGridFunction x_cent(&DGDSpace);
-      // x_cent.ProjectCoefficient(u0_fun);
-      // ofstream x_centprint("x_cent.txt");
-      // x_cent.Print(x_centprint,4);
-      // x_centprint.close();
+      mfem::CentGridFunction x_cent(&DGDSpace);
+      x_cent.ProjectCoefficient(u0_fun);
+      ofstream x_centprint("x_cent.txt");
+      x_cent.Print(x_centprint,4);
+      x_centprint.close();
 
 
       mfem::GridFunction x_exact(&fes);
@@ -113,7 +106,7 @@ int main(int argc, char *argv[])
 
       mfem::GridFunction x(&fes);
       x = 0.0;
-      DGDSpace.GetProlongationMatrix()->Mult(x_dgd,x);
+      DGDSpace.GetProlongationMatrix()->Mult(x_cent,x);
       ofstream x_prolongprint("x_prolong.txt");
       x.Print(x_prolongprint,4);
       x_prolongprint.close();

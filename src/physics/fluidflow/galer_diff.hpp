@@ -39,6 +39,7 @@ public:
    /// Assemble the local prolongation to the global matrix
    void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat) const;
 
+   mfem::Array<mfem::Vector*> GetBasisCenter() { return basisCenter; }
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }

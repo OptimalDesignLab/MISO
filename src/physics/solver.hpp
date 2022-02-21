@@ -7,6 +7,7 @@
 #include "adept.h"
 #include "mfem.hpp"
 #include "centgridfunc.hpp"
+#include "rbfgridfunc.hpp"
 #ifdef MFEM_USE_SIMMETRIX
 #include <SimUtil.h>
 #include <gmi_sim.h>

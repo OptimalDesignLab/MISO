@@ -6,12 +6,9 @@ using namespace mfem;
 
 namespace mfem
 {
-
-RBFGridFunction::RBFGridFunction(FiniteElementSpace *f, Array<Vector *> &center,
-                                 function<void(const Vector &, Vector &)> F)
+RBFGridFunction::RBFGridFunction(FiniteElementSpace *f, Array<Vector *> &center)
 {
    basisCenter = center;
-   Function = F;
    SetSize(f->GetVDim() * center.Size());
    fes = f;
    fec = NULL;
@@ -50,7 +47,7 @@ RBFGridFunction::RBFGridFunction(FiniteElementSpace *f, Array<Vector *> &center,
 //    }
 // }
 
-void RBFGridFunction::ProjectCoefficient()
+void RBFGridFunction::ProjectCoefficient(std::function<void(const mfem::Vector &, mfem::Vector &)> F)
 {
    int vdim = fes->GetVDim();
    Array<int> vdofs(vdim);
@@ -62,7 +59,7 @@ void RBFGridFunction::ProjectCoefficient()
       {
          vdofs[j] = i * vdim + j;
       }
-      Function(*basisCenter[i], vals);
+      F(*basisCenter[i], vals);
       SetSubVector(vdofs, vals);
    }
 }

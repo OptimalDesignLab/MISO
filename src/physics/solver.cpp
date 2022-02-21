@@ -4,7 +4,6 @@
 #include <iomanip>
 #include "default_options.hpp"
 #include "solver.hpp"
-#include "centgridfunc.hpp"
 #include "sbp_fe.hpp"
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
