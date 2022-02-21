@@ -2,6 +2,7 @@
 #define MFEM_CENTGRIDFUNC
 
 #include "mfem.hpp"
+#include "RBFSpace.hpp"
 
 
 namespace mfem
@@ -22,7 +23,8 @@ public:
    // {
    //    mfem::HypreParVector *tv = new HypreParVector(comm,GlobalTrueVSize(),GetTrueDofOffsets()));
    // }
-
+private:
+   mfem::Array<mfem::Vector *> center;
 };
 
 } // end of namespace mfem

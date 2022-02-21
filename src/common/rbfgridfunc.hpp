@@ -2,6 +2,7 @@
 #define MFEM_RBFGRIDFUNC
 
 #include "mfem.hpp"
+#include "RBFSpace.hpp"
 #include <functional>
 
 

@@ -68,6 +68,7 @@ public:
 
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
+   mfem::Array<mfem::Vector*> GetBasisCenter() { return basisCenter; }
 
    const Operator *GetProlongationMatrix() const
    { 

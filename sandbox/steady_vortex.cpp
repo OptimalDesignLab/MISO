@@ -36,6 +36,9 @@ Array<Vector *> buildBasisCenters(int, int);
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
 
+template<typename T>
+void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &q, T& stream);
+
 int main(int argc, char *argv[])
 {
    const char *options_file = "steady_vortex_options.json";
@@ -72,16 +75,19 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs,0);
       sol_ofs.close();
 
-      int numBasis = smesh->GetNE();
-      Array<Vector *> center(numBasis);
-      for (int k = 0; k < numBasis; k++)
-      {  
-         center[k] = new Vector(2);
-         smesh->GetElementCenter(k,*center[k]);
-      }
+      // int numBasis = smesh->GetNE();
+      // Array<Vector *> center(numBasis);
+      // for (int k = 0; k < numBasis; k++)
+      // {  
+      //    center[k] = new Vector(2);
+      //    smesh->GetElementCenter(k,*center[k]);
+      // }
 
-      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      // int numBasis = numRad * numTheta;
+      Array<Vector *> center = buildBasisCenters(numRad,numTheta);
+      int numBasis = numRad * numTheta;
+      ofstream centerwrite("center.vtp");
+      writeBasisCentervtp(center, centerwrite);
+      centerwrite.close();
       // for (int i = 0; i < numBasis; i++)
       // {
       //    cout << "basis " << i << ": ";
@@ -252,4 +258,42 @@ Array<Vector *> buildBasisCenters(int numRad, int numTheta)
       (*basisCenter[i]) = b_coord;
    }
    return basisCenter;
+}
+
+ // Output a QuadratureScheme as an XML .vtp file for visualisation in ParaView or anything else that
+    // supports XML VTK files
+template <typename T>
+void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &center, T &stream)
+{
+   stream << "<?xml version=\"1.0\"?>\n";
+   stream << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
+   stream << "<PolyData>\n";
+   stream << "<Piece NumberOfPoints=\"" << center.Size() << "\" NumberOfVerts=\"" << center.Size() << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
+   stream << "<Points>\n";
+   stream << "  <DataArray type=\"Float32\" Name=\"Points\" NumberOfComponents=\"3\" format=\"ascii\">";
+   for (int i = 0; i < center.Size(); i++)
+   {
+      stream << (*center[i])(0) << ' ' << (*center[i])(1) << ' ' << 0.0 << ' ';
+   }
+   stream << "</DataArray>\n";
+   stream << "</Points>\n";
+   stream << "<Verts>\n";
+   stream << "  <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">";
+   for (size_t i = 0; i < center.Size(); ++i)
+      stream << i << ' ';
+   stream << "</DataArray>\n";
+   stream << "  <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">";
+   for (size_t i = 1; i <= center.Size(); ++i)
+      stream << i << ' ';
+   stream << "</DataArray>\n";
+   stream << "</Verts>\n";
+   stream << "<PointData Scalars=\"w\">\n";
+   stream << "  <DataArray type=\"Float32\" Name=\"w\" NumberOfComponents=\"1\" format=\"ascii\">";
+   for (int i = 0; i < center.Size(); i++)
+      stream << 1.0 << ' ';
+   stream << "</DataArray>\n";
+   stream << "</PointData>\n";
+   stream << "</Piece>\n";
+   stream << "</PolyData>\n";
+   stream << "</VTKFile>\n";
 }
