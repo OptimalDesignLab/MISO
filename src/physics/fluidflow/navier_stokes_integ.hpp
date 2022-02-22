@@ -1256,7 +1256,10 @@ public:
       qfs(q_ref),
       force_nrm(force_dir),
       work_vec(dim + 2)
-   { }
+   { 
+      std::cout << "SurfaceForce modified for Flow-Control Problem!!!\n";
+      std::cout << "\tSee calcBndryFun for details." << std::endl;
+   }
 
    /// Construct the contribution to functional from the boundary element
    /// \param[in] el_bnd - boundary element that contribute to the functional
