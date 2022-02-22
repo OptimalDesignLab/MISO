@@ -1,7 +1,7 @@
 {
    "silent" : false,
    "paraview": {
-      "each-timestep": true,
+      "each-timestep": false,
       "directory": "airfoil-control"
    },
     "mesh": {
@@ -18,8 +18,8 @@
        "mu": -1.0
     },
     "space-dis": {
-       "degree": 1,
-       "lps-coeff": 1.0,
+       "degree": 2,
+       "lps-coeff": 0.0,
        "basis-type": "csbp",
        "flux-fun": "IR"
     },

@@ -191,6 +191,8 @@ protected:
           std::move(logger), std::move(options)));
    }
 
+   virtual void setInputs(MachInputs inputs) { }
+
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
    virtual void initialHook(const mfem::Vector &state);

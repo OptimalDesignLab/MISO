@@ -274,7 +274,8 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
          *out << "\t" << pair.first << " = " << fun << endl; 
          if (rank == 0)
          {
-            string output_filename = pair.first + ".txt";
+            string output_filename = pair.first + "-" + std::to_string(sample) 
+                + ".txt";
             remove(output_filename.c_str());
             output_log.emplace(pair.first, ofstream(output_filename, fstream::app));
             //output_log[pair.first].open(output_filenam, fstream::app);

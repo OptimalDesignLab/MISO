@@ -84,7 +84,10 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
 {
    if (spatial_res)
    {
-      setInputs(*spatial_res, inputs);
+      // Probably should just have the solver pass the inputs to res in
+      // setInputs
+      setInputs(inputs);
+      mach::setInputs(*spatial_res, inputs);
    }
    /// if solving an unsteady problem
    if (ode)

@@ -98,7 +98,8 @@ int main(int argc, char *argv[])
       // double yac = yControl(xac);
       // mfem::Vector x_actuator({xac, yac});
 
-      MachInputs inputs({{"state", state_tv},
+      MachInputs inputs({{"sample", sample},
+                         {"state", state_tv},
                          {"time", 0.0},
                          {"x-actuator", x_actuator},
                          {"Kp", Kp},

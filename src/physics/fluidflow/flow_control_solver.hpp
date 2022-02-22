@@ -54,6 +54,8 @@ public:
    }
 
 private:
+   /// When running batches, this indicates the sample number
+   int sample;
    using ResType = FlowControlResidual<dim, entvar>;
    /// object defining the mfem computational mesh
    std::unique_ptr<mfem::ParMesh> mesh_ = nullptr;
@@ -104,6 +106,13 @@ private:
    /// Add output @a fun based on @a options
    void addOutput(const std::string &fun,
                   const nlohmann::json &options) override;
+
+   virtual void setInputs(MachInputs inputs) override final
+   {
+      double dsample;
+      setValueFromInputs(inputs, "sample", dsample);
+      sample = int(dsample);
+   }
 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
