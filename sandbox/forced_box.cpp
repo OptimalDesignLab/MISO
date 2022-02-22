@@ -64,6 +64,11 @@ int main(int argc, char *argv[])
       const double Kp = 0.4, Ti = 0.8, Td = 0.5, beta = 2.5, eta = 0.8;
       const double target_entropy = 0.0;
       bool closed_loop = true;
+      Vector P(4);
+      P(0) = 36.7614241; 
+      P(1) = -88.2050467;
+      P(2) = -88.2050467;
+      P(3) = 213.6134806;
       mfem::Vector x_actuator({0.0, 0.5});
       MachInputs inputs({{"state", state_tv},
                          {"time", 0.0},
@@ -75,7 +80,8 @@ int main(int argc, char *argv[])
                          {"eta", eta},
                          {"target-entropy", target_entropy},
                          {"boundary-entropy", 0.0},
-                         {"closed-loop", float(closed_loop)}});
+                         {"closed-loop", float(closed_loop)},
+                         {"P-matrix", P}});
 
       // get the initial entropy 
       solver.createOutput("entropy", options["outputs"].at("entropy"));

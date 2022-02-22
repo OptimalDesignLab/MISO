@@ -63,6 +63,11 @@ int main(int argc, char *argv[])
       // target entropy is from boundary entropy evaluated at initial field 
       const double target_entropy = 0.1135579764419388;
       bool closed_loop = true;
+      Vector P(4);
+      P(0) = 36.7614241; 
+      P(1) = -88.2050467;
+      P(2) = -88.2050467;
+      P(3) = 213.6134806;
       double xac = 0.25;
       double yac = yControl(xac);
       mfem::Vector x_actuator({xac, yac});
@@ -76,7 +81,8 @@ int main(int argc, char *argv[])
                          {"eta", eta},
                          {"target-entropy", target_entropy},
                          {"boundary-entropy", 0.0},
-                         {"closed-loop", float(closed_loop)}});
+                         {"closed-loop", float(closed_loop)},
+                         {"P-matrix", P}});
 
       // create the outputs to track
       solver.createOutput("entropy", options["outputs"].at("entropy"));

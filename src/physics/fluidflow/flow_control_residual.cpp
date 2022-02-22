@@ -66,39 +66,40 @@ void setInputs(ControlResidual &residual, const MachInputs &inputs)
    {
       residual.closed_loop = true;
    }
-   if (residual.rank == 0)
-   {
-      // Update the P matrix
-      double &Td = residual.Td;
-      double &Ti = residual.Ti;
-      double &eta = residual.eta;
-      double &beta = residual.beta;
 
-      double sigma = -0.5*(beta*Ti + eta*Td);
-      double rho = beta*eta*Ti*Td - sigma*(beta*Ti + eta*Td);
-      (*residual.P)(0,0) = rho;
-      (*residual.P)(0,1) = sigma;
-      (*residual.P)(1,0) = sigma;
-      (*residual.P)(1,1) = 1.0;
-   }
-
-   // if ( (residual.rank == 0) && (inputs.find("P-matrix") != inputs.end()) )
+   // if (residual.rank == 0)
    // {
-   //    Vector p_vector(4);
-   //    setVectorFromInputs(inputs, "P-matrix", p_vector);
-   //    (*residual.P)(0,0) = p_vector(0);
-   //    (*residual.P)(0,1) = p_vector(1);
-   //    (*residual.P)(1,0) = p_vector(1);
-   //    (*residual.P)(1,1) = p_vector(3);
-   //    // check for symmetry
-   //    if (fabs(p_vector(1) - p_vector(2)) >
-   //        100.0*numeric_limits<double>::epsilon())
-   //    {
-   //       throw MachException(
-   //           "setInputs(ControlResidual, inputs): "
-   //          "P-matrix is not symmetric!");
-   //    }
+   //    // Update the P matrix
+   //    double &Td = residual.Td;
+   //    double &Ti = residual.Ti;
+   //    double &eta = residual.eta;
+   //    double &beta = residual.beta;
+
+   //    double sigma = -0.5*(beta*Ti + eta*Td);
+   //    double rho = beta*eta*Ti*Td - sigma*(beta*Ti + eta*Td);
+   //    (*residual.P)(0,0) = rho;
+   //    (*residual.P)(0,1) = sigma;
+   //    (*residual.P)(1,0) = sigma;
+   //    (*residual.P)(1,1) = 1.0;
    // }
+
+   if ( (residual.rank == 0) && (inputs.find("P-matrix") != inputs.end()) )
+   {
+      Vector p_vector(4);
+      setVectorFromInputs(inputs, "P-matrix", p_vector);
+      (*residual.P)(0,0) = p_vector(0);
+      (*residual.P)(0,1) = p_vector(1);
+      (*residual.P)(1,0) = p_vector(1);
+      (*residual.P)(1,1) = p_vector(3);
+      // check for symmetry
+      if (fabs(p_vector(1) - p_vector(2)) >
+          100.0*numeric_limits<double>::epsilon())
+      {
+         throw MachException(
+             "setInputs(ControlResidual, inputs): "
+            "P-matrix is not symmetric!");
+      }
+   }
 }
 
 void setOptions(ControlResidual &residual, const nlohmann::json &options)

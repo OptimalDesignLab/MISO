@@ -74,12 +74,16 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    const double target_entropy = 0.0, boundary_entropy = 1.0;
    bool closed_loop = true;
    Vector P(4);
-   double sigma = -0.5*(beta*Ti + eta*Td);
-   double rho = beta*eta*Ti*Td - sigma*(beta*Ti + eta*Td);
-   P(0) = rho;
-   P(1) = sigma;
-   P(2) = sigma;
-   P(3) = 1.0;
+   P(0) = 38.2587661;
+   P(1) = -93.7535286;
+   P(2) = -93.7535286;
+   P(3) = 233.1187750;
+   // double sigma = -0.5*(beta*Ti + eta*Td);
+   // double rho = beta*eta*Ti*Td - sigma*(beta*Ti + eta*Td);
+   // P(0) = rho;
+   // P(1) = sigma;
+   // P(2) = sigma;
+   // P(3) = 1.0;
    auto inputs = MachInputs({{"Kp", Kp},
                              {"Ti", Ti},
                              {"Td", Td},
@@ -87,7 +91,8 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
                              {"eta", eta},
                              {"target-entropy", target_entropy},
                              {"boundary-entropy", boundary_entropy},
-                             {"closed-loop", float(closed_loop)}});
+                             {"closed-loop", float(closed_loop)},
+                             {"P-matrix", P}});
    setInputs(res, inputs);
 
    // evaluate the residual at an arbitrary state
@@ -204,12 +209,16 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    const double target_entropy = 0.0;
    bool closed_loop = true;
    Vector P(4);
-   double sigma = -0.5*(beta*Ti + eta*Td);
-   double rho = beta*eta*Ti*Td - sigma*(beta*Ti + eta*Td);
-   P(0) = rho;
-   P(1) = sigma;
-   P(2) = sigma;
-   P(3) = 1.0;
+   P(0) = 38.2587661;
+   P(1) = -93.7535286;
+   P(2) = -93.7535286;
+   P(3) = 233.1187750;
+   //double sigma = -0.5*(beta*Ti + eta*Td);
+   //double rho = beta*eta*Ti*Td - sigma*(beta*Ti + eta*Td);
+   //P(0) = rho;
+   //P(1) = sigma;
+   //P(2) = sigma;
+   //P(3) = 1.0;
    auto inputs = MachInputs({{"Kp", Kp},
                              {"Ti", Ti},
                              {"Td", Td},
@@ -217,7 +226,8 @@ TEST_CASE("FlowControlResidual construction and evaluation",
                              {"eta", eta},
                              {"target-entropy", target_entropy},
                              {"boundary-entropy", 0.0},
-                             {"closed-loop", float(closed_loop)}});
+                             {"closed-loop", float(closed_loop)},
+                             {"P-matrix", P}});
    setInputs(res, inputs);
    setInputs(control_res, inputs);
 

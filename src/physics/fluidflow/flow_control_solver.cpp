@@ -245,14 +245,14 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
    extractStates(state, control_state, flow_state);
    AbstractSolver2::initialHook(flow_state);
    // getState().distributeSharedDofs(state);
-   if (options["time-dis"]["steady"].template get<bool>())
+   if (options["time-dis"]["steady"])
    {
       throw MachException(
           "FlowControlSolver not set up to handle steady "
           "simulations!\n");
    }
    // Prefer to use loggers eventually
-   if (options["outputs"]["each-timestep"])
+   if (options["outputs"].value("each-timestep", false))
    {
       double t0 = options["time-dis"]["t-initial"];  // Should be passed in!!!
       Vector control_state;
@@ -297,7 +297,7 @@ void FlowControlSolver<dim, entvar>::iterationHook(int iter,
    extractStates(state, control_state, flow_state);
    AbstractSolver2::iterationHook(iter, t, dt, flow_state);
 
-   if (options["outputs"]["each-timestep"])
+   if (options["outputs"].value("each-timestep", false))
    {
       extractStates(state, control_state, flow_state);
       for (auto &pair : outputs)
@@ -381,7 +381,7 @@ void FlowControlSolver<dim, entvar>::terminalHook(int iter,
    extractStates(state, control_state, flow_state);
    AbstractSolver2::terminalHook(iter, t_final, flow_state);
 
-   if (options["outputs"]["each-timestep"])
+   if (options["outputs"].value("each-timestep", false))
    {
       extractStates(state, control_state, flow_state);
       for (auto &pair : outputs)
