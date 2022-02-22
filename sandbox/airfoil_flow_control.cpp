@@ -24,6 +24,13 @@ int main(int argc, char *argv[])
    nlohmann::json options;
    ifstream option_source(options_file);
    option_source >> options;
+
+   // Open the parameter file
+   const char *params_file = "control_parameters.json";
+   nlohmann::json params;
+   ifstream params_source(params_file);
+   params_source >> params;
+
    // Initialize MPI
    int num_procs, rank;
    MPI_Init(&argc, &argv);
@@ -35,6 +42,8 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
+   int sample;
+   args.AddOption(&sample, "-s", "--sample", "Parameter sample to use");
    args.Parse();
    if (!args.Good())
    {
@@ -58,19 +67,37 @@ int main(int argc, char *argv[])
           std::make_pair(std::function(cInit), std::function(uInit)), state_tv);
       //solver.setState(uInit, state_tv);
 
-      // Set all the necessary inputs
-      const double Kp = 0.4, Ti = 0.8, Td = 0.5, beta = 2.5, eta = 0.8;
-      // target entropy is from boundary entropy evaluated at initial field 
-      const double target_entropy = 0.1135579764419388;
-      bool closed_loop = true;
-      Vector P(4);
-      P(0) = 36.7614241; 
-      P(1) = -88.2050467;
-      P(2) = -88.2050467;
-      P(3) = 213.6134806;
-      double xac = 0.25;
+      // Set the inputs using the desired sample
+      nlohmann::json param = params["samples"][sample];
+      *out << "Control parameters used:" << std::endl;
+      *out << std::setw(3) << param << std::endl;
+      double Kp = param["Kp"];
+      double Ti = param["Ti"];
+      double Td = param["Td"];
+      double beta = param["beta"];
+      double eta = param["eta"];
+      double xac = param["x_c"];
       double yac = yControl(xac);
       mfem::Vector x_actuator({xac, yac});
+      double target_entropy = param["target-ent"];
+      bool closed_loop = param["closed-loop"];
+      std::vector<double> pvec = param["P-matrix"].get<std::vector<double>>();
+      Vector P(pvec.data(), 4);   
+
+      // // Set all the necessary inputs
+      // const double Kp = 0.4, Ti = 0.8, Td = 0.5, beta = 2.5, eta = 0.8;
+      // // target entropy is from boundary entropy evaluated at initial field 
+      // const double target_entropy = 0.1135579764419388;
+      // bool closed_loop = true;
+      // Vector P(4);
+      // P(0) = 36.7614241; 
+      // P(1) = -88.2050467;
+      // P(2) = -88.2050467;
+      // P(3) = 213.6134806;
+      // double xac = 0.25;
+      // double yac = yControl(xac);
+      // mfem::Vector x_actuator({xac, yac});
+
       MachInputs inputs({{"state", state_tv},
                          {"time", 0.0},
                          {"x-actuator", x_actuator},
