@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
-      solver->checkJacobian(pert);
+      // solver->checkJacobian(pert);
       solver->solveForState();
       solver->printSolution("rbf_final",0);
       solver->printError("rbf_final_error", 0, uexact);
