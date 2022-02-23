@@ -7,7 +7,8 @@ namespace mfem
 {
 
 
-/// solving F(x) = b with BFGS quasi-newton method with line search 
+/// min. J(x) with nonlinear equality constraint R(x) = 0 
+/// BFGS quasi-newton method with line search 
 class BFGSNewtonSolver : public mfem::NewtonSolver
 {
 public:
@@ -16,7 +17,7 @@ public:
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`
-   virtual void SetOperator(const mfem::Operator &op);
+   void SetOperator(const mfem::Operator &op);
 
    /// Solve the nonlinear system with right-hand side b
    /// \param[in] b - the right-hand side vector (can be zero)
@@ -24,10 +25,12 @@ public:
    virtual void Mult(const mfem::Vector &b, mfem::Vector &x);
 
 protected:
+   /// the hessian inverse approximation
+   mfem::DenseMatrix B;
+   mfem::Operator *grad_new;
+
    /// member vector saves the new x position.
    mutable mfem::Vector x_new;
-   /// the hessian inverse approximation
-   mutable mfem::DenseMatrix B;
    /// Parameters for inexact newton method.
    double theta, eta, eta_max, t;
    const double theta_min = 0.1;
@@ -43,6 +46,9 @@ private:
    /// regarding the line search method and its parameters.
    double ComputeStepSize(const mfem::Vector &x, const mfem::Vector &b, 
                         const double norm);
+   void UpdateHessianInverse(const mfem::DenseMatrix &ident,
+                             const mfem::DenseMatrix &s,
+                             const mfem::DenseMatrix &y);
 };
 
 } // end of name space mfem
