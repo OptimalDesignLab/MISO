@@ -8,18 +8,33 @@ using namespace mfem;
 namespace mach
 {
 
-DGDOptimization::DGDOptimization(FiniteElementSpace *f,
-											DGDSpace *f_dgd)
-	: NonlinearForm(f), fes_dgd(f_dgd)
+DGDOptimizer::DGDOptimizer(FiniteElementSpace *f,
+									DGDSpace *f_dgd)
 {
-	inputSize = fes_dgd->GetNDofs();
+	inputSize = f_dgd->GetNDofs();
 }
 
 
 
-DGDOptimization::~DGDOptimization()
+DGDOptimizer::~DGDOptimizer()
 {
     cout << "Deleting the DGD optmization..." << '\n';
+}
+
+
+double DGDOptimizer::ComputeObject()
+{
+	Vector r(fes->GetVSize());
+	SparseMatrix *prolong = fes_dgd->GetCP();
+	prolong->Mult(*u_dgd,*u_full); 
+	res_full->Mult(*u_full,r);
+	double norm = r * r;
+	return r;
+}
+
+Operator *DGDOperator::GetGradient()
+{
+
 }
 
 

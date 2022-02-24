@@ -9,25 +9,25 @@ namespace mfem
 
 /// min. J(x) with nonlinear equality constraint R(x) = 0 
 /// BFGS quasi-newton method with line search 
-class BFGSNewtonSolver : public mfem::NewtonSolver
+class BFGSNewtonSolver
 {
 public:
    BFGSNewton(double eta_init = 1e-4, double eta_maximum = 1e-1,
-                 double ared_scale = 1e-4);
+              double ared_scale = 1e-4);
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`
    void SetOperator(const mfem::Operator &op);
 
-   /// Solve the nonlinear system with right-hand side b
-   /// \param[in] b - the right-hand side vector (can be zero)
-   /// \param[in] x - intial "guess" for solution
-   virtual void Mult(const mfem::Vector &b, mfem::Vector &x);
+   /// solve the optimization problem
+   void Optimize();
 
 protected:
    /// the hessian inverse approximation
    mfem::DenseMatrix B;
-   mfem::Operator *grad_new;
+   mfem::Operator *jac;
+   mfem::Operator *jac_new;
+   mfem::Operator *oper; 
 
    /// member vector saves the new x position.
    mutable mfem::Vector x_new;

@@ -18,15 +18,13 @@ void BFGSNewton::SetOperator(const Operator &op)
    oper = &op;
    height = op.Height();
    width = op.Width();
-   r.SetSize(height);
    c.SetSize(width);
    x_new.SetSize(width);
 }
 
-void BFGSNewton::Mult(const Vector &b, Vector &x)
+double BFGSNewton::Mult()
 {
    MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
-   MFEM_ASSERT(prec != NULL, "the Solver is not set (use SetSolver).");
 
    std::cout << "Beginning of BFGS Newton..." << '\n';
 
