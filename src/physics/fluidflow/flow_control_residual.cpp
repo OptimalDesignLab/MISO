@@ -93,7 +93,7 @@ void setInputs(ControlResidual &residual, const MachInputs &inputs)
       (*residual.P)(1,1) = p_vector(3);
       // check for symmetry
       if (fabs(p_vector(1) - p_vector(2)) >
-          100.0*numeric_limits<double>::epsilon())
+          10000.0*numeric_limits<double>::epsilon())
       {
          throw MachException(
              "setInputs(ControlResidual, inputs): "
