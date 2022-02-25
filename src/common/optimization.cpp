@@ -31,9 +31,25 @@ double DGDOptimizer::ComputeObject()
 	double norm = r * r;
 	return r;
 }
-
+              
 Operator *DGDOperator::GetGradient()
 {
+	// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
+	Vector pJpc(inputSize);
+	Vector pJpuc(inputSize);
+	DenseMatrix pR_dgdpuc(inputSize);
+	
+	// 1. get pRpu
+	SparseMatrix *pRpu = res_full->GetGradient(*uc);
+
+	// 2. compute full residual
+	Vector r(fes->GetVSize());
+	res_full->Mult(*u_full,r);
+
+	// 3. compute pJ/puc
+	
+
+
 
 }
 
