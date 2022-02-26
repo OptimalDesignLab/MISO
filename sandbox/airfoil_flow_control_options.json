@@ -18,7 +18,7 @@
        "mu": -1.0
     },
     "space-dis": {
-       "degree": 2,
+       "degree": 1,
        "lps-coeff": 0.0,
        "basis-type": "csbp",
        "flux-fun": "IR"
@@ -28,9 +28,9 @@
        "const-cfl": true,
        "type": "RRK",
        "exact-t-final": false,
-       "t-final": 30.0,
+       "t-final": 50.0,
        "dt": 0.05,
-       "cfl": 5.0,
+       "cfl": 1.0,
        "max-iter": 100000,
        "entropy-log": true
     }, 
@@ -42,7 +42,7 @@
     "nonlin-solver": {
        "abstol": 1e-10,
        "maxiter": 50,
-       "printlevel": 0,
+       "printlevel": 1,
        "reltol": 1e-6,
        "type": "newton"
     },
