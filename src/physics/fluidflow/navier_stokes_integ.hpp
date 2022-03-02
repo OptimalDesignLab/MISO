@@ -274,7 +274,13 @@ public:
    void calcFluxDvJacState(const mfem::Vector &x,
                            const mfem::Vector &dir,
                            const mfem::Vector &q,
-                           std::vector<mfem::DenseMatrix> &flux_jac);
+                           std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      for (int d = 0; d < dim; ++d)
+      {
+         flux_jac[d] = 0.0;
+      }
+   }                             
 
 private:
    /// Reynolds number

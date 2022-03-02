@@ -135,8 +135,8 @@ private:
    std::unique_ptr<mfem::DenseMatrix> Jac;
    /// Preconditioner for the ODE Jacobian
    std::unique_ptr<mfem::DenseMatrixInverse> prec;
-
-   static const bool test_ode = false;
+   /// If true, a simple (conservative) control is used
+   bool test_ode = false;
 };
 
 /// Class for flow-control equations that follows the MachResidual API

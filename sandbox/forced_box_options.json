@@ -1,4 +1,5 @@
 {  
+   "test-ode": false,
    "silent" : false,
    "paraview": {
       "each-timestep": true,
@@ -8,6 +9,7 @@
       "viscous": true,
       "Re": 1000,
       "Pr": 0.72,
+      "mu": -1.0,
       "entropy-state": false,
       "mach": 0.2
    },
@@ -18,19 +20,19 @@
       "flux-fun": "IR"
    },
    "time-dis": {
-      "type": "RRK6",
+      "type": "RRK",
       "exact-t-final": false,
       "steady": false,
-      "t-final": 1,
+      "t-final": 0.5,
       "dt": 0.01,
       "cfl": 1.0,
-      "entropy-log": true
+      "const-cfl": true
    },
    "nonlin-solver": {
       "printlevel": 1,
       "maxiter": 50,
-      "reltol": 1e-6,
-      "abstol": 1e-10
+      "reltol": 1e-10,
+      "abstol": 1e-12
    },
    "lin-solver": {
       "type": "fgmres",
@@ -52,6 +54,7 @@
    "saveresults":false,
    "outputs":
    { 
+      "each-timestep": true,
       "boundary-entropy": {
          "boundaries": [0, 0, 0, 1]
       },

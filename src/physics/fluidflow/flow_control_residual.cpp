@@ -41,6 +41,14 @@ ControlResidual::ControlResidual(MPI_Comm incomm,
       (*mass_mat)(0, 0) = 1.0;
       (*mass_mat)(1, 1) = 1.0;
    }
+   if (control_options["test-ode"])
+   {
+      test_ode = true;
+   }
+   else 
+   {
+      test_ode = false;
+   }
 }
 
 void setInputs(ControlResidual &residual, const MachInputs &inputs)
@@ -120,7 +128,9 @@ void evaluate(ControlResidual &residual,
          // This is a simple non-dissipative, decoupled system for testing
          // Residual is defined on left-hand side!
          res_vec(0) = -0.05 * residual.x(1);
-         res_vec(1) = 0.05 * residual.x(0) + residual.boundary_entropy;
+         res_vec(1) = 0.05 * residual.x(0);
+         double error = residual.target_entropy - residual.boundary_entropy;
+         res_vec(1) -= error;
       }
       else
       {

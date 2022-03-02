@@ -30,7 +30,7 @@
        "exact-t-final": false,
        "t-final": 50.0,
        "dt": 0.05,
-       "cfl": 1.0,
+       "cfl": 0.5,
        "max-iter": 100000,
        "entropy-log": true
     }, 
