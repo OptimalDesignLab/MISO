@@ -420,6 +420,31 @@ void DGDSpace::AssembleProlongationMatrix(const int el_id, const DenseMatrix &lo
    }
 }
 
+void DGDSpace::GetdPdc(const int b_id, SparseMatrix &dpdc)
+{
+   int numLocalElem = selectedElement[b_id]->Size();
+   int el_id;
+   DenseMatrix localderiv();
+   for (int i = 0; i < numLocalElem; i++)
+   {
+      
+      // V is a square matrix
+      if (numPolyBasis == numLocalBasis)
+      {
+         
+      }
+      // V is overdetermined
+      else
+      {
+
+      }
+
+
+      // assemble is back to the derivative matrix
+
+   }
+}
+
 vector<size_t> DGDSpace::sort_indexes(const vector<double> &v)
 {
 

@@ -47,7 +47,10 @@ Operator *DGDOperator::GetGradient()
 	res_full->Mult(*u_full,r);
 
 	// 3. compute pJ/puc
-	
+	for (int i = 0; i < input_Size; i++)
+	{
+		
+	}
 
 
 

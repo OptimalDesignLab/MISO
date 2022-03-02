@@ -39,6 +39,15 @@ public:
    /// Assemble the local prolongation to the global matrix
    void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat) const;
 
+   /// compute the derivative of prolongation matrix w.r.t the ith basis center
+   /// \param[in] i - id of the basis center to purturb
+   /// \param[out] dpdc - derivative matrix
+   void GetdPdc(const int i, mfem::SparseMatrix &dpdc);
+
+   void buildDerivDataMat(const int el_id, mfem::DenseMatrix &dV,
+                          mfem::DenseMatrix &Vn) const;
+   void buildElementDerivMat(const int el_id, const int numDofs,);
+
    mfem::Array<mfem::Vector*> GetBasisCenter() { return basisCenter; }
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
