@@ -12,7 +12,7 @@ class DGDSpace : public mfem::FiniteElementSpace
 public:
    /// class constructor
    DGDSpace(mfem::Mesh *m, const mfem::FiniteElementCollection *fec,
-            mfem::Array<Vector*> center, int degree, int extra, int vdim = 1,
+            mfem::Vector *center, int degree, int extra, int vdim = 1,
             int ordering = mfem::Ordering::byVDIM);
    virtual ~DGDSpace();
 
@@ -53,7 +53,8 @@ public:
                              mfem::DenseMatrix &dV,
                              mfem::DenseMatrix &Vn) const;
 
-   mfem::Array<mfem::Vector*> GetBasisCenter() { return basisCenter; }
+   mfem::Vector *GetBasisCenter() { return basisCenter; }
+   void GetBasisCenter(const int b_id, mfem::Vector &center);
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }
@@ -83,12 +84,14 @@ protected:
    int extra;
    
    /// location of the basis centers
-   mfem::Array<mfem::Vector *> basisCenter;
+   mfem::Vector *basisCenter;
+   /// store the element centers
+   mfem::Vector *elementCenter;
+
+
    /// selected basis for each element (currently it is fixed upon setup)
    mfem::Array<mfem::Array<int> *> selectedBasis;
    mfem::Array<mfem::Array<int> *> selectedElement;
-   /// store the element centers
-   mfem::Array<mfem::Vector *> elementCenter;
    /// array of map that holds the distance from element center to basisCenter
    // mfem::Array<std::map<int, double> *> elementBasisDist;
    mfem::Array<std::vector<double> *> elementBasisDist;

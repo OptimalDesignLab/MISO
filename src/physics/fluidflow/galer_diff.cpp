@@ -11,14 +11,14 @@ namespace mfem
 {
 
 DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f, 
-                   Array<Vector*> center, int degree, int e,
+                   Vector *center, int degree, int e,
                    int vdim, int ordering)
    : SpaceType(m, f, vdim, ordering), basisCenter(center), polyOrder(degree),
      extra(e)
 {
    // numBasis should not be greater than the number of elements
    dim = m->Dimension();
-   numBasis = center.Size();
+   numBasis = center->Size()/dim;
 
    switch(dim)
    {
@@ -49,32 +49,33 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
 void DGDSpace::InitializeStencil()
 {
    // initialize the all element centers for later used
-   elementCenter.SetSize(GetMesh()->GetNE());
    elementBasisDist.SetSize(GetMesh()->GetNE());
    selectedBasis.SetSize(GetMesh()->GetNE());
    coef.SetSize(GetMesh()->GetNE());
    selectedElement.SetSize(numBasis);
-   Vector diff;
+   Vector elemCenter(dim);
+   Vector center(dim);
    double dist;
    for (int i = 0; i < numBasis; i++)
    {
       selectedElement[i] = new Array<int>;
    }
+
+   // loop over all the elements to construct the stencil
    for (int i = 0; i < GetMesh()->GetNE(); i++)
    {
-      elementCenter[i] = new Vector(dim);
       elementBasisDist[i] = new std::vector<double>;
       selectedBasis[i] = new Array<int>;
       coef[i] = new DenseMatrix(numPolyBasis,numLocalBasis);
-      GetMesh()->GetElementCenter(i,*elementCenter[i]);
+      GetMesh()->GetElementCenter(i,elemCenter);
+      // loop over all basis
       for (int j = 0; j < numBasis; j++)
-      {
-         diff = *basisCenter[j];
-         diff -= *elementCenter[i];
-         dist = diff.Norml2();
+      {  
+         GetBasisCenter(b_id,center);
+         elementCenter -= center;
+         dist = elementCenter.Norml2();
          elementBasisDist[i]->push_back(dist);
       }
-
    }
 
    // build element/basis stencil
@@ -118,6 +119,14 @@ void DGDSpace::InitializeStencil()
    //    }
    //    cout << '\n';
    // }
+}
+
+void DGDSpace::GetBasisCenter(const int b_id, Vector &center)
+{
+   for (int i = 0; i < dim; i++)
+   {
+      center(i) = *basisCenter(b_id*dim+i);
+   }
 }
 
 void DGDSpace::buildProlongation() const
