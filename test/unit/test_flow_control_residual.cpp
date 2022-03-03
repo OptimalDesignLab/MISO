@@ -16,6 +16,7 @@ using namespace mach;
 
 auto options = R"(
 {
+   "test-ode": false,
    "flow-param": {
       "viscous": false,
       "entropy-state": false,

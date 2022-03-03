@@ -13,7 +13,7 @@ const nlohmann::json default_options{
          {"directory", "solver"},
          {"each-timestep", false}  // if true, paraview file is saved each step
      }},
-
+    {"test-ode", false}, // if true, use a simple conservative controller
     {"flow-param",  // options related to flow simulations
      {
          {"entropy-state", false},  // if true, the states are entropy variables
