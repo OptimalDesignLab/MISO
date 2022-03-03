@@ -44,9 +44,14 @@ public:
    /// \param[out] dpdc - derivative matrix
    void GetdPdc(const int i, mfem::SparseMatrix &dpdc);
 
-   void buildDerivDataMat(const int el_id, mfem::DenseMatrix &dV,
+   void buildDerivDataMat(const int el_id, const int b_id,
+                          mfem::DenseMatrix &dV,
                           mfem::DenseMatrix &Vn) const;
-   void buildElementDerivMat(const int el_id, const int numDofs,);
+   
+   void buildElementDerivMat(const int el_id, const int numDofs,
+                             const mfem::Array<mfem::Vector *> &dofs_coord,
+                             mfem::DenseMatrix &dV,
+                             mfem::DenseMatrix &Vn) const;
 
    mfem::Array<mfem::Vector*> GetBasisCenter() { return basisCenter; }
    virtual int GetTrueVSize() const {return vdim * numBasis;}

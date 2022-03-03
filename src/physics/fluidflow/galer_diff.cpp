@@ -424,14 +424,23 @@ void DGDSpace::GetdPdc(const int b_id, SparseMatrix &dpdc)
 {
    int numLocalElem = selectedElement[b_id]->Size();
    int el_id;
-   DenseMatrix localderiv();
+   DenseMatrix dV;
+   DenseMatrix Vn;
+   DenseMatrix dpdc_block;
    for (int i = 0; i < numLocalElem; i++)
    {
-      
+      el_id = (*selectedBasis[b_id])(i);
+      buildDerivDataMat(el_id,b_id,dV,Vn);
+      dpdc_block.SetSize(Vn.Height(),numLocalBasis);
       // V is a square matrix
       if (numPolyBasis == numLocalBasis)
       {
-         
+         DenseMatrix temp_mat1(numLocalBasis);
+         DenseMatrix temp_mat2(numLocalBasis);
+         Mult(dV,*coef[el_id],temp_mat1);
+         Mult(*coef[el_id],temp_mat1,temp_mat2); 
+         temp_mat2.Neg();  // -V^-1 * dV * V^-1
+         Mult(Vn,temp_mat2,dpdc_block); //  dpdc = Vn * temp2
       }
       // V is overdetermined
       else
@@ -439,9 +448,163 @@ void DGDSpace::GetdPdc(const int b_id, SparseMatrix &dpdc)
 
       }
 
-
       // assemble is back to the derivative matrix
 
+   }
+}
+
+void DGDSpace::buildDerivDataMat(const int el_id, const int b_id,
+                                 DenseMatrix &dV, DenseMatrix &Vn) const
+{
+   // get element related data
+   const Element *el = mesh->GetElement(el_id);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
+   const int numDofs = fe->GetDof();
+   ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
+   
+   // get the dofs coord
+   Array<Vector *> dofs_coord;
+   dofs_coord.SetSize(numDofs);
+   Vector coord(dim);
+   for (int k = 0; k <numDofs; k++)
+   {
+      dofs_coord[k] = new Vector(dim);
+      eltransf->Transform(fe->GetNodes().IntPoint(k), coord);
+      *dofs_coord[k] = coord;
+   }
+
+   dV.SetSize(numLocalBasis,numPolyBasis);
+   Vn.SetSize(numDofs,numPolyBasis);
+
+   // build the data matrix
+   buildElementDerivMat(el_id,numDofs,dofs_coord,dV,Vn);
+   
+   // free the aux variable
+   for (int k = 0; k < numDofs; k++)
+   {
+      delete dofs_coord[k];
+   }
+}
+
+void DGDSpace::buildElementDerivMat(const int el_id, const int numDofs,
+                                    const Array<mfem::Vector*> &dofs_coord,
+                                    DenseMatrix &dV,
+                                    DenseMatrix &Vn) const;
+{
+   int i,j,k,l;
+   double dx,dy,dz;
+   int loc_id;
+   Vector loc_coord;
+   Vector el_center = *elementCenter[el_id];
+
+   if (1 == dim)
+   {
+      // form the V matrix
+      for (i = 0; i < numLocalBasis; i++)
+      {
+         loc_id = (*selectedBasis[el_id])[i];
+         loc_coord = *basisCenter[loc_id];
+         dx = loc_coord[0] - el_center[0];
+         for (j = 0; j <= polyOrder; j++)
+         {
+            V(i,j) = pow(dx,j);
+         }
+      }
+
+      // form the Vn matrix
+      for (i = 0; i < numDofs; i++)
+      {
+         loc_coord = *dofs_coord[i];
+         dx = loc_coord[0] - el_center[0];
+         for (j = 0; j <= polyOrder; j++)
+         {
+            Vn(i,j) = pow(dx,j);
+         }
+      }
+   }
+   else if (2 == dim)
+   {
+      // form the V matrix
+      for (i = 0; i < numLocalBasis; i++)
+      {
+         loc_id = (*selectedBasis[el_id])[i];
+         loc_coord = *basisCenter[loc_id];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         int col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               V(i,col) = pow(dx,j-k)*pow(dy,k);
+               col++;
+            }
+         }
+      }
+
+      // form the Vn matrix
+      for (i = 0; i < numDofs; i++)
+      {
+         loc_coord = *dofs_coord[i];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         int col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               Vn(i,col) = pow(dx,j-k)*pow(dy,k);
+               col++;
+            }
+         }
+      }
+
+   }
+   else if (3 == dim)
+   {
+      // form the V matrix
+      for (i = 0; i < numLocalBasis; i++)
+      {
+         loc_id = (*selectedBasis[el_id])[i];
+         loc_coord = *basisCenter[loc_id];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         dz = loc_coord[2] - el_center[2];
+         int col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               for (l = 0; l <= j-k; l++)
+               {
+                  V(i,col) = pow(dx,j-k-l)*pow(dy,l)*pow(dz,k);
+                  col++;
+               }
+            }
+         }
+      }
+
+
+      // form the Vn matrix
+      for (i = 0; i < numDofs; i++)
+      {
+         loc_coord = *dofs_coord[i];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         dz = loc_coord[2] - el_center[2];
+         int col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               for (l = 0; l <= j-k; l++)
+               {
+                  Vn(i,col) = pow(dx,j-k-l)*pow(dy,l)*pow(dz,k);
+                  col++;
+               }
+            }
+         }
+      }
    }
 }
 
