@@ -11,14 +11,14 @@ namespace mfem
 {
 
 DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f, 
-                   Vector *center, int degree, int e,
+                   Vector center, int degree, int e,
                    int vdim, int ordering)
    : SpaceType(m, f, vdim, ordering), basisCenter(center), polyOrder(degree),
      extra(e)
 {
    // numBasis should not be greater than the number of elements
    dim = m->Dimension();
-   numBasis = center->Size()/dim;
+   numBasis = center.Size()/dim;
 
    switch(dim)
    {
@@ -71,9 +71,9 @@ void DGDSpace::InitializeStencil()
       // loop over all basis
       for (int j = 0; j < numBasis; j++)
       {  
-         GetBasisCenter(b_id,center);
-         elementCenter -= center;
-         dist = elementCenter.Norml2();
+         GetBasisCenter(j,center);
+         elemCenter -= center;
+         dist = elemCenter.Norml2();
          elementBasisDist[i]->push_back(dist);
       }
    }
@@ -125,7 +125,7 @@ void DGDSpace::GetBasisCenter(const int b_id, Vector &center)
 {
    for (int i = 0; i < dim; i++)
    {
-      center(i) = *basisCenter(b_id*dim+i);
+      center(i) = basisCenter(b_id*dim+i);
    }
 }
 
@@ -223,7 +223,8 @@ void DGDSpace::solveLocalProlongationMat(const int el_id,
       Mult(Vt,b,Vtb);
       Vinv.Mult(Vtb,*coef[el_id]);
    }
-   
+   localMat.SetSize(numDofs,numLocalBasis);
+   Mult(Vn,*coef[el_id],localMat);
 
    // check solve
    // if (el_id == 0)
@@ -252,8 +253,6 @@ void DGDSpace::solveLocalProlongationMat(const int el_id,
    //    temp.Print(cout,temp.Width());
    // }
    // Get Local prolongation matrix
-   localMat.SetSize(numDofs,numLocalBasis);
-   Mult(Vn,*coef[el_id],localMat);
 }
 
 
@@ -263,17 +262,18 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id, const int numDofs,
 {
    int i,j,k,l;
    double dx,dy,dz;
-   int loc_id;
-   Vector loc_coord;
-   Vector el_center = *elementCenter[el_id];
+   int b_id;
+   Vector loc_coord(dim);
+   Vector el_center(dim);
+   GetMesh()->GetElementCenter(i,el_center);
 
    if (1 == dim)
    {
       // form the V matrix
       for (i = 0; i < numLocalBasis; i++)
       {
-         loc_id = (*selectedBasis[el_id])[i];
-         loc_coord = *basisCenter[loc_id];
+         b_id = (*selectedBasis[el_id])[i];
+         GetBasisCenter(b_id,loc_coord);
          dx = loc_coord[0] - el_center[0];
          for (j = 0; j <= polyOrder; j++)
          {
@@ -297,8 +297,8 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id, const int numDofs,
       // form the V matrix
       for (i = 0; i < numLocalBasis; i++)
       {
-         loc_id = (*selectedBasis[el_id])[i];
-         loc_coord = *basisCenter[loc_id];
+         b_id = (*selectedBasis[el_id])[i];
+         GetBasisCenter(b_id,loc_coord);
          dx = loc_coord[0] - el_center[0];
          dy = loc_coord[1] - el_center[1];
          int col = 0;
@@ -335,8 +335,8 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id, const int numDofs,
       // form the V matrix
       for (i = 0; i < numLocalBasis; i++)
       {
-         loc_id = (*selectedBasis[el_id])[i];
-         loc_coord = *basisCenter[loc_id];
+         b_id = (*selectedBasis[el_id])[i];
+         GetBasisCenter(b_id,loc_coord);
          dx = loc_coord[0] - el_center[0];
          dy = loc_coord[1] - el_center[1];
          dz = loc_coord[2] - el_center[2];
@@ -486,7 +486,7 @@ void DGDSpace::buildDerivDataMat(const int el_id, const int b_id,
    Vn.SetSize(numDofs,numPolyBasis);
 
    // build the data matrix
-   buildElementDerivMat(el_id,numDofs,dofs_coord,dV,Vn);
+   //buildElementDerivMat(el_id,numDofs,dofs_coord,dV,Vn);
    
    // free the aux variable
    for (int k = 0; k < numDofs; k++)
@@ -495,127 +495,6 @@ void DGDSpace::buildDerivDataMat(const int el_id, const int b_id,
    }
 }
 
-void DGDSpace::buildElementDerivMat(const int el_id, const int numDofs,
-                                    const Array<mfem::Vector*> &dofs_coord,
-                                    DenseMatrix &dV,
-                                    DenseMatrix &Vn) const;
-{
-   int i,j,k,l;
-   double dx,dy,dz;
-   int loc_id;
-   Vector loc_coord;
-   Vector el_center = *elementCenter[el_id];
-
-   if (1 == dim)
-   {
-      // form the V matrix
-      for (i = 0; i < numLocalBasis; i++)
-      {
-         loc_id = (*selectedBasis[el_id])[i];
-         loc_coord = *basisCenter[loc_id];
-         dx = loc_coord[0] - el_center[0];
-         for (j = 0; j <= polyOrder; j++)
-         {
-            V(i,j) = pow(dx,j);
-         }
-      }
-
-      // form the Vn matrix
-      for (i = 0; i < numDofs; i++)
-      {
-         loc_coord = *dofs_coord[i];
-         dx = loc_coord[0] - el_center[0];
-         for (j = 0; j <= polyOrder; j++)
-         {
-            Vn(i,j) = pow(dx,j);
-         }
-      }
-   }
-   else if (2 == dim)
-   {
-      // form the V matrix
-      for (i = 0; i < numLocalBasis; i++)
-      {
-         loc_id = (*selectedBasis[el_id])[i];
-         loc_coord = *basisCenter[loc_id];
-         dx = loc_coord[0] - el_center[0];
-         dy = loc_coord[1] - el_center[1];
-         int col = 0;
-         for (j = 0; j <= polyOrder; j++)
-         {
-            for (k = 0; k <= j; k++)
-            {
-               V(i,col) = pow(dx,j-k)*pow(dy,k);
-               col++;
-            }
-         }
-      }
-
-      // form the Vn matrix
-      for (i = 0; i < numDofs; i++)
-      {
-         loc_coord = *dofs_coord[i];
-         dx = loc_coord[0] - el_center[0];
-         dy = loc_coord[1] - el_center[1];
-         int col = 0;
-         for (j = 0; j <= polyOrder; j++)
-         {
-            for (k = 0; k <= j; k++)
-            {
-               Vn(i,col) = pow(dx,j-k)*pow(dy,k);
-               col++;
-            }
-         }
-      }
-
-   }
-   else if (3 == dim)
-   {
-      // form the V matrix
-      for (i = 0; i < numLocalBasis; i++)
-      {
-         loc_id = (*selectedBasis[el_id])[i];
-         loc_coord = *basisCenter[loc_id];
-         dx = loc_coord[0] - el_center[0];
-         dy = loc_coord[1] - el_center[1];
-         dz = loc_coord[2] - el_center[2];
-         int col = 0;
-         for (j = 0; j <= polyOrder; j++)
-         {
-            for (k = 0; k <= j; k++)
-            {
-               for (l = 0; l <= j-k; l++)
-               {
-                  V(i,col) = pow(dx,j-k-l)*pow(dy,l)*pow(dz,k);
-                  col++;
-               }
-            }
-         }
-      }
-
-
-      // form the Vn matrix
-      for (i = 0; i < numDofs; i++)
-      {
-         loc_coord = *dofs_coord[i];
-         dx = loc_coord[0] - el_center[0];
-         dy = loc_coord[1] - el_center[1];
-         dz = loc_coord[2] - el_center[2];
-         int col = 0;
-         for (j = 0; j <= polyOrder; j++)
-         {
-            for (k = 0; k <= j; k++)
-            {
-               for (l = 0; l <= j-k; l++)
-               {
-                  Vn(i,col) = pow(dx,j-k-l)*pow(dy,l)*pow(dz,k);
-                  col++;
-               }
-            }
-         }
-      }
-   }
-}
 
 vector<size_t> DGDSpace::sort_indexes(const vector<double> &v)
 {

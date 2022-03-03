@@ -12,7 +12,7 @@ class DGDSpace : public mfem::FiniteElementSpace
 public:
    /// class constructor
    DGDSpace(mfem::Mesh *m, const mfem::FiniteElementCollection *fec,
-            mfem::Vector *center, int degree, int extra, int vdim = 1,
+            mfem::Vector center, int degree, int extra, int vdim = 1,
             int ordering = mfem::Ordering::byVDIM);
    virtual ~DGDSpace();
 
@@ -48,12 +48,12 @@ public:
                           mfem::DenseMatrix &dV,
                           mfem::DenseMatrix &Vn) const;
    
-   void buildElementDerivMat(const int el_id, const int numDofs,
-                             const mfem::Array<mfem::Vector *> &dofs_coord,
-                             mfem::DenseMatrix &dV,
-                             mfem::DenseMatrix &Vn) const;
+   // void buildElementDerivMat(const int el_id, const int numDofs,
+   //                           const mfem::Array<mfem::Vector *> &dofs_coord,
+   //                           mfem::DenseMatrix &dV,
+   //                           mfem::DenseMatrix &Vn) const;
 
-   mfem::Vector *GetBasisCenter() { return basisCenter; }
+   mfem::Vector GetBasisCenter() { return basisCenter; }
    void GetBasisCenter(const int b_id, mfem::Vector &center);
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
@@ -84,7 +84,7 @@ protected:
    int extra;
    
    /// location of the basis centers
-   mfem::Vector *basisCenter;
+   mfem::Vector basisCenter;
    /// store the element centers
    mfem::Vector *elementCenter;
 

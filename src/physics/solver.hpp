@@ -42,7 +42,7 @@ public:
    /// Perform set-up of derived classes using virtual functions
    /// \todo Put the constructors and this in a factory
    void initDerived();
-   void initDerived(mfem::Array<mfem::Vector *> &center);
+   void initDerived(mfem::Vector &center);
 
    /// class destructor
    ~AbstractSolver();

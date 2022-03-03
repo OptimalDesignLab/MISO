@@ -10,12 +10,10 @@ target_sources(mach
       orthopoly.hpp
       sbp_fe.cpp
       sbp_fe.hpp
-		centgridfunc.cpp
-		centgridfunc.hpp
+      centgridfunc.cpp
+      centgridfunc.hpp
       rbfgridfunc.cpp
       rbfgridfunc.hpp
-		optimization.hpp
-		optimization.cpp
 )
 
 target_include_directories(mach

@@ -13,7 +13,7 @@ class CentGridFunction : public mfem::GridFunction
 public:
    CentGridFunction() { }
    CentGridFunction(mfem::FiniteElementSpace *f);
-   CentGridFunction(mfem::FiniteElementSpace *f,mfem::Array<mfem::Vector *> center);
+   CentGridFunction(mfem::FiniteElementSpace *f, mfem::Vector center);
 
    virtual void ProjectCoefficient(mfem::VectorCoefficient &coeff);
    
@@ -21,7 +21,8 @@ public:
    CentGridFunction &operator=(double value);
 
 private:
-   mfem::Array<mfem::Vector *> basisCenter;
+   int numBasis;
+   Vector basisCenter;
 
 };
 

@@ -91,7 +91,7 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
 
 }
 
-void AbstractSolver::initDerived(Array<Vector *> &center)
+void AbstractSolver::initDerived(Vector &center)
 {
    num_state = this->getNumState();
    int dgd_degree = options["space-dis"]["DGD-degree"].get<int>();

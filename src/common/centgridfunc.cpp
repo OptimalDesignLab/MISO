@@ -9,14 +9,16 @@ namespace mfem
 
 CentGridFunction::CentGridFunction(FiniteElementSpace *f)
 {
+   int dim = dynamic_cast<DGDSpace*>(f)->GetDIM();
    basisCenter = dynamic_cast<DGDSpace*>(f)->GetBasisCenter();
+   numBasis = basisCenter.Size()/f->Get
    SetSize(f->GetVDim() * basisCenter.Size());
    fes = f;
    fec = NULL;
    UseDevice(true);
 }
 
-CentGridFunction::CentGridFunction(FiniteElementSpace *f, Array<Vector *> center)
+CentGridFunction::CentGridFunction(FiniteElementSpace *f, Vector center)
 {
    SetSize(f->GetVDim() * center.Size());
    basisCenter = center;
