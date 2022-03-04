@@ -27,10 +27,10 @@ void utest(const Vector &x, Vector &u);
 /// \param[in] num_ang - number of nodes in the angular direction
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
-Array<Vector *> buildBasisCenters(int, int);
+mfem::Vector buildBasisCenters(int, int);
 
 template<typename T>
-void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &q, T& stream);
+void writeBasisCentervtp(const mfem::Vector &q, T& stream);
 
 int main(int argc, char *argv[])
 {
@@ -62,17 +62,22 @@ int main(int argc, char *argv[])
    {
       // generate the mesh
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree+1, nx, ny);
+      ofstream savevtk("dgd_test.vtk");
+      smesh->PrintVTK(savevtk,0);
+      savevtk.close();
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       int dim = smesh->Dimension();
       int num_state = dim+2;
 
       // initialize the basis centers
       int numBasis = smesh->GetNE();
-      Array<Vector *> center(numBasis);
+      Vector center(2*numBasis);
+      Vector loc(dim);
       for (int k = 0; k < numBasis; k++)
       {  
-         center[k] = new Vector(dim);
-         smesh->GetElementCenter(k,*center[k]);
+         smesh->GetElementCenter(k,loc);
+         center(k*2) = loc(0);
+         center(k*2+1) = loc(1);         
       }
 
       // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
@@ -118,10 +123,6 @@ int main(int argc, char *argv[])
       x.SaveVTK(sol_ofs,"error",0);
       sol_ofs.close();
       cout << "Check the projection l2 error: " << x.Norml2() << '\n';
-      for (int k = 0; k < numBasis; k++)
-      {
-         delete center[k];
-      }
    }   
    catch (MachException &exception)
    {
@@ -218,21 +219,17 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
    return mesh_ptr;
 }
 
-mfem::Array<mfem::Vector *> buildBasisCenters(int numRad, int numTheta)
+mfem::Vector buildBasisCenters(int numRad, int numTheta)
 {
    double r,theta;
    int numBasis = numRad * numTheta;
-   Array<Vector *> basisCenter(numBasis);
-   Vector b_coord(2);
+   Vector basisCenter(2*numBasis);
    for (int i = 0; i < numBasis; i++)
    {
-
       r = 1.0 + 2.0 * normal_rand(gen);
       theta = M_PI/2.0 * normal_rand(gen);
-      b_coord(0) = r * cos(theta);
-      b_coord(1) = r * sin(theta);
-      basisCenter[i] = new Vector(2);
-      (*basisCenter[i]) = b_coord;
+      basisCenter(i*2) = r *cos(theta);
+      basisCenter(i*2+1) = r * sin(theta);
    }
    return basisCenter;
 }
@@ -240,7 +237,7 @@ mfem::Array<mfem::Vector *> buildBasisCenters(int numRad, int numTheta)
  // Output a QuadratureScheme as an XML .vtp file for visualisation in ParaView or anything else that
     // supports XML VTK files
 template <typename T>
-void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &center, T &stream)
+void writeBasisCentervtp(const mfem::Vector &center, T &stream)
 {
    stream << "<?xml version=\"1.0\"?>\n";
    stream << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
@@ -248,9 +245,10 @@ void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &center, T &stream)
    stream << "<Piece NumberOfPoints=\"" << center.Size() << "\" NumberOfVerts=\"" << center.Size() << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
    stream << "<Points>\n";
    stream << "  <DataArray type=\"Float32\" Name=\"Points\" NumberOfComponents=\"3\" format=\"ascii\">";
-   for (int i = 0; i < center.Size(); i++)
+   int numBasis = center.Size()/2;
+   for (int i = 0; i < numBasis; i++)
    {
-      stream << (*center[i])(0) << ' ' << (*center[i])(1) << ' ' << 0.0 << ' ';
+      stream << center(2*i) << ' ' << center(2*i+1) << ' ' << 0.0 << ' ';
    }
    stream << "</DataArray>\n";
    stream << "</Points>\n";

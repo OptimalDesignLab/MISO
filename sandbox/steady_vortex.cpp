@@ -28,7 +28,7 @@ double calcEntropyTotalExact();
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - state variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
-Array<Vector *> buildBasisCenters(int, int);
+mfem::Vector buildBasisCenters(int, int);
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_rad - number of nodes in the radial direction
@@ -36,7 +36,7 @@ Array<Vector *> buildBasisCenters(int, int);
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
 template<typename T>
-void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &q, T& stream);
+void writeBasisCentervtp(const mfem::Vector &q, T& stream);
 
 int main(int argc, char *argv[])
 {
@@ -65,34 +65,24 @@ int main(int argc, char *argv[])
   
    try
    {
-      // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      std::cout << "Number of elements " << smesh->GetNE() <<'\n';
-      ofstream sol_ofs("steady_vortex_mesh.vtk");
-      sol_ofs.precision(15);
-      smesh->PrintVTK(sol_ofs,0);
-      sol_ofs.close();
 
-      int numBasis = smesh->GetNE();
-      Array<Vector *> center(numBasis);
+      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree, numRad, numTheta);
+      int numBasis = bmesh->GetNE();
+      Vector center(2*numBasis);
+      Vector loc(2);
       for (int k = 0; k < numBasis; k++)
       {  
-         center[k] = new Vector(2);
-         smesh->GetElementCenter(k,*center[k]);
+         bmesh->GetElementCenter(k,loc);
+         center(k*2) = loc(0);
+         center(k*2+1) = loc(1);
       }
+      ofstream centerwrite("center.vtp");
+      writeBasisCentervtp(center, centerwrite);
+      centerwrite.close();
 
-      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      // int numBasis = numRad * numTheta;
-      // ofstream centerwrite("center.vtp");
-      // writeBasisCentervtp(center, centerwrite);
-      // centerwrite.close();
-      // for (int i = 0; i < numBasis; i++)
-      // {
-      //    cout << "basis " << i << ": ";
-      //    center[i]->Print();
-      // }
-
+      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree, nx, ny);
+      std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       unique_ptr<AbstractSolver> solver(
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
       cout << "before init derived.\n";
@@ -128,10 +118,6 @@ int main(int argc, char *argv[])
          mfem::out << "\nTotal entropy = " << entropy;
          mfem::out << "\nEntropy error = "
                    << fabs(entropy - calcEntropyTotalExact()) << endl;
-      }
-      for (int k = 0; k < numBasis; k++)
-      {
-         delete center[k];
       }
 
    }
@@ -241,28 +227,24 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
    return mesh_ptr;
 }
 
-Array<Vector *> buildBasisCenters(int numRad, int numTheta)
+mfem::Vector buildBasisCenters(int numRad, int numTheta)
 {
    double r,theta;
    int numBasis = numRad * numTheta;
-   Array<Vector *> basisCenter(numBasis);
-   Vector b_coord(2);
+   Vector basisCenter(2*numBasis);
    for (int i = 0; i < numBasis; i++)
    {
-
       r = 1.0 + 2.0 * normal_rand(gen);
       theta = M_PI/2.0 * normal_rand(gen);
-      b_coord(0) = r * cos(theta);
-      b_coord(1) = r * sin(theta);
-      basisCenter[i] = new Vector(2);
-      (*basisCenter[i]) = b_coord;
+      basisCenter(i*2) = r *cos(theta);
+      basisCenter(i*2+1) = r * sin(theta);
    }
    return basisCenter;
 }
 
 
 template <typename T>
-void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &center, T &stream)
+void writeBasisCentervtp(const mfem::Vector &center, T &stream)
 {
    stream << "<?xml version=\"1.0\"?>\n";
    stream << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
@@ -270,9 +252,10 @@ void writeBasisCentervtp(const mfem::Array<mfem::Vector *> &center, T &stream)
    stream << "<Piece NumberOfPoints=\"" << center.Size() << "\" NumberOfVerts=\"" << center.Size() << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
    stream << "<Points>\n";
    stream << "  <DataArray type=\"Float32\" Name=\"Points\" NumberOfComponents=\"3\" format=\"ascii\">";
-   for (int i = 0; i < center.Size(); i++)
+   int numBasis = center.Size()/2;
+   for (int i = 0; i < numBasis; i++)
    {
-      stream << (*center[i])(0) << ' ' << (*center[i])(1) << ' ' << 0.0 << ' ';
+      stream << center(2*i) << ' ' << center(2*i+1) << ' ' << 0.0 << ' ';
    }
    stream << "</DataArray>\n";
    stream << "</Points>\n";

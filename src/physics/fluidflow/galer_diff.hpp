@@ -54,7 +54,7 @@ public:
    //                           mfem::DenseMatrix &Vn) const;
 
    mfem::Vector GetBasisCenter() { return basisCenter; }
-   void GetBasisCenter(const int b_id, mfem::Vector &center);
+   void GetBasisCenter(const int b_id, mfem::Vector &center) const;
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }
@@ -86,7 +86,7 @@ protected:
    /// location of the basis centers
    mfem::Vector basisCenter;
    /// store the element centers
-   mfem::Vector *elementCenter;
+   //mfem::Vector *elementCenter;
 
 
    /// selected basis for each element (currently it is fixed upon setup)

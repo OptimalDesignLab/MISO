@@ -21,6 +21,7 @@ public:
    CentGridFunction &operator=(double value);
 
 private:
+   int dim;
    int numBasis;
    Vector basisCenter;
 

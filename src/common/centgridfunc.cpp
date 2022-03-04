@@ -9,10 +9,10 @@ namespace mfem
 
 CentGridFunction::CentGridFunction(FiniteElementSpace *f)
 {
-   int dim = dynamic_cast<DGDSpace*>(f)->GetDIM();
+   dim = dynamic_cast<DGDSpace*>(f)->GetMesh()->Dimension();
    basisCenter = dynamic_cast<DGDSpace*>(f)->GetBasisCenter();
-   numBasis = basisCenter.Size()/f->Get
-   SetSize(f->GetVDim() * basisCenter.Size());
+   numBasis = basisCenter.Size()/dim;
+   SetSize(f->GetVDim() * numBasis);
    fes = f;
    fec = NULL;
    UseDevice(true);
@@ -20,8 +20,10 @@ CentGridFunction::CentGridFunction(FiniteElementSpace *f)
 
 CentGridFunction::CentGridFunction(FiniteElementSpace *f, Vector center)
 {
-   SetSize(f->GetVDim() * center.Size());
+   dim = dynamic_cast<DGDSpace*>(f)->GetMesh()->Dimension();
    basisCenter = center;
+   numBasis = basisCenter.Size()/dim;
+   SetSize(f->GetVDim() * numBasis);
    fes = f;
    fec = NULL;
    UseDevice(true);
@@ -62,17 +64,20 @@ CentGridFunction::CentGridFunction(FiniteElementSpace *f, Vector center)
 void CentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
 {
    int vdim = fes->GetVDim();
+   int i,j,k;
    Array<int> vdofs(vdim);
    Vector vals(vdim);
+   Vector loc(dim);
    std::function<void(const mfem::Vector &, mfem::Vector &)> F = 
       dynamic_cast<VectorFunctionCoefficient*>(&coeff)->GetFunc();
-   for (int i = 0; i < basisCenter.Size(); i++)
+   for (i = 0; i < numBasis; i++)
    {
-      for (int j = 0; j < vdim; j++)
+      dynamic_cast<DGDSpace*>(FESpace())->GetBasisCenter(i,loc);
+      for (j = 0; j < vdim; j++)
       {
          vdofs[j] = i * vdim + j;
       }
-      F(*basisCenter[i], vals);
+      F(loc, vals);
       SetSubVector(vdofs, vals);
    }
 }
