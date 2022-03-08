@@ -40,18 +40,23 @@ public:
    void AssembleProlongationMatrix(const int el_id, const mfem::DenseMatrix &localMat) const;
 
    /// compute the derivative of prolongation matrix w.r.t the ith basis center
-   /// \param[in] i - id of the basis center to purturb
+   /// \param[in] i - the i th design parameter, either x or y coordinate
    /// \param[out] dpdc - derivative matrix
    void GetdPdc(const int i, mfem::SparseMatrix &dpdc);
 
-   void buildDerivDataMat(const int el_id, const int b_id,
+   void buildDerivDataMat(const int el_id, const int b_id, const int xyz,
+                          mfem::DenseMatrix &V,
                           mfem::DenseMatrix &dV,
                           mfem::DenseMatrix &Vn) const;
    
-   // void buildElementDerivMat(const int el_id, const int numDofs,
-   //                           const mfem::Array<mfem::Vector *> &dofs_coord,
-   //                           mfem::DenseMatrix &dV,
-   //                           mfem::DenseMatrix &Vn) const;
+   void buildElementDerivMat(const int el_id, const int b_id,
+                             const int xyz, const int numDofs,
+                             const mfem::Array<mfem::Vector *> &dofs_coord,
+                             mfem::DenseMatrix &dV,
+                             mfem::DenseMatrix &Vn) const;
+   
+   void AssembleDerivMatrix(const int el_id, const DenseMatrix &dpdc_block,
+                            mfem::SparseMatrix &dpdc) const;
 
    mfem::Vector GetBasisCenter() { return basisCenter; }
    void GetBasisCenter(const int b_id, mfem::Vector &center) const;
@@ -85,8 +90,6 @@ protected:
    
    /// location of the basis centers
    mfem::Vector basisCenter;
-   /// store the element centers
-   //mfem::Vector *elementCenter;
 
 
    /// selected basis for each element (currently it is fixed upon setup)

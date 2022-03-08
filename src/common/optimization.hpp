@@ -18,17 +18,17 @@ public:
 };
 
 
-class DGDOptimizer : public Optimizer
+class DGDOptimizer : public NonlinearForm
 {
 public:
    /// class constructor
    DGDOptimizer(mfem::FiniteElementSpace *fes,
 	 				 mfem::DGDSpace *fes_dgd);
    
-   virtual double ComputeObject();
+   virtual double GetEnergy(const Vector &x) const;
 
    /// compute the jacobian of the functional w.r.t the design variable
-   virtual Operator *GetGradient();
+   virtual Operator &GetGradient(const mfem::Vector &x) const;
 
    /// class destructor
    ~DGDOptimizer();
@@ -37,7 +37,13 @@ protected:
    ///  or simply use the EulerSolver?
    /// for now I would like to develope new class to have more flexibility
    /// some basic variables
-   int inputSize;
+   /// the design variables
+   Vector design_var;
+   /// number of design variable
+   int numVar;
+   /// number of basis
+   int numBasis;
+
    std::unique_ptr<mfem::Mesh> mesh;
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    std::unique_ptr<mfem::DGDSpace> fes_dgd;

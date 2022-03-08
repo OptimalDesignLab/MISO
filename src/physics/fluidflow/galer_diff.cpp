@@ -414,18 +414,23 @@ void DGDSpace::AssembleProlongationMatrix(const int el_id, const DenseMatrix &lo
    }
 }
 
-void DGDSpace::GetdPdc(const int b_id, SparseMatrix &dpdc)
+void DGDSpace::GetdPdc(const int id, SparseMatrix &dpdc)
 {
+   int xyz = id % dim; // determine whether it is x, y, or z
+   int b_id = id / dim; // determine the basis id
+
    int numLocalElem = selectedElement[b_id]->Size();
    int el_id;
+   DenseMatrix V;
    DenseMatrix dV;
    DenseMatrix Vn;
    DenseMatrix dpdc_block;
    for (int i = 0; i < numLocalElem; i++)
    {
       el_id = (*selectedBasis[b_id])[i];
-      buildDerivDataMat(el_id,b_id,dV,Vn);
+      buildDerivDataMat(el_id,b_id,xyz,V,dV,Vn);
       dpdc_block.SetSize(Vn.Height(),numLocalBasis);
+
       // V is a square matrix
       if (numPolyBasis == numLocalBasis)
       {
@@ -439,16 +444,40 @@ void DGDSpace::GetdPdc(const int b_id, SparseMatrix &dpdc)
       // V is overdetermined
       else
       {
+         DenseMatrix Vt(V);
+         Vt.Transpose(); // get V^t
 
+         DenseMatrix vtv(numPolyBasis); 
+         Mult(Vt,V,vtv);
+         DenseMatrixInverse vtvinv(vtv); // get (V^t V)^-1
+
+         DenseMatrix dVt(dV);
+         dVt.Transpose(); // get dV^t
+
+         DenseMatrix dvtv(numPolyBasis);
+         Mult(Vt,dV,dvtv);
+         AddMult(dVt,V,dvtv); // compute d V^tV / dc
+
+         DenseMatrix temp_mat1(numPolyBasis);
+         DenseMatrix deriv_p1(numPolyBasis,numLocalBasis);
+         vtvinv.Mult(dvtv,temp_mat1);
+         Mult(temp_mat1,*coef[el_id],deriv_p1);
+         deriv_p1.Neg(); // first part of the derivatve
+
+         DenseMatrix deriv_p2(numPolyBasis,numLocalBasis);
+         vtvinv.Mult(dVt,deriv_p2);
+
+         deriv_p1 += deriv_p2;
+         Mult(Vn,deriv_p1,dpdc_block);
       }
 
       // assemble is back to the derivative matrix
-
+      AssembleDerivMatrix(i,dpdc_block,dpdc);
    }
 }
 
-void DGDSpace::buildDerivDataMat(const int el_id, const int b_id,
-                                 DenseMatrix &dV, DenseMatrix &Vn) const
+void DGDSpace::buildDerivDataMat(const int el_id, const int b_id, const int xyz,
+                                 DenseMatrix &V, DenseMatrix &dV, DenseMatrix &Vn) const
 {
    // get element related data
    const Element *el = mesh->GetElement(el_id);
@@ -467,12 +496,13 @@ void DGDSpace::buildDerivDataMat(const int el_id, const int b_id,
       *dofs_coord[k] = coord;
    }
 
+   V.SetSize(numLocalBasis,numPolyBasis);
    dV.SetSize(numLocalBasis,numPolyBasis);
    Vn.SetSize(numDofs,numPolyBasis);
 
    // build the data matrix
-   //buildElementDerivMat(el_id,numDofs,dofs_coord,dV,Vn);
-   
+   buildElementDerivMat(el_id,b_id,xyz,numDofs,dofs_coord,dV,Vn);
+   buildElementPolyBasisMat(el_id,numDofs,dofs_coord,V,Vn);
    // free the aux variable
    for (int k = 0; k < numDofs; k++)
    {
@@ -480,6 +510,111 @@ void DGDSpace::buildDerivDataMat(const int el_id, const int b_id,
    }
 }
 
+void DGDSpace::buildElementDerivMat(const int el_id, const int b_id, 
+                                    const int xyz, const int numDofs,
+                                    const Array<Vector*> &dofs_coord,
+                                    DenseMatrix &dV,
+                                    DenseMatrix &Vn) const
+{
+   int i,j,k,col;
+   double dx,dy,dz;
+   const int row_idx = selectedBasis[el_id]->Find(b_id);
+   Vector loc_coord(dim);
+   Vector el_center(dim);
+   GetBasisCenter(b_id,loc_coord);
+   GetMesh()->GetElementCenter(el_id,el_center);
+   dV = 0.0;
+   col = 0;
+   if (1 == dim)
+   {
+      // form the dV matrix (only one row needs update)
+      dx = loc_coord[0] - el_center[0];
+      for (j = 0; j <= polyOrder; j++)
+      {
+         dV(row_idx,j) = j * pow(dx,j-1);
+      }
+
+      // form the Vn matrix
+      for (i = 0; i < numDofs; i++)
+      {
+         loc_coord = *dofs_coord[i];
+         dx = loc_coord[0] - el_center[0];
+         for (j = 0; j <= polyOrder; j++)
+         {
+            Vn(i,j) = pow(dx,j);
+         }
+      }
+   }
+   else if (2 == dim)
+   {
+      // form the dV matrix
+      dx = loc_coord[0] - el_center[0];
+      dy = loc_coord[1] - el_center[1];
+      for (j = 0; j <= polyOrder; j++)
+      {
+         for (k = 0; k <= j; k ++)
+         {
+            dV(row_idx,col) = (0 == xyz) ? (j-k) * pow(dx,j-k-1) * pow(dy,k)
+                              : pow(dx,j-k) * k * pow(dy,k-1);
+            col++;
+         }
+      }
+      // form the Vn matrix
+      for (i = 0; i < numDofs; i++)
+      {
+         loc_coord = *dofs_coord[i];
+         dx = loc_coord[0] - el_center[0];
+         dy = loc_coord[1] - el_center[1];
+         col = 0;
+         for (j = 0; j <= polyOrder; j++)
+         {
+            for (k = 0; k <= j; k++)
+            {
+               Vn(i,col) = pow(dx,j-k)*pow(dy,k);
+               col++;
+            }
+         }
+      }
+
+   }
+}
+
+
+
+void DGDSpace::AssembleDerivMatrix(const int el_id, const DenseMatrix &localMat,
+                                   SparseMatrix &dpdc) const
+{
+   // element id coresponds to the column indices
+   // dofs id coresponds to the row indices
+   // the local reconstruction matrix needs to be assembled `vdim` times
+   // assume the mesh only contains only 1 type of element
+   const Element* el = mesh->GetElement(el_id);
+   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
+   const int numDofs = fe->GetDof();
+
+   int numLocalBasis= selectedBasis[el_id]->Size();
+   Array<int> el_dofs;
+   Array<int> col_index(numLocalBasis);
+   Array<int> row_index(numDofs);
+
+   GetElementVDofs(el_id, el_dofs);
+   for(int e = 0; e < numLocalBasis; e++)
+   {
+      col_index[e] = vdim * (*selectedBasis[el_id])[e];
+   }
+
+   for (int v = 0; v < vdim; v++)
+   {
+      el_dofs.GetSubArray(v * numDofs, numDofs, row_index);
+      dpdc.SetSubMatrix(row_index, col_index, localMat, 1);
+      row_index.LoseData();
+      // elements id also need to be shift accordingly
+      for (int e = 0; e < numLocalBasis; e++)
+      {
+         col_index[e]++;
+      }
+   }
+}
 
 vector<size_t> DGDSpace::sort_indexes(const vector<double> &v)
 {
