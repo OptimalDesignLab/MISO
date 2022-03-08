@@ -88,12 +88,12 @@ int main(int argc, char *argv[])
       
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
-      DGDSpace DGDSpace(smesh.get(),&fec,center,degree,extra,num_state,Ordering::byVDIM);
+      DGDSpace dgdSpace(smesh.get(),&fec,center,degree,extra,num_state,Ordering::byVDIM);
       FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
 
       //================== Construct the gridfunction and apply the exact solution =======
       mfem::VectorFunctionCoefficient u0_fun(num_state, upoly);
-      mfem::CentGridFunction x_cent(&DGDSpace);
+      mfem::CentGridFunction x_cent(&dgdSpace);
       x_cent.ProjectCoefficient(u0_fun);
       ofstream x_centprint("x_cent.txt");
       x_cent.Print(x_centprint,4);
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 
       mfem::GridFunction x(&fes);
       x = 0.0;
-      DGDSpace.GetProlongationMatrix()->Mult(x_cent,x);
+      dgdSpace.GetProlongationMatrix()->Mult(x_cent,x);
       ofstream x_prolongprint("x_prolong.txt");
       x.Print(x_prolongprint,4);
       x_prolongprint.close();
@@ -123,6 +123,39 @@ int main(int argc, char *argv[])
       x.SaveVTK(sol_ofs,"error",0);
       sol_ofs.close();
       cout << "Check the projection l2 error: " << x.Norml2() << '\n';
+
+      //============== check dpdc =================================
+      // fd method
+      int pert_idx = 1;
+      double pert = 1e-7;
+      Vector center_p(center);
+      Vector center_m(center);
+      center_p(pert_idx) = center_p(pert_idx) + pert;
+      center_m(pert_idx) = center_p(pert_idx) - pert;
+      DGDSpace dgdSpace_p(smesh.get(),&fec,center_p,degree,extra,num_state,Ordering::byVDIM);
+      DGDSpace dgdSpace_m(smesh.get(),&fec,center_m,degree,extra,num_state,Ordering::byVDIM);
+
+      SparseMatrix *p_plus = dgdSpace_p.GetCP();
+      SparseMatrix *p_minus = dgdSpace_m.GetCP();
+
+      DenseMatrix *pd_plus = p_plus->ToDenseMatrix();
+      DenseMatrix *pd_minus = p_minus->ToDenseMatrix();
+
+      *pd_plus -= *pd_minus;
+
+      *pd_plus *= (1.0/(2.0*pert));
+
+      SparseMatrix dpdc(pd_plus->Height(),pd_plus->Width());
+      dgdSpace.GetdPdc(pert_idx,dpdc);
+      ofstream dpdc_save("dpdc.txt");
+      dpdc.PrintMatlab(dpdc_save);
+      dpdc_save.close();
+
+      DenseMatrix *dpdc_dense = dpdc.ToDenseMatrix();
+      *dpdc_dense -= *pd_plus;
+
+      cout << "Check dpdc error norm: " << dpdc_dense->FNorm2() << '\n';
+
    }   
    catch (MachException &exception)
    {

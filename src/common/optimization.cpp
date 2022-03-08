@@ -83,7 +83,7 @@ Operator *DGDOperator::GetGradient(const Vector &x) const;
 	DenseMatrix *pR_dgdpuc = RAP(*pRpu,*P_dense);
 
 	// compute pR_dgd / pc
-	
+	DenseMatrix *pR_dgdpc = Mult(*pRpu,pPupc);
 }
 
 

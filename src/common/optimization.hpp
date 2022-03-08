@@ -5,18 +5,6 @@
 #include "galer_diff.hpp"
 namespace mach
 {
-class Optimizer
-{
-public:
-   // default constructor
-   Optimizer() {};
-
-   /// Given the design variable may take different form
-   virtual double ComputeObject() = 0;
-   virtual Operator *GetGradient() = 0;
-   virtual ~Optimizer() = default;
-};
-
 
 class DGDOptimizer : public NonlinearForm
 {
@@ -37,12 +25,13 @@ protected:
    ///  or simply use the EulerSolver?
    /// for now I would like to develope new class to have more flexibility
    /// some basic variables
+
+   int ROMSize;
+   int FullSize;
+   int numDesignVar;
+   int numBasis;
    /// the design variables
    Vector design_var;
-   /// number of design variable
-   int numVar;
-   /// number of basis
-   int numBasis;
 
    std::unique_ptr<mfem::Mesh> mesh;
    std::unique_ptr<mfem::FiniteElementCollection> fec;
