@@ -424,19 +424,58 @@ void DGDSpace::GetdPdc(const int id, SparseMatrix &dpdc)
    DenseMatrix dV;
    DenseMatrix Vn;
    DenseMatrix dpdc_block;
-   for (int i = 0; i < numLocalElem; i++)
+   cout << "Selected elements are: ";
+   selectedElement[b_id]->Print();
+   for (int i = 0; i < 1; i++)
    {
       el_id = (*selectedBasis[b_id])[i];
       buildDerivDataMat(el_id,b_id,xyz,V,dV,Vn);
       dpdc_block.SetSize(Vn.Height(),numLocalBasis);
+      
+      cout << "Element id is " << el_id << '\n';
+      cout << "element center is: ";
+      Vector el_center(dim);
+      GetMesh()->GetElementCenter(el_id,el_center);
+      el_center.Print();
 
-      // cout << "Element id is " << el_id << '\n';
-      // cout << "check V: \n";
-      // V.Print(cout,V.Width());
-      // cout << "check dV:\n";
-      // dV.Print(cout,dV.Width());
-      // cout << "check Vn:\n";
-      // Vn.Print(cout,Vn.Width());
+      cout << "selected basis are: ";
+      selectedBasis[el_id]->Print(cout,selectedBasis[el_id]->Size());
+      int ii;
+      for (int l = 0; l < selectedBasis[el_id]->Size(); l++)
+      {
+         ii = (*selectedBasis[el_id])[l];
+         GetBasisCenter(ii,el_center);
+         el_center.Print();
+      }
+
+
+
+
+
+      cout << "check V: \n";
+      V.Print(cout,V.Width());
+      cout << "check dV:\n";
+      dV.Print(cout,dV.Width());
+      cout << "check Vn:\n";
+      Vn.Print(cout,Vn.Width());
+
+      ofstream v_save("v.txt");
+      V.PrintMatlab(v_save);
+      v_save.close();
+
+      ofstream dv_save("dv.txt");
+      dV.PrintMatlab(dv_save);
+      dv_save.close();
+
+      ofstream vn_save("vn.txt");
+      Vn.PrintMatlab(vn_save);
+      vn_save.close();
+
+      ofstream coef_save("coef.txt");
+      coef[el_id]->PrintMatlab(coef_save);
+      coef_save.close();
+
+
       // V is a square matrix
       if (numPolyBasis == numLocalBasis)
       {
@@ -476,6 +515,8 @@ void DGDSpace::GetdPdc(const int id, SparseMatrix &dpdc)
          deriv_p1 += deriv_p2;
          Mult(Vn,deriv_p1,dpdc_block);
       }
+      cout << "dpdc_block is: ";
+      dpdc_block.Print(cout,dpdc_block.Width());
 
       // assemble is back to the derivative matrix
       AssembleDerivMatrix(i,dpdc_block,dpdc);

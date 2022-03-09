@@ -20,6 +20,7 @@ std::uniform_real_distribution<double> normal_rand(0.0,1.0);
 void uexact(const Vector &x, Vector& u);
 void upoly(const Vector &x, Vector& u);
 void utest(const Vector &x, Vector &u);
+void usingle(const mfem::Vector &x, mfem::Vector &u);
 
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -67,7 +68,7 @@ int main(int argc, char *argv[])
       savevtk.close();
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       int dim = smesh->Dimension();
-      int num_state = dim+2;
+      int num_state = 1;
 
       // initialize the basis centers
       int numBasis = smesh->GetNE();
@@ -92,7 +93,7 @@ int main(int argc, char *argv[])
       FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
 
       //================== Construct the gridfunction and apply the exact solution =======
-      mfem::VectorFunctionCoefficient u0_fun(num_state, upoly);
+      mfem::VectorFunctionCoefficient u0_fun(num_state, usingle);
       mfem::CentGridFunction x_cent(&dgdSpace);
       x_cent.ProjectCoefficient(u0_fun);
       ofstream x_centprint("x_cent.txt");
@@ -144,6 +145,9 @@ int main(int argc, char *argv[])
       *pd_plus -= *pd_minus;
 
       *pd_plus *= (1.0/(2.0*pert));
+      ofstream fd_save("dpdc_fd.txt");
+      pd_plus->PrintMatlab(fd_save);
+      fd_save.close();
 
       SparseMatrix dpdc(pd_plus->Height(),pd_plus->Width());
       dgdSpace.GetdPdc(pert_idx,dpdc);
@@ -219,6 +223,12 @@ void utest(const mfem::Vector &x, mfem::Vector &u)
    u(1) = 2.0;
    u(2) = 3.0;
    u(3) = 4.0;
+}
+
+void usingle(const mfem::Vector &x, mfem::Vector &u)
+{
+   u.SetSize(1);
+   u(0) = 2.0;
 }
 
 unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
