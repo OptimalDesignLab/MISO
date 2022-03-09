@@ -125,6 +125,12 @@ int main(int argc, char *argv[])
       sol_ofs.close();
       cout << "Check the projection l2 error: " << x.Norml2() << '\n';
 
+      SparseMatrix *prolong = dgdSpace.GetCP();
+      DenseMatrix *p = prolong->ToDenseMatrix();
+      ofstream p_save("p.txt");
+      p->PrintMatlab(p_save);
+      p_save.close();
+
       //============== check dpdc =================================
       // fd method
       int pert_idx = 1;
@@ -142,20 +148,30 @@ int main(int argc, char *argv[])
       DenseMatrix *pd_plus = p_plus->ToDenseMatrix();
       DenseMatrix *pd_minus = p_minus->ToDenseMatrix();
 
+      ofstream pp_save("p_plus.txt");
+      pd_plus->PrintMatlab(pp_save);
+      pp_save.close();
+
+      ofstream pm_save("p_minus.txt");
+      pd_minus->PrintMatlab(pm_save);
+      pm_save.close();
+
+
       *pd_plus -= *pd_minus;
 
-      *pd_plus *= (1.0/(2.0*pert));
+      *pd_plus *= (1./pert);
       ofstream fd_save("dpdc_fd.txt");
       pd_plus->PrintMatlab(fd_save);
       fd_save.close();
 
       SparseMatrix dpdc(pd_plus->Height(),pd_plus->Width());
       dgdSpace.GetdPdc(pert_idx,dpdc);
-      ofstream dpdc_save("dpdc.txt");
-      dpdc.PrintMatlab(dpdc_save);
-      dpdc_save.close();
 
       DenseMatrix *dpdc_dense = dpdc.ToDenseMatrix();
+      ofstream dpdc_save("dpdc.txt");
+      dpdc_dense->PrintMatlab(dpdc_save);
+      dpdc_save.close();
+
       *dpdc_dense -= *pd_plus;
 
       cout << "Check dpdc error norm: " << dpdc_dense->FNorm2() << '\n';
