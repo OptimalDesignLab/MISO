@@ -2,9 +2,10 @@
 #include "euler.hpp"
 #include "galer_diff.hpp"
 #include "rbfgridfunc.hpp"
-#include<random>
+#include <random>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 
 using namespace std;
 using namespace mfem;
@@ -128,7 +129,15 @@ int main(int argc, char *argv[])
       SparseMatrix *prolong = dgdSpace.GetCP();
       DenseMatrix *p = prolong->ToDenseMatrix();
       ofstream p_save("p.txt");
-      p->PrintMatlab(p_save);
+      p_save << std::fixed << setprecision(16);
+      for (int i = 0; i < p->Height(); i++)
+      {
+         for (int j = 0; j < p->Width(); j++)
+         {
+            p_save << (*p)(i,j)  << ' ';
+         }
+         p_save << '\n';
+      }
       p_save.close();
 
       //============== check dpdc =================================
@@ -139,29 +148,50 @@ int main(int argc, char *argv[])
       Vector center_m(center);
       center_p(pert_idx) = center_p(pert_idx) + pert;
       center_m(pert_idx) = center_p(pert_idx) - pert;
-      DGDSpace dgdSpace_p(smesh.get(),&fec,center_p,degree,extra,num_state,Ordering::byVDIM);
-      DGDSpace dgdSpace_m(smesh.get(),&fec,center_m,degree,extra,num_state,Ordering::byVDIM);
 
-      SparseMatrix *p_plus = dgdSpace_p.GetCP();
-      SparseMatrix *p_minus = dgdSpace_m.GetCP();
-
+      dgdSpace.buildProlongationMatrix(center_p);
+      SparseMatrix *p_plus = dgdSpace.GetCP();
       DenseMatrix *pd_plus = p_plus->ToDenseMatrix();
-      DenseMatrix *pd_minus = p_minus->ToDenseMatrix();
-
       ofstream pp_save("p_plus.txt");
-      pd_plus->PrintMatlab(pp_save);
+      pp_save << std::fixed << setprecision(16);
+      for (int i = 0; i < pd_plus->Height(); i++)
+      {
+         for (int j = 0; j < pd_plus->Width(); j++)
+         {
+            pp_save << (*pd_plus)(i,j)  << ' ';
+         }
+         pp_save << '\n';
+      }
       pp_save.close();
 
+      dgdSpace.buildProlongationMatrix(center_m);
+      SparseMatrix *p_minus = dgdSpace.GetCP();
+      DenseMatrix *pd_minus = p_minus->ToDenseMatrix();
       ofstream pm_save("p_minus.txt");
-      pd_minus->PrintMatlab(pm_save);
+      pm_save << std::fixed << setprecision(16);
+      for (int i = 0; i < pd_minus->Height(); i++)
+      {
+         for (int j = 0; j < pd_minus->Width(); j++)
+         {
+            pm_save << (*pd_minus)(i,j)  << ' ';
+         }
+         pm_save << '\n';
+      }
       pm_save.close();
-
 
       *pd_plus -= *pd_minus;
 
       *pd_plus *= (1./pert);
       ofstream fd_save("dpdc_fd.txt");
-      pd_plus->PrintMatlab(fd_save);
+      fd_save << std::fixed << setprecision(16);
+      for (int i = 0; i < pd_plus->Height(); i++)
+      {
+         for (int j = 0; j < pd_plus->Width(); j++)
+         {
+            fd_save << (*pd_plus)(i,j)  << ' ';
+         }
+         fd_save << '\n';
+      }
       fd_save.close();
 
       SparseMatrix dpdc(pd_plus->Height(),pd_plus->Width());
@@ -169,7 +199,14 @@ int main(int argc, char *argv[])
 
       DenseMatrix *dpdc_dense = dpdc.ToDenseMatrix();
       ofstream dpdc_save("dpdc.txt");
-      dpdc_dense->PrintMatlab(dpdc_save);
+      for (int i = 0; i < dpdc_dense->Height(); i++)
+      {
+         for (int j = 0; j < dpdc_dense->Width(); j++)
+         {
+            dpdc_save << (*dpdc_dense)(i,j)  << ' ';
+         }
+         dpdc_save << '\n';
+      }
       dpdc_save.close();
 
       *dpdc_dense -= *pd_plus;

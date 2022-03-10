@@ -18,6 +18,8 @@ public:
 
    /// build the prolongation matrix
    void buildProlongation() const;
+   /// build the prolongation matrix based on the initialized stencil
+   void buildProlongationMatrix(const mfem::Vector &bcenter);
    
    void buildDataMat(const int el_id, mfem::DenseMatrix &V,
                      mfem::DenseMatrix &Vn) const;

@@ -143,6 +143,28 @@ void DGDSpace::buildProlongation() const
    }
 }
 
+void DGDSpace::buildProlongationMatrix(const Vector &x)
+{
+   basisCenter = x;
+   cP->Clear();
+   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
+   DenseMatrix V, Vn;
+   DenseMatrix localMat;
+   for (int i = 0; i < GetMesh()->GetNE(); i++)
+   {
+      // 1. build basis matrix
+      buildDataMat(i,V,Vn);
+
+      // 2. build the interpolation matrix
+      solveLocalProlongationMat(i,V,Vn,localMat);
+
+      // 3. Assemble prolongation matrix
+      AssembleProlongationMatrix(i,localMat);
+   }
+   cP->Finalize();
+   cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
+}
+
 void DGDSpace::buildDataMat(int el_id, DenseMatrix &V,
                             DenseMatrix &Vn) const
 {
@@ -420,15 +442,14 @@ void DGDSpace::GetdPdc(const int id, SparseMatrix &dpdc)
    DenseMatrix dV;
    DenseMatrix Vn;
    DenseMatrix dpdc_block;
-   cout << "Selected elements are: ";
-   selectedElement[b_id]->Print();
+   //cout << "Selected elements are: ";
+   //selectedElement[b_id]->Print(cout,numLocalElem);
    for (int i = 0; i < numLocalElem; i++)
    {
-      el_id = (*selectedBasis[b_id])[i];
+      el_id = (*selectedElement[b_id])[i];
       buildDerivDataMat(el_id,b_id,xyz,V,dV,Vn);
       dpdc_block.SetSize(Vn.Height(),numLocalBasis);
-      
-      cout << "Element id is " << el_id << '\n';
+      // cout << "Element id is " << el_id << '\n';
       // cout << "element center is: ";
       // Vector el_center(dim);
       // GetMesh()->GetElementCenter(el_id,el_center);
@@ -506,13 +527,11 @@ void DGDSpace::GetdPdc(const int id, SparseMatrix &dpdc)
          deriv_p1 += deriv_p2;
          Mult(Vn,deriv_p1,dpdc_block);
       }
-      cout << "dpdc_block is: ";
-      dpdc_block.Print(cout,dpdc_block.Width());
-
       // assemble is back to the derivative matrix
       AssembleDerivMatrix(el_id,dpdc_block,dpdc);
    }
    dpdc.Finalize();
+   cout << "Check dpdc size: " << dpdc.Height() << " x " << dpdc.Width() << '\n';
 }
 
 void DGDSpace::buildDerivDataMat(const int el_id, const int b_id, const int xyz,
