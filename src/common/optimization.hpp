@@ -1,41 +1,58 @@
 #ifndef MACH_OPTIMIZATION
 #define MACH_OPTIMIZATION
 
+#include "mfem.hpp"
+#include "adept.h"
 #include "solver.hpp"
 #include "galer_diff.hpp"
 namespace mach
 {
 
-class DGDOptimizer : public NonlinearForm
+class DGDOptimizer : public mfem::Operator
 {
 public:
    /// class constructor
-   DGDOptimizer(mfem::FiniteElementSpace *fes,
-	 				 mfem::DGDSpace *fes_dgd);
+   /// \param[in] opt_file_name - option file
+   /// \param[in] initail - initial condition
+   /// \param[in] smesh - mesh file
+   DGDOptimizer(mfem::Vector init,
+                const std::string &opt_file_name =
+                  std::string("mach_optionš.json"),
+                std::unique_ptr<mfem::Mesh> smesh = nullptr);
    
-   virtual double GetEnergy(const Vector &x) const;
+   virtual double GetEnergy(const mfem::Vector &x) const;
 
    /// compute the jacobian of the functional w.r.t the design variable
-   virtual Operator &GetGradient(const mfem::Vector &x) const;
+   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+
+   void addVolumeIntegrators(double alpha);
+   void addBoundaryIntegrators(double alpha);
 
    /// class destructor
    ~DGDOptimizer();
+   
 protected:
-   /// do I want to keep all the objectives here,
-   ///  or simply use the EulerSolver?
-   /// for now I would like to develope new class to have more flexibility
-   /// some basic variables
-
+   nlohmann::json options;
+   static adept::Stack diff_stack;
+   int dim;
+   bool entvar;
+   int num_state;
    int ROMSize;
+   int numBasis;
    int FullSize;
    int numDesignVar;
-   int numBasis;
-   /// the design variables
-   Vector design_var;
+   mfem::Vector designVar;
+
+   // aux variables
+   std::vector<mfem::Array<int>> bndry_marker;
+   std::vector<mfem::Array<int>> output_bndry_marker;
+
 
    std::unique_ptr<mfem::Mesh> mesh;
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    std::unique_ptr<mfem::DGDSpace> fes_dgd;
+   std::unique_ptr<mfem::FiniteElementSpace> fes_full;
+
 	// the constraints
    std::unique_ptr<NonlinearFormType> res_dgd;
 	std::unique_ptr<NonlinearFormType> res_full;
