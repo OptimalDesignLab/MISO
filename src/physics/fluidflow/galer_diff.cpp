@@ -147,8 +147,6 @@ void DGDSpace::buildProlongation() const
 void DGDSpace::buildProlongationMatrix(const Vector &x)
 {
    basisCenter = x;
-   cP->Clear();
-   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
    DenseMatrix V, Vn;
    DenseMatrix localMat;
    for (int i = 0; i < GetMesh()->GetNE(); i++)

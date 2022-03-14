@@ -64,18 +64,7 @@ public:
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }
-   const Operator *GetProlongationMatrix() const
-   { 
-      if (!cP)
-      {
-         buildProlongation();
-         return cP;
-      }
-      else
-      {
-         return cP; 
-      }
-   }
+   virtual const Operator *GetProlongationMatrix() const { return cP; }
 protected:
    /// mesh dimension
    int dim;

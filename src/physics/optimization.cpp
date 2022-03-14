@@ -113,14 +113,27 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 {
 	// build new DGD operators
 	fes_dgd->buildProlongationMatrix(x);
-	// solve for DGD solution
-	Vector b(numBasis);
-	newton_solver->Mult(b,*u_dgd);
-	Vector r(FullSize);
 	SparseMatrix *prolong = fes_dgd->GetCP();
-	prolong->Mult(*u_dgd,*u_full); 
-	res_full->Mult(*u_full,r);
-	return r * r;
+	ofstream cp_save("prolong.txt");
+	prolong->PrintMatlab(cp_save);
+	cp_save.close();
+	cout << "done with saving cp.\n";
+
+	const SparseMatrix *grad = dynamic_cast<const SparseMatrix*>(res_dgd->GetProlongation());
+	ofstream grad_save("pRdgdpuc.txt");
+	grad->PrintMatlab(grad_save);
+	grad_save.close();
+	cout << "dont with saving grad\n";
+	// solve for DGD solution
+	// Vector b(numBasis);
+	// newton_solver->Mult(b,*u_dgd);
+	// Vector r(FullSize);
+	//SparseMatrix *prolong = fes_dgd->GetCP();
+
+
+	// prolong->Mult(*u_dgd,*u_full); 
+	// res_full->Mult(*u_full,r);
+	return 0.0;
 }
 
 void DGDOptimizer::Mult(const Vector &x, Vector &y) const
