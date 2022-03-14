@@ -29,6 +29,10 @@ public:
                   std::string("mach_optionš.json"),
                 std::unique_ptr<mfem::Mesh> smesh = nullptr);
    
+   void InitializeSolver();
+   void SetInitialCondition(void (*u_init)(const mfem::Vector &,
+                                           mfem::Vector &));
+   
    virtual double GetEnergy(const mfem::Vector &x) const;
 
    /// compute the jacobian of the functional w.r.t the design variable
@@ -36,6 +40,7 @@ public:
 
    void addVolumeIntegrators(double alpha);
    void addBoundaryIntegrators(double alpha);
+   void addInterfaceIntegrators(double alpha);
 
    /// class destructor
    ~DGDOptimizer();
@@ -69,6 +74,10 @@ protected:
    // some working variables
    std::unique_ptr<mfem::CentGridFunction> u_dgd;
    std::unique_ptr<mfem::GridFunction> u_full;
+
+   // nonlinear and linear solver
+   std::unique_ptr<mfem::NewtonSolver> newton_solver;
+   std::unique_ptr<mfem::UMFPackSolver> solver;
 };
 
 } // end of namesapce

@@ -22,6 +22,7 @@ set(SANDBOX_SRCS
    sod_shock
    continuous_euler
    continuous_2d_euler
+   optimizationtest
 	)
 
 create_sandbox("${SANDBOX_SRCS}")

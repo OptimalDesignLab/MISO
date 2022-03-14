@@ -16,8 +16,9 @@ namespace mach
 adept::Stack DGDOptimizer::diff_stack;
 
 
-DGDOptimizer::DGDOptimizer(Vector init, const string &opt_file_name,
-									unique_ptr<Mesh> smesh)
+DGDOptimizer::DGDOptimizer(Vector init,
+									const string &opt_file_name,
+									unique_ptr<mfem::Mesh> smesh)
 	: Operator(0), designVar(init)
 {
 	// get the option fileT
@@ -68,17 +69,53 @@ DGDOptimizer::DGDOptimizer(Vector init, const string &opt_file_name,
 	// add integrators
 	addVolumeIntegrators(1.0);
 	addBoundaryIntegrators(1.0);
+	addInterfaceIntegrators(1.0);
+	cout << "done with adding integrators.\n";
 }
 
-
-DGDOptimizer::~DGDOptimizer()
+void DGDOptimizer::InitializeSolver()
 {
-    cout << "Deleting the DGD optmization..." << '\n';
+	cout << "Initialize solvers in DGD optimization.\n";
+	// linear solver
+	solver.reset(new UMFPackSolver());
+	solver.get()->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+	solver.get()->SetPrintLevel(1);
+	// newton solver
+	double nabstol = options["newton"]["abstol"].get<double>();
+	double nreltol = options["newton"]["reltol"].get<double>();
+	int nmaxiter = options["newton"]["maxiter"].get<int>();
+	int nptl = options["newton"]["printlevel"].get<int>();
+	newton_solver.reset(new mfem::NewtonSolver());
+	newton_solver->iterative_mode = true;
+	newton_solver->SetSolver(*solver);
+	newton_solver->SetOperator(*res_dgd);
+	newton_solver->SetPrintLevel(nptl);
+	newton_solver->SetRelTol(nreltol);
+	newton_solver->SetAbsTol(nabstol);
+	newton_solver->SetMaxIter(nmaxiter);
 }
 
+void DGDOptimizer::SetInitialCondition(void (*u_init)(const mfem::Vector &,
+                                        					mfem::Vector &))
+{
+   VectorFunctionCoefficient u0(num_state, u_init);
+   u_dgd->ProjectCoefficient(u0);
+	u_full->ProjectCoefficient(u0);
+
+   GridFunction u_test(fes_full.get());
+   dynamic_cast<DGDSpace *>(fes_dgd.get())->GetProlongationMatrix()->Mult(*u_dgd, u_test);
+
+   u_test -= *u_full;
+   cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+}
 
 double DGDOptimizer::GetEnergy(const Vector &x) const
 {
+	// build new DGD operators
+	fes_dgd->buildProlongationMatrix(x);
+	// solve for DGD solution
+	Vector b(numBasis);
+	newton_solver->Mult(b,*u_dgd);
 	Vector r(FullSize);
 	SparseMatrix *prolong = fes_dgd->GetCP();
 	prolong->Mult(*u_dgd,*u_full); 
@@ -182,6 +219,7 @@ void DGDOptimizer::addVolumeIntegrators(double alpha)
 void DGDOptimizer::addBoundaryIntegrators(double alpha)
 {
 	auto &bcs = options["bcs"];
+	bndry_marker.resize(bcs.size());
 	int idx = 0;
    if (bcs.find("vortex") != bcs.end())
    { // isentropic vortex BC
@@ -190,7 +228,7 @@ void DGDOptimizer::addBoundaryIntegrators(double alpha)
          throw MachException("EulerSolver::addBoundaryIntegrators(alpha)\n"
                              "\tisentropic vortex BC must use 2D mesh!");
       }
-      vector<int> tmp = bcs["vortex"].template get<vector<int>>();
+      vector<int> tmp = bcs["vortex"].get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res_full->AddBdrFaceIntegrator(
@@ -203,7 +241,7 @@ void DGDOptimizer::addBoundaryIntegrators(double alpha)
    }
    if (bcs.find("slip-wall") != bcs.end())
    { // slip-wall boundary condition
-      vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
+      vector<int> tmp = bcs["slip-wall"].get<vector<int>>();
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res_full->AddBdrFaceIntegrator(
@@ -215,72 +253,29 @@ void DGDOptimizer::addBoundaryIntegrators(double alpha)
       idx++;
    }
 	// need to add farfield bc conditions
+	for (int k = 0; k < bndry_marker.size(); ++k)
+	{
+		cout << "boundary_marker[" << k << "]: ";
+		for (int i = 0; i < bndry_marker[k].Size(); ++i)
+		{
+			cout << bndry_marker[k][i] << ' ';
+		}
+		cout << '\n';
+	}
 }
 
-// void DGDOptimizer::addOutputs()
-// {
-// 	auto &fun = options["outputs"];
-// 	using json_iter = nlohmann::json::iterator;
-// 	int num_bndry_ouputs = 0;
-// 	for (json_iter it = fun.begin(); it != fun.end(); ++it)
-// 	{
-// 		if (it->is_array()) ++num_bndry_outputs;
-// 	}
-// 	output_bndry_marker.resize(num_bndry_outputs);
-// 	int idx = 0;
-//    if (fun.find("drag") != fun.end())
-//    { 
-//       // drag on the specified boundaries
-//       vector<int> tmp = fun["drag"].get<vector<int>>();
-//       output_bndry_marker[idx].SetSize(tmp.size(), 0);
-//       output_bndry_marker[idx].Assign(tmp.data());
-//       output.emplace("drag", fes.get());
-//       mfem::Vector drag_dir(dim);
-//       drag_dir = 0.0;
-//       if (dim == 1)
-//       {
-//          drag_dir(0) = 1.0;
-//       }
-//       else 
-//       {
-//          drag_dir(iroll) = cos(aoa_fs);
-//          drag_dir(ipitch) = sin(aoa_fs);
-//       }
-//       output.at("drag").AddBdrFaceIntegrator(
-//           new PressureForce<dim, entvar>(diff_stack, fec.get(), drag_dir),
-//           output_bndry_marker[idx]);
-//       idx++;
-//    }
-//    if (fun.find("lift") != fun.end())
-//    { 
-//       // lift on the specified boundaries
-//       vector<int> tmp = fun["lift"].template get<vector<int>>();
-//       output_bndry_marker[idx].SetSize(tmp.size(), 0);
-//       output_bndry_marker[idx].Assign(tmp.data());
-//       output.emplace("lift", fes.get());
-//       mfem::Vector lift_dir(dim);
-//       lift_dir = 0.0;
-//       if (dim == 1)
-//       {
-//          lift_dir(0) = 0.0;
-//       }
-//       else
-//       {
-//          lift_dir(iroll) = -sin(aoa_fs);
-//          lift_dir(ipitch) = cos(aoa_fs);
-//       }
-//       output.at("lift").AddBdrFaceIntegrator(
-//           new PressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
-//           output_bndry_marker[idx]);
-//       idx++;
-//    }
-//    if (fun.find("entropy") != fun.end())
-//    {
-//       // integral of entropy over the entire volume domain
-//       output.emplace("entropy", fes.get());
-//       output.at("entropy").AddDomainIntegrator(
-//          new EntropyIntegrator<dim, entvar>(diff_stack));
-//    }
-// }
+void DGDOptimizer::addInterfaceIntegrators(double alpha)
+{
+	double diss_coeff = options["space-dis"]["iface-coeff"].get<double>();
+	res_full->AddInteriorFaceIntegrator(new 
+			InterfaceIntegrator<2,false>(diff_stack,diss_coeff,fec.get(),alpha));
+	res_dgd->AddInteriorFaceIntegrator(new 
+			InterfaceIntegrator<2,false>(diff_stack,diss_coeff,fec.get(),alpha));
+}
+
+DGDOptimizer::~DGDOptimizer()
+{
+   cout << "Deleting the DGD optmization..." << '\n';
+}
 
 } // namespace mfem

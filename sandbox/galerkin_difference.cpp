@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
       savevtk.close();
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       int dim = smesh->Dimension();
-      int num_state = 1;
+      int num_state = dim+2;
 
       // initialize the basis centers
       int numBasis = smesh->GetNE();
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
       FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
 
       //================== Construct the gridfunction and apply the exact solution =======
-      mfem::VectorFunctionCoefficient u0_fun(num_state, usingle);
+      mfem::VectorFunctionCoefficient u0_fun(num_state, upoly);
       mfem::CentGridFunction x_cent(&dgdSpace);
       x_cent.ProjectCoefficient(u0_fun);
       ofstream x_centprint("x_cent.txt");

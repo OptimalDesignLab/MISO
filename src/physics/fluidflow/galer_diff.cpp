@@ -29,6 +29,7 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
    cout << "Number of total basis center is " << basisCenter.Size()/dim << '\n';
    cout << "Number of required polynomial basis is " << numPolyBasis << '\n';
    cout << "Number of element local basis is " << numLocalBasis << '\n';
+   
 
    // initialize the stencil/patch
    InitializeStencil();
