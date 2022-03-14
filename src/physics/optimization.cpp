@@ -1,8 +1,4 @@
-#include <fstream>
-#include <iostream>
-#include <iomanip>
 #include "optimization.hpp"
-#include "default_options.hpp"
 #include "default_options.hpp"
 #include "sbp_fe.hpp"
 #include "euler_fluxes.hpp"
@@ -10,6 +6,7 @@
 
 using namespace std;
 using namespace mfem;
+using namespace mach;
 
 
 namespace mach
@@ -89,16 +86,17 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 	return r * r;
 }
 
-      
 void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 {
 	// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
-	Vector pJpc(numDesignVar);
+
+	y.SetSize(numDesignVar); // set y as pJpc
 	Vector pJpuc(numBasis);
 	
 	/// first compute some variables that used multiple times
-	// 1. get pRpu
-	SparseMatrix *pRpu = dynamic_cast<SparseMatrix*>(&res_full->GetGradient(*u_dgd));
+	// 1. get pRpu, pR_dgd/pu_dgd
+	SparseMatrix *pRpu = dynamic_cast<SparseMatrix*>(&res_full->GetGradient(*u_full));
+	SparseMatrix *pR_dgdpuc = dynamic_cast<SparseMatrix*>(&res_dgd->GetGradient(*u_dgd));
 
 	// 2. compute full residual
 	Vector r(FullSize);
@@ -115,9 +113,11 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 		// get dpdc
 		fes_dgd->GetdPdc(i,dPdci);
 
+		// colume of intermediate pPu/pc
 		dPdci.Mult(*u_dgd,ppupc_col);
 		pPupc.SetCol(i,ppupc_col);
 
+		// colume of pPt / pc * R
 		dPdci.MultTranspose(r,dptpc_col);
 		pPtpcR.SetCol(i,dptpc_col);
 
@@ -128,36 +128,44 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	// compute pJ/pc
 	Vector temp_vec1(FullSize);
 	pRpu->MultTranspose(r,temp_vec1);
-	pPupc.MultTranspose(temp_vec1,pJpc);
-	pJpc *= 2.0;
+	pPupc.MultTranspose(temp_vec1,y);
+	y *= 2.0;
 
 	// compute pJ/puc
 	SparseMatrix *P = fes_dgd->GetCP();
 	P->MultTranspose(temp_vec1,pJpuc);
 
-	// compute pR_dgd / puc
-	DenseMatrix *P_dense = P->ToDenseMatrix();
-	DenseMatrix *pR_dgdpuc = RAP(*pRpu,*P_dense);
 
 	// compute pR_dgd / pc
-	DenseMatrix *temp_mat1 = Mult(*pRpu,pPupc);
+	DenseMatrix *temp_mat1 = ::Mult(*pRpu,pPupc);
+
 	SparseMatrix *Pt = Transpose(*P);
-	DenseMatrix *pR_dgdpc= Mult(*Pt,*temp_mat1);
+	DenseMatrix *pR_dgdpc = ::Mult(*Pt,*temp_mat1);
 	*pR_dgdpc += pPtpcR;
 
 	// solve for adjoint variable
 	Vector adj(numBasis);
-	pR_dgdpuc->Transpose();
-	DenseMatrixInverse pR_dgdpuc_inv(pR_dgdpuc);
-	pR_dgdpuc_inv.Mult(pJpuc,adj);
+	SparseMatrix *pRt_dgdpuc = Transpose(*pR_dgdpuc);
+	UMFPackSolver umfsolver;
+	umfsolver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+	umfsolver.SetPrintLevel(1);
+	umfsolver.SetOperator(*pRt_dgdpuc);
+	umfsolver.Mult(pJpuc,adj);
+	// DenseMatrixInverse pR_dgdpuc_inv(pR_dgdpuc);
+	// pR_dgdpuc_inv.Mult(pJpuc,adj);
 
 
 	// compute the total derivative
 	Vector temp_vec2(numDesignVar);
 	pR_dgdpc->Transpose();
 	pR_dgdpc->Mult(adj,temp_vec2);
-	pJpc -= temp_vec2;
-	y = pJpc;
+	y -= temp_vec2;
+
+	delete Pt;
+	delete pR_dgdpuc;
+	delete pRt_dgdpuc;
+	delete temp_mat1;
+	delete pR_dgdpc;
 }	
 
 

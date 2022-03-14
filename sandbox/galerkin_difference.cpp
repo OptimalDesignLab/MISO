@@ -197,6 +197,9 @@ int main(int argc, char *argv[])
       SparseMatrix dpdc(pd_plus->Height(),pd_plus->Width());
       dgdSpace.GetdPdc(pert_idx,dpdc);
 
+      // test
+      //DenseMatrix *testmat = Mult(*p_minus,*pd_minus);
+
       DenseMatrix *dpdc_dense = dpdc.ToDenseMatrix();
       ofstream dpdc_save("dpdc.txt");
       for (int i = 0; i < dpdc_dense->Height(); i++)
@@ -212,6 +215,10 @@ int main(int argc, char *argv[])
       *dpdc_dense -= *pd_plus;
 
       cout << "Check dpdc error norm: " << dpdc_dense->FNorm2() << '\n';
+      delete dpdc_dense;
+      delete p;
+      delete pd_plus;
+      delete pd_minus;
 
    }   
    catch (MachException &exception)

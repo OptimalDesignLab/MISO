@@ -1,10 +1,19 @@
 #ifndef MACH_OPTIMIZATION
 #define MACH_OPTIMIZATION
 
-#include "mfem.hpp"
+
+#include <fstream>
+#include <iostream>
+#include <iomanip>
+
 #include "adept.h"
-#include "solver.hpp"
+#include "mfem.hpp"
 #include "galer_diff.hpp"
+#include "centgridfunc.hpp"
+
+#include "utils.hpp"
+#include "json.hpp"
+#include "mach_types.hpp"
 namespace mach
 {
 

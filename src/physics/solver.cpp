@@ -7,7 +7,6 @@
 #include "sbp_fe.hpp"
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
-#include "solver.hpp"
 #include "galer_diff.hpp"
 
 using namespace std;

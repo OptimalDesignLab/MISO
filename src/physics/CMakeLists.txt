@@ -5,6 +5,8 @@ target_sources(mach
       physics.hpp
       solver.cpp
       solver.hpp
+		optimization.cpp
+		optimization.hpp
 )
 
 target_include_directories(mach
