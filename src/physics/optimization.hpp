@@ -42,6 +42,7 @@ public:
    void addBoundaryIntegrators(double alpha);
    void addInterfaceIntegrators(double alpha);
 
+   void checkJacobian(mfem::Vector &x);
    /// class destructor
    ~DGDOptimizer();
    

@@ -33,13 +33,9 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
 
    // initialize the stencil/patch
    InitializeStencil();
-
-   // initialize the prolongation matrix
-   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
-   cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
+   
+   // build the initial prolongation matrix
    buildProlongation();
-   cP->Finalize();
-   cP_is_set = true;
 }
 
 void DGDSpace::InitializeStencil()
@@ -127,6 +123,8 @@ void DGDSpace::GetBasisCenter(const int b_id, Vector &center) const
 
 void DGDSpace::buildProlongation() const
 {
+   // initialize the prolongation matrix
+   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
    // declare soma matrix variables
    DenseMatrix V, Vn;
    DenseMatrix localMat;
@@ -142,6 +140,12 @@ void DGDSpace::buildProlongation() const
       // 3. Assemble prolongation matrix
       AssembleProlongationMatrix(i,localMat);
    }
+   cP->Finalize();
+   cP_is_set = true;
+   cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
+   ofstream cp_save("prolong_init.txt");
+	cP->PrintMatlab(cp_save);
+	cp_save.close();
 }
 
 void DGDSpace::buildProlongationMatrix(const Vector &x)
@@ -529,7 +533,6 @@ void DGDSpace::GetdPdc(const int id, SparseMatrix &dpdc)
       AssembleDerivMatrix(el_id,dpdc_block,dpdc);
    }
    dpdc.Finalize();
-   cout << "Check dpdc size: " << dpdc.Height() << " x " << dpdc.Width() << '\n';
 }
 
 void DGDSpace::buildDerivDataMat(const int el_id, const int b_id, const int xyz,
