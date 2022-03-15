@@ -10,7 +10,6 @@
 #include "nlohmann/json.hpp"
 
 #include "data_logging.hpp"
-#include "equation_solver.hpp"
 #include "mach_input.hpp"
 #include "mach_output.hpp"
 #include "mach_residual.hpp"

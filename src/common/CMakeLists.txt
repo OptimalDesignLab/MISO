@@ -1,43 +1,48 @@
+set(MACH_COMMON_HEADERS
+   abstract_solver.hpp
+   coefficient.hpp
+   common.hpp
+   data_logging.hpp
+   default_options.hpp
+   evolver.hpp
+   functional_output.hpp
+   inexact_newton.hpp
+   mach_linearform.hpp
+   mach_output.hpp
+   mach_residual.hpp
+   material_library.hpp
+   matrix_operators.hpp
+   mfem_extensions.hpp
+   ode.hpp
+   orthopoly.hpp
+   sbp_fe.hpp
+   surface.hpp
+   surface_def.hpp
+)
+
 target_sources(mach
    PRIVATE
       abstract_solver.cpp
-      abstract_solver.hpp
       coefficient.cpp
-      coefficient.hpp
-      common.hpp
-      data_logging.hpp
       default_options.cpp
-      default_options.hpp
-      #equation_solver.cpp
-      #equation_solver.hpp
       evolver.cpp
-      evolver.hpp
       functional_output.cpp
-      functional_output.hpp
       inexact_newton.cpp
-      inexact_newton.hpp
       mach_linearform.cpp
-      mach_linearform.hpp
-      mach_output.hpp
-      mach_residual.hpp
-      material_library.hpp
-      matrix_operators.hpp
       matrix_operators.cpp
       mfem_extensions.cpp
-      mfem_extensions.hpp
       ode.cpp
-      ode.hpp
       orthopoly.cpp
-      orthopoly.hpp
       sbp_fe.cpp
-      sbp_fe.hpp
-      surface.hpp
-      surface_def.hpp
+      ${MACH_COMMON_HEADERS}
 )
+
+add_public_headers_to_target(mach "${MACH_COMMON_HEADERS}")
 
 target_include_directories(mach
    PUBLIC
-      "${CMAKE_CURRENT_SOURCE_DIR}"
+     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDE_DIR}>"
 )
 
 add_subdirectory(data)

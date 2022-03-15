@@ -1,29 +1,42 @@
+set(MACH_PHYSICS_ELECTROMAGNETICS_HEADERS
+   current_load.hpp
+   current_source_functions.hpp
+   electromag_integ.hpp
+   electromag_outputs.hpp
+   electromagnetics.hpp
+   magnetic_load.hpp
+   magnetic_source_functions.hpp
+   magnetostatic_load.hpp
+   magnetostatic_residual.hpp
+   magnetostatic.hpp
+   reluctivity_coefficient.hpp
+)
+
 target_sources(mach
    PRIVATE
       current_load.cpp
-      current_load.hpp
       current_source_functions.cpp
-      current_source_functions.hpp
       electromag_integ.cpp
-      electromag_integ.hpp
       electromag_outputs.cpp
-      electromag_outputs.hpp
-      electromagnetics.hpp
       magnetic_load.cpp
-      magnetic_load.hpp
       magnetic_source_functions.cpp
-      magnetic_source_functions.hpp
-      magnetostatic_load.hpp
       magnetostatic_residual.cpp
-      magnetostatic_residual.hpp
       magnetostatic.cpp
-      magnetostatic.hpp
       reluctivity_coefficient.cpp
-      reluctivity_coefficient.hpp
+      ${MACH_PHYSICS_ELECTROMAGNETICS_HEADERS}
 )
+
+# get_target_property(MACH_PUBLIC_HEADERS mach PUBLIC_HEADER)
+# set(MACH_PUBLIC_HEADERS ${MACH_PUBLIC_HEADERS} ${MACH_PHYSICS_ELECTROMAGNETICS_HEADERS})
+# set_target_properties(mach PROPERTIES
+#    PUBLIC_HEADER "${MACH_PUBLIC_HEADERS}"
+# )
+
+add_public_headers_to_target(mach "${MACH_PHYSICS_ELECTROMAGNETICS_HEADERS}")
 
 target_include_directories(mach
    PUBLIC
-      "${CMAKE_CURRENT_SOURCE_DIR}"
+     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDE_DIR}>"
 )
 

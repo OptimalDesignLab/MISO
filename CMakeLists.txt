@@ -5,6 +5,9 @@ project(ODLMach VERSION 1.0
                 DESCRIPTION "Optimal Design Lab multi-physics solver"
                 LANGUAGES CXX)
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+                
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
    set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}" CACHE PATH "default source dir" FORCE)
    message("CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
@@ -36,6 +39,9 @@ if("${isSystemDir}" STREQUAL "-1")
 endif("${isSystemDir}" STREQUAL "-1")
 ### end of install rpath stuff
 
+# Load Mach cmake utilities
+include(mach_cmake_utils)
+
 find_package(Adept MODULE REQUIRED)
 find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
 
@@ -62,7 +68,7 @@ if (MFEM_USE_PUMI)
    endif (SCOREC_FOUND)
 endif (MFEM_USE_PUMI)
 
-# find the MPI compilers used by MFEM
+# find the MPI compilers
 find_package(MPI REQUIRED)
 
 # option(MFEM_USE_EGADS "Build with EGADS support" OFF)
@@ -77,14 +83,14 @@ endif (MFEM_USE_EGADS)
 # Try to find OpenMP (used by Adept)
 # find_package(OpenMP)
 
+cmake_policy(SET CMP0077 NEW)
+set(TINYSPLINE_ENABLE_CXX ON)
+set(TINYSPLINE_INSTALL ON)
 include(FetchContent)
 FetchContent_Declare(tinyspline
-   GIT_REPOSITORY "https://github.com/tuckerbabcock/tinyspline"
+   GIT_REPOSITORY "https://github.com/tuckerbabcock/tinyspline.git"
+   # GIT_REPOSITORY "https://github.com/msteinbeck/tinyspline.git"
 )
-
-set(TINYSPLINE_BUILD_EXAMPLES OFF)
-set(TINYSPLINE_BUILD_TESTS OFF)
-set(TINYSPLINE_BUILD_DOCS OFF)
 
 FetchContent_MakeAvailable(tinyspline)
 set_target_properties(tinysplinecxx
@@ -92,6 +98,7 @@ set_target_properties(tinysplinecxx
       POSITION_INDEPENDENT_CODE ON
 )
 
+set(JSON_Install ON)
 FetchContent_Declare(json
   GIT_REPOSITORY https://github.com/nlohmann/json.git
   GIT_TAG v3.10.2)
@@ -99,27 +106,41 @@ FetchContent_Declare(json
 FetchContent_GetProperties(json)
 if(NOT json_POPULATED)
   FetchContent_Populate(json)
-  add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
+  add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR})
 endif()
 
 # create build target library named mach, will be static library
 add_library(mach STATIC "")
 
-target_sources(mach
-   PRIVATE
-      "${CMAKE_CURRENT_SOURCE_DIR}/mach.hpp"
-)
+# add_public_headers_to_target(mach "mach.hpp")
+
+set_target_properties(mach PROPERTIES PUBLIC_HEADER "")
+
+# set(MACH_HEADERS "mach.hpp")
+
+# target_sources(mach
+#    PRIVATE
+#       "${MACH_HEADERS}"
+# )
 
 # Use CMakeLists.txt files in subdirectories to add sources to mach
 add_subdirectory(src)
 
+# message(STATUS "mach headers:")
+# message(STATUS "${MACH_HEADERS}")
+
+get_target_property(PUB_HEADERS mach PUBLIC_HEADER)
+message(STATUS "pub headers:")
+message(STATUS "${PUB_HEADERS}")
+
 target_link_libraries(mach
    PUBLIC
       "${ADEPT_LIBRARIES}"
-      "${MFEM_LIBRARIES}"
+      mfem
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
-      tinysplinecxx
       nlohmann_json::nlohmann_json
+   PRIVATE
+      tinysplinecxx
 )
 
 target_include_directories(mach
@@ -191,22 +212,37 @@ if (MFEM_USE_EGADS)
    )
 endif (MFEM_USE_EGADS)
 
-install(TARGETS mach
-   OPTIONAL
-   EXPORT machTargets
-   LIBRARY DESTINATION lib
-   INCLUDES DESTINATION include
+install(
+   TARGETS mach
+   EXPORT mach-targets
+   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-install(DIRECTORY src
-   OPTIONAL
-   DESTINATION include
-   FILES_MATCHING PATTERN "*.h*"
+configure_package_config_file(
+   "${CMAKE_CURRENT_SOURCE_DIR}/config.cmake.in"
+   "${CMAKE_CURRENT_BINARY_DIR}/mach-config.cmake"
+   INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mach
 )
 
-install(FILES mach.hpp
-   OPTIONAL
-   DESTINATION include
+write_basic_package_version_file(
+   "${PROJECT_BINARY_DIR}/mach-config-version.cmake"
+   COMPATIBILITY AnyNewerVersion
+)
+
+install(FILES
+   "${PROJECT_BINARY_DIR}/mach-config.cmake"
+   "${PROJECT_BINARY_DIR}/mach-config-version.cmake"
+   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mach
+)
+
+install(
+   EXPORT mach-targets
+   NAMESPACE mach::
+   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mach
 )
 
 get_target_property(MACH_SOURCES mach SOURCES)
@@ -258,6 +294,7 @@ if (BUILD_PYTHON_WRAPPER)
 
    include(FetchContent)
 
+   cmake_policy(SET CMP0127 NEW)
    FetchContent_Declare(pybind11
       GIT_REPOSITORY "https://github.com/pybind/pybind11"
       GIT_TAG v2.7.1

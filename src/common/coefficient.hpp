@@ -4,10 +4,14 @@
 #include <map>
 
 #include "mfem.hpp"
-#include "tinysplinecxx.h"
 
 #include "mach_types.hpp"
 #include "utils.hpp"
+
+namespace tinyspline
+{
+class BSpline;
+}  // namespace tinyspline
 
 namespace mach
 {
@@ -386,17 +390,17 @@ public:
                          const mfem::IntegrationPoint &ip,
                          double state) override;
 
+   ~NonlinearReluctivityCoefficient();
+
 protected:
    /// max B value in the data
    double b_max;
    /// max H value in the data
    double h_max;
    /// spline representing H(B)
-   tinyspline::BSpline bh;
+   std::unique_ptr<tinyspline::BSpline> bh;
    /// spline representing dH(B)/dB
-   tinyspline::BSpline dbdh;
-   /// spline representing d^2H(B)/dB^2
-   // tinyspline::BSpline dnudb;
+   std::unique_ptr<tinyspline::BSpline> dbdh;
 };
 
 class team13ReluctivityCoefficient : public StateCoefficient

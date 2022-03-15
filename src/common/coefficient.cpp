@@ -1,6 +1,8 @@
-#include "coefficient.hpp"
-
 #include <cmath>
+
+#include "tinysplinecxx.h"
+
+#include "coefficient.hpp"
 
 using namespace mfem;
 
@@ -196,17 +198,19 @@ NonlinearReluctivityCoefficient::NonlinearReluctivityCoefficient(
     const std::vector<double> &B,
     const std::vector<double> &H)
  // : b_max(B[B.size()-1]), nu(H.size(), 1, 3)
- : b_max(B[B.size() - 1]), h_max(H[H.size() - 1]), bh(H.size(), 1, 3)
+ : b_max(B[B.size() - 1]),
+   h_max(H[H.size() - 1]),
+   bh(std::make_unique<tinyspline::BSpline>(H.size(), 1, 3))
 {
    std::vector<double> knots(B);
    for (int i = 0; i < B.size(); ++i)
    {
       knots[i] = knots[i] / b_max;
    }
-   bh.setControlPoints(H);
-   bh.setKnots(knots);
+   bh->setControlPoints(H);
+   bh->setKnots(knots);
 
-   dbdh = bh.derive();
+   dbdh = std::make_unique<tinyspline::BSpline>(bh->derive());
    // dnudb = nu.derive();
 }
 
@@ -219,13 +223,13 @@ double NonlinearReluctivityCoefficient::Eval(ElementTransformation &trans,
    if (state <= 1e-14)
    {
       double t = state / b_max;
-      double nu = dbdh.eval(t).result()[0] / b_max;
+      double nu = dbdh->eval(t).result()[0] / b_max;
       return nu;
    }
    else if (state <= b_max)
    {
       double t = state / b_max;
-      double nu = bh.eval(t).result()[0] / state;
+      double nu = bh->eval(t).result()[0] / state;
       // std::cout << "eval state nu: " << nu << "\n";
       return nu;
    }
@@ -246,14 +250,16 @@ double NonlinearReluctivityCoefficient::EvalStateDeriv(
    if (state <= b_max)
    {
       double t = state / b_max;
-      double h = bh.eval(t).result()[0];
-      return dbdh.eval(t).result()[0] / (state * b_max) - h / pow(state, 2);
+      double h = bh->eval(t).result()[0];
+      return dbdh->eval(t).result()[0] / (state * b_max) - h / pow(state, 2);
    }
    else
    {
       return -(h_max - nu0 * b_max) / pow(state, 2);
    }
 }
+
+NonlinearReluctivityCoefficient::~NonlinearReluctivityCoefficient() = default;
 
 /// namespace for TEAM 13 B-H curve fit
 namespace

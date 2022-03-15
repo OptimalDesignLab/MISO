@@ -3,7 +3,6 @@
 
 #include "mfem.hpp"
 
-#include "equation_solver.hpp"
 #include "evolver.hpp"
 #include "mach_residual.hpp"
 
