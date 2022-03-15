@@ -161,7 +161,6 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
       AssembleProlongationMatrix(i,localMat);
    }
    cP->Finalize();
-   cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
 }
 
 void DGDSpace::buildDataMat(int el_id, DenseMatrix &V,

@@ -78,7 +78,12 @@ int main(int argc, char *argv[])
    dgdopt.SetInitialCondition(uexact);
 
    double l2norm = dgdopt.GetEnergy(center);
-   cout << "initial l2 norm is " << l2norm << '\n';
+   cout << "initial l2 norm is " << sqrt(l2norm) << '\n';
+
+   // Vector dJdc;
+   // dgdopt.Mult(center,dJdc);
+   // cout << "dJdc is: \n";
+   // dJdc.Print(cout,4);
    return 0;
 }
 

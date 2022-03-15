@@ -113,45 +113,38 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 {
 	// build new DGD operators
 	fes_dgd->buildProlongationMatrix(x);
-	SparseMatrix *prolong = fes_dgd->GetCP();
-	ofstream cp_save("prolong.txt");
-	prolong->PrintMatlab(cp_save);
-	cp_save.close();
-	cout << "done with saving cp.\n";
-
-	const SparseMatrix *grad = dynamic_cast<const SparseMatrix*>(res_dgd->GetProlongation());
-	ofstream grad_save("pRdgdpuc.txt");
-	grad->PrintMatlab(grad_save);
-	grad_save.close();
-	cout << "dont with saving grad\n";
 	// solve for DGD solution
-	// Vector b(numBasis);
-	// newton_solver->Mult(b,*u_dgd);
-	// Vector r(FullSize);
-	//SparseMatrix *prolong = fes_dgd->GetCP();
-
-
-	// prolong->Mult(*u_dgd,*u_full); 
-	// res_full->Mult(*u_full,r);
-	return 0.0;
+	Vector b(numBasis);
+	newton_solver->Mult(b,*u_dgd);
+	Vector r(FullSize);
+	SparseMatrix *prolong = fes_dgd->GetCP();
+	prolong->Mult(*u_dgd,*u_full); 
+	res_full->Mult(*u_full,r);
+	return r * r;
 }
 
 void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 {
 	// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
-
+	cout << "In dgd::mult.\n";
+	fes_dgd->buildProlongationMatrix(x);
+	fes_dgd->GetCP()->Mult(*u_dgd,*u_full);
 	y.SetSize(numDesignVar); // set y as pJpc
 	Vector pJpuc(numBasis);
-	
+	Vector r(FullSize);
+	res_full->Mult(*u_full,r);
+
 	/// first compute some variables that used multiple times
 	// 1. get pRpu, pR_dgd/pu_dgd
 	SparseMatrix *pRpu = dynamic_cast<SparseMatrix*>(&res_full->GetGradient(*u_full));
 	SparseMatrix *pR_dgdpuc = dynamic_cast<SparseMatrix*>(&res_dgd->GetGradient(*u_dgd));
-
+	// cout << "Get 2 jacobian.\n";
+	// ofstream jac_save("pRpu.txt");
+	// pRpu->PrintMatlab(jac_save);
+	// jac_save.close();
 	// 2. compute full residual
-	Vector r(FullSize);
-	res_full->Mult(*u_full,r);
 
+	cout << "Get residual.\n";
 	/// loop over all design variables
 	Vector ppupc_col(FullSize);
 	Vector dptpc_col(numBasis);
@@ -160,6 +153,7 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	DenseMatrix pPtpcR(numBasis,numDesignVar);
 	for (int i = 0; i < numDesignVar; i++)
 	{
+		cout << i << '\n';
 		// get dpdc
 		fes_dgd->GetdPdc(i,dPdci);
 
@@ -170,28 +164,26 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 		// colume of pPt / pc * R
 		dPdci.MultTranspose(r,dptpc_col);
 		pPtpcR.SetCol(i,dptpc_col);
-
-		// clean data in dPdc
-		dPdci.Clear();
 	}
-
+	cout << "Get dpdc.\n";
 	// compute pJ/pc
 	Vector temp_vec1(FullSize);
 	pRpu->MultTranspose(r,temp_vec1);
 	pPupc.MultTranspose(temp_vec1,y);
 	y *= 2.0;
+	cout << "Get pJ/pc.\n";
 
 	// compute pJ/puc
 	SparseMatrix *P = fes_dgd->GetCP();
 	P->MultTranspose(temp_vec1,pJpuc);
-
+	cout << "Get pJ/puc.\n";
 
 	// compute pR_dgd / pc
 	DenseMatrix *temp_mat1 = ::Mult(*pRpu,pPupc);
-
 	SparseMatrix *Pt = Transpose(*P);
 	DenseMatrix *pR_dgdpc = ::Mult(*Pt,*temp_mat1);
 	*pR_dgdpc += pPtpcR;
+	cout << "Get pRdgd/pc.\n";
 
 	// solve for adjoint variable
 	Vector adj(numBasis);
@@ -201,8 +193,7 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	umfsolver.SetPrintLevel(1);
 	umfsolver.SetOperator(*pRt_dgdpuc);
 	umfsolver.Mult(pJpuc,adj);
-	// DenseMatrixInverse pR_dgdpuc_inv(pR_dgdpuc);
-	// pR_dgdpuc_inv.Mult(pJpuc,adj);
+	cout << "Get adjoint.\n";
 
 
 	// compute the total derivative
@@ -210,6 +201,7 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	pR_dgdpc->Transpose();
 	pR_dgdpc->Mult(adj,temp_vec2);
 	y -= temp_vec2;
+	cout << "Get dJdc.\n";
 
 	delete Pt;
 	delete pR_dgdpuc;
