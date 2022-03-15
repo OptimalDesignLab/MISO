@@ -74,7 +74,7 @@ public:
       fields.emplace(
           std::piecewise_construct,
           std::forward_as_tuple("test_field"),
-          std::forward_as_tuple(*mesh_, fes(), "test_field"));
+          std::forward_as_tuple(mesh(), fes(), "test_field"));
    }
 
 private:

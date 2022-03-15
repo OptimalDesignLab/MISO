@@ -10,6 +10,7 @@
 #ifdef MFEM_USE_PUMI
 #include "apf.h"
 #include "apfMesh2.h"
+
 namespace mach
 {
 struct pumiDeleter
@@ -33,6 +34,33 @@ struct pumiDeleter
 
 namespace mach
 {
+struct MachMesh
+{
+   std::unique_ptr<mfem::ParMesh> mesh = nullptr;
+#ifdef MFEM_USE_PUMI
+   std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh = nullptr;
+   static int pumi_mesh_count;
+   static bool PCU_previously_initialized;
+
+   MachMesh();
+
+   MachMesh(const MachMesh &) = delete;
+   MachMesh &operator=(const MachMesh &) = delete;
+
+   MachMesh(MachMesh &&) noexcept;
+   MachMesh &operator=(MachMesh &&) noexcept;
+
+   ~MachMesh();
+#endif
+};
+
+MachMesh constructMesh(MPI_Comm comm,
+                       const nlohmann::json &mesh_options,
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr,
+                       bool keep_boundaries = false);
+
+MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options);
+
 class PDESolver : public AbstractSolver2
 {
 public:
@@ -69,31 +97,24 @@ public:
              std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
 protected:
-#ifdef MFEM_USE_PUMI
-   /// pumi mesh object
-   std::unique_ptr<apf::Mesh2, pumiDeleter> pumi_mesh = nullptr;
-   bool PCU_previously_initialized = false;
-#endif
-
-   /// Members associated with the mesh
    /// object defining the mfem computational mesh
-   std::unique_ptr<mfem::ParMesh> mesh_ = nullptr;
+   MachMesh mesh_;
 
    /// Reference to solver state vector
-   mfem::ParMesh &mesh() { return *mesh_; }
-   const mfem::ParMesh &mesh() const { return *mesh_; }
+   mfem::ParMesh &mesh() { return *mesh_.mesh; }
+   const mfem::ParMesh &mesh() const { return *mesh_.mesh; }
 
-   /// Constructs the mesh member based on c preprocesor defs
-   /// \param[in] smesh - if provided, defines the mesh for the problem
-   std::unique_ptr<mfem::ParMesh> constructMesh(
-       MPI_Comm comm,
-       const nlohmann::json &mesh_options,
-       std::unique_ptr<mfem::Mesh> smesh);
+   // /// Constructs the mesh member based on c preprocesor defs
+   // /// \param[in] smesh - if provided, defines the mesh for the problem
+   // std::unique_ptr<mfem::ParMesh> constructMesh(
+   //     MPI_Comm comm,
+   //     const nlohmann::json &mesh_options,
+   //     std::unique_ptr<mfem::Mesh> smesh);
 
-   /// Construct PUMI Mesh
-   std::unique_ptr<mfem::ParMesh> constructPumiMesh(
-       MPI_Comm comm,
-       const nlohmann::json &mesh_options);
+   // /// Construct PUMI Mesh
+   // std::unique_ptr<mfem::ParMesh> constructPumiMesh(
+   //     MPI_Comm comm,
+   //     const nlohmann::json &mesh_options);
 
    /// solver material properties
    nlohmann::json materials;

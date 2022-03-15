@@ -155,7 +155,7 @@ public:
          ode = std::make_unique<mach::FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
       }
 
-      mach::ParaViewLogger paraview("test_pde_solver", mesh_.get());
+      mach::ParaViewLogger paraview("test_pde_solver", &mesh());
       paraview.registerField("state", fields.at("state").gridFunc());
       addLogger(std::move(paraview), {.each_timestep=false});
    }

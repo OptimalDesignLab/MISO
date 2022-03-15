@@ -87,68 +87,85 @@ mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
        mesh, space_options, num_states, name);
 }
 
+bool PCU_previously_initialized = false;
+int pumi_mesh_count = 0;
+
 }  // namespace
 
 namespace mach
 {
-int PDESolver::getFieldSize(const std::string &name) const
+#ifdef MFEM_USE_PUMI
+int MachMesh::pumi_mesh_count = 0;
+bool MachMesh::PCU_previously_initialized = false;
+
+MachMesh::MachMesh()
 {
-   auto size = AbstractSolver2::getFieldSize(name);
-   if (size != 0)
+   /// If Something else has initialized PCU
+   if (PCU_Comm_Initialized() && pumi_mesh_count == 0)
    {
-      return size;
+      PCU_previously_initialized = true;
    }
-   auto field = fields.find(name);
-   if (field != fields.end())
+   /// If nothing else has initialized PCU and we haven't yet either
+   if (!PCU_previously_initialized && pumi_mesh_count == 0)
    {
-      return field->second.space().GetTrueVSize();
+      /// Initialize PCU
+      PCU_Comm_Init();
+
+      /// Prep GMI interfaces
+#ifdef MFEM_USE_SIMMETRIX
+      Sim_readLicenseFile(0);
+      gmi_sim_start();
+      gmi_register_sim();
+#endif
+#ifdef MFEM_USE_EGADS
+      gmi_register_egads();
+      gmi_egads_start();
+#endif
+      gmi_register_mesh();
    }
-   return 0;
+   ++pumi_mesh_count;
 }
 
-PDESolver::PDESolver(MPI_Comm incomm,
-                     const nlohmann::json &solver_options,
-                     const int num_states,
-                     std::unique_ptr<mfem::Mesh> smesh)
- : AbstractSolver2(incomm, solver_options),
-   mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
-   materials(material_library)
+MachMesh::MachMesh(MachMesh &&other) noexcept
+: mesh(std::move(other.mesh)), pumi_mesh(std::move(other.pumi_mesh))
 {
-   fields.emplace(
-       "state", createState(*mesh_, options["space-dis"], num_states, "state"));
-   fields.emplace(
-       "adjoint",
-       createState(*mesh_, options["space-dis"], num_states, "adjoint"));
-   duals.emplace(
-       "residual",
-       createDual(*mesh_, options["space-dis"], num_states, "residual"));
-
-   setUpExternalFields();
+   ++pumi_mesh_count;
 }
 
-PDESolver::PDESolver(MPI_Comm incomm,
-                     const nlohmann::json &solver_options,
-                     std::function<int(const nlohmann::json &, int)> num_states,
-                     std::unique_ptr<mfem::Mesh> smesh)
- : AbstractSolver2(incomm, solver_options),
-   mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
-   materials(material_library)
+MachMesh &MachMesh::operator=(MachMesh &&other) noexcept
 {
-   int ns = num_states(solver_options, mesh_->SpaceDimension());
-   fields.emplace("state",
-                  createState(*mesh_, options["space-dis"], ns, "state"));
-   fields.emplace("adjoint",
-                  createState(*mesh_, options["space-dis"], ns, "adjoint"));
-   duals.emplace("residual",
-                 createDual(*mesh_, options["space-dis"], ns, "residual"));
-
-   setUpExternalFields();
+   if (this != &other)
+   {
+      mesh = std::move(other.mesh);
+      pumi_mesh = std::move(other.pumi_mesh);
+   }
+   return *this;
 }
 
-std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
-    MPI_Comm comm,
-    const nlohmann::json &mesh_options,
-    std::unique_ptr<mfem::Mesh> smesh)
+MachMesh::~MachMesh()
+{
+   --pumi_mesh_count;
+   /// If we started PCU and we're the last one using it, close it
+   if (!PCU_previously_initialized && pumi_mesh_count == 0)
+   {
+#ifdef HAVE_EGADS
+      gmi_egads_stop();
+#endif
+#ifdef HAVE_SIMMETRIX
+      gmi_sim_stop();
+      Sim_unregisterAllKeys();
+      SimModel_stop();
+      MS_exit();
+#endif
+      PCU_Comm_Free();
+   }
+}
+#endif
+
+MachMesh constructMesh(MPI_Comm comm,
+                       const nlohmann::json &mesh_options,
+                       std::unique_ptr<mfem::Mesh> smesh,
+                       bool keep_boundaries)
 {
    auto mesh_file = mesh_options["file"].get<std::string>();
    std::string mesh_ext;
@@ -164,18 +181,18 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
           "\tMesh file has no extension!\n");
    }
 
-   std::unique_ptr<mfem::ParMesh> mesh;
+   MachMesh mesh;
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
-      mesh = std::make_unique<mfem::ParMesh>(comm, *smesh);
+      mesh.mesh = std::make_unique<mfem::ParMesh>(comm, *smesh);
    }
    // native MFEM mesh
    else if (mesh_ext == "mesh")
    {
       // read in the serial mesh
       smesh = std::make_unique<mfem::Mesh>(mesh_file.c_str(), 1, 1);
-      mesh = std::make_unique<mfem::ParMesh>(comm, *smesh);
+      mesh.mesh = std::make_unique<mfem::ParMesh>(comm, *smesh);
    }
    // PUMI mesh
    else if (mesh_ext == "smb")
@@ -186,42 +203,29 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructMesh(
    {
       throw MachException("Unrecognized mesh file extension!\n");
    }
-   mesh->EnsureNodes();
+   mesh.mesh->EnsureNodes();
 
-   mesh->RemoveInternalBoundaries();
-   // std::cout << "bdr_attr: ";
-   // mesh->bdr_attributes.Print(std::cout);
+   if (!keep_boundaries)
+   {
+      mesh.mesh->RemoveInternalBoundaries();
+   }
    return mesh;
 }
 
-std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
-    MPI_Comm comm,
-    const nlohmann::json &mesh_options)
+MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options)
 {
 #ifdef MFEM_USE_PUMI  // if using pumi mesh
    auto model_file = mesh_options["model-file"].get<std::string>();
    auto mesh_file = mesh_options["file"].get<std::string>();
-   if (PCU_Comm_Initialized())
-   {
-      PCU_previously_initialized = true;
-   }
-   if (!PCU_previously_initialized)
-   {
-      PCU_Comm_Init();
-   }
+
+   /// Switch PUMI MPI Comm to the mesh's comm
    PCU_Switch_Comm(comm);
-#ifdef MFEM_USE_SIMMETRIX
-   Sim_readLicenseFile(0);
-   gmi_sim_start();
-   gmi_register_sim();
-#endif
-#ifdef MFEM_USE_EGADS
-   gmi_register_egads();
-   gmi_egads_start();
-#endif
-   gmi_register_mesh();
-   pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(
+
+   MachMesh mesh;
+   mesh.pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(
        apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str()));
+
+   auto &pumi_mesh = mesh.pumi_mesh;
 
    /// TODO: change this to use options
    /// If it is higher order change shape
@@ -246,11 +250,11 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
    }
    pumi_mesh->end(itr);
 
-   auto mesh = std::make_unique<mfem::ParPumiMesh>(comm, pumi_mesh.get());
+   mesh.mesh = std::make_unique<mfem::ParPumiMesh>(comm, pumi_mesh.get());
 
    /// Add attributes based on reverse classification
    // Boundary faces
-   int dim = mesh->Dimension();
+   int dim = mesh.mesh->Dimension();
    itr = pumi_mesh->begin(dim - 1);
    apf::MeshEntity *ent = nullptr;
    int ent_cnt = 0;
@@ -261,7 +265,7 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
       {
          // Get tag from model by  reverse classification
          int tag = pumi_mesh->getModelTag(me);
-         (mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
+         (mesh.mesh->GetBdrElement(ent_cnt))->SetAttribute(tag);
          ent_cnt++;
       }
    }
@@ -274,13 +278,13 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
    {
       apf::ModelEntity *me = pumi_mesh->toModel(ent);
       int tag = pumi_mesh->getModelTag(me);
-      mesh->SetAttribute(ent_cnt, tag);
+      mesh.mesh->SetAttribute(ent_cnt, tag);
       ent_cnt++;
    }
    pumi_mesh->end(itr);
 
    // Apply the attributes
-   mesh->SetAttributes();
+   mesh.mesh->SetAttributes();
    return mesh;
 #else
    throw MachException(
@@ -290,26 +294,80 @@ std::unique_ptr<mfem::ParMesh> PDESolver::constructPumiMesh(
 #endif  // MFEM_USE_PUMI
 }
 
+int PDESolver::getFieldSize(const std::string &name) const
+{
+   auto size = AbstractSolver2::getFieldSize(name);
+   if (size != 0)
+   {
+      return size;
+   }
+   auto field = fields.find(name);
+   if (field != fields.end())
+   {
+      return field->second.space().GetTrueVSize();
+   }
+   return 0;
+}
+
+PDESolver::PDESolver(MPI_Comm incomm,
+                     const nlohmann::json &solver_options,
+                     const int num_states,
+                     std::unique_ptr<mfem::Mesh> smesh)
+ : AbstractSolver2(incomm, solver_options),
+   mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
+   materials(material_library)
+{
+   fields.emplace(
+       "state", createState(mesh(), options["space-dis"], num_states, "state"));
+   fields.emplace(
+       "adjoint",
+       createState(mesh(), options["space-dis"], num_states, "adjoint"));
+   duals.emplace(
+       "residual",
+       createDual(mesh(), options["space-dis"], num_states, "residual"));
+
+   setUpExternalFields();
+}
+
+PDESolver::PDESolver(MPI_Comm incomm,
+                     const nlohmann::json &solver_options,
+                     std::function<int(const nlohmann::json &, int)> num_states,
+                     std::unique_ptr<mfem::Mesh> smesh)
+ : AbstractSolver2(incomm, solver_options),
+   mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
+   materials(material_library)
+{
+   int ns = num_states(solver_options, mesh().SpaceDimension());
+   fields.emplace("state",
+                  createState(mesh(), options["space-dis"], ns, "state"));
+   fields.emplace("adjoint",
+                  createState(mesh(), options["space-dis"], ns, "adjoint"));
+   duals.emplace("residual",
+                 createDual(mesh(), options["space-dis"], ns, "residual"));
+
+   setUpExternalFields();
+}
+
 void PDESolver::setUpExternalFields()
 {
    // give the solver ownership over the mesh coords grid function, and store
    // it in `fields` with name "mesh_coords"
    {
-      auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh_->GetNodes());
+      auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh().GetNodes());
       auto *mesh_fespace = mesh_gf.ParFESpace();
 
       /// create new state vector copying the mesh's fe space
       fields.emplace(
           std::piecewise_construct,
           std::forward_as_tuple("mesh_coords"),
-          std::forward_as_tuple(*mesh_, *mesh_fespace, "mesh_coords"));
+          std::forward_as_tuple(mesh(), *mesh_fespace, "mesh_coords"));
       FiniteElementState &mesh_coords = fields.at("mesh_coords");
       /// set the values of the new GF to those of the mesh's old nodes
       mesh_coords.gridFunc() = mesh_gf;
       // mesh_coords.setTrueVec();  // distribute coords
       /// tell the mesh to use this GF for its Nodes
       /// (and that it doesn't own it)
-      mesh_->NewNodes(mesh_coords.gridFunc(), false);
+      mesh().NewNodes(mesh_coords.gridFunc(), false);
    }
 
    if (options.contains("external-fields"))
@@ -322,7 +380,7 @@ void PDESolver::setUpExternalFields()
 
          /// this approach will only work for fields on the same mesh
          auto num_states = field["num-states"].get<int>();
-         fields.emplace(name, createState(*mesh_, field, num_states, name));
+         fields.emplace(name, createState(mesh(), field, num_states, name));
       }
    }
 }
