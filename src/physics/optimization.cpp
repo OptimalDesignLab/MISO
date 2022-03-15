@@ -3,11 +3,12 @@
 #include "sbp_fe.hpp"
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
-
+#include <ctime>
+#include <chrono>
 using namespace std;
 using namespace mfem;
 using namespace mach;
-
+using namespace std::chrono;
 
 namespace mach
 {
@@ -123,9 +124,10 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 	Vector b(numBasis);
 	newton_solver->Mult(b,*u_dgd);
 	SparseMatrix *prolong = fes_dgd->GetCP();
-	ofstream cp_save("prolong.txt");
-	prolong->PrintMatlab(cp_save);
-	cp_save.close();
+	// milliseconds ms = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
+	// ofstream cp_save("prolong"+to_string(ms.count())+".txt");
+	// prolong->PrintMatlab(cp_save);
+	// cp_save.close();
 	prolong->Mult(*u_dgd,*u_full); 
 	Vector r(FullSize);
 	res_full->Mult(*u_full,r);
@@ -144,9 +146,7 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	// 1. get pRpu, pR_dgd/pu_dgd
 	SparseMatrix *pRpu = dynamic_cast<SparseMatrix*>(&res_full->GetGradient(*u_full));
 	SparseMatrix *pR_dgdpuc = dynamic_cast<SparseMatrix*>(&res_dgd->GetGradient(*u_dgd));
-	// ofstream jac_save("pRpu.txt");
-	// pRpu->PrintMatlab(jac_save);
-	// jac_save.close();
+
 	// 2. compute full residual
 	Vector r(FullSize);
 	res_full->Mult(*u_full,r);
@@ -166,7 +166,6 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 		// colume of intermediate pPu/pc
 		dPdci->Mult(*u_dgd,ppupc_col);
 		pPupc.SetCol(i,ppupc_col);
-
 
 		// colume of pPt / pc * R
 		dPdci->MultTranspose(r,dptpc_col);
@@ -205,11 +204,11 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	pR_dgdpc->Mult(adj,temp_vec2);
 	y -= temp_vec2;
 
-	delete Pt;
-	delete pR_dgdpuc;
-	delete pRt_dgdpuc;
-	delete temp_mat1;
-	delete pR_dgdpc;
+	// delete Pt;
+	// delete pR_dgdpuc;
+	// delete pRt_dgdpuc;
+	// delete temp_mat1;
+	// delete pR_dgdpc;
 }	
 
 
@@ -289,7 +288,7 @@ void DGDOptimizer::checkJacobian(Vector &x)
 	// get jacobian from fd method
 	double J = GetEnergy(x);
 	double Jp;
-	double pert = 1e-7;
+	double pert = 1e-5;
 	Vector centerp(x);
 	Vector dJdc_fd(x.Size());
 	for (int i = 0; i < numDesignVar; i++)
@@ -300,8 +299,12 @@ void DGDOptimizer::checkJacobian(Vector &x)
 		dJdc_fd(i) = (Jp - J)/pert;
 		centerp(i) -= pert;
 	}
-
+	cout << "fd: \n";
+	dJdc_fd.Print(cout,4);
+	cout << "analytic:\n";
+	dJdc_analytic.Print(cout,4);
 	dJdc_fd -= dJdc_analytic;
+	cout << "difference:\n";
 	dJdc_fd.Print(cout,4);
 }
 

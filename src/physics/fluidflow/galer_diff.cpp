@@ -143,9 +143,9 @@ void DGDSpace::buildProlongation() const
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-   ofstream cp_save("prolong_init.txt");
-	cP->PrintMatlab(cp_save);
-	cp_save.close();
+   // ofstream cp_save("prolong_init.txt");
+	// cP->PrintMatlab(cp_save);
+	// cp_save.close();
 }
 
 void DGDSpace::buildProlongationMatrix(const Vector &x)

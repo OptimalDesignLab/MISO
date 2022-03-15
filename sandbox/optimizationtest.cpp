@@ -79,6 +79,10 @@ int main(int argc, char *argv[])
 
    double l2norm = dgdopt.GetEnergy(center);
    cout << "initial l2 norm is " << sqrt(l2norm) << '\n';
+
+   // Vector center2(center);
+   // center2(0) += 1e-3;
+   // l2norm = dgdopt.GetEnergy(center2);
    dgdopt.checkJacobian(center);
    // Vector dJdc;
    // dgdopt.Mult(center,dJdc);
