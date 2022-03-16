@@ -83,11 +83,11 @@ int main(int argc, char *argv[])
    // Vector center2(center);
    // center2(0) += 1e-3;
    // l2norm = dgdopt.GetEnergy(center2);
-   //dgdopt.checkJacobian(center);
-   Vector dJdc;
-   dgdopt.Mult(center,dJdc);
-   cout << "dJdc is: \n";
-   dJdc.Print(cout,4);
+   dgdopt.checkJacobian(center);
+   // Vector dJdc;
+   // dgdopt.Mult(center,dJdc);
+   // cout << "dJdc is: \n";
+   // dJdc.Print(cout,4);
    return 0;
 }
 

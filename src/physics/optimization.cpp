@@ -207,6 +207,7 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	// compute pJ/puc
 	SparseMatrix *P = fes_dgd->GetCP();
 	P->MultTranspose(temp_vec1,pJpuc);
+	pJpuc *= 2.0;
 
 	ofstream p_save("p.txt");
 	P->PrintMatlab(p_save);
