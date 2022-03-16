@@ -77,17 +77,17 @@ int main(int argc, char *argv[])
    dgdopt.InitializeSolver();
    dgdopt.SetInitialCondition(uexact);
 
-   double l2norm = dgdopt.GetEnergy(center);
-   cout << "initial l2 norm is " << sqrt(l2norm) << '\n';
+   // double l2norm = dgdopt.GetEnergy(center);
+   // cout << "initial l2 norm is " << sqrt(l2norm) << '\n';
 
    // Vector center2(center);
    // center2(0) += 1e-3;
    // l2norm = dgdopt.GetEnergy(center2);
-   dgdopt.checkJacobian(center);
-   // Vector dJdc;
-   // dgdopt.Mult(center,dJdc);
-   // cout << "dJdc is: \n";
-   // dJdc.Print(cout,4);
+   //dgdopt.checkJacobian(center);
+   Vector dJdc;
+   dgdopt.Mult(center,dJdc);
+   cout << "dJdc is: \n";
+   dJdc.Print(cout,4);
    return 0;
 }
 
