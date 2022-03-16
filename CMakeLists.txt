@@ -13,9 +13,12 @@ if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
    message("CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 endif (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
+# Load Mach cmake utilities
+include(cmake/project-is-top-level.cmake)
+include(cmake/mach_cmake_utils.cmake)
+
 # Let CMake know where to find custom FindFoo.cmake files
-set(CMAKE_MODULE_PATH
-   ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/find")
 
 ### correctly handle rpath when installing
 ### From: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
@@ -39,15 +42,12 @@ if("${isSystemDir}" STREQUAL "-1")
 endif("${isSystemDir}" STREQUAL "-1")
 ### end of install rpath stuff
 
-# Load Mach cmake utilities
-include(mach_cmake_utils)
-
 find_package(Adept MODULE REQUIRED)
-find_package(MFEM CONFIG REQUIRED PATHS "${MFEM_DIR}" NO_DEFAULT_PATH)
+find_package(MFEM CONFIG REQUIRED)
 
-configure_file(
-  "${PROJECT_SOURCE_DIR}/cmake/config.hpp.in"
-  "${PROJECT_BINARY_DIR}/_config.hpp")
+# configure_file(
+#   "${PROJECT_SOURCE_DIR}/cmake/config.hpp.in"
+#   "${PROJECT_BINARY_DIR}/_config.hpp")
 
 # if MFEM was compiled with PUMI, we need to find it so we can 
 if (MFEM_USE_PUMI)
@@ -70,18 +70,6 @@ endif (MFEM_USE_PUMI)
 
 # find the MPI compilers
 find_package(MPI REQUIRED)
-
-# option(MFEM_USE_EGADS "Build with EGADS support" OFF)
-# message(STATUS "MFEM_USE_EGADS: ${MFEM_USE_EGADS}")
-
-# EGADS Support for mesh movement
-if (MFEM_USE_EGADS)
-   message(STATUS "finding EGADS")
-   find_package(EGADS MODULE REQUIRED)
-endif (MFEM_USE_EGADS)
-
-# Try to find OpenMP (used by Adept)
-# find_package(OpenMP)
 
 cmake_policy(SET CMP0077 NEW)
 set(TINYSPLINE_ENABLE_CXX ON)
@@ -126,16 +114,9 @@ set_target_properties(mach PROPERTIES PUBLIC_HEADER "")
 # Use CMakeLists.txt files in subdirectories to add sources to mach
 add_subdirectory(src)
 
-# message(STATUS "mach headers:")
-# message(STATUS "${MACH_HEADERS}")
-
-get_target_property(PUB_HEADERS mach PUBLIC_HEADER)
-message(STATUS "pub headers:")
-message(STATUS "${PUB_HEADERS}")
-
 target_link_libraries(mach
    PUBLIC
-      "${ADEPT_LIBRARIES}"
+      Adept::adept
       mfem
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
       nlohmann_json::nlohmann_json
@@ -145,22 +126,21 @@ target_link_libraries(mach
 
 target_include_directories(mach
    PUBLIC
-      "${ADEPT_INCLUDE_DIRS}"
       "${MFEM_INCLUDE_DIRS}"
       "${PUMI_INCLUDE_DIRS}"
 )
 
-if (MFEM_USE_EGADS)
-   target_link_libraries(mach
-      PUBLIC
-         "${EGADS_LIBRARIES}"
-   )
+# if (MFEM_USE_EGADS)
+#    target_link_libraries(mach
+#       PUBLIC
+#          "${EGADS_LIBRARIES}"
+#    )
 
-   target_include_directories(mach
-      PUBLIC
-         "${EGADS_INCLUDE_DIRS}"
-   )
-endif (MFEM_USE_EGADS)
+#    target_include_directories(mach
+#       PUBLIC
+#          "${EGADS_INCLUDE_DIRS}"
+#    )
+# endif (MFEM_USE_EGADS)
 
 target_compile_features(mach
    PUBLIC
