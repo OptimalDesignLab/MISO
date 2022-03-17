@@ -107,7 +107,6 @@ void DGDOptimizer::SetInitialCondition(void (*u_init)(const mfem::Vector &,
 {
    VectorFunctionCoefficient u0(num_state, u_init);
    u_dgd->ProjectCoefficient(u0);
-	u_full->ProjectCoefficient(u0);
 
    GridFunction u_test(fes_full.get());
    dynamic_cast<DGDSpace *>(fes_dgd.get())->GetProlongationMatrix()->Mult(*u_dgd, u_test);
@@ -137,10 +136,6 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 {
 	// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
-	fes_dgd->buildProlongationMatrix(x);
-	Vector b(numBasis);
-	newton_solver->Mult(b,*u_dgd);
-	fes_dgd->GetCP()->Mult(*u_dgd,*u_full);
 	y.SetSize(numDesignVar); // set y as pJpc
 	Vector pJpuc(ROMSize);
 
@@ -149,20 +144,21 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	SparseMatrix *pRpu = dynamic_cast<SparseMatrix*>(&res_full->GetGradient(*u_full));
 	SparseMatrix *pR_dgdpuc = dynamic_cast<SparseMatrix*>(&res_dgd->GetGradient(*u_dgd));
 
-	ofstream prpu_save("prpu.txt");
-	pRpu->PrintMatlab(prpu_save);
-	prpu_save.close();
+	// ofstream prpu_save("prpu.txt");
+	// pRpu->PrintMatlab(prpu_save);
+	// prpu_save.close();
 
-	ofstream prdgdpuc_save("prdgdpuc.txt");
-	pR_dgdpuc->PrintMatlab(prdgdpuc_save);
-	prdgdpuc_save.close();
+	// ofstream prdgdpuc_save("prdgdpuc.txt");
+	// pR_dgdpuc->PrintMatlab(prdgdpuc_save);
+	// prdgdpuc_save.close();
 
 	// 2. compute full residual
 	Vector r(FullSize);
 	res_full->Mult(*u_full,r);
-	ofstream r_save("r_full.txt");
-	r.Print(r_save,1);
-	r_save.close();
+
+	// ofstream r_save("r_full.txt");
+	// r.Print(r_save,1);
+	// r_save.close();
 
 	/// loop over all design variables
 	Vector ppupc_col(FullSize);
@@ -186,13 +182,13 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 		delete dPdci;
 	}
 
-	ofstream ppupc_save("ppupc.txt");
-	pPupc.PrintMatlab(ppupc_save);
-	ppupc_save.close();
+	// ofstream ppupc_save("ppupc.txt");
+	// pPupc.PrintMatlab(ppupc_save);
+	// ppupc_save.close();
 
-	ofstream pptpcr_save("pptpcr.txt");
-	pPtpcR.PrintMatlab(pptpcr_save);
-	pptpcr_save.close();
+	// ofstream pptpcr_save("pptpcr.txt");
+	// pPtpcR.PrintMatlab(pptpcr_save);
+	// pptpcr_save.close();
 
 	// compute pJ/pc
 	Vector temp_vec1(FullSize);
@@ -200,22 +196,22 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	pPupc.MultTranspose(temp_vec1,y);
 	y *= 2.0;
 
-	ofstream pjpc_save("pjpc.txt");
-	y.Print(pjpc_save,1);
-	pjpc_save.close();
+	// ofstream pjpc_save("pjpc.txt");
+	// y.Print(pjpc_save,1);
+	// pjpc_save.close();
 
 	// compute pJ/puc
 	SparseMatrix *P = fes_dgd->GetCP();
 	P->MultTranspose(temp_vec1,pJpuc);
 	pJpuc *= 2.0;
 
-	ofstream p_save("p.txt");
-	P->PrintMatlab(p_save);
-	p_save.close();
+	// ofstream p_save("p.txt");
+	// P->PrintMatlab(p_save);
+	// p_save.close();
 
-	ofstream pjpuc_save("pjpuc.txt");
-	pJpuc.Print(pjpuc_save,1);
-	pjpuc_save.close();
+	// ofstream pjpuc_save("pjpuc.txt");
+	// pJpuc.Print(pjpuc_save,1);
+	// pjpuc_save.close();
 
 	// compute pR_dgd / pc
 	DenseMatrix *temp_mat1 = ::Mult(*pRpu,pPupc);
@@ -223,13 +219,13 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	DenseMatrix *pR_dgdpc = ::Mult(*Pt,*temp_mat1);
 	*pR_dgdpc += pPtpcR;
 
-	ofstream pt_save("pt.txt");
-	Pt->PrintMatlab(pt_save);
-	pt_save.close();
+	// ofstream pt_save("pt.txt");
+	// Pt->PrintMatlab(pt_save);
+	// pt_save.close();
 
-	ofstream prdgdpc_save("prdgdpc.txt");
-	pR_dgdpc->PrintMatlab(prdgdpc_save);
-	prdgdpc_save.close();
+	// ofstream prdgdpc_save("prdgdpc.txt");
+	// pR_dgdpc->PrintMatlab(prdgdpc_save);
+	// prdgdpc_save.close();
 
 	// solve for adjoint variable
 	Vector adj(ROMSize);
@@ -240,9 +236,9 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	umfsolver.SetOperator(*pRt_dgdpuc);
 	umfsolver.Mult(pJpuc,adj);
 
-	ofstream adj_save("adj.txt");
-	adj.Print(adj_save,1);
-	adj_save.close();
+	// ofstream adj_save("adj.txt");
+	// adj.Print(adj_save,1);
+	// adj_save.close();
 
 
 	// compute the total derivative
@@ -251,9 +247,9 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	pR_dgdpc->Mult(adj,temp_vec2);
 	y -= temp_vec2;
 
-	ofstream djdc_save("djdc.txt");
-	y.Print(djdc_save,1);
-	djdc_save.close();
+	// ofstream djdc_save("djdc.txt");
+	// y.Print(djdc_save,1);
+	// djdc_save.close();
 	// delete Pt;
 	// delete pR_dgdpuc;
 	// delete pRt_dgdpuc;
@@ -349,13 +345,9 @@ void DGDOptimizer::checkJacobian(Vector &x)
 		dJdc_fd(i) = (Jp - J)/pert;
 		centerp(i) -= pert;
 	}
-	cout << "fd: \n";
-	dJdc_fd.Print(cout,4);
-	cout << "analytic:\n";
-	dJdc_analytic.Print(cout,4);
 	dJdc_fd -= dJdc_analytic;
-	cout << "difference:\n";
-	dJdc_fd.Print(cout,4);
+	cout <<  "jacobian norm is " << dJdc_analytic.Norml2()
+		  << ", difference norm is " << dJdc_fd.Norml2() << '\n';
 }
 
 DGDOptimizer::~DGDOptimizer()

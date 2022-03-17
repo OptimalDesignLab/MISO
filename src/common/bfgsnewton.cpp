@@ -6,11 +6,13 @@ using namespace mfem;
 namespace mfem
 {
 
-BFGSNewtonSolver::BFGSNewtonSolver(double eta_i, double eta_m,double scale)
+BFGSNewtonSolver::BFGSNewtonSolver(double eta_i, double eta_m,double scale,
+                                   int max)
 {
    eta = eta_i;
    eta_max = eta_m;
    t = scale;
+   max_iter = max;
 }
 
 void BFGSNewton::SetOperator(const Operator &op)
@@ -22,41 +24,34 @@ void BFGSNewton::SetOperator(const Operator &op)
    x_new.SetSize(width);
 }
 
-double BFGSNewton::Mult()
+double BFGSNewton::Mult(mfem::Vector &x, mfem::Vector &opt)
 {
    MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
 
    std::cout << "Beginning of BFGS Newton..." << '\n';
-
+   int numvar = x.Size();
+   x_new.SetSize(numvar);
    // initialize the hessian inverse as the identity matrix
-   DenseMatrix ident(Width());
-   DenseMatrix s(Width(),1);
-   DenseMatrix y(Width(),1);
-   B.SetSize(Width());
-   for (int i = 0; i < Width(); i++)
+   DenseMatrix ident(numvar);
+   DenseMatrix s(numvar,1);
+   DenseMatrix y(numvar,1);
+   B.SetSize(numvar);
+   
+   // initialize the hessian approximation
+   for (int i = 0; i < numvar; i++)
    {
       B(i,i) = 1.0;
       ident(i,i) = 1.0;
    }
-   // initialize the derivatives
-   grad = &oper->GetGradient(x);
 
    int it;
    double norm0, norm, norm_goal;
-   const bool have_b = (b.Size() == Height());
-   if (!iterative_mode)
-   {
-      x = 0.0;
-   }
-   oper->Mult(x, r);
-   if (have_b)
-   {
-      r -= b;
-   }
 
-   norm0 = norm = Norm(r);
+   norm0 = norm = oper->GetEnergy(x);
    norm_goal = std::max(rel_tol*norm, abs_tol);
-   prec->iterative_mode = false;
+
+   // initialize the jacobian
+   oper->Mult(x,jac);
 
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
@@ -87,7 +82,7 @@ double BFGSNewton::Mult()
       }
 
       // compute c = B * deriv
-      B.Mult(*grad, c);
+      B.Mult(jac, c);
       // compute step size
       double c_scale = ComputeStepSize(x, b, norm);
       if (c_scale == 0.0)
@@ -99,16 +94,11 @@ double BFGSNewton::Mult()
       // update the state
       x += c;
       // update objective new value and derivative
-      oper->Mult(x, r);
-      if (have_b)
-      {
-         r -= b;
-      }
-      norm = Norm(r);
-      grad_new = &oper->GetGradient(x);
+      norm = oper->GetEnergy(x);
 
+      oper->Mult(x,jac_new);
       // update s,y matrix
-      for (int i = 0; i < Width(); i++)
+      for (int i = 0; i < numvar; i++)
       {
          s(i,0) = c(i);
       }

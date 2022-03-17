@@ -13,26 +13,26 @@ class BFGSNewtonSolver
 {
 public:
    BFGSNewton(double eta_init = 1e-4, double eta_maximum = 1e-1,
-              double ared_scale = 1e-4);
+              double ared_scale = 1e-4, int max);
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`
    void SetOperator(const mfem::Operator &op);
 
-   /// solve the optimization problem
-   void Optimize();
+   void Mult(mfem::Vector &x, mfem::Vector &opt);
 
 protected:
    /// the hessian inverse approximation
    mfem::DenseMatrix B;
-   mfem::Operator *jac;
-   mfem::Operator *jac_new;
+   mfem::Vector jac;
+   mfem::Vector jac_new;
    mfem::Operator *oper; 
 
    /// member vector saves the new x position.
    mutable mfem::Vector x_new;
    /// Parameters for inexact newton method.
    double theta, eta, eta_max, t;
+   int max_iter;
    const double theta_min = 0.1;
    const double theta_max = 0.5;
 private:
