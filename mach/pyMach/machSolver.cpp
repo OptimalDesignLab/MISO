@@ -16,7 +16,7 @@
 #include "abstract_solver.hpp"
 #include "mach_input.hpp"
 #include "magnetostatic.hpp"
-#include "mpi4py_comm.hpp"
+#include "mpi_comm.hpp"
 
 // #ifdef BUILD_TESTING
 // #include "test_mach_inputs.hpp"
@@ -31,12 +31,11 @@ namespace
 /// \param type - the solver type to create
 /// \param json_options - options dictionary containing solver options
 /// \param comm - MPI communicator for parallel operations
-std::unique_ptr<AbstractSolver2> initSolver(const std::string &type,
-                                            const nlohmann::json &json_options,
-                                            mpi4py_comm comm)
+std::unique_ptr<AbstractSolver2> initSolver(const nlohmann::json &json_options,
+                                            MPI_Comm comm)
 {
-   std::cout << "initSolver called with json options: " << json_options << "\n";
-   if (type == "Magnetostatic")
+   auto physics = json_options["physics"].get<std::string>();
+   if (physics == "magnetostatic")
    {
       return std::make_unique<MagnetostaticSolver>(comm, json_options, nullptr);
    }
@@ -73,7 +72,7 @@ std::unique_ptr<AbstractSolver2> initSolver(const std::string &type,
       throw std::runtime_error(
           "Unknown solver type!\n"
           "\tKnown types are:\n"
-          "\t\tMagnetostatic\n"
+          "\t\tmagnetostatic\n"
           //  "\t\tThermal\n"
           //  "\t\tEuler\n"
           //  "\t\tMeshMovement\n"
@@ -177,25 +176,21 @@ void initSolver(py::module &m)
 
    py::class_<AbstractSolver2>(m, "MachSolver")
        .def(py::init(
-                [](const std::string &type,
-                   const std::string &opt_file_name,
-                   mpi4py_comm comm)
+                [](const std::string &opt_file_name, mpi_comm comm)
                 {
                    nlohmann::json json_options;
                    std::ifstream options_file(opt_file_name);
                    options_file >> json_options;
-                   return initSolver(type, json_options, comm);
+                   return initSolver(json_options, comm);
                 }),
-            py::arg("type"),
             py::arg("opt_file_name"),
-            py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
-       .def(py::init([](const std::string &type,
-                        const nlohmann::json &json_options,
-                        mpi4py_comm comm)
-                     { return initSolver(type, json_options, comm); }),
-            py::arg("type"),
+            py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
+       .def(py::init([](const nlohmann::json &json_options, mpi_comm comm)
+                {
+                   return initSolver(json_options, comm);
+                 }),
             py::arg("json_options"),
-            py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
+            py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
 
        .def(
            "setState",

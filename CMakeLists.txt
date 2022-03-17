@@ -350,7 +350,7 @@ if (BUILD_PYTHON_WRAPPER)
 
    # find the mpi4py c interface include directories and include them
    execute_process(COMMAND
-      python3 -c "import mpi4py; print(mpi4py.get_include(), end ='')"
+      python -c "import mpi4py; print(mpi4py.get_include(), end ='')"
       OUTPUT_VARIABLE MPI4PY_INCLUDE_DIRS
    )
    

@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 
 #include <mpi4py/mpi4py.h>
-#include "mpi4py_comm.hpp"
+#include "mpi_comm.hpp"
 
 #include "mfem.hpp"
 
@@ -57,7 +57,7 @@ void initMesh(py::module &m)
                    double sx,
                    double sy,
                    int order,
-                   mpi4py_comm comm)
+                   mpi_comm comm)
                 {
                    auto mesh = Mesh::MakeCartesian2D(
                        nx, ny, Element::TRIANGLE, true, sx, sy);
@@ -74,7 +74,7 @@ void initMesh(py::module &m)
             py::arg("sx"),
             py::arg("sy"),
             py::arg("order"),
-            py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
+            py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
 
        .def(
            py::init(
@@ -84,8 +84,8 @@ void initMesh(py::module &m)
                   double sx,
                   double sy,
                   double sz,
-                  mpi4py_comm comm)
-               {
+                  mpi_comm comm)
+                {
                   auto mesh = Mesh::MakeCartesian3D(
                       nx, ny, nz, Element::TETRAHEDRON, sx, sy, sz, true);
 
@@ -100,15 +100,15 @@ void initMesh(py::module &m)
            py::arg("sx"),
            py::arg("sy"),
            py::arg("sz"),
-           py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
+           py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
 
 #ifdef MFEM_USE_PUMI
        .def(
            py::init(
                [](const std::string &model_file,
                   const std::string &mesh_file,
-                  mpi4py_comm comm)
-               {
+                  mpi_comm comm)
+                {
    // PCU_Comm_Init();
 
 #ifdef MFEM_USE_SIMMETRIX
@@ -252,7 +252,7 @@ void initMesh(py::module &m)
            "converts to an MFEM mesh",
            py::arg("model_file"),
            py::arg("mesh_file"),
-           py::arg("comm") = mpi4py_comm(MPI_COMM_WORLD))
+           py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
 #endif  // MFEM_USE_PUMI
 
        .def(
