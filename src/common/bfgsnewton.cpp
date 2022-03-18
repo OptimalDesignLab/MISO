@@ -107,8 +107,43 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
 }
 
 
-double BFGSNewtonSolver::ComputeStepSize (const Vector &x, const double norm)
+double BFGSNewtonSolver::ComputeStepSize (const Vector &x, const double norm0)
 {
+   double phi_old = norm0;
+   double dphi_init = jac * c; // deriv' * c
+
+   double alpha_new;
+   double phi_new;
+   double quad_coeff;
+   for (int iter = 0; true; iter++)
+   {
+
+      // choose new alpha parameter
+      if (0 == iter) { alpha_new = alpha_init; }
+      if (quad_coeff > 0.0)
+      {
+         alpha_new = alpha_old - 0.5 * dphi_old/quad_coeff;
+         if ((alpha_new < alpha_old) || (alpha_new > alpha_max))
+         {
+            alpha_new = std::min(2.0*alpha_old,alpha_max);
+         }
+      }
+      else
+      {
+         alpha_new = std::min(2.0*alpha_old,alpha_max);
+      }
+
+
+      phi_new = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x+alpha*c);
+
+      // check if the step violates the sdc,
+      // or when i > 0, new phi is greater than the old, then zoom
+      if (  (phi_new > phi_init+suff*alpha_new*dphi_new) || ((i > 0) && (phi_new >= phi_old)) )
+      {
+         
+      }
+   
+   } // end of iteration
    return 1.0;
 }
 

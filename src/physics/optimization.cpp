@@ -135,6 +135,11 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 
 void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 {
+	fes_dgd->buildProlongationMatrix(x);
+	Vector b(numBasis);
+	newton_solver->Mult(b,*u_dgd);
+	fes_dgd->GetCP()->Mult(*u_dgd,*u_full);
+
 	// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
 	y.SetSize(numDesignVar); // set y as pJpc
 	Vector pJpuc(ROMSize);
@@ -334,7 +339,7 @@ void DGDOptimizer::checkJacobian(Vector &x)
 	// get jacobian from fd method
 	double J = GetEnergy(x);
 	double Jp;
-	double pert = 1e-5;
+	double pert = 1e-7;
 	Vector centerp(x);
 	Vector dJdc_fd(x.Size());
 	for (int i = 0; i < numDesignVar; i++)
@@ -345,9 +350,9 @@ void DGDOptimizer::checkJacobian(Vector &x)
 		dJdc_fd(i) = (Jp - J)/pert;
 		centerp(i) -= pert;
 	}
+	cout <<  "jacobian norm is " << dJdc_analytic.Norml2();
 	dJdc_fd -= dJdc_analytic;
-	cout <<  "jacobian norm is " << dJdc_analytic.Norml2()
-		  << ", difference norm is " << dJdc_fd.Norml2() << '\n';
+	cout << ", difference norm is " << dJdc_fd.Norml2() << '\n';
 }
 
 DGDOptimizer::~DGDOptimizer()

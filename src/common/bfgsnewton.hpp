@@ -37,7 +37,8 @@ protected:
    int print_level, final_iter, max_iter;
    mutable mfem::Vector c;
 
-   ///
+   /// strong wolfe condition variable
+   
 
 
    /// Parameters for inexact newton method.
