@@ -9,6 +9,7 @@
 #include <variant>
 #include <memory>
 
+#include "adept.h"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -16,6 +17,13 @@
 
 namespace mach
 {
+
+inline adept::Stack &getDiffStack()
+{
+   static adept::Stack diff_stack;
+   return diff_stack;
+}
+
 /// Perform quadratic interpolation based on (x0,y0,dydx0) and (x1,y1)
 /// \param[in] x0 - location of first dependent data point
 /// \param[in] y0 - value of function at `x0`

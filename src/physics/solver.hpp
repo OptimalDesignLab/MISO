@@ -736,7 +736,8 @@ protected:
    std::map<std::string, mfem::ParNonlinearForm> res_scalar_sens;
 
    /// storage for algorithmic differentiation (shared by all solvers)
-   static adept::Stack diff_stack;
+   // static adept::Stack diff_stack;
+   adept::Stack &diff_stack;
 
    //--------------------------------------------------------------------------
    // Members associated with time marching (and Newton's method)

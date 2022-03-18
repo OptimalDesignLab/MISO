@@ -164,8 +164,8 @@ protected:
    /// print object
    std::ostream *out;
 
-   /// storage for algorithmic differentiation (shared by all solvers)
-   static adept::Stack diff_stack;
+   /// storage for algorithmic differentiation (shared by everything in mach)
+   adept::Stack &diff_stack;
 
    /// work vector for solvers
    mutable mfem::Vector work;

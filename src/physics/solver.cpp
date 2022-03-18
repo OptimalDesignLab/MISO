@@ -38,6 +38,7 @@
 #include "mach_integrator.hpp"
 #include "mach_load.hpp"
 #include "solver.hpp"
+#include "utils.hpp"
 
 #ifdef MFEM_USE_EGADS
 #include "gmi_egads.h"
@@ -48,11 +49,10 @@ using namespace mfem;
 
 namespace mach
 {
-adept::Stack AbstractSolver::diff_stack;
-
 AbstractSolver::AbstractSolver(const nlohmann::json &file_options,
                                unique_ptr<Mesh> smesh,
                                MPI_Comm comm)
+ : diff_stack(getDiffStack())
 {
    initBase(file_options, move(smesh), comm);
 }

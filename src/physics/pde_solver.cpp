@@ -127,7 +127,7 @@ MachMesh::MachMesh()
 }
 
 MachMesh::MachMesh(MachMesh &&other) noexcept
-: mesh(std::move(other.mesh)), pumi_mesh(std::move(other.pumi_mesh))
+ : mesh(std::move(other.mesh)), pumi_mesh(std::move(other.pumi_mesh))
 {
    ++pumi_mesh_count;
 }

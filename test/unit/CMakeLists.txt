@@ -70,6 +70,7 @@ set(EM_MPI_TEST_SRCS
    test_pde_solver
    test_data_logging
    test_l2_transfer_operator
+   test_mesh_warper
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)

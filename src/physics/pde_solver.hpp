@@ -104,18 +104,6 @@ protected:
    mfem::ParMesh &mesh() { return *mesh_.mesh; }
    const mfem::ParMesh &mesh() const { return *mesh_.mesh; }
 
-   // /// Constructs the mesh member based on c preprocesor defs
-   // /// \param[in] smesh - if provided, defines the mesh for the problem
-   // std::unique_ptr<mfem::ParMesh> constructMesh(
-   //     MPI_Comm comm,
-   //     const nlohmann::json &mesh_options,
-   //     std::unique_ptr<mfem::Mesh> smesh);
-
-   // /// Construct PUMI Mesh
-   // std::unique_ptr<mfem::ParMesh> constructPumiMesh(
-   //     MPI_Comm comm,
-   //     const nlohmann::json &mesh_options);
-
    /// solver material properties
    nlohmann::json materials;
 

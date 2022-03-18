@@ -22,10 +22,9 @@ void logState(mach::DataLogger &logger,
 
 namespace mach
 {
-adept::Stack AbstractSolver2::diff_stack;
-
 AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
                                  const nlohmann::json &solver_options)
+ : diff_stack(getDiffStack())
 {
    /// Set the options; the defaults are overwritten by the values in the file
    /// using the merge_patch method
