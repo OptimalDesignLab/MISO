@@ -8,7 +8,7 @@ class MachMeshWarper(om.ImplicitComponent):
         self.options.declare("warper", types=MeshWarper, recordable=False)
 
     def setup(self):
-        warper = self.options['warper']
+        warper = self.options["warper"]
 
         local_surf_mesh_size = warper.getSurfaceCoordsSize()
         surf_coords = np.empty(local_surf_mesh_size)
@@ -18,41 +18,66 @@ class MachMeshWarper(om.ImplicitComponent):
         self.init_vol_coords = np.empty(local_vol_mesh_size)
         warper.getInitialVolumeCoords(self.init_vol_coords)
 
-        self.add_input('surf_mesh_coords', val=surf_coords, distributed=True, tags=["mphys_coordinates"])
-        self.add_output('vol_mesh_coords', val=self.init_vol_coords, distributed=True, tags=["mphys_coupling"])
+        self.surf_indices = np.empty(surf_coords.size, dtype=np.int32)
+        warper.getSurfCoordIndices(self.surf_indices)
+
+        self.add_input("surf_mesh_coords", val=surf_coords, distributed=True, tags=["mphys_coordinates"])
+        self.add_output("vol_mesh_coords", val=self.init_vol_coords, distributed=True, tags=["mphys_coupling"])
 
     def apply_nonlinear(self, inputs, outputs, residuals):
-        warper = self.options['warper']
+        warper = self.options["warper"]
 
         surface_coords = inputs["surf_mesh_coords"]
 
-        indices = np.empty(surface_coords.size, dtype=np.int32)
-        warper.getSurfCoordIndices(indices)
-
         volume_coords = outputs["vol_mesh_coords"]
-        volume_coords[indices] = surface_coords[:]
+        volume_coords[self.surf_indices] = surface_coords[:]
 
         warper.calcResidual(volume_coords, residuals["vol_mesh_coords"])
 
 
     def solve_nonlinear(self, inputs, outputs):
-        warper = self.options['warper']
+        warper = self.options["warper"]
 
         surface_coords = inputs["surf_mesh_coords"]
 
-        indices = np.empty(surface_coords.size, dtype=np.int32)
-        warper.getSurfCoordIndices(indices)
-
         volume_coords = outputs["vol_mesh_coords"]
-        volume_coords[indices] = surface_coords[:]
+        volume_coords[self.surf_indices] = surface_coords[:]
 
         warper.solveForState(volume_coords)
 
     def linearize(self, inputs, outputs, residuals):
-        pass
+        ### maybe this should compute jac and jac transposed?
+
+        # cache inputs
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        input_dict.update(dict(zip(outputs.keys(), outputs.values())))
+        self.linear_inputs = input_dict
 
     def apply_linear(self, inputs, outputs, d_inputs, d_outputs, d_residuals, mode):
-        pass
+        if mode == "fwd":
+            print("solver fwd")
+            # raise NotImplementedError("forward mode requested but not implemented")
+            # if "vol_mesh_coords" in d_residuals:
+            #     if "vol_mesh_coords" in d_outputs:
+            #         d_residuals["vol_mesh_coords"] += #(2 * a * x + b) * d_outputs["x"]
+            #     if "surf_mesh_coords" in d_inputs:
+            #         d_residuals["vol_mesh_coords"] += #x ** 2 * d_inputs["a"]
+        # elif mode == "rev":
+        #     if "vol_mesh_coords" in d_residuals:
+        #         if "vol_mesh_coords" in d_outputs:
+        #             d_outputs["vol_mesh_coords"] += #(2 * a * x + b) * d_residuals["x"]
+        #         if "surf_mesh_coords" in d_inputs:
+        #             d_inputs["surf_mesh_coords"] += #x ** 2 * d_residuals["x"]
 
     def solve_linear(self, d_outputs, d_residuals, mode):
-        pass
+        if mode == "fwd":
+            print("solver fwd")
+            # raise NotImplementedError("forward mode requested but not implemented")
+
+        if mode == "rev":
+            warper = self.options["warper"]
+            input_dict = self.linear_inputs
+            warper.solveForAdjoint(input_dict,
+                                   d_outputs["vol_mesh_coords"],
+                                   d_residuals["vol_mesh_coords"])
+

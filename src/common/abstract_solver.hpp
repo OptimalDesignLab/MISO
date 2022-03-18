@@ -58,6 +58,30 @@ public:
    /// \note On input, `state` should hold the initial condition
    void solveForState(const MachInputs &inputs, mfem::Vector &state);
 
+   /// Solve for the adjoint based on the @a state and the @a state_bar
+   /// \param[in] state - the converged solution that satisfies R(state) = 0
+   /// \param[in] state_bar - the derivative of some function w.r.t. the
+   /// @a state
+   /// \param[out] adjoint - the solution to the equation
+   /// \partial R / \partial @a state * adjoint^T = @a state_bar
+   void solveForAdjoint(const mfem::Vector &state,
+                        const mfem::Vector &state_bar,
+                        mfem::Vector &adjoint)
+   {
+      solveForAdjoint({{"state", state}}, state_bar, adjoint);
+   }
+
+   /// Solve for the adjoint based on the @a state and the @a state_bar
+   /// \param[in] inputs - scalars and fields that the residual may depend on
+   /// that satisfies R(inputs) = 0
+   /// \param[in] state_bar - the derivative of some function w.r.t. the
+   /// @a state
+   /// \param[out] adjoint - the solution to the equation
+   /// \partial R / \partial @a state * adjoint^T = @a state_bar
+   void solveForAdjoint(const MachInputs &inputs,
+                        const mfem::Vector &state_bar,
+                        mfem::Vector &adjoint);
+
    /// Compute the residual and store the it in @a residual
    /// \param[in] state - the state to evaluate the residual at
    /// \param[out] residual - the discrete residual vector
@@ -150,6 +174,32 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &partial);
 
+   /// Cache inputs for the residual and internally store Jacobians
+   /// \param[in] inputs - the independent variables at which to evaluate `res`
+   void linearize(const MachInputs &inputs);
+
+   /// Compute the residual's sensitivity to a scalar and contract it with
+   /// res_bar
+   /// \param[in] res_bar - the residual-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \return the assembled/contracted sensitivity
+   double vectorJacobianProduct(const mfem::Vector &res_bar,
+                                const std::string &wrt);
+
+   /// Compute the residual's sensitivity to a vector and contract it with
+   /// res_bar
+   /// \param[in] res_bar - the residual-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \param[inout] wrt_bar - the assembled/contracted sensitivity is
+   /// accumulated into wrt_bar
+   void vectorJacobianProduct(const mfem::Vector &res_bar,
+                              const std::string &wrt,
+                              mfem::Vector &wrt_bar);
+
    AbstractSolver2(MPI_Comm incomm, const nlohmann::json &solver_options);
 
    virtual ~AbstractSolver2() = default;
@@ -182,6 +232,9 @@ protected:
    std::unique_ptr<mfem::Solver> linear_solver;
    /// newton solver for solving implicit problems
    std::unique_ptr<mfem::NewtonSolver> nonlinear_solver;
+
+   /// linear system solver used for adjoint solve
+   std::unique_ptr<mfem::Solver> adj_solver;
 
    /// \brief the ordinary differential equation that describes how to evolve
    /// the state variables

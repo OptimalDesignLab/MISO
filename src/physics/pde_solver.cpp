@@ -87,9 +87,6 @@ mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
        mesh, space_options, num_states, name);
 }
 
-bool PCU_previously_initialized = false;
-int pumi_mesh_count = 0;
-
 }  // namespace
 
 namespace mach
@@ -209,6 +206,9 @@ MachMesh constructMesh(MPI_Comm comm,
    {
       mesh.mesh->RemoveInternalBoundaries();
    }
+
+   // std::ofstream file("pde_solver_mesh.mesh");
+   // mesh.mesh->Print(file);
    return mesh;
 }
 

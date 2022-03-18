@@ -33,10 +33,26 @@ public:
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
 
+   friend void linearize(MachNonlinearForm &form, const MachInputs &inputs);
+
    /// Compute Jacobian of `form` with respect to `wrt` and return
    friend mfem::Operator &getJacobian(MachNonlinearForm &form,
                                       const MachInputs &inputs,
                                       const std::string &wrt);
+
+   /// Compute transpose of Jacobian of `form` with respect to `wrt` and return
+   friend mfem::Operator &getJacobianTranspose(MachNonlinearForm &form,
+                                               const MachInputs &inputs,
+                                               const std::string &wrt);
+
+   friend double vectorJacobianProduct(MachNonlinearForm &form,
+                                       const mfem::Vector &res_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(MachNonlinearForm &form,
+                                     const mfem::Vector &res_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    /// Adds the given domain integrator to the nonlinear form
    /// \param[in] integrator - nonlinear form integrator for domain
@@ -102,10 +118,16 @@ private:
 
    /// map of linear forms that will compute d(psi^T F) / d(field)
    /// for each field the nonlinear form depends on
-   // std::map<std::string, mfem::ParLinearForm> sens;
+   std::map<std::string, mfem::ParLinearForm> sens;
    /// map of nonlinear forms that will compute d(psi^T F) / d(scalar)
    /// for each scalar the nonlinear form depends on
-   // std::map<std::string, mfem::ParNonlinearForm> scalar_sens;
+   std::map<std::string, mfem::ParNonlinearForm> scalar_sens;
+
+   /// Holds reference to the Jacobian (owned elsewhere)
+   mfem::Operator *jac = nullptr;
+
+   /// Holds the transpose of the Jacobian, needed for solving for the adjoint
+   std::unique_ptr<mfem::Operator> jac_trans;
 };
 
 template <typename T>
@@ -113,8 +135,7 @@ void MachNonlinearForm::addDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddDomainIntegrator(integrator);
-   // mach::addSensitivityIntegrator(*integrator, nf_fields, sens,
-   // scalar_sens);
+   mach::addSensitivityIntegrator(*integrator, nf_fields, sens, scalar_sens);
 }
 
 template <typename T>
@@ -122,8 +143,7 @@ void MachNonlinearForm::addBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddBdrFaceIntegrator(integrator);
-   // mach::addSensitivityIntegrator(*integrator, nf_fields, sens,
-   // scalar_sens);
+   mach::addSensitivityIntegrator(*integrator, nf_fields, sens, scalar_sens);
 }
 
 template <typename T>
@@ -135,8 +155,7 @@ void MachNonlinearForm::addBdrFaceIntegrator(
    bdr_markers.emplace_back(bdr_attr_marker.size());
    bdr_markers.back().Assign(bdr_attr_marker.data());
    nf.AddBdrFaceIntegrator(integrator, bdr_markers.back());
-   // mach::addSensitivityIntegrator(*integrator, nf_fields, sens,
-   // scalar_sens);
+   mach::addSensitivityIntegrator(*integrator, nf_fields, sens, scalar_sens);
 }
 
 template <typename T>
@@ -144,8 +163,7 @@ void MachNonlinearForm::addInteriorFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddInteriorFaceIntegrator(integrator);
-   // mach::addSensitivityIntegrator(*integrator, nf_fields, sens,
-   // scalar_sens);
+   mach::addSensitivityIntegrator(*integrator, nf_fields, sens, scalar_sens);
 }
 
 }  // namespace mach

@@ -25,9 +25,25 @@ public:
                         const mach::MachInputs &inputs,
                         mfem::Vector &res_vec);
 
+   friend void linearize(MeshWarperResidual &residual,
+                         const mach::MachInputs &inputs);
+
    friend mfem::Operator &getJacobian(MeshWarperResidual &residual,
                                       const mach::MachInputs &inputs,
                                       const std::string &wrt);
+
+   friend mfem::Operator &getJacobianTranspose(MeshWarperResidual &residual,
+                                               const mach::MachInputs &inputs,
+                                               const std::string &wrt);
+
+   friend double vectorJacobianProduct(MeshWarperResidual &residual,
+                                       const mfem::Vector &res_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(MeshWarperResidual &residual,
+                                     const mfem::Vector &res_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    friend mfem::Solver *getPreconditioner(MeshWarperResidual &residual);
 
@@ -87,11 +103,38 @@ void evaluate(MeshWarperResidual &residual,
    evaluate(residual.res, inputs, res_vec);
 }
 
+void linearize(MeshWarperResidual &residual, const mach::MachInputs &inputs)
+{
+   linearize(residual.res, inputs);
+}
+
 mfem::Operator &getJacobian(MeshWarperResidual &residual,
                             const mach::MachInputs &inputs,
                             const std::string &wrt)
 {
    return getJacobian(residual.res, inputs, wrt);
+}
+
+mfem::Operator &getJacobianTranspose(MeshWarperResidual &residual,
+                                     const mach::MachInputs &inputs,
+                                     const std::string &wrt)
+{
+   return getJacobianTranspose(residual.res, inputs, wrt);
+}
+
+double vectorJacobianProduct(MeshWarperResidual &residual,
+                             const mfem::Vector &res_bar,
+                             const std::string &wrt)
+{
+   return vectorJacobianProduct(residual.res, res_bar, wrt);
+}
+
+void vectorJacobianProduct(MeshWarperResidual &residual,
+                           const mfem::Vector &res_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   vectorJacobianProduct(residual.res, res_bar, wrt, wrt_bar);
 }
 
 mfem::Solver *getPreconditioner(MeshWarperResidual &residual)

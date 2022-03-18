@@ -415,29 +415,28 @@ void initSolver(py::module &m)
        // self.linearize(pyDictToMachInputs(py_inputs)); },
        //      py::arg("inputs"))
 
-       //  .def(
-       //      "vectorJacobianProduct",
-       //      [](AbstractSolver &self,
-       //         const py::array_t<double> &res_bar_buffer,
-       //         const std::string &wrt,
-       //         const py::array_t<double> &wrt_bar_buffer)
-       //      {
-       // auto *res_bar = npBufferToDoubleArray(res_bar_buffer);
+       .def(
+           "vectorJacobianProduct",
+           [](AbstractSolver2 &self,
+              const py::array_t<double> &res_bar_buffer,
+              const std::string &wrt,
+              const py::array_t<double> &wrt_bar_buffer)
+           {
+              auto res_bar = npBufferToMFEMVector(res_bar_buffer);
+              auto wrt_bar = npBufferToMFEMVector(wrt_bar_buffer);
 
-       // std::vector<pybind11::ssize_t> shape;
-       // auto *wrt_bar = npBufferToDoubleArray(wrt_bar_buffer, shape);
-       // if (shape[0] == 1)
-       // {
-       //    *wrt_bar += self.vectorJacobianProduct(res_bar, wrt);
-       // }
-       // else
-       // {
-       //    self.vectorJacobianProduct(res_bar, wrt, wrt_bar);
-       // }
-       //      },
-       //      py::arg("res_bar"),
-       //      py::arg("wrt"),
-       //      py::arg("wrt_bar"))
+              if (wrt_bar.Size() == 1)
+              {
+                 wrt_bar(0) += self.vectorJacobianProduct(res_bar, wrt);
+              }
+              else
+              {
+                 self.vectorJacobianProduct(res_bar, wrt, wrt_bar);
+              }
+           },
+           py::arg("res_bar"),
+           py::arg("wrt"),
+           py::arg("wrt_bar"))
 
        //  .def("calcL2Error",
        //       [](AbstractSolver &self,

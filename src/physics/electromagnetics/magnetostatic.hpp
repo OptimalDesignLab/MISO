@@ -21,7 +21,7 @@ class MagnetostaticSolver : public PDESolver
 public:
    MagnetostaticSolver(MPI_Comm comm,
                        const nlohmann::json &solver_options,
-                       std::unique_ptr<mfem::Mesh> smesh);
+                       std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
 private:
    /// Coefficient representing the potentially nonlinear magnetic reluctivity

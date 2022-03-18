@@ -128,6 +128,45 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
    }
 }
 
+void AbstractSolver2::solveForAdjoint(const MachInputs &inputs,
+                                      const mfem::Vector &state_bar,
+                                      mfem::Vector &adjoint)
+{
+   if (spatial_res)
+   {
+      setInputs(*spatial_res, inputs);
+   }
+
+   /// if solving an unsteady problem
+   if (ode)
+   {
+      throw MachException(
+          "AbstractSolver2::solveForAdjoint not implemented for unsteady "
+          "problems!\n");
+   }
+   else  /// steady problem
+   {
+      /// Create adjoint linear solver if we have not already
+      if (!adj_solver)
+      {
+         auto *prec = getPreconditioner(*spatial_res);
+         adj_solver = constructLinearSolver(comm, options["adj-solver"], prec);
+      }
+
+      auto &jac_trans = getJacobianTranspose(*spatial_res, inputs, "state");
+
+      adj_solver->SetOperator(jac_trans);
+      adj_solver->Mult(state_bar, adjoint);
+
+      /// log final state
+      for (auto &pair : loggers)
+      {
+         auto &logger = pair.first;
+         logState(logger, adjoint, "adjoint", 0, 0.0, rank);
+      }
+   }
+}
+
 void AbstractSolver2::calcResidual(const mfem::Vector &state,
                                    mfem::Vector &residual) const
 {
@@ -300,6 +339,54 @@ void AbstractSolver2::calcOutputPartial(const std::string &of,
    catch (const std::out_of_range &exception)
    {
       std::cerr << exception.what() << std::endl;
+   }
+}
+
+void AbstractSolver2::linearize(const MachInputs &inputs)
+{
+   /// if solving an unsteady problem
+   if (ode)
+   {
+      throw MachException(
+          "AbstractSolver2::vectorJacobianProduct not implemented for unsteady "
+          "problems!\n");
+   }
+   else  /// steady problem
+   {
+      mach::linearize(*spatial_res, inputs);
+   }
+}
+
+double AbstractSolver2::vectorJacobianProduct(const mfem::Vector &res_bar,
+                                              const std::string &wrt)
+{
+   /// if solving an unsteady problem
+   if (ode)
+   {
+      throw MachException(
+          "AbstractSolver2::vectorJacobianProduct not implemented for unsteady "
+          "problems!\n");
+   }
+   else  /// steady problem
+   {
+      return mach::vectorJacobianProduct(*spatial_res, res_bar, wrt);
+   }
+}
+
+void AbstractSolver2::vectorJacobianProduct(const mfem::Vector &res_bar,
+                                            const std::string &wrt,
+                                            mfem::Vector &wrt_bar)
+{
+   /// if solving an unsteady problem
+   if (ode)
+   {
+      throw MachException(
+          "AbstractSolver2::vectorJacobianProduct not implemented for unsteady "
+          "problems!\n");
+   }
+   else  /// steady problem
+   {
+      mach::vectorJacobianProduct(*spatial_res, res_bar, wrt, wrt_bar);
    }
 }
 

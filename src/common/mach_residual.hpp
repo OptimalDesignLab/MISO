@@ -10,6 +10,41 @@
 namespace mach
 {
 template <typename T>
+void linearize(T & /*unused*/, const MachInputs & /*unused*/)
+{
+   throw MachException(
+       "linearize not specialized for concrete residual type!\n");
+}
+
+template <typename T>
+mfem::Operator &getJacobianTranspose(T & /*unused*/,
+                                     const MachInputs & /*unused*/,
+                                     const std::string & /*unused*/)
+{
+   throw MachException(
+       "getJacobianTranspose not specialized for concrete residual type!\n");
+}
+
+template <typename T>
+double vectorJacobianProduct(T & /*unused*/,
+                             const mfem::Vector & /*unused*/,
+                             const std::string & /*unused*/)
+{
+   throw MachException(
+       "vectorJacobianProduct not specialized for concrete residual type!\n");
+}
+
+template <typename T>
+void vectorJacobianProduct(T &,
+                           const mfem::Vector & /*unused*/,
+                           const std::string & /*unused*/,
+                           mfem::Vector & /*unused*/)
+{
+   throw MachException(
+       "vectorJacobianProduct not specialized for concrete residual type!\n");
+}
+
+template <typename T>
 double calcEntropy(T & /*unused*/, const MachInputs & /*unused*/)
 {
    throw MachException(
@@ -77,15 +112,58 @@ public:
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
 
+   /// Cache inputs for the residual and internally store Jacobians
+   /// \param[inout] residual - the residual being evaluated
+   /// \param[in] inputs - the independent variables at which to evaluate `res`
+   friend void linearize(MachResidual &residual, const MachInputs &inputs);
+
    /// Compute the Jacobian of the given residual and return a reference to it
    /// \param[inout] residual - function whose Jacobian we want
    /// \param[in] inputs - the variables needed to evaluate the Jacobian
    /// \param[in] wrt - the input we are differentiating with respect to
-   /// \returns a reference to the residuals Jacobian with respect to `wrt`
+   /// \returns a reference to the residual's Jacobian with respect to `wrt`
    /// \note the underlying `Operator` is owned by `residual`
    friend mfem::Operator &getJacobian(MachResidual &residual,
                                       const MachInputs &inputs,
                                       const std::string &wrt);
+
+   /// Compute the transpose of the Jacobian of the given residual and return
+   /// a reference to it
+   /// \param[inout] residual - function whose Jacobian we want
+   /// \param[in] inputs - the variables needed to evaluate the Jacobian
+   /// \param[in] wrt - the input we are differentiating with respect to
+   /// \returns a reference to the residual's Jacobian with respect to `wrt`
+   /// transposed
+   /// \note the underlying `Operator` is owned by `residual`
+   friend mfem::Operator &getJacobianTranspose(MachResidual &residual,
+                                               const MachInputs &inputs,
+                                               const std::string &wrt);
+
+   /// Compute the residual's sensitivity to a scalar and contract it with
+   /// res_bar
+   /// \param[inout] residual - the residual whose sensitivity we want
+   /// \param[in] res_bar - the residual-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \return the assembled/contracted sensitivity
+   friend double vectorJacobianProduct(MachResidual &residual,
+                                       const mfem::Vector &res_bar,
+                                       const std::string &wrt);
+
+   /// Compute the residual's sensitivity to a vector and contract it with
+   /// res_bar
+   /// \param[inout] residual - the residual whose sensitivity we want
+   /// \param[in] res_bar - the residual-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \param[inout] wrt_bar - the assembled/contracted sensitivity is
+   /// accumulated into wrt_bar
+   friend void vectorJacobianProduct(MachResidual &residual,
+                                     const mfem::Vector &res_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    /// Evaluate the entropy functional at the given state
    /// \param[inout] residual - function with an associated entropy
@@ -144,8 +222,16 @@ private:
       virtual void setInputs_(const MachInputs &inputs) = 0;
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual void eval_(const MachInputs &inputs, mfem::Vector &res_vec) = 0;
+      virtual void linearize_(const MachInputs &inputs) = 0;
       virtual mfem::Operator &getJac_(const MachInputs &inputs,
                                       const std::string &wrt) = 0;
+      virtual mfem::Operator &getJacT_(const MachInputs &inputs,
+                                       const std::string &wrt) = 0;
+      virtual double vectorJacobianProduct_(const mfem::Vector &res_bar,
+                                            const std::string &wrt) = 0;
+      virtual void vectorJacobianProduct_(const mfem::Vector &res_bar,
+                                          const std::string &wrt,
+                                          mfem::Vector &wrt_bar) = 0;
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
       virtual mfem::Solver *getPrec_() = 0;
@@ -171,10 +257,30 @@ private:
       {
          evaluate(data_, inputs, res_vec);
       }
+      void linearize_(const MachInputs &inputs) override
+      {
+         linearize(data_, inputs);
+      }
       mfem::Operator &getJac_(const MachInputs &inputs,
                               const std::string &wrt) override
       {
          return getJacobian(data_, inputs, wrt);
+      }
+      mfem::Operator &getJacT_(const MachInputs &inputs,
+                               const std::string &wrt) override
+      {
+         return getJacobianTranspose(data_, inputs, wrt);
+      }
+      double vectorJacobianProduct_(const mfem::Vector &res_bar,
+                                    const std::string &wrt) override
+      {
+         return vectorJacobianProduct(data_, res_bar, wrt);
+      }
+      void vectorJacobianProduct_(const mfem::Vector &res_bar,
+                                  const std::string &wrt,
+                                  mfem::Vector &wrt_bar) override
+      {
+         vectorJacobianProduct(data_, res_bar, wrt, wrt_bar);
       }
       double calcEntropy_(const MachInputs &inputs) override
       {
@@ -235,6 +341,11 @@ inline void evaluate(MachResidual &residual,
    residual.self_->eval_(inputs, res_vec);
 }
 
+inline void linearize(MachResidual &residual, const MachInputs &inputs)
+{
+   residual.self_->linearize_(inputs);
+}
+
 inline mfem::Operator &getJacobian(MachResidual &residual,
                                    const MachInputs &inputs,
                                    const std::string &wrt)
@@ -242,6 +353,30 @@ inline mfem::Operator &getJacobian(MachResidual &residual,
    // passes `inputs` and `res_vec` on to the `getJacobian` function for the
    // concrete residual type
    return residual.self_->getJac_(inputs, wrt);
+}
+
+inline mfem::Operator &getJacobianTranspose(MachResidual &residual,
+                                            const MachInputs &inputs,
+                                            const std::string &wrt)
+{
+   // passes `inputs` and `res_vec` on to the `getJacobianTranspose` function
+   // for the concrete residual type
+   return residual.self_->getJacT_(inputs, wrt);
+}
+
+inline double vectorJacobianProduct(MachResidual &residual,
+                                    const mfem::Vector &res_bar,
+                                    const std::string &wrt)
+{
+   return residual.self_->vectorJacobianProduct_(res_bar, wrt);
+}
+
+inline void vectorJacobianProduct(MachResidual &residual,
+                                  const mfem::Vector &res_bar,
+                                  const std::string &wrt,
+                                  mfem::Vector &wrt_bar)
+{
+   residual.self_->vectorJacobianProduct_(res_bar, wrt, wrt_bar);
 }
 
 inline double calcEntropy(MachResidual &residual, const MachInputs &inputs)
