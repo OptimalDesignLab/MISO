@@ -22,23 +22,28 @@ public:
    void Mult(mfem::Vector &x, mfem::Vector &opt);
 
 protected:
+   int numvar;
+
    /// the hessian inverse approximation
    mfem::DenseMatrix B;
    mfem::Vector jac;
    mfem::Vector jac_new;
    const mfem::Operator *oper; 
-   int numvar;
+
+   /// BFGS newton method variable
+   double rel_tol,abs_tol;
    bool converged;
-   /// member vector saves the new x position.
+   double final_norm;
+   int print_level, final_iter, max_iter;
    mutable mfem::Vector c;
+
+   ///
+
+
    /// Parameters for inexact newton method.
    double theta, eta, eta_max, t;
-   int max_iter;
    const double theta_min = 0.1;
    const double theta_max = 0.5;
-   double rel_tol,abs_tol;
-   int print_level,final_iter;
-   double final_norm;
 private:
    /// Back tracking globalization
    /// \param[in] x - current solution
