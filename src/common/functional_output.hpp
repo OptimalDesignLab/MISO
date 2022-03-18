@@ -117,7 +117,7 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddDomainIntegrator(integrator);
-   mach::addSensitivityIntegrator(
+   addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
@@ -132,7 +132,7 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
    auto &marker = domain_markers.emplace_back(mesh_attr_size);
    attrVecToArray(attr_marker, marker);
    output.AddDomainIntegrator(integrator, marker);
-   mach::addSensitivityIntegrator(
+   addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
@@ -141,7 +141,7 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddInteriorFaceIntegrator(integrator);
-   mach::addSensitivityIntegrator(
+   addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
@@ -150,7 +150,7 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddBdrFaceIntegrator(integrator);
-   mach::addSensitivityIntegrator(
+   addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
@@ -166,7 +166,7 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
    auto &marker = bdr_markers.emplace_back(mesh_attr_size);
    attrVecToArray(bdr_attr_marker, marker);
    output.AddBdrFaceIntegrator(integrator, marker);
-   mach::addSensitivityIntegrator(
+   addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 

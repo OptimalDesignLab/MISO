@@ -127,7 +127,7 @@ void MachLinearForm::addDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddDomainIntegrator(integrator);
-   mach::addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
 }
 
 template <typename T>
@@ -135,7 +135,7 @@ void MachLinearForm::addBoundaryIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddBoundaryIntegrator(integrator);
-   mach::addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
 }
 
 template <typename T>
@@ -145,7 +145,7 @@ void MachLinearForm::addBoundaryIntegrator(T *integrator,
    integs.emplace_back(*integrator);
    bdr_marker.emplace_back(bdr_attr_marker);
    lf.AddBoundaryIntegrator(integrator, bdr_marker.back());
-   mach::addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
 }
 
 template <typename T>
@@ -153,7 +153,7 @@ void MachLinearForm::addBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddBdrFaceIntegrator(integrator);
-   mach::addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
 }
 
 template <typename T>
@@ -163,7 +163,7 @@ void MachLinearForm::addBdrFaceIntegrator(T *integrator,
    integs.emplace_back(*integrator);
    bdr_marker.emplace_back(bdr_attr_marker);
    lf.AddBdrFaceIntegrator(integrator, bdr_marker.back());
-   mach::addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
 }
 
 }  // namespace mach
