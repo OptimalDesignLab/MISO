@@ -15,22 +15,19 @@ BFGSNewtonSolver::BFGSNewtonSolver(double eta_i, double eta_m,double scale,
    max_iter = max;
 }
 
-void BFGSNewton::SetOperator(const Operator &op)
+void BFGSNewtonSolver::SetOperator(const Operator &op)
 {
    oper = &op;
-   height = op.Height();
-   width = op.Width();
-   c.SetSize(width);
-   x_new.SetSize(width);
 }
 
-double BFGSNewton::Mult(mfem::Vector &x, mfem::Vector &opt)
+void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
 {
    MFEM_ASSERT(oper != NULL, "the Operator is not set (use SetOperator).");
 
    std::cout << "Beginning of BFGS Newton..." << '\n';
-   int numvar = x.Size();
-   x_new.SetSize(numvar);
+   numvar = x.Size();
+   opt.SetSize(numvar);
+   c.SetSize(numvar);
    // initialize the hessian inverse as the identity matrix
    DenseMatrix ident(numvar);
    DenseMatrix s(numvar,1);
@@ -47,7 +44,7 @@ double BFGSNewton::Mult(mfem::Vector &x, mfem::Vector &opt)
    int it;
    double norm0, norm, norm_goal;
 
-   norm0 = norm = oper->GetEnergy(x);
+   norm0 = norm = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x);
    norm_goal = std::max(rel_tol*norm, abs_tol);
 
    // initialize the jacobian
@@ -84,7 +81,7 @@ double BFGSNewton::Mult(mfem::Vector &x, mfem::Vector &opt)
       // compute c = B * deriv
       B.Mult(jac, c);
       // compute step size
-      double c_scale = ComputeStepSize(x, b, norm);
+      double c_scale = ComputeStepSize(x,norm);
       if (c_scale == 0.0)
       {
          converged = 0;
@@ -93,126 +90,64 @@ double BFGSNewton::Mult(mfem::Vector &x, mfem::Vector &opt)
       c *= (-c_scale);
       // update the state
       x += c;
+
       // update objective new value and derivative
-      norm = oper->GetEnergy(x);
-
+      norm = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x);
       oper->Mult(x,jac_new);
-      // update s,y matrix
-      for (int i = 0; i < numvar; i++)
-      {
-         s(i,0) = c(i);
-      }
-      y = *(dynamic_cast<DenseMatrix *>(grad_new));
-      y -= *(dynamic_cast<DenseMatrix *>(grad));
-      // update the derivative
-      grad = grad_new;
-      
-      // update hessian and grad;
-      UpdateHessianInverse(ident,s,y);
-   }
 
+      // update hessian
+      UpdateHessianInverse(c,jac,jac_new,ident,B);
+
+      // update jac
+      jac = jac_new;
+   }
+   opt = x;
    final_iter = it;
    final_norm = norm;
 }
 
 
-double BFGSNewton::ComputeStepSize (const Vector &x, const Vector &b,
-                                       const double norm)
+double BFGSNewtonSolver::ComputeStepSize (const Vector &x, const double norm)
 {
-   double s = 1.0;
-   // p0, p1, and p0p are used for quadratic interpolation p(s) in [0,1].
-   // p0 is the value of p(0), p0p is the derivative p'(0), and 
-   // p1 is the value of p(1). */
-   double p0, p1, p0p;
-   // A temporary vector for calculating p0p.
-   Vector temp(r.Size());
-
-   p0 = 0.5 * norm * norm;
-   // temp=F'(x_i)*r(x_i)
-   jac->Mult(r,temp);
-   // c is the negative inexact newton step size.
-   p0p = -Dot(c,temp);
-   //Calculate the new norm.
-
-   add(x,-1.0,c,x_new);
-   oper->Mult(x_new,r);
-   const bool have_b = (b.Size()==Height());
-   if (have_b)
-   {
-      r -= b;
-   }
-   double err_new = Norm(r);
-
-   // Globalization start from here.
-   int itt=0;
-   while (err_new > (1 - t * (1 - theta) ) * norm)
-   {
-      p1 = 0.5*err_new*err_new;
-      // Quadratic interpolation between [0,1]
-      theta = quadInterp(0.0, p0, p0p, 1.0, p1);
-      theta = (theta > theta_min) ? theta : theta_min;
-      theta = (theta < theta_max) ? theta : theta_max;
-      // set the new trial step size. 
-      s *= theta;
-      // update eta
-      eta = 1 - theta * (1- eta);
-      eta = (eta < eta_max) ? eta : eta_max;
-      // re-evaluate the error norm at new x.
-      add(x,-s,c,x_new);
-      oper->Mult(x_new, r);
-      if (have_b)
-      {
-         r-=b;
-      }
-      err_new = Norm(r);
-
-      // Check the iteration counts.
-      itt ++;
-      if (itt > max_iter)
-      {
-         mfem::mfem_error("Fail to globalize: Exceed maximum iterations.\n");
-         break;
-      }
-   }
-   if (print_level>=0)
-   {
-      mfem::out << " Globalization factors: theta= "<< s 
-            << ", eta= " << eta <<'\n';
-   }
-   return s;
+   return 1.0;
 }
 
-void BFGSNewton::UpdateHessianInverse(const mfem::DenseMatrix &ident,
-                                      const mfem::DenseMatrix &s,
-                                      const mfem::DenseMatrix &y)
+void BFGSNewtonSolver::UpdateHessianInverse(const Vector &s, const Vector &jac,
+                                      const Vector &jac_new,const DenseMatrix &I,
+                                      DenseMatrix &H)
 {
-   int s = Width();
+   Vector y(jac_new);
+   y -= jac;
 
-   DenseMatrix temp1(1);
-   MultAtB(y,s,temp1);
-   double rho = temp1(0,0);
+   double rho = 1./(y * s);
+   
+   DenseMatrix s_mat(numvar,1);
+   s_mat.SetCol(0,s);
 
-   DenseMatrix temp2(s);
-   MultABt(s,y,temp2);
-   temp2 *= rho;
-   temp2.Neg();
-   temp2 += ident; // (I - rho * s * y')
+   DenseMatrix y_mat(numvar,1);
+   y_mat.SetCol(0,y);
 
-   DenseMatrix temp3(s);
-   MultABt(y,s,temp3);
-   temp3 *= rho;
-   temp3.Neg();
-   temp3 += ident; // (I - rho * y * s')
+   DenseMatrix sy_mat(numvar);
+   DenseMatrix ys_mat(numvar);
+   DenseMatrix ss_mat(numvar);
 
-   DenseMatrix temp4(s);
-   Mult(temp2,B,temp4); //  X = (I - rho * s * y') * B
-   Mult(temp4,temp3,B) // Y = X * (I - rho * y' * s)
+   ::MultABt(s_mat,y_mat,sy_mat);
+   ::MultABt(y_mat,s_mat,ys_mat);
+   ::MultABt(s_mat,s_mat,ss_mat);
 
-   DenseMatrix temp6(s);
-   MultABt(s,s,temp6);
-   temp6 *= rho;
+   sy_mat *= (-rho);
+   ys_mat *= (-rho);
+   ss_mat *= rho;
 
-   B -= temp6;
+   sy_mat += I;
+   ys_mat += I;
+
+   DenseMatrix syh(numvar);
+
+   ::Mult(sy_mat,H,syh);
+   ::Mult(syh,ys_mat,H);
+
+   H += ss_mat;
 }
 
 

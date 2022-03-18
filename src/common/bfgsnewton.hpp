@@ -12,8 +12,8 @@ namespace mfem
 class BFGSNewtonSolver
 {
 public:
-   BFGSNewton(double eta_init = 1e-4, double eta_maximum = 1e-1,
-              double ared_scale = 1e-4, int max);
+   BFGSNewtonSolver(double eta_init = 1e-4, double eta_maximum = 1e-1,
+              double ared_scale = 1e-4, int max = 30);
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`
@@ -26,15 +26,19 @@ protected:
    mfem::DenseMatrix B;
    mfem::Vector jac;
    mfem::Vector jac_new;
-   mfem::Operator *oper; 
-
+   const mfem::Operator *oper; 
+   int numvar;
+   bool converged;
    /// member vector saves the new x position.
-   mutable mfem::Vector x_new;
+   mutable mfem::Vector c;
    /// Parameters for inexact newton method.
    double theta, eta, eta_max, t;
    int max_iter;
    const double theta_min = 0.1;
    const double theta_max = 0.5;
+   double rel_tol,abs_tol;
+   int print_level,final_iter;
+   double final_norm;
 private:
    /// Back tracking globalization
    /// \param[in] x - current solution
@@ -44,11 +48,10 @@ private:
    /// \warning `prec` must be 
    /// \note See Pawlowski et al., doi:10.1137/S0036144504443511 for details
    /// regarding the line search method and its parameters.
-   double ComputeStepSize(const mfem::Vector &x, const mfem::Vector &b, 
-                        const double norm);
-   void UpdateHessianInverse(const mfem::DenseMatrix &ident,
-                             const mfem::DenseMatrix &s,
-                             const mfem::DenseMatrix &y);
+   double ComputeStepSize(const mfem::Vector &x, const double norm);
+   void UpdateHessianInverse(const mfem::Vector &c,
+                             const mfem::Vector &jac, const mfem::Vector &jac_new,
+                             const mfem::DenseMatrix &I, mfem::DenseMatrix &H);
 };
 
 } // end of name space mfem
