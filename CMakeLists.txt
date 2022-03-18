@@ -97,8 +97,8 @@ if(NOT json_POPULATED)
   add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR})
 endif()
 
-# create build target library named mach, will be static library
-add_library(mach STATIC "")
+# create build target library named mach
+add_library(mach "")
 
 # add_public_headers_to_target(mach "mach.hpp")
 
