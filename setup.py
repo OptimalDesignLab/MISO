@@ -27,7 +27,7 @@ setup(name='mach',
           'mach': ['*.so']
       },
       install_requires=[
-            'mpi4py>=3.0.2',
+            'mpi4py>=3.1.3',
       ],
       classifiers=[
         "Programming Language :: Python, C++"]

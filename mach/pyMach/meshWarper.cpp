@@ -82,9 +82,7 @@ void initMeshWarper(py::module &m)
             py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
        .def(py::init(
                 [](const nlohmann::json &json_options, mpi_comm comm)
-                {
-                   return std::make_unique<MeshWarper>(comm, json_options);
-                }),
+                { return std::make_unique<MeshWarper>(comm, json_options); }),
             py::arg("json_options"),
             py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
 

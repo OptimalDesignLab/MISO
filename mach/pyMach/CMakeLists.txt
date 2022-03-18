@@ -6,7 +6,7 @@ target_sources(pyMach
       "vector.cpp"
       "mesh.cpp"
       "meshWarper.cpp"
-      "mpi4py_comm.hpp"
+      "mpi_comm.hpp"
       "pybind11_json.hpp"
 )
 

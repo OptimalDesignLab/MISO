@@ -85,7 +85,7 @@ void initMesh(py::module &m)
                   double sy,
                   double sz,
                   mpi_comm comm)
-                {
+               {
                   auto mesh = Mesh::MakeCartesian3D(
                       nx, ny, nz, Element::TETRAHEDRON, sx, sy, sz, true);
 
@@ -108,7 +108,7 @@ void initMesh(py::module &m)
                [](const std::string &model_file,
                   const std::string &mesh_file,
                   mpi_comm comm)
-                {
+               {
    // PCU_Comm_Init();
 
 #ifdef MFEM_USE_SIMMETRIX

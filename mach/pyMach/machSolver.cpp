@@ -186,9 +186,7 @@ void initSolver(py::module &m)
             py::arg("opt_file_name"),
             py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
        .def(py::init([](const nlohmann::json &json_options, mpi_comm comm)
-                {
-                   return initSolver(json_options, comm);
-                 }),
+                     { return initSolver(json_options, comm); }),
             py::arg("json_options"),
             py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
 
