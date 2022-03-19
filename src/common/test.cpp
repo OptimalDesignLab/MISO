@@ -126,3 +126,188 @@ double StrongWolfe::FindStepLength() {
        << "maximum number of iterations exceeded" << endl;
   throw(-1);
 }
+
+
+// ==============================================================================
+double StrongWolfe::Zoom(double & alpha_low, double & alpha_hi, 
+                         double & phi_low, double & phi_hi,
+                         double & dphi_low, double & dphi_hi,
+                         bool & deriv_hi) {      
+  // limit the number of zooms
+  double phi_new, dphi_new, alpha_new;
+  for (int j = 0; j < max_iter_; j++) {
+    
+#ifdef VERBOSE_DEBUG
+    *out_ << "Zoom(): interval = [" << alpha_low << "," << alpha_hi << "]"
+          << ": [phi(alpha_low), phi(alpha_hi)] = ["
+          << phi_low << "," << phi_hi << "]" << endl;
+#endif
+        
+    // use interpolation to get new step, then find the new function value    
+    double alpha_new = InterpStep(alpha_low, alpha_hi, phi_low, phi_hi, 
+                                  dphi_low, dphi_hi, deriv_hi, *out_);
+    phi_new = merit_->EvalFunc(alpha_new);
+        
+    // check if phi_new violates the sufficient decrease condition, or if
+    // phi_new > phi_low; if so, this step gives the new alpha_hi value
+    if ( (phi_new > phi_init_ + suff_*alpha_new*dphi_init_) || 
+         (phi_new > phi_low) ) {
+      alpha_hi = alpha_new;
+      phi_hi = phi_new;
+      dphi_hi = 0;
+      deriv_hi = false; // we no longer know the derivative at alpha_hi
+
+    } else {
+      // the sufficent decrease is satisfied, and phi_new < phi_low
+    
+      // evaluate dphi at the new step
+      dphi_new = merit_->EvalGrad(alpha_new);
+
+      if (fabs(dphi_new) <= -curv_*dphi_init_) {
+        // curvature condition has been satisfied, so stop
+        return alpha_new;
+        
+      } else if ( dphi_new*(alpha_hi - alpha_low) >= 0 ) {
+        // in this case, alpha_low and alpha_new bracket a minimum
+        alpha_hi = alpha_low;
+        phi_hi = phi_low;
+        dphi_hi = dphi_low;
+        deriv_hi = true; // we now know the derivative at alpha_hi
+      }
+
+      // the new low step is alpha_new
+      alpha_low = alpha_new;
+      phi_low = phi_new;
+      dphi_low = dphi_new;
+    }
+  } // j < max_iter_
+    
+  if (phi_new < phi_init_ + suff_*alpha_new*dphi_init_) {
+    *out_ << "WARNING in Zoom(): "
+          << "step found, but curvature condition not met" << endl;
+    return alpha_new;
+    //f_new = phi_new;
+  }
+
+  cerr << "Zoom(): maximum number of iterations exceeded" << endl;
+  throw(-1);
+}
+
+
+double InterpStep(const double & alpha_low, const double & alpha_hi,
+                  const double & f_low, const double & f_hi,
+                  const double & df_low, const double & df_hi,
+                  const bool & deriv_hi, ostream& out) {
+
+  //return 0.5*(alpha_low + alpha_hi);
+  return QuadraticStep(alpha_low, alpha_hi, f_low, f_hi, df_low, out);
+
+  if (!deriv_hi) {
+    // use quadratic interpolation
+#ifdef VERBOSE_DEBUG
+    out << "InterpStep: no derivative at alpha_hi." << endl;
+#endif
+    return QuadraticStep(alpha_low, alpha_hi, f_low, f_hi, df_low);
+  }
+
+  // the derivative is available at alpha_hi, so try the cubic
+  // interpolation
+  double dalpha = alpha_hi - alpha_low;
+  double a = 6.0*(f_low - f_hi) + 3.0*(df_low + df_hi)*dalpha;
+  double b = 6.0*(f_hi - f_low) - 2.0*(2.0*df_low + df_hi)*dalpha;
+  double c = df_low*dalpha;
+  
+  // check the discriminant; if negative resort to quadratic fit
+  double disc = pow(b, 2.0) - 4.0*a*c;
+  if (disc < 0) {
+    cerr << "InterpStep: discriminant is negative?" << endl;
+    throw(-1);
+    return QuadraticStep(alpha_low, alpha_hi, f_low, f_hi, df_low);
+  }
+
+  // if the denominator is too small resort to quadratic fitting
+  if (fabs(a) < 1.e-10) 
+    return QuadraticStep(alpha_low, alpha_hi, f_low, f_hi, df_low);
+
+  // calculate the two extrenum 
+  double x1 = (-b + sqrt(disc))/(2.0*a);
+  double x2 = (-b - sqrt(disc))/(2.0*a);
+  x1 = alpha_low + x1*(alpha_hi - alpha_low);
+  x2 = alpha_low + x2*(alpha_hi - alpha_low);
+  
+  // get range of steps
+  double min_alpha = std::min(alpha_hi, alpha_low);
+  double max_alpha = std::max(alpha_hi, alpha_low);
+  double step;
+
+  if ( (x1 >= min_alpha) && (x1 <= max_alpha) ) {
+    // x1 is in the alpha range
+    
+    if ( (x2 >= min_alpha) && (x2 <= max_alpha) ) {
+      cerr << "InterpStep: found x2 in range?" << endl;
+      throw(-1);
+      // if both x1 and x2 are in the appropriate range, take the one
+      // closer to alpha_low
+      if (fabs(x1 - alpha_low) < fabs(x2 - alpha_low))
+         step = x1;
+      else {
+        //step = x2;
+      }
+      
+    } else {
+      // x1 is in the range, but x2 is not
+      step = x1;
+    }
+  } else if ( (x2 >= min_alpha) && (x2 <= max_alpha) ) {
+    // x2 is in the range, but x1 is not
+    cerr << "InterpStep: found x2 in range?" << endl;
+    throw(-1);
+    //return x2;
+  } else {
+    // neither x1 nor x2 are in the range, so resort to quadratic fitting
+    cerr << "InterpStep: x1 is not in range?" << endl;
+    throw(-1);
+    //return QuadraticStep(alpha_low, alpha_hi, f_low, f_hi, df_low);
+  }
+#if 0
+  if (fabs(step - min_alpha) < 1.e-4*fabs(max_alpha - min_alpha)) {
+    // safe-guard against very small steps
+    step 0.5*(alpha_low + alpha_hi);
+  }
+#endif
+  return step;
+}
+
+
+double QuadraticStep(const double & alpha_low, const double & alpha_hi,
+                     const double & f_low, const double & f_hi,
+                     const double & df_low, ostream& out) {
+  double dalpha = alpha_hi - alpha_low;
+  double step = alpha_low - 0.5*df_low*dalpha*dalpha /
+      (f_hi - f_low - df_low*dalpha);
+
+  double min_alpha = std::min(alpha_hi, alpha_low);
+  double max_alpha = std::max(alpha_hi, alpha_low);
+  if ( (step < min_alpha) || (step > max_alpha) ) {
+    cerr << "QuadraticStep(): step = " << step 
+         << " out of interval = [" 
+         << min_alpha << "," << max_alpha << "]" << endl;
+    cerr << "alpha_low = " << alpha_low << endl;
+    cerr << "alpha_hi  = " << alpha_hi << endl;
+    cerr << "f_low     = " << f_low << endl;
+    cerr << "f_hi      = " << f_hi << endl;
+    cerr << "df_low    = " << df_low << endl;
+    cerr << "check Zoom for bugs"
+         << endl;
+    throw(-1);
+  }
+  //return step; // turn off safe-guard for INK?
+  // safe-guard against small steps
+  if ( (step - min_alpha) < 1.e-2*(max_alpha - min_alpha) ) {
+    step = 0.5*(alpha_low + alpha_hi);
+#ifdef VERBOSE_DEBUG
+    out << "QuadraticStep: invoking safeguard" << endl;
+#endif
+  }
+  return step;
+}

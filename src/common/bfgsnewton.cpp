@@ -27,7 +27,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    std::cout << "Beginning of BFGS Newton..." << '\n';
    numvar = x.Size();
    opt.SetSize(numvar);
-   c.SetSize(numvar);
+   Vector c(numvar);
    // initialize the hessian inverse as the identity matrix
    DenseMatrix ident(numvar);
    DenseMatrix s(numvar,1);
@@ -78,21 +78,21 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
          break;
       }
 
-      // compute c = B * deriv
-      B.Mult(jac, c);
+      // compute the direction c = B * (-deriv) 
+      B.Mult(-jac, c);
       // compute step size
-      double c_scale = ComputeStepSize(x,norm);
+      double c_scale = ComputeStepSize(x,c,norm);
       if (c_scale == 0.0)
       {
          converged = 0;
          break;
       }
-      c *= (-c_scale);
+      c *= c_scale;
       // update the state
       x += c;
 
       // update objective new value and derivative
-      norm = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x);
+      norm = oper->GetEnergy(x);
       oper->Mult(x,jac_new);
 
       // update hessian
@@ -107,19 +107,33 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
 }
 
 
-double BFGSNewtonSolver::ComputeStepSize (const Vector &x, const double norm0)
+double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
+                                          const double norm0)
 {
-   double phi_old = norm0;
-   double dphi_init = jac * c; // deriv' * c
+   Vector jac_aux(x.Size());
+   double phi_init = norm0;
+   double dphi_init = jac*c; // should be negative
+   MFEM_ASSERT(dphi_ini < 0.0,
+               "BFGS Newton::ComputeStepSize(): wrong searching direction.\n");
+
+   double phi_old = phi_init;
+   double dphi_old = dphi_init;
 
    double alpha_new;
    double phi_new;
    double quad_coeff;
+   bool deriv_hi = false;
    for (int iter = 0; true; iter++)
    {
 
       // choose new alpha parameter
       if (0 == iter) { alpha_new = alpha_init; }
+      if (max_iter < iter) 
+      {
+         break;
+      }
+
+      // choose tentative step size
       if (quad_coeff > 0.0)
       {
          alpha_new = alpha_old - 0.5 * dphi_old/quad_coeff;
@@ -133,18 +147,52 @@ double BFGSNewtonSolver::ComputeStepSize (const Vector &x, const double norm0)
          alpha_new = std::min(2.0*alpha_old,alpha_max);
       }
 
-
-      phi_new = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x+alpha*c);
+      // evalueate the new function value
+      phi_new = oper->GetEnergy(x+alpha_new*c);
 
       // check if the step violates the sdc,
       // or when i > 0, new phi is greater than the old, then zoom
-      if (  (phi_new > phi_init+suff*alpha_new*dphi_new) || ((i > 0) && (phi_new >= phi_old)) )
+      if ( (phi_new > phi_init+c1*alpha_new*dphi_init) || 
+           ((i > 0) && (phi_new >= phi_old)) )
       {
-         
+         dphi_new = 0.0;
+         deriv_hi = false;
+         return zoom(alpha_old,alpha_new,phi_old,phi_new,
+                     dphi_old,dphi_new,deriv_hi,x,c);
       }
-   
+
+
+      // get new gradient
+      oper->Mult(x+alpha_new*c,jac_aux);
+      dphi_new = c * jac_aux;
+
+      // if curvature condition is satisfied
+      if (fabs(dphi_new) <= -c2*dphi_init)
+      {
+         if (c2 > 1e-6) { return alpha_new; }
+
+         // if curvature condition is small, i.e. a critical point is requied
+         // check for local maximum or inflection, this is not often
+      }
+
+
+      // curvature condition is not satisfied,
+      // and phi_new < phi_old
+      if (dphi_new >= 0)
+      {
+         deriv_hi = true;
+         return Zoom(alpha_new,alpha_old,phi_new,phi_old,
+                     dphi_new,dphi_old,deriv_hi,x,c);
+      }
+
+      // update variables
+      quad_coeff = alpha_new - alpha_old;
+      quad_coeff = ( (phi_new - phi_old) - dphi_new*quad_coeff) / (quad_coeff*quad_coeff);
+      alpha_old = alpha_new;
+      phi_old = phi_new;
+      dphi_old = dphi_new;   
    } // end of iteration
-   return 1.0;
+   throw MachException("fail to meet the strong wolfe condition.\n");
 }
 
 void BFGSNewtonSolver::UpdateHessianInverse(const Vector &s, const Vector &jac,
@@ -184,6 +232,139 @@ void BFGSNewtonSolver::UpdateHessianInverse(const Vector &s, const Vector &jac,
 
    H += ss_mat;
 }
+
+double BFGSNewtonSolver::Zoom(double alpha_low, double alpha_hi,
+                              double phi_low, double phi_hi,
+                              double dphi_low,double dphi_hi,
+                              bool deriv_hi, const Vector &x,
+                              const Vector &c)
+{
+   Vector jac_aux(x.Size());
+   double phi_new, dphi_new, alpha_new;
+   for (int j = 0; j < max_iter; j++)
+   {
+      alpha_new = InterpStep(alpha_low,alpha_hi,phi_low,phi_hi,
+                             dphi_low,dphi_hi,deriv_hi);
+      phi_new = oper->GetEnergy(x+alpha_new*c);
+      
+      // if the new location violates the SDC
+      if ( (phi_new > phi_init+c1*alpha_new*dphi_init) || 
+           (phi_new > phi_low) )
+      {
+         alpha_hi = alpha_new;
+         phi_hi = phi_new;
+         dphi_hi = 0.0;
+         deriv_hi = false;
+      }
+      // SDC is satisfied
+      else
+      {
+         oper->Mult(x+alpha_new*c,jac_aux);
+         dphi_new = c * jac_aux;
+
+         // curvature condition is satisfied
+         if (fabs(dphi_new) <= -c2*dphi_init)
+         {
+            return alpha_new;
+         }
+         // minimum locates within [alpha_low, alpha_hi]
+         else if( dphi_new * (alpha_hi - alpha_low) >= 0.)
+         {
+            alpha_hi = alpha_low;
+            phi_hi = phi_low;
+            dphi_hi = dphi_low;
+            deriv_hi = true;
+         }
+
+         // new low position is alpha_new
+         alpha_low = alpha_new;
+         phi_low = phi_new;
+         dphi_low = dphi_new;
+      }
+   } // iteration j
+
+   if (phi_new < phi_init+c1*alpha_new*dphi_init)
+   {
+      cout << "WARNING in Zoom(): "
+           << "step found, but curvature condition not met" << '\n';
+      return alpha_new;
+   }
+}
+
+double BFGSNewtonSolver::InterpStep(const double & alpha_low, const double & alpha_hi,
+                                    const double & f_low, const double & f_hi,
+                                    const double & df_low, const double & df_hi,
+                                    const bool & deriv_hi)
+{
+   // 0.5 * (alpha_low + alpha_hi)
+   return QuadraticStep();
+   if (!deriv_hi) { return QuadraticStep(); }
+
+   // derivative availabe at alphi_hi, try cubic interpolation
+   double dalpha = alpha_hi - alpha_low;
+   double a = 6.0 * (f_low - f_hi) + 3.0 * (df_low + df_hi) *dalpha;
+   double b = 6.0 * (f_hi - f_low) - 2.0 * (2.0 * df_low +df_hi) * dalpha;
+   double c = df_low * dalpha;
+
+   // check the discriminant; if negative, resort to quadratic fit
+   double det = pow(b,2.0) - 4.0*a*c;
+   if (det < 0.0) { return QuadraticStep(); }
+
+   // if the 3rd order is small, then do quadratic
+   if (fabs(a) < 1e-10) { return QuadraticStep(); }
+
+   //calculate the two extre num
+   double x1 = (-b + sqrt(det))/(2.0*a);
+   double x2 = (-b - sqrt(det))/(2.0*a);
+   x1 = alpha_low + x1 * (alpha_hi - alpha_low);
+   x2 = alpha_low + x2 * (alpha_hi - alpha_low);
+
+   // get steps' range
+   double min_alpha = std::min(alpha_hi, alpha_low);
+   double max_alpha = std::max(alpha_hi, alpha_low);
+   double step;
+
+
+   bool x1_inrange = (x1 >= min_alpha) && (x1 <= max_alpha);
+   bool x2_inrange = (x2 >= min_alpha) && (x2 <= max_alpha);
+
+   // alpha_min <= x1 <= alpha_max
+   if ( x1_inrange )
+   {  
+      // also alpha_min <= x2 <= alpha_max
+      if ( x2_inrange )
+      {
+         // pick the closer one
+         step = (fabs(x1 - alpha_low) < fabs(x2 - alpha_low)) ? x1 : x2;
+      }
+      // only x1 in range
+      else
+      {
+         step = x1;
+      }
+   }
+   // only alpha_min <= x2 <= alpha_max, but x1 not
+   else if ( x2_inrange )
+   {
+
+   }
+   // nor x1 or x1 in range
+   else
+   {
+
+   }
+   return step;
+}
+
+
+double BFGSNewtonSolver::QuadraticStep(const double alpha_low, const double alpha_hi
+                                       const double f_low, const double f_hi,
+                                       const double df_low)
+{
+   
+   return step;
+}
+
 
 
 } // end of namespace mfem

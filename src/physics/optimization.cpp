@@ -135,11 +135,6 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 
 void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 {
-	fes_dgd->buildProlongationMatrix(x);
-	Vector b(numBasis);
-	newton_solver->Mult(b,*u_dgd);
-	fes_dgd->GetCP()->Mult(*u_dgd,*u_full);
-
 	// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
 	y.SetSize(numDesignVar); // set y as pJpc
 	Vector pJpuc(ROMSize);
@@ -332,6 +327,9 @@ void DGDOptimizer::addInterfaceIntegrators(double alpha)
 
 void DGDOptimizer::checkJacobian(Vector &x)
 {
+	Vector b(numBasis);
+	newton_solver->Mult(b,*u_dgd);
+	SparseMatrix *prolong = fes_dgd->GetCP();
 	// get analytic jacobian
 	Vector dJdc_analytic;
 	Mult(x,dJdc_analytic);
