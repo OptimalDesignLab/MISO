@@ -14,6 +14,8 @@ target_sources(mach
       centgridfunc.hpp
       rbfgridfunc.cpp
       rbfgridfunc.hpp
+      bfgsnewton.hpp
+      bfgsnewton.cpp
 )
 
 target_include_directories(mach
