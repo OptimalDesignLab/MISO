@@ -17,7 +17,7 @@ public:
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`
-   void SetOperator(const mfem::NonlinearForm &op);
+   void SetOperator(const mfem::Operator &op);
 
    void Mult(mfem::Vector &x, mfem::Vector &opt);
 

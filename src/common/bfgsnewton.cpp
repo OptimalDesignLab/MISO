@@ -15,11 +15,12 @@ BFGSNewtonSolver::BFGSNewtonSolver(double a_init, double a_max, double cc1,
    alpha_max = a_max;
    c1 = cc1;
    c2 = cc2;
+   print_level = 1;
 }
 
-void BFGSNewtonSolver::SetOperator(const NonlinearForm &op)
+void BFGSNewtonSolver::SetOperator(const Operator &op)
 {
-   oper = &op;
+   oper = dynamic_cast<const NonlinearForm*>(&op);
 }
 
 void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
@@ -95,7 +96,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       x += c;
 
       // update objective new value and derivative
-      norm = oper->GetEnergy(x);
+      norm = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x);
       oper->Mult(x,jac_new);
 
       // update hessian
@@ -155,7 +156,7 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
    double phi_init = norm0;
    double dphi_init = jac*c; // should be negative
    MFEM_ASSERT(dphi_init < 0.0,
-               "BFGS Newton::ComputeStepSize(): wrong searching direction.\n");
+      "BFGS Newton::ComputeStepSize(): wrong searching direction.\n");
 
    double phi_old = phi_init;
    double dphi_old = dphi_init;
@@ -170,7 +171,7 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
    {
       // evalueate the new function value
       add(x,alpha_new,c,x_new);
-      phi_new = oper->GetEnergy(x_new);
+      phi_new = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x_new);
 
       // check if the step violates the sdc,
       // or when i > 0, new phi is greater than the old, then zoom
@@ -240,7 +241,7 @@ double BFGSNewtonSolver::Zoom(double alpha_low, double alpha_hi, double phi_low,
    {
       alpha_new = (alpha_low + alpha_hi) / 2.0;
       add(x,alpha_new,c,x_new);
-      phi_new = oper->GetEnergy(x_new);
+      phi_new = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x_new);
 
       // the SDC condition is not met
       if ( phi_new > phi_0 + c1 * alpha_new * dphi_0 || phi_new > phi_low )

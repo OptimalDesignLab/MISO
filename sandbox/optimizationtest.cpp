@@ -3,6 +3,7 @@
 #include "galer_diff.hpp"
 #include "rbfgridfunc.hpp"
 #include "optimization.hpp"
+#include "bfgsnewton.hpp"
 #include <random>
 #include <fstream>
 #include <iostream>
@@ -56,38 +57,45 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
+   try
+   {
+      // generate the mesh
+      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree + 1, nx, ny);
+      ofstream savevtk("optimizationtest.vtk");
+      smesh->PrintVTK(savevtk, 0);
+      savevtk.close();
+      std::cout << "Number of elements " << smesh->GetNE() << '\n';
+      int dim = smesh->Dimension();
+      int num_state = dim + 2;
 
-   // generate the mesh
-   unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree + 1, nx, ny);
-   ofstream savevtk("optimizationtest.vtk");
-   smesh->PrintVTK(savevtk, 0);
-   savevtk.close();
-   std::cout << "Number of elements " << smesh->GetNE() << '\n';
-   int dim = smesh->Dimension();
-   int num_state = dim + 2;
 
+      // initialize the basis center (design variables)
+      int numBasis = smesh->GetNE();
+      Vector center = buildBasisCenter(smesh.get(),numBasis);
 
-   // initialize the basis center (design variables)
-   int numBasis = smesh->GetNE();
-   Vector center = buildBasisCenter(smesh.get(),numBasis);
+      // initialize the optimization object
+      string optfile(options_file);
+      DGDOptimizer dgdopt(center,optfile,move(smesh));
+      dgdopt.InitializeSolver();
+      dgdopt.SetInitialCondition(uexact);
 
-   // initialize the optimization object
-   string optfile(options_file);
-   DGDOptimizer dgdopt(center,optfile,move(smesh));
-   dgdopt.InitializeSolver();
-   dgdopt.SetInitialCondition(uexact);
+      double l2norm = dgdopt.GetEnergy(center);
+      cout << "initial l2 norm is " << sqrt(l2norm) << '\n';
+      // dgdopt.checkJacobian(center);
 
-   // double l2norm = dgdopt.GetEnergy(center);
-   // cout << "initial l2 norm is " << sqrt(l2norm) << '\n';
-
-   // Vector center2(center);
-   // center2(0) += 1e-3;
-   // l2norm = dgdopt.GetEnergy(center2);
-   dgdopt.checkJacobian(center);
-   // Vector dJdc;
-   // dgdopt.Mult(center,dJdc);
-   // cout << "dJdc is: \n";
-   // dJdc.Print(cout,4);
+      BFGSNewtonSolver bfgsSolver;
+      bfgsSolver.SetOperator(dgdopt);
+      Vector opti_value(center.Size());
+      bfgsSolver.Mult(center,opti_value);
+   }
+   catch (MachException &exception)
+   {
+      exception.print_message();
+   }
+   catch (std::exception &exception)
+   {
+      cerr << exception.what() << endl;
+   }
    return 0;
 }
 
