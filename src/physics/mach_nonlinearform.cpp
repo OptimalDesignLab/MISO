@@ -126,7 +126,7 @@ double vectorJacobianProduct(MachNonlinearForm &form,
       /// The state must have previously been distributed before calling this
       /// function
       auto &state = form.nf_fields.at("state").gridFunc();
-      return form.scalar_sens.at(wrt).GetParGridFunctionEnergy(state);
+      return form.scalar_sens.at(wrt).GetGridFunctionEnergy(state);
    }
    return 0.0;
 }
