@@ -16,11 +16,14 @@ BFGSNewtonSolver::BFGSNewtonSolver(double a_init, double a_max, double cc1,
    c1 = cc1;
    c2 = cc2;
    print_level = 1;
+   abs_tol = 1e-12;
+   rel_tol = 1e-6;
+   max_iter = max;
 }
 
 void BFGSNewtonSolver::SetOperator(const Operator &op)
 {
-   oper = dynamic_cast<const NonlinearForm*>(&op);
+   oper = dynamic_cast<const DGDOptimizer*>(&op);
 }
 
 void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
@@ -36,6 +39,8 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    DenseMatrix s(numvar,1);
    DenseMatrix y(numvar,1);
    B.SetSize(numvar);
+   jac.SetSize(numvar);
+   jac_new.SetSize(numvar);
    
    // initialize the hessian approximation
    for (int i = 0; i < numvar; i++)
@@ -43,16 +48,17 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       B(i,i) = 1.0;
       ident(i,i) = 1.0;
    }
-
    int it;
    double norm0, norm, norm_goal;
 
-   norm0 = norm = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x);
+   norm0 = norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
    norm_goal = std::max(rel_tol*norm, abs_tol);
+   cout << "norm goal is " << norm_goal << '\n';
+   cout << "initial objective value is " << norm0 <<'\n';
 
    // initialize the jacobian
    oper->Mult(x,jac);
-
+   
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
    {
@@ -64,6 +70,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
          if (it > 0)
          {
             mfem::out << ", ||J||/||J_0|| = " << norm/norm0;
+            mfem::out << " . jac norm is " << jac.Norml2();
          }
          mfem::out<<'\n';
       }
@@ -86,6 +93,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       c.Neg();
       // compute step size
       double c_scale = ComputeStepSize(x,c,norm);
+      cout << "step size is " <<  c_scale << '\n';
       if (c_scale == 0.0)
       {
          converged = 0;
@@ -96,7 +104,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       x += c;
 
       // update objective new value and derivative
-      norm = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x);
+      norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
       oper->Mult(x,jac_new);
 
       // update hessian
@@ -171,7 +179,7 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
    {
       // evalueate the new function value
       add(x,alpha_new,c,x_new);
-      phi_new = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x_new);
+      phi_new = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x_new);
 
       // check if the step violates the sdc,
       // or when i > 0, new phi is greater than the old, then zoom
@@ -241,7 +249,7 @@ double BFGSNewtonSolver::Zoom(double alpha_low, double alpha_hi, double phi_low,
    {
       alpha_new = (alpha_low + alpha_hi) / 2.0;
       add(x,alpha_new,c,x_new);
-      phi_new = dynamic_cast<const NonlinearForm*>(oper)->GetEnergy(x_new);
+      phi_new = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x_new);
 
       // the SDC condition is not met
       if ( phi_new > phi_0 + c1 * alpha_new * dphi_0 || phi_new > phi_low )

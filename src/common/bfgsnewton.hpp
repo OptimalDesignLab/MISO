@@ -2,6 +2,7 @@
 #define MFEM_INEXACTNEWTON
 
 #include "mfem.hpp"
+#include "optimization.hpp"
 
 namespace mfem
 {
@@ -28,7 +29,7 @@ protected:
    mfem::DenseMatrix B;
    mfem::Vector jac;
    mfem::Vector jac_new;
-   const mfem::NonlinearForm *oper; 
+   const mfem::Operator *oper; 
 
    /// BFGS newton method variable
    double rel_tol,abs_tol;

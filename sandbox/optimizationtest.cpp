@@ -72,6 +72,9 @@ int main(int argc, char *argv[])
       // initialize the basis center (design variables)
       int numBasis = smesh->GetNE();
       Vector center = buildBasisCenter(smesh.get(),numBasis);
+      ofstream centerwrite("center_initial.vtp");
+      writeBasisCentervtp(center, centerwrite);
+      centerwrite.close();
 
       // initialize the optimization object
       string optfile(options_file);
@@ -80,13 +83,17 @@ int main(int argc, char *argv[])
       dgdopt.SetInitialCondition(uexact);
 
       double l2norm = dgdopt.GetEnergy(center);
-      cout << "initial l2 norm is " << sqrt(l2norm) << '\n';
+      cout << "initial objective value is " << l2norm << '\n';
       // dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver;
+      BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,50);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
+
+      ofstream optwrite("center_optimal.vtp");
+      writeBasisCentervtp(opti_value, optwrite);
+      optwrite.close();
    }
    catch (MachException &exception)
    {
@@ -175,9 +182,6 @@ mfem::Vector buildBasisCenter(mfem::Mesh *mesh, int numBasis)
       center(k*2) = loc(0);
       center(k*2+1) = loc(1);
    }
-   ofstream centerwrite("center.vtp");
-   writeBasisCentervtp(center, centerwrite);
-   centerwrite.close();
    return center;
 }
 

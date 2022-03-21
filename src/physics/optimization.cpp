@@ -107,6 +107,7 @@ void DGDOptimizer::SetInitialCondition(void (*u_init)(const mfem::Vector &,
 {
    VectorFunctionCoefficient u0(num_state, u_init);
    u_dgd->ProjectCoefficient(u0);
+   u_full->ProjectCoefficient(u0);
 
    GridFunction u_test(fes_full.get());
    dynamic_cast<DGDSpace *>(fes_dgd.get())->GetProlongationMatrix()->Mult(*u_dgd, u_test);
