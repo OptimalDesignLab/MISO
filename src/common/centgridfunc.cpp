@@ -72,7 +72,7 @@ void CentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
       dynamic_cast<VectorFunctionCoefficient*>(&coeff)->GetFunc();
    for (i = 0; i < numBasis; i++)
    {
-      dynamic_cast<DGDSpace*>(FESpace())->GetBasisCenter(i,loc);
+      dynamic_cast<DGDSpace*>(FESpace())->GetBasisCenter(i,loc,basisCenter);
       for (j = 0; j < vdim; j++)
       {
          vdofs[j] = i * vdim + j;

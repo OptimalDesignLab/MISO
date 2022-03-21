@@ -90,7 +90,9 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
 
       // compute the direction c = B * (-deriv) 
       B.Mult(jac, c);
+      cout << "get decreasing deriction.\n";
       c.Neg();
+      cout << "negative.\n";
       // compute step size
       double c_scale = ComputeStepSize(x,c,norm);
       cout << "step size is " <<  c_scale << '\n';
@@ -174,20 +176,18 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
    double phi_new;
    double dphi_new;
    double quad_coeff;
-   bool deriv_hi = false;
    for (int iter = 0; true; iter++)
    {
+      cout << iter << '\n';
       // evalueate the new function value
       add(x,alpha_new,c,x_new);
       phi_new = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x_new);
-
+      cout << "get phi_new = " << phi_new << '\n';
       // check if the step violates the sdc,
       // or when i > 0, new phi is greater than the old, then zoom
       if ( (phi_new > phi_init+c1*alpha_new*dphi_init) || 
            ((iter > 0) && (phi_new >= phi_old)) )
       {
-         dphi_new = 0.0;
-         deriv_hi = false;
          return Zoom(alpha_old,alpha_new,phi_old,phi_init,dphi_init,x,c);
       }
 
@@ -208,7 +208,6 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
       // and phi_new < phi_old
       if (dphi_new >= 0)
       {
-         deriv_hi = true;
          return Zoom(alpha_new,alpha_old,phi_new,phi_init,dphi_init,x,c);
       }
 

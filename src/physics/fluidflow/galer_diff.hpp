@@ -17,12 +17,12 @@ public:
    virtual ~DGDSpace();
 
    /// build the prolongation matrix
-   void buildProlongation() const;
+   //void buildProlongation() const;
    /// build the prolongation matrix based on the initialized stencil
    void buildProlongationMatrix(const mfem::Vector &bcenter);
    
-   void buildDataMat(const int el_id, mfem::DenseMatrix &V,
-                     mfem::DenseMatrix &Vn) const;
+   void buildDataMat(const int el_id, const mfem::Vector &basisCenter,
+                     mfem::DenseMatrix &V, mfem::DenseMatrix &Vn) const;
 
    /// Solve and store the local prolongation coefficient
    /// \param[in] el_id - the element id
@@ -33,7 +33,9 @@ public:
                                      mfem::DenseMatrix &localMat) const;
 
    /// build the element-wise polynomial basis matrix
-   void buildElementPolyBasisMat(const int el_id, const int numDofs,
+   void buildElementPolyBasisMat(const int el_id,
+                                 const mfem::Vector &basisCenter,
+                                 const int numDofs,
                                  const mfem::Array<mfem::Vector *> &dofs_coord,
                                  mfem::DenseMatrix &V,
                                  mfem::DenseMatrix &Vn) const;
@@ -44,23 +46,26 @@ public:
    /// compute the derivative of prolongation matrix w.r.t the ith basis center
    /// \param[in] i - the i th design parameter, either x or y coordinate
    /// \param[out] dpdc - derivative matrix
-   void GetdPdc(const int i, mfem::SparseMatrix &dpdc);
+   void GetdPdc(const int i, const mfem::Vector &basisCenter, mfem::SparseMatrix &dpdc);
 
    void buildDerivDataMat(const int el_id, const int b_id, const int xyz,
+                          const mfem::Vector &center,
                           mfem::DenseMatrix &V,
                           mfem::DenseMatrix &dV,
                           mfem::DenseMatrix &Vn) const;
    
    void buildElementDerivMat(const int el_id, const int b_id,
+                             const mfem::Vector &basisCenter,
                              const int xyz, const int numDofs,
                              const mfem::Array<mfem::Vector *> &dofs_coord,
                              mfem::DenseMatrix &dV) const;
    
    void AssembleDerivMatrix(const int el_id, const DenseMatrix &dpdc_block,
                             mfem::SparseMatrix &dpdc) const;
-
-   mfem::Vector GetBasisCenter() { return basisCenter; }
-   void GetBasisCenter(const int b_id, mfem::Vector &center) const;
+   mfem::Vector GetBasisCenter() { return basisCenterDummy; }
+   void GetBasisCenter(const int b_id, mfem::Vector &center,
+                       const mfem::Vector &basisCenter) const;
+   
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }
@@ -79,7 +84,7 @@ protected:
    int extra;
    
    /// location of the basis centers
-   mfem::Vector basisCenter;
+   mfem::Vector basisCenterDummy;
 
 
    /// selected basis for each element (currently it is fixed upon setup)
@@ -94,7 +99,7 @@ protected:
 
 
    // some protected function
-   void InitializeStencil();
+   void InitializeStencil(const mfem::Vector &basisCenter);
    /// Initialize the shape parameters
    void InitializeShapeParameter();
    std::vector<std::size_t> sort_indexes(const std::vector<double> &v);

@@ -120,6 +120,7 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 {
 	// build new DGD operators
 	fes_dgd->buildProlongationMatrix(x);
+	cout << "prolongation matrix built.\n";
 	// solve for DGD solution
 	Vector b(numBasis);
 	newton_solver->Mult(b,*u_dgd);
@@ -171,7 +172,7 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	{
 		SparseMatrix *dPdci = new SparseMatrix(FullSize,ROMSize);
 		// get dpdc
-		fes_dgd->GetdPdc(i,*dPdci);
+		fes_dgd->GetdPdc(i,x,*dPdci);
 
 		// colume of intermediate pPu/pc
 		dPdci->Mult(*u_dgd,ppupc_col);

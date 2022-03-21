@@ -50,6 +50,8 @@ int main(int argc, char *argv[])
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
+   args.AddOption(&numRad, "-br", "--basisrad", "number of radial segments");
+   args.AddOption(&numTheta, "-bt", "--basistheta", "number of angular segments");
    args.AddOption(&extra,"-e","--extra","number of anglular points");
    args.Parse();
    if (!args.Good())
@@ -69,9 +71,13 @@ int main(int argc, char *argv[])
       int num_state = dim + 2;
 
 
+      // mesh for basis
+      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree + 1,numRad,numTheta);
+
+
       // initialize the basis center (design variables)
-      int numBasis = smesh->GetNE();
-      Vector center = buildBasisCenter(smesh.get(),numBasis);
+      int numBasis = bmesh->GetNE();
+      Vector center = buildBasisCenter(bmesh.get(),numBasis);
       ofstream centerwrite("center_initial.vtp");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();
@@ -86,7 +92,7 @@ int main(int argc, char *argv[])
       cout << "initial objective value is " << l2norm << '\n';
       // dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,50);
+      BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,100);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
@@ -189,32 +195,32 @@ mfem::Vector buildBasisCenter(mfem::Mesh *mesh, int numBasis)
 template <typename T>
 void writeBasisCentervtp(const mfem::Vector &center, T &stream)
 {
+   int nb = center.Size()/2;
    stream << "<?xml version=\"1.0\"?>\n";
    stream << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
    stream << "<PolyData>\n";
-   stream << "<Piece NumberOfPoints=\"" << center.Size() << "\" NumberOfVerts=\"" << center.Size() << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
+   stream << "<Piece NumberOfPoints=\"" << nb << "\" NumberOfVerts=\"" << nb << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
    stream << "<Points>\n";
    stream << "  <DataArray type=\"Float32\" Name=\"Points\" NumberOfComponents=\"3\" format=\"ascii\">";
-   int numBasis = center.Size()/2;
-   for (int i = 0; i < numBasis; i++)
+   for (int i = 0; i < nb; i++)
    {
-      stream << center(2*i) << ' ' << center(2*i+1) << ' ' << 0.0 << ' ';
+      stream << center(i*2) << ' ' << center(i*2+1) << ' ' << 0.0 << ' ';
    }
    stream << "</DataArray>\n";
    stream << "</Points>\n";
    stream << "<Verts>\n";
    stream << "  <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">";
-   for (size_t i = 0; i < center.Size(); ++i)
+   for (size_t i = 0; i < nb; ++i)
       stream << i << ' ';
    stream << "</DataArray>\n";
    stream << "  <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">";
-   for (size_t i = 1; i <= center.Size(); ++i)
+   for (size_t i = 1; i <= nb; ++i)
       stream << i << ' ';
    stream << "</DataArray>\n";
    stream << "</Verts>\n";
    stream << "<PointData Scalars=\"w\">\n";
    stream << "  <DataArray type=\"Float32\" Name=\"w\" NumberOfComponents=\"1\" format=\"ascii\">";
-   for (int i = 0; i < center.Size(); i++)
+   for (int i = 0; i < nb; i++)
       stream << 1.0 << ' ';
    stream << "</DataArray>\n";
    stream << "</PointData>\n";
