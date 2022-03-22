@@ -78,22 +78,40 @@ void addLoad(MachLinearForm &load, mfem::Vector &tv)
    add(tv, load.scratch, tv);
 }
 
+double jacobianVectorProduct(MachLinearForm &load,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   if (load.fwd_scalar_sens.count(wrt) != 0)
+   {
+      throw NotImplementedException(
+          "not implemented for scalar sensitivities!\n");
+   }
+   return 0.0;
+}
+
+void jacobianVectorProduct(MachLinearForm &load,
+                           const mfem::Vector &wrt_dot,
+                           const std::string &wrt,
+                           mfem::Vector &res_dot)
+{
+   if (load.fwd_sens.count(wrt) != 0)
+   {
+      throw NotImplementedException(
+          "not implemented for vector sensitivities!\n");
+   }
+}
+
 double vectorJacobianProduct(MachLinearForm &load,
                              const mfem::Vector &load_bar,
                              const std::string &wrt)
 {
-   if (load.scalar_sens.count(wrt) != 0)
+   if (load.rev_scalar_sens.count(wrt) != 0)
    {
-      throw std::logic_error(
-          "vectorJacobianProduct not implemented for MachLinearForm!\n");
-      // auto &adjoint = load.lf_fields->at("adjoint");
-      // adjoint = load_bar;
-      // return load.scalar_sens.at(wrt).GetEnergy();
+      throw NotImplementedException(
+          "not implemented for scalar sensitivities!\n");
    }
-   else
-   {
-      return 0.0;
-   }
+   return 0.0;
 }
 
 void vectorJacobianProduct(MachLinearForm &load,
@@ -101,13 +119,13 @@ void vectorJacobianProduct(MachLinearForm &load,
                            const std::string &wrt,
                            mfem::Vector &wrt_bar)
 {
-   if (load.sens.count(wrt) != 0)
+   if (load.rev_sens.count(wrt) != 0)
    {
       auto &adjoint = load.lf_fields->at("adjoint");
       adjoint.distributeSharedDofs(load_bar);
-      load.sens.at(wrt).Assemble();
+      load.rev_sens.at(wrt).Assemble();
       load.scratch.SetSize(wrt_bar.Size());
-      load.sens.at(wrt).ParallelAssemble(load.scratch);
+      load.rev_sens.at(wrt).ParallelAssemble(load.scratch);
       wrt_bar += load.scratch;
    }
 }

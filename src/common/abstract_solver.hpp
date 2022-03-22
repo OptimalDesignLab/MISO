@@ -179,6 +179,28 @@ public:
    void linearize(const MachInputs &inputs);
 
    /// Compute the residual's sensitivity to a scalar and contract it with
+   /// wrt_dot
+   /// \param[in] wrt_dot - the "wrt"-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \return the assembled/contracted sensitivity
+   double jacobianVectorProduct(const mfem::Vector &wrt_dot,
+                                const std::string &wrt);
+
+   /// Compute the residual's sensitivity to a vector and contract it with
+   /// wrt_dot
+   /// \param[in] wrt_dot - the "wrt"-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \param[inout] res_dot - the assembled/contracted sensitivity is
+   /// accumulated into res_dot
+   void jacobianVectorProduct(const mfem::Vector &wrt_dot,
+                              const std::string &wrt,
+                              mfem::Vector &res_dot);
+
+   /// Compute the residual's sensitivity to a scalar and contract it with
    /// res_bar
    /// \param[in] res_bar - the residual-sized vector to contract with the
    /// sensitivity

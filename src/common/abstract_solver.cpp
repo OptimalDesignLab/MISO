@@ -357,6 +357,38 @@ void AbstractSolver2::linearize(const MachInputs &inputs)
    }
 }
 
+double AbstractSolver2::jacobianVectorProduct(const mfem::Vector &wrt_dot,
+                                              const std::string &wrt)
+{
+   /// if solving an unsteady problem
+   if (ode)
+   {
+      throw MachException(
+          "AbstractSolver2::jacobianVectorProduct not implemented for unsteady "
+          "problems!\n");
+   }
+   else  /// steady problem
+   {
+      return mach::jacobianVectorProduct(*spatial_res, wrt_dot, wrt);
+   }
+}
+
+void AbstractSolver2::jacobianVectorProduct(const mfem::Vector &wrt_dot,
+                                            const std::string &wrt,
+                                            mfem::Vector &res_dot)
+{
+   /// if solving an unsteady problem
+   if (ode)
+   {
+      throw MachException(
+          "AbstractSolver2::jacobianVectorProduct not implemented for unsteady "
+          "problems!\n");
+   }
+   else  /// steady problem
+   {
+      mach::jacobianVectorProduct(*spatial_res, wrt_dot, wrt, res_dot);
+   }
+}
 double AbstractSolver2::vectorJacobianProduct(const mfem::Vector &res_bar,
                                               const std::string &wrt)
 {

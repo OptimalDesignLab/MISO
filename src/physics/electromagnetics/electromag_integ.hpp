@@ -131,16 +131,17 @@ private:
 #endif
 };
 
-template <>
-inline void addSensitivityIntegrator<CurlCurlNLFIntegrator>(
+inline void addSensitivityIntegrator(
     CurlCurlNLFIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
-    std::map<std::string, mfem::ParLinearForm> &res_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens)
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
-   res_sens.emplace("mesh_coords", &mesh_fes);
-   res_sens.at("mesh_coords")
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+   rev_sens.at("mesh_coords")
        .AddDomainIntegrator(
            new CurlCurlNLFIntegratorMeshSens(fields.at("state").gridFunc(),
                                              fields.at("adjoint").gridFunc(),
@@ -506,8 +507,7 @@ private:
 #endif
 };
 
-template <>
-inline void addSensitivityIntegrator<MagneticEnergyIntegrator>(
+inline void addSensitivityIntegrator(
     MagneticEnergyIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
@@ -1047,8 +1047,7 @@ private:
 #endif
 };
 
-template <>
-inline void addSensitivityIntegrator<ForceIntegrator>(
+inline void addSensitivityIntegrator(
     ForceIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,

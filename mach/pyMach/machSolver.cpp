@@ -408,12 +408,33 @@ void initSolver(py::module &m)
            py::arg("inputs"),
            py::arg("partial"))
 
-       //  .def(
-       //      "linearize",
-       //      [](AbstractSolver &self, const py::dict &py_inputs)
-       //      {
-       // self.linearize(pyDictToMachInputs(py_inputs)); },
-       //      py::arg("inputs"))
+       .def(
+           "linearize",
+           [](AbstractSolver2 &self, const py::dict &py_inputs)
+           { self.linearize(pyDictToMachInputs(py_inputs)); },
+           py::arg("inputs"))
+       .def(
+           "jacobianVectorProduct",
+           [](AbstractSolver2 &self,
+              const py::array_t<double> &wrt_dot_buffer,
+              const std::string &wrt,
+              const py::array_t<double> &res_dot_buffer)
+           {
+              auto wrt_dot = npBufferToMFEMVector(wrt_dot_buffer);
+              auto res_dot = npBufferToMFEMVector(res_dot_buffer);
+
+              if (res_dot.Size() == 1)
+              {
+                 res_dot(0) += self.jacobianVectorProduct(wrt_dot, wrt);
+              }
+              else
+              {
+                 self.jacobianVectorProduct(wrt_dot, wrt, res_dot);
+              }
+           },
+           py::arg("wrt_dot"),
+           py::arg("wrt"),
+           py::arg("res_dot"))
 
        .def(
            "vectorJacobianProduct",

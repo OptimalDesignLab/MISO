@@ -10,6 +10,7 @@
 
 #include "electromag_integ.hpp"
 #include "mach_input.hpp"
+#include "mach_residual.hpp"
 #include "mach_nonlinearform.hpp"
 #include "magnetostatic_load.hpp"
 

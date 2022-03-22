@@ -12,8 +12,8 @@ namespace mach
 template <typename T>
 void linearize(T & /*unused*/, const MachInputs & /*unused*/)
 {
-   throw MachException(
-       "linearize not specialized for concrete residual type!\n");
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
 }
 
 template <typename T>
@@ -21,17 +21,35 @@ mfem::Operator &getJacobianTranspose(T & /*unused*/,
                                      const MachInputs & /*unused*/,
                                      const std::string & /*unused*/)
 {
-   throw MachException(
-       "getJacobianTranspose not specialized for concrete residual type!\n");
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
 }
 
+template <typename T>
+double jacobianVectorProduct(T & /*unused*/,
+                             const mfem::Vector & /*unused*/,
+                             const std::string & /*unused*/)
+{
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
+}
+
+template <typename T>
+void jacobianVectorProduct(T & /*unused*/,
+                           const mfem::Vector & /*unused*/,
+                           const std::string & /*unused*/,
+                           mfem::Vector & /*unused*/)
+{
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
+}
 template <typename T>
 double vectorJacobianProduct(T & /*unused*/,
                              const mfem::Vector & /*unused*/,
                              const std::string & /*unused*/)
 {
-   throw MachException(
-       "vectorJacobianProduct not specialized for concrete residual type!\n");
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
 }
 
 template <typename T>
@@ -40,22 +58,22 @@ void vectorJacobianProduct(T &,
                            const std::string & /*unused*/,
                            mfem::Vector & /*unused*/)
 {
-   throw MachException(
-       "vectorJacobianProduct not specialized for concrete residual type!\n");
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
 }
 
 template <typename T>
 double calcEntropy(T & /*unused*/, const MachInputs & /*unused*/)
 {
-   throw MachException(
-       "calcEntropy not specialized for concrete residual type!\n");
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
 }
 
 template <typename T>
 double calcEntropyChange(T & /*unused*/, const MachInputs & /*unused*/)
 {
-   throw MachException(
-       "calcEntropyChange not specialized for concrete residual type!\n");
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
 }
 
 template <typename T>
@@ -138,6 +156,32 @@ public:
    friend mfem::Operator &getJacobianTranspose(MachResidual &residual,
                                                const MachInputs &inputs,
                                                const std::string &wrt);
+
+   /// Compute the residual's sensitivity to a scalar and contract it with
+   /// wrt_dot
+   /// \param[inout] residual - the residual whose sensitivity we want
+   /// \param[in] wrt_dot - the "wrt"-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \return the assembled/contracted sensitivity
+   friend double jacobianVectorProduct(MachResidual &residual,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   /// Compute the residual's sensitivity to a vector and contract it with
+   /// wrt_dot
+   /// \param[inout] residual - the residual whose sensitivity we want
+   /// \param[in] wrt_dot - the "wrt"-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \param[inout] res_dot - the assembled/contracted sensitivity is
+   /// accumulated into res_dot
+   friend void jacobianVectorProduct(MachResidual &residual,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &res_dot);
 
    /// Compute the residual's sensitivity to a scalar and contract it with
    /// res_bar
@@ -227,6 +271,11 @@ private:
                                       const std::string &wrt) = 0;
       virtual mfem::Operator &getJacT_(const MachInputs &inputs,
                                        const std::string &wrt) = 0;
+      virtual double jacobianVectorProduct_(const mfem::Vector &wrt_dot,
+                                            const std::string &wrt) = 0;
+      virtual void jacobianVectorProduct_(const mfem::Vector &wrt_dot,
+                                          const std::string &wrt,
+                                          mfem::Vector &res_dot) = 0;
       virtual double vectorJacobianProduct_(const mfem::Vector &res_bar,
                                             const std::string &wrt) = 0;
       virtual void vectorJacobianProduct_(const mfem::Vector &res_bar,
@@ -270,6 +319,17 @@ private:
                                const std::string &wrt) override
       {
          return getJacobianTranspose(data_, inputs, wrt);
+      }
+      double jacobianVectorProduct_(const mfem::Vector &wrt_dot,
+                                    const std::string &wrt) override
+      {
+         return jacobianVectorProduct(data_, wrt_dot, wrt);
+      }
+      void jacobianVectorProduct_(const mfem::Vector &wrt_dot,
+                                  const std::string &wrt,
+                                  mfem::Vector &res_dot) override
+      {
+         jacobianVectorProduct(data_, wrt_dot, wrt, res_dot);
       }
       double vectorJacobianProduct_(const mfem::Vector &res_bar,
                                     const std::string &wrt) override
@@ -362,6 +422,21 @@ inline mfem::Operator &getJacobianTranspose(MachResidual &residual,
    // passes `inputs` and `res_vec` on to the `getJacobianTranspose` function
    // for the concrete residual type
    return residual.self_->getJacT_(inputs, wrt);
+}
+
+inline double jacobianVectorProduct(MachResidual &residual,
+                                    const mfem::Vector &wrt_dot,
+                                    const std::string &wrt)
+{
+   return residual.self_->jacobianVectorProduct_(wrt_dot, wrt);
+}
+
+inline void jacobianVectorProduct(MachResidual &residual,
+                                  const mfem::Vector &wrt_dot,
+                                  const std::string &wrt,
+                                  mfem::Vector &res_dot)
+{
+   residual.self_->jacobianVectorProduct_(wrt_dot, wrt, res_dot);
 }
 
 inline double vectorJacobianProduct(MachResidual &residual,

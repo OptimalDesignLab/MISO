@@ -242,20 +242,22 @@ void setInputs(TestIntegrator &integ, const mach::MachInputs &inputs)
 inline void addSensitivityIntegrator(
     TestIntegrator &primal_integ,
     std::map<std::string, mach::FiniteElementState> &fields,
-    std::map<std::string, mfem::ParLinearForm> &res_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &res_scalar_sens)
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
-   res_sens.emplace("mesh_coords", &mesh_fes);
-   res_sens.at("mesh_coords")
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+   rev_sens.at("mesh_coords")
        .AddDomainIntegrator(
            new TestIntegratorMeshSens(fields.at("state").gridFunc(),
                                       fields.at("adjoint").gridFunc(),
                                       primal_integ));
 
    auto &state_fes = fields.at("state").space();
-   res_scalar_sens.emplace("time", &state_fes);
-   res_scalar_sens.at("time")
+   rev_scalar_sens.emplace("time", &state_fes);
+   rev_scalar_sens.at("time")
        .AddDomainIntegrator(
            new TestIntegratorTimeSens(fields.at("adjoint").gridFunc(),
                                       primal_integ));

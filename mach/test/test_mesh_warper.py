@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import openmdao.api as om
+from openmdao.utils.assert_utils import assert_check_partials, assert_check_totals
 
 from mach import MachMeshWarper, MeshWarper
 
@@ -67,5 +68,61 @@ class TestMachMeshWarper(unittest.TestCase):
             self.assertAlmostEqual(init_vol_coords[i + 1] + 1.0, volume_coords[i + 1])
             self.assertAlmostEqual(init_vol_coords[i + 2] + 0.0, volume_coords[i + 2])
 
+    def test_partials(self):
+        problem = om.Problem()
+        model = problem.model
+        ivc = model.add_subsystem("ivc", om.IndepVarComp())
+
+        warper = MeshWarper(warper_options, problem.comm)
+        local_surf_mesh_size = warper.getSurfaceCoordsSize()
+        surf_coords = np.empty(local_surf_mesh_size)
+        warper.getInitialSurfaceCoords(surf_coords)
+
+        for i in range(0, surf_coords.size, 3):
+            surf_coords[i + 0] += 1.0
+            surf_coords[i + 1] += 1.0
+            surf_coords[i + 2] += 0.0
+
+        ivc.add_output("surf_mesh_coords", val=surf_coords)
+        model.add_subsystem("vol_mesh_move", MachMeshWarper(warper=warper))
+
+        model.connect("ivc.surf_mesh_coords", "vol_mesh_move.surf_mesh_coords")
+
+        problem.setup()
+        problem.run_model()
+
+        # prob.check_partials(form="central", step=1e-5)
+        data = problem.check_partials(out_stream=None, form="central", step=1e-7)
+        assert_check_partials(data, atol=1.e-6, rtol=1.e-6)
+
+    # def test_totals(self):
+    #     problem = om.Problem()
+    #     model = problem.model
+    #     problem.model.nonlinear_solver = om.NonlinearBlockGS()
+        
+    #     ivc = model.add_subsystem("ivc", om.IndepVarComp())
+
+    #     warper = MeshWarper(warper_options, problem.comm)
+    #     local_surf_mesh_size = warper.getSurfaceCoordsSize()
+    #     surf_coords = np.empty(local_surf_mesh_size)
+    #     warper.getInitialSurfaceCoords(surf_coords)
+
+    #     for i in range(0, surf_coords.size, 3):
+    #         surf_coords[i + 0] += 1.0
+    #         surf_coords[i + 1] += 1.0
+    #         surf_coords[i + 2] += 0.0
+
+    #     ivc.add_output("surf_mesh_coords", val=surf_coords)
+    #     model.add_subsystem("vol_mesh_move", MachMeshWarper(warper=warper))
+
+    #     model.connect("ivc.surf_mesh_coords", "vol_mesh_move.surf_mesh_coords")
+
+    #     problem.setup()
+    #     problem.run_model()
+
+    #     # prob.check_partials(form="central", step=1e-5)
+    #     data = problem.check_totals(of=['vol_mesh_move.vol_mesh_coords'], wrt=['vol_mesh_move.surf_mesh_coords'])
+    #     # data = problem.check_totals(out_stream=None, form="central", step=1e-7)
+    #     assert_check_totals(data, atol=1.e-6, rtol=1.e-6)
 if __name__ == "__main__":
     unittest.main()

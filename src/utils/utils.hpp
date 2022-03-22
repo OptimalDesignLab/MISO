@@ -56,6 +56,29 @@ protected:
    std::string error_msg;
 };
 
+class NotImplementedException : public MachException
+{
+private:
+   NotImplementedException(const char *message, const char *function)
+    : MachException(
+          [&]()
+          {
+             std::string msg = function;
+             msg += ": ";
+             msg += message;
+             return msg;
+          }()){};
+
+public:
+   NotImplementedException()
+    : NotImplementedException("Not Implememented", __FUNCTION__)
+   { }
+
+   NotImplementedException(const char *message)
+    : NotImplementedException(message, __FUNCTION__)
+   { }
+};
+
 /// performs the Hadamard (elementwise) product: `v(i) = v1(i)*v2(i)`
 void multiplyElementwise(const mfem::Vector &v1,
                          const mfem::Vector &v2,

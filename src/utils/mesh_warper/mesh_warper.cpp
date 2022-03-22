@@ -36,6 +36,15 @@ public:
                                                const mach::MachInputs &inputs,
                                                const std::string &wrt);
 
+   friend double jacobianVectorProduct(MeshWarperResidual &residual,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void jacobianVectorProduct(MeshWarperResidual &residual,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &res_dot);
+
    friend double vectorJacobianProduct(MeshWarperResidual &residual,
                                        const mfem::Vector &res_bar,
                                        const std::string &wrt);
@@ -49,12 +58,13 @@ public:
 
    MeshWarperResidual(mfem::ParFiniteElementSpace &fes,
                       std::map<std::string, mach::FiniteElementState> &fields,
-                      const nlohmann::json &options)
+                      const nlohmann::json &options,
+                      const mfem::Array<int> &surface_indices)
     : res(fes, fields),
       lambda_c(std::make_unique<mfem::ConstantCoefficient>(1.0)),
       mu_c(std::make_unique<mfem::ConstantCoefficient>(1.0)),
+      surface_indices(surface_indices),
       prec(constructPreconditioner(fes, options["lin-prec"]))
-
    {
       res.addDomainIntegrator(
           new mach::ElasticityPositionIntegrator(*lambda_c, *mu_c));
@@ -67,6 +77,9 @@ private:
    /// Stiffness coefficients
    std::unique_ptr<mfem::Coefficient> lambda_c;
    std::unique_ptr<mfem::Coefficient> mu_c;
+
+   /// indices that map from the surface coordinates to the volume coordinates
+   const mfem::Array<int> &surface_indices;
 
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
@@ -101,6 +114,23 @@ void evaluate(MeshWarperResidual &residual,
               mfem::Vector &res_vec)
 {
    evaluate(residual.res, inputs, res_vec);
+
+   if (inputs.count("surf_mesh_coords") != 0)
+   {
+      mfem::Vector surf_mesh_coords;
+      setVectorFromInputs(inputs, "surf_mesh_coords", surf_mesh_coords);
+      mfem::Vector state;
+      setVectorFromInputs(inputs, "state", state);
+
+      auto &surface_indices = residual.surface_indices;
+      for (int i = 0; i < surface_indices.Size(); ++i)
+      {
+         res_vec(surface_indices[i]) =
+             state(surface_indices[i]) - surf_mesh_coords(i);
+      }
+   }
+   // std::cout << "res_vec:\n";
+   // res_vec.Print(mfem::out, 1);
 }
 
 void linearize(MeshWarperResidual &residual, const mach::MachInputs &inputs)
@@ -120,6 +150,21 @@ mfem::Operator &getJacobianTranspose(MeshWarperResidual &residual,
                                      const std::string &wrt)
 {
    return getJacobianTranspose(residual.res, inputs, wrt);
+}
+
+double jacobianVectorProduct(MeshWarperResidual &residual,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   return jacobianVectorProduct(residual.res, wrt_dot, wrt);
+}
+
+void jacobianVectorProduct(MeshWarperResidual &residual,
+                           const mfem::Vector &wrt_dot,
+                           const std::string &wrt,
+                           mfem::Vector &res_dot)
+{
+   jacobianVectorProduct(residual.res, wrt_dot, wrt, res_dot);
 }
 
 double vectorJacobianProduct(MeshWarperResidual &residual,
@@ -199,19 +244,6 @@ MeshWarper::MeshWarper(MPI_Comm incomm,
    /// (and that it doesn't own it)
    mesh().NewNodes(mesh_coords.gridFunc(), false);
 
-   options["time-dis"]["type"] = "steady";
-   spatial_res = std::make_unique<MachResidual>(
-       MeshWarperResidual(fes(), fields, options));
-   setOptions(*spatial_res, options);
-
-   auto *prec = getPreconditioner(*spatial_res);
-   auto lin_solver_opts = options["lin-solver"];
-   linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
-   auto nonlin_solver_opts = options["nonlin-solver"];
-   nonlinear_solver =
-       mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
-   nonlinear_solver->SetOperator(*spatial_res);
-
    /// Set initial volume coords true vec
    fields.at("mesh_coords").setTrueVec(vol_coords);
 
@@ -222,6 +254,19 @@ MeshWarper::MeshWarper(MPI_Comm incomm,
 
    /// Set the initial surface coords
    vol_coords.GetSubVector(surface_indices, surf_coords);
+
+   options["time-dis"]["type"] = "steady";
+   spatial_res = std::make_unique<MachResidual>(
+       MeshWarperResidual(fes(), fields, options, surface_indices));
+   setOptions(*spatial_res, options);
+
+   auto *prec = getPreconditioner(*spatial_res);
+   auto lin_solver_opts = options["lin-solver"];
+   linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
+   auto nonlin_solver_opts = options["nonlin-solver"];
+   nonlinear_solver =
+       mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
+   nonlinear_solver->SetOperator(*spatial_res);
 }
 
 }  // namespace mach

@@ -27,8 +27,15 @@ public:
    /// Set options in all integrators used by the linear form
    friend void setOptions(MachLinearForm &load, const nlohmann::json &options);
 
-   /// Assemble the linear form's sensitivity to a scalar and contract it with
-   /// load_bar
+   friend double jacobianVectorProduct(MachLinearForm &load,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void jacobianVectorProduct(MachLinearForm &load,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &res_dot);
+
    friend double vectorJacobianProduct(MachLinearForm &load,
                                        const mfem::Vector &load_bar,
                                        const std::string &wrt);
@@ -114,12 +121,19 @@ private:
    /// map of external fields the linear form depends on
    std::map<std::string, FiniteElementState> *lf_fields;
 
-   /// map of linear forms that will compute d(psi^T F) / d(field)
-   /// for each field the linear form depends on
-   std::map<std::string, mfem::ParLinearForm> sens;
-   /// map of nonlinear forms that will compute d(psi^T F) / d(scalar)
-   /// for each scalar the linear form depends on
-   std::map<std::string, mfem::ParNonlinearForm> scalar_sens;
+   /// map of linear forms that will compute (dF / dfield) * field_dot
+   /// for each field the nonlinear form depends on
+   std::map<std::string, mfem::ParLinearForm> fwd_sens;
+   /// map of nonlinear forms that will compute (dF / dscalar) * scalar_dot
+   /// for each scalar the nonlinear form depends on
+   std::map<std::string, mfem::ParNonlinearForm> fwd_scalar_sens;
+
+   /// map of linear forms that will compute psi^T (dF / dfield)
+   /// for each field the nonlinear form depends on
+   std::map<std::string, mfem::ParLinearForm> rev_sens;
+   /// map of nonlinear forms that will compute psi^T (dF / dscalar)
+   /// for each scalar the nonlinear form depends on
+   std::map<std::string, mfem::ParNonlinearForm> rev_scalar_sens;
 };
 
 template <typename T>
@@ -127,7 +141,12 @@ void MachLinearForm::addDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddDomainIntegrator(integrator);
-   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            *lf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 template <typename T>
@@ -135,7 +154,12 @@ void MachLinearForm::addBoundaryIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddBoundaryIntegrator(integrator);
-   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            *lf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 template <typename T>
@@ -145,7 +169,12 @@ void MachLinearForm::addBoundaryIntegrator(T *integrator,
    integs.emplace_back(*integrator);
    bdr_marker.emplace_back(bdr_attr_marker);
    lf.AddBoundaryIntegrator(integrator, bdr_marker.back());
-   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            *lf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 template <typename T>
@@ -153,7 +182,12 @@ void MachLinearForm::addBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddBdrFaceIntegrator(integrator);
-   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            *lf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 template <typename T>
@@ -163,7 +197,12 @@ void MachLinearForm::addBdrFaceIntegrator(T *integrator,
    integs.emplace_back(*integrator);
    bdr_marker.emplace_back(bdr_attr_marker);
    lf.AddBdrFaceIntegrator(integrator, bdr_marker.back());
-   addSensitivityIntegrator(*integrator, *lf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            *lf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 }  // namespace mach

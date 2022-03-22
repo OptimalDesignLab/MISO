@@ -45,6 +45,15 @@ public:
                                                const MachInputs &inputs,
                                                const std::string &wrt);
 
+   friend double jacobianVectorProduct(MachNonlinearForm &form,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void jacobianVectorProduct(MachNonlinearForm &form,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &res_dot);
+
    friend double vectorJacobianProduct(MachNonlinearForm &form,
                                        const mfem::Vector &res_bar,
                                        const std::string &wrt);
@@ -105,8 +114,9 @@ public:
 private:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm nf;
-   /// work vector (needed?)
+   /// work vectors
    mfem::Vector scratch;
+   mfem::Vector scratch2;
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
@@ -116,12 +126,19 @@ private:
    /// map of external fields that the nonlinear form depends on
    std::map<std::string, FiniteElementState> &nf_fields;
 
-   /// map of linear forms that will compute d(psi^T F) / d(field)
+   /// map of linear forms that will compute (dF / dfield) * field_dot
    /// for each field the nonlinear form depends on
-   std::map<std::string, mfem::ParLinearForm> sens;
-   /// map of nonlinear forms that will compute d(psi^T F) / d(scalar)
+   std::map<std::string, mfem::ParLinearForm> fwd_sens;
+   /// map of nonlinear forms that will compute (dF / dscalar) * scalar_dot
    /// for each scalar the nonlinear form depends on
-   std::map<std::string, mfem::ParNonlinearForm> scalar_sens;
+   std::map<std::string, mfem::ParNonlinearForm> fwd_scalar_sens;
+
+   /// map of linear forms that will compute psi^T (dF / dfield)
+   /// for each field the nonlinear form depends on
+   std::map<std::string, mfem::ParLinearForm> rev_sens;
+   /// map of nonlinear forms that will compute psi^T (dF / dscalar)
+   /// for each scalar the nonlinear form depends on
+   std::map<std::string, mfem::ParNonlinearForm> rev_scalar_sens;
 
    /// Holds reference to the Jacobian (owned elsewhere)
    mfem::Operator *jac = nullptr;
@@ -135,7 +152,12 @@ void MachNonlinearForm::addDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddDomainIntegrator(integrator);
-   addSensitivityIntegrator(*integrator, nf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            nf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 template <typename T>
@@ -143,7 +165,12 @@ void MachNonlinearForm::addBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddBdrFaceIntegrator(integrator);
-   addSensitivityIntegrator(*integrator, nf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            nf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 template <typename T>
@@ -155,7 +182,12 @@ void MachNonlinearForm::addBdrFaceIntegrator(
    bdr_markers.emplace_back(bdr_attr_marker.size());
    bdr_markers.back().Assign(bdr_attr_marker.data());
    nf.AddBdrFaceIntegrator(integrator, bdr_markers.back());
-   addSensitivityIntegrator(*integrator, nf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            nf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 template <typename T>
@@ -163,7 +195,12 @@ void MachNonlinearForm::addInteriorFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddInteriorFaceIntegrator(integrator);
-   addSensitivityIntegrator(*integrator, nf_fields, sens, scalar_sens);
+   addSensitivityIntegrator(*integrator,
+                            nf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
 }
 
 }  // namespace mach

@@ -2,17 +2,19 @@
 
 namespace py = pybind11;
 
-void initVector(py::module &);
-void initField(py::module &);
+void initExceptions(py::module &);
+// void initField(py::module &);
 void initSolver(py::module &);
 void initMesh(py::module &);
 void initMeshWarper(py::module &);
+void initVector(py::module &);
 
 PYBIND11_MODULE(pyMach, m)
 {
-   initVector(m);
-   initField(m);
+   initExceptions(m);
+   // initField(m);
    initSolver(m);
    initMesh(m);
    initMeshWarper(m);
+   initVector(m);
 }

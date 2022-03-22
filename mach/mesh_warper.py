@@ -27,12 +27,9 @@ class MachMeshWarper(om.ImplicitComponent):
     def apply_nonlinear(self, inputs, outputs, residuals):
         warper = self.options["warper"]
 
-        surface_coords = inputs["surf_mesh_coords"]
-
-        volume_coords = outputs["vol_mesh_coords"]
-        volume_coords[self.surf_indices] = surface_coords[:]
-
-        warper.calcResidual(volume_coords, residuals["vol_mesh_coords"])
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        input_dict["state"] = outputs["vol_mesh_coords"]
+        warper.calcResidual(input_dict, residuals["vol_mesh_coords"])
 
 
     def solve_nonlinear(self, inputs, outputs):
@@ -46,28 +43,34 @@ class MachMeshWarper(om.ImplicitComponent):
         warper.solveForState(volume_coords)
 
     def linearize(self, inputs, outputs, residuals):
-        ### maybe this should compute jac and jac transposed?
-
         # cache inputs
         input_dict = dict(zip(inputs.keys(), inputs.values()))
-        input_dict.update(dict(zip(outputs.keys(), outputs.values())))
+        input_dict["state"] = outputs["vol_mesh_coords"]
         self.linear_inputs = input_dict
 
+        warper = self.options["warper"]
+        warper.linearize(input_dict)
+
     def apply_linear(self, inputs, outputs, d_inputs, d_outputs, d_residuals, mode):
+        warper = self.options["warper"]
         if mode == "fwd":
-            print("solver fwd")
+            if "vol_mesh_coords" in d_residuals:
+                if "vol_mesh_coords" in d_outputs:
+                    warper.jacobianVectorProduct(d_outputs["vol_mesh_coords"],
+                                                 "state",
+                                                 d_residuals["vol_mesh_coords"])
+                if "surf_mesh_coords" in d_inputs:
+                    d_residuals["vol_mesh_coords"][self.surf_indices] += d_inputs["surf_mesh_coords"]
             # raise NotImplementedError("forward mode requested but not implemented")
-            # if "vol_mesh_coords" in d_residuals:
-            #     if "vol_mesh_coords" in d_outputs:
-            #         d_residuals["vol_mesh_coords"] += #(2 * a * x + b) * d_outputs["x"]
-            #     if "surf_mesh_coords" in d_inputs:
-            #         d_residuals["vol_mesh_coords"] += #x ** 2 * d_inputs["a"]
-        # elif mode == "rev":
-        #     if "vol_mesh_coords" in d_residuals:
-        #         if "vol_mesh_coords" in d_outputs:
-        #             d_outputs["vol_mesh_coords"] += #(2 * a * x + b) * d_residuals["x"]
-        #         if "surf_mesh_coords" in d_inputs:
-        #             d_inputs["surf_mesh_coords"] += #x ** 2 * d_residuals["x"]
+
+        elif mode == "rev":
+            if "vol_mesh_coords" in d_residuals:
+                if "vol_mesh_coords" in d_outputs:
+                    warper.vectorJacobianProduct(d_residuals["vol_mesh_coords"],
+                                                 "state",
+                                                 d_outputs["vol_mesh_coords"])
+                if "surf_mesh_coords" in d_inputs:
+                    d_inputs["surf_mesh_coords"] += d_residuals["vol_mesh_coords"][self.surf_indices]
 
     def solve_linear(self, d_outputs, d_residuals, mode):
         if mode == "fwd":

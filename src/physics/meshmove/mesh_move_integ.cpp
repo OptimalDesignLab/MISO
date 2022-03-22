@@ -29,4 +29,46 @@ void ElasticityPositionIntegrator::AssembleElementVector(
    elmat.Mult(disp, elvect);
 }
 
+void ElasticityPositionIntegratorStateRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &state_bar)
+{
+   /// get the proper element, transformation, and adjoint vector
+   int element = trans.ElementNo;
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   DenseMatrix elmat;
+   integ.AssembleElementMatrix(el, trans, elmat);
+
+   state_bar.SetSize(psi.Size());
+   elmat.MultTranspose(psi, state_bar);
+}
+
+void ElasticityPositionIntegratorStateFwdSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &res_dot)
+{
+   /// get the proper element, transformation, and state_dot vector
+   int element = trans.ElementNo;
+   auto *dof_tr = state_dot.FESpace()->GetElementVDofs(element, vdofs);
+   state_dot.GetSubVector(vdofs, elfun_dot);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun_dot);
+   }
+
+   DenseMatrix elmat;
+   integ.AssembleElementMatrix(el, trans, elmat);
+
+   res_dot.SetSize(elfun_dot.Size());
+   elmat.MultTranspose(elfun_dot, res_dot);
+}
+
 }  // namespace mach
