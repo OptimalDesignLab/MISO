@@ -482,49 +482,6 @@ void AbstractSolver::setInitialCondition(
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
    u_test.SaveVTK(initial,"project_error", 0);
    initial.close();
-
-
-
-   // cout << "check nodal values\n";
-   // mfem::Array<int> vdofs;
-   // int num_dofs;
-   // for (int i = 0; i < fes_normal->GetNE(); i++)
-   // {
-   //    const FiniteElement *fe = fes->GetFE(i);
-   //    num_dofs = fe->GetDof();
-   //    fes_normal->GetElementVDofs(i, vdofs);
-   //    for(int j = 0; j < num_dofs; j++)
-   //    {
-   //       for(int k = 0; k < num_state; k++)
-   //       {
-   //          cout << (*u)(vdofs[k*num_dofs + j]) << ' ';
-   //          cout << u_test(vdofs[k*num_dofs + j]) << "   ";
-   //       }
-   //       cout << std::endl;
-   //    }
-   // }
-
-
-   // ofstream u_write("u_init.txt");
-   // ofstream uc_write("uc_init.txt");
-   // u->Print(u_write, 1);
-   // uc->Print(uc_write, 1);
-   // u_write.close();
-   // uc_write.close();
-   // DenseMatrix vals;
-   // Vector uj;
-   // for (int i = 0; i < fes->GetNE(); i++)
-   // {
-   //    const FiniteElement *fe = fes->GetFE(i);
-   //    const IntegrationRule *ir = &(fe->GetNodes());
-   //    ElementTransformation *T = fes->GetElementTransformation(i);
-   //    u->GetVectorValues(*T, *ir, vals);
-   //    for (int j = 0; j < ir->GetNPoints(); j++)
-   //    {
-   //       vals.GetColumnReference(j, uj);
-   //       cout << "uj = " << uj(0) << ", " << uj(1) << ", " << uj(2) << ", " << uj(3) << endl;
-   //    }
-   // }
 }
 
 void AbstractSolver::setInitialCondition(const Vector &uic)
@@ -532,7 +489,7 @@ void AbstractSolver::setInitialCondition(const Vector &uic)
    // TODO: Need to verify that this is ok for scalar fields
    VectorConstantCoefficient u0(uic);
    u->ProjectCoefficient(u0);
-   uc->ProjectCoefficient(u0);
+   uc->ProjectConstVecCoefficient(u0);
 
    GridFunType u_test(fes_normal.get());
    dynamic_cast<DGDSpace *>(fes.get())->GetProlongationMatrix()->Mult(*uc, u_test);

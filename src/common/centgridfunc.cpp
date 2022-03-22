@@ -64,7 +64,7 @@ CentGridFunction::CentGridFunction(FiniteElementSpace *f, Vector center)
 void CentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
 {
    int vdim = fes->GetVDim();
-   int i,j,k;
+   int i,j;
    Array<int> vdofs(vdim);
    Vector vals(vdim);
    Vector loc(dim);
@@ -79,6 +79,22 @@ void CentGridFunction::ProjectCoefficient(VectorCoefficient &coeff)
       }
       F(loc, vals);
       SetSubVector(vdofs, vals);
+   }
+}
+
+void CentGridFunction::ProjectConstVecCoefficient(VectorCoefficient &coeff)
+{
+   int vdim = fes->GetVDim();
+   int i,j;
+   Vector v = dynamic_cast<VectorConstantCoefficient*>(&coeff)->GetVec();
+   Array<int> vdofs(vdim);
+   for (i = 0; i < numBasis; i++)
+   {
+      for (j = 0; j < vdim; j++)
+      {
+         vdofs[j] = i * vdim + j;
+      }
+      SetSubVector(vdofs,v);
    }
 }
 

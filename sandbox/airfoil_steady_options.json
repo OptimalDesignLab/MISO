@@ -6,8 +6,8 @@
       "pitch-axis": 1
    },
    "space-dis": {
-      "RBF": false,
-      "RBF-degree": 1,
+      "DGD": false,
+      "DGD-degree": 1,
       "extra-basis": 4,
       "shape-param": 10.0,
       "degree": 1,

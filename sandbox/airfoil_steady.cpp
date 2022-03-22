@@ -45,16 +45,14 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       unique_ptr<Mesh> smesh(new Mesh("naca0012.mesh",1));
-      for (int l = 0; l < refine; l++)
-      {
-         smesh->UniformRefinement();
-      }
       int numBasis = smesh->GetNE();
-      Array<Vector *> center(numBasis);
+      Vector center(2*numBasis);
+      Vector loc(2);
       for (int k = 0; k < numBasis; k++)
       {  
-         center[k] = new Vector(2);
-         smesh->GetElementCenter(k,*center[k]);
+         smesh->GetElementCenter(k,loc);
+         center(k*2) = loc(0);
+         center(k*2+1) = loc(1);
       }
 
 
@@ -66,25 +64,25 @@ int main(int argc, char *argv[])
 
       string opt_file_name(options_file);
       unique_ptr<AbstractSolver> solver(new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
+      cout << "before init derived.\n";
       solver->initDerived(center);
+      cout << "done with initDerived().\n";
       Vector qfar(4);
       static_cast<EulerSolver<2, entvar>*>(solver.get())->getFreeStreamState(qfar);
+      cout << "Get freestream state.\n";
       // Vector wfar(4);
       // // TODO: I do not like that we have to perform this conversion outside the solver...
       // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
       solver->setInitialCondition(qfar);
+      cout << "done with initial condition.\n";
       // solver->printSolution("airfoil-steady-init");
-      // solver->checkJacobian(pert);
-      // mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-      //           << endl;
-      // solver->solveForState();
+      solver->checkJacobian(pert);
+      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
+                << endl;
+      solver->solveForState();
       // solver->printSolution("airfoil-steady-final");
-      // mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-      //           << endl;
-      for (int k = 0; k < numBasis; k++)
-      {
-         delete center[k];
-      }
+      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
+                << endl;
    }
    catch (MachException &exception)
    {

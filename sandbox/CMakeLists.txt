@@ -23,6 +23,7 @@ set(SANDBOX_SRCS
    continuous_euler
    continuous_2d_euler
    optimizationtest
-	)
+   airfoil_steady	
+)
 
 create_sandbox("${SANDBOX_SRCS}")

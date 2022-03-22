@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 2;
-   int nx = 1;
-   int ny = 1;
+   int nx = 10;
+   int ny = 10;
    int numRad = 10;
    int numTheta = 10;
    args.AddOption(&options_file, "-o", "--options",
@@ -85,7 +85,6 @@ int main(int argc, char *argv[])
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       unique_ptr<AbstractSolver> solver(
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
-      cout << "before init derived.\n";
       solver->initDerived(center);
 
       solver->setInitialCondition(uexact);
@@ -246,32 +245,32 @@ mfem::Vector buildBasisCenters(int numRad, int numTheta)
 template <typename T>
 void writeBasisCentervtp(const mfem::Vector &center, T &stream)
 {
+   int nb = center.Size()/2;
    stream << "<?xml version=\"1.0\"?>\n";
    stream << "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n";
    stream << "<PolyData>\n";
-   stream << "<Piece NumberOfPoints=\"" << center.Size() << "\" NumberOfVerts=\"" << center.Size() << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
+   stream << "<Piece NumberOfPoints=\"" << nb << "\" NumberOfVerts=\"" << nb << "\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n";
    stream << "<Points>\n";
    stream << "  <DataArray type=\"Float32\" Name=\"Points\" NumberOfComponents=\"3\" format=\"ascii\">";
-   int numBasis = center.Size()/2;
-   for (int i = 0; i < numBasis; i++)
+   for (int i = 0; i < nb; i++)
    {
-      stream << center(2*i) << ' ' << center(2*i+1) << ' ' << 0.0 << ' ';
+      stream << center(i*2) << ' ' << center(i*2+1) << ' ' << 0.0 << ' ';
    }
    stream << "</DataArray>\n";
    stream << "</Points>\n";
    stream << "<Verts>\n";
    stream << "  <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">";
-   for (size_t i = 0; i < center.Size(); ++i)
+   for (size_t i = 0; i < nb; ++i)
       stream << i << ' ';
    stream << "</DataArray>\n";
    stream << "  <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">";
-   for (size_t i = 1; i <= center.Size(); ++i)
+   for (size_t i = 1; i <= nb; ++i)
       stream << i << ' ';
    stream << "</DataArray>\n";
    stream << "</Verts>\n";
    stream << "<PointData Scalars=\"w\">\n";
    stream << "  <DataArray type=\"Float32\" Name=\"w\" NumberOfComponents=\"1\" format=\"ascii\">";
-   for (int i = 0; i < center.Size(); i++)
+   for (int i = 0; i < nb; i++)
       stream << 1.0 << ' ';
    stream << "</DataArray>\n";
    stream << "</PointData>\n";

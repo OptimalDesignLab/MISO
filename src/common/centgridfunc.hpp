@@ -16,6 +16,7 @@ public:
    CentGridFunction(mfem::FiniteElementSpace *f, mfem::Vector center);
 
    virtual void ProjectCoefficient(mfem::VectorCoefficient &coeff);
+   virtual void ProjectConstVecCoefficient(mfem::VectorCoefficient &coeff);
    
    CentGridFunction &operator=(const Vector &v);
    CentGridFunction &operator=(double value);
