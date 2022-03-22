@@ -91,8 +91,7 @@ class TestMachMeshWarper(unittest.TestCase):
         problem.setup()
         problem.run_model()
 
-        # prob.check_partials(form="central", step=1e-5)
-        data = problem.check_partials(out_stream=None, form="central", step=1e-7)
+        data = problem.check_partials()
         assert_check_partials(data, atol=1.e-6, rtol=1.e-6)
 
     # def test_totals(self):
@@ -120,9 +119,8 @@ class TestMachMeshWarper(unittest.TestCase):
     #     problem.setup()
     #     problem.run_model()
 
-    #     # prob.check_partials(form="central", step=1e-5)
     #     data = problem.check_totals(of=['vol_mesh_move.vol_mesh_coords'], wrt=['vol_mesh_move.surf_mesh_coords'])
-    #     # data = problem.check_totals(out_stream=None, form="central", step=1e-7)
     #     assert_check_totals(data, atol=1.e-6, rtol=1.e-6)
+
 if __name__ == "__main__":
     unittest.main()

@@ -129,8 +129,6 @@ void evaluate(MeshWarperResidual &residual,
              state(surface_indices[i]) - surf_mesh_coords(i);
       }
    }
-   // std::cout << "res_vec:\n";
-   // res_vec.Print(mfem::out, 1);
 }
 
 void linearize(MeshWarperResidual &residual, const mach::MachInputs &inputs)
@@ -164,6 +162,14 @@ void jacobianVectorProduct(MeshWarperResidual &residual,
                            const std::string &wrt,
                            mfem::Vector &res_dot)
 {
+   if (wrt == "surf_mesh_coords")
+   {
+      auto &surface_indices = residual.surface_indices;
+      for (int i = 0; i < surface_indices.Size(); ++i)
+      {
+         res_dot(surface_indices[i]) -= wrt_dot(i);
+      }
+   }
    jacobianVectorProduct(residual.res, wrt_dot, wrt, res_dot);
 }
 
@@ -179,6 +185,14 @@ void vectorJacobianProduct(MeshWarperResidual &residual,
                            const std::string &wrt,
                            mfem::Vector &wrt_bar)
 {
+   if (wrt == "surf_mesh_coords")
+   {
+      auto &surface_indices = residual.surface_indices;
+      for (int i = 0; i < surface_indices.Size(); ++i)
+      {
+         wrt_bar(i) -= res_bar(surface_indices[i]);
+      }
+   }
    vectorJacobianProduct(residual.res, res_bar, wrt, wrt_bar);
 }
 

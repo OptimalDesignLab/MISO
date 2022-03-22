@@ -60,8 +60,9 @@ class MachMeshWarper(om.ImplicitComponent):
                                                  "state",
                                                  d_residuals["vol_mesh_coords"])
                 if "surf_mesh_coords" in d_inputs:
-                    d_residuals["vol_mesh_coords"][self.surf_indices] += d_inputs["surf_mesh_coords"]
-            # raise NotImplementedError("forward mode requested but not implemented")
+                    warper.jacobianVectorProduct(d_inputs["surf_mesh_coords"],
+                                                 "surf_mesh_coords",
+                                                 d_residuals["vol_mesh_coords"])
 
         elif mode == "rev":
             if "vol_mesh_coords" in d_residuals:
@@ -70,7 +71,9 @@ class MachMeshWarper(om.ImplicitComponent):
                                                  "state",
                                                  d_outputs["vol_mesh_coords"])
                 if "surf_mesh_coords" in d_inputs:
-                    d_inputs["surf_mesh_coords"] += d_residuals["vol_mesh_coords"][self.surf_indices]
+                    warper.jacobianVectorProduct(d_residuals["vol_mesh_coords"],
+                                                 "surf_mesh_coords",
+                                                 d_inputs["surf_mesh_coords"])
 
     def solve_linear(self, d_outputs, d_residuals, mode):
         if mode == "fwd":

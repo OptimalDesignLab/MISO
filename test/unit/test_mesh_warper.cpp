@@ -336,3 +336,205 @@ TEST_CASE("MeshWarper::jacobianVectorProduct wrt state")
 
    REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
 }
+
+TEST_CASE("MeshWarper::vectorJacobianProduct wrt surf_mesh_coords")
+{
+   static std::default_random_engine gen;
+   static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+
+   auto comm = MPI_COMM_WORLD;
+
+   int nx = 3;
+   auto smesh = std::make_unique<mfem::Mesh>(
+      // mfem::Mesh::MakeCartesian1D(nx));
+      mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
+
+   mach::MeshWarper warper(comm, warp_options, std::move(smesh));
+
+   auto surf_mesh_size = warper.getSurfaceCoordsSize();
+   mfem::Vector surf_coords(surf_mesh_size);
+   warper.getInitialSurfaceCoords(surf_coords);
+
+   auto vol_mesh_size = warper.getVolumeCoordsSize();
+   mfem::Vector vol_coords(vol_mesh_size);
+   warper.getInitialVolumeCoords(vol_coords);
+
+   mfem::Array<int> surf_indices;   
+   warper.getSurfCoordIndices(surf_indices);
+
+   for (int i = 0; i < surf_mesh_size; ++i)
+   {
+      vol_coords(surf_indices[i]) = surf_coords(i);
+   }
+
+   warper.solveForState(vol_coords);
+
+   mach::MachInputs inputs{
+      {"surf_mesh_coords", surf_coords},
+      {"state", vol_coords}
+   };
+   warper.linearize(inputs);
+
+   mfem::Vector res_bar(vol_mesh_size);
+   for (int i = 0; i < res_bar.Size(); ++i)
+   {
+      res_bar(i) = uniform_rand(gen);
+   }
+
+   mfem::Vector wrt_bar(surf_mesh_size);
+   wrt_bar = 0.0;
+   warper.vectorJacobianProduct(res_bar, "surf_mesh_coords", wrt_bar);
+
+   // initialize the vector that we use to perturb the state
+   mfem::Vector v_tv(surf_mesh_size);
+   for (int i = 0; i < v_tv.Size(); ++i)
+   {
+      v_tv(i) = uniform_rand(gen);
+   }
+
+   auto dJdx_v_local = wrt_bar * v_tv;
+   double dJdx_v;
+   MPI_Allreduce(&dJdx_v_local,
+                 &dJdx_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 comm);
+
+   // now compute the finite-difference approximation...
+   auto delta = 1e-5;
+   double dJdx_v_fd_local = 0.0;
+   mfem::Vector res_vec(vol_mesh_size);
+
+   add(surf_coords, delta, v_tv, surf_coords);
+
+   res_vec = 0.0;
+   warper.calcResidual(inputs, res_vec);
+   dJdx_v_fd_local += res_bar * res_vec;
+
+   add(surf_coords, -2*delta, v_tv, surf_coords);
+   res_vec = 0.0;
+   warper.calcResidual(inputs, res_vec);
+   dJdx_v_fd_local -= res_bar * res_vec;
+
+   dJdx_v_fd_local /= 2*delta;
+
+   double dJdx_v_fd;
+   MPI_Allreduce(&dJdx_v_fd_local,
+                 &dJdx_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 comm);
+
+   int rank;
+   MPI_Comm_rank(comm, &rank);
+   if (rank == 0)
+   {
+      std::cout << "dJdx_v: " << dJdx_v << "\n";
+      std::cout << "dJdx_v_fd: " << dJdx_v_fd << "\n";
+   }
+
+   REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
+}
+
+TEST_CASE("MeshWarper::jacobianVectorProduct wrt surf_mesh_coords")
+{
+   static std::default_random_engine gen;
+   static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+
+   auto comm = MPI_COMM_WORLD;
+
+   int nx = 3;
+   auto smesh = std::make_unique<mfem::Mesh>(
+      // mfem::Mesh::MakeCartesian1D(nx));
+      mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
+
+   mach::MeshWarper warper(comm, warp_options, std::move(smesh));
+
+   auto surf_mesh_size = warper.getSurfaceCoordsSize();
+   mfem::Vector surf_coords(surf_mesh_size);
+   warper.getInitialSurfaceCoords(surf_coords);
+
+   auto vol_mesh_size = warper.getVolumeCoordsSize();
+   mfem::Vector vol_coords(vol_mesh_size);
+   warper.getInitialVolumeCoords(vol_coords);
+
+   mfem::Array<int> surf_indices;   
+   warper.getSurfCoordIndices(surf_indices);
+
+   for (int i = 0; i < surf_mesh_size; ++i)
+   {
+      vol_coords(surf_indices[i]) = surf_coords(i);
+   }
+
+   warper.solveForState(vol_coords);
+
+   mach::MachInputs inputs{
+      {"surf_mesh_coords", surf_coords},
+      {"state", vol_coords}
+   };
+   warper.linearize(inputs);
+
+   mfem::Vector wrt_dot(surf_mesh_size);
+   for (int i = 0; i < wrt_dot.Size(); ++i)
+   {
+      wrt_dot(i) = uniform_rand(gen);
+   }
+
+   mfem::Vector res_dot(vol_mesh_size);
+   res_dot = 0.0;
+   warper.jacobianVectorProduct(wrt_dot, "surf_mesh_coords", res_dot);
+
+   // initialize the vector that we use to perturb the surf coords
+   mfem::Vector v_tv(vol_mesh_size);
+   for (int i = 0; i < v_tv.Size(); ++i)
+   {
+      v_tv(i) = uniform_rand(gen);
+   }
+
+   auto dJdx_v_local = res_dot * v_tv;
+   double dJdx_v;
+   MPI_Allreduce(&dJdx_v_local,
+                 &dJdx_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 comm);
+
+   // now compute the finite-difference approximation...
+   auto delta = 1e-5;
+   double dJdx_v_fd_local = 0.0;
+   mfem::Vector res_vec(vol_mesh_size);
+
+   add(surf_coords, delta, wrt_dot, surf_coords);
+
+   res_vec = 0.0;
+   warper.calcResidual(inputs, res_vec);
+   dJdx_v_fd_local += v_tv * res_vec;
+
+   add(surf_coords, -2*delta, wrt_dot, surf_coords);
+   res_vec = 0.0;
+   warper.calcResidual(inputs, res_vec);
+   dJdx_v_fd_local -= v_tv * res_vec;
+
+   dJdx_v_fd_local /= 2*delta;
+
+   double dJdx_v_fd;
+   MPI_Allreduce(&dJdx_v_fd_local,
+                 &dJdx_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 comm);
+
+   int rank;
+   MPI_Comm_rank(comm, &rank);
+   if (rank == 0)
+   {
+      std::cout << "dJdx_v: " << dJdx_v << "\n";
+      std::cout << "dJdx_v_fd: " << dJdx_v_fd << "\n";
+   }
+
+   REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
+}
