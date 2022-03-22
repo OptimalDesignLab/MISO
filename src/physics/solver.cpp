@@ -65,6 +65,10 @@ AbstractSolver::AbstractSolver(const string &opt_file_name,
    {
       ode_solver.reset(new RRKImplicitMidpointSolver);
    }
+   else if (options["time-dis"]["ode-solver"].get<string>() == "PTC")
+   {
+      ode_solver.reset(new PseudoTransientSolver(&cout));
+   }
    else
    {
       throw MachException("Unknown ODE solver type " +
@@ -146,7 +150,35 @@ void AbstractSolver::initDerived(Vector &center)
    }
    output_bndry_marker.resize(num_bndry_outputs);
    addOutputs(); // virtual function
-   // ode solver and mass matrix is not set
+
+
+   // Set up mass matrix and evovler
+   mass.reset(new BilinearFormType(fes_normal.get()));
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass->Assemble();
+   mass->Finalize();
+
+   mass_matrix.reset(new MatrixType(mass->SpMat()));
+   MatrixType *cp = dynamic_cast<DGDSpace*>(fes.get())->GetCP();
+   MatrixType *p = RAP(*cp, *mass_matrix, *cp);
+   mass_matrix_gd.reset(new MatrixType(*p));
+
+   const string odes = options["time-dis"]["ode-solver"].get<string>();
+   if (odes == "RK1" || odes == "RK4")
+   {
+      evolver.reset(new NonlinearEvolver(*mass_matrix_gd, *res, -1.0));
+   }
+   else if (odes == "MIDPOINT" || odes == "PTC" )
+   {
+      evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix_gd, *res, this, -1.0));
+   }
+   else if (odes == "RRK")
+   {
+      evolver.reset(
+          new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res,
+                                           output.at("entropy"), -1.0));
+   }
+
 }
 
 void AbstractSolver::initDerived()
@@ -263,7 +295,7 @@ void AbstractSolver::initDerived()
    {
       evolver.reset(new NonlinearEvolver(*mass_matrix_gd, *res, -1.0));
    }
-   else if (odes == "MIDPOINT")
+   else if (odes == "MIDPOINT" || odes == "PTC" )
    {
       //evolver.reset(new ImplicitNonlinearMassEvolver(*nonlinear_mass, *res, -1.0));
       //evolver.reset(new ImplicitNonlinearEvolver(*mass_matrix, *res, -1.0));
@@ -951,10 +983,11 @@ void AbstractSolver::solveSteady()
 void AbstractSolver::solveUnsteady()
 {  
    // TODO: This is not general enough.
-
+   cout << "in solve unsteady.\n";
    double t = 0.0;
    evolver->SetTime(t);
    ode_solver->Init(*evolver);
+   cout << "done with init.\n";
 
    // output the mesh and initial condition
    // TODO: need to swtich to vtk for SBP
@@ -972,6 +1005,8 @@ void AbstractSolver::solveUnsteady()
    res->Mult(*uc, test);
    // printResidual("initial_cent");
    double inner = (*uc) * test;
+   double res_norm0 = sqrt(test * test);
+   double res_norm = res_norm0;
    cout << "The inner product is " << test.Norml2() << '\n'; 
    // check the jacobian
    bool done = false;
@@ -979,19 +1014,24 @@ void AbstractSolver::solveUnsteady()
    *out << "t_final is " << t_final << '\n';
    double dt = options["time-dis"]["dt"].get<double>();
    bool calc_dt = options["time-dis"]["const-cfl"].get<bool>();
-   remove("entropylog.txt");
-   double entropy;
-   ofstream entropylog;
-   entropylog.open("entropylog.txt", fstream::app);
-   entropylog << setprecision(17);
+   double exponent = options["time-dis"]["res-exp"];
+   // remove("entropylog.txt");
+   // double entropy;
+   // ofstream entropylog;
+   // entropylog.open("entropylog.txt", fstream::app);
+   // entropylog << setprecision(17);
    clock_t start_t = clock();
+   double dt_default = options["time-dis"]["dt"].get<double>();
+   double dt_old = dt_default;
    for (int ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); !done)
    {
-      entropy = calcOutput("entropy");
-      entropylog << t << ' ' << entropy << '\n';
+      // entropy = calcOutput("entropy");
+      // entropylog << t << ' ' << entropy << '\n';
       if (calc_dt)
       {
-         dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
+         // dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
+         dt = dt_default * pow(res_norm0/res_norm,exponent);
+         dt = max(dt,dt_old);
       }
       double dt_real = min(dt, t_final - t);
       // TODO: !!!!! The following does not generalize beyond midpoint !!!!!
@@ -1011,35 +1051,34 @@ void AbstractSolver::solveUnsteady()
       //updateNonlinearMass(ti, dt_real/2, 1.0);
       *out << "iter " << ti << ": time = " << t << ": dt = " << dt_real
               << " (" << round(100 * t / t_final) << "% complete)" << endl;
-#ifdef MFEM_USE_MPI
-      HypreParVector *U = u->GetTrueDofs();
-      ode_solver->Step(*U, t, dt_real);
-      *u = *U;
-#else
-      {
-         Vector r(fes->GetTrueVSize());
-         res->Mult(*uc,r);
-         double n = r.Norml2();
-         cout << " before step, resdual norm is " << n << endl;
-      }
+      // {
+      //    Vector r(fes->GetTrueVSize());
+      //    res->Mult(*uc,r);
+      //    double n = r.Norml2();
+      //    cout << " before step, resdual norm is " << n << endl;
+      // }
       ode_solver->Step(*uc, t, dt_real);
+      // {
+      //    Vector r(fes->GetTrueVSize());
+      //    res->Mult(*uc,r);
+      //    double n = r.Norml2();
+      //    cout << "after step, resdual norm is " << n << endl;
+      // }
+      res_norm = calcResidualNorm();
+      if (res_norm <= 1e-13 || t >= t_final)
       {
-         Vector r(fes->GetTrueVSize());
-         res->Mult(*uc,r);
-         double n = r.Norml2();
-         cout << "after step, resdual norm is " << n << endl;
+         break;
       }
-#endif
       ti++;
-      done = (t >= t_final - 1e-8 * dt);
+      dt_old = dt;
    }
    *out << "Time steps are done, final time t = " << t << endl;
-   entropy = calcOutput("entropy");
-   entropylog << t << ' ' << entropy << '\n';
+   // entropy = calcOutput("entropy");
+   // entropylog << t << ' ' << entropy << '\n';
    clock_t end_t = clock();
    double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
    cout << "Wall time for solving unsteady vortex problem: " << total_t << '\n';
-   entropylog.close();
+   // entropylog.close();
    printSolution("final_solution");
 
    // Save the final solution. This output can be viewed later using GLVis:
@@ -1212,7 +1251,7 @@ void AbstractSolver::checkJacobian(
    jac_v -= res_plus;
    //double error = calcInnerProduct(jac_v, jac_v);
    double error = jac_v *jac_v;
-   *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+   *out << "The Jacobian product error norm is " << sqrt(error) << '\n';
 }
 
 } // namespace mach

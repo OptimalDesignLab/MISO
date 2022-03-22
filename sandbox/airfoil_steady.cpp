@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
    try
    {
       // construct the solver, set the initial condition, and solve
-      unique_ptr<Mesh> smesh(new Mesh("naca0012.mesh",1));
+      unique_ptr<Mesh> smesh(new Mesh("airfoil_p2_r0.mesh",1));
       int numBasis = smesh->GetNE();
       Vector center(2*numBasis);
       Vector loc(2);
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
       solver->setInitialCondition(qfar);
       cout << "done with initial condition.\n";
       // solver->printSolution("airfoil-steady-init");
-      solver->checkJacobian(pert);
+      // solver->checkJacobian(pert);
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
       solver->solveForState();

@@ -8,6 +8,19 @@ using namespace mach;
 namespace mach
 {
 
+void PseudoTransientSolver::Init(TimeDependentOperator &_f)
+{
+   ODESolver::Init(_f);
+}
+
+void PseudoTransientSolver::Step(Vector &x, double &t, double &dt)
+{
+   f->SetTime(t + dt);
+   k.SetSize(x.Size(), mem_type);
+   f->ImplicitSolve(dt, x, k);
+   x.Add(dt, k);
+   t += dt;
+}
 
 void RRKImplicitMidpointSolver::Init(TimeDependentOperator &_f)
 {
@@ -125,41 +138,20 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
    : EntropyConstrainedOperator(m.Height()), 
      mass(m), res(r), abs_solver(abs), alpha(a)
 {
-#ifdef MFEM_USE_MPI
-#ifdef MFEM_USE_PETSC
-   // using petsc gmres solver
-   linear_solver.reset(new mfem::PetscLinearSolver(mass.GetComm(), "solver_", 0));
-   prec.reset(new mfem::PetscPreconditioner(mass.GetComm(), "prec_"));
-   dynamic_cast<mfem::PetscLinearSolver *>(linear_solver.get())->SetPreconditioner(*prec);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetAbsTol(1e-10);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetRelTol(1e-10);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetMaxIter(100);
-   dynamic_cast<mfem::PetscSolver *>(linear_solver.get())->SetPrintLevel(2);
-#else
-   //using hypre solver instead
-   linear_solver.reset(new mfem::HypreGMRES(mass.GetComm()));
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetTol(1e-10);
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetPrintLevel(1);
-   dynamic_cast<mfem::HypreGMRES *>(linear_solver.get())->SetMaxIter(100);
-#endif
-   newton_solver.reset(new mfem::NewtonSolver(mass.GetComm()));
-   //newton_solver.reset(new mfem::InexactNewton(mass.GetComm(), 1e-4, 1e-1, 1e-4));
-#else
    linear_solver.reset(new UMFPackSolver());
    dynamic_cast<UMFPackSolver *>(linear_solver.get())->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
    dynamic_cast<UMFPackSolver *>(linear_solver.get())->SetPrintLevel(1);
    newton_solver.reset(new mfem::NewtonSolver());
-#endif
 
    // set paramters for the newton solver
-   newton_solver->SetRelTol(1e-10);
-   newton_solver->SetAbsTol(1e-10);
-   newton_solver->SetPrintLevel(0);
-   newton_solver->SetMaxIter(30);
+   newton_solver->SetRelTol(1e-1);
+   newton_solver->SetAbsTol(1e-12);
+   newton_solver->SetPrintLevel(1);
+   newton_solver->SetMaxIter(40);
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
    newton_solver->SetOperator(*this);
-   newton_solver->iterative_mode = false;
+   newton_solver->iterative_mode = true;
 }
 
 double ImplicitNonlinearEvolver::Entropy(const Vector &state)
