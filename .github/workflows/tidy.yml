@@ -305,7 +305,7 @@ jobs:
             -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
             -D CMAKE_POSITION_INDEPENDENT_CODE=ON
             -D CMAKE_CXX_FLAGS="$ENV{BUILD_FLAGS}"
-            -D ADEPT_DIR=$ENV{GITHUB_WORKSPACE}/.deps/adept/install
+            -D Adept_ROOT=$ENV{GITHUB_WORKSPACE}/.deps/adept/install
             -D MFEM_DIR=$ENV{GITHUB_WORKSPACE}/.deps/mfem/build
             -D CMAKE_EXPORT_COMPILE_COMMANDS=ON
 
