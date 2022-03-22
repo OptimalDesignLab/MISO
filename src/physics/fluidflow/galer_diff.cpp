@@ -156,7 +156,6 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
    DenseMatrix localMat;
    for (int i = 0; i < GetMesh()->GetNE(); i++)
    {
-      cout << "dealing with element: "<< i << '\n';
       // 1. build basis matrix
       buildDataMat(i,x,V,Vn);
 
@@ -165,7 +164,6 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
 
       // 3. Assemble prolongation matrix
       AssembleProlongationMatrix(i,localMat);
-      cout << "assembled.\n";
    }
    cP->Finalize();
    ofstream cp_save("prolong.txt");
@@ -427,14 +425,9 @@ void DGDSpace::AssembleProlongationMatrix(const int el_id, const DenseMatrix &lo
    {
       col_index[e] = vdim * (*selectedBasis[el_id])[e];
    }
-
    for (int v = 0; v < vdim; v++)
    {
       el_dofs.GetSubArray(v * numDofs, numDofs, row_index);
-      cout << "col assemble location: ";
-      col_index.Print(cout,col_index.Size());
-      cout << "row assemble location: ";
-      row_index.Print(cout,row_index.Size());
       cP->SetSubMatrix(row_index, col_index, localMat, 1);
       row_index.LoseData();
       // elements id also need to be shift accordingly

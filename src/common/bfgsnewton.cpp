@@ -66,10 +66,10 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       if (print_level >= 0)
       {
          mfem::out << "BFGS optimization iteration " << setw(2) << it
-                   << " : ||J|| = " << norm;
+                   << " : J = " << norm;
          if (it > 0)
          {
-            mfem::out << ", ||J||/||J_0|| = " << norm/norm0;
+            mfem::out << ", J/J_0 = " << norm/norm0;
             mfem::out << " . jac norm is " << jac.Norml2();
          }
          mfem::out<<'\n';
