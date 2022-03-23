@@ -84,7 +84,7 @@ LinearEvolver::LinearEvolver(MatrixType &m, MatrixType &k, ostream &outstream)
 #endif
    mass_solver->SetPreconditioner(mass_prec);
    mass_solver->SetOperator(mass);
-   mass_solver->iterative_mode = false; // do not use second arg of Mult as guess
+   mass_solver->iterative_mode = true; // do not use second arg of Mult as guess
    mass_solver->SetRelTol(1e-9);
    mass_solver->SetAbsTol(0.0);
    mass_solver->SetMaxIter(100);
@@ -151,7 +151,7 @@ ImplicitNonlinearEvolver::ImplicitNonlinearEvolver(MatrixType &m,
    // set linear solver and operator
    newton_solver->SetSolver(*linear_solver);
    newton_solver->SetOperator(*this);
-   newton_solver->iterative_mode = true;
+   newton_solver->iterative_mode = false;
 }
 
 double ImplicitNonlinearEvolver::Entropy(const Vector &state)

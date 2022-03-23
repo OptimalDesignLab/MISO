@@ -154,7 +154,7 @@ void AbstractSolver::initDerived(Vector &center)
 
    // Set up mass matrix and evovler
    mass.reset(new BilinearFormType(fes_normal.get()));
-   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state));
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state,true));
    mass->Assemble();
    mass->Finalize();
 
@@ -1031,7 +1031,7 @@ void AbstractSolver::solveUnsteady()
       {
          // dt = calcStepSize(options["time-dis"]["cfl"].get<double>());
          dt = dt_default * pow(res_norm0/res_norm,exponent);
-         dt = max(dt,dt_old);
+         dt = std::max(dt,dt_old);
       }
       double dt_real = min(dt, t_final - t);
       // TODO: !!!!! The following does not generalize beyond midpoint !!!!!
@@ -1065,7 +1065,8 @@ void AbstractSolver::solveUnsteady()
       //    cout << "after step, resdual norm is " << n << endl;
       // }
       res_norm = calcResidualNorm();
-      if (res_norm <= 1e-13 || t >= t_final)
+      cout << "res norm is " << res_norm << '\n';
+      if (res_norm <= 1e-12 || t >= t_final)
       {
          break;
       }
