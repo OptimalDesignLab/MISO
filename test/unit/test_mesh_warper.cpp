@@ -569,10 +569,10 @@ TEST_CASE("MeshWarper total derivative of vol_coords wrt surf_coords")
 
    auto comm = MPI_COMM_WORLD;
 
-   int nx = 3;
+   int nx = 5;
    auto smesh = std::make_unique<mfem::Mesh>(
-      mfem::Mesh::MakeCartesian1D(nx));
-      // mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
+      // mfem::Mesh::MakeCartesian1D(nx));
+      mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
 
    mach::MeshWarper warper(comm, warp_options, std::move(smesh));
 
@@ -599,175 +599,203 @@ TEST_CASE("MeshWarper total derivative of vol_coords wrt surf_coords")
    };
    warper.linearize(inputs);
 
-   mfem::DenseMatrix state_jac_rev(vol_mesh_size);
-   for (int i = 0; i < vol_mesh_size; ++i)
-   {
-      mfem::Vector res_bar(vol_mesh_size);
-      res_bar = 0.0;
-      res_bar(i) = 1.0;
-
-      mfem::Vector state_bar(vol_mesh_size);
-      state_bar = 0.0;
-      warper.vectorJacobianProduct(res_bar, "state", state_bar);
-
-      for (int j = 0; j < vol_mesh_size; ++j)
-      {
-         state_jac_rev(i, j) = state_bar(j);
-      }
-   }
-   std::cout << "State Jac:\n";
-   state_jac_rev.Print(mfem::out, vol_mesh_size);
-
-   mfem::DenseMatrix partial_jac_rev(vol_mesh_size, surf_mesh_size);
-   for (int i = 0; i < vol_mesh_size; ++i)
-   {
-      mfem::Vector res_bar(vol_mesh_size);
-      res_bar = 0.0;
-      res_bar(i) = 1.0;
-
-      mfem::Vector surf_mesh_bar(surf_mesh_size);
-      surf_mesh_bar = 0.0;
-      warper.vectorJacobianProduct(res_bar, "surf_mesh_coords", surf_mesh_bar);
-
-      for (int j = 0; j < surf_mesh_size; ++j)
-      {
-         partial_jac_rev(i, j) = surf_mesh_bar(j);
-      }
-   }
-   std::cout << "Partial Jac Rev:\n";
-   partial_jac_rev.Print(mfem::out, vol_mesh_size);
-
-   mfem::DenseMatrix partial_jac_fd(vol_mesh_size, surf_mesh_size);
-   for (int i = 0; i < surf_mesh_size; ++i)
-   {
-      mfem::Vector res(vol_mesh_size);
-      warper.calcResidual(inputs, res);
-
-      double delta = 1e-6;
-      surf_coords(i) += delta;
-
-      mfem::Vector res_plus(vol_mesh_size);
-      warper.calcResidual(inputs, res_plus);
-      surf_coords(i) -= delta; // reset
-
-      for (int j = 0; j < vol_mesh_size; ++j)
-      {
-         partial_jac_fd(j, i) = (res_plus(j) - res(j)) / delta;
-      }
-   }
-   std::cout << "Partial Jac FD:\n";
-   partial_jac_fd.Print(mfem::out, vol_mesh_size);
-
-   mfem::DenseMatrix jac_rev(vol_mesh_size, surf_mesh_size);
-   for (int i = 0; i < vol_mesh_size; ++i)
-   {
-      mfem::Vector state_bar(vol_mesh_size);
-      state_bar = 0.0;
-      state_bar(i) = -1.0;
-
-      mfem::Vector adjoint(vol_mesh_size);
-      adjoint = 0.0;
-      warper.solveForAdjoint(vol_coords, state_bar, adjoint);
-
-      std::cout << "adjoint:\n";
-      adjoint.Print(mfem::out, vol_mesh_size);
-      std::cout << "\n";
-
-      mfem::Vector surf_mesh_bar(surf_mesh_size);
-      surf_mesh_bar = 0.0;
-      warper.vectorJacobianProduct(adjoint, "surf_mesh_coords", surf_mesh_bar);
-
-      for (int j = 0; j < surf_mesh_size; ++j)
-      {
-         jac_rev(i, j) = surf_mesh_bar(j);
-      }
-   }
-   std::cout << "Jac REV:\n";
-   jac_rev.Print(mfem::out, vol_mesh_size);
-
-   mfem::DenseMatrix jac_fd(vol_mesh_size, surf_mesh_size);
-   for (int i = 0; i < surf_mesh_size; ++i)
-   {
-      mfem::Vector vol_coords_plus(vol_mesh_size);
-      vol_coords_plus = vol_coords;
-
-      double delta = 1e-6;
-      surf_coords(i) += delta;
-
-      for (int i = 0; i < surf_mesh_size; ++i)
-      {
-         vol_coords_plus(surf_indices[i]) = surf_coords(i);
-      }
-      warper.solveForState(vol_coords_plus);
-      surf_coords(i) -= delta; // reset
-
-      for (int j = 0; j < vol_mesh_size; ++j)
-      {
-         jac_fd(j, i) = (vol_coords_plus(j) - vol_coords(j)) / delta;
-      }
-   }
-   std::cout << "Jac FD:\n";
-   jac_fd.Print(mfem::out, vol_mesh_size);
-
-   // mfem::Vector res_bar(vol_mesh_size);
-   // for (int i = 0; i < res_bar.Size(); ++i)
+   // mfem::DenseMatrix state_jac_rev(vol_mesh_size);
+   // for (int i = 0; i < vol_mesh_size; ++i)
    // {
-   //    res_bar(i) = uniform_rand(gen);
+   //    mfem::Vector res_bar(vol_mesh_size);
+   //    res_bar = 0.0;
+   //    res_bar(i) = 1.0;
+
+   //    mfem::Vector state_bar(vol_mesh_size);
+   //    state_bar = 0.0;
+   //    warper.vectorJacobianProduct(res_bar, "state", state_bar);
+
+   //    for (int j = 0; j < vol_mesh_size; ++j)
+   //    {
+   //       state_jac_rev(i, j) = state_bar(j);
+   //    }
+   // }
+   // std::cout << "State Jac:\n";
+   // state_jac_rev.Print(mfem::out, vol_mesh_size);
+
+   // mfem::DenseMatrix partial_jac_rev(vol_mesh_size, surf_mesh_size);
+   // for (int i = 0; i < vol_mesh_size; ++i)
+   // {
+   //    mfem::Vector res_bar(vol_mesh_size);
+   //    res_bar = 0.0;
+   //    res_bar(i) = 1.0;
+
+   //    mfem::Vector surf_mesh_bar(surf_mesh_size);
+   //    surf_mesh_bar = 0.0;
+   //    warper.vectorJacobianProduct(res_bar, "surf_mesh_coords", surf_mesh_bar);
+
+   //    for (int j = 0; j < surf_mesh_size; ++j)
+   //    {
+   //       partial_jac_rev(i, j) = surf_mesh_bar(j);
+   //    }
+   // }
+   // std::cout << "Partial Jac Rev:\n";
+   // partial_jac_rev.Print(mfem::out, vol_mesh_size);
+
+   // mfem::DenseMatrix partial_jac_fd(vol_mesh_size, surf_mesh_size);
+   // for (int i = 0; i < surf_mesh_size; ++i)
+   // {
+   //    mfem::Vector res(vol_mesh_size);
+   //    warper.calcResidual(inputs, res);
+
+   //    double delta = 1e-6;
+   //    surf_coords(i) += delta;
+
+   //    mfem::Vector res_plus(vol_mesh_size);
+   //    warper.calcResidual(inputs, res_plus);
+   //    surf_coords(i) -= delta; // reset
+
+   //    for (int j = 0; j < vol_mesh_size; ++j)
+   //    {
+   //       partial_jac_fd(j, i) = (res_plus(j) - res(j)) / delta;
+   //    }
+   // }
+   // std::cout << "Partial Jac FD:\n";
+   // partial_jac_fd.Print(mfem::out, vol_mesh_size);
+
+   // mfem::DenseMatrix jac_rev(vol_mesh_size, surf_mesh_size);
+   // for (int i = 0; i < vol_mesh_size; ++i)
+   // {
+   //    mfem::Vector state_bar(vol_mesh_size);
+   //    state_bar = 0.0;
+   //    state_bar(i) = -1.0;
+
+   //    mfem::Vector adjoint(vol_mesh_size);
+   //    adjoint = 0.0;
+   //    warper.solveForAdjoint(vol_coords, state_bar, adjoint);
+
+   //    std::cout << "adjoint:\n";
+   //    adjoint.Print(mfem::out, vol_mesh_size);
+   //    std::cout << "\n";
+
+   //    mfem::Vector surf_mesh_bar(surf_mesh_size);
+   //    surf_mesh_bar = 0.0;
+   //    warper.vectorJacobianProduct(adjoint, "surf_mesh_coords", surf_mesh_bar);
+
+   //    for (int j = 0; j < surf_mesh_size; ++j)
+   //    {
+   //       jac_rev(i, j) = surf_mesh_bar(j);
+   //    }
+   // }
+   // std::cout << "Jac REV:\n";
+   // jac_rev.Print(mfem::out, vol_mesh_size);
+
+   // mfem::DenseMatrix jac_fd(vol_mesh_size, surf_mesh_size);
+   // for (int i = 0; i < surf_mesh_size; ++i)
+   // {
+   //    mfem::Vector vol_coords_plus(vol_mesh_size);
+   //    vol_coords_plus = vol_coords;
+
+   //    double delta = 1e-6;
+   //    surf_coords(i) += delta;
+
+   //    for (int i = 0; i < surf_mesh_size; ++i)
+   //    {
+   //       vol_coords_plus(surf_indices[i]) = surf_coords(i);
+   //    }
+   //    warper.solveForState(vol_coords_plus);
+   //    surf_coords(i) -= delta; // reset
+
+   //    for (int j = 0; j < vol_mesh_size; ++j)
+   //    {
+   //       jac_fd(j, i) = (vol_coords_plus(j) - vol_coords(j)) / delta;
+   //    }
+   // }
+   // std::cout << "Jac FD:\n";
+   // jac_fd.Print(mfem::out, vol_mesh_size);
+
+   mfem::Vector state_bar(vol_mesh_size);
+   for (int i = 0; i < state_bar.Size(); ++i)
+   {
+      state_bar(i) = uniform_rand(gen);
+   }
+
+   mfem::Vector adjoint(vol_mesh_size);
+   adjoint = 0.0;
+   warper.solveForAdjoint(vol_coords, state_bar, adjoint);
+   adjoint *= -1.0;
+
+   mfem::Vector surf_mesh_bar(surf_mesh_size);
+   surf_mesh_bar = 0.0;
+   warper.vectorJacobianProduct(adjoint, "surf_mesh_coords", surf_mesh_bar);
+
+   // initialize the vector that we use to perturb the state
+   mfem::Vector v(surf_mesh_bar.Size());
+   for (int i = 0; i < v.Size(); ++i)
+   {
+      v(i) = uniform_rand(gen);
+   }
+
+   auto dJdx_v_local = surf_mesh_bar * v;
+   double dJdx_v;
+   MPI_Allreduce(&dJdx_v_local,
+                 &dJdx_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 comm);
+
+   // now compute the finite-difference approximation...
+   mfem::Vector vol_coords_plus(vol_coords);
+   mfem::Vector vol_coords_minus(vol_coords);
+
+   // double delta = 1e-6;
+   // surf_coords(i) += delta;
+
+   // for (int i = 0; i < surf_mesh_size; ++i)
+   // {
+   //    vol_coords_plus(surf_indices[i]) = surf_coords(i);
+   // }
+   // warper.solveForState(vol_coords_plus);
+   // surf_coords(i) -= delta; // reset
+
+   // for (int j = 0; j < vol_mesh_size; ++j)
+   // {
+   //    jac_fd(j, i) = (vol_coords_plus(j) - vol_coords(j)) / delta;
    // }
 
-   // mfem::Vector state_bar(vol_mesh_size);
-   // state_bar = 0.0;
-   // warper.vectorJacobianProduct(res_bar, "state", state_bar);
+   auto delta = 1e-5;
+   double dJdx_v_fd_local = 0.0;
+   mfem::Vector res_vec(vol_mesh_size);
 
-   // // initialize the vector that we use to perturb the state
-   // mfem::Vector v_tv(vol_mesh_size);
-   // for (int i = 0; i < v_tv.Size(); ++i)
-   // {
-   //    v_tv(i) = uniform_rand(gen);
-   // }
+   add(surf_coords, delta, v, surf_coords);
+   for (int i = 0; i < surf_coords.Size(); ++i)
+   {
+      vol_coords_plus(surf_indices[i]) = surf_coords(i);
+   }
+   warper.solveForState(vol_coords_plus);
+   dJdx_v_fd_local += state_bar * vol_coords_plus;
 
-   // auto dJdx_v_local = state_bar * v_tv;
-   // double dJdx_v;
-   // MPI_Allreduce(&dJdx_v_local,
-   //               &dJdx_v,
-   //               1,
-   //               MPI_DOUBLE,
-   //               MPI_SUM,
-   //               comm);
+   add(surf_coords, -2*delta, v, surf_coords);
+   for (int i = 0; i < surf_coords.Size(); ++i)
+   {
+      vol_coords_minus(surf_indices[i]) = surf_coords(i);
+   }
+   warper.solveForState(vol_coords_minus);
+   dJdx_v_fd_local -= state_bar * vol_coords_minus;
 
-   // // now compute the finite-difference approximation...
-   // auto delta = 1e-5;
-   // double dJdx_v_fd_local = 0.0;
-   // mfem::Vector res_vec(vol_mesh_size);
+   dJdx_v_fd_local /= 2*delta;
 
-   // add(vol_coords, delta, v_tv, vol_coords);
+   double dJdx_v_fd;
+   MPI_Allreduce(&dJdx_v_fd_local,
+                 &dJdx_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 comm);
 
-   // res_vec = 0.0;
-   // warper.calcResidual(inputs, res_vec);
-   // dJdx_v_fd_local += res_bar * res_vec;
+   int rank;
+   MPI_Comm_rank(comm, &rank);
+   if (rank == 0)
+   {
+      std::cout << "dJdx_v: " << dJdx_v << "\n";
+      std::cout << "dJdx_v_fd: " << dJdx_v_fd << "\n";
+   }
 
-   // add(vol_coords, -2*delta, v_tv, vol_coords);
-   // res_vec = 0.0;
-   // warper.calcResidual(inputs, res_vec);
-   // dJdx_v_fd_local -= res_bar * res_vec;
-
-   // dJdx_v_fd_local /= 2*delta;
-
-   // double dJdx_v_fd;
-   // MPI_Allreduce(&dJdx_v_fd_local,
-   //               &dJdx_v_fd,
-   //               1,
-   //               MPI_DOUBLE,
-   //               MPI_SUM,
-   //               comm);
-
-   // int rank;
-   // MPI_Comm_rank(comm, &rank);
-   // if (rank == 0)
-   // {
-   //    std::cout << "dJdx_v: " << dJdx_v << "\n";
-   //    std::cout << "dJdx_v_fd: " << dJdx_v_fd << "\n";
-   // }
-
-   // REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
+   REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
 }
