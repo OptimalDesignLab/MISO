@@ -549,19 +549,6 @@ TEST_CASE("MeshWarper::jacobianVectorProduct wrt surf_mesh_coords")
    REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
 }
 
-/**
- * Create new test that computes the residual total derivatives:
- * Functional is just the value of a single volume mesh coord, so dJdu is a one hot vector
- * solve for adjoint with dJdu, then compute
- * 
- *    dF/dx_gamma = \partial F / \partial x_gamma
- *                  + psi^T * \partial R(x, x_gamma) / \partial x_gamma
- * 
- *    dF/dx_gamma = psi^T * \partial R(x, x_gamma) / \partial x_gamma
- * 
- * Verify total derivative with finite difference
- */
-
 TEST_CASE("MeshWarper total derivative of vol_coords wrt surf_coords")
 {
    static std::default_random_engine gen;
@@ -569,7 +556,7 @@ TEST_CASE("MeshWarper total derivative of vol_coords wrt surf_coords")
 
    auto comm = MPI_COMM_WORLD;
 
-   int nx = 5;
+   int nx = 4;
    auto smesh = std::make_unique<mfem::Mesh>(
       // mfem::Mesh::MakeCartesian1D(nx));
       mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
@@ -598,65 +585,6 @@ TEST_CASE("MeshWarper total derivative of vol_coords wrt surf_coords")
       {"state", vol_coords}
    };
    warper.linearize(inputs);
-
-   // mfem::DenseMatrix state_jac_rev(vol_mesh_size);
-   // for (int i = 0; i < vol_mesh_size; ++i)
-   // {
-   //    mfem::Vector res_bar(vol_mesh_size);
-   //    res_bar = 0.0;
-   //    res_bar(i) = 1.0;
-
-   //    mfem::Vector state_bar(vol_mesh_size);
-   //    state_bar = 0.0;
-   //    warper.vectorJacobianProduct(res_bar, "state", state_bar);
-
-   //    for (int j = 0; j < vol_mesh_size; ++j)
-   //    {
-   //       state_jac_rev(i, j) = state_bar(j);
-   //    }
-   // }
-   // std::cout << "State Jac:\n";
-   // state_jac_rev.Print(mfem::out, vol_mesh_size);
-
-   // mfem::DenseMatrix partial_jac_rev(vol_mesh_size, surf_mesh_size);
-   // for (int i = 0; i < vol_mesh_size; ++i)
-   // {
-   //    mfem::Vector res_bar(vol_mesh_size);
-   //    res_bar = 0.0;
-   //    res_bar(i) = 1.0;
-
-   //    mfem::Vector surf_mesh_bar(surf_mesh_size);
-   //    surf_mesh_bar = 0.0;
-   //    warper.vectorJacobianProduct(res_bar, "surf_mesh_coords", surf_mesh_bar);
-
-   //    for (int j = 0; j < surf_mesh_size; ++j)
-   //    {
-   //       partial_jac_rev(i, j) = surf_mesh_bar(j);
-   //    }
-   // }
-   // std::cout << "Partial Jac Rev:\n";
-   // partial_jac_rev.Print(mfem::out, vol_mesh_size);
-
-   // mfem::DenseMatrix partial_jac_fd(vol_mesh_size, surf_mesh_size);
-   // for (int i = 0; i < surf_mesh_size; ++i)
-   // {
-   //    mfem::Vector res(vol_mesh_size);
-   //    warper.calcResidual(inputs, res);
-
-   //    double delta = 1e-6;
-   //    surf_coords(i) += delta;
-
-   //    mfem::Vector res_plus(vol_mesh_size);
-   //    warper.calcResidual(inputs, res_plus);
-   //    surf_coords(i) -= delta; // reset
-
-   //    for (int j = 0; j < vol_mesh_size; ++j)
-   //    {
-   //       partial_jac_fd(j, i) = (res_plus(j) - res(j)) / delta;
-   //    }
-   // }
-   // std::cout << "Partial Jac FD:\n";
-   // partial_jac_fd.Print(mfem::out, vol_mesh_size);
 
    // mfem::DenseMatrix jac_rev(vol_mesh_size, surf_mesh_size);
    // for (int i = 0; i < vol_mesh_size; ++i)
@@ -743,21 +671,6 @@ TEST_CASE("MeshWarper total derivative of vol_coords wrt surf_coords")
    // now compute the finite-difference approximation...
    mfem::Vector vol_coords_plus(vol_coords);
    mfem::Vector vol_coords_minus(vol_coords);
-
-   // double delta = 1e-6;
-   // surf_coords(i) += delta;
-
-   // for (int i = 0; i < surf_mesh_size; ++i)
-   // {
-   //    vol_coords_plus(surf_indices[i]) = surf_coords(i);
-   // }
-   // warper.solveForState(vol_coords_plus);
-   // surf_coords(i) -= delta; // reset
-
-   // for (int j = 0; j < vol_mesh_size; ++j)
-   // {
-   //    jac_fd(j, i) = (vol_coords_plus(j) - vol_coords(j)) / delta;
-   // }
 
    auto delta = 1e-5;
    double dJdx_v_fd_local = 0.0;
