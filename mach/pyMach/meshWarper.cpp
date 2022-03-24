@@ -5,9 +5,7 @@
 #include <utility>
 
 #include <mpi4py/mpi4py.h>
-
 #include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
 
 #include "mfem.hpp"
 #include "mpi.h"
@@ -16,50 +14,10 @@
 #include "abstract_solver.hpp"
 #include "mesh_warper.hpp"
 #include "mpi_comm.hpp"
+#include "py_mach_utils.hpp"
 
 namespace py = pybind11;
 using namespace mach;
-
-namespace
-{
-mfem::Vector npBufferToMFEMVector(const py::array_t<double> &buffer)
-{
-   auto info = buffer.request();
-   /* Some sanity checks ... */
-   if (info.format != py::format_descriptor<double>::format())
-   {
-      throw std::runtime_error(
-          "Incompatible format:\n"
-          "\texpected a double array!");
-   }
-   if (info.ndim != 1)
-   {
-      throw std::runtime_error(
-          "Incompatible dimensions:\n"
-          "\texpected a 1D array!");
-   }
-   return {static_cast<double *>(info.ptr), static_cast<int>(info.shape[0])};
-}
-
-template <typename T>
-mfem::Array<T> npBufferToMFEMArray(const py::array_t<T> &buffer)
-{
-   auto info = buffer.request();
-   /* Some sanity checks ... */
-   if (info.format != py::format_descriptor<T>::format())
-   {
-      throw std::runtime_error("Incompatible format!");
-   }
-   if (info.ndim != 1)
-   {
-      throw std::runtime_error(
-          "Incompatible dimensions:\n"
-          "\texpected a 1D array!");
-   }
-   return {static_cast<T *>(info.ptr), static_cast<int>(info.shape[0])};
-}
-
-}  // anonymous namespace
 
 void initMeshWarper(py::module &m)
 {

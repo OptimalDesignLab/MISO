@@ -2,7 +2,7 @@ __version__ = '0.0.1'
 
 from mpi4py import MPI
 
-from .pyMach import MachSolver, MeshWarper
+from .pyMach import MachSolver, PDESolver, MeshWarper
 
 try: 
     import openmdao

@@ -2,8 +2,6 @@
 #include <memory>
 #include <utility>
 
-#include <mpi4py/mpi4py.h>
-
 #include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
@@ -15,156 +13,11 @@
 
 #include "abstract_solver.hpp"
 #include "mach_input.hpp"
-#include "magnetostatic.hpp"
 #include "mpi_comm.hpp"
-
-// #ifdef BUILD_TESTING
-// #include "test_mach_inputs.hpp"
-// #endif
+#include "py_mach_utils.hpp"
 
 namespace py = pybind11;
 using namespace mach;
-
-namespace
-{
-/// \brief convert templated C++ factory method to one usable from python
-/// \param type - the solver type to create
-/// \param json_options - options dictionary containing solver options
-/// \param comm - MPI communicator for parallel operations
-std::unique_ptr<AbstractSolver2> initSolver(const nlohmann::json &json_options,
-                                            MPI_Comm comm)
-{
-   auto physics = json_options["physics"].get<std::string>();
-   if (physics == "magnetostatic")
-   {
-      return std::make_unique<MagnetostaticSolver>(comm, json_options, nullptr);
-   }
-   //    if (type == "Thermal")
-   //    {
-   //       return createSolver<ThermalSolver>(json_options, nullptr, comm);
-   //    }
-   //    else if (type == "Euler")
-   //    {
-   //       if (entvar)
-   //       {
-   //          return createSolver<EulerSolver<2, true>>(json_options, nullptr,
-   //          comm);
-   //       }
-   //       else
-   //       {
-   //          return createSolver<EulerSolver<2, false>>(
-   //              json_options, nullptr, comm);
-   //       }
-   //    }
-   //    else if (type == "MeshMovement")
-   //    {
-   //       return createSolver<LEAnalogySolver>(json_options, nullptr, comm);
-   //    }
-   // #ifdef BUILD_TESTING
-   //    else if (type == "TestMachInput")
-   //    {
-   //       return createSolver<TestMachInputSolver>(json_options, nullptr,
-   //       comm);
-   //    }
-   // #endif
-   else
-   {
-      throw std::runtime_error(
-          "Unknown solver type!\n"
-          "\tKnown types are:\n"
-          "\t\tmagnetostatic\n"
-          //  "\t\tThermal\n"
-          //  "\t\tEuler\n"
-          //  "\t\tMeshMovement\n"
-      );
-   }
-}
-
-double *npBufferToDoubleArray(const py::array_t<double> &buffer,
-                              std::vector<pybind11::ssize_t> &shape,
-                              int expected_dim = 1)
-{
-   auto info = buffer.request();
-
-   /* Some sanity checks ... */
-   if (info.format != py::format_descriptor<double>::format())
-   {
-      throw std::runtime_error(
-          "Incompatible format:\n"
-          "\texpected a double array!");
-   }
-   if (info.ndim != expected_dim)
-   {
-      throw std::runtime_error(
-          "Incompatible dimensions:\n"
-          "\texpected a 1D array!");
-   }
-   shape = std::move(info.shape);
-   return static_cast<double *>(info.ptr);
-}
-
-double *npBufferToDoubleArray(const py::array_t<double> &buffer,
-                              int expected_dim = 1)
-{
-   std::vector<pybind11::ssize_t> shape;
-   return npBufferToDoubleArray(buffer, shape, expected_dim);
-}
-
-mfem::Vector npBufferToMFEMVector(const py::array_t<double> &buffer)
-{
-   auto info = buffer.request();
-   /* Some sanity checks ... */
-   if (info.format != py::format_descriptor<double>::format())
-   {
-      throw std::runtime_error(
-          "Incompatible format:\n"
-          "\texpected a double array!");
-   }
-   if (info.ndim != 1)
-   {
-      throw std::runtime_error(
-          "Incompatible dimensions:\n"
-          "\texpected a 1D array!");
-   }
-   return {static_cast<double *>(info.ptr), static_cast<int>(info.shape[0])};
-}
-
-MachInputs pyDictToMachInputs(const py::dict &py_inputs)
-{
-   MachInputs inputs(py_inputs.size());
-
-   for (const auto &input : py_inputs)
-   {
-      const auto &key = input.first.cast<std::string>();
-
-      const char *val_name = input.second.ptr()->ob_type->tp_name;
-      bool is_number = strncmp("float", val_name, 5) == 0 ||
-                       strncmp("int", val_name, 3) == 0;
-      if (is_number)
-      {
-         const auto &value = input.second.cast<double>();
-         inputs.emplace(key, value);
-      }
-      else
-      {
-         const auto &value_buffer = input.second.cast<py::array_t<double>>();
-         std::vector<pybind11::ssize_t> shape;
-         auto *value = npBufferToDoubleArray(value_buffer, shape);
-
-         if (shape[0] == 1)
-         {
-            inputs.emplace(key, *value);
-         }
-         else
-         {
-            inputs.emplace(key, InputVector(value, shape[0]));
-         }
-      }
-   }
-   return inputs;
-}
-
-}  // anonymous namespace
 
 void initSolver(py::module &m)
 {
@@ -175,20 +28,20 @@ void initSolver(py::module &m)
    }
 
    py::class_<AbstractSolver2>(m, "MachSolver")
-       .def(py::init(
-                [](const std::string &opt_file_name, mpi_comm comm)
-                {
-                   nlohmann::json json_options;
-                   std::ifstream options_file(opt_file_name);
-                   options_file >> json_options;
-                   return initSolver(json_options, comm);
-                }),
-            py::arg("opt_file_name"),
-            py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
-       .def(py::init([](const nlohmann::json &json_options, mpi_comm comm)
-                     { return initSolver(json_options, comm); }),
-            py::arg("json_options"),
-            py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
+       //  .def(py::init(
+       //           [](const std::string &opt_file_name, mpi_comm comm)
+       //           {
+       //              nlohmann::json json_options;
+       //              std::ifstream options_file(opt_file_name);
+       //              options_file >> json_options;
+       //              return initSolver(json_options, comm);
+       //           }),
+       //       py::arg("opt_file_name"),
+       //       py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
+       //  .def(py::init([](const nlohmann::json &json_options, mpi_comm comm)
+       //                { return initSolver(json_options, comm); }),
+       //       py::arg("json_options"),
+       //       py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
 
        .def(
            "setState",
