@@ -45,6 +45,12 @@ public:
                                                const MachInputs &inputs,
                                                const std::string &wrt);
 
+   friend void setUpAdjointSystem(MachNonlinearForm &form,
+                                  mfem::Solver &adj_solver,
+                                  const MachInputs &inputs,
+                                  mfem::Vector &state_bar,
+                                  mfem::Vector &adjoint);
+
    friend double jacobianVectorProduct(MachNonlinearForm &form,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
@@ -142,6 +148,9 @@ private:
 
    /// Holds reference to the Jacobian (owned elsewhere)
    mfem::Operator *jac = nullptr;
+   /// Hold reference to the eliminated entries from the Jacobian
+   /// (owned elsewhere)
+   mfem::Operator *jac_e = nullptr;
 
    /// Holds the transpose of the Jacobian, needed for solving for the adjoint
    std::unique_ptr<mfem::Operator> jac_trans;

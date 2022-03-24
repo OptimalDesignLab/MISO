@@ -198,7 +198,7 @@ class MachCouplingGroup(om.Group):
                            promotes_inputs=[("mesh_coords", "mach_vol_coords")],
                            promotes_outputs=[("state", "mach_states")])
 
-class MachMesh(om.ExplicitComponent):
+class MachMesh(om.IndepVarComp):
     """
     Component to read the initial mesh coordinates
     """

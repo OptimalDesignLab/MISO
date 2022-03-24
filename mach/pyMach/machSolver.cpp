@@ -292,7 +292,36 @@ void initSolver(py::module &m)
            },
            py::arg("inputs"),
            py::arg("state"))
-
+       .def(
+           "solveForAdjoint",
+           [](AbstractSolver2 &self,
+              const py::array_t<double> &state,
+              const py::array_t<double> &state_bar,
+              const py::array_t<double> &adjoint)
+           {
+              auto state_vec = npBufferToMFEMVector(state);
+              auto state_bar_vec = npBufferToMFEMVector(state_bar);
+              auto adjoint_vec = npBufferToMFEMVector(adjoint);
+              self.solveForAdjoint(state_vec, state_bar_vec, adjoint_vec);
+           },
+           py::arg("state"),
+           py::arg("state_bar"),
+           py::arg("adjoint"))
+       .def(
+           "solveForAdjoint",
+           [](AbstractSolver2 &self,
+              const py::dict &py_inputs,
+              const py::array_t<double> &state_bar,
+              const py::array_t<double> &adjoint)
+           {
+              auto inputs = pyDictToMachInputs(py_inputs);
+              auto state_bar_vec = npBufferToMFEMVector(state_bar);
+              auto adjoint_vec = npBufferToMFEMVector(adjoint);
+              self.solveForAdjoint(inputs, state_bar_vec, adjoint_vec);
+           },
+           py::arg("inputs"),
+           py::arg("state_bar"),
+           py::arg("adjoint"))
        .def(
            "calcResidual",
            [](AbstractSolver2 &self,

@@ -96,18 +96,45 @@ mfem::Operator &getJacobianTranspose(MachNonlinearForm &form,
 {
    mfem::Vector state;
    setVectorFromInputs(inputs, "state", state, false, true);
-   form.jac = &form.nf.GetGradient(state);
+   form.jac = &form.nf.GetGradient(state, &form.jac_e);
 
    auto *hypre_jac = dynamic_cast<mfem::HypreParMatrix *>(form.jac);
    if (hypre_jac == nullptr)
    {
       throw MachException(
-          "getJacobianTranspose (MachNonlinearForm) currently only supports "
+          "getJacobianTranspose (MachNonlinearForm) only supports "
           "Jacobian matrices assembled to a HypreParMatrix!\n");
    }
 
    form.jac_trans = std::unique_ptr<mfem::Operator>(hypre_jac->Transpose());
    return *form.jac_trans;
+}
+
+void setUpAdjointSystem(MachNonlinearForm &form,
+                        mfem::Solver &adj_solver,
+                        const MachInputs &inputs,
+                        mfem::Vector &state_bar,
+                        mfem::Vector &adjoint)
+{
+   auto &jac_trans = getJacobianTranspose(form, inputs, "state");
+   adj_solver.SetOperator(jac_trans);
+
+   auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
+   if (ess_tdof_list.Size() == 0)
+   {
+      return;
+   }
+   adj_solver.Mult(state_bar, adjoint);
+
+   auto *hypre_jac_e = dynamic_cast<mfem::HypreParMatrix *>(form.jac_e);
+   if (hypre_jac_e == nullptr)
+   {
+      throw MachException(
+          "setUpAdjointSystem (MachNonlinearForm) only supports "
+          "Jacobian matrices assembled to a HypreParMatrix!\n");
+   }
+   hypre_jac_e->EliminateRows(ess_tdof_list);
+   hypre_jac_e->MultTranspose(-1.0, adjoint, 1.0, state_bar);
 }
 
 double jacobianVectorProduct(MachNonlinearForm &form,

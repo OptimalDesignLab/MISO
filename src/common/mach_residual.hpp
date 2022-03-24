@@ -26,6 +26,18 @@ mfem::Operator &getJacobianTranspose(T & /*unused*/,
 }
 
 template <typename T>
+void setUpAdjointSystem(T & /*unused*/,
+                               mfem::Solver & /*unused*/,
+                               const MachInputs & /*unused*/,
+                               mfem::Vector & /*unused*/,
+                               mfem::Vector & /*unused*/)
+                               {
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
+
+                               }
+
+template <typename T>
 double jacobianVectorProduct(T & /*unused*/,
                              const mfem::Vector & /*unused*/,
                              const std::string & /*unused*/)
@@ -80,6 +92,13 @@ template <typename T>
 mfem::Solver *getPreconditioner(T & /*unused*/)
 {
    return nullptr;
+}
+
+template <typename T>
+const mfem::Array<int> &getEssentialDofs(T & /*unused*/)
+{
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
 }
 
 /// Defines a common interface for residual functions used by mach.
@@ -157,6 +176,12 @@ public:
                                                const MachInputs &inputs,
                                                const std::string &wrt);
 
+   friend void setUpAdjointSystem(MachResidual &residual,
+                                  mfem::Solver &adj_solver,
+                                  const MachInputs &inputs,
+                                  mfem::Vector &state_bar,
+                                  mfem::Vector &adjoint);
+
    /// Compute the residual's sensitivity to a scalar and contract it with
    /// wrt_dot
    /// \param[inout] residual - the residual whose sensitivity we want
@@ -232,6 +257,8 @@ public:
    /// define a getPreconditioner function a `nullptr` will be returned
    friend mfem::Solver *getPreconditioner(MachResidual &residual);
 
+   friend const mfem::Array<int> &getEssentialDofs(MachResidual &residual);
+
    /// We need to support these overrides so that the MachResidual type can be
    /// directly set as the operator for an MFEM NonlinearSolver
    void Mult(const mfem::Vector &state, mfem::Vector &res_vec) const override
@@ -271,6 +298,10 @@ private:
                                       const std::string &wrt) = 0;
       virtual mfem::Operator &getJacT_(const MachInputs &inputs,
                                        const std::string &wrt) = 0;
+      virtual void setUpAdjointSystem_(mfem::Solver &adj_solver,
+                                  const MachInputs &inputs,
+                                  mfem::Vector &state_bar,
+                                  mfem::Vector &adjoint) = 0;
       virtual double jacobianVectorProduct_(const mfem::Vector &wrt_dot,
                                             const std::string &wrt) = 0;
       virtual void jacobianVectorProduct_(const mfem::Vector &wrt_dot,
@@ -284,6 +315,7 @@ private:
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
       virtual mfem::Solver *getPrec_() = 0;
+      virtual const mfem::Array<int> &getEssentialDofs_() = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -320,6 +352,13 @@ private:
       {
          return getJacobianTranspose(data_, inputs, wrt);
       }
+      void setUpAdjointSystem_(mfem::Solver &adj_solver,
+                                  const MachInputs &inputs,
+                                  mfem::Vector &state_bar,
+                                  mfem::Vector &adjoint) override
+      {
+         setUpAdjointSystem(data_, adj_solver, inputs, state_bar, adjoint);
+      }
       double jacobianVectorProduct_(const mfem::Vector &wrt_dot,
                                     const std::string &wrt) override
       {
@@ -351,6 +390,10 @@ private:
          return calcEntropyChange(data_, inputs);
       }
       mfem::Solver *getPrec_() override { return getPreconditioner(data_); }
+      const mfem::Array<int> &getEssentialDofs_() override
+      {
+         return getEssentialDofs(data_);
+      }
 
       T data_;
    };
@@ -424,6 +467,15 @@ inline mfem::Operator &getJacobianTranspose(MachResidual &residual,
    return residual.self_->getJacT_(inputs, wrt);
 }
 
+inline void setUpAdjointSystem(MachResidual &residual,
+                               mfem::Solver &adj_solver,
+                               const MachInputs &inputs,
+                               mfem::Vector &state_bar,
+                               mfem::Vector &adjoint)
+{
+   residual.self_->setUpAdjointSystem_(adj_solver, inputs, state_bar, adjoint);
+}
+
 inline double jacobianVectorProduct(MachResidual &residual,
                                     const mfem::Vector &wrt_dot,
                                     const std::string &wrt)
@@ -469,6 +521,12 @@ inline mfem::Solver *getPreconditioner(MachResidual &residual)
 {
    return residual.self_->getPrec_();
 }
+
+inline const mfem::Array<int> &getEssentialDofs(MachResidual &residual)
+{
+   return residual.self_->getEssentialDofs_();
+}
+
 
 }  // namespace mach
 

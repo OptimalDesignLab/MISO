@@ -36,6 +36,12 @@ public:
                                                const mach::MachInputs &inputs,
                                                const std::string &wrt);
 
+friend void setUpAdjointSystem(MeshWarperResidual &residual,
+                               mfem::Solver &adj_solver,
+                               const mach::MachInputs &inputs,
+                               mfem::Vector &state_bar,
+                               mfem::Vector &adjoint);
+
    friend double jacobianVectorProduct(MeshWarperResidual &residual,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
@@ -55,6 +61,8 @@ public:
                                      mfem::Vector &wrt_bar);
 
    friend mfem::Solver *getPreconditioner(MeshWarperResidual &residual);
+
+   friend const mfem::Array<int> &getEssentialDofs(MeshWarperResidual &residual);
 
    MeshWarperResidual(mfem::ParFiniteElementSpace &fes,
                       std::map<std::string, mach::FiniteElementState> &fields,
@@ -150,6 +158,16 @@ mfem::Operator &getJacobianTranspose(MeshWarperResidual &residual,
    return getJacobianTranspose(residual.res, inputs, wrt);
 }
 
+void setUpAdjointSystem(MeshWarperResidual &residual,
+                               mfem::Solver &adj_solver,
+                               const mach::MachInputs &inputs,
+                               mfem::Vector &state_bar,
+                               mfem::Vector &adjoint)
+{
+   setUpAdjointSystem(residual.res, adj_solver, inputs, state_bar, adjoint);
+}
+
+
 double jacobianVectorProduct(MeshWarperResidual &residual,
                              const mfem::Vector &wrt_dot,
                              const std::string &wrt)
@@ -199,6 +217,11 @@ void vectorJacobianProduct(MeshWarperResidual &residual,
 mfem::Solver *getPreconditioner(MeshWarperResidual &residual)
 {
    return residual.prec.get();
+}
+
+const mfem::Array<int> &getEssentialDofs(MeshWarperResidual &residual)
+{
+   return residual.surface_indices;
 }
 
 }  // anonymous namespace

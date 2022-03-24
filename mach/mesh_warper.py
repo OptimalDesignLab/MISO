@@ -76,14 +76,19 @@ class MachMeshWarper(om.ImplicitComponent):
                                                  d_inputs["surf_mesh_coords"])
 
     def solve_linear(self, d_outputs, d_residuals, mode):
+        # print("adj before:", d_residuals["vol_mesh_coords"])
         if mode == "fwd":
-            print("solver fwd")
-            # raise NotImplementedError("forward mode requested but not implemented")
+            # pass
+            # print("solver fwd")
+            raise NotImplementedError("forward mode requested but not implemented")
 
         if mode == "rev":
+            # print("rev mode!")
             warper = self.options["warper"]
             input_dict = self.linear_inputs
             warper.solveForAdjoint(input_dict,
                                    d_outputs["vol_mesh_coords"],
                                    d_residuals["vol_mesh_coords"])
+
+        # print("adj after:", d_residuals["vol_mesh_coords"])
 

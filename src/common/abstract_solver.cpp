@@ -153,10 +153,21 @@ void AbstractSolver2::solveForAdjoint(const MachInputs &inputs,
          adj_solver = constructLinearSolver(comm, options["adj-solver"], prec);
       }
 
-      auto &jac_trans = getJacobianTranspose(*spatial_res, inputs, "state");
+      work.SetSize(state_bar.Size());
+      work = state_bar;
+      setUpAdjointSystem(*spatial_res, *adj_solver, inputs, work, adjoint);
 
-      adj_solver->SetOperator(jac_trans);
-      adj_solver->Mult(state_bar, adjoint);
+      adj_solver->Mult(work, adjoint);
+
+      // auto &jac_trans = getJacobianTranspose(*spatial_res, inputs, "state");
+
+      // adj_solver->SetOperator(jac_trans);
+      // adj_solver->Mult(state_bar, adjoint);
+
+      // auto &ess_tdof = getEssentialDofs(*spatial_res);
+      // work.SetSize(state_bar.Size());
+      // work = state_bar;
+      // adjoint.SetSubVector(ess_tdof, 0.0);
 
       /// log final state
       for (auto &pair : loggers)
