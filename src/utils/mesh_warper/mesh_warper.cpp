@@ -36,11 +36,11 @@ public:
                                                const mach::MachInputs &inputs,
                                                const std::string &wrt);
 
-friend void setUpAdjointSystem(MeshWarperResidual &residual,
-                               mfem::Solver &adj_solver,
-                               const mach::MachInputs &inputs,
-                               mfem::Vector &state_bar,
-                               mfem::Vector &adjoint);
+   friend void setUpAdjointSystem(MeshWarperResidual &residual,
+                                  mfem::Solver &adj_solver,
+                                  const mach::MachInputs &inputs,
+                                  mfem::Vector &state_bar,
+                                  mfem::Vector &adjoint);
 
    friend double jacobianVectorProduct(MeshWarperResidual &residual,
                                        const mfem::Vector &wrt_dot,
@@ -62,7 +62,8 @@ friend void setUpAdjointSystem(MeshWarperResidual &residual,
 
    friend mfem::Solver *getPreconditioner(MeshWarperResidual &residual);
 
-   friend const mfem::Array<int> &getEssentialDofs(MeshWarperResidual &residual);
+   friend const mfem::Array<int> &getEssentialDofs(
+       MeshWarperResidual &residual);
 
    MeshWarperResidual(mfem::ParFiniteElementSpace &fes,
                       std::map<std::string, mach::FiniteElementState> &fields,
@@ -159,14 +160,13 @@ mfem::Operator &getJacobianTranspose(MeshWarperResidual &residual,
 }
 
 void setUpAdjointSystem(MeshWarperResidual &residual,
-                               mfem::Solver &adj_solver,
-                               const mach::MachInputs &inputs,
-                               mfem::Vector &state_bar,
-                               mfem::Vector &adjoint)
+                        mfem::Solver &adj_solver,
+                        const mach::MachInputs &inputs,
+                        mfem::Vector &state_bar,
+                        mfem::Vector &adjoint)
 {
    setUpAdjointSystem(residual.res, adj_solver, inputs, state_bar, adjoint);
 }
-
 
 double jacobianVectorProduct(MeshWarperResidual &residual,
                              const mfem::Vector &wrt_dot,

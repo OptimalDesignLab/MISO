@@ -27,15 +27,14 @@ mfem::Operator &getJacobianTranspose(T & /*unused*/,
 
 template <typename T>
 void setUpAdjointSystem(T & /*unused*/,
-                               mfem::Solver & /*unused*/,
-                               const MachInputs & /*unused*/,
-                               mfem::Vector & /*unused*/,
-                               mfem::Vector & /*unused*/)
-                               {
+                        mfem::Solver & /*unused*/,
+                        const MachInputs & /*unused*/,
+                        mfem::Vector & /*unused*/,
+                        mfem::Vector & /*unused*/)
+{
    throw NotImplementedException(
        "not specialized for concrete residual type!\n");
-
-                               }
+}
 
 template <typename T>
 double jacobianVectorProduct(T & /*unused*/,
@@ -299,9 +298,9 @@ private:
       virtual mfem::Operator &getJacT_(const MachInputs &inputs,
                                        const std::string &wrt) = 0;
       virtual void setUpAdjointSystem_(mfem::Solver &adj_solver,
-                                  const MachInputs &inputs,
-                                  mfem::Vector &state_bar,
-                                  mfem::Vector &adjoint) = 0;
+                                       const MachInputs &inputs,
+                                       mfem::Vector &state_bar,
+                                       mfem::Vector &adjoint) = 0;
       virtual double jacobianVectorProduct_(const mfem::Vector &wrt_dot,
                                             const std::string &wrt) = 0;
       virtual void jacobianVectorProduct_(const mfem::Vector &wrt_dot,
@@ -353,9 +352,9 @@ private:
          return getJacobianTranspose(data_, inputs, wrt);
       }
       void setUpAdjointSystem_(mfem::Solver &adj_solver,
-                                  const MachInputs &inputs,
-                                  mfem::Vector &state_bar,
-                                  mfem::Vector &adjoint) override
+                               const MachInputs &inputs,
+                               mfem::Vector &state_bar,
+                               mfem::Vector &adjoint) override
       {
          setUpAdjointSystem(data_, adj_solver, inputs, state_bar, adjoint);
       }
@@ -526,7 +525,6 @@ inline const mfem::Array<int> &getEssentialDofs(MachResidual &residual)
 {
    return residual.self_->getEssentialDofs_();
 }
-
 
 }  // namespace mach
 
