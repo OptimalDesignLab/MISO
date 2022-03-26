@@ -44,7 +44,7 @@ public:
    /// \note This sets the true vector dofs by multiplying the finite element
    /// dofs by the transpose of the prolongation operator. \see <a
    /// href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for details
-   void setTrueVec(mfem::Vector &true_vec) override
+   void setTrueVec(mfem::Vector &true_vec) const override
    {
       gf->ParallelAssemble(true_vec);
    }

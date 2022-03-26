@@ -31,9 +31,40 @@ public:
                         const MachInputs &inputs,
                         mfem::Vector &res_vec);
 
+   friend void linearize(MagnetostaticResidual &residual,
+                         const mach::MachInputs &inputs);
+
    friend mfem::Operator &getJacobian(MagnetostaticResidual &residual,
                                       const MachInputs &inputs,
                                       const std::string &wrt);
+
+   friend mfem::Operator &getJacobianTranspose(MagnetostaticResidual &residual,
+                                               const mach::MachInputs &inputs,
+                                               const std::string &wrt);
+
+   friend void setUpAdjointSystem(MagnetostaticResidual &residual,
+                                  mfem::Solver &adj_solver,
+                                  const mach::MachInputs &inputs,
+                                  mfem::Vector &state_bar,
+                                  mfem::Vector &adjoint);
+
+   friend double jacobianVectorProduct(MagnetostaticResidual &residual,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void jacobianVectorProduct(MagnetostaticResidual &residual,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &res_dot);
+
+   friend double vectorJacobianProduct(MagnetostaticResidual &residual,
+                                       const mfem::Vector &res_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(MagnetostaticResidual &residual,
+                                     const mfem::Vector &res_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    friend mfem::Solver *getPreconditioner(MagnetostaticResidual &residual);
 

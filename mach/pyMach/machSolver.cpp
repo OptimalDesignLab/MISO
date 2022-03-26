@@ -42,7 +42,7 @@ void initSolver(py::module &m)
        //                { return initSolver(json_options, comm); }),
        //       py::arg("json_options"),
        //       py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
-
+       .def("getOptions", &AbstractSolver2::getOptions)
        .def(
            "setState",
            [](AbstractSolver2 &self,

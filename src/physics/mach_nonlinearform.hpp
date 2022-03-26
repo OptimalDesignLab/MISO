@@ -101,12 +101,21 @@ public:
    template <typename T>
    void addInteriorFaceIntegrator(T *integrator);
 
+   const mfem::Array<int> &getEssentialDofs() const
+   {
+      return nf.GetEssentialTrueDofs();
+   }
+
    /// Constructor for nonlinear form types
    /// \param[in] pfes - FEM space for the state (and possibly the adjoint)
    /// \param[in] fields - map of grid functions
    MachNonlinearForm(mfem::ParFiniteElementSpace &pfes,
                      std::map<std::string, FiniteElementState> &fields)
-    : nf(&pfes), scratch(0), nf_fields(fields)
+    : nf(&pfes),
+      scratch(0),
+      nf_fields(fields),
+      jac(mfem::Operator::Hypre_ParCSR),
+      jac_e(mfem::Operator::Hypre_ParCSR)
    {
       if (nf_fields.count("adjoint") == 0)
       {
@@ -120,9 +129,11 @@ public:
 private:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm nf;
-   /// work vectors
+   /// work vector
    mfem::Vector scratch;
-   mfem::Vector scratch2;
+
+   /// Essential boundary marker
+   mfem::Array<int> ess_bdr;
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
@@ -147,10 +158,9 @@ private:
    std::map<std::string, mfem::ParNonlinearForm> rev_scalar_sens;
 
    /// Holds reference to the Jacobian (owned elsewhere)
-   mfem::Operator *jac = nullptr;
-   /// Hold reference to the eliminated entries from the Jacobian
-   /// (owned elsewhere)
-   mfem::Operator *jac_e = nullptr;
+   mfem::OperatorHandle jac;
+   /// Holds eliminated entries from the Jacobian
+   mfem::OperatorHandle jac_e;
 
    /// Holds the transpose of the Jacobian, needed for solving for the adjoint
    std::unique_ptr<mfem::Operator> jac_trans;

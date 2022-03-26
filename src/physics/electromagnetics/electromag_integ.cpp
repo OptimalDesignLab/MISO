@@ -279,7 +279,63 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    }
 }
 
-void CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect(
+void CurlCurlNLFIntegratorStateRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &state_bar)
+{
+   /// get the proper element, transformation, and state and adjoint vectors
+   int element = trans.ElementNo;
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   DenseMatrix elmat;
+   integ.AssembleElementGrad(el, trans, elfun, elmat);
+
+   state_bar.SetSize(psi.Size());
+   elmat.MultTranspose(psi, state_bar);
+}
+
+void CurlCurlNLFIntegratorStateFwdSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &res_dot)
+{
+   /// get the proper element, transformation, and state_dot vector
+   int element = trans.ElementNo;
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+   dof_tr = state_dot.FESpace()->GetElementVDofs(element, vdofs);
+   state_dot.GetSubVector(vdofs, elfun_dot);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun_dot);
+   }
+
+   DenseMatrix elmat;
+   integ.AssembleElementGrad(el, trans, elfun, elmat);
+
+   res_dot.SetSize(elfun_dot.Size());
+   elmat.Mult(elfun_dot, res_dot);
+}
+
+void CurlCurlNLFIntegratorMeshRevSens::AssembleRHSElementVect(
     const FiniteElement &mesh_el,
     ElementTransformation &mesh_trans,
     Vector &mesh_coords_bar)

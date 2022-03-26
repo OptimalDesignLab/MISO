@@ -29,7 +29,7 @@ warper_options = {
         "reltol": 1e-14
     },
     "adj-solver": {
-        "type": "gmres",
+        "type": "pcg",
         "printlevel": 1,
         "maxiter": 100,
         "abstol": 1e-14,

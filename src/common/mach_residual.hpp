@@ -93,13 +93,6 @@ mfem::Solver *getPreconditioner(T & /*unused*/)
    return nullptr;
 }
 
-template <typename T>
-const mfem::Array<int> &getEssentialDofs(T & /*unused*/)
-{
-   throw NotImplementedException(
-       "not specialized for concrete residual type!\n");
-}
-
 /// Defines a common interface for residual functions used by mach.
 /// A MachResidual can wrap any type `T` that has the interface of a residual
 /// function.  For example, one instance of `T` is given by `MachNonlinearForm`,
@@ -256,8 +249,6 @@ public:
    /// define a getPreconditioner function a `nullptr` will be returned
    friend mfem::Solver *getPreconditioner(MachResidual &residual);
 
-   friend const mfem::Array<int> &getEssentialDofs(MachResidual &residual);
-
    /// We need to support these overrides so that the MachResidual type can be
    /// directly set as the operator for an MFEM NonlinearSolver
    void Mult(const mfem::Vector &state, mfem::Vector &res_vec) const override
@@ -314,7 +305,6 @@ private:
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
       virtual mfem::Solver *getPrec_() = 0;
-      virtual const mfem::Array<int> &getEssentialDofs_() = 0;
    };
 
    /// Concrete (templated) class for residuals
@@ -389,10 +379,6 @@ private:
          return calcEntropyChange(data_, inputs);
       }
       mfem::Solver *getPrec_() override { return getPreconditioner(data_); }
-      const mfem::Array<int> &getEssentialDofs_() override
-      {
-         return getEssentialDofs(data_);
-      }
 
       T data_;
    };
@@ -519,11 +505,6 @@ inline double calcEntropyChange(MachResidual &residual,
 inline mfem::Solver *getPreconditioner(MachResidual &residual)
 {
    return residual.self_->getPrec_();
-}
-
-inline const mfem::Array<int> &getEssentialDofs(MachResidual &residual)
-{
-   return residual.self_->getEssentialDofs_();
 }
 
 }  // namespace mach

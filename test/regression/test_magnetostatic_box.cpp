@@ -68,8 +68,7 @@ auto options = R"(
    },
    "bcs": {
       "essential": "all"
-   },
-   "ess-bdr": "all"
+   }
 })"_json;
 
 /// \brief Exact solution for magnetic vector potential

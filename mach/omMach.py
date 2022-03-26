@@ -211,7 +211,7 @@ class MachMesh(om.IndepVarComp):
 
         mesh_size = solver.getFieldSize("mesh_coords")
         mesh_coords = np.zeros(mesh_size)
-        solver.getField("mesh_coords", mesh_coords)
+        solver.getMeshCoordinates(mesh_coords)
 
         solver_options = solver.getOptions()
         physics = solver_options["physics"]

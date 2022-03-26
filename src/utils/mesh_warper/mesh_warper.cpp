@@ -62,9 +62,6 @@ public:
 
    friend mfem::Solver *getPreconditioner(MeshWarperResidual &residual);
 
-   friend const mfem::Array<int> &getEssentialDofs(
-       MeshWarperResidual &residual);
-
    MeshWarperResidual(mfem::ParFiniteElementSpace &fes,
                       std::map<std::string, mach::FiniteElementState> &fields,
                       const nlohmann::json &options,
@@ -217,11 +214,6 @@ void vectorJacobianProduct(MeshWarperResidual &residual,
 mfem::Solver *getPreconditioner(MeshWarperResidual &residual)
 {
    return residual.prec.get();
-}
-
-const mfem::Array<int> &getEssentialDofs(MeshWarperResidual &residual)
-{
-   return residual.surface_indices;
 }
 
 }  // anonymous namespace

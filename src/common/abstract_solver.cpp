@@ -159,16 +159,6 @@ void AbstractSolver2::solveForAdjoint(const MachInputs &inputs,
 
       adj_solver->Mult(work, adjoint);
 
-      // auto &jac_trans = getJacobianTranspose(*spatial_res, inputs, "state");
-
-      // adj_solver->SetOperator(jac_trans);
-      // adj_solver->Mult(state_bar, adjoint);
-
-      // auto &ess_tdof = getEssentialDofs(*spatial_res);
-      // work.SetSize(state_bar.Size());
-      // work = state_bar;
-      // adjoint.SetSubVector(ess_tdof, 0.0);
-
       /// log final state
       for (auto &pair : loggers)
       {
@@ -188,6 +178,7 @@ void AbstractSolver2::calcResidual(const mfem::Vector &state,
 void AbstractSolver2::calcResidual(const MachInputs &inputs,
                                    mfem::Vector &residual) const
 {
+   setInputs(*spatial_res, inputs);
    evaluate(*spatial_res, inputs, residual);
 }
 

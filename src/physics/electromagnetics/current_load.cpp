@@ -68,11 +68,12 @@ double vectorJacobianProduct(CurrentLoad &load,
       MachInputs inputs{{wrt, 1.0}};
       setInputs(load.current, inputs);
 
-      load.nd_mass.Update();
+      // load.nd_mass.Update();
       load.assembleLoad();
       load.current.resetCurrentDensityFromCache();
       load.dirty = true;
 
+      load.load.SetSubVector(load.ess_tdof_list, 0.0);
       return -(load.load * load_bar);
    }
    return 0.0;
@@ -91,10 +92,14 @@ void vectorJacobianProduct(CurrentLoad &load,
          load.dirty = false;
       }
 
+      mfem::Vector scratch2(load_bar);
+      scratch2.SetSubVector(load.ess_tdof_list, 0.0);
+
       /// begin reverse pass
       ParGridFunction psi_l(&load.fes);
-      psi_l.SetFromTrueDofs(load_bar);
+      psi_l.SetFromTrueDofs(scratch2);
 
+      delete load.nd_mass.LoseMat();
       load.nd_mass.Update();
       load.nd_mass.Assemble();
       load.nd_mass.Finalize();
@@ -112,12 +117,22 @@ void vectorJacobianProduct(CurrentLoad &load,
       psi_j = 0.0;
       // psi_j = load_bar;
 
-      HypreParMatrix M;
+      // HypreParMatrix M;
+      OperatorHandle M(Operator::Hypre_ParCSR);
       Vector X;
       Vector RHS;
       Array<int> ess_tdof_list;
       load.nd_mass.FormLinearSystem(ess_tdof_list, psi_j, rhs, M, X, RHS);
-      auto M_matT = std::unique_ptr<HypreParMatrix>(M.Transpose());
+
+      // OperatorHandle M(Operator::Hypre_ParCSR);
+      // load.nd_mass.ParallelAssemble(M);
+      
+      // Vector X(load.fes.GetTrueVSize());
+      // psi_j.ParallelAssemble(X);
+      // Vector RHS(load.fes.GetTrueVSize());
+      // rhs.ParallelAssemble(RHS);
+
+      auto M_matT = std::unique_ptr<HypreParMatrix>(M.As<HypreParMatrix>()->Transpose());
       HypreBoomerAMG amg(*M_matT);
       amg.SetPrintLevel(-1);
 
@@ -129,6 +144,8 @@ void vectorJacobianProduct(CurrentLoad &load,
       pcg.Mult(RHS, X);
 
       load.nd_mass.RecoverFEMSolution(X, rhs, psi_j);
+
+      // psi_j.SetFromTrueDofs(X);
 
       load.m_j_mesh_sens->setState(load.j);
       load.m_j_mesh_sens->setAdjoint(psi_j);
@@ -170,6 +187,7 @@ CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
    j(&fes),
    div_free_current_vec(&fes),
    scratch(&fes),
+   // scratch(0),
    load(fes.GetTrueVSize()),
    div_free_proj(h1_fes,
                  fes,
@@ -201,42 +219,55 @@ CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
 
 void CurrentLoad::assembleLoad()
 {
-   /// assemble mass matrix
-   nd_mass.Update();
-   nd_mass.Assemble();
-   nd_mass.Finalize();
-
    /// assemble linear form
    J.Assemble();
 
    /// project current coeff as initial guess for iterative solve
    j.ProjectCoefficient(current);
-   mfem::ParaViewDataCollection pv("CurrentDensity",
-                                   j.ParFESpace()->GetParMesh());
-   pv.SetPrefixPath("ParaView");
-   pv.SetLevelsOfDetail(3);
-   pv.SetDataFormat(mfem::VTKFormat::ASCII);
-   pv.SetHighOrderOutput(true);
-   pv.RegisterField("CurrentDensity", &j);
-   pv.Save();
+   // mfem::ParaViewDataCollection pv("CurrentDensity",
+   //                                 j.ParFESpace()->GetParMesh());
+   // pv.SetPrefixPath("ParaView");
+   // pv.SetLevelsOfDetail(3);
+   // pv.SetDataFormat(mfem::VTKFormat::ASCII);
+   // pv.SetHighOrderOutput(true);
+   // pv.RegisterField("CurrentDensity", &j);
+   // pv.Save();
 
-   HypreParMatrix M;
+   /// assemble mass matrix
+   delete nd_mass.LoseMat();
+   nd_mass.Update();
+   nd_mass.Assemble();
+   nd_mass.Finalize();
+
+   // HypreParMatrix M;
+   OperatorHandle M(Operator::Hypre_ParCSR);
    Vector X;
    Vector RHS;
    Array<int> ess_tdof_list;
    nd_mass.FormLinearSystem(ess_tdof_list, j, J, M, X, RHS);
 
-   HypreBoomerAMG amg(M);
+   // OperatorHandle M(Operator::Hypre_ParCSR);
+   // nd_mass.ParallelAssemble(M);
+
+   // Vector X(fes.GetTrueVSize());
+   // j.ParallelAssemble(X);
+   // Vector RHS(fes.GetTrueVSize());
+   // J.ParallelAssemble(RHS);
+
+   HypreBoomerAMG amg(*M.As<HypreParMatrix>());
+   // HypreBoomerAMG amg(M);
    amg.SetPrintLevel(-1);
 
-   HyprePCG pcg(M);
+   HyprePCG pcg(*M.As<HypreParMatrix>());
+   // HyprePCG pcg(M);
    pcg.SetTol(1e-12);
-   pcg.SetMaxIter(500);
+   pcg.SetMaxIter(250);
    pcg.SetPrintLevel(2);
    pcg.SetPreconditioner(amg);
    pcg.Mult(RHS, X);
 
    nd_mass.RecoverFEMSolution(X, J, j);
+   // j.SetFromTrueDofs(X);
 
    /// Compute the discretely divergence-free portion of j
    div_free_current_vec = 0.0;
@@ -244,10 +275,13 @@ void CurrentLoad::assembleLoad()
 
    /** alternative approaches for computing dual */
    /// Compute the dual of div_free_current_vec
+   // scratch.SetSize(fes.GetTrueVSize());
+   // scratch = 0.0;
    // div_free_current_vec.ParallelAssemble(scratch);
-   // M.Mult(scratch, load);
+   // M->Mult(scratch, load);
 
    /// Compute the dual of div_free_current_vec
+   delete nd_mass.LoseMat();
    nd_mass.Update();
    nd_mass.Assemble();
    nd_mass.Finalize();

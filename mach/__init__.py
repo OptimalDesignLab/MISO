@@ -15,6 +15,7 @@ except ImportError as err:
 if openmdao is not None: 
     from .omMach import omMachState, omMachFunctional
     from .mesh_warper import MachMeshWarper
+    from .mach_state import MachMesh, MachState
 
     try:
         import mphys

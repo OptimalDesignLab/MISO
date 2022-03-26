@@ -216,7 +216,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear",
    }
 }
 
-TEST_CASE("CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect")
+TEST_CASE("CurlCurlNLFIntegratorMeshRevSens::AssembleRHSElementVect")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -263,7 +263,7 @@ TEST_CASE("CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect")
          // evaluate d(psi^T R)/dx and contract with v
          LinearForm dfdx(&mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::CurlCurlNLFIntegratorMeshSens(state, adjoint, *integ));
+            new mach::CurlCurlNLFIntegratorMeshRevSens(state, adjoint, *integ));
          dfdx.Assemble();
          double dfdx_v = dfdx * v;
 

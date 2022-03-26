@@ -309,6 +309,11 @@ int PDESolver::getFieldSize(const std::string &name) const
    return 0;
 }
 
+void PDESolver::getMeshCoordinates(mfem::Vector &mesh_coords) const
+{
+   fields.at("mesh_coords").setTrueVec(mesh_coords);
+}
+
 PDESolver::PDESolver(MPI_Comm incomm,
                      const nlohmann::json &solver_options,
                      const int num_states,

@@ -68,7 +68,7 @@ void ElasticityPositionIntegratorStateFwdSens::AssembleRHSElementVect(
    integ.AssembleElementMatrix(el, trans, elmat);
 
    res_dot.SetSize(elfun_dot.Size());
-   elmat.MultTranspose(elfun_dot, res_dot);
+   elmat.Mult(elfun_dot, res_dot);
 }
 
 }  // namespace mach

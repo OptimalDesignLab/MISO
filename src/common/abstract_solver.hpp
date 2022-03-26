@@ -23,6 +23,7 @@ namespace mach
 class AbstractSolver2
 {
 public:
+   const nlohmann::json &getOptions() const { return options; }
    /// \brief Generic function that allows derived classes to set the state
    /// based on the type T
    /// \param[in] function - any object that a derived solver will know how to

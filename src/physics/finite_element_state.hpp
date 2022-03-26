@@ -41,7 +41,7 @@ public:
    /// dofs by the restriction operator.
    /// \see <a href="https://mfem.org/pri-dual-vec/">MFEM documentation</a> for
    /// details
-   void setTrueVec(mfem::Vector &true_vec) override
+   void setTrueVec(mfem::Vector &true_vec) const override
    {
       gridFunc().GetTrueDofs(true_vec);
    }

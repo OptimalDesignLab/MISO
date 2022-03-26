@@ -66,6 +66,7 @@ class PDESolver : public AbstractSolver2
 public:
    int getNumStates() const { return fes().GetVDim(); }
    int getFieldSize(const std::string &name) const override;
+   void getMeshCoordinates(mfem::Vector &mesh_coords) const;
 
    FiniteElementState &getState() { return state(); }
    const FiniteElementState &getState() const { return state(); }

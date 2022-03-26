@@ -119,7 +119,7 @@ public:
    /// \brief Initialize the true DOF vector by extracting true DOFs from the
    /// internal grid function/local into the internal true DOF vector
    /// \param[out] true_vec - the true dof vector to set from the local field
-   virtual void setTrueVec(mfem::Vector &true_vec) = 0;
+   virtual void setTrueVec(mfem::Vector &true_vec) const = 0;
 
    /// \brief Destroy the Finite Element Vector object
    virtual ~FiniteElementVector() = default;

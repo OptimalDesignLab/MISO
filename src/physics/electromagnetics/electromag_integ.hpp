@@ -89,19 +89,69 @@ private:
    // mfem::Vector b_vec, b_hat, temp_vec;
    mfem::Vector scratch;
 #endif
-   friend class CurlCurlNLFIntegratorMeshSens;
+   friend class CurlCurlNLFIntegratorMeshRevSens;
+};
+
+class CurlCurlNLFIntegratorStateRevSens : public mfem::LinearFormIntegrator
+{
+public:
+   CurlCurlNLFIntegratorStateRevSens(mfem::GridFunction &state,
+                                     mfem::GridFunction &adjoint,
+                                     CurlCurlNLFIntegrator &integ)
+    : state(state), adjoint(adjoint), integ(integ)
+   { }
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &state_bar) override;
+
+private:
+   /// the state to use when evaluating d(psi^T R)/du
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/du
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   CurlCurlNLFIntegrator &integ;
+
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+};
+
+class CurlCurlNLFIntegratorStateFwdSens : public mfem::LinearFormIntegrator
+{
+public:
+   CurlCurlNLFIntegratorStateFwdSens(mfem::GridFunction &state,
+                                     mfem::GridFunction &state_dot,
+                                     CurlCurlNLFIntegrator &integ)
+    : state(state), state_dot(state_dot), integ(integ)
+   { }
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &state_bar) override;
+
+private:
+   /// the state to use when evaluating (dR/du) * state_dot
+   mfem::GridFunction &state;
+   /// the state_dot to use when evaluating (dR/du) * state_dot
+   mfem::GridFunction &state_dot;
+   /// reference to primal integrator
+   CurlCurlNLFIntegrator &integ;
+
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, elfun_dot;
 };
 
 /// Integrator to assemble d(psi^T R)/dX for the CurlCurlNLFIntegrator
-class CurlCurlNLFIntegratorMeshSens : public mfem::LinearFormIntegrator
+class CurlCurlNLFIntegratorMeshRevSens : public mfem::LinearFormIntegrator
 {
 public:
    /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
-   CurlCurlNLFIntegratorMeshSens(mfem::GridFunction &state,
-                                 mfem::GridFunction &adjoint,
-                                 CurlCurlNLFIntegrator &integ)
+   CurlCurlNLFIntegratorMeshRevSens(mfem::GridFunction &state,
+                                    mfem::GridFunction &adjoint,
+                                    CurlCurlNLFIntegrator &integ)
     : state(state), adjoint(adjoint), integ(integ)
    { }
 
@@ -139,13 +189,31 @@ inline void addSensitivityIntegrator(
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
 {
+   auto &state = fields.at("state");
+   auto &state_fes = fields.at("state").space();
+   rev_sens.emplace("state", &state_fes);
+   rev_sens.at("state").AddDomainIntegrator(
+       new CurlCurlNLFIntegratorStateRevSens(fields.at("state").gridFunc(),
+                                             fields.at("adjoint").gridFunc(),
+                                             primal_integ));
+
+   fields.emplace(std::piecewise_construct,
+                  std::forward_as_tuple("state_dot"),
+                  std::forward_as_tuple(state.mesh(), state_fes));
+
+   fwd_sens.emplace("state", &state_fes);
+   fwd_sens.at("state").AddDomainIntegrator(
+       new CurlCurlNLFIntegratorStateFwdSens(fields.at("state").gridFunc(),
+                                             fields.at("state_dot").gridFunc(),
+                                             primal_integ));
+
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
    rev_sens.at("mesh_coords")
        .AddDomainIntegrator(
-           new CurlCurlNLFIntegratorMeshSens(fields.at("state").gridFunc(),
-                                             fields.at("adjoint").gridFunc(),
-                                             primal_integ));
+           new CurlCurlNLFIntegratorMeshRevSens(fields.at("state").gridFunc(),
+                                                fields.at("adjoint").gridFunc(),
+                                                primal_integ));
 }
 
 /// Integrator for (\nu(u) M, curl v) for Nedelec Elements

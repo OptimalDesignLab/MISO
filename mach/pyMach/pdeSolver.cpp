@@ -3,6 +3,7 @@
 #include <utility>
 
 #include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -12,31 +13,28 @@
 #include "mach_input.hpp"
 #include "magnetostatic.hpp"
 #include "mpi_comm.hpp"
+#include "py_mach_utils.hpp"
 
 namespace py = pybind11;
 using namespace mach;
 
 namespace
 {
-/// \brief Construct a PDE solver based on the given options
-/// \param json_options - options dictionary containing solver options
+/// \brief Construct a PDE solver based on the given type and options
+/// \param solver_type - dictionary containing solver type info
+/// \param solver_options - options dictionary containing solver options
 /// \param comm - MPI communicator for parallel operations
-std::unique_ptr<PDESolver> initSolver(const nlohmann::json &json_options,
+std::unique_ptr<PDESolver> initSolver(nlohmann::json solver_type,
+                                      nlohmann::json solver_options,
                                       MPI_Comm comm)
 {
-   std::string solver_name;
-   if (json_options["solver"].type() == nlohmann::json::value_t::string)
-   {
-      solver_name = json_options["solver"].get<std::string>();
-   }
-   else if (json_options["solver"].type() == nlohmann::json::value_t::object)
-   {
-      solver_name = json_options["solver"]["type"].get<std::string>();
-   }
+   solver_options["solver-type"] = solver_type;
+   auto type = solver_type["type"].get<std::string>();
 
-   if (solver_name == "magnetostatic")
+   if (type == "magnetostatic")
    {
-      return std::make_unique<MagnetostaticSolver>(comm, json_options, nullptr);
+      return std::make_unique<MagnetostaticSolver>(
+          comm, solver_options, nullptr);
    }
    else
    {
@@ -45,6 +43,18 @@ std::unique_ptr<PDESolver> initSolver(const nlohmann::json &json_options,
           "\tKnown types are:\n"
           "\t\tmagnetostatic\n");
    }
+}
+
+/// \brief Construct a PDE solver based on the given type and options
+/// \param type - string indicating PDE solver type
+/// \param solver_options - options dictionary containing solver options
+/// \param comm - MPI communicator for parallel operations
+std::unique_ptr<PDESolver> initSolver(std::string type,
+                                      nlohmann::json solver_options,
+                                      MPI_Comm comm)
+{
+   nlohmann::json solver_type{{"type", std::move(type)}};
+   return initSolver(std::move(solver_type), std::move(solver_options), comm);
 }
 
 }  // anonymous namespace
@@ -59,18 +69,32 @@ void initPDESolver(py::module &m)
 
    py::class_<PDESolver, AbstractSolver2>(m, "PDESolver")
        .def(py::init(
-                [](const std::string &opt_file_name, mpi_comm comm)
-                {
-                   nlohmann::json json_options;
-                   std::ifstream options_file(opt_file_name);
-                   options_file >> json_options;
-                   return initSolver(json_options, comm);
+                [](std::string type,
+                   nlohmann::json solver_options,
+                   mpi_comm comm) {
+                   return initSolver(
+                       std::move(type), std::move(solver_options), comm);
                 }),
-            py::arg("opt_file_name"),
+            py::arg("type"),
+            py::arg("solver_options"),
             py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
-       .def(py::init([](const nlohmann::json &json_options, mpi_comm comm)
-                     { return initSolver(json_options, comm); }),
-            py::arg("json_options"),
+       .def(py::init(
+                [](nlohmann::json type,
+                   nlohmann::json solver_options,
+                   mpi_comm comm) {
+                   return initSolver(
+                       std::move(type), std::move(solver_options), comm);
+                }),
+            py::arg("type"),
+            py::arg("solver_options"),
             py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
-       .def("getNumStates", &PDESolver::getNumStates);
+       .def("getNumStates", &PDESolver::getNumStates)
+       .def(
+           "getMeshCoordinates",
+           [](PDESolver &self, const py::array_t<double> &mesh_coords)
+           {
+              auto mesh_coords_vec = npBufferToMFEMVector(mesh_coords);
+              return self.getMeshCoordinates(mesh_coords_vec);
+           },
+           py::arg("mesh_coords"));
 }
