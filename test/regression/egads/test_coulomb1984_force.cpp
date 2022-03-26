@@ -29,7 +29,7 @@ auto em_options = R"(
    },
    "lin-solver": {
       "type": "minres",
-      "printlevel": 0,
+      "printlevel": 1,
       "maxiter": 100,
       "abstol": 1e-14,
       "reltol": 1e-14
@@ -40,7 +40,7 @@ auto em_options = R"(
    },
    "nonlin-solver": {
       "type": "newton",
-      "printlevel": 3,
+      "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-10,
       "abstol": 1e-12
@@ -59,8 +59,7 @@ auto em_options = R"(
       "test": {
          "ring": [1, 2]
       }
-   },
-   "ess-bdr": [1, 3]
+   }
 })"_json;
 
 /// exact force is 0.078 N
@@ -76,6 +75,10 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
       {"state", em_state}
    };
    em_solver.solveForState(inputs, em_state);
+
+   em_solver.createOutput("energy");
+   double energy = em_solver.calcOutput("energy", inputs);
+   REQUIRE(energy == Approx(0.0142746123).margin(1e-10));
 
    nlohmann::json force_options = {
       {"attributes", {1}},

@@ -16,6 +16,7 @@ if openmdao is not None:
     from .omMach import omMachState, omMachFunctional
     from .mesh_warper import MachMeshWarper
     from .mach_state import MachMesh, MachState
+    from .mach_output import MachFunctional
 
     try:
         import mphys

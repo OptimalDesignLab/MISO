@@ -69,6 +69,7 @@ em_options = {
         }
     }
 }
+
 class TestEMState(unittest.TestCase):
     # def test_forward(self):
     #     prob = om.Problem()
@@ -139,7 +140,7 @@ class TestEMState(unittest.TestCase):
         prob.run_model()
 
         data = prob.check_totals(of=["state"], wrt=["current_density:wires"])
-        assert_check_totals(data, atol=1.-6, rtol=1e-6)
+        assert_check_totals(data, atol=1e-6, rtol=1e-6)
 
 if __name__ == "__main__":
     unittest.main()
