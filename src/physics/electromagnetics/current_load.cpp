@@ -126,13 +126,14 @@ void vectorJacobianProduct(CurrentLoad &load,
 
       // OperatorHandle M(Operator::Hypre_ParCSR);
       // load.nd_mass.ParallelAssemble(M);
-      
+
       // Vector X(load.fes.GetTrueVSize());
       // psi_j.ParallelAssemble(X);
       // Vector RHS(load.fes.GetTrueVSize());
       // rhs.ParallelAssemble(RHS);
 
-      auto M_matT = std::unique_ptr<HypreParMatrix>(M.As<HypreParMatrix>()->Transpose());
+      auto M_matT =
+          std::unique_ptr<HypreParMatrix>(M.As<HypreParMatrix>()->Transpose());
       HypreBoomerAMG amg(*M_matT);
       amg.SetPrintLevel(-1);
 
