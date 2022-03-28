@@ -83,6 +83,8 @@ int main(int argc, char *argv[])
       // solver->printSolution("airfoil-steady-final");
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
+      double drag = abs(solver->calcOutput("drag"));
+      mfem::out << "drag is " << drag << '\n';
    }
    catch (MachException &exception)
    {

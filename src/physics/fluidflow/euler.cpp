@@ -67,6 +67,11 @@ void EulerSolver<dim, entvar>::addVolumeIntegrators(double alpha)
    double lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    res->AddDomainIntegrator(
        new EntStableLPSIntegrator<dim, entvar>(diff_stack, alpha, lps_coeff));
+   if(options["shock-capturing"]["use"].template get<bool>() == true)
+   {
+      double sensor = options["shock-capturing"]["sensor-param"].template get<double>();
+      res->AddDomainIntegrator(new EntStableLPSShockIntegrator<2,entvar>(diff_stack, alpha, lps_coeff, sensor));                                                  
+   }
 }
 
 template <int dim, bool entvar>

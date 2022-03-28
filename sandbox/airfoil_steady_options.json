@@ -6,21 +6,23 @@
       "pitch-axis": 1
    },
    "space-dis": {
-      "DGD": false,
+      "DGD": true,
       "DGD-degree": 1,
       "extra-basis": 4,
       "shape-param": 10.0,
       "degree": 1,
       "lps-coeff": 1.0,
-      "basis-type": "csbp"
+      "basis-type": "dsbp"
    },
    "steady": false,
    "time-dis": {
       "const-cfl": true,
+      "res-exp": 2.0,
       "ode-solver": "MIDPOINT",
       "t-final": 100,
       "dt": 0.1,
-      "cfl": 1.0
+      "cfl": 1.0,
+      "max-iter": 1e4
    },
    "mesh": {
 	   "file": "airfoil_steady.mesh",
@@ -55,5 +57,9 @@
    "outputs":
    {
       "drag": [0, 0, 1, 1]
-   }
+   },
+   "shock-capturing": {
+      "use": true,
+      "sensor-param": 0
+   } 
 }
