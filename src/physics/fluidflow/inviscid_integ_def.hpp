@@ -515,43 +515,48 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    adjJt.SetSize(dim);
    w.SetSize(num_states, num_nodes);
    Pw.SetSize(num_states, num_nodes);
-   Vector wi, Pwi;
+   Vector wi, Pwi, prod(num_states);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
 
-   DenseMatrix ident(num_nodes);
-   DenseMatrix Vs, Vst, VtV;
-   DenseMatrix P, Pt;
-   Vector vc;
+   DenseMatrix Vs;
+   Vector Vs0;
 
    // build the Shock projector operator
    Vector xi, eta;
    sbp.getNodeCoords(0, xi);
    sbp.getNodeCoords(1, eta);
    mach::getVandermondeForTri(xi, eta, 0, Vs);
-   Vst.Transpose(Vs);
-   mfem::Mult(Vs,Vst,VtV);
+   Vs.GetColumnReference(0,Vs0);
+
+
+   // compute the shock projection
+   Pw = w;
+   prod = 0.0;
+   for (int j = 0; j < num_nodes; ++j)
+   {
+      double fac = Vs0(j) * sbp.getDiagNormEntry(j);
+      for (int n = 0; n < num_states; ++n)
+      {
+         prod(n) += fac * w(n, j);
+      }
+   }
+   // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+   for (int j = 0; j < num_nodes; ++j)
+   {
+      for (int n = 0; n < num_states; ++n)
+      {
+         Pw(n, j) -= Vs0(j) * prod(n);
+      }
+   }
 
    // convert from working variables (this may be the identity)
    for (int i = 0; i < num_nodes; ++i)
    {
-      // convert
       u.GetRow(i,ui);
       w.GetColumnReference(i, wi);
       convert(ui, wi);
-
-      // apply norm matrix to the shock projector
-      VtV.GetColumnReference(i,vc);
-      vc *= sbp.getDiagNormEntry(i);
-      ident(i,i) = 1.0;
    }
-
-   Add(ident,VtV,-1.0,P);
-   Pt.Transpose(P);
-
-
-   // assume the shock projector is built upon construction
-   mfem::Mult(P,w,Pw);
 
    // apply the scaling matrix
    for (int i = 0; i < num_nodes; ++i)
@@ -566,9 +571,28 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
       wi *= lps_coeff;
    }
    sbp.multNormMatrix(w, w);
-   // mult the transpose of the projection matrix
-   mfem::Mult(Pt,w,Pw);
-   // apply the shock coefficient
+
+   // compute the transpose of projection
+   prod = 0.0;
+   Pw = w;
+
+   for (int j = 0; j < num_nodes; ++j)
+   {
+      for (int n = 0; n < num_states; ++n)
+      {
+         prod(n) += Vs0(j) * w(n, j);
+      }
+   }
+   // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+   for (int j = 0; j < num_nodes; ++j)
+   {
+      double fac = Vs0(j) * sbp.getDiagNormEntry(j);
+      for (int n = 0; n < num_states; ++n)
+      {
+         Pw(n, j) -= fac * prod(n);
+      }
+   }
+
    double frac = computeSensor(el, Trans, elfun);
    frac *= (2/M_PI * atan(100*(frac - sensor_coeff)) + 1.0);
    Pw *= frac;
