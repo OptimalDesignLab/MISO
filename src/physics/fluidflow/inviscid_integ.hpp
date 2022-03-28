@@ -496,6 +496,8 @@ protected:
    double computeSensor(const mfem::FiniteElement &el,
                         const mfem::ElementTransformation &Trans,
                         const mfem::Vector &elfun);
+
+   //void computeShockProjection();
 };
 
 

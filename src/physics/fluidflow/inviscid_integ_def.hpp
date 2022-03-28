@@ -529,6 +529,13 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    mach::getVandermondeForTri(xi, eta, 0, Vs);
    Vs.GetColumnReference(0,Vs0);
 
+   // convert from working variables (this may be the identity)
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      u.GetRow(i,ui);
+      w.GetColumnReference(i, wi);
+      convert(ui, wi);
+   }
 
    // compute the shock projection
    Pw = w;
@@ -548,14 +555,6 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
       {
          Pw(n, j) -= Vs0(j) * prod(n);
       }
-   }
-
-   // convert from working variables (this may be the identity)
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      u.GetRow(i,ui);
-      w.GetColumnReference(i, wi);
-      convert(ui, wi);
    }
 
    // apply the scaling matrix
@@ -594,17 +593,32 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    }
 
    double frac = computeSensor(el, Trans, elfun);
-   frac *= (2/M_PI * atan(100*(frac - sensor_coeff)) + 1.0);
+   frac *= (1.0/M_PI * atan(100*(frac - sensor_coeff)) + 0.5);
    Pw *= frac;
    res.Transpose(Pw);
    res *= alpha;
 }
+
+// template <typename Derived>
+// void LPSShockIntegrator<Derived>::computeShockProjection(mfem::DenseMatrix &w,
+//                                  mfem::DenseMatrix &Pw,)
+// {
+
+// }
 
 template <typename Derived>
 void LPSShockIntegrator<Derived>::AssembleElementGrad(
     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
     const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
 {
+   // compute the jacobian of the lps shock integrator w.r.t the state
+   // orginal form:  \phi(w) * P^t * H * A * P * w
+
+   // 1. compute P^t * H * A * P * w
+
+   // 2. first part: d \phi(w)/dw * rest
+
+   // 3. second part: \phi(w) * d (rest) /dw
 
 }
 
