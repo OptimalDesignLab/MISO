@@ -400,6 +400,42 @@ void EntStableLPSShockIntegrator<dim,entvar>::applyScalingJacAdjJ(
    this->stack.jacobian(mat_vec_jac.GetData());
 }
 
+template <int dim, bool entvar>
+void EntStableLPSShockIntegrator<dim,entvar>::applyScalingJacV(
+                        const mfem::DenseMatrix &adjJ,
+                        const mfem::Vector &q,
+                        mfem::DenseMatrix &mat_vec_jac)
+{
+   // declare vectors of active input variables
+   int adjJ_a_size = adjJ.Height() * adjJ.Width();
+   std::vector<adouble> adjJ_a(adjJ_a_size);
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> vec_a(q.Size());
+   // copy data from mfem::Vector
+   adept::set_values(adjJ_a.data(), adjJ_a_size, adjJ.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // dependence on vec is linear, so any value is ok; use q
+   adept::set_values(vec_a.data(), q.Size(), q.GetData());
+   // start recording
+   this->stack.new_recording();
+   // the dependent variable must be declared after the recording
+   std::vector<adouble> mat_vec_a(q.Size());
+   if (entvar)
+   {
+      applyLPSScalingUsingEntVars<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                                vec_a.data(), mat_vec_a.data());
+   }
+   else
+   {
+      applyLPSScaling<adouble, dim>(adjJ_a.data(), q_a.data(),
+                                    vec_a.data(), mat_vec_a.data());
+   }
+   // set the independent and dependent variable
+   this->stack.independent(vec_a.data(), q.Size());
+   this->stack.dependent(mat_vec_a.data(), q.Size());
+   // Calculate the jabobian
+   this->stack.jacobian(mat_vec_jac.GetData());  
+}
 
 
 template <int dim, bool entvar>

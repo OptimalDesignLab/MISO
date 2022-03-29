@@ -14,7 +14,7 @@ namespace mach
 
 /// Integrator for the Euler flux over an element
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-/// \note This derived class uses the CRTP
+/// \note This derived class uses the CRTPw
 template <int dim>
 class EulerIntegrator : public InviscidIntegrator<EulerIntegrator<dim>>
 {

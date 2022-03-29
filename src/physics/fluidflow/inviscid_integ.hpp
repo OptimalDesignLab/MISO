@@ -497,9 +497,19 @@ protected:
    double computeSensor(const mfem::FiniteElement &el,
                         const mfem::ElementTransformation &Trans,
                         const mfem::Vector &elfun);
-   
-   void multProjectOperator(const mfem::DenseMatrix &w, mfem::DenseMatrix &Pw,
+
+   void computeSensorJacState(const mfem::FiniteElement &el,
+                              const mfem::DenseMatrix &w,
+                              mfem::DenseMatrix &dev);
+
+
+   void multProjOperator(const mfem::DenseMatrix &w, mfem::DenseMatrix &Pw,
                             bool trans = false);
+
+   double getProjOperatorEntry(const int i, const int j) const
+   {
+      return P(i,j);
+   }
    //void computeShockProjection();
 };
 
