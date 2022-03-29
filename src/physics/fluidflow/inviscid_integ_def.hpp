@@ -497,6 +497,44 @@ void LPSIntegrator<Derived>::AssembleElementGrad(
 //    }
 // }
 
+
+template <typename Derived>
+LPSShockIntegrator<Derived>::LPSShockIntegrator(
+         adept::Stack &diff_stack, int num_state_vars,
+         double a, double coeff, double sensor,
+         const mfem::FiniteElementCollection *fe_coll) 
+   : num_states(num_state_vars), alpha(a), lps_coeff(coeff),
+     stack(diff_stack), sensor_coeff(sensor)
+{
+   const mfem::SBPFiniteElement *el = dynamic_cast<const mfem::SBPFiniteElement*>
+                  (fe_coll->FiniteElementForGeometry(mfem::Geometry::TRIANGLE));
+   mfem::Vector xi, eta;
+   mfem::DenseMatrix V,Vt;
+   el->getNodeCoords(0, xi);
+   el->getNodeCoords(1, eta);
+   xi *= 2.0;
+   xi -= 1.0;
+   eta *= 2.0;
+   eta -= 1.0;
+   mach::getVandermondeForTri(xi, eta, 0, V);
+   Vt.Transpose(V);
+
+   int num_nodes = V.Height();
+   mfem::DenseMatrix VtV(num_nodes);
+   mfem::Mult(V,Vt,VtV);
+   Vector vc;
+   P.SetSize(num_nodes);
+   for (int i = 0; i < num_nodes; i++)
+   {
+      P(i,i) = 1.0;
+      VtV.GetColumnReference(i,vc);
+      vc *= el->getDiagNormEntry(i);
+   }
+
+   P -= VtV;
+}
+
+
 template <typename Derived>
 void LPSShockIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
@@ -599,6 +637,13 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    res *= alpha;
 }
 
+template <typename Derived>
+void LPSShockIntegrator<Derived>::multProjectOperator(
+                                 const mfem::DenseMatrix &w,
+                                 mfem::DenseMatrix)
+{
+
+}
 // template <typename Derived>
 // void LPSShockIntegrator<Derived>::computeShockProjection(mfem::DenseMatrix &w,
 //                                  mfem::DenseMatrix &Pw,)

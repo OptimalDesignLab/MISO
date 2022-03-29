@@ -70,7 +70,7 @@ void EulerSolver<dim, entvar>::addVolumeIntegrators(double alpha)
    if(options["shock-capturing"]["use"].template get<bool>() == true)
    {
       double sensor = options["shock-capturing"]["sensor-param"].template get<double>();
-      res->AddDomainIntegrator(new EntStableLPSShockIntegrator<2,entvar>(diff_stack, alpha, lps_coeff, sensor));                                                  
+      res->AddDomainIntegrator(new EntStableLPSShockIntegrator<2,entvar>(diff_stack, alpha, lps_coeff, sensor,fec.get()));                                                  
    }
 }
 

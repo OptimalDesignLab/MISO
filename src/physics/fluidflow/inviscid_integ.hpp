@@ -369,9 +369,8 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    /// \param[in] coeff - the LPS coefficient
    LPSShockIntegrator(adept::Stack &diff_stack, int num_state_vars = 1,
-                 double a = 1.0, double coeff = 1.0, double sensor = .5)
-       : num_states(num_state_vars), alpha(a), lps_coeff(coeff),
-         stack(diff_stack), sensor_coeff(sensor) { }
+                 double a = 1.0, double coeff = 1.0, double sensor = .5,
+                 const mfem::FiniteElementCollection *fe_coll = nullptr);
 
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
@@ -418,6 +417,8 @@ protected:
    mfem::DenseMatrix jac_node;
    /// used to hold the (i,j)th LPS matrix operator block entry
    mfem::DenseMatrix Lij;
+
+   mfem::DenseMatrix P;
 #endif
 
    /// converts working variables to another set (e.g. conservative to entropy)
@@ -496,7 +497,9 @@ protected:
    double computeSensor(const mfem::FiniteElement &el,
                         const mfem::ElementTransformation &Trans,
                         const mfem::Vector &elfun);
-
+   
+   void multProjectOperator(const mfem::DenseMatrix &w, mfem::DenseMatrix &Pw,
+                            bool trans = false);
    //void computeShockProjection();
 };
 
