@@ -496,7 +496,7 @@ protected:
    /// \param[out] elvect - element local residual
    double computeSensor(const mfem::FiniteElement &el,
                         const mfem::ElementTransformation &Trans,
-                        const mfem::Vector &elfun);
+                        const mfem::DenseMatrix &w);
 
    void computeSensorJacState(const mfem::FiniteElement &el,
                               const mfem::DenseMatrix &w,

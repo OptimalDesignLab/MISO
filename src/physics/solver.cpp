@@ -154,7 +154,7 @@ void AbstractSolver::initDerived(Vector &center)
 
    // Set up mass matrix and evovler
    mass.reset(new BilinearFormType(fes_normal.get()));
-   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state,false));
+   mass->AddDomainIntegrator(new DiagMassIntegrator(num_state,true));
    mass->Assemble();
    mass->Finalize();
 

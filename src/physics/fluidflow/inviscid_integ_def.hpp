@@ -564,6 +564,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
       w.GetColumnReference(i, wi);
       convert(ui, wi);
    }
+   double frac = computeSensor(el, Trans, w);
    // Step 2: apply the projection operator to w
    multProjOperator(w, Pw, false);
    // Step 3: apply scaling matrix at each node and diagonal norm
@@ -582,8 +583,6 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    // Step 4: apply the transposed projection operator to H*A*P*w
    multProjOperator(w, Pw, true);
    // This is necessary because data in elvect is expected to be ordered `byNODES`
-   double frac = computeSensor(el, Trans, elfun);
-   //frac *= (1.0/M_PI * atan(100*( frac - sensor_coeff)) + 0.5);
    Pw *= frac;
    res.Transpose(Pw);
    res *= alpha;
@@ -625,7 +624,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
       convert(ui, wi);
    }
    // 1. compute /phi(w)
-   double frac = computeSensor(el,Trans,elfun);
+   double frac = computeSensor(el,Trans,w);
    // 2. compute derivative of the rest
    // apply the projection operator to w
    multProjOperator(w, Pw, false);
@@ -703,8 +702,31 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
    computeSensorJacState(el,w,dphidw);
 
    //4. compute P^t * H * A * P * w
+   multProjOperator(w, Pw, false);
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
+      CalcAdjugate(Trans.Jacobian(), adjJt);
+      u.GetRow(i,ui);
+      Pw.GetColumnReference(i, Pwi);
+      w.GetColumnReference(i, wi);
+      scale(adjJt, ui, Pwi, wi);
+      wi *= lps_coeff;
+   }
+   sbp.multNormMatrix(w, w);
+   multProjOperator(w, Pw, true);
 
-   
+   for (int i = 0; i < num_nodes; i++)
+   {
+      for (int j = 0; j < num_nodes; j++)
+      {
+         for (int k = 0; k < num_states; k++)
+         {
+            elmat(k*num_states+j,k*num_states+i) = Pw(k,j) * dphidw(k,i);
+         }
+      }
+   }
    elmat *= alpha;
 }
 
@@ -716,7 +738,6 @@ void LPSShockIntegrator<Derived>::multProjOperator(
                                  bool trans)
 {
    int num_nodes = w.Width();
-   int num_states = w.Height();
    mfem::DenseMatrix wt(w.Width(),w.Height());
    mfem::DenseMatrix Pwt(w.Width(),w.Height());
    wt.Transpose(w);
@@ -736,7 +757,7 @@ void LPSShockIntegrator<Derived>::multProjOperator(
 template <typename Derived>
 double LPSShockIntegrator<Derived>::computeSensor(const mfem::FiniteElement &el,
                                       const mfem::ElementTransformation &Trans,
-                                      const mfem::Vector &elfun)
+                                      const mfem::DenseMatrix &w)
 {
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
@@ -752,19 +773,8 @@ double LPSShockIntegrator<Derived>::computeSensor(const mfem::FiniteElement &el,
    ui.SetSize(num_states);
    adjJt.SetSize(dim);
    DenseMatrix w2(num_states, num_nodes);
+   DenseMatrix Pw(num_states, num_nodes);
 
-   w.SetSize(num_states, num_nodes);
-   Pw.SetSize(num_states, num_nodes);
-   Vector wi, Pwi;
-   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-
-   // Step 1: convert from working variables (this may be the identity)
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      u.GetRow(i,ui);
-      w.GetColumnReference(i, wi);
-      convert(ui, wi);
-   }
    // 2.Compute the numerator wtPtHPw
    sbp.multProjOperator(w,Pw,false);
    sbp.multNormMatrix(Pw,Pw);
@@ -787,6 +797,7 @@ double LPSShockIntegrator<Derived>::computeSensor(const mfem::FiniteElement &el,
       }
    }
    factor = num/den;
+   std::cout << "raw val: " << factor << ". ";
 
    // 4. scale the factor based on a human chosen function
    factor *= (1.0/M_PI * atan(100*( factor - sensor_coeff)) + 0.5);
@@ -802,7 +813,6 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    using namespace mfem;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    int num_nodes = w.Width();
-   int num_states = w.Height();
    double den = 0.0;
    double num = 0.0;
 
