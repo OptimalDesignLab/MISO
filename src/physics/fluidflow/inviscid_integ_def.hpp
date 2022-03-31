@@ -794,9 +794,11 @@ double LPSShockIntegrator<Derived>::computeSensor(
    factor = num/den;
 
    // 4. scale the factor
-   std::cout << "raw factor is " << factor  << '\n';
-   double scalf =  (1.0/M_PI * atan(100.* (factor - sensor_coeff) ) + 0.5);
-   std::cout << "atan is " << scalf  << '\n';
+   // std::cout << "raw factor is " << factor  << '\n';
+   // double scalefac =  (1.0/M_PI * atan( (factor - sensor_coeff) ) + 0.5);
+   // std::cout << "atan is " << scalefac  << '\n';
+   // factor *= scalefac;
+   factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
    return factor;
 }
 
@@ -847,11 +849,10 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    w2 *= (1/(den*den));
 
    double phi = num/den;
-   std::cout << "raw factor is " << phi  << '\n';
-   double aa = 100 * (phi - sensor_coeff);
+   double aa = 100.*(phi - sensor_coeff);
    double bb = 1./ (1.0 + aa * aa);
-   double cc = 100./M_PI * bb;
-   std::cout << "atan dev is " << cc  << '\n';
+   double cc = 100.0/M_PI * bb;
+   //std::cout << "atan dev is " << cc  << '\n';
    w2 *= cc;
    dev = w2;
 }
