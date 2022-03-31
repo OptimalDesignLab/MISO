@@ -391,6 +391,13 @@ public:
                                     mfem::ElementTransformation &Trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
+                                    
+   double computeSensor(const mfem::FiniteElement &el,
+                        const mfem::DenseMatrix &w);
+
+   void computeSensorJacState(const mfem::FiniteElement &el,
+                              const mfem::DenseMatrix &w,
+                              mfem::DenseMatrix &dev);
 protected:
    /// number of states
    int num_states;
@@ -494,13 +501,7 @@ protected:
    /// \param[in] Trans - defines the reference to physical element mapping
    /// \param[in] elfun - element local state function
    /// \param[out] elvect - element local residual
-   double computeSensor(const mfem::FiniteElement &el,
-                        const mfem::ElementTransformation &Trans,
-                        const mfem::DenseMatrix &w);
 
-   void computeSensorJacState(const mfem::FiniteElement &el,
-                              const mfem::DenseMatrix &w,
-                              mfem::DenseMatrix &dev);
 
 
    void multProjOperator(const mfem::DenseMatrix &w, mfem::DenseMatrix &Pw,

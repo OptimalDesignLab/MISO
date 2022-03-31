@@ -564,7 +564,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
       w.GetColumnReference(i, wi);
       convert(ui, wi);
    }
-   double frac = computeSensor(el, Trans, w);
+   double frac = computeSensor(el,w);
    // Step 2: apply the projection operator to w
    multProjOperator(w, Pw, false);
    // Step 3: apply scaling matrix at each node and diagonal norm
@@ -624,7 +624,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
       convert(ui, wi);
    }
    // 1. compute /phi(w)
-   double frac = computeSensor(el,Trans,w);
+   double frac = computeSensor(el,w);
    // 2. compute derivative of the rest
    // apply the projection operator to w
    multProjOperator(w, Pw, false);
@@ -755,8 +755,8 @@ void LPSShockIntegrator<Derived>::multProjOperator(
 }
 
 template <typename Derived>
-double LPSShockIntegrator<Derived>::computeSensor(const mfem::FiniteElement &el,
-                                      const mfem::ElementTransformation &Trans,
+double LPSShockIntegrator<Derived>::computeSensor(
+                                      const mfem::FiniteElement &el,
                                       const mfem::DenseMatrix &w)
 {
    using namespace mfem;
@@ -766,12 +766,7 @@ double LPSShockIntegrator<Derived>::computeSensor(const mfem::FiniteElement &el,
    double num = 0;
    double den = 0;
    double factor;
-#ifdef MFEM_THREAD_SAFE
-   Vector ui;
-   DenseMatrix adjJt, w, Pw;
-#endif
-   ui.SetSize(num_states);
-   adjJt.SetSize(dim);
+
    DenseMatrix w2(num_states, num_nodes);
    DenseMatrix Pw(num_states, num_nodes);
 
@@ -797,10 +792,11 @@ double LPSShockIntegrator<Derived>::computeSensor(const mfem::FiniteElement &el,
       }
    }
    factor = num/den;
-   std::cout << "raw val: " << factor << ". ";
 
-   // 4. scale the factor based on a human chosen function
-   factor *= (1.0/M_PI * atan(100*( factor - sensor_coeff)) + 0.5);
+   // 4. scale the factor
+   std::cout << "raw factor is " << factor  << '\n';
+   double scalf =  (1.0/M_PI * atan(100.* (factor - sensor_coeff) ) + 0.5);
+   std::cout << "atan is " << scalf  << '\n';
    return factor;
 }
 
@@ -850,10 +846,13 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    // * / g^2
    w2 *= (1/(den*den));
 
-   // compute the origin phi
    double phi = num/den;
-   double coeff = 100.0/M_PI * 1.0/ (1 + 10000. * (phi-sensor_coeff) * (phi-sensor_coeff) );
-   w2 *= coeff;
+   std::cout << "raw factor is " << phi  << '\n';
+   double aa = 100 * (phi - sensor_coeff);
+   double bb = 1./ (1.0 + aa * aa);
+   double cc = 100./M_PI * bb;
+   std::cout << "atan dev is " << cc  << '\n';
+   w2 *= cc;
    dev = w2;
 }
 
