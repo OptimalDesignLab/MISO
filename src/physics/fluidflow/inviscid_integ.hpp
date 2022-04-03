@@ -398,6 +398,17 @@ public:
    void computeSensorJacState(const mfem::FiniteElement &el,
                               const mfem::DenseMatrix &w,
                               mfem::DenseMatrix &dev);
+   
+   // // a test function
+   // virtual void AssembleRest(const mfem::FiniteElement &el,
+   //                           mfem::ElementTransformation &Trans,
+   //                           const mfem::Vector &elfun,
+   //                           mfem::Vector &elvect);
+   
+   // virtual void AssembleRestGrad(const mfem::FiniteElement &el,
+   //                                  mfem::ElementTransformation &Trans,
+   //                                  const mfem::Vector &elfun,
+   //                                  mfem::DenseMatrix &elmat);
 protected:
    /// number of states
    int num_states;
@@ -444,6 +455,16 @@ protected:
    void convertJacState(const mfem::Vector &u, mfem::DenseMatrix &dwdu)
    {
       static_cast<Derived*>(this)->convertVarsJacState(u, dwdu);
+   }
+
+   double getpressure(const mfem::Vector &q);
+   {
+      static_cast<Derived*>(this)->computePressure(q);
+   }
+
+   void pressureJacState(const mfem::Vector &q, mfem::Vector &dpdu)
+   {
+      staric_cast<Derived*>(this)->applyPressJacState(q,dpdu);
    }
 
    /// applies symmetric matrix `A(adjJ,u)` to input `v` to scale dissipation
@@ -511,7 +532,8 @@ protected:
    {
       return P(i,j);
    }
-   //void computeShockProjection();
+
+   mfem::DenseMatrix getProjOperator() const { return P; }
 };
 
 

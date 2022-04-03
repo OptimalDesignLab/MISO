@@ -35,6 +35,25 @@ inline xdouble pressure(const xdouble *q)
    return euler::gami * (q[dim + 1] - 0.5 * dot<xdouble, dim>(q + 1, q + 1) / q[0]);
 }
 
+/// Derivative of pressure w.r.t. the conservative variables
+/// \param[in] q - the conservative variables 
+/// \param[out] dpdq - the derivative of pressure 
+/// \tparam xdouble - either double or adouble
+/// \tparam dim - number of physical dimensions
+template <typename xdouble, int dim>
+void dpressdq(const xdouble *q, xdouble *dpdq)
+{
+   xdouble phi = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      xdouble u = q[i + 1] / q[0];
+      phi += u * u;
+      dpdq[i + 1] = -euler::gami * u;
+   }
+   dpdq[0] = euler::gami * phi * 0.5;
+   dpdq[dim + 1] = euler::gami;
+}
+
 /// Convert conservative variables `q` to entropy variables `w`
 /// \param[in] q - conservative variables that we want to convert from
 /// \param[out] w - entropy variables we want to convert to

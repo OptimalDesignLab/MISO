@@ -239,6 +239,12 @@ public:
    void applyScalingJacV(const mfem::DenseMatrix &adjJ,
                          const mfem::Vector &q,
                          mfem::DenseMatrix &mat_vec_jac);
+   
+   /// computes the pressure from the working variable
+   /// \param[in] q - the working variable
+   double computePressure(const mfem::Vector &q);
+
+   void applyPressJacState(const mfem::Vector &q, mfem::Vector &dpdu);
 
 };
 

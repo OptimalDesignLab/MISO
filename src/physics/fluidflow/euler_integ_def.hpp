@@ -272,6 +272,41 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacV(
 }
 
 template <int dim, bool entvar>
+double EntStableLPSShockIntegrator<dim,entvar>::computePressure(const mfem::Vector &q)
+{
+   int p;
+   if (entvar)
+   {
+      Vector u(dim+2);
+      calcConservativeVars(q.GetData(),u.GetData());
+      p = pressure<double,dim>(u.GetData());
+   }
+   else
+   {
+      p = pressure<double,dim>(q.GetData());
+   }
+   return p;
+}
+
+
+template <int dim, bool entvar>
+void EntStableLPSShockIntegrator<dim,entvar>::applyPressJacState(
+                              const mfem::Vector &q, mfem::Vector &dpdq)
+{
+   if (entvar)
+   {
+      Vector u(dim+2);
+      calcConservativeVars(q.GetData(),u.GetData());
+      dpressdq<double,dim>(u.GetData().dpdq.GetData());
+   }
+   else
+   {
+      dpressdq<double,dim>(q.GetData().dpdq.GetData());
+   }
+}
+
+
+template <int dim, bool entvar>
 void EntStableLPSShockIntegrator<dim,entvar>::convertVars(const mfem::Vector &q, mfem::Vector &w)
 {
    // This conditional should have no overhead, if the compiler is good
