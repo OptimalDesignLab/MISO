@@ -688,7 +688,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
    int num_edge = 2;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       // DYNAMIC_SECTION("...for degree p = " << p)
       // {
@@ -786,6 +786,12 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
                fd(i,j) = (sp - sm)/(2.e-5);
             }
          }
+         // std::cout << "fd: \n";
+         // fd.Print(std::cout,fd.Width());
+         // std::cout <<'\n';
+
+         // std::cout << "ana:\n";
+         // dev.Print(std::cout,dev.Width());
 
          for (int i = 0; i < num_state; ++i)
          {

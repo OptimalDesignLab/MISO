@@ -836,6 +836,9 @@ double LPSShockIntegrator<Derived>::computeSensor(
 
    // 3. compute the raw factor
    factor = num/den;
+   // std::cout << "num = " << num;
+   // std::cout << ", den = " << den;
+   // std::cout << ", raw factor is " << factor << '\n';
 
    // 4. scale the factor
    factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
@@ -885,6 +888,9 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    den = pressure_nodes * hw;
 
    factor = num/den;
+   // std::cout << "num = " << num;
+   // std::cout << ", den = " << den;
+   // std::cout << ", raw factor is " << factor << '\n';
 
    // 4. compute the derivative
    ppw *= (2.0*den);
