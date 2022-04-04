@@ -837,7 +837,7 @@ double LPSShockIntegrator<Derived>::computeSensor(
    factor = num/den;
 
    // 4. scale the factor
-   factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
+   //factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
    return factor;
 }
 
@@ -848,8 +848,9 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
                                  mfem::DenseMatrix &dev)
 {
    using namespace mfem;
+   using namespace std;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
-   int num_nodes = w.Width();
+   int num_nodes = sbp.GetDof();
    double den = 0.0;
    double num = 0.0;
    double factor = 0.0;
@@ -859,9 +860,9 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    DenseMatrix projt(num_nodes);
    DenseMatrix oper(num_nodes);
    Vector pti;
-
    sbp.getProjOperator(proj);
    projt.Transpose(proj);
+   Vector operi;
    for (int i = 0; i < num_nodes; i++)
    {
       projt.GetColumnReference(i,operi);
@@ -897,58 +898,21 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    pw /= (den*den); // dxdp
    Vector dxdp(pw);
 
-   // some working variables
-   DenseMatrix Pw(num_states,num_nodes);
-   DenseMatrix w2(num_states,num_nodes);
-   DenseMatrix w3(num_states,num_nodes);
-
-   // A = P^t * H * P * w
-   sbp.multProjOperator(w,Pw,false);
-   sbp.multNormMatrix(Pw,Pw);
-   sbp.multProjOperator(Pw,w2,true);
-
-   // B = H * w
-   sbp.multNormMatrix(w,w3);
-
-   // inner product: 1) w^t * A, 2) w^t * B
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      for (int j = 0; j < num_states; ++j)
-      {
-         den += w(j,i)*w3(j,i);
-         num += w(j,i)*w2(j,i);
-      }
-   }
-
-   // A^t * w + A * w, H^t*w +H^t*w
-   w2 *= 2.0;
-   w3 *= 2.0;
-
-   // f'*g + g'*f
-   w2 *= den;
-   w3 *= num;
-   w2 -= w3;
-   // * / g^2
-   w2 *= (1/(den*den));
-
-   double phi = num/den;
-   double aa = 100.*(phi - sensor_coeff);
-   double bb = 1./ (1.0 + aa * aa);
-   double cc = 100.0/M_PI * bb;
-   w2 *= cc;
-   
-   // considert the conversion jacobian
-   int num_state = w.Height();
-   DenseMatrix dqdu(num_state);
-   Vector wi, wii, devi;
+   Vector devi;
+   // 5. compute dphi/dx * dx/dp * dp/du
    for (int i = 0; i < num_nodes; i++)
    {
-      w.GetColumn(i,wi);
-      convertJacState(wi,dqdu);
+      u.GetRow(i,ui);
       dev.GetColumnReference(i,devi);
-      w2.GetColumn(i,wii);
-      dqdu.Mult(wii,devi);
+      pressureJacState(ui,devi);
+      devi *= dxdp(i);
    }
+
+   // double aa = 100.*(factor - sensor_coeff);
+   // double bb = 1./ (1.0 + aa * aa);
+   // double cc = 100.0/M_PI * bb;
+   // dev *= cc;
+   dev.Transpose();
 }
 
 template <typename Derived>

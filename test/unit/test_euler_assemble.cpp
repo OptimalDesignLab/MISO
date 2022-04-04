@@ -757,31 +757,36 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
          const SBPFiniteElement *sbp = dynamic_cast<const SBPFiniteElement*>(fes->GetFE(1));
          int num_dof = sbp->GetDof();
 
-         DenseMatrix w(q.GetData(),num_state,num_dof);
+         DenseMatrix w(q.GetData(),num_dof, num_state);
          DenseMatrix dev(num_state,num_dof);
          lpsshock.computeSensorJacState(*sbp,w,dev);
 
          double sp,sm;
-         DenseMatrix fd(num_state,num_dof);
+         DenseMatrix fd(num_dof,num_state);
          for (int i = 0; i < num_dof; i++)
          {
             for (int j = 0; j < num_state; j++)
             {
-               w(j,i) += 1e-5;
+               w(i,j) += 1e-5;
                sp = lpsshock.computeSensor(*sbp,w);
-               w(j,i) -= 2e-5;
+               w(i,j) -= 2e-5;
                sm = lpsshock.computeSensor(*sbp,w);
-               w(j,i) += 1e-5;
-
-               fd(j,i) = (sp - sm)/2e-5;
+               w(i,j) += 1e-5;
+               fd(i,j) = (sp - sm)/2e-5;
             }
          }
+         std::cout << "fd:\n";
+         fd.Print(std::cout,fd.Width());
+
+
+         std::cout << "\ndev:\n";
+         dev.Print(std::cout,dev.Width());
 
 
 
-         for (int i = 0; i < num_dof; ++i)
+         for (int i = 0; i < num_state; ++i)
          {
-            for (int j = 0; j < num_state; j++)
+            for (int j = 0; j < num_dof; j++)
             {
                REQUIRE(dev(j,i) == Approx(fd(j,i)).margin(1e-10));
             }

@@ -274,11 +274,11 @@ void EntStableLPSIntegrator<dim, entvar>::applyScalingJacV(
 template <int dim, bool entvar>
 double EntStableLPSShockIntegrator<dim,entvar>::computePressure(const mfem::Vector &q)
 {
-   int p;
+   double p;
    if (entvar)
    {
-      Vector u(dim+2);
-      calcConservativeVars(q.GetData(),u.GetData());
+      mfem::Vector u(dim+2);
+      calcConservativeVars<double,dim>(q.GetData(),u.GetData());
       p = pressure<double,dim>(u.GetData());
    }
    else
@@ -295,13 +295,13 @@ void EntStableLPSShockIntegrator<dim,entvar>::applyPressJacState(
 {
    if (entvar)
    {
-      Vector u(dim+2);
-      calcConservativeVars(q.GetData(),u.GetData());
-      dpressdq<double,dim>(u.GetData().dpdq.GetData());
+      mfem::Vector u(dim+2);
+      calcConservativeVars<double,dim>(q.GetData(),u.GetData());
+      dpressdq<double,dim>(u.GetData(),dpdq.GetData());
    }
    else
    {
-      dpressdq<double,dim>(q.GetData().dpdq.GetData());
+      dpressdq<double,dim>(q.GetData(),dpdq.GetData());
    }
 }
 

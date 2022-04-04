@@ -457,14 +457,14 @@ protected:
       static_cast<Derived*>(this)->convertVarsJacState(u, dwdu);
    }
 
-   double getpressure(const mfem::Vector &q);
+   double getpressure(const mfem::Vector &q)
    {
-      static_cast<Derived*>(this)->computePressure(q);
+      return static_cast<Derived*>(this)->computePressure(q);
    }
 
    void pressureJacState(const mfem::Vector &q, mfem::Vector &dpdu)
    {
-      staric_cast<Derived*>(this)->applyPressJacState(q,dpdu);
+      static_cast<Derived*>(this)->applyPressJacState(q,dpdu);
    }
 
    /// applies symmetric matrix `A(adjJ,u)` to input `v` to scale dissipation
