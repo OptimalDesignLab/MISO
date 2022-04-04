@@ -391,12 +391,21 @@ public:
                                     mfem::ElementTransformation &Trans,
                                     const mfem::Vector &elfun,
                                     mfem::DenseMatrix &elmat);
-                                    
-   double computeSensor(const mfem::FiniteElement &el,
-                        const mfem::DenseMatrix &w);
+   
 
+   /// compute the sensor parameter based on the local pressure value
+   /// \param[in] el - the finite element
+   /// \param[in] u - the working state variable, might be 'u' or 'w'
+   double computeSensor(const mfem::FiniteElement &el,
+                        const mfem::DenseMatrix &q);
+
+
+   /// compute the jacobian of sensor w.r.t. the conservative variables
+   /// \param[in] el - the finite element
+   /// \param[in] q - the working state variable, might be 'u' or 'w'
+   /// \param[out] dev - d sensor / d u
    void computeSensorJacState(const mfem::FiniteElement &el,
-                              const mfem::DenseMatrix &w,
+                              const mfem::DenseMatrix &q,
                               mfem::DenseMatrix &dev);
    
    // // a test function

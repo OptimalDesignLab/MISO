@@ -576,7 +576,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
    elmat *= alpha;
 }
 
-// template <typename Derived>
+//template <typename Derived>
 // void LPSShockIntegrator<Derived>::AssembleElementVector(
 //     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
 //     const mfem::Vector &elfun, mfem::Vector &elvect)
@@ -605,7 +605,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
 //       w.GetColumnReference(i, wi);
 //       convert(ui, wi);
 //    }
-//    double frac = computeSensor(el,w);
+//    double frac = computeSensor(el,u);
 //    // Step 2: apply the projection operator to w
 //    multProjOperator(w, Pw, false);
 //    // Step 3: apply scaling matrix at each node and diagonal norm
@@ -665,7 +665,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
 //       convert(ui, wi);
 //    }
 //    // 1. compute /phi(w)
-//    double frac = computeSensor(el,w);
+//    double frac = computeSensor(el,u);
 //    // 2. compute derivative of the rest
 //    // apply the projection operator to w
 //    multProjOperator(w, Pw, false);
@@ -740,7 +740,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
 
 //    //3. compute d /phi /d w
 //    DenseMatrix dphidw(num_states,num_nodes);
-//    computeSensorJacState(el,w,dphidw);
+//    computeSensorJacState(el,u,dphidw);
 
 //    //4. compute P^t * H * A * P * w
 //    multProjOperator(w, Pw, false);
@@ -822,6 +822,7 @@ double LPSShockIntegrator<Derived>::computeSensor(
    Vector pw(num_nodes), ppw(num_nodes);
    Vector hw(num_nodes);
    sbp.getProjOperator(proj);
+
    proj.Mult(pressure_nodes,pw);
    for (int i = 0; i < num_nodes; i++)
    {
@@ -837,7 +838,7 @@ double LPSShockIntegrator<Derived>::computeSensor(
    factor = num/den;
 
    // 4. scale the factor
-   //factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
+   factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
    return factor;
 }
 
@@ -851,52 +852,46 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    using namespace std;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    int num_nodes = sbp.GetDof();
+   int num_state = u.Width();
    double den = 0.0;
    double num = 0.0;
    double factor = 0.0;
 
-   // 1. build the numerator operator
-   DenseMatrix proj(num_nodes);
-   DenseMatrix projt(num_nodes);
-   DenseMatrix oper(num_nodes);
-   Vector pti;
-   sbp.getProjOperator(proj);
-   projt.Transpose(proj);
-   Vector operi;
-   for (int i = 0; i < num_nodes; i++)
-   {
-      projt.GetColumnReference(i,operi);
-      pti *= sbp.getDiagNormEntry(i);
-   }
-   mfem::Mult(projt,proj,oper);
-
-   // 2. get pressure at nodes
+   // 1. convert to pressure
+   Vector ui(num_state);
    Vector pressure_nodes(num_nodes);
-   // Step 1: convert working variable to pressure
-   for (int i = 0; i < num_nodes; ++i)
+   for (int i = 0; i < num_nodes; i++)
    {
       u.GetRow(i,ui);
       pressure_nodes(i) = getpressure(ui);
    }
 
+   // 2. get numerator operator
+   DenseMatrix proj(num_nodes);
+   sbp.getProjOperator(proj);
+
    // 3. compute num and den
    Vector pw(num_nodes), hw(num_nodes);
-   oper.Mult(pressure_nodes,pw);
-   num = pressure_nodes * pw;
+   Vector ppw(num_nodes);
+   proj.Mult(pressure_nodes,pw);
    for (int i = 0; i < num_nodes; i++)
    {
+      pw(i) *= sbp.getDiagNormEntry(i);
       hw(i) = sbp.getDiagNormEntry(i) * pressure_nodes(i);
    }
+   proj.MultTranspose(pw,ppw);
+
+   num = pressure_nodes * ppw;
    den = pressure_nodes * hw;
+
    factor = num/den;
 
    // 4. compute the derivative
-   pw *= (2.0*den);
+   ppw *= (2.0*den);
    hw *= (2.0*num);
    
-   pw -= hw;
-   pw /= (den*den); // dxdp
-   Vector dxdp(pw);
+   ppw -= hw;
+   ppw /= (den*den); // dxdp
 
    Vector devi;
    // 5. compute dphi/dx * dx/dp * dp/du
@@ -905,13 +900,13 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
       u.GetRow(i,ui);
       dev.GetColumnReference(i,devi);
       pressureJacState(ui,devi);
-      devi *= dxdp(i);
+      devi *= ppw(i);
    }
 
-   // double aa = 100.*(factor - sensor_coeff);
-   // double bb = 1./ (1.0 + aa * aa);
-   // double cc = 100.0/M_PI * bb;
-   // dev *= cc;
+   double aa = 100.*(factor - sensor_coeff);
+   double bb = 1./ (1.0 + aa * aa);
+   double cc = 100.0/M_PI * bb;
+   dev *= cc;
    dev.Transpose();
 }
 

@@ -705,10 +705,16 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
       //    q.ProjectCoefficient(pert);
 
       //    // get some data
-      //    const SBPFiniteElement *sbp = dynamic_cast<const SBPFiniteElement*>(fes->GetFE(1));
+      //    const SBPFiniteElement *sbp = dynamic_cast<const SBPFiniteElement*>(fes->GetFE(0));
       //    int num_dof = sbp->GetDof();
 
-      //    DenseMatrix w(q.GetData(),num_state,num_dof);
+      //    mfem::Vector q_sub;
+      //    mfem::Array<int> el_dof;
+      //    fes->GetElementVDofs(0,el_dof);
+      //    q.GetSubVector(el_dof,q_sub);
+
+
+      //    DenseMatrix u(q.GetData(),num_state,num_dof);
       //    DenseMatrix dev(num_state,num_dof);
       //    lpsshock.computeSensorJacState(*sbp,w,dev);
 
@@ -754,12 +760,17 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
          q.ProjectCoefficient(pert);
 
          // get some data
-         const SBPFiniteElement *sbp = dynamic_cast<const SBPFiniteElement*>(fes->GetFE(1));
+         const SBPFiniteElement *sbp = dynamic_cast<const SBPFiniteElement*>(fes->GetFE(0));
          int num_dof = sbp->GetDof();
 
-         DenseMatrix w(q.GetData(),num_dof, num_state);
+         mfem::Vector q_sub;
+         mfem::Array<int> el_dof;
+         fes->GetElementVDofs(0,el_dof);
+         q.GetSubVector(el_dof,q_sub);
+
+         DenseMatrix u(q_sub.GetData(),num_dof, num_state);
          DenseMatrix dev(num_state,num_dof);
-         lpsshock.computeSensorJacState(*sbp,w,dev);
+         lpsshock.computeSensorJacState(*sbp,u,dev);
 
          double sp,sm;
          DenseMatrix fd(num_dof,num_state);
@@ -767,22 +778,14 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
          {
             for (int j = 0; j < num_state; j++)
             {
-               w(i,j) += 1e-5;
-               sp = lpsshock.computeSensor(*sbp,w);
-               w(i,j) -= 2e-5;
-               sm = lpsshock.computeSensor(*sbp,w);
-               w(i,j) += 1e-5;
-               fd(i,j) = (sp - sm)/2e-5;
+               u(i,j) += 1e-5;
+               sp = lpsshock.computeSensor(*sbp,u);
+               u(i,j) -= 2e-5;
+               sm = lpsshock.computeSensor(*sbp,u);
+               u(i,j) += 1e-5;
+               fd(i,j) = (sp - sm)/(2.e-5);
             }
          }
-         std::cout << "fd:\n";
-         fd.Print(std::cout,fd.Width());
-
-
-         std::cout << "\ndev:\n";
-         dev.Print(std::cout,dev.Width());
-
-
 
          for (int i = 0; i < num_state; ++i)
          {

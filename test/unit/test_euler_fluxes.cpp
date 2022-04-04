@@ -37,6 +37,32 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
               Approx(press_check[dim - 1]));
    }
 
+   SECTION("Pressure jacobian is correct")
+   {
+      double pert = 1e-5;
+      mfem::Vector q_pert(q);
+      mfem::Vector dpdq_fd(dim+2);
+      double pp, pm;
+      for (int i = 0; i < dim+2; i++)
+      {
+         q_pert(i) += pert;
+         pp = mach::pressure<double,dim>(q_pert.GetData());
+         q_pert(i) -= (2*pert);
+         pm = mach::pressure<double,dim>(q_pert.GetData());
+         q_pert(i) += pert;
+         dpdq_fd(i) = (pp - pm)/ (2.*pert);
+      }
+
+      mfem::Vector dpdq(dim+2);
+      mach::dpressdq<double,dim>(q.GetData(),dpdq.GetData());
+
+      for (int i = 0; i < dim+2; i++)
+      {
+         REQUIRE( dpdq(i) == Approx(dpdq_fd(i)) );
+      }
+
+   }
+
    SECTION("Entropy function is correct")
    {
       REQUIRE(mach::entropy<double, dim>(q.GetData()) ==
