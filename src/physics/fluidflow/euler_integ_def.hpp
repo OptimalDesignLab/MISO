@@ -296,8 +296,10 @@ void EntStableLPSShockIntegrator<dim,entvar>::applyPressJacState(
    if (entvar)
    {
       mfem::Vector u(dim+2);
+      mfem::Vector dpdu(dim+2);
       calcConservativeVars<double,dim>(q.GetData(),u.GetData());
-      dpressdq<double,dim>(u.GetData(),dpdq.GetData());
+      dpressdq<double,dim>(u.GetData(),dpdu.GetData());
+      calcdQdWProduct<double,dim>(u.GetData(), dpdu.GetData(), dpdq.GetData());
    }
    else
    {

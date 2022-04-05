@@ -423,160 +423,7 @@ LPSShockIntegrator<Derived>::LPSShockIntegrator(
    P -= VtV;
 }
 
-template <typename Derived>
-void LPSShockIntegrator<Derived>::AssembleElementVector(
-    const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
-    const mfem::Vector &elfun, mfem::Vector &elvect)
-{
-   using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
-   int num_nodes = sbp.GetDof();
-   int dim = sbp.GetDim();
-#ifdef MFEM_THREAD_SAFE
-   Vector ui;
-   DenseMatrix adjJt, w, Pw;
-#endif
-	elvect.SetSize(num_states*num_nodes);
-   ui.SetSize(num_states);
-   adjJt.SetSize(dim);
-   w.SetSize(num_states, num_nodes);
-   Pw.SetSize(num_states, num_nodes);
-   Vector wi, Pwi, prod(num_states);
-   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-   DenseMatrix res(elvect.GetData(), num_nodes, num_states);
-
-   // Step 1: convert from working variables (this may be the identity)
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      u.GetRow(i,ui);
-      w.GetColumnReference(i, wi);
-      convert(ui, wi);
-   }
-   multProjOperator(w, Pw, false);
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
-      CalcAdjugate(Trans.Jacobian(), adjJt);
-      u.GetRow(i,ui);
-      Pw.GetColumnReference(i, Pwi);
-      w.GetColumnReference(i, wi);
-      scale(adjJt, ui, Pwi, wi);
-      wi *= lps_coeff;
-   }
-
-   sbp.multNormMatrix(w, w);
-   // Step 4: apply the transposed projection operator to H*A*P*w
-   multProjOperator(w, Pw, true);
-   // This is necessary because data in elvect is expected to be ordered `byNODES`
-   res.Transpose(Pw);
-   res *= alpha;
-}
-
-
-template <typename Derived>
-void LPSShockIntegrator<Derived>::AssembleElementGrad(
-    const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
-    const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
-{
-   using namespace mfem;
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
-   int num_nodes = sbp.GetDof();
-   int dim = sbp.GetDim();
-#ifdef MFEM_THREAD_SAFE
-   Vector ui;
-   DenseMatrix adjJt, w, Pw, jac_term, jac_node, Lij;
-#endif
-   Vector wi, Pwi;
-   elmat.SetSize(num_states*num_nodes);
-   elmat = 0.0;
-   ui.SetSize(num_states);
-   adjJt.SetSize(dim);
-   w.SetSize(num_states, num_nodes);
-   Pw.SetSize(num_states, num_nodes);
-   jac_term.SetSize(num_states);
-   jac_node.SetSize(num_states);
-   Lij.SetSize(num_states);
-   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      u.GetRow(i,ui);
-      w.GetColumnReference(i, wi);
-      convert(ui, wi);
-   }
-
-   multProjOperator(w, Pw, false);
-   for (int i = 0; i < num_nodes; ++i)
-   {
-      // get contribution to Jacobian due to scaling operation
-      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-      CalcAdjugate(Trans.Jacobian(), adjJt);
-      u.GetRow(i, ui);
-      Pw.GetColumnReference(i, Pwi);
-      scaleJacState(adjJt, ui, Pwi, jac_term);
-      for (int j = 0; j < num_nodes; ++j)
-      {
-         double coeff = sbp.getDiagNormEntry(i) *
-                        getProjOperatorEntry(i, j);
-         for (int n = 0; n < num_states; ++n)
-         {
-            for (int m = 0; m < num_states; ++m)
-            {
-               elmat(n*num_nodes+j, m*num_nodes+i) += coeff*jac_term(n,m);
-            }
-         }
-      }
-
-      // get contribution to Jacobian assuming scaling is constant
-      for (int j = i; j < num_nodes; ++j)
-      {
-         // find matrix entry assuming scaling is constant;
-         // Lij = sum_{k=1}^{n} (P_ki H_k A(u_k) P_kj)
-         Lij = 0.0;
-         for (int k = 0; k < num_nodes; ++k)
-         {
-            Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
-            CalcAdjugate(Trans.Jacobian(), adjJt);
-            u.GetRow(k, ui);
-            scaleJacV(adjJt, ui, jac_term);
-            double coeff = getProjOperatorEntry(k, i) *
-                           sbp.getDiagNormEntry(k) *
-                           getProjOperatorEntry(k, j);
-            Lij.Add(coeff, jac_term);
-         }
-         // insert node-level Jacobian (i,j) into element matrix
-         u.GetRow(j, ui);
-         convertJacState(ui, jac_term);
-         Mult(Lij, jac_term, jac_node);
-         for (int n = 0; n < num_states; ++n)
-         {
-            for (int m = 0; m < num_states; ++m)
-            {
-               elmat(n*num_nodes+i, m*num_nodes+j) += jac_node(n,m);
-            }
-         }
-         if (i == j)
-         {
-            continue;  // don't double count the diagonal terms
-         }
-         // insert node-level Jacobian (j,i) into element matrix
-         u.GetRow(i, ui);
-         convertJacState(ui, jac_term);
-         Mult(Lij, jac_term, jac_node);
-         for (int n = 0; n < num_states; ++n)
-         {
-            for (int m = 0; m < num_states; ++m)
-            {
-               elmat(n*num_nodes+j, m*num_nodes+i) += jac_node(n,m);
-            }
-         }
-      }  
-   }
-   elmat *= alpha;
-}
-
-//template <typename Derived>
+// template <typename Derived>
 // void LPSShockIntegrator<Derived>::AssembleElementVector(
 //     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
 //     const mfem::Vector &elfun, mfem::Vector &elvect)
@@ -605,10 +452,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
 //       w.GetColumnReference(i, wi);
 //       convert(ui, wi);
 //    }
-//    double frac = computeSensor(el,u);
-//    // Step 2: apply the projection operator to w
 //    multProjOperator(w, Pw, false);
-//    // Step 3: apply scaling matrix at each node and diagonal norm
 //    for (int i = 0; i < num_nodes; ++i)
 //    {
 //       Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
@@ -620,11 +464,11 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
 //       scale(adjJt, ui, Pwi, wi);
 //       wi *= lps_coeff;
 //    }
+
 //    sbp.multNormMatrix(w, w);
 //    // Step 4: apply the transposed projection operator to H*A*P*w
 //    multProjOperator(w, Pw, true);
 //    // This is necessary because data in elvect is expected to be ordered `byNODES`
-//    Pw *= frac;
 //    res.Transpose(Pw);
 //    res *= alpha;
 // }
@@ -635,8 +479,6 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
 //     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
 //     const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
 // {
-//    // compute the jacobian of the lps shock integrator w.r.t the state
-//    // orginal form:  \phi(w) * P^t * H * A * P * w
 //    using namespace mfem;
 //    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
 //    int num_nodes = sbp.GetDof();
@@ -655,19 +497,15 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
 //    jac_term.SetSize(num_states);
 //    jac_node.SetSize(num_states);
 //    Lij.SetSize(num_states);
-//    DenseMatrix u(elfun.GetData(), num_nodes, num_states);  
+//    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
 
-//    // convert from working variables (this may be the identity)
 //    for (int i = 0; i < num_nodes; ++i)
 //    {
 //       u.GetRow(i,ui);
 //       w.GetColumnReference(i, wi);
 //       convert(ui, wi);
 //    }
-//    // 1. compute /phi(w)
-//    double frac = computeSensor(el,u);
-//    // 2. compute derivative of the rest
-//    // apply the projection operator to w
+
 //    multProjOperator(w, Pw, false);
 //    for (int i = 0; i < num_nodes; ++i)
 //    {
@@ -735,41 +573,203 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
 //          }
 //       }  
 //    }
-//    // compute first part of derivative
-//    elmat *= frac;
-
-//    //3. compute d /phi /d w
-//    DenseMatrix dphidw(num_states,num_nodes);
-//    computeSensorJacState(el,u,dphidw);
-
-//    //4. compute P^t * H * A * P * w
-//    multProjOperator(w, Pw, false);
-//    for (int i = 0; i < num_nodes; ++i)
-//    {
-//       Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
-//       //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
-//       CalcAdjugate(Trans.Jacobian(), adjJt);
-//       u.GetRow(i,ui);
-//       Pw.GetColumnReference(i, Pwi);
-//       w.GetColumnReference(i, wi);
-//       scale(adjJt, ui, Pwi, wi);
-//       wi *= lps_coeff;
-//    }
-//    sbp.multNormMatrix(w, w);
-//    multProjOperator(w, Pw, true);
-
-//    for (int i = 0; i < num_nodes; i++)
-//    {
-//       for (int j = 0; j < num_nodes; j++)
-//       {
-//          for (int k = 0; k < num_states; k++)
-//          {
-//             elmat(k*num_states+j,k*num_states+i) = Pw(k,j) * dphidw(k,i);
-//          }
-//       }
-//    }
 //    elmat *= alpha;
 // }
+
+template <typename Derived>
+void LPSShockIntegrator<Derived>::AssembleElementVector(
+    const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+    const mfem::Vector &elfun, mfem::Vector &elvect)
+{
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector ui;
+   DenseMatrix adjJt, w, Pw;
+#endif
+	elvect.SetSize(num_states*num_nodes);
+   ui.SetSize(num_states);
+   adjJt.SetSize(dim);
+   w.SetSize(num_states, num_nodes);
+   Pw.SetSize(num_states, num_nodes);
+   Vector wi, Pwi, prod(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+
+   // Step 1: convert from working variables (this may be the identity)
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      u.GetRow(i,ui);
+      w.GetColumnReference(i, wi);
+      convert(ui, wi);
+   }
+   double frac = computeSensor(el,u);
+   // Step 2: apply the projection operator to w
+   multProjOperator(w, Pw, false);
+   // Step 3: apply scaling matrix at each node and diagonal norm
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
+      CalcAdjugate(Trans.Jacobian(), adjJt);
+      u.GetRow(i,ui);
+      Pw.GetColumnReference(i, Pwi);
+      w.GetColumnReference(i, wi);
+      scale(adjJt, ui, Pwi, wi);
+      wi *= lps_coeff;
+   }
+   sbp.multNormMatrix(w, w);
+   // Step 4: apply the transposed projection operator to H*A*P*w
+   multProjOperator(w, Pw, true);
+   // This is necessary because data in elvect is expected to be ordered `byNODES`
+   Pw *= frac;
+   res.Transpose(Pw);
+   res *= alpha;
+}
+
+
+template <typename Derived>
+void LPSShockIntegrator<Derived>::AssembleElementGrad(
+    const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+    const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
+{
+   // compute the jacobian of the lps shock integrator w.r.t the state
+   // orginal form:  \phi(w) * P^t * H * A * P * w
+   using namespace mfem;
+   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+   int num_nodes = sbp.GetDof();
+   int dim = sbp.GetDim();
+#ifdef MFEM_THREAD_SAFE
+   Vector ui;
+   DenseMatrix adjJt, w, Pw, jac_term, jac_node, Lij;
+#endif
+   Vector wi, Pwi;
+   elmat.SetSize(num_states*num_nodes);
+   elmat = 0.0;
+   ui.SetSize(num_states);
+   adjJt.SetSize(dim);
+   w.SetSize(num_states, num_nodes);
+   Pw.SetSize(num_states, num_nodes);
+   jac_term.SetSize(num_states);
+   jac_node.SetSize(num_states);
+   Lij.SetSize(num_states);
+   DenseMatrix u(elfun.GetData(), num_nodes, num_states);  
+
+   // convert from working variables (this may be the identity)
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      u.GetRow(i,ui);
+      w.GetColumnReference(i, wi);
+      convert(ui, wi);
+   }
+   // 1. compute /phi(w)
+   double frac = computeSensor(el,u);
+   // 2. compute derivative of the rest
+   // apply the projection operator to w
+   multProjOperator(w, Pw, false);
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      // get contribution to Jacobian due to scaling operation
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+      CalcAdjugate(Trans.Jacobian(), adjJt);
+      u.GetRow(i, ui);
+      Pw.GetColumnReference(i, Pwi);
+      scaleJacState(adjJt, ui, Pwi, jac_term);
+      for (int j = 0; j < num_nodes; ++j)
+      {
+         double coeff = sbp.getDiagNormEntry(i) *
+                        getProjOperatorEntry(i, j);
+         for (int n = 0; n < num_states; ++n)
+         {
+            for (int m = 0; m < num_states; ++m)
+            {
+               elmat(n*num_nodes+j, m*num_nodes+i) += coeff*jac_term(n,m);
+            }
+         }
+      }
+
+      // get contribution to Jacobian assuming scaling is constant
+      for (int j = i; j < num_nodes; ++j)
+      {
+         // find matrix entry assuming scaling is constant;
+         // Lij = sum_{k=1}^{n} (P_ki H_k A(u_k) P_kj)
+         Lij = 0.0;
+         for (int k = 0; k < num_nodes; ++k)
+         {
+            Trans.SetIntPoint(&el.GetNodes().IntPoint(k));
+            CalcAdjugate(Trans.Jacobian(), adjJt);
+            u.GetRow(k, ui);
+            scaleJacV(adjJt, ui, jac_term);
+            double coeff = getProjOperatorEntry(k, i) *
+                           sbp.getDiagNormEntry(k) *
+                           getProjOperatorEntry(k, j);
+            Lij.Add(coeff, jac_term);
+         }
+         // insert node-level Jacobian (i,j) into element matrix
+         u.GetRow(j, ui);
+         convertJacState(ui, jac_term);
+         Mult(Lij, jac_term, jac_node);
+         for (int n = 0; n < num_states; ++n)
+         {
+            for (int m = 0; m < num_states; ++m)
+            {
+               elmat(n*num_nodes+i, m*num_nodes+j) += jac_node(n,m);
+            }
+         }
+         if (i == j)
+         {
+            continue;  // don't double count the diagonal terms
+         }
+         // insert node-level Jacobian (j,i) into element matrix
+         u.GetRow(i, ui);
+         convertJacState(ui, jac_term);
+         Mult(Lij, jac_term, jac_node);
+         for (int n = 0; n < num_states; ++n)
+         {
+            for (int m = 0; m < num_states; ++m)
+            {
+               elmat(n*num_nodes+j, m*num_nodes+i) += jac_node(n,m);
+            }
+         }
+      }  
+   }
+   // compute first part of derivative
+   elmat *= frac;
+
+   //3. compute d /phi /d w
+   DenseMatrix dphidw(num_states,num_nodes);
+   computeSensorJacState(el,u,dphidw);
+
+   //4. compute P^t * H * A * P * w
+   multProjOperator(w, Pw, false);
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      Trans.SetIntPoint(&el.GetNodes().IntPoint(i));
+      //CalcAdjugateTranspose(Trans.Jacobian(), adjJt);
+      CalcAdjugate(Trans.Jacobian(), adjJt);
+      u.GetRow(i,ui);
+      Pw.GetColumnReference(i, Pwi);
+      w.GetColumnReference(i, wi);
+      scale(adjJt, ui, Pwi, wi);
+      wi *= lps_coeff;
+   }
+   sbp.multNormMatrix(w, w);
+   multProjOperator(w, Pw, true);
+
+   for (int i = 0; i < num_nodes; i++)
+   {
+      for (int j = 0; j < num_nodes; j++)
+      {
+         for (int k = 0; k < num_states; k++)
+         {
+            elmat(k*num_states+j,k*num_states+i) += Pw(k,j) * dphidw(i,k);
+         }
+      }
+   }
+   elmat *= alpha;
+}
 
 
 template <typename Derived>
@@ -855,13 +855,12 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    using namespace std;
    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
    int num_nodes = sbp.GetDof();
-   int num_state = u.Width();
    double den = 0.0;
    double num = 0.0;
    double factor = 0.0;
 
    // 1. convert to pressure
-   Vector ui(num_state);
+   Vector ui(num_states);
    Vector pressure_nodes(num_nodes);
    for (int i = 0; i < num_nodes; i++)
    {
