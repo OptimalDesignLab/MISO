@@ -577,6 +577,94 @@ LPSShockIntegrator<Derived>::LPSShockIntegrator(
 //    elmat *= alpha;
 // }
 
+// template <typename Derived>
+// void LPSShockIntegrator<Derived>::AssembleElementVector(
+//     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+//     const mfem::Vector &elfun, mfem::Vector &elvect)
+// {
+//    using namespace mfem;
+//    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+//    int num_nodes = sbp.GetDof();
+//    int dim = sbp.GetDim();
+// #ifdef MFEM_THREAD_SAFE
+//    Vector ui;
+//    DenseMatrix adjJt, w, Pw;
+// #endif
+// 	elvect.SetSize(num_states*num_nodes);
+//    ui.SetSize(num_states);
+//    adjJt.SetSize(dim);
+//    w.SetSize(num_states, num_nodes);
+//    Pw.SetSize(num_states, num_nodes);
+//    Vector wi, Pwi, prod(num_states);
+//    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+//    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+//    elvect = 0.0;
+
+//    for (int i = 0; i < num_nodes; i++)
+//    {
+//       for (int j = 0; j < num_states; j++)
+//       {
+//          Pw(j,i) = i * num_states + j;
+//       }
+//    }
+//    double frac = computeSensor(el,u);
+//    Pw *= frac;
+//    res.Transpose(Pw);
+//    res *= alpha;
+// }
+
+
+// template <typename Derived>
+// void LPSShockIntegrator<Derived>::AssembleElementGrad(
+//     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
+//     const mfem::Vector &elfun, mfem::DenseMatrix &elmat)
+// {
+//    using namespace mfem;
+//    const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(el);
+//    int num_nodes = sbp.GetDof();
+//    int dim = sbp.GetDim();
+// #ifdef MFEM_THREAD_SAFE
+//    Vector ui;
+//    DenseMatrix adjJt, w, Pw, jac_term, jac_node, Lij;
+// #endif
+//    Vector wi, Pwi;
+//    elmat.SetSize(num_states*num_nodes);
+//    elmat = 0.0;
+//    ui.SetSize(num_states);
+//    adjJt.SetSize(dim);
+//    w.SetSize(num_states, num_nodes);
+//    Pw.SetSize(num_states, num_nodes);
+//    jac_term.SetSize(num_states);
+//    jac_node.SetSize(num_states);
+//    Lij.SetSize(num_states);
+//    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+
+//    for (int i = 0; i < num_nodes; i++)
+//    {
+//       for (int j = 0; j < num_states; j++)
+//       {
+//          Pw(j,i) = i * num_states + j;
+//       }
+//    }
+//    DenseMatrix dphidw(num_states,num_nodes);
+//    computeSensorJacState(el,u,dphidw);
+//    for (int i = 0; i < num_nodes; i++)
+//    {
+//       for (int j = 0; j < num_nodes; j++)
+//       {
+//          for (int m = 0; m < num_states; m++)
+//          {
+//             for (int n = 0; n < num_states; n++)
+//             {
+//                elmat(m*num_nodes + j, n * num_nodes + i) = Pw(m,j) * dphidw(n,i);
+//             }
+//          }
+//       }
+//    }
+//    elmat *= alpha;
+// }
+
+
 template <typename Derived>
 void LPSShockIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el, mfem::ElementTransformation &Trans,
@@ -762,9 +850,12 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
    {
       for (int j = 0; j < num_nodes; j++)
       {
-         for (int k = 0; k < num_states; k++)
+         for (int m = 0; m < num_states; m++)
          {
-            elmat(k*num_nodes+j,k*num_nodes+i) += Pw(k,j) * dphidw(i,k);
+            for (int n = 0; n < num_states; n++)
+            {
+               elmat(m*num_nodes + j, n * num_nodes + i) += Pw(m,j) * dphidw(n,i);
+            }
          }
       }
    }
@@ -913,7 +1004,6 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    double bb = 1./ (1.0 + aa * aa);
    double cc = 100.0/M_PI * bb;
    dev *= cc;
-   dev.Transpose();
 }
 
 template <typename Derived>

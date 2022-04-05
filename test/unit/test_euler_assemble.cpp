@@ -581,60 +581,49 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::AssembleElementGrad using e
    int num_edge = 1;
    std::unique_ptr<Mesh> mesh(new Mesh(num_edge, num_edge, Element::TRIANGLE,
                                        true /* gen. edges */, 1.0, 1.0, true));
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
-      // DYNAMIC_SECTION("...for degree p = " << p)
-      // {
-      //    std::unique_ptr<FiniteElementCollection> fec(
-      //        new SBPCollection(p, dim));
-      //    std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-      //        mesh.get(), fec.get(), num_state, Ordering::byVDIM));
-
-      //    NonlinearForm res(fes.get());
-      //    res.AddDomainIntegrator(
-      //        new mach::EntStableLPSShockIntegrator<2, entvar>(diff_stack,1.0,1.0,1e-3,fec.get()));
-
-      //    // initialize state; here we randomly perturb a constant state
-      //    GridFunction q(fes.get());
-      //    VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
-      //    q.ProjectCoefficient(pert);
-
-      //    // initialize the vector that the Jacobian multiplies
-      //    GridFunction v(fes.get());
-      //    VectorFunctionCoefficient v_rand(num_state, randState);
-      //    v.ProjectCoefficient(v_rand);
-
-      //    // evaluate the Jacobian and compute its product with v
-      //    Operator &Jac = res.GetGradient(q);
-      //    GridFunction jac_v(fes.get());
-      //    Jac.Mult(v, jac_v);
-
-      //    // now compute the finite-difference approximation...
-      //    GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
-      //    q_pert.Add(-delta, v);
-      //    res.Mult(q_pert, r);
-      //    q_pert.Add(2 * delta, v);
-      //    res.Mult(q_pert, jac_v_fd);
-      //    jac_v_fd -= r;
-      //    jac_v_fd /= (2 * delta);
-
-      //    for (int i = 0; i < jac_v.Size(); ++i)
-      //    {
-      //       REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
-      //    }
-      // }
-
-      mfem::Vector vt(12);
-      for (int i = 0; i < 12; i ++)
+      DYNAMIC_SECTION("...for degree p = " << p)
       {
-         vt(i) = double(i);
-      }
-      std::cout << "vector is: ";
-      vt.Print(std::cout,vt.Size());
+         std::unique_ptr<FiniteElementCollection> fec(
+             new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+             mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
-      DenseMatrix mt(vt.GetData(),3,4);
-      std::cout << "mat is \n";
-      mt.Print(std::cout,mt.Width());
+         NonlinearForm res(fes.get());
+         res.AddDomainIntegrator(
+             new mach::EntStableLPSShockIntegrator<2, entvar>(diff_stack,1.0,1.0,1e-3,fec.get()));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselinePert<2, entvar>);
+         q.ProjectCoefficient(pert);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator &Jac = res.GetGradient(q);
+         GridFunction jac_v(fes.get());
+         Jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+         q_pert.Add(-delta, v);
+         res.Mult(q_pert, r);
+         q_pert.Add(2 * delta, v);
+         res.Mult(q_pert, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2 * delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
+         }
+      }
+
 
 
       DYNAMIC_SECTION("(DSBP)...for degree p = " << p)
@@ -670,11 +659,6 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::AssembleElementGrad using e
          res.Mult(q_pert, jac_v_fd);
          jac_v_fd -= r;
          jac_v_fd /= (2 * delta);
-
-         std::cout << "fd: \n";
-         jac_v_fd.Print(std::cout,jac_v_fd.Size());
-         std::cout << "ana: \n";
-         jac_v.Print(std::cout,jac_v.Size());
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
@@ -732,7 +716,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
          lpsshock.computeSensorJacState(*sbp,u,dev);
 
          double sp,sm;
-         DenseMatrix fd(num_dof,num_state);
+         DenseMatrix fd(num_state,num_dof);
          for (int i = 0; i < num_dof; i++)
          {
             for (int j = 0; j < num_state; j++)
@@ -742,7 +726,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
                u(i,j) -= 2.*delta;
                sm = lpsshock.computeSensor(*sbp,u);
                u(i,j) += delta;
-               fd(i,j) = (sp - sm)/(2.*delta);
+               fd(j,i) = (sp - sm)/(2.*delta);
             }
          }
          // std::cout << "fd: \n";
@@ -756,7 +740,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
          {
             for (int j = 0; j < num_dof; j++)
             {
-               REQUIRE(dev(j,i) == Approx(fd(j,i)).margin(1e-10));
+               REQUIRE(dev(i,j) == Approx(fd(i,j)).margin(1e-10));
             }
          }
       }
@@ -786,11 +770,12 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
          q.GetSubVector(el_dof,q_sub);
 
          DenseMatrix u(q_sub.GetData(),num_dof, num_state);
+         q_sub(0) = 0.01;
          DenseMatrix dev(num_state,num_dof);
          lpsshock.computeSensorJacState(*sbp,u,dev);
 
          double sp,sm;
-         DenseMatrix fd(num_dof,num_state);
+         DenseMatrix fd(num_state,num_dof);
          for (int i = 0; i < num_dof; i++)
          {
             for (int j = 0; j < num_state; j++)
@@ -800,7 +785,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
                u(i,j) -= 2.*delta;
                sm = lpsshock.computeSensor(*sbp,u);
                u(i,j) += delta;
-               fd(i,j) = (sp - sm)/(2.*delta);
+               fd(j,i) = (sp - sm)/(2.*delta);
             }
          }
          // std::cout << "fd: \n";
@@ -814,7 +799,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
          {
             for (int j = 0; j < num_dof; j++)
             {
-               REQUIRE(dev(j,i) == Approx(fd(j,i)).margin(1e-10));
+               REQUIRE(dev(i,j) == Approx(fd(i,j)).margin(1e-10));
             }
          }
       }
