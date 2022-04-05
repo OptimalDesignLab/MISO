@@ -253,6 +253,7 @@ void LPSIntegrator<Derived>::AssembleElementVector(
    Vector wi, Pwi;
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+   elvect = 0.0;
 
    // Step 1: convert from working variables (this may be the identity)
    for (int i = 0; i < num_nodes; ++i)
@@ -597,7 +598,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    Vector wi, Pwi, prod(num_states);
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
-
+   elvect = 0.0;
    // Step 1: convert from working variables (this may be the identity)
    for (int i = 0; i < num_nodes; ++i)
    {
@@ -741,7 +742,6 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
    //3. compute d /phi /d w
    DenseMatrix dphidw(num_states,num_nodes);
    computeSensorJacState(el,u,dphidw);
-
    //4. compute P^t * H * A * P * w
    multProjOperator(w, Pw, false);
    for (int i = 0; i < num_nodes; ++i)
@@ -764,7 +764,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
       {
          for (int k = 0; k < num_states; k++)
          {
-            elmat(k*num_states+j,k*num_states+i) += Pw(k,j) * dphidw(i,k);
+            elmat(k*num_nodes+j,k*num_nodes+i) += Pw(k,j) * dphidw(i,k);
          }
       }
    }
@@ -836,12 +836,13 @@ double LPSShockIntegrator<Derived>::computeSensor(
 
    // 3. compute the raw factor
    factor = num/den;
-   // std::cout << "num = " << num;
-   // std::cout << ", den = " << den;
-   // std::cout << ", raw factor is " << factor << '\n';
 
    // 4. scale the factor
    factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
+   // std::cout << "num = " << num;
+   // std::cout << ", den = " << den;
+   // std::cout << ", raw factor is " << factor;
+   // std::cout << ", factor is " << factor << '\n';
    return factor;
 }
 
