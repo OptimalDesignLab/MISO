@@ -929,12 +929,14 @@ double LPSShockIntegrator<Derived>::computeSensor(
    factor = num/den;
 
    // 4. scale the factor
-   factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
+   // factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
    // std::cout << "num = " << num;
    // std::cout << ", den = " << den;
-   // std::cout << ", raw factor is " << factor;
+   // std::cout << ", raw factor is " << num/den;
    // std::cout << ", factor is " << factor << '\n';
-   return factor;
+   if (factor > sensor_coeff) {return 1.0;}
+   else {return 0.0;}
+   //return factor;
 }
 
 template <typename Derived>
