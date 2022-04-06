@@ -695,6 +695,8 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
       convert(ui, wi);
    }
    double frac = computeSensor(el,u);
+   if (frac < sensor_coeff) {return;}
+   std::cout << "shock captured: " << frac << ". ";
    // Step 2: apply the projection operator to w
    multProjOperator(w, Pw, false);
    // Step 3: apply scaling matrix at each node and diagonal norm
@@ -713,7 +715,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    // Step 4: apply the transposed projection operator to H*A*P*w
    multProjOperator(w, Pw, true);
    // This is necessary because data in elvect is expected to be ordered `byNODES`
-   Pw *= frac;
+   //Pw *= frac;
    res.Transpose(Pw);
    res *= alpha;
 }
@@ -755,6 +757,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
    }
    // 1. compute /phi(w)
    double frac = computeSensor(el,u);
+   if (frac < sensor_coeff) {return;}
    // 2. compute derivative of the rest
    // apply the projection operator to w
    multProjOperator(w, Pw, false);
@@ -934,9 +937,7 @@ double LPSShockIntegrator<Derived>::computeSensor(
    // std::cout << ", den = " << den;
    // std::cout << ", raw factor is " << num/den;
    // std::cout << ", factor is " << factor << '\n';
-   if (factor > sensor_coeff) {return 1.0;}
-   else {return 0.0;}
-   //return factor;
+   return factor;
 }
 
 template <typename Derived>
@@ -1001,11 +1002,10 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
       pressureJacState(ui,devi);
       devi *= ppw(i);
    }
-
-   double aa = 100.*(factor - sensor_coeff);
-   double bb = 1./ (1.0 + aa * aa);
-   double cc = 100.0/M_PI * bb;
-   dev *= cc;
+   // double aa = 100.*(factor - sensor_coeff);
+   // double bb = 1./ (1.0 + aa * aa);
+   // double cc = 100.0/M_PI * bb;
+   // dev *= cc;
 }
 
 template <typename Derived>
