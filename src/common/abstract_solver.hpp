@@ -175,6 +175,18 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &partial);
 
+   void outputJacobianVectorProduct(const std::string &of,
+                                    const MachInputs &inputs,
+                                    const MachInput &wrt_dot,
+                                    const std::string &wrt,
+                                    MachInput &out_dot);
+
+   void outputVectorJacobianProduct(const std::string &of,
+                                    const MachInputs &inputs,
+                                    const mfem::Vector &out_bar,
+                                    const std::string &wrt,
+                                    MachInput &wrt_bar);
+
    /// Cache inputs for the residual and internally store Jacobians
    /// \param[in] inputs - the independent variables at which to evaluate `res`
    void linearize(const MachInputs &inputs);

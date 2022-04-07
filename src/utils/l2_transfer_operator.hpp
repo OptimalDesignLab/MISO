@@ -72,7 +72,6 @@ public:
 
    friend void setInputs(L2TransferOperator &output, const MachInputs &inputs);
 
-
    void vectorJacobianProduct(const mfem::Vector &out_bar,
                               const std::string &wrt,
                               mfem::Vector &wrt_bar);

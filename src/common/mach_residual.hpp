@@ -41,8 +41,7 @@ double jacobianVectorProduct(T & /*unused*/,
                              const mfem::Vector & /*unused*/,
                              const std::string & /*unused*/)
 {
-   throw NotImplementedException(
-       "not specialized for concrete residual type!\n");
+   throw NotImplementedException("not specialized for concrete type!\n");
 }
 
 template <typename T>
@@ -51,16 +50,14 @@ void jacobianVectorProduct(T & /*unused*/,
                            const std::string & /*unused*/,
                            mfem::Vector & /*unused*/)
 {
-   throw NotImplementedException(
-       "not specialized for concrete residual type!\n");
+   throw NotImplementedException("not specialized for concrete type!\n");
 }
 template <typename T>
 double vectorJacobianProduct(T & /*unused*/,
                              const mfem::Vector & /*unused*/,
                              const std::string & /*unused*/)
 {
-   throw NotImplementedException(
-       "not specialized for concrete residual type!\n");
+   throw NotImplementedException("not specialized for concrete type!\n");
 }
 
 template <typename T>
@@ -69,8 +66,7 @@ void vectorJacobianProduct(T &,
                            const std::string & /*unused*/,
                            mfem::Vector & /*unused*/)
 {
-   throw NotImplementedException(
-       "not specialized for concrete residual type!\n");
+   throw NotImplementedException("not specialized for concrete type!\n");
 }
 
 template <typename T>

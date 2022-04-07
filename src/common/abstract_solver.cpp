@@ -113,6 +113,8 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
    }
    else  /// steady problem, use Newton on spatial residual directly
    {
+      initialHook(state);
+
       /// use input state as initial guess
       nonlinear_solver->iterative_mode = true;
 
@@ -254,7 +256,7 @@ void AbstractSolver2::setOutputOptions(const std::string &output,
       auto output_iter = outputs.find(output);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + output + " in output map?");
+         throw MachException("Did not find " + output + " in output map!\n");
       }
       mach::setOptions(output_iter->second, options);
    }
@@ -272,7 +274,7 @@ double AbstractSolver2::calcOutput(const std::string &output,
       auto output_iter = outputs.find(output);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + output + " in output map?");
+         throw MachException("Did not find " + output + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
       return mach::calcOutput(output_iter->second, inputs);
@@ -293,7 +295,7 @@ void AbstractSolver2::calcOutput(const std::string &output,
       auto output_iter = outputs.find(output);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + output + " in output map?");
+         throw MachException("Did not find " + output + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
       mach::calcOutput(output_iter->second, inputs, out_vec);
@@ -314,7 +316,7 @@ void AbstractSolver2::calcOutputPartial(const std::string &of,
       auto output_iter = outputs.find(of);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + of + " in output map?");
+         throw MachException("Did not find " + of + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
       double part = mach::calcOutputPartial(output_iter->second, wrt, inputs);
@@ -337,10 +339,70 @@ void AbstractSolver2::calcOutputPartial(const std::string &of,
       auto output_iter = outputs.find(of);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + of + " in output map?");
+         throw MachException("Did not find " + of + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
       mach::calcOutputPartial(output_iter->second, wrt, inputs, partial);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << std::endl;
+   }
+}
+
+void AbstractSolver2::outputJacobianVectorProduct(const std::string &of,
+                                                  const MachInputs &inputs,
+                                                  const mfem::Vector &wrt_dot,
+                                                  const std::string &wrt,
+                                                  mfem::Vector &out_dot)
+{
+   try
+   {
+      auto output_iter = outputs.find(of);
+      if (output_iter == outputs.end())
+      {
+         throw MachException("Did not find " + of + " in output map!\n");
+      }
+      auto &output = output_iter->second;
+      setInputs(output, inputs);
+      if (out_dot.Size() == 1)
+      {
+         out_dot(0) += mach::jacobianVectorProduct(output, wrt_dot, wrt);
+      }
+      else
+      {
+         mach::jacobianVectorProduct(output, wrt_dot, wrt, out_dot);
+      }
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << std::endl;
+   }
+}
+
+void AbstractSolver2::outputVectorJacobianProduct(const std::string &of,
+                                                  const MachInputs &inputs,
+                                                  const mfem::Vector &out_bar,
+                                                  const std::string &wrt,
+                                                  mfem::Vector &wrt_bar)
+{
+   try
+   {
+      auto output_iter = outputs.find(of);
+      if (output_iter == outputs.end())
+      {
+         throw MachException("Did not find " + of + " in output map!\n");
+      }
+      auto &output = output_iter->second;
+      setInputs(output, inputs);
+      if (wrt_bar.Size() == 1)
+      {
+         wrt_bar(0) += mach::vectorJacobianProduct(output, out_bar, wrt);
+      }
+      else
+      {
+         mach::vectorJacobianProduct(output, out_bar, wrt, wrt_bar);
+      }
    }
    catch (const std::out_of_range &exception)
    {
