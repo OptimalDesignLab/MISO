@@ -117,7 +117,8 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
 
    mfem::Vector state_bar(state.space().GetTrueVSize());
    state_bar = 0.0;
-   op.vectorJacobianProduct("state", {{"state", state_tv}}, out_bar, state_bar);
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "state", state_bar);
 
    auto dout_dstate_v_local = state_pert * state_bar;
    double dout_dstate_v;
@@ -227,7 +228,8 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
 
    mfem::Vector mesh_coords_bar(mesh_coords.space().GetTrueVSize());
    mesh_coords_bar = 0.0;
-   op.vectorJacobianProduct("mesh_coords", {{"state", state_tv}}, out_bar, mesh_coords_bar);
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "mesh_coords", mesh_coords_bar);
 
    auto dout_dmesh_v_local = mesh_pert * mesh_coords_bar;
    double dout_dmesh_v;
@@ -382,8 +384,8 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt state")
 
    mfem::Vector state_bar(state.space().GetTrueVSize());
    state_bar = 0.0;
-
-   op.vectorJacobianProduct("state", {{"state", state_tv}}, out_bar, state_bar);
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "state", state_bar);
 
    auto dout_dstate_v_local = state_pert * state_bar;
    double dout_dstate_v;
@@ -490,7 +492,8 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
 
    mfem::Vector mesh_coords_bar(mesh_coords.space().GetTrueVSize());
    mesh_coords_bar = 0.0;
-   op.vectorJacobianProduct("mesh_coords", {{"state", state_tv}}, out_bar, mesh_coords_bar);
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "mesh_coords", mesh_coords_bar);
 
    auto dout_dmesh_v_local = mesh_pert * mesh_coords_bar;
    double dout_dmesh_v;
@@ -651,8 +654,8 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt state")
 
    mfem::Vector state_bar(state.space().GetTrueVSize());
    state_bar = 0.0;
-
-   op.vectorJacobianProduct("state", {{"state", state_tv}}, out_bar, state_bar);
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "state", state_bar);
 
    auto dout_dstate_v_local = state_pert * state_bar;
    double dout_dstate_v;
@@ -762,7 +765,8 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt mesh_coords")
 
    mfem::Vector mesh_coords_bar(mesh_coords.space().GetTrueVSize());
    mesh_coords_bar = 0.0;
-   op.vectorJacobianProduct("mesh_coords", {{"state", state_tv}}, out_bar, mesh_coords_bar);
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "mesh_coords", mesh_coords_bar);
 
    auto dout_dmesh_v_local = mesh_pert * mesh_coords_bar;
    double dout_dmesh_v;
@@ -921,8 +925,8 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt state")
 
    mfem::Vector state_bar(state.space().GetTrueVSize());
    state_bar = 0.0;
-
-   op.vectorJacobianProduct("state", {{"state", state_tv}}, out_bar, state_bar);
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "state", state_bar);
 
    auto dout_dstate_v_local = state_pert * state_bar;
    double dout_dstate_v;
@@ -1031,7 +1035,8 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt mesh_coords")
 
    mfem::Vector mesh_coords_bar(mesh_coords.space().GetTrueVSize());
    mesh_coords_bar = 0.0;
-   op.vectorJacobianProduct("mesh_coords", {{"state", state_tv}}, out_bar, mesh_coords_bar);
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "mesh_coords", mesh_coords_bar);
 
    auto dout_dmesh_v_local = mesh_pert * mesh_coords_bar;
    double dout_dmesh_v;

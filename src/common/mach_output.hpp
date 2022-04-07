@@ -12,6 +12,7 @@
 #include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
+#include "utils.hpp"
 
 /// TODO: add some compile time check that makes sure that the type used to
 /// construct MachOutput has calcOutput for scalar or field outputs. Maybe take
@@ -25,7 +26,7 @@ double calcOutputPartial(T & /*unused*/,
                          const std::string & /*unused*/,
                          const MachInputs & /*unused*/)
 {
-   return NAN;
+   throw NotImplementedException("not specialized for concrete output type!\n");
 }
 
 template <typename T>
@@ -33,30 +34,57 @@ void calcOutputPartial(T & /*unused*/,
                        const std::string & /*unused*/,
                        const MachInputs & /*unused*/,
                        mfem::Vector & /*unused*/)
-{ }
+{
+   throw NotImplementedException("not specialized for concrete output type!\n");
+}
 
 template <typename T>
 void calcOutput(T & /*unused*/,
                 const MachInputs & /*unused*/,
                 mfem::Vector & /*unused*/)
-{ }
-
-template <typename T>
-double vectorJacobianProduct(T & /*unused*/,
-                             const std::string & /*unused*/,
-                             const MachInputs & /*unused*/,
-                             const mfem::Vector & /*unused*/)
 {
-   return NAN;
+   throw NotImplementedException("not specialized for concrete output type!\n");
 }
 
-template <typename T>
-void vectorJacobianProduct(T &output,
-                           const std::string & /*unused*/,
-                           const MachInputs & /*unused*/,
-                           const mfem::Vector & /*unused*/,
-                           mfem::Vector & /*unused*/)
-{ }
+// template <typename T>
+// double jacobianVectorProduct(T & /*unused*/,
+//                              const mfem::Vector & /*unused*/,
+//                              const std::string & /*unused*/)
+// {
+//    throw NotImplementedException(
+//        "not specialized for concrete output type!\n");
+// }
+
+// template <typename T>
+// void jacobianVectorProduct(T & /*unused*/,
+//                            const mfem::Vector & /*unused*/,
+//                            const std::string & /*unused*/,
+//                            mfem::Vector & /*unused*/)
+// {
+//    throw NotImplementedException(
+//        "not specialized for concrete output type!\n");
+// }
+
+// template <typename T>
+// double vectorJacobianProduct(T & /*unused*/,
+//                              const std::string & /*unused*/,
+//                              const MachInputs & /*unused*/,
+//                              const mfem::Vector & /*unused*/)
+// {
+//    throw NotImplementedException(
+//        "not specialized for concrete output type!\n");
+// }
+
+// template <typename T>
+// void vectorJacobianProduct(T &output,
+//                            const std::string & /*unused*/,
+//                            const MachInputs & /*unused*/,
+//                            const mfem::Vector & /*unused*/,
+//                            mfem::Vector & /*unused*/)
+// {
+//    throw NotImplementedException(
+//        "not specialized for concrete output type!\n");
+// }
 
 /// Creates common interface for outputs computable by mach
 /// A MachOutput can wrap any type `T` that has the interface of an output.
@@ -89,19 +117,30 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   /// Assemble the output vector's sensitivity to a scalar and contract it
-   /// with out_bar
-   friend double vectorJacobianProduct(MachOutput &output,
-                                       const std::string &wrt,
-                                       const MachInputs &inputs,
-                                       const mfem::Vector &out_bar);
-
-   /// Assemble the output vector's sensitivity to a field and contract it with
+   /// Compute the output's sensitivity to a scalar and contract it with
    /// out_bar
+   /// \param[inout] output - the output whose sensitivity we want
+   /// \param[in] out_bar - the output-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \return the assembled/contracted sensitivity
+   friend double vectorJacobianProduct(MachOutput &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
+
+   /// Compute the output's sensitivity to a vector and contract it with
+   /// out_bar
+   /// \param[inout] output - the output whose sensitivity we want
+   /// \param[in] out_bar - the output-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \param[inout] wrt_bar - the assembled/contracted sensitivity is
+   /// accumulated into wrt_bar
    friend void vectorJacobianProduct(MachOutput &output,
-                                     const std::string &wrt,
-                                     const MachInputs &inputs,
                                      const mfem::Vector &out_bar,
+                                     const std::string &wrt,
                                      mfem::Vector &wrt_bar);
 
    template <typename T>
@@ -123,12 +162,10 @@ private:
                                       mfem::Vector &partial) = 0;
       virtual void calcOutput_(const MachInputs &inputs,
                                mfem::Vector &out_vec) = 0;
-      virtual double vectorJacobianProduct_(const std::string &wrt,
-                                            const MachInputs &inputs,
-                                            const mfem::Vector &out_bar) = 0;
-      virtual void vectorJacobianProduct_(const std::string &wrt,
-                                          const MachInputs &inputs,
-                                          const mfem::Vector &out_bar,
+      virtual double vectorJacobianProduct_(const mfem::Vector &out_bar,
+                                            const std::string &wrt) = 0;
+      virtual void vectorJacobianProduct_(const mfem::Vector &out_bar,
+                                          const std::string &wrt,
                                           mfem::Vector &wrt_bar) = 0;
    };
 
@@ -164,19 +201,16 @@ private:
       {
          calcOutput(data_, inputs, out_vec);
       }
-      virtual double vectorJacobianProduct_(
-          const std::string &wrt,
-          const MachInputs &inputs,
-          const mfem::Vector &out_bar) override
+      double vectorJacobianProduct_(const mfem::Vector &out_bar,
+                                    const std::string &wrt) override
       {
-         return vectorJacobianProduct(data_, wrt, inputs, out_bar);
+         return vectorJacobianProduct(data_, out_bar, wrt);
       }
-      virtual void vectorJacobianProduct_(const std::string &wrt,
-                                          const MachInputs &inputs,
-                                          const mfem::Vector &out_bar,
-                                          mfem::Vector &wrt_bar) override
+      void vectorJacobianProduct_(const mfem::Vector &out_bar,
+                                  const std::string &wrt,
+                                  mfem::Vector &wrt_bar) override
       {
-         vectorJacobianProduct(data_, wrt, inputs, out_bar, wrt_bar);
+         vectorJacobianProduct(data_, out_bar, wrt, wrt_bar);
       }
 
       T data_;
@@ -223,20 +257,18 @@ inline void calcOutput(MachOutput &output,
 }
 
 inline double vectorJacobianProduct(MachOutput &output,
-                                    const std::string &wrt,
-                                    const MachInputs &inputs,
-                                    const mfem::Vector &out_bar)
+                                    const mfem::Vector &out_bar,
+                                    const std::string &wrt)
 {
-   return output.self_->vectorJacobianProduct_(wrt, inputs, out_bar);
+   return output.self_->vectorJacobianProduct_(out_bar, wrt);
 }
 
 inline void vectorJacobianProduct(MachOutput &output,
-                                  const std::string &wrt,
-                                  const MachInputs &inputs,
                                   const mfem::Vector &out_bar,
+                                  const std::string &wrt,
                                   mfem::Vector &wrt_bar)
 {
-   output.self_->vectorJacobianProduct_(wrt, inputs, out_bar, wrt_bar);
+   output.self_->vectorJacobianProduct_(out_bar, wrt, wrt_bar);
 }
 
 }  // namespace mach

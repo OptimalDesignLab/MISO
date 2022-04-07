@@ -816,7 +816,6 @@ void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
 
    mfem::Vector state_tv;
    setVectorFromInputs(inputs, "state", state_tv, false, true);
-
    state.distributeSharedDofs(state_tv);
 
    const auto &state_fes = state.space();
@@ -856,9 +855,8 @@ void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
    output.setTrueVec(out_vec);
 }
 
-void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
-                                               const MachInputs &inputs,
-                                               const mfem::Vector &out_bar,
+void L2TransferOperator::vectorJacobianProduct(const mfem::Vector &out_bar,
+                                               const std::string &wrt,
                                                mfem::Vector &wrt_bar)
 {
    if (wrt == "out")
@@ -868,11 +866,6 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
    else if (wrt == "state")
    {
       output_adjoint.distributeSharedDofs(out_bar);
-
-      mfem::Vector state_tv;
-      setVectorFromInputs(inputs, "state", state_tv, false, true);
-
-      state.distributeSharedDofs(state_tv);
 
       const auto &state_fes = state.space();
       const auto &output_fes = output.space();
@@ -925,10 +918,6 @@ void L2TransferOperator::vectorJacobianProduct(const std::string &wrt,
    {
       output_adjoint.distributeSharedDofs(out_bar);
 
-      mfem::Vector state_tv;
-      setVectorFromInputs(inputs, "state", state_tv, false, true);
-
-      state.distributeSharedDofs(state_tv);
       const auto &state_fes = state.space();
       const auto &output_fes = output.space();
       const auto &mesh_coords_fes = mesh_coords_bar.space();

@@ -70,9 +70,11 @@ public:
       apply(inputs, out_vec);
    }
 
-   void vectorJacobianProduct(const std::string &wrt,
-                              const MachInputs &inputs,
-                              const mfem::Vector &out_bar,
+   friend void setInputs(L2TransferOperator &output, const MachInputs &inputs);
+
+
+   void vectorJacobianProduct(const mfem::Vector &out_bar,
+                              const std::string &wrt,
                               mfem::Vector &wrt_bar);
 
    L2TransferOperator(FiniteElementState &state,
@@ -133,6 +135,13 @@ public:
                              FiniteElementState &output);
 };
 
+inline void setInputs(L2TransferOperator &output, const MachInputs &inputs)
+{
+   mfem::Vector state_tv;
+   setVectorFromInputs(inputs, "state", state_tv, false, true);
+   output.state.distributeSharedDofs(state_tv);
+}
+
 inline double calcOutput(L2TransferOperator &output, const MachInputs &inputs)
 {
    return NAN;
@@ -153,12 +162,11 @@ inline void calcOutput(L2TransferOperator &output,
 }
 
 inline void vectorJacobianProduct(L2TransferOperator &output,
-                                  const std::string &wrt,
-                                  const MachInputs &inputs,
                                   const mfem::Vector &out_bar,
+                                  const std::string &wrt,
                                   mfem::Vector &wrt_bar)
 {
-   output.vectorJacobianProduct(wrt, inputs, out_bar, wrt_bar);
+   output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
 }
 
 }  // namespace mach
