@@ -291,6 +291,46 @@ void initSolver(py::module &m)
            py::arg("partial"))
 
        .def(
+           "outputJacobianVectorProduct",
+           [](AbstractSolver2 &self,
+              const std::string &of,
+              const MachInputs &inputs,
+              const py::array_t<double> &wrt_dot_buffer,
+              const std::string &wrt,
+              const py::array_t<double> &out_dot_buffer)
+           {
+              auto wrt_dot = npBufferToMFEMVector(wrt_dot_buffer);
+              auto out_dot = npBufferToMFEMVector(out_dot_buffer);
+              self.outputJacobianVectorProduct(
+                  of, inputs, wrt_dot, wrt, out_dot);
+           },
+           py::arg("of"),
+           py::arg("inputs"),
+           py::arg("wrt_dot"),
+           py::arg("wrt"),
+           py::arg("out_dot"))
+
+       .def(
+           "outputVectorJacobianProduct",
+           [](AbstractSolver2 &self,
+              const std::string &of,
+              const MachInputs &inputs,
+              const py::array_t<double> &out_bar_buffer,
+              const std::string &wrt,
+              const py::array_t<double> &wrt_bar_buffer)
+           {
+              auto out_bar = npBufferToMFEMVector(out_bar_buffer);
+              auto wrt_bar = npBufferToMFEMVector(wrt_bar_buffer);
+              self.outputVectorJacobianProduct(
+                  of, inputs, out_bar, wrt, wrt_bar);
+           },
+           py::arg("of"),
+           py::arg("inputs"),
+           py::arg("out_bar"),
+           py::arg("wrt"),
+           py::arg("wrt_bar"))
+
+       .def(
            "linearize",
            [](AbstractSolver2 &self, const py::dict &py_inputs)
            { self.linearize(pyDictToMachInputs(py_inputs)); },
