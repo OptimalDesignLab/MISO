@@ -1,14 +1,14 @@
 {
    "flow-param": {
-      "mach": 0.5,
-      "aoa": 3.0,
+      "mach": 1.0,
+      "aoa": 0.0,
       "roll-axis": 0,
       "pitch-axis": 1
    },
    "space-dis": {
       "DGD": true,
       "DGD-degree": 1,
-      "extra-basis": 4,
+      "extra-basis": 0,
       "shape-param": 10.0,
       "degree": 1,
       "lps-coeff": 1.0,
@@ -18,9 +18,9 @@
    "time-dis": {
       "const-cfl": true,
       "res-exp": 2.0,
-      "ode-solver": "MIDPOINT",
-      "t-final": 100,
-      "dt": 0.1,
+      "ode-solver": "PTC",
+      "t-final": 1e15,
+      "dt": 0.01,
       "cfl": 1.0,
       "max-iter": 1e4
    },
@@ -59,7 +59,9 @@
       "drag": [0, 0, 1, 1]
    },
    "shock-capturing": {
-      "use": true,
-      "sensor-param": 0
+      "use": false,
+      "sensor-param":1e-3,
+      "k-param": 2.0,
+      "eps-param": 1.0
    } 
 }
