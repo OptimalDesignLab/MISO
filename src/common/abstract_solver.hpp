@@ -175,17 +175,33 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &partial);
 
+   /// Compute an output's sensitivity to @a wrt and contract it with @a wrt_dot
+   /// \param[inout] output - the output whose sensitivity we want
+   /// \param[in] wrt_dot - the "wrt"-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \param[inout] out_dot - the assembled/contracted sensitivity is
+   /// accumulated into out_dot
    void outputJacobianVectorProduct(const std::string &of,
                                     const MachInputs &inputs,
-                                    const MachInput &wrt_dot,
+                                    const mfem::Vector &wrt_dot,
                                     const std::string &wrt,
-                                    MachInput &out_dot);
+                                    mfem::Vector &out_dot);
 
+   /// Compute an output's sensitivity to @a wrt and contract it with @a out_bar
+   /// \param[inout] output - the output whose sensitivity we want
+   /// \param[in] out_bar - the output-sized vector to contract with the
+   /// sensitivity
+   /// \param[in] wrt - string denoting what variable to take the derivative
+   /// with respect to
+   /// \param[inout] wrt_bar - the assembled/contracted sensitivity is
+   /// accumulated into wrt_bar
    void outputVectorJacobianProduct(const std::string &of,
                                     const MachInputs &inputs,
                                     const mfem::Vector &out_bar,
                                     const std::string &wrt,
-                                    MachInput &wrt_bar);
+                                    mfem::Vector &wrt_bar);
 
    /// Cache inputs for the residual and internally store Jacobians
    /// \param[in] inputs - the independent variables at which to evaluate `res`
