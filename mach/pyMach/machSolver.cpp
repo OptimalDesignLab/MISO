@@ -229,6 +229,8 @@ void initSolver(py::module &m)
             py::arg("output"),
             py::arg("options"))
 
+       .def("getOutputSize", &AbstractSolver2::getOutputSize, py::arg("output"))
+
        .def("setOutputOptions",
             &AbstractSolver2::setOutputOptions,
             "Set options for the output specified by \"output\"",
@@ -294,11 +296,12 @@ void initSolver(py::module &m)
            "outputJacobianVectorProduct",
            [](AbstractSolver2 &self,
               const std::string &of,
-              const MachInputs &inputs,
+              const py::dict &py_inputs,
               const py::array_t<double> &wrt_dot_buffer,
               const std::string &wrt,
               const py::array_t<double> &out_dot_buffer)
            {
+              auto inputs = pyDictToMachInputs(py_inputs);
               auto wrt_dot = npBufferToMFEMVector(wrt_dot_buffer);
               auto out_dot = npBufferToMFEMVector(out_dot_buffer);
               self.outputJacobianVectorProduct(
@@ -314,11 +317,12 @@ void initSolver(py::module &m)
            "outputVectorJacobianProduct",
            [](AbstractSolver2 &self,
               const std::string &of,
-              const MachInputs &inputs,
+              const py::dict &py_inputs,
               const py::array_t<double> &out_bar_buffer,
               const std::string &wrt,
               const py::array_t<double> &wrt_bar_buffer)
            {
+              auto inputs = pyDictToMachInputs(py_inputs);
               auto out_bar = npBufferToMFEMVector(out_bar_buffer);
               auto wrt_bar = npBufferToMFEMVector(wrt_bar_buffer);
               self.outputVectorJacobianProduct(

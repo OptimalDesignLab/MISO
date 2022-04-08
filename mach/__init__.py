@@ -27,5 +27,4 @@ if openmdao is not None:
             print('Warning: MPhys dependency is not installed. MPhys wrapper will not be active.')
 
     if mphys is not None:
-        # from .omMach import omMachState, omMachFunctional
-        pass
+        from .mphys.mach_builder import MachBuilder, MachMeshGroup

@@ -102,6 +102,21 @@ public:
       calcOutputPartial(output.output, wrt, inputs, partial);
    }
 
+   friend inline double jacobianVectorProduct(ForceFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt)
+   {
+      return jacobianVectorProduct(output.output, wrt_dot, wrt);
+   }
+
+   friend inline void vectorJacobianProduct(ForceFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar)
+   {
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+   }
+
    ForceFunctional(mfem::ParFiniteElementSpace &fes,
                    std::map<std::string, FiniteElementState> &fields,
                    const nlohmann::json &options,
@@ -158,6 +173,21 @@ public:
       calcOutputPartial(output.output, wrt, inputs, partial);
    }
 
+   friend inline double jacobianVectorProduct(TorqueFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt)
+   {
+      return jacobianVectorProduct(output.output, wrt_dot, wrt);
+   }
+
+   friend inline void vectorJacobianProduct(TorqueFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar)
+   {
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+   }
+
    TorqueFunctional(mfem::ParFiniteElementSpace &fes,
                     std::map<std::string, FiniteElementState> &fields,
                     const nlohmann::json &options,
@@ -183,7 +213,7 @@ public:
    {
       return getSize(output.output);
    }
-   
+
    friend void setInputs(ACLossFunctional &output, const MachInputs &inputs);
 
    friend double calcOutput(ACLossFunctional &output, const MachInputs &inputs);

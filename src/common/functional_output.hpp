@@ -34,6 +34,24 @@ public:
                                  const MachInputs &inputs,
                                  mfem::Vector &partial);
 
+   friend double jacobianVectorProduct(FunctionalOutput &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   // friend void jacobianVectorProduct(FunctionalOutput &output,
+   //                                   const mfem::Vector &wrt_dot,
+   //                                   const std::string &wrt,
+   //                                   mfem::Vector &out_dot);
+
+   // friend double vectorJacobianProduct(FunctionalOutput &output,
+   //                                     const mfem::Vector &out_bar,
+   //                                     const std::string &wrt);
+
+   friend void vectorJacobianProduct(FunctionalOutput &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
    /// Adds domain integrator to the nonlinear form that backs this output,
    /// and adds a reference to it to in integs as a MachIntegrator
    /// \param[in] integrator - integrator to add to functional
@@ -79,7 +97,7 @@ public:
 
    FunctionalOutput(mfem::ParFiniteElementSpace &fes,
                     std::map<std::string, FiniteElementState> &fields)
-    : output(&fes), func_fields(&fields)
+    : output(&fes), scratch(0), func_fields(&fields)
    { }
 
    /// constructor just for compatibility with older solvers
@@ -92,6 +110,9 @@ public:
 private:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm output;
+   /// work vector
+   mfem::Vector scratch;
+
    /// map of external fields the functional depends on
    std::map<std::string, FiniteElementState> *func_fields;
 
@@ -112,10 +133,7 @@ private:
    std::map<std::string, mfem::ParNonlinearForm> output_scalar_sens;
 };
 
-inline int getSize(const FunctionalOutput &output)
-{
-   return 1;
-}
+inline int getSize(const FunctionalOutput &output) { return 1; }
 
 template <typename T>
 void FunctionalOutput::addOutputDomainIntegrator(T *integrator)

@@ -72,8 +72,9 @@ class MachState(om.ImplicitComponent):
 
         # state outputs
         local_state_size = solver.getStateSize()
+        state = np.zeros(local_state_size)
         self.add_output("state",
-                        shape=local_state_size,
+                        val=state,
                         distributed=True,
                         desc="Mach state vector",
                         tags=["mphys_coupling"])
@@ -114,25 +115,25 @@ class MachState(om.ImplicitComponent):
                 if "state" in d_residuals: 
                     if "state" in d_outputs: 
                         solver.jacobianVectorProduct(wrt_dot=d_outputs["state"],
-                                                    wrt="state",
-                                                    res_dot=d_residuals["state"])
+                                                     wrt="state",
+                                                     res_dot=d_residuals["state"])
 
                     for input in d_inputs:
                         solver.jacobianVectorProduct(wrt_dot=d_inputs[input],
-                                                    wrt=input,
-                                                    res_dot=d_residuals["state"])
+                                                     wrt=input,
+                                                     res_dot=d_residuals["state"])
 
             elif mode == "rev":
                 if "state" in d_residuals: 
                     if "state" in d_outputs: 
                         solver.vectorJacobianProduct(res_bar=d_residuals["state"],
-                                                    wrt="state",
-                                                    wrt_bar=d_outputs["state"])
+                                                     wrt="state",
+                                                     wrt_bar=d_outputs["state"])
 
                     for input in d_inputs:
                         solver.vectorJacobianProduct(res_bar=d_residuals["state"],
-                                                    wrt=input,
-                                                    wrt_bar=d_inputs[input])
+                                                     wrt=input,
+                                                     wrt_bar=d_inputs[input])
         except NotImplementedError as err:
             if self.options["check_partials"]:
                 pass

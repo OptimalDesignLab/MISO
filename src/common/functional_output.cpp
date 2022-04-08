@@ -85,4 +85,45 @@ void calcOutputPartial(FunctionalOutput &output,
    }
 }
 
+double jacobianVectorProduct(FunctionalOutput &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   output.scratch.SetSize(wrt_dot.Size());
+   if (wrt == "state")
+   {
+      Vector state;
+      output.func_fields->at("state").setTrueVec(state);
+      output.output.Mult(state, output.scratch);
+   }
+   else
+   {
+      output.output_sens.at(wrt).Assemble();
+      output.output_sens.at(wrt).ParallelAssemble(output.scratch);
+   }
+
+   return InnerProduct(output.scratch, wrt_dot);
+}
+
+void vectorJacobianProduct(FunctionalOutput &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   output.scratch.SetSize(wrt_bar.Size());
+   if (wrt == "state")
+   {
+      Vector state;
+      output.func_fields->at("state").setTrueVec(state);
+      output.output.Mult(state, output.scratch);
+   }
+   else
+   {
+      output.output_sens.at(wrt).Assemble();
+      output.output_sens.at(wrt).ParallelAssemble(output.scratch);
+   }
+
+   wrt_bar.Add(out_bar(0), output.scratch);
+}
+
 }  // namespace mach
