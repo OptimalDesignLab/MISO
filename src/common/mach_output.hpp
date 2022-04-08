@@ -51,6 +51,11 @@ void calcOutput(T & /*unused*/,
 class MachOutput final
 {
 public:
+   /// Gets the dimension of the output
+   /// \param[inout] output - the output whose size is being queried
+   /// \return the dimension of the output
+   friend int getSize(const MachOutput &output);
+
    /// Used to set inputs in the underlying output type
    friend void setInputs(MachOutput &output, const MachInputs &inputs);
 
@@ -138,6 +143,7 @@ private:
    {
    public:
       virtual ~concept_t() = default;
+      virtual int getSize_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) = 0;
       virtual void setOptions_(const nlohmann::json &options) = 0;
       virtual double calcOutput_(const MachInputs &inputs) = 0;
@@ -165,6 +171,7 @@ private:
    {
    public:
       model(T x) : data_(std::move(x)) { }
+      int getSize_() const override { return getSize(data_); }
       void setInputs_(const MachInputs &inputs) override
       {
          setInputs(data_, inputs);
@@ -220,6 +227,11 @@ private:
 
    std::unique_ptr<concept_t> self_;
 };
+
+inline int getSize(const MachOutput &output)
+{
+   return output.self_->getSize_();
+}
 
 inline void setInputs(MachOutput &output, const MachInputs &inputs)
 {

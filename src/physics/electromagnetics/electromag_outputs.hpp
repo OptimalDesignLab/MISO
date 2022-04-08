@@ -67,6 +67,11 @@ namespace mach
 class ForceFunctional final
 {
 public:
+   friend inline int getSize(const ForceFunctional &output)
+   {
+      return getSize(output.output);
+   }
+
    friend inline void setInputs(ForceFunctional &output,
                                 const MachInputs &inputs)
    {
@@ -118,6 +123,11 @@ private:
 class TorqueFunctional final
 {
 public:
+   friend inline int getSize(const TorqueFunctional &output)
+   {
+      return getSize(output.output);
+   }
+
    friend inline void setInputs(TorqueFunctional &output,
                                 const MachInputs &inputs)
    {
@@ -169,6 +179,11 @@ private:
 class ACLossFunctional final
 {
 public:
+   friend inline int getSize(const ACLossFunctional &output)
+   {
+      return getSize(output.output);
+   }
+   
    friend void setInputs(ACLossFunctional &output, const MachInputs &inputs);
 
    friend double calcOutput(ACLossFunctional &output, const MachInputs &inputs);

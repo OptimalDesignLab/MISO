@@ -112,6 +112,11 @@ private:
    std::map<std::string, mfem::ParNonlinearForm> output_scalar_sens;
 };
 
+inline int getSize(const FunctionalOutput &output)
+{
+   return 1;
+}
+
 template <typename T>
 void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 {

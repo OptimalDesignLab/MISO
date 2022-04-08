@@ -248,6 +248,24 @@ void AbstractSolver2::createOutput(const std::string &output,
    }
 }
 
+int AbstractSolver2::getOutputSize(const std::string &output)
+{
+   try
+   {
+      auto output_iter = outputs.find(output);
+      if (output_iter == outputs.end())
+      {
+         throw MachException("Did not find " + output + " in output map!\n");
+      }
+      return mach::getSize(output_iter->second);
+   }
+   catch (const std::out_of_range &exception)
+   {
+      std::cerr << exception.what() << std::endl;
+   }
+   return -1;
+}
+
 void AbstractSolver2::setOutputOptions(const std::string &output,
                                        const nlohmann::json &options)
 {

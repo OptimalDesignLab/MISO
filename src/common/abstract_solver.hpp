@@ -127,6 +127,11 @@ public:
    /// exception will be thrown
    void createOutput(const std::string &output, const nlohmann::json &options);
 
+   /// Gets the size of the @a output known to the solver
+   /// \param[in] output - the name of the output to look up the size of
+   /// \return the discrete size of the @a output
+   int getOutputSize(const std::string &output);
+
    /// Sets options for the output specifed by @a output
    /// \param[in] output - specifies the desired output
    /// \param[in] options - options needed for configuring the output

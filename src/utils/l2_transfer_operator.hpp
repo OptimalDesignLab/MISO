@@ -61,6 +61,11 @@ public:
 class L2TransferOperator
 {
 public:
+   friend inline int getSize(const L2TransferOperator &output)
+   {
+      return output.output.space().GetTrueVSize();
+   }
+
    /// compute the action of the operator
    void apply(const MachInputs &inputs, mfem::Vector &out_vec);
    /// \overload
