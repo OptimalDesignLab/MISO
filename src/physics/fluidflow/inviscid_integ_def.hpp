@@ -697,7 +697,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    }
    double frac = computeSensor(el,u);
    // if (frac < sensor_coeff) {return;}
-   std::cout << "shock captured: " << frac << ". ";
+   // std::cout << "shock captured: " << frac << ". ";
    // Step 2: apply the projection operator to w
    multProjOperator(w, Pw, false);
    // Step 3: apply scaling matrix at each node and diagonal norm
