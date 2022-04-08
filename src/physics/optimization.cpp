@@ -72,16 +72,14 @@ DGDOptimizer::DGDOptimizer(Vector init,
    cout << "DGD model size is (should be number of basis): " << num_state * dynamic_cast<DGDSpace *>(fes_dgd.get())->GetNDofs() << '\n';
    cout << "res_full size is " << res_full->Height() << " x " << res_full->Width() << '\n';
 	cout << "res_dgd size is " << res_dgd->Height() << " x " << res_dgd->Width() << '\n';
-
-	// add integrators
-	addVolumeIntegrators(1.0);
-	addBoundaryIntegrators(1.0);
-	addInterfaceIntegrators(1.0);
-	cout << "done with adding integrators.\n";
 }
 
 void DGDOptimizer::InitializeSolver()
 {
+	addVolumeIntegrators(1.0);
+	addBoundaryIntegrators(1.0);
+	addInterfaceIntegrators(1.0);
+
 	cout << "Initialize solvers in DGD optimization.\n";
 	// linear solver
 	solver.reset(new UMFPackSolver());
@@ -114,6 +112,27 @@ void DGDOptimizer::SetInitialCondition(void (*u_init)(const mfem::Vector &,
 
    u_test -= *u_full;
    cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+}
+
+void DGDOptimizer::SetInitialCondition(const mfem::Vector uic)
+{
+   VectorConstantCoefficient u0(uic);
+   u_full->ProjectCoefficient(u0);
+   u_dgd->ProjectConstVecCoefficient(u0);
+
+	GridFunType u_test(fes_full.get());
+	dynamic_cast<DGDSpace *>(fes_dgd.get())->GetProlongationMatrix()->Mult(*u_dgd, u_test);
+
+	ofstream initial("initial_condition.vtk");
+	initial.precision(14);
+	mesh->PrintVTK(initial, 0);
+	u_full->SaveVTK(initial, "initial", 0);
+	u_test.SaveVTK(initial, "projection", 0);
+
+	u_test -= *u_full;
+	cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+	u_test.SaveVTK(initial, "project_error", 0);
+	initial.close();
 }
 
 double DGDOptimizer::GetEnergy(const Vector &x) const
@@ -267,6 +286,11 @@ void DGDOptimizer::addVolumeIntegrators(double alpha)
 	res_full->AddDomainIntegrator(new EntStableLPSIntegrator<2,false>(diff_stack,1.0,lps_coeff));
 	res_dgd->AddDomainIntegrator(new IsmailRoeIntegrator<2,false>(diff_stack,1.0));
 	res_dgd->AddDomainIntegrator(new EntStableLPSIntegrator<2,false>(diff_stack,1.0,lps_coeff));
+   if(options["shock-capturing"]["use"].template get<bool>() == true)
+   {
+      double sensor = options["shock-capturing"]["sensor-param"].template get<double>();
+      res_dgd->AddDomainIntegrator(new EntStableLPSShockIntegrator<2,false>(diff_stack, alpha,lps_coeff,sensor,fec.get()));
+   }
 }
 
 

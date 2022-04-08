@@ -35,7 +35,7 @@ void writeBasisCentervtp(const mfem::Vector &q, T& stream);
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "optimizationtest_options.json";
+   const char *options_file = "airfoil_optimization_options.json";
    int myid = 0;
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -47,12 +47,6 @@ int main(int argc, char *argv[])
    int extra = 1;
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
-   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
-   args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
-   args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
-   args.AddOption(&numRad, "-br", "--basisrad", "number of radial segments");
-   args.AddOption(&numTheta, "-bt", "--basistheta", "number of angular segments");
-   args.AddOption(&extra,"-e","--extra","number of anglular points");
    args.Parse();
    if (!args.Good())
    {
@@ -61,19 +55,14 @@ int main(int argc, char *argv[])
    }
    try
    {
-      // generate the mesh
-      unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree + 1, nx, ny);
-      ofstream savevtk("optimizationtest.vtk");
-      smesh->PrintVTK(savevtk, 0);
-      savevtk.close();
-      std::cout << "Number of elements " << smesh->GetNE() << '\n';
-      int dim = smesh->Dimension();
-      int num_state = dim + 2;
-
-
       // mesh for basis
-      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree + 1,numRad,numTheta);
-
+      unique_ptr<Mesh> bmesh(new Mesh("airfoil_p2_r0.mesh",1));
+      ofstream savevtk("airfoil_opti.vtk");
+      bmesh->PrintVTK(savevtk, 0);
+      savevtk.close();
+      std::cout << "Number of elements " << bmesh->GetNE() << '\n';
+      int dim = bmesh->Dimension();
+      int num_state = dim + 2;
 
       // initialize the basis center (design variables)
       int numBasis = bmesh->GetNE();
@@ -84,7 +73,7 @@ int main(int argc, char *argv[])
 
       // initialize the optimization object
       string optfile(options_file);
-      DGDOptimizer dgdopt(center,optfile,move(smesh));
+      DGDOptimizer dgdopt(center,optfile,nullptr);
       dgdopt.InitializeSolver();
       dgdopt.SetInitialCondition(uexact);
 

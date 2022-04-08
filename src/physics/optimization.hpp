@@ -33,6 +33,8 @@ public:
    void SetInitialCondition(void (*u_init)(const mfem::Vector &,
                                            mfem::Vector &));
    
+   void SetInitialCondition(const mfem::Vector uic);
+   
    virtual double GetEnergy(const mfem::Vector &x) const;
 
    /// compute the jacobian of the functional w.r.t the design variable
