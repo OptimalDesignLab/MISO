@@ -592,7 +592,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::AssembleElementGrad using e
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::EntStableLPSShockIntegrator<2, entvar>(diff_stack,1.0,1.0,1e-3,fec.get()));
+             new mach::EntStableLPSShockIntegrator<2, entvar>(diff_stack,1.0,1.0,1e-3,6.0,1.0,fec.get()));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -634,7 +634,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::AssembleElementGrad using e
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::EntStableLPSShockIntegrator<2, entvar>(diff_stack,1.0,1.0,1e-3,fec.get()));
+         res.AddDomainIntegrator(new mach::EntStableLPSShockIntegrator<2, entvar>(diff_stack,1.0,1.0,1e-3,6.0,1.0,fec.get()));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -671,7 +671,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::AssembleElementGrad using e
 
 TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
                        "[LPSShockIntegrator]",
-                       ((bool entvar), entvar), true,false)
+                       ((bool entvar), entvar), true, false)
 {
    using namespace mfem;
    using namespace euler_data;
@@ -695,7 +695,8 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         mach::EntStableLPSShockIntegrator<2, entvar> lpsshock(diff_stack,1.0,1.0,1e-3,fec.get());
+         mach::EntStableLPSShockIntegrator<2, entvar> lpsshock(diff_stack,
+                                                1.0,1.0,1e-3,6.0,1.0,fec.get());
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -753,7 +754,8 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
              mesh.get(), fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         mach::EntStableLPSShockIntegrator<2, entvar> lpsshock(diff_stack,1.0,1.0,1e-3,fec.get());
+         mach::EntStableLPSShockIntegrator<2, entvar> lpsshock(diff_stack,
+                                                1.0,1.0,1e-3,6.0,1.0,fec.get());
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -788,12 +790,12 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSShockIntegrator::Compute sensor jac",
                fd(j,i) = (sp - sm)/(2.*delta);
             }
          }
-         // std::cout << "fd: \n";
-         // fd.Print(std::cout,fd.Width());
-         // std::cout <<'\n';
+         std::cout << "fd: \n";
+         fd.Print(std::cout,fd.Width());
+         std::cout <<'\n';
 
-         // std::cout << "ana:\n";
-         // dev.Print(std::cout,dev.Width());
+         std::cout << "ana:\n";
+         dev.Print(std::cout,dev.Width());
 
          for (int i = 0; i < num_state; ++i)
          {

@@ -75,13 +75,15 @@ int main(int argc, char *argv[])
       string optfile(options_file);
       DGDOptimizer dgdopt(center,optfile,nullptr);
       dgdopt.InitializeSolver();
-      dgdopt.SetInitialCondition(uexact);
+      Vector qfar(dim+2);
+      dgdopt.getFreeStreamState(qfar);
+      dgdopt.SetInitialCondition(qfar);
 
       double l2norm = dgdopt.GetEnergy(center);
       cout << "initial objective value is " << l2norm << '\n';
       // dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,40);
+      BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);

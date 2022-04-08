@@ -45,6 +45,7 @@ public:
    void addInterfaceIntegrators(double alpha);
 
    void checkJacobian(mfem::Vector &x);
+   void getFreeStreamState(mfem::Vector &q_ref);
    /// class destructor
    ~DGDOptimizer();
    
@@ -59,6 +60,13 @@ protected:
    int FullSize;
    int numDesignVar;
    mfem::Vector designVar;
+
+
+   // airfoil variables
+   double mach_fs;
+   double aoa_fs;
+   int iroll;
+   int ipitch;
 
    // aux variables
    std::vector<mfem::Array<int>> bndry_marker;

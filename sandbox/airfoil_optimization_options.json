@@ -1,4 +1,5 @@
 {
+   "problem-type": "airfoil",
    "flow-param": {
       "mach": 0.5,
       "aoa": 3.0,

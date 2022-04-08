@@ -87,12 +87,14 @@ public:
    /// Sets `P` to be the operator that removes polynomials of degree `order`
    /// \param[in,out] P - to store the operator
    void getProjOperator(DenseMatrix &P) const;
+   void getShockProjOperator(DenseMatrix &P) const;
 
    /// Returns the `i`th row `j`th column entry of the projection operator
    /// \param[in] i - desired row
    /// \param[in] j - desired column
    /// \returns \f$ P_{ij} \f$
    double getProjOperatorEntry(int i, int j) const;
+   double getShockProjOperatorEntry(int i, int j) const;
 
    /// Applies the local projection operator, `P` or `P^T`, to the given data
    /// \param[in] u - `num_state` x `num_node` matrix of data being multiplied
@@ -101,6 +103,8 @@ public:
    /// \warning Pu is overwritten and possibly resized.
    void multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
                          bool trans = false) const;
+   void multShockProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
+                              bool trans = false) const;
 
    /// Returns the `(i,j)`th entry of the weak derivative in direction `di`
    /// \param[in] di - desired reference space direction of operator entry
@@ -155,6 +159,8 @@ protected:
    mutable Array<DenseMatrix> Q;
    /// generalized Vandermonde matrix; used for the projection operator in LPS
    mutable DenseMatrix V;
+   /// generalized Vandermode matrix for shock capturing projector
+   mutable DenseMatrix D;
 };
 
 // /// Class for summation-by-parts operator on interval

@@ -72,6 +72,14 @@ DGDOptimizer::DGDOptimizer(Vector init,
    cout << "DGD model size is (should be number of basis): " << num_state * dynamic_cast<DGDSpace *>(fes_dgd.get())->GetNDofs() << '\n';
    cout << "res_full size is " << res_full->Height() << " x " << res_full->Width() << '\n';
 	cout << "res_dgd size is " << res_dgd->Height() << " x " << res_dgd->Width() << '\n';
+
+	if (options["problem-type"].get<string>() == "airfoil")
+	{
+		mach_fs = options["flow-param"]["mach"].get<double>();
+		aoa_fs = options["flow-param"]["aoa"].get<double>()*M_PI/180;
+		iroll = options["flow-param"]["roll-axis"].get<int>();
+		ipitch = options["flow-param"]["pitch-axis"].get<int>();
+	}
 }
 
 void DGDOptimizer::InitializeSolver()
@@ -288,8 +296,10 @@ void DGDOptimizer::addVolumeIntegrators(double alpha)
 	res_dgd->AddDomainIntegrator(new EntStableLPSIntegrator<2,false>(diff_stack,1.0,lps_coeff));
    if(options["shock-capturing"]["use"].template get<bool>() == true)
    {
-      double sensor = options["shock-capturing"]["sensor-param"].template get<double>();
-      res_dgd->AddDomainIntegrator(new EntStableLPSShockIntegrator<2,false>(diff_stack, alpha,lps_coeff,sensor,fec.get()));
+      double sensor = options["shock-capturing"]["sensor-param"].get<double>();
+		double k = options["shock-capturing"]["k-param"].get<double>();
+      double eps = options["shock-capturing"]["eps-param"].get<double>();
+      res_dgd->AddDomainIntegrator(new EntStableLPSShockIntegrator<2,false>(diff_stack,alpha,lps_coeff,sensor,k,eps,fec.get()));
    }
 }
 
@@ -330,6 +340,22 @@ void DGDOptimizer::addBoundaryIntegrators(double alpha)
              bndry_marker[idx]);
       idx++;
    }
+   if (bcs.find("far-field") != bcs.end())
+   { 
+      // far-field boundary conditions
+      vector<int> tmp = bcs["far-field"].template get<vector<int>>();
+      mfem::Vector qfar(dim+2);
+      getFreeStreamState(qfar);
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res_full->AddBdrFaceIntegrator(
+          new FarFieldBC<2, false>(diff_stack, fec.get(), qfar, alpha),
+          bndry_marker[idx]);
+		res_dgd->AddBdrFaceIntegrator(
+          new FarFieldBC<2, false>(diff_stack, fec.get(), qfar, alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
 	// need to add farfield bc conditions
 	for (int k = 0; k < bndry_marker.size(); ++k)
 	{
@@ -349,6 +375,22 @@ void DGDOptimizer::addInterfaceIntegrators(double alpha)
 			InterfaceIntegrator<2,false>(diff_stack,diss_coeff,fec.get(),alpha));
 	res_dgd->AddInteriorFaceIntegrator(new 
 			InterfaceIntegrator<2,false>(diff_stack,diss_coeff,fec.get(),alpha));
+}
+
+void DGDOptimizer::getFreeStreamState(mfem::Vector &q_ref)
+{
+   q_ref = 0.0;
+   q_ref(0) = 1.0;
+   if (dim == 1)
+   {
+      q_ref(1) = q_ref(0)*mach_fs; // ignore angle of attack
+   }
+   else
+   {
+      q_ref(iroll+1) = q_ref(0)*mach_fs*cos(aoa_fs);
+      q_ref(ipitch+1) = q_ref(0)*mach_fs*sin(aoa_fs);
+   }
+   q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
 }
 
 void DGDOptimizer::checkJacobian(Vector &x)

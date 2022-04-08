@@ -369,7 +369,8 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    /// \param[in] coeff - the LPS coefficient
    LPSShockIntegrator(adept::Stack &diff_stack, int num_state_vars = 1,
-                 double a = 1.0, double coeff = 1.0, double sensor = .5,
+                 double a = 1.0, double coeff = 1.0, double sensor = 1e-3,
+                 double k = 2.0, double eps = 1.0,
                  const mfem::FiniteElementCollection *fe_coll = nullptr);
 
    /// Construct the element local residual
@@ -427,6 +428,8 @@ protected:
    double lps_coeff;
    /// threshold for presence of shocks/high order behavior
    double sensor_coeff;
+   double k_coeff;
+   double eps_coeff;
    /// stack used for algorithmic differentiation
    adept::Stack &stack;
 #ifndef MFEM_THREAD_SAFE

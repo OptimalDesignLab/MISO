@@ -180,9 +180,10 @@ public:
    /// \param[in] coeff - the LPS coefficient
    EntStableLPSShockIntegrator(adept::Stack &diff_stack, double a = 1.0,
                           double coeff = 1.0, double sensor = 0.5,
+                          double k = 2.0, double eps = 1.0,
                           const mfem::FiniteElementCollection *fe_coll = nullptr)
        : LPSShockIntegrator<EntStableLPSShockIntegrator<dim,entvar>>(
-             diff_stack, dim + 2, a, coeff, sensor, fe_coll) { }
+             diff_stack, dim + 2, a, coeff, sensor, k, eps, fe_coll) { }
 
    /// converts conservative variables to entropy variables
    /// \param[in] q - conservative variables that are to be converted

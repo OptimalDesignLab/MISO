@@ -392,9 +392,10 @@ template <typename Derived>
 LPSShockIntegrator<Derived>::LPSShockIntegrator(
          adept::Stack &diff_stack, int num_state_vars,
          double a, double coeff, double sensor,
+         double k, double eps,
          const mfem::FiniteElementCollection *fe_coll) 
    : num_states(num_state_vars), alpha(a), lps_coeff(coeff),
-     stack(diff_stack), sensor_coeff(sensor)
+     stack(diff_stack), sensor_coeff(sensor), k_coeff(k), eps_coeff(eps)
 {
    const mfem::SBPFiniteElement *el = dynamic_cast<const mfem::SBPFiniteElement*>
                   (fe_coll->FiniteElementForGeometry(mfem::Geometry::TRIANGLE));
@@ -695,7 +696,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
       convert(ui, wi);
    }
    double frac = computeSensor(el,u);
-   if (frac < sensor_coeff) {return;}
+   // if (frac < sensor_coeff) {return;}
    std::cout << "shock captured: " << frac << ". ";
    // Step 2: apply the projection operator to w
    multProjOperator(w, Pw, false);
@@ -715,7 +716,7 @@ void LPSShockIntegrator<Derived>::AssembleElementVector(
    // Step 4: apply the transposed projection operator to H*A*P*w
    multProjOperator(w, Pw, true);
    // This is necessary because data in elvect is expected to be ordered `byNODES`
-   //Pw *= frac;
+   Pw *= frac;
    res.Transpose(Pw);
    res *= alpha;
 }
@@ -757,7 +758,7 @@ void LPSShockIntegrator<Derived>::AssembleElementGrad(
    }
    // 1. compute /phi(w)
    double frac = computeSensor(el,u);
-   if (frac < sensor_coeff) {return;}
+   // if (frac < sensor_coeff) {return;}
    // 2. compute derivative of the rest
    // apply the projection operator to w
    multProjOperator(w, Pw, false);
@@ -915,7 +916,7 @@ double LPSShockIntegrator<Derived>::computeSensor(
    DenseMatrix proj(num_nodes);
    Vector pw(num_nodes), ppw(num_nodes);
    Vector hw(num_nodes);
-   sbp.getProjOperator(proj);
+   sbp.getShockProjOperator(proj);
 
    proj.Mult(pressure_nodes,pw);
    for (int i = 0; i < num_nodes; i++)
@@ -933,6 +934,21 @@ double LPSShockIntegrator<Derived>::computeSensor(
 
    // 4. scale the factor
    // factor =  (1.0/M_PI * atan( 100.*(factor - sensor_coeff) ) + 0.5);
+   double se = log10(factor);
+   double in;
+   if (se < sensor_coeff - k_coeff)
+   {
+      factor = 0.0;
+   }
+   else if(se > sensor_coeff)
+   {
+      factor = eps_coeff;
+   }
+   else
+   {
+      in = M_PI * (se - sensor_coeff) / (2.*k_coeff);
+      factor = 0.5*eps_coeff *(1.0+sin(in));
+   }
    // std::cout << "num = " << num;
    // std::cout << ", den = " << den;
    // std::cout << ", raw factor is " << num/den;
@@ -965,7 +981,7 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
 
    // 2. get numerator operator
    DenseMatrix proj(num_nodes);
-   sbp.getProjOperator(proj);
+   sbp.getShockProjOperator(proj);
 
    // 3. compute num and den
    Vector pw(num_nodes), hw(num_nodes);
@@ -1006,6 +1022,26 @@ void LPSShockIntegrator<Derived>::computeSensorJacState(
    // double bb = 1./ (1.0 + aa * aa);
    // double cc = 100.0/M_PI * bb;
    // dev *= cc;
+
+   double se = log10(factor);
+   double in;
+   double dphida;
+   if (se < sensor_coeff - k_coeff)
+   {
+      dphida = 0.0;
+   }
+   else if(se > sensor_coeff)
+   {
+      dphida = 0.0;
+   }
+   else
+   {
+      in = M_PI * (se - sensor_coeff) / (2.*k_coeff);
+      dphida = 0.5*eps_coeff * cos(in) * M_PI/(2.*k_coeff) * log10(exp(1.0))/factor;
+   }
+
+   dev *= dphida;
+
 }
 
 template <typename Derived>

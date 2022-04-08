@@ -168,6 +168,19 @@ void SBPFiniteElement::getProjOperator(DenseMatrix &P) const
    }
 }
 
+void SBPFiniteElement::getShockProjOperator(DenseMatrix &P) const
+{
+   MFEM_ASSERT( P.Size() == dof, "");
+   // Set lps = I - V*V'*H
+   MultAAt(D, P);
+   P.RightScaling(H);
+   P *= -1.0;
+   for (int i = 0; i < dof; ++i)
+   {
+      P(i, i) += 1.0;
+   }
+}
+
 double SBPFiniteElement::getProjOperatorEntry(int i, int j) const
 {
    MFEM_ASSERT( i < dof, "");
@@ -177,6 +190,19 @@ double SBPFiniteElement::getProjOperatorEntry(int i, int j) const
    for (int k = 0; k < V.Width(); ++k)
    {
       Pij -= V(i,k)*V(j,k)*H(j);
+   }
+   return Pij;
+}
+
+double SBPFiniteElement::getShockProjOperatorEntry(int i, int j) const
+{
+   MFEM_ASSERT( i < dof, "");
+   MFEM_ASSERT( j < dof, "");
+   double Pij = (i == j) ? 1.0 : 0.0;
+   // loop over the polynomial basis functions
+   for (int k = 0; k < D.Width(); ++k)
+   {
+      Pij -= D(i,k)*D(j,k)*H(j);
    }
    return Pij;
 }
@@ -238,6 +264,69 @@ void SBPFiniteElement::multProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
             for (int n = 0; n < num_states; ++n)
             {
                Pu(n,j) -= V(j,i)*prod(n);
+            }
+         }
+      }
+   }
+}
+
+void SBPFiniteElement::multShockProjOperator(const DenseMatrix &u, DenseMatrix &Pu,
+                                             bool trans) const
+{
+   int num_nodes = GetDof();
+   MFEM_ASSERT( u.Width() == Pu.Width() && u.Width() == num_nodes , "");
+   MFEM_ASSERT( u.Height() == Pu.Height() , "");
+   int num_states = u.Height();
+   Vector prod(num_states); // work vector
+   Vector uj, Puj; // For references to existing data
+   // Note: DenseMatrix::operator= is not in-place
+   Pu = u;
+   if (trans == true)
+   {
+      // loop over the polynomial basis functions
+      for (int i = 0; i < D.Width(); ++i)
+      {
+         // perform the inner product V(:,i)^T * u
+         prod = 0.0;
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               prod(n) += D(j,i)*u(n,j); 
+            }
+         }
+         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            double fac = D(j,i)*H(j);
+            for (int n = 0; n < num_states; ++n)
+            {
+               Pu(n,j) -= fac*prod(n);
+            }
+         }
+      }
+   }
+   else // trans != true 
+   {
+      // loop over the polynomial basis functions
+      for (int i = 0; i < D.Width(); ++i)
+      {
+         // perform the inner product V(:,i)^T * H * u
+         prod = 0.0;
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            double fac = D(j,i)*H(j);
+            for (int n = 0; n < num_states; ++n)
+            {
+               prod(n) += fac*u(n,j);
+            }
+         }
+         // Subtract V(:,i) *(V(:,i)^T H u) from Pu
+         for (int j = 0; j < num_nodes; ++j)
+         {
+            for (int n = 0; n < num_states; ++n)
+            {
+               Pu(n,j) -= D(j,i)*prod(n);
             }
          }
       }
@@ -721,6 +810,15 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    mach::getVandermondeForTri(xi, eta, order, V);
    // scale V to account for the different reference elements
    V *= 2.0;
+
+
+   int sd = degree - 1;
+   D.SetSize(num_nodes, (sd + 1) * (sd + 2) / 2);
+   // First, get node coordinates and shift to triangle with vertices 
+   // (-1,-1), (1,-1), (-1,1)
+   mach::getVandermondeForTri(xi, eta, order-1, D);
+   // scale V to account for the different reference elements
+   D *= 2.0;
 }
 
 /// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
