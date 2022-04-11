@@ -36,6 +36,7 @@ protected:
    bool converged;
    double final_norm;
    int print_level, final_iter, max_iter;
+   double norm;
 
    /// strong wolfe condition variable
    double alpha_init;

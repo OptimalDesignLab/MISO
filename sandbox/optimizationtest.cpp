@@ -88,8 +88,8 @@ int main(int argc, char *argv[])
       dgdopt.InitializeSolver();
       dgdopt.SetInitialCondition(uexact);
 
-      double l2norm = dgdopt.GetEnergy(center);
-      cout << "initial objective value is " << l2norm << '\n';
+      // double l2norm = dgdopt.GetEnergy(center);
+      // cout << "initial objective value is " << l2norm << '\n';
       // dgdopt.checkJacobian(center);
 
       BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,1);

@@ -50,7 +50,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       ident(i,i) = 1.0;
    }
    int it;
-   double norm0, norm, norm_goal;
+   double norm0, norm_goal;
 
    norm0 = norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
    norm_goal = std::max(rel_tol*norm, abs_tol);
@@ -94,7 +94,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       c.Neg();
       // compute step size
       double c_scale = ComputeStepSize(x,c,norm);
-      cout << "step size is " <<  c_scale << '\n';
+      cout << "step size is " <<  c_scale << ". ";
       if (c_scale == 0.0)
       {
          converged = 0;
@@ -105,13 +105,12 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       x += c;
 
       // update objective new value and derivative
-      norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
-      oper->Mult(x,jac_new);
+      // norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
       cout << "new objective value is " << norm << '\n';
 
       // update hessian
+      oper->Mult(x,jac_new);
       UpdateHessianInverse(c,jac,jac_new,ident,B);
-
       // update jac
       jac = jac_new;
    }
@@ -197,7 +196,11 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
       // if curvature condition is satisfied
       if (fabs(dphi_new) <= -c2*dphi_init)
       {
-         if (c2 > 1e-6) { return alpha_new; }
+         if (c2 > 1e-6)
+         {
+            norm = phi_new; 
+            return alpha_new; 
+         }
          // c2 < 1e-6, this is not quite often
       }
 
@@ -259,7 +262,11 @@ double BFGSNewtonSolver::Zoom(double alpha_low, double alpha_hi, double phi_low,
          oper->Mult(x_new,jac_aux);
          dphi_new = c * jac_aux;
          // check curvature condition
-         if (fabs(dphi_new) < -c2*dphi_0) { return alpha_new; }
+         if (fabs(dphi_new) < -c2*dphi_0) 
+         {
+            norm = phi_new;
+            return alpha_new;
+         }
          if (dphi_new * (alpha_hi - alpha_low) >= 0.0)
          {
             alpha_hi = alpha_low;
