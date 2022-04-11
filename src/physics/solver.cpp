@@ -160,8 +160,9 @@ void AbstractSolver::initDerived(Vector &center)
 
    mass_matrix.reset(new MatrixType(mass->SpMat()));
    MatrixType *cp = dynamic_cast<DGDSpace*>(fes.get())->GetCP();
-   MatrixType *p = RAP(*cp, *mass_matrix, *cp);
-   mass_matrix_gd.reset(new MatrixType(*p));
+   //MatrixType *p = RAP(*cp, *mass_matrix, *cp);
+   mass_matrix_gd.reset(RAP(*cp, *mass_matrix, *cp));
+   //mass_matrix_gd.reset(new MatrixType(*p));
 
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    if (odes == "RK1" || odes == "RK4")
@@ -432,6 +433,7 @@ void AbstractSolver::setInverseInitialCondition(
    // check the projection error
    u_test -= *u;
    cout << "The initial condition projection error norm is " << u_test.Norml2() << '\n';
+   delete p;
 }
 
 
@@ -489,6 +491,7 @@ void AbstractSolver::setMinL2ErrorInitialCondition(
    uc->Print(uc_write, 1);
    u_write.close();
    uc_write.close();
+   delete p;
 }
 
 

@@ -90,9 +90,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
 
       // compute the direction c = B * (-deriv) 
       B.Mult(jac, c);
-      cout << "get decreasing deriction.\n";
       c.Neg();
-      cout << "negative.\n";
       // compute step size
       double c_scale = ComputeStepSize(x,c,norm);
       cout << "step size is " <<  c_scale << '\n';
@@ -108,6 +106,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       // update objective new value and derivative
       norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
       oper->Mult(x,jac_new);
+      cout << "new objective value is " << norm << '\n';
 
       // update hessian
       UpdateHessianInverse(c,jac,jac_new,ident,B);
@@ -178,11 +177,9 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
    double quad_coeff;
    for (int iter = 0; true; iter++)
    {
-      cout << iter << '\n';
       // evalueate the new function value
       add(x,alpha_new,c,x_new);
       phi_new = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x_new);
-      cout << "get phi_new = " << phi_new << '\n';
       // check if the step violates the sdc,
       // or when i > 0, new phi is greater than the old, then zoom
       if ( (phi_new > phi_init+c1*alpha_new*dphi_init) || 

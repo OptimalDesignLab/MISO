@@ -147,7 +147,6 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 {
 	// build new DGD operators
 	fes_dgd->buildProlongationMatrix(x);
-	cout << "prolongation matrix built.\n";
 	// solve for DGD solution
 	Vector b(numBasis);
 	newton_solver->Mult(b,*u_dgd);
@@ -300,6 +299,7 @@ void DGDOptimizer::addVolumeIntegrators(double alpha)
 		double k = options["shock-capturing"]["k-param"].get<double>();
       double eps = options["shock-capturing"]["eps-param"].get<double>();
       res_dgd->AddDomainIntegrator(new EntStableLPSShockIntegrator<2,false>(diff_stack,alpha,lps_coeff,sensor,k,eps,fec.get()));
+		res_full->AddDomainIntegrator(new EntStableLPSShockIntegrator<2,false>(diff_stack,alpha,lps_coeff,sensor,k,eps,fec.get()));
    }
 }
 

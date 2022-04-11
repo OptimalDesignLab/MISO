@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
    {
       // mesh for basis
       unique_ptr<Mesh> bmesh(new Mesh("airfoil_p2_r0.mesh",1));
-      ofstream savevtk("airfoil_opti.vtk");
+      ofstream savevtk("airfoil.vtk");
       bmesh->PrintVTK(savevtk, 0);
       savevtk.close();
       std::cout << "Number of elements " << bmesh->GetNE() << '\n';
@@ -78,10 +78,7 @@ int main(int argc, char *argv[])
       Vector qfar(dim+2);
       dgdopt.getFreeStreamState(qfar);
       dgdopt.SetInitialCondition(qfar);
-
-      double l2norm = dgdopt.GetEnergy(center);
-      cout << "initial objective value is " << l2norm << '\n';
-      // dgdopt.checkJacobian(center);
+      //dgdopt.checkJacobian(center);
 
       BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
       bfgsSolver.SetOperator(dgdopt);

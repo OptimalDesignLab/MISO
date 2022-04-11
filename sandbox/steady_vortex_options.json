@@ -55,5 +55,9 @@
    {
       "entropy": true,
       "drag": [0, 0, 0, 1]
+   },
+   "shock-capturing":
+   {
+      "use": false
    }
 }
