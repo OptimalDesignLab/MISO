@@ -160,9 +160,7 @@ void AbstractSolver::initDerived(Vector &center)
 
    mass_matrix.reset(new MatrixType(mass->SpMat()));
    MatrixType *cp = dynamic_cast<DGDSpace*>(fes.get())->GetCP();
-   //MatrixType *p = RAP(*cp, *mass_matrix, *cp);
-   mass_matrix_gd.reset(RAP(*cp, *mass_matrix, *cp));
-   //mass_matrix_gd.reset(new MatrixType(*p));
+   mass_matrix_gd.reset(RAP(*cp, *mass_matrix,*cp));
 
    const string odes = options["time-dis"]["ode-solver"].get<string>();
    if (odes == "RK1" || odes == "RK4")

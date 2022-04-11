@@ -660,7 +660,6 @@ void DGDSpace::AssembleDerivMatrix(const int el_id, const DenseMatrix &localMat,
    {
       el_dofs.GetSubArray(v * numDofs, numDofs, row_index);
       dpdc.SetSubMatrix(row_index, col_index, localMat, 1);
-      row_index.LoseData();
       // elements id also need to be shift accordingly
       for (int e = 0; e < numLocalBasis; e++)
       {

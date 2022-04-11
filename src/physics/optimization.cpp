@@ -278,11 +278,10 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	// ofstream djdc_save("djdc.txt");
 	// y.Print(djdc_save,1);
 	// djdc_save.close();
-	// delete Pt;
-	// delete pR_dgdpuc;
-	// delete pRt_dgdpuc;
-	// delete temp_mat1;
-	// delete pR_dgdpc;
+	delete temp_mat1;
+	delete Pt;
+	delete pRt_dgdpuc;
+	delete pR_dgdpc;
 }	
 
 

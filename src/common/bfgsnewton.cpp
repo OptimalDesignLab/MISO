@@ -19,6 +19,7 @@ BFGSNewtonSolver::BFGSNewtonSolver(double a_init, double a_max, double cc1,
    abs_tol = 1e-12;
    rel_tol = 1e-6;
    max_iter = max;
+   zoom_max_iter = 50;
 }
 
 void BFGSNewtonSolver::SetOperator(const Operator &op)
@@ -241,7 +242,7 @@ double BFGSNewtonSolver::Zoom(double alpha_low, double alpha_hi, double phi_low,
    double dphi_new;
    Vector jac_aux(x.Size());
    Vector x_new(x.Size());
-   for (int j = 0; j < max_iter; j++)
+   for (int j = 0; j < zoom_max_iter; j++)
    {
       alpha_new = (alpha_low + alpha_hi) / 2.0;
       add(x,alpha_new,c,x_new);

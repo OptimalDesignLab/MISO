@@ -41,6 +41,7 @@ protected:
    double alpha_init;
    double alpha_max;
    double c1, c2;
+   int zoom_max_iter;
 
    /// Back tracking globalization
    /// \param[in] x - current solution

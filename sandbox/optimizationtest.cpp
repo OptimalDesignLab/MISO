@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
       cout << "initial objective value is " << l2norm << '\n';
       // dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,40);
+      BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,1);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
